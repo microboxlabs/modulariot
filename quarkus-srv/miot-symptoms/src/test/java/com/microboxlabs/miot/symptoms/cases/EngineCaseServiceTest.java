@@ -101,6 +101,27 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void aFailedEpisodeDropLeavesTheCaseOpenForARetry() {
+        store.add(panic(12, "DEMO01"));
+        boolean[] down = {true};
+        EngineCaseService flaky = new EngineCaseService(store, (tenant, asset, definition) -> {
+            if (down[0]) {
+                throw new IllegalStateException("redis timeout");
+            }
+            forgotten.add(asset + "/" + definition);
+        }, t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        assertThrows(IllegalStateException.class, () -> flaky.close(TENANT, -12, "operator@example.com"));
+        assertFalse(store.open(TENANT).isEmpty());
+
+        down[0] = false;
+        flaky.close(TENANT, -12, "operator@example.com");
+
+        assertEquals(List.of("DEMO01/" + PANIC), forgotten);
+        assertTrue(store.open(TENANT).isEmpty());
+    }
+
+    @Test
     void writesAnEwkbPointAsPostgis() {
         assertEquals("0101000020E6100000000000000000F03F0000000000000040", EngineCaseService.ewkbPoint(1, 2));
     }

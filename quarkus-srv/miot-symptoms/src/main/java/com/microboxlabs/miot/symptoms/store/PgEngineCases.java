@@ -19,7 +19,8 @@ import java.util.function.Supplier;
 
 /**
  * The evaluator's cases, from {@code miot_symptoms.signal_transitions}: an ACTIVE OPENED row is a case, open
- * until a CLOSED row for the same symptom and vehicle at or after it.
+ * until a CLOSED row for the same symptom and vehicle written after it (by id: signal and close times come
+ * from different clocks).
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -30,8 +31,8 @@ public class PgEngineCases implements EngineCaseStore {
                    o.speed_kmh, d.name, d.family,
                    (SELECT c.at FROM miot_symptoms.signal_transitions c
                      WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
-                       AND c.asset_id = o.asset_id AND c.kind = 'CLOSED' AND c.at >= o.at
-                     ORDER BY c.at LIMIT 1) AS closed_at,
+                       AND c.asset_id = o.asset_id AND c.kind = 'CLOSED' AND c.id > o.id
+                     ORDER BY c.id LIMIT 1) AS closed_at,
                    (SELECT count(*) FROM miot_symptoms.treatment t
                      WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id) AS treatments
               FROM miot_symptoms.signal_transitions o

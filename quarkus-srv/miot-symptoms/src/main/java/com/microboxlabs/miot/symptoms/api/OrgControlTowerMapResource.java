@@ -190,7 +190,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         return Uni.createFrom().item(read).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
-        private static Uni<Response> answer(Supplier<Uni<JsonNode>> read) {
+    private static Uni<Response> answer(Supplier<Uni<JsonNode>> read) {
         Uni<JsonNode> data;
         try {
             data = read.get();

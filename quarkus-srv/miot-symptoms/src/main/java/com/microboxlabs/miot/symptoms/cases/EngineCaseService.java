@@ -171,12 +171,15 @@ public class EngineCaseService {
         return out;
     }
 
-    /** An operator closed the case's treatment: the case closes, and the next signal may open a new one. */
+    /**
+     * An operator closed the case's treatment: the case closes, and the next signal may open a new one. The
+     * episode goes first, so a failed drop leaves the case open and the call can be retried.
+     */
     public void close(String tenantCode, long symptomId, String actor) {
         EngineCase c = find(tenantCode, symptomId);
         if (c.closedAt() == null) {
-            store.close(tenantCode, c.id(), actor, clock.instant());
             forget.episode(tenantCode, c.assetId(), c.definitionId());
+            store.close(tenantCode, c.id(), actor, clock.instant());
         }
     }
 

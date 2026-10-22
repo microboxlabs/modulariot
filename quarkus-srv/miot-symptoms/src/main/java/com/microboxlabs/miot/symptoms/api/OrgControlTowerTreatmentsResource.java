@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.api;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import io.quarkus.security.PermissionsAllowed;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -121,7 +122,9 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @POST
     @Path("/treatments/{treatmentId}/close")
     @Operation(operationId = "closeTreatment", summary = "Finish a treatment",
-            description = "Needs at least one action. 409 when the treatment is not open or has no actions.")
+            description = "Needs at least one action. 409 when the treatment is not open or has no actions. "
+                    + "On an engine case (negative symptom id) it also closes the case; repeating it after the "
+                    + "treatment closed retries the case close.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> close(
@@ -131,8 +134,13 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> {
-            TreatmentView closed = treatments.close(tenant, actor, treatmentId, body);
-            if (EngineCase.caseId(closed.symptomId()).isPresent()) {
+            TreatmentView current = treatments.get(tenant, treatmentId);
+            boolean engineCase = EngineCase.caseId(current.symptomId()).isPresent();
+            // A retry after the case failed to close: the treatment is already closed, the case still closes.
+            TreatmentView closed = engineCase && current.status() == TreatmentStatus.CLOSED
+                    ? current
+                    : treatments.close(tenant, actor, treatmentId, body);
+            if (engineCase) {
                 cases.close(tenant, closed.symptomId(), actor);
             }
             return Response.ok(closed).build();

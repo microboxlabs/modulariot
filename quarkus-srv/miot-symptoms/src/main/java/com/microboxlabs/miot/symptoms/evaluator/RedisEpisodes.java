@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -29,8 +30,10 @@ public class RedisEpisodes implements EpisodeRepository {
     private static final String WATERMARK = "wm:";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
+    /** Ignores fields it does not know, so episodes written before a field was dropped still load. */
     private static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final RedisAPI redis;
     private final Duration ttl;

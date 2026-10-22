@@ -131,6 +131,21 @@ class SignalBuilderTest {
     }
 
     @Test
+    void aReloadReplacesTheRows() {
+        Instant start = AT.minusSeconds(600);
+        ReferenceCache refs = refs(List.of(trip("T-1", "v", "SCHEDULED", start, null)),
+                List.of(new Share("ABCD12", "client-a", true, null, null)));
+
+        refs.load(List.of(trip("T-2", "v", "SCHEDULED", start, null)),
+                List.of(new Share("ABCD12", "client-b", true, null, null)));
+
+        GpsSignal signal = build(refs, frame("ABCD12", 0, false));
+        assertEquals(1, refs.tripCount());
+        assertEquals("T-2", signal.trip().id());
+        assertEquals(List.of("sender-1", "client-b"), signal.clients());
+    }
+
+    @Test
     void skipsFramesWithoutVehicleOrTime() {
         SignalBuilder builder = new SignalBuilder(refs(List.of(), List.of()), ZoneId.of("UTC"));
 

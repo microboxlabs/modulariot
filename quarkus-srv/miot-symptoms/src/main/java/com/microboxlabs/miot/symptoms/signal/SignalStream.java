@@ -153,6 +153,9 @@ public class SignalStream {
     }
 
     private void apply(Message<byte[]> in, boolean trip) {
+        if (in.getPayload() == null || in.getPayload().length == 0) {
+            return; // Debezium's tombstone after a delete
+        }
         try {
             JsonObject change = new JsonObject(new String(in.getPayload(), StandardCharsets.UTF_8));
             if (trip) {

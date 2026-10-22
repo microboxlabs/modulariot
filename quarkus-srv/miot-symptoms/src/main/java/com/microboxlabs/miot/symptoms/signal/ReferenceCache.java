@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,11 +51,17 @@ public class ReferenceCache {
     private final Map<String, Map<String, Share>> shares = new ConcurrentHashMap<>();
     private volatile boolean loaded;
 
+    /** Replaces the rows without emptying the maps first, so frames built during a reload still find them. */
     public void load(List<Trip> allTrips, List<Share> allShares) {
-        trips.clear();
-        allTrips.forEach(t -> trips.put(t.tripId(), t));
-        shares.clear();
-        allShares.forEach(this::putShare);
+        Map<String, Trip> nextTrips = new HashMap<>();
+        allTrips.forEach(t -> nextTrips.put(t.tripId(), t));
+        trips.putAll(nextTrips);
+        trips.keySet().retainAll(nextTrips.keySet());
+        Map<String, Map<String, Share>> nextShares = new HashMap<>();
+        allShares.forEach(s -> nextShares.computeIfAbsent(s.assetId(), k -> new ConcurrentHashMap<>())
+                .put(s.clientId(), s));
+        shares.putAll(nextShares);
+        shares.keySet().retainAll(nextShares.keySet());
         loaded = true;
     }
 

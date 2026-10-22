@@ -114,8 +114,8 @@ class OrgSymptomDefinitionsResourceTest {
 
     @Test
     void onlyPlatformOwnersSaveASymptomAsATemplate() {
-        assertThrows(ForbiddenException.class,
-                () -> status(resource(true).saveAsTemplate(ORG, id, null)));
+        Uni<Response> asMember = resource(true).saveAsTemplate(ORG, id, null);
+        assertThrows(ForbiddenException.class, () -> status(asMember));
 
         assertEquals(200, status(resource(false, true).saveAsTemplate(ORG, id, null)));
         assertEquals(1, catalog.list(PLATFORM_TENANT).size());

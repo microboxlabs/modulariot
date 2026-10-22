@@ -81,8 +81,8 @@ export default function FieldCombobox({
         </ComboboxButton>
       </div>
       <ComboboxOptions
-        anchor="bottom start"
-        className="z-[60] w-80 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 text-sm shadow-lg [--anchor-gap:4px] dark:border-gray-600 dark:bg-gray-700"
+        anchor={{ to: "bottom start", gap: 4, padding: 16 }}
+        className="z-[60] w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 text-sm shadow-lg [--anchor-max-height:min(20rem,50vh)] dark:border-gray-600 dark:bg-gray-700"
       >
         {sections.length === 0 && (
           <div className="px-3 py-2 text-gray-500 dark:text-gray-400">
@@ -96,7 +96,7 @@ export default function FieldCombobox({
               <ComboboxOption
                 key={f.path}
                 value={f.path}
-                className="group flex cursor-default items-start gap-2 px-3 py-2 text-gray-900 data-[focus]:bg-gray-100 dark:text-white dark:data-[focus]:bg-gray-600"
+                className="group flex cursor-default items-start gap-2 px-3 py-1 text-gray-900 data-[focus]:bg-gray-100 dark:text-white dark:data-[focus]:bg-gray-600"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">
@@ -107,7 +107,7 @@ export default function FieldCombobox({
                       </span>
                     )}
                   </span>
-                  <span className="block truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+                  <span className="block truncate font-mono text-[11px] leading-4 text-gray-500 dark:text-gray-400">
                     {f.path}
                   </span>
                 </span>

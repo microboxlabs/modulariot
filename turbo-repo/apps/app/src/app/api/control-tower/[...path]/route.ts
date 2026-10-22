@@ -9,7 +9,7 @@ const proxy = orgApiProxy("control-tower", {
   // The modulith checks platform ownership from the token's email, so saving
   // as a template always goes with the user's session, never an M2M token.
   forward: (path, init) =>
-    new URL(path, "http://modulith").pathname.endsWith("/save-as-template")
+    path.split("?")[0].endsWith("/save-as-template")
       ? forwardToStreamhubModulith(path, { ...init, sessionOnly: true })
       : forwardToStreamhubModulith(path, init),
 });

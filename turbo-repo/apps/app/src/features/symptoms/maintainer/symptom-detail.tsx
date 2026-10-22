@@ -29,6 +29,8 @@ import {
   useControlTowerAccess,
   familiesListMissing,
   useSymptomTemplates,
+  type PublishPlan,
+  type SymptomSpec,
 } from "./maintainer-api";
 import DraftBar from "./draft-bar";
 import HarnessPanel from "./harness-panel";
@@ -50,6 +52,7 @@ import {
   isTemplateScope,
   PLATFORM_TEMPLATES,
   useSymptomScope,
+  type SymptomScope,
 } from "./symptom-scope";
 import { useSymptomDraft } from "./use-symptom-draft";
 import { changedPaths } from "./ui/changed";
@@ -59,6 +62,44 @@ import VersionsDrawer from "./versions-drawer";
 /** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
 function variantName(name: string, d: I18nRecord) {
   return tr("variantName", d, { name });
+}
+
+/**
+ * Who may edit the sheet: platform owners for a template, Control Tower
+ * maintainers for a symptom. The integration API lists connections for
+ * organization owners only, so `connectionsOrg` is null for anyone else, who
+ * sees the saved choice.
+ */
+function useSheetAccess(scope: SymptomScope) {
+  const template = isTemplateScope(scope);
+  const { activeOrg } = useOrgScopes();
+  const { canMaintain } = useControlTowerAccess();
+  const { isPlatformOwner } = useIsPlatformOwner();
+  const ownsOrg = !template && activeOrg?.role === "OWNER";
+  return {
+    template,
+    isPlatformOwner,
+    canWrite: template ? isPlatformOwner : canMaintain,
+    connectionsOrg: ownsOrg ? (activeOrg?.slug ?? null) : null,
+  };
+}
+
+/** Amber marks: what the draft changes against the published version; none before publishing. */
+function changeMarks(
+  spec: SymptomSpec | null | undefined,
+  published: SymptomSpec | null | undefined,
+  currentPlan: PublishPlan | null | undefined
+): Set<string> {
+  if (!published || !spec) return new Set<string>();
+  const paths = changedPaths(spec, published);
+  // Conditions in another order are no change for the publish plan, so no mark either.
+  if (
+    currentPlan &&
+    !currentPlan.changes.some((c) => c.section === "activation")
+  ) {
+    paths.delete("activation");
+  }
+  return paths;
 }
 
 /** The scrolling sheet; opening an old version scrolls it to the top. */
@@ -91,16 +132,9 @@ export default function SymptomDetail({
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
   const scope = useSymptomScope();
-  const template = isTemplateScope(scope);
-  const { activeOrg } = useOrgScopes();
-  const { canMaintain } = useControlTowerAccess();
-  const { isPlatformOwner } = useIsPlatformOwner();
-  const canWrite = template ? isPlatformOwner : canMaintain;
-  // The integration API lists connections for organization owners only; others see the saved choice.
-  const listsConnections = !template && activeOrg?.role === "OWNER";
-  const { connections } = useIntegrationConfig(
-    listsConnections ? (activeOrg?.slug ?? null) : null
-  );
+  const { template, isPlatformOwner, canWrite, connectionsOrg } =
+    useSheetAccess(scope);
+  const { connections } = useIntegrationConfig(connectionsOrg);
   const {
     detail,
     error,
@@ -128,19 +162,15 @@ export default function SymptomDetail({
     ? detail?.versions.find((v) => v.version === viewing)
     : undefined;
   const shownSpec = viewed?.spec ?? spec;
-  // Amber marks: what the spec on screen changes against the published version; none for an old version or before publishing.
+  // None for an old version on screen.
   const published = detail?.current?.spec;
-  const changed = useMemo(() => {
-    if (viewed || !published || !spec) return new Set<string>();
-    const paths = changedPaths(spec, published);
-    // Conditions in another order are no change for the publish plan, so no mark either.
-    const reordered =
-      planIsCurrent &&
-      plan &&
-      !plan.changes.some((c) => c.section === "activation");
-    if (reordered) paths.delete("activation");
-    return paths;
-  }, [viewed, published, spec, plan, planIsCurrent]);
+  const changed = useMemo(
+    () =>
+      viewed
+        ? new Set<string>()
+        : changeMarks(spec, published, planIsCurrent ? plan : undefined),
+    [viewed, published, spec, plan, planIsCurrent]
+  );
   // The overview describes the version on screen, or the one in force; a draft would rewrite it on every edit.
   const overviewSpec = viewed?.spec ?? published ?? null;
   const overview = overviewSpec ? overviewText(overviewSpec) : "";

@@ -22,7 +22,7 @@ public final class SeedTemplates {
 
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
-            + TEXT + "), " + TEXT + ",\\s*" + TEXT + ",\\s*\\$spec\\$(.*?)\\$spec\\$\\)", Pattern.DOTALL);
+            + TEXT + "), " + TEXT + ",\\s*" + TEXT + ",\\s*" + TEXT + "\\)", Pattern.DOTALL);
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final List<SymptomTemplate> ALL = load();
@@ -46,7 +46,7 @@ public final class SeedTemplates {
         while (m.find()) {
             String icon = m.group(5) == null ? null : unquote(m.group(5));
             out.add(new SymptomTemplate(unquote(m.group(1)), unquote(m.group(2)), unquote(m.group(3)), icon,
-                    unquote(m.group(6)), "1.0.0", spec(m.group(8)).withState(null)));
+                    unquote(m.group(6)), "1.0.0", spec(unquote(m.group(8))).withState(null)));
         }
         return List.copyOf(out);
     }

@@ -47,7 +47,12 @@ const FUNCTIONS = [
   "contains",
   "exists",
   "all",
+  "orValue",
+  "hasValue",
 ];
+
+/** Optional constants a `.?` read is compared with: `signal.frame.?sensors.?panic_button == TRUE`. */
+const CONSTANTS = ["TRUE", "FALSE", "NONE"];
 
 const cel = StreamLanguage.define({
   token(stream) {
@@ -59,11 +64,11 @@ const cel = StreamLanguage.define({
     )
       return "string";
     if (stream.match(/^\d+(\.\d+)?([eE][+-]?\d+)?u?/)) return "number";
-    if (stream.match(/^(true|false|null)\b/)) return "atom";
+    if (stream.match(/^(true|false|null|TRUE|FALSE|NONE)\b/)) return "atom";
     if (stream.match(/^in\b/)) return "keyword";
     if (stream.match(/^(&&|\|\||==|!=|>=|<=|[<>!+\-*/%?:])/)) return "operator";
     if (stream.match(/^\.?[A-Za-z_]\w*(?=\()/)) return "builtin";
-    if (stream.match(/^\.[A-Za-z_]\w*/)) return "property";
+    if (stream.match(/^\.\??[A-Za-z_]\w*/)) return "property";
     if (stream.match(/^[A-Za-z_]\w*/)) return "variable";
     stream.next();
     return null;
@@ -91,7 +96,7 @@ const highlight = HighlightStyle.define([
 
 function completions(fields: () => CelField[]) {
   return (ctx: CompletionContext) => {
-    const word = ctx.matchBefore(/[A-Za-z_][\w.]*/);
+    const word = ctx.matchBefore(/[A-Za-z_][\w.?]*/);
     if (!word || (word.from === word.to && !ctx.explicit)) return null;
     const text = word.text;
     const dot = text.lastIndexOf(".");
@@ -102,6 +107,7 @@ function completions(fields: () => CelField[]) {
         from: word.from,
         options: [
           ...roots.map((r) => ({ label: r, type: "variable" })),
+          ...CONSTANTS.map((c) => ({ label: c, type: "constant" })),
           ...FUNCTIONS.map((f) => ({
             label: f,
             type: "function",
@@ -110,7 +116,9 @@ function completions(fields: () => CelField[]) {
         ],
       };
     }
-    const prefix = text.slice(0, dot + 1);
+    // A `.?` read completes like a plain one: `signal.frame.?se` offers `sensors`.
+    const prefix = text.slice(0, dot + 1).replaceAll("?", "");
+    const optional = text.charAt(dot + 1) === "?" ? 1 : 0;
     const seen = new Map<
       string,
       { label: string; type: string; detail?: string }
@@ -127,7 +135,10 @@ function completions(fields: () => CelField[]) {
           : { label: segment, type: "property", detail: f.detail }
       );
     }
-    return { from: word.from + dot + 1, options: [...seen.values()] };
+    return {
+      from: word.from + dot + 1 + optional,
+      options: [...seen.values()],
+    };
   };
 }
 

@@ -11,9 +11,11 @@ import dev.cel.common.CelValidationException;
 import dev.cel.common.CelValidationResult;
 import dev.cel.common.types.CelType;
 import dev.cel.common.types.CelTypeProvider;
+import dev.cel.common.types.OptionalType;
 import dev.cel.common.types.SimpleType;
 import dev.cel.common.types.StructType;
 import dev.cel.common.types.StructTypeReference;
+import dev.cel.extensions.CelOptionalLibrary;
 import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
@@ -26,8 +28,10 @@ import java.util.Optional;
 /**
  * Checks and evaluates symptom rules written in CEL. The schema's field
  * types become CEL types, so unknown fields and wrong types are rejected
- * before a rule runs. {@code has()} tests an optional field. Messages are in
- * Spanish, for the symptom owner.
+ * before a rule runs. A field the source may leave out is read with
+ * {@code .?}, which gives an optional, and compared with {@link #CONSTANTS}:
+ * {@code signal.frame.?sensors.?panic_button == TRUE}. {@code has()} also
+ * tests an optional field. Messages are in Spanish, for the symptom owner.
  */
 public final class RuleLanguage {
 
@@ -40,6 +44,12 @@ public final class RuleLanguage {
     private static final CelOptions OPTIONS = CelOptions.current()
             .enableHeterogeneousNumericComparisons(true)
             .build();
+
+    /** Optional values every rule can compare a {@code .?} read with. */
+    public static final Map<String, Object> CONSTANTS = Map.of(
+            "NONE", Optional.empty(),
+            "TRUE", Optional.of(true),
+            "FALSE", Optional.of(false));
 
     private static final int MAX_COMPILERS = 256;
 
@@ -94,7 +104,7 @@ public final class RuleLanguage {
             CelRuntime.Program program = cel.createProgram(result.getAst());
             return variables -> {
                 try {
-                    return RuleResult.of(program.eval(doubles(variables)));
+                    return RuleResult.of(program.eval(withConstants(doubles(variables))));
                 } catch (CelEvaluationException e) {
                     return RuleResult.failed(RuleMessages.plain(e.getMessage()));
                 }
@@ -121,6 +131,12 @@ public final class RuleLanguage {
             case Number n -> n.doubleValue();
             case null, default -> v;
         }));
+        return out;
+    }
+
+    private static Map<String, Object> withConstants(Map<String, Object> variables) {
+        Map<String, Object> out = new LinkedHashMap<>(CONSTANTS);
+        out.putAll(variables);
         return out;
     }
 
@@ -176,6 +192,8 @@ public final class RuleLanguage {
         var builder = CelFactory.standardCelBuilder()
                 .setOptions(OPTIONS)
                 .setStandardMacros(CelStandardMacro.HAS)
+                .addCompilerLibraries(CelOptionalLibrary.INSTANCE)
+                .addRuntimeLibraries(CelOptionalLibrary.INSTANCE)
                 .setTypeProvider(new CelTypeProvider() {
                     @Override
                     public ImmutableCollection<CelType> types() {
@@ -188,6 +206,9 @@ public final class RuleLanguage {
                     }
                 })
                 .addVar(schema.root(), StructTypeReference.create(typeName(schema.root())));
+        builder.addVar("NONE", OptionalType.create(SimpleType.DYN))
+                .addVar("TRUE", OptionalType.create(SimpleType.BOOL))
+                .addVar("FALSE", OptionalType.create(SimpleType.BOOL));
         schema.extras().forEach((name, type) -> builder.addVar(name, scalar(type)));
         return builder.build();
     }

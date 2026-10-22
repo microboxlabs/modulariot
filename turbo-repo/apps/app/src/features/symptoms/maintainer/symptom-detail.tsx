@@ -88,14 +88,16 @@ function useSheetAccess(scope: SymptomScope) {
 function changeMarks(
   spec: SymptomSpec | null | undefined,
   published: SymptomSpec | null | undefined,
-  currentPlan: PublishPlan | null | undefined
+  plan: PublishPlan | null | undefined,
+  planIsCurrent: boolean
 ): Set<string> {
   if (!published || !spec) return new Set<string>();
   const paths = changedPaths(spec, published);
   // Conditions in another order are no change for the publish plan, so no mark either.
   if (
-    currentPlan &&
-    !currentPlan.changes.some((c) => c.section === "activation")
+    planIsCurrent &&
+    plan &&
+    !plan.changes.some((c) => c.section === "activation")
   ) {
     paths.delete("activation");
   }
@@ -162,13 +164,12 @@ export default function SymptomDetail({
     ? detail?.versions.find((v) => v.version === viewing)
     : undefined;
   const shownSpec = viewed?.spec ?? spec;
-  // None for an old version on screen.
   const published = detail?.current?.spec;
   const changed = useMemo(
     () =>
       viewed
         ? new Set<string>()
-        : changeMarks(spec, published, planIsCurrent ? plan : undefined),
+        : changeMarks(spec, published, plan, planIsCurrent),
     [viewed, published, spec, plan, planIsCurrent]
   );
   // The overview describes the version on screen, or the one in force; a draft would rewrite it on every edit.
@@ -461,51 +462,81 @@ export default function SymptomDetail({
         />
       )}
 
-      <Modal show={pending !== null} size="md" onClose={closePending}>
-        <ModalHeader>
-          {pending?.kind === "fork"
-            ? tr("duplicateAsNew", d)
-            : tr("restoreTitle", d, { version: pending?.version ?? "" })}
-        </ModalHeader>
-        <ModalBody>
-          <Label htmlFor="pending-text">
-            {pending?.kind === "fork" ? tr("name", d) : tr("reason", d)}
-          </Label>
-          <TextInput
-            id="pending-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <p className="mt-2 text-xs text-gray-500">
-            {pending?.kind === "fork"
-              ? tr("duplicateHint", d, { version: pending.version })
-              : tr("restoreHint", d)}
-          </p>
-          {dialogError && (
-            <p
-              role="alert"
-              className="mt-2 text-sm text-red-600 dark:text-red-400"
-            >
-              {dialogError}
-            </p>
-          )}
-        </ModalBody>
-        <ModalFooter className="justify-end">
-          <Button
-            color="alternative"
-            disabled={confirming}
-            onClick={closePending}
-          >
-            {tr("cancel", d)}
-          </Button>
-          <Button
-            disabled={confirming || (pending?.kind === "fork" && !text.trim())}
-            onClick={() => void confirmPending()}
-          >
-            {pending?.kind === "fork" ? tr("duplicate", d) : tr("restore", d)}
-          </Button>
-        </ModalFooter>
-      </Modal>
+      <PendingDialog
+        pending={pending}
+        text={text}
+        confirming={confirming}
+        error={dialogError}
+        d={d}
+        onText={setText}
+        onClose={closePending}
+        onConfirm={() => void confirmPending()}
+      />
     </div>
+  );
+}
+
+/** Asks for a copy's name, or a rollback's reason, before either runs. */
+function PendingDialog({
+  pending,
+  text,
+  confirming,
+  error,
+  d,
+  onText,
+  onClose,
+  onConfirm,
+}: Readonly<{
+  pending: Pending;
+  text: string;
+  confirming: boolean;
+  error: string | null;
+  d: I18nRecord;
+  onText: (text: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}>) {
+  return (
+    <Modal show={pending !== null} size="md" onClose={onClose}>
+      <ModalHeader>
+        {pending?.kind === "fork"
+          ? tr("duplicateAsNew", d)
+          : tr("restoreTitle", d, { version: pending?.version ?? "" })}
+      </ModalHeader>
+      <ModalBody>
+        <Label htmlFor="pending-text">
+          {pending?.kind === "fork" ? tr("name", d) : tr("reason", d)}
+        </Label>
+        <TextInput
+          id="pending-text"
+          value={text}
+          onChange={(e) => onText(e.target.value)}
+        />
+        <p className="mt-2 text-xs text-gray-500">
+          {pending?.kind === "fork"
+            ? tr("duplicateHint", d, { version: pending.version })
+            : tr("restoreHint", d)}
+        </p>
+        {error && (
+          <p
+            role="alert"
+            className="mt-2 text-sm text-red-600 dark:text-red-400"
+          >
+            {error}
+          </p>
+        )}
+      </ModalBody>
+      <ModalFooter className="justify-end">
+        <Button color="alternative" disabled={confirming} onClick={onClose}>
+          {tr("cancel", d)}
+        </Button>
+        <Button
+          disabled={confirming || (pending?.kind === "fork" && !text.trim())}
+          onClick={onConfirm}
+        >
+          {pending?.kind === "fork" ? tr("duplicate", d) : tr("restore", d)}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "24"
+  NODE_VERSION: "24.22.1"
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-docs
@@ -87,6 +87,7 @@ jobs:
         with:
           context: /tmp/build-docs/
           file: /tmp/build-docs/nextjs.standalone-docs.Dockerfile
+          pull: true
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |

@@ -42,6 +42,7 @@ public class SymptomCatalogService {
 
     static final String ENTITY = "symptom";
     private static final String VERSION_NOT_FOUND = "version not found: ";
+    private static final String VERSION = "version";
     /** Tries at picking a free key when copying a template, for concurrent copies of the same one. */
     static final int KEY_ATTEMPTS = 5;
     static final String FIRST_VERSION = "0.1.0";
@@ -214,18 +215,23 @@ public class SymptomCatalogService {
             saveDraft(PLATFORM_TENANT, actor, templateId, spec);
         }
         audit.log(tenantCode, actor, "symptom.saved_as_template", ENTITY, id.toString(), null,
-                Map.of("template", templateId.toString(), "version", v == null ? "draft" : v));
+                Map.of("template", templateId.toString(), VERSION, v == null ? "draft" : v));
         return get(PLATFORM_TENANT, templateId);
     }
 
     /** The spec without what belongs to one organization: notice connections, templates and recipients. */
     private static SymptomSpec forTemplate(SymptomSpec spec) {
-        List<SymptomSpec.Level> levels = spec.levels() == null ? null : spec.levels().stream()
-                .map(l -> l.response() == null ? l
-                        : new SymptomSpec.Level(l.icu(), l.applies(), l.when(), withoutTenantNotices(l.response())))
-                .toList();
+        List<SymptomSpec.Level> levels = spec.levels() == null ? null
+                : spec.levels().stream().map(SymptomCatalogService::withoutTenantNotices).toList();
         return new SymptomSpec(spec.source(), spec.activation(), spec.measure(), levels, spec.lifecycle(),
                 spec.recurrence(), spec.family(), null);
+    }
+
+    private static SymptomSpec.Level withoutTenantNotices(SymptomSpec.Level l) {
+        if (l.response() == null) {
+            return l;
+        }
+        return new SymptomSpec.Level(l.icu(), l.applies(), l.when(), withoutTenantNotices(l.response()));
     }
 
     private static SymptomSpec.Response withoutTenantNotices(SymptomSpec.Response r) {
@@ -402,7 +408,7 @@ public class SymptomCatalogService {
                 from.description(), from.sourceKey(), null, spec), copiedVersion, from.templateKey(),
                 from.templateVersion());
         audit.log(tenantCode, actor, "symptom.forked", ENTITY, created.definition().id().toString(), null,
-                Map.of("from", from.key(), "version", v == null ? "draft" : v));
+                Map.of("from", from.key(), VERSION, v == null ? "draft" : v));
         if (v == null) {
             return created;
         }
@@ -523,7 +529,7 @@ public class SymptomCatalogService {
                 detail.definition().withCurrent(number, next, actor, now).withFamily(spec.family()));
         audit.log(tenantCode, actor, rolledBackFrom == null ? "symptom.published" : "symptom.rolled_back", ENTITY,
                 detail.definition().id().toString(), null,
-                Map.of("version", number, "bump", bump.name(), "state", next.name()));
+                Map.of(VERSION, number, "bump", bump.name(), "state", next.name()));
         return saved;
     }
 

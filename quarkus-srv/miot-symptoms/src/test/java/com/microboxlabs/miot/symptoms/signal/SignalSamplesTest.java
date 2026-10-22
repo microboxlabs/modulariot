@@ -83,6 +83,24 @@ class SignalSamplesTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void keepsOnlyThePathsOfTheEditorFields() {
+        Map<String, Object> frame = new LinkedHashMap<>();
+        frame.put("timestamp", "2026-10-22T03:00:00Z");
+        frame.put("events", List.of(Map.of("code", 1)));
+        frame.put("gps", Map.of("latitude", -33.4, "longitude", -70.6));
+        frame.put("unknown_part", Map.of("x", 1));
+        Map<String, Object> trimmed = SignalSamples.trim(Map.of("asset_id", "A", "local_hour", 3, "frame", frame));
+
+        assertEquals(Map.of("asset_id", "A", "local_hour", 3,
+                "frame", Map.of("gps", Map.of("latitude", -33.4, "longitude", -70.6))), trimmed);
+        Set<String> fields = SignalFields.fields().stream().map(SourceField::path).collect(Collectors.toSet());
+        List<String> leaves = new ArrayList<>();
+        leaves(SignalFields.ROOT, trimmed, leaves);
+        leaves.forEach(path -> assertTrue(fields.contains(path), path));
+    }
+
+    @Test
     void dropsRoutingFieldsAndTheFramePartsRulesDoNotRead() {
         Map<String, Object> frame = Map.of("asset_id", "A", "driver_info", Map.of("name", "x"),
                 "sensors", Map.of("panic_button", true));
@@ -93,10 +111,12 @@ class SignalSamplesTest {
     }
 
     @Test
-    void redisKeepsTheListInOneScript() {
+    void redisAdmitsAndKeepsTheListInOneScript() {
         List<String> args = SignalSamples.recordArgs(TENANT, "{}");
 
-        assertEquals(List.of(SignalSamples.RECORD_SCRIPT, "1", "symptoms:samples:tenant-a", "{}", "20", "86400"), args);
+        assertEquals(List.of(SignalSamples.RECORD_SCRIPT, "2", "symptoms:samples:tenant-a",
+                "symptoms:samples:tenant-a:gate", "{}", "20", "86400", "15000"), args);
+        assertTrue(SignalSamples.RECORD_SCRIPT.contains("'SET', KEYS[2], '1', 'NX', 'PX', ARGV[4]"));
     }
 
     @SuppressWarnings("unchecked")

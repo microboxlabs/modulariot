@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.signal;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.redis.client.RedisAPI;
@@ -22,15 +23,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
 
 /**
  * Recent GPS signals of each organization, so rule previews run on real
- * values. The evaluator keeps at most one signal per organization every
- * {@link #EVERY}. In Redis, {@code symptoms:samples:<tenant>} holds the newest
- * {@link #KEEP} and expires {@link #TTL} after the last one; without Redis
- * they are kept in memory. Driver data, peripherals, metrics and routing
- * fields are dropped before saving.
+ * values. The evaluators keep at most one signal per organization every
+ * {@link #EVERY}, checked in Redis so replicas share it. In Redis,
+ * {@code symptoms:samples:<tenant>} holds the newest {@link #KEEP} and expires
+ * {@link #TTL} after the last one; without Redis they are kept in memory. Only
+ * the paths of the rule editor's fields ({@link SignalFields#fields()}) are
+ * saved.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -43,13 +46,20 @@ public class SignalSamples {
     static final Duration EVERY = Duration.ofSeconds(15);
     static final Duration TTL = Duration.ofDays(1);
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-    private static final Set<String> ROUTING = Set.of("schema", "at", "clients");
+    private static final Set<String> FIELDS = SignalFields.fields().stream().map(SourceField::path)
+            .collect(Collectors.toUnmodifiableSet());
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
     };
 
-    /** LPUSH, LTRIM and EXPIRE in one script. ARGV: the signal, how many to keep, ttl seconds. */
+    /**
+     * Admission and LPUSH, LTRIM and EXPIRE in one script. KEYS: the list, the admission key. ARGV: the signal,
+     * how many to keep, ttl seconds, admission milliseconds.
+     */
     static final String RECORD_SCRIPT = """
+            if not redis.call('SET', KEYS[2], '1', 'NX', 'PX', ARGV[4]) then
+                return 0
+            end
             redis.call('LPUSH', KEYS[1], ARGV[1])
             redis.call('LTRIM', KEYS[1], 0, tonumber(ARGV[2]) - 1)
             redis.call('EXPIRE', KEYS[1], ARGV[3])
@@ -78,12 +88,9 @@ public class SignalSamples {
 
     /** Keeps the signal as a sample of the organization, unless one was kept less than {@link #EVERY} ago. */
     public void record(String tenantCode, Map<String, Object> signal) {
-        Instant now = clock.instant();
-        Instant last = recorded.get(tenantCode);
-        if (last != null && last.plus(EVERY).isAfter(now)) {
+        if (!admit(tenantCode, clock.instant())) {
             return;
         }
-        recorded.put(tenantCode, now);
         String json = write(trim(signal));
         if (redis == null) {
             Deque<String> kept = memory.computeIfAbsent(tenantCode, k -> new ArrayDeque<>());
@@ -102,9 +109,22 @@ public class SignalSamples {
         }
     }
 
+    /** Whether this instance has not kept a signal of the organization in the last {@link #EVERY}. */
+    private boolean admit(String tenantCode, Instant now) {
+        boolean[] admitted = { false };
+        recorded.compute(tenantCode, (k, last) -> {
+            if (last != null && last.plus(EVERY).isAfter(now)) {
+                return last;
+            }
+            admitted[0] = true;
+            return now;
+        });
+        return admitted[0];
+    }
+
     static List<String> recordArgs(String tenantCode, String json) {
-        return List.of(RECORD_SCRIPT, "1", PREFIX + tenantCode, json, Integer.toString(KEEP),
-                Long.toString(TTL.toSeconds()));
+        return List.of(RECORD_SCRIPT, "2", PREFIX + tenantCode, PREFIX + tenantCode + ":gate", json,
+                Integer.toString(KEEP), Long.toString(TTL.toSeconds()), Long.toString(EVERY.toMillis()));
     }
 
     /** The organization's newest samples as {@code {"signal": …}}, newest first; none when Redis fails. */
@@ -143,27 +163,25 @@ public class SignalSamples {
         }
     }
 
-    /** The signal without its routing fields and the frame parts rules do not read. */
-    @SuppressWarnings("unchecked")
+    /** The signal with only the paths of the rule editor's fields. */
     static Map<String, Object> trim(Map<String, Object> signal) {
-        Map<String, Object> out = new LinkedHashMap<>(signal);
-        ROUTING.forEach(out::remove);
-        for (String path : SignalFields.SKIPPED) {
-            String[] keys = path.substring(SignalFields.ROOT.length() + 1).split("\\.");
-            Map<String, Object> node = out;
-            for (int i = 0; i < keys.length - 1 && node != null; i++) {
-                if (node.get(keys[i]) instanceof Map<?, ?> child) {
-                    Map<String, Object> copy = new LinkedHashMap<>((Map<String, Object>) child);
-                    node.put(keys[i], copy);
-                    node = copy;
-                } else {
-                    node = null;
+        return project(SignalFields.ROOT, signal);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> project(String prefix, Map<String, Object> node) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        node.forEach((key, value) -> {
+            String path = prefix + "." + key;
+            if (value instanceof Map<?, ?> child) {
+                Map<String, Object> inner = project(path, (Map<String, Object>) child);
+                if (!inner.isEmpty()) {
+                    out.put(key, inner);
                 }
+            } else if (FIELDS.contains(path)) {
+                out.put(key, value);
             }
-            if (node != null) {
-                node.remove(keys[keys.length - 1]);
-            }
-        }
+        });
         return out;
     }
 

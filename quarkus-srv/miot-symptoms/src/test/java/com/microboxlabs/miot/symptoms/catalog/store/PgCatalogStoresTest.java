@@ -57,13 +57,12 @@ class PgCatalogStoresTest {
         vertx = Vertx.vertx();
         pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(URL_PROPERTY)))
                 .using(vertx).build();
-        String migration;
-        try (InputStream in = PgCatalogStoresTest.class
-                .getResourceAsStream("/db/migration/symptoms/V0.8.0__create_symptoms_catalog.sql")) {
-            migration = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
-        pool.query(migration).execute().await().atMost(WAIT);
+        for (String file : List.of("V0.8.0__create_symptoms_catalog.sql", "V0.9.3__platform_symptom_templates.sql")) {
+            try (InputStream in = PgCatalogStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
+                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+            }
+        }
     }
 
     @AfterAll

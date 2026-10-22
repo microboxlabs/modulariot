@@ -1886,6 +1886,12 @@
               "ACCREDITATION": "Lo creó la integración de acreditación y vence con la acreditación."
             }
           }
+        },
+        "symptomTemplates": {
+          "title": "Plantillas de síntomas",
+          "menuHint": "Síntomas listos que copian las organizaciones",
+          "description": "Cada plantilla es un síntoma de la plataforma, con borrador, versiones y publicación. Las organizaciones ven la última versión publicada en «Nuevo síntoma desde plantilla».",
+          "open": "Abrir plantillas"
         }
       },
       "organizations": {
@@ -2411,7 +2417,8 @@
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
-        "gps": "GPS"
+        "gps": "GPS",
+        "symptomTemplates": "Plantillas de síntomas"
       },
       "symptoms": {
         "config": {
@@ -3443,7 +3450,20 @@
         "colSymptom": "Síntoma",
         "colScale": "Escala",
         "colVersion": "Versión",
-        "colPerWeek": "Casos/sem"
+        "colPerWeek": "Casos/sem",
+        "templatesTitle": "Plantillas de síntomas",
+        "templatesDescription": "Los síntomas que la plataforma ofrece a las organizaciones. Una organización solo ve una plantilla después de publicarla.",
+        "newTemplate": "Nueva plantilla",
+        "templatesEmpty": "Aún no hay plantillas.",
+        "createTemplateTitle": "Nueva plantilla",
+        "originTemplateVersion": "Desde la plantilla {name} v{version}",
+        "saveAsTemplate": "Guardar como plantilla",
+        "templateTarget": "Plantilla",
+        "templateTargetNew": "Plantilla nueva ({key})",
+        "saveAsTemplateNewHint": "Se crea una plantilla con la versión {version} de este síntoma como borrador. Las organizaciones la ven cuando la publiques.",
+        "saveAsTemplateReplaceHint": "La versión {version} de este síntoma reemplaza el borrador de {name}. Las organizaciones ven el cambio cuando lo publiques.",
+        "saveAsTemplateForbidden": "Solo un administrador de la plataforma puede guardar plantillas.",
+        "saveAsTemplateConflict": "Ya existe una plantilla con esa clave. Elígela en la lista para reemplazar su borrador."
       },
       "gps": {
         "title": "Integración GPS",

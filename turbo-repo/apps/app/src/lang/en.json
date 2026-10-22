@@ -1886,6 +1886,12 @@
               "ACCREDITATION": "Created by the accreditation integration; it ends with the accreditation."
             }
           }
+        },
+        "symptomTemplates": {
+          "title": "Symptom templates",
+          "menuHint": "Ready symptoms that organizations copy",
+          "description": "Each template is a platform symptom, with a draft, versions and publishing. Organizations see the latest published version in \"New symptom from template\".",
+          "open": "Open templates"
         }
       },
       "organizations": {
@@ -2411,7 +2417,8 @@
         "selectables": "Selectables",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
-        "gps": "GPS"
+        "gps": "GPS",
+        "symptomTemplates": "Symptom templates"
       },
       "symptoms": {
         "config": {
@@ -3443,7 +3450,20 @@
         "colSymptom": "Symptom",
         "colScale": "Scale",
         "colVersion": "Version",
-        "colPerWeek": "Cases/wk"
+        "colPerWeek": "Cases/wk",
+        "templatesTitle": "Symptom templates",
+        "templatesDescription": "The symptoms the platform offers to organizations. An organization sees a template only after it is published.",
+        "newTemplate": "New template",
+        "templatesEmpty": "No templates yet.",
+        "createTemplateTitle": "New template",
+        "originTemplateVersion": "From the {name} template v{version}",
+        "saveAsTemplate": "Save as template",
+        "templateTarget": "Template",
+        "templateTargetNew": "New template ({key})",
+        "saveAsTemplateNewHint": "A template is created with version {version} of this symptom as its draft. Organizations see it when you publish it.",
+        "saveAsTemplateReplaceHint": "Version {version} of this symptom replaces the draft of {name}. Organizations see the change when you publish it.",
+        "saveAsTemplateForbidden": "Only a platform administrator can save templates.",
+        "saveAsTemplateConflict": "A template with that key already exists. Pick it in the list to replace its draft."
       },
       "gps": {
         "title": "GPS integration",

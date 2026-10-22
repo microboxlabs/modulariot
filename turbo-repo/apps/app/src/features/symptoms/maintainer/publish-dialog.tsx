@@ -19,6 +19,7 @@ import {
   type PublishPlan,
   type VersionBump,
 } from "./maintainer-api";
+import { useSymptomScope } from "./symptom-scope";
 import { BumpBadge } from "./ui/badges";
 
 const BUMPS: VersionBump[] = ["PATCH", "MINOR", "MAJOR"];
@@ -69,6 +70,7 @@ export default function PublishDialog({
   onClose: () => void;
   onPublished: () => void;
 }>) {
+  const scope = useSymptomScope();
   const [plan, setPlan] = useState<PublishPlan | null>(null);
   const [reason, setReason] = useState("");
   const [raise, setRaise] = useState<VersionBump | null>(null);
@@ -81,10 +83,10 @@ export default function PublishDialog({
     setError(null);
     setReason("");
     setRaise(null);
-    publishPlan(id)
+    publishPlan(id, scope)
       .then(setPlan)
       .catch((e: unknown) => setError(publishError(e, d)));
-  }, [open, id, d]);
+  }, [open, id, d, scope]);
 
   const bump = raise ?? plan?.bump ?? null;
   const target =
@@ -100,7 +102,7 @@ export default function PublishDialog({
     setBusy(true);
     setError(null);
     try {
-      await publishDraft(id, { reason: reason.trim(), bump });
+      await publishDraft(id, { reason: reason.trim(), bump }, scope);
       onPublished();
     } catch (e) {
       setError(publishError(e, d));

@@ -16,6 +16,7 @@ import {
 import { ago, fmt, levelName, levelShortName } from "./catalog-format";
 import type { SymptomSummary } from "./maintainer-api";
 import { renderDescription } from "./rule-description";
+import { isTemplateScope, useSymptomScope } from "./symptom-scope";
 import { MUTED } from "./ui/card";
 import { LevelIcon } from "./ui/level-icon";
 import { StatePill } from "./ui/state";
@@ -146,6 +147,7 @@ export function SymptomCard({
 }>) {
   const def = s.definition;
   const channels = channelGroups(s.current?.spec ?? null);
+  const template = isTemplateScope(useSymptomScope());
   return (
     <button
       type="button"
@@ -160,7 +162,7 @@ export function SymptomCard({
           </div>
           <div className={`text-xs ${MUTED}`}>{family}</div>
         </div>
-        <StatePill state={def.state} d={d} />
+        {!template && <StatePill state={def.state} d={d} />}
       </div>
       <Activation s={s} d={d} />
       <Ladder s={s} d={d} />
@@ -180,9 +182,11 @@ export function SymptomCard({
         </span>
         <span>· {ago(def.updatedAt, lang)}</span>
         {s.hasDraft && <span className={DRAFT_TAG}>{tr("draftTag", d)}</span>}
-        <span className="ml-auto tabular-nums">
-          {week == null ? "—" : tr("perWeek", d, { n: fmt(week, lang) })}
-        </span>
+        {!template && (
+          <span className="ml-auto tabular-nums">
+            {week == null ? "—" : tr("perWeek", d, { n: fmt(week, lang) })}
+          </span>
+        )}
       </div>
     </button>
   );
@@ -208,6 +212,7 @@ export function SymptomRow({
 }>) {
   const def = s.definition;
   const unit = s.current?.spec?.measure?.unit ?? null;
+  const template = isTemplateScope(useSymptomScope());
   return (
     <tr className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50">
       <td className="px-4 py-2.5">
@@ -242,18 +247,22 @@ export function SymptomRow({
         </div>
       </td>
       <td className="px-4 py-2.5">{whoActs(s, d)}</td>
-      <td className="px-4 py-2.5">
-        <StatePill state={def.state} d={d} />
-      </td>
+      {!template && (
+        <td className="px-4 py-2.5">
+          <StatePill state={def.state} d={d} />
+        </td>
+      )}
       <td className="px-4 py-2.5">
         <span className="font-mono">{def.currentVersion ?? "—"}</span>
         {s.hasDraft && (
           <span className={`ml-1 ${DRAFT_TAG}`}>{tr("draftTag", d)}</span>
         )}
       </td>
-      <td className="px-4 py-2.5 text-right tabular-nums">
-        {week == null ? "—" : fmt(week, lang)}
-      </td>
+      {!template && (
+        <td className="px-4 py-2.5 text-right tabular-nums">
+          {week == null ? "—" : fmt(week, lang)}
+        </td>
+      )}
     </tr>
   );
 }

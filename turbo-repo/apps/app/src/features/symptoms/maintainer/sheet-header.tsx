@@ -38,6 +38,12 @@ export function originText(
     const name =
       templates?.find((t) => t.key === def.templateKey)?.name ??
       def.templateKey;
+    if (def.templateVersion) {
+      return tr("originTemplateVersion", d, {
+        name,
+        version: def.templateVersion,
+      });
+    }
     return tr("originTemplate", d, { name });
   }
   if (def.forkedFromVersionId) return tr("originFork", d);
@@ -79,12 +85,14 @@ function VersionMenu({
   d,
   onHistory,
   onDuplicate,
+  onSaveAsTemplate,
 }: Readonly<{
   label: string;
   canFork: boolean;
   d: I18nRecord;
   onHistory: () => void;
   onDuplicate: () => void;
+  onSaveAsTemplate?: () => void;
 }>) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -144,6 +152,16 @@ function VersionMenu({
               ⑂ {tr("duplicateAsNew", d)}
             </button>
           )}
+          {onSaveAsTemplate && (
+            <button
+              type="button"
+              role="menuitem"
+              className={MENU_ROW}
+              onClick={() => pick(onSaveAsTemplate)}
+            >
+              ⧉ {tr("saveAsTemplate", d)}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -154,7 +172,8 @@ function VersionMenu({
  * The top of the symptom page, as in the prototype: back, icon, name, the
  * version chip and its menu, the family and where the symptom came from, and
  * the state. Family and state are part of the draft: changing them is a
- * PATCH that takes effect when the draft is published.
+ * PATCH that takes effect when the draft is published. A template has no
+ * state (`stateless`).
  */
 export default function SheetHeader({
   def,
@@ -168,9 +187,11 @@ export default function SheetHeader({
   lang,
   d,
   rootDict,
+  stateless = false,
   onChange,
   onHistory,
   onDuplicate,
+  onSaveAsTemplate,
 }: Readonly<{
   def: SymptomDefinition;
   spec: SymptomSpec | null;
@@ -183,9 +204,12 @@ export default function SheetHeader({
   lang: string;
   d: I18nRecord;
   rootDict: I18nRecord;
+  stateless?: boolean;
   onChange: (spec: SymptomSpec) => void;
   onHistory: () => void;
   onDuplicate: () => void;
+  /** Offered to platform owners only. */
+  onSaveAsTemplate?: () => void;
 }>) {
   const family = canonicalFamily(spec?.family ?? def.family, families);
   const state = draftState(def, spec);
@@ -223,6 +247,7 @@ export default function SheetHeader({
             d={d}
             onHistory={onHistory}
             onDuplicate={onDuplicate}
+            onSaveAsTemplate={onSaveAsTemplate}
           />
         </div>
         <div
@@ -259,18 +284,20 @@ export default function SheetHeader({
           <span>· {originText(def, templates, d, forkedFrom)}</span>
         </div>
       </div>
-      <div className="ml-auto flex items-center gap-2">
-        <StateToggle
-          value={state}
-          d={d}
-          disabled={!editable}
-          changed={spec?.state != null && spec.state !== def.state}
-          onChange={(next) => {
-            // Picking the state already shown changes nothing, so it must not create a draft.
-            if (spec && next !== state) onChange({ ...spec, state: next });
-          }}
-        />
-      </div>
+      {!stateless && (
+        <div className="ml-auto flex items-center gap-2">
+          <StateToggle
+            value={state}
+            d={d}
+            disabled={!editable}
+            changed={spec?.state != null && spec.state !== def.state}
+            onChange={(next) => {
+              // Picking the state already shown changes nothing, so it must not create a draft.
+              if (spec && next !== state) onChange({ ...spec, state: next });
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

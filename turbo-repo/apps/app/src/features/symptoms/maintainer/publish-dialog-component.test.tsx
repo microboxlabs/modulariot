@@ -9,6 +9,11 @@ const api = vi.hoisted(() => ({
 vi.mock("./maintainer-api", () => api);
 
 import PublishDialog from "./publish-dialog";
+import {
+  ORG_SYMPTOMS,
+  PLATFORM_TEMPLATES,
+  SymptomScopeProvider,
+} from "./symptom-scope";
 
 const d = {
   publishOf: "Publicar · {name}",
@@ -82,10 +87,11 @@ describe("PublishDialog", () => {
     fireEvent.click(publish);
 
     await waitFor(() => expect(onPublished).toHaveBeenCalled());
-    expect(api.publishDraft).toHaveBeenCalledWith("s1", {
-      reason: "Acuerdo",
-      bump: "MAJOR",
-    });
+    expect(api.publishDraft).toHaveBeenCalledWith(
+      "s1",
+      { reason: "Acuerdo", bump: "MAJOR" },
+      ORG_SYMPTOMS
+    );
   });
 
   it("sends the plan's bump when nothing is raised", async () => {
@@ -97,11 +103,42 @@ describe("PublishDialog", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Publicar 0.4.0" }));
     await waitFor(() =>
-      expect(api.publishDraft).toHaveBeenCalledWith("s1", {
-        reason: "x",
-        bump: "MINOR",
-      })
+      expect(api.publishDraft).toHaveBeenCalledWith(
+        "s1",
+        { reason: "x", bump: "MINOR" },
+        ORG_SYMPTOMS
+      )
     );
+  });
+
+  it("plans and publishes a template under the platform scope", async () => {
+    api.publishPlan.mockResolvedValue(plan());
+    api.publishDraft.mockResolvedValue({});
+    render(
+      <SymptomScopeProvider value={PLATFORM_TEMPLATES}>
+        <PublishDialog
+          id="t1"
+          name="Exceso de velocidad"
+          current="0.3.0"
+          open
+          d={d}
+          onClose={vi.fn()}
+          onPublished={vi.fn()}
+        />
+      </SymptomScopeProvider>
+    );
+    fireEvent.change(await screen.findByLabelText("Motivo"), {
+      target: { value: "x" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Publicar 0.4.0" }));
+    await waitFor(() =>
+      expect(api.publishDraft).toHaveBeenCalledWith(
+        "t1",
+        { reason: "x", bump: "MINOR" },
+        PLATFORM_TEMPLATES
+      )
+    );
+    expect(api.publishPlan).toHaveBeenCalledWith("t1", PLATFORM_TEMPLATES);
   });
 
   it("has nothing to raise before the first version", async () => {

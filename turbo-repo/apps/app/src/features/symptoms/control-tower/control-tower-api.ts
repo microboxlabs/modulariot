@@ -118,7 +118,8 @@ export type AddActionBody = Partial<Omit<TowerAction, "id" | "treatmentId" | "se
   kind: TowerActionKind;
 };
 
-const BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/control-tower`;
+const API_ROOT = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/`;
+const BASE = `${API_ROOT}control-tower`;
 
 /** Error carrying the API's `{error}` message, so callers can show it. */
 export class ControlTowerError extends Error {
@@ -139,9 +140,9 @@ function parseJson(text: string) {
   }
 }
 
-/** `path` is relative to the proxy, or a full key from the `*Key` helpers. */
+/** `path` is relative to the proxy, or a full app API URL such as a key from the `*Key` helpers. */
 async function request<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
-  const url = path.startsWith(BASE) ? path : `${BASE}${path}`;
+  const url = path.startsWith(API_ROOT) ? path : `${BASE}${path}`;
   const response = await fetch(url, {
     method: init?.method ?? "GET",
     headers: init?.body !== undefined ? { "Content-Type": "application/json" } : undefined,

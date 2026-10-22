@@ -140,10 +140,10 @@ public class ReferenceCache {
     public void applyShare(JsonObject change) {
         if ("d".equals(change.getString("op"))) {
             JsonObject before = change.getJsonObject("before");
-            if (before != null && before.getString(ASSET_ID) != null) {
+            if (before != null && before.getString(ASSET_ID) != null && before.getString(SHARED_CLIENT_ID) != null) {
+                changed(changedShares, key(before.getString(ASSET_ID), before.getString(SHARED_CLIENT_ID)));
                 Map<String, Share> byClient = shares.get(before.getString(ASSET_ID));
-                if (byClient != null && before.getString(SHARED_CLIENT_ID) != null) {
-                    changed(changedShares, key(before.getString(ASSET_ID), before.getString(SHARED_CLIENT_ID)));
+                if (byClient != null) {
                     byClient.remove(before.getString(SHARED_CLIENT_ID));
                 }
             }

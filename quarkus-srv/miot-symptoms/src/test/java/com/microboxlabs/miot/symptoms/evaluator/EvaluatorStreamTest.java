@@ -109,6 +109,24 @@ class EvaluatorStreamTest {
     }
 
     @Test
+    void oneScriptWritesAndDeletesTheEpisodes() {
+        java.util.UUID kept = java.util.UUID.randomUUID();
+        java.util.UUID gone = java.util.UUID.randomUUID();
+        AssetEpisodes state = new AssetEpisodes(DEMO, "DEMO01",
+                java.util.Map.of(gone, Episode.start(gone, "1.0.0", "DEMO01")), java.util.Map.of());
+        state.save(DEMO, Episode.start(kept, "1.0.0", "DEMO01"));
+        state.delete(DEMO, "DEMO01", gone);
+        state.setWatermark(DEMO, "DEMO01", "gps_signal", java.time.Instant.ofEpochMilli(1000));
+
+        List<String> args = RedisEpisodes.saveArgs(state, java.time.Duration.ofDays(7));
+
+        assertEquals(List.of("1", "symptoms:ep:" + DEMO + ":DEMO01", "604800", "2"), args.subList(1, 5));
+        assertEquals("ep:" + gone, args.get(args.size() - 1));
+        assertEquals(10, args.size());
+        assertEquals(null, RedisEpisodes.saveArgs(AssetEpisodes.empty(DEMO, "DEMO01"), java.time.Duration.ofDays(7)));
+    }
+
+    @Test
     void aFailedStoreIsRetriedAndAMalformedSignalIsNot() {
         InMemoryEpisodeRepository memory = new InMemoryEpisodeRepository();
         EpisodeRepository failing = new EpisodeRepository() {

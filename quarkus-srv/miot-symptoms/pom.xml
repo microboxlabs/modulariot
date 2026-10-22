@@ -24,6 +24,11 @@
             <artifactId>miot-core</artifactId>
         </dependency>
         <dependency>
+            <!-- The GPS frame the signal builder reads and the gps_signal source's frame fields. -->
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-gps-model</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>

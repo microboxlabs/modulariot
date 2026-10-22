@@ -116,10 +116,10 @@
     "name": "Botón de pánico",
     "family": "emergencies",
     "icon": null,
-    "description": "El conductor activa el botón de emergencia",
+    "description": "El conductor presiona el botón de pánico del GPS",
     "spec": {
-      "source": "device_event",
-      "activation": "event.type == \"SOS\"",
+      "source": "gps_signal",
+      "activation": "has(signal.frame) && has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button == true",
       "levels": [
         {"icu": 1, "applies": false, "when": null, "response": null},
         {"icu": 2, "applies": false, "when": null, "response": null},

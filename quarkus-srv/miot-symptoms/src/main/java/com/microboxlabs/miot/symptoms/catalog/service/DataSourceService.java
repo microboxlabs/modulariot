@@ -8,11 +8,13 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
 import com.microboxlabs.miot.symptoms.catalog.store.DataSourceStore;
 import com.microboxlabs.miot.symptoms.engine.SymptomEngine;
+import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -20,10 +22,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The data sources rules read. Platform sources come from {@value #RESOURCE}
- * and are written to the store the first time they are needed. The GPS
- * signal's samples are read from the engine when it is connected, so rule
- * previews use recent real values.
+ * The data sources rules read. The GPS signal's fields are read from its
+ * contract ({@link SignalFields}); the other platform sources come from
+ * {@value #RESOURCE}. Both are written to the store the first time they are
+ * needed. The GPS signal's samples are read from the engine when it is
+ * connected, so rule previews use recent real values.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -94,8 +97,12 @@ public class DataSourceService {
             if (in == null) {
                 throw new IllegalStateException("missing " + RESOURCE);
             }
-            return JSON.readValue(in, new TypeReference<List<Seed>>() {
-            });
+            List<Seed> seeds = new ArrayList<>();
+            seeds.add(new Seed(GPS_SIGNAL, SignalFields.name(), SourceKind.SIGNAL, SignalFields.ROOT,
+                    SignalFields.cadence(), SignalFields.fields(), List.of()));
+            seeds.addAll(JSON.readValue(in, new TypeReference<List<Seed>>() {
+            }));
+            return seeds;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

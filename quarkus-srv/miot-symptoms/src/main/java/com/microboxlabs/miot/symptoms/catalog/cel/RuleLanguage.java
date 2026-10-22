@@ -14,6 +14,7 @@ import dev.cel.common.types.CelTypeProvider;
 import dev.cel.common.types.SimpleType;
 import dev.cel.common.types.StructType;
 import dev.cel.common.types.StructTypeReference;
+import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
 import java.util.ArrayList;
@@ -25,7 +26,8 @@ import java.util.Optional;
 /**
  * Checks and evaluates symptom rules written in CEL. The schema's field
  * types become CEL types, so unknown fields and wrong types are rejected
- * before a rule runs. Messages are in Spanish, for the symptom owner.
+ * before a rule runs. {@code has()} tests an optional field. Messages are in
+ * Spanish, for the symptom owner.
  */
 public final class RuleLanguage {
 
@@ -173,6 +175,7 @@ public final class RuleLanguage {
         ImmutableList<CelType> all = ImmutableList.copyOf(types);
         var builder = CelFactory.standardCelBuilder()
                 .setOptions(OPTIONS)
+                .setStandardMacros(CelStandardMacro.HAS)
                 .setTypeProvider(new CelTypeProvider() {
                     @Override
                     public ImmutableCollection<CelType> types() {

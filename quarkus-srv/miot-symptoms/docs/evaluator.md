@@ -7,7 +7,7 @@ Runs published symptom versions on a vehicle's signals and keeps one episode per
 | | |
 |---|---|
 | Code | `quarkus-srv/miot-symptoms`, package `evaluator` |
-| Input | Tenant, vehicle id, signal time, the source object (for `gps_signal`, the map under `signal`), the compiled versions |
+| Input | Tenant, vehicle id, signal time, the source object (for `gps_signal`, the map under `signal`, see [gps-signal.md](gps-signal.md)), the compiled versions |
 | Output | `Transition`s (`OPENED`, `LEVEL_CHANGED`, `CLOSED`) with version, state, level and measure; `RuleError`s for rules that failed |
 | State | `Episode` per tenant, vehicle and symptom, through `EpisodeStore` |
 

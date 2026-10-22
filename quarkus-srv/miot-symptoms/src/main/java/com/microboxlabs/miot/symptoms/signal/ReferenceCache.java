@@ -9,22 +9,31 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The GPS database rows the signal builder joins to each frame: trips from
- * {@code live_trip} and the clients a vehicle is shared with from
- * {@code asset_client_map}. Loaded in full, then kept current from their
- * Debezium change events.
+ * {@code live_trip}, the clients a vehicle is shared with from
+ * {@code asset_client_map} and the driver registry ({@code ams.rd_drivers}).
+ * Loaded in full; trips and shares are then kept current from their Debezium
+ * change events, drivers by the next load.
  */
 public class ReferenceCache {
 
     /** A {@code live_trip} row, as far as the signal needs it. */
     public record Trip(String tripId, String assetId, String tripType, String status, Instant startTime,
-            Instant endTime, boolean doubleDriver) {
+            Instant endTime, boolean doubleDriver, TripDetails details) {
+
+        public Trip(String tripId, String assetId, String tripType, String status, Instant startTime,
+                Instant endTime, boolean doubleDriver) {
+            this(tripId, assetId, tripType, status, startTime, endTime, doubleDriver, TripDetails.NONE);
+        }
 
         /** In progress at {@code at}, as the GPS database's signal function decides it. */
         boolean inProgressAt(Instant at) {
@@ -35,6 +44,23 @@ public class ReferenceCache {
         int priority() {
             return "ote".equals(tripType) || "otr".equals(tripType) ? 2 : 1;
         }
+    }
+
+    /**
+     * The rest of a {@code live_trip} row. The driver's national id stays here, to find them in the registry; the
+     * signal carries the registry id instead.
+     */
+    public record TripDetails(Instant eta, Integer originId, String originLabel, Boolean originVisited,
+            Boolean originInternal, Integer destinationId, String destinationLabel, Boolean destinationVisited,
+            Integer currentGeofenceId, String carrierId, String carrierName, String loadType, String trailerPlate,
+            String driverNationalId, String createdBy) {
+
+        static final TripDetails NONE = new TripDetails(null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null);
+    }
+
+    /** An {@code ams.rd_drivers} row. */
+    public record Driver(String id, String clientId, String nationalId, String status, Instant licenseExpires) {
     }
 
     /** An {@code asset_client_map} row. */
@@ -55,6 +81,8 @@ public class ReferenceCache {
     /** By trip id and vehicle, the table's key. */
     private final Map<String, Trip> trips = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Share>> shares = new ConcurrentHashMap<>();
+    /** By national id without dots, upper case; null until the registry is first loaded. */
+    private final AtomicReference<Map<String, List<Driver>>> drivers = new AtomicReference<>();
     /** Rows changed by a change event since the current reload began; the reload's older copy does not replace them. */
     private final Set<String> changedTrips = ConcurrentHashMap.newKeySet();
     private final Set<String> changedShares = ConcurrentHashMap.newKeySet();
@@ -100,6 +128,37 @@ public class ReferenceCache {
 
     public boolean loaded() {
         return loaded;
+    }
+
+    /** Whether the driver registry has been loaded, so a driver not found in it is known to be unregistered. */
+    public boolean driversLoaded() {
+        return drivers.get() != null;
+    }
+
+    /** Replaces the driver registry. */
+    public void loadDrivers(List<Driver> all) {
+        Map<String, List<Driver>> next = new HashMap<>();
+        all.stream().filter(d -> d.nationalId() != null)
+                .forEach(d -> next.computeIfAbsent(nationalId(d.nationalId()), k -> new ArrayList<>()).add(d));
+        drivers.set(next);
+    }
+
+    /**
+     * The registered driver with this national id: the one of the client that created the trip first, then an
+     * active one.
+     */
+    public Optional<Driver> driver(String nationalId, String clientId) {
+        Map<String, List<Driver>> registry = drivers.get();
+        if (nationalId == null || registry == null) {
+            return Optional.empty();
+        }
+        return registry.getOrDefault(nationalId(nationalId), List.of()).stream()
+                .min(Comparator.comparing((Driver d) -> !Objects.equals(d.clientId(), clientId))
+                        .thenComparing(d -> !"ACTIVE".equals(d.status())));
+    }
+
+    private static String nationalId(String id) {
+        return id.replace(".", "").trim().toUpperCase(Locale.ROOT);
     }
 
     /** The vehicle's trip in progress at {@code at}, the way the GPS database's signal function picks it. */
@@ -177,10 +236,19 @@ public class ReferenceCache {
         shares.computeIfAbsent(s.assetId(), k -> new ConcurrentHashMap<>()).put(s.clientId(), s);
     }
 
-    private static Trip trip(JsonObject row) {
+    /** A trip from a Debezium row or a row the reload reads as JSON: the same column names and ISO times. */
+    static Trip trip(JsonObject row) {
         return new Trip(row.getString(TRIP_ID), row.getString(ASSET_ID), row.getString("trip_type"),
                 row.getString("status"), instant(row.getString("start_time")), instant(row.getString("end_time")),
-                Boolean.TRUE.equals(row.getBoolean("double_driver")));
+                Boolean.TRUE.equals(row.getBoolean("double_driver")),
+                new TripDetails(instant(row.getString("estimated_arrival_time")),
+                        row.getInteger("origin_geofence_id"), row.getString("origin_geofence_label"),
+                        row.getBoolean("origin_visited"), row.getBoolean("origin_is_internal"),
+                        row.getInteger("destination_geofence_id"), row.getString("destination_geofence_label"),
+                        row.getBoolean("destination_visited"), row.getInteger("current_geofence_id"),
+                        row.getString("carrier_id"), row.getString("carrier_name"), row.getString("type_load"),
+                        row.getString("rampla_plate"), row.getString("driver_id"),
+                        row.getString("created_by_client_id")));
     }
 
     static Instant instant(String iso) {

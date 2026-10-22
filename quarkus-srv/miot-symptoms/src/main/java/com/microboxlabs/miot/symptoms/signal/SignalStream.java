@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.core.gps.GpsDatabase;
+import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Driver;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Share;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Trip;
 import io.micrometer.core.instrument.Counter;
@@ -37,8 +38,8 @@ import org.jboss.logging.Logger;
  * The signal builder: reads GPS frames ({@code gps-frames}), joins the trip and
  * the vehicle's clients, and publishes {@code miot.gps.signal@1} keyed by
  * vehicle id ({@code gps-signals}). The reference rows are loaded from the GPS
- * database at start and every {@code reload-every}, and kept current between
- * loads from their Debezium topics ({@code signal-live-trip},
+ * database at start and every {@code reload-every}; trips and shares are kept
+ * current between loads from their Debezium topics ({@code signal-live-trip},
  * {@code signal-asset-client-map}). Off unless
  * {@code miot.symptoms.signal-builder.enabled}; the channels are disabled with
  * it. Frames are never logged, only counted.
@@ -54,8 +55,19 @@ public class SignalStream {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
+    /** As JSON, so a loaded row reads like a Debezium one; names and phones are not selected. */
     private static final String TRIPS = """
-            SELECT trip_id, asset_id, trip_type, status, start_time, end_time, double_driver FROM live_trip
+            SELECT row_to_json(t)::text AS trip FROM (
+                SELECT trip_id, asset_id, trip_type, status, start_time, end_time, double_driver,
+                       estimated_arrival_time, origin_geofence_id, origin_geofence_label, origin_visited,
+                       origin_is_internal, destination_geofence_id, destination_geofence_label, destination_visited,
+                       current_geofence_id, carrier_id, carrier_name, type_load, rampla_plate, driver_id,
+                       created_by_client_id
+                FROM live_trip) t
+            """;
+    private static final String DRIVERS = """
+            SELECT id::text AS id, client_id, rut, status, license_expires::timestamptz AS license_expires
+            FROM ams.rd_drivers WHERE rut IS NOT NULL
             """;
     private static final String SHARES = """
             SELECT asset_id, shared_client_id, active, valid_from, valid_to FROM asset_client_map WHERE active
@@ -113,9 +125,7 @@ public class SignalStream {
             return gps.readPool().query(TRIPS).execute();
         }).chain(trips -> gps.readPool().query(SHARES).execute().map(shares -> {
             List<Trip> t = new ArrayList<>();
-            trips.forEach(r -> t.add(new Trip(r.getString("trip_id"), r.getString("asset_id"),
-                    r.getString("trip_type"), r.getString("status"), instant(r, "start_time"),
-                    instant(r, "end_time"), Boolean.TRUE.equals(r.getBoolean("double_driver")))));
+            trips.forEach(r -> t.add(ReferenceCache.trip(new JsonObject(r.getString("trip")))));
             List<Share> s = new ArrayList<>();
             shares.forEach(r -> s.add(new Share(r.getString("asset_id"), r.getString("shared_client_id"),
                     Boolean.TRUE.equals(r.getBoolean("active")), instant(r, "valid_from"),
@@ -123,7 +133,20 @@ public class SignalStream {
             refs.load(t, s);
             LOG.infof("Signal builder: loaded %d trips, %d shares", t.size(), s.size());
             return t.size();
-        })).replaceWithVoid();
+        })).chain(this::reloadDrivers).replaceWithVoid();
+    }
+
+    /** A failed driver load keeps the drivers already loaded; trips and shares do not wait for it. */
+    private Uni<Void> reloadDrivers(int ignored) {
+        return gps.readPool().query(DRIVERS).execute().map(rows -> {
+            List<Driver> d = new ArrayList<>();
+            rows.forEach(r -> d.add(new Driver(r.getString("id"), r.getString("client_id"), r.getString("rut"),
+                    r.getString("status"), instant(r, "license_expires"))));
+            refs.loadDrivers(d);
+            LOG.infof("Signal builder: loaded %d drivers", d.size());
+            return d.size();
+        }).onFailure().invoke(e -> LOG.warnf("Signal builder: driver load failed (%s)", e.getClass().getSimpleName()))
+                .onFailure().recoverWithItem(0).replaceWithVoid();
     }
 
     @Incoming("gps-frames")

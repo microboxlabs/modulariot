@@ -52,7 +52,75 @@ public record GpsSignal(
             @Schema(title = "Dos conductores", extensions = @Extension(name = "x-origin", value = "TRIP"))
             @JsonProperty("double_driver") Boolean doubleDriver,
             @Schema(title = "Viaje", extensions = @Extension(name = "x-origin", value = "TRIP"))
-            String id) {
+            String id,
+            @Schema(title = "Tipo de viaje", extensions = @Extension(name = "x-origin", value = "TRIP"))
+            String type,
+            @Schema(title = "Tiempo en viaje", extensions = {
+                    @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "TRIP") })
+            @JsonProperty("age_min") Double ageMin,
+            @Schema(title = "Atraso sobre la llegada estimada", extensions = {
+                    @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "TRIP") })
+            @JsonProperty("late_min") Double lateMin,
+            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Origin origin,
+            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Destination destination,
+            @Schema(title = "Geocerca actual del viaje", extensions = @Extension(name = "x-origin", value = "TRIP"))
+            @JsonProperty("current_zone_id") Integer currentZoneId,
+            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Carrier carrier,
+            @Schema(title = "Tipo de carga", extensions = @Extension(name = "x-origin", value = "TRIP"))
+            @JsonProperty("load_type") String loadType,
+            @Schema(title = "Patente del remolque", extensions = @Extension(name = "x-origin", value = "TRIP"))
+            @JsonProperty("trailer_plate") String trailerPlate,
+            @Schema(extensions = @Extension(name = "x-origin", value = "TRIP")) Driver driver) {
+
+        /** A vehicle without a trip in progress. */
+        public static Trip none() {
+            return new Trip(false, false, null, null, null, null, null, null, null, null, null, null, null);
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @RegisterForReflection
+    public record Origin(
+            @Schema(title = "Geocerca de origen") Integer id,
+            @Schema(title = "Origen") String label,
+            @Schema(title = "Pasó por el origen") Boolean visited,
+            @Schema(title = "Origen interno") Boolean internal) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @RegisterForReflection
+    public record Destination(
+            @Schema(title = "Geocerca de destino") Integer id,
+            @Schema(title = "Destino") String label,
+            @Schema(title = "Llegó al destino") Boolean visited) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @RegisterForReflection
+    public record Carrier(
+            @Schema(title = "RUT del transportista") String id,
+            @Schema(title = "Transportista") String name) {
+    }
+
+    /** The trip's driver as the driver registry knows them: never their name or national id. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @RegisterForReflection
+    public record Driver(
+            @Schema(title = "Conductor (id del registro)") String id,
+            @Schema(title = "Conductor registrado") Boolean registered,
+            @Schema(title = "Estado del conductor") DriverStatus status,
+            @Schema(title = "Licencia vencida") @JsonProperty("license_expired") Boolean licenseExpired) {
+    }
+
+    @RegisterForReflection
+    public enum DriverStatus {
+        @Schema(title = "Activo") ACTIVE,
+        @Schema(title = "Desactivado") DEACTIVATED,
+        @Schema(title = "Suspendido") SUSPENDED
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

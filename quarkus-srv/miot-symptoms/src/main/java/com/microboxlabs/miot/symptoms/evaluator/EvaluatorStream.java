@@ -48,7 +48,7 @@ public class EvaluatorStream {
     private final boolean enabled;
     private final Set<String> tenants;
     private final EvaluatorCatalog catalog;
-    private final TransitionLog log;
+    private final TransitionLog transitionLog;
     private final MeterRegistry meters;
     private final Clock clock;
     private final EpisodeRepository episodes;
@@ -62,8 +62,8 @@ public class EvaluatorStream {
             @ConfigProperty(name = "miot.symptoms.evaluator.tenants") Optional<List<String>> tenants,
             @ConfigProperty(name = "miot.symptoms.evaluator.redis-url") Optional<String> redisUrl,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
-            EvaluatorCatalog catalog, TransitionLog log, MeterRegistry meters, Vertx vertx) {
-        this(enabled, Set.copyOf(tenants.orElse(List.of())), catalog, log, meters, Clock.systemUTC(),
+            EvaluatorCatalog catalog, TransitionLog transitionLog, MeterRegistry meters, Vertx vertx) {
+        this(enabled, Set.copyOf(tenants.orElse(List.of())), catalog, transitionLog, meters, Clock.systemUTC(),
                 enabled && redisUrl.filter(u -> !u.isBlank()).isPresent()
                         ? new RedisEpisodes(RedisAPI.api(Redis.createClient(vertx,
                                 new RedisOptions().setConnectionString(redisUrl.get()))), ttl)
@@ -74,12 +74,12 @@ public class EvaluatorStream {
         }
     }
 
-    EvaluatorStream(boolean enabled, Set<String> tenants, EvaluatorCatalog catalog, TransitionLog log,
+    EvaluatorStream(boolean enabled, Set<String> tenants, EvaluatorCatalog catalog, TransitionLog transitionLog,
             MeterRegistry meters, Clock clock, EpisodeRepository episodes) {
         this.enabled = enabled;
         this.tenants = tenants;
         this.catalog = catalog;
-        this.log = log;
+        this.transitionLog = transitionLog;
         this.meters = meters;
         this.clock = clock;
         this.episodes = episodes;
@@ -134,7 +134,7 @@ public class EvaluatorStream {
                 .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
         episodes.save(state);
         if (!result.transitions().isEmpty()) {
-            log.record(tenant, result.transitions());
+            transitionLog.append(tenant, result.transitions());
         }
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
                 "kind", t.kind().name(), "state", t.state().name()).increment());

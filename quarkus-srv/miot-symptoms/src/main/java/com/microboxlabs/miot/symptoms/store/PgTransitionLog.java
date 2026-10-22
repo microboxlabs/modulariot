@@ -35,7 +35,7 @@ public class PgTransitionLog implements TransitionLog {
     }
 
     @Override
-    public void record(String tenantCode, List<Transition> transitions) {
+    public void append(String tenantCode, List<Transition> transitions) {
         for (Transition t : transitions) {
             PgIds.query(pool.get(), INSERT, Tuple.tuple().addValue(tenantCode).addValue(t.definitionId())
                     .addValue(t.version()).addValue(t.state().name()).addValue(t.kind().name())

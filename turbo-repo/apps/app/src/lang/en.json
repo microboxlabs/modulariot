@@ -3103,6 +3103,8 @@
         "addException": "+ Exception («None»)",
         "removeCondition": "Remove condition",
         "conditionField": "Variable",
+        "searchField": "Search variable",
+        "noFieldMatch": "No variable matches",
         "conditionOp": "Operator",
         "conditionValue": "Value",
         "opIsTrue": "is true",

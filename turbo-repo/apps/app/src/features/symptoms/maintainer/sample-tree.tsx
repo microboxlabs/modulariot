@@ -45,6 +45,14 @@ export function useSourceSamples(
   return cached?.source === source ? cached.samples : [];
 }
 
+/** The first sample that opens a case, so the preview starts where the rule holds; else the first. */
+export function firstOpening(samples: Preview["samples"]): number {
+  return Math.max(
+    0,
+    samples.findIndex((s) => s.activates === true)
+  );
+}
+
 /** "LDKF17 · Ruta 5 Norte · 21:31": plate, route and time of the sample, when it has them. */
 export function sampleLabel(sample: Json): string | null {
   const parts: string[] = [];

@@ -3103,6 +3103,8 @@
         "addException": "+ Excepción («Ninguna»)",
         "removeCondition": "Quitar condición",
         "conditionField": "Variable",
+        "searchField": "Buscar variable",
+        "noFieldMatch": "Ninguna variable coincide",
         "conditionOp": "Operador",
         "conditionValue": "Valor",
         "opIsTrue": "es verdadero",

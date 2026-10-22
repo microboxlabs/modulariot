@@ -38,6 +38,43 @@ const ORDER_OPS: ConditionOp[] = [">", ">=", "<", "<="];
 const NUMBER = /^-?\d+(\.\d+)?$/;
 const STRING = /^"(?:[^"\\]|\\.)*"$/;
 const COMPARISON = /^([A-Za-z_][\w.]*)\s*(==|!=|>=|<=|>|<)/;
+const HAS = /^has\(\s*([A-Za-z_][\w.]*)\s*\)$/;
+const OPTIONAL_BOOL = /^([A-Za-z_][\w.?]*)\s*==\s*(TRUE|FALSE)$/;
+
+/** The frame as the device sent it: the device may leave out any of its parts. */
+const DEVICE_FRAME = "signal.frame";
+
+/**
+ * The paths a rule tests with has() before reading this field, outermost
+ * first: each level below the frame, since the device may leave any out.
+ * None for fields outside the frame.
+ */
+export function guardsFor(path: string): string[] {
+  if (!path.startsWith(`${DEVICE_FRAME}.`)) return [];
+  const parts = path.slice(DEVICE_FRAME.length + 1).split(".");
+  return parts.map(
+    (_, i) => `${DEVICE_FRAME}.${parts.slice(0, i + 1).join(".")}`
+  );
+}
+
+/** A frame field read with `.?` on each level below the frame: `signal.frame.?sensors.?panic_button`. */
+export function optionalPath(path: string): string {
+  const parts = path.slice(DEVICE_FRAME.length + 1).split(".");
+  return DEVICE_FRAME + parts.map((p) => `.?${p}`).join("");
+}
+
+/** A yes/no condition on the frame, written `optionalPath == TRUE` or `== FALSE` instead of with has(). */
+function readsOptional(c: Condition): boolean {
+  return (
+    c.path.startsWith(`${DEVICE_FRAME}.`) &&
+    (c.op === "is_true" || c.op === "is_false")
+  );
+}
+
+/** The has() tests the form writes for a condition. */
+function guardsOf(c: Condition): string[] {
+  return readsOptional(c) ? [] : guardsFor(c.path);
+}
 
 let nextId = 0;
 export const newId = () => `cond-${++nextId}`;
@@ -229,6 +266,8 @@ export function parseCondition(
 ): Condition | null {
   const term = clause.trim();
   const byPath = new Map(fields.map((f) => [f.path, f]));
+  const optional = OPTIONAL_BOOL.exec(term);
+  if (optional) return optionalRow(optional[1] ?? "", optional[2], byPath);
   const bare = byPath.get(term.replace(/^!\s*/, ""));
   if (bare?.type === "bool") return boolRow(term.replace(/^!\s*/, "!"), bare);
   const m = COMPARISON.exec(term);
@@ -240,6 +279,41 @@ export function parseCondition(
   return comparisonRow(path, op, raw, field);
 }
 
+/** `signal.frame.?a.?b == TRUE` as a yes/no row on `signal.frame.a.b`. */
+function optionalRow(
+  read: string,
+  constant: string | undefined,
+  byPath: Map<string, SourceField>
+): Condition | null {
+  const path = read.replaceAll("?", "");
+  if (byPath.get(path)?.type !== "bool" || read !== optionalPath(path))
+    return null;
+  const op = constant === "TRUE" ? "is_true" : "is_false";
+  return { id: newId(), path, op, value: null };
+}
+
+/** The path a has() term tests, or null. */
+function hasPath(term: string): string | null {
+  return HAS.exec(term.trim())?.[1] ?? null;
+}
+
+/** A condition, or one written with its has() tests: `(has(a) && has(a.b) && a.b > 1)`. */
+function parseGuarded(term: string, fields: SourceField[]): Condition | null {
+  const row = parseCondition(term, fields);
+  if (row) return row;
+  const inner = unwrap(term.trim());
+  const s = inner === null ? null : split(inner);
+  if (s?.op !== "&&") return null;
+  const last = parseCondition(s.parts.at(-1) ?? "", fields);
+  if (!last) return null;
+  const guards = s.parts.slice(0, -1).map(hasPath);
+  const expected = guardsFor(last.path);
+  return guards.length === expected.length &&
+    guards.every((g, i) => g === expected[i])
+    ? last
+    : null;
+}
+
 function parseGroup(
   term: string,
   fields: SourceField[]
@@ -249,7 +323,7 @@ function parseGroup(
   if (inner === null) return null;
   const s = split(inner);
   if (!s) return null;
-  const rows = s.parts.map((p) => parseCondition(p, fields));
+  const rows = s.parts.map((p) => parseGuarded(p, fields));
   if (rows.includes(null)) return null;
   let match: Match = s.op === "||" ? "any" : "all";
   if (negated) {
@@ -276,8 +350,14 @@ export function parseConditions(
   if (!top) return null;
   const rows: Condition[] = [];
   const groups: ConditionGroup[] = [];
+  const guards: string[] = [];
   for (const part of top.parts) {
-    const row = parseCondition(part, fields);
+    const guard = hasPath(part);
+    if (guard && top.op !== "||") {
+      guards.push(guard);
+      continue;
+    }
+    const row = parseGuarded(part, fields);
     if (row) {
       rows.push(row);
       continue;
@@ -286,6 +366,9 @@ export function parseConditions(
     if (!group || top.op === "||") return null;
     groups.push(group);
   }
+  // A has() at the top is shown with the condition it protects; the form writes it back.
+  const needed = new Set(rows.flatMap((r) => guardsFor(r.path)));
+  if (guards.some((g) => !needed.has(g))) return null;
   const form: ConditionForm = {
     match: top.op === "||" ? "any" : "all",
     rows,
@@ -392,30 +475,46 @@ export function formatRule(rule: string): string {
 
 /** One condition as CEL. */
 export function compileCondition(c: Condition): string {
+  if (readsOptional(c))
+    return `${optionalPath(c.path)} == ${c.op === "is_true" ? "TRUE" : "FALSE"}`;
   if (c.op === "is_true") return c.path;
   if (c.op === "is_false") return `!${c.path}`;
   return `${c.path} ${c.op} ${literal(c)}`;
 }
 
+const hasTest = (path: string) => `has(${path})`;
+
+/** One condition with its has() tests, in parentheses when it has any. */
+function compileGuarded(c: Condition): string {
+  const guards = guardsOf(c);
+  if (guards.length === 0) return compileCondition(c);
+  const terms = [...guards.map(hasTest), compileCondition(c)];
+  return `(${terms.join(" && ")})`;
+}
+
 function compileGroup(g: ConditionGroup): string | null {
   if (g.rows.length === 0) return null;
   const join = g.match === "all" ? " && " : " || ";
-  const inner = g.rows.map(compileCondition).join(join);
+  const inner = g.rows.map(compileGuarded).join(join);
   return g.match === "none" ? `!(${inner})` : `(${inner})`;
 }
 
-/** The activation rule for a form: the conditions, then each group joined with "y". */
+/**
+ * The activation rule for a form: the conditions, then each group joined with "y".
+ * When all conditions must hold, their has() tests go first, each once. A
+ * yes/no frame field is read with `.?` and needs none.
+ */
 export function compileConditions(form: ConditionForm): string {
   const parts: string[] = [];
   if (form.rows.length > 0) {
     const rows = form.rows.map(compileCondition);
-    if (form.match === "all" || rows.length === 1) parts.push(...rows);
-    else
-      parts.push(
-        form.groups.some((g) => g.rows.length > 0)
-          ? `(${rows.join(" || ")})`
-          : rows.join(" || ")
-      );
+    if (form.match === "all" || rows.length === 1) {
+      const guards = new Set(form.rows.flatMap(guardsOf));
+      parts.push(...[...guards].map(hasTest), ...rows);
+    } else {
+      const any = form.rows.map(compileGuarded).join(" || ");
+      parts.push(form.groups.some((g) => g.rows.length > 0) ? `(${any})` : any);
+    }
   }
   for (const g of form.groups) {
     const clause = compileGroup(g);

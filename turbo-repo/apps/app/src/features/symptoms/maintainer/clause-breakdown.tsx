@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { Preview, SamplePreview } from "./maintainer-api";
+import { firstOpening } from "./sample-tree";
 
 const navClass =
   "rounded border border-gray-300 px-1.5 text-xs disabled:opacity-40 dark:border-gray-600";
@@ -59,10 +60,13 @@ export default function ClauseBreakdown({
   index?: number;
   d: I18nRecord;
 }>) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState<number | null>(null);
   const samples = preview?.samples ?? [];
   if (samples.length === 0) return null;
-  const at = Math.min(shown ?? index, samples.length - 1);
+  const at = Math.min(
+    shown ?? index ?? firstOpening(samples),
+    samples.length - 1
+  );
   const sample = samples[at] as SamplePreview;
   const clauses = sample.clauses ?? [];
   return (

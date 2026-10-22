@@ -9,7 +9,11 @@ import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
 import LevelsExpression from "./levels-expression";
 import LifecycleExpression from "./lifecycle-expression";
-import SampleTree, { unsupportedPaths, useSourceSamples } from "./sample-tree";
+import SampleTree, {
+  firstOpening,
+  unsupportedPaths,
+  useSourceSamples,
+} from "./sample-tree";
 import { SourceHelp, SourceSelect } from "./source-select";
 import { changedPaths, isChanged } from "./ui/changed";
 import {
@@ -221,8 +225,11 @@ function ActivationSection({
   const [sourceHelp, setSourceHelp] = useState(false);
   const { data: sources } = useDataSources();
   const samples = useSourceSamples(preview, spec.source);
-  const [sampleIndex, setSampleIndex] = useState(0);
-  const sampleAt = Math.min(sampleIndex, Math.max(0, samples.length - 1));
+  const [sampleIndex, setSampleIndex] = useState<number | null>(null);
+  const sampleAt = Math.min(
+    sampleIndex ?? firstOpening(samples),
+    Math.max(0, samples.length - 1)
+  );
   const notInEngine = useMemo(() => unsupportedPaths(fields), [fields]);
   const activation = spec.activation ?? "";
   const { form, update } = useActivationForm(activation, fields, (value) =>

@@ -25,14 +25,11 @@ public final class SeedTemplates {
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
             + TEXT + "), " + TEXT + ",\\s*" + TEXT + ",\\s*" + TEXT + "\\)", Pattern.DOTALL);
     /** The rewrites of V0.9.4__signal_without_gps_part.sql. */
-    private static final List<Map.Entry<String, String>> V0_9_4 = List.of(
-            Map.entry("has\\(\\s*signal\\.gps\\.speed_kmh\\s*\\)", "has(signal.frame.gps)"),
-            Map.entry("has\\(\\s*signal\\.gps\\.engine_on\\s*\\)",
-                    "(has(signal.frame.sensors) && has(signal.frame.sensors.engine_status))"),
-            Map.entry("(^|[^\\w.])signal\\.gps\\.speed_kmh\\b", "$1signal.frame.gps.speed"),
-            Map.entry("(^|[^\\w.])signal\\.gps\\.engine_on\\b", "$1signal.frame.sensors.engine_status"),
-            Map.entry("(^|[^\\w.])signal\\.gps\\.moving\\b", "$1signal.derived.moving"),
-            Map.entry("([\"(&|](\\s|\\\\n)*)has\\(\\s*signal\\.frame\\s*\\)(\\s|\\\\n)*&&(\\s|\\\\n)*", "$1"));
+    private static final Map<String, String> V0_9_4 = Map.of(
+            "signal\\.gps\\.speed_kmh\\b", "signal.frame.gps.speed",
+            "signal\\.gps\\.engine_on\\b", "signal.frame.sensors.engine_status",
+            "signal\\.gps\\.moving\\b", "signal.derived.moving",
+            "has\\(signal\\.frame\\)(\\s|\\\\+n)*&&(\\s|\\\\+n)*", "");
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final List<SymptomTemplate> ALL = load();
@@ -67,7 +64,7 @@ public final class SeedTemplates {
 
     private static SymptomSpec spec(String json) {
         String rewritten = json;
-        for (Map.Entry<String, String> r : V0_9_4) {
+        for (Map.Entry<String, String> r : V0_9_4.entrySet()) {
             rewritten = rewritten.replaceAll(r.getKey(), r.getValue());
         }
         try {

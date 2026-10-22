@@ -10,7 +10,7 @@
 #   - public/           - Public assets (optional)
 # =============================================================================
 
-FROM node:22.23.4-alpine
+FROM node:24.22.1-alpine
 
 WORKDIR /app
 

@@ -1,5 +1,5 @@
 # Production image, copy all the files and run next
-FROM node:22.23.4-alpine
+FROM node:24.22.1-alpine
 WORKDIR /app
 
 ENV NODE_ENV production

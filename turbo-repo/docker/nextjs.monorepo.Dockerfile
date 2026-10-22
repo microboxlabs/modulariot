@@ -12,7 +12,7 @@
 #     -t myapp .
 # =============================================================================
 
-FROM node:22.23.4-alpine AS base
+FROM node:24.22.1-alpine AS base
 RUN apk add --no-cache libc6-compat
 
 # -----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ RUN npx turbo run build --filter=@modulariot/${APP_NAME}
 # -----------------------------------------------------------------------------
 # Stage 4: Production runner
 # -----------------------------------------------------------------------------
-FROM node:22.23.4-alpine AS runner
+FROM node:24.22.1-alpine AS runner
 WORKDIR /app
 
 ARG APP_NAME=app

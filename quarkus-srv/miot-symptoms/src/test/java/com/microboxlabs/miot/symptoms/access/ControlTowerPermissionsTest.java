@@ -93,6 +93,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgSymptomDefinitionsResource.fork", EDIT),
             Map.entry("OrgSymptomDefinitionsResource.publish", PUBLISH),
             Map.entry("OrgSymptomDefinitionsResource.rollback", PUBLISH),
+            Map.entry("OrgSymptomDefinitionsResource.saveAsTemplate", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.setState", PUBLISH),
             Map.entry("OrgSymptomFamiliesResource.list", VIEW)));
 

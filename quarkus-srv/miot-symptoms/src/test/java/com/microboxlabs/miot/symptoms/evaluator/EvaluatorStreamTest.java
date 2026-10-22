@@ -7,7 +7,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
-import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
+import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.service.AuditService;
@@ -39,7 +39,7 @@ class EvaluatorStreamTest {
 
     private void publishPanic(String tenant, SymptomState state) {
         var id = catalog.create(tenant, "owner@example.com", new CreateRequest("panic-button", "Botón de pánico",
-                null, null, null, "gps_signal", null, new TemplateService().get("panic-button").spec()))
+                null, null, null, "gps_signal", null, SeedTemplates.get("panic-button").spec()))
                 .definition().id();
         catalog.publish(tenant, "owner@example.com", id, "Primera versión", null, state);
     }

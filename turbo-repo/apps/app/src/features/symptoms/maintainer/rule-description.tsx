@@ -5,6 +5,7 @@ import { BsStars } from "react-icons/bs";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { describeRule } from "./maintainer-api";
+import { useSymptomScope } from "./symptom-scope";
 import { Spark } from "./ui/badges";
 
 const DEBOUNCE_MS = 700;
@@ -104,6 +105,7 @@ export default function RuleDescription({
   sourceKey: string | null;
   d: I18nRecord;
 }>) {
+  const scope = useSymptomScope();
   const [html, setHtml] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -117,7 +119,7 @@ export default function RuleDescription({
     setFailed(false);
     let cancelled = false;
     const timer = setTimeout(() => {
-      describeRule({ section, rule, sourceKey, locale: "es-CL" })
+      describeRule({ section, rule, sourceKey, locale: "es-CL" }, scope)
         .then((r) => {
           if (!cancelled) {
             setHtml(r.html);
@@ -132,7 +134,7 @@ export default function RuleDescription({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [section, rule, sourceKey]);
+  }, [section, rule, sourceKey, scope]);
 
   let body: ReactNode;
   if (failed)

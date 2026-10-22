@@ -12,6 +12,7 @@ import { canonicalFamily, familyLabel } from "./symptom-labels";
 
 const d = {
   originTemplate: "Desde la plantilla {name}",
+  originTemplateVersion: "Desde la plantilla {name} v{version}",
   originFork: "Copia de otro síntoma",
   originEngine: "Importado del motor (regla {id})",
   originBlank: "Creado en blanco",
@@ -64,6 +65,13 @@ describe("originText", () => {
     expect(originText(def({ templateKey: "speeding" }), templates, d)).toBe(
       "Desde la plantilla Exceso de velocidad"
     );
+    expect(
+      originText(
+        def({ templateKey: "speeding", templateVersion: "1.2.0" }),
+        templates,
+        d
+      )
+    ).toBe("Desde la plantilla Exceso de velocidad v1.2.0");
     expect(originText(def({ templateKey: "gone" }), templates, d)).toBe(
       "Desde la plantilla gone"
     );

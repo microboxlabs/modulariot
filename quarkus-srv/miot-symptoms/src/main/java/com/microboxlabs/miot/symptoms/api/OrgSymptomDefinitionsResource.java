@@ -4,6 +4,7 @@ import io.quarkus.security.PermissionsAllowed;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
@@ -64,6 +65,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     private final RuleDescriptionService descriptions;
     private final TemplateService templates;
     private final SymptomStatsService stats;
+    private final PlatformAuthorizer platform;
 
     /**
      * Publishes the draft. {@code bump} may raise the computed bump; {@code state} overrides the draft's, which
@@ -86,6 +88,13 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     }
 
     /**
+     * {@code version} defaults to the version in force, else the draft; without {@code templateKey} a new template
+     * is created, named {@code name} or like the symptom.
+     */
+    public record SaveAsTemplateRequest(String version, String templateKey, String name) {
+    }
+
+    /**
      * One rule to describe. {@code section}: activation, measure, levels.1-4, lifecycle.open, lifecycle.close,
      * or a whole section: levels (the measure and one line per level) or lifecycle ("abre: ...\ncierra: ...").
      */
@@ -103,7 +112,8 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             EngineImportService importer,
             RuleDescriptionService descriptions,
             TemplateService templates,
-            SymptomStatsService stats) {
+            SymptomStatsService stats,
+            PlatformAuthorizer platform) {
         super(tenantContext, organizationContext, roleService, identity);
         this.catalog = catalog;
         this.previews = previews;
@@ -111,6 +121,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
         this.descriptions = descriptions;
         this.templates = templates;
         this.stats = stats;
+        this.platform = platform;
     }
 
     @GET
@@ -349,6 +360,20 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             return Response.status(Response.Status.CREATED)
                     .entity(catalog.fork(tenant, actor, uuid(id), body.version(), body.key(), body.name())).build();
         });
+    }
+
+    @POST
+    @Path("/{id}/save-as-template")
+    @Operation(operationId = "saveSymptomAsTemplate",
+            summary = "Save a version of this symptom as a platform template's draft. Platform owners only")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> saveAsTemplate(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            SaveAsTemplateRequest body) {
+        String tenant = tenantCode(organizationId);
+        SaveAsTemplateRequest req = body == null ? new SaveAsTemplateRequest(null, null, null) : body;
+        return platform.requirePlatformOwner().flatMap(actor -> work(() -> Response.ok(catalog.saveAsTemplate(
+                tenant, actor, uuid(id), req.version(), req.templateKey(), req.name())).build()));
     }
 
     @PUT

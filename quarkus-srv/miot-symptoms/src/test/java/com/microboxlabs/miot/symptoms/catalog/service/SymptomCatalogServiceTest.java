@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import static com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate.PLATFORM_TENANT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -182,7 +183,7 @@ class SymptomCatalogServiceTest {
     @Test
     void aTemplateStartsInTestAtZeroOneZero() {
         SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
-                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", "1.0.0", Specs.speeding());
 
         SymptomDetail first = service.createFromTemplate(TENANT, OWNER, template, null);
         SymptomDetail second = service.createFromTemplate(TENANT, OWNER, template, "Exceso en ruta 5");
@@ -202,13 +203,13 @@ class SymptomCatalogServiceTest {
 
     private static SymptomTemplate speedingTemplate() {
         return new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
-                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", "1.0.0", Specs.speeding());
     }
 
     @Test
     void aTemplateThatDoesNotFitTheSourceLeavesNothingBehind() {
         SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
-                null, "En viaje", Specs.with(Specs.speeding(), "signal.gps.not_in_this_source > 1"));
+                null, "En viaje", "1.0.0", Specs.with(Specs.speeding(), "signal.gps.not_in_this_source > 1"));
 
         assertThrows(IllegalStateException.class, () -> service.createFromTemplate(TENANT, OWNER, template, null));
 
@@ -227,7 +228,8 @@ class SymptomCatalogServiceTest {
                 if (!raced && d.key().equals("speeding")) {
                     raced = true;
                     super.insertDefinition(new SymptomDefinition(UUID.randomUUID(), d.tenantCode(), "speeding",
-                            "Ganó la otra", null, null, null, "gps_signal", null, null, null, SymptomState.OFF, null,
+                            "Ganó la otra", null, null, null, "gps_signal", null, null, null, null,
+                            SymptomState.OFF, null,
                             OWNER, d.createdAt(), OWNER, d.createdAt()));
                 }
                 return super.insertDefinition(d);
@@ -484,5 +486,55 @@ class SymptomCatalogServiceTest {
         service.saveDraft(TENANT, OWNER, id, Specs.speeding());
 
         assertEquals("symptom.draft_saved", audit.list(TENANT, "symptom", null, null, null, null, 10).get(0).action());
+    }
+
+    @Test
+    void aCopyRemembersTheTemplateVersion() {
+        SymptomDetail copy = service.createFromTemplate(TENANT, OWNER, speedingTemplate(), null);
+
+        assertEquals("speeding", copy.definition().templateKey());
+        assertEquals("1.0.0", copy.definition().templateVersion());
+        assertEquals("Desde la plantilla Exceso de velocidad 1.0.0", copy.current().reason());
+    }
+
+    @Test
+    void savingAsTemplateLeavesAnUnpublishedTemplateWithoutTheOrganizationsNotices() {
+        UUID id = speeding();
+        SymptomSpec.Notice notice = new SymptomSpec.Notice("open", "whatsapp", "conn-1", "tpl-1", "+56900000000");
+        SymptomSpec withNotice = Specs.withLevels(Specs.speeding(), Specs.speeding().levels().stream()
+                .map(l -> l.icu() != 4 ? l : new SymptomSpec.Level(4, true, l.when(), new SymptomSpec.Response(true,
+                        5, List.of(), List.of(notice), List.of(), false)))
+                .toList());
+        service.saveDraft(TENANT, OWNER, id, withNotice);
+        service.publish(TENANT, OWNER, id, "Con aviso", null, SymptomState.ACTIVE);
+
+        SymptomDetail template = service.saveAsTemplate(TENANT, OWNER, id, null, null, null);
+
+        assertEquals(PLATFORM_TENANT, template.definition().tenantCode());
+        assertEquals("speeding", template.definition().key());
+        assertNull(template.definition().currentVersion(), "organizations do not see it until it is published");
+        assertEquals(SymptomState.OFF, template.definition().state());
+        SymptomSpec.Notice saved = template.draft().spec().levels().get(3).response().notices().get(0);
+        assertEquals(new SymptomSpec.Notice("open", "whatsapp", null, null, null), saved);
+        assertNull(template.draft().spec().state());
+    }
+
+    @Test
+    void savingAsAnExistingTemplateReplacesItsDraft() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera", null, null);
+        UUID templateId = service.saveAsTemplate(TENANT, OWNER, id, null, null, "Velocidad").definition().id();
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
+
+        SymptomDetail again = service.saveAsTemplate(TENANT, OWNER, id, null, "speeding", null);
+
+        assertEquals(templateId, again.definition().id());
+        assertEquals("Velocidad", again.definition().name());
+        assertEquals(Specs.speeding().activation(), again.draft().spec().activation(),
+                "without a version, the version in force is saved, not the newer draft");
+        assertThrows(NoSuchElementException.class,
+                () -> service.saveAsTemplate(TENANT, OWNER, id, null, "nope", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.saveAsTemplate(PLATFORM_TENANT, OWNER, templateId, null, null, null));
     }
 }

@@ -80,4 +80,18 @@ describe("/api/control-tower/[...path]", () => {
     expect(denied.status).toBe(403);
     expect(forwardMock).not.toHaveBeenCalled();
   });
+
+  it("saves as template with the user's session only", async () => {
+    await POST(
+      req("http://x/app/api/control-tower/symptom-definitions/abc/save-as-template", {
+        method: "POST",
+        body: "{}",
+      }),
+      ctx(["symptom-definitions", "abc", "save-as-template"])
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/control-tower/symptom-definitions/abc/save-as-template",
+      { method: "POST", body: {}, sessionOnly: true }
+    );
+  });
 });

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
-import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
+import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.evaluator.evals.EvalTraces.Signal;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
  */
 class PanicButtonRuleCasesTest {
 
-    private static final SymptomSpec TEMPLATE = new TemplateService().get("panic-button").spec();
+    private static final SymptomSpec TEMPLATE = SeedTemplates.get("panic-button").spec();
     private static final DataSource GPS = EvalTraces.source("gps_signal");
 
     private static Signal frame(int at, boolean pressed, boolean onTrip) {

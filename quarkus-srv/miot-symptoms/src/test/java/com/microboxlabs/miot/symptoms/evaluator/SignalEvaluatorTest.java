@@ -10,7 +10,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
+import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator.Result;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
@@ -256,7 +256,7 @@ class SignalEvaluatorTest {
     @Test
     void theNightStopTemplateClimbsByTimeStopped() {
         UUID stop = UUID.randomUUID();
-        SymptomSpec night = new TemplateService().get("night-stop-unauthorized").spec();
+        SymptomSpec night = SeedTemplates.get("night-stop-unauthorized").spec();
         DataSource platform = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine())
                 .find(TENANT, "gps_signal").orElseThrow();
         List<CompiledSymptom> one = List.of(CompiledSymptom.compile(stop, "0.1.0", SymptomState.TEST, night,

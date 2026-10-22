@@ -2,7 +2,16 @@
 
 Runs published symptom versions on a vehicle's signals and keeps one episode per vehicle and symptom. It turns each signal into at most one case change per symptom: opened, level changed or closed.
 
-**Status: core only.** Nothing feeds it signals yet and nothing stores its episodes outside memory. The signal topic, the consumer and the database store come next.
+**Status: runs in test.** `EvaluatorStream` reads `tracking/asset-signals` (built by the signal builder, [gps-signal.md](gps-signal.md)) for the organizations in `miot.symptoms.evaluator.tenants`, keeps episodes in Redis and records every case change in `miot_symptoms.signal_transitions`. It opens no cases yet: ACTIVE transitions are recorded like TEST ones.
+
+| Setting | Meaning | Default |
+|---|---|---|
+| `MIOT_SYMPTOMS_EVALUATOR_ENABLED` | Consume signals | `false` |
+| `MIOT_SYMPTOMS_EVALUATOR_TENANTS` | Tenant codes to evaluate, comma-separated; none means nothing runs | empty |
+| `MIOT_SYMPTOMS_EVALUATOR_REDIS_URL` | `redis://:password@host:6379`; unset keeps episodes in memory (one replica only) | unset |
+| `MIOT_SYMPTOMS_EVALUATOR_EPISODE_TTL` | How long a vehicle's episodes live after their last write | `P7D` |
+
+Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica.
 
 | | |
 |---|---|

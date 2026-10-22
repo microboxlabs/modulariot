@@ -29,6 +29,8 @@ import {
   useControlTowerAccess,
   familiesListMissing,
   useSymptomTemplates,
+  type PublishPlan,
+  type SymptomSpec,
 } from "./maintainer-api";
 import DraftBar from "./draft-bar";
 import HarnessPanel from "./harness-panel";
@@ -50,6 +52,7 @@ import {
   isTemplateScope,
   PLATFORM_TEMPLATES,
   useSymptomScope,
+  type SymptomScope,
 } from "./symptom-scope";
 import { useSymptomDraft } from "./use-symptom-draft";
 import { changedPaths } from "./ui/changed";
@@ -59,6 +62,46 @@ import VersionsDrawer from "./versions-drawer";
 /** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
 function variantName(name: string, d: I18nRecord) {
   return tr("variantName", d, { name });
+}
+
+/**
+ * Who may edit the sheet: platform owners for a template, Control Tower
+ * maintainers for a symptom. The integration API lists connections for
+ * organization owners only, so `connectionsOrg` is null for anyone else, who
+ * sees the saved choice.
+ */
+function useSheetAccess(scope: SymptomScope) {
+  const template = isTemplateScope(scope);
+  const { activeOrg } = useOrgScopes();
+  const { canMaintain } = useControlTowerAccess();
+  const { isPlatformOwner } = useIsPlatformOwner();
+  const ownsOrg = !template && activeOrg?.role === "OWNER";
+  return {
+    template,
+    isPlatformOwner,
+    canWrite: template ? isPlatformOwner : canMaintain,
+    connectionsOrg: ownsOrg ? (activeOrg?.slug ?? null) : null,
+  };
+}
+
+/** Amber marks: what the draft changes against the published version; none before publishing. */
+function changeMarks(
+  spec: SymptomSpec | null | undefined,
+  published: SymptomSpec | null | undefined,
+  plan: PublishPlan | null | undefined,
+  planIsCurrent: boolean
+): Set<string> {
+  if (!published || !spec) return new Set<string>();
+  const paths = changedPaths(spec, published);
+  // Conditions in another order are no change for the publish plan, so no mark either.
+  if (
+    planIsCurrent &&
+    plan &&
+    !plan.changes.some((c) => c.section === "activation")
+  ) {
+    paths.delete("activation");
+  }
+  return paths;
 }
 
 /** The scrolling sheet; opening an old version scrolls it to the top. */
@@ -91,16 +134,9 @@ export default function SymptomDetail({
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
   const scope = useSymptomScope();
-  const template = isTemplateScope(scope);
-  const { activeOrg } = useOrgScopes();
-  const { canMaintain } = useControlTowerAccess();
-  const { isPlatformOwner } = useIsPlatformOwner();
-  const canWrite = template ? isPlatformOwner : canMaintain;
-  // The integration API lists connections for organization owners only; others see the saved choice.
-  const listsConnections = !template && activeOrg?.role === "OWNER";
-  const { connections } = useIntegrationConfig(
-    listsConnections ? (activeOrg?.slug ?? null) : null
-  );
+  const { template, isPlatformOwner, canWrite, connectionsOrg } =
+    useSheetAccess(scope);
+  const { connections } = useIntegrationConfig(connectionsOrg);
   const {
     detail,
     error,
@@ -128,19 +164,14 @@ export default function SymptomDetail({
     ? detail?.versions.find((v) => v.version === viewing)
     : undefined;
   const shownSpec = viewed?.spec ?? spec;
-  // Amber marks: what the spec on screen changes against the published version; none for an old version or before publishing.
   const published = detail?.current?.spec;
-  const changed = useMemo(() => {
-    if (viewed || !published || !spec) return new Set<string>();
-    const paths = changedPaths(spec, published);
-    // Conditions in another order are no change for the publish plan, so no mark either.
-    const reordered =
-      planIsCurrent &&
-      plan &&
-      !plan.changes.some((c) => c.section === "activation");
-    if (reordered) paths.delete("activation");
-    return paths;
-  }, [viewed, published, spec, plan, planIsCurrent]);
+  const changed = useMemo(
+    () =>
+      viewed
+        ? new Set<string>()
+        : changeMarks(spec, published, plan, planIsCurrent),
+    [viewed, published, spec, plan, planIsCurrent]
+  );
   // The overview describes the version on screen, or the one in force; a draft would rewrite it on every edit.
   const overviewSpec = viewed?.spec ?? published ?? null;
   const overview = overviewSpec ? overviewText(overviewSpec) : "";
@@ -431,51 +462,81 @@ export default function SymptomDetail({
         />
       )}
 
-      <Modal show={pending !== null} size="md" onClose={closePending}>
-        <ModalHeader>
-          {pending?.kind === "fork"
-            ? tr("duplicateAsNew", d)
-            : tr("restoreTitle", d, { version: pending?.version ?? "" })}
-        </ModalHeader>
-        <ModalBody>
-          <Label htmlFor="pending-text">
-            {pending?.kind === "fork" ? tr("name", d) : tr("reason", d)}
-          </Label>
-          <TextInput
-            id="pending-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <p className="mt-2 text-xs text-gray-500">
-            {pending?.kind === "fork"
-              ? tr("duplicateHint", d, { version: pending.version })
-              : tr("restoreHint", d)}
-          </p>
-          {dialogError && (
-            <p
-              role="alert"
-              className="mt-2 text-sm text-red-600 dark:text-red-400"
-            >
-              {dialogError}
-            </p>
-          )}
-        </ModalBody>
-        <ModalFooter className="justify-end">
-          <Button
-            color="alternative"
-            disabled={confirming}
-            onClick={closePending}
-          >
-            {tr("cancel", d)}
-          </Button>
-          <Button
-            disabled={confirming || (pending?.kind === "fork" && !text.trim())}
-            onClick={() => void confirmPending()}
-          >
-            {pending?.kind === "fork" ? tr("duplicate", d) : tr("restore", d)}
-          </Button>
-        </ModalFooter>
-      </Modal>
+      <PendingDialog
+        pending={pending}
+        text={text}
+        confirming={confirming}
+        error={dialogError}
+        d={d}
+        onText={setText}
+        onClose={closePending}
+        onConfirm={() => void confirmPending()}
+      />
     </div>
+  );
+}
+
+/** Asks for a copy's name, or a rollback's reason, before either runs. */
+function PendingDialog({
+  pending,
+  text,
+  confirming,
+  error,
+  d,
+  onText,
+  onClose,
+  onConfirm,
+}: Readonly<{
+  pending: Pending;
+  text: string;
+  confirming: boolean;
+  error: string | null;
+  d: I18nRecord;
+  onText: (text: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}>) {
+  return (
+    <Modal show={pending !== null} size="md" onClose={onClose}>
+      <ModalHeader>
+        {pending?.kind === "fork"
+          ? tr("duplicateAsNew", d)
+          : tr("restoreTitle", d, { version: pending?.version ?? "" })}
+      </ModalHeader>
+      <ModalBody>
+        <Label htmlFor="pending-text">
+          {pending?.kind === "fork" ? tr("name", d) : tr("reason", d)}
+        </Label>
+        <TextInput
+          id="pending-text"
+          value={text}
+          onChange={(e) => onText(e.target.value)}
+        />
+        <p className="mt-2 text-xs text-gray-500">
+          {pending?.kind === "fork"
+            ? tr("duplicateHint", d, { version: pending.version })
+            : tr("restoreHint", d)}
+        </p>
+        {error && (
+          <p
+            role="alert"
+            className="mt-2 text-sm text-red-600 dark:text-red-400"
+          >
+            {error}
+          </p>
+        )}
+      </ModalBody>
+      <ModalFooter className="justify-end">
+        <Button color="alternative" disabled={confirming} onClick={onClose}>
+          {tr("cancel", d)}
+        </Button>
+        <Button
+          disabled={confirming || (pending?.kind === "fork" && !text.trim())}
+          onClick={onConfirm}
+        >
+          {pending?.kind === "fork" ? tr("duplicate", d) : tr("restore", d)}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

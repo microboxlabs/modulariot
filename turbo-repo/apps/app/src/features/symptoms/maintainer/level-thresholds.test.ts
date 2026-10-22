@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { compileThresholds, parseThresholds } from "./level-thresholds";
+import {
+  compileThresholds,
+  DEFAULT_LEVEL_RULE,
+  parseThresholds,
+} from "./level-thresholds";
 
 describe("parseThresholds", () => {
+  it("reads the rule a level gets when it is turned on", () => {
+    expect(parseThresholds(DEFAULT_LEVEL_RULE)).not.toBeNull();
+  });
+
   it("reads every platform template level and writes it back unchanged", () => {
     for (const rule of [
       "measure > 0 && measure < 5",

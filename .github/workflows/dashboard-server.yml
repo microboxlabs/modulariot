@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "24"
+  NODE_VERSION: "24.22.1"
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-dashboard-server
@@ -129,6 +129,7 @@ jobs:
         with:
           context: /tmp/build-dashboard-server/
           file: /tmp/build-dashboard-server/dashboard-server.Dockerfile
+          pull: true
           platforms: linux/amd64
           load: true
           push: false
@@ -195,6 +196,7 @@ jobs:
         with:
           context: /tmp/build-dashboard-server/
           file: /tmp/build-dashboard-server/dashboard-server.Dockerfile
+          pull: true
           platforms: linux/amd64
           push: true
           tags: |

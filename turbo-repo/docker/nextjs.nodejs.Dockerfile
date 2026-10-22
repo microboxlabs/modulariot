@@ -1,5 +1,5 @@
 # Production image, copy all the files and run next
-FROM node:22-slim
+FROM node:22.23.4-slim
 WORKDIR /app
 
 ENV NODE_ENV production

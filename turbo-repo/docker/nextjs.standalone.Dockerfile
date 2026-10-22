@@ -13,7 +13,7 @@
 #   - APP_NAME: Name of the app (e.g., app, web-admin) - determines the path
 # =============================================================================
 
-FROM node:22-alpine
+FROM node:22.23.4-alpine
 
 # Build argument for app name (used for proper path resolution)
 # Must be declared before using it in COPY commands

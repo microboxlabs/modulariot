@@ -124,7 +124,7 @@ function Leaf({
 
 /** Top-level objects start open and nested ones closed; a click flips that. */
 function isOpen(path: string, flipped: ReadonlySet<string>): boolean {
-  return !path.includes(".") !== flipped.has(path);
+  return path.includes(".") === flipped.has(path);
 }
 
 function Node({

@@ -129,4 +129,48 @@ class RuleLanguageTest {
         assertEquals("La expresión está vacía.",
                 RuleLanguage.check(SIGNAL, " ", Expect.CONDITION).issues().get(0).message());
     }
+
+    private static final RuleSchema FRAME = new RuleSchema("signal", Map.of(
+            "signal.trip.active", "bool",
+            "signal.frame.sensors.panic_button", "bool",
+            "signal.frame.gps.speed", "number"), Map.of());
+
+    private static Object run(String rule, Map<String, Object> signal) {
+        assertTrue(RuleLanguage.check(FRAME, rule, Expect.CONDITION).ok(), rule);
+        RuleResult r = RuleLanguage.evaluate(FRAME, rule, Map.of("signal", signal));
+        assertTrue(r.ok(), r.error());
+        return r.value();
+    }
+
+    @Test
+    void optionalReadsCompareWithTrueFalseAndNone() {
+        String pressed = "signal.frame.?sensors.?panic_button == TRUE";
+        Map<String, Object> on = Map.of("frame", Map.of("sensors", Map.of("panic_button", true)));
+        Map<String, Object> off = Map.of("frame", Map.of("sensors", Map.of("panic_button", false)));
+        Map<String, Object> noButton = Map.of("frame", Map.of("sensors", Map.of()));
+        Map<String, Object> noSensors = Map.of("frame", Map.of());
+
+        assertEquals(true, run(pressed, on));
+        assertEquals(false, run(pressed, off));
+        assertEquals(false, run(pressed, noButton), "a missing field is no error");
+        assertEquals(false, run(pressed, noSensors), "nor a missing parent");
+        assertEquals(true, run("signal.frame.?sensors.?panic_button == FALSE", off));
+        assertEquals(true, run("signal.frame.?sensors.?panic_button == NONE", noSensors));
+        assertEquals(false, run("signal.frame.?sensors.?panic_button == NONE", off));
+        assertEquals(true, run("signal.frame.?gps.?speed.orValue(0.0) > 90.0",
+                Map.of("frame", Map.of("gps", Map.of("speed", 112.0)))));
+    }
+
+    @Test
+    void optionalsCannotBeUsedAsConditionsDirectly() {
+        assertFalse(RuleLanguage.check(FRAME, "signal.frame.?sensors.?panic_button", Expect.CONDITION).ok());
+    }
+
+    @Test
+    void optionalReadsAreFieldsOfTheRule() {
+        String rule = "signal.trip.active && signal.frame.?sensors.?panic_button == TRUE";
+        assertEquals(java.util.Set.of("signal.trip.active", "signal.frame.sensors.panic_button"),
+                RuleText.fieldPaths(rule));
+        assertEquals(RuleText.canonical(rule), RuleText.canonical("signal.trip.active&&signal.frame.?sensors.?panic_button==TRUE"));
+    }
 }

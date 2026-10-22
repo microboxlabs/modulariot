@@ -25,7 +25,16 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.derived` | `moving`; `speed_avg_5m` (not evaluated yet) | calculated |
 | `signal.frame` | The frame as the device sent it (`AssetTrackingData`), for example `signal.frame.gps.speed` (km/h), `signal.frame.sensors.engine_status`, `signal.frame.sensors.panic_button` | device |
 
-A part the builder does not know is left out. `frame` is always present. A rule that reads a missing field fails for that signal and is reported as a rule error. A rule that reads an optional field guards it with `has()`, for example `has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button`.
+A part the builder does not know is left out. `frame` is always present. A rule that reads a missing field fails for that signal and is reported as a rule error. A rule reads an optional field with `.?`, which gives an optional value instead of an error, and compares it with `TRUE`, `FALSE` or `NONE` (`optional.of(true)`, `optional.of(false)`, `optional.none()`):
+
+| Rule | Holds when |
+|---|---|
+| `signal.frame.?sensors.?panic_button == TRUE` | the device sent the button pressed |
+| `signal.frame.?sensors.?panic_button == FALSE` | the device sent the button not pressed |
+| `signal.frame.?sensors.?panic_button == NONE` | the device did not send it |
+| `signal.frame.?gps.?speed.orValue(0.0) > 90.0` | speed above 90; 0 when missing |
+
+`has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button` still works.
 
 ## Signal builder
 

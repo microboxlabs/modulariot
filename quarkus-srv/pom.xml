@@ -50,6 +50,12 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- cel-java 0.13 is generated with protobuf 4.33.4 and refuses an older runtime than the Quarkus BOM's. -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>4.33.5</version>
+            </dependency>
             <!-- Stay on Pulsar 3.3 while removing its legacy Commons Lang usage. -->
             <dependency>
                 <groupId>org.apache.pulsar</groupId>

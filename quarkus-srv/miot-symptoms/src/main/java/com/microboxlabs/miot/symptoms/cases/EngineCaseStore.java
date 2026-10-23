@@ -20,7 +20,7 @@ public interface EngineCaseStore {
     List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to);
 
     /** The cases opened from {@code from} until before {@code to}, in id order after {@code afterId}. */
-    List<EngineCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit);
+    List<DueCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit);
 
     /** When the organization's first case opened. */
     Optional<Instant> firstOpening(String tenantCode);
@@ -41,5 +41,16 @@ public interface EngineCaseStore {
     }
 
     record LevelCount(UUID definitionId, int level, long count) {
+    }
+
+    /**
+     * A case and the SLA of its current level, which runs from {@code levelSince}: when the case reached that
+     * level.
+     */
+    record DueCase(long id, UUID definitionId, Instant levelSince, Integer slaMinutes) {
+
+        public long symptomId() {
+            return -id;
+        }
     }
 }

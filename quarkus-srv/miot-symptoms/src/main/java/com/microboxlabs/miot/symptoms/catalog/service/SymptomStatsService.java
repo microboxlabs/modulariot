@@ -1,7 +1,7 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
-import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.DueCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.LevelCount;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -146,7 +146,7 @@ public class SymptomStatsService {
         List<Long> totalWeek = weekly(totalRaw, days);
         long total = sum(totalWeek);
         Totals totals = new Totals(totalWeek, total, Math.round(operatorWeekActive / team.shiftsPerWeek()),
-                topShare(perSymptom, total));
+                topShare(all, raw, Arrays.stream(totalRaw).sum()));
         Set<UUID> active = all.stream().filter(s -> s.definition().state() == SymptomState.ACTIVE)
                 .map(s -> s.definition().id()).collect(Collectors.toSet());
         Double sla = slaMetLastWeek(tenantCode, active, now);
@@ -185,37 +185,41 @@ public class SymptomStatsService {
         return values.stream().mapToLong(Long::longValue).sum();
     }
 
-    private static TopShare topShare(List<PerSymptom> perSymptom, long total) {
+    /** The busiest definitions by case count, not by the rounded weekly averages. */
+    private static TopShare topShare(List<SymptomSummary> all, Map<UUID, long[]> raw, long total) {
         if (total <= 0) {
             return null;
         }
-        List<PerSymptom> top = perSymptom.stream()
-                .filter(p -> p.week() > 0)
-                .sorted(Comparator.comparingLong(PerSymptom::week).reversed())
+        List<Map.Entry<UUID, Long>> top = all.stream()
+                .map(s -> s.definition().id())
+                .filter(raw::containsKey)
+                .map(id -> Map.entry(id, Arrays.stream(raw.get(id)).sum()))
+                .filter(e -> e.getValue() > 0)
+                .sorted(Map.Entry.<UUID, Long>comparingByValue().reversed())
                 .limit(TOP)
                 .toList();
         if (top.isEmpty()) {
             return null;
         }
-        long busiest = top.stream().mapToLong(PerSymptom::week).sum();
-        return new TopShare(top.stream().map(PerSymptom::definitionId).toList(), Math.min(1.0, (double) busiest / total));
+        long busiest = top.stream().mapToLong(Map.Entry::getValue).sum();
+        return new TopShare(top.stream().map(Map.Entry::getKey).toList(), Math.min(1.0, (double) busiest / total));
     }
 
     /**
-     * Share of last week's cases of ACTIVE symptoms, at levels with an SLA, that an operator took within it.
-     * Cases whose SLA has not run out yet are left out.
+     * Share of last week's cases of ACTIVE symptoms, at levels with an SLA, that an operator took within it. The
+     * SLA runs from when the case reached its level. Cases whose SLA has not run out yet are left out.
      */
     private Double slaMetLastWeek(String tenantCode, Set<UUID> active, Instant now) {
         Map<Long, Instant> deadlines = new HashMap<>();
         try {
             long after = 0;
-            List<EngineCase> page;
+            List<DueCase> page;
             do {
                 page = cases.openedPage(tenantCode, now.minus(Duration.ofDays(7)), now, after, SLA_PAGE);
-                for (EngineCase c : page) {
+                for (DueCase c : page) {
                     after = Math.max(after, c.id());
                     if (active.contains(c.definitionId()) && c.slaMinutes() != null) {
-                        Instant at = c.openedAt().plus(Duration.ofMinutes(c.slaMinutes()));
+                        Instant at = c.levelSince().plus(Duration.ofMinutes(c.slaMinutes()));
                         if (!at.isAfter(now)) {
                             deadlines.put(c.symptomId(), at);
                         }

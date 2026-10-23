@@ -193,6 +193,38 @@ class SymptomStatsServiceTest {
     }
 
     @Test
+    void slaRunsFromWhenTheCaseReachedItsLevel() {
+        UUID id = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        OffsetDateTime opened = NOW.minusDays(1);
+        long escalated = add(id, 4, 5, opened, 1);
+        cases.levelSince.put(escalated, opened.plusHours(1).toInstant());
+        take(escalated, opened.plusHours(1).plusMinutes(2));
+
+        assertEquals(1.0, service().stats(TENANT).operators().slaMetLastWeek(), 1e-9,
+                "taken 2 minutes after the escalation, within its 5 minutes");
+    }
+
+    @Test
+    void theBusiestDefinitionsAreRankedByCasesNotRoundedAverages() {
+        UUID a = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        UUID b = symptom("speeding-b", "Exceso B", SymptomState.ACTIVE);
+        UUID c = symptom("speeding-c", "Exceso C", SymptomState.ACTIVE);
+        UUID e = symptom("speeding-d", "Exceso D", SymptomState.ACTIVE);
+        OffsetDateTime at = NOW.minusDays(89);
+        add(a, 1, at, 5);
+        add(b, 1, at, 5);
+        add(c, 1, at, 6);
+        add(e, 1, at, 5);
+
+        SymptomStats stats = service().stats(TENANT);
+
+        assertEquals(0, stats.symptoms().get(0).week(), "5 cases in 90 days round to 0 a week");
+        assertEquals(c, stats.totals().topShare().definitionIds().get(0));
+        assertEquals(3, stats.totals().topShare().definitionIds().size());
+        assertEquals(16.0 / 21, stats.totals().topShare().share(), 1e-9);
+    }
+
+    @Test
     void slaReadsEveryCaseOfTheWeekPageByPage() {
         UUID id = symptom("speeding", "Exceso", SymptomState.ACTIVE);
         OffsetDateTime start = NOW.minusDays(2);

@@ -82,8 +82,17 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
     private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n"
             + " FROM (" + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
-    private static final String OPENED_PAGE = WITH_SLA.formatted(SELECT.formatted(OPENED + " AND o.id > $4")
-            + " ORDER BY x.id LIMIT $5") + " ORDER BY y.id";
+    /** When the case reached its current level: its latest level change before it closed, else its opening. */
+    private static final String LEVEL_SINCE = """
+            SELECT z.*, COALESCE((SELECT l.at FROM miot_symptoms.signal_transitions l
+                     WHERE l.tenant_code = z.tenant_code AND l.definition_id = z.definition_id
+                       AND l.asset_id = z.asset_id AND l.state = 'ACTIVE' AND l.kind = 'LEVEL_CHANGED' AND l.id > z.id
+                       AND (z.closed_id IS NULL OR l.id < z.closed_id)
+                     ORDER BY l.id DESC LIMIT 1), z.at) AS level_since
+              FROM (%s) z
+            """;
+    private static final String OPENED_PAGE = WITH_SLA.formatted(LEVEL_SINCE.formatted(
+            SELECT.formatted(OPENED + " AND o.id > $4") + " ORDER BY x.id LIMIT $5")) + " ORDER BY y.id";
 
     private static final String FIRST = """
             SELECT min(at) AS at FROM miot_symptoms.signal_transitions
@@ -160,10 +169,11 @@ public class PgEngineCases implements EngineCaseStore {
     }
 
     @Override
-    public List<EngineCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit) {
-        List<EngineCase> out = new ArrayList<>();
+    public List<DueCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit) {
+        List<DueCase> out = new ArrayList<>();
         PgIds.query(pool.get(), OPENED_PAGE, Tuple.of(tenantCode, utc(from), utc(to), afterId, limit))
-                .forEach(r -> out.add(engineCase(r)));
+                .forEach(r -> out.add(new DueCase(r.getLong("id"), r.getUUID("definition_id"),
+                        r.getOffsetDateTime("level_since").toInstant(), r.getInteger("sla_minutes"))));
         return out;
     }
 

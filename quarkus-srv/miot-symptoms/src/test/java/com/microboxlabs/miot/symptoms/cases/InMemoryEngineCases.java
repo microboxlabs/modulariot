@@ -3,7 +3,9 @@ package com.microboxlabs.miot.symptoms.cases;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -16,6 +18,8 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     private final List<EngineCase> cases = new ArrayList<>();
     public final List<String> closedBy = new ArrayList<>();
+    /** When a case reached its current level, by case id; its opening when absent. */
+    public final Map<Long, Instant> levelSince = new HashMap<>();
     public boolean down;
     public int pages;
 
@@ -58,10 +62,13 @@ public class InMemoryEngineCases implements EngineCaseStore {
     }
 
     @Override
-    public List<EngineCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit) {
+    public List<DueCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit) {
         pages++;
         return opened(from, to).filter(c -> c.id() > afterId).sorted(Comparator.comparingLong(EngineCase::id))
-                .limit(limit).toList();
+                .limit(limit)
+                .map(c -> new DueCase(c.id(), c.definitionId(), levelSince.getOrDefault(c.id(), c.openedAt()),
+                        c.slaMinutes()))
+                .toList();
     }
 
     @Override

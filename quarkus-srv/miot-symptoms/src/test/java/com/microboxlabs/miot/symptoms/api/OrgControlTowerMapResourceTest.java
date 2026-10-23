@@ -1,8 +1,10 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /** The organization's own client id reaches the GPS database, and failures are 400 or 503. */
@@ -129,6 +132,44 @@ class OrgControlTowerMapResourceTest {
         assertEquals(200, call(resource.positions(ORG)).getStatus());
         assertEquals(200, call(resource.summary(ORG)).getStatus());
         assertEquals(List.of("client-a", "client-a", "client-a"), tokensAskedFor);
+    }
+
+    private static EngineCase openCase(long id, int level) {
+        return new EngineCase(id, UUID.randomUUID(), "0.1.0", "Botón de pánico", "emergencies", "DEMO0" + id,
+                Instant.now(), level, null, null, null, null, null, 0, 2, null);
+    }
+
+    @Test
+    void theActiveCountsIncludeTheOpenCases() {
+        response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createObjectNode().put("Code Black", 1).put("Stable", 3));
+        engineCases.add(openCase(3, 4));
+        engineCases.add(openCase(4, 4));
+
+        JsonNode counts = (JsonNode) call(resource.conditions(ORG, null, null)).getEntity();
+
+        assertEquals(3, counts.get("Code Black").asInt());
+        assertEquals(3, counts.get("Stable").asInt());
+    }
+
+    @Test
+    void theCountsOfARangeAreTheGpsDatabasesOnly() {
+        engineCases.add(openCase(3, 4));
+
+        JsonNode counts = (JsonNode) call(resource.conditions(ORG, "2026-10-01", "2026-10-02")).getEntity();
+
+        assertFalse(counts.has("Code Black"));
+    }
+
+    @Test
+    void theOpenCasesCountWhenTheGpsDatabaseIsDown() {
+        response = new GpsRpcApi.RpcResponse(500, "Unexpected error", null);
+        assertEquals(503, call(resource.conditions(ORG, null, null)).getStatus(), "nothing to count");
+
+        engineCases.add(openCase(3, 4));
+        Response counts = call(resource(Optional.empty()).conditions(ORG, null, null));
+
+        assertEquals(200, counts.getStatus());
+        assertEquals(1, ((JsonNode) counts.getEntity()).get("Code Black").asInt());
     }
 
     @Test

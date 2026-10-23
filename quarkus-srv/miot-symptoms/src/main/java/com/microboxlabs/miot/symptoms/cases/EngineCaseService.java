@@ -40,6 +40,11 @@ public class EngineCaseService {
     private static final String ICU_CONDITION = "icu_condition";
     private static final Map<Integer, String> CONDITIONS = Map.of(1, "UNDER OBSERVATION", 2,
             "COMPROMISED CONDITION", 3, "CRITICAL CONDITION", 4, "CODE BLACK");
+    private static final String UNDER_TREATMENT = "UNDER TREATMENT";
+    /** The keys of the GPS database's counts by condition. */
+    private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
+            3, "Critical condition", 4, "Code Black");
+    private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
     private static final String TRIP = """
             SELECT trip_id, asset_id, carrier_name, origin_geofence_label, destination_geofence_label, driver_name,
                    second_driver_name, type_load, driver_contact_phone
@@ -112,6 +117,19 @@ public class EngineCaseService {
         return out;
     }
 
+    /**
+     * The counts by condition with the open cases added, each once: under treatment while it has an open
+     * treatment, else at its level. {@code counts} is null when the GPS database could not be read.
+     */
+    public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
+        ObjectNode out = counts != null && counts.isObject() ? ((ObjectNode) counts).deepCopy() : JSON.objectNode();
+        for (EngineCase c : store.open(tenantCode)) {
+            String key = c.treatments() > 0 ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
+            out.put(key, out.path(key).asLong(0) + 1);
+        }
+        return out;
+    }
+
     public boolean hasOpenCases(String tenantCode) {
         return !store.open(tenantCode).isEmpty();
     }
@@ -122,12 +140,22 @@ public class EngineCaseService {
         r.put(SYMPTOM_NAME, c.name());
         r.put("type_of_incidence", c.name());
         r.put(ICU_CODE, String.valueOf(c.level()));
-        r.put(ICU_CONDITION, condition(c.level()));
+        r.put(ICU_CONDITION, c.treatments() > 0 ? UNDER_TREATMENT : condition(c.level()));
         r.put("asset_id", c.assetId());
         r.put("trip_id", c.tripId());
         r.put("start_time", c.openedAt().toString());
         r.put("duration_sec", Duration.between(c.openedAt(), clock.instant()).toSeconds());
         r.put("treatment_count", c.treatments());
+        if (c.slaMinutes() == null) {
+            r.putNull("sla_minutes");
+        } else {
+            r.put("sla_minutes", c.slaMinutes());
+        }
+        if (c.recurrence() == null) {
+            r.putNull("recurrence_events");
+        } else {
+            r.put("recurrence_events", c.recurrence());
+        }
         r.putNull("driver");
         return r;
     }

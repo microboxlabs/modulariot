@@ -7,11 +7,11 @@ export function tripIdOf(value: string | number | null | undefined): string {
   return id === "null" || id === "undefined" ? "" : id;
 }
 
-/** The evaluator's cases have negative symptom ids. */
+/** The evaluator's cases have negative symptom ids, as the modulith reads them. */
 export function isEngineCaseId(
   symptomId: string | number | null | undefined
 ): boolean {
-  return /^-\d+$/.test(String(symptomId ?? "").trim());
+  return /^-\d{1,18}$/.test(String(symptomId ?? "").trim());
 }
 
 /** The treatment page of a symptom, without a trip parameter when it has none. */

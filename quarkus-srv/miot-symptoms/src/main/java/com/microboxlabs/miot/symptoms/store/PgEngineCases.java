@@ -83,6 +83,7 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String PREVIOUS = """
             SELECT max(at) AS at FROM miot_symptoms.signal_transitions
              WHERE tenant_code = $1 AND asset_id = $2 AND kind = 'OPENED' AND state = 'ACTIVE' AND id < $3
+               AND at > $4 AND at < $5
             """;
 
     /** Locks the case's OPENED row, so overlapping closes of one case run one after the other. */
@@ -141,8 +142,10 @@ public class PgEngineCases implements EngineCaseStore {
     }
 
     @Override
-    public Optional<Instant> previousOpening(String tenantCode, String assetId, long caseId) {
-        var rows = PgIds.query(pool.get(), PREVIOUS, Tuple.of(tenantCode, assetId, caseId)).iterator();
+    public Optional<Instant> previousOpening(String tenantCode, String assetId, long caseId, Instant after,
+            Instant before) {
+        var rows = PgIds.query(pool.get(), PREVIOUS, Tuple.of(tenantCode, assetId, caseId,
+                after.atOffset(ZoneOffset.UTC), before.atOffset(ZoneOffset.UTC))).iterator();
         OffsetDateTime at = rows.hasNext() ? rows.next().getOffsetDateTime("at") : null;
         return Optional.ofNullable(at).map(OffsetDateTime::toInstant);
     }

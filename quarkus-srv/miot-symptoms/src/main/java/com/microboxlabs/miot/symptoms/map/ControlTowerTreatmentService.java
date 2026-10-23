@@ -80,13 +80,23 @@ public class ControlTowerTreatmentService {
                 "Trip not found"));
     }
 
-    /** The asset's positions from {@code from} to {@code to}, oldest first, at most {@value #MAX_POSITIONS}. */
-    public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to) {
+    /**
+     * The asset's positions from {@code from} to {@code to}, oldest first, at most {@value #MAX_POSITIONS}: those of
+     * the first client id that had the asset mapped, else none.
+     */
+    public Uni<JsonNode> assetPositions(List<String> clientIds, String assetId, Instant from, Instant to) {
         if (assetId == null || assetId.isBlank() || from == null || to == null) {
             throw new IllegalArgumentException("assetId, from and to are required");
         }
         String asset = assetId.trim();
-        return guarded(() -> reads.assetPositions(asset, from, to, MAX_POSITIONS));
+        return guarded(() -> {
+            Uni<JsonNode> found = Uni.createFrom().item(JsonNodeFactory.instance.arrayNode());
+            for (String client : clientIds) {
+                found = found.flatMap(previous -> !previous.isEmpty() ? Uni.createFrom().item(previous)
+                        : reads.assetPositions(asset, from, to, client, MAX_POSITIONS));
+            }
+            return found;
+        });
     }
 
     /** The first client id, in order and one at a time, for which {@code read} finds something. */

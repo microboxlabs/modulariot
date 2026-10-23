@@ -61,8 +61,11 @@ class ControlTowerTreatmentServiceTest {
         }
 
         @Override
-        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit) {
-            calls.add("asset " + assetId + " " + from + " " + to + " " + limit);
+        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit) {
+            calls.add("asset " + assetId + " " + from + " " + to + " " + clientId + " " + limit);
+            if (!"client-child".equals(clientId)) {
+                return Uni.createFrom().item(JSON.createArrayNode());
+            }
             return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
         }
     }
@@ -159,12 +162,13 @@ class ControlTowerTreatmentServiceTest {
         Instant from = Instant.parse("2026-10-22T02:00:00Z");
         Instant to = Instant.parse("2026-10-22T03:30:00Z");
 
-        JsonNode positions = await(service.assetPositions(" DEMO01 ", from, to));
+        JsonNode positions = await(service.assetPositions(CLIENTS, " DEMO01 ", from, to));
 
         assertEquals("DEMO01", positions.get(0).path("assetid").asText());
-        assertEquals("asset DEMO01 " + from + " " + to + " " + ControlTowerTreatmentService.MAX_POSITIONS,
-                reads.calls.get(0));
-        assertThrows(IllegalArgumentException.class, () -> service.assetPositions(" ", from, to));
+        assertEquals("asset DEMO01 " + from + " " + to + " client-child " + ControlTowerTreatmentService.MAX_POSITIONS,
+                reads.calls.get(1), "the first client id without the asset mapped reads nothing");
+        assertTrue(await(service.assetPositions(List.of("client-a"), "DEMO01", from, to)).isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> service.assetPositions(CLIENTS, " ", from, to));
     }
 
     @Test

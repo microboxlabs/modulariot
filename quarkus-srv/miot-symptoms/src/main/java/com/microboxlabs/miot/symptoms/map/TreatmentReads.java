@@ -29,6 +29,9 @@ public interface TreatmentReads {
      */
     Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit);
 
-    /** The asset's positions from {@code from} to {@code to}, oldest first, at most {@code limit}, sampled evenly. */
-    Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit);
+    /**
+     * The asset's positions from {@code from} to {@code to}, oldest first, at most {@code limit}, sampled evenly. Only
+     * the positions sent while the asset was mapped to the client; an empty array when there are none.
+     */
+    Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit);
 }

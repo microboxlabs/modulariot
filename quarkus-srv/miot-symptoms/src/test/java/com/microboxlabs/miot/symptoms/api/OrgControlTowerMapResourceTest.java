@@ -118,7 +118,7 @@ class OrgControlTowerMapResourceTest {
         }
 
         @Override
-        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit) {
+        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit) {
             return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
         }
     };

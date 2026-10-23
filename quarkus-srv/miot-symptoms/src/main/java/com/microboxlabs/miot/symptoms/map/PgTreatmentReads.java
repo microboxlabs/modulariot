@@ -86,13 +86,19 @@ public class PgTreatmentReads implements TreatmentReads {
             """ + KEPT + "SELECT (SELECT count(*) FROM trip)::int AS found, ("
             + POSITIONS_JSON + ")::text AS positions";
 
-    // The asset's signals in a time range, sampled like a trip's.
+    // The asset's signals in a time range, sampled like a trip's: only those sent while the asset was mapped to the
+    // client.
     static final String ASSET_POSITIONS = """
-            WITH pts AS (
+            WITH me AS (SELECT public.api_request_symptoms_client_id()::text AS stored),
+            pts AS (
                 SELECT a.asset_id, a."timestamp", a.speed, a.heading, a.location,
                        row_number() OVER (ORDER BY a."timestamp") AS rn, count(*) OVER () AS n
-                FROM public.asset_data a
+                FROM public.asset_data a CROSS JOIN me
                 WHERE a."timestamp" >= $2::timestamptz AND a."timestamp" <= $3::timestamptz AND a.asset_id = $1
+                  AND EXISTS (SELECT 1 FROM public.asset_client_map m
+                              WHERE m.asset_id = $1 AND m.shared_client_id IN ($5::text, me.stored)
+                                AND (m.valid_from IS NULL OR m.valid_from <= a."timestamp")
+                                AND (m.valid_to IS NULL OR m.valid_to >= a."timestamp"))
             ),
             """ + KEPT + "SELECT (" + POSITIONS_JSON + ")::text AS positions";
 
@@ -124,16 +130,13 @@ public class PgTreatmentReads implements TreatmentReads {
     }
 
     @Override
-    public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit) {
+    public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit) {
         if (limit < 2) {
             throw new IllegalArgumentException("limit must be at least 2");
         }
-        Tuple args = Tuple.of(assetId, from.atOffset(ZoneOffset.UTC), to.atOffset(ZoneOffset.UTC), limit);
-        return pool.get().withTransaction(conn -> conn.query(STATEMENT_TIMEOUT).execute()
-                        .flatMap(ignored -> conn.preparedQuery(ASSET_POSITIONS).execute(args)))
-                .ifNoItem().after(QUERY_TIMEOUT).fail()
-                .map(rows -> first(rows).map(r -> parse(r.getString("positions")))
-                        .orElseGet(JSON::createArrayNode));
+        Tuple args = Tuple.of(assetId, from.atOffset(ZoneOffset.UTC), to.atOffset(ZoneOffset.UTC), limit, clientId);
+        return asClient(clientId, ASSET_POSITIONS, args)
+                .map(row -> row.map(r -> parse(r.getString("positions"))).orElseGet(JSON::createArrayNode));
     }
 
     private Uni<Optional<Row>> asClient(String clientId, String sql, Tuple args) {

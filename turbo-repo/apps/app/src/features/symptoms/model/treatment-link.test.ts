@@ -23,6 +23,7 @@ describe("isEngineCaseId", () => {
     expect(isEngineCaseId("9")).toBe(false);
     expect(isEngineCaseId("")).toBe(false);
     expect(isEngineCaseId(null)).toBe(false);
+    expect(isEngineCaseId("-1234567890123456789")).toBe(false);
   });
 });
 

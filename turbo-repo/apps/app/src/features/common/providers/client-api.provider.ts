@@ -652,7 +652,7 @@ export function useTreatmentsLocation(
     FetcherError
   >(
     shouldFetch
-      ? `/app/api/treatments/location?${tripParam}symptom_name=${symptom_name}&symptom_id=${symptom_id}`
+      ? `/app/api/treatments/location?${tripParam}symptom_name=${encodeURIComponent(symptom_name)}&symptom_id=${encodeURIComponent(symptom_id)}`
       : null,
     fetcher
   );

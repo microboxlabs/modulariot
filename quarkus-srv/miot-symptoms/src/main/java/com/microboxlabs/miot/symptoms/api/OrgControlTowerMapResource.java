@@ -203,7 +203,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         long id = Long.parseLong(symptomId.trim());
         return answer(() -> Uni.createFrom().item(() -> cases.signalWindow(tenant, id))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .flatMap(w -> treatments.assetPositions(w.assetId(), w.from(), w.to())));
+                .flatMap(w -> treatments.assetPositions(clientIds(), w.assetId(), w.from(), w.to())));
     }
 
     @GET
@@ -241,6 +241,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return Uni.createFrom().item(error(Response.Status.BAD_REQUEST, e.getMessage()));
         }
         return data.map(body -> Response.ok(body).build())
+                .onFailure(IllegalArgumentException.class)
+                .recoverWithItem(e -> error(Response.Status.BAD_REQUEST, e.getMessage()))
                 .onFailure(NoSuchElementException.class)
                 .recoverWithItem(e -> error(Response.Status.NOT_FOUND, e.getMessage()))
                 .onFailure(ControlTowerMapService.UnavailableException.class)

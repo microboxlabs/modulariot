@@ -74,11 +74,13 @@ class EngineCaseServiceTest {
     void theSignalWindowStartsAtTheVehiclesPreviousCaseWhenNearer() {
         store.add(at(10, "DEMO01", OPENED.minusSeconds(1200), OPENED.minusSeconds(600)));
         store.add(at(11, "DEMO02", OPENED.minusSeconds(300), null));
-        store.add(at(12, "DEMO01", OPENED, OPENED.plusSeconds(30)));
+        store.add(at(12, "DEMO01", OPENED, null));
+        store.add(at(13, "DEMO01", OPENED, OPENED.plusSeconds(30)));
 
-        EngineCaseService.SignalWindow w = service.signalWindow(TENANT, -12);
+        EngineCaseService.SignalWindow w = service.signalWindow(TENANT, -13);
 
-        assertEquals(OPENED.minusSeconds(1200), w.from(), "the other vehicle's case does not count");
+        assertEquals(OPENED.minusSeconds(1200), w.from(),
+                "neither the other vehicle's case nor one opened on the same frame counts");
         assertEquals(OPENED.plusSeconds(30), w.to(), "a closed case ends at its close");
     }
 

@@ -241,10 +241,12 @@ class PgTreatmentReadsTest {
     @Test
     void anAssetsPositionsInARangeAreSampledOldestFirst() {
         Instant now = Instant.now();
-        JsonNode window = await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, 10));
+        JsonNode window = await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-b", 10));
         assertTrue(window.size() <= 10 && window.size() >= 8, "size " + window.size());
         assertEquals(1, window.get(0).path("speed").asInt());
         assertEquals(25, window.get(window.size() - 1).path("speed").asInt());
-        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(1)), now, 10)).size());
+        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(1)), now, "org-b", 10)).size());
+        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-x", 10)).size(),
+                "the asset is not mapped to org-x");
     }
 }

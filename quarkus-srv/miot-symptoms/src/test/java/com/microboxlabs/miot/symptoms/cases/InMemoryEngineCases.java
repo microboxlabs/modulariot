@@ -43,9 +43,11 @@ public class InMemoryEngineCases implements EngineCaseStore {
     }
 
     @Override
-    public Optional<Instant> previousOpening(String tenantCode, String assetId, long caseId) {
+    public Optional<Instant> previousOpening(String tenantCode, String assetId, long caseId, Instant after,
+            Instant before) {
         return cases.stream().filter(c -> c.assetId().equals(assetId) && c.id() < caseId)
-                .map(EngineCase::openedAt).max(Instant::compareTo);
+                .map(EngineCase::openedAt).filter(at -> at.isAfter(after) && at.isBefore(before))
+                .max(Instant::compareTo);
     }
 
     @Override

@@ -257,11 +257,8 @@ public class EngineCaseService {
     public SignalWindow signalWindow(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         Instant opened = c.openedAt();
-        Instant from = opened.minus(SIGNALS_BEFORE);
-        Instant previous = store.previousOpening(tenantCode, c.assetId(), c.id()).orElse(null);
-        if (previous != null && previous.isAfter(from) && previous.isBefore(opened)) {
-            from = previous;
-        }
+        Instant earliest = opened.minus(SIGNALS_BEFORE);
+        Instant from = store.previousOpening(tenantCode, c.assetId(), c.id(), earliest, opened).orElse(earliest);
         Instant end = c.closedAt() != null ? c.closedAt() : clock.instant();
         Instant cap = opened.plus(SIGNALS_AT_MOST);
         Instant to = end.isAfter(cap) ? cap : end;

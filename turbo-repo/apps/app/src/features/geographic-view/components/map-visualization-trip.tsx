@@ -223,6 +223,8 @@ export default function MapVisualizationTrip({
   }, [positions]);
 
   useEffect(() => {
+    // A case without a trip is framed by its point and its track instead.
+    if (casePoint) return;
     const first = filteredLocationData?.features[0];
     const coordinates = first
       ? toLngLat(first.longitude, first.latitude)
@@ -234,6 +236,7 @@ export default function MapVisualizationTrip({
 
   const caseLng = casePoint?.longitude;
   const caseLat = casePoint?.latitude;
+  const [mapReady, setMapReady] = useState(false);
 
   // Without signals around the case, the map still opens on its point.
   useEffect(() => {
@@ -242,7 +245,7 @@ export default function MapVisualizationTrip({
       flyTo(mapRef.current, target, CASE_POINT_ZOOM);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseLng, caseLat]);
+  }, [caseLng, caseLat, mapReady]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -603,6 +606,7 @@ export default function MapVisualizationTrip({
         mapRef={mapRef}
         onZoomChange={() => {}}
         minZoom={TRIP_MAP_MIN_ZOOM}
+        onMapLoad={() => setMapReady(true)}
       />
       {hoverInfo && (
         <MapTooltip

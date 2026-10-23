@@ -79,6 +79,16 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));
+    private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
+    private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n"
+            + " FROM (" + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
+    private static final String OPENED_PAGE = WITH_SLA.formatted(SELECT.formatted(OPENED + " AND o.id > $4")
+            + " ORDER BY x.id LIMIT $5") + " ORDER BY y.id";
+
+    private static final String FIRST = """
+            SELECT min(at) AS at FROM miot_symptoms.signal_transitions
+             WHERE tenant_code = $1 AND kind = 'OPENED' AND state = 'ACTIVE'
+            """;
 
     private static final String PREVIOUS = """
             SELECT max(at) AS at FROM miot_symptoms.signal_transitions
@@ -139,6 +149,33 @@ public class PgEngineCases implements EngineCaseStore {
     public Optional<EngineCase> find(String tenantCode, long caseId) {
         var rows = PgIds.query(pool.get(), ONE, Tuple.of(tenantCode, caseId)).iterator();
         return rows.hasNext() ? Optional.of(engineCase(rows.next())) : Optional.empty();
+    }
+
+    @Override
+    public List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to) {
+        List<LevelCount> out = new ArrayList<>();
+        PgIds.query(pool.get(), OPENED_COUNTS, Tuple.of(tenantCode, utc(from), utc(to))).forEach(r -> out.add(
+                new LevelCount(r.getUUID("definition_id"), r.getInteger("current_level"), r.getLong("n"))));
+        return out;
+    }
+
+    @Override
+    public List<EngineCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit) {
+        List<EngineCase> out = new ArrayList<>();
+        PgIds.query(pool.get(), OPENED_PAGE, Tuple.of(tenantCode, utc(from), utc(to), afterId, limit))
+                .forEach(r -> out.add(engineCase(r)));
+        return out;
+    }
+
+    @Override
+    public Optional<Instant> firstOpening(String tenantCode) {
+        var rows = PgIds.query(pool.get(), FIRST, Tuple.of(tenantCode)).iterator();
+        OffsetDateTime at = rows.hasNext() ? rows.next().getOffsetDateTime("at") : null;
+        return Optional.ofNullable(at).map(OffsetDateTime::toInstant);
+    }
+
+    private static OffsetDateTime utc(Instant at) {
+        return at.atOffset(ZoneOffset.UTC);
     }
 
     @Override

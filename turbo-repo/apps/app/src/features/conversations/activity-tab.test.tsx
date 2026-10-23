@@ -22,6 +22,8 @@ const RUN: ConversationRun = {
   eventType: "symptom.case.opened",
   contextKind: "symptom_case",
   contextKey: "42",
+  symptomName: null,
+  assetId: null,
   test: true,
   status: "WAITING",
   step: 1,
@@ -71,6 +73,22 @@ describe("RunsTable", () => {
 
     fireEvent.click(toggle);
     expect(screen.queryByText("Hola Juan Soto, ¿estás bien?")).toBeNull();
+  });
+
+  it("names the symptom case by its symptom and asset", () => {
+    const runs: ConversationRun[] = [
+      {
+        ...RUN,
+        id: "a",
+        symptomName: "Exceso de velocidad",
+        assetId: "ABCD12",
+      },
+      { ...RUN, id: "b", ruleName: "Solo patente", assetId: "WXYZ98" },
+    ];
+    render(<RunsTable runs={runs} lang="es" d={d} />);
+    expect(screen.getByText("Exceso de velocidad · ABCD12")).toBeTruthy();
+    expect(screen.getByText("WXYZ98")).toBeTruthy();
+    expect(screen.queryByText("Caso 42")).toBeNull();
   });
 });
 

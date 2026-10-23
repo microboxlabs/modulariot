@@ -63,6 +63,8 @@ function when(at: string | null | undefined, lang: string) {
 
 function contextText(run: ConversationRun, d: I18nRecord) {
   if (!run.contextKind) return "—";
+  const named = [run.symptomName, run.assetId].filter(Boolean).join(" · ");
+  if (named) return named;
   if (run.contextKind === "symptom_case")
     return tr("contextSymptomCase", d, { key: run.contextKey ?? "" });
   return `${run.contextKind} ${run.contextKey ?? ""}`.trim();

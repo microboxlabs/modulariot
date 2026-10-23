@@ -190,6 +190,9 @@ export interface ConversationRun {
   eventType: string | null;
   contextKind: string | null;
   contextKey: string | null;
+  /** Filled only when contextKind is symptom_case. */
+  symptomName: string | null;
+  assetId: string | null;
   test: boolean;
   status: RunStatus;
   /** Index of the next step. */

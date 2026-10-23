@@ -1,0 +1,151 @@
+package com.microboxlabs.miot.trips.access;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.microboxlabs.miot.core.iam.AccessRegistry;
+import com.microboxlabs.miot.core.iam.AccessRules;
+import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
+import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.trips.api.OrgActivitiesResource;
+import com.microboxlabs.miot.trips.api.OrgAssignmentsResource;
+import com.microboxlabs.miot.trips.api.OrgCargoResource;
+import com.microboxlabs.miot.trips.api.OrgLocationsResource;
+import com.microboxlabs.miot.trips.api.OrgMandatesResource;
+import com.microboxlabs.miot.trips.api.OrgStagesResource;
+import com.microboxlabs.miot.trips.api.OrgTripCargoResource;
+import com.microboxlabs.miot.trips.api.OrgTripsAuditResource;
+import com.microboxlabs.miot.trips.api.OrgTripsLiveResource;
+import com.microboxlabs.miot.trips.api.OrgTripsResource;
+import io.quarkus.security.PermissionsAllowed;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import org.junit.jupiter.api.Test;
+
+class TripsPermissionsTest {
+
+    private static final List<Class<?>> RESOURCES = List.of(OrgMandatesResource.class, OrgCargoResource.class,
+            OrgTripsResource.class, OrgStagesResource.class, OrgActivitiesResource.class,
+            OrgAssignmentsResource.class, OrgTripCargoResource.class,
+            OrgLocationsResource.class, OrgTripsLiveResource.class, OrgTripsAuditResource.class);
+
+    private static final String VIEW = TripsAccessCatalog.VIEW;
+    private static final String MANDATE_WRITE = TripsAccessCatalog.MANDATE_WRITE;
+    private static final String CARGO_OPERATE = TripsAccessCatalog.CARGO_OPERATE;
+    private static final String TRIP_WRITE = TripsAccessCatalog.TRIP_WRITE;
+    private static final String STAGE_OPERATE = TripsAccessCatalog.STAGE_OPERATE;
+    private static final String ASSIGNMENT_WRITE = TripsAccessCatalog.ASSIGNMENT_WRITE;
+    private static final String LOCATION_WRITE = TripsAccessCatalog.LOCATION_WRITE;
+
+    /** Every endpoint and the permission it needs. A new endpoint without an entry here fails the test. */
+    private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
+            Map.entry("OrgMandatesResource.list", VIEW),
+            Map.entry("OrgMandatesResource.create", MANDATE_WRITE),
+            Map.entry("OrgMandatesResource.get", VIEW),
+            Map.entry("OrgMandatesResource.update", MANDATE_WRITE),
+            Map.entry("OrgMandatesResource.close", MANDATE_WRITE),
+            Map.entry("OrgMandatesResource.cancel", MANDATE_WRITE),
+            Map.entry("OrgCargoResource.list", VIEW),
+            Map.entry("OrgCargoResource.announce", CARGO_OPERATE),
+            Map.entry("OrgCargoResource.update", CARGO_OPERATE),
+            Map.entry("OrgCargoResource.receive", CARGO_OPERATE),
+            Map.entry("OrgTripsResource.list", VIEW),
+            Map.entry("OrgTripsResource.create", TRIP_WRITE),
+            Map.entry("OrgTripsResource.get", VIEW),
+            Map.entry("OrgTripsResource.update", TRIP_WRITE),
+            Map.entry("OrgTripsResource.linkMandate", TRIP_WRITE),
+            Map.entry("OrgTripsResource.unlinkMandate", TRIP_WRITE),
+            Map.entry("OrgTripsResource.cancel", TRIP_WRITE),
+            Map.entry("OrgStagesResource.list", VIEW),
+            Map.entry("OrgStagesResource.add", TRIP_WRITE),
+            Map.entry("OrgStagesResource.update", TRIP_WRITE),
+            Map.entry("OrgStagesResource.start", STAGE_OPERATE),
+            Map.entry("OrgStagesResource.close", STAGE_OPERATE),
+            Map.entry("OrgActivitiesResource.list", VIEW),
+            Map.entry("OrgActivitiesResource.add", STAGE_OPERATE),
+            Map.entry("OrgActivitiesResource.update", STAGE_OPERATE),
+            Map.entry("OrgActivitiesResource.complete", STAGE_OPERATE),
+            Map.entry("OrgAssignmentsResource.list", VIEW),
+            Map.entry("OrgAssignmentsResource.create", ASSIGNMENT_WRITE),
+            Map.entry("OrgAssignmentsResource.end", ASSIGNMENT_WRITE),
+            Map.entry("OrgTripCargoResource.mount", TRIP_WRITE),
+            Map.entry("OrgTripCargoResource.place", STAGE_OPERATE),
+            Map.entry("OrgTripCargoResource.unmount", TRIP_WRITE),
+            Map.entry("OrgLocationsResource.list", VIEW),
+            Map.entry("OrgLocationsResource.create", LOCATION_WRITE),
+            Map.entry("OrgLocationsResource.update", LOCATION_WRITE),
+            Map.entry("OrgTripsLiveResource.list", VIEW),
+            Map.entry("OrgTripsLiveResource.get", VIEW),
+            Map.entry("OrgTripsAuditResource.list", VIEW)));
+
+    @Test
+    void everyEndpointDeclaresItsOrganizationPermission() {
+        Map<String, String> actual = new TreeMap<>();
+        for (Class<?> resource : RESOURCES) {
+            for (Method method : resource.getDeclaredMethods()) {
+                if (!Modifier.isPublic(method.getModifiers()) || !isEndpoint(method)) {
+                    continue;
+                }
+                PermissionsAllowed allowed = method.getAnnotation(PermissionsAllowed.class);
+                String name = resource.getSimpleName() + "." + method.getName();
+                assertNotNull(allowed, name + " has no @PermissionsAllowed");
+                assertEquals(OrgPermission.class, allowed.permission(), name);
+                assertArrayEquals(new String[] {"organizationId"}, allowed.params(), name);
+                assertEquals(1, allowed.value().length, name);
+                actual.put(name, allowed.value()[0]);
+            }
+        }
+        assertEquals(EXPECTED, actual);
+    }
+
+    @Test
+    void eachRoleCanDoWhatItsNameSays() {
+        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new TripsAccessCatalog()));
+        Set<String> viewer = grant(registry, TripsAccessCatalog.VIEWER);
+        Set<String> operator = grant(registry, TripsAccessCatalog.OPERATOR);
+        Set<String> maintainer = grant(registry, TripsAccessCatalog.MAINTAINER);
+
+        assertTrue(viewer.contains(VIEW) && !viewer.contains(STAGE_OPERATE));
+        assertTrue(operator.containsAll(Set.of(VIEW, STAGE_OPERATE, CARGO_OPERATE, ASSIGNMENT_WRITE)));
+        assertTrue(!operator.contains(MANDATE_WRITE) && !operator.contains(TRIP_WRITE));
+        assertTrue(maintainer.containsAll(Set.of(VIEW, MANDATE_WRITE, CARGO_OPERATE, TRIP_WRITE, STAGE_OPERATE,
+                ASSIGNMENT_WRITE, LOCATION_WRITE)));
+    }
+
+    @Test
+    void theOrganizationsOwnClientOperatesWithoutARole() {
+        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new TripsAccessCatalog()));
+        Set<String> client = AccessRules.resolve(1L, "acme", Caller.client("acme-client"),
+                new AccessRules.Facts(null, true, Set.of()), registry).permissions();
+        assertTrue(client.containsAll(Set.of(VIEW, STAGE_OPERATE, CARGO_OPERATE, ASSIGNMENT_WRITE)));
+        assertTrue(!client.contains(MANDATE_WRITE) && !client.contains(TRIP_WRITE));
+        Set<String> member = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
+                new AccessRules.Facts(BaseRole.MEMBER, false, Set.of()), registry).permissions();
+        assertTrue(!member.contains(STAGE_OPERATE), "a member without a role gets no default");
+    }
+
+    private static Set<String> grant(AccessRegistry registry, String role) {
+        return AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
+                new AccessRules.Facts(BaseRole.MEMBER, false, Set.of(role)), registry)
+                .permissions();
+    }
+
+    private static boolean isEndpoint(Method method) {
+        return method.isAnnotationPresent(GET.class) || method.isAnnotationPresent(POST.class)
+                || method.isAnnotationPresent(PUT.class) || method.isAnnotationPresent(PATCH.class)
+                || method.isAnnotationPresent(DELETE.class);
+    }
+}

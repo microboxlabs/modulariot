@@ -517,7 +517,7 @@ function PendingDialog({
           value={text}
           onChange={(e) => onText(e.target.value)}
         />
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           {pending?.kind === "fork"
             ? tr("duplicateHint", d, { version: pending.version })
             : tr("restoreHint", d)}

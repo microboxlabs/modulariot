@@ -131,7 +131,7 @@ function RangeInputs({
   if (!range.lower && !range.upper) return null;
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <span className="text-gray-500">{name}</span>
+      <span className="text-gray-500 dark:text-gray-400">{name}</span>
       {range.lower && (
         <BoundInput<LowerOp>
           bound={range.lower}
@@ -147,7 +147,7 @@ function RangeInputs({
         />
       )}
       {range.lower && range.upper && (
-        <span className="text-gray-500">{tr("and", d)}</span>
+        <span className="text-gray-500 dark:text-gray-400">{tr("and", d)}</span>
       )}
       {range.upper && (
         <BoundInput<UpperOp>
@@ -158,7 +158,9 @@ function RangeInputs({
           onChange={(upper) => onChange({ ...range, upper })}
         />
       )}
-      {unit && <span className="text-xs text-gray-500">{unit}</span>}
+      {unit && (
+        <span className="text-xs text-gray-500 dark:text-gray-400">{unit}</span>
+      )}
     </span>
   );
 }
@@ -183,7 +185,11 @@ export function ThresholdInputs({
   const { measure, held } = thresholds;
   const none = !measure.lower && !measure.upper && !held.lower && !held.upper;
   if (none)
-    return <span className="text-sm text-gray-500">{tr("always", d)}</span>;
+    return (
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        {tr("always", d)}
+      </span>
+    );
   return (
     <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-700 dark:text-gray-200">
       <RangeInputs
@@ -360,7 +366,7 @@ function OperatorDetail({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center">
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           {tr("operatorHandling", d)}
         </span>
         <span className="ml-auto">
@@ -411,7 +417,7 @@ function OperatorDetail({
           />
         </>
       ) : (
-        <p className="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-sm text-gray-500 dark:border-gray-600">
+        <p className="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-sm text-gray-500 dark:text-gray-400 dark:border-gray-600">
           {tr("nobodyHandles", d)}
         </p>
       )}
@@ -525,7 +531,7 @@ export default function LevelRow({
               aria-label={
                 open ? tr("hideLevelDetail", d) : tr("showLevelDetail", d)
               }
-              className="text-gray-500 hover:text-gray-900 dark:hover:text-white"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               onClick={() => setOpen((o) => !o)}
             >
               {open ? (

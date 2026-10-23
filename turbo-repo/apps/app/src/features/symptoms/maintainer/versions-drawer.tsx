@@ -35,7 +35,7 @@ function VersionItem({
       <div className="flex flex-wrap items-center gap-2">
         <b className="font-mono">{version.version}</b>
         {version.bump && <BumpBadge bump={version.bump} d={d} />}
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {version.publishedAt
             ? new Date(version.publishedAt).toLocaleString()
             : ""}
@@ -49,7 +49,7 @@ function VersionItem({
       </div>
       {version.reason && <p className="mt-0.5 text-sm">{version.reason}</p>}
       {changes.length > 0 && (
-        <ul className="ml-4 mt-1 list-disc text-xs text-gray-500">
+        <ul className="ml-4 mt-1 list-disc text-xs text-gray-500 dark:text-gray-400">
           {changes.map((c) => (
             <li key={`${c.section}-${c.text}`}>{c.text}</li>
           ))}
@@ -123,9 +123,13 @@ export default function VersionsDrawer({
       closeLabel={tr("close", d)}
     >
       <div className="flex-1 overflow-auto p-5 text-sm text-gray-700 dark:text-gray-200">
-        <p className="mb-4 text-xs text-gray-500">{tr("versionsHelp", d)}</p>
+        <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+          {tr("versionsHelp", d)}
+        </p>
         {published.length === 0 ? (
-          <p className="text-xs text-gray-500">{tr("unpublished", d)}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {tr("unpublished", d)}
+          </p>
         ) : (
           <ol>
             {published.map((v) => (

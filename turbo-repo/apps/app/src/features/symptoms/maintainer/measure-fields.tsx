@@ -88,7 +88,9 @@ export default function MeasureFields({
           />
         )}
         {form && measure?.unit && (
-          <span className="text-gray-500">{measure.unit}</span>
+          <span className="text-gray-500 dark:text-gray-400">
+            {measure.unit}
+          </span>
         )}
         {form && !readOnly && (
           <button
@@ -101,7 +103,9 @@ export default function MeasureFields({
         )}
       </div>
       {!form && (
-        <span className="text-sm text-gray-500">{tr("noMeasure", d)}</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {tr("noMeasure", d)}
+        </span>
       )}
     </div>
   );

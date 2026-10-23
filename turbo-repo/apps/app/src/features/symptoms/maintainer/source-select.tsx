@@ -33,7 +33,7 @@ export function SourceSelect({
 }>) {
   const known = sources.some((s) => s.key === value);
   return (
-    <span className="flex items-center gap-2 text-xs text-gray-500">
+    <span className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
       <label className="flex items-center gap-1">
         <span>{tr("sourceLabel", d)}</span>
         <Select
@@ -76,7 +76,9 @@ export function SourceHelp({
           {source.cadence ? ` · ${source.cadence}` : ""}
         </p>
       )}
-      <p className="mt-0.5 text-gray-500">{tr("sourceHelpText", d)}</p>
+      <p className="mt-0.5 text-gray-500 dark:text-gray-400">
+        {tr("sourceHelpText", d)}
+      </p>
     </div>
   );
 }

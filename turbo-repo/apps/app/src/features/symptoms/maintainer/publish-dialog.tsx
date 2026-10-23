@@ -120,13 +120,13 @@ export default function PublishDialog({
         <span className="block">{tr("publishOf", d, { name })}</span>
         {plan?.bump && bump && (
           <span className="mt-1 flex flex-wrap items-center gap-2 text-sm font-normal">
-            <span className="font-mono text-gray-500">
+            <span className="font-mono text-gray-500 dark:text-gray-400">
               {current ?? tr("unpublishedShort", d)}
             </span>
             <span aria-hidden>→</span>
             <span className="font-mono font-semibold">{target}</span>
             <BumpBadge bump={bump} d={d} />
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {trDynamic(BUMP_WHY[bump], d)}
             </span>
           </span>
@@ -189,7 +189,9 @@ export default function PublishDialog({
                 placeholder={tr("reasonPlaceholder", d)}
               />
             </div>
-            <p className="text-[11px] text-gray-500">{tr("versionsNote", d)}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              {tr("versionsNote", d)}
+            </p>
           </div>
         )}
         {error && (

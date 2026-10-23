@@ -22,7 +22,7 @@ type Lifecycle = {
 const selectClass =
   "rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 const labelClass =
-  "text-xs font-semibold uppercase tracking-wide text-gray-500";
+  "text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
 
 /** What a case starts from when its open or close kind changes. */
 const DEFAULT_OPEN_SECONDS = 30;

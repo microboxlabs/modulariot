@@ -15,7 +15,7 @@ export const CHANGED_CARD = "!border-gray-400 dark:!border-gray-500";
 
 /** A full-width row that differs: a tint and a bar on its left edge. */
 export const CHANGED_ROW =
-  "bg-gray-100 shadow-[inset_3px_0_0] shadow-gray-500 dark:bg-gray-700/60 dark:shadow-gray-400";
+  "bg-gray-100 shadow-[inset_3px_0_0] shadow-gray-500 dark:bg-gray-700/40 dark:shadow-gray-400";
 
 /** The bar of unpublished changes at the bottom of the sheet. */
 export const CHANGED_BAR = "border-gray-400 dark:border-gray-500";

@@ -134,7 +134,9 @@ export default function LevelNotices({
         )}
       </div>
       {notices.length === 0 && (
-        <p className="text-xs text-gray-500">{tr("noNotices", d)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("noNotices", d)}
+        </p>
       )}
       {notices.map((n, i) => {
         const options = usable(n.channel);

@@ -83,7 +83,9 @@ export function NumberValue({
         // Text that is not a number ("", "-", "1,5") goes back to the number the rule holds.
         onBlur={() => setTyped({ text: decimalText(value), value })}
       />
-      {unit && <span className="text-xs text-gray-500">{unit}</span>}
+      {unit && (
+        <span className="text-xs text-gray-500 dark:text-gray-400">{unit}</span>
+      )}
     </span>
   );
 }
@@ -382,13 +384,13 @@ function GroupBox({
           <option value="any">{tr("matchAny", d)}</option>
           <option value="none">{tr("matchNone", d)}</option>
         </Select>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {trDynamic(MATCH_HELP[group.match], d)}
         </span>
         {!readOnly && (
           <button
             type="button"
-            className="ml-auto text-xs text-gray-500 hover:text-red-500"
+            className="ml-auto text-xs text-gray-500 dark:text-gray-400 hover:text-red-500"
             onClick={onRemove}
           >
             {tr("removeGroup", d)}
@@ -416,7 +418,7 @@ function FieldsTable({
         {tr("availableFields", d)}
       </summary>
       <table className="mt-2 w-full text-left text-[11px] text-gray-700 dark:text-gray-300">
-        <thead className="text-gray-500">
+        <thead className="text-gray-500 dark:text-gray-400">
           <tr>
             <th className="pr-3">{tr("fieldColumn", d)}</th>
             <th className="pr-3">{tr("typeColumn", d)}</th>
@@ -520,7 +522,7 @@ export default function ActivationForm({
           <option value="all">{tr("matchAll", d)}</option>
           <option value="any">{tr("matchAny", d)}</option>
         </Select>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {trDynamic(MATCH_HELP[form.match], d)} · {tr("orderDoesNotMatter", d)}
         </span>
       </div>

@@ -19,5 +19,10 @@ public interface EventTypeCatalog {
     /** The producer, as {@link OperationalEvent#source()} names it. */
     String source();
 
+    /** The context kind of the producer's events, such as {@code symptom_case}; null when they have none. */
+    default String contextKind() {
+        return null;
+    }
+
     List<EventType> types();
 }

@@ -1,0 +1,42 @@
+package com.microboxlabs.miot.conversational.rules.store;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.microboxlabs.miot.conversational.rules.Rule;
+import com.microboxlabs.miot.conversational.rules.RuleVersion;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+/** Rules and their versions. */
+public interface RuleStore {
+
+    /** A rule in TEST or ACTIVE with its published version in force. */
+    record InForce(Rule rule, RuleVersion version) {
+    }
+
+    List<Rule> list(String tenantCode);
+
+    Optional<Rule> find(String tenantCode, String id);
+
+    /** Throws {@link IllegalStateException} when the tenant already has a rule with that key. */
+    Rule create(Rule rule);
+
+    /** Writes the state; empty when the rule does not exist. */
+    Optional<Rule> updateState(String tenantCode, String id, Rule.State state, Instant at);
+
+    /** Every version of the rule, the draft included, newest first. */
+    List<RuleVersion> versions(String ruleId);
+
+    Optional<RuleVersion> version(String ruleId, int version);
+
+    /** Creates or replaces the rule's draft. */
+    RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at);
+
+    /**
+     * Turns the draft into the next version and makes it current, provided its spec is still {@code validated};
+     * empty when there is no draft or it changed since it was validated.
+     */
+    Optional<RuleVersion> publish(String ruleId, JsonNode validated, String reason, String actor, Instant at);
+
+    List<InForce> inForce(String tenantCode);
+}

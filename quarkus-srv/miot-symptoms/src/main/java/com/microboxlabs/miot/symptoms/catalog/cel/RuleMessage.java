@@ -26,7 +26,15 @@ public record RuleMessage(String code, Map<String, String> params) {
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(\\w+)}");
 
     public RuleMessage {
-        params = params == null ? Map.of() : Map.copyOf(params);
+        Map<String, String> given = new LinkedHashMap<>();
+        if (params != null) {
+            params.forEach((name, value) -> {
+                if (name != null && value != null) {
+                    given.put(name, value);
+                }
+            });
+        }
+        params = Map.copyOf(given);
     }
 
     public static RuleMessage of(String code) {
@@ -42,7 +50,11 @@ public record RuleMessage(String code, Map<String, String> params) {
         return new RuleMessage(code, params);
     }
 
+    /** The text in Spanish; empty when there is no code. */
     public String spanish() {
+        if (code == null) {
+            return "";
+        }
         String template = SPANISH.getProperty(code, code);
         Matcher m = PLACEHOLDER.matcher(template);
         StringBuilder out = new StringBuilder();

@@ -89,6 +89,10 @@ class RuleLanguageTest {
         assertEquals(true, RuleLanguage.evaluate(level, "-3 != measure", Map.of("measure", 0.0)).value());
         assertTrue(RuleLanguage.check(level, "size(\"ab == 1\") == 2", Expect.CONDITION).ok(),
                 "a rule that compiles as written keeps its integers");
+        String mixed = "size(\"ab\") == 2 && measure == 0";
+        assertTrue(RuleLanguage.check(level, mixed, Expect.CONDITION).ok(),
+                "only the comparison CEL rejected gets a double");
+        assertEquals(true, RuleLanguage.evaluate(level, mixed, Map.of("measure", 0.0)).value());
     }
 
     @Test

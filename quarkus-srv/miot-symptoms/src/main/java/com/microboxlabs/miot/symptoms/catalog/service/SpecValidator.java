@@ -37,7 +37,7 @@ public final class SpecValidator {
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
-    private static final Pattern MEASURE_WORD = Pattern.compile("\\bmeasure\\b");
+    private static final Pattern MEASURE_WORD = Pattern.compile("(?<![.\\w])measure\\b");
 
     /** Severity of a finding. */
     public enum Severity {
@@ -52,6 +52,10 @@ public final class SpecValidator {
      * @param position character offset in the section's rule, or -1
      */
     public record Finding(String section, Severity severity, @JsonIgnore RuleMessage text, int position) {
+
+        public Finding {
+            text = text == null ? new RuleMessage(null, Map.of()) : text;
+        }
 
         @JsonProperty
         public String code() {

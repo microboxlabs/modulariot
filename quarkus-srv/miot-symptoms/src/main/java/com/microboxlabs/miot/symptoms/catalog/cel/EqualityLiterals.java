@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.catalog.cel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntPredicate;
 
 /**
  * Writes the integer literals compared with {@code ==} or {@code !=} as
@@ -17,6 +18,14 @@ record EqualityLiterals(String text, List<Integer> inserted) {
     private static final String DECIMAL = ".0";
 
     static EqualityLiterals of(String rule) {
+        return of(rule, operator -> true);
+    }
+
+    /**
+     * Only the integers next to an operator the predicate accepts, given the
+     * operator's offset in the rule.
+     */
+    static EqualityLiterals of(String rule, IntPredicate operator) {
         StringBuilder out = new StringBuilder(rule.length() + 8);
         List<Integer> inserted = new ArrayList<>();
         int i = 0;
@@ -29,7 +38,7 @@ record EqualityLiterals(String text, List<Integer> inserted) {
             } else if (Character.isDigit(c) && !partOfName(rule, i)) {
                 int end = numberEnd(rule, i);
                 out.append(rule, i, end);
-                if (isInteger(rule, i, end) && comparedForEquality(rule, i, end)) {
+                if (isInteger(rule, i, end) && isEquality(equalityOperator(rule, i, end), operator)) {
                     inserted.add(out.length());
                     out.append(DECIMAL);
                 }
@@ -92,7 +101,12 @@ record EqualityLiterals(String text, List<Integer> inserted) {
         return true;
     }
 
-    private static boolean comparedForEquality(String rule, int start, int end) {
+    private static boolean isEquality(int at, IntPredicate operator) {
+        return at >= 0 && operator.test(at);
+    }
+
+    /** Offset of the == or != the number is compared with, or -1. */
+    private static int equalityOperator(String rule, int start, int end) {
         int before = start - 1;
         while (before >= 0 && Character.isWhitespace(rule.charAt(before))) {
             before--;
@@ -104,13 +118,13 @@ record EqualityLiterals(String text, List<Integer> inserted) {
             }
         }
         if (before >= 1 && isEqualityOperator(rule, before - 1)) {
-            return true;
+            return before - 1;
         }
         int after = end;
         while (after < rule.length() && Character.isWhitespace(rule.charAt(after))) {
             after++;
         }
-        return after + 1 < rule.length() && isEqualityOperator(rule, after);
+        return after + 1 < rule.length() && isEqualityOperator(rule, after) ? after : -1;
     }
 
     private static boolean isEqualityOperator(String rule, int i) {

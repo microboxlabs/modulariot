@@ -24,6 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Checks and evaluates symptom rules written in CEL. The schema's field
@@ -142,27 +144,32 @@ public final class RuleLanguage {
         return out;
     }
 
-    /** Offset in the whole rule of an issue CEL reports as line and column. */
     /** The compiled rule and the text CEL saw. */
     private record Compiled(CelValidationResult result, EqualityLiterals literals) {
     }
 
     /**
-     * Compiles the rule as written; when that fails, with the integers it
-     * compares with == or != written as doubles (see {@link EqualityLiterals}).
+     * Compiles the rule as written; when that fails, again with the integers
+     * written as doubles where CEL rejected their == or != (see
+     * {@link EqualityLiterals}). Comparisons that compiled keep their integers.
      */
     private static Compiled compile(Cel cel, String expression) {
         CelValidationResult asWritten = cel.compile(expression);
         if (!asWritten.hasError()) {
             return new Compiled(asWritten, new EqualityLiterals(expression, List.of()));
         }
-        EqualityLiterals literals = EqualityLiterals.of(expression);
+        Set<Integer> failed = asWritten.getAllIssues().stream()
+                .filter(issue -> issue.getSeverity() == CelIssue.Severity.ERROR)
+                .map(issue -> offset(expression, issue))
+                .collect(Collectors.toSet());
+        EqualityLiterals literals = EqualityLiterals.of(expression, failed::contains);
         if (literals.inserted().isEmpty()) {
             return new Compiled(asWritten, literals);
         }
         return new Compiled(cel.compile(literals.text()), literals);
     }
 
+    /** Offset in the whole rule of an issue CEL reports as line and column. */
     static int offset(String expression, CelIssue issue) {
         int line = issue.getSourceLocation().getLine();
         int column = Math.max(0, issue.getSourceLocation().getColumn());

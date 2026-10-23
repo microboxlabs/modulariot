@@ -3552,7 +3552,6 @@
         "colSteps": "Steps",
         "colChannels": "Channels",
         "colVersion": "Version",
-        "rulesIntro": "Each rule listens to an event, such as a case opening, and sends messages in steps. In test it records what it would send without sending it.",
         "newRule": "New rule",
         "noRules": "No rules yet. Create one to send a WhatsApp or an email when something happens.",
         "loading": "Loading…",

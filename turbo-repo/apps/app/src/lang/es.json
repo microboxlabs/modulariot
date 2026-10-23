@@ -3552,7 +3552,6 @@
         "colSteps": "Pasos",
         "colChannels": "Canales",
         "colVersion": "Versión",
-        "rulesIntro": "Cada regla escucha un evento, como la apertura de un caso, y envía mensajes en pasos. En prueba registra lo que enviaría sin enviarlo.",
         "newRule": "Nueva regla",
         "noRules": "Aún no hay reglas. Crea una para avisar por WhatsApp o correo cuando pase algo.",
         "loading": "Cargando…",

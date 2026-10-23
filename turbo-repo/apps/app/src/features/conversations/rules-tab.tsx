@@ -252,7 +252,6 @@ export default function RulesTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className={`text-sm ${MUTED}`}>{tr("rulesIntro", d)}</p>
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {tr("loadFailed", d)}

@@ -92,8 +92,11 @@ final class MetaWebhookParser {
     }
 
     private static InboundMessage toInboundMessage(JsonObject m, String phoneNumberId, String contactName) {
-        MessageType type = mapType(m.getString("type"));
-        MessageContent content = extractContent(m, type);
+        ButtonReply button = buttonReply(m);
+        MessageType type = button != null ? MessageType.TEXT : mapType(m.getString("type"));
+        MessageContent content = button != null
+                ? new MessageContent(button.text(), null, null, null)
+                : extractContent(m, type);
         return new InboundMessage(
                 phoneNumberId,
                 toE164(m.getString("from")),
@@ -104,7 +107,37 @@ final class MetaWebhookParser {
                 content.mediaRef(),
                 content.mediaMime(),
                 content.mediaFileName(),
-                epochSecondsToOffset(m.getString("timestamp")));
+                epochSecondsToOffset(m.getString("timestamp")),
+                nestedString(m, "context", ID),
+                button == null ? null : button.payload());
+    }
+
+    /**
+     * A quick-reply tap on a template ({@code type: button}, {@code button.payload/text}) or an
+     * interactive reply ({@code type: interactive}, {@code button_reply} or {@code list_reply}
+     * with {@code id/title}). Null for any other message.
+     */
+    private static ButtonReply buttonReply(JsonObject m) {
+        String type = m.getString("type");
+        if ("button".equals(type)) {
+            JsonObject button = m.getJsonObject("button");
+            return button == null ? null : new ButtonReply(button.getString("payload"), button.getString("text"));
+        }
+        if ("interactive".equals(type)) {
+            JsonObject interactive = m.getJsonObject("interactive");
+            if (interactive == null) {
+                return null;
+            }
+            JsonObject reply = interactive.getJsonObject("button_reply");
+            if (reply == null) {
+                reply = interactive.getJsonObject("list_reply");
+            }
+            return reply == null ? null : new ButtonReply(reply.getString(ID), reply.getString("title"));
+        }
+        return null;
+    }
+
+    private record ButtonReply(String payload, String text) {
     }
 
     /** Pulls body/media fields for a message by type; absent keys read as null. */

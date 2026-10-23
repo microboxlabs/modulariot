@@ -199,8 +199,12 @@ export interface SymptomDetail {
 export interface Finding {
   section: string;
   severity: "ERROR" | "WARNING";
+  /** Spanish text, shown when the app does not know the code. */
   message: string;
   position: number;
+  /** Translated as `finding<Code>` in the lang files. */
+  code?: string;
+  params?: Record<string, string>;
 }
 
 export interface ValidationReport {

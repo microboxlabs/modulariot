@@ -1,6 +1,7 @@
 "use client";
 
 import { ToggleSwitch } from "flowbite-react";
+import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import LevelSteps, { type StepErrors } from "./level-steps";
@@ -219,19 +220,29 @@ function CloseBlock({
   );
 }
 
+/** The symptom and level whose conversation rules the response lists. */
+export interface ResponseSymptom {
+  key: string;
+  name: string;
+  icu: number;
+}
+
 /**
- * What the tower does at one level: the operator's SLA and steps, and what
- * closing the case takes. Messages the system sends are conversation rules (#2003).
+ * What the tower does at one level: the messages its conversation rules send
+ * (#2003), the operator's SLA and steps, and what closing the case takes.
  */
 export default function LevelResponseDetail({
   response,
   findings,
   sample,
+  symptom,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
+  /** Absent for a template, which has no rules. */
+  symptom?: ResponseSymptom;
   /** The findings of this level's response. */
   findings: Finding[];
   sample: Record<string, unknown> | undefined;
@@ -244,11 +255,21 @@ export default function LevelResponseDetail({
       <Problems
         items={unplaced(findings, response).map((f) => findingProblem(f, d))}
       />
-      <ResponseBlock title={tr("communicationsTitle", d)}>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {tr("communicationsSoon", d)}
-        </p>
-      </ResponseBlock>
+      {symptom ? (
+        <SymptomRulesCard
+          symptomKey={symptom.key}
+          symptomName={symptom.name}
+          icu={symptom.icu}
+          canWrite={!readOnly}
+          d={d}
+        />
+      ) : (
+        <ResponseBlock title={tr("communicationsTitle", d)}>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {tr("communicationsSoon", d)}
+          </p>
+        </ResponseBlock>
+      )}
       <OperatorBlock
         response={response}
         findings={findings}

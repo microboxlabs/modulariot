@@ -91,6 +91,7 @@ describe("filterSettings", () => {
       "/users/settings/organizations",
       "/users/settings/team",
       "/users/settings/symptoms",
+      "/users/settings/communications",
       "/users/settings/selectables",
       "/users/settings/contact-book",
       "/users/settings/data-sources",

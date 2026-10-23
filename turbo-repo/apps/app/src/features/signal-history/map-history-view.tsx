@@ -9,6 +9,11 @@ import FormattedDate from "../common/components/formatted-date";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 
+function rangeEnd(endDate: string) {
+  const end = dayjs(endDate);
+  return endDate.includes("T") ? end : end.endOf("day");
+}
+
 export default function MapHistoryView({
   dict,
   onBackClick,
@@ -21,13 +26,11 @@ export default function MapHistoryView({
   const startDate = searchParams.get("start_date") || "";
   const endDate = searchParams.get("end_date") || "";
 
-  // Format dates with time: start_date at 00:00, end_date at 23:59
-  const p_from = startDate
-    ? dayjs(startDate).startOf("day").format("YYYY-MM-DD HH:mm")
-    : "";
-  const p_to = endDate
-    ? dayjs(endDate).endOf("day").format("YYYY-MM-DD HH:mm")
-    : "";
+  // The form writes day bounds with the browser's offset; a plain date is the whole day.
+  const from = startDate ? dayjs(startDate) : null;
+  const to = endDate ? rangeEnd(endDate) : null;
+  const p_from = from ? from.format("YYYY-MM-DD HH:mm") : "";
+  const p_to = to ? to.format("YYYY-MM-DD HH:mm") : "";
 
   const tags = [
     {
@@ -87,8 +90,11 @@ export default function MapHistoryView({
           </div>
         </CustomCard>
       </div>
-      {/* Pass the formatted dates to SignalsHistory */}
-      <SignalsHistory dict={dict} p_from={p_from} p_to={p_to} />
+      <SignalsHistory
+        dict={dict}
+        p_from={from ? from.format() : ""}
+        p_to={to ? to.format() : ""}
+      />
     </div>
   );
 }

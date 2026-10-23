@@ -3,19 +3,20 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { convertJSONToCSV } from "./json-to-csv";
 import { tr } from "@/features/i18n/tr.service";
+import { tripIdOfSignal } from "./signal-legs";
 
-export function handleDownloadCsv(
+/** The CSV rows of the signals: no trip is an empty cell. */
+export function signalsCsv(
   selectedData: HistoricSignal[],
-  dict: I18nRecord,
-  dateRangeDisplayed: { startDate: string; endDate: string }
-) {
+  dict: I18nRecord
+): string {
   const fixed_data = selectedData.map((signal: HistoricSignal) => {
     return {
       assetid: signal.assetid,
-      tripid: signal.tripid,
+      tripid: tripIdOfSignal(signal.tripid) ?? "",
       timestamp: formatDateString(signal.timestamp),
       speed: signal.speed,
-      distance: (signal.distance / 1000).toFixed(1),
+      distance: ((signal.distance || 0) / 1000).toFixed(1),
       location: `https://www.google.com/maps?q=${signal.latitude},${signal.longitude}`,
       heading: 0,
       latitude: signal.latitude,
@@ -23,7 +24,7 @@ export function handleDownloadCsv(
     };
   });
 
-  const csvData = convertJSONToCSV(
+  return convertJSONToCSV(
     fixed_data,
     ["timestamp", "tripid", "speed", "distance", "location", "assetid"],
     [
@@ -35,6 +36,14 @@ export function handleDownloadCsv(
       tr("signal_historic.assetid", dict),
     ]
   );
+}
+
+export function handleDownloadCsv(
+  selectedData: HistoricSignal[],
+  dict: I18nRecord,
+  dateRangeDisplayed: { startDate: string; endDate: string }
+) {
+  const csvData = signalsCsv(selectedData, dict);
   const blob = new Blob([csvData], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

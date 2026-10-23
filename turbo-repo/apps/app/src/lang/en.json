@@ -6712,6 +6712,8 @@
     "signals_historic": "Historic Signals",
     "select_date_range": "Select Date Range",
     "historic_signals": "Historic Signals",
+    "no_signals_in_range": "No signals in that range",
+    "signals_load_failed": "The signals could not be loaded",
     "duration": "Duration",
     "selected_range": "Selected Range",
     "asset_id": "Asset ID",

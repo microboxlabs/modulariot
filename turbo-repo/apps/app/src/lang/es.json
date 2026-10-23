@@ -6712,6 +6712,8 @@
     "signals_historic": "Señales Históricas",
     "select_date_range": "Seleccionar Rango de Fechas",
     "historic_signals": "Señales Históricas",
+    "no_signals_in_range": "No hay señales en ese rango",
+    "signals_load_failed": "No se pudieron cargar las señales",
     "duration": "Duración",
     "selected_range": "Rango Seleccionado",
     "assetid": "ID del Activo",

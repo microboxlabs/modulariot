@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.microboxlabs.miot</groupId>
+        <artifactId>miot-parent</artifactId>
+        <version>0.5.38</version>
+    </parent>
+
+    <artifactId>miot-trips</artifactId>
+    <name>ModularIoT — Trips</name>
+    <description>
+        Trips and mandates: the order header a mandante places (mandate), its cargo
+        units, the trips that execute it (stages as the state machine, resource
+        assignments with validity) and the trip_live hot projection the realtime
+        process reads. Resources (carriers, trucks, trailers, drivers) live here
+        after their migration from ams.rd_*.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-fleet</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-reactive-pg-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>make-index</id>
+                        <goals>
+                            <goal>jandex</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

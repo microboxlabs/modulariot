@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { ToggleSwitch } from "flowbite-react";
-import { HiChevronDown, HiChevronRight } from "react-icons/hi";
+import { HiChevronRight } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import { NumberValue } from "./activation-form";
 import CelEditor, { type CelField } from "./cel-editor";
 import {
@@ -18,9 +16,6 @@ import {
   DEFAULT_LEVEL_RULE,
   parseThresholds,
 } from "./level-thresholds";
-import LevelNotices, { CHANNELS } from "./level-notices";
-import LevelResponseOptions from "./level-response-options";
-import LevelSteps from "./level-steps";
 import type {
   Finding,
   Level,
@@ -29,13 +24,12 @@ import type {
 } from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
 import { CHANGED_ROW } from "./ui/changed";
-import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
 import Select from "./ui/select";
 
 export type EditMode = "form" | "expr";
 
-const EMPTY_RESPONSE: LevelResponse = {
+export const EMPTY_RESPONSE: LevelResponse = {
   operator: false,
   slaMinutes: null,
   steps: [],
@@ -46,8 +40,6 @@ const EMPTY_RESPONSE: LevelResponse = {
 
 const pillClass =
   "rounded-md border border-gray-300 bg-white px-1.5 py-0.5 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
-const inputClass =
-  "w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 
 /** The level as stored, or an empty one that does not apply. */
 export function levelOf(spec: SymptomSpec, icu: number): Level {
@@ -216,35 +208,17 @@ export function ThresholdInputs({
   );
 }
 
-function ResponseSummary({
+export function ResponseSummary({
   response,
   d,
 }: Readonly<{ response: LevelResponse; d: I18nRecord }>) {
-  const channels = [...new Set((response.notices ?? []).map((n) => n.channel))];
   return (
-    <span className="flex items-center gap-2 text-xs">
-      <span
-        className={`rounded-md px-2 py-0.5 ${response.operator ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-gray-100 text-gray-500 dark:bg-gray-700"}`}
-      >
-        {response.operator
-          ? tr("operatorSla", d, { minutes: String(response.slaMinutes ?? "") })
-          : tr("noOperator", d)}
-      </span>
-      <span className="flex -space-x-1">
-        {channels.map((c) => {
-          const key = CHANNELS.find((ch) => ch.key === c)?.label;
-          const label = key ? trDynamic(key, d) : c;
-          return (
-            <span
-              key={c}
-              className="rounded-md ring-2 ring-white dark:ring-gray-800"
-            >
-              <ChannelIcon channel={c} label={label} size={5} />
-              <span className="sr-only">{label}</span>
-            </span>
-          );
-        })}
-      </span>
+    <span
+      className={`rounded-md px-2 py-0.5 text-xs ${response.operator ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-gray-100 text-gray-500 dark:bg-gray-700"}`}
+    >
+      {response.operator
+        ? tr("operatorSla", d, { minutes: String(response.slaMinutes ?? "") })
+        : tr("noOperator", d)}
     </span>
   );
 }
@@ -313,132 +287,9 @@ function LevelRule({
   );
 }
 
-/** What the operator must record to close a case, as stored in the spec. */
-export const EVIDENCE = [
-  { value: "call_result", label: "evidenceCallResult" },
-  { value: "note", label: "evidenceNote" },
-  { value: "photo", label: "evidencePhoto" },
-];
-
-function EvidenceSelect({
-  evidence,
-  readOnly,
-  d,
-  onChange,
-}: Readonly<{
-  evidence: string[];
-  readOnly: boolean;
-  d: I18nRecord;
-  onChange: (evidence: string[]) => void;
-}>) {
-  const value = evidence[0] ?? "";
-  const known = value === "" || EVIDENCE.some((e) => e.value === value);
-  return (
-    <label className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-      <span>{tr("closeRequires", d)}</span>
-      <Select
-        className={pillClass}
-        disabled={readOnly}
-        value={value}
-        onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}
-      >
-        <option value="">{tr("evidenceNothing", d)}</option>
-        {!known && <option value={value}>{value}</option>}
-        {EVIDENCE.map((e) => (
-          <option key={e.value} value={e.value}>
-            {trDynamic(e.label, d)}
-          </option>
-        ))}
-      </Select>
-    </label>
-  );
-}
-
-function OperatorDetail({
-  response,
-  sample,
-  readOnly,
-  d,
-  onChange,
-}: Readonly<{
-  response: LevelResponse;
-  sample: Record<string, unknown> | undefined;
-  readOnly: boolean;
-  d: I18nRecord;
-  onChange: (patch: Partial<LevelResponse>) => void;
-}>) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center">
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          {tr("operatorHandling", d)}
-        </span>
-        <span className="ml-auto">
-          <ToggleSwitch
-            checked={response.operator}
-            disabled={readOnly}
-            label={tr("requiresOperator", d)}
-            onChange={(operator) =>
-              onChange({
-                operator,
-                slaMinutes: operator ? (response.slaMinutes ?? 5) : null,
-              })
-            }
-          />
-        </span>
-      </div>
-      {response.operator ? (
-        <>
-          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-            <span>{tr("attendWithin", d)}</span>
-            <input
-              type="number"
-              min={1}
-              className={inputClass}
-              disabled={readOnly}
-              value={response.slaMinutes ?? ""}
-              onChange={(e) =>
-                onChange({
-                  slaMinutes: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            />
-            <span>min</span>
-          </label>
-          <LevelSteps
-            steps={response.steps ?? []}
-            slaMinutes={response.slaMinutes}
-            sample={sample}
-            readOnly={readOnly}
-            d={d}
-            onChange={(steps) => onChange({ steps })}
-          />
-          <EvidenceSelect
-            evidence={response.evidence ?? []}
-            readOnly={readOnly}
-            d={d}
-            onChange={(evidence) => onChange({ evidence })}
-          />
-        </>
-      ) : (
-        <p className="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-sm text-gray-500 dark:text-gray-400 dark:border-gray-600">
-          {tr("nobodyHandles", d)}
-        </p>
-      )}
-      <LevelResponseOptions
-        response={response}
-        readOnly={readOnly}
-        d={d}
-        onChange={onChange}
-      />
-    </div>
-  );
-}
-
-/** One level: a summary line (icon, thresholds, operator, channels) that opens into notices and operator handling. */
+/** One level: its icon, rule and a summary of the response, which is set up under "Respuesta". */
 export default function LevelRow({
   spec,
-  sample,
   changed = false,
   reached = false,
   icu,
@@ -446,14 +297,11 @@ export default function LevelRow({
   fields,
   findings,
   readOnly,
-  connections,
-  lang,
   d,
   onChange,
+  onConfigureResponse,
 }: Readonly<{
   spec: SymptomSpec;
-  /** A source sample the step scripts are previewed with. */
-  sample?: Record<string, unknown>;
   /** The level differs from the published version. */
   changed?: boolean;
   /** The previewed sample reaches this level; marked with a ✓. */
@@ -463,25 +311,21 @@ export default function LevelRow({
   fields: CelField[];
   findings: Finding[] | undefined;
   readOnly: boolean;
-  connections: IntegrationConnection[];
-  lang: string;
   d: I18nRecord;
   onChange: (spec: SymptomSpec) => void;
+  onConfigureResponse: (icu: number) => void;
 }>) {
-  const [open, setOpen] = useState(false);
   const level = levelOf(spec, icu);
   const response = level.response ?? EMPTY_RESPONSE;
   const set = (patch: Partial<Level>) =>
     onChange(withLevel(spec, { ...level, ...patch }));
-  const setResponse = (patch: Partial<LevelResponse>) =>
-    set({ response: { ...response, ...patch } });
   const problems = problemsFor(findings, `levels.${icu}`, d);
   const responseProblems = problemsFor(findings, `levels.${icu}.response`, d);
   const name = trDynamic(`levelName${icu}`, d);
 
   return (
     <div
-      className={`last:rounded-b-lg ${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? CHANGED_ROW : ""}`}
+      className={`last:rounded-b-lg ${changed ? CHANGED_ROW : ""}`}
       data-changed={changed || undefined}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
@@ -529,22 +373,15 @@ export default function LevelRow({
           </span>
         )}
         {level.applies && (
-          <span className="ml-auto flex items-center gap-2">
+          <span className="ml-auto flex items-center gap-3">
             <ResponseSummary response={response} d={d} />
             <button
               type="button"
-              aria-expanded={open}
-              aria-label={
-                open ? tr("hideLevelDetail", d) : tr("showLevelDetail", d)
-              }
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              onClick={() => setOpen((o) => !o)}
+              className="flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400"
+              onClick={() => onConfigureResponse(icu)}
             >
-              {open ? (
-                <HiChevronDown className="h-4 w-4" />
-              ) : (
-                <HiChevronRight className="h-4 w-4" />
-              )}
+              {tr("configureResponse", d)}
+              <HiChevronRight className="h-4 w-4" />
             </button>
           </span>
         )}
@@ -552,25 +389,6 @@ export default function LevelRow({
       {level.applies && (
         <div className="px-4 pb-2">
           <Problems items={[...problems, ...responseProblems]} />
-        </div>
-      )}
-      {level.applies && open && (
-        <div className="grid grid-cols-1 gap-5 px-4 pb-4 lg:grid-cols-2">
-          <LevelNotices
-            notices={response.notices ?? []}
-            connections={connections}
-            lang={lang}
-            readOnly={readOnly}
-            d={d}
-            onChange={(notices) => setResponse({ notices })}
-          />
-          <OperatorDetail
-            response={response}
-            sample={sample}
-            readOnly={readOnly}
-            d={d}
-            onChange={setResponse}
-          />
         </div>
       )}
     </div>

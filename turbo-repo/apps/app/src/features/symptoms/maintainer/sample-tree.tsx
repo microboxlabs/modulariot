@@ -42,7 +42,7 @@ export function useSourceSamples(
 ): Preview["samples"] {
   const [cached, setCached] = useState(preview);
   if (preview && preview !== cached) setCached(preview);
-  return cached?.source === source ? cached.samples : [];
+  return cached && cached.source === source ? cached.samples : [];
 }
 
 /** The first sample that opens a case, so the preview starts where the rule holds; else the first. */

@@ -182,7 +182,7 @@ public class WhatsAppInboundService {
      * <ol>
      *   <li>the message it answers, named by the provider ({@code context.id}, or a button payload
      *       carrying the outbound message id or wamid); also sets {@code inReplyTo};</li>
-     *   <li>the conversation of a run waiting for this address;</li>
+     *   <li>the conversation of a run waiting for this address (once runs exist, #2003);</li>
      *   <li>the newest open conversation for the address;</li>
      *   <li>a new conversation without context.</li>
      * </ol>
@@ -195,10 +195,6 @@ public class WhatsAppInboundService {
             if (conversation != null && address.equals(conversation.participantAddress())) {
                 return new Attachment(conversation, answered.id(), answered.runId());
             }
-        }
-        Attachment waiting = conversationWithWaitingRun(tenantCode, address);
-        if (waiting != null) {
-            return waiting;
         }
         Conversation latest = conversationRepository.findLatestOpenByAddress(tenantCode, address);
         if (latest != null) {
@@ -246,15 +242,6 @@ public class WhatsAppInboundService {
             return byId;
         }
         return messageRepository.findByProviderMessageId(Channel.WHATSAPP, payload);
-    }
-
-    /**
-     * Step 2 of the attachment order: the conversation of a run that waits for a reply from this
-     * address. Runs do not exist yet (#2008), so there is never a match.
-     */
-    @SuppressWarnings("unused")
-    private Attachment conversationWithWaitingRun(String tenantCode, String address) {
-        return null;
     }
 
     private record Attachment(Conversation conversation, String inReplyTo, String runId) {

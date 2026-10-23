@@ -2,9 +2,14 @@ package com.microboxlabs.miot.symptoms.cases;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Engine cases for tests: whatever is added, closed by {@link #close}. */
 public class InMemoryEngineCases implements EngineCaseStore {
@@ -13,7 +18,10 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     private final List<EngineCase> cases = new ArrayList<>();
     public final List<String> closedBy = new ArrayList<>();
+    /** When a case reached its current level, by case id; its opening when absent. */
+    public final Map<Long, Instant> levelSince = new HashMap<>();
     public boolean down;
+    public int pages;
 
     public void add(EngineCase c) {
         cases.add(c);
@@ -40,6 +48,36 @@ public class InMemoryEngineCases implements EngineCaseStore {
     @Override
     public Optional<EngineCase> find(String tenantCode, long caseId) {
         return cases.stream().filter(c -> c.id() == caseId).findFirst();
+    }
+
+    @Override
+    public List<LevelCount> openedCounts(String tenantCode, Instant from, Instant to) {
+        if (down) {
+            throw new IllegalStateException("database down");
+        }
+        return opened(from, to).collect(Collectors.groupingBy(c -> List.of(c.definitionId(), c.level()),
+                Collectors.counting())).entrySet().stream()
+                .map(e -> new LevelCount((UUID) e.getKey().get(0), (Integer) e.getKey().get(1), e.getValue()))
+                .toList();
+    }
+
+    @Override
+    public List<DueCase> openedPage(String tenantCode, Instant from, Instant to, long afterId, int limit) {
+        pages++;
+        return opened(from, to).filter(c -> c.id() > afterId).sorted(Comparator.comparingLong(EngineCase::id))
+                .limit(limit)
+                .map(c -> new DueCase(c.id(), c.definitionId(), levelSince.getOrDefault(c.id(), c.openedAt()),
+                        c.slaMinutes()))
+                .toList();
+    }
+
+    @Override
+    public Optional<Instant> firstOpening(String tenantCode) {
+        return cases.stream().map(EngineCase::openedAt).min(Instant::compareTo);
+    }
+
+    private Stream<EngineCase> opened(Instant from, Instant to) {
+        return cases.stream().filter(c -> !c.openedAt().isBefore(from) && c.openedAt().isBefore(to));
     }
 
     @Override

@@ -18,15 +18,18 @@ import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { flyTo } from "../map-visualization/map-view-utils";
+import { tripIdOfSignal } from "./utils/signal-legs";
 
 export default function GeographicVisualization({
   data,
   isLoading,
   dict,
+  emptyMessage,
 }: {
   data: HistoricSignal[] | undefined;
   isLoading: boolean;
   dict: I18nRecord;
+  emptyMessage?: string;
 }) {
   const searchParams = useSearchParams();
   const p_from = searchParams.get("start_date") || "";
@@ -96,12 +99,8 @@ export default function GeographicVisualization({
       const tripGroups = new Map<string, HistoricSignal[]>();
 
       signalsData.forEach((signal: HistoricSignal) => {
-        if (
-          signal.tripid != null &&
-          signal.tripid !== "" &&
-          signal.tripid !== "null"
-        ) {
-          const tripId = signal.tripid.toString();
+        const tripId = tripIdOfSignal(signal.tripid);
+        if (tripId) {
           if (!tripGroups.has(tripId)) {
             tripGroups.set(tripId, []);
           }
@@ -351,6 +350,13 @@ export default function GeographicVisualization({
           />
         </div>
 
+        {emptyMessage && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <output className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-700 shadow dark:bg-gray-800/90 dark:text-gray-200">
+              {emptyMessage}
+            </output>
+          </div>
+        )}
         <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
           {memoizedToolBar}
         </div>

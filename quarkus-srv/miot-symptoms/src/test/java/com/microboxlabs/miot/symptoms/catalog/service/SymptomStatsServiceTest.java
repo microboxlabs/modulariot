@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService.PerSymptom;
@@ -12,10 +14,6 @@ import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService.Sympto
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
-import com.microboxlabs.miot.symptoms.engine.EngineCase;
-import com.microboxlabs.miot.symptoms.engine.EngineRule;
-import com.microboxlabs.miot.symptoms.engine.LevelCount;
-import com.microboxlabs.miot.symptoms.engine.SymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.service.TowerSettingsService;
 import com.microboxlabs.miot.symptoms.service.TowerSettingsService.SettingsRequest;
@@ -23,11 +21,10 @@ import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTowerSettingsStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
-import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,63 +34,13 @@ class SymptomStatsServiceTest {
 
     private static final String TENANT = "tenant-a";
     private static final String OWNER = "owner@example.com";
-    private static final String ENGINE_NAME = "Speed Limit Standard";
     private static final OffsetDateTime NOW = OffsetDateTime.of(2026, 10, 2, 12, 0, 0, 0, ZoneOffset.UTC);
 
     private SymptomCatalogService catalog;
     private InMemoryTreatmentStore treatments;
     private TowerSettingsService settings;
-    private FakeEngine engine;
-
-    /** An engine whose counts and cases the test sets. */
-    private static final class FakeEngine implements SymptomEngine {
-        boolean available = true;
-        boolean failing;
-        final List<LevelCount> counts = new ArrayList<>();
-        final List<EngineCase> cases = new ArrayList<>();
-
-        @Override
-        public boolean available() {
-            return available;
-        }
-
-        @Override
-        public List<EngineRule> rules(String tenantCode) {
-            return List.of();
-        }
-
-        @Override
-        public List<LevelCount> levelCounts(String tenantCode, OffsetDateTime from, OffsetDateTime to) {
-            if (failing) {
-                throw new IllegalStateException("gps down");
-            }
-            assertEquals(NOW.minusDays(90), from);
-            assertEquals(NOW, to);
-            return counts;
-        }
-
-        @Override
-        public List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit) {
-            return List.of();
-        }
-
-        int pages;
-
-        @Override
-        public List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from,
-                OffsetDateTime to, List<Integer> icus, long afterId, int limit) {
-            assertEquals(NOW.minusDays(7), from);
-            assertEquals(NOW, to);
-            pages++;
-            return cases.stream()
-                    .filter(c -> c.symptomName().equals(symptomName) && icus.contains(c.icu()) && !c.excluded())
-                    .filter(c -> !c.firstSignalAt().isBefore(from) && c.firstSignalAt().isBefore(to))
-                    .filter(c -> c.id() > afterId)
-                    .sorted(Comparator.comparingLong(EngineCase::id))
-                    .limit(limit)
-                    .toList();
-        }
-    }
+    private InMemoryEngineCases cases;
+    private long nextId;
 
     @BeforeEach
     void setUp() {
@@ -103,34 +50,44 @@ class SymptomStatsServiceTest {
                 new AuditService(new InMemoryAuditStore()));
         treatments = new InMemoryTreatmentStore();
         settings = new TowerSettingsService(new InMemoryTowerSettingsStore(), new AuditService(new InMemoryAuditStore()));
-        engine = new FakeEngine();
+        cases = new InMemoryEngineCases();
+        nextId = 1;
     }
 
     private SymptomStatsService service() {
-        return new SymptomStatsService(catalog, engine, treatments, settings, () -> NOW);
+        return new SymptomStatsService(catalog, cases, treatments, settings, () -> NOW);
     }
 
-    private UUID symptom(String key, String name, String icon, SymptomState state) {
-        UUID id = catalog.create(TENANT, OWNER, new CreateRequest(key, name, null, icon, null, "gps_signal", null,
+    private UUID symptom(String key, String name, SymptomState state) {
+        UUID id = catalog.create(TENANT, OWNER, new CreateRequest(key, name, null, null, null, "gps_signal", null,
                 Specs.speeding())).definition().id();
         catalog.publish(TENANT, OWNER, id, "Primera versión de " + key, null, state);
         return id;
     }
 
-    private static EngineCase engineCase(long id, int icu, OffsetDateTime first) {
-        return new EngineCase(id, ENGINE_NAME, icu, "trip-" + id, first, first.plusMinutes(1), BigDecimal.TEN, true,
-                false);
+    /** Adds {@code n} cases of the symptom at the level, opened at {@code at}; returns the last case's id. */
+    private long add(UUID definition, int level, Integer slaMinutes, OffsetDateTime at, int n) {
+        Instant opened = at.toInstant();
+        for (int i = 0; i < n; i++) {
+            cases.add(new EngineCase(nextId++, definition, "1.0.0", "Exceso", "speed", "A-1", opened, level, null,
+                    null, null, null, null, 0, slaMinutes, null));
+        }
+        return nextId - 1;
     }
 
-    private void take(long symptomId, OffsetDateTime at) {
-        treatments.insert(new Treatment(null, TENANT, symptomId, "asset", "trip", TreatmentType.CALL,
+    private long add(UUID definition, int level, OffsetDateTime at, int n) {
+        return add(definition, level, null, at, n);
+    }
+
+    private void take(long caseId, OffsetDateTime at) {
+        treatments.insert(new Treatment(null, TENANT, -caseId, "asset", "trip", TreatmentType.CALL,
                 TreatmentStatus.OPEN, "ops@example.com", at, null, null, null, null, null));
     }
 
     @Test
-    void withoutAnEngineOnlyTheCatalogNumbersAreReturned() {
-        engine.available = false;
-        symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.ACTIVE);
+    void withoutTheCasesOnlyTheCatalogNumbersAreReturned() {
+        cases.down = true;
+        symptom("speeding", "Exceso", SymptomState.ACTIVE);
         SymptomStats stats = service().stats(TENANT);
         assertFalse(stats.engineAvailable());
         assertEquals(List.of(0L, 0L, 0L, 0L), stats.totals().weekByLevel());
@@ -141,43 +98,65 @@ class SymptomStatsServiceTest {
     }
 
     @Test
-    void anEngineThatFailsReadsAsNotConnected() {
-        engine.failing = true;
-        assertFalse(service().stats(TENANT).engineAvailable());
+    void noCasesAreZerosOverAWeek() {
+        symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        SymptomStats stats = service().stats(TENANT);
+        assertTrue(stats.engineAvailable());
+        assertEquals(7, stats.windowDays());
+        assertEquals(0, stats.totals().week());
+        assertNull(stats.totals().topShare());
     }
 
     @Test
-    void engineCasesAreCreditedToOneDefinitionAsWeeklyAverages() {
-        UUID active = symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.ACTIVE);
-        UUID test = symptom("speeding-copy", "Exceso", ENGINE_NAME, SymptomState.TEST);
-        engine.counts.addAll(List.of(new LevelCount(ENGINE_NAME, 2, 900), new LevelCount(ENGINE_NAME, 3, 450),
-                new LevelCount(ENGINE_NAME, 4, 90), new LevelCount("Otro motor", 1, 180),
-                new LevelCount(ENGINE_NAME, 5, 9000), new LevelCount(null, 2, 90)));
+    void casesAreWeeklyAveragesPerDefinitionOverNinetyDays() {
+        UUID active = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        UUID test = symptom("speeding-copy", "Exceso", SymptomState.TEST);
+        OffsetDateTime at = NOW.minusDays(10);
+        add(active, 2, at, 180);
+        add(active, 3, at, 90);
+        add(active, 4, at, 270);
+        add(active, 5, at, 9);
+        add(test, 1, at, 90);
+        add(active, 4, NOW.minusDays(120), 1);
 
         SymptomStats stats = service().stats(TENANT);
 
         assertTrue(stats.engineAvailable());
-        assertEquals(1, stats.symptoms().size(), "the TEST duplicate gets nothing");
-        PerSymptom p = stats.symptoms().get(0);
-        assertEquals(active, p.definitionId());
-        assertEquals(List.of(0L, 70L, 35L, 7L), p.weekByLevel());
-        assertEquals(112, p.week());
-        assertEquals(42, p.operatorWeek(), "levels 3 and 4 need an operator");
-        assertEquals(List.of(14L, 77L, 35L, 7L), stats.totals().weekByLevel(), "unmatched names count in totals");
-        assertEquals(133, stats.totals().week());
-        assertEquals(2, stats.totals().perShift(), "42 a week over 21 eight-hour shifts");
-        assertEquals(List.of(active), stats.totals().topShare().definitionIds());
-        assertEquals(112.0 / 133, stats.totals().topShare().share(), 1e-9);
-        assertTrue(stats.symptoms().stream().noneMatch(s -> s.definitionId().equals(test)));
+        assertEquals(90, stats.windowDays());
+        PerSymptom a = stats.symptoms().stream().filter(p -> p.definitionId().equals(active)).findFirst().orElseThrow();
+        assertEquals(List.of(0L, 14L, 7L, 21L), a.weekByLevel());
+        assertEquals(42, a.week());
+        assertEquals(28, a.operatorWeek(), "levels 3 and 4 need an operator");
+        assertEquals(List.of(7L, 14L, 7L, 21L), stats.totals().weekByLevel(), "level 5 and old cases are left out");
+        assertEquals(49, stats.totals().week());
+        assertEquals(1, stats.totals().perShift(), "28 a week over 21 eight-hour shifts");
+        assertEquals(List.of(active, test), stats.totals().topShare().definitionIds());
+        assertEquals(1.0, stats.totals().topShare().share(), 1e-9);
+    }
+
+    @Test
+    void aShortHistoryIsAveragedOverTheDaysSinceTheFirstCase() {
+        UUID id = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        add(id, 4, NOW.minusDays(14), 10);
+        SymptomStats stats = service().stats(TENANT);
+        assertEquals(14, stats.windowDays());
+        assertEquals(5, stats.totals().week());
+
+        cases = new InMemoryEngineCases();
+        add(id, 4, NOW.minusDays(2), 3);
+        stats = service().stats(TENANT);
+        assertEquals(7, stats.windowDays(), "never less than a week");
+        assertEquals(3, stats.totals().week());
     }
 
     @Test
     void operatorLoadCountsActiveSymptomsOnlyAndFollowsTheShiftLength() {
-        symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.TEST);
-        engine.counts.add(new LevelCount(ENGINE_NAME, 4, 900));
+        UUID id = symptom("speeding", "Exceso", SymptomState.TEST);
+        add(id, 4, NOW.minusDays(5), 900);
+        add(id, 1, NOW.minusDays(95), 1);
         assertEquals(0, service().stats(TENANT).totals().perShift(), "a TEST symptom asks no operator");
 
-        catalog.setState(TENANT, OWNER, catalog.list(TENANT).get(0).definition().id(), SymptomState.ACTIVE);
+        catalog.setState(TENANT, OWNER, id, SymptomState.ACTIVE);
         settings.save(TENANT, OWNER, new SettingsRequest(3, 12, 150));
         SymptomStats stats = service().stats(TENANT);
         assertEquals(5, stats.totals().perShift(), "70 a week over 14 twelve-hour shifts");
@@ -188,62 +167,98 @@ class SymptomStatsServiceTest {
 
     @Test
     void slaMetCountsCasesTakenWithinTheLevelSlaOnceTheSlaRanOut() {
-        symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.ACTIVE);
-        engine.counts.add(new LevelCount(ENGINE_NAME, 3, 7));
+        UUID active = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        UUID test = symptom("speeding-test", "Exceso", SymptomState.TEST);
         OffsetDateTime start = NOW.minusDays(1);
-        engine.cases.addAll(List.of(
-                engineCase(1, 3, start),
-                engineCase(2, 3, start),
-                engineCase(3, 3, start),
-                engineCase(4, 4, start),
-                engineCase(5, 2, start),
-                engineCase(6, 3, NOW.minusMinutes(2)),
-                new EngineCase(7, ENGINE_NAME, 3, "t", start, start, BigDecimal.ONE, false, true)));
-        take(1, start.plusMinutes(4));
-        take(1, start.plusMinutes(30));
-        take(2, start.plusMinutes(10));
-        take(4, start.plusMinutes(2));
-        take(5, start.plusMinutes(1));
+        long one = add(active, 3, 5, start, 1);
+        long two = add(active, 3, 5, start, 1);
+        add(active, 3, 5, start, 1);
+        long four = add(active, 4, 2, start, 1);
+        long five = add(active, 2, null, start, 1);
+        add(active, 3, 5, NOW.minusMinutes(2), 1);
+        long seven = add(test, 3, 5, start, 1);
+        add(active, 3, 5, NOW.minusDays(8), 1);
+        take(one, start.plusMinutes(4));
+        take(one, start.plusMinutes(30));
+        take(two, start.plusMinutes(10));
+        take(four, start.plusMinutes(2));
+        take(five, start.plusMinutes(1));
+        take(seven, start.plusMinutes(1));
 
         Double sla = service().stats(TENANT).operators().slaMetLastWeek();
 
         // Due: 1 (met at 4 of 5 min), 2 (late), 3 (never taken), 4 (met at 2 of 2 min).
-        // Left out: 5 (level 2 needs no operator), 6 (5 minutes not over yet), 7 (excluded).
+        // Left out: 5 (no SLA), 6 (5 minutes not over yet), 7 (TEST symptom), 8 (older than a week).
         assertEquals(0.5, sla, 1e-9);
     }
 
     @Test
+    void slaRunsFromWhenTheCaseReachedItsLevel() {
+        UUID id = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        OffsetDateTime opened = NOW.minusDays(1);
+        long escalated = add(id, 4, 5, opened, 1);
+        cases.levelSince.put(escalated, opened.plusHours(1).toInstant());
+        take(escalated, opened.plusHours(1).plusMinutes(2));
+
+        assertEquals(1.0, service().stats(TENANT).operators().slaMetLastWeek(), 1e-9,
+                "taken 2 minutes after the escalation, within its 5 minutes");
+    }
+
+    @Test
+    void theBusiestDefinitionsAreRankedByCasesNotRoundedAverages() {
+        UUID a = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        UUID b = symptom("speeding-b", "Exceso B", SymptomState.ACTIVE);
+        UUID c = symptom("speeding-c", "Exceso C", SymptomState.ACTIVE);
+        UUID e = symptom("speeding-d", "Exceso D", SymptomState.ACTIVE);
+        OffsetDateTime at = NOW.minusDays(89);
+        add(a, 1, at, 5);
+        add(b, 1, at, 5);
+        add(c, 1, at, 6);
+        add(e, 1, at, 5);
+
+        SymptomStats stats = service().stats(TENANT);
+
+        assertEquals(0, stats.symptoms().get(0).week(), "5 cases in 90 days round to 0 a week");
+        assertEquals(c, stats.totals().topShare().definitionIds().get(0));
+        assertEquals(3, stats.totals().topShare().definitionIds().size());
+        assertEquals(16.0 / 21, stats.totals().topShare().share(), 1e-9);
+    }
+
+    @Test
     void slaReadsEveryCaseOfTheWeekPageByPage() {
-        symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.ACTIVE);
-        engine.counts.add(new LevelCount(ENGINE_NAME, 3, 7));
+        UUID id = symptom("speeding", "Exceso", SymptomState.ACTIVE);
         OffsetDateTime start = NOW.minusDays(2);
         int total = SymptomStatsService.SLA_PAGE * 2 + 1;
-        for (long id = 1; id <= total; id++) {
-            engine.cases.add(engineCase(id, 3, start));
-            if (id % 2 == 0) {
-                take(id, start.plusMinutes(1));
-            }
+        add(id, 3, 5, start, total);
+        for (long caseId = 2; caseId <= total; caseId += 2) {
+            take(caseId, start.plusMinutes(1));
         }
-        engine.cases.add(engineCase(total + 1L, 3, NOW.minusDays(8)));
 
         Double sla = service().stats(TENANT).operators().slaMetLastWeek();
 
         assertEquals((double) (total / 2) / total, sla, 1e-9);
-        assertEquals(3, engine.pages, "three pages of " + SymptomStatsService.SLA_PAGE);
+        assertEquals(3, cases.pages, "three pages of " + SymptomStatsService.SLA_PAGE);
     }
 
     @Test
     void slaIsNullWhenNoCaseWasDue() {
-        symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.TEST);
-        engine.counts.add(new LevelCount(ENGINE_NAME, 3, 7));
-        engine.cases.add(engineCase(1, 3, NOW.minusDays(1)));
+        UUID id = symptom("speeding", "Exceso", SymptomState.TEST);
+        add(id, 3, 5, NOW.minusDays(1), 1);
         assertNull(service().stats(TENANT).operators().slaMetLastWeek(), "TEST symptoms are not measured");
     }
 
     @Test
+    void theWindowRoundsPartDaysUp() {
+        Instant now = NOW.toInstant();
+        Instant from = now.minus(Duration.ofDays(90));
+        assertEquals(8, SymptomStatsService.windowDays(now.minus(Duration.ofHours(7 * 24 + 1)), from, now));
+        assertEquals(90, SymptomStatsService.windowDays(from.minusSeconds(1), from, now));
+    }
+
+    @Test
     void changesCountDraftsAndTheNewestPublication() {
-        UUID first = symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.ACTIVE);
-        symptom("lost", "Pérdida", null, SymptomState.TEST);
+        UUID first = symptom("speeding", "Exceso", SymptomState.ACTIVE);
+        symptom("lost", "Pérdida", SymptomState.TEST);
         catalog.saveDraft(TENANT, OWNER, first, Specs.with(Specs.speeding(), "signal.trip.active"));
         catalog.publish(TENANT, OWNER, first, "Solo en viaje", null, null);
         catalog.saveDraft(TENANT, OWNER, first, Specs.speeding());

@@ -99,19 +99,6 @@ final class InMemoryConversations {
                     c.participantAddress(), c.participantContactId(), c.participantRole(), c.displayName(),
                     c.channelState()));
         }
-
-        @Override
-        public Conversation updateInbound(
-                String conversationId, OffsetDateTime occurredAt, String lastMessagePreview,
-                OffsetDateTime sessionExpiresAt, String waContactName) {
-            Conversation c = conversations.get(conversationId);
-            return put(new Conversation(c.id(), c.tenantCode(), c.phoneE164(), waContactName, c.driverId(),
-                    c.contextServiceCode(), c.contextProcessInstanceId(), c.contextTaskId(), c.status(),
-                    occurredAt, c.lastOutboundAt(), occurredAt, sessionExpiresAt, lastMessagePreview,
-                    c.unreadCount() + 1, c.createdAt(), occurredAt, c.contextKind(), c.contextKey(),
-                    c.participantAddress(), c.participantContactId(), c.participantRole(), c.displayName(),
-                    c.channelState()));
-        }
     }
 
     final class Messages extends MessageRepository {
@@ -125,11 +112,26 @@ final class InMemoryConversations {
             return message;
         }
 
+        /** Set to make the next {@code appendInbound} fail before writing anything, as a rolled-back statement. */
+        RuntimeException failNextInbound;
+
         @Override
-        public Message appendInbound(Message message) {
+        public Message appendInbound(Message message, ConversationRepository.InboundTouch t) {
+            if (failNextInbound != null) {
+                RuntimeException failure = failNextInbound;
+                failNextInbound = null;
+                throw failure;
+            }
             if (findByProviderMessageId(message.channel(), message.providerMessageId()) != null) {
                 return null;
             }
+            Conversation c = conversations.get(message.conversationId());
+            put(new Conversation(c.id(), c.tenantCode(), c.phoneE164(), t.contactName(), c.driverId(),
+                    c.contextServiceCode(), c.contextProcessInstanceId(), c.contextTaskId(), c.status(),
+                    t.occurredAt(), c.lastOutboundAt(), t.occurredAt(), t.sessionExpiresAt(), t.lastMessagePreview(),
+                    c.unreadCount() + 1, c.createdAt(), t.occurredAt(), c.contextKind(), c.contextKey(),
+                    c.participantAddress(), c.participantContactId(), c.participantRole(), c.displayName(),
+                    c.channelState()));
             return append(message);
         }
 

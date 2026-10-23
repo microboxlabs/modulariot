@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.domain.Channel;
@@ -153,6 +154,24 @@ class WhatsAppInboundAttachmentTest {
 
         assertEquals(1, replies.fired.size());
         assertEquals(1, store.messages.size());
+    }
+
+    @Test
+    void aRedeliveryAfterAFailedWriteStoresTouchesAndPublishes() {
+        String body = webhook("wamid.IN9", "\"type\":\"text\",\"text\":{\"body\":\"hola\"}");
+        store.messageRepository.failNextInbound = new IllegalStateException("database down");
+
+        assertThrows(IllegalStateException.class, () -> ingest(body));
+        assertTrue(store.messages.isEmpty());
+        assertTrue(replies.fired.isEmpty());
+
+        ingest(body);
+
+        Message stored = inbound("wamid.IN9");
+        assertEquals(1, store.messages.size());
+        assertEquals(1, store.conversations.get(stored.conversationId()).unreadCount());
+        assertEquals(1, replies.fired.size());
+        assertEquals(stored.id(), replies.fired.get(0).messageId());
     }
 
     @Test

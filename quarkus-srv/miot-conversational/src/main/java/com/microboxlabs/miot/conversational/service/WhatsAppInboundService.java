@@ -91,8 +91,8 @@ public class WhatsAppInboundService {
         Attachment attachment = attach(tenantCode, message, occurredAt);
         Conversation conversation = attachment.conversation();
 
-        // The insert IS the dedup: a redelivered wamid hits the unique index and returns null, so
-        // we skip the conversation touch (no double unread count) without losing anything.
+        // The insert IS the dedup: a redelivered wamid hits the unique index and returns null, and
+        // the conversation touch in the same statement is skipped (no double unread count).
         Message persisted = messageRepository.appendInbound(new Message(
                 UUID.randomUUID().toString(),
                 conversation.id(),
@@ -119,18 +119,15 @@ public class WhatsAppInboundService {
                 message.fromE164(),
                 attachment.inReplyTo(),
                 attachment.runId(),
-                null));
+                null), new ConversationRepository.InboundTouch(
+                occurredAt,
+                inboundPreview(message),
+                occurredAt.plusHours(SESSION_WINDOW_HOURS),
+                message.contactName()));
         if (persisted == null) {
             LOG.debugf("Duplicate inbound WhatsApp message %s — already ingested", message.wamid());
             return;
         }
-
-        conversationRepository.updateInbound(
-                conversation.id(),
-                occurredAt,
-                inboundPreview(message),
-                occurredAt.plusHours(SESSION_WINDOW_HOURS),
-                message.contactName());
 
         publishReply(new ConversationReplyReceived(
                 tenantCode,
@@ -200,7 +197,7 @@ public class WhatsAppInboundService {
         if (latest != null) {
             return new Attachment(latest, null, null);
         }
-        // updateInbound then applies the first inbound touch (unread 1, timestamps).
+        // appendInbound then applies the first inbound touch (unread 1, timestamps).
         return new Attachment(conversationRepository.create(new Conversation(
                 UUID.randomUUID().toString(),
                 tenantCode,

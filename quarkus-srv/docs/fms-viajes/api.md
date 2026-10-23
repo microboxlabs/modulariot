@@ -1,7 +1,7 @@
 # Superficie API y catálogo de invocaciones
 
 Convenciones (calcadas de miot-symptoms): `@PermissionsAllowed` por endpoint con `OrgPermission`,
-PATCH con semántica `null` = conserva / `""` = limpia, 201 al crear / 204 en acciones, acciones de
+PATCH con semántica `null` = conserva / `""` = limpia, 201 al crear / 200 con el recurso en acciones (204 solo al desvincular o desmontar), acciones de
 dominio como `POST /{id}/verbo` (nunca PATCH de status), errores 400 dato inválido · 404 no existe
 · 409 conflicto de estado, SQLSTATE traducido centralmente (23505→409, 23503/23514→400).
 
@@ -21,7 +21,7 @@ Base `/api/v1/orgs/{org}/fleet` · permisos `fleet:resources.view|write`, `fleet
 | `/resources/carriers` · `/trucks` · `/trailers` · `/drivers` | `GET` (filtros `q`, `plate`, `rut`) · `POST` · `PATCH /{id}` — 12 endpoints, sin DELETE (status) |
 | `/accreditation` | `POST` (upsert por clave natural) · `GET /{resourceType}/{resourceId}` · `GET /accredited?attributeKey=` (equivalente API de `fn_rd_accredited_resources`) |
 
-## miot-trips — 51 endpoints en 12 resources (PR 4)
+## miot-trips — 39 endpoints en 11 resources (PR 4)
 
 Base `/api/v1/orgs/{org}/trips` · 7 permisos `trips:*` · roles `TRIPS_VIEWER` /
 `TRIPS_OPERATOR` (legacy default) / `TRIPS_MAINTAINER`

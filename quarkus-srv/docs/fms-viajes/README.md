@@ -3,11 +3,11 @@
 Soporte estándar de viajes/servicios para la plataforma: mandatos, viajes, etapas, carga,
 asignación de recursos y tablero caliente, multi-tenant, con versionado completo y auditoría.
 Reemplaza el par `live_trip`/upserts por cliente con **un solo modelo y una sola API** para
-todos los tenants (Mintral, Exacta y los que vengan).
+todos los tenants.
 
 ## Qué resuelve
 
-- Hoy cada integración (ECM Mintral, Excel Exacta) escribe su propia fila caliente con SQL
+- Hoy cada integración (un ECM, una planilla Excel) escribe su propia fila caliente con SQL
   propio. No hay historia, no hay etapas, no hay carga, no hay reglas comunes.
 - Este estándar separa **el encargo** (mandato del cliente) de **la ejecución** (viaje con
   etapas) y de **los recursos** (flota y acreditación, en su propio módulo), y deja el tablero
@@ -21,7 +21,7 @@ todos los tenants (Mintral, Exacta y los que vengan).
 | 1 (este) | Documentación: modelo, objetos, API, paso a prod | esta carpeta |
 | 2 | `miot-fleet`: recursos (carrier/truck/trailer/driver) + acreditación — migración `V0.9.9` | [modelo.md](modelo.md) · [objetos.md](objetos.md) |
 | 3 | `miot-trips` núcleo: migración `V0.10.0`, dominio, stores, servicios, versionado SCD2 + cableado del modulith | [modelo.md](modelo.md) · [objetos.md](objetos.md) |
-| 4 | `miot-trips` API: 51 endpoints, catálogo IAM, tests | [api.md](api.md) |
+| 4 | `miot-trips` API: 39 endpoints, catálogo IAM, tests | [api.md](api.md) |
 
 ## Documentos
 
@@ -32,10 +32,10 @@ todos los tenants (Mintral, Exacta y los que vengan).
 
 ## Estado de pruebas (2026-10-23)
 
-- 25/25 tests Java del módulo (unit + Pg real + simulación de feeds: los 12 pasos wfship2 de
-  Mintral y los 3 estados + anulado de Exacta) y 12/12 asserts SQL.
+- 25/25 tests Java del módulo (unit + Pg real + simulación de dos feeds: uno de 12 pasos con
+  vocabulario propio y uno de 3 estados + anulado) y 12/12 asserts SQL.
 - Smoke HTTP end-to-end sobre el modulith levantado (auth RS256 real, dos orgs): idempotencia,
   409 de etapa paralela, 400 de recurso fantasma, aislamiento entre tenants, tablero proyectando
-  el vocabulario del tenant, versionado dejando la película completa.
-- El pipeline de Exacta evolucionado (todo por API) corrió en el n8n real en modo seco contra la
-  hoja productiva.
+  el vocabulario del tenant, versionado conservando todas las versiones.
+- Los tests Pg se activan con `-Dmiot.trips.test.pg-url=postgresql://user:pass@host:port/db`.
+  Borran y recrean los schemas `miot_fleet` y `miot_trips`: usar una base desechable.

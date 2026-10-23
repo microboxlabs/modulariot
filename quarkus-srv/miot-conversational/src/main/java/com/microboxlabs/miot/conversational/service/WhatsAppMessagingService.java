@@ -122,8 +122,7 @@ public class WhatsAppMessagingService {
                 null,
                 null));
 
-        conversationRepository.updateOutbound(
-                conversation.id(),
+        conversationRepository.updateOutbound(conversation.id(), new ConversationRepository.OutboundTouch(
                 request.serviceCode() == null ? null : ContextKind.SERVICE,
                 request.serviceCode(),
                 request.serviceCode(),
@@ -131,7 +130,7 @@ public class WhatsAppMessagingService {
                 request.taskId(),
                 request.driverId(),
                 now,
-                preview(request));
+                preview(request)));
 
         return message;
     }

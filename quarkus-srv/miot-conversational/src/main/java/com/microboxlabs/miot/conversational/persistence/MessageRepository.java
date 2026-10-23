@@ -29,6 +29,8 @@ public class MessageRepository {
             sent_at, delivered_at, read_at, created_at, channel, address, in_reply_to, run_id, step
             """;
 
+    private static final String SELECT = "SELECT " + COLUMNS;
+
     private static final String INSERT = """
             INSERT INTO miot_conversational.wa_message (
                 id, conversation_id, direction, role, msg_type, body, template_name,
@@ -54,7 +56,7 @@ public class MessageRepository {
             ON CONFLICT (channel, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING
             RETURNING\s""" + COLUMNS;
 
-    private static final String SELECT_BY_CONVERSATION = "SELECT " + COLUMNS + """
+    private static final String SELECT_BY_CONVERSATION = SELECT + """
             FROM miot_conversational.wa_message
             WHERE conversation_id = $1
             ORDER BY created_at, id
@@ -63,13 +65,13 @@ public class MessageRepository {
 
     // Status mirroring and reply attachment look up a row by the provider id stored on send (the
     // partial unique index makes this a point lookup).
-    private static final String SELECT_BY_PROVIDER_MESSAGE_ID = "SELECT " + COLUMNS + """
+    private static final String SELECT_BY_PROVIDER_MESSAGE_ID = SELECT + """
             FROM miot_conversational.wa_message
             WHERE channel = $1 AND provider_message_id = $2
             LIMIT 1
             """;
 
-    private static final String SELECT_BY_ID = "SELECT " + COLUMNS + """
+    private static final String SELECT_BY_ID = SELECT + """
             FROM miot_conversational.wa_message
             WHERE id = $1
             """;

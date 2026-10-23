@@ -189,7 +189,7 @@ public class WhatsAppInboundService {
      */
     private Attachment attach(String tenantCode, InboundMessage message, OffsetDateTime now) {
         String address = message.fromE164();
-        Message answered = answeredMessage(tenantCode, message);
+        Message answered = answeredMessage(message);
         if (answered != null) {
             Conversation conversation = conversationRepository.findByTenantAndId(tenantCode, answered.conversationId());
             if (conversation != null && address.equals(conversation.participantAddress())) {
@@ -232,7 +232,7 @@ public class WhatsAppInboundService {
                 Map.of())), null, null);
     }
 
-    private Message answeredMessage(String tenantCode, InboundMessage message) {
+    private Message answeredMessage(InboundMessage message) {
         Message byContext = messageRepository.findByProviderMessageId(Channel.WHATSAPP, message.contextMessageId());
         if (byContext != null) {
             return byContext;

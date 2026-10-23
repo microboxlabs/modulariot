@@ -271,11 +271,10 @@ public class ConversationRepository {
     }
 
     /**
-     * Outbound touch. {@code contextKind} / {@code contextKey} / {@code contextServiceCode} are
-     * written only when the conversation has no context yet.
+     * What an outbound message writes on its conversation. {@code contextKind} / {@code contextKey} /
+     * {@code contextServiceCode} are written only when the conversation has no context yet.
      */
-    public Conversation updateOutbound(
-            String conversationId,
+    public record OutboundTouch(
             ContextKind contextKind,
             String contextKey,
             String contextServiceCode,
@@ -284,16 +283,19 @@ public class ConversationRepository {
             String driverId,
             OffsetDateTime occurredAt,
             String lastMessagePreview) {
+    }
+
+    public Conversation updateOutbound(String conversationId, OutboundTouch touch) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(conversationId))
-                .addString(contextServiceCode)
-                .addString(contextProcessInstanceId)
-                .addString(contextTaskId)
-                .addString(driverId)
-                .addOffsetDateTime(occurredAt)
-                .addString(lastMessagePreview)
-                .addString(contextKind == null ? null : contextKind.dbValue())
-                .addString(contextKey);
+                .addString(touch.contextServiceCode())
+                .addString(touch.contextProcessInstanceId())
+                .addString(touch.contextTaskId())
+                .addString(touch.driverId())
+                .addOffsetDateTime(touch.occurredAt())
+                .addString(touch.lastMessagePreview())
+                .addString(touch.contextKind() == null ? null : touch.contextKind().dbValue())
+                .addString(touch.contextKey());
         return mapRow(client().preparedQuery(UPDATE_OUTBOUND)
                 .execute(params)
                 .await().indefinitely()

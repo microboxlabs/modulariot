@@ -52,6 +52,9 @@ public class EngineCaseService {
                    second_driver_name, type_load, driver_contact_phone
               FROM live_trip WHERE trip_id = $1 AND asset_id = $2
             """;
+    /** How far before the case the map shows the vehicle's signals, unless an earlier case of it is nearer. */
+    static final Duration SIGNALS_BEFORE = Duration.ofHours(1);
+    static final Duration SIGNALS_AT_MOST = Duration.ofDays(7);
     private static final JsonNodeFactory JSON = JsonNodeFactory.instance;
     private static final Logger LOG = Logger.getLogger(EngineCaseService.class);
 
@@ -241,6 +244,25 @@ public class EngineCaseService {
             description.put("last_reported_speed", c.speedKmh());
         }
         return out;
+    }
+
+    /** The vehicle and the time range of the signals the treatment page shows for a case. */
+    public record SignalWindow(String assetId, Instant from, Instant to) {
+    }
+
+    /**
+     * From an hour before the case opened, or from the vehicle's previous case when that opened later, until
+     * the case closed or now; at most {@link #SIGNALS_AT_MOST} after the opening.
+     */
+    public SignalWindow signalWindow(String tenantCode, long symptomId) {
+        EngineCase c = find(tenantCode, symptomId);
+        Instant opened = c.openedAt();
+        Instant earliest = opened.minus(SIGNALS_BEFORE);
+        Instant from = store.previousOpening(tenantCode, c.assetId(), c.id(), earliest, opened).orElse(earliest);
+        Instant end = c.closedAt() != null ? c.closedAt() : clock.instant();
+        Instant cap = opened.plus(SIGNALS_AT_MOST);
+        Instant to = end.isAfter(cap) ? cap : end;
+        return new SignalWindow(c.assetId(), from, to.isBefore(opened) ? opened : to);
     }
 
     /**

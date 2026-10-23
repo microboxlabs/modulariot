@@ -8,6 +8,7 @@ import com.microboxlabs.miot.symptoms.map.ControlTowerMapService.UnavailableExce
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -77,6 +78,26 @@ public class ControlTowerTreatmentService {
         String asset = assetId.trim();
         return guarded(() -> firstFound(clientIds, client -> reads.tripPositions(trip, asset, client, MAX_POSITIONS),
                 "Trip not found"));
+    }
+
+    /**
+     * The asset's positions from {@code from} to {@code to}, oldest first, at most {@value #MAX_POSITIONS}: those of
+     * the first client id that had the asset mapped, else none.
+     */
+    public Uni<JsonNode> assetPositions(List<String> clientIds, String assetId, Instant from, Instant to) {
+        if (assetId == null || assetId.isBlank() || from == null || to == null) {
+            throw new IllegalArgumentException("assetId, from and to are required");
+        }
+        String asset = assetId.trim();
+        return guarded(() -> {
+            Uni<JsonNode> found = Uni.createFrom().item(JsonNodeFactory.instance.arrayNode());
+            for (String client : clientIds) {
+                found = found.flatMap(previous -> previous.isEmpty()
+                        ? reads.assetPositions(asset, from, to, client, MAX_POSITIONS)
+                        : Uni.createFrom().item(previous));
+            }
+            return found;
+        });
     }
 
     /** The first client id, in order and one at a time, for which {@code read} finds something. */

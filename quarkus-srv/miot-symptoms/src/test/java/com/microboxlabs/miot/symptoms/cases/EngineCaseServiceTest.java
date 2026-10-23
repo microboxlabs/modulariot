@@ -54,6 +54,47 @@ class EngineCaseServiceTest {
                 -33.4489, -70.6693, 0.0, null, treatments, 2, 1L);
     }
 
+    private static EngineCase at(long id, String asset, Instant opened, Instant closed) {
+        return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", asset, opened, 4, null,
+                -33.4489, -70.6693, 0.0, closed, 0, 2, null);
+    }
+
+    @Test
+    void theSignalWindowRunsFromAnHourBeforeTheCaseUntilNow() {
+        store.add(at(12, "DEMO01", OPENED, null));
+
+        EngineCaseService.SignalWindow w = service.signalWindow(TENANT, -12);
+
+        assertEquals("DEMO01", w.assetId());
+        assertEquals(OPENED.minusSeconds(3600), w.from());
+        assertEquals(OPENED.plusSeconds(90), w.to());
+    }
+
+    @Test
+    void theSignalWindowStartsAtTheVehiclesPreviousCaseWhenNearer() {
+        store.add(at(10, "DEMO01", OPENED.minusSeconds(1200), OPENED.minusSeconds(600)));
+        store.add(at(11, "DEMO02", OPENED.minusSeconds(300), null));
+        store.add(at(12, "DEMO01", OPENED, null));
+        store.add(at(13, "DEMO01", OPENED, OPENED.plusSeconds(30)));
+
+        EngineCaseService.SignalWindow w = service.signalWindow(TENANT, -13);
+
+        assertEquals(OPENED.minusSeconds(1200), w.from(),
+                "neither the other vehicle's case nor one opened on the same frame counts");
+        assertEquals(OPENED.plusSeconds(30), w.to(), "a closed case ends at its close");
+    }
+
+    @Test
+    void theSignalWindowOfALongCaseIsCapped() {
+        Instant opened = OPENED.minus(java.time.Duration.ofDays(10));
+        store.add(at(12, "DEMO01", opened, null));
+
+        EngineCaseService.SignalWindow w = service.signalWindow(TENANT, -12);
+
+        assertEquals(opened.plus(EngineCaseService.SIGNALS_AT_MOST), w.to());
+        assertThrows(NoSuchElementException.class, () -> service.signalWindow(TENANT, -99));
+    }
+
     @Test
     void openCasesGoFirstOnTheFirstPage() throws Exception {
         store.add(panic(12, "DEMO01"));

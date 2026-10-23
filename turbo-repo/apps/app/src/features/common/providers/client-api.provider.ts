@@ -64,6 +64,10 @@ import type {
   TimeWindowUsageResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
+import {
+  isEngineCaseId,
+  tripIdOf,
+} from "@/features/symptoms/model/treatment-link";
 import type { ObservationTypeItem } from "./alfresco-api/observation-types.types";
 
 export function useMyTasks(
@@ -507,8 +511,9 @@ export function useMapPositionsResume() {
 }
 
 export function useGeofences(tripId: string) {
+  const trip = tripIdOf(tripId);
   const { data, error, isLoading } = useSWR<any, FetcherError>(
-    `/app/api/map/geofences?tripId=${tripId}`,
+    trip ? `/app/api/map/geofences?tripId=${trip}` : null,
     fetcher
   );
 
@@ -637,14 +642,17 @@ export function useTreatmentsLocation(
   last_date: string, */
   symptom_id: string
 ) {
-  const shouldFetch = tripId && symptom_name; //&& first_date && last_date
-  //&first_date=${first_date}&last_date=${last_date}
+  const trip = tripIdOf(tripId);
+  // The evaluator's cases may have no trip; their signals are read by symptom.
+  const shouldFetch =
+    !!symptom_name && (!!trip || (!!symptom_id && isEngineCaseId(symptom_id)));
+  const tripParam = trip ? `trip_id=${encodeURIComponent(trip)}&` : "";
   const { data, error, isLoading } = useSWR<
     TreatmentsLocationResponseItem,
     FetcherError
   >(
     shouldFetch
-      ? `/app/api/treatments/location?trip_id=${tripId}&symptom_name=${symptom_name}&symptom_id=${symptom_id}`
+      ? `/app/api/treatments/location?${tripParam}symptom_name=${encodeURIComponent(symptom_name)}&symptom_id=${encodeURIComponent(symptom_id)}`
       : null,
     fetcher
   );

@@ -43,6 +43,14 @@ public class InMemoryEngineCases implements EngineCaseStore {
     }
 
     @Override
+    public Optional<Instant> previousOpening(String tenantCode, String assetId, long caseId, Instant after,
+            Instant before) {
+        return cases.stream().filter(c -> c.assetId().equals(assetId) && c.id() < caseId)
+                .map(EngineCase::openedAt).filter(at -> at.isAfter(after) && at.isBefore(before))
+                .max(Instant::compareTo);
+    }
+
+    @Override
     public boolean close(String tenantCode, long caseId, String actor, Instant at) {
         if (cases.stream().noneMatch(c -> c.id() == caseId && c.closedAt() == null)) {
             return false;

@@ -2,7 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import { FlyToInterpolator, LinearInterpolator } from "deck.gl";
+import {
+  FlyToInterpolator,
+  LinearInterpolator,
+  ScatterplotLayer,
+} from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
@@ -33,7 +37,6 @@ import PulseRange from "./tool-bar/pulse-range";
 import MapVisualization from "@/features/map-visualization/map-visualization";
 import { MapRef } from "react-map-gl";
 import {
-  center_in_bounds,
   flyTo,
   panTo,
   toLngLat,
@@ -45,6 +48,7 @@ import {
   estimateEtaHours,
   formatEtaHours,
 } from "../utils/vehicle-origin";
+import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -128,7 +132,11 @@ type MapVisualizationProps = {
   setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
   minimized?: boolean;
   licensePlate?: string | null;
+  /** Where a case without a trip opened, marked on the map. */
+  casePoint?: CasePoint | null;
 };
+
+export type CasePoint = { longitude: number; latitude: number };
 
 type GeometryFeature = {
   type: string;
@@ -152,6 +160,7 @@ export default function MapVisualizationTrip({
   setSelectedTreatmentIndex,
   minimized = false,
   licensePlate,
+  casePoint = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -205,13 +214,35 @@ export default function MapVisualizationTrip({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera_movement, displayPosition]);
 
+  const caseLng = casePoint?.longitude;
+  const caseLat = casePoint?.latitude;
+  const [mapReady, setMapReady] = useState(false);
+
+  // Fits the track, or flies to its single position or to the case point.
+  // Waits for the map, so data that arrives first is not lost.
   useEffect(() => {
-    if (mapRef.current) {
-      center_in_bounds(positions || [], mapRef.current, isLoading);
+    if (!mapRef.current || isLoading) return;
+    const point =
+      caseLng != null && caseLat != null
+        ? { longitude: caseLng, latitude: caseLat }
+        : null;
+    const camera = tripCamera(positions, point);
+    if (camera?.kind === "bounds") {
+      mapRef.current.fitBounds(camera.bounds, {
+        padding: BOUNDS_PADDING,
+        duration: 1000,
+        maxZoom: camera.maxZoom,
+        pitch: camera.pitch,
+        bearing: camera.bearing,
+      });
+    } else if (camera?.kind === "point") {
+      flyTo(mapRef.current, camera.target, camera.zoom);
     }
-  }, [positions]);
+  }, [positions, isLoading, caseLng, caseLat, mapReady]);
 
   useEffect(() => {
+    // A case without a trip is framed by its point and its track instead.
+    if (caseLng != null) return;
     const first = filteredLocationData?.features[0];
     const coordinates = first
       ? toLngLat(first.longitude, first.latitude)
@@ -219,7 +250,7 @@ export default function MapVisualizationTrip({
     if (coordinates && mapRef.current) {
       flyTo(mapRef.current, coordinates, 6.5);
     }
-  }, [filteredLocationData]);
+  }, [filteredLocationData, caseLng]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -271,7 +302,9 @@ export default function MapVisualizationTrip({
 
     setSelectedPulse(Array.from(matchingIndices));
 
-    if (matchingIndices.size > 0) {
+    // A case without a trip has one opening point, not a span of signals to
+    // summarise, so its popup waits for the user to pick a pulse.
+    if (matchingIndices.size > 0 && caseLng == null) {
       setHoverInfo({
         x: 10,
         y: 10,
@@ -281,7 +314,7 @@ export default function MapVisualizationTrip({
         },
       } as PickingInfo<PulseListType>);
     }
-  }, [filteredLocationData, positions]);
+  }, [filteredLocationData, positions, caseLng]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
@@ -482,8 +515,28 @@ export default function MapVisualizationTrip({
       );
     }
 
+    if (caseLng != null && caseLat != null) {
+      baseLayers.push(
+        new ScatterplotLayer<CasePoint>({
+          id: "case-point",
+          data: [{ longitude: caseLng, latitude: caseLat }],
+          getPosition: (d) => [d.longitude, d.latitude],
+          getRadius: 9,
+          radiusUnits: "pixels",
+          getFillColor: [220, 38, 38, 230],
+          getLineColor: [255, 255, 255, 255],
+          getLineWidth: 3,
+          lineWidthUnits: "pixels",
+          stroked: true,
+          parameters: { depthCompare: "always" },
+        })
+      );
+    }
+
     return baseLayers;
   }, [
+    caseLng,
+    caseLat,
     geoJson,
     positions,
     processedGeofence,
@@ -560,6 +613,7 @@ export default function MapVisualizationTrip({
         mapRef={mapRef}
         onZoomChange={() => {}}
         minZoom={TRIP_MAP_MIN_ZOOM}
+        onMapLoad={() => setMapReady(true)}
       />
       {hoverInfo && (
         <MapTooltip
@@ -587,7 +641,7 @@ export default function MapVisualizationTrip({
           <div className="flex items-center justify-center h-full p-2">
             <Spinner />
           </div>
-        ) : !isLoading && positions?.length === 0 ? (
+        ) : showsNoData(isLoading, positions, casePoint) ? (
           <div className="flex items-center justify-center h-full p-2">
             <p className="text-gray-500 dark:text-gray-400 font-light">
               {tr("geographic_view.no_data_found", dict)}

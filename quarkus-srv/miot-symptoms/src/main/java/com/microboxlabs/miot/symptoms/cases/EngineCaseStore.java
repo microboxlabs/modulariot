@@ -16,6 +16,12 @@ public interface EngineCaseStore {
     Optional<EngineCase> find(String tenantCode, long caseId);
 
     /**
+     * When the vehicle's latest case before {@code caseId} opened, of any symptom, if that was after {@code after}
+     * and before {@code before}.
+     */
+    Optional<Instant> previousOpening(String tenantCode, String assetId, long caseId, Instant after, Instant before);
+
+    /**
      * Records that an operator closed the case at {@code at}; false when it was already closed, so of two
      * overlapping closes only one returns true.
      */

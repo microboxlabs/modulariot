@@ -32,7 +32,8 @@ export const SAMPLE_VALUES: Record<string, string> = {
   hora: "14:05",
   sintoma: "Botón de pánico",
   nivel: "Código negro",
-  ubicacion: "-33.4489,-70.6693",
+  fecha: "23-10-2026",
+  ubicacion: "-33.44890, -70.66930",
 };
 
 const EMPTY: TemplateBody = {
@@ -263,7 +264,7 @@ export function TemplateEditor({
                 set({
                   whatsapp: body.whatsapp
                     ? null
-                    : { metaName: "", language: "es", params: [] },
+                    : { metaName: "", language: "es_CL", params: [] },
                 })
               }
             >

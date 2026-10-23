@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import es from "@/lang/es.json";
 import type { RuleSpec } from "./conversations-types";
 import {
+  conditionValues,
   fillText,
   minutesAfter,
   newRuleSpec,
@@ -120,7 +121,7 @@ describe("ruleTargets", () => {
 });
 
 describe("sampleEvent", () => {
-  it("fills the catalog fields and takes the symptom and level from the condition", () => {
+  it("takes the condition's values, test defaults for the rest, and is not a test event", () => {
     const event = sampleEvent(
       {
         event: "symptom.case.opened",
@@ -132,9 +133,14 @@ describe("sampleEvent", () => {
         description: "",
         contextKind: "symptom_case",
         fields: [
+          { name: "symptomId", label: "Caso", type: "integer" },
           { name: "symptomKey", label: "Clave", type: "string" },
-          { name: "level", label: "Nivel", type: "int" },
-          { name: "speedKmh", label: "Velocidad", type: "Double" },
+          { name: "symptomName", label: "Nombre", type: "string" },
+          { name: "level", label: "Nivel", type: "integer" },
+          { name: "assetId", label: "Vehículo", type: "string" },
+          { name: "latitude", label: "Latitud", type: "number" },
+          { name: "longitude", label: "Longitud", type: "number" },
+          { name: "levelSince", label: "Desde", type: "date-time" },
         ],
       },
       new Date("2026-10-23T12:00:00Z")
@@ -142,10 +148,27 @@ describe("sampleEvent", () => {
     expect(event).toEqual({
       type: "symptom.case.opened",
       context: { kind: "symptom_case", key: "1" },
-      data: { symptomKey: "panic-button", level: 4, speedKmh: 0 },
-      test: true,
+      data: {
+        symptomId: 1,
+        symptomKey: "panic-button",
+        symptomName: "",
+        level: 4,
+        assetId: "TEST01",
+        latitude: -33.4489,
+        longitude: -70.6693,
+        levelSince: null,
+      },
+      test: false,
       at: "2026-10-23T12:00:00.000Z",
     });
+  });
+
+  it("reads ==, >= and > on any data field", () => {
+    expect(
+      conditionValues(
+        'event.data.level > 2 && (event.data.assetId == "X1") && event.data.speedKmh >= 90 && event.data.manual == true && event.test == false'
+      )
+    ).toEqual({ level: 3, assetId: "X1", speedKmh: 90, manual: true });
   });
 
   it("counts minutes from the event for the timeline", () => {

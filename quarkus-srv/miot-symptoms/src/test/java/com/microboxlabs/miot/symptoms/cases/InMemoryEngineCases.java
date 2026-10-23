@@ -26,10 +26,14 @@ public class InMemoryEngineCases implements EngineCaseStore {
     }
 
     @Override
-    public void close(String tenantCode, long caseId, String actor, Instant at) {
+    public boolean close(String tenantCode, long caseId, String actor, Instant at) {
+        if (cases.stream().noneMatch(c -> c.id() == caseId && c.closedAt() == null)) {
+            return false;
+        }
         cases.replaceAll(c -> c.id() != caseId ? c : new EngineCase(c.id(), c.definitionId(), c.version(), c.name(),
                 c.family(), c.assetId(), c.openedAt(), c.level(), c.tripId(), c.latitude(), c.longitude(),
                 c.speedKmh(), at, c.treatments()));
         closedBy.add(actor);
+        return true;
     }
 }

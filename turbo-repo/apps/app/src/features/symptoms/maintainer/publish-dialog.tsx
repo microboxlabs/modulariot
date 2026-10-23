@@ -17,6 +17,7 @@ import {
   publishDraft,
   publishPlan,
   type PublishPlan,
+  type SymptomVersion,
   type VersionBump,
 } from "./maintainer-api";
 import { useSymptomScope } from "./symptom-scope";
@@ -69,7 +70,7 @@ export default function PublishDialog({
   open: boolean;
   d: I18nRecord;
   onClose: () => void;
-  onPublished: () => void;
+  onPublished: (version: SymptomVersion) => void;
 }>) {
   const scope = useSymptomScope();
   const [plan, setPlan] = useState<PublishPlan | null>(null);
@@ -103,8 +104,9 @@ export default function PublishDialog({
     setBusy(true);
     setError(null);
     try {
-      await publishDraft(id, { reason: reason.trim(), bump }, scope);
-      onPublished();
+      onPublished(
+        await publishDraft(id, { reason: reason.trim(), bump }, scope)
+      );
     } catch (e) {
       setError(publishError(e, d));
     } finally {

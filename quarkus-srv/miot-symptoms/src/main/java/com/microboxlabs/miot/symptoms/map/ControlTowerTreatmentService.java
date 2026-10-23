@@ -92,8 +92,9 @@ public class ControlTowerTreatmentService {
         return guarded(() -> {
             Uni<JsonNode> found = Uni.createFrom().item(JsonNodeFactory.instance.arrayNode());
             for (String client : clientIds) {
-                found = found.flatMap(previous -> !previous.isEmpty() ? Uni.createFrom().item(previous)
-                        : reads.assetPositions(asset, from, to, client, MAX_POSITIONS));
+                found = found.flatMap(previous -> previous.isEmpty()
+                        ? reads.assetPositions(asset, from, to, client, MAX_POSITIONS)
+                        : Uni.createFrom().item(previous));
             }
             return found;
         });

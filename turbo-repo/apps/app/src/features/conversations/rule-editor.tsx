@@ -10,11 +10,7 @@ import CelEditor, {
   type CelField,
 } from "@/features/symptoms/maintainer/cel-editor";
 import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
-import {
-  findingText,
-  Problems,
-  problemsFor,
-} from "@/features/symptoms/maintainer/rule-problems";
+import { Problems } from "@/features/symptoms/maintainer/rule-problems";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { CHANGED_DOT } from "@/features/symptoms/maintainer/ui/changed";
 import {
@@ -34,12 +30,12 @@ import {
 } from "./conversations-api";
 import type {
   EventTypeInfo,
-  RuleFinding,
   RuleSpec,
   RuleState,
   SampleEvent,
 } from "./conversations-types";
 import RuleDraftBar, { PublishRuleDialog } from "./rule-draft-bar";
+import { placeFindings, ruleFindingText } from "./rule-findings";
 import {
   eventLabel,
   eventVariables,
@@ -67,16 +63,6 @@ export function eventCelFields(info: EventTypeInfo | undefined): CelField[] {
       detail: [f.type, f.label].filter(Boolean).join(" · "),
     })),
   ];
-}
-
-/** Finding texts of `steps.N` by step index. */
-function stepErrors(findings: RuleFinding[] | null, d: I18nRecord) {
-  const out: Record<number, string[]> = {};
-  for (const f of findings ?? []) {
-    const m = /^steps\.(\d+)/.exec(f.section);
-    if (m) (out[Number(m[1])] ??= []).push(findingText(f, d));
-  }
-  return out;
 }
 
 function ChangedMark({ show, d }: Readonly<{ show: boolean; d: I18nRecord }>) {
@@ -211,6 +197,10 @@ export default function RuleEditor({
     return simulateRule(id, event);
   };
 
+  const placed = spec
+    ? placeFindings(findings, spec, d)
+    : { trigger: [], audience: {}, audienceGeneral: [], steps: {} };
+
   const showBar = canMaintain && Boolean(detail?.draft || saving);
 
   return (
@@ -298,7 +288,11 @@ export default function RuleEditor({
                     placeholder={tr("whenPlaceholder", d)}
                     value={spec.trigger.when ?? ""}
                     fields={fields}
-                    problems={problemsFor(findings ?? [], "trigger", d)}
+                    problems={placed.trigger.map((f) => ({
+                      position: Math.max(0, f.position),
+                      message: ruleFindingText(f, d),
+                      severity: f.severity === "ERROR" ? "error" : "warning",
+                    }))}
                     onChange={(when) =>
                       set({ trigger: { ...spec.trigger, when: when || null } })
                     }
@@ -315,17 +309,16 @@ export default function RuleEditor({
               >
                 <p className={`text-sm ${MUTED}`}>{tr("audienceHint", d)}</p>
                 <Problems
-                  items={(findings ?? [])
-                    .filter((f) => f.section.startsWith("audience"))
-                    .map((f) => ({
-                      position: 0,
-                      message: findingText(f, d),
-                      severity: f.severity === "ERROR" ? "error" : "warning",
-                    }))}
+                  items={placed.audienceGeneral.map((message) => ({
+                    position: 0,
+                    message,
+                    severity: "error",
+                  }))}
                 />
                 <AudienceList
                   entries={spec.audience}
                   fields={info?.fields ?? []}
+                  errors={placed.audience}
                   readOnly={readOnly}
                   d={d}
                   label={tr("sectionAudience", d)}
@@ -346,7 +339,7 @@ export default function RuleEditor({
                   steps={spec.steps}
                   templates={templates ?? []}
                   fields={info?.fields ?? []}
-                  errors={stepErrors(findings, d)}
+                  errors={placed.steps}
                   readOnly={readOnly}
                   d={d}
                   onChange={(steps) => set({ steps })}

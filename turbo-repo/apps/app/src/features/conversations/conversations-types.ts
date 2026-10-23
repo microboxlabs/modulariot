@@ -83,7 +83,7 @@ export interface RuleFinding {
   section: string;
   severity: "ERROR" | "WARNING";
   code?: string;
-  params?: Record<string, string>;
+  params?: Record<string, unknown>;
   /** Spanish text, shown when the app does not know the code. */
   message: string;
   position: number;

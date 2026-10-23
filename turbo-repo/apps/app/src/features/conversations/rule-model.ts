@@ -67,7 +67,7 @@ export function channelLabel(
 }
 
 export function roleLabel(role: string, d: I18nRecord) {
-  const known = ROLES.find((r) => r.value === role);
+  const known = ROLES.find((r) => r.value === role.toLowerCase());
   return known ? trDynamic(known.label, d) : role;
 }
 
@@ -244,29 +244,80 @@ export function eventVariables(info: EventTypeInfo | undefined): EventField[] {
   });
 }
 
+/** Values a sample event starts with when the condition does not set them; no real vehicle or place. */
+const SAMPLE_DATA: Record<string, unknown> = {
+  symptomId: 1,
+  version: "1.0.0",
+  level: 4,
+  previousLevel: 0,
+  assetId: "TEST01",
+  tripId: "TRIP-TEST",
+  driverId: "DRIVER-TEST",
+  measure: 1,
+  latitude: -33.4489,
+  longitude: -70.6693,
+  speedKmh: 45,
+};
+
 function sampleValue(type: string): unknown {
   const t = type.toLowerCase();
   if (/(int|long|double|float|number|decimal)/.test(t)) return 0;
   if (t.includes("bool")) return false;
+  if (t.includes("instant") || t.includes("date") || t.includes("time"))
+    return null;
   return "";
 }
 
-/** A test event of the trigger's type, filled from the catalog and the condition. */
+const VALUE_CLAUSE =
+  /^event\.data\.(\w+)\s*(==|>=|>)\s*(?:(['"])(.*)\3|(-?\d+(?:\.\d+)?)|(true|false))$/;
+
+/**
+ * The values a condition asks of `event.data`: `field == 'x'`, `field == 3`,
+ * `field >= 3` (3) and `field > 3` (4), each the smallest value that holds.
+ */
+export function conditionValues(
+  when: string | null | undefined
+): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const raw of clauses(when ?? "")) {
+    const m = VALUE_CLAUSE.exec(unwrap(raw));
+    if (!m || m[1] in out) continue;
+    const [, field, op, , text, num, bool] = m;
+    if (text !== undefined) {
+      if (op === "==") out[field] = text;
+    } else if (num !== undefined) {
+      const n = Number(num);
+      out[field] = op === ">" ? n + 1 : n;
+    } else if (bool !== undefined && op === "==") {
+      out[field] = bool === "true";
+    }
+  }
+  return out;
+}
+
+/**
+ * An event of the trigger's type that the rule would see: the condition's
+ * values, test defaults for the rest of the catalog fields, a recent time,
+ * and `test: false` so that rules in force match it.
+ */
 export function sampleEvent(
   trigger: RuleTrigger,
   info: EventTypeInfo | undefined,
   now = new Date()
 ): SampleEvent {
   const data: Record<string, unknown> = {};
-  for (const f of info?.fields ?? []) data[f.name] = sampleValue(f.type);
-  const parts = parseWhen(trigger.when);
-  if (parts.symptomKey) data.symptomKey = parts.symptomKey;
-  if (parts.level) data.level = parts.level.value;
+  for (const f of info?.fields ?? []) {
+    data[f.name] = Object.hasOwn(SAMPLE_DATA, f.name)
+      ? SAMPLE_DATA[f.name]
+      : sampleValue(f.type);
+  }
+  Object.assign(data, conditionValues(trigger.when));
+  const key = data.symptomId ?? 1;
   return {
     type: trigger.event,
-    context: { kind: info?.contextKind ?? "", key: "1" },
+    context: { kind: info?.contextKind ?? "", key: String(key) },
     data,
-    test: true,
+    test: false,
     at: now.toISOString(),
   };
 }

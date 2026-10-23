@@ -17,6 +17,7 @@ import type {
   RuleChannel,
   RuleStep,
 } from "./conversations-types";
+import type { StepIssues } from "./rule-findings";
 import { emptyStep, REPLY_CHANNELS, STEP_CHANNELS } from "./rule-model";
 import { moved, useRowKeys } from "./row-keys";
 
@@ -74,7 +75,7 @@ function StepRow({
   count,
   templates,
   fields,
-  errors,
+  issues,
   readOnly,
   d,
   onSet,
@@ -86,7 +87,7 @@ function StepRow({
   count: number;
   templates: ConversationTemplate[];
   fields: EventField[];
-  errors: string[];
+  issues: StepIssues | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onSet: (patch: Partial<RuleStep>) => void;
@@ -97,7 +98,8 @@ function StepRow({
   const knownTemplate =
     step.template === "" || templates.some((t) => t.key === step.template);
   const custom = Array.isArray(step.to);
-  const error = errors.length > 0 ? FIELD_ERROR : "";
+  const templateError = issues?.template ? FIELD_ERROR : "";
+  const channelError = issues?.channel ? FIELD_ERROR : "";
   return (
     <li
       aria-label={tr("stepN", d, { n: String(index + 1) })}
@@ -126,7 +128,7 @@ function StepRow({
           <span>{tr("stepMinBy", d)}</span>
           <Select
             aria-label={tr("stepChannel", d)}
-            className={FIELD}
+            className={`${FIELD} ${channelError}`}
             disabled={readOnly}
             value={step.channel}
             onChange={(e) => {
@@ -147,7 +149,7 @@ function StepRow({
           <span>{tr("stepWithTemplate", d)}</span>
           <Select
             aria-label={tr("stepTemplate", d)}
-            className={`${FIELD} ${error}`}
+            className={`${FIELD} ${templateError}`}
             wrapperClassName="min-w-44 flex-1"
             disabled={readOnly}
             value={step.template}
@@ -197,6 +199,7 @@ function StepRow({
           <AudienceList
             entries={step.to}
             fields={fields}
+            errors={issues?.entries}
             readOnly={readOnly}
             d={d}
             label={tr("stepToLabel", d)}
@@ -239,7 +242,7 @@ function StepRow({
             {tr("stepNoReplies", d)}
           </p>
         )}
-        {errors.map((e) => (
+        {(issues?.messages ?? []).map((e) => (
           <FieldError key={e} text={e} />
         ))}
       </div>
@@ -260,8 +263,8 @@ export default function RuleSteps({
   steps: RuleStep[];
   templates: ConversationTemplate[];
   fields: EventField[];
-  /** Finding texts by step index. */
-  errors?: Record<number, string[]>;
+  /** The validator's findings by step index. */
+  errors?: Record<number, StepIssues>;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (steps: RuleStep[]) => void;
@@ -289,7 +292,7 @@ export default function RuleSteps({
               count={steps.length}
               templates={templates}
               fields={fields}
-              errors={errors[i] ?? []}
+              issues={errors[i]}
               readOnly={readOnly}
               d={d}
               onSet={(patch) => set(i, patch)}

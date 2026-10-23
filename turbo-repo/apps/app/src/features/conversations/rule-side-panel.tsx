@@ -4,9 +4,9 @@ import { useState } from "react";
 import { HiCheckCircle, HiExclamation, HiXCircle } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { findingText } from "@/features/symptoms/maintainer/rule-problems";
 import { Panel } from "@/features/symptoms/maintainer/symptom-side-panels";
 import type { EventField, RuleFinding } from "./conversations-types";
+import { ruleFindingText } from "./rule-findings";
 
 /** The server's review of the last saved draft; null before the first save. */
 export function RuleReviewPanel({
@@ -50,7 +50,7 @@ export function RuleReviewPanel({
               aria-hidden
               className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${f.severity === "ERROR" ? "text-red-500" : "text-yellow-500"}`}
             />
-            {findingText(f, d)}
+            {ruleFindingText(f, d)}
           </li>
         ))}
       </ul>

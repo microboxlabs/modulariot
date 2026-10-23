@@ -162,20 +162,63 @@ describe("RuleSteps", () => {
     );
   });
 
-  it("shows the step's findings under it", () => {
+  it("shows a step's findings under it and marks its template", () => {
     render(
       <RuleSteps
         steps={[STEPS[0]]}
         templates={TEMPLATES}
         fields={[]}
-        errors={{ 0: ["El paso 1 no tiene plantilla."] }}
+        errors={{
+          0: {
+            messages: ["El paso 1 no tiene plantilla."],
+            template: true,
+            channel: false,
+            entries: {},
+          },
+        }}
         readOnly={false}
         d={d}
         onChange={vi.fn()}
       />
     );
+    const row = rows()[0];
+    expect(within(row).getByText("El paso 1 no tiene plantilla.")).toBeTruthy();
+    expect(within(row).getByLabelText("Plantilla").className).toContain(
+      "border-red-500"
+    );
+    expect(within(row).getByLabelText("Canal").className).not.toContain(
+      "border-red-500"
+    );
+  });
+
+  it("marks the step's own recipient that has the problem, not its template", () => {
+    render(
+      <RuleSteps
+        steps={[STEPS[1]]}
+        templates={TEMPLATES}
+        fields={[]}
+        errors={{
+          0: {
+            messages: [],
+            template: false,
+            channel: false,
+            entries: { 0: ["Ningún contacto tiene el rol Jefe de torre."] },
+          },
+        }}
+        readOnly={false}
+        d={d}
+        onChange={vi.fn()}
+      />
+    );
+    const row = rows()[0];
+    expect(within(row).getByLabelText("Plantilla").className).not.toContain(
+      "border-red-500"
+    );
+    expect(within(row).getByLabelText("Número o correo").className).toContain(
+      "border-red-500"
+    );
     expect(
-      within(rows()[0]).getByText("El paso 1 no tiene plantilla.")
+      within(row).getByText("Ningún contacto tiene el rol Jefe de torre.")
     ).toBeTruthy();
   });
 });

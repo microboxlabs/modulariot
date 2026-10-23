@@ -3,7 +3,11 @@
 import { HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import { FIELD } from "@/features/symptoms/maintainer/ui/response-block";
+import {
+  FIELD,
+  FIELD_ERROR,
+  FieldError,
+} from "@/features/symptoms/maintainer/ui/response-block";
 import Select from "@/features/symptoms/maintainer/ui/select";
 import type { AudienceEntry, EventField } from "./conversations-types";
 import { audienceKind, ROLES, type AudienceKind } from "./rule-model";
@@ -27,23 +31,26 @@ function entryOf(kind: AudienceKind): AudienceEntry {
 function EntryFields({
   entry,
   fields,
+  error,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   entry: AudienceEntry;
+  error: boolean;
   fields: EventField[];
   readOnly: boolean;
   d: I18nRecord;
   onChange: (entry: AudienceEntry) => void;
 }>) {
   const kind = audienceKind(entry);
+  const field = error ? `${FIELD} ${FIELD_ERROR}` : FIELD;
   if (kind === "role") {
     const known = ROLES.some((r) => r.value === entry.role);
     return (
       <Select
         aria-label={tr("audienceRole", d)}
-        className={FIELD}
+        className={field}
         wrapperClassName="min-w-44"
         disabled={readOnly}
         value={entry.role ?? ""}
@@ -63,7 +70,7 @@ function EntryFields({
     return (
       <Select
         aria-label={tr("audiencePath", d)}
-        className={`${FIELD} font-mono`}
+        className={`${field} font-mono`}
         wrapperClassName="min-w-44 flex-1"
         disabled={readOnly}
         value={entry.path ?? ""}
@@ -85,7 +92,7 @@ function EntryFields({
     <>
       <Select
         aria-label={tr("audienceChannel", d)}
-        className={FIELD}
+        className={field}
         disabled={readOnly}
         value={entry.channel ?? "whatsapp"}
         onChange={(e) => onChange({ ...entry, channel: e.target.value })}
@@ -95,7 +102,7 @@ function EntryFields({
       </Select>
       <input
         aria-label={tr("audienceAddressValue", d)}
-        className={`${FIELD} min-w-40 flex-1`}
+        className={`${field} min-w-40 flex-1`}
         disabled={readOnly}
         placeholder={
           entry.channel === "email" ? "nombre@example.com" : "+56900000000"
@@ -105,7 +112,7 @@ function EntryFields({
       />
       <input
         aria-label={tr("audienceName", d)}
-        className={`${FIELD} min-w-32 flex-1`}
+        className={`${field} min-w-32 flex-1`}
         disabled={readOnly}
         placeholder={tr("audienceNamePlaceholder", d)}
         value={entry.name ?? ""}
@@ -119,6 +126,7 @@ function EntryFields({
 export default function AudienceList({
   entries,
   fields,
+  errors = {},
   readOnly,
   d,
   label,
@@ -126,6 +134,8 @@ export default function AudienceList({
 }: Readonly<{
   entries: AudienceEntry[];
   fields: EventField[];
+  /** Finding texts by entry index. */
+  errors?: Record<number, string[]>;
   readOnly: boolean;
   d: I18nRecord;
   /** Names the list for assistive tech. */
@@ -170,6 +180,7 @@ export default function AudienceList({
               <EntryFields
                 entry={e}
                 fields={fields}
+                error={(errors[i] ?? []).length > 0}
                 readOnly={readOnly}
                 d={d}
                 onChange={(next) => set(i, next)}
@@ -186,6 +197,13 @@ export default function AudienceList({
                 >
                   <HiX className="h-4 w-4" />
                 </button>
+              )}
+              {(errors[i] ?? []).length > 0 && (
+                <div className="flex w-full flex-col gap-0.5">
+                  {(errors[i] ?? []).map((text) => (
+                    <FieldError key={text} text={text} />
+                  ))}
+                </div>
               )}
             </li>
           ))}

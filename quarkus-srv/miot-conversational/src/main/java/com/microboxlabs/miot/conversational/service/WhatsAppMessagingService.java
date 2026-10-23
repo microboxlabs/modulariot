@@ -2,6 +2,8 @@ package com.microboxlabs.miot.conversational.service;
 
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
 import com.microboxlabs.miot.conversational.client.WhatsAppSendException;
+import com.microboxlabs.miot.conversational.domain.Channel;
+import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.ConversationStatus;
 import com.microboxlabs.miot.conversational.domain.Message;
@@ -111,16 +113,22 @@ public class WhatsAppMessagingService {
                 status == MessageStatus.SENT ? now : null,
                 null,
                 null,
-                now));
+                now,
+                Channel.WHATSAPP,
+                request.to(),
+                null,
+                null,
+                null));
 
-        conversationRepository.updateOutbound(
-                conversation.id(),
+        conversationRepository.updateOutbound(conversation.id(), new ConversationRepository.OutboundTouch(
+                request.serviceCode() == null ? null : ContextKind.SERVICE,
+                request.serviceCode(),
                 request.serviceCode(),
                 request.processInstanceId(),
                 request.taskId(),
                 request.driverId(),
                 now,
-                preview(request));
+                preview(request)));
 
         return message;
     }
@@ -139,34 +147,40 @@ public class WhatsAppMessagingService {
     }
 
     /**
-     * Resolves the thread this outbound belongs to under the per-service model. A trip-tied send
-     * (carries a service code) lands on that service's thread — reusing it across the whole service
-     * life, or adopting the phone's open no-service thread on first contact, or opening a fresh one.
-     * An ad-hoc send with no service uses the phone's open no-service thread (or a new one). The
-     * subsequent {@code updateOutbound} COALESCE fills the service code when adopting.
+     * Chooses the conversation for a send. With a service code: the conversation about that
+     * service with this recipient, else the recipient's open conversation without context (the
+     * following {@code updateOutbound} gives it the service), else a new one. Without a service
+     * code: the recipient's open conversation without context, else a new one. Two recipients
+     * messaged about one service get two conversations.
      */
     private Conversation findOrCreateConversation(
             String tenantCode, SendWhatsAppMessageRequest request, OffsetDateTime now) {
-        // serviceCode is normalized to null-if-blank by the request record, so a present value is a
-        // real service (never "").
+        // serviceCode is normalized to null-if-blank by the request record.
         String serviceCode = request.serviceCode();
+        String address = request.to();
         if (serviceCode != null) {
-            Conversation byService = conversationRepository.findByTenantAndService(tenantCode, serviceCode);
+            Conversation byService = conversationRepository.findByContextAndAddress(
+                    tenantCode, ContextKind.SERVICE, serviceCode, address);
             if (byService != null) {
                 return byService;
             }
         }
-        Conversation unassigned = conversationRepository.findOpenUnassignedByPhone(tenantCode, request.to());
+        Conversation unassigned = conversationRepository.findOpenUnassignedByAddress(tenantCode, address);
         if (unassigned != null) {
             return unassigned;
         }
-        return conversationRepository.create(new Conversation(
+        return conversationRepository.create(newConversation(tenantCode, request, now));
+    }
+
+    static Conversation newConversation(String tenantCode, SendWhatsAppMessageRequest request, OffsetDateTime now) {
+        String serviceCode = request.serviceCode();
+        return new Conversation(
                 UUID.randomUUID().toString(),
                 tenantCode,
                 request.to(),
                 null,
                 request.driverId(),
-                request.serviceCode(),
+                serviceCode,
                 request.processInstanceId(),
                 request.taskId(),
                 ConversationStatus.OPEN,
@@ -177,7 +191,14 @@ public class WhatsAppMessagingService {
                 null,
                 0,
                 now,
-                now));
+                now,
+                serviceCode == null ? null : ContextKind.SERVICE,
+                serviceCode,
+                request.to(),
+                null,
+                request.driverId() == null ? null : Conversation.ROLE_DRIVER,
+                null,
+                Map.of());
     }
 
     private static void validate(SendWhatsAppMessageRequest request) {

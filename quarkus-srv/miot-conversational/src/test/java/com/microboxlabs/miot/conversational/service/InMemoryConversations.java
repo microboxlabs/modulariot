@@ -5,24 +5,29 @@ import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.ConversationStatus;
 import com.microboxlabs.miot.conversational.domain.Message;
+import com.microboxlabs.miot.conversational.domain.MessageDirection;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /** In-memory stand-ins for the two repositories, applying the same lookup rules as the SQL. */
-final class InMemoryConversations {
+public final class InMemoryConversations {
 
-    final Map<String, Conversation> conversations = new LinkedHashMap<>();
-    final List<Message> messages = new ArrayList<>();
-    final Conversations conversationRepository = new Conversations();
-    final Messages messageRepository = new Messages();
+    public final Map<String, Conversation> conversations = new LinkedHashMap<>();
+    public final List<Message> messages = new ArrayList<>();
+    /** Ids of the runs {@code findWithWaitingRun} treats as WAITING. */
+    public final Set<String> waitingRuns = new HashSet<>();
+    public final Conversations conversationRepository = new Conversations();
+    public final Messages messageRepository = new Messages();
 
     Conversation put(Conversation conversation) {
         conversations.put(conversation.id(), conversation);
@@ -41,7 +46,7 @@ final class InMemoryConversations {
                 kind, key, address, null, null, null, Map.of());
     }
 
-    final class Conversations extends ConversationRepository {
+    public final class Conversations extends ConversationRepository {
         Conversations() {
             super(null);
         }
@@ -72,6 +77,21 @@ final class InMemoryConversations {
                     .max(Comparator.comparing(Conversation::lastMessageAt,
                             Comparator.nullsFirst(Comparator.naturalOrder())))
                     .orElse(null);
+        }
+
+        /** A run waits on the conversation of its newest outbound message to the address. */
+        @Override
+        public WithWaitingRun findWithWaitingRun(String tenantCode, String address) {
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                Message m = messages.get(i);
+                Conversation c = conversations.get(m.conversationId());
+                if (m.runId() != null && waitingRuns.contains(m.runId()) && address.equals(m.address())
+                        && m.direction() == MessageDirection.OUTBOUND && c != null
+                        && c.tenantCode().equals(tenantCode)) {
+                    return new WithWaitingRun(c, m.runId());
+                }
+            }
+            return null;
         }
 
         @Override
@@ -117,7 +137,7 @@ final class InMemoryConversations {
         }
     }
 
-    final class Messages extends MessageRepository {
+    public final class Messages extends MessageRepository {
         Messages() {
             super(null);
         }

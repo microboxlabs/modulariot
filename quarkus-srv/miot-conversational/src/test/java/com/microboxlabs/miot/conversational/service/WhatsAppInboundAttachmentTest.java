@@ -96,6 +96,31 @@ class WhatsAppInboundAttachmentTest {
     }
 
     @Test
+    void withoutAReferenceTheConversationOfAWaitingRunWins() {
+        String run = "00000000-0000-0000-0000-0000000000a1";
+        Conversation symptomCase = store.put(InMemoryConversations.conversation(
+                "00000000-0000-0000-0000-00000000000a", TENANT, DRIVER, ContextKind.SYMPTOM_CASE, "-7", at(0)));
+        store.put(InMemoryConversations.conversation(
+                "00000000-0000-0000-0000-00000000000b", TENANT, DRIVER, ContextKind.SERVICE, "SVC-2", at(10)));
+        store.messageRepository.append(new Message("00000000-0000-0000-0000-0000000000e1", symptomCase.id(),
+                MessageDirection.OUTBOUND, MessageRole.SYSTEM, MessageType.TEMPLATE, "¿Estás bien?", null, null, null,
+                null, "wamid.RUN1", MessageStatus.SENT, null, null, null, null, Map.of(), at(0), null, null, at(0),
+                Channel.WHATSAPP, DRIVER, null, run, 0));
+        store.waitingRuns.add(run);
+
+        ingest(webhook("wamid.IN9", "\"type\":\"text\",\"text\":{\"body\":\"estoy bien\"}"));
+
+        Message stored = inbound("wamid.IN9");
+        assertEquals(symptomCase.id(), stored.conversationId());
+        assertEquals(run, stored.runId());
+        assertEquals(run, replies.fired.get(0).runId());
+
+        store.waitingRuns.remove(run);
+        ingest(webhook("wamid.IN10", "\"type\":\"text\",\"text\":{\"body\":\"hola\"}"));
+        assertNull(inbound("wamid.IN10").runId());
+    }
+
+    @Test
     void withoutAReferenceTheNewestOpenConversationWins() {
         store.put(InMemoryConversations.conversation(
                 "00000000-0000-0000-0000-00000000000a", TENANT, DRIVER, ContextKind.SERVICE, "SVC-1", at(0)));

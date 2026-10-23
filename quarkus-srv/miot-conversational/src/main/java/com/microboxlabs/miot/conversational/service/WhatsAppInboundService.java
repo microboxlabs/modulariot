@@ -249,12 +249,12 @@ public class WhatsAppInboundService {
     }
 
     /**
-     * Step 2 of the attachment order: the conversation of a run that waits for a reply from this
-     * address. Runs do not exist yet (#2008), so there is never a match.
+     * Step 2 of the attachment order: the conversation where a WAITING run last messaged this
+     * address. The reply carries the run.
      */
-    @SuppressWarnings("unused")
     private Attachment conversationWithWaitingRun(String tenantCode, String address) {
-        return null;
+        ConversationRepository.WithWaitingRun waiting = conversationRepository.findWithWaitingRun(tenantCode, address);
+        return waiting == null ? null : new Attachment(waiting.conversation(), null, waiting.runId());
     }
 
     private record Attachment(Conversation conversation, String inReplyTo, String runId) {
@@ -281,7 +281,7 @@ public class WhatsAppInboundService {
             case SENT -> 1;
             case DELIVERED -> 2;
             case READ -> 3;
-            case RECEIVED, FAILED -> -1;
+            case RECEIVED, FAILED, SIMULATED -> -1;
         };
     }
 

@@ -1,5 +1,5 @@
 -- ============================================================
--- Propósito:  V0.9.1 — Directorio de recursos operacionales + acreditación
+-- Propósito:  V0.9.9 — Directorio de recursos operacionales + acreditación
 --             (carrier, truck, trailer, driver, resource_attribute).
 --             Estructura heredada de ams.rd_* (mismos ids al migrar datos).
 --             Versionado SCD2 en la misma tabla (decisión 2026-10-23):
@@ -164,6 +164,14 @@ END $$;
 -- la clave natural de un atributo rige solo para la versión vigente (el upsert del feed apunta aquí)
 CREATE UNIQUE INDEX uq_fleet_resattr_current ON miot_fleet.resource_attribute
     (tenant_code, resource_type, resource_id, attribute_type, attribute_key)
+    WHERE version_of IS NULL AND is_active;
+CREATE UNIQUE INDEX uq_fleet_carrier_rut_current ON miot_fleet.carrier (tenant_code, rut)
+    WHERE version_of IS NULL AND is_active;
+CREATE UNIQUE INDEX uq_fleet_truck_plate_current ON miot_fleet.truck (tenant_code, license_plate)
+    WHERE version_of IS NULL AND is_active;
+CREATE UNIQUE INDEX uq_fleet_trailer_plate_current ON miot_fleet.trailer (tenant_code, license_plate)
+    WHERE version_of IS NULL AND is_active;
+CREATE UNIQUE INDEX uq_fleet_driver_rut_current ON miot_fleet.driver (tenant_code, rut)
     WHERE version_of IS NULL AND is_active;
 
 CREATE OR REPLACE FUNCTION miot_fleet.fn_version_on_update() RETURNS trigger

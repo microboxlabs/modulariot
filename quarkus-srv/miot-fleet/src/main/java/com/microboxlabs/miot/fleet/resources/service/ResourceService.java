@@ -105,7 +105,7 @@ public class ResourceService {
         Truck t = store.findTruck(tenantCode, id)
                 .orElseThrow(() -> new NoSuchElementException("truck not found"));
         Truck updated = store.updateTruck(new Truck(t.id(), tenantCode,
-                req.carrierId() == null ? t.carrierId() : Check.required(req.carrierId(), "carrierId", 64),
+                req.carrierId() == null ? t.carrierId() : carrierId(req.carrierId()),
                 Check.orKeep(req.externalId(), t.externalId(), "externalId", 128),
                 req.licensePlate() == null ? t.licensePlate()
                         : Check.required(req.licensePlate(), "licensePlate", 16),
@@ -149,7 +149,7 @@ public class ResourceService {
         Trailer t = store.findTrailer(tenantCode, id)
                 .orElseThrow(() -> new NoSuchElementException("trailer not found"));
         Trailer updated = store.updateTrailer(new Trailer(t.id(), tenantCode,
-                req.carrierId() == null ? t.carrierId() : Check.required(req.carrierId(), "carrierId", 64),
+                req.carrierId() == null ? t.carrierId() : carrierId(req.carrierId()),
                 Check.orKeep(req.externalId(), t.externalId(), "externalId", 128),
                 req.licensePlate() == null ? t.licensePlate()
                         : Check.required(req.licensePlate(), "licensePlate", 16),
@@ -199,13 +199,18 @@ public class ResourceService {
         DriverRequest req = body == null ? DriverRequest.empty() : body;
         Driver d = store.findDriver(tenantCode, id)
                 .orElseThrow(() -> new NoSuchElementException("driver not found"));
+        String firstName = Check.orKeep(req.firstName(), d.firstName(), "firstName", 128);
+        String lastName = Check.orKeep(req.lastName(), d.lastName(), "lastName", 128);
+        String fullName = req.fullName() == null && (req.firstName() != null || req.lastName() != null)
+                ? join(firstName, lastName) : Check.orKeep(req.fullName(), d.fullName(), "fullName", 255);
         Driver updated = store.updateDriver(new Driver(d.id(), tenantCode,
-                req.carrierId() == null ? d.carrierId() : Check.blankToNull(req.carrierId()),
+                req.carrierId() == null ? d.carrierId()
+                        : req.carrierId().isBlank() ? null : carrierId(req.carrierId()),
                 Check.orKeep(req.externalId(), d.externalId(), "externalId", 128),
                 req.rut() == null ? d.rut() : Check.required(req.rut(), "rut", 32),
-                Check.orKeep(req.firstName(), d.firstName(), "firstName", 128),
-                Check.orKeep(req.lastName(), d.lastName(), "lastName", 128),
-                Check.orKeep(req.fullName(), d.fullName(), "fullName", 255),
+                firstName,
+                lastName,
+                Check.limitedOrNull(fullName, "fullName", 255),
                 Check.orKeep(req.phone(), d.phone(), "phone", 64),
                 Check.orKeep(req.mobilePhone(), d.mobilePhone(), "mobilePhone", 64),
                 Check.orKeep(req.licenseCategory(), d.licenseCategory(), "licenseCategory", 16),
@@ -237,6 +242,12 @@ public class ResourceService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(field + " must be a UUID");
         }
+    }
+
+    private static String carrierId(String raw) {
+        String id = Check.required(raw, "carrierId", 64);
+        parse(id, "carrierId");
+        return id;
     }
 
     private static String join(String first, String last) {

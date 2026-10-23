@@ -79,7 +79,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Carrier> findCarrier(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + CARRIER_COLS + " FROM miot_fleet.carrier WHERE tenant_code = $1 AND id = $2",
+                "SELECT " + CARRIER_COLS + " FROM miot_fleet.carrier WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
                 Tuple.of(tenantCode, id)), PgResourceStore::carrier);
     }
 
@@ -135,7 +135,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Truck> findTruck(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + TRUCK_COLS + " FROM miot_fleet.truck WHERE tenant_code = $1 AND id = $2",
+                "SELECT " + TRUCK_COLS + " FROM miot_fleet.truck WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
                 Tuple.of(tenantCode, id)), PgResourceStore::truck);
     }
 
@@ -192,7 +192,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Trailer> findTrailer(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + TRAILER_COLS + " FROM miot_fleet.trailer WHERE tenant_code = $1 AND id = $2",
+                "SELECT " + TRAILER_COLS + " FROM miot_fleet.trailer WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
                 Tuple.of(tenantCode, id)), PgResourceStore::trailer);
     }
 
@@ -248,7 +248,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Driver> findDriver(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + DRIVER_COLS + " FROM miot_fleet.driver WHERE tenant_code = $1 AND id = $2",
+                "SELECT " + DRIVER_COLS + " FROM miot_fleet.driver WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
                 Tuple.of(tenantCode, id)), PgResourceStore::driver);
     }
 
@@ -292,7 +292,7 @@ public class PgResourceStore implements ResourceStore {
     private static void page(StringBuilder sql, Tuple params, String orderBy, int page, int size) {
         params.addInteger(size);
         sql.append(" ORDER BY ").append(orderBy).append(", id LIMIT $").append(params.size());
-        params.addInteger(page * size);
+        params.addLong((long) page * size);
         sql.append(" OFFSET $").append(params.size());
     }
 

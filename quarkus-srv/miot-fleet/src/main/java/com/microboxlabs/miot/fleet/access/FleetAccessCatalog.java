@@ -32,9 +32,9 @@ public class FleetAccessCatalog implements AccessCatalog {
         return List.of(
                 PermissionDef.of(ASSETS_VIEW, "Ver la flota", "View the fleet").explicit(),
                 PermissionDef.of(ASSETS_EDIT, "Editar los datos de la flota", "Edit fleet data").explicit(),
-                PermissionDef.of(RESOURCES_VIEW, "Ver el directorio de recursos", "View the resource directory"),
-                PermissionDef.of(RESOURCES_WRITE, "Mantener el directorio de recursos", "Maintain the resource directory"),
-                PermissionDef.of(ACCREDITATION_WRITE, "Mantener la acreditación de recursos", "Maintain resource accreditation"));
+                PermissionDef.of(RESOURCES_VIEW, "Ver el directorio de recursos", "View the resource directory").explicit(),
+                PermissionDef.of(RESOURCES_WRITE, "Mantener el directorio de recursos", "Maintain the resource directory").explicit(),
+                PermissionDef.of(ACCREDITATION_WRITE, "Mantener la acreditación de recursos", "Maintain resource accreditation").explicit());
     }
 
     @Override

@@ -83,10 +83,10 @@ public class PgAccreditationStore implements AccreditationStore {
         RowSet<Row> rows = query(pool.get(), """
                 SELECT ra.resource_type, ra.resource_id, ra.attribute_value, ra.valid_until,
                        CASE ra.resource_type
-                         WHEN 'truck'   THEN (SELECT t.license_plate FROM miot_fleet.truck t   WHERE t.id = ra.resource_id)
-                         WHEN 'trailer' THEN (SELECT t.license_plate FROM miot_fleet.trailer t WHERE t.id = ra.resource_id)
-                         WHEN 'driver'  THEN (SELECT d.full_name     FROM miot_fleet.driver d  WHERE d.id = ra.resource_id)
-                         WHEN 'carrier' THEN (SELECT c.legal_name    FROM miot_fleet.carrier c WHERE c.id = ra.resource_id)
+                         WHEN 'truck'   THEN (SELECT t.license_plate FROM miot_fleet.truck t   WHERE t.id = ra.resource_id AND t.tenant_code = ra.tenant_code)
+                         WHEN 'trailer' THEN (SELECT t.license_plate FROM miot_fleet.trailer t WHERE t.id = ra.resource_id AND t.tenant_code = ra.tenant_code)
+                         WHEN 'driver'  THEN (SELECT d.full_name     FROM miot_fleet.driver d  WHERE d.id = ra.resource_id AND d.tenant_code = ra.tenant_code)
+                         WHEN 'carrier' THEN (SELECT c.legal_name    FROM miot_fleet.carrier c WHERE c.id = ra.resource_id AND c.tenant_code = ra.tenant_code)
                        END AS label
                 FROM miot_fleet.resource_attribute ra
                 WHERE ra.tenant_code = $1 AND ra.attribute_type = $2 AND ra.attribute_key = $3

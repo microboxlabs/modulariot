@@ -43,12 +43,18 @@ export function parseMeasure(
   return value === null ? null : { field, minus: { kind: "number", value } };
 }
 
+// Source numbers are CEL doubles and "-" takes two of one type, so 90 is written 90.0.
+function doubleLiteral(n: number): string {
+  const text = decimalText(n);
+  return text.includes(".") ? text : `${text}.0`;
+}
+
 export function compileMeasure(form: MeasureForm): string {
   if (!form.minus) return form.field;
   const other =
     form.minus.kind === "field"
       ? form.minus.path
-      : decimalText(form.minus.value);
+      : doubleLiteral(form.minus.value);
   return `${form.field} - ${other}`;
 }
 
@@ -68,12 +74,9 @@ export function measureFromForm(
   const derived = (f: MeasureForm | null) => {
     const main = f ? byPath.get(f.field) : undefined;
     if (!main) return { label: null, unit: null };
-    const minus =
-      f?.minus?.kind === "field"
-        ? byPath.get(f.minus.path)?.label
-        : f?.minus
-          ? decimalText(f.minus.value)
-          : null;
+    let minus: string | null | undefined = null;
+    if (f?.minus?.kind === "field") minus = byPath.get(f.minus.path)?.label;
+    else if (f?.minus) minus = decimalText(f.minus.value);
     return {
       label: minus ? `${main.label} − ${minus}` : main.label,
       unit: main.unit,
@@ -90,7 +93,8 @@ export function measureFromForm(
   };
 }
 
-const MEASURE_WORD = /\bmeasure\b/;
+// The level variable, not a field path segment such as signal.sensor.measure.
+const MEASURE_WORD = /(?<![.\w])measure\b/;
 
 /** True when a level that applies compares the measure. */
 export function levelsUseMeasure(spec: SymptomSpec): boolean {

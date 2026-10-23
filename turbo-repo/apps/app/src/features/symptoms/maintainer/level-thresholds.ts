@@ -66,6 +66,8 @@ export function parseThresholds(when: string | null): LevelThresholds | null {
     const [, variable = "", op = "", raw = ""] = m;
     const value = exactNumber(raw);
     if (value === null) return null;
+    // held_s is seconds held, checked as "enough time has passed": an exact value is never reached.
+    if (variable === "held_s" && op === "==") return null;
     if (!place(out[VARIABLES[variable as Variable]], op, value)) return null;
   }
   return out;

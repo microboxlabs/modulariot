@@ -4,7 +4,7 @@ import { useState } from "react";
 import { HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { exactNumber } from "./condition-form";
+import { NumberValue } from "./activation-form";
 import FieldCombobox from "./field-combobox";
 import type { SourceField, SymptomSpec } from "./maintainer-api";
 import {
@@ -129,17 +129,20 @@ function MinusInputs({
   onChange: (form: MeasureForm) => void;
 }>) {
   const { minus } = form;
-  // A field to subtract is written only once it is picked; until then the kind is local.
-  const [kind, setKind] = useState<Minus["kind"]>(minus?.kind ?? "number");
+  // A field to subtract is written only once it is picked; until then the choice is local.
+  const [pickingField, setPickingField] = useState(false);
+  const kind: Minus["kind"] =
+    minus?.kind === "field" || pickingField ? "field" : "number";
   if (!minus) {
     if (readOnly) return null;
     return (
       <button
         type="button"
         className={linkClass}
-        onClick={() =>
-          onChange({ ...form, minus: { kind: "number", value: 0 } })
-        }
+        onClick={() => {
+          setPickingField(false);
+          onChange({ ...form, minus: { kind: "number", value: 0 } });
+        }}
       >
         {tr("measureSubtract", d)}
       </button>
@@ -155,7 +158,7 @@ function MinusInputs({
         value={kind}
         onChange={(e) => {
           const next = e.target.value as Minus["kind"];
-          setKind(next);
+          setPickingField(next === "field");
           if (next === "number")
             onChange({ ...form, minus: { kind: "number", value: 0 } });
         }}
@@ -164,17 +167,14 @@ function MinusInputs({
         <option value="field">{tr("measureSubtractField", d)}</option>
       </Select>
       {kind === "number" ? (
-        <input
-          aria-label={tr("measureSubtractNumber", d)}
-          className={`${inputClass} w-24`}
-          disabled={readOnly}
-          inputMode="decimal"
-          defaultValue={minus.kind === "number" ? String(minus.value) : "0"}
-          onChange={(e) => {
-            const value = exactNumber(e.target.value);
-            if (value !== null)
-              onChange({ ...form, minus: { kind: "number", value } });
-          }}
+        <NumberValue
+          value={minus.kind === "number" ? minus.value : 0}
+          unit={null}
+          label={tr("measureSubtractNumber", d)}
+          readOnly={readOnly}
+          onChange={(value) =>
+            onChange({ ...form, minus: { kind: "number", value } })
+          }
         />
       ) : (
         <FieldCombobox
@@ -192,7 +192,10 @@ function MinusInputs({
           type="button"
           aria-label={tr("measureSubtractRemove", d)}
           className="text-gray-400 hover:text-gray-700 dark:hover:text-white"
-          onClick={() => onChange({ ...form, minus: null })}
+          onClick={() => {
+            setPickingField(false);
+            onChange({ ...form, minus: null });
+          }}
         >
           <HiX className="h-4 w-4" />
         </button>

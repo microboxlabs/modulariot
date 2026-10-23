@@ -70,6 +70,7 @@ describe("parseThresholds", () => {
       "measure > 9007199254740993", // a number the form cannot keep
       "!(measure > 3)", // negation
       "5 < measure", // reversed
+      "held_s == 60", // an exact hold time is never reached
     ]) {
       expect(parseThresholds(rule), rule).toBeNull();
     }

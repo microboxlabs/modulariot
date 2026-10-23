@@ -96,7 +96,7 @@ describe("measureFromForm", () => {
         FIELDS
       )
     ).toEqual({
-      expression: "signal.frame.gps.speed - 90",
+      expression: "signal.frame.gps.speed - 90.0",
       label: "Exceso sobre el límite",
       unit: "km/h",
     });
@@ -139,6 +139,12 @@ describe("withoutMeasure", () => {
     expect(levelsUseMeasure(spec)).toBe(true);
     expect(
       levelsUseMeasure({ ...spec, levels: [level(1, "measure > 0", false)] })
+    ).toBe(false);
+    expect(
+      levelsUseMeasure({
+        ...spec,
+        levels: [level(1, "signal.sensor.measure > 0", true)],
+      })
     ).toBe(false);
   });
 });

@@ -62,12 +62,40 @@ describe("MeasureFields", () => {
     const { onChange } = renderIt("signal.frame.gps.speed");
     fireEvent.click(screen.getByText("− restar"));
     expect(onChange).toHaveBeenLastCalledWith({
-      expression: "signal.frame.gps.speed - 0",
+      expression: "signal.frame.gps.speed - 0.0",
       label: "Velocidad − 0",
       unit: "km/h",
     });
     fireEvent.click(screen.getByText("Quitar medida"));
     expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it("shows what is subtracted after the expression changes elsewhere", () => {
+    const fields = [
+      ...FIELDS,
+      { ...FIELDS[0], path: "signal.road.limit", label: "Límite" },
+    ] as SourceField[];
+    const view = (expression: string) => (
+      <MeasureFields
+        measure={{ expression, label: null, unit: null }}
+        fields={fields}
+        readOnly={false}
+        d={d}
+        onChange={vi.fn()}
+        onEditAsExpression={vi.fn()}
+      />
+    );
+    const { rerender } = render(
+      view("signal.frame.gps.speed - signal.road.limit")
+    );
+    expect(screen.queryByLabelText("measureSubtractNumber")).toBeNull();
+    rerender(view("signal.frame.gps.speed - 90"));
+    const input = screen.getByLabelText("measureSubtractNumber");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect((input as HTMLInputElement).value).toBe("90");
+    rerender(view("signal.frame.gps.speed - 80.0"));
+    expect((input as HTMLInputElement).value).toBe("80");
   });
 
   it("sends other expressions to the { } editor", () => {

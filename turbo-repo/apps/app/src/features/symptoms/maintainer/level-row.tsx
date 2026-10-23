@@ -117,11 +117,13 @@ function RangeInputs({
   range,
   name,
   unit,
+  lowerOps,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   range: Range;
+  lowerOps: LowerOp[];
   name: string;
   unit: string | null;
   readOnly: boolean;
@@ -135,7 +137,7 @@ function RangeInputs({
       {range.lower && (
         <BoundInput<LowerOp>
           bound={range.lower}
-          ops={[">", ">=", "=="]}
+          ops={lowerOps}
           label={`${name} ${tr("from", d)}`}
           readOnly={readOnly}
           onChange={(lower) =>
@@ -196,6 +198,7 @@ export function ThresholdInputs({
         range={measure}
         name={measureName ?? tr("measureWord", d)}
         unit={unit}
+        lowerOps={[">", ">=", "=="]}
         readOnly={readOnly}
         d={d}
         onChange={(m) => onChange({ ...thresholds, measure: m })}
@@ -204,6 +207,7 @@ export function ThresholdInputs({
         range={held}
         name={tr("heldWord", d)}
         unit="s"
+        lowerOps={[">", ">="]}
         readOnly={readOnly}
         d={d}
         onChange={(h) => onChange({ ...thresholds, held: h })}

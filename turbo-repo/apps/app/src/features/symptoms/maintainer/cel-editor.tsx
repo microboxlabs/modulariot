@@ -258,11 +258,16 @@ export default function CelEditor({
     }
   }, [value]);
 
+  // Callers build problems on every render; marks are replaced only when they or the text change.
+  const marked = useRef<string | null>(null);
   useEffect(() => {
-    // Replace the marks when the server answers; forceLinting does nothing unless the text changed.
     const v = view.current;
-    if (v) v.dispatch(setDiagnostics(v.state, diagnostics(v, problems)));
-  }, [problems]);
+    if (!v) return;
+    const key = JSON.stringify([value, problems]);
+    if (key === marked.current) return;
+    marked.current = key;
+    v.dispatch(setDiagnostics(v.state, diagnostics(v, problems)));
+  }, [value, problems]);
 
   return (
     <div

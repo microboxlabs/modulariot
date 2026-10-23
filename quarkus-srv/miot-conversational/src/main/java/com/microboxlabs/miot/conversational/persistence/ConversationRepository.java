@@ -73,6 +73,7 @@ public class ConversationRepository {
                 participant_role, display_name, channel_state
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
                       $18, $19, $20, $21, $22, $23, $24)
+            ON CONFLICT DO NOTHING
             RETURNING\s""" + COLUMNS;
 
     // Outbound touch: bump activity timestamps and preview. The context ($8 kind, $9 key, $2
@@ -164,6 +165,10 @@ public class ConversationRepository {
                 .toList();
     }
 
+    /**
+     * Stores a new conversation. When a concurrent create already stored one with the same identity, returns
+     * that one instead of failing on the unique index.
+     */
     public Conversation create(Conversation conversation) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(conversation.id()))
@@ -191,10 +196,25 @@ public class ConversationRepository {
                 .addString(conversation.displayName())
                 .addJsonObject(new JsonObject(
                         conversation.channelState() == null ? Map.of() : conversation.channelState()));
-        return mapRow(client().preparedQuery(INSERT)
+        Conversation created = first(client().preparedQuery(INSERT)
                 .execute(params)
-                .await().indefinitely()
-                .iterator().next());
+                .await().indefinitely());
+        return created != null ? created : concurrentlyCreated(conversation);
+    }
+
+    /**
+     * The conversation a concurrent create stored first with the same identity: the one about the same
+     * context and participant, or the participant's open conversation without context.
+     */
+    private Conversation concurrentlyCreated(Conversation conversation) {
+        Conversation winner = conversation.contextKind() != null
+                ? findByContextAndAddress(conversation.tenantCode(), conversation.contextKind(),
+                        conversation.contextKey(), conversation.participantAddress())
+                : findOpenUnassignedByAddress(conversation.tenantCode(), conversation.participantAddress());
+        if (winner == null) {
+            throw new IllegalStateException("Conversation " + conversation.id() + " was not stored");
+        }
+        return winner;
     }
 
     /**

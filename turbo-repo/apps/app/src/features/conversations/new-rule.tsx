@@ -9,6 +9,7 @@ import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { keyFrom } from "@/features/symptoms/maintainer/create-symptom-modal";
+import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import {
   FIELD,
@@ -39,6 +40,7 @@ export default function NewRule({
   lang,
 }: Readonly<{ dict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
+  const { canMaintain } = useControlTowerAccess();
   const router = useRouter();
   const params = useSearchParams();
   const event = params.get("event") || SYMPTOM_OPENED;
@@ -52,6 +54,7 @@ export default function NewRule({
   const key = keyFrom(name);
 
   const create = async () => {
+    if (!canMaintain) return;
     setBusy(true);
     setError(null);
     try {
@@ -94,6 +97,7 @@ export default function NewRule({
               aria-label={tr("ruleName", d)}
               className={`${FIELD} min-w-48 flex-1`}
               maxLength={200}
+              disabled={!canMaintain}
               placeholder={tr("ruleNamePlaceholder", d)}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -115,6 +119,11 @@ export default function NewRule({
             </FieldRow>
           )}
           <p className={`text-sm ${MUTED}`}>{tr("newRuleHint", d)}</p>
+          {!canMaintain && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {tr("newRuleNoAccess", d)}
+            </p>
+          )}
           {error && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
               {error}
@@ -129,7 +138,7 @@ export default function NewRule({
               {tr("cancel", d)}
             </Button>
             <Button
-              disabled={busy || key.length < 2}
+              disabled={!canMaintain || busy || key.length < 2}
               onClick={() => void create()}
             >
               {busy ? tr("creating", d) : tr("createRule", d)}

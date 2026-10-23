@@ -25,6 +25,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
+import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService;
 import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
@@ -103,7 +104,7 @@ class OrgSymptomDefinitionsResourceTest {
                         throw new IllegalStateException("down");
                     }
                     return "Se activa <b>en viaje</b>";
-                }), new TemplateService(store), new SymptomStatsService(catalog, new DemoSymptomEngine(),
+                }), new TemplateService(store), new SymptomStatsService(catalog, new InMemoryEngineCases(),
                         new InMemoryTreatmentStore(), new TowerSettingsService(new InMemoryTowerSettingsStore(),
                                 new AuditService(new InMemoryAuditStore()))), platform(platformOwner));
     }

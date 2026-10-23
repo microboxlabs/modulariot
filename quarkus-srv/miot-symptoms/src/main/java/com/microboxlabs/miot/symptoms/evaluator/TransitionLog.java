@@ -5,8 +5,12 @@ import java.util.List;
 /** Where the evaluator records the case changes it finds. Appending a change it already holds does nothing. */
 public interface TransitionLog {
 
-    /** Where the vehicle was on the signal that caused the changes; any part may be null. */
-    record Place(String tripId, Double latitude, Double longitude, Double speedKmh) {
+    /**
+     * Where the vehicle was on the signal that caused the changes; any part may be null.
+     *
+     * @param driverId the trip's driver in the driver registry; published, not stored
+     */
+    record Place(String tripId, Double latitude, Double longitude, Double speedKmh, String driverId) {
     }
 
     /**

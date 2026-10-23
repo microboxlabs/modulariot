@@ -95,7 +95,7 @@ class PgSlaStoreTest {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);
         Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
-        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0);
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
 
         List<TransitionLog.Recorded> opened = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 1, 0)), place);
         List<TransitionLog.Recorded> rose = log.append(tenant,
@@ -113,7 +113,7 @@ class PgSlaStoreTest {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);
         Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
-        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0);
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
         long caseId = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 1, 0)), place).get(0).caseId();
         Instant after = t0.minusSeconds(3600);
 
@@ -139,7 +139,7 @@ class PgSlaStoreTest {
         UUID speeding = symptom(tenant);
         Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
         long caseId = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)),
-                new TransitionLog.Place(null, null, null, null)).get(0).caseId();
+                new TransitionLog.Place(null, null, null, null, null)).get(0).caseId();
         PgIds.query(pool, """
                 INSERT INTO miot_symptoms.treatment (tenant_code, symptom_id, type, opened_by, opened_at)
                 VALUES ($1, $2, 'CALL', 'ops@example.com', $3)

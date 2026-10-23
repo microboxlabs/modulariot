@@ -10,11 +10,16 @@ public record SymptomCaseData(
         @Schema(title = "Caso", description = "The case's symptom id in the Control Tower") long symptomId,
         @Schema(title = "Síntoma", description = "The symptom definition") UUID definitionId,
         @Schema(title = "Versión", description = "The symptom version that raised the case") String version,
+        @Schema(title = "Clave del síntoma", description = "The symptom's key, such as panic-button")
+        String symptomKey,
+        @Schema(title = "Síntoma (nombre)", description = "The symptom's name") String symptomName,
         @Schema(title = "Nivel", description = "The case's ICU level, 1 to 4") int level,
         @Schema(title = "Nivel anterior", description = "The level before this change; 0 when the case opens")
         int previousLevel,
         @Schema(title = "Vehículo", description = "The asset id") String assetId,
         @Schema(title = "Viaje", description = "The trip of the signal, when it had one") String tripId,
+        @Schema(title = "Conductor (id)", description = "The trip's driver in the driver registry; null on an "
+                + "operator's close and on sla_expired") String driverId,
         @Schema(title = "Medida", description = "The measure on the signal; null on an operator's close")
         Double measure,
         @Schema(title = "Latitud") Double latitude,

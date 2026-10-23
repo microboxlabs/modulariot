@@ -166,12 +166,15 @@ public class EvaluatorStream {
         episodes.forget(tenant, assetId, definitionId);
     }
 
-    /** The trip and position of the signal, as far as it has them. */
+    /** The trip, position and driver of the signal, as far as it has them. */
     static TransitionLog.Place place(Map<String, Object> signal) {
-        Object trip = path(signal, "trip", "id");
-        return new TransitionLog.Place(trip instanceof String id ? id : null,
+        return new TransitionLog.Place(text(path(signal, "trip", "id")),
                 number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
-                number(path(signal, "frame", "gps", "speed")));
+                number(path(signal, "frame", "gps", "speed")), text(path(signal, "trip", "driver", "id")));
+    }
+
+    private static String text(Object value) {
+        return value instanceof String s ? s : null;
     }
 
     private static Object path(Map<String, Object> root, String... keys) {

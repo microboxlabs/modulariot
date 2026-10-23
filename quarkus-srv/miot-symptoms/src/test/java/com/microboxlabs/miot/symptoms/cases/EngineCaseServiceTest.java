@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.event.OperationalEvent;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import java.time.Clock;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -35,7 +38,12 @@ class EngineCaseServiceTest {
             Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC), new SymptomEvents(e -> {
                 fired.add(e);
                 return CompletableFuture.completedFuture(e);
-            }));
+            }, (tenant, id) -> Optional.of(definition(id)), Clock.systemUTC()));
+
+    private static SymptomDefinition definition(UUID id) {
+        return new SymptomDefinition(id, TENANT, "panic-button", "Botón de pánico", "emergencies", null, null,
+                "gps_signal", null, null, null, null, SymptomState.ACTIVE, "0.1.0", "t", null, "t", null);
+    }
 
     private static EngineCase panic(long id, String asset) {
         return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", asset, OPENED, 4, "T-1",
@@ -127,6 +135,9 @@ class EngineCaseServiceTest {
         assertFalse(e.test());
         SymptomCaseData data = (SymptomCaseData) e.data();
         assertEquals("operator@example.com", data.closedBy());
+        assertEquals("panic-button", data.symptomKey());
+        assertEquals("Botón de pánico", data.symptomName());
+        assertEquals(null, data.driverId());
         assertEquals(PANIC, data.definitionId());
         assertEquals(4, data.level());
         assertEquals("T-1", data.tripId());

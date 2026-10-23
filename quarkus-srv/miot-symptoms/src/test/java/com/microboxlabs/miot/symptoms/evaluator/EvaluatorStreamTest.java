@@ -36,10 +36,7 @@ class EvaluatorStreamTest {
     private final InMemoryTransitionLog log = new InMemoryTransitionLog();
     private final List<Transition> recorded = log.recorded;
     private final List<OperationalEvent> fired = new ArrayList<>();
-    private final SymptomEvents events = new SymptomEvents(e -> {
-        fired.add(e);
-        return CompletableFuture.completedFuture(e);
-    });
+    private SymptomEvents events;
     private final SignalSamples samples = SignalSamples.inMemory();
     private SymptomCatalogService catalog;
     private EvaluatorCatalog evaluatorCatalog;
@@ -47,6 +44,10 @@ class EvaluatorStreamTest {
     @BeforeEach
     void setUp() {
         InMemoryCatalog store = new InMemoryCatalog();
+        events = new SymptomEvents(e -> {
+            fired.add(e);
+            return CompletableFuture.completedFuture(e);
+        }, store::findDefinition, Clock.systemUTC());
         DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         evaluatorCatalog = new EvaluatorCatalog(catalog, sources);
@@ -205,6 +206,8 @@ class EvaluatorStreamTest {
         assertTrue(e.test());
         SymptomCaseData data = (SymptomCaseData) e.data();
         assertEquals(-1, data.symptomId());
+        assertEquals("panic-button", data.symptomKey());
+        assertEquals("Botón de pánico", data.symptomName());
         assertEquals(4, data.level());
         assertEquals(0, data.previousLevel());
         assertEquals("DEMO01", data.assetId());
@@ -239,6 +242,9 @@ class EvaluatorStreamTest {
         assertEquals(90.0, rose.speedKmh());
         assertEquals(id, rose.definitionId());
         assertEquals("T-9", rose.tripId());
+        assertEquals("D-7", rose.driverId());
+        assertEquals("speed-band", rose.symptomKey());
+        assertEquals("Velocidad", rose.symptomName());
         SymptomCaseData closed = (SymptomCaseData) fired.get(2).data();
         assertEquals(2, closed.level());
         assertEquals(null, closed.closedBy());
@@ -247,7 +253,7 @@ class EvaluatorStreamTest {
     private static String moving(String at, double speed, String client) {
         return """
                 {"schema":"miot.gps.signal@1","asset_id":"DEMO01","at":"%s","clients":["%s"],
-                 "trip":{"id":"T-9","active":true,"double_driver":false},
+                 "trip":{"id":"T-9","active":true,"double_driver":false,"driver":{"id":"D-7","registered":true}},
                  "local_hour":9,"derived":{"moving":true},
                  "frame":{"asset_id":"DEMO01","gps":{"speed":%s,"latitude":-33.4,"longitude":-70.6},"sensors":{}}}
                 """.formatted(at, client, speed);

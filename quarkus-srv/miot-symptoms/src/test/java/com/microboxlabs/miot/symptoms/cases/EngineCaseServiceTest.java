@@ -110,6 +110,17 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theGpsCountsStandWhenTheOpenCasesCannotBeRead() throws Exception {
+        store.down = true;
+        JsonNode gps = new ObjectMapper().readTree("""
+                {"Code Black":1}
+                """);
+
+        assertEquals(1, service.withOpenCaseCounts(TENANT, gps).path("Code Black").asInt());
+        assertThrows(IllegalStateException.class, () -> service.withOpenCaseCounts(TENANT, null));
+    }
+
+    @Test
     void countsEveryOpenCaseBeyondAPageOfThem() {
         for (long id = 1; id <= 201; id++) {
             store.add(engineCase(id, "DEMO" + id, 4, 0));

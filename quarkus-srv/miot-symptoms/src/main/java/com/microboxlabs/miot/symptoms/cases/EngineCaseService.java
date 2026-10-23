@@ -129,11 +129,22 @@ public class EngineCaseService {
 
     /**
      * The counts by condition with the open cases added, each once: under treatment while it has an open
-     * treatment, else at its level. {@code counts} is null when the GPS database could not be read.
+     * treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
+     * open cases cannot be read, the GPS counts are answered alone.
      */
     public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
+        List<EngineCaseStore.OpenCount> open;
+        try {
+            open = store.openCounts(tenantCode);
+        } catch (RuntimeException e) {
+            if (counts == null) {
+                throw e;
+            }
+            LOG.warnf(e, "Open cases not counted: tenant=%s", tenantCode);
+            return counts;
+        }
         ObjectNode out = counts != null && counts.isObject() ? ((ObjectNode) counts).deepCopy() : JSON.objectNode();
-        for (EngineCaseStore.OpenCount c : store.openCounts(tenantCode)) {
+        for (EngineCaseStore.OpenCount c : open) {
             String key = c.underTreatment() ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
             out.put(key, out.path(key).asLong(0) + c.count());
         }
@@ -156,16 +167,8 @@ public class EngineCaseService {
         r.put("start_time", c.openedAt().toString());
         r.put("duration_sec", Duration.between(c.openedAt(), clock.instant()).toSeconds());
         r.put("treatment_count", c.treatments());
-        if (c.slaMinutes() == null) {
-            r.putNull("sla_minutes");
-        } else {
-            r.put("sla_minutes", c.slaMinutes());
-        }
-        if (c.recurrence() == null) {
-            r.putNull("recurrence_events");
-        } else {
-            r.put("recurrence_events", c.recurrence());
-        }
+        r.put("sla_minutes", c.slaMinutes());
+        r.put("recurrence_events", c.recurrence());
         r.putNull("driver");
         return r;
     }

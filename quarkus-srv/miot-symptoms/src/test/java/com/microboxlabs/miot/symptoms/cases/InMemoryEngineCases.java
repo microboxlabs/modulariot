@@ -13,6 +13,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     private final List<EngineCase> cases = new ArrayList<>();
     public final List<String> closedBy = new ArrayList<>();
+    public boolean down;
 
     public void add(EngineCase c) {
         cases.add(c);
@@ -26,6 +27,9 @@ public class InMemoryEngineCases implements EngineCaseStore {
 
     @Override
     public List<OpenCount> openCounts(String tenantCode) {
+        if (down) {
+            throw new IllegalStateException("database down");
+        }
         return cases.stream().filter(c -> c.closedAt() == null)
                 .collect(Collectors.groupingBy(c -> List.of(c.level(), c.treatments() > 0), Collectors.counting()))
                 .entrySet().stream()

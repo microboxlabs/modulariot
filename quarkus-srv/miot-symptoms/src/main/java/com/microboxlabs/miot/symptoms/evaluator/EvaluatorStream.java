@@ -60,7 +60,7 @@ public class EvaluatorStream {
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
             MeterRegistry meters, SymptomEvents events) {
-        this(enabled, catalog, transitionLog, events, meters, Clock.systemUTC(),
+        this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
@@ -71,13 +71,17 @@ public class EvaluatorStream {
         }
     }
 
-    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, TransitionLog transitionLog, SymptomEvents events,
-            MeterRegistry meters, Clock clock, EpisodeRepository episodes, SignalSamples samples) {
+    /** Where the evaluator writes: the transition log, the case events and the metrics. */
+    record Sinks(TransitionLog transitionLog, SymptomEvents events, MeterRegistry meters) {
+    }
+
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
+            SignalSamples samples) {
         this.enabled = enabled;
         this.catalog = catalog;
-        this.transitionLog = transitionLog;
-        this.events = events;
-        this.meters = meters;
+        this.transitionLog = sinks.transitionLog();
+        this.events = sinks.events();
+        this.meters = sinks.meters();
         this.clock = clock;
         this.episodes = episodes;
         this.samples = samples;

@@ -416,7 +416,7 @@ export default function LevelRow({
   spec,
   sample,
   changed = false,
-  showProblems = true,
+  reached = false,
   icu,
   mode,
   fields,
@@ -432,8 +432,8 @@ export default function LevelRow({
   sample?: Record<string, unknown>;
   /** The level differs from the published version. */
   changed?: boolean;
-  /** False when the level's problems are shown elsewhere, as under the { } editors. */
-  showProblems?: boolean;
+  /** The previewed sample reaches this level; marked with a ✓. */
+  reached?: boolean;
   icu: number;
   mode: EditMode;
   fields: CelField[];
@@ -451,15 +451,16 @@ export default function LevelRow({
     onChange(withLevel(spec, { ...level, ...patch }));
   const setResponse = (patch: Partial<LevelResponse>) =>
     set({ response: { ...response, ...patch } });
-  const problems = problemsFor(findings, `levels.${icu}`);
+  const problems = problemsFor(findings, `levels.${icu}`, d);
+  const responseProblems = problemsFor(findings, `levels.${icu}.response`, d);
   const name = trDynamic(`levelName${icu}`, d);
 
   return (
     <div
-      className={`${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? "rounded-md bg-amber-50/70 ring-1 ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-600/60" : ""}`}
+      className={`last:rounded-b-lg ${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? "bg-amber-50/70 shadow-[inset_3px_0_0] shadow-amber-400 dark:bg-amber-500/10 dark:shadow-amber-600" : ""}`}
       data-changed={changed || undefined}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-1 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         <LevelIcon
           icu={icu}
           label={name}
@@ -474,7 +475,12 @@ export default function LevelRow({
           disabled={readOnly}
           label={tr("levelApplies", d)}
           onChange={(applies) =>
-            set({ applies, when: level.when || DEFAULT_LEVEL_RULE })
+            set({
+              applies,
+              when:
+                level.when ||
+                (spec.measure?.expression ? DEFAULT_LEVEL_RULE : "true"),
+            })
           }
         />
         {level.applies && (
@@ -488,6 +494,12 @@ export default function LevelRow({
             d={d}
             onChange={(when) => set({ when })}
           />
+        )}
+        {reached && (
+          <span className="font-semibold text-green-600 dark:text-green-400">
+            <span aria-hidden>✓</span>
+            <span className="sr-only">{tr("levelReached", d)}</span>
+          </span>
         )}
         {level.applies && (
           <span className="ml-auto flex items-center gap-2">
@@ -510,9 +522,13 @@ export default function LevelRow({
           </span>
         )}
       </div>
-      {level.applies && showProblems && <Problems items={problems} />}
+      {level.applies && (
+        <div className="px-4 pb-2">
+          <Problems items={[...problems, ...responseProblems]} />
+        </div>
+      )}
       {level.applies && open && (
-        <div className="grid grid-cols-1 gap-5 px-1 pb-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 px-4 pb-4 lg:grid-cols-2">
           <LevelNotices
             notices={response.notices ?? []}
             connections={connections}

@@ -40,7 +40,7 @@ import RuleDescription from "./rule-description";
 import PublishDialog from "./publish-dialog";
 import SaveAsTemplateModal from "./save-as-template-modal";
 import SheetHeader from "./sheet-header";
-import SymptomRuleSections from "./symptom-rule-sections";
+import SymptomRuleSections, { changedLevels } from "./symptom-rule-sections";
 import {
   FieldsPanel,
   PreviewPanel,
@@ -100,6 +100,11 @@ function changeMarks(
     !plan.changes.some((c) => c.section === "activation")
   ) {
     paths.delete("activation");
+  }
+  // Levels are compared by ICU, ignoring the rule kept by one that no longer applies.
+  if (changedLevels(spec, published).size === 0) {
+    for (const p of paths)
+      if (p === "levels" || p.startsWith("levels.")) paths.delete(p);
   }
   return paths;
 }

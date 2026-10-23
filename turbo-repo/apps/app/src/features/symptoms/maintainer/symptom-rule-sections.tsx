@@ -8,6 +8,7 @@ import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
 import LevelsExpression from "./levels-expression";
+import MeasureFields from "./measure-fields";
 import LifecycleExpression from "./lifecycle-expression";
 import SampleTree, {
   firstOpening,
@@ -165,38 +166,22 @@ export function changedLevels(
 ): ReadonlySet<number> {
   const out = new Set<number>();
   if (!published) return out;
-  const before = new Map((published.levels ?? []).map((l) => [l.icu, l]));
-  const after = new Map((draft.levels ?? []).map((l) => [l.icu, l]));
+  // A level that does not apply is compared only by that: the rule it keeps from being on is not a change.
+  const levels = (spec: SymptomSpec) =>
+    new Map(
+      (spec.levels ?? []).map((l) => [
+        l.icu,
+        l.applies ? l : { icu: l.icu, applies: false },
+      ])
+    );
+  const before = levels(published);
+  const after = levels(draft);
   for (const icu of new Set([...before.keys(), ...after.keys()])) {
-    if (changedPaths(after.get(icu), before.get(icu)).size > 0) out.add(icu);
+    const off = { icu, applies: false };
+    if (changedPaths(after.get(icu) ?? off, before.get(icu) ?? off).size > 0)
+      out.add(icu);
   }
   return out;
-}
-
-/** The measure in form mode: its name, unit and expression, edited under { }. */
-function MeasureText({
-  measure,
-  d,
-}: Readonly<{
-  measure: {
-    expression: string | null;
-    label: string | null;
-    unit: string | null;
-  };
-  d: I18nRecord;
-}>) {
-  if (!measure.expression) {
-    return <span className="text-sm text-gray-500">{tr("noMeasure", d)}</span>;
-  }
-  return (
-    <span className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-      {measure.label && <b>{measure.label}</b>}
-      <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-700">
-        {measure.expression}
-      </code>
-      {measure.unit && <span className="text-gray-500">{measure.unit}</span>}
-    </span>
-  );
 }
 
 /** Cuándo se activa: the conditions as a form, or the CEL expression. */
@@ -351,14 +336,25 @@ export default function SymptomRuleSections({
 }>) {
   const [levelsMode, setLevelsMode] = useState<EditMode>("form");
   const levelsChanged = changedLevels(spec, published);
+  const levelSamples = useSourceSamples(preview, spec.source);
   // Scripts are previewed with the first sample, kept while a new preview is made.
-  const stepSample = useSourceSamples(preview, spec.source)[0]?.sample;
+  const stepSample = levelSamples[0]?.sample;
+  const [levelIndex, setLevelIndex] = useState<number | null>(null);
+  const levelAt = Math.min(
+    levelIndex ?? firstOpening(levelSamples),
+    Math.max(0, levelSamples.length - 1)
+  );
+  const levelShown = preview?.samples[levelAt];
+  const reachedLevel =
+    levelsMode === "expr" && levelShown?.activates && !levelShown.error
+      ? levelShown.level
+      : null;
   const [lifeMode, setLifeMode] = useState<EditMode>("form");
-  const activation = problemsFor(findings, "activation");
-  const measure = problemsFor(findings, "measure");
-  const open = problemsFor(findings, "lifecycle.open");
-  const close = problemsFor(findings, "lifecycle.close");
-  const recurrence = problemsFor(findings, "recurrence");
+  const activation = problemsFor(findings, "activation", d);
+  const measure = problemsFor(findings, "measure", d);
+  const open = problemsFor(findings, "lifecycle.open", d);
+  const close = problemsFor(findings, "lifecycle.close", d);
+  const recurrence = problemsFor(findings, "recurrence", d);
   const levelRuleFields = [...sourceFields, ...levelFields(d)];
   const lifecycleFields = caseFields(d);
   // The levels and the lifecycle are described together, one text per section.
@@ -372,11 +368,6 @@ export default function SymptomRuleSections({
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
   const lifeFormable =
     parseOpen(lifecycle.open) !== null && parseClose(lifecycle.close) !== null;
-  const measureValue = spec.measure ?? {
-    expression: "",
-    label: null,
-    unit: null,
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -414,23 +405,31 @@ export default function SymptomRuleSections({
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
               {tr("measure", d)}
             </span>
-            <MeasureText measure={measureValue} d={d} />
+            <MeasureFields
+              measure={spec.measure}
+              fields={fields}
+              readOnly={readOnly}
+              d={d}
+              onChange={(next) => onChange({ ...spec, measure: next })}
+              onEditAsExpression={() => setLevelsMode("expr")}
+            />
             <Problems items={measure} />
           </div>
         ) : (
           <LevelsExpression
             spec={spec}
             preview={preview}
+            index={levelAt}
             fields={fields}
             sourceFields={sourceFields}
-            levelFields={levelRuleFields}
             findings={findings}
             readOnly={readOnly}
             d={d}
+            onIndex={setLevelIndex}
             onChange={onChange}
           />
         )}
-        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+        <div className="-mx-4 -mb-3 divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-700 dark:border-gray-700">
           {ICU_LEVELS.map((meta) => (
             <LevelRow
               key={meta.icu}
@@ -438,8 +437,8 @@ export default function SymptomRuleSections({
               spec={spec}
               icu={meta.icu}
               sample={stepSample}
-              mode="form"
-              showProblems={levelsMode === "form"}
+              mode={levelsMode}
+              reached={reachedLevel === meta.icu}
               fields={levelRuleFields}
               findings={findings}
               readOnly={readOnly}

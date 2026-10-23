@@ -15,9 +15,16 @@ const RULE_PATH =
 const join = (path: string, key: string | number) =>
   path ? `${path}.${key}` : String(key);
 
+/** Missing, null, false and [] are one value: the editor writes defaults an older version lacks. */
+const unset = (v: unknown) =>
+  v === undefined ||
+  v === null ||
+  v === false ||
+  (Array.isArray(v) && v.length === 0);
+
 /** Adds to `out` every path under which `a` and `b` differ. */
 function walk(a: unknown, b: unknown, path: string, out: Set<string>) {
-  if ((a ?? null) === (b ?? null)) return;
+  if (a === b || (unset(a) && unset(b))) return;
   if (
     typeof a === "string" &&
     typeof b === "string" &&

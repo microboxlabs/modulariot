@@ -11,6 +11,7 @@ import type {
   Preview,
   ValidationReport,
 } from "./maintainer-api";
+import { findingText } from "./rule-problems";
 import { ICU_LEVELS } from "./symptom-labels";
 
 const cardClass =
@@ -111,7 +112,7 @@ export function ReviewPanel({
             <HiExclamation
               className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${f.severity === "ERROR" ? "text-red-500" : "text-yellow-500"}`}
             />
-            {f.message}
+            {findingText(f, d)}
           </li>
         ))}
       </ul>

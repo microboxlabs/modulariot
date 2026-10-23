@@ -86,6 +86,25 @@ describe("TemplatesTab", () => {
     expect(screen.queryByRole("button", { name: /^New/ })).toBeNull();
   });
 
+  it("marks the template it shows when the filter hides the picked one", () => {
+    api.useConversationTemplates.mockReturnValue({ data: [TEMPLATE, stored] });
+    const props = {
+      lang: "es",
+      canWrite: true,
+      view: "messages" as const,
+      d,
+      onView: vi.fn(),
+    };
+    const { rerender } = render(<TemplatesTab {...props} channel="" />);
+    fireEvent.click(screen.getByRole("button", { name: /^New/ }));
+    rerender(<TemplatesTab {...props} channel="WhatsApp" />);
+    expect(
+      screen
+        .getByRole("button", { name: /^Pánico/ })
+        .getAttribute("aria-current")
+    ).toBe("true");
+  });
+
   it("says so when no template has the filtered channel", () => {
     api.useConversationTemplates.mockReturnValue({ data: [TEMPLATE] });
     renderTab("Correo");

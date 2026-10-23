@@ -641,7 +641,7 @@ function MessageTemplates({
   const creating = selected?.kind === "new";
   const selectedKey = selected?.kind === "template" ? selected.key : null;
   const picked = templates?.find((t) => t.key === selectedKey) ?? null;
-  const current = selectedKey ?? templates?.[0]?.key ?? null;
+  const current = picked?.key ?? templates?.[0]?.key ?? null;
   const shown = creating ? null : (picked ?? templates?.[0] ?? null);
 
   return (

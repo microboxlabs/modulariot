@@ -7,6 +7,7 @@ import { Conditions } from "../table-item.type";
 import ConditionIcon from "../condition-icon";
 import { Button, Tooltip } from "flowbite-react";
 import Link from "next/link";
+import { treatmentHref } from "@/features/symptoms/model/treatment-link";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { BiWorld } from "react-icons/bi";
@@ -182,7 +183,7 @@ export default function TimedSymptoms({
                 <Button
                   color="blue"
                   as={Link}
-                  href={`/symptoms/map-view/${item.id}?tripId=${item.trip_id}&assetId=${item.asset_id}`}
+                  href={treatmentHref(item.id, item.trip_id, item.asset_id)}
                   className="flex flex-row items-center gap-1 h-8 w-8 rounded-full"
                 >
                   <HiArrowRight className="text-gray-200" />

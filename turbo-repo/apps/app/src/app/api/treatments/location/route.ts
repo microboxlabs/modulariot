@@ -14,6 +14,7 @@ import {
 } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -40,7 +41,9 @@ export async function GET(request: Request) {
 
   //!symptom_name || !first_date || !last_date ||
 
-  if (!trip_id || !symptom_id) {
+  // The evaluator's cases live in the modulith and may have no trip.
+  const engineCase = isEngineCaseId(symptom_id);
+  if (!symptom_id || (!trip_id && !engineCase)) {
     return NextResponse.json(
       {
         data: {
@@ -55,7 +58,7 @@ export async function GET(request: Request) {
     );
   }
   // Without PostgREST, the modulith reads the signals as the active organization.
-  if (!process.env.STREAMHUB_URL) {
+  if (!process.env.STREAMHUB_URL || engineCase) {
     const response = await forwardControlTowerMap(
       `symptoms/${encodeURIComponent(symptom_id)}/signals`
     );

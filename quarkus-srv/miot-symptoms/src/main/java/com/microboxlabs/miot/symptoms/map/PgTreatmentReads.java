@@ -9,6 +9,8 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -37,6 +39,20 @@ public class PgTreatmentReads implements TreatmentReads {
                 p_client_id := $1::varchar, p_symptom_id := $2::bigint)::text AS answer
             FROM public.symptoms s
             WHERE s.id = $2 AND s.client_id = public.api_request_symptoms_client_id()""";
+
+    private static final String KEPT = """
+            kept AS (
+                SELECT * FROM pts
+                WHERE (rn - 1) % greatest(1, ceil((n - 1)::numeric / ($4::int - 1)))::bigint = 0 OR rn = n
+            )
+            """;
+
+    private static final String POSITIONS_JSON = """
+            SELECT coalesce(json_agg(json_build_object(
+                'assetid', p.asset_id, 'timestamp', p."timestamp", 'speed', p.speed, 'heading', p.heading,
+                'location', p.location::text,
+                'longitude', ST_X(p.location::geometry), 'latitude', ST_Y(p.location::geometry))
+                ORDER BY p."timestamp"), '[]'::json) FROM kept p""";
 
     // The asset must be mapped to the client when the trip started, or the client must have a symptom on the trip.
     // A trip still in live_trip runs until now; the window is at most 7 days. The points are sampled evenly, keeping
@@ -67,16 +83,18 @@ public class PgTreatmentReads implements TreatmentReads {
                 FROM public.asset_data a JOIN trip ON a."timestamp" >= trip.start_time AND a."timestamp" <= trip.end_time
                 WHERE a.asset_id = $2
             ),
-            kept AS (
-                SELECT * FROM pts
-                WHERE (rn - 1) % greatest(1, ceil((n - 1)::numeric / ($4::int - 1)))::bigint = 0 OR rn = n
-            )
-            SELECT (SELECT count(*) FROM trip)::int AS found,
-                   (SELECT coalesce(json_agg(json_build_object(
-                        'assetid', p.asset_id, 'timestamp', p."timestamp", 'speed', p.speed, 'heading', p.heading,
-                        'location', p.location::text,
-                        'longitude', ST_X(p.location::geometry), 'latitude', ST_Y(p.location::geometry))
-                        ORDER BY p."timestamp"), '[]'::json) FROM kept p)::text AS positions""";
+            """ + KEPT + "SELECT (SELECT count(*) FROM trip)::int AS found, ("
+            + POSITIONS_JSON + ")::text AS positions";
+
+    // The asset's signals in a time range, sampled like a trip's.
+    static final String ASSET_POSITIONS = """
+            WITH pts AS (
+                SELECT a.asset_id, a."timestamp", a.speed, a.heading, a.location,
+                       row_number() OVER (ORDER BY a."timestamp") AS rn, count(*) OVER () AS n
+                FROM public.asset_data a
+                WHERE a."timestamp" >= $2::timestamptz AND a."timestamp" <= $3::timestamptz AND a.asset_id = $1
+            ),
+            """ + KEPT + "SELECT (" + POSITIONS_JSON + ")::text AS positions";
 
     private final Supplier<Pool> pool;
 
@@ -103,6 +121,19 @@ public class PgTreatmentReads implements TreatmentReads {
         }
         return asClient(clientId, TRIP_POSITIONS, Tuple.of(tripId, assetId, clientId, limit))
                 .map(row -> row.filter(r -> r.getInteger("found") > 0).map(r -> parse(r.getString("positions"))));
+    }
+
+    @Override
+    public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit) {
+        if (limit < 2) {
+            throw new IllegalArgumentException("limit must be at least 2");
+        }
+        Tuple args = Tuple.of(assetId, from.atOffset(ZoneOffset.UTC), to.atOffset(ZoneOffset.UTC), limit);
+        return pool.get().withTransaction(conn -> conn.query(STATEMENT_TIMEOUT).execute()
+                        .flatMap(ignored -> conn.preparedQuery(ASSET_POSITIONS).execute(args)))
+                .ifNoItem().after(QUERY_TIMEOUT).fail()
+                .map(rows -> first(rows).map(r -> parse(r.getString("positions")))
+                        .orElseGet(JSON::createArrayNode));
     }
 
     private Uni<Optional<Row>> asClient(String clientId, String sql, Tuple args) {

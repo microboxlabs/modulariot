@@ -184,6 +184,29 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     }
 
     @GET
+    @Path("/symptoms/{symptomId}/positions")
+    @Operation(operationId = "listMapSymptomPositions",
+            summary = "The vehicle's positions around one of the evaluator's cases",
+            description = "From an hour before the case opened, or from the vehicle's previous case when nearer, until "
+                    + "the case closed or now; oldest first, at most 20000. Only for the evaluator's cases (negative "
+                    + "ids): a symptom with a trip reads the trip's positions. 404 when the case is not the "
+                    + "organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomPositions(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId)) {
+            return Uni.createFrom().item(error(Response.Status.BAD_REQUEST,
+                    "Only the evaluator's cases have positions here; read the trip's"));
+        }
+        long id = Long.parseLong(symptomId.trim());
+        return answer(() -> Uni.createFrom().item(() -> cases.signalWindow(tenant, id))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .flatMap(w -> treatments.assetPositions(w.assetId(), w.from(), w.to())));
+    }
+
+    @GET
     @Path("/trips/{tripId}/positions")
     @Operation(operationId = "listMapTripPositions", summary = "The asset's positions during a trip, oldest first",
             description = "At most 20000, sampled evenly over the trip. 404 when the trip does not exist for the "

@@ -1,6 +1,7 @@
 "use client";
 
 import { TableRow, TableCell, Button, Badge } from "flowbite-react";
+import { treatmentHref } from "@/features/symptoms/model/treatment-link";
 import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
@@ -136,9 +137,7 @@ export default function TableItem({
         >
           <div className="flex items-center gap-2">
             {data.last_assigned_to ? (
-              <Link
-                href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
-              >
+              <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="light"
@@ -154,9 +153,7 @@ export default function TableItem({
                 </Button>
               </Link>
             ) : (
-              <Link
-                href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
-              >
+              <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="blue"
@@ -189,9 +186,7 @@ export default function TableItem({
           <p
             className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
           >
-            <Link
-              href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
-            >
+            <Link href={treatmentHref(data.id, data.trip, data.licensePlate)}>
               {data.licensePlate}
             </Link>
           </p>

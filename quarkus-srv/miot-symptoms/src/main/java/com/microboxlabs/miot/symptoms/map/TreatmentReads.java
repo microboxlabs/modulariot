@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.smallrye.mutiny.Uni;
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -27,4 +28,7 @@ public interface TreatmentReads {
      * when the trip does not exist for that asset or the client may not see it.
      */
     Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit);
+
+    /** The asset's positions from {@code from} to {@code to}, oldest first, at most {@code limit}, sampled evenly. */
+    Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit);
 }

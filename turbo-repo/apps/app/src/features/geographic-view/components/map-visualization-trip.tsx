@@ -2,7 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import { FlyToInterpolator, LinearInterpolator } from "deck.gl";
+import {
+  FlyToInterpolator,
+  LinearInterpolator,
+  ScatterplotLayer,
+} from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
@@ -128,7 +132,13 @@ type MapVisualizationProps = {
   setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
   minimized?: boolean;
   licensePlate?: string | null;
+  /** Where a case without a trip opened, marked on the map. */
+  casePoint?: CasePoint | null;
 };
+
+export type CasePoint = { longitude: number; latitude: number };
+
+const CASE_POINT_ZOOM = 13;
 
 type GeometryFeature = {
   type: string;
@@ -152,6 +162,7 @@ export default function MapVisualizationTrip({
   setSelectedTreatmentIndex,
   minimized = false,
   licensePlate,
+  casePoint = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -220,6 +231,18 @@ export default function MapVisualizationTrip({
       flyTo(mapRef.current, coordinates, 6.5);
     }
   }, [filteredLocationData]);
+
+  const caseLng = casePoint?.longitude;
+  const caseLat = casePoint?.latitude;
+
+  // Without signals around the case, the map still opens on its point.
+  useEffect(() => {
+    const target = toLngLat(caseLng, caseLat);
+    if (target && mapRef.current && !positions?.length) {
+      flyTo(mapRef.current, target, CASE_POINT_ZOOM);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseLng, caseLat]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -482,8 +505,28 @@ export default function MapVisualizationTrip({
       );
     }
 
+    if (caseLng != null && caseLat != null) {
+      baseLayers.push(
+        new ScatterplotLayer<CasePoint>({
+          id: "case-point",
+          data: [{ longitude: caseLng, latitude: caseLat }],
+          getPosition: (d) => [d.longitude, d.latitude],
+          getRadius: 9,
+          radiusUnits: "pixels",
+          getFillColor: [220, 38, 38, 230],
+          getLineColor: [255, 255, 255, 255],
+          getLineWidth: 3,
+          lineWidthUnits: "pixels",
+          stroked: true,
+          parameters: { depthCompare: "always" },
+        })
+      );
+    }
+
     return baseLayers;
   }, [
+    caseLng,
+    caseLat,
     geoJson,
     positions,
     processedGeofence,

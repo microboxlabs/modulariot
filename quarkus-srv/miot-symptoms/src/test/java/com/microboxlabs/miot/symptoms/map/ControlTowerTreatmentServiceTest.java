@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.smallrye.mutiny.Uni;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,12 @@ class ControlTowerTreatmentServiceTest {
             }
             return Uni.createFrom().item(Optional.of(JSON.createArrayNode().add(JSON.createObjectNode()
                     .put("assetid", "AB12").put("longitude", -70.6).put("latitude", -33.4))));
+        }
+
+        @Override
+        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit) {
+            calls.add("asset " + assetId + " " + from + " " + to + " " + limit);
+            return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
         }
     }
 
@@ -145,6 +152,19 @@ class ControlTowerTreatmentServiceTest {
         Uni<JsonNode> other = service.tripPositions(CLIENTS, "T2", "AB12");
         assertThrows(NoSuchElementException.class, () -> await(other));
         assertThrows(IllegalArgumentException.class, () -> service.tripPositions(CLIENTS, "T1", " "));
+    }
+
+    @Test
+    void assetPositionsAreReadForTheRangeAndCapped() {
+        Instant from = Instant.parse("2026-10-22T02:00:00Z");
+        Instant to = Instant.parse("2026-10-22T03:30:00Z");
+
+        JsonNode positions = await(service.assetPositions(" DEMO01 ", from, to));
+
+        assertEquals("DEMO01", positions.get(0).path("assetid").asText());
+        assertEquals("asset DEMO01 " + from + " " + to + " " + ControlTowerTreatmentService.MAX_POSITIONS,
+                reads.calls.get(0));
+        assertThrows(IllegalArgumentException.class, () -> service.assetPositions(" ", from, to));
     }
 
     @Test

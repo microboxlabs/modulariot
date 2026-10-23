@@ -116,6 +116,11 @@ class OrgControlTowerMapResourceTest {
             JsonNode positions = JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId));
             return Uni.createFrom().item("T1".equals(tripId) ? Optional.of(positions) : Optional.empty());
         }
+
+        @Override
+        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, int limit) {
+            return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
+        }
     };
 
     private final OrgControlTowerMapResource resource = resource(Optional.of("http://pgrest.test"));
@@ -339,6 +344,18 @@ class OrgControlTowerMapResourceTest {
     void aBadSymptomIdOrAMissingAssetIs400() {
         assertEquals(400, call(resource.symptom(ORG, "abc")).getStatus());
         assertEquals(400, call(resource.tripPositions(ORG, "T1", null)).getStatus());
+    }
+
+    @Test
+    void aCaseWithoutATripReadsItsVehiclesPositions() {
+        engineCases.add(openCase(3, 4));
+
+        Response positions = call(resource.symptomPositions(ORG, "-3"));
+
+        assertEquals(200, positions.getStatus());
+        assertEquals("DEMO03", ((JsonNode) positions.getEntity()).get(0).path("assetid").asText());
+        assertEquals(404, call(resource.symptomPositions(ORG, "-9")).getStatus());
+        assertEquals(400, call(resource.symptomPositions(ORG, "7")).getStatus());
     }
 
     @Test

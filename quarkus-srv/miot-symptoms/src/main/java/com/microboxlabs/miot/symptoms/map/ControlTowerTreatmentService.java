@@ -8,6 +8,7 @@ import com.microboxlabs.miot.symptoms.map.ControlTowerMapService.UnavailableExce
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -77,6 +78,15 @@ public class ControlTowerTreatmentService {
         String asset = assetId.trim();
         return guarded(() -> firstFound(clientIds, client -> reads.tripPositions(trip, asset, client, MAX_POSITIONS),
                 "Trip not found"));
+    }
+
+    /** The asset's positions from {@code from} to {@code to}, oldest first, at most {@value #MAX_POSITIONS}. */
+    public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to) {
+        if (assetId == null || assetId.isBlank() || from == null || to == null) {
+            throw new IllegalArgumentException("assetId, from and to are required");
+        }
+        String asset = assetId.trim();
+        return guarded(() -> reads.assetPositions(asset, from, to, MAX_POSITIONS));
     }
 
     /** The first client id, in order and one at a time, for which {@code read} finds something. */

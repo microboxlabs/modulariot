@@ -9,6 +9,7 @@ import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.pgclient.PgConnectOptions;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -235,5 +236,15 @@ class PgTreatmentReadsTest {
         JsonNode points = positions("T7", "KL12", "org-b").orElseThrow();
         assertEquals(1, points.size());
         assertEquals(1, points.get(0).path("speed").asInt());
+    }
+
+    @Test
+    void anAssetsPositionsInARangeAreSampledOldestFirst() {
+        Instant now = Instant.now();
+        JsonNode window = await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, 10));
+        assertTrue(window.size() <= 10 && window.size() >= 8, "size " + window.size());
+        assertEquals(1, window.get(0).path("speed").asInt());
+        assertEquals(25, window.get(window.size() - 1).path("speed").asInt());
+        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(1)), now, 10)).size());
     }
 }

@@ -60,7 +60,8 @@ public class PgRuleStore implements RuleStore {
             ON CONFLICT (rule_id) WHERE status = 'DRAFT'
             DO UPDATE SET spec = EXCLUDED.spec, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by
             RETURNING\s""" + VERSION_COLUMNS;
-    // One statement: the draft becomes the next version and the rule points at it.
+    // One statement: the draft becomes the next version and the rule points at it, only while its spec is the
+    // one that was validated ($5), so a draft saved meanwhile is never published unchecked.
     private static final String PUBLISH = """
             WITH v AS (
                 UPDATE miot_conversational.conv_rule_version
@@ -68,7 +69,7 @@ public class PgRuleStore implements RuleStore {
                     version = (SELECT COALESCE(MAX(version), 0) + 1
                                FROM miot_conversational.conv_rule_version WHERE rule_id = $1),
                     reason = $2, created_by = $3, created_at = $4
-                WHERE rule_id = $1 AND status = 'DRAFT'
+                WHERE rule_id = $1 AND status = 'DRAFT' AND spec = $5::text::jsonb
                 RETURNING *
             ), r AS (
                 UPDATE miot_conversational.conv_rule
@@ -152,8 +153,8 @@ public class PgRuleStore implements RuleStore {
     }
 
     @Override
-    public Optional<RuleVersion> publish(String ruleId, String reason, String actor, Instant at) {
-        Tuple params = Tuple.of(uuid(ruleId), reason, actor, time(at));
+    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String reason, String actor, Instant at) {
+        Tuple params = Tuple.of(uuid(ruleId), reason, actor, time(at), Pg.write(validated));
         return versions(query(pool.get(), PUBLISH, params), "").stream().findFirst();
     }
 

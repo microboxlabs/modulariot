@@ -97,13 +97,15 @@ class PgRuleStoresTest {
         assertNull(draft.version());
         assertEquals(1, rules.versions(rule.id()).size());
 
-        RuleVersion v1 = rules.publish(rule.id(), "first", "b@example.com", T0).orElseThrow();
+        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"), "stale", "b@example.com", T0).isEmpty(),
+                "the draft changed after this spec was validated");
+        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), "first", "b@example.com", T0).orElseThrow();
         assertEquals(1, v1.version());
         assertEquals("x", v1.spec().path("steps").get(0).path("template").asText());
-        assertTrue(rules.publish(rule.id(), "none", "b@example.com", T0).isEmpty());
+        assertTrue(rules.publish(rule.id(), draft.spec(), "none", "b@example.com", T0).isEmpty());
 
-        rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[]}"), "c@example.com", T0);
-        assertEquals(2, rules.publish(rule.id(), "second", "c@example.com", T0).orElseThrow().version());
+        RuleVersion second = rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[]}"), "c@example.com", T0);
+        assertEquals(2, rules.publish(rule.id(), second.spec(), "second", "c@example.com", T0).orElseThrow().version());
         rules.saveDraft(rule.id(), JSON.readTree("{}"), "c@example.com", T0);
 
         List<RuleVersion> versions = rules.versions(rule.id());
@@ -151,7 +153,7 @@ class PgRuleStoresTest {
         assertEquals(4, ((Number) runs.event(event.id()).orElseThrow().data().get("level")).intValue());
 
         Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), 1, event.id(),
-                "symptom_case", "-7", true, Run.Status.WAITING, 0, T0, null, T0, T0));
+                "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0));
 
         List<Run> claimed = runs.claimDue(T0.plusSeconds(1), Duration.ofMinutes(2), 10);
         assertTrue(claimed.stream().anyMatch(r -> r.id().equals(run.id())));
@@ -161,7 +163,7 @@ class PgRuleStoresTest {
         assertTrue(runs.updateIfWaiting(run.advanced(Run.Status.WAITING, 1, T0.plusSeconds(300), "x", T0)));
         assertEquals(1, runs.waiting(tenant, "symptom_case", "-7").size());
 
-        String conversation = conversationWithRunMessage(tenant, run.id());
+        String conversation = conversationWithRunMessage(tenant, run.id(), "SENT");
         assertEquals(run.id(), runs.waitingOnConversation(tenant, conversation).orElseThrow().id());
         assertEquals(run.id(), waitingRunFromInboundLookup(tenant));
 
@@ -173,7 +175,7 @@ class PgRuleStoresTest {
         assertEquals("ABCD12", rows.get(0).assetId());
         List<RunStore.RunMessage> messages = runs.messages(List.of(run.id()));
         assertEquals(1, messages.size());
-        assertEquals("SIMULATED", messages.get(0).status());
+        assertEquals("SENT", messages.get(0).status());
         assertEquals("Conductor", messages.get(0).toName());
 
         assertTrue(runs.updateIfWaiting(run.advanced(Run.Status.REPLIED, 1, null, null, T0)));
@@ -184,8 +186,23 @@ class PgRuleStoresTest {
         assertEquals(1, runs.list(tenant, null, null, 10).size());
     }
 
-    /** A conversation with one SIMULATED message of the run to +56900000000. */
-    private static String conversationWithRunMessage(String tenant, String runId) {
+    @Test
+    void aTestRunAndASimulatedMessageTakeNoRealReply() throws Exception {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "miot-symptoms", "symptom_case", "-7", Map.of(), true, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), 1, event.id(),
+                "symptom_case", "-7", true, Run.Status.WAITING, 1, T0, null, T0, T0));
+
+        String conversation = conversationWithRunMessage(tenant, run.id(), "SIMULATED");
+
+        assertTrue(runs.waitingOnConversation(tenant, conversation).isEmpty());
+        assertNull(waitingRunFromInboundLookup(tenant));
+    }
+
+    /** A conversation with one message of the run to +56900000000, in the given status. */
+    private static String conversationWithRunMessage(String tenant, String runId, String status) {
         UUID conversation = UUID.randomUUID();
         pool.preparedQuery("""
                 INSERT INTO miot_conversational.wa_conversation
@@ -195,9 +212,10 @@ class PgRuleStoresTest {
         pool.preparedQuery("""
                 INSERT INTO miot_conversational.wa_message
                     (id, conversation_id, direction, role, msg_type, body, status, channel, address, run_id, step)
-                VALUES ($1, $2, 'OUTBOUND', 'SYSTEM', 'TEMPLATE', 'Hola', 'SIMULATED', 'whatsapp', '+56900000000',
+                VALUES ($1, $2, 'OUTBOUND', 'SYSTEM', 'TEMPLATE', 'Hola', $4, 'whatsapp', '+56900000000',
                         $3, 0)
-                """).execute(Tuple.of(UUID.randomUUID(), conversation, UUID.fromString(runId))).await().atMost(WAIT);
+                """).execute(Tuple.of(UUID.randomUUID(), conversation, UUID.fromString(runId), status))
+                .await().atMost(WAIT);
         return conversation.toString();
     }
 

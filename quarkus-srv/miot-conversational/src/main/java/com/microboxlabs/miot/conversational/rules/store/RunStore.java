@@ -40,7 +40,10 @@ public interface RunStore {
     /** The WAITING runs about this context. */
     List<Run> waiting(String tenantCode, String contextKind, String contextKey);
 
-    /** The newest WAITING run that sent a message on this conversation. */
+    /**
+     * The newest WAITING run that sent a real message on this conversation. Test runs, SIMULATED messages and
+     * failed sends do not count.
+     */
     Optional<Run> waitingOnConversation(String tenantCode, String conversationId);
 
     /** Newest first; {@code ruleId} and {@code status} null mean all. */

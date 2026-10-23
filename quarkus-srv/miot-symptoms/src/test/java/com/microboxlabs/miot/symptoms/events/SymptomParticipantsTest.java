@@ -38,22 +38,24 @@ class SymptomParticipantsTest {
     }
 
     @Test
-    void theDriverIsTheTripsDriverPhone() {
-        List<Participant> found = participants.resolve(TENANT, "symptom_case", "-7", "driver",
-                Map.of("tripId", "T-1", "assetId", "A-1"));
-
-        assertEquals(List.of(new Participant("+56900000001", "whatsapp", "Ana", null, "driver")), found);
-        assertEquals(List.of("T-1/A-1"), lookups);
-    }
-
-    @Test
-    void withoutTheTripInTheDataTheCaseNamesIt() {
+    void theDriverIsTheDriverOfTheCasesTrip() {
         cases.add(new EngineCase(7, UUID.randomUUID(), "0.1.0", "Botón de pánico", "emergencies", "A-1",
                 Instant.parse("2026-10-23T12:00:00Z"), 4, "T-1", null, null, null, null, 0));
 
-        List<Participant> found = participants.resolve(TENANT, "symptom_case", "-7", "Driver", Map.of());
+        List<Participant> found = participants.resolve(TENANT, "symptom_case", "-7", "Driver",
+                Map.of("tripId", "T-9", "assetId", "A-9"));
 
-        assertEquals("+56900000001", found.get(0).address());
+        assertEquals(List.of(new Participant("+56900000001", "whatsapp", "Ana", null, "driver")), found);
+        assertEquals(List.of("T-1/A-1"), lookups, "the case's trip, not the one in the data");
+    }
+
+    @Test
+    void theEventDataAloneNamesNoDriver() {
+        List<Participant> found = participants.resolve(TENANT, "symptom_case", "-7", "driver",
+                Map.of("tripId", "T-1", "assetId", "A-1"));
+
+        assertTrue(found.isEmpty());
+        assertTrue(lookups.isEmpty(), "no read of a trip the tenant's case does not name");
     }
 
     @Test

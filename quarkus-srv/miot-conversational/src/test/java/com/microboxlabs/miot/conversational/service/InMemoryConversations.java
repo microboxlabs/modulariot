@@ -87,6 +87,7 @@ public final class InMemoryConversations {
                 Conversation c = conversations.get(m.conversationId());
                 if (m.runId() != null && waitingRuns.contains(m.runId()) && address.equals(m.address())
                         && m.direction() == MessageDirection.OUTBOUND && c != null
+                        && m.status() != MessageStatus.SIMULATED && m.status() != MessageStatus.FAILED
                         && c.tenantCode().equals(tenantCode)) {
                     return new WithWaitingRun(c, m.runId());
                 }

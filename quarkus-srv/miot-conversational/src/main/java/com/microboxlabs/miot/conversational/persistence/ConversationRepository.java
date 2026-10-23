@@ -57,15 +57,17 @@ public class ConversationRepository {
     private static final String SELECT_BY_TENANT_AND_ID =
             SELECT_FROM + "WHERE tenant_code = $1 AND id = $2";
 
-    // The conversation where a WAITING run last sent to this address.
+    // The conversation where a WAITING run last sent to this address. Only real sends count: a test run's
+    // SIMULATED messages and failed sends never reached the person replying.
     private static final String SELECT_WITH_WAITING_RUN = "SELECT " + COLUMNS + """
             , w.run_id
             FROM miot_conversational.wa_conversation
             JOIN (SELECT m.conversation_id, r.id AS run_id, MAX(m.created_at) AS last_at
                   FROM miot_conversational.conv_run r
                   JOIN miot_conversational.wa_message m ON m.run_id = r.id
-                  WHERE r.tenant_code = $1 AND r.status = 'WAITING'
+                  WHERE r.tenant_code = $1 AND r.status = 'WAITING' AND NOT r.test
                     AND m.direction = 'OUTBOUND' AND m.address = $2
+                    AND m.status NOT IN ('SIMULATED', 'FAILED')
                   GROUP BY m.conversation_id, r.id) w ON w.conversation_id = id
             WHERE tenant_code = $1 AND participant_address = $2
             ORDER BY w.last_at DESC

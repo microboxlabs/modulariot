@@ -139,8 +139,9 @@ public class RulesService {
         if (!RuleSpecValidator.publishable(findings)) {
             throw new NotPublishable(findings);
         }
-        return rules.publish(rule.id(), reason, actor, clock.instant())
-                .orElseThrow(() -> new IllegalStateException("La regla no tiene borrador"));
+        return rules.publish(rule.id(), draft.spec(), reason, actor, clock.instant())
+                .orElseThrow(() -> new IllegalStateException(
+                        "El borrador cambió mientras se publicaba; vuelve a publicarlo"));
     }
 
     public Rule setState(String tenantCode, String id, Rule.State state) {

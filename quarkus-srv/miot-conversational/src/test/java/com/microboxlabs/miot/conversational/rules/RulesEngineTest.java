@@ -197,6 +197,61 @@ class RulesEngineTest {
     }
 
     @Test
+    void aReplyToAnEarlierStepFollowsThatStep() {
+        f.rule("two", """
+                {"trigger": {"event": "symptom.case.opened", "when": ""},
+                 "audience": [{"role": "driver"}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "waitForReply": 5,
+                            "onReply": "continue"},
+                           {"channel": "whatsapp", "template": "panic-check", "waitForReply": 5,
+                            "onReply": "stop"}]}
+                """, Rule.State.ACTIVE);
+        Run run = f.engine.accept(event("symptom.case.opened", "-7", panic(4), false)).get(0);
+        f.engine.runDue();
+        at(Duration.ofMinutes(5));
+        f.engine.runDue();
+        assertEquals(2, onlyRun().step());
+        String conversation = f.store.conversations.messages.get(0).conversationId();
+
+        assertTrue(f.engine.replied(reply(conversation, run.id(), 0)).isEmpty(), "step 0 says continue");
+        assertEquals(Run.Status.WAITING, onlyRun().status());
+        assertTrue(f.engine.replied(reply(conversation, run.id(), 1)).isPresent(), "step 1 says stop");
+        assertEquals(Run.Status.REPLIED, onlyRun().status());
+    }
+
+    @Test
+    void aReplyNamingAFinishedRunStopsNoOtherRun() {
+        f.rule("burst", """
+                {"trigger": {"event": "symptom.case.opened", "when": ""},
+                 "audience": [{"role": "driver"}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """, Rule.State.ACTIVE);
+        f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
+        List<Run> started = f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));
+        f.engine.runDue();
+        Run done = f.store.runs.values().stream().filter(r -> r.status() == Run.Status.DONE).findFirst()
+                .orElseThrow();
+        String conversation = f.store.conversations.messages.get(0).conversationId();
+
+        assertTrue(f.engine.replied(reply(conversation, done.id(), 0)).isEmpty());
+
+        assertEquals(2, started.size());
+        assertEquals(1, f.store.runs.values().stream().filter(r -> r.status() == Run.Status.WAITING).count());
+    }
+
+    @Test
+    void aTestRunDoesNotTakeARealReply() {
+        f.rule("panic", PANIC_SPEC, Rule.State.TEST);
+        f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));
+        f.engine.runDue();
+        Message simulated = f.store.conversations.messages.get(0);
+        assertEquals(MessageStatus.SIMULATED, simulated.status());
+
+        assertTrue(f.engine.replied(reply(simulated.conversationId(), null)).isEmpty());
+        assertEquals(Run.Status.WAITING, onlyRun().status());
+    }
+
+    @Test
     void aReplyBeforeTheFirstSendDoesNothing() {
         f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
         Run run = f.engine.accept(event("symptom.case.opened", "-7", panic(4), false)).get(0);
@@ -276,7 +331,12 @@ class RulesEngineTest {
     }
 
     private static ConversationReplyReceived reply(String conversationId, String runId) {
-        return new ConversationReplyReceived(TENANT, conversationId, "m-1", null, runId, Channel.WHATSAPP, DRIVER,
-                "Estoy bien", null, OffsetDateTime.of(2026, 10, 23, 15, 6, 0, 0, ZoneOffset.UTC));
+        return reply(conversationId, runId, null);
+    }
+
+    private static ConversationReplyReceived reply(String conversationId, String runId, Integer answeredStep) {
+        return new ConversationReplyReceived(TENANT, conversationId, "m-1", null, runId, answeredStep,
+                Channel.WHATSAPP, DRIVER, "Estoy bien", null,
+                OffsetDateTime.of(2026, 10, 23, 15, 6, 0, 0, ZoneOffset.UTC));
     }
 }

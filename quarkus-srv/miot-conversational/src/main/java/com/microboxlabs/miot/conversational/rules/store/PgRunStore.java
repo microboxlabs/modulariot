@@ -70,9 +70,10 @@ public class PgRunStore implements RunStore {
             """;
     private static final String WAITING_ON_CONVERSATION = SELECT + RUN_COLUMNS + """
              FROM miot_conversational.conv_run r
-            WHERE r.tenant_code = $1 AND r.status = 'WAITING'
+            WHERE r.tenant_code = $1 AND r.status = 'WAITING' AND NOT r.test
               AND EXISTS (SELECT 1 FROM miot_conversational.wa_message m
-                          WHERE m.run_id = r.id AND m.conversation_id = $2)
+                          WHERE m.run_id = r.id AND m.conversation_id = $2
+                            AND m.status NOT IN ('SIMULATED', 'FAILED'))
             ORDER BY r.created_at DESC
             LIMIT 1
             """;

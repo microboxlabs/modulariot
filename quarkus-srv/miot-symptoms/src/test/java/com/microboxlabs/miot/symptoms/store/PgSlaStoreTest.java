@@ -121,7 +121,8 @@ class PgSlaStoreTest {
         Transition tooLong = new Transition(Kind.OPENED, other, "1.0.0-" + "x".repeat(40), SymptomState.ACTIVE,
                 "DEMO01", t0, 1, 0, 30);
 
-        assertThrows(RuntimeException.class, () -> log.append(tenant, List.of(first, tooLong), place));
+        List<Transition> batch = List.of(first, tooLong);
+        assertThrows(RuntimeException.class, () -> log.append(tenant, batch, place));
 
         List<TransitionLog.Recorded> replay = log.append(tenant, List.of(first, t(Kind.OPENED, other, t0, 1, 0)),
                 place);

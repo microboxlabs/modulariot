@@ -500,7 +500,7 @@ class SymptomCatalogServiceTest {
     @Test
     void savingAsTemplateLeavesAnUnpublishedTemplateWithoutTheOrganizationsNotices() {
         UUID id = speeding();
-        SymptomSpec.Notice notice = new SymptomSpec.Notice("open", "whatsapp", "conn-1", "tpl-1", "+56900000000");
+        SymptomSpec.Notice notice = new SymptomSpec.Notice("open", "WHATSAPP", "conn-1", "tpl-1", "+56900000000");
         SymptomSpec withNotice = Specs.withLevels(Specs.speeding(), Specs.speeding().levels().stream()
                 .map(l -> l.icu() != 4 ? l : new SymptomSpec.Level(4, true, l.when(), new SymptomSpec.Response(true,
                         5, List.of(), List.of(notice), List.of(), false)))
@@ -515,7 +515,7 @@ class SymptomCatalogServiceTest {
         assertNull(template.definition().currentVersion(), "organizations do not see it until it is published");
         assertEquals(SymptomState.OFF, template.definition().state());
         SymptomSpec.Notice saved = template.draft().spec().levels().get(3).response().notices().get(0);
-        assertEquals(new SymptomSpec.Notice("open", "whatsapp", null, null, null), saved);
+        assertEquals(new SymptomSpec.Notice("open", "WHATSAPP", null, null, null), saved);
         assertNull(template.draft().spec().state());
     }
 

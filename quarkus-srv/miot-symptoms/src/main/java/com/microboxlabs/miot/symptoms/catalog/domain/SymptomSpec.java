@@ -1,8 +1,11 @@
 package com.microboxlabs.miot.symptoms.catalog.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The rules of one symptom version. Conditions are CEL expressions:
@@ -125,13 +128,29 @@ public record SymptomSpec(
      * An automatic notice, sent through an Integrations connection.
      *
      * @param when         on open, on level up, on SLA expiry, on close
-     * @param channel      teams, whatsapp, email, app, webhook
+     * @param kind         the provider type of the connection, such as WHATSAPP; what a
+     *                     platform template keeps when the connection is left to each tenant
      * @param connectionId the connection that sends it
      * @param templateId   the connection's message template
      * @param recipient    who receives it
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Notice(String when, String channel, String connectionId, String templateId, String recipient) {
+    public record Notice(String when, String kind, String connectionId, String templateId, String recipient) {
+
+        /** Kinds for the {@code channel} notices stored before kinds; the driver app had no connection type. */
+        private static final Map<String, String> CHANNEL_KINDS = Map.of(
+                "whatsapp", "WHATSAPP",
+                "email", "RESEND",
+                "teams", "CUSTOM_HTTP",
+                "webhook", "CUSTOM_HTTP");
+
+        @JsonCreator
+        public static Notice read(@JsonProperty("when") String when, @JsonProperty("kind") String kind,
+                @JsonProperty("channel") String channel, @JsonProperty("connectionId") String connectionId,
+                @JsonProperty("templateId") String templateId, @JsonProperty("recipient") String recipient) {
+            String known = kind != null || channel == null ? kind : CHANNEL_KINDS.get(channel);
+            return new Notice(when, known, connectionId, templateId, recipient);
+        }
     }
 
     /**

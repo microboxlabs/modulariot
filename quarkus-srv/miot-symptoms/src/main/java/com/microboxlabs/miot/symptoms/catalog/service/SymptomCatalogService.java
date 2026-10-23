@@ -236,7 +236,7 @@ public class SymptomCatalogService {
 
     private static SymptomSpec.Response withoutTenantNotices(SymptomSpec.Response r) {
         List<SymptomSpec.Notice> notices = r.notices() == null ? null : r.notices().stream()
-                .map(n -> new SymptomSpec.Notice(n.when(), n.channel(), null, null, null))
+                .map(n -> new SymptomSpec.Notice(n.when(), n.kind(), null, null, null))
                 .toList();
         return new SymptomSpec.Response(r.operator(), r.slaMinutes(), r.steps(), notices, r.evidence(),
                 r.ignorable(), r.escalateTo(), r.consequence());

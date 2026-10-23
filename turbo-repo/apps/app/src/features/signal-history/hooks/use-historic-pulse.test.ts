@@ -8,6 +8,10 @@ class FakeEventSource {
   onmessage: ((event: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
   close = vi.fn();
+  readonly listeners: Record<string, () => void> = {};
+  addEventListener(type: string, listener: () => void) {
+    this.listeners[type] = listener;
+  }
   constructor(readonly url: string) {
     FakeEventSource.opened.push(this);
   }
@@ -85,6 +89,20 @@ describe("useHistoricPulse", () => {
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).not.toBeNull();
+  });
+
+  it("reports a stream that sent failed before closing", () => {
+    const { result } = renderHook(() => useHistoricPulse("AB12", FROM, TO));
+    const source = FakeEventSource.opened[0];
+
+    act(() => {
+      source.onopen?.();
+      source.listeners.failed?.();
+      source.onerror?.();
+    });
+
+    expect(result.current.error).not.toBeNull();
+    expect(result.current.isLoading).toBe(false);
   });
 
   it("opens no stream without the range", () => {

@@ -51,8 +51,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Create a TransformStream for CSV processing
-  const { readable, writable } = new TransformStream();
+  // Strings written to the stream go out as UTF-8 bytes.
+  const { readable, writable } = new TextEncoderStream();
 
   // Errors are logged and close the stream.
   void streamPositions(assetId, p_from, p_to, writable);
@@ -168,11 +168,13 @@ async function streamPositions(
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);
     }
   } catch (error) {
-    // Send error event
     console.error("Error streaming positions:", error);
-    /* await writer.write(
-      `event: error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`,
-    ); */
+    // The client tells this failure from the stream's normal end.
+    await writer
+      .write(
+        `event: failed\ndata: ${JSON.stringify({ error: String(error) })}\n\n`
+      )
+      .catch(() => {});
   } finally {
     await writer.close().catch(() => {});
   }

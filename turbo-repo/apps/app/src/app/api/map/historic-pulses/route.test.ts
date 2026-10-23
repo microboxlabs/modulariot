@@ -115,7 +115,7 @@ describe("GET /api/map/historic-pulses", () => {
 
     const res = await GET(request({ ...range, p_from: "not a date" }));
 
-    expect(await res.text()).toBe("");
+    expect(await res.text()).toMatch(/^event: failed\ndata: /);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -153,7 +153,7 @@ describe("GET /api/map/historic-pulses", () => {
     const res = await GET(request(range));
 
     expect(res.headers.get("Content-Type")).toBe("text/event-stream");
-    expect(await res.text()).toBe("");
+    expect(await res.text()).toMatch(/^event: failed\ndata: /);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(forwardMock).not.toHaveBeenCalled();
   });

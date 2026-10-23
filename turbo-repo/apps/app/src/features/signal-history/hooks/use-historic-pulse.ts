@@ -34,11 +34,15 @@ export function useHistoricPulse(
     setIsLoading(true);
     const positionBuffer: HistoricSignal[] = [];
     let opened = false;
+    let failed = false;
     const eventSource = new EventSource(url);
 
     eventSource.onopen = () => {
       opened = true;
     };
+    eventSource.addEventListener("failed", () => {
+      failed = true;
+    });
 
     // A burst of thousands of events renders once per flush, not per event.
     let flush: ReturnType<typeof setTimeout> | null = null;
@@ -58,11 +62,14 @@ export function useHistoricPulse(
     };
 
     // The server closes the stream after the last signal, which EventSource
-    // reports as an error; only a stream that never opened is a failure.
+    // reports as an error; a stream that never opened or that sent "failed"
+    // is a failure.
     eventSource.onerror = () => {
       eventSource.close();
       show();
-      if (!opened) setError(new Error("The signals could not be loaded"));
+      if (!opened || failed) {
+        setError(new Error("The signals could not be loaded"));
+      }
       setIsLoading(false);
     };
 

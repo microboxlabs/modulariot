@@ -25,7 +25,8 @@ export interface SymptomsTable {
   asset_id: string;
   end_time: string;
   start_time: string;
-  duration_sec: number;
+  /** Seconds for the evaluator's cases, a Postgres interval for the GPS database's. */
+  duration_sec: number | string;
   symptom_name: string;
   icu_condition: string;
   treatment_count: number;

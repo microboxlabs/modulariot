@@ -86,19 +86,16 @@ final class InMemoryConversations {
         }
 
         @Override
-        public Conversation updateOutbound(
-                String conversationId, ContextKind contextKind, String contextKey, String contextServiceCode,
-                String contextProcessInstanceId, String contextTaskId, String driverId,
-                OffsetDateTime occurredAt, String lastMessagePreview) {
+        public Conversation updateOutbound(String conversationId, OutboundTouch t) {
             Conversation c = conversations.get(conversationId);
             boolean adopt = c.contextKind() == null;
             return put(new Conversation(c.id(), c.tenantCode(), c.phoneE164(), c.waContactName(),
-                    driverId != null ? driverId : c.driverId(),
-                    adopt ? contextServiceCode : c.contextServiceCode(),
+                    t.driverId() != null ? t.driverId() : c.driverId(),
+                    adopt ? t.contextServiceCode() : c.contextServiceCode(),
                     c.contextProcessInstanceId(), c.contextTaskId(), c.status(),
-                    c.lastInboundAt(), occurredAt, occurredAt, c.sessionExpiresAt(), lastMessagePreview,
-                    c.unreadCount(), c.createdAt(), occurredAt,
-                    adopt ? contextKind : c.contextKind(), adopt ? contextKey : c.contextKey(),
+                    c.lastInboundAt(), t.occurredAt(), t.occurredAt(), c.sessionExpiresAt(), t.lastMessagePreview(),
+                    c.unreadCount(), c.createdAt(), t.occurredAt(),
+                    adopt ? t.contextKind() : c.contextKind(), adopt ? t.contextKey() : c.contextKey(),
                     c.participantAddress(), c.participantContactId(), c.participantRole(), c.displayName(),
                     c.channelState()));
         }

@@ -49,6 +49,7 @@ import {
   estimateEtaHours,
   formatEtaHours,
 } from "../utils/vehicle-origin";
+import { showsNoData, tripCamera } from "../utils/trip-camera";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -138,8 +139,6 @@ type MapVisualizationProps = {
 
 export type CasePoint = { longitude: number; latitude: number };
 
-const CASE_POINT_ZOOM = 13;
-
 type GeometryFeature = {
   type: string;
   geometry: Geometry;
@@ -216,11 +215,25 @@ export default function MapVisualizationTrip({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera_movement, displayPosition]);
 
+  const caseLng = casePoint?.longitude;
+  const caseLat = casePoint?.latitude;
+  const [mapReady, setMapReady] = useState(false);
+
+  // Fits the track, or flies to its single position or to the case point.
+  // Waits for the map, so data that arrives first is not lost.
   useEffect(() => {
-    if (mapRef.current) {
-      center_in_bounds(positions || [], mapRef.current, isLoading);
+    if (!mapRef.current || isLoading) return;
+    const point =
+      caseLng != null && caseLat != null
+        ? { longitude: caseLng, latitude: caseLat }
+        : null;
+    const camera = tripCamera(positions, point);
+    if (camera?.kind === "bounds") {
+      center_in_bounds(positions ?? [], mapRef.current, false);
+    } else if (camera?.kind === "point") {
+      flyTo(mapRef.current, camera.target, camera.zoom);
     }
-  }, [positions]);
+  }, [positions, isLoading, caseLng, caseLat, mapReady]);
 
   useEffect(() => {
     // A case without a trip is framed by its point and its track instead.
@@ -233,19 +246,6 @@ export default function MapVisualizationTrip({
       flyTo(mapRef.current, coordinates, 6.5);
     }
   }, [filteredLocationData]);
-
-  const caseLng = casePoint?.longitude;
-  const caseLat = casePoint?.latitude;
-  const [mapReady, setMapReady] = useState(false);
-
-  // Without signals around the case, the map still opens on its point.
-  useEffect(() => {
-    const target = toLngLat(caseLng, caseLat);
-    if (target && mapRef.current && !positions?.length) {
-      flyTo(mapRef.current, target, CASE_POINT_ZOOM);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseLng, caseLat, mapReady]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -634,7 +634,7 @@ export default function MapVisualizationTrip({
           <div className="flex items-center justify-center h-full p-2">
             <Spinner />
           </div>
-        ) : !isLoading && positions?.length === 0 ? (
+        ) : showsNoData(isLoading, positions, casePoint) ? (
           <div className="flex items-center justify-center h-full p-2">
             <p className="text-gray-500 dark:text-gray-400 font-light">
               {tr("geographic_view.no_data_found", dict)}

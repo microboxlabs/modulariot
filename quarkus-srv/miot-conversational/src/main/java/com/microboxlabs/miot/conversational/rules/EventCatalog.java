@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,7 +34,7 @@ public final class EventCatalog {
     private static final Set<Class<?>> NUMBERS = Set.of(int.class, long.class, double.class, float.class,
             short.class, byte.class);
     private static final Set<Class<?>> TIMES = Set.of(Instant.class, OffsetDateTime.class, ZonedDateTime.class,
-            LocalDateTime.class, LocalDate.class, Date.class);
+            LocalDateTime.class, LocalDate.class);
 
     private final List<EventTypeCatalog> catalogs;
 

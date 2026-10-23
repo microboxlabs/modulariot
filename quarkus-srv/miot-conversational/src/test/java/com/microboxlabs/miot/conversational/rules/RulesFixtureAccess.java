@@ -17,6 +17,18 @@ public final class RulesFixtureAccess {
         return fixture.service;
     }
 
+    public RuleSimulator simulator() {
+        return fixture.simulator;
+    }
+
+    public TemplatesService templates() {
+        return fixture.templates;
+    }
+
+    public RunsService runs() {
+        return fixture.runs;
+    }
+
     public static JsonNode json(String text) {
         return RulesFixture.json(text);
     }

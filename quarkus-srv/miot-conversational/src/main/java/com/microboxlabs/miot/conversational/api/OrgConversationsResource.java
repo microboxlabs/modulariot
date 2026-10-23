@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.RulesService;
-import com.microboxlabs.miot.conversational.rules.RulesService.SampleEvent;
-import com.microboxlabs.miot.conversational.rules.RulesService.TemplateRequest;
+import com.microboxlabs.miot.conversational.rules.RuleSimulator;
+import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
+import com.microboxlabs.miot.conversational.rules.RunsService;
+import com.microboxlabs.miot.conversational.rules.TemplatesService;
+import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
@@ -86,22 +89,34 @@ public class OrgConversationsResource {
     private final Function<String, Uni<Access>> access;
     private final Supplier<String> actor;
     private final RulesService service;
+    private final RuleSimulator simulator;
+    private final TemplatesService templates;
+    private final RunsService runs;
+
+    /** The services behind the endpoints. */
+    public record Services(RulesService rules, RuleSimulator simulator, TemplatesService templates,
+            RunsService runs) {
+    }
 
     @Inject
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
-            OrganizationRoleService roleService, SecurityIdentity identity, RulesService service) {
+            OrganizationRoleService roleService, SecurityIdentity identity, RulesService rules,
+            RuleSimulator simulator, TemplatesService templates, RunsService runs) {
         this(tenantContext, organizationContext,
                 org -> roleService.access(org, caller(identity, organizationContext, tenantContext)),
-                () -> actor(identity, organizationContext), service);
+                () -> actor(identity, organizationContext), new Services(rules, simulator, templates, runs));
     }
 
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
-            Function<String, Uni<Access>> access, Supplier<String> actor, RulesService service) {
+            Function<String, Uni<Access>> access, Supplier<String> actor, Services services) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.access = access;
         this.actor = actor;
-        this.service = service;
+        this.service = services.rules();
+        this.simulator = services.simulator();
+        this.templates = services.templates();
+        this.runs = services.runs();
     }
 
     // Rules
@@ -186,7 +201,7 @@ public class OrgConversationsResource {
     public Uni<Response> simulate(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
             SimulateRequest body) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(service.simulate(tenant, id, body == null ? null : body.event())).build());
+        return work(() -> Response.ok(simulator.simulate(tenant, id, body == null ? null : body.event())).build());
     }
 
     // Templates
@@ -196,7 +211,7 @@ public class OrgConversationsResource {
     @Operation(operationId = "listConversationTemplates", summary = "The organization's message templates")
     public Uni<Response> listTemplates(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(service.templates(tenant)).build());
+        return work(() -> Response.ok(templates.list(tenant)).build());
     }
 
     @GET
@@ -204,7 +219,7 @@ public class OrgConversationsResource {
     @Operation(operationId = "getConversationTemplate", summary = "One template, with the rules that use it")
     public Uni<Response> getTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(service.template(tenant, key)).build());
+        return work(() -> Response.ok(templates.get(tenant, key)).build());
     }
 
     @PUT
@@ -214,7 +229,7 @@ public class OrgConversationsResource {
             TemplateRequest body) {
         String tenant = tenantCode(organizationId);
         String who = actor.get();
-        return write(organizationId, () -> Response.ok(service.saveTemplate(tenant, key, body, who)).build());
+        return write(organizationId, () -> Response.ok(templates.save(tenant, key, body, who)).build());
     }
 
     // Events and runs
@@ -234,7 +249,7 @@ public class OrgConversationsResource {
     public Uni<Response> listRuns(@PathParam(ORG) String organizationId, @QueryParam("rule") String rule,
             @QueryParam("status") String status, @QueryParam("limit") Integer limit) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(service.runs(tenant, blankToNull(rule), runStatus(status), limit)).build());
+        return work(() -> Response.ok(runs.list(tenant, blankToNull(rule), runStatus(status), limit)).build());
     }
 
     private static Run.Status runStatus(String status) {

@@ -14,9 +14,9 @@ import com.microboxlabs.miot.conversational.api.OrgConversationsResource.StateRe
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RulesFixtureAccess;
-import com.microboxlabs.miot.conversational.rules.RulesService.SampleContext;
-import com.microboxlabs.miot.conversational.rules.RulesService.SampleEvent;
-import com.microboxlabs.miot.conversational.rules.RulesService.TemplateRequest;
+import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleContext;
+import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
+import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
@@ -50,7 +50,8 @@ class OrgConversationsResourceTest {
         TenantContext tenant = new TenantContext();
         tenant.setTenantCode(RulesFixtureAccess.TENANT);
         return new OrgConversationsResource(tenant, org, o -> Uni.createFrom().item(access),
-                () -> "owner@example.com", fixture.service());
+                () -> "owner@example.com", new OrgConversationsResource.Services(fixture.service(),
+                        fixture.simulator(), fixture.templates(), fixture.runs()));
     }
 
     private final OrgConversationsResource owner = resource(access(BaseRole.OWNER, Set.of()));

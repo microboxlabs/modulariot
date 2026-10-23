@@ -9,5 +9,14 @@ public interface TransitionLog {
     record Place(String tripId, Double latitude, Double longitude, Double speedKmh) {
     }
 
-    void append(String tenantCode, List<Transition> transitions, Place place);
+    /**
+     * A change the log did not hold before.
+     *
+     * @param caseId the id of the case's OPENED transition
+     */
+    record Recorded(Transition transition, long caseId) {
+    }
+
+    /** @return the changes it recorded now, without the ones it already held */
+    List<Recorded> append(String tenantCode, List<Transition> transitions, Place place);
 }

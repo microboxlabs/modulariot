@@ -4,17 +4,21 @@ import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
 /**
  * The evaluator's case changes, in {@code miot_symptoms.signal_transitions}. A replayed signal
- * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal.
+ * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal. A change's
+ * case is the latest OPENED row of its symptom, vehicle and state.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -31,6 +35,11 @@ public class PgTransitionLog implements TransitionLog {
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
                   AND tenant_code = $1::varchar)
+            RETURNING id, CASE WHEN kind = 'OPENED' THEN id ELSE (
+                SELECT o.id FROM miot_symptoms.signal_transitions o
+                WHERE o.tenant_code = $1::varchar AND o.definition_id = $2::uuid AND o.asset_id = $6::varchar
+                  AND o.state = $4::varchar AND o.kind = 'OPENED'
+                ORDER BY o.id DESC LIMIT 1) END AS case_id
             """;
 
     private final Supplier<Pool> pool;
@@ -45,13 +54,21 @@ public class PgTransitionLog implements TransitionLog {
     }
 
     @Override
-    public void append(String tenantCode, List<Transition> transitions, Place place) {
+    public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place) {
+        List<Recorded> recorded = new ArrayList<>();
         for (Transition t : transitions) {
-            PgIds.query(pool.get(), INSERT, Tuple.tuple().addValue(tenantCode).addValue(t.definitionId())
-                    .addValue(t.version()).addValue(t.state().name()).addValue(t.kind().name())
-                    .addValue(t.assetId()).addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level())
+            RowSet<Row> rows = PgIds.query(pool.get(), INSERT, Tuple.tuple().addValue(tenantCode)
+                    .addValue(t.definitionId()).addValue(t.version()).addValue(t.state().name())
+                    .addValue(t.kind().name()).addValue(t.assetId()).addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level())
                     .addValue(t.previousLevel()).addValue(t.measure()).addValue(place.tripId())
                     .addValue(place.latitude()).addValue(place.longitude()).addValue(place.speedKmh()));
+            for (Row r : rows) {
+                Long caseId = r.getLong("case_id");
+                if (caseId != null) {
+                    recorded.add(new Recorded(t, caseId));
+                }
+            }
         }
+        return recorded;
     }
 }

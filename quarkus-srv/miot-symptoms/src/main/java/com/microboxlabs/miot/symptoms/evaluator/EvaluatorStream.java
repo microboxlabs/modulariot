@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -27,7 +28,8 @@ import org.jboss.logging.Logger;
  * Runs the published symptom versions on each GPS signal ({@code gps-signals-in},
  * {@code miot.gps.signal@1}) for every organization the vehicle belongs to,
  * keeps the episodes in Redis (in memory when no Redis URL is set), records
- * the case changes in {@code miot_symptoms.signal_transitions} and keeps
+ * the case changes in {@code miot_symptoms.signal_transitions}, publishes each new
+ * one as a {@code symptom.case.*} event ({@link SymptomEvents}) and keeps
  * recent signals for rule previews ({@link SignalSamples}). On wherever the
  * symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
  */
@@ -47,6 +49,7 @@ public class EvaluatorStream {
     private final Clock clock;
     private final EpisodeRepository episodes;
     private final SignalSamples samples;
+    private final SymptomEvents events;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -56,8 +59,8 @@ public class EvaluatorStream {
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters) {
-        this(enabled, catalog, transitionLog, meters, Clock.systemUTC(),
+            MeterRegistry meters, SymptomEvents events) {
+        this(enabled, catalog, transitionLog, events, meters, Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
@@ -68,11 +71,12 @@ public class EvaluatorStream {
         }
     }
 
-    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, TransitionLog transitionLog,
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, TransitionLog transitionLog, SymptomEvents events,
             MeterRegistry meters, Clock clock, EpisodeRepository episodes, SignalSamples samples) {
         this.enabled = enabled;
         this.catalog = catalog;
         this.transitionLog = transitionLog;
+        this.events = events;
         this.meters = meters;
         this.clock = clock;
         this.episodes = episodes;
@@ -141,7 +145,9 @@ public class EvaluatorStream {
                 .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
         // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
         if (!result.transitions().isEmpty()) {
-            transitionLog.append(tenant, result.transitions(), place(signal));
+            TransitionLog.Place place = place(signal);
+            // Only the changes new to the log: a replayed signal publishes nothing twice.
+            events.transitions(tenant, transitionLog.append(tenant, result.transitions(), place), place);
         }
         episodes.save(state);
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",

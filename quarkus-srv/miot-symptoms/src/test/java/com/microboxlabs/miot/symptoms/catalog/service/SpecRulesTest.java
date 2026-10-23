@@ -203,6 +203,7 @@ class SpecRulesTest {
         assertEquals("3", overlap.params().get("levelA"));
         assertEquals("4", overlap.params().get("levelB"));
         assertTrue(overlap.message().startsWith("Crítica y Código negro se solapan"));
+        assertFalse(Double.parseDouble(overlap.params().get("held")) < 0, "a case never held a negative time");
     }
 
     @Test

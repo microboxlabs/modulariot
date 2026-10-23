@@ -213,8 +213,10 @@ public final class SpecValidator {
         Map<Level, PreparedRule> rules = new LinkedHashMap<>();
         levels.forEach(l -> rules.put(l, RuleLanguage.prepare(schema, l.when())));
         List<Double> points = testPoints(levels);
+        // A case has held for zero seconds or more.
+        List<Double> heldPoints = points.stream().filter(p -> p >= 0).toList();
         Set<String> reported = new HashSet<>();
-        for (double held : points) {
+        for (double held : heldPoints) {
             for (double measure : points) {
                 Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held);
                 List<Level> hits = levels.stream()

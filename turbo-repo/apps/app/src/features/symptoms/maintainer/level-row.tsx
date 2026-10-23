@@ -81,6 +81,7 @@ function BoundInput<Op extends string>({
   const symbol: Record<string, string> = {
     ">": ">",
     ">=": "≥",
+    "==": "=",
     "<": "<",
     "<=": "≤",
   };
@@ -132,10 +133,15 @@ function RangeInputs({
       {range.lower && (
         <BoundInput<LowerOp>
           bound={range.lower}
-          ops={[">", ">="]}
+          ops={[">", ">=", "=="]}
           label={`${name} ${tr("from", d)}`}
           readOnly={readOnly}
-          onChange={(lower) => onChange({ ...range, lower })}
+          onChange={(lower) =>
+            onChange({
+              lower,
+              upper: lower.op === "==" ? null : range.upper,
+            })
+          }
         />
       )}
       {range.lower && range.upper && (

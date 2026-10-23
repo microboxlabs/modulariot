@@ -222,8 +222,9 @@ public class EngineCaseService {
         if (c.closedAt() == null) {
             forget.episode(tenantCode, c.assetId(), c.definitionId());
             Instant at = clock.instant();
-            store.close(tenantCode, c.id(), actor, at);
-            events.closedByOperator(tenantCode, c, actor, at);
+            if (store.close(tenantCode, c.id(), actor, at)) {
+                events.closedByOperator(tenantCode, c, actor, at);
+            }
         }
     }
 

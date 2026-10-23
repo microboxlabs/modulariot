@@ -11,5 +11,9 @@ public interface EngineCaseStore {
 
     Optional<EngineCase> find(String tenantCode, long caseId);
 
-    void close(String tenantCode, long caseId, String actor, Instant at);
+    /**
+     * Records that an operator closed the case at {@code at}; false when it was already closed, so of two
+     * overlapping closes only one returns true.
+     */
+    boolean close(String tenantCode, long caseId, String actor, Instant at);
 }

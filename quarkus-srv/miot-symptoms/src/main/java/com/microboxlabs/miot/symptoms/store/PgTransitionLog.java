@@ -1,11 +1,13 @@
 package com.microboxlabs.miot.symptoms.store;
 
+import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
+
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
-import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -53,22 +55,38 @@ public class PgTransitionLog implements TransitionLog {
         this.pool = pool;
     }
 
+    /**
+     * Writes the changes in one transaction, so a failed insert leaves none of them and the replayed signal
+     * records and publishes them all.
+     */
     @Override
     public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place) {
-        List<Recorded> recorded = new ArrayList<>();
-        for (Transition t : transitions) {
-            RowSet<Row> rows = PgIds.query(pool.get(), INSERT, Tuple.tuple().addValue(tenantCode)
-                    .addValue(t.definitionId()).addValue(t.version()).addValue(t.state().name())
-                    .addValue(t.kind().name()).addValue(t.assetId()).addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level())
-                    .addValue(t.previousLevel()).addValue(t.measure()).addValue(place.tripId())
-                    .addValue(place.latitude()).addValue(place.longitude()).addValue(place.speedKmh()));
-            for (Row r : rows) {
-                Long caseId = r.getLong("case_id");
-                if (caseId != null) {
-                    recorded.add(new Recorded(t, caseId));
-                }
-            }
+        if (transitions.isEmpty()) {
+            return List.of();
         }
-        return recorded;
+        return pool.get().withTransaction(conn -> {
+            Uni<List<Recorded>> chain = Uni.createFrom().item(new ArrayList<>());
+            for (Transition t : transitions) {
+                chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place))
+                        .map(rows -> {
+                            for (Row r : rows) {
+                                Long caseId = r.getLong("case_id");
+                                if (caseId != null) {
+                                    recorded.add(new Recorded(t, caseId));
+                                }
+                            }
+                            return recorded;
+                        }));
+            }
+            return chain;
+        }).await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static Tuple params(String tenantCode, Transition t, Place place) {
+        return Tuple.tuple().addValue(tenantCode).addValue(t.definitionId()).addValue(t.version())
+                .addValue(t.state().name()).addValue(t.kind().name()).addValue(t.assetId())
+                .addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level()).addValue(t.previousLevel())
+                .addValue(t.measure()).addValue(place.tripId()).addValue(place.latitude())
+                .addValue(place.longitude()).addValue(place.speedKmh());
     }
 }

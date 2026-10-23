@@ -144,6 +144,31 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void overlappingClosesPublishOnce() {
+        EngineCase open = panic(12, "DEMO01");
+        // Both requests read the case open before either writes its close.
+        InMemoryEngineCases racing = new InMemoryEngineCases() {
+            @Override
+            public Optional<EngineCase> find(String tenantCode, long caseId) {
+                return Optional.of(open);
+            }
+        };
+        racing.add(open);
+        EngineCaseService a = new EngineCaseService(racing, (tenant, asset, definition) -> {
+        }, t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC), new SymptomEvents(e -> {
+            fired.add(e);
+            return CompletableFuture.completedFuture(e);
+        }));
+
+        a.close(TENANT, -12, "first@example.com");
+        a.close(TENANT, -12, "second@example.com");
+
+        assertEquals(List.of("first@example.com"), racing.closedBy);
+        assertEquals(1, fired.size());
+        assertEquals("first@example.com", ((SymptomCaseData) fired.get(0).data()).closedBy());
+    }
+
+    @Test
     void aFailedEpisodeDropLeavesTheCaseOpenForARetry() {
         store.add(panic(12, "DEMO01"));
         boolean[] down = {true};

@@ -232,6 +232,25 @@ describe("useSymptomDraft after a publish or a discard", () => {
     expect(result.current.spec).toEqual(v011.spec);
   });
 
+  it("takes the family of the published version", async () => {
+    cached = {
+      ...cached,
+      definition: { ...cached.definition, family: "speed" },
+    } as SymptomDetail;
+    const { result } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() => expect(result.current.spec).toEqual(DRAFT_ACTIVE.spec));
+    const v011 = {
+      ...DRAFT_ACTIVE,
+      version: "0.1.1",
+      status: "PUBLISHED",
+      spec: { ...DRAFT_ACTIVE.spec, family: "fatigue" },
+    } as SymptomVersion;
+
+    await act(() => result.current.showPublished(v011));
+
+    expect(result.current.detail?.definition.family).toBe("fatigue");
+  });
+
   it("drops the draft on discard and goes back to the version in force", async () => {
     const { result } = renderHook(() => useSymptomDraft("s1", true));
     await waitFor(() => expect(result.current.spec).toEqual(DRAFT_ACTIVE.spec));

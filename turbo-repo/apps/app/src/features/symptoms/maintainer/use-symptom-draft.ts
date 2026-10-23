@@ -28,7 +28,7 @@ function shown(spec: SymptomSpec | null): SymptomSpec | null {
   return activation === spec.activation ? spec : { ...spec, activation };
 }
 
-/** The symptom as a publish leaves it: the new version in force with its state, and no draft. */
+/** The symptom as a publish leaves it: the new version in force with its state and family, and no draft. */
 export function withPublished(
   detail: SymptomDetail,
   version: SymptomVersion
@@ -39,6 +39,7 @@ export function withPublished(
       ...detail.definition,
       currentVersion: version.version,
       state: version.spec.state ?? detail.definition.state,
+      family: version.spec.family ?? detail.definition.family,
     },
     current: version,
     draft: null,

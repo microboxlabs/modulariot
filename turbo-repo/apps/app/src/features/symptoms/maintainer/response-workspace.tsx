@@ -157,6 +157,7 @@ function CopyFrom({
  */
 export default function ResponseWorkspace({
   spec,
+  symptom,
   changedLevels,
   preview,
   findings,
@@ -167,6 +168,8 @@ export default function ResponseWorkspace({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  /** The symptom whose conversation rules each level lists; absent for a template. */
+  symptom?: { key: string; name: string };
   /** Levels that differ from the published version. */
   changedLevels: ReadonlySet<number>;
   preview?: Preview;
@@ -243,6 +246,7 @@ export default function ResponseWorkspace({
               (f) => f.section === responseSection(icu)
             )}
             sample={sample}
+            symptom={symptom && { ...symptom, icu }}
             readOnly={readOnly}
             d={d}
             onChange={(patch) => setResponse({ ...response, ...patch })}

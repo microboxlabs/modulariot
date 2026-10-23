@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CHANGED } from "./changed";
+import Select from "./select";
 
 const PILL =
   "inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5 font-medium text-gray-900 hover:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white";
@@ -43,7 +44,7 @@ export function PillSelect({
 }>) {
   return (
     <Pill changed={changed} className={className}>
-      <select
+      <Select
         aria-label={ariaLabel}
         value={value}
         disabled={disabled}
@@ -59,7 +60,7 @@ export function PillSelect({
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     </Pill>
   );
 }

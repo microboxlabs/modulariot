@@ -21,6 +21,7 @@ import {
 } from "./maintainer-api";
 import { useSymptomScope } from "./symptom-scope";
 import { BumpBadge } from "./ui/badges";
+import Select from "./ui/select";
 
 const BUMPS: VersionBump[] = ["PATCH", "MINOR", "MAJOR"];
 
@@ -152,7 +153,7 @@ export default function PublishDialog({
             {higher.length > 0 && (
               <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                 <span>{tr("raiseTo", d)}</span>
-                <select
+                <Select
                   className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
                   value={raise ?? ""}
                   onChange={(e) =>
@@ -165,7 +166,7 @@ export default function PublishDialog({
                       {trDynamic(BUMP_LABEL[b], d)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             {errors > 0 && (

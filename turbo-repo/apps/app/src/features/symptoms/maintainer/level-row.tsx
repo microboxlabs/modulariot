@@ -31,6 +31,7 @@ import { Problems, problemsFor } from "./rule-problems";
 import { CHANGED_ROW } from "./ui/changed";
 import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
+import Select from "./ui/select";
 
 export type EditMode = "form" | "expr";
 
@@ -88,7 +89,7 @@ function BoundInput<Op extends string>({
   };
   return (
     <span className="inline-flex items-center gap-1">
-      <select
+      <Select
         aria-label={`${label} · operador`}
         className={pillClass}
         disabled={readOnly}
@@ -100,7 +101,7 @@ function BoundInput<Op extends string>({
             {symbol[op]}
           </option>
         ))}
-      </select>
+      </Select>
       <NumberValue
         value={bound.value}
         unit={null}
@@ -325,7 +326,7 @@ function EvidenceSelect({
   return (
     <label className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
       <span>{tr("closeRequires", d)}</span>
-      <select
+      <Select
         className={pillClass}
         disabled={readOnly}
         value={value}
@@ -338,7 +339,7 @@ function EvidenceSelect({
             {trDynamic(e.label, d)}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }

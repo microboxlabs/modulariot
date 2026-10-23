@@ -7,6 +7,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { Notice } from "./maintainer-api";
 import { ChannelIcon } from "./ui/channel-icon";
+import Select from "./ui/select";
 
 /** A channel a notice can go out on, and the Integrations provider types that can send it. */
 interface Channel {
@@ -144,7 +145,7 @@ export default function LevelNotices({
               channel={n.channel}
               label={trDynamic(channelOf(n.channel).label, d)}
             />
-            <select
+            <Select
               aria-label={tr("noticeWhen", d)}
               className={selectClass}
               disabled={readOnly}
@@ -156,8 +157,8 @@ export default function LevelNotices({
                   {trDynamic(w.label, d)}
                 </option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               aria-label={tr("noticeConnection", d)}
               className={selectClass}
               disabled={readOnly}
@@ -186,7 +187,7 @@ export default function LevelNotices({
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <input
               aria-label={tr("noticeRecipient", d)}
               className={`${selectClass} min-w-40 flex-1`}

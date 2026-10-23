@@ -14,6 +14,7 @@ import {
   type MeasureForm,
   type Minus,
 } from "./measure-form";
+import Select from "./ui/select";
 
 type Measure = NonNullable<SymptomSpec["measure"]>;
 
@@ -139,7 +140,7 @@ function MinusInputs({
   return (
     <span className="inline-flex items-center gap-2">
       <span aria-hidden>−</span>
-      <select
+      <Select
         aria-label={tr("measureSubtractKind", d)}
         className={inputClass}
         disabled={readOnly}
@@ -153,7 +154,7 @@ function MinusInputs({
       >
         <option value="number">{tr("measureSubtractNumber", d)}</option>
         <option value="field">{tr("measureSubtractField", d)}</option>
-      </select>
+      </Select>
       {kind === "number" ? (
         <input
           aria-label={tr("measureSubtractNumber", d)}

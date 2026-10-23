@@ -7,6 +7,7 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { Step } from "./maintainer-api";
 import ScriptModal from "./script-modal";
 import { ChannelIcon } from "./ui/channel-icon";
+import Select from "./ui/select";
 
 /** How the operator reaches the person in a step. */
 export const STEP_CHANNELS = [
@@ -98,7 +99,7 @@ function StepItem({
           <span className="text-gray-500">
             {tr("stepN", d, { n: String(index + 1) })}
           </span>
-          <select
+          <Select
             aria-label={tr("stepChannel", d)}
             className={inputClass}
             disabled={readOnly}
@@ -110,7 +111,7 @@ function StepItem({
                 {trDynamic(c.label, d)}
               </option>
             ))}
-          </select>
+          </Select>
           <span className="text-gray-500">{tr("stepTo", d)}</span>
           <input
             aria-label={tr("stepRole", d)}

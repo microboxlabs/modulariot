@@ -14,9 +14,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -82,7 +84,9 @@ public class StageService {
 
     /** Patches the plan of a stage that has not started. */
     public Stage update(String tenantCode, String actor, UUID id, StageRequest body) {
+        Stage subject = get(tenantCode, id);
         return tx.inTransaction(() -> {
+            lockTrip(tenantCode, subject);
             StageRequest req = body == null ? StageRequest.empty() : body;
             Stage current = get(tenantCode, id);
             if (!Stage.PENDING.equals(current.status())) {
@@ -217,11 +221,15 @@ public class StageService {
     }
 
     /** Locks the stage's trip, so every operation that takes several locks takes the trip's first. */
-    private void requireOpenTrip(String tenantCode, Stage stage) {
+    private Optional<Trip> lockTrip(String tenantCode, Stage stage) {
         if (!Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
-            return;
+            return Optional.empty();
         }
-        trips.find(tenantCode, UUID.fromString(stage.subjectId()))
+        return trips.find(tenantCode, UUID.fromString(stage.subjectId()));
+    }
+
+    private void requireOpenTrip(String tenantCode, Stage stage) {
+        lockTrip(tenantCode, stage)
                 .filter(t -> Trip.DONE.equals(t.status()) || Trip.CANCELLED.equals(t.status()))
                 .ifPresent(t -> {
                     throw new IllegalStateException("trip already " + t.status());
@@ -240,7 +248,9 @@ public class StageService {
                     trips.update(new Trip(t.id(), tenantCode, Trip.EN_ROUTE, t.originId(), t.destinationId(),
                             t.plannedStart(), now, t.actualEnd(), t.cancelReason(),
                             t.createdAt(), t.createdBy(), null, actor));
-                    for (MandateRef m : trips.mandatesOf(tenantCode, tripId)) {
+                    // mandates are locked in id order, so trips sharing mandates cannot deadlock
+                    for (MandateRef m : trips.mandatesOf(tenantCode, tripId).stream()
+                            .sorted(Comparator.comparing(MandateRef::mandateId)).toList()) {
                         mandates.markRunning(tenantCode, actor, UUID.fromString(m.mandateId()));
                     }
                 });

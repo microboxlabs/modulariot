@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,6 +14,7 @@ import com.microboxlabs.miot.fleet.resources.dto.DriverRequest;
 import com.microboxlabs.miot.fleet.resources.dto.TrailerRequest;
 import com.microboxlabs.miot.fleet.resources.dto.TruckRequest;
 import com.microboxlabs.miot.fleet.resources.service.ResourceService;
+import com.microboxlabs.miot.fleet.resources.store.PgResourceStore;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.Stage;
@@ -42,6 +44,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -50,6 +53,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -81,9 +86,10 @@ class PgTransactionsTest {
             new PgTripCargoStore(() -> pool), mandates, audit, tx);
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
             tripStore, audit, tx);
-    private final ResourceService fleet = new ResourceService(
-            new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool),
-            new com.microboxlabs.miot.fleet.resources.store.PgTransactions(() -> pool));
+    private final PgResourceStore fleetStore = new PgResourceStore(() -> pool);
+    private final com.microboxlabs.miot.fleet.resources.service.Transactions fleetTx =
+            new com.microboxlabs.miot.fleet.resources.store.PgTransactions(() -> pool);
+    private final ResourceService fleet = new ResourceService(fleetStore, fleetTx);
 
     @BeforeAll
     static void migrate() throws IOException {
@@ -203,7 +209,32 @@ class PgTransactionsTest {
     }
 
     @Test
-    void fleetPatchesRunInsideATransaction() {
+    void anAuditFailureLeavesTheTransactionUsable() {
+        String tenant = tenant();
+        tx.inTransaction(() -> {
+            mandates.createOrGet(tenant, ACTOR, new MandateRequest("OC-AU-1", "oc", null, null, null, null));
+            // action is VARCHAR(128): this insert fails, inside the open transaction
+            assertNull(audit.log(tenant, ACTOR, "x".repeat(200), "mandate", null, null, Map.of()));
+            mandates.createOrGet(tenant, ACTOR, new MandateRequest("OC-AU-2", "oc", null, null, null, null));
+        });
+
+        assertEquals(2, mandates.list(tenant, null, null, 0, 50).size(), "both mandates committed");
+    }
+
+    @Test
+    void aRolledBackOperationLeavesNoAuditEvent() {
+        String tenant = tenant();
+        assertThrows(IllegalStateException.class, () -> tx.inTransaction(() -> {
+            mandates.createOrGet(tenant, ACTOR, new MandateRequest("OC-AU-3", "oc", null, null, null, null));
+            throw new IllegalStateException("refused after the audit event was written");
+        }));
+
+        assertTrue(mandates.list(tenant, null, null, 0, 50).isEmpty());
+        assertTrue(audit.list(tenant, null, null, null, null, 100).isEmpty(), "the event went with the rollback");
+    }
+
+    @Test
+    void concurrentFleetPatchesKeepBothChanges() throws Exception {
         String tenant = tenant();
         Carrier carrier = fleet.createCarrier(tenant, ACTOR, new CarrierRequest(null, "33333333-3", "Uno SpA",
                 null, null, null, null, null, null, false, null));
@@ -213,17 +244,69 @@ class PgTransactionsTest {
                 null, "rampla", null, null, false, null));
         Driver driver = fleet.createDriver(tenant, ACTOR, new DriverRequest(carrier.id(), null, "44444444-4",
                 "Ana", "Rojas", null, null, null, null, null, null, false, null));
+        UUID cid = UUID.fromString(carrier.id());
+        UUID tid = UUID.fromString(truck.id());
+        UUID rid = UUID.fromString(trailer.id());
+        UUID did = UUID.fromString(driver.id());
 
-        assertEquals("Uno Dos SpA", fleet.updateCarrier(tenant, ACTOR, UUID.fromString(carrier.id()),
-                new CarrierRequest(null, null, "Uno Dos SpA", null, null, null, null, null, null, null, null))
-                .legalName());
-        assertEquals("camion", fleet.updateTruck(tenant, ACTOR, UUID.fromString(truck.id()),
-                new TruckRequest(null, null, null, null, "camion", null, null, null, null, null)).truckType());
-        assertEquals("cama baja", fleet.updateTrailer(tenant, ACTOR, UUID.fromString(trailer.id()),
-                new TrailerRequest(null, null, null, null, "cama baja", null, null, null, null)).trailerType());
-        assertEquals("Ana Soto", fleet.updateDriver(tenant, ACTOR, UUID.fromString(driver.id()),
-                new DriverRequest(null, null, null, null, "Soto", null, null, null, null, null, null, null, null))
-                .fullName());
+        // each race: a writer reads (locked), pauses, and writes its stale copy plus one field,
+        // while a PATCH of another field arrives in the pause
+        race(() -> fleetStore.findCarrier(tenant, cid).orElseThrow(),
+                c -> fleetStore.updateCarrier(new Carrier(c.id(), tenant, c.externalId(), c.rut(), c.legalName(),
+                        c.transportLicense(), c.transportLicenseExpires(), "Contacto", c.phone(), c.email(),
+                        c.status(), c.isOccasional(), c.sourceSystem(), c.sourceData(), c.createdAt(),
+                        c.createdBy(), null, ACTOR)),
+                () -> fleet.updateCarrier(tenant, ACTOR, cid,
+                        new CarrierRequest(null, null, null, null, null, null, "+56900000002", null, null, null, null)));
+        race(() -> fleetStore.findTruck(tenant, tid).orElseThrow(),
+                t -> fleetStore.updateTruck(new Truck(t.id(), tenant, t.carrierId(), t.externalId(),
+                        t.licensePlate(), "VIN1", t.truckType(), t.maxWeight(), t.volume(), t.status(),
+                        t.isOccasional(), t.sourceSystem(), t.sourceData(), t.createdAt(), t.createdBy(), null,
+                        ACTOR)),
+                () -> fleet.updateTruck(tenant, ACTOR, tid,
+                        new TruckRequest(null, null, null, null, "camion", null, null, null, null, null)));
+        race(() -> fleetStore.findTrailer(tenant, rid).orElseThrow(),
+                t -> fleetStore.updateTrailer(new Trailer(t.id(), tenant, t.carrierId(), t.externalId(),
+                        t.licensePlate(), "VIN2", t.trailerType(), t.maxWeight(), t.status(), t.isOccasional(),
+                        t.sourceSystem(), t.sourceData(), t.createdAt(), t.createdBy(), null, ACTOR)),
+                () -> fleet.updateTrailer(tenant, ACTOR, rid,
+                        new TrailerRequest(null, null, null, null, "cama baja", null, null, null, null)));
+        race(() -> fleetStore.findDriver(tenant, did).orElseThrow(),
+                d -> fleetStore.updateDriver(new Driver(d.id(), tenant, d.carrierId(), d.externalId(), d.rut(),
+                        d.firstName(), d.lastName(), d.fullName(), "+56900000003", d.mobilePhone(),
+                        d.licenseCategory(), d.licenseExpires(), d.status(), d.isOccasional(), d.sourceSystem(),
+                        d.sourceData(), d.createdAt(), d.createdBy(), null, ACTOR)),
+                () -> fleet.updateDriver(tenant, ACTOR, did, new DriverRequest(null, null, null, null, null, null,
+                        null, "+56900000004", null, null, null, null, null)));
+
+        Carrier c = fleetStore.findCarrier(tenant, cid).orElseThrow();
+        assertEquals("Contacto", c.contactName());
+        assertEquals("+56900000002", c.phone());
+        Truck t = fleetStore.findTruck(tenant, tid).orElseThrow();
+        assertEquals("VIN1", t.vin());
+        assertEquals("camion", t.truckType());
+        Trailer r = fleetStore.findTrailer(tenant, rid).orElseThrow();
+        assertEquals("VIN2", r.vin());
+        assertEquals("cama baja", r.trailerType());
+        Driver d = fleetStore.findDriver(tenant, did).orElseThrow();
+        assertEquals("+56900000003", d.phone());
+        assertEquals("+56900000004", d.mobilePhone());
+    }
+
+    private <T> void race(Supplier<T> lockedRead, Consumer<T> staleWrite, Runnable concurrentPatch)
+            throws Exception {
+        CountDownLatch read = new CountDownLatch(1);
+        ExecutorService other = Executors.newSingleThreadExecutor();
+        Future<?> slow = other.submit(() -> fleetTx.inTransaction(() -> {
+            T stale = lockedRead.get();
+            read.countDown();
+            sleep(300);
+            staleWrite.accept(stale);
+        }));
+        read.await(10, TimeUnit.SECONDS);
+        concurrentPatch.run();
+        slow.get(30, TimeUnit.SECONDS);
+        other.shutdown();
     }
 
     private static void sleep(long ms) {

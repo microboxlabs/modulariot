@@ -54,19 +54,8 @@ public class PgAuditStore implements AuditStore {
                 .addString(e.tenantCode()).addString(e.actor()).addString(e.action())
                 .addString(e.entityType()).addString(e.entityId()).addUUID(Pg.parse(e.tripId()))
                 .addString(Pg.json(e.details() == null ? Map.of() : e.details()));
-        if (!Pg.inTransaction()) {
-            return event(query(pool.get(), INSERT, params).iterator().next());
-        }
-        // a failed insert would abort the whole transaction; the savepoint confines it to the event
-        Pg.command("SAVEPOINT trips_audit");
-        try {
-            AuditEvent stored = event(query(pool.get(), INSERT, params).iterator().next());
-            Pg.command("RELEASE SAVEPOINT trips_audit");
-            return stored;
-        } catch (RuntimeException ex) {
-            Pg.command("ROLLBACK TO SAVEPOINT trips_audit");
-            throw ex;
-        }
+        // a failed insert must not abort the operation's transaction: the savepoint confines it
+        return Pg.savepoint(() -> event(query(pool.get(), INSERT, params).iterator().next()));
     }
 
     @Override

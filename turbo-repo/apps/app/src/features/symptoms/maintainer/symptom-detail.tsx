@@ -148,6 +148,7 @@ export default function SymptomDetail({
     external,
     discard,
     resync,
+    showPublished,
     planIsCurrent,
   } = useSymptomDraft(id, canWrite);
   const { data: families, error: familiesError } = useSymptomFamilies();
@@ -207,8 +208,6 @@ export default function SymptomDetail({
     setActionError(null);
     try {
       await work();
-      await refreshSymptoms(undefined, scope);
-      await resync();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -479,10 +478,10 @@ export default function SymptomDetail({
         open={publishing}
         d={d}
         onClose={() => setPublishing(false)}
-        onPublished={() => {
+        onPublished={(version) => {
           setPublishing(false);
           void refreshSymptoms(undefined, scope);
-          void resync();
+          void showPublished(version);
         }}
       />
 

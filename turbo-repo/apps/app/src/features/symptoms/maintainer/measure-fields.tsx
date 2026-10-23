@@ -24,7 +24,8 @@ const linkClass =
 
 /**
  * "Medida" in form mode: a numeric field, optionally minus another field or a
- * number, and its name. Other expressions are shown and edited under { }.
+ * number. Its name comes from the fields. Other expressions are shown and
+ * edited under { }.
  */
 export default function MeasureFields({
   measure,
@@ -98,23 +99,7 @@ export default function MeasureFields({
           </button>
         )}
       </div>
-      {form ? (
-        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-          <span className="text-gray-500">{tr("measureName", d)}</span>
-          <input
-            className={`${inputClass} w-72`}
-            disabled={readOnly}
-            value={measure?.label ?? ""}
-            onChange={(e) =>
-              onChange({
-                expression,
-                label: e.target.value || null,
-                unit: measure?.unit ?? null,
-              })
-            }
-          />
-        </label>
-      ) : (
+      {!form && (
         <span className="text-sm text-gray-500">{tr("noMeasure", d)}</span>
       )}
     </div>

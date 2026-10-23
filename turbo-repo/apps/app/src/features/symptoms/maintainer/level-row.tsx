@@ -158,12 +158,15 @@ function RangeInputs({
 /** A level's thresholds as inline inputs: the measure range, then the hold time. */
 export function ThresholdInputs({
   thresholds,
+  measureName = null,
   unit,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   thresholds: LevelThresholds;
+  /** The measure's name, shown in place of "medida". */
+  measureName?: string | null;
   unit: string | null;
   readOnly: boolean;
   d: I18nRecord;
@@ -177,7 +180,7 @@ export function ThresholdInputs({
     <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-700 dark:text-gray-200">
       <RangeInputs
         range={measure}
-        name={tr("measureWord", d)}
+        name={measureName ?? tr("measureWord", d)}
         unit={unit}
         readOnly={readOnly}
         d={d}
@@ -232,6 +235,7 @@ function ResponseSummary({
 function LevelRule({
   level,
   mode,
+  measureName,
   unit,
   fields,
   problems,
@@ -241,6 +245,7 @@ function LevelRule({
 }: Readonly<{
   level: Level;
   mode: EditMode;
+  measureName: string | null;
   unit: string | null;
   fields: CelField[];
   problems: ReturnType<typeof problemsFor>;
@@ -253,6 +258,7 @@ function LevelRule({
     return (
       <ThresholdInputs
         thresholds={thresholds}
+        measureName={measureName}
         unit={unit}
         readOnly={readOnly}
         d={d}
@@ -487,6 +493,7 @@ export default function LevelRow({
           <LevelRule
             level={level}
             mode={mode}
+            measureName={spec.measure?.label ?? null}
             unit={spec.measure?.unit ?? null}
             fields={fields}
             problems={problems}

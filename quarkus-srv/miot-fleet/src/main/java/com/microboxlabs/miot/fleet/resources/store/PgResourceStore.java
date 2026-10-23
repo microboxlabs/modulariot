@@ -89,7 +89,7 @@ public class PgResourceStore implements ResourceStore {
                 .append(" FROM miot_fleet.carrier WHERE tenant_code = $1 AND version_of IS NULL");
         Tuple params = Tuple.of(tenantCode);
         if (q != null) {
-            params.addString("%" + q + "%");
+            params.addString(contains(q));
             int n = params.size();
             sql.append(" AND (rut ILIKE $").append(n).append(" OR legal_name ILIKE $").append(n).append(')');
         }
@@ -145,7 +145,7 @@ public class PgResourceStore implements ResourceStore {
                 .append(" FROM miot_fleet.truck WHERE tenant_code = $1 AND version_of IS NULL");
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
-            params.addString("%" + plate + "%");
+            params.addString(contains(plate));
             sql.append(" AND license_plate ILIKE $").append(params.size());
         }
         if (carrierId != null) {
@@ -202,7 +202,7 @@ public class PgResourceStore implements ResourceStore {
                 .append(" FROM miot_fleet.trailer WHERE tenant_code = $1 AND version_of IS NULL");
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
-            params.addString("%" + plate + "%");
+            params.addString(contains(plate));
             sql.append(" AND license_plate ILIKE $").append(params.size());
         }
         page(sql, params, "license_plate", page, size);
@@ -262,7 +262,7 @@ public class PgResourceStore implements ResourceStore {
             sql.append(" AND rut = $").append(params.size());
         }
         if (q != null) {
-            params.addString("%" + q + "%");
+            params.addString(contains(q));
             sql.append(" AND full_name ILIKE $").append(params.size());
         }
         page(sql, params, "full_name", page, size);
@@ -288,6 +288,11 @@ public class PgResourceStore implements ResourceStore {
     }
 
     // ---- shared ---------------------------------------------------------
+
+    /** An ILIKE pattern that matches {@code term} literally: % and _ in user input are not wildcards. */
+    private static String contains(String term) {
+        return "%" + term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    }
 
     private static void page(StringBuilder sql, Tuple params, String orderBy, int page, int size) {
         params.addInteger(size);

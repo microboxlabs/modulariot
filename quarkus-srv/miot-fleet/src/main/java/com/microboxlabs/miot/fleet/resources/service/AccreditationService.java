@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,7 +50,7 @@ public class AccreditationService {
                 Check.required(req.attributeType(), "attributeType", 64),
                 Check.required(req.attributeKey(), "attributeKey", 64),
                 Check.limitedOrNull(req.attributeValue(), "attributeValue", 64),
-                req.context() == null ? null : req.context().toString(),
+                req.context() == null || req.context().isNull() ? null : req.context().toString(),
                 req.validFrom(), req.validUntil(),
                 Check.limitedOrNull(req.sourceSystem(), "sourceSystem", 64),
                 null, actor, null, actor));
@@ -65,7 +66,8 @@ public class AccreditationService {
         String type = attributeType == null || attributeType.isBlank()
                 ? ResourceAttribute.SITE_ACCREDITATION : attributeType;
         String key = Check.required(attributeKey, "attributeKey", 64);
-        List<String> ok = values == null || values.isBlank() ? DEFAULT_OK : List.of(values.split(","));
+        List<String> ok = values == null || values.isBlank() ? DEFAULT_OK
+                : Arrays.stream(values.split(",")).map(String::trim).filter(v -> !v.isEmpty()).toList();
         OffsetDateTime when = at == null || at.isBlank() ? OffsetDateTime.now(ZoneOffset.UTC) : instant(at);
         return store.accredited(tenantCode, type, key, ok, when);
     }

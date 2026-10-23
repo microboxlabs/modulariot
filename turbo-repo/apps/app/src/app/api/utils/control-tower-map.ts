@@ -49,7 +49,8 @@ export const SSE_HEADERS = {
 
 /**
  * A modulith JSON array of positions as server-sent events, one per position,
- * after `transform`; errors pass through. A body that is not an array sends none.
+ * after `transform`; errors pass through. A JSON body that is not an array
+ * sends none; a body that is not JSON is a 502.
  */
 export async function positionsAsEvents<T>(
   response: Response,
@@ -57,7 +58,15 @@ export async function positionsAsEvents<T>(
 ): Promise<Response> {
   if (!response.ok) return response;
   const body = await response.text();
-  const parsed: unknown = body ? JSON.parse(body) : [];
+  let parsed: unknown = [];
+  try {
+    if (body) parsed = JSON.parse(body);
+  } catch {
+    return Response.json(
+      { error: "The modulith answered with invalid JSON" },
+      { status: 502 }
+    );
+  }
   const positions = Array.isArray(parsed) ? transform(parsed as T[]) : [];
   const events = positions
     .map((position) => `data: ${JSON.stringify(position)}\n\n`)

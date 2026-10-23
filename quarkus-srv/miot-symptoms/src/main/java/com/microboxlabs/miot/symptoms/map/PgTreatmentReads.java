@@ -113,7 +113,7 @@ public class PgTreatmentReads implements TreatmentReads {
                                                       AND (o.valid_to IS NULL OR o.valid_to >= a."timestamp"))))
             ),
             """ + KEPT + """
-            , trips AS (
+            , trips AS MATERIALIZED (
                 SELECT t.trip_id, t.start_time, t.end_time, t.pick
                 FROM (
                     SELECT trip_id, start_time, coalesce(end_time, closed_timestamp, now()) AS end_time, 1 AS pick

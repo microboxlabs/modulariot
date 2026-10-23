@@ -68,6 +68,8 @@ describe("GET /api/map/historic-pulses", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("sends the modulith's positions for the range as server-sent events, with the metres between them", async () => {
@@ -115,7 +117,14 @@ describe("GET /api/map/historic-pulses", () => {
 
     expect(await res.text()).toBe("");
     expect(fetchMock).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+  });
+
+  it("answers 502 when the modulith's body is not JSON", async () => {
+    forwardMock.mockImplementation(
+      async () => new Response("<html></html>", { status: 200 })
+    );
+
+    expect((await GET(request(range))).status).toBe(502);
   });
 
   it("passes a modulith 400 through", async () => {
@@ -147,7 +156,6 @@ describe("GET /api/map/historic-pulses", () => {
     expect(await res.text()).toBe("");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(forwardMock).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 
   it("refuses a request without a session", async () => {

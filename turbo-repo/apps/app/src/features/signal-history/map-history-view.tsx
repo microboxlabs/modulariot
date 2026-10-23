@@ -9,6 +9,11 @@ import FormattedDate from "../common/components/formatted-date";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 
+function rangeEnd(endDate: string) {
+  const end = dayjs(endDate);
+  return endDate.includes("T") ? end : end.endOf("day");
+}
+
 export default function MapHistoryView({
   dict,
   onBackClick,
@@ -21,9 +26,9 @@ export default function MapHistoryView({
   const startDate = searchParams.get("start_date") || "";
   const endDate = searchParams.get("end_date") || "";
 
-  // The form writes the range as day bounds with the browser's offset.
+  // The form writes day bounds with the browser's offset; a plain date is the whole day.
   const from = startDate ? dayjs(startDate) : null;
-  const to = endDate ? dayjs(endDate) : null;
+  const to = endDate ? rangeEnd(endDate) : null;
   const p_from = from ? from.format("YYYY-MM-DD HH:mm") : "";
   const p_to = to ? to.format("YYYY-MM-DD HH:mm") : "";
 

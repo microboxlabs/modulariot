@@ -65,7 +65,11 @@ export function useTripPositions(
 
     eventSource.onerror = () => {
       setPositions([...positionBuffer]);
-      console.error("EventSource connection failed", eventSource.readyState, size);
+      // The server closes the stream once it has sent every position, which
+      // EventSource reports as an error; only a stream with nothing is one.
+      if (size === 0) {
+        console.error("EventSource connection failed", eventSource.readyState);
+      }
       eventSource.close();
       setIsLoading(false);
     };

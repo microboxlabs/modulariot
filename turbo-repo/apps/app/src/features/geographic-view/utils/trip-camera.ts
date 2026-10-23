@@ -16,6 +16,9 @@ export type TripCamera =
       kind: "bounds";
       bounds: [[number, number], [number, number]];
       maxZoom: number;
+      /** A tilted camera pushes the near end of a short track off the bottom edge. */
+      pitch: number;
+      bearing: number;
     }
   | null;
 
@@ -45,6 +48,8 @@ export function tripCamera(
         [Math.max(...lngs), Math.max(...lats)],
       ],
       maxZoom: casePoint ? CASE_MAX_ZOOM : TRIP_MAX_ZOOM,
+      pitch: casePoint ? 0 : 45,
+      bearing: casePoint ? 0 : 45,
     };
   }
   const only =

@@ -232,8 +232,8 @@ export default function MapVisualizationTrip({
         padding: BOUNDS_PADDING,
         duration: 1000,
         maxZoom: camera.maxZoom,
-        pitch: 45,
-        bearing: 45,
+        pitch: camera.pitch,
+        bearing: camera.bearing,
       });
     } else if (camera?.kind === "point") {
       flyTo(mapRef.current, camera.target, camera.zoom);

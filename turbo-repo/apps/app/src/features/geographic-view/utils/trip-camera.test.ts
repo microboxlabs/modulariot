@@ -44,6 +44,8 @@ describe("tripCamera", () => {
         [-70.6, -33.4],
       ],
       maxZoom: TRIP_MAX_ZOOM,
+      pitch: 45,
+      bearing: 45,
     });
   });
 
@@ -56,6 +58,8 @@ describe("tripCamera", () => {
         [-70.651, -33.443],
       ],
       maxZoom: CASE_MAX_ZOOM,
+      pitch: 0,
+      bearing: 0,
     });
   });
 

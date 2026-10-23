@@ -76,5 +76,17 @@ describe("useTripPositions", () => {
     expect(result.current.positions).toHaveLength(1);
     expect(result.current.isLoading).toBe(false);
     expect(source.close).toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("logs only a stream that ended without positions", () => {
+    renderHook(() => useTripPositions("T1", "AB12", "7"));
+    const source = FakeEventSource.opened[0];
+    expect(source.url).toBe("/app/api/map/trip?tripId=T1&assetId=AB12");
+
+    act(() => source.onerror?.());
+
+    expect(source.close).toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledTimes(1);
   });
 });

@@ -12,7 +12,11 @@ import {
 import { MapPosition } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { mapLogger } from "@/lib/logger";
-import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  forwardControlTowerMap,
+  positionsAsEvents,
+  SSE_HEADERS,
+} from "@/app/api/utils/control-tower-map";
 import {
   isEngineCaseId,
   tripIdOf,
@@ -26,12 +30,6 @@ const config: AuthTokenConfig = {
 };
 
 const authToken = new AuthToken(config);
-
-const SSE_HEADERS = {
-  "Content-Type": "text/event-stream",
-  "Cache-Control": "no-cache, no-transform",
-  Connection: "keep-alive",
-};
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -80,15 +78,6 @@ export async function GET(req: NextRequest) {
 
   // Return streaming response
   return new Response(readable, { headers: SSE_HEADERS });
-}
-
-async function positionsAsEvents(response: Response): Promise<Response> {
-  if (!response.ok) return response;
-  const positions = (await response.json()) as MapPosition[];
-  const events = positions
-    .map((position) => `data: ${JSON.stringify(position)}\n\n`)
-    .join("");
-  return new Response(events, { headers: SSE_HEADERS });
 }
 
 async function streamPositions(

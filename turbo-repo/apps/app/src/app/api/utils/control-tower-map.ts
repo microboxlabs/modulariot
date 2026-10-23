@@ -15,7 +15,8 @@ export async function forwardControlTowerMap(
     | "conditions"
     | "symptoms"
     | `symptoms/${string}`
-    | `trips/${string}`,
+    | `trips/${string}`
+    | `assets/${string}`,
   search = ""
 ): Promise<NextResponse> {
   const scope = await resolveTenantScope();
@@ -38,4 +39,20 @@ export function isoDate(value: string): string {
     return `${date.slice(0, 10)}T${date.slice(11)}`;
   }
   return date;
+}
+
+export const SSE_HEADERS = {
+  "Content-Type": "text/event-stream",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+};
+
+/** A modulith JSON array of positions as server-sent events, one per position; errors pass through. */
+export async function positionsAsEvents(response: Response): Promise<Response> {
+  if (!response.ok) return response;
+  const positions = (await response.json()) as unknown[];
+  const events = positions
+    .map((position) => `data: ${JSON.stringify(position)}\n\n`)
+    .join("");
+  return new Response(events, { headers: SSE_HEADERS });
 }

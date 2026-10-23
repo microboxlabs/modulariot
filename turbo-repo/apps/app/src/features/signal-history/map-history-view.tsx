@@ -87,8 +87,11 @@ export default function MapHistoryView({
           </div>
         </CustomCard>
       </div>
-      {/* Pass the formatted dates to SignalsHistory */}
-      <SignalsHistory dict={dict} p_from={p_from} p_to={p_to} />
+      <SignalsHistory
+        dict={dict}
+        p_from={startDate ? dayjs(startDate).startOf("day").format() : ""}
+        p_to={endDate ? dayjs(endDate).endOf("day").format() : ""}
+      />
     </div>
   );
 }

@@ -23,10 +23,12 @@ export default function GeographicVisualization({
   data,
   isLoading,
   dict,
+  emptyMessage,
 }: {
   data: HistoricSignal[] | undefined;
   isLoading: boolean;
   dict: I18nRecord;
+  emptyMessage?: string;
 }) {
   const searchParams = useSearchParams();
   const p_from = searchParams.get("start_date") || "";
@@ -351,6 +353,16 @@ export default function GeographicVisualization({
           />
         </div>
 
+        {emptyMessage && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <p
+              role="status"
+              className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-700 shadow dark:bg-gray-800/90 dark:text-gray-200"
+            >
+              {emptyMessage}
+            </p>
+          </div>
+        )}
         <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
           {memoizedToolBar}
         </div>

@@ -1,4 +1,5 @@
 import { decimalText, exactNumber, isNumeric } from "./condition-form";
+import { compileThresholds, parseThresholds } from "./level-thresholds";
 import type { SourceField, SymptomSpec } from "./maintainer-api";
 
 /** What is subtracted from the measure's field: another field or a number. */
@@ -86,5 +87,33 @@ export function measureFromForm(
     expression: compileMeasure(form),
     label: keepLabel ? (previous?.label ?? null) : next.label,
     unit: keepUnit ? (previous?.unit ?? null) : next.unit,
+  };
+}
+
+const MEASURE_WORD = /\bmeasure\b/;
+
+/** True when a level that applies compares the measure. */
+export function levelsUseMeasure(spec: SymptomSpec): boolean {
+  return (spec.levels ?? []).some(
+    (l) => l.applies && MEASURE_WORD.test(l.when ?? "")
+  );
+}
+
+/**
+ * The spec with no measure. Levels written as thresholds lose their measure
+ * bounds and keep the time held; other rules are left for the owner to edit.
+ */
+export function withoutMeasure(spec: SymptomSpec): SymptomSpec {
+  const noMeasure = { lower: null, upper: null };
+  return {
+    ...spec,
+    measure: null,
+    levels:
+      spec.levels?.map((l) => {
+        const t = parseThresholds(l.when);
+        return t
+          ? { ...l, when: compileThresholds({ ...t, measure: noMeasure }) }
+          : l;
+      }) ?? null,
   };
 }

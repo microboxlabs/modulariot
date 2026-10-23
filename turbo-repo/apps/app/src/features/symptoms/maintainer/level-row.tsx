@@ -507,8 +507,10 @@ export default function LevelRow({
           <LevelRule
             level={level}
             mode={mode}
-            measureName={spec.measure?.label ?? null}
-            unit={spec.measure?.unit ?? null}
+            measureName={
+              spec.measure?.expression ? (spec.measure.label ?? null) : null
+            }
+            unit={spec.measure?.expression ? (spec.measure.unit ?? null) : null}
             fields={fields}
             problems={problems}
             readOnly={readOnly}

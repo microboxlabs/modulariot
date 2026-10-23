@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { SourceField } from "./maintainer-api";
-import { compileMeasure, measureFromForm, parseMeasure } from "./measure-form";
+import type { SourceField, SymptomSpec } from "./maintainer-api";
+import {
+  compileMeasure,
+  levelsUseMeasure,
+  measureFromForm,
+  parseMeasure,
+  withoutMeasure,
+} from "./measure-form";
 
 const field = (path: string, label: string, type = "number", unit = "km/h") =>
   ({
@@ -94,5 +100,45 @@ describe("measureFromForm", () => {
       label: "Exceso sobre el límite",
       unit: "km/h",
     });
+  });
+});
+
+describe("withoutMeasure", () => {
+  const level = (icu: number, when: string | null, applies = true) => ({
+    icu,
+    applies,
+    when,
+    response: null,
+  });
+  const spec = {
+    measure: {
+      expression: "signal.trip.minutes",
+      label: "Tiempo",
+      unit: "min",
+    },
+    levels: [
+      level(1, null, false),
+      level(2, "measure >= 10 && held_s >= 60"),
+      level(3, "measure > 0 || held_s > 0"),
+      level(4, "measure == 1000"),
+    ],
+  } as unknown as SymptomSpec;
+
+  it("drops the measure bounds and keeps the time held", () => {
+    const out = withoutMeasure(spec);
+    expect(out.measure).toBeNull();
+    expect(out.levels?.map((l) => l.when)).toEqual([
+      null,
+      "held_s >= 60",
+      "measure > 0 || held_s > 0",
+      "true",
+    ]);
+  });
+
+  it("knows when a level that applies still compares the measure", () => {
+    expect(levelsUseMeasure(spec)).toBe(true);
+    expect(
+      levelsUseMeasure({ ...spec, levels: [level(1, "measure > 0", false)] })
+    ).toBe(false);
   });
 });

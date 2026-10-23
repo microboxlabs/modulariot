@@ -9,6 +9,7 @@ import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
 import LevelsExpression from "./levels-expression";
 import MeasureFields from "./measure-fields";
+import { levelsUseMeasure, withoutMeasure } from "./measure-form";
 import LifecycleExpression from "./lifecycle-expression";
 import SampleTree, {
   firstOpening,
@@ -409,7 +410,12 @@ export default function SymptomRuleSections({
               fields={fields}
               readOnly={readOnly}
               d={d}
-              onChange={(next) => onChange({ ...spec, measure: next })}
+              levelsUseMeasure={levelsUseMeasure(spec)}
+              onChange={(next) =>
+                onChange(
+                  next ? { ...spec, measure: next } : withoutMeasure(spec)
+                )
+              }
               onEditAsExpression={() => setLevelsMode("expr")}
             />
             <Problems items={measure} />

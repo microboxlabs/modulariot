@@ -167,12 +167,12 @@ class SpecRulesTest {
     void aBlankMeasureIsNoMeasure() {
         SymptomSpec speeding = Specs.speeding();
         SymptomSpec blank = new SymptomSpec(speeding.source(), speeding.activation(),
-                new SymptomSpec.Measure("  ", null, null), List.of(
+                new SymptomSpec.Measure("  ", "Tiempo en viaje", "min"), List.of(
                         new Level(1, false, null, null), new Level(2, false, null, null),
                         new Level(3, false, null, null), new Level(4, true, "held_s >= 60", null)),
                 speeding.lifecycle(), speeding.recurrence());
 
-        assertNull(blank.measure().expression());
+        assertNull(blank.measure());
         assertTrue(SpecValidator.validate(blank, Specs.gpsSignal()).findings().stream()
                 .noneMatch(f -> f.section().equals("measure")));
     }

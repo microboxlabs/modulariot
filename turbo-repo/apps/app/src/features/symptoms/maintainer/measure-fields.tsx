@@ -32,6 +32,7 @@ export default function MeasureFields({
   measure,
   fields,
   readOnly,
+  levelsUseMeasure = false,
   d,
   onChange,
   onEditAsExpression,
@@ -39,6 +40,8 @@ export default function MeasureFields({
   measure: Measure | null | undefined;
   fields: SourceField[];
   readOnly: boolean;
+  /** A level still compares the measure, so removing it has work to do. */
+  levelsUseMeasure?: boolean;
   d: I18nRecord;
   onChange: (measure: Measure | null) => void;
   onEditAsExpression: () => void;
@@ -67,6 +70,7 @@ export default function MeasureFields({
 
   const set = (next: MeasureForm) =>
     onChange(measureFromForm(next, measure, fields));
+  const removable = !readOnly && (form !== null || levelsUseMeasure);
 
   return (
     <div className="flex flex-col gap-2">
@@ -92,7 +96,7 @@ export default function MeasureFields({
             {measure.unit}
           </span>
         )}
-        {form && !readOnly && (
+        {removable && (
           <button
             type="button"
             className={linkClass}

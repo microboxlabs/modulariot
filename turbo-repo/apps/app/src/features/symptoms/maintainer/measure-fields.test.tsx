@@ -49,6 +49,13 @@ describe("MeasureFields", () => {
     renderIt(null);
     expect(screen.getByText("Sin medida")).toBeTruthy();
     expect(screen.getByLabelText("Campo")).toBeTruthy();
+    expect(screen.queryByText("Quitar medida")).toBeNull();
+  });
+
+  it("removes a missing measure that levels still compare", () => {
+    const { onChange } = renderIt(null, { levelsUseMeasure: true });
+    fireEvent.click(screen.getByText("Quitar medida"));
+    expect(onChange).toHaveBeenLastCalledWith(null);
   });
 
   it("subtracts a number and removes the measure", () => {

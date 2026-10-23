@@ -7,6 +7,7 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { Step } from "./maintainer-api";
 import ScriptModal from "./script-modal";
 import { ChannelIcon } from "./ui/channel-icon";
+import Select from "./ui/select";
 
 /** How the operator reaches the person in a step. */
 export const STEP_CHANNELS = [
@@ -95,10 +96,10 @@ function StepItem({
       <StepIcon channel={step.channel} />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-gray-500">
+          <span className="text-gray-500 dark:text-gray-400">
             {tr("stepN", d, { n: String(index + 1) })}
           </span>
-          <select
+          <Select
             aria-label={tr("stepChannel", d)}
             className={inputClass}
             disabled={readOnly}
@@ -110,8 +111,10 @@ function StepItem({
                 {trDynamic(c.label, d)}
               </option>
             ))}
-          </select>
-          <span className="text-gray-500">{tr("stepTo", d)}</span>
+          </Select>
+          <span className="text-gray-500 dark:text-gray-400">
+            {tr("stepTo", d)}
+          </span>
           <input
             aria-label={tr("stepRole", d)}
             className={`${inputClass} min-w-32 flex-1`}
@@ -152,7 +155,9 @@ function StepItem({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
-          <span className="text-gray-500">{tr("stepScriptLabel", d)}</span>
+          <span className="text-gray-500 dark:text-gray-400">
+            {tr("stepScriptLabel", d)}
+          </span>
           <button
             type="button"
             className="text-blue-600 hover:underline dark:text-blue-400"
@@ -249,7 +254,9 @@ export default function LevelSteps({
         )}
       </div>
       {steps.length === 0 && (
-        <p className="text-xs text-gray-500">{tr("noSteps", d)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("noSteps", d)}
+        </p>
       )}
       <ol className="flex flex-col">
         {steps.map((s, i) => (

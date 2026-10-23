@@ -81,7 +81,7 @@ export default function HarnessPanel({
             <button
               key={key}
               type="button"
-              className="text-xs text-gray-500 hover:text-gray-900 hover:underline dark:hover:text-white"
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 hover:underline dark:hover:text-white"
               onClick={() => setText(trDynamic(`${key}Text`, d))}
             >
               {trDynamic(key, d)}

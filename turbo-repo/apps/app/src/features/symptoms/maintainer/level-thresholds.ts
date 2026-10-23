@@ -1,6 +1,7 @@
 import { decimalText, exactNumber } from "./condition-form";
 
-export type LowerOp = ">" | ">=";
+/** "==" is an exact value: it takes the lower slot and leaves no upper bound. */
+export type LowerOp = ">" | ">=" | "==";
 export type UpperOp = "<" | "<=";
 
 export interface Bound<Op> {
@@ -25,12 +26,18 @@ export const DEFAULT_LEVEL_RULE = "measure > 0";
 
 const VARIABLES = { measure: "measure", held_s: "held" } as const;
 type Variable = keyof typeof VARIABLES;
-const TERM = /^(measure|held_s)\s*(>=|<=|>|<)\s*(\S+)$/;
+const TERM = /^(measure|held_s)\s*(==|>=|<=|>|<)\s*(\S+)$/;
 
 const emptyRange = (): Range => ({ lower: null, upper: null });
 
 /** Puts one bound into its range; false when the range already has one on that side. */
 function place(range: Range, op: string, value: number): boolean {
+  if (range.lower?.op === "==") return false;
+  if (op === "==") {
+    if (range.lower || range.upper) return false;
+    range.lower = { op, value };
+    return true;
+  }
   if (op === ">" || op === ">=") {
     if (range.lower) return false;
     range.lower = { op, value };
@@ -59,6 +66,8 @@ export function parseThresholds(when: string | null): LevelThresholds | null {
     const [, variable = "", op = "", raw = ""] = m;
     const value = exactNumber(raw);
     if (value === null) return null;
+    // held_s is seconds held, checked as "enough time has passed": an exact value is never reached.
+    if (variable === "held_s" && op === "==") return null;
     if (!place(out[VARIABLES[variable as Variable]], op, value)) return null;
   }
   return out;

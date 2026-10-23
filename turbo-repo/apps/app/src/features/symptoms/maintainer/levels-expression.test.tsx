@@ -21,14 +21,11 @@ vi.mock("./cel-editor", () => ({
   insertIntoFocused: vi.fn(),
 }));
 
-vi.mock("./ui/level-icon", () => ({ LevelIcon: () => <span /> }));
-
-import LevelsExpression from "./levels-expression";
+import LevelsExpression, { levelsVerdict } from "./levels-expression";
 
 const d = {
   measureCelLabel: "Medida · CEL",
-  levelsCelLabel: "Umbral por nivel · CEL",
-  levelReached: "alcanzado",
+  noMeasure: "Sin medida",
   levelName1: "Bajo observación",
   levelName2: "Comprometida",
   levelName3: "Crítica",
@@ -51,7 +48,11 @@ const level = (icu: number, applies: boolean, when: string) => ({
 const SPEC = {
   source: "gps_signal",
   activation: "true",
-  measure: { expression: "signal.frame.gps.speed - 90", label: null, unit: null },
+  measure: {
+    expression: "signal.frame.gps.speed - 90",
+    label: null,
+    unit: null,
+  },
   levels: [
     level(1, true, "measure > 0 && measure < 5"),
     level(2, false, ""),
@@ -74,55 +75,78 @@ const PREVIEW: Preview = {
   samples: [sample({}), sample({ activates: false, level: null })],
 };
 
-const renderIt = (preview: Preview | undefined, onChange = vi.fn()) =>
+const renderIt = (
+  preview: Preview | undefined,
+  { index = 0, onChange = vi.fn(), onIndex = vi.fn() } = {}
+) =>
   render(
     <LevelsExpression
       spec={SPEC}
       preview={preview}
+      index={index}
       fields={[]}
       sourceFields={[]}
-      levelFields={[]}
       findings={[]}
       readOnly={false}
       d={d}
+      onIndex={onIndex}
       onChange={onChange}
     />
   );
 
 describe("LevelsExpression", () => {
-  it("shows the measure and the levels that apply, with ✓ on the level the sample reaches", () => {
+  it("shows the measure and what the sample does, without the level thresholds", () => {
     renderIt(PREVIEW);
     expect(
       (screen.getByLabelText("Medida · CEL") as HTMLTextAreaElement).value
     ).toBe("signal.frame.gps.speed - 90");
-    expect(
-      screen.queryByLabelText("Umbral por nivel · CEL · Comprometida")
-    ).toBeNull();
-    const reached = screen.getByText("alcanzado").parentElement;
-    expect(reached?.textContent).toBe("✓alcanzado");
-    expect(screen.getAllByText("✓")).toHaveLength(1);
+    expect(screen.queryByLabelText(/Umbral por nivel/)).toBeNull();
     expect(screen.getByText("Abre un caso · medida 22 → Crítica")).toBeTruthy();
+  });
 
-    fireEvent.click(screen.getByLabelText("Siguiente"));
-    expect(screen.queryByText("✓")).toBeNull();
+  it("shows the sample it is given and asks for the next one", () => {
+    const onIndex = vi.fn();
+    renderIt(PREVIEW, { index: 1, onIndex });
     expect(screen.getByText("No abre un caso.")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Anterior"));
+    expect(onIndex).toHaveBeenCalledWith(0);
   });
 
-  it("writes a level's new rule into that level", () => {
+  it("writes the new measure into the spec", () => {
     const onChange = vi.fn();
-    renderIt(PREVIEW, onChange);
-    fireEvent.change(
-      screen.getByLabelText("Umbral por nivel · CEL · Crítica"),
-      { target: { value: "measure >= 6" } }
-    );
+    renderIt(PREVIEW, { onChange });
+    fireEvent.change(screen.getByLabelText("Medida · CEL"), {
+      target: { value: "signal.frame.gps.speed - 100" },
+    });
     const next = onChange.mock.calls[0]?.[0] as SymptomSpec;
-    expect(next.levels?.find((l) => l.icu === 3)?.when).toBe("measure >= 6");
-    expect(next.levels?.map((l) => l.icu)).toEqual([1, 2, 3]);
+    expect(next.measure?.expression).toBe("signal.frame.gps.speed - 100");
+    expect(next.levels).toEqual(SPEC.levels);
   });
 
-  it("marks nothing while the preview of the spec on screen is being made", () => {
+  it("says nothing about the sample while the preview is being made", () => {
     renderIt(undefined);
-    expect(screen.queryByText("✓")).toBeNull();
     expect(screen.queryByText(/Abre un caso/)).toBeNull();
+  });
+});
+
+describe("levelsVerdict", () => {
+  it("names the conditions of section 1 that kept the case closed", () => {
+    const closed = sample({
+      activates: false,
+      level: null,
+      clauses: [
+        { text: "a == TRUE", holds: false, values: {}, error: null },
+        { text: "b > 1", holds: true, values: {}, error: null },
+      ],
+    });
+    expect(
+      levelsVerdict(closed, {
+        ...d,
+        verdictNoCaseBecause: "No abre: {conditions}",
+      })
+    ).toBe("No abre: a == TRUE");
+    expect(levelsVerdict(sample({ activates: false }), d)).toBe(
+      "No abre un caso."
+    );
   });
 });

@@ -111,6 +111,15 @@ public final class RuleText {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
+    /** The variables the rule reads, such as {@code measure} or {@code signal}; empty when it does not parse. */
+    public static Set<String> identifiers(String rule) {
+        Set<String> out = new LinkedHashSet<>();
+        parse(rule).ifPresent(ast -> CelNavigableAst.fromAst(ast).getRoot().allNodes()
+                .filter(n -> n.getKind() == ExprKind.Kind.IDENT)
+                .forEach(n -> out.add(n.expr().ident().name())));
+        return out;
+    }
+
     /** The numeric literals in the rule. */
     public static List<Double> numbers(String rule) {
         List<Double> out = new ArrayList<>();

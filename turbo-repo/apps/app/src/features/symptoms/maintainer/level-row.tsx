@@ -28,8 +28,10 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
+import { CHANGED_ROW } from "./ui/changed";
 import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
+import Select from "./ui/select";
 
 export type EditMode = "form" | "expr";
 
@@ -81,12 +83,13 @@ function BoundInput<Op extends string>({
   const symbol: Record<string, string> = {
     ">": ">",
     ">=": "≥",
+    "==": "=",
     "<": "<",
     "<=": "≤",
   };
   return (
     <span className="inline-flex items-center gap-1">
-      <select
+      <Select
         aria-label={`${label} · operador`}
         className={pillClass}
         disabled={readOnly}
@@ -98,7 +101,7 @@ function BoundInput<Op extends string>({
             {symbol[op]}
           </option>
         ))}
-      </select>
+      </Select>
       <NumberValue
         value={bound.value}
         unit={null}
@@ -114,11 +117,13 @@ function RangeInputs({
   range,
   name,
   unit,
+  lowerOps,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   range: Range;
+  lowerOps: LowerOp[];
   name: string;
   unit: string | null;
   readOnly: boolean;
@@ -128,18 +133,23 @@ function RangeInputs({
   if (!range.lower && !range.upper) return null;
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <span className="text-gray-500">{name}</span>
+      <span className="text-gray-500 dark:text-gray-400">{name}</span>
       {range.lower && (
         <BoundInput<LowerOp>
           bound={range.lower}
-          ops={[">", ">="]}
+          ops={lowerOps}
           label={`${name} ${tr("from", d)}`}
           readOnly={readOnly}
-          onChange={(lower) => onChange({ ...range, lower })}
+          onChange={(lower) =>
+            onChange({
+              lower,
+              upper: lower.op === "==" ? null : range.upper,
+            })
+          }
         />
       )}
       {range.lower && range.upper && (
-        <span className="text-gray-500">{tr("and", d)}</span>
+        <span className="text-gray-500 dark:text-gray-400">{tr("and", d)}</span>
       )}
       {range.upper && (
         <BoundInput<UpperOp>
@@ -150,7 +160,9 @@ function RangeInputs({
           onChange={(upper) => onChange({ ...range, upper })}
         />
       )}
-      {unit && <span className="text-xs text-gray-500">{unit}</span>}
+      {unit && (
+        <span className="text-xs text-gray-500 dark:text-gray-400">{unit}</span>
+      )}
     </span>
   );
 }
@@ -158,12 +170,15 @@ function RangeInputs({
 /** A level's thresholds as inline inputs: the measure range, then the hold time. */
 export function ThresholdInputs({
   thresholds,
+  measureName = null,
   unit,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   thresholds: LevelThresholds;
+  /** The measure's name, shown in place of "medida". */
+  measureName?: string | null;
   unit: string | null;
   readOnly: boolean;
   d: I18nRecord;
@@ -172,13 +187,18 @@ export function ThresholdInputs({
   const { measure, held } = thresholds;
   const none = !measure.lower && !measure.upper && !held.lower && !held.upper;
   if (none)
-    return <span className="text-sm text-gray-500">{tr("always", d)}</span>;
+    return (
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        {tr("always", d)}
+      </span>
+    );
   return (
     <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-700 dark:text-gray-200">
       <RangeInputs
         range={measure}
-        name={tr("measureWord", d)}
+        name={measureName ?? tr("measureWord", d)}
         unit={unit}
+        lowerOps={[">", ">=", "=="]}
         readOnly={readOnly}
         d={d}
         onChange={(m) => onChange({ ...thresholds, measure: m })}
@@ -187,6 +207,7 @@ export function ThresholdInputs({
         range={held}
         name={tr("heldWord", d)}
         unit="s"
+        lowerOps={[">", ">="]}
         readOnly={readOnly}
         d={d}
         onChange={(h) => onChange({ ...thresholds, held: h })}
@@ -232,6 +253,7 @@ function ResponseSummary({
 function LevelRule({
   level,
   mode,
+  measureName,
   unit,
   fields,
   problems,
@@ -241,6 +263,7 @@ function LevelRule({
 }: Readonly<{
   level: Level;
   mode: EditMode;
+  measureName: string | null;
   unit: string | null;
   fields: CelField[];
   problems: ReturnType<typeof problemsFor>;
@@ -253,6 +276,7 @@ function LevelRule({
     return (
       <ThresholdInputs
         thresholds={thresholds}
+        measureName={measureName}
         unit={unit}
         readOnly={readOnly}
         d={d}
@@ -312,7 +336,7 @@ function EvidenceSelect({
   return (
     <label className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
       <span>{tr("closeRequires", d)}</span>
-      <select
+      <Select
         className={pillClass}
         disabled={readOnly}
         value={value}
@@ -325,7 +349,7 @@ function EvidenceSelect({
             {trDynamic(e.label, d)}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }
@@ -346,7 +370,7 @@ function OperatorDetail({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center">
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           {tr("operatorHandling", d)}
         </span>
         <span className="ml-auto">
@@ -397,7 +421,7 @@ function OperatorDetail({
           />
         </>
       ) : (
-        <p className="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-sm text-gray-500 dark:border-gray-600">
+        <p className="rounded-lg border border-dashed border-gray-300 px-3 py-3 text-sm text-gray-500 dark:text-gray-400 dark:border-gray-600">
           {tr("nobodyHandles", d)}
         </p>
       )}
@@ -416,7 +440,7 @@ export default function LevelRow({
   spec,
   sample,
   changed = false,
-  showProblems = true,
+  reached = false,
   icu,
   mode,
   fields,
@@ -432,8 +456,8 @@ export default function LevelRow({
   sample?: Record<string, unknown>;
   /** The level differs from the published version. */
   changed?: boolean;
-  /** False when the level's problems are shown elsewhere, as under the { } editors. */
-  showProblems?: boolean;
+  /** The previewed sample reaches this level; marked with a ✓. */
+  reached?: boolean;
   icu: number;
   mode: EditMode;
   fields: CelField[];
@@ -451,15 +475,16 @@ export default function LevelRow({
     onChange(withLevel(spec, { ...level, ...patch }));
   const setResponse = (patch: Partial<LevelResponse>) =>
     set({ response: { ...response, ...patch } });
-  const problems = problemsFor(findings, `levels.${icu}`);
+  const problems = problemsFor(findings, `levels.${icu}`, d);
+  const responseProblems = problemsFor(findings, `levels.${icu}.response`, d);
   const name = trDynamic(`levelName${icu}`, d);
 
   return (
     <div
-      className={`${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? "rounded-md bg-amber-50/70 ring-1 ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-600/60" : ""}`}
+      className={`last:rounded-b-lg ${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? CHANGED_ROW : ""}`}
       data-changed={changed || undefined}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-1 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         <LevelIcon
           icu={icu}
           label={name}
@@ -474,20 +499,34 @@ export default function LevelRow({
           disabled={readOnly}
           label={tr("levelApplies", d)}
           onChange={(applies) =>
-            set({ applies, when: level.when || DEFAULT_LEVEL_RULE })
+            set({
+              applies,
+              when:
+                level.when ||
+                (spec.measure?.expression ? DEFAULT_LEVEL_RULE : "true"),
+            })
           }
         />
         {level.applies && (
           <LevelRule
             level={level}
             mode={mode}
-            unit={spec.measure?.unit ?? null}
+            measureName={
+              spec.measure?.expression ? (spec.measure.label ?? null) : null
+            }
+            unit={spec.measure?.expression ? (spec.measure.unit ?? null) : null}
             fields={fields}
             problems={problems}
             readOnly={readOnly}
             d={d}
             onChange={(when) => set({ when })}
           />
+        )}
+        {reached && (
+          <span className="font-semibold text-green-600 dark:text-green-400">
+            <span aria-hidden>✓</span>
+            <span className="sr-only">{tr("levelReached", d)}</span>
+          </span>
         )}
         {level.applies && (
           <span className="ml-auto flex items-center gap-2">
@@ -498,7 +537,7 @@ export default function LevelRow({
               aria-label={
                 open ? tr("hideLevelDetail", d) : tr("showLevelDetail", d)
               }
-              className="text-gray-500 hover:text-gray-900 dark:hover:text-white"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               onClick={() => setOpen((o) => !o)}
             >
               {open ? (
@@ -510,9 +549,13 @@ export default function LevelRow({
           </span>
         )}
       </div>
-      {level.applies && showProblems && <Problems items={problems} />}
+      {level.applies && (
+        <div className="px-4 pb-2">
+          <Problems items={[...problems, ...responseProblems]} />
+        </div>
+      )}
       {level.applies && open && (
-        <div className="grid grid-cols-1 gap-5 px-1 pb-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 px-4 pb-4 lg:grid-cols-2">
           <LevelNotices
             notices={response.notices ?? []}
             connections={connections}

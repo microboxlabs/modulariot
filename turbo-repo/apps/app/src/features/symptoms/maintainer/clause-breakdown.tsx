@@ -71,7 +71,7 @@ export default function ClauseBreakdown({
   const clauses = sample.clauses ?? [];
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-700">
-      <div className="flex items-center gap-2 text-xs text-gray-500">
+      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
         <span className="font-medium uppercase tracking-wide">
           {tr("clauseByClause", d)}
         </span>
@@ -105,7 +105,9 @@ export default function ClauseBreakdown({
         )}
       </div>
       {clauses.length === 0 ? (
-        <p className="text-xs text-gray-500">{tr("noClauses", d)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("noClauses", d)}
+        </p>
       ) : (
         <ul className="flex flex-col gap-1">
           {clauses.map((c, i) => {
@@ -127,7 +129,7 @@ export default function ClauseBreakdown({
                 </span>
                 <span className="sr-only">{trDynamic(m.key, d)}</span>
                 <code className="text-xs">{c.text}</code>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {c.error ??
                     Object.entries(c.values)
                       .map(([path, v]) => `${path} = ${valueText(v)}`)

@@ -20,7 +20,12 @@ import {
 } from "./ui/response-block";
 import Select from "./ui/select";
 
+/**
+ * When a level's notice goes out. "reach" is the case opening at this level
+ * or rising to it; "open" and "level_up" are each of those alone.
+ */
 const WHEN = [
+  { key: "reach", label: "whenReach" },
   { key: "open", label: "whenOpen" },
   { key: "level_up", label: "whenLevelUp" },
   { key: "sla_expired", label: "whenSlaExpired" },
@@ -194,7 +199,7 @@ export default function LevelNotices({
   const add = (type: ChannelType) => {
     onChange([
       ...notices,
-      { when: "open", channel: type.key, channelId: null, recipient: "" },
+      { when: "reach", channel: type.key, channelId: null, recipient: "" },
     ]);
     setPicking(false);
   };

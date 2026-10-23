@@ -44,7 +44,7 @@ describe("LevelNotices", () => {
     expect(screen.queryByText("Correo")).toBeNull();
     fireEvent.click(screen.getByText("Slack"));
     expect(onChange).toHaveBeenCalledWith([
-      { when: "open", channel: "slack", channelId: null, recipient: "" },
+      { when: "reach", channel: "slack", channelId: null, recipient: "" },
     ]);
   });
 

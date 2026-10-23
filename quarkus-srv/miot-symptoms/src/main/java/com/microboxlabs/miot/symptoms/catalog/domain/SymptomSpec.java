@@ -125,7 +125,8 @@ public record SymptomSpec(
      * An automatic notice. It names a channel type; at send time it goes out through the
      * organization's channel of that type, provided by the platform or by the organization.
      *
-     * @param when      on open, on level up, on SLA expiry, on close
+     * @param when      reach (the case opens at this level or rises to it), open (opens at this
+     *                  level), level_up (rises to it), sla_expired, close
      * @param channel   the channel type: email, whatsapp, teams, slack, webhook
      * @param channelId one of the organization's channels of that type; null for its default
      * @param recipient who receives it

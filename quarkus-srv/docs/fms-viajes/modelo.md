@@ -10,8 +10,8 @@
    `parada`, `descarga`, `cierre`). Una sola etapa en curso a la vez (índice parcial). Abrir la
    primera pone el viaje `en_ruta`; cerrar la etapa `cierre` lo realiza.
 3. **`service_status`: la etapa proyecta el estado de negocio.** Cada etapa puede declarar qué
-   estado —en el vocabulario del tenant— proyecta al tablero mientras corre (Mintral:
-   `ADDED`/`SCHEDULED`/`ONGOING`/`ARRIVED`/`FINISHED`; Exacta: `en ruta`/`cerrado`). Es dato, no
+   estado —en el vocabulario del tenant— proyecta al tablero mientras corre (un tenant:
+   `ADDED`/`SCHEDULED`/`ONGOING`/`ARRIVED`/`FINISHED`; otro: `en ruta`/`cerrado`). Es dato, no
    comportamiento: el motor no conoce vocabularios.
 4. **`trip_live` es proyección, no registro.** La fila caliente del tablero la mantienen triggers
    del registro (nace con el viaje, muere al realizarlo/anularlo). No tiene API de escritura.
@@ -168,7 +168,7 @@ Columnas en cada tabla de registro: `version_of UUID` (NULL = vigente), `is_acti
 | Trigger | Regla |
 |---|---|
 | línea automática | crear mandato ⇒ crea su `mandate_line` seq 1 |
-| una etapa en curso | índice parcial único sobre `(subject_id) WHERE status='en_curso'` |
+| una etapa en curso | índice parcial único sobre `(subject_type, subject_id) WHERE status='en_curso' AND version_of IS NULL AND is_active` |
 | consistencia carga→mandato | solo se monta carga de mandatos vinculados al viaje |
 | chequeo de recursos | `trip_resource_assignment.resource_id` debe existir en la tabla de `miot_fleet` que corresponda |
 | proyección `trip_live` | nace con el viaje, refresca con etapas/asignaciones (`COALESCE(service_status, status)`), muere al realizar/anular |

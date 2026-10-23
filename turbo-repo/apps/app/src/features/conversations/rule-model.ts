@@ -103,10 +103,41 @@ function clauses(when: string): string[] {
   return out.map((s) => s.trim()).filter(Boolean);
 }
 
+/** The index of the `)` that closes the `(` at 0, outside quotes; -1 if none. */
+function closingParen(s: string): number {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote) quote = null;
+    } else if (c === "'" || c === '"') quote = c;
+    else if (c === "(") depth++;
+    else if (c === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** Removes parentheses around the whole clause, when they match each other. */
 function unwrap(clause: string): string {
-  let s = clause;
-  while (s.startsWith("(") && s.endsWith(")")) s = s.slice(1, -1).trim();
+  let s = clause.trim();
+  while (s.startsWith("(") && closingParen(s) === s.length - 1)
+    s = s.slice(1, -1).trim();
   return s;
+}
+
+/** The conditions joined by `&&`, also inside parentheses around a group of them. */
+function conditions(when: string): string[] {
+  return clauses(when).flatMap((raw) => {
+    const inner = unwrap(raw);
+    return inner !== raw && clauses(inner).length > 1
+      ? conditions(inner)
+      : [inner];
+  });
 }
 
 const SYMPTOM_KEY = /^event\.data\.symptomKey\s*==\s*(['"])([^'"]+)\1$/;
@@ -114,8 +145,7 @@ const LEVEL = /^event\.data\.level\s*(==|>=|>)\s*(\d+)$/;
 
 export function parseWhen(when: string | null | undefined): WhenParts {
   const out: WhenParts = { symptomKey: null, level: null, others: 0 };
-  for (const raw of clauses(when ?? "")) {
-    const clause = unwrap(raw);
+  for (const clause of conditions(when ?? "")) {
     const key = SYMPTOM_KEY.exec(clause);
     const level = LEVEL.exec(clause);
     if (key && !out.symptomKey) out.symptomKey = key[2];
@@ -279,8 +309,8 @@ export function conditionValues(
   when: string | null | undefined
 ): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
-  for (const raw of clauses(when ?? "")) {
-    const m = VALUE_CLAUSE.exec(unwrap(raw));
+  for (const clause of conditions(when ?? "")) {
+    const m = VALUE_CLAUSE.exec(clause);
     if (!m || m[1] in out) continue;
     const [, field, op, , text, num, bool] = m;
     if (text !== undefined) {
@@ -339,8 +369,29 @@ export interface RuleChange {
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
-const squash = (s: string | null | undefined) =>
-  (s ?? "").replaceAll(/\s+/g, " ").trim();
+/** Collapses runs of whitespace outside quotes; quoted text is kept as written. */
+function squash(s: string | null | undefined): string {
+  let out = "";
+  let quote: string | null = null;
+  let space = false;
+  const text = (s ?? "").trim();
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      out += c;
+      if (c === "\\" && i + 1 < text.length) out += text[++i];
+      else if (c === quote) quote = null;
+    } else if (/\s/.test(c)) {
+      space = true;
+    } else {
+      if (space) out += " ";
+      space = false;
+      if (c === "'" || c === '"') quote = c;
+      out += c;
+    }
+  }
+  return out;
+}
 
 /** What the draft changes against the published spec, one line per part. */
 export function ruleChanges(

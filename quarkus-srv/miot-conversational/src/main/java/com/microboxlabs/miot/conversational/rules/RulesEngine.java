@@ -254,13 +254,15 @@ public class RulesEngine {
         return problems.isEmpty() ? null : String.join("; ", problems);
     }
 
-    /** The reply stops its run when the step it answers says so. */
+    /**
+     * The reply stops its run when the step it answers says so. A reply that names a run (it answers one of the
+     * run's messages) affects only that run, and nothing once that run stopped waiting. The step answered is the
+     * one of the named message, else the run's latest step sent.
+     */
     public Optional<Run> replied(ConversationReplyReceived reply) {
-        Optional<Run> run = reply.runId() == null ? Optional.empty()
-                : runs.find(reply.runId()).filter(r -> r.status() == Run.Status.WAITING);
-        if (run.isEmpty()) {
-            run = runs.waitingOnConversation(reply.tenantCode(), reply.conversationId());
-        }
+        Optional<Run> run = reply.runId() != null
+                ? runs.find(reply.runId()).filter(r -> r.status() == Run.Status.WAITING)
+                : runs.waitingOnConversation(reply.tenantCode(), reply.conversationId());
         if (run.isEmpty() || !run.get().tenantCode().equals(reply.tenantCode()) || run.get().step() == 0) {
             return Optional.empty();
         }
@@ -270,8 +272,8 @@ public class RulesEngine {
             return Optional.empty();
         }
         List<Step> steps = RuleSpec.read(version.get().spec()).steps();
-        int answered = r.step() - 1;
-        if (answered >= steps.size() || !steps.get(answered).stopsOnReply()) {
+        int answered = reply.answeredStep() != null ? reply.answeredStep() : r.step() - 1;
+        if (answered < 0 || answered >= r.step() || answered >= steps.size() || !steps.get(answered).stopsOnReply()) {
             return Optional.empty();
         }
         Run done = r.advanced(Run.Status.REPLIED, r.step(), null, r.lastError(), clock.instant());

@@ -248,11 +248,14 @@ export function TemplateEditor({
   readOnly,
   lang,
   d,
+  takenKeys = [],
   onSaved,
 }: Readonly<{
   /** Null for a new template. */
   template: ConversationTemplate | null;
   readOnly: boolean;
+  /** The keys of the stored templates; a new template cannot take one. */
+  takenKeys?: string[];
   lang: string;
   d: I18nRecord;
   onSaved: (saved: ConversationTemplate) => void;
@@ -264,12 +267,14 @@ export function TemplateEditor({
   const [error, setError] = useState<string | null>(null);
   const isNew = template === null;
   const key = template?.key ?? keyFrom(body.name);
+  const taken = isNew && takenKeys.includes(key);
   const set = (patch: Partial<TemplateBody>) => setBody({ ...body, ...patch });
   const unused = textVariables(body.baseText).filter(
     (v) => !Object.hasOwn(SAMPLE_VALUES, v)
   );
 
   const save = async () => {
+    if (taken) return;
     setSaving(true);
     setError(null);
     try {
@@ -303,6 +308,14 @@ export function TemplateEditor({
           <span className="font-mono text-gray-500 dark:text-gray-400">
             {key || "—"}
           </span>
+          {taken && (
+            <span
+              role="alert"
+              className="text-xs text-red-600 dark:text-red-400"
+            >
+              {tr("templateKeyTaken", d)}
+            </span>
+          )}
         </FieldRow>
         <label className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-300">
           {tr("baseText", d)}
@@ -504,7 +517,7 @@ export function TemplateEditor({
             </p>
           )}
           <Button
-            disabled={saving || key.length < 2 || !body.name.trim()}
+            disabled={saving || taken || key.length < 2 || !body.name.trim()}
             onClick={() => void save()}
           >
             {saving ? tr("saving", d) : tr("saveTemplate", d)}
@@ -514,6 +527,9 @@ export function TemplateEditor({
     </div>
   );
 }
+
+/** What the list has picked: a stored template by key, or a new one. */
+type Selection = { kind: "template"; key: string } | { kind: "new" } | null;
 
 type TemplatesView = "messages" | "meta";
 
@@ -564,11 +580,13 @@ function MessageTemplates({
   d,
 }: Readonly<{ lang: string; canWrite: boolean; d: I18nRecord }>) {
   const { data: templates, error, isLoading } = useConversationTemplates();
-  // A template key, "new", or null for none picked.
-  const [selected, setSelected] = useState<string | null>(null);
-  const picked = templates?.find((t) => t.key === selected) ?? null;
-  const current = selected ?? templates?.[0]?.key ?? null;
-  const shown = selected === "new" ? null : (picked ?? templates?.[0] ?? null);
+  // A stored template, a new one, or null for none picked.
+  const [selected, setSelected] = useState<Selection>(null);
+  const creating = selected?.kind === "new";
+  const selectedKey = selected?.kind === "template" ? selected.key : null;
+  const picked = templates?.find((t) => t.key === selectedKey) ?? null;
+  const current = selectedKey ?? templates?.[0]?.key ?? null;
+  const shown = creating ? null : (picked ?? templates?.[0] ?? null);
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
@@ -580,7 +598,7 @@ function MessageTemplates({
           <button
             type="button"
             className="flex items-center gap-1.5 rounded-md px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-gray-700"
-            onClick={() => setSelected("new")}
+            onClick={() => setSelected({ kind: "new" })}
           >
             <HiPlus aria-hidden className="h-4 w-4" />
             {tr("newTemplate", d)}
@@ -601,13 +619,13 @@ function MessageTemplates({
           <p className={`px-3 py-2 text-sm ${MUTED}`}>{tr("noTemplates", d)}</p>
         )}
         {(templates ?? []).map((t) => {
-          const active = t.key === current && selected !== "new";
+          const active = t.key === current && !creating;
           return (
             <button
               key={t.key}
               type="button"
               aria-current={active ? "true" : undefined}
-              onClick={() => setSelected(t.key)}
+              onClick={() => setSelected({ kind: "template", key: t.key })}
               className={`flex flex-col gap-1 rounded-md px-3 py-2 text-left text-sm ${
                 active
                   ? "bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-white"
@@ -640,14 +658,15 @@ function MessageTemplates({
           );
         })}
       </nav>
-      {(shown || selected === "new") && (
+      {(shown || creating) && (
         <TemplateEditor
-          key={selected === "new" ? "new" : shown?.key}
+          key={creating ? "new-template" : `template:${shown?.key}`}
           template={shown}
           readOnly={!canWrite}
+          takenKeys={(templates ?? []).map((t) => t.key)}
           lang={lang}
           d={d}
-          onSaved={(saved) => setSelected(saved.key)}
+          onSaved={(saved) => setSelected({ kind: "template", key: saved.key })}
         />
       )}
     </div>

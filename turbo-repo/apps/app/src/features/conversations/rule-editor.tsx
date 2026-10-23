@@ -201,7 +201,7 @@ export default function RuleEditor({
     ? placeFindings(findings, spec, d)
     : { trigger: [], audience: {}, audienceGeneral: [], steps: {} };
 
-  const showBar = canMaintain && Boolean(detail?.draft || saving);
+  const showBar = canMaintain && Boolean(detail?.draft || saving || saveError);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -377,7 +377,12 @@ export default function RuleEditor({
       <PublishRuleDialog
         open={reviewing}
         changes={changes}
-        canPublish={canMaintain && errors === 0 && changes.length > 0}
+        canPublish={
+          canMaintain &&
+          errors === 0 &&
+          changes.length > 0 &&
+          saveError === null
+        }
         d={d}
         onClose={() => setReviewing(false)}
         onPublish={async (reason) => {

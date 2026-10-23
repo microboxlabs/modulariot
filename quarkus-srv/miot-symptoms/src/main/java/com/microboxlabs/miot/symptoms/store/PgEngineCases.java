@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.symptoms.store;
 
+import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
+
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -34,7 +36,12 @@ public class PgEngineCases implements EngineCaseStore {
                        AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id
                      ORDER BY c.id LIMIT 1) AS closed_id,
                    (SELECT count(*) FROM miot_symptoms.treatment t
-                     WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id) AS treatments
+                     WHERE t.tenant_code = o.tenant_code AND t.symptom_id = -o.id AND t.status = 'OPEN') AS treatments,
+                   CASE WHEN o.trip_id IS NOT NULL THEN
+                     (SELECT count(*) FROM miot_symptoms.signal_transitions r
+                       WHERE r.tenant_code = o.tenant_code AND r.definition_id = o.definition_id
+                         AND r.trip_id = o.trip_id AND r.state = o.state AND r.kind = 'OPENED' AND r.id < o.id)
+                   END AS recurrence
               FROM miot_symptoms.signal_transitions o
               JOIN miot_symptoms.symptom_definition d ON d.id = o.definition_id AND d.tenant_code = o.tenant_code
              WHERE o.tenant_code = $1 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
@@ -51,17 +58,49 @@ public class PgEngineCases implements EngineCaseStore {
               FROM (%s) x
             """;
 
-    private static final String OPEN = SELECT.formatted(CASES)
-            + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200";
-    private static final String ONE = SELECT.formatted(CASES + " AND o.id = $2");
+    /**
+     * The SLA of the case's level in the version that opened it. A spec may be stored as a JSON string holding
+     * the document.
+     */
+    private static final String WITH_SLA = """
+            SELECT y.*, (SELECT jsonb_path_query_first(
+                           CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END,
+                           'lax $.levels[*] ? (@.icu == $l && @.applies == true && @.response.operator == true)'
+                             '.response.slaMinutes ? (@ > 0)',
+                           jsonb_build_object('l', y.current_level))::numeric::int
+                      FROM miot_symptoms.symptom_version v
+                     WHERE v.definition_id = y.definition_id AND v.tenant_code = y.tenant_code
+                       AND v.version = y.version AND v.status = 'PUBLISHED') AS sla_minutes
+              FROM (%s) y
+            """;
 
+    private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)
+            + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200") + " ORDER BY y.at DESC";
+    private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
+            + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
+    private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));
+
+    /** Locks the case's OPENED row, so overlapping closes of one case run one after the other. */
+    private static final String LOCK = """
+            SELECT id FROM miot_symptoms.signal_transitions
+             WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED'
+               FOR UPDATE
+            """;
+
+    /** Closes the case unless a CLOSED row already follows its OPENED row; returns the row it wrote. */
     private static final String CLOSE = """
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
                  trip_id, latitude, longitude, speed_kmh, closed_by)
-            SELECT tenant_code, definition_id, version, state, 'CLOSED', asset_id, $3, level, level, measure,
-                   trip_id, latitude, longitude, speed_kmh, $4
-              FROM miot_symptoms.signal_transitions WHERE tenant_code = $1 AND id = $2 AND kind = 'OPENED'
+            SELECT o.tenant_code, o.definition_id, o.version, o.state, 'CLOSED', o.asset_id, $3, o.level, o.level,
+                   o.measure, o.trip_id, o.latitude, o.longitude, o.speed_kmh, $4
+              FROM miot_symptoms.signal_transitions o
+             WHERE o.tenant_code = $1 AND o.id = $2 AND o.kind = 'OPENED'
+               AND NOT EXISTS (
+                   SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                      AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED' AND c.id > o.id)
+            RETURNING id
             """;
 
     private final Supplier<Pool> pool;
@@ -83,15 +122,30 @@ public class PgEngineCases implements EngineCaseStore {
     }
 
     @Override
+    public List<OpenCount> openCounts(String tenantCode) {
+        List<OpenCount> out = new ArrayList<>();
+        PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
+                r.getInteger("current_level"), r.getBoolean("under_treatment"), r.getLong("n"))));
+        return out;
+    }
+
+    @Override
     public Optional<EngineCase> find(String tenantCode, long caseId) {
         var rows = PgIds.query(pool.get(), ONE, Tuple.of(tenantCode, caseId)).iterator();
         return rows.hasNext() ? Optional.of(engineCase(rows.next())) : Optional.empty();
     }
 
-    /** Records that an operator closed the case at {@code at}. */
+    /**
+     * Records that an operator closed the case at {@code at}. The lock and the insert share a transaction, and
+     * the insert reads after the lock, so a close that waited sees the one before it and writes nothing.
+     */
     @Override
-    public void close(String tenantCode, long caseId, String actor, Instant at) {
-        PgIds.query(pool.get(), CLOSE, Tuple.of(tenantCode, caseId, at.atOffset(ZoneOffset.UTC), actor));
+    public boolean close(String tenantCode, long caseId, String actor, Instant at) {
+        return pool.get().withTransaction(conn -> conn.preparedQuery(LOCK).execute(Tuple.of(tenantCode, caseId))
+                .flatMap(locked -> conn.preparedQuery(CLOSE)
+                        .execute(Tuple.of(tenantCode, caseId, at.atOffset(ZoneOffset.UTC), actor)))
+                .map(rows -> rows.iterator().hasNext()))
+                .await().atMost(QUERY_TIMEOUT);
     }
 
     private static EngineCase engineCase(Row r) {
@@ -100,6 +154,7 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getString("name"), r.getString("family"), r.getString("asset_id"),
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
-                closed == null ? null : closed.toInstant(), r.getLong("treatments"));
+                closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
+                r.getLong("recurrence"));
     }
 }

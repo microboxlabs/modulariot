@@ -1,8 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { ConversationTemplate, MetaTemplate } from "./conversations-types";
+
+const stored: ConversationTemplate = {
+  id: "t1",
+  key: "new",
+  name: "New",
+  baseText: "Hola",
+  whatsapp: null,
+  email: null,
+};
 
 const META: MetaTemplate = {
   id: "901",
@@ -40,15 +49,56 @@ const TEMPLATE: ConversationTemplate = {
 };
 
 const api = vi.hoisted(() => ({
-  useMetaTemplates: vi.fn(),
-  saveTemplate: vi.fn(),
   refreshTemplates: vi.fn(),
+  saveTemplate: vi.fn(),
+  useConversationTemplates: vi.fn(),
+  useMetaTemplates: vi.fn(),
 }));
 vi.mock("./conversations-api", () => api);
 
-import { TemplateEditor } from "./templates-tab";
+import TemplatesTab, { TemplateEditor } from "./templates-tab";
 
 const d = es.pages.userSettings.communications;
+
+describe("TemplatesTab", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.useMetaTemplates.mockReturnValue({ data: undefined });
+  });
+
+  it("opens a stored template whose key is 'new' as that template", () => {
+    api.useConversationTemplates.mockReturnValue({ data: [stored] });
+    render(<TemplatesTab lang="es" canWrite d={d} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^New/ }));
+
+    expect((screen.getByLabelText("Nombre") as HTMLInputElement).value).toBe(
+      "New"
+    );
+  });
+
+  it("does not let a new template take the key of a stored one", () => {
+    api.useConversationTemplates.mockReturnValue({ data: [stored] });
+    render(<TemplatesTab lang="es" canWrite d={d} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Nueva plantilla" }));
+    fireEvent.change(screen.getByLabelText("Nombre"), {
+      target: { value: "New" },
+    });
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Otra plantilla ya usa esta clave. Elige otro nombre."
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Guardar plantilla",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+    expect(api.saveTemplate).not.toHaveBeenCalled();
+  });
+});
 
 const editor = () =>
   render(

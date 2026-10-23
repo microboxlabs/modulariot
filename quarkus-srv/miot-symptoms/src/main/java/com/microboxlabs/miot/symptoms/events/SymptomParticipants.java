@@ -89,7 +89,7 @@ public class SymptomParticipants implements ParticipantResolver {
             return List.of();
         }
         if (DRIVER.equalsIgnoreCase(role.trim())) {
-            return driver(tenantCode, contextKey, eventData == null ? Map.of() : eventData);
+            return driver(tenantCode, contextKey);
         }
         String wanted = role.trim().toLowerCase(Locale.ROOT);
         List<Participant> out = new ArrayList<>();
@@ -105,16 +105,15 @@ public class SymptomParticipants implements ParticipantResolver {
         return out;
     }
 
-    private List<Participant> driver(String tenantCode, String contextKey, Map<String, Object> data) {
-        String tripId = text(data.get("tripId"));
-        String assetId = text(data.get("assetId"));
-        if (tripId == null || assetId == null) {
-            Optional<EngineCase> c = engineCase(tenantCode, contextKey);
-            if (c.isPresent()) {
-                tripId = tripId != null ? tripId : c.get().tripId();
-                assetId = assetId != null ? assetId : c.get().assetId();
-            }
-        }
+    /**
+     * The driver of the trip of the tenant's case. The trip and asset come from the case, never from the event
+     * data: a simulated event carries data an organization member typed, and the GPS database is shared by
+     * every tenant.
+     */
+    private List<Participant> driver(String tenantCode, String contextKey) {
+        Optional<EngineCase> c = engineCase(tenantCode, contextKey);
+        String tripId = c.map(EngineCase::tripId).orElse(null);
+        String assetId = c.map(EngineCase::assetId).orElse(null);
         if (tripId == null || assetId == null) {
             return List.of();
         }
@@ -163,13 +162,5 @@ public class SymptomParticipants implements ParticipantResolver {
         }
         String digits = raw.replaceAll("\\D", "");
         return digits.isEmpty() ? null : "+" + digits;
-    }
-
-    private static String text(Object value) {
-        if (value == null) {
-            return null;
-        }
-        String s = String.valueOf(value).trim();
-        return s.isEmpty() ? null : s;
     }
 }

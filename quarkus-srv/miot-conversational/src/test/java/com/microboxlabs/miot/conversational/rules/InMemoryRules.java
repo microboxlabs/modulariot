@@ -3,6 +3,7 @@ package com.microboxlabs.miot.conversational.rules;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.Message;
+import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.rules.store.RuleStore;
 import com.microboxlabs.miot.conversational.rules.store.RunStore;
 import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
@@ -84,9 +85,11 @@ final class InMemoryRules {
         }
 
         @Override
-        public Optional<RuleVersion> publish(String ruleId, String reason, String actor, Instant at) {
+        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String reason, String actor,
+                Instant at) {
             Optional<RuleVersion> draft = versions.stream()
-                    .filter(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT).findFirst();
+                    .filter(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT
+                            && v.spec().equals(validated)).findFirst();
             if (draft.isEmpty()) {
                 return Optional.empty();
             }
@@ -194,9 +197,11 @@ final class InMemoryRules {
         @Override
         public Optional<Run> waitingOnConversation(String tenantCode, String conversationId) {
             return conversations.messages.stream()
-                    .filter(m -> m.runId() != null && m.conversationId().equals(conversationId))
+                    .filter(m -> m.runId() != null && m.conversationId().equals(conversationId)
+                            && m.status() != MessageStatus.SIMULATED && m.status() != MessageStatus.FAILED)
                     .map(m -> runs.get(m.runId()))
-                    .filter(r -> r != null && r.status() == Run.Status.WAITING && r.tenantCode().equals(tenantCode))
+                    .filter(r -> r != null && r.status() == Run.Status.WAITING && !r.test()
+                            && r.tenantCode().equals(tenantCode))
                     .reduce((a, b) -> b);
         }
 

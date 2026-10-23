@@ -11,7 +11,11 @@ const nav = vi.hoisted(() => ({
   replace: vi.fn(),
   params: new URLSearchParams(),
 }));
+const access = vi.hoisted(() => ({ canMaintain: true }));
 vi.mock("./conversations-api", () => api);
+vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
+  useControlTowerAccess: () => access,
+}));
 vi.mock("./use-symptom-names", () => ({
   useSymptomNames: () => (key: string) =>
     key === "panic-button" ? "Botón de pánico" : undefined,
@@ -80,5 +84,28 @@ describe("NewRule", () => {
       (screen.getByRole("button", { name: "Crear regla" }) as HTMLButtonElement)
         .disabled
     ).toBe(true);
+  });
+
+  it("lets only maintainers create a rule", () => {
+    access.canMaintain = false;
+    nav.params = new URLSearchParams({ name: "Pánico" });
+    try {
+      render(<NewRule dict={dict} lang="es" />);
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Crear regla",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(true);
+      expect(
+        (screen.getByLabelText("Nombre") as HTMLInputElement).disabled
+      ).toBe(true);
+      expect(screen.getByRole("alert").textContent).toBe(
+        "Solo quien mantiene la Torre de Control puede crear reglas."
+      );
+    } finally {
+      access.canMaintain = true;
+    }
   });
 });

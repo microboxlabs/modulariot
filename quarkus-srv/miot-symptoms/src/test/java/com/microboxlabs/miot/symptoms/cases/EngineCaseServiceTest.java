@@ -46,8 +46,12 @@ class EngineCaseServiceTest {
     }
 
     private static EngineCase panic(long id, String asset) {
-        return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", asset, OPENED, 4, "T-1",
-                -33.4489, -70.6693, 0.0, null, 0);
+        return engineCase(id, asset, 4, 0);
+    }
+
+    private static EngineCase engineCase(long id, String asset, int level, long treatments) {
+        return new EngineCase(id, PANIC, "0.1.0", "Botón de pánico", "emergencies", asset, OPENED, level, "T-1",
+                -33.4489, -70.6693, 0.0, null, treatments, 2, 1L);
     }
 
     @Test
@@ -66,9 +70,82 @@ class EngineCaseServiceTest {
         assertEquals("4", row.path("icu_code").asText());
         assertEquals("DEMO01", row.path("asset_id").asText());
         assertEquals(90, row.path("duration_sec").asLong());
+        assertEquals(2, row.path("sla_minutes").asInt());
+        assertEquals(1, row.path("recurrence_events").asInt());
         assertEquals(991, out.path("data").get(1).path("id").asLong());
         assertEquals(1, out.path("total_rows").asInt(), "the GPS totals still page");
         assertEquals(1, out.path("open_cases").asInt());
+    }
+
+    @Test
+    void aCaseWithAnOpenTreatmentIsUnderTreatment() {
+        store.add(engineCase(12, "DEMO01", 4, 1));
+
+        JsonNode row = service.withOpenCases(TENANT, null).path("data").get(0);
+
+        assertEquals("UNDER TREATMENT", row.path("icu_condition").asText());
+        assertEquals("4", row.path("icu_code").asText());
+    }
+
+    @Test
+    void openCasesAddToTheGpsCountsOnceEach() throws Exception {
+        store.add(engineCase(12, "DEMO01", 4, 0));
+        store.add(engineCase(13, "DEMO02", 4, 0));
+        store.add(engineCase(14, "DEMO03", 3, 0));
+        store.add(engineCase(15, "DEMO04", 1, 0));
+        store.add(engineCase(16, "DEMO05", 4, 2));
+        JsonNode gps = new ObjectMapper().readTree("""
+                {"Code Black":1,"Under Treatment":4,"Stable":7}
+                """);
+
+        JsonNode out = service.withOpenCaseCounts(TENANT, gps);
+
+        assertEquals(3, out.path("Code Black").asInt());
+        assertEquals(1, out.path("Critical condition").asInt());
+        assertEquals(1, out.path("Under Observation").asInt());
+        assertEquals(5, out.path("Under Treatment").asInt());
+        assertEquals(7, out.path("Stable").asInt());
+        assertFalse(out.has("Compromised condition"));
+        assertEquals(1, gps.path("Code Black").asInt(), "the cached GPS answer is not changed");
+    }
+
+    @Test
+    void theGpsCountsStandWhenTheOpenCasesCannotBeRead() throws Exception {
+        store.down = true;
+        JsonNode gps = new ObjectMapper().readTree("""
+                {"Code Black":1}
+                """);
+
+        assertEquals(1, service.withOpenCaseCounts(TENANT, gps).path("Code Black").asInt());
+        assertThrows(IllegalStateException.class, () -> service.withOpenCaseCounts(TENANT, null));
+    }
+
+    @Test
+    void countsEveryOpenCaseBeyondAPageOfThem() {
+        for (long id = 1; id <= 201; id++) {
+            store.add(engineCase(id, "DEMO" + id, 4, 0));
+        }
+        store.add(engineCase(300, "DEMO300", 2, 0));
+
+        JsonNode out = service.withOpenCaseCounts(TENANT, null);
+
+        assertEquals(201, out.path("Code Black").asInt());
+        assertEquals(1, out.path("Compromised condition").asInt());
+    }
+
+    @Test
+    void openCasesCountWithoutTheGpsCounts() {
+        store.add(panic(12, "DEMO01"));
+
+        assertEquals(1, service.withOpenCaseCounts(TENANT, null).path("Code Black").asInt());
+    }
+
+    @Test
+    void closedCasesAreNotCounted() {
+        store.add(panic(12, "DEMO01"));
+        service.close(TENANT, -12, "operator@example.com");
+
+        assertTrue(service.withOpenCaseCounts(TENANT, null).isEmpty());
     }
 
     @Test
@@ -141,6 +218,31 @@ class EngineCaseServiceTest {
         assertEquals(PANIC, data.definitionId());
         assertEquals(4, data.level());
         assertEquals("T-1", data.tripId());
+    }
+
+    @Test
+    void overlappingClosesPublishOnce() {
+        EngineCase open = panic(12, "DEMO01");
+        // Both requests read the case open before either writes its close.
+        InMemoryEngineCases racing = new InMemoryEngineCases() {
+            @Override
+            public Optional<EngineCase> find(String tenantCode, long caseId) {
+                return Optional.of(open);
+            }
+        };
+        racing.add(open);
+        EngineCaseService a = new EngineCaseService(racing, (tenant, asset, definition) -> {
+        }, t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC), new SymptomEvents(e -> {
+            fired.add(e);
+            return CompletableFuture.completedFuture(e);
+        }));
+
+        a.close(TENANT, -12, "first@example.com");
+        a.close(TENANT, -12, "second@example.com");
+
+        assertEquals(List.of("first@example.com"), racing.closedBy);
+        assertEquals(1, fired.size());
+        assertEquals("first@example.com", ((SymptomCaseData) fired.get(0).data()).closedBy());
     }
 
     @Test

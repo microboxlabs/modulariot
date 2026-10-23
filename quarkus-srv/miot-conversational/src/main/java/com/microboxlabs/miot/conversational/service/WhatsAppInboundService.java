@@ -135,6 +135,7 @@ public class WhatsAppInboundService {
                 persisted.id(),
                 persisted.inReplyTo(),
                 persisted.runId(),
+                attachment.answeredStep(),
                 Channel.WHATSAPP,
                 message.fromE164(),
                 message.body(),
@@ -190,7 +191,7 @@ public class WhatsAppInboundService {
         if (answered != null) {
             Conversation conversation = conversationRepository.findByTenantAndId(tenantCode, answered.conversationId());
             if (conversation != null && address.equals(conversation.participantAddress())) {
-                return new Attachment(conversation, answered.id(), answered.runId());
+                return new Attachment(conversation, answered.id(), answered.runId(), answered.step());
             }
         }
         Attachment waiting = conversationWithWaitingRun(tenantCode, address);
@@ -199,7 +200,7 @@ public class WhatsAppInboundService {
         }
         Conversation latest = conversationRepository.findLatestOpenByAddress(tenantCode, address);
         if (latest != null) {
-            return new Attachment(latest, null, null);
+            return new Attachment(latest, null, null, null);
         }
         // appendInbound then applies the first inbound touch (unread 1, timestamps).
         return new Attachment(conversationRepository.create(new Conversation(
@@ -226,7 +227,7 @@ public class WhatsAppInboundService {
                 null,
                 null,
                 message.contactName(),
-                Map.of())), null, null);
+                Map.of())), null, null, null);
     }
 
     private Message answeredMessage(InboundMessage message) {
@@ -251,10 +252,10 @@ public class WhatsAppInboundService {
      */
     private Attachment conversationWithWaitingRun(String tenantCode, String address) {
         ConversationRepository.WithWaitingRun waiting = conversationRepository.findWithWaitingRun(tenantCode, address);
-        return waiting == null ? null : new Attachment(waiting.conversation(), null, waiting.runId());
+        return waiting == null ? null : new Attachment(waiting.conversation(), null, waiting.runId(), null);
     }
 
-    private record Attachment(Conversation conversation, String inReplyTo, String runId) {
+    private record Attachment(Conversation conversation, String inReplyTo, String runId, Integer answeredStep) {
     }
 
     /**

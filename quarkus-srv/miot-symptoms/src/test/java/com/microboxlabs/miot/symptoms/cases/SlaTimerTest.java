@@ -62,7 +62,7 @@ class SlaTimerTest {
 
     private static SlaStore.Due due(long id, int level, int slaMinutes) {
         EngineCase c = new EngineCase(id, SPEEDING, "1.0.0", null, null, "DEMO01", OPENED, level, "T-1", -33.4,
-                -70.6, 95.0, null, 0);
+                -70.6, 95.0, null, 0, slaMinutes, null);
         return new SlaStore.Due(TENANT, c, OPENED.plusSeconds(60), slaMinutes);
     }
 

@@ -77,6 +77,24 @@ describe("triggerSummary", () => {
     });
   });
 
+  it("reads the conditions of a group in parentheses, and keeps an || group whole", () => {
+    expect(
+      parseWhen(
+        "(event.data.symptomKey == 'panic-button' && event.data.level >= 4)"
+      )
+    ).toEqual({
+      symptomKey: "panic-button",
+      level: { op: ">=", value: 4 },
+      others: 0,
+    });
+    expect(
+      parseWhen("(event.data.level >= 4) || (event.data.level == 1)")
+    ).toEqual({ symptomKey: null, level: null, others: 1 });
+    expect(
+      conditionValues("(event.data.assetId == 'X1' && event.data.level > 2)")
+    ).toEqual({ assetId: "X1", level: 3 });
+  });
+
   it("describes events it has no phrase for, and a missing trigger", () => {
     expect(
       triggerSummary({ event: "job.failed", when: null }, d, undefined, [
@@ -203,6 +221,23 @@ describe("ruleChanges", () => {
       "Paso 1 cambiado",
       "Paso 2 nuevo",
     ]);
+  });
+
+  it("counts spacing inside quotes as a change", () => {
+    const before = newRuleSpec(
+      "symptom.case.opened",
+      "event.data.assetId == 'A  B'"
+    );
+    const after = newRuleSpec(
+      "symptom.case.opened",
+      "event.data.assetId  ==  'A B'"
+    );
+    const respaced = newRuleSpec(
+      "symptom.case.opened",
+      " event.data.assetId == 'A  B' "
+    );
+    expect(ruleChanges(after, before, d).map((c) => c.key)).toEqual(["when"]);
+    expect(ruleChanges(respaced, before, d)).toEqual([]);
   });
 });
 

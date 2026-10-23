@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.cases.SlaStore;
@@ -22,6 +23,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -106,6 +108,46 @@ class PgSlaStoreTest {
         assertEquals(1, opened.size());
         assertEquals(opened.get(0).caseId(), rose.get(0).caseId());
         assertTrue(replay.isEmpty());
+    }
+
+    @Test
+    void aFailedChangeLeavesNoneOfItsBatchSoTheReplayRecordsThemAll() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID other = UUID.randomUUID();
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
+        Transition first = t(Kind.OPENED, speeding, t0, 1, 0);
+        Transition tooLong = new Transition(Kind.OPENED, other, "1.0.0-" + "x".repeat(40), SymptomState.ACTIVE,
+                "DEMO01", t0, 1, 0, 30);
+
+        List<Transition> batch = List.of(first, tooLong);
+        assertThrows(RuntimeException.class, () -> log.append(tenant, batch, place));
+
+        List<TransitionLog.Recorded> replay = log.append(tenant, List.of(first, t(Kind.OPENED, other, t0, 1, 0)),
+                place);
+        assertEquals(2, replay.size());
+    }
+
+    @Test
+    void overlappingOperatorClosesWriteOneClose() throws Exception {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        long caseId = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)),
+                new TransitionLog.Place(null, null, null, null, null)).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        CompletableFuture<Boolean> a = CompletableFuture.supplyAsync(
+                () -> cases.close(tenant, caseId, "first@example.com", t0.plusSeconds(60)));
+        CompletableFuture<Boolean> b = CompletableFuture.supplyAsync(
+                () -> cases.close(tenant, caseId, "second@example.com", t0.plusSeconds(61)));
+
+        assertTrue(a.get() ^ b.get(), "exactly one close wrote");
+        assertFalse(cases.close(tenant, caseId, "third@example.com", t0.plusSeconds(62)));
+        assertEquals(1L, PgIds.query(pool, """
+                SELECT count(*) AS n FROM miot_symptoms.signal_transitions WHERE tenant_code = $1 AND kind = 'CLOSED'
+                """, Tuple.of(tenant)).iterator().next().getLong("n"));
     }
 
     @Test

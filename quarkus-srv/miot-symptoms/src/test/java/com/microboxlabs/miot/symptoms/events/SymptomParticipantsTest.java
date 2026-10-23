@@ -40,7 +40,7 @@ class SymptomParticipantsTest {
     @Test
     void theDriverIsTheDriverOfTheCasesTrip() {
         cases.add(new EngineCase(7, UUID.randomUUID(), "0.1.0", "Botón de pánico", "emergencies", "A-1",
-                Instant.parse("2026-10-23T12:00:00Z"), 4, "T-1", null, null, null, null, 0));
+                Instant.parse("2026-10-23T12:00:00Z"), 4, "T-1", null, null, null, null, 0, null, null));
 
         List<Participant> found = participants.resolve(TENANT, "symptom_case", "-7", "Driver",
                 Map.of("tripId", "T-9", "assetId", "A-9"));

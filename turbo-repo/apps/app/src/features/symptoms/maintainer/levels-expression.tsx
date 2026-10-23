@@ -8,11 +8,21 @@ import { verdict } from "./clause-breakdown";
 import type {
   Finding,
   Preview,
+  SamplePreview,
   SourceField,
   SymptomSpec,
 } from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
 import SampleTree, { unsupportedPaths, useSourceSamples } from "./sample-tree";
+
+/** The verdict, saying which conditions of section 1 failed when no case opens. */
+export function levelsVerdict(s: SamplePreview, d: I18nRecord): string {
+  const failed = (s.clauses ?? [])
+    .filter((c) => c.holds === false)
+    .map((c) => c.text);
+  if (s.error || s.activates || failed.length === 0) return verdict(s, d);
+  return tr("verdictNoCaseBecause", d, { conditions: failed.join(" · ") });
+}
 
 const labelClass =
   "text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400";
@@ -83,7 +93,7 @@ export default function LevelsExpression({
           <p
             className={`rounded bg-gray-50 px-2 py-1 text-sm dark:bg-gray-900/50 ${shown.activates && !shown.error ? "font-medium text-green-700 dark:text-green-400" : ""}`}
           >
-            {verdict(shown, d)}
+            {levelsVerdict(shown, d)}
           </p>
         )}
       </div>

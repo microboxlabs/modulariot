@@ -3242,6 +3242,7 @@
         "ruleTypeNull_type": "vacío",
         "ruleTypeObject": "objeto",
         "verdictNoCase": "No abre un caso.",
+        "verdictNoCaseBecause": "No abre un caso: en «Cuándo se abre un caso» no se cumple «{conditions}».",
         "verdictNoLevel": "ningún nivel",
         "verdictCaseLevel": "Abre un caso → {level}",
         "verdictCaseMeasure": "Abre un caso · medida {measure} → {level}",

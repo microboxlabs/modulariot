@@ -21,7 +21,7 @@ vi.mock("./cel-editor", () => ({
   insertIntoFocused: vi.fn(),
 }));
 
-import LevelsExpression from "./levels-expression";
+import LevelsExpression, { levelsVerdict } from "./levels-expression";
 
 const d = {
   measureCelLabel: "Medida · CEL",
@@ -126,5 +126,27 @@ describe("LevelsExpression", () => {
   it("says nothing about the sample while the preview is being made", () => {
     renderIt(undefined);
     expect(screen.queryByText(/Abre un caso/)).toBeNull();
+  });
+});
+
+describe("levelsVerdict", () => {
+  it("names the conditions of section 1 that kept the case closed", () => {
+    const closed = sample({
+      activates: false,
+      level: null,
+      clauses: [
+        { text: "a == TRUE", holds: false, values: {}, error: null },
+        { text: "b > 1", holds: true, values: {}, error: null },
+      ],
+    });
+    expect(
+      levelsVerdict(closed, {
+        ...d,
+        verdictNoCaseBecause: "No abre: {conditions}",
+      })
+    ).toBe("No abre: a == TRUE");
+    expect(levelsVerdict(sample({ activates: false }), d)).toBe(
+      "No abre un caso."
+    );
   });
 });

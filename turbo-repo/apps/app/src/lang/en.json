@@ -3242,6 +3242,7 @@
         "ruleTypeNull_type": "empty",
         "ruleTypeObject": "object",
         "verdictNoCase": "Does not open a case.",
+        "verdictNoCaseBecause": "Does not open a case: under “When a case opens”, “{conditions}” does not hold.",
         "verdictNoLevel": "no level",
         "verdictCaseLevel": "Opens a case → {level}",
         "verdictCaseMeasure": "Opens a case · measure {measure} → {level}",

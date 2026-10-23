@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.conversational.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.microboxlabs.miot.conversational.client.MetaGraphException;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.RulesService;
@@ -9,6 +10,8 @@ import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
+import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
+import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
@@ -17,6 +20,7 @@ import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -24,6 +28,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -48,7 +53,7 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
- * Conversation rules, templates, the event catalog and the runs of an organization. Any authenticated user of
+ * Conversation rules, templates, the WhatsApp templates on Meta, the event catalog and the runs of an organization. Any authenticated user of
  * the organization reads; writes need an Owner or Admin of the organization, or the Control Tower maintainer's
  * {@value #MAINTAINER_PERMISSION}. Endpoints return {@link Uni} so the request stays on the event loop for the
  * reactive org filter; the blocking work runs on the worker pool.
@@ -92,19 +97,22 @@ public class OrgConversationsResource {
     private final RuleSimulator simulator;
     private final TemplatesService templates;
     private final RunsService runs;
+    private final WhatsAppTemplatesService whatsAppTemplates;
 
     /** The services behind the endpoints. */
     public record Services(RulesService rules, RuleSimulator simulator, TemplatesService templates,
-            RunsService runs) {
+            RunsService runs, WhatsAppTemplatesService whatsAppTemplates) {
     }
 
     @Inject
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
             OrganizationRoleService roleService, SecurityIdentity identity, RulesService rules,
-            RuleSimulator simulator, TemplatesService templates, RunsService runs) {
+            RuleSimulator simulator, TemplatesService templates, RunsService runs,
+            WhatsAppTemplatesService whatsAppTemplates) {
         this(tenantContext, organizationContext,
                 org -> roleService.access(org, caller(identity, organizationContext, tenantContext)),
-                () -> actor(identity, organizationContext), new Services(rules, simulator, templates, runs));
+                () -> actor(identity, organizationContext),
+                new Services(rules, simulator, templates, runs, whatsAppTemplates));
     }
 
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
@@ -117,6 +125,7 @@ public class OrgConversationsResource {
         this.simulator = services.simulator();
         this.templates = services.templates();
         this.runs = services.runs();
+        this.whatsAppTemplates = services.whatsAppTemplates();
     }
 
     // Rules
@@ -232,6 +241,50 @@ public class OrgConversationsResource {
         return write(organizationId, () -> Response.ok(templates.save(tenant, key, body, who)).build());
     }
 
+    // WhatsApp templates on Meta
+
+    @GET
+    @Path("/whatsapp-templates")
+    @Operation(operationId = "listWhatsAppTemplates",
+            summary = "The templates on the WABA of the organization's WhatsApp connection, with their status")
+    public Uni<Response> listWhatsAppTemplates(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(whatsAppTemplates.list(tenant)).build());
+    }
+
+    @POST
+    @Path("/whatsapp-templates")
+    @Operation(operationId = "createWhatsAppTemplate", summary = "Submit a new template to Meta for review")
+    public Uni<Response> createWhatsAppTemplate(@PathParam(ORG) String organizationId,
+            WhatsAppTemplateDraft body) {
+        String tenant = tenantCode(organizationId);
+        return write(organizationId, () -> Response.status(Response.Status.CREATED)
+                .entity(whatsAppTemplates.create(tenant, body)).build());
+    }
+
+    @PUT
+    @Path("/whatsapp-templates/{id}")
+    @Operation(operationId = "editWhatsAppTemplate",
+            summary = "Change a template's category or components; Meta reviews it again")
+    public Uni<Response> editWhatsAppTemplate(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            WhatsAppTemplateDraft body) {
+        String tenant = tenantCode(organizationId);
+        return write(organizationId, () -> Response.ok(whatsAppTemplates.edit(tenant, id, body)).build());
+    }
+
+    @DELETE
+    @Path("/whatsapp-templates/{name}")
+    @Operation(operationId = "deleteWhatsAppTemplate",
+            summary = "Delete a template by name, in every language, or only the one with the given id")
+    public Uni<Response> deleteWhatsAppTemplate(@PathParam(ORG) String organizationId,
+            @PathParam("name") String name, @QueryParam(ID) String id) {
+        String tenant = tenantCode(organizationId);
+        return write(organizationId, () -> {
+            whatsAppTemplates.delete(tenant, name, blankToNull(id));
+            return Response.noContent().build();
+        });
+    }
+
     // Events and runs
 
     @GET
@@ -290,9 +343,19 @@ public class OrgConversationsResource {
             return error(Response.Status.BAD_REQUEST, e.getMessage());
         } catch (NoSuchElementException e) {
             return error(Response.Status.NOT_FOUND, e.getMessage());
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | ConnectionResolutionException e) {
             return error(Response.Status.CONFLICT, e.getMessage());
+        } catch (MetaGraphException e) {
+            return error(metaStatus(e), e.getMessage());
         }
+    }
+
+    /** Meta refusing the request is the caller's 400 (404 for an unknown template); anything else is a 502. */
+    static Response.Status metaStatus(MetaGraphException e) {
+        if (!e.isClientError()) {
+            return Response.Status.BAD_GATEWAY;
+        }
+        return e.httpStatus() == 404 ? Response.Status.NOT_FOUND : Response.Status.BAD_REQUEST;
     }
 
     private static Response error(Response.Status status, String message) {

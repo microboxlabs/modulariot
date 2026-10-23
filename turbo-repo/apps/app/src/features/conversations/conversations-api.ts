@@ -14,6 +14,8 @@ import type {
   ConversationTemplate,
   DraftResult,
   EventTypeInfo,
+  MetaTemplate,
+  MetaTemplateDraft,
   RuleDetail,
   RuleSpec,
   RuleState,
@@ -33,6 +35,7 @@ export const templatesKey = `${CONVERSATIONS_BASE}/templates`;
 export const templateKey = (key: string) =>
   `${templatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
+export const metaTemplatesKey = `${CONVERSATIONS_BASE}/whatsapp-templates`;
 
 export function runsKey(filter: {
   rule?: string | null;
@@ -74,6 +77,15 @@ export function useConversationTemplate(key: string | null) {
     fetcher,
     quiet
   );
+}
+
+/** The templates on the WABA, read live from Meta; every 30 s while one is under review. */
+export function useMetaTemplates(enabled = true) {
+  return useSWR<MetaTemplate[]>(enabled ? metaTemplatesKey : null, fetcher, {
+    ...quiet,
+    refreshInterval: (list) =>
+      list?.some((t) => t.status === "PENDING") ? 30_000 : 0,
+  });
 }
 
 export function useEventCatalog() {
@@ -132,6 +144,32 @@ export function saveTemplate(key: string, body: TemplateBody) {
     method: "PUT",
     body,
   });
+}
+
+export function createMetaTemplate(draft: MetaTemplateDraft) {
+  return request<MetaTemplate>(metaTemplatesKey, {
+    method: "POST",
+    body: draft,
+  });
+}
+
+export function editMetaTemplate(id: string, draft: MetaTemplateDraft) {
+  return request<MetaTemplate>(
+    `${metaTemplatesKey}/${encodeURIComponent(id)}`,
+    { method: "PUT", body: draft }
+  );
+}
+
+/** Deletes one language of the template when `id` is given, else every language. */
+export function deleteMetaTemplate(name: string, id?: string) {
+  const q = id ? `?id=${encodeURIComponent(id)}` : "";
+  return request<void>(`${metaTemplatesKey}/${encodeURIComponent(name)}${q}`, {
+    method: "DELETE",
+  });
+}
+
+export async function refreshMetaTemplates() {
+  await mutate(metaTemplatesKey);
 }
 
 /** Refreshes the rule list and, when given, one rule. */

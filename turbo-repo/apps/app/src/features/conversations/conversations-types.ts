@@ -152,6 +152,61 @@ export interface ConversationTemplate extends TemplateBody {
   usedBy?: { id: string; key: string; name: string; state: RuleState }[];
 }
 
+/** A template's review state on Meta. */
+export type MetaTemplateStatus =
+  | "APPROVED"
+  | "PENDING"
+  | "REJECTED"
+  | "PAUSED"
+  | "DISABLED"
+  | "IN_APPEAL"
+  | "PENDING_DELETION"
+  | "DELETED"
+  | "LIMIT_EXCEEDED";
+
+export type MetaTemplateCategory = "UTILITY" | "MARKETING" | "AUTHENTICATION";
+export type MetaButtonType = "QUICK_REPLY" | "URL" | "PHONE_NUMBER";
+
+export interface MetaTemplateButton {
+  type: MetaButtonType;
+  text: string;
+  url?: string | null;
+  phoneNumber?: string | null;
+}
+
+/** A template on the WABA, from `/whatsapp-templates`. */
+export interface MetaTemplate {
+  id: string;
+  name: string;
+  language: string;
+  category: MetaTemplateCategory | string;
+  status: MetaTemplateStatus | string;
+  rejectedReason: string | null;
+  parameterFormat: string;
+  /** TEXT, IMAGE, VIDEO, DOCUMENT or LOCATION; null without a header. */
+  headerFormat: string | null;
+  header: string | null;
+  body: string | null;
+  footer: string | null;
+  buttons: MetaTemplateButton[];
+  /** The body's parameters in order: what a send fills. */
+  params: string[];
+  /** The example of every header and body parameter. */
+  examples: Record<string, string>;
+}
+
+/** What the editor submits; Meta keeps the name and language of an existing template. */
+export interface MetaTemplateDraft {
+  name: string;
+  language: string;
+  category: MetaTemplateCategory;
+  header: string;
+  body: string;
+  footer: string;
+  buttons: MetaTemplateButton[];
+  examples: Record<string, string>;
+}
+
 export interface EventField {
   /** Relative to `event.data`; the template variable has the same name. */
   name: string;

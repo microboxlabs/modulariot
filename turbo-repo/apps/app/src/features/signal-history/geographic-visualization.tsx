@@ -352,12 +352,9 @@ export default function GeographicVisualization({
 
         {emptyMessage && (
           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-            <p
-              role="status"
-              className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-700 shadow dark:bg-gray-800/90 dark:text-gray-200"
-            >
+            <output className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-700 shadow dark:bg-gray-800/90 dark:text-gray-200">
               {emptyMessage}
-            </p>
+            </output>
           </div>
         )}
         <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">

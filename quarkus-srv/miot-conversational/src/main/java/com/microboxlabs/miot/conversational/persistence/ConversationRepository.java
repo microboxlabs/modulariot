@@ -57,6 +57,23 @@ public class ConversationRepository {
     private static final String SELECT_BY_TENANT_AND_ID =
             SELECT_FROM + "WHERE tenant_code = $1 AND id = $2";
 
+    // The conversation where a WAITING run last sent to this address. Only real sends count: a test run's
+    // SIMULATED messages and failed sends never reached the person replying.
+    private static final String SELECT_WITH_WAITING_RUN = "SELECT " + COLUMNS + """
+            , w.run_id
+            FROM miot_conversational.wa_conversation
+            JOIN (SELECT m.conversation_id, r.id AS run_id, MAX(m.created_at) AS last_at
+                  FROM miot_conversational.conv_run r
+                  JOIN miot_conversational.wa_message m ON m.run_id = r.id
+                  WHERE r.tenant_code = $1 AND r.status = 'WAITING' AND NOT r.test
+                    AND m.direction = 'OUTBOUND' AND m.address = $2
+                    AND m.status NOT IN ('SIMULATED', 'FAILED')
+                  GROUP BY m.conversation_id, r.id) w ON w.conversation_id = id
+            WHERE tenant_code = $1 AND participant_address = $2
+            ORDER BY w.last_at DESC
+            LIMIT 1
+            """;
+
     private static final String SELECT_BY_TENANT = SELECT_FROM + """
             WHERE tenant_code = $1
             ORDER BY last_message_at DESC NULLS LAST, created_at DESC
@@ -133,6 +150,50 @@ public class ConversationRepository {
         return first(client().preparedQuery(SELECT_LATEST_OPEN_BY_ADDRESS)
                 .execute(Tuple.of(tenantCode, address))
                 .await().indefinitely());
+    }
+
+    /** A conversation with the run that waits on it. */
+    public record WithWaitingRun(Conversation conversation, String runId) {
+    }
+
+    /** The conversation where a WAITING run last messaged this address, or null. */
+    public WithWaitingRun findWithWaitingRun(String tenantCode, String address) {
+        var rows = client().preparedQuery(SELECT_WITH_WAITING_RUN)
+                .execute(Tuple.of(tenantCode, address))
+                .await().indefinitely()
+                .iterator();
+        if (!rows.hasNext()) {
+            return null;
+        }
+        Row row = rows.next();
+        return new WithWaitingRun(mapRow(row), row.getUUID("run_id").toString());
+    }
+
+    /** A participant about a context; {@code phoneE164} is null for an email address. */
+    public record ContextParticipant(ContextKind kind, String contextKey, String address, String phoneE164,
+            String displayName, String role, String contactId) {
+    }
+
+    /**
+     * The conversation about this context with this participant, created when there is none. Without a context:
+     * the participant's open conversation without context, else a new one.
+     */
+    public Conversation findOrCreateForContext(String tenantCode, ContextParticipant p, OffsetDateTime now) {
+        ContextKind kind = p.kind();
+        String contextKey = p.contextKey();
+        String address = p.address();
+        boolean hasContext = kind != null && contextKey != null && !contextKey.isBlank();
+        Conversation found = hasContext
+                ? findByContextAndAddress(tenantCode, kind, contextKey, address)
+                : findOpenUnassignedByAddress(tenantCode, address);
+        if (found != null) {
+            return found;
+        }
+        String serviceCode = hasContext && kind == ContextKind.SERVICE ? contextKey : null;
+        return create(new Conversation(UUID.randomUUID().toString(), tenantCode, p.phoneE164(), null, null,
+                serviceCode, null, null, ConversationStatus.OPEN, null, null, null, null, null, 0, now, now,
+                hasContext ? kind : null, hasContext ? contextKey : null, address, p.contactId(), p.role(),
+                p.displayName(), Map.of()));
     }
 
     public Conversation findByTenantAndId(String tenantCode, String conversationId) {
@@ -230,6 +291,12 @@ public class ConversationRepository {
             String driverId,
             OffsetDateTime occurredAt,
             String lastMessagePreview) {
+
+        /** A touch that carries only the context, as rule-started messages do. */
+        public static OutboundTouch ofContext(ContextKind kind, String key, OffsetDateTime at, String preview) {
+            return new OutboundTouch(kind, key, kind == ContextKind.SERVICE ? key : null, null, null, null, at,
+                    preview);
+        }
     }
 
     public Conversation updateOutbound(String conversationId, OutboundTouch touch) {

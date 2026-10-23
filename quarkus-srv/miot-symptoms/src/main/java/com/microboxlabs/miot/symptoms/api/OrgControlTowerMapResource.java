@@ -91,15 +91,35 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @GET
     @Path("/conditions")
     @Operation(operationId = "countSymptomConditions", summary = "Symptom counts by condition",
-            description = "Active symptoms, or with from and to (ISO-8601) the symptoms created in that range.")
+            description = "Active symptoms, with the evaluator's open cases, or with from and to (ISO-8601) the "
+                    + "symptoms created in that range.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> conditions(
             @PathParam("organizationId") String organizationId,
             @QueryParam("from") String from,
             @QueryParam("to") String to) {
-        tenantCode(organizationId);
-        return answer(() -> map.conditions(tenantContext.getClientId(), from, to));
+        String tenant = tenantCode(organizationId);
+        return answer(() -> {
+            Uni<JsonNode> gps = map.conditions(tenantContext.getClientId(), from, to);
+            if (notBlank(from) || notBlank(to)) {
+                return gps;
+            }
+            // As in the symptom list: the open cases count even when the GPS database cannot be read.
+            return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .emitOn(Infrastructure.getDefaultWorkerPool())
+                    .map(counts -> {
+                        JsonNode out = cases.withOpenCaseCounts(tenant, counts);
+                        if (counts == null && out.isEmpty()) {
+                            throw new ControlTowerMapService.UnavailableException("GPS data is not available");
+                        }
+                        return out;
+                    });
+        });
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     @GET

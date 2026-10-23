@@ -135,6 +135,7 @@ public class WhatsAppInboundService {
                 persisted.id(),
                 persisted.inReplyTo(),
                 persisted.runId(),
+                attachment.answeredStep(),
                 Channel.WHATSAPP,
                 message.fromE164(),
                 message.body(),
@@ -179,7 +180,7 @@ public class WhatsAppInboundService {
      * <ol>
      *   <li>the message it answers, named by the provider ({@code context.id}, or a button payload
      *       carrying the outbound message id or wamid); also sets {@code inReplyTo};</li>
-     *   <li>the conversation of a run waiting for this address (once runs exist, #2003);</li>
+     *   <li>the conversation of a run waiting for this address;</li>
      *   <li>the newest open conversation for the address;</li>
      *   <li>a new conversation without context.</li>
      * </ol>
@@ -190,12 +191,16 @@ public class WhatsAppInboundService {
         if (answered != null) {
             Conversation conversation = conversationRepository.findByTenantAndId(tenantCode, answered.conversationId());
             if (conversation != null && address.equals(conversation.participantAddress())) {
-                return new Attachment(conversation, answered.id(), answered.runId());
+                return new Attachment(conversation, answered.id(), answered.runId(), answered.step());
             }
+        }
+        Attachment waiting = conversationWithWaitingRun(tenantCode, address);
+        if (waiting != null) {
+            return waiting;
         }
         Conversation latest = conversationRepository.findLatestOpenByAddress(tenantCode, address);
         if (latest != null) {
-            return new Attachment(latest, null, null);
+            return new Attachment(latest, null, null, null);
         }
         // appendInbound then applies the first inbound touch (unread 1, timestamps).
         return new Attachment(conversationRepository.create(new Conversation(
@@ -222,7 +227,7 @@ public class WhatsAppInboundService {
                 null,
                 null,
                 message.contactName(),
-                Map.of())), null, null);
+                Map.of())), null, null, null);
     }
 
     private Message answeredMessage(InboundMessage message) {
@@ -241,7 +246,16 @@ public class WhatsAppInboundService {
         return messageRepository.findByProviderMessageId(Channel.WHATSAPP, payload);
     }
 
-    private record Attachment(Conversation conversation, String inReplyTo, String runId) {
+    /**
+     * Step 2 of the attachment order: the conversation where a WAITING run last messaged this
+     * address. The reply carries the run.
+     */
+    private Attachment conversationWithWaitingRun(String tenantCode, String address) {
+        ConversationRepository.WithWaitingRun waiting = conversationRepository.findWithWaitingRun(tenantCode, address);
+        return waiting == null ? null : new Attachment(waiting.conversation(), null, waiting.runId(), null);
+    }
+
+    private record Attachment(Conversation conversation, String inReplyTo, String runId, Integer answeredStep) {
     }
 
     /**
@@ -265,7 +279,7 @@ public class WhatsAppInboundService {
             case SENT -> 1;
             case DELIVERED -> 2;
             case READ -> 3;
-            case RECEIVED, FAILED -> -1;
+            case RECEIVED, FAILED, SIMULATED -> -1;
         };
     }
 

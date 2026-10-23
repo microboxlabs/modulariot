@@ -102,7 +102,7 @@ public class PgSlaStore implements SlaStore {
         EngineCase c = new EngineCase(r.getLong("id"), r.getUUID("definition_id"), r.getString("version"), null,
                 null, r.getString("asset_id"), r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"),
                 r.getString("trip_id"), r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
-                null, 0);
+                null, 0, r.getInteger("sla_minutes"), null);
         return new Due(r.getString("tenant_code"), c, r.getOffsetDateTime("level_since").toInstant(),
                 r.getInteger("sla_minutes"));
     }

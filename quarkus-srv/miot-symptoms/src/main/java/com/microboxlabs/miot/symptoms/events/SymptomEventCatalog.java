@@ -30,6 +30,11 @@ public class SymptomEventCatalog implements EventTypeCatalog {
     }
 
     @Override
+    public String contextKind() {
+        return CONTEXT_KIND;
+    }
+
+    @Override
     public List<EventType> types() {
         return TYPES;
     }

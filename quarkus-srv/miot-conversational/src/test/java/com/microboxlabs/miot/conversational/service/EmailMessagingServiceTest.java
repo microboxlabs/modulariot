@@ -1,0 +1,116 @@
+package com.microboxlabs.miot.conversational.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.microboxlabs.miot.conversational.domain.Channel;
+import com.microboxlabs.miot.conversational.domain.ContextKind;
+import com.microboxlabs.miot.conversational.domain.Conversation;
+import com.microboxlabs.miot.conversational.domain.Message;
+import com.microboxlabs.miot.conversational.domain.MessageStatus;
+import com.microboxlabs.miot.integrations.email.EmailMessage;
+import com.microboxlabs.miot.integrations.email.PlatformMailService;
+import com.microboxlabs.miot.integrations.email.ResendEmailSender;
+import com.microboxlabs.miot.integrations.email.SendResult;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.junit.jupiter.api.Test;
+
+/** A rule's email: which sender, what is stored, and on which conversation. */
+class EmailMessagingServiceTest {
+
+    private static final String TENANT = "tenant-1";
+    private static final String TOWER = "tower@example.com";
+    private static final String RUN = "00000000-0000-0000-0000-0000000000a1";
+
+    private final InMemoryConversations store = new InMemoryConversations();
+    private final List<String> sendingTenants = new ArrayList<>();
+    private final List<EmailMessage> sent = new ArrayList<>();
+    private final List<String> keys = new ArrayList<>();
+
+    private EmailMessagingService service(Set<String> configured, SendResult result) {
+        return new EmailMessagingService(new ResendEmailSender(null, null, null) {
+            @Override
+            public boolean configured(String tenantCode) {
+                return configured.contains(tenantCode);
+            }
+
+            @Override
+            public SendResult send(String tenantCode, EmailMessage message, String idempotencyKey) {
+                sendingTenants.add(tenantCode);
+                sent.add(message);
+                keys.add(idempotencyKey);
+                return result;
+            }
+        }, store.conversationRepository, store.messageRepository);
+    }
+
+    private static ContextMessage email(String subject, String body) {
+        return new ContextMessage(ContextKind.SYMPTOM_CASE, "-7", TOWER, "Jefe de torre", null, null, "panic-tower",
+                null, Map.of(), subject, body, RUN, 1);
+    }
+
+    @Test
+    void theTenantsConnectionSendsAndTheMessageLandsOnTheCaseConversation() {
+        Message m = service(Set.of(TENANT), SendResult.accepted(200, "re-1"))
+                .sendInContext(TENANT, email("Pánico", "Sin respuesta"), false);
+
+        assertEquals(List.of(TENANT), sendingTenants);
+        assertEquals(TOWER, sent.get(0).to());
+        assertEquals("Pánico", sent.get(0).subject());
+        assertEquals("Sin respuesta", sent.get(0).text());
+        assertNull(sent.get(0).replyTo());
+        assertEquals(RUN + ":1:" + TOWER, keys.get(0));
+        assertEquals(MessageStatus.SENT, m.status());
+        assertEquals(Channel.EMAIL, m.channel());
+        assertEquals("re-1", m.providerMessageId());
+        assertEquals(RUN, m.runId());
+        assertEquals(1, m.step());
+        assertEquals("Pánico", m.metadata().get("subject"));
+        Conversation c = store.conversations.get(m.conversationId());
+        assertEquals(ContextKind.SYMPTOM_CASE, c.contextKind());
+        assertEquals("-7", c.contextKey());
+        assertEquals(TOWER, c.participantAddress());
+        assertNull(c.phoneE164());
+        assertEquals("Jefe de torre", c.displayName());
+        assertEquals("Pánico", c.lastMessagePreview());
+    }
+
+    @Test
+    void thePlatformSendsWhenTheTenantHasNoConnection() {
+        service(Set.of(PlatformMailService.PLATFORM_TENANT), SendResult.accepted(200, "re-1"))
+                .sendInContext(TENANT, email("Pánico", "x"), false);
+
+        assertEquals(List.of(PlatformMailService.PLATFORM_TENANT), sendingTenants);
+    }
+
+    @Test
+    void withoutASenderOrWithARefusalTheMessageIsFailed() {
+        Message none = service(Set.of(), SendResult.accepted(200, "x")).sendInContext(TENANT, email("a", "b"), false);
+        assertEquals(MessageStatus.FAILED, none.status());
+        assertTrue(none.errorMessage().contains("No email sender"));
+
+        Message refused = service(Set.of(TENANT), SendResult.failed(422, "Resend returned HTTP 422"))
+                .sendInContext(TENANT, email("a", "b"), false);
+        assertEquals(MessageStatus.FAILED, refused.status());
+        assertEquals("Resend returned HTTP 422", refused.errorMessage());
+
+        Message blank = service(Set.of(TENANT), SendResult.accepted(200, "x"))
+                .sendInContext(TENANT, email("", "b"), false);
+        assertEquals(MessageStatus.FAILED, blank.status());
+        assertEquals(1, sent.size(), "only the refused one reached Resend");
+        assertEquals(1, store.conversations.size(), "one conversation per context and address");
+    }
+
+    @Test
+    void aSimulatedEmailIsStoredAndNotSent() {
+        Message m = service(Set.of(TENANT), SendResult.accepted(200, "x"))
+                .sendInContext(TENANT, email("a", "b"), true);
+
+        assertEquals(MessageStatus.SIMULATED, m.status());
+        assertTrue(sent.isEmpty());
+    }
+}

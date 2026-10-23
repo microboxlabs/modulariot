@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.persistence;
 
+import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageDirection;
 import com.microboxlabs.miot.conversational.domain.MessageRole;
@@ -17,53 +18,62 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Persistence for {@link Message} rows in the WhatsApp message pool timeline. */
+/** Persistence for {@link Message} rows in a conversation timeline, on any channel. */
 @ApplicationScoped
 public class MessageRepository {
 
     private static final String COLUMNS = """
             id, conversation_id, direction, role, msg_type, body, template_name,
-            media_ref, media_mime_type, media_file_name, meta_message_id, status,
+            media_ref, media_mime_type, media_file_name, provider_message_id, status,
             error_message, sent_by_user_id, service_code, process_instance_id, metadata,
-            sent_at, delivered_at, read_at, created_at
+            sent_at, delivered_at, read_at, created_at, channel, address, in_reply_to, run_id, step
             """;
+
+    private static final String SELECT = "SELECT " + COLUMNS;
 
     private static final String INSERT = """
             INSERT INTO miot_conversational.wa_message (
                 id, conversation_id, direction, role, msg_type, body, template_name,
-                media_ref, media_mime_type, media_file_name, meta_message_id, status,
+                media_ref, media_mime_type, media_file_name, provider_message_id, status,
                 error_message, sent_by_user_id, service_code, process_instance_id, metadata,
-                sent_at, delivered_at, read_at, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                sent_at, delivered_at, read_at, created_at, channel, address, in_reply_to, run_id, step
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+                      $22, $23, $24, $25, $26)
             RETURNING\s""" + COLUMNS;
 
-    // Inbound idempotency lives in this one atomic statement: the wamid partial-unique index is the
-    // dedup, so a redelivered event inserts nothing and RETURNING yields no row (appendInbound
+    // Inbound idempotency lives in this one atomic statement: the (channel, provider id) partial
+    // unique index is the dedup, so a redelivered event inserts nothing and RETURNING yields no row (appendInbound
     // returns null → caller skips the conversation touch). Unlike a separate pre-write claim, a
     // retry after a failed insert still persists the message — no permanent loss on transient errors.
     private static final String INSERT_IF_NEW = """
             INSERT INTO miot_conversational.wa_message (
                 id, conversation_id, direction, role, msg_type, body, template_name,
-                media_ref, media_mime_type, media_file_name, meta_message_id, status,
+                media_ref, media_mime_type, media_file_name, provider_message_id, status,
                 error_message, sent_by_user_id, service_code, process_instance_id, metadata,
-                sent_at, delivered_at, read_at, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-            ON CONFLICT (meta_message_id) WHERE meta_message_id IS NOT NULL DO NOTHING
+                sent_at, delivered_at, read_at, created_at, channel, address, in_reply_to, run_id, step
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+                      $22, $23, $24, $25, $26)
+            ON CONFLICT (channel, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING
             RETURNING\s""" + COLUMNS;
 
-    private static final String SELECT_BY_CONVERSATION = "SELECT " + COLUMNS + """
+    private static final String SELECT_BY_CONVERSATION = SELECT + """
             FROM miot_conversational.wa_message
             WHERE conversation_id = $1
             ORDER BY created_at, id
             LIMIT $2
             """;
 
-    // Status mirroring looks up the outbound row by the wamid we stored on send (the partial
-    // unique index makes this a point lookup).
-    private static final String SELECT_BY_META_MESSAGE_ID = "SELECT " + COLUMNS + """
+    // Status mirroring and reply attachment look up a row by the provider id stored on send (the
+    // partial unique index makes this a point lookup).
+    private static final String SELECT_BY_PROVIDER_MESSAGE_ID = SELECT + """
             FROM miot_conversational.wa_message
-            WHERE meta_message_id = $1
+            WHERE channel = $1 AND provider_message_id = $2
             LIMIT 1
+            """;
+
+    private static final String SELECT_BY_ID = SELECT + """
+            FROM miot_conversational.wa_message
+            WHERE id = $1
             """;
 
     // Advance the lifecycle (SENT→DELIVERED→READ, or →FAILED). COALESCE keeps any timestamp /
@@ -80,7 +90,7 @@ public class MessageRepository {
 
     private final Instance<Pool> clientInstance;
 
-    MessageRepository(Instance<Pool> clientInstance) {
+    protected MessageRepository(Instance<Pool> clientInstance) {
         this.clientInstance = clientInstance;
     }
 
@@ -92,8 +102,8 @@ public class MessageRepository {
     }
 
     /**
-     * Inserts an inbound message, deduping on the Meta wamid. Returns the persisted row, or
-     * {@code null} when the wamid was already stored (a Meta redelivery) so the caller skips the
+     * Inserts an inbound message, deduping on (channel, provider id). Returns the persisted row, or
+     * {@code null} when the id was already stored (a Meta redelivery) so the caller skips the
      * conversation touch.
      */
     public Message appendInbound(Message message) {
@@ -116,7 +126,7 @@ public class MessageRepository {
                 .addString(message.mediaRef())
                 .addString(message.mediaMimeType())
                 .addString(message.mediaFileName())
-                .addString(message.metaMessageId())
+                .addString(message.providerMessageId())
                 .addString(message.status().name())
                 .addString(message.errorMessage())
                 .addString(message.sentByUserId())
@@ -126,7 +136,16 @@ public class MessageRepository {
                 .addOffsetDateTime(message.sentAt())
                 .addOffsetDateTime(message.deliveredAt())
                 .addOffsetDateTime(message.readAt())
-                .addOffsetDateTime(message.createdAt());
+                .addOffsetDateTime(message.createdAt())
+                .addString(channelOf(message).dbValue())
+                .addString(message.address())
+                .addUUID(message.inReplyTo() == null ? null : UUID.fromString(message.inReplyTo()))
+                .addUUID(message.runId() == null ? null : UUID.fromString(message.runId()))
+                .addInteger(message.step());
+    }
+
+    private static Channel channelOf(Message message) {
+        return message.channel() == null ? Channel.WHATSAPP : message.channel();
     }
 
     public List<Message> listByConversation(String conversationId, int limit) {
@@ -138,16 +157,40 @@ public class MessageRepository {
                 .toList();
     }
 
-    /** The outbound row a status callback refers to, or null if we never stored that wamid. */
-    public Message findByMetaMessageId(String metaMessageId) {
-        if (metaMessageId == null || metaMessageId.isBlank()) {
+    /** The row with this provider id on this channel, or null if we never stored it. */
+    public Message findByProviderMessageId(Channel channel, String providerMessageId) {
+        if (channel == null || providerMessageId == null || providerMessageId.isBlank()) {
             return null;
         }
-        var rows = client().preparedQuery(SELECT_BY_META_MESSAGE_ID)
-                .execute(Tuple.of(metaMessageId))
+        var rows = client().preparedQuery(SELECT_BY_PROVIDER_MESSAGE_ID)
+                .execute(Tuple.of(channel.dbValue(), providerMessageId))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    /** The row with this id, or null for an unknown or non-UUID id. */
+    public Message findById(String messageId) {
+        UUID id = parseUuidOrNull(messageId);
+        if (id == null) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_BY_ID)
+                .execute(Tuple.of(id))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    static UUID parseUuidOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public Message markStatus(
@@ -179,7 +222,7 @@ public class MessageRepository {
                 row.getString("media_ref"),
                 row.getString("media_mime_type"),
                 row.getString("media_file_name"),
-                row.getString("meta_message_id"),
+                row.getString("provider_message_id"),
                 MessageStatus.valueOf(row.getString("status")),
                 row.getString("error_message"),
                 row.getString("sent_by_user_id"),
@@ -189,7 +232,16 @@ public class MessageRepository {
                 row.getOffsetDateTime("sent_at"),
                 row.getOffsetDateTime("delivered_at"),
                 row.getOffsetDateTime("read_at"),
-                row.getOffsetDateTime("created_at"));
+                row.getOffsetDateTime("created_at"),
+                Channel.fromDb(row.getString("channel")),
+                row.getString("address"),
+                uuidString(row.getUUID("in_reply_to")),
+                uuidString(row.getUUID("run_id")),
+                row.getInteger("step"));
+    }
+
+    private static String uuidString(UUID value) {
+        return value == null ? null : value.toString();
     }
 
     private JsonObject toJson(Map<String, Object> value) {

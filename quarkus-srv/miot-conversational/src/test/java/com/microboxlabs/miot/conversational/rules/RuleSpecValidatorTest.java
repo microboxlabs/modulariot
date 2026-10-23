@@ -1,0 +1,148 @@
+package com.microboxlabs.miot.conversational.rules;
+
+import static com.microboxlabs.miot.conversational.rules.RulesFixture.PANIC_SPEC;
+import static com.microboxlabs.miot.conversational.rules.RulesFixture.TENANT;
+import static com.microboxlabs.miot.conversational.rules.RulesFixture.json;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.microboxlabs.miot.conversational.rules.RuleSpecValidator.Finding;
+import com.microboxlabs.miot.conversational.rules.RuleSpecValidator.Severity;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+/** The findings of a rule spec: codes, sections, params and positions. */
+class RuleSpecValidatorTest {
+
+    private final RulesFixture f = new RulesFixture();
+
+    private List<Finding> validate(String spec) {
+        return f.service.validate(TENANT, RuleSpec.read(json(spec)));
+    }
+
+    private static Finding only(List<Finding> findings, String code) {
+        List<Finding> matching = findings.stream().filter(x -> x.code().equals(code)).toList();
+        assertEquals(1, matching.size(), code + " in " + findings);
+        return matching.get(0);
+    }
+
+    @Test
+    void theSliceRuleHasNoFindings() {
+        assertEquals(List.of(), validate(PANIC_SPEC));
+    }
+
+    @Test
+    void aMissingOrUnknownEventIsNoEvent() {
+        Finding missing = only(validate("""
+                {"audience": [{"role": "driver"}], "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "noEvent");
+        assertEquals("trigger", missing.section());
+        assertEquals(Severity.ERROR, missing.severity());
+
+        Finding unknown = only(validate("""
+                {"trigger": {"event": "trip.arrived"}, "audience": [{"role": "driver"}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "noEvent");
+        assertEquals(Map.of("event", "trip.arrived"), unknown.params());
+        assertTrue(unknown.message().contains("trip.arrived"));
+    }
+
+    @Test
+    void aConditionThatDoesNotCompileIsWhenInvalidWithItsPosition() {
+        Finding f1 = only(validate("""
+                {"trigger": {"event": "symptom.case.opened", "when": "event.data.level >= "},
+                 "audience": [{"role": "driver"}], "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "whenInvalid");
+        assertEquals("trigger", f1.section());
+        assertTrue(f1.position() > 0, "position " + f1.position());
+
+        Finding unknownVar = only(validate("""
+                {"trigger": {"event": "symptom.case.opened", "when": "evento.data.level >= 4"},
+                 "audience": [{"role": "driver"}], "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "whenInvalid");
+        assertEquals(0, unknownVar.position());
+
+        only(validate("""
+                {"trigger": {"event": "symptom.case.opened", "when": "event.data.level + 1"},
+                 "audience": [{"role": "driver"}], "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "whenInvalid");
+    }
+
+    @Test
+    void anEmptyAudienceForAStepToTheAudienceIsNoAudience() {
+        Finding finding = only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "to": "audience"}]}
+                """), "noAudience");
+        assertEquals("audience.0", finding.section());
+        assertEquals(List.of(), validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "email", "template": "panic-tower",
+                            "to": [{"address": "tower@example.com", "channel": "email"}]}]}
+                """));
+    }
+
+    @Test
+    void anUnknownRoleIsAWarning() {
+        Finding finding = only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}, {"role": "carrier"}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "unknownRole");
+        assertEquals("audience.1", finding.section());
+        assertEquals(Severity.WARNING, finding.severity());
+        assertEquals(Map.of("role", "carrier", "entry", 2), finding.params());
+        assertEquals(List.of(), validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "jefe de torre"}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "roles match ignoring case");
+    }
+
+    @Test
+    void stepsNeedATemplateThatExistsAndHasTheChannel() {
+        List<Finding> findings = validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}],
+                 "steps": [{"channel": "whatsapp"},
+                           {"channel": "whatsapp", "template": "nope"},
+                           {"channel": "email", "template": "panic-check"}]}
+                """);
+        assertEquals("steps.0", only(findings, "stepNoTemplate").section());
+        Finding unknown = only(findings, "stepUnknownTemplate");
+        assertEquals("steps.1", unknown.section());
+        assertEquals(Map.of("template", "nope", "step", 2), unknown.params());
+        assertEquals(Map.of("step", 1), only(findings, "stepNoTemplate").params());
+        assertEquals("steps.2", only(findings, "stepTemplateNoChannel").section());
+    }
+
+    @Test
+    void noStepsAndBadValues() {
+        assertEquals("steps.0", only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}], "steps": []}
+                """), "noSteps").section());
+
+        List<Finding> findings = validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}],
+                 "steps": [{"channel": "sms", "template": "panic-check", "waitForReply": 5},
+                           {"channel": "whatsapp", "template": "panic-check", "after": -1, "onReply": "later"}]}
+                """);
+        assertEquals("steps.0", only(findings, "stepBadChannel").section());
+        assertEquals(Map.of("channel", "sms", "step", 1), only(findings, "stepWaitNeedsReplies").params());
+        assertEquals("steps.1", only(findings, "stepNegativeMinutes").section());
+        assertEquals("steps.1", only(findings, "stepBadOnReply").section());
+        assertFalse(RuleSpecValidator.publishable(findings));
+    }
+
+    @Test
+    void aFixedAddressNeedsItsChannel() {
+        Finding finding = only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"address": "+56900000000"}, {}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "audienceBadChannel");
+        assertEquals("audience.0", finding.section());
+        assertEquals("audience.1", only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"address": "+56900000000"}, {}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "audienceEmptyEntry").section());
+    }
+}

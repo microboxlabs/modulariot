@@ -2,10 +2,13 @@ package com.microboxlabs.miot.conversational.service;
 
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
 import com.microboxlabs.miot.conversational.client.WhatsAppSendException;
+import com.microboxlabs.miot.conversational.domain.Channel;
+import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.ConversationStatus;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageDirection;
+import com.microboxlabs.miot.conversational.domain.MessageRole;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.domain.MessageType;
 import com.microboxlabs.miot.conversational.dto.SendWhatsAppMessageRequest;
@@ -41,6 +44,7 @@ public class WhatsAppMessagingService {
     private static final int PREVIEW_MAX = 280;
     private static final String TEST_MODE_ENABLED = "test_mode_enabled";
     private static final String TEST_RECIPIENTS = "test_recipients";
+    private static final String DEFAULT_LANGUAGE = "es_CL";
 
     private final IntegrationConnectionResolver connectionResolver;
     private final MetaWhatsAppClient metaClient;
@@ -111,18 +115,81 @@ public class WhatsAppMessagingService {
                 status == MessageStatus.SENT ? now : null,
                 null,
                 null,
-                now));
+                now,
+                Channel.WHATSAPP,
+                request.to(),
+                null,
+                null,
+                null));
 
-        conversationRepository.updateOutbound(
-                conversation.id(),
+        conversationRepository.updateOutbound(conversation.id(), new ConversationRepository.OutboundTouch(
+                request.serviceCode() == null ? null : ContextKind.SERVICE,
+                request.serviceCode(),
                 request.serviceCode(),
                 request.processInstanceId(),
                 request.taskId(),
                 request.driverId(),
                 now,
-                preview(request));
+                preview(request)));
 
         return message;
+    }
+
+    /**
+     * Sends the Meta template {@code message.templateName()} with its NAMED parameters and stores it, with the
+     * run and step, on the conversation about the message's context with the recipient. The stored body is
+     * {@code message.body()}. Any failure (no connection, a recipient the connection's test mode does not
+     * allow, Meta refusing the send) is stored as FAILED with its reason. With {@code simulate} nothing is sent
+     * and the message is stored SIMULATED.
+     */
+    public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
+                message.participant(message.to()), now);
+        String providerMessageId = null;
+        MessageStatus status;
+        String errorMessage = null;
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (simulate) {
+            status = MessageStatus.SIMULATED;
+        } else {
+            try {
+                ResolvedConnection connection = connectionResolver.resolve(tenantCode, ProviderType.WHATSAPP);
+                metadata = metadata(connection);
+                String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
+                String token = connection.secretString(TOKEN);
+                if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
+                    throw new ConnectionResolutionException(
+                            "WhatsApp connection is missing phone_number_id or the access token");
+                }
+                enforceTestMode(connection, message.to());
+                providerMessageId = metaClient.sendTemplate(connection.baseUrl(), phoneNumberId, token,
+                        message.to(), message.templateName(),
+                        message.language() == null ? DEFAULT_LANGUAGE : message.language(), message.params());
+                status = MessageStatus.SENT;
+            } catch (ConnectionResolutionException | IllegalArgumentException | WhatsAppSendException e) {
+                LOG.warnf("WhatsApp run send failed for tenant %s to %s: %s", tenantCode, maskPhone(message.to()),
+                        e.getMessage());
+                status = MessageStatus.FAILED;
+                errorMessage = e.getMessage();
+            }
+        }
+        Message stored = messageRepository.append(new Message(
+                UUID.randomUUID().toString(), conversation.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,
+                MessageType.TEMPLATE, message.body(), message.templateName(), null, null, null, providerMessageId,
+                status, errorMessage, null, null, null, metadata, status == MessageStatus.SENT ? now : null,
+                null, null, now, Channel.WHATSAPP, message.to(), null, message.runId(), message.step()));
+        conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
+                message.contextKind(), message.contextKey(), now,
+                truncate(message.body() != null ? message.body() : message.templateName())));
+        return stored;
+    }
+
+    private static String truncate(String text) {
+        if (text == null) {
+            return null;
+        }
+        return text.length() <= PREVIEW_MAX ? text : text.substring(0, PREVIEW_MAX);
     }
 
     private String dispatch(
@@ -139,34 +206,40 @@ public class WhatsAppMessagingService {
     }
 
     /**
-     * Resolves the thread this outbound belongs to under the per-service model. A trip-tied send
-     * (carries a service code) lands on that service's thread — reusing it across the whole service
-     * life, or adopting the phone's open no-service thread on first contact, or opening a fresh one.
-     * An ad-hoc send with no service uses the phone's open no-service thread (or a new one). The
-     * subsequent {@code updateOutbound} COALESCE fills the service code when adopting.
+     * Chooses the conversation for a send. With a service code: the conversation about that
+     * service with this recipient, else the recipient's open conversation without context (the
+     * following {@code updateOutbound} gives it the service), else a new one. Without a service
+     * code: the recipient's open conversation without context, else a new one. Two recipients
+     * messaged about one service get two conversations.
      */
     private Conversation findOrCreateConversation(
             String tenantCode, SendWhatsAppMessageRequest request, OffsetDateTime now) {
-        // serviceCode is normalized to null-if-blank by the request record, so a present value is a
-        // real service (never "").
+        // serviceCode is normalized to null-if-blank by the request record.
         String serviceCode = request.serviceCode();
+        String address = request.to();
         if (serviceCode != null) {
-            Conversation byService = conversationRepository.findByTenantAndService(tenantCode, serviceCode);
+            Conversation byService = conversationRepository.findByContextAndAddress(
+                    tenantCode, ContextKind.SERVICE, serviceCode, address);
             if (byService != null) {
                 return byService;
             }
         }
-        Conversation unassigned = conversationRepository.findOpenUnassignedByPhone(tenantCode, request.to());
+        Conversation unassigned = conversationRepository.findOpenUnassignedByAddress(tenantCode, address);
         if (unassigned != null) {
             return unassigned;
         }
-        return conversationRepository.create(new Conversation(
+        return conversationRepository.create(newConversation(tenantCode, request, now));
+    }
+
+    static Conversation newConversation(String tenantCode, SendWhatsAppMessageRequest request, OffsetDateTime now) {
+        String serviceCode = request.serviceCode();
+        return new Conversation(
                 UUID.randomUUID().toString(),
                 tenantCode,
                 request.to(),
                 null,
                 request.driverId(),
-                request.serviceCode(),
+                serviceCode,
                 request.processInstanceId(),
                 request.taskId(),
                 ConversationStatus.OPEN,
@@ -177,7 +250,14 @@ public class WhatsAppMessagingService {
                 null,
                 0,
                 now,
-                now));
+                now,
+                serviceCode == null ? null : ContextKind.SERVICE,
+                serviceCode,
+                request.to(),
+                null,
+                request.driverId() == null ? null : Conversation.ROLE_DRIVER,
+                null,
+                Map.of());
     }
 
     private static void validate(SendWhatsAppMessageRequest request) {

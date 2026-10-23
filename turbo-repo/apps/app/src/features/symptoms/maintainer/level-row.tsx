@@ -28,6 +28,7 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
+import { CHANGED_ROW } from "./ui/changed";
 import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
 
@@ -469,7 +470,7 @@ export default function LevelRow({
 
   return (
     <div
-      className={`last:rounded-b-lg ${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? "bg-amber-50/70 shadow-[inset_3px_0_0] shadow-amber-400 dark:bg-amber-500/10 dark:shadow-amber-600" : ""}`}
+      className={`last:rounded-b-lg ${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? CHANGED_ROW : ""}`}
       data-changed={changed || undefined}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">

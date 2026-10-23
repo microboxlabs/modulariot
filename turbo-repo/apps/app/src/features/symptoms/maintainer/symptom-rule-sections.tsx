@@ -16,7 +16,7 @@ import SampleTree, {
   useSourceSamples,
 } from "./sample-tree";
 import { SourceHelp, SourceSelect } from "./source-select";
-import { changedPaths, isChanged } from "./ui/changed";
+import { CHANGED_CARD, changedPaths, isChanged } from "./ui/changed";
 import {
   type Finding,
   type Preview,
@@ -31,9 +31,6 @@ import RecurrenceForm from "./recurrence-form";
 import { Problems, problemsFor } from "./rule-problems";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
-
-/** The prototype's amber border on a card that differs from the published version. */
-const CHANGED_CARD = "!border-amber-300 dark:!border-amber-600/60";
 
 const cardClass =
   "rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";

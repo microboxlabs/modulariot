@@ -3059,6 +3059,8 @@
         "consequenceHint": "El caso cuenta en la gestión por consecuencia de quien lo causó.",
         "operatorTitle": "Operador",
         "closeTitle": "Cierre",
+        "communicationsTitle": "Comunicaciones",
+        "communicationsSoon": "Los mensajes automáticos de este nivel (WhatsApp y correo al conductor, al transportista o a la torre) se configuran como reglas de comunicación, que se muestran aquí.",
         "levelDown": "El nivel baja si la medida baja mientras dura",
         "sectionRecurrence": "Si se repite",
         "recurrenceOn": "Subir de nivel cuando se repite",

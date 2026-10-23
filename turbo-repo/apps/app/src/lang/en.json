@@ -3059,6 +3059,8 @@
         "consequenceHint": "The case counts in the consequence management of whoever caused it.",
         "operatorTitle": "Operator",
         "closeTitle": "Closing",
+        "communicationsTitle": "Communications",
+        "communicationsSoon": "Automatic messages at this level (WhatsApp and email to the driver, the carrier or the tower) are set up as communication rules, which show here.",
         "levelDown": "The level goes down if the measure drops while it lasts",
         "sectionRecurrence": "If it repeats",
         "recurrenceOn": "Raise the level when it repeats",

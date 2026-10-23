@@ -244,6 +244,11 @@ export default function LevelResponseDetail({
       <Problems
         items={unplaced(findings, response).map((f) => findingProblem(f, d))}
       />
+      <ResponseBlock title={tr("communicationsTitle", d)}>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {tr("communicationsSoon", d)}
+        </p>
+      </ResponseBlock>
       <OperatorBlock
         response={response}
         findings={findings}

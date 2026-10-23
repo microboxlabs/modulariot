@@ -122,17 +122,16 @@ public record SymptomSpec(
     }
 
     /**
-     * An automatic notice. It names a channel type; at send time it goes out through the
-     * organization's channel of that type, provided by the platform or by the organization.
+     * An automatic notice, sent through an Integrations connection.
      *
-     * @param when      reach (the case opens at this level or rises to it), open (opens at this
-     *                  level), level_up (rises to it), sla_expired, close
-     * @param channel   the channel type: email, whatsapp, teams, slack, webhook
-     * @param channelId one of the organization's channels of that type; null for its default
-     * @param recipient who receives it
+     * @param when         on open, on level up, on SLA expiry, on close
+     * @param channel      teams, whatsapp, email, app, webhook
+     * @param connectionId the connection that sends it
+     * @param templateId   the connection's message template
+     * @param recipient    who receives it
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Notice(String when, String channel, String channelId, String recipient) {
+    public record Notice(String when, String channel, String connectionId, String templateId, String recipient) {
     }
 
     /**

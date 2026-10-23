@@ -22,9 +22,9 @@ describe("shortThreshold", () => {
     expect(shortThreshold(level(1, "measure > 0 && measure < 5"), "km/h")).toBe(
       "< 5 km/h"
     );
-    expect(
-      shortThreshold(level(2, "measure >= 5 && measure < 11"), "km/h")
-    ).toBe("≥ 5 km/h");
+    expect(shortThreshold(level(2, "measure >= 5 && measure < 11"), "km/h")).toBe(
+      "≥ 5 km/h"
+    );
     expect(
       shortThreshold(level(4, "measure >= 21 && held_s >= 60"), "km/h")
     ).toBe("≥ 21 km/h · 1 min");
@@ -78,13 +78,15 @@ describe("levels, operators and channels", () => {
             {
               when: "open",
               channel: "whatsapp",
-              channelId: null,
+              connectionId: null,
+              templateId: null,
               recipient: null,
             },
             {
               when: "open",
               channel: "teams",
-              channelId: null,
+              connectionId: null,
+              templateId: null,
               recipient: null,
             },
           ],
@@ -102,7 +104,8 @@ describe("levels, operators and channels", () => {
             {
               when: "close",
               channel: "email",
-              channelId: null,
+              connectionId: null,
+              templateId: null,
               recipient: null,
             },
           ],
@@ -167,7 +170,8 @@ describe("whoActsKind", () => {
     notices: channels.map((channel) => ({
       when: "open",
       channel,
-      channelId: null,
+      connectionId: null,
+      templateId: null,
       recipient: null,
     })),
     evidence: [],

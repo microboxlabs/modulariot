@@ -48,7 +48,8 @@ const SPEC = {
           {
             when: "open",
             channel: "whatsapp",
-            channelId: null,
+            connectionId: null,
+            templateId: null,
             recipient: "Torre",
           },
         ],

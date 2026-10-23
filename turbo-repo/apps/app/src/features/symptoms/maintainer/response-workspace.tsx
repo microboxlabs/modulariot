@@ -13,7 +13,6 @@ import type {
 import { useSourceSamples } from "./sample-tree";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
-import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
 import { FIELD } from "./ui/response-block";
 import Select from "./ui/select";
@@ -75,7 +74,6 @@ function LevelItem({
   const level = levelOf(spec, icu);
   const response = level.response ?? EMPTY_RESPONSE;
   const name = trDynamic(`levelName${icu}`, d);
-  const channels = [...new Set((response.notices ?? []).map((n) => n.channel))];
   const tone = selected
     ? "border-blue-600 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20"
     : "border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50";
@@ -109,13 +107,6 @@ function LevelItem({
         <span className="text-xs text-gray-500 dark:text-gray-400">
           {level.applies ? summaryText(response, d) : tr("levelNotApplies", d)}
         </span>
-        {level.applies && channels.length > 0 && (
-          <span className="flex gap-1">
-            {channels.map((c) => (
-              <ChannelIcon key={c} channel={c} size={5} />
-            ))}
-          </span>
-        )}
       </span>
     </button>
   );

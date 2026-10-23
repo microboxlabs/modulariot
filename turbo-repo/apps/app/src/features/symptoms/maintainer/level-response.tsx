@@ -3,7 +3,6 @@
 import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import LevelNotices from "./level-notices";
 import LevelSteps, { type StepErrors } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
 import { findingText } from "./rule-problems";
@@ -219,8 +218,8 @@ function CloseBlock({
 }
 
 /**
- * What the tower does at one level, in the order it happens: automatic
- * notices, the operator's SLA and steps, and what closing the case takes.
+ * What the tower does at one level: the operator's SLA and steps, and what
+ * closing the case takes. Messages the system sends are conversation rules (#2003).
  */
 export default function LevelResponseDetail({
   response,
@@ -240,12 +239,6 @@ export default function LevelResponseDetail({
 }>) {
   return (
     <div className="flex flex-col gap-4">
-      <LevelNotices
-        notices={response.notices ?? []}
-        readOnly={readOnly}
-        d={d}
-        onChange={(notices) => onChange({ notices })}
-      />
       <OperatorBlock
         response={response}
         findings={findings}

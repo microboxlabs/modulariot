@@ -1,6 +1,5 @@
 import type {
   Level,
-  Notice,
   SymptomSpec,
   SymptomStats,
   SymptomSummary,
@@ -12,14 +11,10 @@ export type ChannelGroup = "app" | "chat" | "email" | "webhook";
 const CHANNEL_GROUP: Record<string, ChannelGroup> = {
   app: "app",
   teams: "chat",
-  slack: "chat",
   whatsapp: "chat",
   email: "email",
   webhook: "webhook",
 };
-
-const groupOf = (notice: Notice): ChannelGroup =>
-  CHANNEL_GROUP[notice.channel] ?? "webhook";
 
 export const CHANNEL_GROUPS: ChannelGroup[] = [
   "app",
@@ -120,7 +115,7 @@ export function channelGroups(spec: SymptomSpec | null): ChannelGroup[] {
   for (const l of spec?.levels ?? []) {
     if (!l.applies) continue;
     for (const n of l.response?.notices ?? []) {
-      found.add(groupOf(n));
+      found.add(CHANNEL_GROUP[n.channel] ?? "webhook");
     }
   }
   return CHANNEL_GROUPS.filter((g) => found.has(g));

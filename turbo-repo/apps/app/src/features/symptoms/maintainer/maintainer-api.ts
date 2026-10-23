@@ -42,10 +42,9 @@ export interface Step {
 
 export interface Notice {
   when: string;
-  /** The channel type: email, whatsapp, teams, slack, webhook. */
   channel: string;
-  /** One of the organization's channels of that type; null for its default. */
-  channelId: string | null;
+  connectionId: string | null;
+  templateId: string | null;
   recipient: string | null;
 }
 

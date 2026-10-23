@@ -16,7 +16,6 @@ import {
   DEFAULT_LEVEL_RULE,
   parseThresholds,
 } from "./level-thresholds";
-import { channelType } from "./channel-types";
 import type {
   Finding,
   Level,
@@ -25,7 +24,6 @@ import type {
 } from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
 import { CHANGED_ROW } from "./ui/changed";
-import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
 import Select from "./ui/select";
 
@@ -214,28 +212,13 @@ export function ResponseSummary({
   response,
   d,
 }: Readonly<{ response: LevelResponse; d: I18nRecord }>) {
-  const channels = [...new Set((response.notices ?? []).map((n) => n.channel))];
   return (
-    <span className="flex items-center gap-2 text-xs">
-      <span
-        className={`rounded-md px-2 py-0.5 ${response.operator ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-gray-100 text-gray-500 dark:bg-gray-700"}`}
-      >
-        {response.operator
-          ? tr("operatorSla", d, { minutes: String(response.slaMinutes ?? "") })
-          : tr("noOperator", d)}
-      </span>
-      <span className="flex gap-1">
-        {channels.map((c) => {
-          const type = channelType(c);
-          const label = type ? trDynamic(type.label, d) : c;
-          return (
-            <span key={c}>
-              <ChannelIcon channel={c} label={label} size={5} />
-              <span className="sr-only">{label}</span>
-            </span>
-          );
-        })}
-      </span>
+    <span
+      className={`rounded-md px-2 py-0.5 text-xs ${response.operator ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-gray-100 text-gray-500 dark:bg-gray-700"}`}
+    >
+      {response.operator
+        ? tr("operatorSla", d, { minutes: String(response.slaMinutes ?? "") })
+        : tr("noOperator", d)}
     </span>
   );
 }

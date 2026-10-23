@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Link as LinkIcon } from "flowbite-react-icons/outline";
 import { HiPlus, HiX } from "react-icons/hi";
-import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import {
+  CHANNEL_TYPES,
+  channelType,
+  recipientHint,
+  type ChannelType,
+} from "./channel-types";
 import type { Notice } from "./maintainer-api";
-import { noticeConnections, noticeKind, recipientHint } from "./notice-kind";
-import { KindIcon } from "./ui/kind-icon";
+import { ChannelIcon } from "./ui/channel-icon";
 import {
   FIELD,
   FIELD_ERROR,
@@ -25,40 +27,19 @@ const WHEN = [
   { key: "close", label: "whenClose" },
 ];
 
-const kindName = (kind: string | null, d: I18nRecord) =>
-  kind ? trDynamic(`noticeKind${kind}`, d) : tr("noticeKindUnknown", d);
-
-/** Connections grouped by provider type, in the order they first appear. */
-function byKind(
-  connections: IntegrationConnection[]
-): [string, IntegrationConnection[]][] {
-  const groups = new Map<string, IntegrationConnection[]>();
-  for (const c of connections) {
-    groups.set(c.providerType, [...(groups.get(c.providerType) ?? []), c]);
-  }
-  return [...groups];
-}
-
-function NoticePicker({
-  connections,
-  lang,
+function ChannelPicker({
   d,
   onPick,
   onClose,
 }: Readonly<{
-  connections: IntegrationConnection[];
-  lang: string;
   d: I18nRecord;
-  onPick: (connection: IntegrationConnection) => void;
+  onPick: (type: ChannelType) => void;
   onClose: () => void;
 }>) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
-  const shown = connections.filter(
-    (c) =>
-      !q ||
-      c.name.toLowerCase().includes(q) ||
-      kindName(c.providerType, d).toLowerCase().includes(q)
+  const shown = CHANNEL_TYPES.filter(
+    (c) => !q || trDynamic(c.label, d).toLowerCase().includes(q)
   );
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
@@ -85,99 +66,64 @@ function NoticePicker({
       </div>
       {shown.length === 0 && (
         <p className="px-1 text-sm text-gray-500 dark:text-gray-400">
-          {connections.length
-            ? tr("noticeNoMatch", d)
-            : tr("noticeNoConnections", d)}
+          {tr("noticeNoMatch", d)}
         </p>
       )}
-      <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
-        {byKind(shown).map(([kind, group]) => (
-          <div key={kind} className="flex flex-col">
-            <span className="px-1 pb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-              {kindName(kind, d)}
-            </span>
-            {group.map((c) => {
-              const inactive = c.status === "INACTIVE";
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  disabled={inactive}
-                  onClick={() => onPick(c)}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:text-white dark:hover:bg-gray-700"
-                >
-                  <KindIcon kind={kind} size={6} />
-                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                  {inactive && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {tr("noticeInactive", d)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+      <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+        {shown.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onPick(c)}
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700"
+          >
+            <ChannelIcon channel={c.key} size={7} />
+            {trDynamic(c.label, d)}
+          </button>
         ))}
       </div>
-      <Link
-        href={`/${lang}/users/settings/connections`}
-        className="self-start px-1 text-sm text-blue-600 hover:underline dark:text-blue-400"
-      >
-        {tr("noticeCreateConnection", d)}
-      </Link>
+      <p className="px-1 text-xs text-gray-500 dark:text-gray-400">
+        {tr("noticeChannelHint", d)}
+      </p>
     </div>
   );
 }
 
 function NoticeRow({
   notice,
-  connections,
   readOnly,
   d,
   onChange,
   onRemove,
 }: Readonly<{
   notice: Notice;
-  connections: IntegrationConnection[];
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<Notice>) => void;
   onRemove: () => void;
 }>) {
-  const kind = noticeKind(notice, connections);
-  const known = connections.some((c) => c.id === notice.connectionId);
-  // A notice copied from a template keeps its kind and waits for a connection of that kind.
-  const sameKind = connections.filter((c) => c.providerType === notice.kind);
-  const options = !known && sameKind.length ? sameKind : connections;
-  const missing = !notice.connectionId;
+  const type = channelType(notice.channel);
+  const hint = recipientHint(notice.channel);
+  const asksRecipient = type?.recipient !== "none";
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2">
-        <KindIcon kind={kind} label={kindName(kind, d)} />
+        <ChannelIcon
+          channel={notice.channel}
+          label={type ? trDynamic(type.label, d) : notice.channel}
+        />
         <Select
-          aria-label={tr("noticeConnection", d)}
-          className={`${FIELD} ${missing ? FIELD_ERROR : ""}`}
-          wrapperClassName="min-w-48"
+          aria-label={tr("noticeChannel", d)}
+          className={`${FIELD} ${type ? "" : FIELD_ERROR}`}
+          wrapperClassName="min-w-36"
           disabled={readOnly}
-          value={notice.connectionId ?? ""}
-          onChange={(e) => {
-            const c = connections.find((x) => x.id === e.target.value);
-            onChange({
-              connectionId: c?.id ?? null,
-              templateId: c?.templateId ?? null,
-              kind: c?.providerType ?? notice.kind,
-            });
-          }}
+          value={notice.channel}
+          onChange={(e) => onChange({ channel: e.target.value })}
         >
-          <option value="">{tr("pickConnection", d)}</option>
-          {notice.connectionId && !known && (
-            <option value={notice.connectionId}>
-              {tr("configuredConnection", d)}
-            </option>
-          )}
-          {options.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
+          {!type && <option value={notice.channel}>{notice.channel}</option>}
+          {CHANNEL_TYPES.map((c) => (
+            <option key={c.key} value={c.key}>
+              {trDynamic(c.label, d)}
             </option>
           ))}
         </Select>
@@ -194,29 +140,31 @@ function NoticeRow({
             </option>
           ))}
         </Select>
-        <input
-          aria-label={tr("noticeRecipient", d)}
-          className={`${FIELD} min-w-40 flex-1`}
-          disabled={readOnly}
-          placeholder={trDynamic(recipientHint(kind), d)}
-          value={notice.recipient ?? ""}
-          onChange={(e) => onChange({ recipient: e.target.value })}
-        />
+        {asksRecipient && (
+          <input
+            aria-label={tr("noticeRecipient", d)}
+            className={`${FIELD} min-w-40 flex-1`}
+            disabled={readOnly}
+            placeholder={trDynamic(hint, d)}
+            value={notice.recipient ?? ""}
+            onChange={(e) => onChange({ recipient: e.target.value })}
+          />
+        )}
         {!readOnly && (
           <button
             type="button"
             aria-label={tr("removeNotice", d)}
             onClick={onRemove}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400"
+            className="ml-auto rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400"
           >
             <HiX className="h-4 w-4" />
           </button>
         )}
       </div>
-      {missing && (
+      {!type && (
         <div className="pl-8">
           <FieldError
-            text={tr("noticeNeedsConnection", d, { kind: kindName(kind, d) })}
+            text={tr("noticeUnknownChannel", d, { channel: notice.channel })}
           />
         </div>
       )}
@@ -225,56 +173,34 @@ function NoticeRow({
 }
 
 /**
- * The automatic notices of one level. Each goes out through an Integrations
- * connection, which holds the credentials and the message format; the
- * symptom only says when, through which connection, and to whom.
+ * The automatic notices of one level. A notice names a channel type; it goes
+ * out through the organization's channel of that type, run by the platform
+ * or by the organization's own account.
  */
 export default function LevelNotices({
   notices,
-  connections,
-  lang,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   notices: Notice[];
-  connections: IntegrationConnection[];
-  lang: string;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (notices: Notice[]) => void;
 }>) {
   const [picking, setPicking] = useState(false);
-  const usable = noticeConnections(connections);
   const set = (i: number, patch: Partial<Notice>) =>
     onChange(notices.map((n, j) => (j === i ? { ...n, ...patch } : n)));
-  const add = (c: IntegrationConnection) => {
+  const add = (type: ChannelType) => {
     onChange([
       ...notices,
-      {
-        when: "open",
-        kind: c.providerType,
-        connectionId: c.id,
-        templateId: c.templateId,
-        recipient: "",
-      },
+      { when: "open", channel: type.key, channelId: null, recipient: "" },
     ]);
     setPicking(false);
   };
 
   return (
-    <ResponseBlock
-      title={tr("notices", d)}
-      aside={
-        <Link
-          href={`/${lang}/users/settings/connections`}
-          className="flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400"
-        >
-          <LinkIcon className="h-4 w-4" />
-          {tr("connectionsLink", d)}
-        </Link>
-      }
-    >
+    <ResponseBlock title={tr("notices", d)}>
       {notices.length === 0 && !picking && (
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {tr("noNotices", d)}
@@ -282,9 +208,8 @@ export default function LevelNotices({
       )}
       {notices.map((n, i) => (
         <NoticeRow
-          key={`${n.connectionId ?? n.kind ?? "none"}-${i}`}
+          key={`${n.channel}-${i}`}
           notice={n}
-          connections={usable}
           readOnly={readOnly}
           d={d}
           onChange={(patch) => set(i, patch)}
@@ -292,13 +217,7 @@ export default function LevelNotices({
         />
       ))}
       {!readOnly && picking && (
-        <NoticePicker
-          connections={usable}
-          lang={lang}
-          d={d}
-          onPick={add}
-          onClose={() => setPicking(false)}
-        />
+        <ChannelPicker d={d} onPick={add} onClose={() => setPicking(false)} />
       )}
       {!readOnly && !picking && (
         <button

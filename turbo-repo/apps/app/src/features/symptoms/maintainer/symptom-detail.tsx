@@ -12,10 +12,8 @@ import {
   TextInput,
 } from "flowbite-react";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { useIntegrationConfig } from "@/features/integration-config/use-integration-config";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import type { CelField } from "./cel-editor";
 import { keyFrom } from "./create-symptom-modal";
@@ -66,23 +64,15 @@ function variantName(name: string, d: I18nRecord) {
   return tr("variantName", d, { name });
 }
 
-/**
- * Who may edit the sheet: platform owners for a template, Control Tower
- * maintainers for a symptom. The integration API lists connections for
- * organization owners only, so `connectionsOrg` is null for anyone else, who
- * sees the saved choice.
- */
+/** Who may edit the sheet: platform owners for a template, Control Tower maintainers for a symptom. */
 function useSheetAccess(scope: SymptomScope) {
   const template = isTemplateScope(scope);
-  const { activeOrg } = useOrgScopes();
   const { canMaintain } = useControlTowerAccess();
   const { isPlatformOwner } = useIsPlatformOwner();
-  const ownsOrg = !template && activeOrg?.role === "OWNER";
   return {
     template,
     isPlatformOwner,
     canWrite: template ? isPlatformOwner : canMaintain,
-    connectionsOrg: ownsOrg ? (activeOrg?.slug ?? null) : null,
   };
 }
 
@@ -141,9 +131,7 @@ export default function SymptomDetail({
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
   const scope = useSymptomScope();
-  const { template, isPlatformOwner, canWrite, connectionsOrg } =
-    useSheetAccess(scope);
-  const { connections } = useIntegrationConfig(connectionsOrg);
+  const { template, isPlatformOwner, canWrite } = useSheetAccess(scope);
   const {
     detail,
     error,
@@ -377,8 +365,6 @@ export default function SymptomDetail({
             }
             preview={viewed ? undefined : (currentPreview ?? undefined)}
             findings={viewed ? undefined : report?.findings}
-            connections={connections}
-            lang={lang}
             readOnly={!canWrite || Boolean(viewed)}
             icu={responseIcu}
             d={d}

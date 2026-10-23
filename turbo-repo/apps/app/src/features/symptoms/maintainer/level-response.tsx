@@ -3,7 +3,6 @@
 import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import LevelNotices from "./level-notices";
 import LevelSteps, { type StepErrors } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
@@ -226,8 +225,6 @@ function CloseBlock({
 export default function LevelResponseDetail({
   response,
   findings,
-  connections,
-  lang,
   sample,
   readOnly,
   d,
@@ -236,8 +233,6 @@ export default function LevelResponseDetail({
   response: LevelResponse;
   /** The findings of this level's response. */
   findings: Finding[];
-  connections: IntegrationConnection[];
-  lang: string;
   sample: Record<string, unknown> | undefined;
   readOnly: boolean;
   d: I18nRecord;
@@ -247,8 +242,6 @@ export default function LevelResponseDetail({
     <div className="flex flex-col gap-4">
       <LevelNotices
         notices={response.notices ?? []}
-        connections={connections}
-        lang={lang}
         readOnly={readOnly}
         d={d}
         onChange={(notices) => onChange({ notices })}

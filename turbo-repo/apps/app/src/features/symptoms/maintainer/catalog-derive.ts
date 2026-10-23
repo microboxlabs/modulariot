@@ -9,25 +9,17 @@ import type {
 /** Channel groups the catalog shows and filters by. Teams and WhatsApp share one tag. */
 export type ChannelGroup = "app" | "chat" | "email" | "webhook";
 
-/** Group per connection kind; any other kind is a webhook. */
-const KIND_GROUP: Record<string, ChannelGroup> = {
-  WHATSAPP: "chat",
-  RESEND: "email",
-};
-
-/** Notices stored before kinds name a channel. */
 const CHANNEL_GROUP: Record<string, ChannelGroup> = {
   app: "app",
   teams: "chat",
+  slack: "chat",
   whatsapp: "chat",
   email: "email",
   webhook: "webhook",
 };
 
-function groupOf(notice: Notice): ChannelGroup {
-  if (notice.kind) return KIND_GROUP[notice.kind] ?? "webhook";
-  return CHANNEL_GROUP[notice.channel ?? ""] ?? "webhook";
-}
+const groupOf = (notice: Notice): ChannelGroup =>
+  CHANNEL_GROUP[notice.channel] ?? "webhook";
 
 export const CHANNEL_GROUPS: ChannelGroup[] = [
   "app",

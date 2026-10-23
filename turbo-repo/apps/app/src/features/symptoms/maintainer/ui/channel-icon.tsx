@@ -1,32 +1,37 @@
 import type { ComponentType, SVGProps } from "react";
 import { Code } from "flowbite-react-icons/outline";
 import { Envelope, Whatsapp } from "flowbite-react-icons/solid";
+import { PiMicrosoftTeamsLogoFill } from "react-icons/pi";
+import { SiSlack } from "react-icons/si";
 import { twMerge } from "tailwind-merge";
 
 type Logo = ComponentType<SVGProps<SVGSVGElement>>;
 
 /**
- * The logo per connection provider type, from Flowbite's icons as on the
- * sign-in page. Other types draw as code until templates name a brand (#2002).
+ * The logo per channel type in the text colour. Flowbite's icons where it has
+ * them, as on the sign-in page; Teams and Slack from react-icons. Other types
+ * draw as code.
  */
-const KIND_LOGOS: Record<string, Logo> = {
-  WHATSAPP: Whatsapp,
-  RESEND: Envelope,
+const CHANNEL_LOGOS: Record<string, Logo> = {
+  email: Envelope,
+  whatsapp: Whatsapp,
+  teams: PiMicrosoftTeamsLogoFill,
+  slack: SiSlack,
 };
 
-/** A connection kind's logo in a square; `size` is in Tailwind spacing units (5 = 20 px). */
-export function KindIcon({
-  kind,
+/** A channel type's logo in a square; `size` is in Tailwind spacing units (5 = 20 px). */
+export function ChannelIcon({
+  channel,
   label,
   size = 6,
   className,
 }: Readonly<{
-  kind: string | null;
+  channel: string | null;
   label?: string;
   size?: number;
   className?: string;
 }>) {
-  const Logo = (kind && KIND_LOGOS[kind]) || Code;
+  const Logo = (channel && CHANNEL_LOGOS[channel]) || Code;
   const px = size * 4;
   return (
     <span

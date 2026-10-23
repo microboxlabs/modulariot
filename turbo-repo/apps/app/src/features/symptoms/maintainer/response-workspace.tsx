@@ -2,7 +2,6 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import LevelResponseDetail from "./level-response";
 import { EMPTY_RESPONSE, levelOf, withLevel } from "./level-row";
 import type {
@@ -14,8 +13,7 @@ import type {
 import { useSourceSamples } from "./sample-tree";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
-import { noticeKind } from "./notice-kind";
-import { KindIcon } from "./ui/kind-icon";
+import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
 import { FIELD } from "./ui/response-block";
 import Select from "./ui/select";
@@ -77,9 +75,7 @@ function LevelItem({
   const level = levelOf(spec, icu);
   const response = level.response ?? EMPTY_RESPONSE;
   const name = trDynamic(`levelName${icu}`, d);
-  const kinds = [
-    ...new Set((response.notices ?? []).map((n) => noticeKind(n))),
-  ];
+  const channels = [...new Set((response.notices ?? []).map((n) => n.channel))];
   const tone = selected
     ? "border-blue-600 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20"
     : "border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50";
@@ -113,10 +109,10 @@ function LevelItem({
         <span className="text-xs text-gray-500 dark:text-gray-400">
           {level.applies ? summaryText(response, d) : tr("levelNotApplies", d)}
         </span>
-        {level.applies && kinds.length > 0 && (
+        {level.applies && channels.length > 0 && (
           <span className="flex gap-1">
-            {kinds.map((k) => (
-              <KindIcon key={k ?? "none"} kind={k} size={5} />
+            {channels.map((c) => (
+              <ChannelIcon key={c} channel={c} size={5} />
             ))}
           </span>
         )}
@@ -173,8 +169,6 @@ export default function ResponseWorkspace({
   changedLevels,
   preview,
   findings,
-  connections,
-  lang,
   readOnly,
   icu,
   d,
@@ -186,8 +180,6 @@ export default function ResponseWorkspace({
   changedLevels: ReadonlySet<number>;
   preview?: Preview;
   findings: Finding[] | undefined;
-  connections: IntegrationConnection[];
-  lang: string;
   readOnly: boolean;
   icu: number;
   d: I18nRecord;
@@ -259,8 +251,6 @@ export default function ResponseWorkspace({
             findings={(findings ?? []).filter(
               (f) => f.section === responseSection(icu)
             )}
-            connections={connections}
-            lang={lang}
             sample={sample}
             readOnly={readOnly}
             d={d}

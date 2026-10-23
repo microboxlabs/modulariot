@@ -8,12 +8,7 @@ import {
   shortThreshold,
   whoActsKind,
 } from "./catalog-derive";
-import type {
-  Level,
-  LevelResponse,
-  SymptomSpec,
-  SymptomSummary,
-} from "./maintainer-api";
+import type { Level, SymptomSpec, SymptomSummary } from "./maintainer-api";
 
 const level = (icu: number, when: string | null, applies = true): Level => ({
   icu,
@@ -83,15 +78,13 @@ describe("levels, operators and channels", () => {
             {
               when: "open",
               channel: "whatsapp",
-              connectionId: null,
-              templateId: null,
+              channelId: null,
               recipient: null,
             },
             {
               when: "open",
               channel: "teams",
-              connectionId: null,
-              templateId: null,
+              channelId: null,
               recipient: null,
             },
           ],
@@ -109,8 +102,7 @@ describe("levels, operators and channels", () => {
             {
               when: "close",
               channel: "email",
-              connectionId: null,
-              templateId: null,
+              channelId: null,
               recipient: null,
             },
           ],
@@ -174,10 +166,8 @@ describe("whoActsKind", () => {
     steps: [],
     notices: channels.map((channel) => ({
       when: "open",
-      kind: null,
       channel,
-      connectionId: null,
-      templateId: null,
+      channelId: null,
       recipient: null,
     })),
     evidence: [],
@@ -217,27 +207,5 @@ describe("whoActsKind", () => {
       )
     ).toBe("none");
     expect(whoActsKind(null)).toBe("none");
-  });
-
-  it("groups notices by their connection kind, and old ones by channel", () => {
-    const teams = response(false, ["teams"]);
-    const withKinds: LevelResponse = {
-      ...teams,
-      notices: [
-        ...teams.notices,
-        ...["RESEND", "N8N"].map((kind) => ({
-          when: "open",
-          kind,
-          connectionId: "c",
-          templateId: null,
-          recipient: null,
-        })),
-      ],
-    };
-    expect(
-      channelGroups(
-        spec([{ icu: 4, applies: true, when: "true", response: withKinds }])
-      )
-    ).toEqual(["chat", "email", "webhook"]);
   });
 });

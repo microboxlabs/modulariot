@@ -47,9 +47,8 @@ const SPEC = {
         notices: [
           {
             when: "open",
-            kind: "WHATSAPP",
-            connectionId: null,
-            templateId: null,
+            channel: "whatsapp",
+            channelId: null,
             recipient: "Torre",
           },
         ],
@@ -83,8 +82,6 @@ const renderIt = (icu: number, onChange = vi.fn(), onIcu = vi.fn()) => {
       spec={SPEC}
       changedLevels={new Set()}
       findings={[STEP_ERROR]}
-      connections={[]}
-      lang="es"
       readOnly={false}
       icu={icu}
       d={d}

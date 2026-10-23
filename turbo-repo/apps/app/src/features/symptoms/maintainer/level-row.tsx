@@ -16,7 +16,7 @@ import {
   DEFAULT_LEVEL_RULE,
   parseThresholds,
 } from "./level-thresholds";
-import { noticeKind } from "./notice-kind";
+import { channelType } from "./channel-types";
 import type {
   Finding,
   Level,
@@ -25,7 +25,7 @@ import type {
 } from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
 import { CHANGED_ROW } from "./ui/changed";
-import { KindIcon } from "./ui/kind-icon";
+import { ChannelIcon } from "./ui/channel-icon";
 import { LevelIcon } from "./ui/level-icon";
 import Select from "./ui/select";
 
@@ -214,9 +214,7 @@ export function ResponseSummary({
   response,
   d,
 }: Readonly<{ response: LevelResponse; d: I18nRecord }>) {
-  const kinds = [
-    ...new Set((response.notices ?? []).map((n) => noticeKind(n))),
-  ];
+  const channels = [...new Set((response.notices ?? []).map((n) => n.channel))];
   return (
     <span className="flex items-center gap-2 text-xs">
       <span
@@ -227,11 +225,12 @@ export function ResponseSummary({
           : tr("noOperator", d)}
       </span>
       <span className="flex gap-1">
-        {kinds.map((k) => {
-          const label = k ? trDynamic(`noticeKind${k}`, d) : "";
+        {channels.map((c) => {
+          const type = channelType(c);
+          const label = type ? trDynamic(type.label, d) : c;
           return (
-            <span key={k ?? "none"}>
-              <KindIcon kind={k} label={label} size={5} />
+            <span key={c}>
+              <ChannelIcon channel={c} label={label} size={5} />
               <span className="sr-only">{label}</span>
             </span>
           );

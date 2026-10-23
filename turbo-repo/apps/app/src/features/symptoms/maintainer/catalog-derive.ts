@@ -1,5 +1,6 @@
 import type {
   Level,
+  Notice,
   SymptomSpec,
   SymptomStats,
   SymptomSummary,
@@ -8,6 +9,13 @@ import type {
 /** Channel groups the catalog shows and filters by. Teams and WhatsApp share one tag. */
 export type ChannelGroup = "app" | "chat" | "email" | "webhook";
 
+/** Group per connection kind; any other kind is a webhook. */
+const KIND_GROUP: Record<string, ChannelGroup> = {
+  WHATSAPP: "chat",
+  RESEND: "email",
+};
+
+/** Notices stored before kinds name a channel. */
 const CHANNEL_GROUP: Record<string, ChannelGroup> = {
   app: "app",
   teams: "chat",
@@ -15,6 +23,11 @@ const CHANNEL_GROUP: Record<string, ChannelGroup> = {
   email: "email",
   webhook: "webhook",
 };
+
+function groupOf(notice: Notice): ChannelGroup {
+  if (notice.kind) return KIND_GROUP[notice.kind] ?? "webhook";
+  return CHANNEL_GROUP[notice.channel ?? ""] ?? "webhook";
+}
 
 export const CHANNEL_GROUPS: ChannelGroup[] = [
   "app",
@@ -115,7 +128,7 @@ export function channelGroups(spec: SymptomSpec | null): ChannelGroup[] {
   for (const l of spec?.levels ?? []) {
     if (!l.applies) continue;
     for (const n of l.response?.notices ?? []) {
-      found.add(CHANNEL_GROUP[n.channel] ?? "webhook");
+      found.add(groupOf(n));
     }
   }
   return CHANNEL_GROUPS.filter((g) => found.has(g));

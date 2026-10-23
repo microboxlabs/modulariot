@@ -42,7 +42,10 @@ export interface Step {
 
 export interface Notice {
   when: string;
-  channel: string;
+  /** The connection's provider type, such as WHATSAPP; kept when a template drops the connection. */
+  kind: string | null;
+  /** Stored before kinds; read only. The server answers with `kind`. */
+  channel?: string | null;
   connectionId: string | null;
   templateId: string | null;
   recipient: string | null;

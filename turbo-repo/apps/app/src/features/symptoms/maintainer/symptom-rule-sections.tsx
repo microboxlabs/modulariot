@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
@@ -312,10 +311,9 @@ export default function SymptomRuleSections({
   sourceFields,
   findings,
   readOnly,
-  connections,
-  lang,
   d,
   onChange,
+  onConfigureResponse,
 }: Readonly<{
   spec: SymptomSpec;
   /** The version in force, for the per-level marks; null before publishing or while viewing an old version. */
@@ -327,16 +325,14 @@ export default function SymptomRuleSections({
   sourceFields: CelField[];
   findings: Finding[] | undefined;
   readOnly: boolean;
-  connections: IntegrationConnection[];
-  lang: string;
   d: I18nRecord;
   onChange: (spec: SymptomSpec) => void;
+  /** Opens a level's response under "Respuesta". */
+  onConfigureResponse: (icu: number) => void;
 }>) {
   const [levelsMode, setLevelsMode] = useState<EditMode>("form");
   const levelsChanged = changedLevels(spec, published);
   const levelSamples = useSourceSamples(preview, spec.source);
-  // Scripts are previewed with the first sample, kept while a new preview is made.
-  const stepSample = levelSamples[0]?.sample;
   const [levelIndex, setLevelIndex] = useState<number | null>(null);
   const levelAt = Math.min(
     levelIndex ?? firstOpening(levelSamples),
@@ -442,16 +438,14 @@ export default function SymptomRuleSections({
               changed={levelsChanged.has(meta.icu)}
               spec={spec}
               icu={meta.icu}
-              sample={stepSample}
               mode={levelsMode}
               reached={reachedLevel === meta.icu}
               fields={levelRuleFields}
               findings={findings}
               readOnly={readOnly}
-              connections={connections}
-              lang={lang}
               d={d}
               onChange={onChange}
+              onConfigureResponse={onConfigureResponse}
             />
           ))}
         </div>

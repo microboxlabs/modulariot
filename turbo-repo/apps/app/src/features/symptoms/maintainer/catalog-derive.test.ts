@@ -8,7 +8,12 @@ import {
   shortThreshold,
   whoActsKind,
 } from "./catalog-derive";
-import type { Level, SymptomSpec, SymptomSummary } from "./maintainer-api";
+import type {
+  Level,
+  LevelResponse,
+  SymptomSpec,
+  SymptomSummary,
+} from "./maintainer-api";
 
 const level = (icu: number, when: string | null, applies = true): Level => ({
   icu,
@@ -22,9 +27,9 @@ describe("shortThreshold", () => {
     expect(shortThreshold(level(1, "measure > 0 && measure < 5"), "km/h")).toBe(
       "< 5 km/h"
     );
-    expect(shortThreshold(level(2, "measure >= 5 && measure < 11"), "km/h")).toBe(
-      "≥ 5 km/h"
-    );
+    expect(
+      shortThreshold(level(2, "measure >= 5 && measure < 11"), "km/h")
+    ).toBe("≥ 5 km/h");
     expect(
       shortThreshold(level(4, "measure >= 21 && held_s >= 60"), "km/h")
     ).toBe("≥ 21 km/h · 1 min");
@@ -169,6 +174,7 @@ describe("whoActsKind", () => {
     steps: [],
     notices: channels.map((channel) => ({
       when: "open",
+      kind: null,
       channel,
       connectionId: null,
       templateId: null,
@@ -211,5 +217,27 @@ describe("whoActsKind", () => {
       )
     ).toBe("none");
     expect(whoActsKind(null)).toBe("none");
+  });
+
+  it("groups notices by their connection kind, and old ones by channel", () => {
+    const teams = response(false, ["teams"]);
+    const withKinds: LevelResponse = {
+      ...teams,
+      notices: [
+        ...teams.notices,
+        ...["RESEND", "N8N"].map((kind) => ({
+          when: "open",
+          kind,
+          connectionId: "c",
+          templateId: null,
+          recipient: null,
+        })),
+      ],
+    };
+    expect(
+      channelGroups(
+        spec([{ icu: 4, applies: true, when: "true", response: withKinds }])
+      )
+    ).toEqual(["chat", "email", "webhook"]);
   });
 });

@@ -40,6 +40,7 @@ import RuleDescription from "./rule-description";
 import PublishDialog from "./publish-dialog";
 import SaveAsTemplateModal from "./save-as-template-modal";
 import SheetHeader from "./sheet-header";
+import ResponseWorkspace, { firstResponseLevel } from "./response-workspace";
 import SymptomRuleSections, { changedLevels } from "./symptom-rule-sections";
 import {
   FieldsPanel,
@@ -58,6 +59,7 @@ import { useSymptomDraft } from "./use-symptom-draft";
 import { changedPaths } from "./ui/changed";
 import VersionBanner from "./version-banner";
 import VersionsDrawer from "./versions-drawer";
+import WorkspaceTabs from "./workspace-tabs";
 
 /** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
 function variantName(name: string, d: I18nRecord) {
@@ -183,6 +185,8 @@ export default function SymptomDetail({
   const { data: source } = useDataSource(
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );
+  // "Respuesta" shows one level's response at a time; null is "Regla".
+  const [responseIcu, setResponseIcu] = useState<number | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -349,7 +353,41 @@ export default function SymptomDetail({
           />
         )}
 
-        {overviewSpec && overview && (
+        {shownSpec && detail && (
+          <WorkspaceTabs
+            response={responseIcu !== null}
+            d={d}
+            onRule={() => setResponseIcu(null)}
+            onResponse={() =>
+              setResponseIcu(
+                firstResponseLevel(
+                  shownSpec,
+                  viewed ? undefined : report?.findings
+                )
+              )
+            }
+          />
+        )}
+
+        {responseIcu !== null && shownSpec && detail && (
+          <ResponseWorkspace
+            spec={shownSpec}
+            changedLevels={
+              viewed ? new Set<number>() : changedLevels(shownSpec, published)
+            }
+            preview={viewed ? undefined : (currentPreview ?? undefined)}
+            findings={viewed ? undefined : report?.findings}
+            connections={connections}
+            lang={lang}
+            readOnly={!canWrite || Boolean(viewed)}
+            icu={responseIcu}
+            d={d}
+            onIcu={setResponseIcu}
+            onChange={update}
+          />
+        )}
+
+        {responseIcu === null && overviewSpec && overview && (
           <RuleDescription
             section="overview"
             rule={overview}
@@ -358,7 +396,7 @@ export default function SymptomDetail({
           />
         )}
 
-        {shownSpec && detail && (
+        {responseIcu === null && shownSpec && detail && (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div className="xl:col-span-2">
               <SymptomRuleSections
@@ -371,9 +409,8 @@ export default function SymptomDetail({
                 findings={viewed ? undefined : report?.findings}
                 readOnly={!canWrite || Boolean(viewed)}
                 d={d}
-                connections={connections}
-                lang={lang}
                 onChange={update}
+                onConfigureResponse={setResponseIcu}
               />
             </div>
             <div className="flex flex-col gap-4">

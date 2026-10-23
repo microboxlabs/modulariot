@@ -77,10 +77,15 @@ const STEP_ERROR: Finding = {
   position: -1,
 };
 
-const renderIt = (icu: number, onChange = vi.fn(), onIcu = vi.fn()) => {
+const renderIt = (
+  icu: number,
+  onChange = vi.fn(),
+  onIcu = vi.fn(),
+  spec = SPEC
+) => {
   render(
     <ResponseWorkspace
-      spec={SPEC}
+      spec={spec}
       changedLevels={new Set()}
       findings={[STEP_ERROR]}
       readOnly={false}
@@ -126,6 +131,20 @@ describe("ResponseWorkspace", () => {
     expect(four?.response?.operator).toBe(false);
     expect(four?.response?.notices[0]?.recipient).toBe("Torre");
     expect(four?.response).not.toBe(SPEC.levels?.[2]?.response);
+  });
+
+  it("still shows a step's error once the operator is turned off", () => {
+    const off = {
+      levels: SPEC.levels?.map((l) =>
+        l.icu === 4 && l.response
+          ? { ...l, response: { ...l.response, operator: false } }
+          : l
+      ),
+    } as SymptomSpec;
+    renderIt(4, vi.fn(), vi.fn(), off);
+    expect(
+      screen.getByText("El paso 1 no dice a quién contactar.")
+    ).toBeTruthy();
   });
 
   it("explains a level that does not apply", () => {

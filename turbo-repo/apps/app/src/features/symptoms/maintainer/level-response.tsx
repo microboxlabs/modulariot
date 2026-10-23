@@ -5,7 +5,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import LevelSteps, { type StepErrors } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
-import { findingText } from "./rule-problems";
+import { findingProblem, findingText, Problems } from "./rule-problems";
 import {
   FIELD,
   FIELD_ERROR,
@@ -22,11 +22,13 @@ const EVIDENCE = [
   { value: "photo", label: "evidencePhoto" },
 ];
 
-/** Findings shown next to their control when the response is open. */
+/** Findings shown beside their control while the operator block is open. */
 const PLACED = new Set(["operatorNeedsSla", "stepNoContact", "stepNoMinutes"]);
 
-export function isPlaced(f: Finding): boolean {
-  return PLACED.has(f.code ?? "");
+/** Findings with no visible control to sit beside, listed above the blocks. */
+function unplaced(findings: Finding[], response: LevelResponse): Finding[] {
+  if (!response.operator) return findings;
+  return findings.filter((f) => !PLACED.has(f.code ?? ""));
 }
 
 function stepErrors(findings: Finding[], d: I18nRecord): StepErrors {
@@ -239,6 +241,9 @@ export default function LevelResponseDetail({
 }>) {
   return (
     <div className="flex flex-col gap-4">
+      <Problems
+        items={unplaced(findings, response).map((f) => findingProblem(f, d))}
+      />
       <OperatorBlock
         response={response}
         findings={findings}

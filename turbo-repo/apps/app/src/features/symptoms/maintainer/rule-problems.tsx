@@ -42,11 +42,15 @@ export function problemsFor(
 ): CelProblem[] {
   return (findings ?? [])
     .filter((f) => f.section === section)
-    .map((f) => ({
-      position: Math.max(0, f.position),
-      message: findingText(f, d),
-      severity: f.severity === "ERROR" ? "error" : "warning",
-    }));
+    .map((f) => findingProblem(f, d));
+}
+
+export function findingProblem(f: Finding, d: I18nRecord): CelProblem {
+  return {
+    position: Math.max(0, f.position),
+    message: findingText(f, d),
+    severity: f.severity === "ERROR" ? "error" : "warning",
+  };
 }
 
 export function Problems({ items }: Readonly<{ items: CelProblem[] }>) {

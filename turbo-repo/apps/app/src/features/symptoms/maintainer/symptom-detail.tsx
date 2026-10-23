@@ -57,7 +57,10 @@ import { useSymptomDraft } from "./use-symptom-draft";
 import { changedPaths } from "./ui/changed";
 import VersionBanner from "./version-banner";
 import VersionsDrawer from "./versions-drawer";
-import WorkspaceTabs from "./workspace-tabs";
+import WorkspaceTabs, {
+  WORKSPACE_PANEL_ID,
+  workspaceTabId,
+} from "./workspace-tabs";
 
 /** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
 function variantName(name: string, d: I18nRecord) {
@@ -348,80 +351,89 @@ export default function SymptomDetail({
             onRule={() => setResponseIcu(null)}
             onResponse={() =>
               setResponseIcu(
-                firstResponseLevel(
-                  shownSpec,
-                  viewed ? undefined : report?.findings
-                )
+                (icu) =>
+                  icu ??
+                  firstResponseLevel(
+                    shownSpec,
+                    viewed ? undefined : report?.findings
+                  )
               )
             }
           />
         )}
 
-        {responseIcu !== null && shownSpec && detail && (
-          <ResponseWorkspace
-            spec={shownSpec}
-            changedLevels={
-              viewed ? new Set<number>() : changedLevels(shownSpec, published)
-            }
-            preview={viewed ? undefined : (currentPreview ?? undefined)}
-            findings={viewed ? undefined : report?.findings}
-            readOnly={!canWrite || Boolean(viewed)}
-            icu={responseIcu}
-            d={d}
-            onIcu={setResponseIcu}
-            onChange={update}
-          />
-        )}
+        <div
+          role="tabpanel"
+          id={WORKSPACE_PANEL_ID}
+          aria-labelledby={workspaceTabId(responseIcu !== null)}
+          className="flex flex-col gap-4"
+        >
+          {responseIcu !== null && shownSpec && detail && (
+            <ResponseWorkspace
+              spec={shownSpec}
+              changedLevels={
+                viewed ? new Set<number>() : changedLevels(shownSpec, published)
+              }
+              preview={viewed ? undefined : (currentPreview ?? undefined)}
+              findings={viewed ? undefined : report?.findings}
+              readOnly={!canWrite || Boolean(viewed)}
+              icu={responseIcu}
+              d={d}
+              onIcu={setResponseIcu}
+              onChange={update}
+            />
+          )}
 
-        {responseIcu === null && overviewSpec && overview && (
-          <RuleDescription
-            section="overview"
-            rule={overview}
-            sourceKey={overviewSpec.source ?? def?.sourceKey ?? null}
-            d={d}
-          />
-        )}
+          {responseIcu === null && overviewSpec && overview && (
+            <RuleDescription
+              section="overview"
+              rule={overview}
+              sourceKey={overviewSpec.source ?? def?.sourceKey ?? null}
+              d={d}
+            />
+          )}
 
-        {responseIcu === null && shownSpec && detail && (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="xl:col-span-2">
-              <SymptomRuleSections
-                spec={shownSpec}
-                changed={changed}
-                published={viewed ? null : published}
-                preview={viewed ? undefined : (currentPreview ?? undefined)}
-                fields={source?.fields ?? []}
-                sourceFields={fields}
-                findings={viewed ? undefined : report?.findings}
-                readOnly={!canWrite || Boolean(viewed)}
-                d={d}
-                onChange={update}
-                onConfigureResponse={setResponseIcu}
-              />
+          {responseIcu === null && shownSpec && detail && (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <div className="xl:col-span-2">
+                <SymptomRuleSections
+                  spec={shownSpec}
+                  changed={changed}
+                  published={viewed ? null : published}
+                  preview={viewed ? undefined : (currentPreview ?? undefined)}
+                  fields={source?.fields ?? []}
+                  sourceFields={fields}
+                  findings={viewed ? undefined : report?.findings}
+                  readOnly={!canWrite || Boolean(viewed)}
+                  d={d}
+                  onChange={update}
+                  onConfigureResponse={setResponseIcu}
+                />
+              </div>
+              <div className="flex flex-col gap-4">
+                {!viewed && (
+                  <>
+                    <ReviewPanel report={report} d={d} />
+                    <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
+                    {!template && harnessEnabled && canWrite && def && (
+                      <HarnessPanel id={id} name={def.name} d={d} />
+                    )}
+                    {!template && (
+                      <ImpactPanel
+                        definitionId={id}
+                        spec={spec ?? shownSpec}
+                        published={published}
+                        lang={lang}
+                        d={d}
+                      />
+                    )}
+                  </>
+                )}
+                <FieldsPanel source={source} d={d} />
+              </div>
             </div>
-            <div className="flex flex-col gap-4">
-              {!viewed && (
-                <>
-                  <ReviewPanel report={report} d={d} />
-                  <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
-                  {!template && harnessEnabled && canWrite && def && (
-                    <HarnessPanel id={id} name={def.name} d={d} />
-                  )}
-                  {!template && (
-                    <ImpactPanel
-                      definitionId={id}
-                      spec={spec ?? shownSpec}
-                      published={published}
-                      lang={lang}
-                      d={d}
-                    />
-                  )}
-                </>
-              )}
-              <FieldsPanel source={source} d={d} />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
         {canWrite && detail?.draft && !viewed && (
           <DraftBar
             plan={plan}

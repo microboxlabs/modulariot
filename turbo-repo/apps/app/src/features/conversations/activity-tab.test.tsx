@@ -120,6 +120,30 @@ describe("ActivityTab", () => {
     expect(screen.getByText("Ninguna ejecución coincide.")).toBeTruthy();
   });
 
+  it("tells apart two rules with the same name by their key", () => {
+    const rules = [
+      { id: "r1", key: "panic-a", name: "Pánico" },
+      { id: "r2", key: "panic-b", name: "Pánico" },
+    ] as RuleSummary[];
+    expect(activityFilterDefs(rules, d)[0].options).toEqual([
+      "Pánico (panic-a)",
+      "Pánico (panic-b)",
+    ]);
+    api.useConversationRules.mockReturnValue({ data: rules });
+    api.useConversationRuns.mockReturnValue({ data: [] });
+    render(
+      <ActivityTab
+        lang="es"
+        filters={{ rule: "Pánico (panic-b)", status: "" }}
+        d={d}
+      />
+    );
+    expect(api.useConversationRuns).toHaveBeenLastCalledWith({
+      rule: "r2",
+      status: null,
+    });
+  });
+
   it("offers each rule and run status as a filter option", () => {
     const defs = activityFilterDefs(
       [{ id: "r1", name: "Botón de pánico" } as RuleSummary],

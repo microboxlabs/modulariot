@@ -208,6 +208,12 @@ export type ActivityFilters = Record<ActivityFilterKey, string>;
 
 export const NO_ACTIVITY_FILTERS: ActivityFilters = { rule: "", status: "" };
 
+/** A rule's name, with its key when another rule has the same name. */
+function ruleOption(rule: RuleSummary, rules: RuleSummary[]) {
+  const shared = rules.some((r) => r.id !== rule.id && r.name === rule.name);
+  return shared ? `${rule.name} (${rule.key})` : rule.name;
+}
+
 /** The filter chips over the runs: by rule name and by run status. */
 export function activityFilterDefs(
   rules: RuleSummary[],
@@ -217,7 +223,7 @@ export function activityFilterDefs(
     {
       key: "rule",
       label: tr("filterRule", d),
-      options: [...new Set(rules.map((r) => r.name))],
+      options: rules.map((r) => ruleOption(r, rules)),
     },
     {
       key: "status",
@@ -234,7 +240,8 @@ export default function ActivityTab({
   d,
 }: Readonly<{ lang: string; filters: ActivityFilters; d: I18nRecord }>) {
   const { data: rules } = useConversationRules();
-  const rule = rules?.find((r) => r.name === filters.rule)?.id ?? null;
+  const rule =
+    rules?.find((r) => ruleOption(r, rules) === filters.rule)?.id ?? null;
   const status =
     RUN_STATUSES.find(
       (s) => statusLabel("runStatus", s, d) === filters.status

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
+import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -15,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -58,10 +60,12 @@ public class EngineCaseService {
     private final Forget forget;
     private final Function<Tuple, Row> trips;
     private final Clock clock;
+    private final SymptomEvents events;
 
     @Inject
-    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, GpsDatabase gps) {
-        this(store, evaluator::forget, gps.configured() ? t -> readTrip(gps, t) : t -> null, Clock.systemUTC());
+    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, GpsDatabase gps, SymptomEvents events) {
+        this(store, evaluator::forget, gps.configured() ? t -> readTrip(gps, t) : t -> null, Clock.systemUTC(),
+                events);
     }
 
     private static Row readTrip(GpsDatabase gps, Tuple key) {
@@ -75,10 +79,16 @@ public class EngineCaseService {
     }
 
     public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock) {
+        this(store, forget, trips, clock, SymptomEvents.NONE);
+    }
+
+    public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
+            SymptomEvents events) {
         this.store = store;
         this.forget = forget;
         this.trips = trips;
         this.clock = clock;
+        this.events = events;
     }
 
     /** Whether the list request only pages, so the open cases go first on its first page. */
@@ -204,13 +214,16 @@ public class EngineCaseService {
 
     /**
      * An operator closed the case's treatment: the case closes, and the next signal may open a new one. The
-     * episode goes first, so a failed drop leaves the case open and the call can be retried.
+     * episode goes first, so a failed drop leaves the case open and the call can be retried. Publishes
+     * {@code symptom.case.closed}.
      */
     public void close(String tenantCode, long symptomId, String actor) {
         EngineCase c = find(tenantCode, symptomId);
         if (c.closedAt() == null) {
             forget.episode(tenantCode, c.assetId(), c.definitionId());
-            store.close(tenantCode, c.id(), actor, clock.instant());
+            Instant at = clock.instant();
+            store.close(tenantCode, c.id(), actor, at);
+            events.closedByOperator(tenantCode, c, actor, at);
         }
     }
 

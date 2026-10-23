@@ -186,13 +186,19 @@ public class ConversationRepository {
         return new WithWaitingRun(mapRow(row), row.getUUID("run_id").toString());
     }
 
+    /** A participant about a context; {@code phoneE164} is null for an email address. */
+    public record ContextParticipant(ContextKind kind, String contextKey, String address, String phoneE164,
+            String displayName, String role, String contactId) {
+    }
+
     /**
      * The conversation about this context with this participant, created when there is none. Without a context:
      * the participant's open conversation without context, else a new one.
      */
-    public Conversation findOrCreateForContext(String tenantCode, ContextKind kind, String contextKey,
-            String address, String phoneE164, String displayName, String role, String contactId,
-            OffsetDateTime now) {
+    public Conversation findOrCreateForContext(String tenantCode, ContextParticipant p, OffsetDateTime now) {
+        ContextKind kind = p.kind();
+        String contextKey = p.contextKey();
+        String address = p.address();
         boolean hasContext = kind != null && contextKey != null && !contextKey.isBlank();
         Conversation found = hasContext
                 ? findByContextAndAddress(tenantCode, kind, contextKey, address)
@@ -201,10 +207,10 @@ public class ConversationRepository {
             return found;
         }
         String serviceCode = hasContext && kind == ContextKind.SERVICE ? contextKey : null;
-        return create(new Conversation(UUID.randomUUID().toString(), tenantCode, phoneE164, null, null, serviceCode,
-                null, null, ConversationStatus.OPEN, null, null, null, null, null, 0, now, now,
-                hasContext ? kind : null, hasContext ? contextKey : null, address, contactId, role, displayName,
-                Map.of()));
+        return create(new Conversation(UUID.randomUUID().toString(), tenantCode, p.phoneE164(), null, null,
+                serviceCode, null, null, ConversationStatus.OPEN, null, null, null, null, null, 0, now, now,
+                hasContext ? kind : null, hasContext ? contextKey : null, address, p.contactId(), p.role(),
+                p.displayName(), Map.of()));
     }
 
     public Conversation findByTenantAndId(String tenantCode, String conversationId) {
@@ -283,6 +289,12 @@ public class ConversationRepository {
             String driverId,
             OffsetDateTime occurredAt,
             String lastMessagePreview) {
+
+        /** A touch that carries only the context, as rule-started messages do. */
+        public static OutboundTouch ofContext(ContextKind kind, String key, OffsetDateTime at, String preview) {
+            return new OutboundTouch(kind, key, kind == ContextKind.SERVICE ? key : null, null, null, null, at,
+                    preview);
+        }
     }
 
     public Conversation updateOutbound(String conversationId, OutboundTouch touch) {

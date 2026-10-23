@@ -63,7 +63,7 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
         ObjectNode trigger = spec.putObject("trigger");
         trigger.put("event", "");
         trigger.put("when", "");
-        spec.putArray("audience");
+        spec.putArray(TO_AUDIENCE);
         spec.putArray("steps");
         return spec;
     }
@@ -75,7 +75,7 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
         JsonNode t = spec.path("trigger");
         Trigger trigger = t.isObject() ? new Trigger(text(t, "event"), text(t, "when")) : null;
         List<Audience> audience = new ArrayList<>();
-        spec.path("audience").forEach(a -> audience.add(audience(a)));
+        spec.path(TO_AUDIENCE).forEach(a -> audience.add(audience(a)));
         List<Step> steps = new ArrayList<>();
         spec.path("steps").forEach(s -> steps.add(step(s)));
         return new RuleSpec(trigger, audience, steps);

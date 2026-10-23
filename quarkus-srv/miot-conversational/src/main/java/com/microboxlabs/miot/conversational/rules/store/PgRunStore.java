@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules.store;
 
+import static com.microboxlabs.miot.conversational.rules.store.Pg.SELECT;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.instant;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.query;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.string;
@@ -31,14 +32,14 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class PgRunStore implements RunStore {
 
-    private static final String EVENT_COLUMNS = """
-            id, tenant_code, type, source, context_kind, context_key, data::text AS data, test, at, received_at""";
+    private static final String EVENT_COLUMNS =
+            "id, tenant_code, type, source, context_kind, context_key, data::text AS data, test, at, received_at";
     private static final String INSERT_EVENT = """
             INSERT INTO miot_conversational.conv_event
                 (id, tenant_code, type, source, context_kind, context_key, data, test, at, received_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb, $8, $9, $10)
             RETURNING\s""" + EVENT_COLUMNS;
-    private static final String EVENT = "SELECT " + EVENT_COLUMNS
+    private static final String EVENT = SELECT + EVENT_COLUMNS
             + " FROM miot_conversational.conv_event WHERE id = $1";
 
     private static final String RUN_COLUMNS = """
@@ -47,7 +48,7 @@ public class PgRunStore implements RunStore {
     private static final String INSERT_RUN = "INSERT INTO miot_conversational.conv_run (" + RUN_COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING\s""" + RUN_COLUMNS;
-    private static final String RUN = "SELECT " + RUN_COLUMNS + " FROM miot_conversational.conv_run WHERE id = $1";
+    private static final String RUN = SELECT + RUN_COLUMNS + " FROM miot_conversational.conv_run WHERE id = $1";
     // SKIP LOCKED leaves runs another pod is claiming; the lease keeps them off later scans while they are worked.
     private static final String CLAIM = """
             UPDATE miot_conversational.conv_run SET next_at = $2, updated_at = $1
@@ -63,11 +64,11 @@ public class PgRunStore implements RunStore {
             SET status = $2, step = $3, next_at = $4, last_error = $5, updated_at = $6
             WHERE id = $1 AND status = 'WAITING'
             """;
-    private static final String WAITING = "SELECT " + RUN_COLUMNS + """
+    private static final String WAITING = SELECT + RUN_COLUMNS + """
              FROM miot_conversational.conv_run
             WHERE tenant_code = $1 AND context_kind = $2 AND context_key = $3 AND status = 'WAITING'
             """;
-    private static final String WAITING_ON_CONVERSATION = "SELECT " + RUN_COLUMNS + """
+    private static final String WAITING_ON_CONVERSATION = SELECT + RUN_COLUMNS + """
              FROM miot_conversational.conv_run r
             WHERE r.tenant_code = $1 AND r.status = 'WAITING'
               AND EXISTS (SELECT 1 FROM miot_conversational.wa_message m

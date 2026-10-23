@@ -7,7 +7,6 @@ import com.microboxlabs.miot.conversational.rules.store.RuleStore;
 import com.microboxlabs.miot.conversational.rules.store.RunStore;
 import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
 import com.microboxlabs.miot.core.event.EventTypeCatalog;
-import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -226,10 +225,7 @@ public class RulesService {
         List<RuleVersion> versions = rules.versions(rule.id());
         RuleVersion version = draft(versions) != null ? draft(versions) : current(rule, versions);
         RuleSpec spec = RuleSpec.read(version == null ? null : version.spec());
-        Instant at = sample.at() != null ? sample.at() : clock.instant();
-        StoredEvent event = new StoredEvent("simulation", tenantCode, sample.type(), "simulation",
-                sample.context() == null ? null : sample.context().kind(),
-                sample.context() == null ? null : sample.context().key(), sample.data(), sample.test(), at, at);
+        StoredEvent event = sampleEvent(tenantCode, sample);
         List<Finding> findings = validate(tenantCode, spec);
         if (!RulesEngine.matches(spec, event)) {
             return new Simulation(false, List.of(), List.of(), findings);
@@ -238,24 +234,31 @@ public class RulesService {
         Map<String, Recipient> recipients = new LinkedHashMap<>();
         List<SimulatedMessage> messages = new ArrayList<>();
         List<Step> steps = spec.steps();
-        Instant t = steps.isEmpty() ? at : at.plus(Duration.ofMinutes(steps.get(0).afterMinutes()));
+        Instant t = steps.isEmpty() ? event.at() : event.at().plus(Duration.ofMinutes(steps.get(0).afterMinutes()));
         for (int i = 0; i < steps.size(); i++) {
             Step step = steps.get(i);
-            Optional<ConvTemplate> template = step.template() == null ? Optional.empty()
-                    : templates.find(tenantCode, step.template());
-            StepMessages.Plan plan = StepMessages.plan(step, spec, event, template, audiences);
-            for (Participant p : plan.recipients()) {
-                recipients.putIfAbsent(p.channel() + ":" + p.address(),
-                        new Recipient(p.address(), p.channel(), p.name(), p.role()));
-            }
-            for (StepMessages.Planned m : plan.messages()) {
-                messages.add(new SimulatedMessage(i, t, m.channel(),
-                        new To(m.to().address(), m.to().channel(), m.to().name()), m.text()));
-            }
+            StepMessages.Plan plan = StepMessages.plan(step, spec, event, template(tenantCode, step), audiences);
+            plan.recipients().forEach(p -> recipients.putIfAbsent(p.channel() + ":" + p.address(),
+                    new Recipient(p.address(), p.channel(), p.name(), p.role())));
+            int index = i;
+            Instant stepAt = t;
+            plan.messages().forEach(m -> messages.add(new SimulatedMessage(index, stepAt, m.channel(),
+                    new To(m.to().address(), m.to().channel(), m.to().name()), m.text())));
             int after = i + 1 < steps.size() ? steps.get(i + 1).afterMinutes() : 0;
             t = t.plus(Duration.ofMinutes((long) step.waitMinutes() + after));
         }
         return new Simulation(true, List.copyOf(recipients.values()), messages, findings);
+    }
+
+    private StoredEvent sampleEvent(String tenantCode, SampleEvent sample) {
+        Instant at = sample.at() != null ? sample.at() : clock.instant();
+        SampleContext context = sample.context() == null ? new SampleContext(null, null) : sample.context();
+        return new StoredEvent("simulation", tenantCode, sample.type(), "simulation", context.kind(), context.key(),
+                sample.data(), sample.test(), at, at);
+    }
+
+    private Optional<ConvTemplate> template(String tenantCode, Step step) {
+        return step.template() == null ? Optional.empty() : templates.find(tenantCode, step.template());
     }
 
     // Templates

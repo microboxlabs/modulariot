@@ -76,20 +76,27 @@ public class RulesEngine {
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
             WhatsAppMessagingService whatsapp, EmailMessagingService email, ObjectMapper json) {
-        this(enabled, rules, templates, runs, () -> resolvers.stream().toList(), whatsapp, email, json,
-                Clock.systemUTC());
+        this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
+                new Senders(whatsapp, email), json, Clock.systemUTC());
     }
 
-    public RulesEngine(boolean enabled, RuleStore rules, TemplateStore templates, RunStore runs,
-            Supplier<List<ParticipantResolver>> resolvers, WhatsAppMessagingService whatsapp,
-            EmailMessagingService email, ObjectMapper json, Clock clock) {
+    /** Where rules, templates and runs are kept. */
+    public record Stores(RuleStore rules, TemplateStore templates, RunStore runs) {
+    }
+
+    /** The channels a step sends on. */
+    public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email) {
+    }
+
+    public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
+            Senders senders, ObjectMapper json, Clock clock) {
         this.enabled = enabled;
-        this.rules = rules;
-        this.templates = templates;
-        this.runs = runs;
+        this.rules = stores.rules();
+        this.templates = stores.templates();
+        this.runs = stores.runs();
         this.resolvers = resolvers;
-        this.whatsapp = whatsapp;
-        this.email = email;
+        this.whatsapp = senders.whatsapp();
+        this.email = senders.email();
         this.json = json;
         this.clock = clock;
     }
@@ -146,11 +153,8 @@ public class RulesEngine {
         List<Run> started = new ArrayList<>();
         for (RuleStore.InForce f : rules.inForce(event.tenantCode())) {
             Rule rule = f.rule();
-            if (event.test() && rule.state() != Rule.State.TEST) {
-                continue;
-            }
             RuleSpec spec = RuleSpec.read(f.version().spec());
-            if (!matches(spec, event)) {
+            if ((event.test() && rule.state() != Rule.State.TEST) || !matches(spec, event)) {
                 continue;
             }
             boolean empty = spec.steps().isEmpty();

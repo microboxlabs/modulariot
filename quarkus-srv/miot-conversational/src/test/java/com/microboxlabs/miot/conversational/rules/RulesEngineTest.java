@@ -87,7 +87,7 @@ class RulesEngineTest {
     }
 
     @Test
-    void stepsGoOutInOrderWithTheirWaits() {
+    void theFirstStepSendsTheTemplateOnTheCaseConversation() {
         f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
         f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));
 
@@ -99,21 +99,28 @@ class RulesEngineTest {
         assertEquals("es_CL", sent.language());
         assertEquals(Map.of("nombre", "Ana", "patente", "ABCD12", "hora", "12:04"), sent.params());
         assertEquals(List.of("nombre", "patente", "hora"), List.copyOf(sent.params().keySet()));
-        Run afterFirst = onlyRun();
-        assertEquals(Run.Status.WAITING, afterFirst.status());
-        assertEquals(1, afterFirst.step());
-        assertEquals(T0.plus(Duration.ofMinutes(5)), afterFirst.nextAt());
 
         Message m = f.store.conversations.messages.get(0);
         assertEquals(MessageStatus.SENT, m.status());
         assertEquals("Hola Ana, se activó el botón de pánico en ABCD12 a las 12:04. ¿Estás bien?", m.body());
-        assertEquals(afterFirst.id(), m.runId());
+        assertEquals(onlyRun().id(), m.runId());
         assertEquals(0, m.step());
         Conversation c = f.store.conversations.conversations.get(m.conversationId());
         assertEquals(ContextKind.SYMPTOM_CASE, c.contextKind());
         assertEquals("-7", c.contextKey());
         assertEquals(DRIVER, c.participantAddress());
         assertEquals("driver", c.participantRole());
+    }
+
+    @Test
+    void theNextStepWaitsForTheReplyTime() {
+        f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
+        f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));
+        f.engine.runDue();
+        Run afterFirst = onlyRun();
+        assertEquals(Run.Status.WAITING, afterFirst.status());
+        assertEquals(1, afterFirst.step());
+        assertEquals(T0.plus(Duration.ofMinutes(5)), afterFirst.nextAt());
 
         at(Duration.ofMinutes(4));
         assertEquals(0, f.engine.runDue());

@@ -92,7 +92,7 @@ class RuleSpecValidatorTest {
                 """), "unknownRole");
         assertEquals("audience.1", finding.section());
         assertEquals(Severity.WARNING, finding.severity());
-        assertEquals(Map.of("role", "carrier"), finding.params());
+        assertEquals(Map.of("role", "carrier", "entry", 2), finding.params());
         assertEquals(List.of(), validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "jefe de torre"}],
                  "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
@@ -110,7 +110,8 @@ class RuleSpecValidatorTest {
         assertEquals("steps.0", only(findings, "stepNoTemplate").section());
         Finding unknown = only(findings, "stepUnknownTemplate");
         assertEquals("steps.1", unknown.section());
-        assertEquals(Map.of("template", "nope"), unknown.params());
+        assertEquals(Map.of("template", "nope", "step", 2), unknown.params());
+        assertEquals(Map.of("step", 1), only(findings, "stepNoTemplate").params());
         assertEquals("steps.2", only(findings, "stepTemplateNoChannel").section());
     }
 
@@ -126,7 +127,7 @@ class RuleSpecValidatorTest {
                            {"channel": "whatsapp", "template": "panic-check", "after": -1, "onReply": "later"}]}
                 """);
         assertEquals("steps.0", only(findings, "stepBadChannel").section());
-        assertEquals(Map.of("channel", "sms"), only(findings, "stepWaitNeedsReplies").params());
+        assertEquals(Map.of("channel", "sms", "step", 1), only(findings, "stepWaitNeedsReplies").params());
         assertEquals("steps.1", only(findings, "stepNegativeMinutes").section());
         assertEquals("steps.1", only(findings, "stepBadOnReply").section());
         assertFalse(RuleSpecValidator.publishable(findings));

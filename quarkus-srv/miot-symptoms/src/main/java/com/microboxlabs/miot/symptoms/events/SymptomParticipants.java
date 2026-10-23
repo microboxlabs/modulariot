@@ -150,8 +150,10 @@ public class SymptomParticipants implements ParticipantResolver {
 
     private static String phone(Contact c) {
         ContactChannels ch = c.channels() == null ? ContactChannels.NONE : c.channels();
-        String raw = ch.whatsapp() != null ? ch.whatsapp() : ch.phone() != null ? ch.phone() : c.phone();
-        return e164(raw);
+        if (ch.whatsapp() != null) {
+            return e164(ch.whatsapp());
+        }
+        return e164(ch.phone() != null ? ch.phone() : c.phone());
     }
 
     /** Digits with a leading {@code +}; null when there are no digits. */

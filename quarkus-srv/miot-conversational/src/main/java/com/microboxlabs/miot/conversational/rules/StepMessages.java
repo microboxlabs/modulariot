@@ -46,30 +46,38 @@ public final class StepMessages {
         if (resolved.participants().isEmpty()) {
             warnings.add("El paso no tiene destinatarios");
         }
-        ConvTemplate t = template.get();
         for (Participant p : resolved.participants()) {
             String channel = RuleSpec.PREFERRED.equals(step.channel()) ? p.channel() : step.channel();
             if (channel == null || !channel.equals(p.channel())) {
                 warnings.add(p.address() + " no tiene dirección de " + channel);
-                continue;
-            }
-            Map<String, String> vars = TemplateVariables.of(event.data(), event.at(), p.name());
-            if (RuleSpec.WHATSAPP.equals(channel) && t.whatsapp() != null && t.whatsapp().metaName() != null) {
-                Map<String, String> params = new LinkedHashMap<>();
-                for (String name : t.whatsapp().params()) {
-                    String value = vars.get(name);
-                    params.put(name, value == null || value.isBlank() ? EMPTY_PARAM : value);
-                }
-                String text = t.baseText() != null ? TemplateVariables.render(t.baseText(), vars)
-                        : t.whatsapp().metaName();
-                out.add(new Planned(channel, p, t, params, null, text));
-            } else if (RuleSpec.EMAIL.equals(channel) && t.email() != null) {
-                out.add(new Planned(channel, p, t, Map.of(), TemplateVariables.render(t.email().subject(), vars),
-                        TemplateVariables.render(t.email().body(), vars)));
             } else {
-                warnings.add("La plantilla " + t.key() + " no tiene versión de " + channel);
+                message(channel, p, template.get(), TemplateVariables.of(event.data(), event.at(), p.name()))
+                        .ifPresentOrElse(out::add, () -> warnings.add(
+                                "La plantilla " + template.get().key() + " no tiene versión de " + channel));
             }
         }
         return new Plan(resolved.participants(), out, warnings);
+    }
+
+    /** The message on this channel, or empty when the template has no variant for it. */
+    private static Optional<Planned> message(String channel, Participant p, ConvTemplate t, Map<String, String> vars) {
+        if (RuleSpec.WHATSAPP.equals(channel) && t.whatsapp() != null && t.whatsapp().metaName() != null) {
+            String text = t.baseText() != null ? TemplateVariables.render(t.baseText(), vars) : t.whatsapp().metaName();
+            return Optional.of(new Planned(channel, p, t, params(t.whatsapp(), vars), null, text));
+        }
+        if (RuleSpec.EMAIL.equals(channel) && t.email() != null) {
+            return Optional.of(new Planned(channel, p, t, Map.of(), TemplateVariables.render(t.email().subject(), vars),
+                    TemplateVariables.render(t.email().body(), vars)));
+        }
+        return Optional.empty();
+    }
+
+    private static Map<String, String> params(ConvTemplate.WhatsApp whatsapp, Map<String, String> vars) {
+        Map<String, String> params = new LinkedHashMap<>();
+        for (String name : whatsapp.params()) {
+            String value = vars.get(name);
+            params.put(name, value == null || value.isBlank() ? EMPTY_PARAM : value);
+        }
+        return params;
     }
 }

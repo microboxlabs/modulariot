@@ -150,8 +150,9 @@ final class RulesFixture {
         }
     }, store.conversations.conversationRepository, store.conversations.messageRepository);
 
-    final RulesEngine engine = new RulesEngine(true, store.ruleStore, store.templateStore, store.runStore,
-            () -> List.of(participants), whatsapp, email, JSON, clock);
+    final RulesEngine engine = new RulesEngine(true,
+            new RulesEngine.Stores(store.ruleStore, store.templateStore, store.runStore), () -> List.of(participants),
+            new RulesEngine.Senders(whatsapp, email), JSON, clock);
 
     final RulesService service = new RulesService(store.ruleStore, store.templateStore, store.runStore,
             () -> List.of(catalog), () -> List.of(participants), clock);

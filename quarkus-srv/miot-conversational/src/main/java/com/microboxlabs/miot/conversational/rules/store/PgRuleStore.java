@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules.store;
 
+import static com.microboxlabs.miot.conversational.rules.store.Pg.SELECT;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.instant;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.query;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.string;
@@ -35,9 +36,9 @@ public class PgRuleStore implements RuleStore {
     private static final String VERSION_COLUMNS =
             "id, rule_id, version, status, spec::text AS spec, reason, created_at, created_by";
 
-    private static final String LIST = "SELECT " + RULE_COLUMNS
+    private static final String LIST = SELECT + RULE_COLUMNS
             + " FROM miot_conversational.conv_rule WHERE tenant_code = $1 ORDER BY name, key";
-    private static final String FIND = "SELECT " + RULE_COLUMNS
+    private static final String FIND = SELECT + RULE_COLUMNS
             + " FROM miot_conversational.conv_rule WHERE tenant_code = $1 AND id = $2";
     private static final String INSERT = "INSERT INTO miot_conversational.conv_rule (" + RULE_COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -47,11 +48,11 @@ public class PgRuleStore implements RuleStore {
             UPDATE miot_conversational.conv_rule SET state = $3, updated_at = $4
             WHERE tenant_code = $1 AND id = $2
             RETURNING\s""" + RULE_COLUMNS;
-    private static final String VERSIONS = "SELECT " + VERSION_COLUMNS + """
+    private static final String VERSIONS = SELECT + VERSION_COLUMNS + """
              FROM miot_conversational.conv_rule_version WHERE rule_id = $1
             ORDER BY version DESC NULLS FIRST
             """;
-    private static final String VERSION = "SELECT " + VERSION_COLUMNS
+    private static final String VERSION = SELECT + VERSION_COLUMNS
             + " FROM miot_conversational.conv_rule_version WHERE rule_id = $1 AND version = $2";
     private static final String SAVE_DRAFT = """
             INSERT INTO miot_conversational.conv_rule_version (id, rule_id, version, status, spec, created_at, created_by)

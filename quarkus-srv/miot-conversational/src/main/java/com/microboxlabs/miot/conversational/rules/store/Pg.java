@@ -21,6 +21,7 @@ final class Pg {
 
     static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    static final String SELECT = "SELECT ";
     private static final String UNIQUE_VIOLATION = "23505";
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
     };

@@ -101,8 +101,13 @@ public final class Audiences {
     /** A field of the data by dotted path; a leading {@code event.data.} or {@code data.} is ignored. */
     @SuppressWarnings("unchecked")
     static Object path(Map<String, Object> data, String path) {
-        String p = path.startsWith("event.data.") ? path.substring("event.data.".length())
-                : path.startsWith("data.") ? path.substring("data.".length()) : path;
+        String p = path;
+        for (String prefix : List.of("event.data.", "data.")) {
+            if (p.startsWith(prefix)) {
+                p = p.substring(prefix.length());
+                break;
+            }
+        }
         Object current = data;
         for (String part : p.split("\\.")) {
             if (!(current instanceof Map<?, ?> m)) {

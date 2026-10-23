@@ -44,6 +44,11 @@ public final class RuleSpecValidator {
     }
 
     public static final String TRIGGER = "trigger";
+    /** The 1-based number of the step or audience entry a finding is about, in its params. */
+    public static final String STEP = "step";
+    public static final String ENTRY = "entry";
+    private static final String CHANNEL = "channel";
+    private static final String TEMPLATE = "template";
     private static final Set<String> CHANNELS = Set.of(RuleSpec.WHATSAPP, RuleSpec.EMAIL, RuleSpec.PREFERRED);
     private static final Set<String> CHANNELS_WITH_REPLIES = CHANNELS;
     private static final Set<String> ADDRESS_CHANNELS = Set.of(RuleSpec.WHATSAPP, RuleSpec.EMAIL);
@@ -64,13 +69,17 @@ public final class RuleSpecValidator {
             out.add(error("audience.0", "noAudience", Map.of(), "Falta decir a quién se escribe."));
         }
         for (int i = 0; i < spec.audience().size(); i++) {
-            audience(out, "audience." + i, spec.audience().get(i), roles, contextKind);
+            List<Finding> entry = new ArrayList<>();
+            audience(entry, "audience." + i, spec.audience().get(i), roles, contextKind);
+            numbered(out, entry, ENTRY, i + 1);
         }
         if (spec.steps().isEmpty()) {
             out.add(error("steps.0", "noSteps", Map.of(), "La regla no tiene pasos."));
         }
         for (int i = 0; i < spec.steps().size(); i++) {
-            step(out, "steps." + i, spec.steps().get(i), context, roles, contextKind);
+            List<Finding> step = new ArrayList<>();
+            step(step, "steps." + i, spec.steps().get(i), context, roles, contextKind);
+            numbered(out, step, STEP, i + 1);
         }
         return out;
     }
@@ -119,40 +128,60 @@ public final class RuleSpecValidator {
             Optional<List<String>> roles, String contextKind) {
         String channel = s.channel() == null ? null : s.channel().toLowerCase(Locale.ROOT);
         if (channel == null || !CHANNELS.contains(channel)) {
-            out.add(error(section, "stepBadChannel", params("channel", s.channel()),
+            out.add(error(section, "stepBadChannel", params(CHANNEL, s.channel()),
                     "Elige el canal del paso: WhatsApp, correo o el preferido."));
         }
+        template(out, section, s, context, channel);
+        timing(out, section, s, channel);
+        recipients(out, section, s, roles, contextKind);
+    }
+
+    private static void template(List<Finding> out, String section, Step s, Context context, String channel) {
         if (s.template() == null) {
             out.add(error(section, "stepNoTemplate", Map.of(), "Falta elegir la plantilla del paso."));
-        } else {
-            ConvTemplate t = context.templates().get(s.template());
-            if (t == null) {
-                out.add(error(section, "stepUnknownTemplate", Map.of("template", s.template()),
-                        "La plantilla " + s.template() + " no existe."));
-            } else {
-                variant(out, section, s, t, channel);
-            }
+            return;
         }
+        ConvTemplate t = context.templates().get(s.template());
+        if (t == null) {
+            out.add(error(section, "stepUnknownTemplate", Map.of(TEMPLATE, s.template()),
+                    "La plantilla " + s.template() + " no existe."));
+        } else {
+            variant(out, section, s, t, channel);
+        }
+    }
+
+    private static void timing(List<Finding> out, String section, Step s, String channel) {
         if (s.waitMinutes() > 0 && (channel == null || !CHANNELS_WITH_REPLIES.contains(channel))) {
-            out.add(error(section, "stepWaitNeedsReplies", params("channel", s.channel()),
+            out.add(error(section, "stepWaitNeedsReplies", params(CHANNEL, s.channel()),
                     "Solo se puede esperar respuesta en un canal que recibe respuestas."));
         }
-        if ((s.after() != null && s.after() < 0) || (s.waitForReply() != null && s.waitForReply() < 0)) {
+        if (negative(s.after()) || negative(s.waitForReply())) {
             out.add(error(section, "stepNegativeMinutes", Map.of(), "Los minutos no pueden ser negativos."));
         }
         if (s.onReply() != null && !RuleSpec.STOP.equals(s.onReply()) && !RuleSpec.CONTINUE.equals(s.onReply())) {
             out.add(error(section, "stepBadOnReply", Map.of("onReply", s.onReply()),
                     "Al recibir respuesta la regla se detiene o continúa."));
         }
+    }
+
+    private static void recipients(List<Finding> out, String section, Step s, Optional<List<String>> roles,
+            String contextKind) {
         if (s.toInvalid()) {
             out.add(error(section, "stepBadRecipients", Map.of(),
                     "Los destinatarios del paso son la audiencia o una lista."));
-        } else if (s.to() != null) {
-            if (s.to().isEmpty()) {
-                out.add(error(section, "stepNoRecipients", Map.of(), "El paso no tiene destinatarios."));
-            }
-            s.to().forEach(a -> audience(out, section, a, roles, contextKind));
+            return;
         }
+        if (s.to() == null) {
+            return;
+        }
+        if (s.to().isEmpty()) {
+            out.add(error(section, "stepNoRecipients", Map.of(), "El paso no tiene destinatarios."));
+        }
+        s.to().forEach(a -> audience(out, section, a, roles, contextKind));
+    }
+
+    private static boolean negative(Integer minutes) {
+        return minutes != null && minutes < 0;
     }
 
     private static void variant(List<Finding> out, String section, Step s, ConvTemplate t, String channel) {
@@ -163,8 +192,17 @@ public final class RuleSpecValidator {
             default -> false;
         };
         if (missing) {
-            out.add(error(section, "stepTemplateNoChannel", Map.of("template", s.template(), "channel", channel),
+            out.add(error(section, "stepTemplateNoChannel", Map.of(TEMPLATE, s.template(), CHANNEL, channel),
                     "La plantilla " + s.template() + " no tiene versión para este canal."));
+        }
+    }
+
+    /** Adds the findings with the step or entry number in their params. */
+    private static void numbered(List<Finding> out, List<Finding> findings, String key, int number) {
+        for (Finding f : findings) {
+            Map<String, Object> p = new LinkedHashMap<>(f.params());
+            p.put(key, number);
+            out.add(new Finding(f.section(), f.severity(), f.code(), p, f.message(), f.position()));
         }
     }
 

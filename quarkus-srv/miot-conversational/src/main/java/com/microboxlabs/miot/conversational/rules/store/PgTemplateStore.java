@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules.store;
 
+import static com.microboxlabs.miot.conversational.rules.store.Pg.SELECT;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.instant;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.query;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.string;
@@ -28,9 +29,9 @@ public class PgTemplateStore implements TemplateStore {
     private static final String COLUMNS = """
             id, tenant_code, key, name, base_text, whatsapp::text AS whatsapp, email::text AS email,
             created_at, updated_at, updated_by""";
-    private static final String LIST = "SELECT " + COLUMNS
+    private static final String LIST = SELECT + COLUMNS
             + " FROM miot_conversational.conv_template WHERE tenant_code = $1 ORDER BY key";
-    private static final String FIND = "SELECT " + COLUMNS
+    private static final String FIND = SELECT + COLUMNS
             + " FROM miot_conversational.conv_template WHERE tenant_code = $1 AND key = $2";
     private static final String UPSERT = """
             INSERT INTO miot_conversational.conv_template

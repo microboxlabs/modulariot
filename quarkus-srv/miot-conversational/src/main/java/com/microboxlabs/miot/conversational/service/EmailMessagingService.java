@@ -1,7 +1,6 @@
 package com.microboxlabs.miot.conversational.service;
 
 import com.microboxlabs.miot.conversational.domain.Channel;
-import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageDirection;
@@ -49,8 +48,7 @@ public class EmailMessagingService {
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
-                message.contextKind(), message.contextKey(), message.to(), null, message.displayName(),
-                message.role(), message.contactId(), now);
+                message.participant(null), now);
         Map<String, Object> metadata = new LinkedHashMap<>();
         if (message.subject() != null) {
             metadata.put(SUBJECT, message.subject());
@@ -72,9 +70,9 @@ public class EmailMessagingService {
                 errorMessage, null, null, null, metadata, status == MessageStatus.SENT ? now : null, null, null, now,
                 Channel.EMAIL, message.to(), null, message.runId(), message.step()));
         String preview = message.subject() != null ? message.subject() : message.body();
-        conversationRepository.updateOutbound(conversation.id(), message.contextKind(), message.contextKey(),
-                message.contextKind() == ContextKind.SERVICE ? message.contextKey() : null, null, null, null, now,
-                preview == null || preview.length() <= PREVIEW_MAX ? preview : preview.substring(0, PREVIEW_MAX));
+        conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
+                message.contextKind(), message.contextKey(), now,
+                preview == null || preview.length() <= PREVIEW_MAX ? preview : preview.substring(0, PREVIEW_MAX)));
         return stored;
     }
 

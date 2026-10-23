@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.conversational.service;
 
 import com.microboxlabs.miot.conversational.domain.ContextKind;
+import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,5 +22,11 @@ public record ContextMessage(ContextKind contextKind, String contextKey, String 
 
     public ContextMessage {
         params = params == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(params));
+    }
+
+    /** The recipient as a conversation participant; {@code phoneE164} is null for email. */
+    public ConversationRepository.ContextParticipant participant(String phoneE164) {
+        return new ConversationRepository.ContextParticipant(contextKind, contextKey, to, phoneE164, displayName,
+                role, contactId);
     }
 }

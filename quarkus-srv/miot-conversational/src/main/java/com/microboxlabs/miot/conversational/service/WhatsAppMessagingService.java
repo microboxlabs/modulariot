@@ -145,8 +145,7 @@ public class WhatsAppMessagingService {
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
-                message.contextKind(), message.contextKey(), message.to(), message.to(), message.displayName(),
-                message.role(), message.contactId(), now);
+                message.participant(message.to()), now);
         String providerMessageId = null;
         MessageStatus status;
         String errorMessage = null;
@@ -180,9 +179,9 @@ public class WhatsAppMessagingService {
                 MessageType.TEMPLATE, message.body(), message.templateName(), null, null, null, providerMessageId,
                 status, errorMessage, null, null, null, metadata, status == MessageStatus.SENT ? now : null,
                 null, null, now, Channel.WHATSAPP, message.to(), null, message.runId(), message.step()));
-        conversationRepository.updateOutbound(conversation.id(), message.contextKind(), message.contextKey(),
-                message.contextKind() == ContextKind.SERVICE ? message.contextKey() : null, null, null, null, now,
-                truncate(message.body() != null ? message.body() : message.templateName()));
+        conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
+                message.contextKind(), message.contextKey(), now,
+                truncate(message.body() != null ? message.body() : message.templateName())));
         return stored;
     }
 

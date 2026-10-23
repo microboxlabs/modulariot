@@ -13,7 +13,7 @@ import {
   bracketMatching,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { forceLinting, linter, type Diagnostic } from "@codemirror/lint";
+import { linter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -181,24 +181,9 @@ export default function CelEditor({
 
   useEffect(() => {
     if (!host.current) return;
-    const lint = linter(
-      (v) => {
-        const length = v.state.doc.length;
-        return latest.current.problems.map((p): Diagnostic => {
-          const from = Math.max(
-            0,
-            Math.min(p.position, Math.max(0, length - 1))
-          );
-          return {
-            from,
-            to: Math.min(length, from + 1),
-            severity: p.severity,
-            message: p.message,
-          };
-        });
-      },
-      { delay: 50 }
-    );
+    const lint = linter((v) => diagnostics(v, latest.current.problems), {
+      delay: 50,
+    });
     const extensions = [
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -273,10 +258,16 @@ export default function CelEditor({
     }
   }, [value]);
 
+  // Callers build problems on every render; marks are replaced only when they or the text change.
+  const marked = useRef<string | null>(null);
   useEffect(() => {
-    // Re-run the linter so new server problems show at once.
-    if (view.current) forceLinting(view.current);
-  }, [problems]);
+    const v = view.current;
+    if (!v) return;
+    const key = JSON.stringify([value, problems]);
+    if (key === marked.current) return;
+    marked.current = key;
+    v.dispatch(setDiagnostics(v.state, diagnostics(v, problems)));
+  }, [value, problems]);
 
   return (
     <div
@@ -284,6 +275,20 @@ export default function CelEditor({
       className={`rounded-md border border-gray-300 text-gray-900 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 ${singleLine ? "bg-white" : "bg-gray-50"}`}
     />
   );
+}
+
+/** The server's problems as marks one character wide, kept inside the text. */
+function diagnostics(v: EditorView, problems: CelProblem[]): Diagnostic[] {
+  const length = v.state.doc.length;
+  return problems.map((p): Diagnostic => {
+    const from = Math.max(0, Math.min(p.position, Math.max(0, length - 1)));
+    return {
+      from,
+      to: Math.min(length, from + 1),
+      severity: p.severity,
+      message: p.message,
+    };
+  });
 }
 
 /** Inserts text at the cursor of the editor used last, for the field tree. */

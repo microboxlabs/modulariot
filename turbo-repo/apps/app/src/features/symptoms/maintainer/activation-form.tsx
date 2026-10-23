@@ -25,6 +25,7 @@ import {
 import FieldCombobox from "./field-combobox";
 import type { SourceField } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
+import Select from "./ui/select";
 
 const pillClass =
   "rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
@@ -82,7 +83,9 @@ export function NumberValue({
         // Text that is not a number ("", "-", "1,5") goes back to the number the rule holds.
         onBlur={() => setTyped({ text: decimalText(value), value })}
       />
-      {unit && <span className="text-xs text-gray-500">{unit}</span>}
+      {unit && (
+        <span className="text-xs text-gray-500 dark:text-gray-400">{unit}</span>
+      )}
     </span>
   );
 }
@@ -117,7 +120,7 @@ function ValueInput({
   if (field.values?.length) {
     const known = field.values.some((v) => v.value === value);
     return (
-      <select
+      <Select
         aria-label={tr("conditionValue", d)}
         className={pillClass}
         disabled={readOnly}
@@ -130,7 +133,7 @@ function ValueInput({
             {v.label}
           </option>
         ))}
-      </select>
+      </Select>
     );
   }
   return (
@@ -174,7 +177,7 @@ function ConditionRow({
         d={d}
         onChange={(next) => onChange({ ...newCondition(next), id: row.id })}
       />
-      <select
+      <Select
         aria-label={tr("conditionOp", d)}
         className={pillClass}
         disabled={readOnly}
@@ -188,7 +191,7 @@ function ConditionRow({
             {opLabel(op, field.type, d)}
           </option>
         ))}
-      </select>
+      </Select>
       <ValueInput
         row={row}
         field={field}
@@ -368,7 +371,7 @@ function GroupBox({
         <span>
           {group.match === "none" ? tr("exceptIf", d) : tr("andAlso", d)}
         </span>
-        <select
+        <Select
           aria-label={tr("groupMatch", d)}
           className={pillClass}
           disabled={readOnly}
@@ -380,14 +383,14 @@ function GroupBox({
           <option value="all">{tr("matchAll", d)}</option>
           <option value="any">{tr("matchAny", d)}</option>
           <option value="none">{tr("matchNone", d)}</option>
-        </select>
-        <span className="text-xs text-gray-500">
+        </Select>
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {trDynamic(MATCH_HELP[group.match], d)}
         </span>
         {!readOnly && (
           <button
             type="button"
-            className="ml-auto text-xs text-gray-500 hover:text-red-500"
+            className="ml-auto text-xs text-gray-500 dark:text-gray-400 hover:text-red-500"
             onClick={onRemove}
           >
             {tr("removeGroup", d)}
@@ -415,7 +418,7 @@ function FieldsTable({
         {tr("availableFields", d)}
       </summary>
       <table className="mt-2 w-full text-left text-[11px] text-gray-700 dark:text-gray-300">
-        <thead className="text-gray-500">
+        <thead className="text-gray-500 dark:text-gray-400">
           <tr>
             <th className="pr-3">{tr("fieldColumn", d)}</th>
             <th className="pr-3">{tr("typeColumn", d)}</th>
@@ -507,7 +510,7 @@ export default function ActivationForm({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
         <span>{tr("conditionsHold", d)}</span>
-        <select
+        <Select
           aria-label={tr("listMatch", d)}
           className={pillClass}
           disabled={readOnly}
@@ -518,8 +521,8 @@ export default function ActivationForm({
         >
           <option value="all">{tr("matchAll", d)}</option>
           <option value="any">{tr("matchAny", d)}</option>
-        </select>
-        <span className="text-xs text-gray-500">
+        </Select>
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {trDynamic(MATCH_HELP[form.match], d)} · {tr("orderDoesNotMatter", d)}
         </span>
       </div>

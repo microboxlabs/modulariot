@@ -6,6 +6,7 @@ import { tr } from "@/features/i18n/tr.service";
 import type { PublishPlan, ValidationReport } from "./maintainer-api";
 import { BumpBadge } from "./ui/badges";
 import { MUTED } from "./ui/card";
+import { CHANGED_BAR, CHANGED_DOT } from "./ui/changed";
 
 /** Errors in the latest check of the draft, else in its publish plan. */
 export function errorCount(
@@ -56,9 +57,9 @@ export default function DraftBar({
   return (
     <section
       aria-label={tr("draftBarLabel", d)}
-      className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center gap-3 border-t border-amber-300 bg-white/95 px-6 py-3 text-sm shadow-lg dark:border-amber-600/60 dark:bg-gray-800/95"
+      className={`sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center gap-3 border-t bg-white/95 px-6 py-3 text-sm shadow-lg dark:bg-gray-800/95 ${CHANGED_BAR}`}
     >
-      <span className="h-2 w-2 rounded-full bg-amber-400" />
+      <span className={`h-2 w-2 rounded-full ${CHANGED_DOT}`} />
       <span className="text-gray-900 dark:text-white">
         {plan ? draftLabel(changes, d) : tr("draftBarLabel", d)}
       </span>

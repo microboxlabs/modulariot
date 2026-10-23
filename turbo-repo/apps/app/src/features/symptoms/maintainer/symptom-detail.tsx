@@ -12,10 +12,8 @@ import {
   TextInput,
 } from "flowbite-react";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { useIntegrationConfig } from "@/features/integration-config/use-integration-config";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import type { CelField } from "./cel-editor";
 import { keyFrom } from "./create-symptom-modal";
@@ -40,7 +38,8 @@ import RuleDescription from "./rule-description";
 import PublishDialog from "./publish-dialog";
 import SaveAsTemplateModal from "./save-as-template-modal";
 import SheetHeader from "./sheet-header";
-import SymptomRuleSections from "./symptom-rule-sections";
+import ResponseWorkspace, { firstResponseLevel } from "./response-workspace";
+import SymptomRuleSections, { changedLevels } from "./symptom-rule-sections";
 import {
   FieldsPanel,
   PreviewPanel,
@@ -58,29 +57,25 @@ import { useSymptomDraft } from "./use-symptom-draft";
 import { changedPaths } from "./ui/changed";
 import VersionBanner from "./version-banner";
 import VersionsDrawer from "./versions-drawer";
+import WorkspaceTabs, {
+  WORKSPACE_PANEL_ID,
+  workspaceTabId,
+} from "./workspace-tabs";
 
 /** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
 function variantName(name: string, d: I18nRecord) {
   return tr("variantName", d, { name });
 }
 
-/**
- * Who may edit the sheet: platform owners for a template, Control Tower
- * maintainers for a symptom. The integration API lists connections for
- * organization owners only, so `connectionsOrg` is null for anyone else, who
- * sees the saved choice.
- */
+/** Who may edit the sheet: platform owners for a template, Control Tower maintainers for a symptom. */
 function useSheetAccess(scope: SymptomScope) {
   const template = isTemplateScope(scope);
-  const { activeOrg } = useOrgScopes();
   const { canMaintain } = useControlTowerAccess();
   const { isPlatformOwner } = useIsPlatformOwner();
-  const ownsOrg = !template && activeOrg?.role === "OWNER";
   return {
     template,
     isPlatformOwner,
     canWrite: template ? isPlatformOwner : canMaintain,
-    connectionsOrg: ownsOrg ? (activeOrg?.slug ?? null) : null,
   };
 }
 
@@ -100,6 +95,11 @@ function changeMarks(
     !plan.changes.some((c) => c.section === "activation")
   ) {
     paths.delete("activation");
+  }
+  // Levels are compared by ICU, ignoring the rule kept by one that no longer applies.
+  if (changedLevels(spec, published).size === 0) {
+    for (const p of paths)
+      if (p === "levels" || p.startsWith("levels.")) paths.delete(p);
   }
   return paths;
 }
@@ -134,9 +134,7 @@ export default function SymptomDetail({
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
   const scope = useSymptomScope();
-  const { template, isPlatformOwner, canWrite, connectionsOrg } =
-    useSheetAccess(scope);
-  const { connections } = useIntegrationConfig(connectionsOrg);
+  const { template, isPlatformOwner, canWrite } = useSheetAccess(scope);
   const {
     detail,
     error,
@@ -150,6 +148,7 @@ export default function SymptomDetail({
     external,
     discard,
     resync,
+    showPublished,
     planIsCurrent,
   } = useSymptomDraft(id, canWrite);
   const { data: families, error: familiesError } = useSymptomFamilies();
@@ -178,6 +177,8 @@ export default function SymptomDetail({
   const { data: source } = useDataSource(
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );
+  // "Respuesta" shows one level's response at a time; null is "Regla".
+  const [responseIcu, setResponseIcu] = useState<number | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -207,8 +208,6 @@ export default function SymptomDetail({
     setActionError(null);
     try {
       await work();
-      await refreshSymptoms(undefined, scope);
-      await resync();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -344,56 +343,96 @@ export default function SymptomDetail({
           />
         )}
 
-        {overviewSpec && overview && (
-          <RuleDescription
-            section="overview"
-            rule={overview}
-            sourceKey={overviewSpec.source ?? def?.sourceKey ?? null}
+        {shownSpec && detail && (
+          <WorkspaceTabs
+            response={responseIcu !== null}
             d={d}
+            onRule={() => setResponseIcu(null)}
+            onResponse={() =>
+              setResponseIcu(
+                (icu) =>
+                  icu ??
+                  firstResponseLevel(
+                    shownSpec,
+                    viewed ? undefined : report?.findings
+                  )
+              )
+            }
           />
         )}
 
-        {shownSpec && detail && (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="xl:col-span-2">
-              <SymptomRuleSections
-                spec={shownSpec}
-                changed={changed}
-                published={viewed ? null : published}
-                preview={viewed ? undefined : (currentPreview ?? undefined)}
-                fields={source?.fields ?? []}
-                sourceFields={fields}
-                findings={viewed ? undefined : report?.findings}
-                readOnly={!canWrite || Boolean(viewed)}
-                d={d}
-                connections={connections}
-                lang={lang}
-                onChange={update}
-              />
+        <div
+          role="tabpanel"
+          id={WORKSPACE_PANEL_ID}
+          aria-labelledby={workspaceTabId(responseIcu !== null)}
+          className="flex flex-col gap-4"
+        >
+          {responseIcu !== null && shownSpec && detail && (
+            <ResponseWorkspace
+              spec={shownSpec}
+              changedLevels={
+                viewed ? new Set<number>() : changedLevels(shownSpec, published)
+              }
+              preview={viewed ? undefined : (currentPreview ?? undefined)}
+              findings={viewed ? undefined : report?.findings}
+              readOnly={!canWrite || Boolean(viewed)}
+              icu={responseIcu}
+              d={d}
+              onIcu={setResponseIcu}
+              onChange={update}
+            />
+          )}
+
+          {responseIcu === null && overviewSpec && overview && (
+            <RuleDescription
+              section="overview"
+              rule={overview}
+              sourceKey={overviewSpec.source ?? def?.sourceKey ?? null}
+              d={d}
+            />
+          )}
+
+          {responseIcu === null && shownSpec && detail && (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <div className="xl:col-span-2">
+                <SymptomRuleSections
+                  spec={shownSpec}
+                  changed={changed}
+                  published={viewed ? null : published}
+                  preview={viewed ? undefined : (currentPreview ?? undefined)}
+                  fields={source?.fields ?? []}
+                  sourceFields={fields}
+                  findings={viewed ? undefined : report?.findings}
+                  readOnly={!canWrite || Boolean(viewed)}
+                  d={d}
+                  onChange={update}
+                  onConfigureResponse={setResponseIcu}
+                />
+              </div>
+              <div className="flex flex-col gap-4">
+                {!viewed && (
+                  <>
+                    <ReviewPanel report={report} d={d} />
+                    <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
+                    {!template && harnessEnabled && canWrite && def && (
+                      <HarnessPanel id={id} name={def.name} d={d} />
+                    )}
+                    {!template && (
+                      <ImpactPanel
+                        definitionId={id}
+                        spec={spec ?? shownSpec}
+                        published={published}
+                        lang={lang}
+                        d={d}
+                      />
+                    )}
+                  </>
+                )}
+                <FieldsPanel source={source} d={d} />
+              </div>
             </div>
-            <div className="flex flex-col gap-4">
-              {!viewed && (
-                <>
-                  <ReviewPanel report={report} d={d} />
-                  <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
-                  {!template && harnessEnabled && canWrite && def && (
-                    <HarnessPanel id={id} name={def.name} d={d} />
-                  )}
-                  {!template && (
-                    <ImpactPanel
-                      definitionId={id}
-                      spec={spec ?? shownSpec}
-                      published={published}
-                      lang={lang}
-                      d={d}
-                    />
-                  )}
-                </>
-              )}
-              <FieldsPanel source={source} d={d} />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
         {canWrite && detail?.draft && !viewed && (
           <DraftBar
             plan={plan}
@@ -439,10 +478,10 @@ export default function SymptomDetail({
         open={publishing}
         d={d}
         onClose={() => setPublishing(false)}
-        onPublished={() => {
+        onPublished={(version) => {
           setPublishing(false);
           void refreshSymptoms(undefined, scope);
-          void resync();
+          void showPublished(version);
         }}
       />
 
@@ -512,7 +551,7 @@ function PendingDialog({
           value={text}
           onChange={(e) => onText(e.target.value)}
         />
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           {pending?.kind === "fork"
             ? tr("duplicateHint", d, { version: pending.version })
             : tr("restoreHint", d)}

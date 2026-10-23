@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { HiArrowDown, HiArrowUp, HiPhone, HiPlus, HiX } from "react-icons/hi";
+import { HiArrowDown, HiArrowUp, HiPencil, HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { Step } from "./maintainer-api";
 import ScriptModal from "./script-modal";
-import { ChannelIcon } from "./ui/channel-icon";
+import { FIELD, FIELD_ERROR, FieldError } from "./ui/response-block";
+import Select from "./ui/select";
 
 /** How the operator reaches the person in a step. */
 export const STEP_CHANNELS = [
@@ -16,20 +17,12 @@ export const STEP_CHANNELS = [
   { key: "email", label: "channelEmail" },
 ];
 
-const inputClass =
-  "rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900 dark:text-white";
-const SCRIPT_SHOWN = 48;
+/** The validator's messages for each step, by step index. */
+export type StepErrors = Record<number, { contact?: string; minutes?: string }>;
 
-function StepIcon({ channel }: Readonly<{ channel: string | null }>) {
-  if (!channel || channel === "call") {
-    return (
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
-        <HiPhone className="h-3.5 w-3.5" />
-      </span>
-    );
-  }
-  return <ChannelIcon channel={channel} size={7} />;
-}
+const SCRIPT_SHOWN = 72;
+const iconButton =
+  "rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:hover:bg-transparent dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white";
 
 function scriptShown(script: string | null): string | null {
   const text = script?.trim();
@@ -37,27 +30,50 @@ function scriptShown(script: string | null): string | null {
   return text.length > SCRIPT_SHOWN ? `${text.slice(0, SCRIPT_SHOWN)}…` : text;
 }
 
-function MinutesInput({
-  value,
-  label,
-  readOnly,
-  onChange,
+const errorClass = (error: string | undefined) => (error ? FIELD_ERROR : "");
+
+function StepActions({
+  index,
+  last,
+  d,
+  onMove,
+  onRemove,
 }: Readonly<{
-  value: number | null;
-  label: string;
-  readOnly: boolean;
-  onChange: (minutes: number | null) => void;
+  index: number;
+  last: boolean;
+  d: I18nRecord;
+  onMove: (by: number) => void;
+  onRemove: () => void;
 }>) {
   return (
-    <input
-      type="number"
-      min={1}
-      aria-label={label}
-      className={`${inputClass} w-12`}
-      disabled={readOnly}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-    />
+    <span className="ml-auto flex items-center">
+      <button
+        type="button"
+        aria-label={tr("moveUp", d)}
+        disabled={index === 0}
+        onClick={() => onMove(-1)}
+        className={iconButton}
+      >
+        <HiArrowUp className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        aria-label={tr("moveDown", d)}
+        disabled={last}
+        onClick={() => onMove(1)}
+        className={iconButton}
+      >
+        <HiArrowDown className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        aria-label={tr("removeStep", d)}
+        onClick={onRemove}
+        className={`${iconButton} hover:text-red-600 dark:hover:text-red-400`}
+      >
+        <HiX className="h-4 w-4" />
+      </button>
+    </span>
   );
 }
 
@@ -65,6 +81,7 @@ function StepItem({
   step,
   index,
   count,
+  errors,
   readOnly,
   d,
   onSet,
@@ -75,6 +92,7 @@ function StepItem({
   step: Step;
   index: number;
   count: number;
+  errors: StepErrors[number] | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onSet: (patch: Partial<Step>) => void;
@@ -85,22 +103,18 @@ function StepItem({
   const last = index === count - 1;
   const shown = scriptShown(step.script);
   return (
-    <li className="relative flex gap-3 pb-3">
-      {!last && (
-        <span
-          aria-hidden
-          className="absolute top-8 bottom-0 left-3.5 w-px bg-gray-300 dark:bg-gray-600"
-        />
-      )}
-      <StepIcon channel={step.channel} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-gray-500">
-            {tr("stepN", d, { n: String(index + 1) })}
-          </span>
-          <select
+    <li className="flex gap-3 px-3 py-2.5">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gray-300 text-xs font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300">
+        <span aria-hidden>{index + 1}</span>
+        <span className="sr-only">
+          {tr("stepN", d, { n: String(index + 1) })}
+        </span>
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm text-gray-700 dark:text-gray-300">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
             aria-label={tr("stepChannel", d)}
-            className={inputClass}
+            className={FIELD}
             disabled={readOnly}
             value={step.channel ?? "call"}
             onChange={(e) => onSet({ channel: e.target.value })}
@@ -110,85 +124,104 @@ function StepItem({
                 {trDynamic(c.label, d)}
               </option>
             ))}
-          </select>
-          <span className="text-gray-500">{tr("stepTo", d)}</span>
+          </Select>
+          <span>{tr("stepTo", d)}</span>
           <input
             aria-label={tr("stepRole", d)}
-            className={`${inputClass} min-w-32 flex-1`}
+            className={`${FIELD} min-w-40 flex-1 ${errorClass(errors?.contact)}`}
             disabled={readOnly}
             placeholder={tr("stepRolePlaceholder", d)}
             value={step.role ?? ""}
             onChange={(e) => onSet({ role: e.target.value })}
           />
-          {!readOnly && (
-            <span className="ml-auto flex items-center gap-1 text-gray-400">
-              <button
-                type="button"
-                aria-label={tr("moveUp", d)}
-                disabled={index === 0}
-                onClick={() => onMove(-1)}
-                className="hover:text-gray-700 disabled:opacity-30"
-              >
-                <HiArrowUp className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                aria-label={tr("moveDown", d)}
-                disabled={last}
-                onClick={() => onMove(1)}
-                className="hover:text-gray-700 disabled:opacity-30"
-              >
-                <HiArrowDown className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                aria-label={tr("removeStep", d)}
-                onClick={onRemove}
-                className="hover:text-red-600"
-              >
-                <HiX className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
-          <span className="text-gray-500">{tr("stepScriptLabel", d)}</span>
-          <button
-            type="button"
-            className="text-blue-600 hover:underline dark:text-blue-400"
-            onClick={onScript}
-          >
-            {shown ?? tr("stepScriptWrite", d)}
-          </button>
-          <span className="text-gray-400">·</span>
-          {last ? (
-            <span>{tr("stepWithin", d)}</span>
-          ) : (
-            <span>{tr("stepIfNot", d)}</span>
-          )}
-          <MinutesInput
-            value={step.budgetMinutes}
-            label={tr("stepBudget", d)}
-            readOnly={readOnly}
-            onChange={(budgetMinutes) => onSet({ budgetMinutes })}
+          <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
+          <input
+            type="number"
+            min={1}
+            aria-label={tr("stepBudget", d)}
+            className={`${FIELD} w-16 ${errorClass(errors?.minutes)}`}
+            disabled={readOnly}
+            value={step.budgetMinutes ?? ""}
+            onChange={(e) =>
+              onSet({
+                budgetMinutes: e.target.value ? Number(e.target.value) : null,
+              })
+            }
           />
           <span>
             {last ? "min" : tr("stepThen", d, { n: String(index + 2) })}
           </span>
+          {!readOnly && (
+            <StepActions
+              index={index}
+              last={last}
+              d={d}
+              onMove={onMove}
+              onRemove={onRemove}
+            />
+          )}
         </div>
+        <FieldError text={errors?.contact} />
+        <FieldError text={errors?.minutes} />
+        <button
+          type="button"
+          className="flex items-center gap-1.5 self-start text-left text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+          onClick={onScript}
+        >
+          <HiPencil className="h-3.5 w-3.5 shrink-0" />
+          <span className="text-gray-500 dark:text-gray-400">
+            {tr("stepScriptLabel", d)}
+          </span>
+          {shown ? (
+            <span className="text-gray-700 dark:text-gray-300">{shown}</span>
+          ) : (
+            <span className="text-blue-600 dark:text-blue-400">
+              {tr("stepScriptWrite", d)}
+            </span>
+          )}
+        </button>
       </div>
     </li>
   );
 }
 
+function BudgetBar({
+  used,
+  sla,
+  d,
+}: Readonly<{ used: number; sla: number; d: I18nRecord }>) {
+  const over = used > sla;
+  const width = sla > 0 ? Math.min(100, (used / sla) * 100) : 100;
+  return (
+    <span className="ml-auto flex items-center gap-2 text-xs">
+      <span className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+        <span
+          className={`block h-full rounded-full ${over ? "bg-amber-500" : "bg-blue-600"}`}
+          style={{ width: `${width}%` }}
+        />
+      </span>
+      <span
+        className={
+          over
+            ? "text-amber-700 dark:text-amber-400"
+            : "text-gray-500 dark:text-gray-400"
+        }
+      >
+        {tr("stepsBudget", d, { used: String(used), sla: String(sla) })}
+      </span>
+    </span>
+  );
+}
+
 /**
- * The operator's ladder for one level, as a timeline: who to contact and how,
- * the script to read, and how long to wait before the next step. The
- * treatment screen suggests the steps in this order.
+ * The operator's ladder for one level: who to contact and how, the script to
+ * read, and how long to wait before the next step. The treatment screen
+ * suggests the steps in this order.
  */
 export default function LevelSteps({
   steps,
   slaMinutes,
+  errors = {},
   sample,
   readOnly,
   d,
@@ -196,6 +229,7 @@ export default function LevelSteps({
 }: Readonly<{
   steps: Step[];
   slaMinutes: number | null;
+  errors?: StepErrors;
   /** A source sample the script preview is filled from. */
   sample?: Record<string, unknown>;
   readOnly: boolean;
@@ -228,49 +262,46 @@ export default function LevelSteps({
     onChange(steps.filter((_, j) => j !== i));
   };
   const budget = steps.reduce((sum, s) => sum + (s.budgetMinutes ?? 0), 0);
-  const over = slaMinutes != null && budget > slaMinutes;
   const editingStep = editing === null ? undefined : steps[editing];
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-gray-700 dark:text-gray-300">
           {tr("steps", d)}
         </span>
         {slaMinutes != null && steps.length > 0 && (
-          <span
-            className={`text-xs ${over ? "text-red-600 dark:text-red-400" : "text-gray-500"}`}
-          >
-            {tr("stepsBudget", d, {
-              used: String(budget),
-              sla: String(slaMinutes),
-            })}
-          </span>
+          <BudgetBar used={budget} sla={slaMinutes} d={d} />
         )}
       </div>
       {steps.length === 0 && (
-        <p className="text-xs text-gray-500">{tr("noSteps", d)}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {tr("noSteps", d)}
+        </p>
       )}
-      <ol className="flex flex-col">
-        {steps.map((s, i) => (
-          <StepItem
-            key={keys[i]}
-            step={s}
-            index={i}
-            count={steps.length}
-            readOnly={readOnly}
-            d={d}
-            onSet={(patch) => set(i, patch)}
-            onMove={(by) => move(i, by)}
-            onRemove={() => remove(i)}
-            onScript={() => setEditing(i)}
-          />
-        ))}
-      </ol>
+      {steps.length > 0 && (
+        <ol className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
+          {steps.map((s, i) => (
+            <StepItem
+              key={keys[i]}
+              step={s}
+              index={i}
+              count={steps.length}
+              errors={errors[i]}
+              readOnly={readOnly}
+              d={d}
+              onSet={(patch) => set(i, patch)}
+              onMove={(by) => move(i, by)}
+              onRemove={() => remove(i)}
+              onScript={() => setEditing(i)}
+            />
+          ))}
+        </ol>
+      )}
       {!readOnly && (
         <button
           type="button"
-          className="flex items-center gap-1 self-start text-xs text-blue-600 hover:underline dark:text-blue-400"
+          className="flex items-center gap-1 self-start text-sm text-blue-600 hover:underline dark:text-blue-400"
           onClick={() =>
             onChange([
               ...steps,
@@ -278,7 +309,7 @@ export default function LevelSteps({
             ])
           }
         >
-          <HiPlus className="h-3.5 w-3.5" />
+          <HiPlus className="h-4 w-4" />
           {tr("addStep", d)}
         </button>
       )}

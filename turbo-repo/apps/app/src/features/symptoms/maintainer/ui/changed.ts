@@ -1,24 +1,25 @@
 import { ruleKey } from "../condition-form";
 
 /*
- * Marks for what the draft changes against the published version, in violet:
- * amber is Harness and warnings, red errors, blue actions and focus.
+ * Marks for what the draft changes against the published version, in light
+ * blue: red, green and amber already mean error, success and Harness or
+ * warnings. Focus is a blue-500 border with a ring, so these stay lighter.
  */
 
 /** A field whose value differs from the published version. */
 export const CHANGED =
-  "!border-violet-400 !bg-violet-50 dark:!border-violet-500 dark:!bg-violet-500/15";
+  "!border-blue-300 !bg-blue-50 dark:!border-blue-700 dark:!bg-blue-900/30";
 
 /** A section card that differs. */
-export const CHANGED_CARD = "!border-violet-300 dark:!border-violet-600/60";
+export const CHANGED_CARD = "!border-blue-300 dark:!border-blue-700";
 
 /** A full-width row that differs: a tint and a bar on its left edge. */
 export const CHANGED_ROW =
-  "bg-violet-50/70 shadow-[inset_3px_0_0] shadow-violet-400 dark:bg-violet-500/10 dark:shadow-violet-500";
+  "bg-blue-50/60 shadow-[inset_3px_0_0] shadow-blue-500 dark:bg-blue-900/20 dark:shadow-blue-500";
 
 /** The bar of unpublished changes at the bottom of the sheet. */
-export const CHANGED_BAR = "border-violet-300 dark:border-violet-600/60";
-export const CHANGED_DOT = "bg-violet-400";
+export const CHANGED_BAR = "border-blue-300 dark:border-blue-700";
+export const CHANGED_DOT = "bg-blue-500";
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

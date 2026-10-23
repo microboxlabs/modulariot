@@ -12,6 +12,7 @@ import {
   positionsAsEvents,
   SSE_HEADERS,
 } from "@/app/api/utils/control-tower-map";
+import { withDistances } from "@/features/signal-history/utils/signal-legs";
 
 const FLEET_TRIP_API_URL = `${process.env.STREAMHUB_IOT_URL}/api/v1/avl/fleet/streaming/positions`;
 
@@ -45,7 +46,8 @@ export async function GET(req: NextRequest) {
       await forwardControlTowerMap(
         `assets/${encodeURIComponent(assetId.trim())}/positions`,
         `?${range.toString()}`
-      )
+      ),
+      withDistances<HistoricSignal>
     );
   }
 
@@ -99,14 +101,12 @@ async function streamPositions(
     return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss} -0000`;
   };
 
-  // URL encode the properly formatted dates
-  const encodedStartDate = encodeURIComponent(formatToStreamHub(p_from));
-  const encodedEndDate = encodeURIComponent(formatToStreamHub(p_to));
-
   try {
+    const encodedStartDate = encodeURIComponent(formatToStreamHub(p_from));
+    const encodedEndDate = encodeURIComponent(formatToStreamHub(p_to));
     const token = await authToken.getToken();
     const response = await fetch(
-      `${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${encodedStartDate}&endDate=${encodedEndDate}`,
+      `${FLEET_TRIP_API_URL}?assetId=${encodeURIComponent(assetId)}&startDate=${encodedStartDate}&endDate=${encodedEndDate}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

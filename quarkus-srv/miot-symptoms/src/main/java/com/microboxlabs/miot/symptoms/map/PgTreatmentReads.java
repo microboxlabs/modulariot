@@ -47,12 +47,16 @@ public class PgTreatmentReads implements TreatmentReads {
             )
             """;
 
-    private static final String POSITIONS_JSON = """
-            SELECT coalesce(json_agg(json_build_object(
-                'assetid', p.asset_id, 'timestamp', p."timestamp", 'speed', p.speed, 'heading', p.heading,
-                'location', p.location::text,
-                'longitude', ST_X(p.location::geometry), 'latitude', ST_Y(p.location::geometry))
-                ORDER BY p."timestamp"), '[]'::json) FROM kept p""";
+    private static final String POSITIONS_JSON = positionsJson("");
+
+    private static String positionsJson(String extraFields) {
+        return """
+                SELECT coalesce(json_agg(json_build_object(
+                    'assetid', p.asset_id, 'timestamp', p."timestamp", 'speed', p.speed, 'heading', p.heading,
+                    'location', p.location::text,
+                    'longitude', ST_X(p.location::geometry), 'latitude', ST_Y(p.location::geometry)%s)
+                    ORDER BY p."timestamp"), '[]'::json) FROM kept p""".formatted(extraFields);
+    }
 
     // The asset must be mapped to the client when the trip started, or the client must have a symptom on the trip.
     // A trip still in live_trip runs until now; the window is at most 7 days. The points are sampled evenly, keeping
@@ -88,7 +92,8 @@ public class PgTreatmentReads implements TreatmentReads {
 
     // The asset's signals in a time range, sampled like a trip's: those sent while the asset was mapped to the client,
     // or before its mapping to the client began while no other client had it. The mapping is written after the first
-    // frame of a new vehicle, so its first signals precede valid_from.
+    // frame of a new vehicle, so its first signals precede valid_from. Each position carries the trip the asset was on,
+    // or null: a closed trip before one still in live_trip, which may be stale, then the latest started.
     static final String ASSET_POSITIONS = """
             WITH me AS (SELECT public.api_request_symptoms_client_id()::text AS stored),
             pts AS (
@@ -107,7 +112,22 @@ public class PgTreatmentReads implements TreatmentReads {
                                                       AND (o.valid_from IS NULL OR o.valid_from <= a."timestamp")
                                                       AND (o.valid_to IS NULL OR o.valid_to >= a."timestamp"))))
             ),
-            """ + KEPT + "SELECT (" + POSITIONS_JSON + ")::text AS positions";
+            """ + KEPT + """
+            , trips AS (
+                SELECT t.trip_id, t.start_time, t.end_time, t.pick
+                FROM (
+                    SELECT trip_id, start_time, coalesce(end_time, closed_timestamp, now()) AS end_time, 1 AS pick
+                    FROM public.historical_trip WHERE asset_id = $1
+                    UNION ALL
+                    SELECT trip_id, start_time, now(), 2 FROM public.live_trip WHERE asset_id = $1
+                ) t
+                WHERE t.start_time <= $3::timestamptz AND t.end_time >= $2::timestamptz
+            )
+            SELECT (""" + positionsJson("""
+            ,
+                    'tripid', (SELECT t.trip_id FROM trips t
+                               WHERE p."timestamp" >= t.start_time AND p."timestamp" <= t.end_time
+                               ORDER BY t.pick, t.start_time DESC LIMIT 1)""") + ")::text AS positions";
 
     private final Supplier<Pool> pool;
 

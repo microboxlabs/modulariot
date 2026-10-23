@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { HistoricSignal } from "../types/historic-signal.type";
 
+const FLUSH_MS = 250;
+
 export function historicPulsesUrl(
   assetId: string,
   p_from: string,
@@ -38,10 +40,18 @@ export function useHistoricPulse(
       opened = true;
     };
 
+    // A burst of thousands of events renders once per flush, not per event.
+    let flush: ReturnType<typeof setTimeout> | null = null;
+    const show = () => {
+      if (flush) clearTimeout(flush);
+      flush = null;
+      setPositions([...positionBuffer]);
+    };
+
     eventSource.onmessage = (event) => {
       try {
         positionBuffer.push(JSON.parse(event.data as string) as HistoricSignal);
-        setPositions([...positionBuffer]);
+        flush ??= setTimeout(show, FLUSH_MS);
       } catch {
         // Invalid JSON, skip
       }
@@ -51,12 +61,13 @@ export function useHistoricPulse(
     // reports as an error; only a stream that never opened is a failure.
     eventSource.onerror = () => {
       eventSource.close();
-      setPositions([...positionBuffer]);
+      show();
       if (!opened) setError(new Error("The signals could not be loaded"));
       setIsLoading(false);
     };
 
     return () => {
+      if (flush) clearTimeout(flush);
       eventSource.close();
     };
   }, [assetId, p_from, p_to]);

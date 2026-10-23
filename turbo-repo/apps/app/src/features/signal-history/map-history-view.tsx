@@ -21,13 +21,11 @@ export default function MapHistoryView({
   const startDate = searchParams.get("start_date") || "";
   const endDate = searchParams.get("end_date") || "";
 
-  // Format dates with time: start_date at 00:00, end_date at 23:59
-  const p_from = startDate
-    ? dayjs(startDate).startOf("day").format("YYYY-MM-DD HH:mm")
-    : "";
-  const p_to = endDate
-    ? dayjs(endDate).endOf("day").format("YYYY-MM-DD HH:mm")
-    : "";
+  // The form writes the range as day bounds with the browser's offset.
+  const from = startDate ? dayjs(startDate) : null;
+  const to = endDate ? dayjs(endDate) : null;
+  const p_from = from ? from.format("YYYY-MM-DD HH:mm") : "";
+  const p_to = to ? to.format("YYYY-MM-DD HH:mm") : "";
 
   const tags = [
     {
@@ -89,8 +87,8 @@ export default function MapHistoryView({
       </div>
       <SignalsHistory
         dict={dict}
-        p_from={startDate ? dayjs(startDate).startOf("day").format() : ""}
-        p_to={endDate ? dayjs(endDate).endOf("day").format() : ""}
+        p_from={from ? from.format() : ""}
+        p_to={to ? to.format() : ""}
       />
     </div>
   );

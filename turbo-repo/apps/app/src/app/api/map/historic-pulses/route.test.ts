@@ -43,7 +43,8 @@ const positions = [
     heading: 0,
     location: "0101000020E610000000000000000051C00000000000A040C0",
     longitude: -68,
-    latitude: -33.25,
+    latitude: -33.259,
+    tripid: "T1",
   },
 ];
 
@@ -69,7 +70,7 @@ describe("GET /api/map/historic-pulses", () => {
     vi.unstubAllEnvs();
   });
 
-  it("sends the modulith's positions for the range as server-sent events", async () => {
+  it("sends the modulith's positions for the range as server-sent events, with the metres between them", async () => {
     const res = await GET(request(range));
 
     expect(forwardMock).toHaveBeenCalledWith(
@@ -81,7 +82,10 @@ describe("GET /api/map/historic-pulses", () => {
       .split("\n\n")
       .filter(Boolean)
       .map((line) => JSON.parse(line.replace(/^data: /, "")));
-    expect(events).toEqual(positions);
+    expect(events).toEqual([
+      { ...positions[0], distance: 0 },
+      { ...positions[1], distance: 1001 },
+    ]);
   });
 
   it("sends an empty stream when the asset has no signals", async () => {
@@ -91,6 +95,27 @@ describe("GET /api/map/historic-pulses", () => {
 
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("");
+  });
+
+  it("sends no events for a body that is not an array", async () => {
+    forwardMock.mockImplementation(
+      async () => new Response(null, { status: 204 })
+    );
+
+    expect(await (await GET(request(range))).text()).toBe("");
+  });
+
+  it("closes the AVL stream on a date it cannot read", async () => {
+    vi.stubEnv("STREAMHUB_IOT_URL", "http://avl.test");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await GET(request({ ...range, p_from: "not a date" }));
+
+    expect(await res.text()).toBe("");
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("passes a modulith 400 through", async () => {

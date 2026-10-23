@@ -47,10 +47,18 @@ export const SSE_HEADERS = {
   Connection: "keep-alive",
 };
 
-/** A modulith JSON array of positions as server-sent events, one per position; errors pass through. */
-export async function positionsAsEvents(response: Response): Promise<Response> {
+/**
+ * A modulith JSON array of positions as server-sent events, one per position,
+ * after `transform`; errors pass through. A body that is not an array sends none.
+ */
+export async function positionsAsEvents<T>(
+  response: Response,
+  transform: (positions: T[]) => unknown[] = (positions) => positions
+): Promise<Response> {
   if (!response.ok) return response;
-  const positions = (await response.json()) as unknown[];
+  const body = await response.text();
+  const parsed: unknown = body ? JSON.parse(body) : [];
+  const positions = Array.isArray(parsed) ? transform(parsed as T[]) : [];
   const events = positions
     .map((position) => `data: ${JSON.stringify(position)}\n\n`)
     .join("");

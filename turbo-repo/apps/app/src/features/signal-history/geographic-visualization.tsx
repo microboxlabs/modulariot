@@ -18,6 +18,7 @@ import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { flyTo } from "../map-visualization/map-view-utils";
+import { tripIdOfSignal } from "./utils/signal-legs";
 
 export default function GeographicVisualization({
   data,
@@ -98,12 +99,8 @@ export default function GeographicVisualization({
       const tripGroups = new Map<string, HistoricSignal[]>();
 
       signalsData.forEach((signal: HistoricSignal) => {
-        if (
-          signal.tripid != null &&
-          signal.tripid !== "" &&
-          signal.tripid !== "null"
-        ) {
-          const tripId = signal.tripid.toString();
+        const tripId = tripIdOfSignal(signal.tripid);
+        if (tripId) {
           if (!tripGroups.has(tripId)) {
             tripGroups.set(tripId, []);
           }

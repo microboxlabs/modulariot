@@ -66,23 +66,25 @@ public final class RuleLanguage {
 
     public static RuleCheck check(RuleSchema schema, String expression, Expect expect) {
         if (expression == null || expression.isBlank()) {
-            return RuleCheck.failed(new RuleIssue(0, "La expresión está vacía.", ""));
+            return RuleCheck.failed(new RuleIssue(0, RuleMessage.of("ruleEmpty"), ""));
         }
-        CelValidationResult result = cel(schema).compile(expression);
+        Compiled compiled = compile(cel(schema), expression);
+        CelValidationResult result = compiled.result();
         if (result.hasError()) {
+            EqualityLiterals literals = compiled.literals();
             List<RuleIssue> issues = result.getAllIssues().stream()
                     .filter(issue -> issue.getSeverity() == CelIssue.Severity.ERROR)
-                    .map(issue -> new RuleIssue(offset(expression, issue), RuleMessages.plain(issue.getMessage()),
-                            issue.getMessage()))
+                    .map(issue -> new RuleIssue(literals.original(offset(literals.text(), issue)),
+                            RuleMessages.plain(issue.getMessage()), issue.getMessage()))
                     .toList();
             return RuleCheck.failed(issues);
         }
         CelType type = resultType(result);
         if (expect == Expect.CONDITION && type != SimpleType.BOOL) {
-            return RuleCheck.failed(new RuleIssue(0, "La condición debe dar sí o no.", type.name()));
+            return RuleCheck.failed(new RuleIssue(0, RuleMessage.of("ruleNotCondition"), type.name()));
         }
         if (expect == Expect.NUMBER && type != SimpleType.DOUBLE && type != SimpleType.INT) {
-            return RuleCheck.failed(new RuleIssue(0, "La medida debe dar un número.", type.name()));
+            return RuleCheck.failed(new RuleIssue(0, RuleMessage.of("ruleNotNumber"), type.name()));
         }
         return RuleCheck.passed(type.name());
     }
@@ -95,9 +97,9 @@ public final class RuleLanguage {
     /** Compiles a rule once, to run it on many samples. */
     public static PreparedRule prepare(RuleSchema schema, String expression) {
         Cel cel = cel(schema);
-        CelValidationResult result = cel.compile(expression == null ? "" : expression);
+        CelValidationResult result = compile(cel, expression == null ? "" : expression).result();
         if (result.hasError()) {
-            String error = RuleMessages.plain(result.getAllIssues().get(0).getMessage());
+            String error = RuleMessages.plain(result.getAllIssues().get(0).getMessage()).spanish();
             return variables -> RuleResult.failed(error);
         }
         try {
@@ -106,11 +108,11 @@ public final class RuleLanguage {
                 try {
                     return RuleResult.of(program.eval(withConstants(doubles(variables))));
                 } catch (CelEvaluationException e) {
-                    return RuleResult.failed(RuleMessages.plain(e.getMessage()));
+                    return RuleResult.failed(RuleMessages.plain(e.getMessage()).spanish());
                 }
             };
         } catch (CelEvaluationException | CelValidationException e) {
-            String error = RuleMessages.plain(e.getMessage());
+            String error = RuleMessages.plain(e.getMessage()).spanish();
             return variables -> RuleResult.failed(error);
         }
     }
@@ -141,6 +143,26 @@ public final class RuleLanguage {
     }
 
     /** Offset in the whole rule of an issue CEL reports as line and column. */
+    /** The compiled rule and the text CEL saw. */
+    private record Compiled(CelValidationResult result, EqualityLiterals literals) {
+    }
+
+    /**
+     * Compiles the rule as written; when that fails, with the integers it
+     * compares with == or != written as doubles (see {@link EqualityLiterals}).
+     */
+    private static Compiled compile(Cel cel, String expression) {
+        CelValidationResult asWritten = cel.compile(expression);
+        if (!asWritten.hasError()) {
+            return new Compiled(asWritten, new EqualityLiterals(expression, List.of()));
+        }
+        EqualityLiterals literals = EqualityLiterals.of(expression);
+        if (literals.inserted().isEmpty()) {
+            return new Compiled(asWritten, literals);
+        }
+        return new Compiled(cel.compile(literals.text()), literals);
+    }
+
     static int offset(String expression, CelIssue issue) {
         int line = issue.getSourceLocation().getLine();
         int column = Math.max(0, issue.getSourceLocation().getColumn());

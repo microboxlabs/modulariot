@@ -57,6 +57,11 @@ public record SymptomSpec(
     /** @param expression CEL over the source object; null for symptoms with a fixed level */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Measure(String expression, String label, String unit) {
+
+        /** A blank expression is no measure: levels are then measured by the time held. */
+        public Measure {
+            expression = expression == null || expression.isBlank() ? null : expression;
+        }
     }
 
     /**

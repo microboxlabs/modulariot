@@ -1,8 +1,10 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleCheck;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.Expect;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleMessage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +37,7 @@ public final class SpecValidator {
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
+    private static final Pattern MEASURE_WORD = Pattern.compile("\\bmeasure\\b");
 
     /** Severity of a finding. */
     public enum Severity {
@@ -44,9 +48,26 @@ public final class SpecValidator {
     /**
      * One finding.
      *
+     * @param text     the finding as a code the app translates
      * @param position character offset in the section's rule, or -1
      */
-    public record Finding(String section, Severity severity, String message, int position) {
+    public record Finding(String section, Severity severity, @JsonIgnore RuleMessage text, int position) {
+
+        @JsonProperty
+        public String code() {
+            return text.code();
+        }
+
+        @JsonProperty
+        public Map<String, String> params() {
+            return text.params();
+        }
+
+        /** The finding in Spanish, for logs and clients that do not know the code. */
+        @JsonProperty
+        public String message() {
+            return text.spanish();
+        }
     }
 
     /** All findings for one spec. */
@@ -80,7 +101,7 @@ public final class SpecValidator {
     public static Report validate(SymptomSpec spec, DataSource source) {
         List<Finding> out = new ArrayList<>();
         if (source == null) {
-            out.add(new Finding("source", Severity.ERROR, "La fuente de datos no existe.", -1));
+            out.add(new Finding("source", Severity.ERROR, RuleMessage.of("sourceMissing"), -1));
             return new Report(out);
         }
         RuleSchema schema = RuleSchema.of(source);
@@ -92,8 +113,11 @@ public final class SpecValidator {
             rule(out, MEASURE, schema, spec.measure().expression(), Expect.NUMBER);
         }
         levels(out, schema.withExtras(RuleSchema.LEVEL_VARIABLES), spec.levels());
+        if (spec.measure() == null || spec.measure().expression() == null) {
+            levelsWithoutMeasure(out, spec.levels());
+        }
         if (spec.lifecycle() == null) {
-            out.add(new Finding("lifecycle", Severity.ERROR, "Falta decir cuándo se abre y se cierra el caso.", -1));
+            out.add(new Finding("lifecycle", Severity.ERROR, RuleMessage.of("lifecycleMissing"), -1));
         } else {
             rule(out, "lifecycle.open", RuleSchema.CASE, spec.lifecycle().open(), Expect.CONDITION);
             rule(out, "lifecycle.close", RuleSchema.CASE, spec.lifecycle().close(), Expect.CONDITION);
@@ -101,31 +125,29 @@ public final class SpecValidator {
         recurrence(out, spec.recurrence());
         engineSupport(out, source, spec);
         if (spec.family() != null && spec.family().codePointCount(0, spec.family().length()) > MAX_FAMILY) {
-            out.add(new Finding("family", Severity.ERROR,
-                    "La familia no puede tener más de " + MAX_FAMILY + " caracteres.", -1));
+            out.add(new Finding("family", Severity.ERROR, RuleMessage.of("familyTooLong", "max", MAX_FAMILY), -1));
         }
         if (spec.state() == SymptomState.ACTIVE && out.stream().anyMatch(f -> ENGINE.equals(f.section()))) {
-            out.add(new Finding("state", Severity.ERROR,
-                    "El motor aún no evalúa todas las variables de esta versión: déjala En prueba.", -1));
+            out.add(new Finding("state", Severity.ERROR, RuleMessage.of("engineNotReady"), -1));
         }
         return new Report(out);
     }
 
     private static void rule(List<Finding> out, String section, RuleSchema schema, String rule, Expect expect) {
         RuleCheck check = RuleLanguage.check(schema, rule, expect);
-        check.issues().forEach(i -> out.add(new Finding(section, Severity.ERROR, i.message(), i.position())));
+        check.issues().forEach(i -> out.add(new Finding(section, Severity.ERROR, i.text(), i.position())));
     }
 
     private static void levels(List<Finding> out, RuleSchema schema, List<Level> levels) {
         if (levels == null || levels.stream().noneMatch(Level::applies)) {
-            out.add(new Finding(LEVELS, Severity.ERROR, "Al menos un nivel debe aplicar.", -1));
+            out.add(new Finding(LEVELS, Severity.ERROR, RuleMessage.of("noLevelApplies"), -1));
             return;
         }
         Set<Integer> seen = new HashSet<>();
         List<Level> valid = new ArrayList<>();
         for (Level level : levels) {
             if (level.icu() < 1 || level.icu() > 4 || !seen.add(level.icu())) {
-                out.add(new Finding(LEVELS, Severity.ERROR, "Cada nivel va del 1 al 4 y aparece una vez.", -1));
+                out.add(new Finding(LEVELS, Severity.ERROR, RuleMessage.of("levelsOutOfRange"), -1));
                 return;
             }
             if (!level.applies()) {
@@ -134,7 +156,7 @@ public final class SpecValidator {
             String section = "levels." + level.icu();
             int before = out.size();
             rule(out, section, schema, level.when(), Expect.CONDITION);
-            response(out, section, level.response());
+            response(out, section + ".response", level.response());
             if (out.size() == before) {
                 valid.add(level);
             }
@@ -149,12 +171,10 @@ public final class SpecValidator {
         }
         if (r.entity() != null && !r.entity().equals(SymptomSpec.Recurrence.VEHICLE)
                 && !r.entity().equals(SymptomSpec.Recurrence.DRIVER)) {
-            out.add(new Finding("recurrence", Severity.ERROR, "La repetición se cuenta por patente o por conductor.",
-                    -1));
+            out.add(new Finding("recurrence", Severity.ERROR, RuleMessage.of("recurrenceEntity"), -1));
         }
         if (r.count() < 2 || r.days() < 1 || r.raiseLevels() < 1) {
-            out.add(new Finding("recurrence", Severity.ERROR,
-                    "La repetición necesita al menos 2 casos, 1 día y subir al menos un nivel.", -1));
+            out.add(new Finding("recurrence", Severity.ERROR, RuleMessage.of("recurrenceMinimum"), -1));
         }
     }
 
@@ -163,7 +183,7 @@ public final class SpecValidator {
             return;
         }
         if (response.operator() && (response.slaMinutes() == null || response.slaMinutes() <= 0)) {
-            out.add(new Finding(section, Severity.ERROR, "Si interviene un operador, el nivel necesita un SLA.", -1));
+            out.add(new Finding(section, Severity.ERROR, RuleMessage.of("operatorNeedsSla"), -1));
         }
         steps(out, section, response.steps());
     }
@@ -176,10 +196,10 @@ public final class SpecValidator {
         for (int i = 0; i < steps.size(); i++) {
             SymptomSpec.Step step = steps.get(i);
             if (step.role() == null || step.role().isBlank()) {
-                out.add(new Finding(section, Severity.ERROR, "El paso " + (i + 1) + " no dice a quién contactar.", -1));
+                out.add(new Finding(section, Severity.ERROR, RuleMessage.of("stepNoContact", "n", i + 1), -1));
             }
             if (step.budgetMinutes() == null || step.budgetMinutes() <= 0) {
-                out.add(new Finding(section, Severity.ERROR, "El paso " + (i + 1) + " necesita minutos.", -1));
+                out.add(new Finding(section, Severity.ERROR, RuleMessage.of("stepNoMinutes", "n", i + 1), -1));
             }
         }
     }
@@ -231,18 +251,30 @@ public final class SpecValidator {
         }
         List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
         List<Double> thresholds = levels.stream().flatMap(l -> RuleText.numbers(l.when()).stream()).toList();
-        String unit = byMeasure ? "" : " s sostenidos";
+        boolean held = !byMeasure;
         boolean seenCovered = false;
         Double gapStart = null;
         for (double point : testPoints(levels)) {
             boolean covered = covered(rules, byMeasure, point);
             if (covered && gapStart != null) {
-                out.add(gap(threshold(gapStart, thresholds), threshold(point, thresholds), unit));
+                out.add(gap(threshold(gapStart, thresholds), threshold(point, thresholds), held));
                 gapStart = null;
             } else if (!covered && seenCovered && gapStart == null) {
                 gapStart = point;
             }
             seenCovered |= covered;
+        }
+    }
+
+    /** A level compared against the measure when the symptom has none. */
+    private static void levelsWithoutMeasure(List<Finding> out, List<Level> levels) {
+        if (levels == null) {
+            return;
+        }
+        for (Level level : levels) {
+            if (level.applies() && level.when() != null && MEASURE_WORD.matcher(level.when()).find()) {
+                out.add(new Finding("levels." + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
+            }
         }
     }
 
@@ -257,10 +289,11 @@ public final class SpecValidator {
         return rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
     }
 
-    private static Finding gap(double from, double to, String unit) {
-        String message = from == to
-                ? "Con " + number(from) + unit + " exactos ningún nivel aplica."
-                : "Entre " + number(from) + " y " + number(to) + unit + " ningún nivel aplica.";
+    private static Finding gap(double from, double to, boolean held) {
+        String suffix = held ? "Held" : "";
+        RuleMessage message = from == to
+                ? RuleMessage.of("gapAt" + suffix, "at", number(from))
+                : RuleMessage.of("gapBetween" + suffix, "from", number(from), "to", number(to));
         return new Finding(LEVELS, Severity.WARNING, message, -1);
     }
 
@@ -283,8 +316,8 @@ public final class SpecValidator {
             }
             List<String> known = field.values().stream().map(SourceField.FieldValue::value).toList();
             if (!known.contains(c.value()) && reported.add(c.path() + "=" + c.value())) {
-                out.add(new Finding(ACTIVATION, Severity.WARNING, "«" + field.label() + "» no toma el valor «"
-                        + c.value() + "»; sus valores son " + String.join(", ", known) + ".", -1));
+                out.add(new Finding(ACTIVATION, Severity.WARNING, RuleMessage.of("unknownValue",
+                        "field", field.label(), "value", c.value(), "values", String.join(", ", known)), -1));
             }
         }
     }
@@ -300,12 +333,11 @@ public final class SpecValidator {
     private static void reportOverlaps(List<Finding> out, Set<String> reported, List<Level> hits, double measure,
             double held) {
         for (int i = 0; i + 1 < hits.size(); i++) {
-            String a = SpecDiff.LEVEL_NAMES[hits.get(i).icu() - 1];
-            String b = SpecDiff.LEVEL_NAMES[hits.get(i + 1).icu() - 1];
-            if (reported.add(a + b)) {
-                out.add(new Finding(LEVELS, Severity.ERROR, String.format(
-                        "%s y %s se solapan: con medida %s y %s s sostenidos se cumplen los dos.",
-                        a, b, number(measure), number(held)), -1));
+            int a = hits.get(i).icu();
+            int b = hits.get(i + 1).icu();
+            if (reported.add(a + "-" + b)) {
+                out.add(new Finding(LEVELS, Severity.ERROR, RuleMessage.of("levelsOverlap", "levelA", a, "levelB", b,
+                        MEASURE, number(measure), "held", number(held)), -1));
             }
         }
     }
@@ -318,7 +350,7 @@ public final class SpecValidator {
         Set<String> seen = new HashSet<>();
         for (String term : topLevelTerms(rule)) {
             if (!seen.add(term)) {
-                out.add(new Finding(ACTIVATION, Severity.ERROR, "La condición «" + term + "» está repetida.",
+                out.add(new Finding(ACTIVATION, Severity.ERROR, RuleMessage.of("conditionRepeated", "term", term),
                         rule.indexOf(term, rule.indexOf(term) + 1)));
             }
         }
@@ -374,8 +406,7 @@ public final class SpecValidator {
         for (String rule : rules) {
             for (String path : RuleText.fieldPaths(rule)) {
                 if (unsupported.contains(path) && reported.add(path)) {
-                    out.add(new Finding(ENGINE, Severity.WARNING,
-                            "El motor aún no evalúa «" + path + "»: solo se puede publicar En prueba.",
+                    out.add(new Finding(ENGINE, Severity.WARNING, RuleMessage.of("engineUnsupported", "path", path),
                             rule.indexOf(path)));
                 }
             }

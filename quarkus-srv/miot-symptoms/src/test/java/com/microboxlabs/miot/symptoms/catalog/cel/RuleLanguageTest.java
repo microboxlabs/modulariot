@@ -81,6 +81,33 @@ class RuleLanguageTest {
     }
 
     @Test
+    void numbersCompareForEqualityWithWholeNumbers() {
+        RuleSchema level = SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES);
+
+        assertTrue(RuleLanguage.check(level, "measure == 0", Expect.CONDITION).ok());
+        assertEquals(true, RuleLanguage.evaluate(level, "measure == 0", Map.of("measure", 0.0)).value());
+        assertEquals(true, RuleLanguage.evaluate(level, "-3 != measure", Map.of("measure", 0.0)).value());
+        assertTrue(RuleLanguage.check(level, "size(\"ab == 1\") == 2", Expect.CONDITION).ok(),
+                "a rule that compiles as written keeps its integers");
+    }
+
+    @Test
+    void anErrorAfterAWrittenIntegerPointsAtTheRuleAsWritten() {
+        RuleSchema level = SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES);
+        String rule = "measure == 0 && nope > 1";
+
+        assertEquals(rule.indexOf("nope"),
+                RuleLanguage.check(level, rule, Expect.CONDITION).issues().get(0).position());
+    }
+
+    @Test
+    void equalityLiteralsSkipStringsNamesAndDecimals() {
+        assertEquals("a == 1.0 && \"x == 2\" == b && c2 == 3.5 && d != 4.0",
+                EqualityLiterals.of("a == 1 && \"x == 2\" == b && c2 == 3.5 && d != 4").text());
+        assertEquals("x > 1", EqualityLiterals.of("x > 1").text());
+    }
+
+    @Test
     void lifecycleReadsTheCase() {
         assertTrue(RuleLanguage.check(RuleSchema.CASE, "case.normal_s >= 120 || case.age_h >= 12",
                 Expect.CONDITION).ok());

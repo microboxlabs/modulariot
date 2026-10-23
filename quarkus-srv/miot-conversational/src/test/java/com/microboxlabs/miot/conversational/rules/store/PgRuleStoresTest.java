@@ -146,7 +146,8 @@ class PgRuleStoresTest {
         Rule rule = rule(tenant, "panic");
         StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
                 "symptom.case.opened", "miot-symptoms", "symptom_case", "-7",
-                Map.of("symptomKey", "panic-button", "level", 4, "latitude", -33.4), false, T0, T0));
+                Map.of("symptomKey", "panic-button", "symptomName", "Botón de pánico", "level", 4, "assetId",
+                        "ABCD12", "latitude", -33.4), false, T0, T0));
         assertEquals(4, ((Number) runs.event(event.id()).orElseThrow().data().get("level")).intValue());
 
         Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), 1, event.id(),
@@ -168,6 +169,8 @@ class PgRuleStoresTest {
         assertEquals(1, rows.size());
         assertEquals("Pánico", rows.get(0).ruleName());
         assertEquals("symptom.case.opened", rows.get(0).eventType());
+        assertEquals("Botón de pánico", rows.get(0).symptomName());
+        assertEquals("ABCD12", rows.get(0).assetId());
         List<RunStore.RunMessage> messages = runs.messages(List.of(run.id()));
         assertEquals(1, messages.size());
         assertEquals("SIMULATED", messages.get(0).status());

@@ -11,8 +11,8 @@ import java.util.Optional;
 /** Events, runs and the messages of runs. */
 public interface RunStore {
 
-    /** A run for the Activity list, with its rule's name and its event's type. */
-    record RunRow(Run run, String ruleName, String eventType) {
+    /** A run for the Activity list, with its rule's name, its event's type and its event's symptomName and assetId. */
+    record RunRow(Run run, String ruleName, String eventType, String symptomName, String assetId) {
     }
 
     /** A message of a run, with the conversation's display name. */

@@ -79,7 +79,8 @@ public class PgRunStore implements RunStore {
     private static final String LIST = """
             SELECT r.id, r.tenant_code, r.rule_id, r.rule_version, r.event_id, r.context_kind, r.context_key, r.test,
                    r.status, r.step, r.next_at, r.last_error, r.created_at, r.updated_at,
-                   rule.name AS rule_name, e.type AS event_type
+                   rule.name AS rule_name, e.type AS event_type,
+                   e.data ->> 'symptomName' AS symptom_name, e.data ->> 'assetId' AS asset_id
             FROM miot_conversational.conv_run r
             JOIN miot_conversational.conv_rule rule ON rule.id = r.rule_id
             JOIN miot_conversational.conv_event e ON e.id = r.event_id
@@ -182,7 +183,8 @@ public class PgRunStore implements RunStore {
                 .addString(status == null ? null : status.name()).addInteger(limit);
         List<RunRow> out = new ArrayList<>();
         for (Row row : query(pool.get(), LIST, params)) {
-            out.add(new RunRow(run(row), row.getString("rule_name"), row.getString("event_type")));
+            out.add(new RunRow(run(row), row.getString("rule_name"), row.getString("event_type"),
+                    row.getString("symptom_name"), row.getString("asset_id")));
         }
         return out;
     }

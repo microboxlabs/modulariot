@@ -249,9 +249,11 @@ class OrgConversationsResourceTest {
         assertEquals(1, runs.size());
         JsonNode run = runs.get(0);
         assertEquals(set("id", "ruleId", "ruleName", "ruleVersion", "eventId", "eventType", "contextKind",
-                "contextKey", "test", "status", "step", "nextAt", "lastError", "createdAt", "updatedAt", "messages"),
-                keys(run));
+                "contextKey", "symptomName", "assetId", "test", "status", "step", "nextAt", "lastError", "createdAt",
+                "updatedAt", "messages"), keys(run));
         assertEquals("Botón de pánico", run.path("ruleName").asText());
+        assertEquals("Botón de pánico", run.path("symptomName").asText());
+        assertEquals("ABCD12", run.path("assetId").asText());
         assertEquals("symptom.case.opened", run.path("eventType").asText());
         assertTrue(run.path("test").asBoolean());
         JsonNode message = run.path("messages").get(0);

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.rules.store.RunStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,9 +23,11 @@ public class RunsService {
             String text, Instant at) {
     }
 
+    /** {@code symptomName} and {@code assetId} come from the event of a {@code symptom_case} run; null otherwise. */
     public record RunView(String id, String ruleId, String ruleName, int ruleVersion, String eventId,
-            String eventType, String contextKind, String contextKey, boolean test, Run.Status status, int step,
-            Instant nextAt, String lastError, Instant createdAt, Instant updatedAt, List<RunMessageView> messages) {
+            String eventType, String contextKind, String contextKey, String symptomName, String assetId,
+            boolean test, Run.Status status, int step, Instant nextAt, String lastError, Instant createdAt,
+            Instant updatedAt, List<RunMessageView> messages) {
     }
 
     private final RunStore runs;
@@ -44,8 +47,10 @@ public class RunsService {
         }
         return rows.stream().map(row -> {
             Run r = row.run();
+            boolean symptomCase = ContextKind.SYMPTOM_CASE.dbValue().equals(r.contextKind());
             return new RunView(r.id(), r.ruleId(), row.ruleName(), r.ruleVersion(), r.eventId(), row.eventType(),
-                    r.contextKind(), r.contextKey(), r.test(), r.status(), r.step(), r.nextAt(), r.lastError(),
+                    r.contextKind(), r.contextKey(), symptomCase ? row.symptomName() : null,
+                    symptomCase ? row.assetId() : null, r.test(), r.status(), r.step(), r.nextAt(), r.lastError(),
                     r.createdAt(), r.updatedAt(), byRun.getOrDefault(r.id(), List.of()));
         }).toList();
     }

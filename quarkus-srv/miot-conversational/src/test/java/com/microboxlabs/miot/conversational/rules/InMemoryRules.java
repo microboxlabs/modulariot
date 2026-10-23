@@ -206,7 +206,11 @@ final class InMemoryRules {
                     .filter(r -> r.tenantCode().equals(tenantCode) && (ruleId == null || r.ruleId().equals(ruleId))
                             && (status == null || r.status() == status))
                     .sorted(Comparator.comparing(Run::createdAt).reversed()).limit(limit)
-                    .map(r -> new RunRow(r, rules.get(r.ruleId()).name(), events.get(r.eventId()).type()))
+                    .map(r -> {
+                        StoredEvent e = events.get(r.eventId());
+                        return new RunRow(r, rules.get(r.ruleId()).name(), e.type(), text(e, "symptomName"),
+                                text(e, "assetId"));
+                    })
                     .toList();
         }
 
@@ -221,6 +225,11 @@ final class InMemoryRules {
                 }
             }
             return out;
+        }
+
+        private static String text(StoredEvent e, String field) {
+            Object value = e.data().get(field);
+            return value == null ? null : value.toString();
         }
     }
 }

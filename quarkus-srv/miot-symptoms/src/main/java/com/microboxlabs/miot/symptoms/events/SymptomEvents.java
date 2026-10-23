@@ -40,7 +40,7 @@ public class SymptomEvents {
     private static final Duration NAMES_TTL = Duration.ofSeconds(30);
 
     /** Publishes nothing. */
-    public static final SymptomEvents NONE = new SymptomEvents(e -> CompletableFuture.completedFuture(e));
+    public static final SymptomEvents NONE = new SymptomEvents(CompletableFuture::completedFuture);
 
     /** A symptom definition by tenant and id. */
     @FunctionalInterface
@@ -121,7 +121,7 @@ public class SymptomEvents {
     }
 
     private void publish(String type, String tenantCode, Instant at, SymptomCaseData data, boolean test) {
-        OperationalEvent event = new OperationalEvent(type, SymptomEventCatalog.SOURCE, tenantCode, at,
+        OperationalEvent event = new OperationalEvent(type, SymptomEventCatalog.EVENT_SOURCE, tenantCode, at,
                 new EventContext(SymptomEventCatalog.CONTEXT_KIND, String.valueOf(data.symptomId())), data, test);
         try {
             fire.apply(event).exceptionally(e -> {

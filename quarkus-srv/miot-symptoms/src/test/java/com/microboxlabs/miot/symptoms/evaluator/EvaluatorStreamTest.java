@@ -81,8 +81,9 @@ class EvaluatorStreamTest {
     }
 
     private EvaluatorStream stream() {
-        return new EvaluatorStream(true, evaluatorCatalog, log, events,
-                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
+        return new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
     }
 
     private static String signal(String at, Boolean panic, String... clients) {
@@ -124,8 +125,9 @@ class EvaluatorStreamTest {
 
     @Test
     void doesNothingWhenOff() {
-        EvaluatorStream off = new EvaluatorStream(false, evaluatorCatalog, log, events,
-                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
+        EvaluatorStream off = new EvaluatorStream(false, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
 
         assertEquals(0, off.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)));
     }
@@ -178,8 +180,9 @@ class EvaluatorStreamTest {
                 memory.forget(tenantCode, assetId, definitionId);
             }
         };
-        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog, log, events,
-                new SimpleMeterRegistry(), Clock.systemUTC(), failing, samples);
+        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), failing, samples);
         List<String> outcomes = new ArrayList<>();
 
         s.onSignal(message(signal("2026-10-22T03:00:30Z", true, DEMO), outcomes));

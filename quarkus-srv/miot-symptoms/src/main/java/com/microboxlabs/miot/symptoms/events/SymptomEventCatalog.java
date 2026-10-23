@@ -10,7 +10,7 @@ import java.util.List;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class SymptomEventCatalog implements EventTypeCatalog {
 
-    public static final String SOURCE = "miot-symptoms";
+    public static final String EVENT_SOURCE = "miot-symptoms";
     public static final String CONTEXT_KIND = "symptom_case";
     public static final String OPENED = "symptom.case.opened";
     public static final String LEVEL_CHANGED = "symptom.case.level_changed";
@@ -26,7 +26,7 @@ public class SymptomEventCatalog implements EventTypeCatalog {
 
     @Override
     public String source() {
-        return SOURCE;
+        return EVENT_SOURCE;
     }
 
     @Override

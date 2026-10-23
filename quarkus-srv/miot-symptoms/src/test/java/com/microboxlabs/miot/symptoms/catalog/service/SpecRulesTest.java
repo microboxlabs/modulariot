@@ -182,7 +182,8 @@ class SpecRulesTest {
         SymptomSpec speeding = Specs.speeding();
         SymptomSpec noMeasure = new SymptomSpec(speeding.source(), speeding.activation(), null, List.of(
                 new Level(1, true, "measure >= 3", null), new Level(2, false, "measure > 0", null),
-                new Level(3, false, null, null), new Level(4, true, "held_s >= 60", null)),
+                new Level(3, true, "size(\"measure\") == 7 && held_s >= 30", null),
+                new Level(4, true, "held_s >= 60", null)),
                 speeding.lifecycle(), speeding.recurrence());
 
         List<SpecValidator.Finding> missing = SpecValidator.validate(noMeasure, Specs.gpsSignal()).findings()

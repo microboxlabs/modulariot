@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -37,7 +36,6 @@ public final class SpecValidator {
     private static final String ACTIVATION = "activation";
     private static final String MEASURE = "measure";
     private static final String HELD = "held_s";
-    private static final Pattern MEASURE_WORD = Pattern.compile("(?<![.\\w])measure\\b");
 
     /** Severity of a finding. */
     public enum Severity {
@@ -278,7 +276,8 @@ public final class SpecValidator {
             return;
         }
         for (Level level : levels) {
-            if (level.applies() && level.when() != null && MEASURE_WORD.matcher(level.when()).find()) {
+            // A rule that does not parse has its own error.
+            if (level.applies() && RuleText.identifiers(level.when()).contains(MEASURE)) {
                 out.add(new Finding("levels." + level.icu(), Severity.ERROR, RuleMessage.of("measureMissing"), -1));
             }
         }

@@ -96,6 +96,13 @@ class RuleLanguageTest {
     }
 
     @Test
+    void aMeasureSubtractsADouble() {
+        assertTrue(RuleLanguage.check(SIGNAL, "signal.frame.gps.speed - 90.0", Expect.NUMBER).ok());
+        assertFalse(RuleLanguage.check(SIGNAL, "signal.frame.gps.speed - 90", Expect.NUMBER).ok(),
+                "the app writes whole offsets as doubles");
+    }
+
+    @Test
     void anErrorAfterAWrittenIntegerPointsAtTheRuleAsWritten() {
         RuleSchema level = SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES);
         String rule = "measure == 0 && nope > 1";

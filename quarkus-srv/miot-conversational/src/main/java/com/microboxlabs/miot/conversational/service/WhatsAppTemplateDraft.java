@@ -176,22 +176,17 @@ public record WhatsAppTemplateDraft(
             throw new IllegalArgumentException(label + ": text of 1 to " + BUTTON_TEXT_MAX + " characters");
         }
         String type = b.type() == null ? "" : b.type().toUpperCase(Locale.ROOT);
-        switch (type) {
-            case QUICK_REPLY -> {
-                // Text only.
-            }
-            case URL_TYPE -> {
-                if (b.url() == null || !URL.matcher(b.url()).matches() || b.url().length() > URL_MAX
-                        || b.url().contains("{{")) {
-                    throw new IllegalArgumentException(label + ": a fixed http or https address");
-                }
-            }
-            case PHONE_NUMBER -> {
-                if (b.phoneNumber() == null || !PHONE.matcher(b.phoneNumber()).matches()) {
-                    throw new IllegalArgumentException(label + ": a phone number such as +15550000000");
-                }
-            }
+        boolean valid = switch (type) {
+            case QUICK_REPLY -> true;
+            case URL_TYPE -> b.url() != null && URL.matcher(b.url()).matches() && b.url().length() <= URL_MAX
+                    && !b.url().contains("{{");
+            case PHONE_NUMBER -> b.phoneNumber() != null && PHONE.matcher(b.phoneNumber()).matches();
             default -> throw new IllegalArgumentException(label + ": QUICK_REPLY, URL or PHONE_NUMBER");
+        };
+        if (!valid) {
+            throw new IllegalArgumentException(label + (URL_TYPE.equals(type)
+                    ? ": a fixed http or https address"
+                    : ": a phone number such as +15550000000"));
         }
         return type;
     }

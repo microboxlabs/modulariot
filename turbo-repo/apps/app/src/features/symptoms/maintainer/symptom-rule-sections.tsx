@@ -352,6 +352,8 @@ export default function SymptomRuleSections({
   const [lifeMode, setLifeMode] = useState<EditMode>("form");
   const activation = problemsFor(findings, "activation", d);
   const measure = problemsFor(findings, "measure", d);
+  // Overlaps and gaps between levels belong to no single level.
+  const levelProblems = problemsFor(findings, "levels", d);
   const open = problemsFor(findings, "lifecycle.open", d);
   const close = problemsFor(findings, "lifecycle.close", d);
   const recurrence = problemsFor(findings, "recurrence", d);
@@ -429,6 +431,7 @@ export default function SymptomRuleSections({
             onChange={onChange}
           />
         )}
+        <Problems items={levelProblems} />
         <div className="-mx-4 -mb-3 divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-700 dark:border-gray-700">
           {ICU_LEVELS.map((meta) => (
             <LevelRow

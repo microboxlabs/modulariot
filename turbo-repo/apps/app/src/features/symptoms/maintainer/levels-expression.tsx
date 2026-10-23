@@ -84,9 +84,7 @@ export default function LevelsExpression({
           onChange={(expression) =>
             onChange({
               ...spec,
-              measure: expression.trim()
-                ? { ...measure, expression: expression.trim() }
-                : null,
+              measure: expression.trim() ? { ...measure, expression } : null,
             })
           }
         />

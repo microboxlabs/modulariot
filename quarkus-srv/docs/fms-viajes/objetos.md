@@ -14,7 +14,7 @@ versionado SCD2 (`version_of`, `is_active`, `version_from/to`).
 | `resource_attribute` | Atributo con vigencia de cualquier recurso: acreditación de faena, certificación, seguro, licencia. Heredero de `ams.rd_resource_attributes` | upsert por `(tenant, resource_type, resource_id, attribute_type, attribute_key)` |
 
 Sin DELETE físico: desactivación por `status` / borrado lógico. `source_system`/`source_data`
-conservan el crudo de la fuente (Alerce, ECM...).
+conservan el crudo de la fuente (el sistema de origen de cada integración).
 
 ## miot_trips (migración `V0.10.0`, PR 3)
 

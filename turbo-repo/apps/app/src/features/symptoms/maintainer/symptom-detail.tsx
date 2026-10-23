@@ -371,6 +371,9 @@ export default function SymptomDetail({
           {responseIcu !== null && shownSpec && detail && (
             <ResponseWorkspace
               spec={shownSpec}
+              symptom={
+                template || !def ? undefined : { key: def.key, name: def.name }
+              }
               changedLevels={
                 viewed ? new Set<number>() : changedLevels(shownSpec, published)
               }

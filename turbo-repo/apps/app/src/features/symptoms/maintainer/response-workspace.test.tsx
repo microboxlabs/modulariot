@@ -9,6 +9,10 @@ vi.mock("next/image", () => ({
     createElement("img", props),
 }));
 
+const conversations = vi.hoisted(() => ({ useConversationRules: vi.fn() }));
+vi.mock("@/features/conversations/conversations-api", () => conversations);
+vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+
 const d = {
   levelName1: "Bajo observación",
   levelName2: "Comprometida",
@@ -151,5 +155,50 @@ describe("ResponseWorkspace", () => {
     renderIt(1);
     expect(screen.getByText("Este nivel no aplica.")).toBeTruthy();
     expect(screen.queryByLabelText("Copiar de")).toBeNull();
+  });
+
+  it("lists the level's conversation rules for a symptom, none for a template", () => {
+    conversations.useConversationRules.mockReturnValue({
+      data: [
+        {
+          id: "r1",
+          key: "panic-driver",
+          name: "Pánico: conductor",
+          state: "ACTIVE",
+          currentVersion: 1,
+          hasDraft: false,
+          trigger: {
+            event: "symptom.case.opened",
+            when: "event.data.symptomKey == 'panic-button' && event.data.level >= 4",
+          },
+          stepsCount: 2,
+          channels: ["whatsapp"],
+        },
+      ],
+    });
+    const { unmount } = render(
+      <ResponseWorkspace
+        spec={SPEC}
+        symptom={{ key: "panic-button", name: "Botón de pánico" }}
+        changedLevels={new Set()}
+        findings={[]}
+        readOnly={false}
+        icu={4}
+        d={d}
+        onIcu={vi.fn()}
+        onChange={vi.fn()}
+      />
+    );
+    expect(
+      screen
+        .getByRole("link", { name: "Pánico: conductor" })
+        .getAttribute("href")
+    ).toBe("/es/users/settings/communications/rules/r1");
+    unmount();
+
+    renderIt(4);
+    expect(
+      screen.queryByRole("link", { name: "Pánico: conductor" })
+    ).toBeNull();
   });
 });

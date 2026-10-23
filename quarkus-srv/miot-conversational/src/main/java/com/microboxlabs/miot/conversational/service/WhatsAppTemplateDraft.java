@@ -36,14 +36,15 @@ public record WhatsAppTemplateDraft(
     static final int URL_BUTTONS_MAX = 2;
     static final int PHONE_BUTTONS_MAX = 1;
     static final int URL_MAX = 2000;
-    private static final Pattern NAME = Pattern.compile("[a-z0-9_]{1,512}");
-    private static final Pattern LANGUAGE = Pattern.compile("[a-z]{2,3}(_[A-Z]{2})?");
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9_]{1,512}");
+    private static final Pattern LANGUAGE_PATTERN = Pattern.compile("[a-z]{2,3}(_[A-Z]{2})?");
     private static final Pattern PARAM_NAME = Pattern.compile("[a-z][a-z0-9_]*");
     private static final Pattern URL = Pattern.compile("https?://\\S+");
     private static final Pattern PHONE = Pattern.compile("\\+[1-9]\\d{6,14}");
     private static final String QUICK_REPLY = "QUICK_REPLY";
     private static final String URL_TYPE = "URL";
     private static final String PHONE_NUMBER = "PHONE_NUMBER";
+    private static final String EXAMPLE = "example";
 
     public String languageOrDefault() {
         return language == null || language.isBlank() ? DEFAULT_LANGUAGE : language.trim();
@@ -55,10 +56,10 @@ public record WhatsAppTemplateDraft(
 
     /** Checks the name and language too: they are fixed after creation, so an edit checks only the rest. */
     public void validateNew() {
-        if (name == null || !NAME.matcher(name).matches()) {
+        if (name == null || !NAME_PATTERN.matcher(name).matches()) {
             throw new IllegalArgumentException("name: lowercase letters, digits and underscores only");
         }
-        if (!LANGUAGE.matcher(languageOrDefault()).matches()) {
+        if (!LANGUAGE_PATTERN.matcher(languageOrDefault()).matches()) {
             throw new IllegalArgumentException("language: a code such as es_CL or en_US");
         }
         validate();
@@ -66,13 +67,25 @@ public record WhatsAppTemplateDraft(
 
     /** @throws IllegalArgumentException naming the first rule the draft breaks */
     public void validate() {
-        if ("AUTHENTICATION".equals(categoryUpper())) {
+        validateCategory();
+        validateBody();
+        validateHeader();
+        validateFooter();
+        validateButtons();
+    }
+
+    private void validateCategory() {
+        String upper = categoryUpper();
+        if ("AUTHENTICATION".equals(upper)) {
             throw new IllegalArgumentException(
                     "category: AUTHENTICATION templates use Meta's one-time code layout; create them in Meta");
         }
-        if (!CATEGORIES.contains(categoryUpper())) {
+        if (upper == null || !CATEGORIES.contains(upper)) {
             throw new IllegalArgumentException("category: UTILITY or MARKETING");
         }
+    }
+
+    private void validateBody() {
         if (isBlank(body)) {
             throw new IllegalArgumentException("body is required");
         }
@@ -84,24 +97,31 @@ public record WhatsAppTemplateDraft(
             throw new IllegalArgumentException("body: Meta does not accept a parameter at the start or the end");
         }
         checkParams("body", body);
-        if (!isBlank(header)) {
-            if (header.length() > HEADER_MAX) {
-                throw new IllegalArgumentException("header: at most " + HEADER_MAX + " characters");
-            }
-            if (WhatsAppTemplate.paramsOf(header).size() > 1) {
-                throw new IllegalArgumentException("header: at most one parameter");
-            }
-            checkParams("header", header);
+    }
+
+    private void validateHeader() {
+        if (isBlank(header)) {
+            return;
         }
-        if (!isBlank(footer)) {
-            if (footer.length() > FOOTER_MAX) {
-                throw new IllegalArgumentException("footer: at most " + FOOTER_MAX + " characters");
-            }
-            if (!WhatsAppTemplate.paramsOf(footer).isEmpty()) {
-                throw new IllegalArgumentException("footer: parameters are not allowed");
-            }
+        if (header.length() > HEADER_MAX) {
+            throw new IllegalArgumentException("header: at most " + HEADER_MAX + " characters");
         }
-        validateButtons();
+        if (WhatsAppTemplate.paramsOf(header).size() > 1) {
+            throw new IllegalArgumentException("header: at most one parameter");
+        }
+        checkParams("header", header);
+    }
+
+    private void validateFooter() {
+        if (isBlank(footer)) {
+            return;
+        }
+        if (footer.length() > FOOTER_MAX) {
+            throw new IllegalArgumentException("footer: at most " + FOOTER_MAX + " characters");
+        }
+        if (!WhatsAppTemplate.paramsOf(footer).isEmpty()) {
+            throw new IllegalArgumentException("footer: parameters are not allowed");
+        }
     }
 
     private void checkParams(String part, String text) {
@@ -127,30 +147,11 @@ public record WhatsAppTemplateDraft(
         int groups = 0;
         Boolean lastQuickReply = null;
         for (int i = 0; i < list.size(); i++) {
-            Button b = list.get(i);
-            String type = b == null || b.type() == null ? "" : b.type().toUpperCase(Locale.ROOT);
-            String label = "buttons[" + (i + 1) + "]";
-            if (isBlank(b == null ? null : b.text()) || b.text().length() > BUTTON_TEXT_MAX) {
-                throw new IllegalArgumentException(label + ": text of 1 to " + BUTTON_TEXT_MAX + " characters");
-            }
-            switch (type) {
-                case QUICK_REPLY -> {
-                    // Text only.
-                }
-                case URL_TYPE -> {
-                    urls++;
-                    if (b.url() == null || !URL.matcher(b.url()).matches() || b.url().length() > URL_MAX
-                            || b.url().contains("{{")) {
-                        throw new IllegalArgumentException(label + ": a fixed http or https address");
-                    }
-                }
-                case PHONE_NUMBER -> {
-                    phones++;
-                    if (b.phoneNumber() == null || !PHONE.matcher(b.phoneNumber()).matches()) {
-                        throw new IllegalArgumentException(label + ": a phone number such as +15550000000");
-                    }
-                }
-                default -> throw new IllegalArgumentException(label + ": QUICK_REPLY, URL or PHONE_NUMBER");
+            String type = validateButton(list.get(i), "buttons[" + (i + 1) + "]");
+            if (URL_TYPE.equals(type)) {
+                urls++;
+            } else if (PHONE_NUMBER.equals(type)) {
+                phones++;
             }
             boolean quickReply = QUICK_REPLY.equals(type);
             if (lastQuickReply == null || lastQuickReply != quickReply) {
@@ -167,6 +168,32 @@ public record WhatsAppTemplateDraft(
         if (groups > 2) {
             throw new IllegalArgumentException("buttons: keep the quick replies together, before or after the links");
         }
+    }
+
+    /** @return the button's type in upper case */
+    private static String validateButton(Button b, String label) {
+        if (b == null || isBlank(b.text()) || b.text().length() > BUTTON_TEXT_MAX) {
+            throw new IllegalArgumentException(label + ": text of 1 to " + BUTTON_TEXT_MAX + " characters");
+        }
+        String type = b.type() == null ? "" : b.type().toUpperCase(Locale.ROOT);
+        switch (type) {
+            case QUICK_REPLY -> {
+                // Text only.
+            }
+            case URL_TYPE -> {
+                if (b.url() == null || !URL.matcher(b.url()).matches() || b.url().length() > URL_MAX
+                        || b.url().contains("{{")) {
+                    throw new IllegalArgumentException(label + ": a fixed http or https address");
+                }
+            }
+            case PHONE_NUMBER -> {
+                if (b.phoneNumber() == null || !PHONE.matcher(b.phoneNumber()).matches()) {
+                    throw new IllegalArgumentException(label + ": a phone number such as +15550000000");
+                }
+            }
+            default -> throw new IllegalArgumentException(label + ": QUICK_REPLY, URL or PHONE_NUMBER");
+        }
+        return type;
     }
 
     /** The create payload: name, language, category, NAMED parameters and the components. */
@@ -190,14 +217,14 @@ public record WhatsAppTemplateDraft(
             JsonObject h = new JsonObject().put("type", "HEADER").put("format", "TEXT").put("text", header.trim());
             JsonArray named = named(header);
             if (!named.isEmpty()) {
-                h.put("example", new JsonObject().put("header_text_named_params", named));
+                h.put(EXAMPLE, new JsonObject().put("header_text_named_params", named));
             }
             out.add(h);
         }
         JsonObject b = new JsonObject().put("type", "BODY").put("text", body);
         JsonArray named = named(body);
         if (!named.isEmpty()) {
-            b.put("example", new JsonObject().put("body_text_named_params", named));
+            b.put(EXAMPLE, new JsonObject().put("body_text_named_params", named));
         }
         out.add(b);
         if (!isBlank(footer)) {
@@ -223,20 +250,24 @@ public record WhatsAppTemplateDraft(
     private JsonArray named(String text) {
         JsonArray out = new JsonArray();
         for (String p : WhatsAppTemplate.paramsOf(text)) {
-            out.add(new JsonObject().put("param_name", p).put("example", examples.get(p).trim()));
+            out.add(new JsonObject().put("param_name", p).put(EXAMPLE, examples.get(p).trim()));
         }
         return out;
     }
 
-    /** What the app shows right after a submit, before the list is read again. */
-    public WhatsAppTemplate toTemplate(String id, String status) {
+    /**
+     * What the app shows right after a submit, before the list is read again. {@code category} is the one
+     * Meta answered with, or null to keep the draft's.
+     */
+    public WhatsAppTemplate toTemplate(String id, String status, String category) {
         List<String> exampleNames = new ArrayList<>(WhatsAppTemplate.paramsOf(header));
         exampleNames.addAll(WhatsAppTemplate.paramsOf(body));
         Map<String, String> ex = new LinkedHashMap<>();
         for (String p : exampleNames) {
             ex.put(p, examples.get(p));
         }
-        return new WhatsAppTemplate(id, name, languageOrDefault(), categoryUpper(), status, null, "NAMED",
+        String shownCategory = isBlank(category) ? categoryUpper() : category.trim().toUpperCase(Locale.ROOT);
+        return new WhatsAppTemplate(id, name, languageOrDefault(), shownCategory, status, null, "NAMED",
                 isBlank(header) ? null : "TEXT", isBlank(header) ? null : header.trim(), body,
                 isBlank(footer) ? null : footer.trim(), buttons == null ? List.of() : List.copyOf(buttons),
                 WhatsAppTemplate.paramsOf(body), ex);

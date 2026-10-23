@@ -63,6 +63,7 @@ class WhatsAppTemplateDraftTest {
         rejects(new WhatsAppTemplateDraft("a", null, "AUTHENTICATION", null, BODY, null, null, EXAMPLES),
                 "AUTHENTICATION");
         rejects(new WhatsAppTemplateDraft("a", null, "OTHER", null, BODY, null, null, EXAMPLES), "category");
+        rejects(new WhatsAppTemplateDraft("a", null, null, null, BODY, null, null, EXAMPLES), "category");
     }
 
     @Test

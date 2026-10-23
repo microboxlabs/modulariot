@@ -80,26 +80,22 @@ public class MetaTemplatesClient {
     /** Deletes the template by name, every language, or only the one with {@code templateId} when given. */
     public void delete(URI baseUrl, String wabaId, String token, String name, String templateId) {
         String query = "?name=" + enc(name) + (templateId == null ? "" : "&hsm_id=" + enc(templateId));
-        HttpRequest request = HttpRequest.newBuilder(uri(baseUrl, "/" + enc(wabaId) + MESSAGE_TEMPLATES + query))
-                .timeout(REQUEST_TIMEOUT)
-                .header("Authorization", "Bearer " + token)
-                .DELETE()
-                .build();
-        call(request);
+        call(authorized(uri(baseUrl, "/" + enc(wabaId) + MESSAGE_TEMPLATES + query), token).DELETE().build());
     }
 
     private static HttpRequest get(URI uri, String token) {
-        return HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT).header("Authorization", "Bearer " + token)
-                .GET().build();
+        return authorized(uri, token).GET().build();
     }
 
     private static HttpRequest post(URI uri, String token, JsonObject payload) {
-        return HttpRequest.newBuilder(uri)
-                .timeout(REQUEST_TIMEOUT)
-                .header("Authorization", "Bearer " + token)
+        return authorized(uri, token)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(payload.encode()))
                 .build();
+    }
+
+    private static HttpRequest.Builder authorized(URI uri, String token) {
+        return HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT).header("Authorization", "Bearer " + token);
     }
 
     private JsonObject call(HttpRequest request) {
@@ -133,9 +129,10 @@ public class MetaTemplatesClient {
             if (error != null) {
                 String userMessage = error.getString("error_user_msg");
                 String title = error.getString("error_user_title");
-                String text = userMessage != null && !userMessage.isBlank()
-                        ? (title != null && !title.isBlank() ? title + ": " + userMessage : userMessage)
-                        : error.getString("message");
+                String text = error.getString("message");
+                if (userMessage != null && !userMessage.isBlank()) {
+                    text = title != null && !title.isBlank() ? title + ": " + userMessage : userMessage;
+                }
                 Integer code = error.getValue("code") instanceof Number n ? n.intValue() : null;
                 if (text != null) {
                     return new MetaGraphException("Meta: " + text, status, code, null);

@@ -155,6 +155,26 @@ describe("TemplateEditor with the WABA's templates", () => {
     ).toBeTruthy();
   });
 
+  it("warns that a header with parameters or numbered parameters cannot be sent", () => {
+    api.useMetaTemplates.mockReturnValue({
+      data: [
+        {
+          ...META,
+          parameterFormat: "POSITIONAL",
+          header: "Alerta {{patente}}",
+          headerFormat: "TEXT",
+        },
+      ],
+    });
+    editor();
+    expect(
+      screen.getByText(
+        "Su encabezado tiene parámetros (patente) y las reglas solo llenan los del cuerpo, así que los envíos fallarán."
+      )
+    ).toBeTruthy();
+    expect(screen.getByText(d.metaPositional)).toBeTruthy();
+  });
+
   it("falls back to a text field without the WABA's list", () => {
     api.useMetaTemplates.mockReturnValue({ data: undefined });
     editor();

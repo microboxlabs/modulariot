@@ -3771,6 +3771,8 @@
         "metaNotApproved": "Meta has not approved it: sends fail until it does.",
         "metaOtherLanguage": "It does not exist in this language; Meta has it in {language}.",
         "metaParamsDiffer": "The parameters are not Meta's: {params}.",
+        "metaHeaderParams": "Its header has parameters ({params}) and rules only fill the body's, so sends will fail.",
+        "metaPositional": "It uses numbered parameters and rules send named ones, so sends will fail.",
         "emailSubject": "Subject",
         "emailBody": "Body",
         "noEmailVariant": "No email version.",

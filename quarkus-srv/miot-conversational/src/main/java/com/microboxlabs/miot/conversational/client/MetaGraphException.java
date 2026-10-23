@@ -27,9 +27,9 @@ public class MetaGraphException extends RuntimeException {
         return code;
     }
 
-    /** Meta refused the request itself (bad input, unknown template), not the token or its own service. */
+    /** Meta refused the request itself (bad input, unknown template), not the token, a rate limit or its own service. */
     public boolean isClientError() {
         return httpStatus != null && httpStatus >= 400 && httpStatus < 500 && httpStatus != 401
-                && httpStatus != 403 && (code == null || code != INVALID_TOKEN);
+                && httpStatus != 403 && httpStatus != 429 && (code == null || code != INVALID_TOKEN);
     }
 }

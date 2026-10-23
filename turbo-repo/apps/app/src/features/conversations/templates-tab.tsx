@@ -200,6 +200,10 @@ export function MetaTemplateLink({
     );
   }
   const otherLanguage = meta.language !== variant.language;
+  // Sends fill body parameters by name only.
+  const headerParams = textVariables(meta.header ?? "");
+  const positional =
+    meta.parameterFormat === "POSITIONAL" && meta.params.length > 0;
   const sameParams =
     meta.params.length === variant.params.length &&
     meta.params.every((p) => variant.params.includes(p));
@@ -226,6 +230,16 @@ export function MetaTemplateLink({
       {!sameParams && (
         <p className="text-red-600 dark:text-red-400">
           {tr("metaParamsDiffer", d, { params: meta.params.join(", ") || "—" })}
+        </p>
+      )}
+      {headerParams.length > 0 && (
+        <p className="text-red-600 dark:text-red-400">
+          {tr("metaHeaderParams", d, { params: headerParams.join(", ") })}
+        </p>
+      )}
+      {positional && (
+        <p className="text-red-600 dark:text-red-400">
+          {tr("metaPositional", d)}
         </p>
       )}
     </div>

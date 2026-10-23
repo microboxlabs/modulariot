@@ -38,7 +38,7 @@ public record WhatsAppTemplate(
     public record Button(String type, String text, String url, String phoneNumber) {
     }
 
-    static final Pattern PARAM = Pattern.compile("\\{\\{\\s*([^{}]*?)\\s*}}");
+    static final Pattern PARAM = Pattern.compile("\\{\\{([^{}]*)}}");
 
     /** The parameter names in {@code text}, in order of first use. */
     public static List<String> paramsOf(String text) {
@@ -46,7 +46,7 @@ public record WhatsAppTemplate(
         if (text != null) {
             Matcher m = PARAM.matcher(text);
             while (m.find()) {
-                out.add(m.group(1));
+                out.add(m.group(1).trim());
             }
         }
         return List.copyOf(out);
@@ -111,12 +111,11 @@ public record WhatsAppTemplate(
             }
             return;
         }
-        Object positional = example.getValue(positionalKey);
-        JsonArray values = positional instanceof JsonArray a && !a.isEmpty() && a.getValue(0) instanceof JsonArray inner
-                ? inner
-                : positional instanceof JsonArray a2 ? a2 : null;
-        if (values == null) {
+        if (!(example.getValue(positionalKey) instanceof JsonArray values)) {
             return;
+        }
+        if (!values.isEmpty() && values.getValue(0) instanceof JsonArray inner) {
+            values = inner;
         }
         List<String> params = paramsOf(text);
         for (int i = 0; i < values.size() && i < params.size(); i++) {

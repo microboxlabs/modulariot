@@ -10,6 +10,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Comparator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -60,7 +61,9 @@ public class WhatsAppTemplatesService {
         draft.validateNew();
         Waba waba = waba(tenant);
         JsonObject created = meta.create(waba.connection().baseUrl(), waba.wabaId(), waba.token(), draft.toCreate());
-        return draft.toTemplate(created.getString("id"), created.getString("status", "PENDING"));
+        // Meta may move the template to another category on submit.
+        return draft.toTemplate(created.getString("id"), created.getString("status", "PENDING"),
+                created.getString("category"));
     }
 
     /** Changes the category or components of a template; its name and language stay. */
@@ -71,6 +74,12 @@ public class WhatsAppTemplatesService {
         }
         draft.validate();
         Waba waba = waba(tenant);
+        // The token may reach other WABAs; only a template on this connection's WABA may change.
+        boolean onWaba = meta.list(waba.connection().baseUrl(), waba.wabaId(), waba.token()).stream()
+                .anyMatch(t -> templateId.equals(t.getString("id")));
+        if (!onWaba) {
+            throw new NoSuchElementException("No template " + templateId + " on the WhatsApp account");
+        }
         meta.edit(waba.connection().baseUrl(), templateId, waba.token(), draft.toEdit());
         return WhatsAppTemplate.from(meta.get(waba.connection().baseUrl(), templateId, waba.token()));
     }

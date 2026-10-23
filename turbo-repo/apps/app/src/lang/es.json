@@ -3771,6 +3771,8 @@
         "metaNotApproved": "Meta no la ha aprobado: los envíos fallarán hasta que lo haga.",
         "metaOtherLanguage": "No existe en este idioma; Meta la tiene en {language}.",
         "metaParamsDiffer": "Los parámetros no son los de Meta: {params}.",
+        "metaHeaderParams": "Su encabezado tiene parámetros ({params}) y las reglas solo llenan los del cuerpo, así que los envíos fallarán.",
+        "metaPositional": "Usa parámetros numerados y las reglas envían parámetros con nombre, así que los envíos fallarán.",
         "emailSubject": "Asunto",
         "emailBody": "Cuerpo",
         "noEmailVariant": "Sin versión para correo.",

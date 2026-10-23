@@ -89,9 +89,10 @@ class MetaTemplatesClientTest {
                  "error_user_title": "Language already exists", "error_user_msg": "Try another name."}}
                 """);
         URI base = graph.baseUrl();
+        JsonObject empty = new JsonObject();
 
         MetaGraphException e = assertThrows(MetaGraphException.class,
-                () -> client.create(base, WABA, TOKEN, new JsonObject()));
+                () -> client.create(base, WABA, TOKEN, empty));
 
         assertEquals("Meta: Language already exists: Try another name.", e.getMessage());
         assertEquals(400, e.httpStatus());

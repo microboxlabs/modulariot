@@ -14,6 +14,7 @@ import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import io.vertx.core.json.JsonObject;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -94,7 +95,7 @@ class WhatsAppTemplatesServiceTest {
 
     @Test
     void createSubmitsAndReturnsThePendingTemplate() {
-        graph.reply(200, "{\"id\": \"903\", \"status\": \"PENDING\", \"category\": \"UTILITY\"}");
+        graph.reply(200, "{\"id\": \"903\", \"status\": \"PENDING\", \"category\": \"MARKETING\"}");
         WhatsAppTemplateDraft draft = new WhatsAppTemplateDraft("panic_check_v2", null, "UTILITY", null,
                 "Hola {{nombre}}, ¿todo bien?", null, List.of(), Map.of("nombre", "Juan", "unused", "x"));
 
@@ -102,6 +103,7 @@ class WhatsAppTemplatesServiceTest {
 
         assertEquals("903", created.id());
         assertEquals("PENDING", created.status());
+        assertEquals("MARKETING", created.category());
         assertEquals("es_CL", created.language());
         assertEquals(List.of("nombre"), created.params());
         assertEquals(Map.of("nombre", "Juan"), created.examples());
@@ -112,7 +114,7 @@ class WhatsAppTemplatesServiceTest {
 
     @Test
     void editPostsTheComponentsThenReadsTheTemplateBack() {
-        graph.reply(200, "{\"success\": true}").reply(200, """
+        graph.reply(200, LIST).reply(200, "{\"success\": true}").reply(200, """
                 {"id": "901", "name": "panic_check", "language": "es_CL", "status": "PENDING",
                  "category": "UTILITY", "components": [{"type": "BODY", "text": "Hola {{nombre}}, ¿todo bien?"}]}
                 """);
@@ -122,11 +124,23 @@ class WhatsAppTemplatesServiceTest {
         WhatsAppTemplate edited = service.edit("tenant-a", "901", draft);
 
         assertEquals("PENDING", edited.status());
-        assertEquals("/v25.0/901", graph.seen().get(0).path());
-        assertEquals("POST", graph.seen().get(0).method());
-        assertTrue(new JsonObject(graph.seen().get(0).body()).containsKey("components"));
-        assertEquals("GET", graph.seen().get(1).method());
+        assertEquals("/v25.0/" + WABA + "/message_templates", graph.seen().get(0).path());
+        assertEquals("/v25.0/901", graph.seen().get(1).path());
+        assertEquals("POST", graph.seen().get(1).method());
+        assertTrue(new JsonObject(graph.seen().get(1).body()).containsKey("components"));
+        assertEquals("GET", graph.seen().get(2).method());
         assertThrows(IllegalArgumentException.class, () -> service.edit("tenant-a", "../x", draft));
+    }
+
+    @Test
+    void editRefusesATemplateOutsideTheConnectionsWaba() {
+        graph.reply(200, LIST);
+        WhatsAppTemplateDraft draft = new WhatsAppTemplateDraft(null, null, "UTILITY", null,
+                "Hola {{nombre}}, ¿todo bien?", null, null, Map.of("nombre", "Juan"));
+
+        assertThrows(NoSuchElementException.class, () -> service.edit("tenant-a", "999", draft));
+        assertEquals(1, graph.seen().size());
+        assertEquals("GET", graph.last().method());
     }
 
     @Test

@@ -27,7 +27,8 @@ function Filled({
   );
 }
 
-const BUTTON_ICON = {
+// Meta has more button types (COPY_CODE, FLOW, OTP…); those show without an icon.
+const BUTTON_ICON: Partial<Record<string, typeof HiReply>> = {
   QUICK_REPLY: HiReply,
   URL: HiExternalLink,
   PHONE_NUMBER: HiPhone,
@@ -73,7 +74,7 @@ export default function MetaTemplatePreview({
               key={`${i}-${b.type}`}
               className="mt-1 flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-blue-600 shadow-sm dark:bg-gray-700 dark:text-blue-400"
             >
-              <Icon aria-hidden className="h-4 w-4" />
+              {Icon && <Icon aria-hidden className="h-4 w-4" />}
               {b.text || "—"}
             </div>
           );

@@ -20,8 +20,19 @@ import {
   refreshTemplates,
   saveTemplate,
   useConversationTemplates,
+  useMetaTemplates,
 } from "./conversations-api";
-import type { ConversationTemplate, TemplateBody } from "./conversations-types";
+import type {
+  ConversationTemplate,
+  MetaTemplate,
+  TemplateBody,
+  WhatsAppVariant,
+} from "./conversations-types";
+import MetaTemplateCombobox, {
+  findMetaTemplate,
+} from "./meta-template-combobox";
+import MetaStatusChip from "./meta-template-status";
+import MetaTemplatesSection from "./meta-templates-section";
 import { channelLabel, fillText, textVariables } from "./rule-model";
 import { ruleHref } from "./rules-tab";
 
@@ -169,6 +180,58 @@ function ParamsInput({
   );
 }
 
+/** The picked Meta template's status and parameters, with what would make a send fail. */
+export function MetaTemplateLink({
+  variant,
+  templates,
+  d,
+}: Readonly<{
+  variant: WhatsAppVariant;
+  templates: MetaTemplate[];
+  d: I18nRecord;
+}>) {
+  if (!variant.metaName.trim()) return null;
+  const meta = findMetaTemplate(templates, variant.metaName, variant.language);
+  if (!meta) {
+    return (
+      <p className="text-sm text-red-600 dark:text-red-400">
+        {tr("metaNotOnWaba", d, { name: variant.metaName })}
+      </p>
+    );
+  }
+  const otherLanguage = meta.language !== variant.language;
+  const sameParams =
+    meta.params.length === variant.params.length &&
+    meta.params.every((p) => variant.params.includes(p));
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <span className="flex flex-wrap items-center gap-2 text-gray-700 dark:text-gray-300">
+        <MetaStatusChip status={meta.status} d={d} />
+        <span className={`font-mono text-xs ${MUTED}`}>
+          {meta.params.length > 0
+            ? meta.params.map((p) => `{{${p}}}`).join(" ")
+            : tr("metaNoParamsShort", d)}
+        </span>
+      </span>
+      {meta.status !== "APPROVED" && (
+        <p className="text-red-600 dark:text-red-400">
+          {tr("metaNotApproved", d)}
+        </p>
+      )}
+      {otherLanguage && (
+        <p className="text-red-600 dark:text-red-400">
+          {tr("metaOtherLanguage", d, { language: meta.language })}
+        </p>
+      )}
+      {!sameParams && (
+        <p className="text-red-600 dark:text-red-400">
+          {tr("metaParamsDiffer", d, { params: meta.params.join(", ") || "—" })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function bodyOf(t: ConversationTemplate | null): TemplateBody {
   if (!t) return EMPTY;
   return {
@@ -195,6 +258,8 @@ export function TemplateEditor({
   onSaved: (saved: ConversationTemplate) => void;
 }>) {
   const [body, setBody] = useState<TemplateBody>(() => bodyOf(template));
+  // Without a WhatsApp connection the list fails and the name is typed by hand.
+  const { data: metaTemplates } = useMetaTemplates(body.whatsapp !== null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isNew = template === null;
@@ -276,20 +341,50 @@ export function TemplateEditor({
         {body.whatsapp ? (
           <>
             <FieldRow label={tr("metaName", d)}>
-              <input
-                aria-label={tr("metaName", d)}
-                className={`${FIELD} min-w-48 flex-1 font-mono`}
-                disabled={readOnly}
-                placeholder="miot_panic_check_v1"
-                value={body.whatsapp.metaName}
-                onChange={(e) =>
-                  body.whatsapp &&
-                  set({
-                    whatsapp: { ...body.whatsapp, metaName: e.target.value },
-                  })
-                }
-              />
+              {metaTemplates ? (
+                <MetaTemplateCombobox
+                  name={body.whatsapp.metaName}
+                  language={body.whatsapp.language}
+                  templates={metaTemplates}
+                  readOnly={readOnly}
+                  d={d}
+                  onPick={(t) =>
+                    set({
+                      whatsapp: {
+                        metaName: t.name,
+                        language: t.language,
+                        params: t.params,
+                      },
+                    })
+                  }
+                  onName={(metaName) =>
+                    body.whatsapp &&
+                    set({ whatsapp: { ...body.whatsapp, metaName } })
+                  }
+                />
+              ) : (
+                <input
+                  aria-label={tr("metaName", d)}
+                  className={`${FIELD} min-w-48 flex-1 font-mono`}
+                  disabled={readOnly}
+                  placeholder="miot_panic_check_v1"
+                  value={body.whatsapp.metaName}
+                  onChange={(e) =>
+                    body.whatsapp &&
+                    set({
+                      whatsapp: { ...body.whatsapp, metaName: e.target.value },
+                    })
+                  }
+                />
+              )}
             </FieldRow>
+            {metaTemplates && (
+              <MetaTemplateLink
+                variant={body.whatsapp}
+                templates={metaTemplates}
+                d={d}
+              />
+            )}
             <FieldRow label={tr("metaLanguage", d)}>
               <input
                 aria-label={tr("metaLanguage", d)}
@@ -420,8 +515,50 @@ export function TemplateEditor({
   );
 }
 
-/** "Plantillas": the list beside the selected template's editor. */
+type TemplatesView = "messages" | "meta";
+
+/** "Plantillas": the app's message templates, or the WhatsApp templates on Meta. */
 export default function TemplatesTab({
+  lang,
+  canWrite,
+  d,
+}: Readonly<{ lang: string; canWrite: boolean; d: I18nRecord }>) {
+  const [view, setView] = useState<TemplatesView>("messages");
+  const views: { value: TemplatesView; label: string }[] = [
+    { value: "messages", label: tr("templatesMessages", d) },
+    { value: "meta", label: tr("templatesMeta", d) },
+  ];
+  return (
+    <div className="flex flex-col gap-4">
+      <fieldset className="flex self-start rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
+        <legend className="sr-only">{tr("templatesView", d)}</legend>
+        {views.map((v) => (
+          <button
+            key={v.value}
+            type="button"
+            aria-pressed={view === v.value}
+            onClick={() => setView(v.value)}
+            className={`rounded-md px-3 py-1 text-sm font-medium ${
+              view === v.value
+                ? "bg-blue-600 text-white"
+                : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </fieldset>
+      {view === "messages" ? (
+        <MessageTemplates lang={lang} canWrite={canWrite} d={d} />
+      ) : (
+        <MetaTemplatesSection canWrite={canWrite} d={d} />
+      )}
+    </div>
+  );
+}
+
+/** The app's templates: the list beside the selected template's editor. */
+function MessageTemplates({
   lang,
   canWrite,
   d,

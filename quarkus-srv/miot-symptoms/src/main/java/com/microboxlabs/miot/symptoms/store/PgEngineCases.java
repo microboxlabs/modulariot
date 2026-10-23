@@ -74,6 +74,8 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)
             + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200") + " ORDER BY y.at DESC";
+    private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
+            + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));
 
     private static final String CLOSE = """
@@ -100,6 +102,14 @@ public class PgEngineCases implements EngineCaseStore {
     public List<EngineCase> open(String tenantCode) {
         List<EngineCase> out = new ArrayList<>();
         PgIds.query(pool.get(), OPEN, Tuple.of(tenantCode)).forEach(r -> out.add(engineCase(r)));
+        return out;
+    }
+
+    @Override
+    public List<OpenCount> openCounts(String tenantCode) {
+        List<OpenCount> out = new ArrayList<>();
+        PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
+                r.getInteger("current_level"), r.getBoolean("under_treatment"), r.getLong("n"))));
         return out;
     }
 

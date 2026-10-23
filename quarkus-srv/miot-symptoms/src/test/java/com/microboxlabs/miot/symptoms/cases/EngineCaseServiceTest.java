@@ -94,6 +94,19 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void countsEveryOpenCaseBeyondAPageOfThem() {
+        for (long id = 1; id <= 201; id++) {
+            store.add(engineCase(id, "DEMO" + id, 4, 0));
+        }
+        store.add(engineCase(300, "DEMO300", 2, 0));
+
+        JsonNode out = service.withOpenCaseCounts(TENANT, null);
+
+        assertEquals(201, out.path("Code Black").asInt());
+        assertEquals(1, out.path("Compromised condition").asInt());
+    }
+
+    @Test
     void openCasesCountWithoutTheGpsCounts() {
         store.add(panic(12, "DEMO01"));
 

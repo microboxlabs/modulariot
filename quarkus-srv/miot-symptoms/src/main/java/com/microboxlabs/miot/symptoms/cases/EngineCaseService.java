@@ -123,9 +123,9 @@ public class EngineCaseService {
      */
     public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
         ObjectNode out = counts != null && counts.isObject() ? ((ObjectNode) counts).deepCopy() : JSON.objectNode();
-        for (EngineCase c : store.open(tenantCode)) {
-            String key = c.treatments() > 0 ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
-            out.put(key, out.path(key).asLong(0) + 1);
+        for (EngineCaseStore.OpenCount c : store.openCounts(tenantCode)) {
+            String key = c.underTreatment() ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
+            out.put(key, out.path(key).asLong(0) + c.count());
         }
         return out;
     }

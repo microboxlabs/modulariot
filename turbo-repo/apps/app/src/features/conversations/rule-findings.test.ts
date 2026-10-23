@@ -36,6 +36,18 @@ describe("ruleFindingText", () => {
     ).toBe("La plantilla panic-tower del paso 3 no tiene versión para Correo.");
   });
 
+  it("prefers the server's step or entry number over the section", () => {
+    expect(
+      ruleFindingText(finding("steps.0", "stepNoTemplate", { step: 4 }), d)
+    ).toBe("El paso 4 no tiene plantilla.");
+    expect(
+      ruleFindingText(finding("audience.0", "stepNoTemplate", { entry: 2 }), d)
+    ).toBe("El paso 2 no tiene plantilla.");
+    expect(
+      ruleFindingText(finding("steps.1", "stepNoTemplate", { step: null }), d)
+    ).toBe("El paso 2 no tiene plantilla.");
+  });
+
   it("names the role by its label", () => {
     expect(
       ruleFindingText(

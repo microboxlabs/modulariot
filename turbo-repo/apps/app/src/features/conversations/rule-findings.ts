@@ -23,15 +23,17 @@ const upperFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * A finding of the rule validator in the user's language, as
- * `finding<Code>`. The step or recipient number `{n}` comes from the
- * section (1-based); roles and channels are named. Without a known code,
- * the server's Spanish message.
+ * `finding<Code>`. The step or recipient number `{n}` is the server's
+ * `step` or `entry` param (1-based), else the section index + 1; roles and
+ * channels are named. Without a known code, the server's Spanish message.
  */
 export function ruleFindingText(f: RuleFinding, d: I18nRecord): string {
   if (!f.code) return f.message;
   const { index } = findingSection(f.section);
   const params: Record<string, string> = {};
-  if (index !== null) params.n = String(index + 1);
+  const number = f.params?.step ?? f.params?.entry;
+  if (number != null) params.n = String(number);
+  else if (index !== null) params.n = String(index + 1);
   for (const [name, value] of Object.entries(f.params ?? {})) {
     const text = value == null ? "" : String(value);
     if (name === "role") params.role = roleLabel(text, d);

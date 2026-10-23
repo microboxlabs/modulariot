@@ -21,8 +21,9 @@ class CargoServiceTest {
 
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final AuditService audit = new AuditService(world.auditStore);
-    private final MandateService mandates = new MandateService(world.mandateStore, audit);
-    private final CargoService service = new CargoService(world.cargoStore, mandates, audit);
+    private final Transactions tx = Transactions.none();
+    private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
+    private final CargoService service = new CargoService(world.cargoStore, mandates, audit, tx);
 
     private UUID mandateId;
 

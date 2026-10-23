@@ -35,31 +35,37 @@ public class CargoService {
     private final CargoStore store;
     private final MandateService mandates;
     private final AuditService audit;
+    private final Transactions tx;
 
     @Inject
-    public CargoService(CargoStore store, MandateService mandates, AuditService audit) {
+    public CargoService(CargoStore store, MandateService mandates, AuditService audit, Transactions tx) {
         this.store = store;
         this.mandates = mandates;
         this.audit = audit;
+        this.tx = tx;
     }
 
     public CargoUnit announce(String tenantCode, String actor, UUID mandateId, CargoRequest body) {
-        CargoRequest req = body == null ? CargoRequest.empty() : body;
-        if (req.description() == null || req.description().isBlank()) {
-            throw new IllegalArgumentException("description is required");
-        }
-        String status = req.status() == null || req.status().isBlank() ? CargoUnit.ANNOUNCED : req.status();
-        if (!ANNOUNCE_STATUSES.contains(status)) {
-            throw new IllegalArgumentException("status must be one of " + ANNOUNCE_STATUSES);
-        }
-        MandateLine line = mandates.lineOf(tenantCode, mandateId);
-        CargoUnit created = store.insert(new CargoUnit(
-                null, tenantCode, line.id(), 0, req.description().trim(),
-                req.qty(), blankToNull(req.qtyUnit()), req.weightKg(), req.volumeM3(),
-                status, null, null, null, null, actor, null, actor));
-        audit.log(tenantCode, actor, "cargo.announced", ENTITY, created.id(), null,
-                Map.of("mandateId", mandateId.toString(), "partial", created.partialNo()));
-        return created;
+        return tx.inTransaction(() -> {
+            CargoRequest req = body == null ? CargoRequest.empty() : body;
+            if (req.description() == null || req.description().isBlank()) {
+                throw new IllegalArgumentException("description is required");
+            }
+            String status = req.status() == null || req.status().isBlank() ? CargoUnit.ANNOUNCED : req.status();
+            if (!ANNOUNCE_STATUSES.contains(status)) {
+                throw new IllegalArgumentException("status must be one of " + ANNOUNCE_STATUSES);
+            }
+            // the mandate row lock makes concurrent announcements take partial numbers one at a time
+            mandates.get(tenantCode, mandateId);
+            MandateLine line = mandates.lineOf(tenantCode, mandateId);
+            CargoUnit created = store.insert(new CargoUnit(
+                    null, tenantCode, line.id(), 0, req.description().trim(),
+                    req.qty(), blankToNull(req.qtyUnit()), req.weightKg(), req.volumeM3(),
+                    status, null, null, null, null, actor, null, actor));
+            audit.log(tenantCode, actor, "cargo.announced", ENTITY, created.id(), null,
+                    Map.of("mandateId", mandateId.toString(), "partial", created.partialNo()));
+            return created;
+        });
     }
 
     public List<CargoUnit> listByMandate(String tenantCode, UUID mandateId) {
@@ -74,57 +80,61 @@ public class CargoService {
 
     /** Patches quantities/cubication, and status only forward within anunciada→lista. */
     public CargoUnit update(String tenantCode, String actor, UUID id, CargoRequest body) {
-        CargoRequest req = body == null ? CargoRequest.empty() : body;
-        CargoUnit current = get(tenantCode, id);
-        String status = current.status();
-        if (req.status() != null && !req.status().isBlank() && !req.status().equals(status)) {
-            if (!ANNOUNCE_STATUSES.contains(req.status())) {
-                throw new IllegalArgumentException("the API only sets " + ANNOUNCE_STATUSES
-                        + "; the execution moves the rest");
+        return tx.inTransaction(() -> {
+            CargoRequest req = body == null ? CargoRequest.empty() : body;
+            CargoUnit current = get(tenantCode, id);
+            String status = current.status();
+            if (req.status() != null && !req.status().isBlank() && !req.status().equals(status)) {
+                if (!ANNOUNCE_STATUSES.contains(req.status())) {
+                    throw new IllegalArgumentException("the API only sets " + ANNOUNCE_STATUSES
+                            + "; the execution moves the rest");
+                }
+                if (ORDER.indexOf(req.status()) < ORDER.indexOf(status)) {
+                    throw new IllegalStateException("status cannot move backwards");
+                }
+                status = req.status();
             }
-            if (ORDER.indexOf(req.status()) < ORDER.indexOf(status)) {
-                throw new IllegalStateException("status cannot move backwards");
-            }
-            status = req.status();
-        }
-        CargoUnit updated = store.update(new CargoUnit(
-                current.id(), tenantCode, current.lineId(), current.partialNo(),
-                req.description() == null || req.description().isBlank() ? current.description()
-                        : req.description().trim(),
-                req.qty() == null ? current.qty() : req.qty(),
-                req.qtyUnit() == null ? current.qtyUnit() : blankToNull(req.qtyUnit()),
-                req.weightKg() == null ? current.weightKg() : req.weightKg(),
-                req.volumeM3() == null ? current.volumeM3() : req.volumeM3(),
-                status, current.receiptResult(), current.receiptNotes(), current.receivedAt(),
-                current.createdAt(), current.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("cargo not found"));
-        audit.log(tenantCode, actor, "cargo.updated", ENTITY, updated.id(), null, Map.of());
-        return updated;
+            CargoUnit updated = store.update(new CargoUnit(
+                    current.id(), tenantCode, current.lineId(), current.partialNo(),
+                    req.description() == null || req.description().isBlank() ? current.description()
+                            : req.description().trim(),
+                    req.qty() == null ? current.qty() : req.qty(),
+                    req.qtyUnit() == null ? current.qtyUnit() : blankToNull(req.qtyUnit()),
+                    req.weightKg() == null ? current.weightKg() : req.weightKg(),
+                    req.volumeM3() == null ? current.volumeM3() : req.volumeM3(),
+                    status, current.receiptResult(), current.receiptNotes(), current.receivedAt(),
+                    current.createdAt(), current.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("cargo not found"));
+            audit.log(tenantCode, actor, "cargo.updated", ENTITY, updated.id(), null, Map.of());
+            return updated;
+        });
     }
 
     /** Receives a delivered cargo as conforme or diferencia. */
     public CargoUnit receive(String tenantCode, String actor, UUID id, ReceiveRequest body) {
-        ReceiveRequest req = body == null ? new ReceiveRequest(null, null) : body;
-        if (req.result() == null || !Set.of("conforme", "diferencia").contains(req.result())) {
-            throw new IllegalArgumentException("result must be conforme or diferencia");
-        }
-        if ("diferencia".equals(req.result()) && (req.notes() == null || req.notes().isBlank())) {
-            throw new IllegalArgumentException("notes: a diferencia needs the detail");
-        }
-        CargoUnit current = get(tenantCode, id);
-        if (!CargoUnit.DELIVERED.equals(current.status())) {
-            throw new IllegalStateException("cargo must be entregada to receive it (is " + current.status() + ")");
-        }
-        CargoUnit received = store.update(new CargoUnit(
-                current.id(), tenantCode, current.lineId(), current.partialNo(), current.description(),
-                current.qty(), current.qtyUnit(), current.weightKg(), current.volumeM3(),
-                CargoUnit.RECEIVED, req.result(), blankToNull(req.notes()),
-                OffsetDateTime.now(ZoneOffset.UTC),
-                current.createdAt(), current.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("cargo not found"));
-        audit.log(tenantCode, actor, "cargo.received", ENTITY, received.id(), null,
-                Map.of("result", req.result()));
-        return received;
+        return tx.inTransaction(() -> {
+            ReceiveRequest req = body == null ? new ReceiveRequest(null, null) : body;
+            if (req.result() == null || !Set.of("conforme", "diferencia").contains(req.result())) {
+                throw new IllegalArgumentException("result must be conforme or diferencia");
+            }
+            if ("diferencia".equals(req.result()) && (req.notes() == null || req.notes().isBlank())) {
+                throw new IllegalArgumentException("notes: a diferencia needs the detail");
+            }
+            CargoUnit current = get(tenantCode, id);
+            if (!CargoUnit.DELIVERED.equals(current.status())) {
+                throw new IllegalStateException("cargo must be entregada to receive it (is " + current.status() + ")");
+            }
+            CargoUnit received = store.update(new CargoUnit(
+                    current.id(), tenantCode, current.lineId(), current.partialNo(), current.description(),
+                    current.qty(), current.qtyUnit(), current.weightKg(), current.volumeM3(),
+                    CargoUnit.RECEIVED, req.result(), blankToNull(req.notes()),
+                    OffsetDateTime.now(ZoneOffset.UTC),
+                    current.createdAt(), current.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("cargo not found"));
+            audit.log(tenantCode, actor, "cargo.received", ENTITY, received.id(), null,
+                    Map.of("result", req.result()));
+            return received;
+        });
     }
 
     private static String blankToNull(String value) {

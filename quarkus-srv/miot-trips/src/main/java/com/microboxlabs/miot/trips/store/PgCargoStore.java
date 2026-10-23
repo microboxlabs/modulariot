@@ -65,7 +65,7 @@ public class PgCargoStore implements CargoStore {
     @Override
     public Optional<CargoUnit> find(String tenantCode, UUID id) {
         RowSet<Row> rows = query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.cargo_unit WHERE tenant_code = $1 AND id = $2",
+                "SELECT " + COLUMNS + " FROM miot_trips.cargo_unit WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id));
         for (Row r : rows) {
             return Optional.of(cargo(r));

@@ -30,29 +30,33 @@ public class MandateService {
 
     private final MandateStore store;
     private final AuditService audit;
+    private final Transactions tx;
 
     @Inject
-    public MandateService(MandateStore store, AuditService audit) {
+    public MandateService(MandateStore store, AuditService audit, Transactions tx) {
         this.store = store;
         this.audit = audit;
+        this.tx = tx;
     }
 
     /** Creates, or returns the existing mandate with the same code; {@code created} says which. */
     public CreateOrGet createOrGet(String tenantCode, String actor, MandateRequest body) {
-        MandateRequest req = body == null ? MandateRequest.empty() : body;
-        String code = required(req.externalCode(), "externalCode", 128);
-        String orderType = req.orderType() == null || req.orderType().isBlank() ? "service"
-                : limited(req.orderType(), "orderType", 32);
-        MandateStore.CreateOrGet result = store.insertOrGet(new Mandate(
-                null, tenantCode, code, orderType, limitedOrNull(req.orderRef(), "orderRef", 255),
-                Mandate.ACTIVE, Check.uuidOrNull(req.originId(), "originId"),
-                Check.uuidOrNull(req.destinationId(), "destinationId"), req.slaMinutes(),
-                null, null, null, actor, null, actor));
-        if (result.created()) {
-            audit.log(tenantCode, actor, "mandate.created", ENTITY, result.mandate().id(), null,
-                    Map.of("externalCode", code, "orderType", orderType));
-        }
-        return new CreateOrGet(result.mandate(), result.created());
+        return tx.inTransaction(() -> {
+            MandateRequest req = body == null ? MandateRequest.empty() : body;
+            String code = required(req.externalCode(), "externalCode", 128);
+            String orderType = req.orderType() == null || req.orderType().isBlank() ? "service"
+                    : limited(req.orderType(), "orderType", 32);
+            MandateStore.CreateOrGet result = store.insertOrGet(new Mandate(
+                    null, tenantCode, code, orderType, limitedOrNull(req.orderRef(), "orderRef", 255),
+                    Mandate.ACTIVE, Check.uuidOrNull(req.originId(), "originId"),
+                    Check.uuidOrNull(req.destinationId(), "destinationId"), req.slaMinutes(),
+                    null, null, null, actor, null, actor));
+            if (result.created()) {
+                audit.log(tenantCode, actor, "mandate.created", ENTITY, result.mandate().id(), null,
+                        Map.of("externalCode", code, "orderType", orderType));
+            }
+            return new CreateOrGet(result.mandate(), result.created());
+        });
     }
 
     public Mandate get(String tenantCode, UUID id) {
@@ -80,61 +84,70 @@ public class MandateService {
 
     /** Patches header data; null keeps, empty clears. The status moves through close/cancel only. */
     public Mandate update(String tenantCode, String actor, UUID id, MandateRequest body) {
-        MandateRequest req = body == null ? MandateRequest.empty() : body;
-        Mandate current = get(tenantCode, id);
-        Mandate updated = store.update(new Mandate(
-                current.id(), tenantCode, current.externalCode(),
-                orKeep(req.orderType(), current.orderType(), "orderType", 32),
-                orKeep(req.orderRef(), current.orderRef(), "orderRef", 255),
-                current.status(),
-                req.originId() == null ? current.originId() : Check.uuidOrNull(req.originId(), "originId"),
-                req.destinationId() == null ? current.destinationId() : Check.uuidOrNull(req.destinationId(), "destinationId"),
-                req.slaMinutes() == null ? current.slaMinutes() : req.slaMinutes(),
-                current.closedAt(), current.cancelReason(),
-                current.createdAt(), current.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("mandate not found"));
-        audit.log(tenantCode, actor, "mandate.updated", ENTITY, updated.id(), null, Map.of());
-        return updated;
+        return tx.inTransaction(() -> {
+            MandateRequest req = body == null ? MandateRequest.empty() : body;
+            Mandate current = get(tenantCode, id);
+            Mandate updated = store.update(new Mandate(
+                    current.id(), tenantCode, current.externalCode(),
+                    orKeep(req.orderType(), current.orderType(), "orderType", 32),
+                    orKeep(req.orderRef(), current.orderRef(), "orderRef", 255),
+                    current.status(),
+                    req.originId() == null ? current.originId() : Check.uuidOrNull(req.originId(), "originId"),
+                    req.destinationId() == null ? current.destinationId()
+                            : Check.uuidOrNull(req.destinationId(), "destinationId"),
+                    req.slaMinutes() == null ? current.slaMinutes() : req.slaMinutes(),
+                    current.closedAt(), current.cancelReason(),
+                    current.createdAt(), current.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+            audit.log(tenantCode, actor, "mandate.updated", ENTITY, updated.id(), null, Map.of());
+            return updated;
+        });
     }
 
     /** Closes; every linked trip must be realizado or anulado. */
     public Mandate close(String tenantCode, String actor, UUID id) {
-        Mandate current = get(tenantCode, id);
-        if (Mandate.CLOSED.equals(current.status())) {
-            throw new IllegalStateException("mandate already closed");
-        }
-        if (Mandate.CANCELLED.equals(current.status())) {
-            throw new IllegalStateException("mandate is cancelled");
-        }
-        int open = store.openTrips(tenantCode, id);
-        if (open > 0) {
-            throw new IllegalStateException("mandate has " + open + " trip(s) not yet realized");
-        }
-        Mandate closed = store.update(withStatus(current, Mandate.CLOSED,
-                OffsetDateTime.now(ZoneOffset.UTC), current.cancelReason(), actor))
-                .orElseThrow(() -> new NoSuchElementException("mandate not found"));
-        audit.log(tenantCode, actor, "mandate.closed", ENTITY, closed.id(), null, Map.of());
-        return closed;
+        return tx.inTransaction(() -> {
+            Mandate current = get(tenantCode, id);
+            if (Mandate.CLOSED.equals(current.status())) {
+                throw new IllegalStateException("mandate already closed");
+            }
+            if (Mandate.CANCELLED.equals(current.status())) {
+                throw new IllegalStateException("mandate is cancelled");
+            }
+            int open = store.openTrips(tenantCode, id);
+            if (open > 0) {
+                throw new IllegalStateException("mandate has " + open + " trip(s) not yet realized");
+            }
+            Mandate closed = store.update(withStatus(current, Mandate.CLOSED,
+                    OffsetDateTime.now(ZoneOffset.UTC), current.cancelReason(), actor))
+                    .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+            audit.log(tenantCode, actor, "mandate.closed", ENTITY, closed.id(), null, Map.of());
+            return closed;
+        });
     }
 
     public Mandate cancel(String tenantCode, String actor, UUID id, String reason) {
-        Mandate current = get(tenantCode, id);
-        if (Mandate.CLOSED.equals(current.status()) || Mandate.CANCELLED.equals(current.status())) {
-            throw new IllegalStateException("mandate already " + current.status());
-        }
-        String why = required(reason, "reason", 500);
-        Mandate cancelled = store.update(withStatus(current, Mandate.CANCELLED,
-                OffsetDateTime.now(ZoneOffset.UTC), why, actor))
-                .orElseThrow(() -> new NoSuchElementException("mandate not found"));
-        audit.log(tenantCode, actor, "mandate.cancelled", ENTITY, cancelled.id(), null, Map.of("reason", why));
-        return cancelled;
+        return tx.inTransaction(() -> {
+            Mandate current = get(tenantCode, id);
+            if (Mandate.CLOSED.equals(current.status()) || Mandate.CANCELLED.equals(current.status())) {
+                throw new IllegalStateException("mandate already " + current.status());
+            }
+            String why = required(reason, "reason", 500);
+            Mandate cancelled = store.update(withStatus(current, Mandate.CANCELLED,
+                    OffsetDateTime.now(ZoneOffset.UTC), why, actor))
+                    .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+            audit.log(tenantCode, actor, "mandate.cancelled", ENTITY, cancelled.id(), null, Map.of("reason", why));
+            return cancelled;
+        });
     }
 
     /** Marks the mandate running when its first trip starts; a no-op on any other status. */
     public void markRunning(String tenantCode, String actor, UUID id) {
-        store.find(tenantCode, id)
-                .filter(m -> Mandate.ACTIVE.equals(m.status()))
-                .ifPresent(m -> store.update(withStatus(m, Mandate.RUNNING, m.closedAt(), m.cancelReason(), actor)));
+        tx.inTransaction(() -> {
+            store.find(tenantCode, id)
+                    .filter(m -> Mandate.ACTIVE.equals(m.status()))
+                    .ifPresent(m -> store.update(withStatus(m, Mandate.RUNNING, m.closedAt(), m.cancelReason(), actor)));
+        });
     }
 
     private static Mandate withStatus(Mandate m, String status, OffsetDateTime closedAt, String reason,

@@ -79,7 +79,8 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Carrier> findCarrier(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + CARRIER_COLS + " FROM miot_fleet.carrier WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
+                "SELECT " + CARRIER_COLS + " FROM miot_fleet.carrier WHERE tenant_code = $1 AND id = $2"
+                        + " AND version_of IS NULL" + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::carrier);
     }
 
@@ -135,7 +136,8 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Truck> findTruck(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + TRUCK_COLS + " FROM miot_fleet.truck WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
+                "SELECT " + TRUCK_COLS + " FROM miot_fleet.truck WHERE tenant_code = $1 AND id = $2"
+                        + " AND version_of IS NULL" + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::truck);
     }
 
@@ -192,7 +194,8 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Trailer> findTrailer(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + TRAILER_COLS + " FROM miot_fleet.trailer WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
+                "SELECT " + TRAILER_COLS + " FROM miot_fleet.trailer WHERE tenant_code = $1 AND id = $2"
+                        + " AND version_of IS NULL" + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::trailer);
     }
 
@@ -248,7 +251,8 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Driver> findDriver(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + DRIVER_COLS + " FROM miot_fleet.driver WHERE tenant_code = $1 AND id = $2 AND version_of IS NULL",
+                "SELECT " + DRIVER_COLS + " FROM miot_fleet.driver WHERE tenant_code = $1 AND id = $2"
+                        + " AND version_of IS NULL" + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::driver);
     }
 

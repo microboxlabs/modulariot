@@ -39,39 +39,43 @@ public class TripService {
     private final TripCargoStore tripCargo;
     private final CargoStore cargo;
     private final AuditService audit;
+    private final Transactions tx;
 
     @Inject
     public TripService(TripStore trips, StageStore stages, AssignmentStore assignments,
-            TripCargoStore tripCargo, CargoStore cargo, AuditService audit) {
+            TripCargoStore tripCargo, CargoStore cargo, AuditService audit, Transactions tx) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
         this.tripCargo = tripCargo;
         this.cargo = cargo;
         this.audit = audit;
+        this.tx = tx;
     }
 
     /** Creates the leg, links the given mandates and lays down the planned stages, in that order. */
     public TripView create(String tenantCode, String actor, TripRequest body) {
-        TripRequest req = body == null ? TripRequest.empty() : body;
-        Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
-                Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
-                req.plannedStart(), null, null, null, null, actor, null, actor));
-        UUID tripId = UUID.fromString(trip.id());
-        if (req.mandateIds() != null) {
-            int seq = 1;
-            for (String mandateId : req.mandateIds()) {
-                UUID mid = parse(mandateId, "mandateIds");
-                trips.linkMandate(tenantCode, tripId, mid, seq++, "primary", actor);
+        return tx.inTransaction(() -> {
+            TripRequest req = body == null ? TripRequest.empty() : body;
+            Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
+                    Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
+                    req.plannedStart(), null, null, null, null, actor, null, actor));
+            UUID tripId = UUID.fromString(trip.id());
+            if (req.mandateIds() != null) {
+                int seq = 1;
+                for (String mandateId : req.mandateIds()) {
+                    UUID mid = parse(mandateId, "mandateIds");
+                    trips.linkMandate(tenantCode, tripId, mid, seq++, "primary", actor);
+                }
             }
-        }
-        if (req.stages() != null) {
-            for (StageRequest s : req.stages()) {
-                stages.insert(planned(tenantCode, actor, tripId, s));
+            if (req.stages() != null) {
+                for (StageRequest s : req.stages()) {
+                    stages.insert(planned(tenantCode, actor, tripId, s));
+                }
             }
-        }
-        audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), Map.of());
-        return detail(tenantCode, tripId);
+            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), Map.of());
+            return detail(tenantCode, tripId);
+        });
     }
 
     public Trip get(String tenantCode, UUID id) {
@@ -107,63 +111,73 @@ public class TripService {
 
     /** Patches the leg and planning; status moves through stages and cancel only. */
     public Trip update(String tenantCode, String actor, UUID id, TripRequest body) {
-        TripRequest req = body == null ? TripRequest.empty() : body;
-        Trip current = get(tenantCode, id);
-        Trip updated = trips.update(new Trip(
-                current.id(), tenantCode, current.status(),
-                req.originId() == null ? current.originId() : Check.uuidOrNull(req.originId(), "originId"),
-                req.destinationId() == null ? current.destinationId() : Check.uuidOrNull(req.destinationId(), "destinationId"),
-                req.plannedStart() == null ? current.plannedStart() : req.plannedStart(),
-                current.actualStart(), current.actualEnd(), current.cancelReason(),
-                current.createdAt(), current.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("trip not found"));
-        audit.log(tenantCode, actor, "trip.updated", ENTITY, updated.id(), updated.id(), Map.of());
-        return updated;
+        return tx.inTransaction(() -> {
+            TripRequest req = body == null ? TripRequest.empty() : body;
+            Trip current = get(tenantCode, id);
+            Trip updated = trips.update(new Trip(
+                    current.id(), tenantCode, current.status(),
+                    req.originId() == null ? current.originId() : Check.uuidOrNull(req.originId(), "originId"),
+                    req.destinationId() == null ? current.destinationId()
+                            : Check.uuidOrNull(req.destinationId(), "destinationId"),
+                    req.plannedStart() == null ? current.plannedStart() : req.plannedStart(),
+                    current.actualStart(), current.actualEnd(), current.cancelReason(),
+                    current.createdAt(), current.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+            audit.log(tenantCode, actor, "trip.updated", ENTITY, updated.id(), updated.id(), Map.of());
+            return updated;
+        });
     }
 
     public Trip cancel(String tenantCode, String actor, UUID id, String reason) {
-        Trip current = get(tenantCode, id);
-        if (Trip.DONE.equals(current.status()) || Trip.CANCELLED.equals(current.status())) {
-            throw new IllegalStateException("trip already " + current.status());
-        }
-        String why = Check.required(reason, "reason", 500);
-        Trip cancelled = trips.update(new Trip(
-                current.id(), tenantCode, Trip.CANCELLED,
-                current.originId(), current.destinationId(), current.plannedStart(),
-                current.actualStart(), OffsetDateTime.now(ZoneOffset.UTC), why,
-                current.createdAt(), current.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("trip not found"));
-        audit.log(tenantCode, actor, "trip.cancelled", ENTITY, cancelled.id(), cancelled.id(),
-                Map.of("reason", why));
-        return cancelled;
+        return tx.inTransaction(() -> {
+            Trip current = get(tenantCode, id);
+            if (Trip.DONE.equals(current.status()) || Trip.CANCELLED.equals(current.status())) {
+                throw new IllegalStateException("trip already " + current.status());
+            }
+            String why = Check.required(reason, "reason", 500);
+            Trip cancelled = trips.update(new Trip(
+                    current.id(), tenantCode, Trip.CANCELLED,
+                    current.originId(), current.destinationId(), current.plannedStart(),
+                    current.actualStart(), OffsetDateTime.now(ZoneOffset.UTC), why,
+                    current.createdAt(), current.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+            audit.log(tenantCode, actor, "trip.cancelled", ENTITY, cancelled.id(), cancelled.id(),
+                    Map.of("reason", why));
+            return cancelled;
+        });
     }
 
     /** Links a mandate — the convergence. Returns false when the link already existed. */
     public boolean linkMandate(String tenantCode, String actor, UUID tripId, String mandateId, Integer seq,
             String role) {
-        get(tenantCode, tripId);
-        UUID mid = parse(Check.required(mandateId, "mandateId", 64), "mandateId");
-        int s = seq == null ? trips.mandatesOf(tenantCode, tripId).size() + 1 : seq;
-        String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
-        boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
-        if (linked) {
-            audit.log(tenantCode, actor, "trip.mandate_linked", ENTITY, tripId.toString(), tripId.toString(),
-                    Map.of("mandateId", mid.toString()));
-        }
-        return linked;
+        return tx.inTransaction(() -> {
+            get(tenantCode, tripId);
+            UUID mid = parse(Check.required(mandateId, "mandateId", 64), "mandateId");
+            int s = seq == null ? trips.mandatesOf(tenantCode, tripId).size() + 1 : seq;
+            String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
+            boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
+            if (linked) {
+                audit.log(tenantCode, actor, "trip.mandate_linked", ENTITY, tripId.toString(), tripId.toString(),
+                        Map.of("mandateId", mid.toString()));
+            }
+            return linked;
+        });
     }
 
     /** Unlinks; refused while cargo of that mandate rides on the trip. */
     public void unlinkMandate(String tenantCode, String actor, UUID tripId, UUID mandateId) {
-        int onBoard = trips.cargoOfMandateOnTrip(tenantCode, tripId, mandateId);
-        if (onBoard > 0) {
-            throw new IllegalStateException(onBoard + " cargo unit(s) of that mandate ride on the trip");
-        }
-        if (!trips.unlinkMandate(tenantCode, tripId, mandateId)) {
-            throw new NoSuchElementException("link not found");
-        }
-        audit.log(tenantCode, actor, "trip.mandate_unlinked", ENTITY, tripId.toString(), tripId.toString(),
-                Map.of("mandateId", mandateId.toString()));
+        tx.inTransaction(() -> {
+            get(tenantCode, tripId);
+            int onBoard = trips.cargoOfMandateOnTrip(tenantCode, tripId, mandateId);
+            if (onBoard > 0) {
+                throw new IllegalStateException(onBoard + " cargo unit(s) of that mandate ride on the trip");
+            }
+            if (!trips.unlinkMandate(tenantCode, tripId, mandateId)) {
+                throw new NoSuchElementException("link not found");
+            }
+            audit.log(tenantCode, actor, "trip.mandate_unlinked", ENTITY, tripId.toString(), tripId.toString(),
+                    Map.of("mandateId", mandateId.toString()));
+        });
     }
 
     public List<MandateRef> mandatesOf(String tenantCode, UUID tripId) {

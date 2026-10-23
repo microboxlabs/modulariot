@@ -32,6 +32,7 @@ import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.fleet.resources.service.ResourceService;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripCargoService;
+import com.microboxlabs.miot.trips.service.Transactions;
 import com.microboxlabs.miot.trips.service.TripService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -72,18 +73,21 @@ class PgFeedSimulationTest {
     private static Pool pool;
 
     private final AuditService audit = new AuditService(new PgAuditStore(() -> pool));
-    private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit);
-    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, audit);
+    private final Transactions tx = new PgTransactions(() -> pool);
+    private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit, tx);
+    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, audit, tx);
     private final TripService trips = new TripService(new PgTripStore(() -> pool), new PgStageStore(() -> pool),
             new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
-            audit);
+            audit, tx);
     private final StageService stages = new StageService(new PgStageStore(() -> pool),
-            new PgTripStore(() -> pool), new PgTripCargoStore(() -> pool), mandates, audit);
+            new PgTripStore(() -> pool), new PgTripCargoStore(() -> pool), mandates, audit, tx);
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
-            new PgTripStore(() -> pool), audit);
+            new PgTripStore(() -> pool), audit, tx);
     private final TripCargoService tripCargo = new TripCargoService(new PgTripCargoStore(() -> pool),
-            new PgTripStore(() -> pool), new PgCargoStore(() -> pool), new PgStageStore(() -> pool), audit);
-    private final ResourceService resources = new ResourceService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool));
+            new PgTripStore(() -> pool), new PgCargoStore(() -> pool), new PgStageStore(() -> pool), audit, tx);
+    private final ResourceService resources = new ResourceService(
+            new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool),
+            new com.microboxlabs.miot.fleet.resources.store.PgTransactions(() -> pool));
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
 
     @BeforeAll

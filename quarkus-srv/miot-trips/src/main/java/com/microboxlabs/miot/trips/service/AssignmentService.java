@@ -25,12 +25,14 @@ public class AssignmentService {
     private final AssignmentStore store;
     private final TripStore trips;
     private final AuditService audit;
+    private final Transactions tx;
 
     @Inject
-    public AssignmentService(AssignmentStore store, TripStore trips, AuditService audit) {
+    public AssignmentService(AssignmentStore store, TripStore trips, AuditService audit, Transactions tx) {
         this.store = store;
         this.trips = trips;
         this.audit = audit;
+        this.tx = tx;
     }
 
     public List<Assignment> listByTrip(String tenantCode, UUID tripId) {
@@ -38,41 +40,45 @@ public class AssignmentService {
     }
 
     public Assignment create(String tenantCode, String actor, UUID tripId, AssignmentRequest body) {
-        if (body == null) {
-            throw new IllegalArgumentException("body is required");
-        }
-        Trip trip = trips.find(tenantCode, tripId)
-                .orElseThrow(() -> new NoSuchElementException("trip not found"));
-        if (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status())) {
-            throw new IllegalStateException("trip already " + trip.status());
-        }
-        String type = Check.oneOf(Check.required(body.resourceType(), "resourceType", 16), "resourceType",
-                Assignment.TRUCK, Assignment.TRAILER, Assignment.DRIVER);
-        String resourceId = Check.required(body.resourceId(), "resourceId", 64);
-        TripService.parse(resourceId, "resourceId");
-        OffsetDateTime from = body.validFrom() == null ? OffsetDateTime.now(ZoneOffset.UTC) : body.validFrom();
-        Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
-                from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));
-        audit.log(tenantCode, actor, "assignment.created", ENTITY, created.id(), tripId.toString(),
-                Map.of("resourceType", type, "resourceId", resourceId));
-        return created;
+        return tx.inTransaction(() -> {
+            if (body == null) {
+                throw new IllegalArgumentException("body is required");
+            }
+            Trip trip = trips.find(tenantCode, tripId)
+                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+            if (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status())) {
+                throw new IllegalStateException("trip already " + trip.status());
+            }
+            String type = Check.oneOf(Check.required(body.resourceType(), "resourceType", 16), "resourceType",
+                    Assignment.TRUCK, Assignment.TRAILER, Assignment.DRIVER);
+            String resourceId = Check.required(body.resourceId(), "resourceId", 64);
+            TripService.parse(resourceId, "resourceId");
+            OffsetDateTime from = body.validFrom() == null ? OffsetDateTime.now(ZoneOffset.UTC) : body.validFrom();
+            Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
+                    from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));
+            audit.log(tenantCode, actor, "assignment.created", ENTITY, created.id(), tripId.toString(),
+                    Map.of("resourceType", type, "resourceId", resourceId));
+            return created;
+        });
     }
 
     /** Ends the validity window — the truck change. 409 when it already ended. */
     public Assignment end(String tenantCode, String actor, UUID id, OffsetDateTime validTo, String reason) {
-        Assignment current = store.find(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("assignment not found"));
-        if (current.validTo() != null) {
-            throw new IllegalStateException("assignment already ended");
-        }
-        OffsetDateTime to = validTo == null ? OffsetDateTime.now(ZoneOffset.UTC) : validTo;
-        if (current.validFrom() != null && to.isBefore(current.validFrom())) {
-            throw new IllegalArgumentException("validTo must not be before validFrom");
-        }
-        Assignment ended = store.end(tenantCode, id, to, Check.limitedOrNull(reason, "reason", 255), actor)
-                .orElseThrow(() -> new IllegalStateException("assignment already ended"));
-        audit.log(tenantCode, actor, "assignment.ended", ENTITY, ended.id(), ended.tripId(),
-                Map.of("resourceType", ended.resourceType(), "resourceId", ended.resourceId()));
-        return ended;
+        return tx.inTransaction(() -> {
+            Assignment current = store.find(tenantCode, id)
+                    .orElseThrow(() -> new NoSuchElementException("assignment not found"));
+            if (current.validTo() != null) {
+                throw new IllegalStateException("assignment already ended");
+            }
+            OffsetDateTime to = validTo == null ? OffsetDateTime.now(ZoneOffset.UTC) : validTo;
+            if (current.validFrom() != null && to.isBefore(current.validFrom())) {
+                throw new IllegalArgumentException("validTo must not be before validFrom");
+            }
+            Assignment ended = store.end(tenantCode, id, to, Check.limitedOrNull(reason, "reason", 255), actor)
+                    .orElseThrow(() -> new IllegalStateException("assignment already ended"));
+            audit.log(tenantCode, actor, "assignment.ended", ENTITY, ended.id(), ended.tripId(),
+                    Map.of("resourceType", ended.resourceType(), "resourceId", ended.resourceId()));
+            return ended;
+        });
     }
 }

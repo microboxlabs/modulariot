@@ -22,7 +22,8 @@ class MandateServiceTest {
 
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final AuditService audit = new AuditService(world.auditStore);
-    private final MandateService service = new MandateService(world.mandateStore, audit);
+    private final Transactions tx = Transactions.none();
+    private final MandateService service = new MandateService(world.mandateStore, audit, tx);
 
     private static MandateRequest request(String code) {
         return new MandateRequest(code, "oc", "OC-REF", null, null, null);
@@ -57,7 +58,7 @@ class MandateServiceTest {
         Mandate mandate = service.createOrGet(TENANT, ACTOR, request("OC-2001")).mandate();
         UUID mandateId = UUID.fromString(mandate.id());
         TripService trips = new TripService(world.tripStore, world.stageStore, world.assignmentStore,
-                world.tripCargoStore, world.cargoStore, audit);
+                world.tripCargoStore, world.cargoStore, audit, tx);
         trips.create(TENANT, ACTOR, new TripRequest(null, null, null, List.of(mandate.id()), null));
 
         IllegalStateException open = assertThrows(IllegalStateException.class,

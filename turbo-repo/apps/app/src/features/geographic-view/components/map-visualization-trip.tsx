@@ -37,7 +37,6 @@ import PulseRange from "./tool-bar/pulse-range";
 import MapVisualization from "@/features/map-visualization/map-visualization";
 import { MapRef } from "react-map-gl";
 import {
-  center_in_bounds,
   flyTo,
   panTo,
   toLngLat,
@@ -49,7 +48,7 @@ import {
   estimateEtaHours,
   formatEtaHours,
 } from "../utils/vehicle-origin";
-import { showsNoData, tripCamera } from "../utils/trip-camera";
+import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -229,7 +228,13 @@ export default function MapVisualizationTrip({
         : null;
     const camera = tripCamera(positions, point);
     if (camera?.kind === "bounds") {
-      center_in_bounds(positions ?? [], mapRef.current, false);
+      mapRef.current.fitBounds(camera.bounds, {
+        padding: BOUNDS_PADDING,
+        duration: 1000,
+        maxZoom: camera.maxZoom,
+        pitch: 45,
+        bearing: 45,
+      });
     } else if (camera?.kind === "point") {
       flyTo(mapRef.current, camera.target, camera.zoom);
     }
@@ -237,7 +242,7 @@ export default function MapVisualizationTrip({
 
   useEffect(() => {
     // A case without a trip is framed by its point and its track instead.
-    if (casePoint) return;
+    if (caseLng != null) return;
     const first = filteredLocationData?.features[0];
     const coordinates = first
       ? toLngLat(first.longitude, first.latitude)
@@ -245,7 +250,7 @@ export default function MapVisualizationTrip({
     if (coordinates && mapRef.current) {
       flyTo(mapRef.current, coordinates, 6.5);
     }
-  }, [filteredLocationData]);
+  }, [filteredLocationData, caseLng]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -297,7 +302,9 @@ export default function MapVisualizationTrip({
 
     setSelectedPulse(Array.from(matchingIndices));
 
-    if (matchingIndices.size > 0) {
+    // A case without a trip has one opening point, not a span of signals to
+    // summarise, so its popup waits for the user to pick a pulse.
+    if (matchingIndices.size > 0 && caseLng == null) {
       setHoverInfo({
         x: 10,
         y: 10,
@@ -307,7 +314,7 @@ export default function MapVisualizationTrip({
         },
       } as PickingInfo<PulseListType>);
     }
-  }, [filteredLocationData, positions]);
+  }, [filteredLocationData, positions, caseLng]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {

@@ -1,9 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { SINGLE_POINT_ZOOM, showsNoData, tripCamera } from "./trip-camera";
+import {
+  CASE_MAX_ZOOM,
+  SINGLE_POINT_ZOOM,
+  TRIP_MAX_ZOOM,
+  showsNoData,
+  tripCamera,
+} from "./trip-camera";
 
 const casePoint = { longitude: -70.6693, latitude: -33.4489 };
 const a = { longitude: -70.6, latitude: -33.4 };
 const b = { longitude: -70.7, latitude: -33.5 };
+
+// A track of about 2.5 km inside the city.
+const shortTrack = [
+  { longitude: -70.651, latitude: -33.443 },
+  { longitude: -70.66, latitude: -33.445 },
+  { longitude: -70.6745, latitude: -33.4489 },
+];
 
 describe("tripCamera", () => {
   it("opens on the case point without positions", () => {
@@ -23,15 +36,40 @@ describe("tripCamera", () => {
     });
   });
 
-  it("fits two or more positions", () => {
-    expect(tripCamera([a, b], casePoint)).toEqual({ kind: "bounds" });
-    expect(tripCamera([a, b, a], null)).toEqual({ kind: "bounds" });
+  it("fits a trip's positions at region level", () => {
+    expect(tripCamera([a, b], null)).toEqual({
+      kind: "bounds",
+      bounds: [
+        [-70.7, -33.5],
+        [-70.6, -33.4],
+      ],
+      maxZoom: TRIP_MAX_ZOOM,
+    });
   });
 
-  it("ignores a position without coordinates", () => {
+  it("fits a case's short track and its point at street level", () => {
+    const point = { longitude: -70.68, latitude: -33.45 };
+    expect(tripCamera(shortTrack, point)).toEqual({
+      kind: "bounds",
+      bounds: [
+        [-70.68, -33.45],
+        [-70.651, -33.443],
+      ],
+      maxZoom: CASE_MAX_ZOOM,
+    });
+  });
+
+  it("ignores positions without coordinates", () => {
     expect(
       tripCamera([{ longitude: Number.NaN, latitude: Number.NaN }], null)
     ).toBeNull();
+    expect(
+      tripCamera([a, { longitude: Number.NaN, latitude: 1 }], null)
+    ).toEqual({
+      kind: "point",
+      target: [-70.6, -33.4],
+      zoom: SINGLE_POINT_ZOOM,
+    });
   });
 });
 

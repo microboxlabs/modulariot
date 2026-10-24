@@ -58,7 +58,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * Conversation rules, the platform's templates, the event catalog, the runs, the connection channels and the
  * WhatsApp and email accounts of an organization. Any authenticated user of the organization reads; writes need an Owner or Admin of the organization,
- * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}. Endpoints return {@link Uni} so the request stays on the event loop for the
+ * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}; the accounts only an Owner changes. Endpoints return {@link Uni} so the request stays on the event loop for the
  * reactive org filter; the blocking work runs on the worker pool.
  */
 @Path("/api/v1/orgs/{organizationId}/conversations")
@@ -320,7 +320,7 @@ public class OrgConversationsResource {
             AccountModeRequest body) {
         String tenant = tenantCode(organizationId);
         String who = actor.get();
-        return admin(organizationId,
+        return owner(organizationId,
                 () -> Response.ok(accounts.set(tenant, channel, body == null ? null : body.mode(), who)).build());
     }
 
@@ -339,7 +339,7 @@ public class OrgConversationsResource {
             summary = "Submit the platform's WhatsApp templates to the organization's own WABA for Meta's review")
     public Uni<Response> copyWhatsAppTemplates(@PathParam(ORG) String organizationId, CopyTemplatesRequest body) {
         String tenant = tenantCode(organizationId);
-        return admin(organizationId, () -> Response.ok(
+        return owner(organizationId, () -> Response.ok(
                 whatsappTemplates.copyFromPlatform(tenant, body == null ? null : body.names())).build());
     }
 
@@ -385,11 +385,10 @@ public class OrgConversationsResource {
                         "Owner, Admin or Control Tower maintainer required")));
     }
 
-    /** Runs a change to the organization's accounts when the caller is an Owner or Admin; 403 otherwise. */
-    private Uni<Response> admin(String organizationId, Supplier<Response> work) {
-        return access.apply(organizationId).flatMap(a -> a != null && a.baseRole() != null
-                && a.baseRole().atLeast(BaseRole.ADMIN) ? work(work)
-                        : Uni.createFrom().item(error(Response.Status.FORBIDDEN, "Owner or Admin required")));
+    /** Runs a change to the organization's accounts when the caller is an Owner; 403 otherwise. */
+    private Uni<Response> owner(String organizationId, Supplier<Response> work) {
+        return access.apply(organizationId).flatMap(a -> a != null && a.baseRole() == BaseRole.OWNER ? work(work)
+                : Uni.createFrom().item(error(Response.Status.FORBIDDEN, "Owner required")));
     }
 
     static boolean canWrite(Access access) {

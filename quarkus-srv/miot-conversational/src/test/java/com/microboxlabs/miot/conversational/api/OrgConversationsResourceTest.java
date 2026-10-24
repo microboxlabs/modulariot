@@ -372,6 +372,8 @@ class OrgConversationsResourceTest {
         AccountModeRequest own = new AccountModeRequest(ChannelMode.OWN);
         assertEquals(403, call(member.setAccountMode(ORG, "whatsapp", own)).getStatus());
         assertEquals(403, call(maintainer.setAccountMode(ORG, "whatsapp", own)).getStatus());
+        assertEquals(403, call(resource(access(BaseRole.ADMIN, Set.of())).setAccountMode(ORG, "whatsapp", own))
+                .getStatus());
         assertEquals(409, call(owner.setAccountMode(ORG, "whatsapp", own)).getStatus());
         assertEquals(400, call(owner.setAccountMode(ORG, "sms", own)).getStatus());
 

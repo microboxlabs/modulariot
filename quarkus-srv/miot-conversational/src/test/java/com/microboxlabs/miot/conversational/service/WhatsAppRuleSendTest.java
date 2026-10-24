@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
@@ -97,7 +98,39 @@ class WhatsAppRuleSendTest {
                 DRIVER, "TEXT", "hola", null, null, Map.of(), null, null, null, null, null), "user-1");
 
         assertEquals(List.of("ORG-PNID"), sentFrom);
-        assertNull(sent.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+        assertEquals(TENANT, sent.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+    }
+
+    @Test
+    void aReplyOnARuleConversationGoesFromTheNumberTheRuleUsed() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+        Message ruleMessage = service.sendInContext(TENANT, message(), false);
+
+        Message reply = service.send(TENANT, reply(ruleMessage.conversationId()), "user-1");
+
+        assertEquals(List.of("PLATFORM-PNID", "PLATFORM-PNID"), sentFrom);
+        assertEquals(ruleMessage.conversationId(), reply.conversationId());
+        assertEquals(PLATFORM, reply.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+
+        accounts.own(TENANT, "whatsapp");
+        Message own = service.sendInContext(TENANT, message(), false);
+        service.send(TENANT, reply(own.conversationId()), "user-1");
+        assertEquals("ORG-PNID", sentFrom.get(sentFrom.size() - 1));
+    }
+
+    @Test
+    void aReplyNamesAConversationOfTheOrganizationWithThatRecipient() {
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.send(TENANT, reply("00000000-0000-0000-0000-000000000099"), "user-1"));
+        assertTrue(sentFrom.isEmpty());
+    }
+
+    private static SendWhatsAppMessageRequest reply(String conversationId) {
+        return new SendWhatsAppMessageRequest(DRIVER, "TEXT", "voy en camino", null, null, Map.of(), null, null,
+                null, null, null, null, conversationId);
     }
 
     private static ContextMessage message() {

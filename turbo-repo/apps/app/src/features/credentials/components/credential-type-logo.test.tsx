@@ -118,11 +118,19 @@ describe("CredentialTypeLogo", () => {
   });
 
   it("draws a library icon in gray instead of an image", () => {
-    render(<CredentialTypeLogo icon={Whatsapp} alt="WhatsApp" size={40} />);
+    render(
+      <CredentialTypeLogo
+        icon={Whatsapp}
+        keyline="circle"
+        alt="WhatsApp"
+        size={40}
+      />
+    );
 
     const icon = screen.getByRole("img", { name: "WhatsApp" });
     expect(icon.tagName.toLowerCase()).toBe("svg");
-    expect(icon).toHaveAttribute("width", "40");
+    expect(icon).toHaveAttribute("width", "28");
+    expect(icon.parentElement).toHaveAttribute("data-keyline", "circle");
     expect(icon.getAttribute("class")).toContain("text-gray-600");
   });
 });

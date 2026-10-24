@@ -109,6 +109,7 @@ export function CredentialFormShell<T extends CredentialBaseFields>({
         <CredentialTypeLogo
           logo={type?.logo}
           icon={type?.icon}
+          keyline={type?.keyline}
           alt={trDynamic(chrome.logoAltKey, dict)}
           size={40}
         />

@@ -3,6 +3,8 @@
 import { useState, type ComponentType, type SVGProps } from "react";
 import {
   DEFAULT_CREDENTIAL_LOGO,
+  KEYLINE_FILL,
+  type LogoKeyline,
   resolveCredentialLogo,
   type CredentialLogo,
 } from "../credential.types";
@@ -23,6 +25,8 @@ interface CredentialTypeLogoProps {
   readonly logo?: CredentialLogo;
   /** A library icon; drawn in gray instead of the logo image. */
   readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /** The mark's shape; a round mark fills more of the tile. */
+  readonly keyline?: LogoKeyline;
   /** Accessible name — pass the translated credential type name. */
   readonly alt: string;
   /** Rendered box in pixels (square). */
@@ -40,12 +44,30 @@ interface CredentialTypeLogoProps {
  * leaving a broken image in the row.
  */
 export function CredentialTypeLogo({
+  keyline = "square",
+  size = 24,
+  className = "",
+  ...mark
+}: CredentialTypeLogoProps) {
+  const glyph = Math.round(size * KEYLINE_FILL[keyline]);
+  return (
+    <span
+      data-keyline={keyline}
+      style={{ width: size, height: size }}
+      className={`inline-flex shrink-0 items-center justify-center rounded-[22%] bg-gray-100 dark:bg-gray-700/60 ${className}`}
+    >
+      <LogoMark {...mark} size={glyph} />
+    </span>
+  );
+}
+
+/** The mark itself, sized to the tile's keyline. */
+function LogoMark({
   logo,
   icon: Icon,
   alt,
   size = 24,
-  className = "",
-}: CredentialTypeLogoProps) {
+}: Omit<CredentialTypeLogoProps, "keyline" | "className">) {
   const [failed, setFailed] = useState(false);
   if (Icon) {
     return (
@@ -54,7 +76,7 @@ export function CredentialTypeLogo({
         aria-label={alt}
         width={size}
         height={size}
-        className={`shrink-0 text-gray-600 dark:text-gray-400 ${className}`}
+        className="shrink-0 text-gray-600 dark:text-gray-400"
       />
     );
   }
@@ -64,7 +86,7 @@ export function CredentialTypeLogo({
   const lightSrc = withBasePath(resolved.lightSrc);
   const darkSrc = withBasePath(resolved.darkSrc);
 
-  const box = `object-contain shrink-0 ${className}`;
+  const box = "object-contain shrink-0";
   const dimensions = { width: size, height: size };
 
   // One asset covers both themes — render a single image.

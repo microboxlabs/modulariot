@@ -116,6 +116,7 @@ function CredentialTypeOption({
         <CredentialTypeLogo
           logo={type.logo}
           icon={type.icon}
+          keyline={type.keyline}
           alt={trDynamic(type.nameKey, dict)}
           size={40}
         />

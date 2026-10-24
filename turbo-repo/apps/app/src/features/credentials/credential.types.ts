@@ -187,7 +187,21 @@ export interface CredentialTypeDescriptor {
   readonly logo?: CredentialLogo;
   /** An icon from the app's icon library, drawn in the text colour; takes the place of `logo`. */
   readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /** The mark's overall shape, which sets how much of the tile it fills. Square by default. */
+  readonly keyline?: LogoKeyline;
 }
+
+/**
+ * Keylines, as in Material's icon grid and the iOS icon template: every mark sits in the
+ * same tile, and a round mark is drawn larger than a square one so both read the same size.
+ */
+export type LogoKeyline = "circle" | "square";
+
+/** The share of the tile a mark of each shape fills (Material: 20/24 circle, 18/24 square, inside the padding). */
+export const KEYLINE_FILL: Readonly<Record<LogoKeyline, number>> = {
+  circle: 0.7,
+  square: 0.62,
+};
 
 /** Neutral key mark (PNG) used when a type ships no logo of its own. */
 export const DEFAULT_CREDENTIAL_LOGO: CredentialLogo = {
@@ -294,6 +308,7 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     available: true,
     supportsTest: false,
     icon: Whatsapp,
+    keyline: "circle",
   },
   {
     id: "BASIC_AUTH",

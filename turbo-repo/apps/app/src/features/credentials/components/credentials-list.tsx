@@ -151,6 +151,7 @@ function CredentialCard({
           <CredentialTypeLogo
             logo={descriptor?.logo}
             icon={descriptor?.icon}
+            keyline={descriptor?.keyline}
             alt={typeName}
             size={40}
           />
@@ -216,6 +217,7 @@ function CredentialRow({
           <CredentialTypeLogo
             logo={descriptor?.logo}
             icon={descriptor?.icon}
+            keyline={descriptor?.keyline}
             alt={typeName}
             size={24}
           />

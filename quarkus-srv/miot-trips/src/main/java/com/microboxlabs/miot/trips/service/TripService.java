@@ -41,24 +41,30 @@ public class TripService {
     /** Stands in for the trip id while the stage plan is validated before the trip exists. */
     private static final UUID NO_TRIP = new UUID(0, 0);
     private static final String TRIP_NOT_FOUND = "trip not found";
-    private static final String MANDATE_ID = "mandateId";
+    static final String MANDATE_ID = "mandateId";
+    static final String MANDATE_LINKED = "trip.mandate_linked";
 
     private final TripStore trips;
     private final StageStore stages;
     private final AssignmentStore assignments;
     private final TripCargoStore tripCargo;
     private final CargoStore cargo;
+    private final MandateService mandates;
+    private final TripLiveProjector live;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
     public TripService(TripStore trips, StageStore stages, AssignmentStore assignments,
-            TripCargoStore tripCargo, CargoStore cargo, AuditService audit, Transactions tx) {
+            TripCargoStore tripCargo, CargoStore cargo, MandateService mandates, TripLiveProjector live,
+            AuditService audit, Transactions tx) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
         this.tripCargo = tripCargo;
         this.cargo = cargo;
+        this.mandates = mandates;
+        this.live = live;
         this.audit = audit;
         this.tx = tx;
     }
@@ -73,13 +79,16 @@ public class TripService {
             if (req.stages() != null) {
                 req.stages().forEach(s -> planned(tenantCode, actor, NO_TRIP, s));
             }
+            // checked in id order, the order stage start locks mandates in (text order, as Postgres sorts uuids)
+            mandateIds.stream().sorted(Comparator.comparing(UUID::toString))
+                    .forEach(m -> mandates.requireOpen(tenantCode, m));
             Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
                     Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart(), null, null, null, null, actor, null, actor));
             UUID tripId = UUID.fromString(trip.id());
             // linked in id order (the order stage start locks them in), each keeping its request position
             List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
-            order.sort(Comparator.comparing(mandateIds::get));
+            order.sort(Comparator.comparing(i -> mandateIds.get(i).toString()));
             for (int i : order) {
                 trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
             }
@@ -88,6 +97,7 @@ public class TripService {
                     stages.insert(planned(tenantCode, actor, tripId, s));
                 }
             }
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), Map.of());
             return detail(tenantCode, tripId);
         });
@@ -101,7 +111,7 @@ public class TripService {
     /** The whole file of the trip: mandates, stages, assignments and cargo. */
     public TripView detail(String tenantCode, UUID id) {
         Trip trip = get(tenantCode, id);
-        List<MandateRef> mandates = trips.mandatesOf(tenantCode, id);
+        List<MandateRef> linked = trips.mandatesOf(tenantCode, id);
         List<StageView> stageViews = stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, id)
                 .stream().map(StageView::of).toList();
         List<AssignmentView> assignmentViews = assignments.listByTrip(tenantCode, id)
@@ -110,7 +120,7 @@ public class TripService {
                 .stream().collect(Collectors.toMap(CargoUnit::id, c -> c));
         List<TripCargoView> cargoViews = tripCargo.listByTrip(tenantCode, id)
                 .stream().map(l -> TripCargoView.of(l, byId.get(l.cargoId()))).toList();
-        return TripView.of(trip, mandates, stageViews, assignmentViews, cargoViews);
+        return TripView.of(trip, linked, stageViews, assignmentViews, cargoViews);
     }
 
     public List<Trip> list(String tenantCode, TripFilter filter, Integer page, Integer size) {
@@ -143,6 +153,7 @@ public class TripService {
                     current.actualStart(), current.actualEnd(), current.cancelReason(),
                     current.createdAt(), current.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
+            live.refresh(tenantCode, id);
             audit.log(tenantCode, actor, "trip.updated", ENTITY, updated.id(), updated.id(), Map.of());
             return updated;
         });
@@ -161,6 +172,7 @@ public class TripService {
                     current.actualStart(), OffsetDateTime.now(ZoneOffset.UTC), why,
                     current.createdAt(), current.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
+            live.refresh(tenantCode, id);
             audit.log(tenantCode, actor, "trip.cancelled", ENTITY, cancelled.id(), cancelled.id(),
                     Map.of("reason", why));
             return cancelled;
@@ -173,11 +185,18 @@ public class TripService {
         return tx.inTransaction(() -> {
             get(tenantCode, tripId);
             UUID mid = parse(Check.required(mandateId, MANDATE_ID, 64), MANDATE_ID);
-            int s = seq == null ? trips.mandatesOf(tenantCode, tripId).size() + 1 : seq;
             String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
+            List<MandateRef> current = trips.mandatesOf(tenantCode, tripId);
+            // an existing link stays a no-op, even once its mandate has closed
+            if (current.stream().anyMatch(m -> m.mandateId().equals(mid.toString()))) {
+                return false;
+            }
+            int s = seq == null ? nextSeq(current) : seq;
+            mandates.requireOpen(tenantCode, mid);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
             if (linked) {
-                audit.log(tenantCode, actor, "trip.mandate_linked", ENTITY, tripId.toString(), tripId.toString(),
+                live.refresh(tenantCode, tripId);
+                audit.log(tenantCode, actor, MANDATE_LINKED, ENTITY, tripId.toString(), tripId.toString(),
                         Map.of(MANDATE_ID, mid.toString()));
             }
             return linked;
@@ -195,6 +214,7 @@ public class TripService {
             if (!trips.unlinkMandate(tenantCode, tripId, mandateId)) {
                 throw new NoSuchElementException("link not found");
             }
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "trip.mandate_unlinked", ENTITY, tripId.toString(), tripId.toString(),
                     Map.of(MANDATE_ID, mandateId.toString()));
         });
@@ -211,6 +231,11 @@ public class TripService {
                 Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64), Stage.PENDING,
                 Check.uuidOrNull(s.locationId(), "locationId"), s.plannedStart(), s.plannedEnd(), null, null,
                 s.checklist() == null ? null : s.checklist().toString(), null, actor, null, actor);
+    }
+
+    /** The next link position: after the highest one in use, so an unlink does not cause a repeat. */
+    static int nextSeq(List<MandateRef> links) {
+        return links.stream().mapToInt(MandateRef::seq).max().orElse(0) + 1;
     }
 
     static UUID parse(String raw, String field) {

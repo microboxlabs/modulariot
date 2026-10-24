@@ -16,6 +16,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepos
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationTemplateRepository;
+import com.microboxlabs.miot.integrations.tester.ConnectionTester;
 import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -205,14 +206,15 @@ public class IntegrationConnectionService {
                 ? null
                 : credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
 
-        ConnectionTestResponse response = testerRegistry.testerFor(connection.providerType())
-                .test(connection, credential, req);
+        ConnectionTester tester = testerRegistry.testerFor(connection.providerType());
+        ConnectionTestResponse response = tester.test(connection, credential, req);
 
         ConnectionStatus status = response.success() ? ConnectionStatus.ACTIVE : ConnectionStatus.TEST_FAILED;
         connectionRepository.updateTestResult(
                 connection.tenantCode(), connection.id(), status, response.testedAt(), response.success());
-        // The connection test exercised the credential too, so the credentials screen shows the same result.
-        if (credential != null) {
+        // A test that called the provider with the credential exercised it too, so the credentials screen shows
+        // the same result. A contract-only check says nothing about the credential.
+        if (credential != null && tester.validatesCredential()) {
             credentialProfileRepository.updateTestResult(
                     connection.tenantCode(), credential.id(), response.testedAt(), response.success());
         }

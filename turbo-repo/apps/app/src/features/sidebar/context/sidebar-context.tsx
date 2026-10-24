@@ -20,8 +20,11 @@ interface SidebarContextProps {
   };
   mobile: {
     isOpen: boolean;
+    /** The section to show when the sidebar opens; null picks the one of the current page. */
+    initialSection: string | null;
     close(): void;
     toggle(): void;
+    openSection(label: string): void;
   };
 }
 
@@ -35,8 +38,16 @@ export function SidebarProvider({ children }: Readonly<PropsWithChildren>) {
     setActiveSection((prev) => (prev === label ? null : label));
   }, []);
 
-  const closeMobile = useCallback(() => setIsOpenMobile(false), []);
+  const [initialSection, setInitialSection] = useState<string | null>(null);
+  const closeMobile = useCallback(() => {
+    setIsOpenMobile(false);
+    setInitialSection(null);
+  }, []);
   const toggleMobile = useCallback(() => setIsOpenMobile((s) => !s), []);
+  const openMobileSection = useCallback((label: string) => {
+    setInitialSection(label);
+    setIsOpenMobile(true);
+  }, []);
 
   const value = useMemo<SidebarContextProps>(
     () => ({
@@ -47,11 +58,21 @@ export function SidebarProvider({ children }: Readonly<PropsWithChildren>) {
       },
       mobile: {
         isOpen: isOpenMobile,
+        initialSection,
         close: closeMobile,
         toggle: toggleMobile,
+        openSection: openMobileSection,
       },
     }),
-    [activeSection, toggleSection, isOpenMobile, closeMobile, toggleMobile]
+    [
+      activeSection,
+      toggleSection,
+      isOpenMobile,
+      initialSection,
+      closeMobile,
+      toggleMobile,
+      openMobileSection,
+    ]
   );
 
   return (

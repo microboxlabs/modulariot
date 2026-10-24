@@ -60,7 +60,8 @@ public class ConversationRepository {
     private static final String SELECT_BY_ID = SELECT_FROM + "WHERE id = $1";
 
     // The conversation where a WAITING run last sent to this address. Only real sends count: a test run's
-    // SIMULATED messages and failed sends never reached the person replying.
+    // SIMULATED messages and failed sends never reached the person replying. A send from the platform's number
+    // is answered there, not on the organization's own number, so it does not count either.
     private static final String SELECT_WITH_WAITING_RUN = "SELECT " + COLUMNS + """
             , w.run_id
             FROM miot_conversational.wa_conversation
@@ -70,6 +71,7 @@ public class ConversationRepository {
                   WHERE r.tenant_code = $1 AND r.status = 'WAITING' AND NOT r.test
                     AND m.direction = 'OUTBOUND' AND m.address = $2
                     AND m.status NOT IN ('SIMULATED', 'FAILED')
+                    AND m.metadata->>'connectionTenant' IS DISTINCT FROM '_platform'
                   GROUP BY m.conversation_id, r.id) w ON w.conversation_id = id
             WHERE tenant_code = $1 AND participant_address = $2
             ORDER BY w.last_at DESC

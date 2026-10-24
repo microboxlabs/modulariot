@@ -83,7 +83,7 @@ public class PgLocationStore implements LocationStore {
     public Optional<Location> update(Location l) {
         return first(query(pool.get(), """
                 UPDATE miot_trips.location SET
-                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb, updated_by = $7
+                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb, updated_by = $7, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + COLUMNS,
                 Tuple.tuple().addUUID(Pg.parse(l.id())).addString(l.tenantCode())

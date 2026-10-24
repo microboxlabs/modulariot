@@ -1,8 +1,10 @@
 package com.microboxlabs.miot.trips.store;
 
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.AuditEvent;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
+import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateLine;
 import com.microboxlabs.miot.trips.domain.MandateRef;
@@ -10,7 +12,10 @@ import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.StageActivity;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripCargoLink;
+import com.microboxlabs.miot.trips.domain.TripLiveProjection;
+import com.microboxlabs.miot.trips.domain.TripLiveRow;
 import com.microboxlabs.miot.trips.domain.TripRef;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -24,9 +29,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * One in-memory copy of the miot_trips schema for service tests, triggers included:
- * the mandate's auto line, cargo partial numbering, stage sequence and the
- * one-running-stage rule, and the cargo→mandate consistency upsert on mount.
+ * One in-memory copy of the miot_trips schema for service tests: the mandate's line,
+ * cargo partial numbering, stage sequence and the one-running-stage rule.
  * Each store is a view over the same shared state.
  */
 public class InMemoryTripsWorld {
@@ -40,6 +44,8 @@ public class InMemoryTripsWorld {
     private final Map<String, StageActivity> activities = new LinkedHashMap<>();
     private final Map<String, Assignment> assignments = new LinkedHashMap<>();
     private final Map<String, TripCargoLink> tripCargo = new LinkedHashMap<>();
+    private final Map<String, Location> locations = new LinkedHashMap<>();
+    private final Map<String, TripLiveProjection> live = new LinkedHashMap<>();
     private final List<AuditEvent> audit = new ArrayList<>();
     private final AtomicLong auditSeq = new AtomicLong();
 
@@ -50,6 +56,8 @@ public class InMemoryTripsWorld {
     public final AssignmentStore assignmentStore = new Assignments();
     public final TripCargoStore tripCargoStore = new TripCargos();
     public final AuditStore auditStore = new Audits();
+    public final LocationStore locationStore = new Locations();
+    public final TripLiveStore tripLiveStore = new Lives();
 
     private static OffsetDateTime now() {
         return OffsetDateTime.now(ZoneOffset.UTC);
@@ -57,6 +65,12 @@ public class InMemoryTripsWorld {
 
     private static String newId() {
         return UUID.randomUUID().toString();
+    }
+
+    /** The projector over this world's stores. */
+    public TripLiveProjector projector(FleetResources fleet) {
+        return new TripLiveProjector(tripStore, stageStore, assignmentStore, cargoStore, locationStore, tripLiveStore,
+                fleet);
     }
 
     public List<AuditEvent> auditTrail() {
@@ -121,6 +135,11 @@ public class InMemoryTripsWorld {
         }
 
         @Override
+        public Optional<String> statusForLink(String tenantCode, UUID mandateId) {
+            return find(tenantCode, mandateId).map(Mandate::status);
+        }
+
+        @Override
         public List<TripRef> tripsOf(String tenantCode, UUID mandateId) {
             List<TripRef> refs = new ArrayList<>();
             for (Map.Entry<String, List<MandateRef>> e : tripMandates.entrySet()) {
@@ -161,6 +180,20 @@ public class InMemoryTripsWorld {
         public Optional<CargoUnit> find(String tenantCode, UUID id) {
             return Optional.ofNullable(cargo.get(id.toString()))
                     .filter(c -> c.tenantCode().equals(tenantCode));
+        }
+
+        @Override
+        public List<UUID> lockTripsCarrying(String tenantCode, UUID cargoId) {
+            return tripCargo.values().stream()
+                    .filter(l -> l.tenantCode().equals(tenantCode) && l.cargoId().equals(cargoId.toString()))
+                    .map(l -> UUID.fromString(l.tripId())).sorted(Comparator.comparing(UUID::toString)).toList();
+        }
+
+        @Override
+        public Optional<UUID> mandateOf(String tenantCode, UUID cargoId) {
+            return find(tenantCode, cargoId).flatMap(c -> linesByMandate.values().stream()
+                    .filter(l -> l.id().equals(c.lineId())).findFirst())
+                    .map(l -> UUID.fromString(l.mandateId()));
         }
 
         @Override
@@ -255,6 +288,16 @@ public class InMemoryTripsWorld {
         public boolean unlinkMandate(String tenantCode, UUID tripId, UUID mandateId) {
             List<MandateRef> refs = tripMandates.getOrDefault(tripId.toString(), new ArrayList<>());
             return refs.removeIf(r -> r.mandateId().equals(mandateId.toString()));
+        }
+
+        @Override
+        public List<UUID> openTripsAt(String tenantCode, UUID locationId) {
+            return trips.values().stream()
+                    .filter(t -> t.tenantCode().equals(tenantCode)
+                            && (locationId.toString().equals(t.originId())
+                                    || locationId.toString().equals(t.destinationId()))
+                            && !Trip.DONE.equals(t.status()) && !Trip.CANCELLED.equals(t.status()))
+                    .map(t -> UUID.fromString(t.id())).toList();
         }
 
         @Override
@@ -446,14 +489,6 @@ public class InMemoryTripsWorld {
             if (unit == null) {
                 throw new IllegalArgumentException("a referenced entity does not exist");
             }
-            // the consistency trigger: the mandate that owns the cargo gets linked to the trip
-            linesByMandate.entrySet().stream()
-                    .filter(e -> e.getValue().id().equals(unit.lineId()))
-                    .findFirst()
-                    .ifPresent(e -> tripStore.linkMandate(l.tenantCode(), UUID.fromString(l.tripId()),
-                            UUID.fromString(e.getKey()),
-                            tripMandates.getOrDefault(l.tripId(), List.of()).size() + 1, "primary",
-                            l.createdBy()));
             TripCargoLink created = new TripCargoLink(l.tripId(), l.cargoId(), l.tenantCode(),
                     l.loadedAtStage(), l.unloadedAtStage(), now(), l.createdBy(), now(), l.updatedBy());
             tripCargo.put(key, created);
@@ -528,6 +563,73 @@ public class InMemoryTripsWorld {
             }
             return n;
         }
+    }
+
+    private class Locations implements LocationStore {
+
+        @Override
+        public Location insert(Location l) {
+            Location created = new Location(newId(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
+                    l.geomGeojson(), now(), l.createdBy(), now(), l.updatedBy());
+            locations.put(created.id(), created);
+            return created;
+        }
+
+        @Override
+        public Optional<Location> find(String tenantCode, UUID id) {
+            return Optional.ofNullable(locations.get(id.toString())).filter(l -> l.tenantCode().equals(tenantCode));
+        }
+
+        @Override
+        public List<Location> list(String tenantCode, String q, String type, int page, int size) {
+            return locations.values().stream().filter(l -> l.tenantCode().equals(tenantCode))
+                    .skip((long) page * size).limit(size).toList();
+        }
+
+        @Override
+        public Optional<Location> update(Location l) {
+            if (find(l.tenantCode(), UUID.fromString(l.id())).isEmpty()) {
+                return Optional.empty();
+            }
+            Location updated = new Location(l.id(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
+                    l.geomGeojson(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
+            locations.put(l.id(), updated);
+            return Optional.of(updated);
+        }
+    }
+
+    private class Lives implements TripLiveStore {
+
+        @Override
+        public List<TripLiveRow> list(String tenantCode) {
+            return live.values().stream().filter(p -> p.tenantCode().equals(tenantCode))
+                    .map(InMemoryTripsWorld::row).toList();
+        }
+
+        @Override
+        public Optional<TripLiveRow> find(String tenantCode, UUID tripId) {
+            return Optional.ofNullable(live.get(tripId.toString())).filter(p -> p.tenantCode().equals(tenantCode))
+                    .map(InMemoryTripsWorld::row);
+        }
+
+        @Override
+        public void upsert(TripLiveProjection projection) {
+            live.put(projection.tripId(), projection);
+        }
+
+        @Override
+        public void delete(String tenantCode, UUID tripId) {
+            live.remove(tripId.toString());
+        }
+    }
+
+    private static TripLiveRow row(TripLiveProjection p) {
+        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), "v", null, null,
+                p.originGeofenceLabel(), p.destinationGeofenceLabel(), null, p.status(), p.driverId(),
+                p.driverName(), p.driverContactPhone(), p.secondDriverId() != null, p.secondDriverId(),
+                p.secondDriverName(), p.secondDriverContactPhone(), p.carrierId(), p.carrierName(),
+                p.carrierContactPhone(), p.ramplaPlate(), p.startTime(), p.endTime(), p.estimatedArrivalTime(),
+                p.typeLoad(), null, false, false, null, null, null, null);
     }
 
     private class Audits implements AuditStore {

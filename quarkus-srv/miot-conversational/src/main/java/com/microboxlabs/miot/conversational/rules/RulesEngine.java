@@ -281,7 +281,7 @@ public class RulesEngine {
                 m.template() == null ? null : m.template().key(), null, Map.of(), m.subject(),
                 delivery.textOrSummary(), run.id(), run.step());
         Message stored = connectionMessages.sendInContext(run.tenantCode(), Channel.fromDb(channel.key()), message,
-                run.test(), () -> channels.deliver(run.tenantCode(), connection, channel.body(delivery)));
+                run.test(), () -> channels.deliver(channel, run.tenantCode(), connection, channel.body(delivery)));
         return stored.status() == MessageStatus.FAILED
                 ? Optional.of(channel.key() + " " + connection + ": " + stored.errorMessage())
                 : Optional.empty();

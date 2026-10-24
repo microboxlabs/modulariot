@@ -29,7 +29,7 @@ public enum ConnectionChannel {
             ruleRef.put("id", d.run().ruleId());
             ruleRef.put("key", d.rule() == null ? null : d.rule().key());
             ruleRef.put("name", d.rule() == null ? null : d.rule().name());
-            ruleRef.put("version", d.run().ruleVersion());
+            ruleRef.put(VERSION, d.run().ruleVersion());
             Map<String, Object> runRef = new LinkedHashMap<>();
             runRef.put("id", d.run().id());
             runRef.put("step", d.run().step());
@@ -38,12 +38,12 @@ public enum ConnectionChannel {
             context.put("kind", d.event().contextKind());
             context.put("key", d.event().contextKey());
             Map<String, Object> out = new LinkedHashMap<>();
-            out.put("event", d.event().type());
+            out.put(EVENT, d.event().type());
             out.put("at", d.event().at() == null ? null : d.event().at().toString());
             out.put("context", context);
             out.put("rule", ruleRef);
             out.put("run", runRef);
-            out.put("title", d.title());
+            out.put(TITLE, d.title());
             out.put("text", d.text());
             out.put("data", d.event().data());
             return out;
@@ -80,14 +80,14 @@ public enum ConnectionChannel {
             Map<String, Object> card = new LinkedHashMap<>();
             card.put("$schema", CARD_SCHEMA);
             card.put(TYPE, "AdaptiveCard");
-            card.put("version", CARD_VERSION);
+            card.put(VERSION, CARD_VERSION);
             card.put("body", blocks);
             Map<String, Object> attachment = new LinkedHashMap<>();
-            attachment.put("contentType", CARD_CONTENT_TYPE);
-            attachment.put("content", card);
+            attachment.put(CONTENT_TYPE, CARD_CONTENT_TYPE);
+            attachment.put(CONTENT, card);
             Map<String, Object> out = new LinkedHashMap<>();
             out.put(TYPE, "message");
-            out.put("attachments", List.of(attachment));
+            out.put(ATTACHMENTS, List.of(attachment));
             return out;
         }
     };
@@ -102,6 +102,12 @@ public enum ConnectionChannel {
     private static final String TYPE = "type";
     private static final String TEXT_BLOCK = "TextBlock";
     private static final String WRAP = "wrap";
+    private static final String VERSION = "version";
+    private static final String EVENT = "event";
+    private static final String TITLE = "title";
+    private static final String CONTENT_TYPE = "contentType";
+    private static final String CONTENT = "content";
+    private static final String ATTACHMENTS = "attachments";
 
     /**
      * What one step sends to one connection.
@@ -194,25 +200,25 @@ public enum ConnectionChannel {
 
         private static Map<String, Object> webhook() {
             Map<String, Object> props = new LinkedHashMap<>();
-            props.put("event", field(STRING, "Tipo del evento que inició la regla"));
+            props.put(EVENT, field(STRING, "Tipo del evento que inició la regla"));
             Map<String, Object> at = field(STRING, "Cuándo ocurrió el evento, ISO-8601");
             at.put("format", "date-time");
             props.put("at", at);
             props.put("context", object("Sobre qué es el evento", List.of(),
                     "kind", field(List.of(STRING, "null"), "Tipo del contexto, como symptom_case"),
                     "key", field(List.of(STRING, "null"), "Clave del contexto")));
-            props.put("rule", object("La regla", List.of("id", "key", "name", "version"),
+            props.put("rule", object("La regla", List.of("id", "key", "name", VERSION),
                     "id", field(STRING, null), "key", field(STRING, null), "name", field(STRING, null),
-                    "version", field(STRING, "Versión publicada en vigor")));
+                    VERSION, field(STRING, "Versión publicada en vigor")));
             props.put("run", object("La ejecución de la regla", List.of("id", "step", "test"),
                     "id", field(STRING, null), "step", field("integer", "Índice del paso, desde 0"),
                     "test", field(BOOLEAN, "Ejecución de prueba")));
-            props.put("title", field(List.of(STRING, "null"),
+            props.put(TITLE, field(List.of(STRING, "null"),
                     "Asunto del correo de la plantilla, si no su nombre; null sin plantilla"));
             props.put("text", field(List.of(STRING, "null"),
                     "Cuerpo del correo de la plantilla, si no su texto base; null sin plantilla"));
             props.put("data", field(OBJECT, "Los datos del evento"));
-            return schema(List.of("event", "at", "rule", "run", "title", "text", "data"), props);
+            return schema(List.of(EVENT, "at", "rule", "run", TITLE, "text", "data"), props);
         }
 
         private static Map<String, Object> slack() {
@@ -228,17 +234,17 @@ public enum ConnectionChannel {
                     "text", field(STRING, null), WRAP, field(BOOLEAN, null));
             Map<String, Object> blocks = field(ARRAY, null);
             blocks.put("items", block);
-            Map<String, Object> card = object("La tarjeta adaptable", List.of(TYPE, "version", "body"),
-                    "$schema", constant(CARD_SCHEMA), TYPE, constant("AdaptiveCard"), "version",
+            Map<String, Object> card = object("La tarjeta adaptable", List.of(TYPE, VERSION, "body"),
+                    "$schema", constant(CARD_SCHEMA), TYPE, constant("AdaptiveCard"), VERSION,
                     constant(CARD_VERSION), "body", blocks);
-            Map<String, Object> attachment = object(null, List.of("contentType", "content"),
-                    "contentType", constant(CARD_CONTENT_TYPE), "content", card);
+            Map<String, Object> attachment = object(null, List.of(CONTENT_TYPE, CONTENT),
+                    CONTENT_TYPE, constant(CARD_CONTENT_TYPE), CONTENT, card);
             Map<String, Object> attachments = field(ARRAY, "Una tarjeta");
             attachments.put("items", attachment);
             Map<String, Object> props = new LinkedHashMap<>();
             props.put(TYPE, constant("message"));
-            props.put("attachments", attachments);
-            return schema(List.of(TYPE, "attachments"), props);
+            props.put(ATTACHMENTS, attachments);
+            return schema(List.of(TYPE, ATTACHMENTS), props);
         }
 
         private static Map<String, Object> schema(List<String> required, Map<String, Object> props) {

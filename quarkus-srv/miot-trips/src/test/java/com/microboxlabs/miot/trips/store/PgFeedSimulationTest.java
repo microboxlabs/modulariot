@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -31,6 +32,8 @@ import com.microboxlabs.miot.fleet.resources.dto.TruckRequest;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.CargoService;
+import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.fleet.resources.service.ResourceService;
 import com.microboxlabs.miot.trips.service.StageService;
@@ -43,9 +46,7 @@ import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -77,19 +78,24 @@ class PgFeedSimulationTest {
     private final AuditService audit = new AuditService(new PgAuditStore(() -> pool));
     private final Transactions tx = new PgTransactions(() -> pool);
     private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit, tx);
-    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, audit, tx);
+    private final TripLiveProjector projector = PgTripsStoresTest.projector(() -> pool);
+    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, projector, audit,
+            tx);
     private final TripService trips = new TripService(new PgTripStore(() -> pool), new PgStageStore(() -> pool),
             new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
-            audit, tx);
+            mandates, projector, audit, tx);
     private final StageService stages = new StageService(new PgStageStore(() -> pool),
-            new PgTripStore(() -> pool), new PgTripCargoStore(() -> pool), mandates, audit, tx);
-    private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
-            new PgTripStore(() -> pool), audit, tx);
-    private final TripCargoService tripCargo = new TripCargoService(new PgTripCargoStore(() -> pool),
-            new PgTripStore(() -> pool), new PgCargoStore(() -> pool), new PgStageStore(() -> pool), audit, tx);
+            new PgTripStore(() -> pool), new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
     private final ResourceService resources = new ResourceService(
             new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool),
             new PgTransactions(() -> pool));
+    private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
+            new PgTripStore(() -> pool),
+            new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool)),
+            projector, audit, tx);
+    private final TripCargoService tripCargo = new TripCargoService(new PgTripCargoStore(() -> pool),
+            new PgTripStore(() -> pool), new PgCargoStore(() -> pool), new PgStageStore(() -> pool), mandates,
+            projector, audit, tx);
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
 
     @BeforeAll
@@ -97,20 +103,7 @@ class PgFeedSimulationTest {
         vertx = Vertx.vertx();
         pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(
                 PgTripsStoresTest.URL_PROPERTY))).using(vertx).build();
-        pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
-        pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
-        for (String fleetSql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
-                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql"}) {
-            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(fleetSql)) {
-                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
-            }
-        }
-        for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
-                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
-            try (InputStream in = PgFeedSimulationTest.class.getResourceAsStream(tripsSql)) {
-                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
-            }
-        }
+        PgTripsStoresTest.recreateSchemas(pool);
     }
 
     @AfterAll
@@ -178,6 +171,17 @@ class PgFeedSimulationTest {
                 new AssignmentRequest("trailer", fleet.trailer().id(), null, null));
         Assignment driving = assignments.create(TENANT_A, FEED_A, tripId,
                 new AssignmentRequest("driver", fleet.driver().id(), null, null));
+        TripLiveRow board = live.find(TENANT_A, tripId).orElseThrow();
+        assertEquals("AAAA11", board.assetId());
+        assertEquals("CCCC33", board.ramplaPlate());
+        assertEquals("22222222-2", board.driverId());
+        assertEquals("JUAN PEREZ SOTO", board.driverName());
+        assertEquals("+56900000001", board.driverContactPhone());
+        assertFalse(board.doubleDriver());
+        assertEquals(fleet.carrier().id(), board.carrierId());
+        assertEquals("TRANSPORTES EJEMPLO SPA", board.carrierName());
+        assertTrue(board.mandateCodes().contains("SRV-1000001"), board.mandateCodes());
+        assertEquals("planificado", board.status());
 
         // 4. the stages run; the first start puts the trip en_ruta and the mandate en_ejecucion
         List<Stage> plan = stages.listByTrip(TENANT_A, tripId);
@@ -194,6 +198,8 @@ class PgFeedSimulationTest {
         assignments.create(TENANT_A, FEED_A, tripId,
                 new AssignmentRequest("truck", fleet.backupTruck().id(), null, "reemplazo por panne"));
         assertEquals(4, assignments.listByTrip(TENANT_A, tripId).size());
+        assertEquals("BBBB22", live.find(TENANT_A, tripId).orElseThrow().assetId(), "the board shows the backup");
+        assertEquals("en_ruta", live.find(TENANT_A, tripId).orElseThrow().status());
         assertNull(driving.validTo(), "the driver window stays open through the truck change");
 
         // 6. the service finishes: transito → descarga → cierre realiza el viaje y mata la fila caliente
@@ -248,7 +254,7 @@ class PgFeedSimulationTest {
         assertEquals(1, p1.partialNo());
         assertEquals(2, p2.partialNo());
 
-        // 3. a trip moves the first partial; mounting it links the OC to the trip (the trigger)
+        // 3. a trip moves the first partial; mounting it links the OC to the trip
         TripView t1 = trips.create(TENANT_B, FEED_B, new TripRequest(null, null, null, null, List.of(
                 new StageRequest("carga", null, null, null, null, null),
                 new StageRequest("descarga", null, null, null, null, null),
@@ -258,6 +264,9 @@ class PgFeedSimulationTest {
         tripCargo.mount(TENANT_B, FEED_B, trip1, new TripCargoRequest(p1.id(), plan.get(0).id(), plan.get(1).id()));
         assertEquals("OC-78911",
                 trips.mandatesOf(TENANT_B, trip1).get(0).externalCode(), "the convergence came from the cargo");
+        TripLiveRow boardB = live.find(TENANT_B, trip1).orElseThrow();
+        assertEquals("Camarón congelado 20 pallets", boardB.typeLoad());
+        assertTrue(boardB.mandateCodes().contains("OC-78911"), boardB.mandateCodes());
 
         // the OC cannot close while its trip runs, nor unlink while the cargo rides
         assertThrows(IllegalStateException.class, () -> mandates.close(TENANT_B, FEED_B, mandateId));

@@ -19,6 +19,12 @@ import java.util.UUID;
 @IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
 public class AccreditationService {
 
+    private static final String CARRIER = "carrier";
+    private static final String TRUCK = "truck";
+    private static final String TRAILER = "trailer";
+    private static final String DRIVER = "driver";
+    private static final String RESOURCE_TYPE = "resourceType";
+
     /** Without an explicit filter, these values count as accredited/valid. */
     private static final List<String> DEFAULT_OK = List.of("ACCREDITED", "VALID");
 
@@ -33,14 +39,14 @@ public class AccreditationService {
 
     public ResourceAttribute upsert(String tenantCode, String actor, AttributeRequest body) {
         AttributeRequest req = body == null ? AttributeRequest.empty() : body;
-        String type = Check.oneOf(Check.required(req.resourceType(), "resourceType", 16), "resourceType",
-                "carrier", "truck", "trailer", "driver");
+        String type = Check.oneOf(Check.required(req.resourceType(), RESOURCE_TYPE, 16), RESOURCE_TYPE,
+                CARRIER, TRUCK, TRAILER, DRIVER);
         String resourceId = Check.required(req.resourceId(), "resourceId", 64);
         UUID id = ResourceService.parse(resourceId, "resourceId");
         boolean exists = switch (type) {
-            case "carrier" -> resources.findCarrier(tenantCode, id).isPresent();
-            case "truck" -> resources.findTruck(tenantCode, id).isPresent();
-            case "trailer" -> resources.findTrailer(tenantCode, id).isPresent();
+            case CARRIER -> resources.findCarrier(tenantCode, id).isPresent();
+            case TRUCK -> resources.findTruck(tenantCode, id).isPresent();
+            case TRAILER -> resources.findTrailer(tenantCode, id).isPresent();
             default -> resources.findDriver(tenantCode, id).isPresent();
         };
         if (!exists) {
@@ -57,7 +63,7 @@ public class AccreditationService {
     }
 
     public List<ResourceAttribute> listByResource(String tenantCode, String resourceType, UUID resourceId) {
-        Check.oneOf(resourceType, "resourceType", "carrier", "truck", "trailer", "driver");
+        Check.oneOf(resourceType, RESOURCE_TYPE, CARRIER, TRUCK, TRAILER, DRIVER);
         return store.listByResource(tenantCode, resourceType, resourceId);
     }
 

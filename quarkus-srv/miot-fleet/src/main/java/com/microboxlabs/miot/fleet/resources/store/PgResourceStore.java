@@ -62,6 +62,9 @@ public class PgResourceStore implements ResourceStore {
     private static final String UPDATED_BY = "updated_by";
     private static final String CARRIER_ID = "carrier_id";
     private static final String LICENSE_PLATE = "license_plate";
+    private static final String ID = "id";
+    private static final String RUT = "rut";
+    private static final String LEGAL_NAME = "legal_name";
     private static final String FULL_NAME = "full_name";
     private static final String PHONE = "phone";
 
@@ -117,7 +120,7 @@ public class PgResourceStore implements ResourceStore {
             int n = params.size();
             sql.append(" AND (rut ILIKE $").append(n).append(" OR legal_name ILIKE $").append(n).append(')');
         }
-        page(sql, params, "legal_name", page, size);
+        page(sql, params, LEGAL_NAME, page, size);
         return query(pool.get(), sql.toString(), params).stream().map(PgResourceStore::carrier).toList();
     }
 
@@ -328,13 +331,13 @@ public class PgResourceStore implements ResourceStore {
     public Optional<FleetResources.Driver> driverSummary(String tenantCode, UUID id) {
         return first(query(pool.get(), select("rut, full_name, COALESCE(mobile_phone, phone) AS phone", DRIVER)
                 + BY_ID, Tuple.of(tenantCode, id)),
-                r -> new FleetResources.Driver(r.getString("rut"), r.getString(FULL_NAME), r.getString(PHONE)));
+                r -> new FleetResources.Driver(r.getString(RUT), r.getString(FULL_NAME), r.getString(PHONE)));
     }
 
     @Override
     public Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id) {
         return first(query(pool.get(), select("id, legal_name, phone", CARRIER) + BY_ID, Tuple.of(tenantCode, id)),
-                r -> new FleetResources.Carrier(r.getUUID("id"), r.getString("legal_name"), r.getString(PHONE)));
+                r -> new FleetResources.Carrier(r.getUUID(ID), r.getString(LEGAL_NAME), r.getString(PHONE)));
     }
 
     // ---- shared ---------------------------------------------------------
@@ -362,8 +365,8 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Carrier carrier(Row r) {
-        return new Carrier(text(r.getUUID("id")), r.getString(TENANT_CODE), r.getString(EXTERNAL_ID),
-                r.getString("rut"), r.getString("legal_name"), r.getString("transport_license"),
+        return new Carrier(text(r.getUUID(ID)), r.getString(TENANT_CODE), r.getString(EXTERNAL_ID),
+                r.getString(RUT), r.getString(LEGAL_NAME), r.getString("transport_license"),
                 time(r, "transport_license_expires"), r.getString("contact_name"), r.getString(PHONE),
                 r.getString("email"), r.getString(STATUS), r.getBoolean(IS_OCCASIONAL),
                 r.getString(SOURCE_SYSTEM), r.getString(SOURCE_DATA),
@@ -371,7 +374,7 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Truck truck(Row r) {
-        return new Truck(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+        return new Truck(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
                 r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("truck_type"), r.getBigDecimal("max_weight"), r.getBigDecimal("volume"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
@@ -380,7 +383,7 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Trailer trailer(Row r) {
-        return new Trailer(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+        return new Trailer(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
                 r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("trailer_type"), r.getBigDecimal("max_weight"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
@@ -389,8 +392,8 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Driver driver(Row r) {
-        return new Driver(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
-                r.getString(EXTERNAL_ID), r.getString("rut"), r.getString("first_name"),
+        return new Driver(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+                r.getString(EXTERNAL_ID), r.getString(RUT), r.getString("first_name"),
                 r.getString("last_name"), r.getString(FULL_NAME), r.getString(PHONE),
                 r.getString("mobile_phone"), r.getString("license_category"), time(r, "license_expires"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),

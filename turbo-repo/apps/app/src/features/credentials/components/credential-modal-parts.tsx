@@ -1,15 +1,24 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Select } from "flowbite-react";
 import type { UseFormRegisterReturn } from "react-hook-form";
-import { HiCheckCircle, HiTrash, HiXCircle } from "react-icons/hi";
+import {
+  HiCheckCircle,
+  HiChevronRight,
+  HiTrash,
+  HiXCircle,
+} from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
-import type {
-  CredentialListItem,
-  CredentialTestResult,
+import {
+  usagePath,
+  type CredentialListItem,
+  type CredentialTestResult,
+  type CredentialUsage,
 } from "../credential.types";
 
 /**
@@ -50,24 +59,57 @@ interface UsedByPanelProps {
   readonly dict: I18nRecord;
 }
 
-/** Edit-time blast radius: what breaks if this credential changes. */
+/** "Número 123", "Remitente a@b.cl" or the URL, by the connection's provider. */
+function usageDetail(usage: CredentialUsage, dict: I18nRecord): string | null {
+  if (!usage.detail) return null;
+  const key = `usageDetail.${usage.providerType ?? ""}`;
+  const text = trDynamic(key, dict, { detail: usage.detail });
+  return text === key ? usage.detail : text;
+}
+
+function UsageRow({
+  usage,
+  lang,
+  dict,
+}: Readonly<{ usage: CredentialUsage; lang: string; dict: I18nRecord }>) {
+  const detail = usageDetail(usage, dict);
+  return (
+    <li>
+      <Link
+        href={`/${lang}${usagePath(usage)}`}
+        className="group flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/50"
+      >
+        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+          {trDynamic(`usageKinds.${usage.kind}`, dict)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-400">
+            {usage.label}
+          </span>
+          {detail && (
+            <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+              {detail}
+            </span>
+          )}
+        </span>
+        <HiChevronRight className="h-4 w-4 shrink-0 text-gray-400 group-hover:text-blue-600" />
+      </Link>
+    </li>
+  );
+}
+
+/** Edit-time blast radius: what breaks if this credential changes, each linked to where it is managed. */
 export function UsedByPanel({ credential, dict }: UsedByPanelProps) {
+  const params = useParams<{ lang?: string }>();
+  const lang = params?.lang ?? "es";
   return (
     <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
       <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
         {tr("modal.usedBy", dict)}
       </div>
-      <ul className="mt-2 flex flex-col gap-1">
+      <ul className="mt-2 flex flex-col gap-0.5">
         {credential.usedBy.map((usage) => (
-          <li
-            key={usage.id}
-            className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
-          >
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-              {trDynamic(`usageKinds.${usage.kind}`, dict)}
-            </span>
-            {usage.label}
-          </li>
+          <UsageRow key={usage.id} usage={usage} lang={lang} dict={dict} />
         ))}
       </ul>
     </div>

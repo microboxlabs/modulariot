@@ -1,3 +1,5 @@
+import type { ComponentType, SVGProps } from "react";
+import { Whatsapp } from "flowbite-react-icons/solid";
 import { z } from "zod";
 
 /**
@@ -18,6 +20,7 @@ export type CredentialTypeId =
   | "API_KEY"
   | "BEARER_TOKEN"
   | "RESEND"
+  | "WHATSAPP"
   | "BASIC_AUTH";
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
@@ -31,6 +34,24 @@ export interface CredentialUsage {
   readonly id: string;
   readonly label: string;
   readonly kind: CredentialUsageKind;
+  /** The connection's provider, e.g. WHATSAPP or CUSTOM_HTTP. */
+  readonly providerType?: string;
+  /** What identifies the connection: the WhatsApp number id, the sender, or the URL. */
+  readonly detail?: string | null;
+}
+
+/** The settings page where a credential's consumer is managed. */
+export function usagePath(usage: CredentialUsage): string {
+  switch (usage.kind) {
+    case "CHANNEL":
+      return "/users/settings/organizations";
+    case "DATA_SOURCE":
+      return "/users/settings/data-sources";
+    case "JOB":
+      return "/integrations";
+    default:
+      return "/users/settings/connections";
+  }
 }
 
 export interface CredentialListItem {
@@ -164,6 +185,8 @@ export interface CredentialTypeDescriptor {
   readonly supportsTest: boolean;
   /** Omit to fall back to {@link DEFAULT_CREDENTIAL_LOGO}. */
   readonly logo?: CredentialLogo;
+  /** An icon from the app's icon library, drawn in the text colour; takes the place of `logo`. */
+  readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
 /** Neutral key mark (PNG) used when a type ships no logo of its own. */
@@ -257,11 +280,20 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     descriptionKey: "types.resend.description",
     available: true,
     supportsTest: false,
-    // Monochrome mark, so it needs per-theme ink.
+    // Monochrome mark in the gray of the library icons, with per-theme ink.
     logo: {
       light: "/credential-logos/resend-light.svg",
       dark: "/credential-logos/resend-dark.svg",
     },
+  },
+  {
+    // A bearer token tagged with WHATSAPP_PROVIDER: a Meta app's access token for a WhatsApp channel.
+    id: "WHATSAPP",
+    nameKey: "types.whatsapp.name",
+    descriptionKey: "types.whatsapp.description",
+    available: true,
+    supportsTest: false,
+    icon: Whatsapp,
   },
   {
     id: "BASIC_AUTH",
@@ -514,7 +546,7 @@ export const BearerTokenCredentialEditSchema =
 export type BearerTokenFormData = z.infer<
   typeof BearerTokenCredentialSchema
 > & {
-  /** {@link RESEND_PROVIDER} on a Resend API key; absent on a plain bearer token. */
+  /** {@link RESEND_PROVIDER} or {@link WHATSAPP_PROVIDER}; absent on a plain bearer token. */
   provider?: string;
 };
 
@@ -531,6 +563,18 @@ export const ResendCredentialSchema =
 
 export const ResendCredentialEditSchema =
   BearerTokenCredentialEditSchema.extend(providerField);
+
+/** Marks a bearer credential as a WhatsApp (Meta) access token, like {@link RESEND_PROVIDER}. */
+export const WHATSAPP_PROVIDER = "whatsapp";
+
+const whatsAppProviderField = { provider: z.literal(WHATSAPP_PROVIDER) };
+
+export const WhatsAppCredentialSchema = BearerTokenCredentialSchema.extend(
+  whatsAppProviderField
+);
+
+export const WhatsAppCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(whatsAppProviderField);
 
 /**
  * Any credential form's data. The list/create/update paths are type-agnostic —

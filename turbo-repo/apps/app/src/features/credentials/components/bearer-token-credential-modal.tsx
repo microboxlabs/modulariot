@@ -9,6 +9,9 @@ import {
   RESEND_PROVIDER,
   ResendCredentialEditSchema,
   ResendCredentialSchema,
+  WHATSAPP_PROVIDER,
+  WhatsAppCredentialEditSchema,
+  WhatsAppCredentialSchema,
   type BearerTokenFormData,
   type CredentialListItem,
 } from "../credential.types";
@@ -39,12 +42,24 @@ const RESEND_CHROME: CredentialFormChrome = {
   logoAltKey: "types.resend.name",
 };
 
+const WHATSAPP_CHROME: CredentialFormChrome = {
+  typeId: "WHATSAPP",
+  idPrefix: "whatsapp",
+  addTitleKey: "modal.whatsappAddTitle",
+  editTitleKey: "modal.whatsappEditTitle",
+  subtitleKey: "modal.whatsappSubtitle",
+  logoAltKey: "types.whatsapp.name",
+};
+
 interface TokenVariant {
   readonly chrome: CredentialFormChrome;
   readonly provider?: string;
   readonly schema: typeof BearerTokenCredentialSchema;
   readonly editSchema: typeof BearerTokenCredentialEditSchema;
-  readonly helpKey: "modal.tokenHelp" | "modal.resendTokenHelp";
+  readonly helpKey:
+    | "modal.tokenHelp"
+    | "modal.resendTokenHelp"
+    | "modal.whatsappTokenHelp";
 }
 
 const BEARER: TokenVariant = {
@@ -62,6 +77,14 @@ const RESEND: TokenVariant = {
   helpKey: "modal.resendTokenHelp",
 };
 
+const WHATSAPP: TokenVariant = {
+  chrome: WHATSAPP_CHROME,
+  provider: WHATSAPP_PROVIDER,
+  schema: WhatsAppCredentialSchema,
+  editSchema: WhatsAppCredentialEditSchema,
+  helpKey: "modal.whatsappTokenHelp",
+};
+
 /** Create/edit form for a static bearer token. The token is write-only. */
 export function BearerTokenCredentialModal(
   props: CredentialModalProps<BearerTokenFormData>
@@ -74,6 +97,13 @@ export function ResendCredentialModal(
   props: CredentialModalProps<BearerTokenFormData>
 ) {
   return <TokenCredentialModal {...props} variant={RESEND} />;
+}
+
+/** Create/edit form for a WhatsApp (Meta) access token: a bearer token tagged as WhatsApp. */
+export function WhatsAppCredentialModal(
+  props: CredentialModalProps<BearerTokenFormData>
+) {
+  return <TokenCredentialModal {...props} variant={WHATSAPP} />;
 }
 
 function TokenCredentialModal(

@@ -2565,6 +2565,11 @@
         "description": "Reusable identities and secrets. Configure once, then reference them from data sources, integrations and jobs.",
         "addButton": "Add credential",
         "list": {
+          "colCredential": "Credential",
+          "colType": "Type",
+          "colEnvironment": "Environment",
+          "colUsedBy": "Used by",
+          "colUpdated": "Updated",
           "usedByCount": "Used by {count}",
           "unused": "Not used yet",
           "empty": "No credentials yet. Add one to get started.",
@@ -2591,11 +2596,17 @@
           "QA": "QA",
           "PRODUCTION": "Production"
         },
+        "viewCards": "▦ Cards",
+        "viewList": "☰ List",
         "usageKinds": {
           "DATA_SOURCE": "Data source",
           "INTEGRATION": "Integration",
           "JOB": "Job",
           "CHANNEL": "Channel"
+        },
+        "usageDetail": {
+          "WHATSAPP": "Number {detail}",
+          "RESEND": "Sender {detail}"
         },
         "types": {
           "azureEntra": {
@@ -2625,6 +2636,10 @@
           "resend": {
             "name": "Resend",
             "description": "A Resend API key, for sending email such as team invitations."
+          },
+          "whatsapp": {
+            "name": "WhatsApp",
+            "description": "A Meta app's access token, for the WhatsApp channel."
           },
           "basic": {
             "name": "Basic auth",
@@ -2743,7 +2758,11 @@
           "resendAddTitle": "New Resend key",
           "resendEditTitle": "Edit Resend key",
           "resendSubtitle": "The key the email channel sends with. A send-only key is enough.",
-          "resendTokenHelp": "Starts with re_. Stored encrypted and never returned."
+          "resendTokenHelp": "Starts with re_. Stored encrypted and never returned.",
+          "whatsappAddTitle": "New WhatsApp token",
+          "whatsappEditTitle": "Edit WhatsApp token",
+          "whatsappSubtitle": "The access token the WhatsApp channel calls the Meta API with.",
+          "whatsappTokenHelp": "A Meta system user token. Stored encrypted and never returned."
         },
         "delete": {
           "title": "Delete this credential?",

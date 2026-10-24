@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import Link from "next/link";
-import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
+import {
+  SETTINGS_SECTION_LABEL,
+  useSidebarContext,
+} from "@/features/sidebar/context/sidebar-context";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { pathNameWithoutLanguage, isSegmentPrefix } from "../../utils/utils";
 import { tr } from "@/features/i18n/tr.service";
@@ -13,8 +16,6 @@ import type { SidebarItem } from "../../types/common.types";
 import MobileSidebarItem from "./mobile-sidebar-item";
 import MobileSecondaryPanel from "./mobile-secondary-panel";
 import LifeSaver from "../bottom-menu/LifeSaver";
-
-const SETTINGS_SECTION_LABEL = "settings";
 
 function isItemActive(item: SidebarItem, pathname: string): boolean {
   if (item.href && isSegmentPrefix(item.href, pathname)) return true;
@@ -47,7 +48,7 @@ function findActiveSectionLabel(
 
 export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
   const pathname = pathNameWithoutLanguage(usePathname());
-  const { isOpen, close } = useSidebarContext().mobile;
+  const { isOpen, initialSection, close } = useSidebarContext().mobile;
   const { items, totals } = useSidebarNavigation();
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const settingsItem = items.find(
@@ -59,10 +60,12 @@ export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
   const prevIsOpen = useRef(false);
   useEffect(() => {
     if (isOpen && !prevIsOpen.current) {
-      setActiveSection(findActiveSectionLabel(items, pathname));
+      setActiveSection(
+        initialSection ?? findActiveSectionLabel(items, pathname)
+      );
     }
     prevIsOpen.current = isOpen;
-  }, [isOpen, items, pathname]);
+  }, [isOpen, initialSection, items, pathname]);
 
   if (!isOpen) return null;
 

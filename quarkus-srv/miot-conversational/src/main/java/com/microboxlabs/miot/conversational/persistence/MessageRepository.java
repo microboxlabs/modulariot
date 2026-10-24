@@ -96,6 +96,28 @@ public class MessageRepository {
             LIMIT 1
             """;
 
+    // The newest message sent to a phone through a connection of the given tenant, with the tenant of its
+    // conversation. Uses idx_wa_message_whatsapp_outbound_address; only real sends count. The waiting variant
+    // keeps those of a WAITING, non-test run of the conversation's own tenant.
+    private static final String SELECT_LATEST_OUTBOUND_VIA = """
+            SELECT m.id, m.conversation_id, m.run_id, m.step, c.tenant_code
+            FROM miot_conversational.wa_message m
+            JOIN miot_conversational.wa_conversation c ON c.id = m.conversation_id
+            WHERE m.channel = 'whatsapp' AND m.direction = 'OUTBOUND' AND m.address = $1
+              AND m.metadata->>'connectionTenant' = $2
+              AND m.status NOT IN ('SIMULATED', 'FAILED')
+            """;
+    private static final String NEWEST = """
+            ORDER BY m.created_at DESC
+            LIMIT 1
+            """;
+    private static final String SELECT_LATEST_OUTBOUND_VIA_ANY = SELECT_LATEST_OUTBOUND_VIA + NEWEST;
+    private static final String SELECT_LATEST_OUTBOUND_VIA_WAITING = SELECT_LATEST_OUTBOUND_VIA + """
+              AND EXISTS (SELECT 1 FROM miot_conversational.conv_run r
+                          WHERE r.id = m.run_id AND r.status = 'WAITING' AND NOT r.test
+                            AND r.tenant_code = c.tenant_code)
+            """ + NEWEST;
+
     private static final String SELECT_BY_ID = SELECT + """
             FROM miot_conversational.wa_message
             WHERE id = $1
@@ -210,6 +232,32 @@ public class MessageRepository {
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    /** An outbound message with the tenant of its conversation. */
+    public record OutboundRef(String messageId, String conversationId, String tenantCode, String runId,
+            Integer step) {
+    }
+
+    /**
+     * The newest WhatsApp message sent to {@code address} through a connection of {@code connectionTenant}, or
+     * null. With {@code waitingRun}, only a message of a run that still waits for a reply.
+     */
+    public OutboundRef findLatestOutboundVia(String address, String connectionTenant, boolean waitingRun) {
+        if (address == null || connectionTenant == null) {
+            return null;
+        }
+        var rows = client().preparedQuery(waitingRun ? SELECT_LATEST_OUTBOUND_VIA_WAITING
+                        : SELECT_LATEST_OUTBOUND_VIA_ANY)
+                .execute(Tuple.of(address, connectionTenant))
+                .await().indefinitely()
+                .iterator();
+        if (!rows.hasNext()) {
+            return null;
+        }
+        Row row = rows.next();
+        return new OutboundRef(row.getUUID("id").toString(), row.getUUID("conversation_id").toString(),
+                row.getString("tenant_code"), uuidString(row.getUUID("run_id")), row.getInteger("step"));
     }
 
     static UUID parseUuidOrNull(String value) {

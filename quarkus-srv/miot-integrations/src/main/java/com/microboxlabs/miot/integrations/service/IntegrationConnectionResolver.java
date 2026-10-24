@@ -36,13 +36,14 @@ public class IntegrationConnectionResolver {
     }
 
     /**
-     * @throws ConnectionResolutionException if no usable connection of {@code providerType}
-     *         is configured for {@code tenantCode}, or its credential cannot be read.
+     * @throws ConnectionNotConfiguredException if no connection of {@code providerType} is configured for
+     *         {@code tenantCode}
+     * @throws ConnectionResolutionException if its credential cannot be read
      */
     public ResolvedConnection resolve(String tenantCode, ProviderType providerType) {
         IntegrationConnection connection = connectionRepository.findActiveByProvider(tenantCode, providerType);
         if (connection == null) {
-            throw new ConnectionResolutionException(
+            throw new ConnectionNotConfiguredException(
                     "No usable " + providerType + " connection is configured for this organization");
         }
         return withCredential(tenantCode, connection, providerType.toString());

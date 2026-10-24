@@ -14,6 +14,7 @@ import com.microboxlabs.miot.integrations.dto.CredentialTestRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialTestResponse;
 import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
+import com.microboxlabs.miot.integrations.email.ResendEmailSender;
 import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
@@ -273,8 +274,23 @@ public class CredentialProfileService {
                 IntegrationConnection::credentialProfileId,
                 Collectors.mapping(
                         connection -> new CredentialUsageResponse(
-                                connection.id(), connection.name(), usageKind(connection.providerType())),
+                                connection.id(), connection.name(), usageKind(connection.providerType()),
+                                connection.providerType(), usageDetail(connection)),
                         Collectors.toList())));
+    }
+
+    /** What identifies the connection in a "used by" row. */
+    static String usageDetail(IntegrationConnection connection) {
+        String key = switch (connection.providerType()) {
+            case WHATSAPP -> "phone_number_id";
+            case RESEND -> ResendEmailSender.FROM;
+            case null, default -> null;
+        };
+        if (key == null) {
+            return connection.baseUrl() == null ? null : connection.baseUrl().toString();
+        }
+        Object value = connection.metadata() == null ? null : connection.metadata().get(key);
+        return value == null ? null : value.toString();
     }
 
     private static CredentialUsageKind usageKind(ProviderType providerType) {

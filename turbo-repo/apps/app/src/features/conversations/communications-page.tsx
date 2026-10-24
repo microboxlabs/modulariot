@@ -38,7 +38,7 @@ import {
   sectionOf,
 } from "./communications-sections";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
-import LayoutToggle from "./layout-toggle";
+import LayoutToggle from "@/features/common/components/layout-toggle";
 import NewRuleModal, {
   type NewRulePrefill,
   prefillFrom,
@@ -186,7 +186,14 @@ export default function CommunicationsPage({
               ))}
               {section === "rules" && (
                 <div className="ml-auto">
-                  <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
+                  <LayoutToggle
+                    layout={layout}
+                    labels={{
+                      cards: tr("viewCards", d),
+                      list: tr("viewList", d),
+                    }}
+                    onLayout={setLayout}
+                  />
                 </div>
               )}
             </div>

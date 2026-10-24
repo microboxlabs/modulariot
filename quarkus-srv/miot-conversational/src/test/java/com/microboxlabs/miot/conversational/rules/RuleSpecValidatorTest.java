@@ -134,6 +134,34 @@ class RuleSpecValidatorTest {
     }
 
     @Test
+    void aWebhookStepNeedsAConnectionButNoRecipientsNorTemplate() {
+        assertEquals(List.of(), validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "webhook", "connection": "conn-9"},
+                           {"channel": "webhook", "connection": "conn-9", "template": "panic-check"}]}
+                """));
+
+        Finding finding = only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}],
+                 "steps": [{"channel": "webhook", "to": []}]}
+                """), "stepWebhookNoConnection");
+        assertEquals("steps.0", finding.section());
+        assertEquals(Severity.ERROR, finding.severity());
+        assertEquals(Map.of("step", 1), finding.params());
+    }
+
+    @Test
+    void aWebhookStepCannotWaitForAReplyAndItsTemplateMustExist() {
+        List<Finding> findings = validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "webhook", "connection": "conn-9", "template": "nope", "waitForReply": 5}]}
+                """);
+        assertEquals(Map.of("channel", "webhook", "step", 1), only(findings, "stepWaitNeedsReplies").params());
+        only(findings, "stepUnknownTemplate");
+        assertEquals(2, findings.size(), findings.toString());
+    }
+
+    @Test
     void aFixedAddressNeedsItsChannel() {
         Finding finding = only(validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"address": "+56900000000"}, {}],

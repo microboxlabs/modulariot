@@ -6,7 +6,7 @@ import java.util.Objects;
 
 /**
  * How much a publish changes a rule, and so its next semantic version. MAJOR: the event. MINOR: the condition,
- * the recipients, a step added, removed or moved, or a step's channel or recipients. PATCH: only a step's
+ * the recipients, a step added, removed or moved, or a step's channel, recipients or connection. PATCH: only a step's
  * minutes, template or what it does on a reply. Declared from smallest to largest.
  */
 public enum RuleBump {
@@ -61,7 +61,7 @@ public enum RuleBump {
             RuleSpec.Step a = before.get(i);
             RuleSpec.Step b = after.get(i);
             if (!Objects.equals(a.channel(), b.channel()) || !Objects.equals(a.to(), b.to())
-                    || a.toInvalid() != b.toInvalid()) {
+                    || a.toInvalid() != b.toInvalid() || !Objects.equals(a.connection(), b.connection())) {
                 return true;
             }
         }

@@ -17,6 +17,8 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
     public static final String WHATSAPP = "whatsapp";
     public static final String EMAIL = "email";
     public static final String PREFERRED = "preferred";
+    /** Calls the step's integration connection once, whoever the audience is. */
+    public static final String WEBHOOK = "webhook";
     public static final String STOP = "stop";
     public static final String CONTINUE = "continue";
 
@@ -32,12 +34,18 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
      * One message to send.
      *
      * @param after        minutes after the previous step finished waiting; null is 0
-     * @param to           null when the step goes to the rule's audience, else its own recipients
+     * @param to           null when the step goes to the rule's audience, else its own recipients; unused by a
+     *                     webhook step
      * @param waitForReply minutes to wait for a reply; null is 0
      * @param onReply      {@code stop} (the default) or {@code continue}
+     * @param connection   the integration connection a webhook step calls
      */
     public record Step(Integer after, String channel, String template, List<Audience> to, boolean toInvalid,
-            Integer waitForReply, String onReply) {
+            Integer waitForReply, String onReply, String connection) {
+
+        public boolean webhook() {
+            return WEBHOOK.equalsIgnoreCase(channel);
+        }
 
         public int afterMinutes() {
             return after == null ? 0 : Math.max(0, after);
@@ -94,7 +102,7 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
             invalid = true;
         }
         return new Step(integer(s, "after"), text(s, "channel"), text(s, "template"), recipients, invalid,
-                integer(s, "waitForReply"), text(s, "onReply"));
+                integer(s, "waitForReply"), text(s, "onReply"), text(s, "connection"));
     }
 
     private static Audience audience(JsonNode a) {

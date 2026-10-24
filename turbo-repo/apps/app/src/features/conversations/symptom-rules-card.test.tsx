@@ -20,7 +20,7 @@ const rule = (patch: Partial<RuleSummary>): RuleSummary => ({
   key: "panic-driver",
   name: "Pánico: conductor",
   state: "TEST",
-  currentVersion: 1,
+  currentVersion: "0.1.0",
   hasDraft: false,
   trigger: {
     event: "symptom.case.opened",

@@ -7,7 +7,7 @@ import {
   saveRuleDraft,
   useConversationRule,
 } from "./conversations-api";
-import type { RuleFinding, RuleSpec } from "./conversations-types";
+import type { RuleBump, RuleFinding, RuleSpec } from "./conversations-types";
 import { normalizeSpec } from "./rule-model";
 
 const SAVE_DELAY_MS = 600;
@@ -116,9 +116,9 @@ export function useRuleDraft(id: string) {
   }, [enqueue]);
 
   const publish = useCallback(
-    async (reason: string) => {
+    async (reason: string, bump: RuleBump | null = null) => {
       await flush();
-      await publishRule(id, reason);
+      await publishRule(id, reason, bump);
       await refreshRules(id);
     },
     [flush, id]

@@ -24,7 +24,7 @@ public class RunsService {
     }
 
     /** {@code symptomName} and {@code assetId} come from the event of a {@code symptom_case} run; null otherwise. */
-    public record RunView(String id, String ruleId, String ruleName, int ruleVersion, String eventId,
+    public record RunView(String id, String ruleId, String ruleName, String ruleVersion, String eventId,
             String eventType, String contextKind, String contextKey, String symptomName, String assetId,
             boolean test, Run.Status status, int step, Instant nextAt, String lastError, Instant createdAt,
             Instant updatedAt, List<RunMessageView> messages) {

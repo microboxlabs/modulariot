@@ -21,9 +21,9 @@ import { MUTED } from "./ui/card";
 import { LevelIcon } from "./ui/level-icon";
 import { StatePill } from "./ui/state";
 
-const TAG =
+export const TAG =
   "rounded-md bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-700 dark:text-gray-200";
-const DRAFT_TAG =
+export const DRAFT_TAG =
   "rounded bg-amber-100 px-1.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
 
 export function channelGroupLabel(g: ChannelGroup, d: I18nRecord) {

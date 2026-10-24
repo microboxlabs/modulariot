@@ -3,6 +3,7 @@ package com.microboxlabs.miot.conversational.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.client.MetaGraphException;
 import com.microboxlabs.miot.conversational.rules.Rule;
+import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.RulesService;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator;
@@ -80,7 +81,8 @@ public class OrgConversationsResource {
     public record DraftRequest(JsonNode spec) {
     }
 
-    public record PublishRequest(String reason) {
+    /** {@code bump} may raise the computed bump; null keeps it. */
+    public record PublishRequest(String reason, RuleBump bump) {
     }
 
     public record StateRequest(Rule.State state) {
@@ -175,14 +177,15 @@ public class OrgConversationsResource {
     @POST
     @Path("/rules/{id}/publish")
     @Operation(operationId = "publishConversationRule",
-            summary = "Publish the draft as the next version; 409 with the findings when it has errors")
+            summary = "Publish the draft as the semantic version its changes call for; 409 with the findings when it has errors")
     public Uni<Response> publish(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
             PublishRequest body) {
         String tenant = tenantCode(organizationId);
         String who = actor.get();
         return write(organizationId, () -> {
             try {
-                return Response.ok(service.publish(tenant, id, body == null ? null : body.reason(), who)).build();
+                return Response.ok(service.publish(tenant, id, body == null ? null : body.reason(),
+                        body == null ? null : body.bump(), who)).build();
             } catch (RulesService.NotPublishable e) {
                 Map<String, Object> entity = new LinkedHashMap<>();
                 entity.put(ERROR, e.getMessage());

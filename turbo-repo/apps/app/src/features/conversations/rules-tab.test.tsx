@@ -19,7 +19,7 @@ const PANIC: RuleSummary = {
   key: "panic",
   name: "Botón de pánico",
   state: "ACTIVE",
-  currentVersion: 2,
+  currentVersion: "0.2.0",
   hasDraft: true,
   trigger: { event: "symptom.case.opened", when: null },
   stepsCount: 2,
@@ -92,8 +92,26 @@ describe("RulesTab", () => {
     ).toBe("/es/users/settings/communications/rules/r1");
     expect(within(row).getByText("2 pasos")).toBeTruthy();
     expect(within(row).getByText("Activa")).toBeTruthy();
-    expect(within(row).getByText("Borrador")).toBeTruthy();
-    expect(within(row).getByText("v2")).toBeTruthy();
+    expect(within(row).getByText("borrador")).toBeTruthy();
+    expect(within(row).getByText("v0.2.0")).toBeTruthy();
     expect(screen.getByText("Sin publicar")).toBeTruthy();
+  });
+
+  it("lays a card out like a symptom card: event under the name, tags, version at the foot", () => {
+    render(
+      <RulesTab lang="es" filters={NO_RULE_FILTERS} layout="cards" d={d} />
+    );
+    const card = screen
+      .getByText("Botón de pánico")
+      .closest("a") as HTMLElement;
+    expect(card.getAttribute("href")).toBe(
+      "/es/users/settings/communications/rules/r1"
+    );
+    expect(within(card).getByText("Se abre un caso de síntoma")).toBeTruthy();
+    expect(within(card).getByText("Activa")).toBeTruthy();
+    expect(within(card).getByText("2 pasos")).toBeTruthy();
+    expect(within(card).getAllByText("WhatsApp").length).toBeGreaterThan(0);
+    expect(within(card).getByText("v0.2.0")).toBeTruthy();
+    expect(within(card).getByText("borrador")).toBeTruthy();
   });
 });

@@ -17,7 +17,7 @@ const RUN: ConversationRun = {
   id: "run1",
   ruleId: "r1",
   ruleName: "Botón de pánico",
-  ruleVersion: 1,
+  ruleVersion: "0.1.0",
   eventId: "e1",
   eventType: "symptom.case.opened",
   contextKind: "symptom_case",

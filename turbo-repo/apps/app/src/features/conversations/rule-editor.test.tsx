@@ -27,11 +27,11 @@ const DETAIL: RuleDetail = {
     key: "panic-driver",
     name: "Pánico: conductor",
     state: "TEST",
-    currentVersion: 1,
+    currentVersion: "0.1.0",
   },
   current: {
     id: "v1",
-    version: 1,
+    version: "0.1.0",
     status: "PUBLISHED",
     spec: SPEC,
     reason: null,

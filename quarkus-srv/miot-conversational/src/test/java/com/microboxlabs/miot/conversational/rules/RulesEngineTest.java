@@ -56,7 +56,7 @@ class RulesEngineTest {
         assertEquals(T0, run.nextAt());
         assertEquals("symptom_case", run.contextKind());
         assertEquals("-2", run.contextKey());
-        assertEquals(1, run.ruleVersion());
+        assertEquals("0.1.0", run.ruleVersion());
         assertFalse(run.test());
         assertEquals(4, f.store.events.size(), "every event is stored");
     }

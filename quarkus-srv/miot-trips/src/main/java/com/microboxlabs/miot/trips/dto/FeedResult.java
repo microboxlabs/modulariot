@@ -3,7 +3,7 @@ package com.microboxlabs.miot.trips.dto;
 import java.util.List;
 
 /**
- * What a reconcile decided and did for one service. {@code action} is create, update, close, skip (nothing to
+ * What a reconcile decided and did for one service. {@code action} is create, update, skip (nothing to
  * do) or report (cannot be created: see {@code errors}). {@code operations} are the
  * steps done, or the steps it would do when {@code dryRun}. {@code warnings} do not stop it.
  */

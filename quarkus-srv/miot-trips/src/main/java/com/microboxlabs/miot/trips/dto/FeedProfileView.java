@@ -8,17 +8,15 @@ public record FeedProfileView(
         String feedKey,
         String name,
         List<FeedProfile.StagePlan> stages,
-        String departureStage,
-        String closeStage,
-        int closeToleranceMinutes,
+        String arrivalStage,
+        String monitor,
         List<String> requiredResources,
         boolean active,
         OffsetDateTime updatedAt,
         String updatedBy) {
 
     public static FeedProfileView of(FeedProfile p) {
-        return new FeedProfileView(p.feedKey(), p.name(), p.stages(), p.departureStage(), p.closeStage(),
-                p.closeToleranceMinutes(), List.copyOf(p.requiredResources()), p.active(), p.updatedAt(),
-                p.updatedBy());
+        return new FeedProfileView(p.feedKey(), p.name(), p.stages(), p.arrivalStage(), p.monitor(),
+                List.copyOf(p.requiredResources()), p.active(), p.updatedAt(), p.updatedBy());
     }
 }

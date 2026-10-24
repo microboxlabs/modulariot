@@ -123,8 +123,8 @@ class WhatsAppRuleSendTest {
     void aReplyNamesAConversationOfTheOrganizationWithThatRecipient() {
         connections.put(TENANT, connection("conn-org", "ORG-PNID"));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.send(TENANT, reply("00000000-0000-0000-0000-000000000099"), "user-1"));
+        SendWhatsAppMessageRequest request = reply("00000000-0000-0000-0000-000000000099");
+        assertThrows(IllegalArgumentException.class, () -> service.send(TENANT, request, "user-1"));
         assertTrue(sentFrom.isEmpty());
     }
 

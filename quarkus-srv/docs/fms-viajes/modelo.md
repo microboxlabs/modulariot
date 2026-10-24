@@ -176,5 +176,5 @@ Columnas en cada tabla de registro: `version_of UUID` (NULL = vigente), `is_acti
 
 | Service | Regla |
 |---|---|
-| `AssignmentService` | el recurso asignado existe en `miot_fleet` para el tenant (400) |
+| `AssignmentService` | el recurso asignado existe en `miot_fleet` para el tenant y no está `inactive` (400) |
 | `MandateService.requireOpen` | un mandato cerrado o anulado no toma viajes nuevos, directo ni por carga montada (409) |

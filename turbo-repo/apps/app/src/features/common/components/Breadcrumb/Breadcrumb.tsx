@@ -13,6 +13,9 @@ import {
   useOptionalSidebarContext,
 } from "@/features/sidebar/context/sidebar-context";
 
+/** Tailwind's lg: SecuredSidebar shows the desktop sidebar from here and the mobile one below. */
+const DESKTOP_SIDEBAR_QUERY = "(min-width: 1024px)";
+
 interface BreadcrumbProps {
   path: string[];
   lang?: string;
@@ -120,11 +123,18 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
         <BreadcrumbItem key={key}>
           <button
             type="button"
-            onClick={() =>
-              sidebar.desktop.setActiveSection(SETTINGS_SECTION_LABEL)
-            }
+            onClick={() => {
+              // Below lg the desktop sidebar is hidden: open the mobile one on Ajustes.
+              if (globalThis.matchMedia?.(DESKTOP_SIDEBAR_QUERY).matches) {
+                sidebar.desktop.setActiveSection(SETTINGS_SECTION_LABEL);
+              } else {
+                sidebar.mobile.openSection(SETTINGS_SECTION_LABEL);
+              }
+            }}
             aria-expanded={
-              sidebar.desktop.activeSection === SETTINGS_SECTION_LABEL
+              sidebar.desktop.activeSection === SETTINGS_SECTION_LABEL ||
+              (sidebar.mobile.isOpen &&
+                sidebar.mobile.initialSection === SETTINGS_SECTION_LABEL)
             }
             className="cursor-pointer hover:text-gray-900 hover:underline underline-offset-2 dark:hover:text-white"
           >

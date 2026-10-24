@@ -9,8 +9,6 @@ import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.domain.MessageType;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
-import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
-import com.microboxlabs.miot.integrations.service.OperationInvocationException;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -68,7 +66,8 @@ public class ConnectionMessagingService {
                 metadata.put(HTTP_STATUS, result.status());
                 status = result.successful() ? MessageStatus.SENT : MessageStatus.FAILED;
                 errorMessage = result.successful() ? null : result.summary();
-            } catch (OperationInvocationException | ConnectionResolutionException e) {
+            } catch (RuntimeException e) {
+                // The invoker rethrows other runtime errors as is, such as the outbound URL guard's.
                 status = MessageStatus.FAILED;
                 errorMessage = e.getMessage();
             }

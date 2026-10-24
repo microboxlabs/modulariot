@@ -75,7 +75,8 @@ class PlatformWhatsAppServiceTest {
 
     @Test
     void theFirstSaveNeedsAToken() {
-        assertThrows(IllegalArgumentException.class, () -> service.put(request(""), "owner"));
+        SetPlatformWhatsAppRequest noToken = request("");
+        assertThrows(IllegalArgumentException.class, () -> service.put(noToken, "owner"));
         assertTrue(rows.isEmpty());
     }
 
@@ -109,23 +110,25 @@ class PlatformWhatsAppServiceTest {
     void anOrganizationsNumberCannotBeTaken() {
         rows.put("org-conn", connection("org-conn", "tenant-1", "100000000000001"));
 
-        assertThrows(IllegalStateException.class, () -> service.put(request("tok-1"), "owner"));
+        SetPlatformWhatsAppRequest taken = request("tok-1");
+        assertThrows(IllegalStateException.class, () -> service.put(taken, "owner"));
         assertEquals(1, rows.size());
     }
 
     @Test
     void malformedFieldsAreRefused() {
-        assertThrows(IllegalArgumentException.class, () -> service.put(new SetPlatformWhatsAppRequest(
-                "abc", "200000000000002", null, null, null, "t", false, null), "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.put(new SetPlatformWhatsAppRequest(
-                "100000000000001", null, null, null, null, "t", false, null), "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.put(new SetPlatformWhatsAppRequest(
-                "100000000000001", "200000000000002", null, "25", null, "t", false, null), "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.put(new SetPlatformWhatsAppRequest(
-                "100000000000001", "200000000000002", null, null, "http://graph.example.test", "t", false, null),
-                "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.put(new SetPlatformWhatsAppRequest(
-                "100000000000001", "200000000000002", null, null, null, "t", true, List.of()), "owner"));
+        List<SetPlatformWhatsAppRequest> malformed = List.of(
+                new SetPlatformWhatsAppRequest("abc", "200000000000002", null, null, null, "t", false, null),
+                new SetPlatformWhatsAppRequest("100000000000001", null, null, null, null, "t", false, null),
+                new SetPlatformWhatsAppRequest("100000000000001", "200000000000002", null, "25", null, "t", false,
+                        null),
+                new SetPlatformWhatsAppRequest("100000000000001", "200000000000002", null, null,
+                        "http://graph.example.test", "t", false, null),
+                new SetPlatformWhatsAppRequest("100000000000001", "200000000000002", null, null, null, "t", true,
+                        List.of()));
+        for (SetPlatformWhatsAppRequest bad : malformed) {
+            assertThrows(IllegalArgumentException.class, () -> service.put(bad, "owner"), bad.toString());
+        }
         assertThrows(IllegalArgumentException.class, () -> service.put(null, "owner"));
     }
 

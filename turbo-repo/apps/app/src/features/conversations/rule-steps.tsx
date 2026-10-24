@@ -178,10 +178,11 @@ function StepRow({
             value={step.channel}
             onChange={(e) => {
               const channel = e.target.value as RuleChannel;
+              // A connection belongs to one channel: a Slack webhook is not a Teams one.
               onSet(
                 REPLY_CHANNELS.has(channel)
-                  ? { channel }
-                  : { channel, waitForReply: 0 }
+                  ? { channel, connection: undefined }
+                  : { channel, connection: undefined, waitForReply: 0 }
               );
             }}
           >

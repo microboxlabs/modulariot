@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -230,7 +231,7 @@ class PgRuleStoresTest {
     void aReplyOnThePlatformNumberFindsTheNewestPlatformSendToThePhone() throws Exception {
         String tenantA = "tenant-" + UUID.randomUUID();
         String tenantB = "tenant-" + UUID.randomUUID();
-        String phone = "+5690" + (1_000_000 + (int) (Math.random() * 8_999_999));
+        String phone = "+5690" + ThreadLocalRandom.current().nextInt(1_000_000, 9_999_999);
         Rule rule = rule(tenantA, "panic");
         StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenantA,
                 "symptom.case.opened", "miot-symptoms", "symptom_case", "-7", Map.of(), false, T0, T0));

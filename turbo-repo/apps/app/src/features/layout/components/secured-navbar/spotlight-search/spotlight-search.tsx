@@ -36,7 +36,10 @@ import { SpotlightEmptyState } from "./spotlight-empty-state";
 import { SpotlightFooter } from "./spotlight-footer";
 import { KbdHint } from "../searchbar/kbd-hint";
 import { useOrgScopes } from "../org-switcher/use-org-scopes";
-import { isPlatformScope } from "@/features/common/platform-scope";
+import {
+  isPlatformScope,
+  isPlatformScopePage,
+} from "@/features/common/platform-scope";
 
 // ── Icon config ───────────────────────────────────────────────────────────────
 interface IconConfig {
@@ -358,7 +361,8 @@ export default function SpotlightSearch({
     query,
     navigateItems,
     canAccess,
-    onNavigate
+    onNavigate,
+    platformScope ? isPlatformScopePage : undefined
   );
   // Symptom names are data, so Pagefind does not index them.
   const symptomResults = useSymptomSearch(

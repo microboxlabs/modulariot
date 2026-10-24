@@ -165,6 +165,19 @@ class PlatformInboundRoutingTest {
     }
 
     @Test
+    void aMessageOnTheOrganizationsOwnNumberDoesNotResumeARunSentFromThePlatform() {
+        String run = "00000000-0000-0000-0000-0000000000b1";
+        Conversation b = conversation("b", ORG_B, DRIVER);
+        sent(b, "wamid.B1", DRIVER, MessageStatus.SENT, run, 0);
+        store.waitingRuns.add(run);
+
+        ingest(ORG_PNID, "wamid.IN10", "\"type\":\"text\",\"text\":{\"body\":\"hola\"}");
+
+        assertNull(inbound("wamid.IN10").runId());
+        assertNull(replies.fired.get(0).runId());
+    }
+
+    @Test
     void aStatusOnThePlatformNumberUpdatesTheMessageOfAnyOrganization() {
         Message sent = sent(conversation("a", ORG_A, DRIVER), "wamid.A1", DRIVER, MessageStatus.SENT, null, null);
 

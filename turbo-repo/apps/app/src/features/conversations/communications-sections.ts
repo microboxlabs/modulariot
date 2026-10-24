@@ -1,7 +1,12 @@
 import { CHANNEL_TYPES } from "./channel-types";
 
-/** `rules`, `activity`, `templates`, `meta`, or `channel:<key>` for one of `CHANNEL_TYPES`. */
-export type CommunicationsSection = string;
+/** `channel:<key>` is one of `CHANNEL_TYPES`. */
+export type CommunicationsSection =
+  | "rules"
+  | "activity"
+  | "templates"
+  | "meta"
+  | `channel:${string}`;
 
 export const DEFAULT_SECTION: CommunicationsSection = "rules";
 
@@ -36,7 +41,7 @@ export function sectionOf(
 ): CommunicationsSection {
   const allowed = sectionsFor(platformScope);
   const value = params.get("section") ?? params.get("tab");
-  return value && allowed.includes(value) ? value : allowed[0];
+  return allowed.find((s) => s === value) ?? allowed[0];
 }
 
 export const channelKeyOf = (section: CommunicationsSection) =>

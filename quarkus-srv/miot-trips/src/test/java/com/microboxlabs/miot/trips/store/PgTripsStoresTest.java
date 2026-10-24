@@ -17,6 +17,8 @@ import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripCargoLink;
 import com.microboxlabs.miot.fleet.resources.domain.Truck;
+import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -31,6 +33,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -63,23 +66,41 @@ class PgTripsStoresTest {
     private final PgLocationStore locations = new PgLocationStore(() -> pool);
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
     private final PgAuditStore audit = new PgAuditStore(() -> pool);
+    private final TripLiveProjector projector = projector(() -> pool);
+
+    /** The projector over the Postgres stores, fleet included. */
+    static TripLiveProjector projector(Supplier<Pool> pool) {
+        return new TripLiveProjector(new PgTripStore(pool), new PgStageStore(pool), new PgAssignmentStore(pool),
+                new PgCargoStore(pool), new PgLocationStore(pool), new PgTripLiveStore(pool),
+                new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(pool)));
+    }
 
     @BeforeAll
     static void migrate() throws IOException {
         vertx = Vertx.vertx();
         pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(URL_PROPERTY)))
                 .using(vertx).build();
+        PgTripsStoresTest.recreateSchemas(pool);
+    }
+
+    /** The fleet and trips migrations, in Flyway order. */
+    private static final String[] MIGRATIONS = {
+            "/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
+            "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
+            "/db/migration/fleet/V0.9.10__updated_at_in_stores.sql",
+            "/db/migration/trips/V0.10.0__create_trips.sql",
+            "/db/migration/trips/V0.10.3__trips_lock_order.sql",
+            "/db/migration/trips/V0.10.4__checks_in_services.sql",
+            "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
+            "/db/migration/trips/V0.10.6__trip_live_in_services.sql",
+            "/db/migration/trips/V0.10.7__updated_at_in_stores.sql"};
+
+    /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
+    static void recreateSchemas(Pool pool) throws IOException {
         pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
         pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
-        for (String fleetSql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
-                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql"}) {
-            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(fleetSql)) {
-                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
-            }
-        }
-        for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
-                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
-            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(tripsSql)) {
+        for (String sql : MIGRATIONS) {
+            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(sql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
         }
@@ -101,7 +122,7 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void mandateIsCreateOrReturnAndTheTriggerLaysItsLine() {
+    void mandateIsCreateOrReturnAndComesWithItsLine() {
         String tenant = tenant();
         MandateStore.CreateOrGet first = mandates.insertOrGet(new Mandate(null, tenant, "OC-1", "oc", null,
                 Mandate.ACTIVE, null, null, null, null, null, null, ACTOR, null, ACTOR));
@@ -117,7 +138,7 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void cargoNumbersItsPartialsAndMountingLinksTheMandate() {
+    void cargoNumbersItsPartialsAndMountsOnce() {
         String tenant = tenant();
         Mandate m = mandate(tenant, "OC-2");
         MandateLine line = mandates.lineOf(tenant, UUID.fromString(m.id())).orElseThrow();
@@ -131,7 +152,7 @@ class PgTripsStoresTest {
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         UUID tripId = UUID.fromString(trip.id());
-        // no explicit link: the consistency trigger upserts trip_mandate on mount
+        trips.linkMandate(tenant, tripId, UUID.fromString(m.id()), 1, "primary", ACTOR);
         TripCargoLink mounted = tripCargo.insert(new TripCargoLink(trip.id(), c1.id(), tenant, null, null,
                 null, ACTOR, null, ACTOR)).orElseThrow();
         assertNotNull(mounted.createdAt());
@@ -180,21 +201,25 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void theResourceCheckTriggerRefusesAGhostAndAcceptsARealTruck() {
+    void fleetKnowsARealTruckAndItsAssignmentWindowEndsOnce() {
         String tenant = tenant();
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        Assignment unknownTruck = new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
-                UUID.randomUUID().toString(), now, null, null, null, ACTOR, null, ACTOR);
-        assertThrows(IllegalArgumentException.class, () -> assignments.insert(unknownTruck),
-                "a truck id that does not exist is refused by the trigger");
+        assertFalse(resources.isCurrent(tenant, "truck", UUID.randomUUID()), "an unknown truck is not current");
 
         Carrier carrier = resources.insertCarrier(new Carrier(null, tenant, null, "76.111.222-3",
                 "Transportes Test", null, null, null, null, null, Carrier.ACTIVE, false, null, null,
                 null, ACTOR, null, ACTOR));
         Truck truck = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "PLKV-12", null,
                 null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        assertTrue(resources.isCurrent(tenant, "truck", UUID.fromString(truck.id())));
+        assertFalse(resources.isCurrent(tenant(), "truck", UUID.fromString(truck.id())),
+                "another tenant does not see it");
+        Truck parked = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "PLKV-13", null,
+                null, null, null, Carrier.INACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        assertFalse(resources.isCurrent(tenant, "truck", UUID.fromString(parked.id())),
+                "an inactive truck cannot be assigned");
         Assignment a = assignments.insert(new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
                 truck.id(), now, null, null, null, ACTOR, null, ACTOR));
         Assignment ended = assignments.end(tenant, UUID.fromString(a.id()), now.plusHours(1), "panne", ACTOR)
@@ -233,10 +258,14 @@ class PgTripsStoresTest {
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         UUID tripId = UUID.fromString(trip.id());
+        projector.refresh(tenant, tripId);
         assertTrue(live.find(tenant, tripId).isPresent(), "the projection is born with the trip");
+        projector.refresh(tenant, tripId);
+        assertEquals(1, live.list(tenant).size(), "a second refresh replaces the row");
 
         trips.update(new Trip(trip.id(), tenant, Trip.DONE, null, null, null, null,
                 OffsetDateTime.now(ZoneOffset.UTC), null, trip.createdAt(), trip.createdBy(), null, ACTOR));
+        projector.refresh(tenant, tripId);
         assertTrue(live.find(tenant, tripId).isEmpty(), "realizado kills the hot row");
     }
 
@@ -263,18 +292,49 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void renamingALocationRefreshesTheHotRow() {
+    void aRefreshAfterARenameShowsTheNewName() {
         String tenant = tenant();
         Location origin = locations.insert(new Location(null, tenant, "Bodega Norte", "cd", "CD-N",
                 null, null, ACTOR, null, ACTOR));
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, origin.id(), null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         UUID tripId = UUID.fromString(trip.id());
+        projector.refresh(tenant, tripId);
         assertEquals("Bodega Norte", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
 
         locations.update(new Location(origin.id(), tenant, "Bodega Norte 2", "cd", "CD-N", null,
                 origin.createdAt(), origin.createdBy(), null, ACTOR)).orElseThrow();
+        assertEquals(List.of(tripId), trips.openTripsAt(tenant, UUID.fromString(origin.id())));
+        projector.refreshAll(tenant, trips.openTripsAt(tenant, UUID.fromString(origin.id())));
         assertEquals("Bodega Norte 2", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
+    }
+
+    @Test
+    void anUpdateStampsUpdatedAt() {
+        String tenant = tenant();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        Trip moved = trips.update(new Trip(trip.id(), tenant, Trip.PLANNED, null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).plusDays(1), null, null, null, null, ACTOR, null, ACTOR))
+                .orElseThrow();
+        assertTrue(moved.updatedAt().isAfter(trip.updatedAt()), "the store stamps updated_at on UPDATE");
+        assertEquals(trip.createdAt(), moved.createdAt());
+        Stage stage = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+                Stage.PENDING, null, null, null, null, null, null, null, ACTOR, null, ACTOR));
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Stage started = stages.start(tenant, UUID.fromString(stage.id()), now, ACTOR).orElseThrow();
+        assertTrue(started.updatedAt().isAfter(stage.updatedAt()), "a stage start stamps updated_at");
+        Stage closed = stages.close(tenant, UUID.fromString(stage.id()), now, ACTOR).orElseThrow();
+        assertTrue(closed.updatedAt().isAfter(started.updatedAt()), "a stage close stamps updated_at");
+
+        Carrier carrier = resources.insertCarrier(new Carrier(null, tenant, null, "76.333.444-5",
+                "Transportes Fecha", null, null, null, null, null, Carrier.ACTIVE, false, null, null,
+                null, ACTOR, null, ACTOR));
+        Truck truck = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "FECH-01", null,
+                null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        Truck renamed = resources.updateTruck(new Truck(truck.id(), tenant, carrier.id(), null, "FECH-02", null,
+                null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR)).orElseThrow();
+        assertTrue(renamed.updatedAt().isAfter(truck.updatedAt()), "the fleet store stamps updated_at too");
     }
 
     @Test
@@ -291,20 +351,20 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void aCancelledMandateTakesNoNewTrip() {
+    void aMandateStatusAndTheMandateOfACargoAreReadBack() {
         String tenant = tenant();
         Mandate m = mandate(tenant, "OC-CANCEL");
         mandates.update(new Mandate(m.id(), tenant, m.externalCode(), m.orderType(), m.orderRef(), "anulado",
                 null, null, null, OffsetDateTime.now(ZoneOffset.UTC), "cliente anula", m.createdAt(), ACTOR,
                 null, ACTOR)).orElseThrow();
-        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
-                null, ACTOR, null, ACTOR));
-
-        UUID tripId = UUID.fromString(trip.id());
         UUID mandateId = UUID.fromString(m.id());
-        IllegalStateException refused = assertThrows(IllegalStateException.class,
-                () -> trips.linkMandate(tenant, tripId, mandateId, 1, "primary", ACTOR));
-        assertTrue(refused.getMessage().contains("anulado"), refused.getMessage());
+        assertEquals("anulado", mandates.statusForLink(tenant, mandateId).orElseThrow());
+        assertTrue(mandates.statusForLink(tenant(), mandateId).isEmpty(), "another tenant does not see it");
+
+        MandateLine line = mandates.lineOf(tenant, mandateId).orElseThrow();
+        CargoUnit unit = cargo.insert(new CargoUnit(null, tenant, line.id(), 0, "Carga", null, null, null,
+                null, CargoUnit.READY, null, null, null, null, ACTOR, null, ACTOR));
+        assertEquals(mandateId, cargo.mandateOf(tenant, UUID.fromString(unit.id())).orElseThrow());
     }
 
     private long versionsOf(String id) {

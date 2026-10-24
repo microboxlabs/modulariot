@@ -13,6 +13,7 @@ import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.groups.UniAwait;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Response;
@@ -134,9 +135,11 @@ class PlatformScopeFilterTest {
         roles.requireOwner("_platform").await().indefinitely();
 
         organization.setUserEmail(MEMBER);
-        assertThrows(ForbiddenException.class, () -> roles.requireOwner("_platform").await().indefinitely());
+        UniAwait<Void> memberCheck = roles.requireOwner("_platform").await();
+        assertThrows(ForbiddenException.class, memberCheck::indefinitely);
         organization.setUserEmail(OWNER);
-        assertThrows(ForbiddenException.class, () -> roles.requireOwner("_other").await().indefinitely());
+        UniAwait<Void> otherCheck = roles.requireOwner("_other").await();
+        assertThrows(ForbiddenException.class, otherCheck::indefinitely);
     }
 
     @Test

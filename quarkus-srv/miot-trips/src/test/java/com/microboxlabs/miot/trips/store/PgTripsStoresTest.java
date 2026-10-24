@@ -283,8 +283,10 @@ class PgTripsStoresTest {
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
 
-        IllegalStateException refused = assertThrows(IllegalStateException.class, () -> trips.linkMandate(tenant,
-                UUID.fromString(trip.id()), UUID.fromString(m.id()), 1, "primary", ACTOR));
+        UUID tripId = UUID.fromString(trip.id());
+        UUID mandateId = UUID.fromString(m.id());
+        IllegalStateException refused = assertThrows(IllegalStateException.class,
+                () -> trips.linkMandate(tenant, tripId, mandateId, 1, "primary", ACTOR));
         assertTrue(refused.getMessage().contains("anulado"), refused.getMessage());
     }
 

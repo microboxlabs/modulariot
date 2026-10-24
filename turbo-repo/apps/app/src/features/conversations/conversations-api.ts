@@ -16,6 +16,7 @@ import type {
   EventTypeInfo,
   MetaTemplate,
   MetaTemplateDraft,
+  RuleBump,
   RuleDetail,
   RuleSpec,
   RuleState,
@@ -118,10 +119,15 @@ export function saveRuleDraft(id: string, spec: RuleSpec) {
   });
 }
 
-export function publishRule(id: string, reason: string) {
+/** `bump` raises the computed bump; null keeps it. */
+export function publishRule(
+  id: string,
+  reason: string,
+  bump: RuleBump | null = null
+) {
   return request<RuleVersion>(`${ruleKey(id)}/publish`, {
     method: "POST",
-    body: { reason },
+    body: { reason, bump },
   });
 }
 

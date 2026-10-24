@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.Rule;
+import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
@@ -97,22 +98,24 @@ class PgRuleStoresTest {
         assertNull(draft.version());
         assertEquals(1, rules.versions(rule.id()).size());
 
-        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"), "stale", "b@example.com", T0).isEmpty(),
+        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"), "0.1.0", RuleBump.MINOR, "stale", "b@example.com", T0).isEmpty(),
                 "the draft changed after this spec was validated");
-        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), "first", "b@example.com", T0).orElseThrow();
-        assertEquals(1, v1.version());
+        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), "0.1.0", RuleBump.MINOR, "first", "b@example.com", T0).orElseThrow();
+        assertEquals("0.1.0", v1.version());
+        assertEquals(RuleBump.MINOR, v1.bump());
         assertEquals("x", v1.spec().path("steps").get(0).path("template").asText());
-        assertTrue(rules.publish(rule.id(), draft.spec(), "none", "b@example.com", T0).isEmpty());
+        assertTrue(rules.publish(rule.id(), draft.spec(), "0.1.1", RuleBump.PATCH, "none", "b@example.com", T0).isEmpty());
 
         RuleVersion second = rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[]}"), "c@example.com", T0);
-        assertEquals(2, rules.publish(rule.id(), second.spec(), "second", "c@example.com", T0).orElseThrow().version());
+        assertEquals("0.1.1", rules.publish(rule.id(), second.spec(), "0.1.1", RuleBump.PATCH, "second", "c@example.com", T0)
+                .orElseThrow().version());
         rules.saveDraft(rule.id(), JSON.readTree("{}"), "c@example.com", T0);
 
         List<RuleVersion> versions = rules.versions(rule.id());
         assertEquals(List.of(RuleVersion.Status.DRAFT, RuleVersion.Status.PUBLISHED, RuleVersion.Status.PUBLISHED),
                 versions.stream().map(RuleVersion::status).toList());
-        assertEquals(2, rules.find(tenant, rule.id()).orElseThrow().currentVersion());
-        assertEquals("first", rules.version(rule.id(), 1).orElseThrow().reason());
+        assertEquals("0.1.1", rules.find(tenant, rule.id()).orElseThrow().currentVersion());
+        assertEquals("first", rules.version(rule.id(), "0.1.0").orElseThrow().reason());
 
         assertTrue(rules.inForce(tenant).isEmpty());
         rules.updateState(tenant, rule.id(), Rule.State.TEST, T0);
@@ -152,7 +155,7 @@ class PgRuleStoresTest {
                         "ABCD12", "latitude", -33.4), false, T0, T0));
         assertEquals(4, ((Number) runs.event(event.id()).orElseThrow().data().get("level")).intValue());
 
-        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), 1, event.id(),
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
                 "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0));
 
         List<Run> claimed = runs.claimDue(T0.plusSeconds(1), Duration.ofMinutes(2), 10);
@@ -192,7 +195,7 @@ class PgRuleStoresTest {
         Rule rule = rule(tenant, "panic");
         StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
                 "symptom.case.opened", "miot-symptoms", "symptom_case", "-7", Map.of(), true, T0, T0));
-        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), 1, event.id(),
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
                 "symptom_case", "-7", true, Run.Status.WAITING, 1, T0, null, T0, T0));
 
         String conversation = conversationWithRunMessage(tenant, run.id(), "SIMULATED");

@@ -7,7 +7,7 @@ import java.time.Instant;
  * {@code nextAt} when; after the last step the run waits for its last reply until {@code nextAt}, then is DONE.
  * A test run records its messages as SIMULATED and sends nothing.
  */
-public record Run(String id, String tenantCode, String ruleId, int ruleVersion, String eventId, String contextKind,
+public record Run(String id, String tenantCode, String ruleId, String ruleVersion, String eventId, String contextKind,
         String contextKey, boolean test, Status status, int step, Instant nextAt, String lastError,
         Instant createdAt, Instant updatedAt) {
 

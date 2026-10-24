@@ -62,45 +62,48 @@ final class InMemoryRules {
         }
 
         @Override
+        /** The draft first, then the published versions, newest first, like the SQL. */
         public List<RuleVersion> versions(String ruleId) {
-            return versions.stream().filter(v -> v.ruleId().equals(ruleId))
-                    .sorted(Comparator.comparing((RuleVersion v) -> v.version() == null ? Integer.MAX_VALUE
-                            : v.version()).reversed())
-                    .toList();
+            List<RuleVersion> out = new ArrayList<>(versions.stream().filter(v -> v.ruleId().equals(ruleId))
+                    .filter(v -> v.status() == RuleVersion.Status.DRAFT).toList());
+            List<RuleVersion> published = new ArrayList<>(versions.stream()
+                    .filter(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.PUBLISHED).toList());
+            java.util.Collections.reverse(published);
+            out.addAll(published);
+            return out;
         }
 
         @Override
-        public Optional<RuleVersion> version(String ruleId, int version) {
-            return versions.stream().filter(v -> v.ruleId().equals(ruleId) && Integer.valueOf(version)
-                    .equals(v.version())).findFirst();
+        public Optional<RuleVersion> version(String ruleId, String version) {
+            return versions.stream().filter(v -> v.ruleId().equals(ruleId) && version.equals(v.version()))
+                    .findFirst();
         }
 
         @Override
         public RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at) {
             versions.removeIf(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT);
-            RuleVersion draft = new RuleVersion(UUID.randomUUID().toString(), ruleId, null,
+            RuleVersion draft = new RuleVersion(UUID.randomUUID().toString(), ruleId, null, null,
                     RuleVersion.Status.DRAFT, spec, null, at, actor);
             versions.add(draft);
             return draft;
         }
 
         @Override
-        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String reason, String actor,
-                Instant at) {
+        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump,
+                String reason, String actor, Instant at) {
             Optional<RuleVersion> draft = versions.stream()
                     .filter(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT
                             && v.spec().equals(validated)).findFirst();
             if (draft.isEmpty()) {
                 return Optional.empty();
             }
-            int next = versions.stream().filter(v -> v.ruleId().equals(ruleId) && v.version() != null)
-                    .mapToInt(RuleVersion::version).max().orElse(0) + 1;
-            RuleVersion published = new RuleVersion(draft.get().id(), ruleId, next, RuleVersion.Status.PUBLISHED,
-                    draft.get().spec(), reason, at, actor);
+            RuleVersion published = new RuleVersion(draft.get().id(), ruleId, version, bump,
+                    RuleVersion.Status.PUBLISHED, draft.get().spec(), reason, at, actor);
             versions.remove(draft.get());
             versions.add(published);
             Rule r = rules.get(ruleId);
-            rules.put(ruleId, new Rule(r.id(), r.tenantCode(), r.key(), r.name(), r.state(), next, r.createdAt(), at));
+            rules.put(ruleId, new Rule(r.id(), r.tenantCode(), r.key(), r.name(), r.state(), version, r.createdAt(),
+                    at));
             return Optional.of(published);
         }
 

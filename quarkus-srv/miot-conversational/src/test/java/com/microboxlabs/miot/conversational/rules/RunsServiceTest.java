@@ -25,7 +25,7 @@ class RunsServiceTest {
         StoredEvent serviceEvent = new StoredEvent(RulesFixture.id(), TENANT, "service.created", "miot-services",
                 "service", "SVC-1", Map.of("symptomName", "Botón de pánico", "assetId", "ABCD12"), false, T0, T0);
         f.store.events.put(serviceEvent.id(), serviceEvent);
-        Run serviceRun = new Run(RulesFixture.id(), TENANT, rule.id(), 1, serviceEvent.id(), "service", "SVC-1",
+        Run serviceRun = new Run(RulesFixture.id(), TENANT, rule.id(), "0.1.0", serviceEvent.id(), "service", "SVC-1",
                 false, Run.Status.DONE, 2, null, null, T0.minusSeconds(60), T0);
         f.store.runs.put(serviceRun.id(), serviceRun);
 

@@ -199,7 +199,7 @@ final class RulesFixture {
     /** Creates, publishes and switches a rule. */
     Rule rule(String key, String spec, Rule.State state) {
         RulesService.RuleDetail created = service.create(TENANT, key, "Regla " + key, json(spec), "owner@example.com");
-        service.publish(TENANT, created.rule().id(), "first", "owner@example.com");
+        service.publish(TENANT, created.rule().id(), "first", null, "owner@example.com");
         return service.setState(TENANT, created.rule().id(), state);
     }
 

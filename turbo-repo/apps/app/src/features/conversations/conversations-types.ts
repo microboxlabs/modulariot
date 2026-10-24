@@ -46,9 +46,19 @@ export interface ConversationRule {
   key: string;
   name: string;
   state: RuleState;
-  currentVersion: number | null;
+  /** The semantic version in force, such as `0.2.1`; null before the first publish. */
+  currentVersion: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** MAJOR: the event. MINOR: condition, recipients, steps added, removed, moved or rerouted. PATCH: the rest. */
+export type RuleBump = "PATCH" | "MINOR" | "MAJOR";
+
+/** What publishing the draft would do; both null when the draft equals the version in force. */
+export interface PublishPlan {
+  bump: RuleBump | null;
+  nextVersion: string | null;
 }
 
 export interface RuleSummary extends ConversationRule {
@@ -63,7 +73,8 @@ export interface RuleSummary extends ConversationRule {
 
 export interface RuleVersion {
   id: string;
-  version: number | null;
+  version: string | null;
+  bump?: RuleBump | null;
   status: "DRAFT" | "PUBLISHED";
   spec: RuleSpec;
   reason: string | null;
@@ -76,6 +87,8 @@ export interface RuleDetail {
   current: RuleVersion | null;
   draft: RuleVersion | null;
   versions: RuleVersion[];
+  /** Null without a draft. */
+  plan?: PublishPlan | null;
 }
 
 export interface RuleFinding {
@@ -240,7 +253,7 @@ export interface ConversationRun {
   id: string;
   ruleId: string;
   ruleName: string;
-  ruleVersion: number | null;
+  ruleVersion: string | null;
   eventId: string | null;
   eventType: string | null;
   contextKind: string | null;

@@ -38,11 +38,21 @@ public class RulesService {
     public record TriggerView(String event, String when) {
     }
 
-    public record RuleSummary(String id, String key, String name, Rule.State state, Integer currentVersion,
-            boolean hasDraft, TriggerView trigger, int stepsCount, List<String> channels, String symptomKey) {
+    public record RuleSummary(String id, String key, String name, Rule.State state, String currentVersion,
+            boolean hasDraft, TriggerView trigger, int stepsCount, List<String> channels, String symptomKey,
+            Instant updatedAt) {
     }
 
-    public record RuleDetail(Rule rule, RuleVersion current, RuleVersion draft, List<RuleVersion> versions) {
+    /**
+     * What publishing the draft would do: the bump its changes call for and the version it gets. Both are null
+     * when the draft does the same as the version in force.
+     */
+    public record PublishPlan(RuleBump bump, String nextVersion) {
+    }
+
+    /** {@code plan} is null without a draft. */
+    public record RuleDetail(Rule rule, RuleVersion current, RuleVersion draft, List<RuleVersion> versions,
+            PublishPlan plan) {
     }
 
     public record DraftResult(RuleVersion draft, List<Finding> findings) {
@@ -96,7 +106,7 @@ public class RulesService {
             TriggerView trigger = spec.trigger() == null ? null
                     : new TriggerView(spec.trigger().event(), spec.trigger().when());
             out.add(new RuleSummary(r.id(), r.key(), r.name(), r.state(), r.currentVersion(), draft != null, trigger,
-                    spec.steps().size(), spec.channels(), symptomKey(spec)));
+                    spec.steps().size(), spec.channels(), symptomKey(spec), r.updatedAt()));
         }
         return out;
     }
@@ -116,8 +126,21 @@ public class RulesService {
     public RuleDetail detail(String tenantCode, String id) {
         Rule rule = rule(tenantCode, id);
         List<RuleVersion> versions = rules.versions(rule.id());
-        return new RuleDetail(rule, current(rule, versions), draft(versions),
-                versions.stream().filter(v -> v.status() == RuleVersion.Status.PUBLISHED).toList());
+        RuleVersion current = current(rule, versions);
+        RuleVersion draft = draft(versions);
+        return new RuleDetail(rule, current, draft,
+                versions.stream().filter(v -> v.status() == RuleVersion.Status.PUBLISHED).toList(),
+                draft == null ? null : plan(rule, current, draft));
+    }
+
+    /** The first publish is MINOR, to {@link RuleBump#FIRST}; later ones bump by what changed. */
+    static PublishPlan plan(Rule rule, RuleVersion current, RuleVersion draft) {
+        if (current == null) {
+            return new PublishPlan(RuleBump.MINOR, RuleBump.FIRST);
+        }
+        RuleBump bump = RuleBump.between(RuleSpec.read(current.spec()), RuleSpec.read(draft.spec()));
+        return bump == null ? new PublishPlan(null, null)
+                : new PublishPlan(bump, bump.next(rule.currentVersion()));
     }
 
     public DraftResult saveDraft(String tenantCode, String id, JsonNode spec, String actor) {
@@ -129,9 +152,14 @@ public class RulesService {
         return new DraftResult(draft, validate(tenantCode, RuleSpec.read(spec)));
     }
 
-    public RuleVersion publish(String tenantCode, String id, String reason, String actor) {
+    /**
+     * Publishes the draft as the version its changes call for. {@code requested} may raise the bump, never lower
+     * it; it does not apply to the first publish, which is always {@link RuleBump#FIRST}.
+     */
+    public RuleVersion publish(String tenantCode, String id, String reason, RuleBump requested, String actor) {
         Rule rule = rule(tenantCode, id);
-        RuleVersion draft = draft(rules.versions(rule.id()));
+        List<RuleVersion> versions = rules.versions(rule.id());
+        RuleVersion draft = draft(versions);
         if (draft == null) {
             throw new IllegalStateException("La regla no tiene borrador");
         }
@@ -139,7 +167,13 @@ public class RulesService {
         if (!RuleSpecValidator.publishable(findings)) {
             throw new NotPublishable(findings);
         }
-        return rules.publish(rule.id(), draft.spec(), reason, actor, clock.instant())
+        PublishPlan plan = plan(rule, current(rule, versions), draft);
+        if (plan.bump() == null) {
+            throw new IllegalStateException("El borrador es igual a la versión publicada");
+        }
+        RuleBump bump = rule.currentVersion() == null ? plan.bump() : plan.bump().atLeast(requested);
+        String version = rule.currentVersion() == null ? RuleBump.FIRST : bump.next(rule.currentVersion());
+        return rules.publish(rule.id(), draft.spec(), version, bump, reason, actor, clock.instant())
                 .orElseThrow(() -> new IllegalStateException(
                         "El borrador cambió mientras se publicaba; vuelve a publicarlo"));
     }

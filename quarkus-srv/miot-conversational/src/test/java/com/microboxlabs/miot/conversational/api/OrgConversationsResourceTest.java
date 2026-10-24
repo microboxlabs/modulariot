@@ -15,6 +15,7 @@ import com.microboxlabs.miot.conversational.client.FakeMetaGraph;
 import com.microboxlabs.miot.conversational.client.MetaTemplatesClient;
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.Rule;
+import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RulesFixtureAccess;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleContext;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
@@ -108,16 +109,16 @@ class OrgConversationsResourceTest {
     @Test
     void rulesListShape() {
         String id = createPanicRule();
-        call(owner.publish(ORG, id, new PublishRequest("first")));
+        call(owner.publish(ORG, id, new PublishRequest("first", null)));
 
         JsonNode list = body(call(member.listRules(ORG)));
 
         assertEquals(1, list.size());
         JsonNode r = list.get(0);
         assertEquals(set("id", "key", "name", "state", "currentVersion", "hasDraft", "trigger", "stepsCount",
-                "channels", "symptomKey"), keys(r));
+                "channels", "symptomKey", "updatedAt"), keys(r));
         assertEquals("OFF", r.path("state").asText());
-        assertEquals(1, r.path("currentVersion").asInt());
+        assertEquals("0.1.0", r.path("currentVersion").asText());
         assertFalse(r.path("hasDraft").asBoolean());
         assertEquals(set("event", "when"), keys(r.path("trigger")));
         assertEquals("symptom.case.opened", r.path("trigger").path("event").asText());
@@ -130,11 +131,13 @@ class OrgConversationsResourceTest {
     void ruleDetailShapeAndDraftFindings() {
         String id = createPanicRule();
         JsonNode detail = body(call(member.getRule(ORG, id)));
-        assertEquals(set("rule", "current", "draft", "versions"), keys(detail));
+        assertEquals(set("rule", "current", "draft", "versions", "plan"), keys(detail));
+        assertEquals("MINOR", detail.path("plan").path("bump").asText());
+        assertEquals("0.1.0", detail.path("plan").path("nextVersion").asText());
         assertEquals(set("id", "key", "name", "state", "currentVersion", "createdAt", "updatedAt"),
                 keys(detail.path("rule")));
         assertTrue(detail.path("current").isNull());
-        assertEquals(set("id", "version", "status", "spec", "reason", "createdAt", "createdBy"),
+        assertEquals(set("id", "version", "bump", "status", "spec", "reason", "createdAt", "createdBy"),
                 keys(detail.path("draft")));
         assertEquals("DRAFT", detail.path("draft").path("status").asText());
         assertTrue(detail.path("draft").path("version").isNull());
@@ -155,7 +158,7 @@ class OrgConversationsResourceTest {
         draft.path("findings").forEach(x -> codes.add(x.path("code").asText()));
         assertEquals(List.of("whenInvalid", "noSteps"), codes);
 
-        Response refused = call(owner.publish(ORG, id, new PublishRequest("broken")));
+        Response refused = call(owner.publish(ORG, id, new PublishRequest("broken", null)));
         assertEquals(409, refused.getStatus());
         assertEquals(2, body(refused).path("findings").size());
     }
@@ -166,14 +169,15 @@ class OrgConversationsResourceTest {
         assertEquals(409, call(owner.setState(ORG, id, new StateRequest(Rule.State.ACTIVE))).getStatus(),
                 "a rule without a published version cannot be switched on");
 
-        Response published = call(owner.publish(ORG, id, new PublishRequest("first")));
+        Response published = call(owner.publish(ORG, id, new PublishRequest("first", null)));
         assertEquals(200, published.getStatus());
         JsonNode version = body(published);
-        assertEquals(set("id", "version", "status", "spec", "reason", "createdAt", "createdBy"), keys(version));
-        assertEquals(1, version.path("version").asInt());
+        assertEquals(set("id", "version", "bump", "status", "spec", "reason", "createdAt", "createdBy"), keys(version));
+        assertEquals("0.1.0", version.path("version").asText());
+        assertEquals("MINOR", version.path("bump").asText());
         assertEquals("PUBLISHED", version.path("status").asText());
         assertEquals("first", version.path("reason").asText());
-        assertEquals(409, call(owner.publish(ORG, id, new PublishRequest("again"))).getStatus(), "no draft");
+        assertEquals(409, call(owner.publish(ORG, id, new PublishRequest("again", null))).getStatus(), "no draft");
 
         Response state = call(owner.setState(ORG, id, new StateRequest(Rule.State.TEST)));
         assertEquals(200, state.getStatus());
@@ -183,9 +187,32 @@ class OrgConversationsResourceTest {
         assertEquals(400, call(owner.setState(ORG, id, new StateRequest(null))).getStatus());
 
         JsonNode detail = body(call(member.getRule(ORG, id)));
-        assertEquals(1, detail.path("current").path("version").asInt());
+        assertEquals("0.1.0", detail.path("current").path("version").asText());
         assertTrue(detail.path("draft").isNull());
+        assertTrue(detail.path("plan").isNull(), "no draft, no plan");
         assertEquals(1, detail.path("versions").size());
+    }
+
+    @Test
+    void laterPublishesBumpByWhatChangedAndMayBeRaised() {
+        String id = createPanicRule();
+        call(owner.publish(ORG, id, new PublishRequest("first", null)));
+        String same = RulesFixtureAccess.PANIC;
+        call(owner.saveDraft(ORG, id, new DraftRequest(RulesFixtureAccess.json(same))));
+        JsonNode unchanged = body(call(member.getRule(ORG, id)));
+        assertTrue(unchanged.path("plan").path("bump").isNull(), "the same spec calls for no version");
+        assertEquals(409, call(owner.publish(ORG, id, new PublishRequest("same", null))).getStatus());
+
+        String later = same.replaceFirst("\"waitForReply\"\\s*:\\s*\\d+", "\"waitForReply\": 9");
+        assertTrue(!later.equals(same), "the fixture has a waitForReply to change");
+        call(owner.saveDraft(ORG, id, new DraftRequest(RulesFixtureAccess.json(later))));
+        JsonNode plan = body(call(member.getRule(ORG, id))).path("plan");
+        assertEquals("PATCH", plan.path("bump").asText());
+        assertEquals("0.1.1", plan.path("nextVersion").asText());
+
+        JsonNode raised = body(call(owner.publish(ORG, id, new PublishRequest("big change", RuleBump.MAJOR))));
+        assertEquals("1.0.0", raised.path("version").asText());
+        assertEquals("MAJOR", raised.path("bump").asText());
     }
 
     @Test
@@ -258,7 +285,7 @@ class OrgConversationsResourceTest {
         assertEquals(set("name", "label", "description", "type"), keys(catalog.get(0).path("fields").get(0)));
 
         String id = createPanicRule();
-        call(owner.publish(ORG, id, new PublishRequest("first")));
+        call(owner.publish(ORG, id, new PublishRequest("first", null)));
         call(owner.setState(ORG, id, new StateRequest(Rule.State.TEST)));
         fixture.openPanicCaseAndRun();
 

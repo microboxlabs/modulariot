@@ -10,6 +10,7 @@ import static com.microboxlabs.miot.conversational.rules.store.Pg.uuidOrNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.rules.Rule;
+import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -34,7 +35,7 @@ public class PgRuleStore implements RuleStore {
     private static final String RULE_COLUMNS =
             "id, tenant_code, key, name, state, current_version, created_at, updated_at";
     private static final String VERSION_COLUMNS =
-            "id, rule_id, version, status, spec::text AS spec, reason, created_at, created_by";
+            "id, rule_id, version, bump, status, spec::text AS spec, reason, created_at, created_by";
 
     private static final String LIST = SELECT + RULE_COLUMNS
             + " FROM miot_conversational.conv_rule WHERE tenant_code = $1 ORDER BY name, key";
@@ -50,7 +51,7 @@ public class PgRuleStore implements RuleStore {
             RETURNING\s""" + RULE_COLUMNS;
     private static final String VERSIONS = SELECT + VERSION_COLUMNS + """
              FROM miot_conversational.conv_rule_version WHERE rule_id = $1
-            ORDER BY version DESC NULLS FIRST
+            ORDER BY version IS NOT NULL, created_at DESC
             """;
     private static final String VERSION = SELECT + VERSION_COLUMNS
             + " FROM miot_conversational.conv_rule_version WHERE rule_id = $1 AND version = $2";
@@ -60,14 +61,12 @@ public class PgRuleStore implements RuleStore {
             ON CONFLICT (rule_id) WHERE status = 'DRAFT'
             DO UPDATE SET spec = EXCLUDED.spec, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by
             RETURNING\s""" + VERSION_COLUMNS;
-    // One statement: the draft becomes the next version and the rule points at it, only while its spec is the
-    // one that was validated ($5), so a draft saved meanwhile is never published unchecked.
+    // One statement: the draft becomes version $6 and the rule points at it, only while its spec is the one that
+    // was validated ($5), so a draft saved meanwhile is never published unchecked.
     private static final String PUBLISH = """
             WITH v AS (
                 UPDATE miot_conversational.conv_rule_version
-                SET status = 'PUBLISHED',
-                    version = (SELECT COALESCE(MAX(version), 0) + 1
-                               FROM miot_conversational.conv_rule_version WHERE rule_id = $1),
+                SET status = 'PUBLISHED', version = $6, bump = $7,
                     reason = $2, created_by = $3, created_at = $4
                 WHERE rule_id = $1 AND status = 'DRAFT' AND spec = $5::text::jsonb
                 RETURNING *
@@ -76,11 +75,11 @@ public class PgRuleStore implements RuleStore {
                 SET current_version = (SELECT version FROM v), updated_at = $4
                 WHERE id = $1 AND EXISTS (SELECT 1 FROM v)
             )
-            SELECT id, rule_id, version, status, spec::text AS spec, reason, created_at, created_by FROM v
-            """;
+            SELECT\s""" + VERSION_COLUMNS + " FROM v";
     private static final String IN_FORCE = """
             SELECT r.id, r.tenant_code, r.key, r.name, r.state, r.current_version, r.created_at, r.updated_at,
-                   v.id AS v_id, v.rule_id AS v_rule_id, v.version AS v_version, v.status AS v_status,
+                   v.id AS v_id, v.rule_id AS v_rule_id, v.version AS v_version, v.bump AS v_bump,
+                   v.status AS v_status,
                    v.spec::text AS v_spec, v.reason AS v_reason, v.created_at AS v_created_at,
                    v.created_by AS v_created_by
             FROM miot_conversational.conv_rule r
@@ -117,7 +116,7 @@ public class PgRuleStore implements RuleStore {
     @Override
     public Rule create(Rule rule) {
         Tuple params = Tuple.tuple().addUUID(uuid(rule.id())).addString(rule.tenantCode()).addString(rule.key())
-                .addString(rule.name()).addString(rule.state().name()).addInteger(rule.currentVersion())
+                .addString(rule.name()).addString(rule.state().name()).addString(rule.currentVersion())
                 .addOffsetDateTime(time(rule.createdAt())).addOffsetDateTime(time(rule.updatedAt()));
         List<Rule> saved = rules(query(pool.get(), INSERT, params));
         if (saved.isEmpty()) {
@@ -142,7 +141,7 @@ public class PgRuleStore implements RuleStore {
     }
 
     @Override
-    public Optional<RuleVersion> version(String ruleId, int version) {
+    public Optional<RuleVersion> version(String ruleId, String version) {
         return versions(query(pool.get(), VERSION, Tuple.of(uuid(ruleId), version)), "").stream().findFirst();
     }
 
@@ -153,8 +152,11 @@ public class PgRuleStore implements RuleStore {
     }
 
     @Override
-    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String reason, String actor, Instant at) {
-        Tuple params = Tuple.of(uuid(ruleId), reason, actor, time(at), Pg.write(validated));
+    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump,
+            String reason, String actor, Instant at) {
+        Tuple params = Tuple.tuple().addUUID(uuid(ruleId)).addString(reason).addString(actor)
+                .addOffsetDateTime(time(at)).addString(Pg.write(validated)).addString(version)
+                .addString(bump.name());
         return versions(query(pool.get(), PUBLISH, params), "").stream().findFirst();
     }
 
@@ -175,7 +177,7 @@ public class PgRuleStore implements RuleStore {
 
     private static Rule rule(Row r) {
         return new Rule(string(r, "id"), r.getString("tenant_code"), r.getString("key"), r.getString("name"),
-                Rule.State.valueOf(r.getString("state")), r.getInteger("current_version"), instant(r, "created_at"),
+                Rule.State.valueOf(r.getString("state")), r.getString("current_version"), instant(r, "created_at"),
                 instant(r, "updated_at"));
     }
 
@@ -186,7 +188,9 @@ public class PgRuleStore implements RuleStore {
     }
 
     private static RuleVersion version(Row r, String p) {
-        return new RuleVersion(string(r, p + "id"), string(r, p + "rule_id"), r.getInteger(p + "version"),
+        String bump = r.getString(p + "bump");
+        return new RuleVersion(string(r, p + "id"), string(r, p + "rule_id"), r.getString(p + "version"),
+                bump == null ? null : RuleBump.valueOf(bump),
                 RuleVersion.Status.valueOf(r.getString(p + "status")), Pg.node(r.getString(p + "spec")),
                 r.getString(p + "reason"), instant(r, p + "created_at"), r.getString(p + "created_by"));
     }

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { DRAFT_TAG, TAG } from "@/features/symptoms/maintainer/catalog-card";
+import { ago } from "@/features/symptoms/maintainer/catalog-format";
 import { stateLabel } from "@/features/symptoms/maintainer/symptom-labels";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { STATES, StatePill } from "@/features/symptoms/maintainer/ui/state";
@@ -97,50 +99,84 @@ export function ChannelIcons({
 }
 
 function DraftBadge({ d }: Readonly<{ d: I18nRecord }>) {
-  return (
-    <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-600 dark:border-gray-600 dark:text-gray-300">
-      {tr("draftBadge", d)}
-    </span>
-  );
+  return <span className={`text-xs ${DRAFT_TAG}`}>{tr("draftTag", d)}</span>;
 }
 
 function versionText(rule: RuleSummary, d: I18nRecord) {
   return rule.currentVersion ? `v${rule.currentVersion}` : tr("unpublished", d);
 }
 
+/** The round badge at the start of a rule card, where a symptom card has its icon. */
+function RuleIconCircle() {
+  return (
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+      <svg
+        aria-hidden
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        viewBox="0 0 24 24"
+      >
+        <path d="M4 5h16v10H8l-4 4V5Z" />
+      </svg>
+    </span>
+  );
+}
+
+/** A rule laid out like a symptom card: name and event, state, summary, tags, and the version at the foot. */
 export function RuleCard({
   rule,
+  event,
   summary,
   href,
+  lang,
   d,
 }: Readonly<{
   rule: RuleSummary;
+  /** The event in words; empty when none is picked. */
+  event: string;
   summary: string;
   href: string;
+  lang: string;
   d: I18nRecord;
 }>) {
   return (
     <Link
       href={href}
-      className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-5 hover:border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700/60"
+      className="flex flex-col rounded-lg border border-gray-200 bg-white text-left transition hover:border-blue-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500"
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex w-full items-start gap-3 px-4 pt-4">
+        <RuleIconCircle />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-semibold text-gray-900 dark:text-white">
+            {rule.name}
+          </div>
+          <div className={`truncate text-xs ${MUTED}`}>
+            {event || tr("summaryNoTrigger", d)}
+          </div>
+        </div>
         <StatePill state={rule.state} d={d} />
+      </div>
+      <p className="mt-3 line-clamp-2 min-h-[2.5rem] px-4 text-xs text-gray-600 dark:text-gray-300">
+        {summary}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 px-4 text-xs">
+        <span className={TAG}>{stepsText(rule.stepsCount, d)}</span>
+        {(rule.channels ?? []).map((c) => (
+          <span key={c} className={TAG}>
+            {channelLabel(c, d)}
+          </span>
+        ))}
+      </div>
+      {/* Keeps the footers of a row of cards on one line. */}
+      <div className="min-h-3 flex-1" />
+      <div
+        className={`flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-xs dark:border-gray-700/60 ${MUTED}`}
+      >
+        <span className="font-mono">{versionText(rule, d)}</span>
+        {rule.updatedAt && <span>· {ago(rule.updatedAt, lang)}</span>}
         {rule.hasDraft && <DraftBadge d={d} />}
-        <span className={`ml-auto text-xs ${MUTED}`}>
-          {versionText(rule, d)}
-        </span>
-      </div>
-      <div className="min-w-0">
-        <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">
-          {rule.name}
-        </h3>
-        <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-          {summary}
-        </p>
-      </div>
-      <div className="mt-auto flex items-center gap-2 text-xs">
-        <span className={MUTED}>{stepsText(rule.stepsCount, d)}</span>
         <span className="ml-auto">
           <ChannelIcons channels={rule.channels ?? []} d={d} />
         </span>
@@ -276,8 +312,12 @@ export default function RulesTab({
             <RuleCard
               key={r.id}
               rule={r}
+              event={
+                r.trigger?.event ? eventLabel(r.trigger.event, d, catalog) : ""
+              }
               summary={summaryOf(r)}
               href={ruleHref(lang, r.id)}
+              lang={lang}
               d={d}
             />
           ))}

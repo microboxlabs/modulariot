@@ -4,6 +4,7 @@ import type {
   AudienceEntry,
   EventField,
   EventTypeInfo,
+  RuleBump,
   RuleSpec,
   RuleStep,
   RuleTrigger,
@@ -420,6 +421,49 @@ export function ruleChanges(
       out.push({ key: `step${i}`, text: tr("changeStep", d, params) });
   }
   return out;
+}
+
+export const RULE_BUMPS: RuleBump[] = ["PATCH", "MINOR", "MAJOR"];
+
+/** The first version a rule publishes. */
+export const FIRST_VERSION = "0.1.0";
+
+function stepsMovedOrRerouted(a: RuleStep[], b: RuleStep[]) {
+  if (a.length !== b.length) return true;
+  if (a.some((s, i) => s.channel !== b[i].channel || !same(s.to, b[i].to)))
+    return true;
+  const sorted = (steps: RuleStep[]) =>
+    steps.map((s) => JSON.stringify(s)).sort((x, y) => x.localeCompare(y));
+  return !same(a, b) && same(sorted(a), sorted(b));
+}
+
+/**
+ * The bump the draft calls for against the published spec, by the server's rules (RuleBump.java): MAJOR the
+ * event; MINOR the condition, the recipients, or steps added, removed, moved or rerouted; PATCH the rest. The
+ * first publish is MINOR; null when nothing changed.
+ */
+export function ruleBump(
+  draft: RuleSpec,
+  published: RuleSpec | null | undefined
+): RuleBump | null {
+  if (!published) return "MINOR";
+  if (draft.trigger.event !== published.trigger.event) return "MAJOR";
+  if (
+    squash(draft.trigger.when) !== squash(published.trigger.when) ||
+    !same(draft.audience, published.audience) ||
+    stepsMovedOrRerouted(draft.steps, published.steps)
+  )
+    return "MINOR";
+  return same(draft.steps, published.steps) ? null : "PATCH";
+}
+
+/** The version a bump makes from the one in force: 0.2.1 + MINOR = 0.3.0; the first is 0.1.0. */
+export function nextRuleVersion(current: string | null, bump: RuleBump) {
+  if (!current) return FIRST_VERSION;
+  const [major = 0, minor = 0, patch = 0] = current.split(".").map(Number);
+  if (bump === "MAJOR") return `${major + 1}.0.0`;
+  if (bump === "MINOR") return `${major}.${minor + 1}.0`;
+  return `${major}.${minor}.${patch + 1}`;
 }
 
 /** The channels a spec's steps use, in order, without repeats. */

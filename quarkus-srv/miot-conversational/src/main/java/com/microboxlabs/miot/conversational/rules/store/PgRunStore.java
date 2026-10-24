@@ -132,7 +132,7 @@ public class PgRunStore implements RunStore {
     @Override
     public Run createRun(Run r) {
         Tuple params = Tuple.tuple().addUUID(uuid(r.id())).addString(r.tenantCode()).addUUID(uuid(r.ruleId()))
-                .addInteger(r.ruleVersion()).addUUID(uuid(r.eventId())).addString(r.contextKind())
+                .addString(r.ruleVersion()).addUUID(uuid(r.eventId())).addString(r.contextKind())
                 .addString(r.contextKey()).addBoolean(r.test()).addString(r.status().name()).addInteger(r.step())
                 .addOffsetDateTime(time(r.nextAt())).addString(r.lastError()).addOffsetDateTime(time(r.createdAt()))
                 .addOffsetDateTime(time(r.updatedAt()));
@@ -218,7 +218,7 @@ public class PgRunStore implements RunStore {
     }
 
     private static Run run(Row r) {
-        return new Run(string(r, "id"), r.getString("tenant_code"), string(r, "rule_id"), r.getInteger("rule_version"),
+        return new Run(string(r, "id"), r.getString("tenant_code"), string(r, "rule_id"), r.getString("rule_version"),
                 string(r, "event_id"), r.getString("context_kind"), r.getString("context_key"), r.getBoolean("test"),
                 Run.Status.valueOf(r.getString("status")), r.getInteger("step"), instant(r, "next_at"),
                 r.getString("last_error"), instant(r, "created_at"), instant(r, "updated_at"));

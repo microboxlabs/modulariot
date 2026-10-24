@@ -8,7 +8,7 @@ import java.time.Instant;
  * OFF does nothing; TEST runs the rule and records its messages as SIMULATED; ACTIVE sends them.
  */
 public record Rule(String id, @JsonIgnore String tenantCode, String key, String name, State state,
-        Integer currentVersion, Instant createdAt, Instant updatedAt) {
+        String currentVersion, Instant createdAt, Instant updatedAt) {
 
     public enum State {
         OFF,

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.rules.store;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.rules.Rule;
+import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
 import java.time.Instant;
 import java.util.List;
@@ -27,16 +28,17 @@ public interface RuleStore {
     /** Every version of the rule, the draft included, newest first. */
     List<RuleVersion> versions(String ruleId);
 
-    Optional<RuleVersion> version(String ruleId, int version);
+    Optional<RuleVersion> version(String ruleId, String version);
 
     /** Creates or replaces the rule's draft. */
     RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at);
 
     /**
-     * Turns the draft into the next version and makes it current, provided its spec is still {@code validated};
+     * Turns the draft into {@code version} and makes it current, provided its spec is still {@code validated};
      * empty when there is no draft or it changed since it was validated.
      */
-    Optional<RuleVersion> publish(String ruleId, JsonNode validated, String reason, String actor, Instant at);
+    Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump, String reason,
+            String actor, Instant at);
 
     List<InForce> inForce(String tenantCode);
 }

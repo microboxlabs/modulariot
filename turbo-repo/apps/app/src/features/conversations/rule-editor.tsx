@@ -39,6 +39,7 @@ import { placeFindings, ruleFindingText } from "./rule-findings";
 import {
   eventLabel,
   eventVariables,
+  ruleBump,
   ruleChanges,
   sampleEvent,
   triggerSummary,
@@ -87,7 +88,7 @@ function RuleHeader({
 }: Readonly<{
   name: string;
   ruleKey: string;
-  version: number | null;
+  version: string | null;
   state: RuleState;
   canSetState: boolean;
   backHref: string;
@@ -165,6 +166,10 @@ export default function RuleEditor({
   const changes = useMemo(
     () => (spec ? ruleChanges(spec, published, d) : []),
     [spec, published, d]
+  );
+  const bump = useMemo(
+    () => (spec ? ruleBump(spec, published) : null),
+    [spec, published]
   );
   const changedKeys = new Set(changes.map((c) => c.key));
   const readOnly = !canMaintain;
@@ -368,7 +373,8 @@ export default function RuleEditor({
             errors={errors}
             saving={saving}
             saveError={saveError}
-            nextVersion={(detail?.current?.version ?? 0) + 1}
+            current={rule?.currentVersion ?? null}
+            bump={bump}
             d={d}
             onReview={() => setReviewing(true)}
           />
@@ -377,16 +383,19 @@ export default function RuleEditor({
       <PublishRuleDialog
         open={reviewing}
         changes={changes}
+        current={rule?.currentVersion ?? null}
+        bump={bump}
         canPublish={
           canMaintain &&
           errors === 0 &&
           changes.length > 0 &&
+          bump !== null &&
           saveError === null
         }
         d={d}
         onClose={() => setReviewing(false)}
-        onPublish={async (reason) => {
-          await publish(reason);
+        onPublish={async (reason, raise) => {
+          await publish(reason, raise);
           setReviewing(false);
         }}
       />

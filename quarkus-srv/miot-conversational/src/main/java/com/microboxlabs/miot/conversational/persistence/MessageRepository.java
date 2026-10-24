@@ -118,10 +118,14 @@ public class MessageRepository {
                             AND r.tenant_code = c.tenant_code)
             """ + NEWEST;
 
+    // Only real sends and receipts count. An outbound row with a connectionId and no connectionTenant is a manual
+    // send from before connectionTenant was stored, which always went through the organization's own connection.
     private static final String SELECT_LATEST_CONNECTION_TENANT = """
             SELECT metadata->>'connectionTenant' AS connection_tenant
             FROM miot_conversational.wa_message
-            WHERE conversation_id = $1 AND channel = 'whatsapp' AND metadata ? 'connectionTenant'
+            WHERE conversation_id = $1 AND channel = 'whatsapp'
+              AND status NOT IN ('SIMULATED', 'FAILED')
+              AND (metadata ? 'connectionTenant' OR (direction = 'OUTBOUND' AND metadata ? 'connectionId'))
             ORDER BY created_at DESC
             LIMIT 1
             """;
@@ -268,7 +272,10 @@ public class MessageRepository {
                 row.getString("tenant_code"), uuidString(row.getUUID("run_id")), row.getInteger("step"));
     }
 
-    /** The tenant of the WhatsApp connection the conversation's newest message went through or arrived on. */
+    /**
+     * The tenant of the WhatsApp connection the conversation's newest sent or received message went through or
+     * arrived on, or null when that message is a manual send stored before the tenant was recorded.
+     */
     public String findLatestConnectionTenant(String conversationId) {
         UUID id = parseUuidOrNull(conversationId);
         if (id == null) {

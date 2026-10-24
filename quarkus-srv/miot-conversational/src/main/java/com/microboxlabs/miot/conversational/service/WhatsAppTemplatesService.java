@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.function.Function;
@@ -133,24 +134,28 @@ public class WhatsAppTemplatesService {
         Set<String> found = new LinkedHashSet<>();
         List<CopyResult> out = new ArrayList<>();
         for (WhatsAppTemplate t : list(PlatformScope.TENANT)) {
-            if (wanted != null && !wanted.contains(t.name())) {
-                continue;
+            if (wanted == null || wanted.contains(t.name())) {
+                found.add(t.name());
+                copyIfApproved(tenant, t, existing, wanted != null).ifPresent(out::add);
             }
-            found.add(t.name());
-            if (!APPROVED.equals(t.status())) {
-                if (wanted != null) {
-                    out.add(new CopyResult(t.name(), t.language(), CopyStatus.FAILED,
-                            "The platform's template is " + t.status() + ", not approved"));
-                }
-                continue;
-            }
-            out.add(copy(tenant, t, existing.contains(t.name() + "/" + t.language())));
         }
         if (wanted != null) {
             wanted.stream().filter(n -> !found.contains(n)).forEach(n -> out.add(new CopyResult(n, null,
                     CopyStatus.FAILED, "The platform's account has no template " + n)));
         }
         return out;
+    }
+
+    /** An unapproved template is skipped, or reported as failed when it was named. */
+    private Optional<CopyResult> copyIfApproved(String tenant, WhatsAppTemplate t, Set<String> existing,
+            boolean named) {
+        if (APPROVED.equals(t.status())) {
+            return Optional.of(copy(tenant, t, existing.contains(t.name() + "/" + t.language())));
+        }
+        return named
+                ? Optional.of(new CopyResult(t.name(), t.language(), CopyStatus.FAILED,
+                        "The platform's template is " + t.status() + ", not approved"))
+                : Optional.empty();
     }
 
     private CopyResult copy(String tenant, WhatsAppTemplate t, boolean exists) {

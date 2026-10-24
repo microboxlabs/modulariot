@@ -31,10 +31,6 @@ import RulesTab, {
   ruleFilterDefs,
   type RulesLayout,
 } from "./rules-tab";
-import TemplatesTab, {
-  templateFilterDefs,
-  type TemplatesView,
-} from "./templates-tab";
 
 type FilterDef = { key: string; label: string; options: string[] };
 
@@ -74,7 +70,7 @@ function LayoutToggle({
   );
 }
 
-/** Settings › Comunicaciones: the rules that send messages on events, their templates and what they did. */
+/** Settings › Comunicaciones: the rules that send messages on events, and what they did. Templates are the platform's. */
 export default function CommunicationsPage({
   dict,
   lang,
@@ -90,8 +86,6 @@ export default function CommunicationsPage({
   const [ruleFilters, setRuleFilters] = useState<RuleFilters>(NO_RULE_FILTERS);
   const [activityFilters, setActivityFilters] =
     useState<ActivityFilters>(NO_ACTIVITY_FILTERS);
-  const [templateChannel, setTemplateChannel] = useState("");
-  const [templatesView, setTemplatesView] = useState<TemplatesView>("messages");
   const [layout, setLayout] = useState<RulesLayout>("cards");
   const [newRule, setNewRule] = useState<NewRulePrefill | null>(null);
   // A link from a symptom's Respuesta tab opens the modal already filled in.
@@ -125,13 +119,6 @@ export default function CommunicationsPage({
     value: (key: string) => string;
     set: (key: string, value: string) => void;
   } => {
-    if (tab === "rules") {
-      return {
-        defs: ruleFilterDefs(rules ?? [], catalog, d),
-        value: (k) => ruleFilters[k as keyof RuleFilters],
-        set: (k, v) => setRuleFilters({ ...ruleFilters, [k]: v }),
-      };
-    }
     if (tab === "activity") {
       return {
         defs: activityFilterDefs(rules ?? [], d),
@@ -140,9 +127,9 @@ export default function CommunicationsPage({
       };
     }
     return {
-      defs: templatesView === "messages" ? templateFilterDefs(d) : [],
-      value: () => templateChannel,
-      set: (_k, v) => setTemplateChannel(v),
+      defs: ruleFilterDefs(rules ?? [], catalog, d),
+      value: (k) => ruleFilters[k as keyof RuleFilters],
+      set: (k, v) => setRuleFilters({ ...ruleFilters, [k]: v }),
     };
   };
   const bar = filterBar();
@@ -221,16 +208,6 @@ export default function CommunicationsPage({
                 filters={ruleFilters}
                 layout={layout}
                 d={d}
-              />
-            )}
-            {tab === "templates" && (
-              <TemplatesTab
-                lang={lang}
-                canWrite={canMaintain}
-                view={templatesView}
-                channel={templateChannel}
-                d={d}
-                onView={setTemplatesView}
               />
             )}
             {tab === "activity" && (

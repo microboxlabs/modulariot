@@ -12,6 +12,10 @@ public interface TemplateStore {
 
     Optional<ConvTemplate> find(String tenantCode, String key);
 
-    /** Creates or replaces the template with this tenant and key; keeps the id and creation time. */
-    ConvTemplate upsert(ConvTemplate template);
+    /**
+     * Creates or replaces the template with this tenant and key, keeping the id and creation time, provided the
+     * stored one is still at {@code expectedVersion} (null: there is none); empty when another save got there
+     * first.
+     */
+    Optional<ConvTemplate> upsert(ConvTemplate template, String expectedVersion);
 }

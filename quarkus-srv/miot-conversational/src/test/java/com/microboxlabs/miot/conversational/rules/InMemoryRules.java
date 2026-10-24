@@ -39,6 +39,11 @@ final class InMemoryRules {
         }
 
         @Override
+        public List<Rule> listAll() {
+            return List.copyOf(rules.values());
+        }
+
+        @Override
         public Optional<Rule> find(String tenantCode, String id) {
             return Optional.ofNullable(rules.get(id)).filter(r -> r.tenantCode().equals(tenantCode));
         }
@@ -77,6 +82,18 @@ final class InMemoryRules {
         public Optional<RuleVersion> version(String ruleId, String version) {
             return versions.stream().filter(v -> v.ruleId().equals(ruleId) && version.equals(v.version()))
                     .findFirst();
+        }
+
+        @Override
+        public List<RuleVersion> liveVersions(List<String> ruleIds) {
+            List<RuleVersion> out = new ArrayList<>();
+            for (String id : ruleIds) {
+                List<RuleVersion> all = versions(id);
+                Rule r = rules.get(id);
+                all.stream().filter(v -> v.status() == RuleVersion.Status.DRAFT
+                        || (r.currentVersion() != null && r.currentVersion().equals(v.version()))).forEach(out::add);
+            }
+            return out;
         }
 
         @Override
@@ -135,13 +152,16 @@ final class InMemoryRules {
         }
 
         @Override
-        public ConvTemplate upsert(ConvTemplate t) {
+        public Optional<ConvTemplate> upsert(ConvTemplate t, String expectedVersion) {
             ConvTemplate existing = templates.get(t.tenantCode() + "/" + t.key());
+            if (existing != null && !java.util.Objects.equals(existing.version(), expectedVersion)) {
+                return Optional.empty();
+            }
             ConvTemplate saved = existing == null ? t : new ConvTemplate(existing.id(), t.tenantCode(), t.key(),
                     t.name(), t.baseText(), t.whatsapp(), t.email(), existing.createdAt(), t.updatedAt(),
-                    t.updatedBy());
+                    t.updatedBy(), t.version());
             templates.put(t.tenantCode() + "/" + t.key(), saved);
-            return saved;
+            return Optional.of(saved);
         }
     }
 

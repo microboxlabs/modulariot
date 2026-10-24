@@ -17,6 +17,9 @@ public interface RuleStore {
 
     List<Rule> list(String tenantCode);
 
+    /** Every organization's rules, for the platform's template usage. */
+    List<Rule> listAll();
+
     Optional<Rule> find(String tenantCode, String id);
 
     /** Throws {@link IllegalStateException} when the tenant already has a rule with that key. */
@@ -29,6 +32,9 @@ public interface RuleStore {
     List<RuleVersion> versions(String ruleId);
 
     Optional<RuleVersion> version(String ruleId, String version);
+
+    /** The draft and the version in force of each of these rules, in one read. */
+    List<RuleVersion> liveVersions(List<String> ruleIds);
 
     /** Creates or replaces the rule's draft. */
     RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at);

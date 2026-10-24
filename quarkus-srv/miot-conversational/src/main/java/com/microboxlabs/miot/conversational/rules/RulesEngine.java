@@ -234,7 +234,7 @@ public class RulesEngine {
     /** Sends one step to its recipients; returns the warnings and delivery errors, or null when there are none. */
     private String send(Run run, Step step, RuleSpec spec, StoredEvent event) {
         Optional<ConvTemplate> template = step.template() == null ? Optional.empty()
-                : templates.find(run.tenantCode(), step.template());
+                : templates.find(ConvTemplate.PLATFORM_TENANT, step.template());
         StepMessages.Plan plan = StepMessages.plan(step, spec, event, template, new Audiences(resolvers.get()));
         List<String> problems = new ArrayList<>(plan.warnings());
         ContextKind kind = contextKind(run.contextKind());

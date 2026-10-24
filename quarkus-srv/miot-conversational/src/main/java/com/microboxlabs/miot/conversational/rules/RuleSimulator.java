@@ -82,7 +82,7 @@ public class RuleSimulator {
         Instant t = steps.isEmpty() ? event.at() : event.at().plus(Duration.ofMinutes(steps.get(0).afterMinutes()));
         for (int i = 0; i < steps.size(); i++) {
             Step step = steps.get(i);
-            StepMessages.Plan plan = StepMessages.plan(step, spec, event, template(tenantCode, step), audiences);
+            StepMessages.Plan plan = StepMessages.plan(step, spec, event, template(step), audiences);
             plan.recipients().forEach(p -> recipients.putIfAbsent(p.channel() + ":" + p.address(),
                     new Recipient(p.address(), p.channel(), p.name(), p.role())));
             int index = i;
@@ -102,7 +102,9 @@ public class RuleSimulator {
                 sample.data(), sample.test(), at, at);
     }
 
-    private Optional<ConvTemplate> template(String tenantCode, Step step) {
-        return step.template() == null ? Optional.empty() : templates.find(tenantCode, step.template());
+    /** Templates are the platform's, whichever organization the rule is from. */
+    private Optional<ConvTemplate> template(Step step) {
+        return step.template() == null ? Optional.empty()
+                : templates.find(ConvTemplate.PLATFORM_TENANT, step.template());
     }
 }

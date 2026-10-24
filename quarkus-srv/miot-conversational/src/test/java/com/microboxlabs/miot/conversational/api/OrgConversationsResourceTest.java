@@ -14,13 +14,11 @@ import com.microboxlabs.miot.conversational.api.OrgConversationsResource.Simulat
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.StateRequest;
 import com.microboxlabs.miot.conversational.client.FakeMetaGraph;
 import com.microboxlabs.miot.conversational.client.MetaTemplatesClient;
-import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RulesFixtureAccess;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleContext;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
-import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
@@ -253,29 +251,23 @@ class OrgConversationsResourceTest {
     }
 
     @Test
-    void templatesWithUsedBy() {
+    void theOrganizationReadsThePlatformTemplatesWithItsOwnRules() {
         String id = createPanicRule();
 
-        Response saved = call(owner.saveTemplate(ORG, "panic-check", new TemplateRequest("Pánico conductor",
-                "Hola {{nombre}}", new ConvTemplate.WhatsApp("miot_panic_check_v2", "es_CL", List.of("nombre")),
-                null)));
-        assertEquals(200, saved.getStatus());
-        JsonNode t = body(saved);
-        assertEquals(set("id", "key", "name", "baseText", "whatsapp", "email", "updatedAt", "updatedBy", "usedBy"),
-                keys(t));
+        JsonNode t = body(call(member.getTemplate(ORG, "panic-check")));
+        assertEquals(set("id", "key", "name", "baseText", "whatsapp", "email", "version", "updatedAt", "updatedBy",
+                "usedBy"), keys(t));
+        assertEquals("0.1.0", t.path("version").asText());
         assertEquals(set("metaName", "language", "params"), keys(t.path("whatsapp")));
         assertTrue(t.path("email").isNull());
-        assertEquals(set("id", "key", "name", "state"), keys(t.path("usedBy").get(0)));
+        assertEquals(set("id", "key", "name", "state"), keys(t.path("usedBy").get(0)),
+                "an organization does not see whose rules they are");
         assertEquals(id, t.path("usedBy").get(0).path("id").asText());
 
         assertEquals(2, body(call(member.listTemplates(ORG))).size());
         JsonNode tower = body(call(member.getTemplate(ORG, "panic-tower")));
         assertEquals(set("subject", "body"), keys(tower.path("email")));
         assertEquals(404, call(member.getTemplate(ORG, "nope")).getStatus());
-        assertEquals(400, call(owner.saveTemplate(ORG, "Bad Key", new TemplateRequest("x", null, null, null)))
-                .getStatus());
-        assertEquals(400, call(owner.saveTemplate(ORG, "ok", new TemplateRequest("x", null,
-                new ConvTemplate.WhatsApp(null, null, null), null))).getStatus());
     }
 
     @Test
@@ -313,7 +305,6 @@ class OrgConversationsResourceTest {
     void writesNeedAnOwnerOrTheMaintainer() {
         Response refused = call(member.createRule(ORG, new CreateRuleRequest("panic", "Pánico", null)));
         assertEquals(403, refused.getStatus());
-        assertEquals(403, call(member.saveTemplate(ORG, "x", new TemplateRequest("x", null, null, null))).getStatus());
 
         assertEquals(201, call(maintainer.createRule(ORG, new CreateRuleRequest("panic", "Pánico", null)))
                 .getStatus());

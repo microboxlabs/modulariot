@@ -148,7 +148,7 @@ function CredentialCard({
   const descriptor = findCredentialType(credential.typeId);
   const typeName = typeNameOf(credential, dict);
   return (
-    <div className="relative flex flex-col rounded-lg border border-gray-200 bg-white transition focus-within:ring-2 focus-within:ring-blue-500 hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500">
+    <div className="relative flex flex-col rounded-lg border border-gray-200 bg-white transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500">
       <div className="flex items-start gap-3 px-4 pt-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center">
           <CredentialTypeLogo

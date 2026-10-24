@@ -90,6 +90,16 @@ public class PgFeedStore implements FeedStore {
     }
 
     @Override
+    public FeedService lockService(String tenantCode, String feedKey, String externalCode) {
+        query(pool.get(), """
+                INSERT INTO miot_trips.feed_service (tenant_code, feed_key, external_code, desired, desired_hash)
+                VALUES ($1, $2, $3, '{}', '')
+                ON CONFLICT (tenant_code, feed_key, external_code) DO NOTHING""",
+                Tuple.of(tenantCode, feedKey, externalCode));
+        return service(tenantCode, feedKey, externalCode).orElseThrow();
+    }
+
+    @Override
     public void saveService(FeedService s) {
         query(pool.get(), """
                 INSERT INTO miot_trips.feed_service

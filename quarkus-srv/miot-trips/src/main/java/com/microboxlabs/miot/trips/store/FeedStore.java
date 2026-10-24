@@ -18,6 +18,12 @@ public interface FeedStore {
     /** The service; inside a transaction its row stays locked until the transaction ends. */
     Optional<FeedService> service(String tenantCode, String feedKey, String externalCode);
 
+    /**
+     * Inside a transaction: the service row locked until it ends, created empty when the feed never sent it; so two
+     * reconciles of one service run one after the other.
+     */
+    FeedService lockService(String tenantCode, String feedKey, String externalCode);
+
     /** Inserts or replaces the service row. */
     void saveService(FeedService service);
 

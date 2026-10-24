@@ -1,0 +1,343 @@
+package com.microboxlabs.miot.trips.store;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.microboxlabs.miot.core.db.PgTransactions;
+import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.fleet.resources.domain.Carrier;
+import com.microboxlabs.miot.fleet.resources.domain.Driver;
+import com.microboxlabs.miot.fleet.resources.domain.Trailer;
+import com.microboxlabs.miot.fleet.resources.domain.Truck;
+import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.domain.FeedProfile;
+import com.microboxlabs.miot.trips.domain.FeedService;
+import com.microboxlabs.miot.trips.domain.Mandate;
+import com.microboxlabs.miot.trips.domain.Stage;
+import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.dto.AssignmentView;
+import com.microboxlabs.miot.trips.dto.FeedResult;
+import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
+import com.microboxlabs.miot.trips.dto.StageView;
+import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.trips.service.AssignmentService;
+import com.microboxlabs.miot.trips.service.AuditService;
+import com.microboxlabs.miot.trips.service.FeedReconciler;
+import com.microboxlabs.miot.trips.service.MandateService;
+import com.microboxlabs.miot.trips.service.StageService;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
+import com.microboxlabs.miot.trips.service.TripService;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.pgclient.PgBuilder;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.pgclient.PgConnectOptions;
+import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+
+/**
+ * The feed reconciler against a real database, through the real trips services: create, changes, the clock's
+ * departure and close, repeats, reports, dry runs, and a failing step undoing the whole service. Skipped unless
+ * {@code -Dmiot.trips.test.pg-url=…} is set.
+ */
+@EnabledIfSystemProperty(named = PgTripsStoresTest.URL_PROPERTY, matches = ".+")
+class PgFeedReconcilerTest {
+
+    private static final Duration WAIT = Duration.ofSeconds(10);
+    private static final String FEED = "servicios";
+    private static final String ACTOR = "feed:test";
+    private static final ZoneOffset PE = ZoneOffset.ofHours(-5);
+
+    private static Vertx vertx;
+    private static Pool pool;
+
+    private final MovableClock clock = new MovableClock(Instant.parse("2026-10-25T12:00:00Z"));
+    private final ObjectMapper json = JsonMapper.builder().findAndAddModules()
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS).build();
+    private final Transactions tx = new PgTransactions(() -> pool);
+    private final AuditService audit = new AuditService(new PgAuditStore(() -> pool));
+    private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit, tx);
+    private final TripLiveProjector projector = PgTripsStoresTest.projector(() -> pool);
+    private final TripService trips = new TripService(new PgTripStore(() -> pool), new PgStageStore(() -> pool),
+            new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
+            mandates, projector, audit, tx);
+    private final StageService stages = new StageService(new PgStageStore(() -> pool), new PgTripStore(() -> pool),
+            new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
+    private final com.microboxlabs.miot.fleet.resources.store.PgResourceStore resources =
+            new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool);
+    private final FleetResourcesService fleet = new FleetResourcesService(resources);
+    private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
+            new PgTripStore(() -> pool), fleet, projector, audit, tx);
+    private final PgFeedStore feeds = new PgFeedStore(() -> pool);
+    private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments, fleet,
+            tx, json, clock);
+
+    private String tenant;
+    private Ids fleetIds;
+
+    private record Ids(String abc, String ghi, String mno, String def, String d1, String d2, String d3) {
+    }
+
+    @BeforeAll
+    static void migrate() throws IOException {
+        vertx = Vertx.vertx();
+        pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(
+                PgTripsStoresTest.URL_PROPERTY))).using(vertx).build();
+        PgTripsStoresTest.recreateSchemas(pool);
+    }
+
+    @AfterAll
+    static void close() {
+        pool.close().await().atMost(WAIT);
+        vertx.close().await().atMost(WAIT);
+    }
+
+    /** Each test: its own tenant with the feed profile and a small directory. */
+    @BeforeEach
+    void tenantWithAFeed() {
+        tenant = "t-" + UUID.randomUUID().toString().substring(0, 8);
+        feeds.saveProfile(profile(List.of("preparacion", "transito", "cierre")));
+        Carrier c = resources.insertCarrier(new Carrier(null, tenant, null, "20000000001", "Transportes Prueba SAC",
+                null, null, null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        fleetIds = new Ids(truck(c, "ABC-123", Carrier.ACTIVE), truck(c, "GHI-789", Carrier.ACTIVE),
+                truck(c, "MNO-111", Carrier.ACTIVE), resources.insertTrailer(new Trailer(null, tenant, c.id(), null,
+                        "DEF-456", null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR)).id(),
+                driver(c, "10000001"), driver(c, "10000002"), driver(c, "10000003"));
+        truck(c, "JKL-000", Carrier.INACTIVE);
+    }
+
+    private FeedProfile profile(List<String> stageTypes) {
+        return new FeedProfile(tenant, FEED, "Servicios", stageTypes.stream()
+                .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "transito", "cierre", 120,
+                new LinkedHashSet<>(List.of("truck", "driver")), true, null, ACTOR, null, ACTOR);
+    }
+
+    private String truck(Carrier c, String plate, String status) {
+        return resources.insertTruck(new Truck(null, tenant, c.id(), null, plate, null, null, null, null, status,
+                false, null, null, null, ACTOR, null, ACTOR)).id();
+    }
+
+    private String driver(Carrier c, String document) {
+        return resources.insertDriver(new Driver(null, tenant, c.id(), null, document, null, null, "Conductor",
+                null, null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR)).id();
+    }
+
+    /** The desired state: departure and arrival in hours from the test clock, Peru time. */
+    private FeedServiceRequest desired(double startH, double endH, String truck, String trailer, String... drivers) {
+        return new FeedServiceRequest("directo", "Cliente Prueba · Carga general", at(startH), at(endH),
+                new FeedServiceRequest.Resources(truck, trailer, List.of(drivers)), null);
+    }
+
+    private OffsetDateTime at(double hours) {
+        return OffsetDateTime.ofInstant(clock.instant().plusSeconds((long) (hours * 3600)), PE);
+    }
+
+    private FeedResult send(String code, FeedServiceRequest d) {
+        return reconciler.reconcile(tenant, ACTOR, FEED, code, d, false);
+    }
+
+    private TripView trip(FeedResult r) {
+        return trips.detail(tenant, UUID.fromString(r.tripId()));
+    }
+
+    private static String status(TripView t, String stageType) {
+        return t.stages().stream().filter(s -> s.stageType().equals(stageType)).map(StageView::status)
+                .findFirst().orElseThrow();
+    }
+
+    private static List<String> openWindows(TripView t, String type) {
+        return t.assignments().stream().filter(a -> a.validTo() == null && a.resourceType().equals(type))
+                .map(AssignmentView::resourceId).sorted().toList();
+    }
+
+    @Test
+    void aNewServiceIsCreatedWithItsResourcesAndFirstStageRunning() {
+        FeedResult r = send("S-001", desired(2, 10, "abc 123", "DEF-456", "10000001"));
+
+        assertEquals(FeedReconciler.CREATE, r.action());
+        assertTrue(r.errors().isEmpty());
+        TripView t = trip(r);
+        assertEquals(Trip.EN_ROUTE, t.status());
+        assertEquals(Stage.RUNNING, status(t, "preparacion"));
+        assertEquals(Stage.PENDING, status(t, "transito"));
+        assertEquals(List.of(fleetIds.abc()), openWindows(t, "truck"));
+        assertEquals(List.of(fleetIds.def()), openWindows(t, "trailer"));
+        assertEquals(List.of(fleetIds.d1()), openWindows(t, "driver"));
+        assertNotNull(t.stages().stream().filter(s -> s.stageType().equals("cierre")).findFirst().orElseThrow()
+                .plannedEnd(), "the close stage carries the arrival time");
+        assertEquals(Mandate.RUNNING, mandates.get(tenant, UUID.fromString(r.mandateId())).status());
+        FeedService s = feeds.service(tenant, FEED, "S-001").orElseThrow();
+        assertEquals(reconciler.hash(desired(2, 10, "abc 123", "DEF-456", "10000001")), s.desiredHash());
+        assertTrue(s.open());
+    }
+
+    @Test
+    void aServiceWhoseDepartureTimePassedStartsInTransitWithBothDrivers() {
+        FeedResult r = send("S-002", desired(-1, 5, "GHI 789", "DEF-456", "10000002", "10000003"));
+
+        TripView t = trip(r);
+        assertEquals(Stage.CLOSED, status(t, "preparacion"));
+        assertEquals(Stage.RUNNING, status(t, "transito"));
+        assertEquals(List.of(fleetIds.d2(), fleetIds.d3()).stream().sorted().toList(), openWindows(t, "driver"));
+    }
+
+    @Test
+    void aServiceWithoutItsRequiredResourcesIsReportedAndNothingIsCreated() {
+        FeedResult inactive = send("S-005", desired(1, 6, "JKL-000", null, "10000005"));
+        FeedResult incomplete = send("S-003", desired(1, 6, "PQR-222", null));
+
+        assertEquals(FeedReconciler.REPORT, inactive.action());
+        assertEquals(List.of("truck JKL-000 is inactive", "driver 10000005 is not in the fleet directory"),
+                inactive.errors());
+        assertEquals(List.of("truck PQR-222 is not in the fleet directory", "driver is required"),
+                incomplete.errors());
+        assertTrue(mandates.list(tenant, null, "S-005", 0, 10).isEmpty(), "no mandate for a reported service");
+        assertTrue(feeds.service(tenant, FEED, "S-005").orElseThrow().open(), "the clock retries it");
+    }
+
+    @Test
+    void aMissingTrailerIsAWarningNotAStop() {
+        FeedResult r = send("S-006", desired(1, 6, "ABC-123", "ZZZ-999", "10000001"));
+
+        assertEquals(FeedReconciler.CREATE, r.action());
+        assertEquals(List.of("trailer ZZZ-999 is not in the fleet directory"), r.warnings());
+        assertTrue(openWindows(trip(r), "trailer").isEmpty());
+    }
+
+    @Test
+    void aServiceWhoseCloseTimeAlreadyPassedIsNotCreated() {
+        FeedResult r = send("S-004", desired(-12, -5, "ABC-123", null, "10000001"));
+
+        assertEquals(FeedReconciler.SKIP, r.action());
+        assertNull(r.tripId());
+        assertFalse(feeds.service(tenant, FEED, "S-004").orElseThrow().open());
+    }
+
+    @Test
+    void changesMoveTheTimesSwapTheTruckAndDropTheSecondDriver() {
+        send("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001", "10000002"));
+        FeedServiceRequest changed = new FeedServiceRequest("directo", "Cliente Nuevo · Carga general", at(3), at(12),
+                new FeedServiceRequest.Resources("MNO-111", "DEF-456", List.of("10000001")), null);
+
+        FeedResult r = send("S-001", changed);
+
+        assertEquals(FeedReconciler.UPDATE, r.action());
+        assertEquals(List.of("change planned start", "change planned end", "change order reference",
+                "end truck window", "assign truck MNO-111", "end driver window"), r.operations());
+        TripView t = trip(r);
+        assertEquals(List.of(fleetIds.mno()), openWindows(t, "truck"));
+        assertEquals(List.of(fleetIds.d1()), openWindows(t, "driver"));
+        assertEquals(at(3).toInstant(), t.plannedStart().toInstant());
+        assertEquals("Cliente Nuevo · Carga general", mandates.get(tenant, UUID.fromString(r.mandateId())).orderRef());
+    }
+
+    @Test
+    void sendingTheSameStateAgainChangesNothing() {
+        FeedServiceRequest d = desired(2, 10, "ABC-123", "DEF-456", "10000001");
+        send("S-001", d);
+
+        FeedResult again = send("S-001", d);
+
+        assertEquals(FeedReconciler.UPDATE, again.action());
+        assertEquals(List.of(), again.operations());
+    }
+
+    @Test
+    void theClockStartsTheDepartureStageAndLaterClosesTripAndMandate() {
+        FeedResult created = send("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001"));
+
+        clock.advance(Duration.ofHours(3));
+        FeedResult departed = reconciler.recheck(tenant, FEED, "S-001");
+        assertEquals(List.of("close preparacion (departure time passed)", "start transito"), departed.operations());
+        assertEquals(Stage.RUNNING, status(trip(created), "transito"));
+
+        clock.advance(Duration.ofHours(10));
+        FeedResult closed = reconciler.recheck(tenant, FEED, "S-001");
+        assertEquals(FeedReconciler.CLOSE, closed.action());
+        assertEquals(Trip.DONE, trip(created).status());
+        assertEquals(Mandate.CLOSED, mandates.get(tenant, UUID.fromString(created.mandateId())).status());
+        assertFalse(feeds.service(tenant, FEED, "S-001").orElseThrow().open(), "a realized trip leaves the clock");
+
+        assertEquals(FeedReconciler.SKIP, reconciler.recheck(tenant, FEED, "S-001").action());
+    }
+
+    @Test
+    void aDryRunSaysWhatItWouldDoAndWritesNothing() {
+        FeedResult r = reconciler.reconcile(tenant, ACTOR, FEED, "S-009", desired(-1, 5, "ABC-123", null,
+                "10000001"), true);
+
+        assertTrue(r.dryRun());
+        assertEquals(List.of("create mandate S-009", "create trip with stages [preparacion, transito, cierre]",
+                "assign truck ABC-123", "assign driver 10000001", "start preparacion",
+                "close preparacion (departure time passed)", "start transito"), r.operations());
+        assertTrue(mandates.list(tenant, null, "S-009", 0, 10).isEmpty());
+        assertTrue(feeds.service(tenant, FEED, "S-009").isEmpty());
+    }
+
+    @Test
+    void aFailingStepUndoesTheWholeServiceAndIsRecorded() {
+        feeds.saveProfile(profile(List.of("preparacion", "volando", "cierre")));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> send("S-010", desired(1, 6, "ABC-123", null, "10000001")));
+
+        assertTrue(mandates.list(tenant, null, "S-010", 0, 10).isEmpty(), "the mandate created first is undone");
+        FeedService s = feeds.service(tenant, FEED, "S-010").orElseThrow();
+        assertEquals(FeedReconciler.ERROR, s.lastAction());
+        assertEquals("", s.desiredHash(), "no hash: the next send is applied, not skipped");
+        assertTrue(s.lastResult().contains("stageType"));
+    }
+
+    @Test
+    void anUnknownOrSwitchedOffFeedIsNotFound() {
+        assertThrows(java.util.NoSuchElementException.class, () -> reconciler.reconcile(tenant, ACTOR, "otro",
+                "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+    }
+
+    /** A clock the test moves forward. */
+    private static final class MovableClock extends Clock {
+        private Instant now;
+
+        MovableClock(Instant start) {
+            this.now = start;
+        }
+
+        void advance(Duration d) {
+            now = now.plus(d);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+    }
+}

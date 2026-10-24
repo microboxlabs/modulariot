@@ -89,7 +89,7 @@ miot-tracking/src/main/resources/db/migration/tracking/      # asset data, clien
 miot-integrations/src/main/resources/db/migration/integrations/ # credential profiles, connections, operations, test/audit events
 ```
 
-Migration version ranges are reserved per component so subset deployments can include only the active module locations while Flyway still has stable ordering:
+Migration version ranges are reserved per component so subset deployments can include only the active module locations while Flyway still has stable ordering. Take a new migration's version from its component's range, not from the highest version on trunk:
 
 | Component | Schema | Migration range |
 |-----------|--------|-----------------|
@@ -97,8 +97,17 @@ Migration version ranges are reserved per component so subset deployments can in
 | Retired (Alfresco fleet directory, resource core, drivers) | `miot_resource`, `miot_driver` | `V0.2.x`–`V0.4.x`, do not reuse |
 | Tracking | `miot_tracking` | `V0.5.x` |
 | Integrations | `miot_integrations` | `V0.6.x` |
-| Symptoms | — (uses StreamHub `prod_iot_gps`, no local schema) | — |
+| Conversational | `miot_conversational` | `V0.7.x` |
+| Symptoms | `miot_symptoms` (also reads StreamHub `prod_iot_gps`) | `V0.8.x` |
 | Fleet | `miot_fleet` (reads StreamHub `prod_iot_gps` for signals and trips) | `V0.9.x` |
+| Trips | `miot_trips` | `V0.10.x` |
+
+These migrations sit outside their component's range. They are applied, so they keep their versions; do not reuse them:
+
+| Component | Versions |
+|-----------|----------|
+| Symptoms | `V0.9.2`, `V0.9.3`, `V0.9.4`, `V0.9.5`, `V0.9.7` |
+| Conversational | `V0.9.6`, `V0.9.8`, `V0.10.1`, `V0.10.2` |
 
 ## API Documentation
 

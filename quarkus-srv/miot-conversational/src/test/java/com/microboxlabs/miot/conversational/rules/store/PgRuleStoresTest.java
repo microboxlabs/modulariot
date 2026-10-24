@@ -81,6 +81,11 @@ class PgRuleStoresTest {
         vertx.close().await().atMost(WAIT);
     }
 
+    private static RuleStore.Publication pub(String from, String version, RuleBump bump, String reason,
+            String actor) {
+        return new RuleStore.Publication(from, version, bump, reason, actor, T0);
+    }
+
     private Rule rule(String tenant, String key) {
         return rules.create(new Rule(UUID.randomUUID().toString(), tenant, key, "Pánico", Rule.State.OFF, null, T0,
                 T0));
@@ -99,18 +104,18 @@ class PgRuleStoresTest {
         assertNull(draft.version());
         assertEquals(1, rules.versions(rule.id()).size());
 
-        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"), null, "0.1.0", RuleBump.MINOR, "stale", "b@example.com", T0).isEmpty(),
+        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"),
+                pub(null, "0.1.0", RuleBump.MINOR, "stale", "b@example.com")).isEmpty(),
                 "the draft changed after this spec was validated");
-        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), null, "0.1.0", RuleBump.MINOR, "first", "b@example.com", T0).orElseThrow();
+        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), pub(null, "0.1.0", RuleBump.MINOR, "first", "b@example.com")).orElseThrow();
         assertEquals("0.1.0", v1.version());
         assertEquals(RuleBump.MINOR, v1.bump());
         assertEquals("x", v1.spec().path("steps").get(0).path("template").asText());
-        assertTrue(rules.publish(rule.id(), draft.spec(), "0.1.0", "0.1.1", RuleBump.PATCH, "none", "b@example.com", T0).isEmpty());
+        assertTrue(rules.publish(rule.id(), draft.spec(), pub("0.1.0", "0.1.1", RuleBump.PATCH, "none", "b@example.com")).isEmpty());
 
         RuleVersion second = rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[]}"), "c@example.com", T0);
-        assertTrue(rules.publish(rule.id(), second.spec(), null, "0.1.1", RuleBump.PATCH, "behind", "c@example.com",
-                T0).isEmpty(), "another publish moved the current version");
-        assertEquals("0.1.1", rules.publish(rule.id(), second.spec(), "0.1.0", "0.1.1", RuleBump.PATCH, "second", "c@example.com", T0)
+        assertTrue(rules.publish(rule.id(), second.spec(), pub(null, "0.1.1", RuleBump.PATCH, "behind", "c@example.com")).isEmpty(), "another publish moved the current version");
+        assertEquals("0.1.1", rules.publish(rule.id(), second.spec(), pub("0.1.0", "0.1.1", RuleBump.PATCH, "second", "c@example.com"))
                 .orElseThrow().version());
         rules.saveDraft(rule.id(), JSON.readTree("{}"), "c@example.com", T0);
 

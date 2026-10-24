@@ -60,7 +60,10 @@ interface UsedByPanelProps {
 }
 
 /** "Número 123", "Remitente a@b.cl" or the URL, by the connection's provider. */
-function usageDetail(usage: CredentialUsage, dict: I18nRecord): string | null {
+export function usageDetail(
+  usage: CredentialUsage,
+  dict: I18nRecord
+): string | null {
   if (!usage.detail) return null;
   const key = `usageDetail.${usage.providerType ?? ""}`;
   const text = trDynamic(key, dict, { detail: usage.detail });
@@ -77,13 +80,13 @@ function UsageRow({
     <li>
       <Link
         href={`/${lang}${usagePath(usage)}`}
-        className="group flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/50"
+        className="group flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-600/60"
       >
-        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
           {trDynamic(`usageKinds.${usage.kind}`, dict)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-400">
+          <span className="block truncate font-medium text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
             {usage.label}
           </span>
           {detail && (
@@ -92,7 +95,7 @@ function UsageRow({
             </span>
           )}
         </span>
-        <HiChevronRight className="h-4 w-4 shrink-0 text-gray-400 group-hover:text-blue-600" />
+        <HiChevronRight className="h-4 w-4 shrink-0 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-300" />
       </Link>
     </li>
   );
@@ -103,7 +106,7 @@ export function UsedByPanel({ credential, dict }: UsedByPanelProps) {
   const params = useParams<{ lang?: string }>();
   const lang = params?.lang ?? "es";
   return (
-    <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+    <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-600">
       <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
         {tr("modal.usedBy", dict)}
       </div>
@@ -163,7 +166,7 @@ interface TokenEndpointPreviewProps {
  */
 export function TokenEndpointPreview({ url, dict }: TokenEndpointPreviewProps) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-900/40">
       <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
         {tr("modal.tokenEndpoint", dict)}
       </div>
@@ -182,7 +185,7 @@ interface AdvancedSectionProps {
 /** Collapsed container for the fields a correct config rarely needs to touch. */
 export function AdvancedSection({ children, dict }: AdvancedSectionProps) {
   return (
-    <details className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+    <details className="rounded-lg border border-gray-200 p-3 dark:border-gray-600">
       <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
         {tr("modal.advanced", dict)}
       </summary>

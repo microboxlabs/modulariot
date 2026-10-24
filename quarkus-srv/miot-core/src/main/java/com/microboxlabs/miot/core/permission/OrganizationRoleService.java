@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.permission;
 import com.microboxlabs.miot.core.api.dto.OrganizationRoleDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationRoleRequest;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.BaseRole;
@@ -68,7 +69,18 @@ public class OrganizationRoleService {
         return evaluator.evaluate(organizationSlug, caller);
     }
 
+    /** Fails with 403 unless the caller is an Owner or Admin of the organization, or a platform owner in its scope. */
     public Uni<Void> requireOwner(String organizationSlug) {
+        if (PlatformScope.reserved(organizationSlug)) {
+            String personId = organizationContext.getUserEmail();
+            if (personId == null || personId.isBlank()) {
+                return forbidden();
+            }
+            return evaluator.evaluate(organizationSlug, Caller.user(personId))
+                    .flatMap(access -> access.member() && access.baseRole().atLeast(BaseRole.ADMIN)
+                            ? Uni.createFrom().voidItem()
+                            : forbidden());
+        }
         return Panache.withSession(() -> findOrganization(organizationSlug).flatMap(this::requireOwner));
     }
 

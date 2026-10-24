@@ -62,7 +62,9 @@ class MeScopesQueryCountTest {
                 .when().get("/api/v1/me/scopes")
                 .then().statusCode(200)
                 .body("slug", hasItems(PREFIX + "0", PREFIX + "child"))
-                .body("role", everyItem(is("OWNER")))
+                .body("findAll { it.slug != '_platform' }.role", everyItem(is("OWNER")))
+                .body("slug[-1]", is("_platform"))
+                .body("role[-1]", is("PLATFORM_OWNER"))
                 .body("find { it.slug == '" + PREFIX + "0' }.effectiveTaxIds", is(java.util.List.of("76.000.000-0")))
                 .body("find { it.slug == '" + PREFIX + "child' }.isParent", is(false));
     }

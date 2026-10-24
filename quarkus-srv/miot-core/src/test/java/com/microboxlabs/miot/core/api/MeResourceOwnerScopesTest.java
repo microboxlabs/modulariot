@@ -36,8 +36,8 @@ class MeResourceOwnerScopesTest {
                 new OrganizationModule(1L, "FLEET_MANAGEMENT", true),
                 new OrganizationModule(3L, "DASHBOARDS", true));
 
-        Map<String, OrganizationScopeDto> scopes = MeResource
-                .ownerScopes(List.of(gama, north, south, noTax, demo), modules).stream()
+        List<OrganizationScopeDto> listed = MeResource.ownerScopes(List.of(gama, north, south, noTax, demo), modules);
+        Map<String, OrganizationScopeDto> scopes = listed.stream()
                 .collect(Collectors.toMap(OrganizationScopeDto::slug, Function.identity()));
 
         assertEquals(new OrganizationScopeDto(1L, "gama", "Gama", null, "OWNER", true,
@@ -48,6 +48,8 @@ class MeResourceOwnerScopesTest {
         assertEquals(List.of(), scopes.get("gama-west").effectiveTaxIds());
         assertEquals(new OrganizationScopeDto(5L, "demo", "Demo", null, "OWNER", true, List.of(), List.of()),
                 scopes.get("demo"));
-        assertEquals(5, scopes.size());
+        assertEquals(6, scopes.size());
+        assertEquals(new OrganizationScopeDto(-1L, "_platform", "Plataforma", null, "PLATFORM_OWNER", false,
+                List.of(), List.of()), listed.get(listed.size() - 1));
     }
 }

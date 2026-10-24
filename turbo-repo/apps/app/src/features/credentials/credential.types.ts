@@ -1,4 +1,8 @@
 import type { ComponentType, SVGProps } from "react";
+import type {
+  BrandLogoSources,
+  LogoKeyline,
+} from "@/features/common/components/brand-logo";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import { z } from "zod";
 
@@ -44,7 +48,10 @@ export interface CredentialUsage {
 export function usagePath(usage: CredentialUsage): string {
   switch (usage.kind) {
     case "CHANNEL":
-      return "/users/settings/organizations";
+      // WhatsApp and email accounts are set up in Comunicaciones, one section per channel.
+      return usage.providerType === "RESEND"
+        ? "/users/settings/communications?section=channel:email"
+        : "/users/settings/communications?section=channel:whatsapp";
     case "DATA_SOURCE":
       return "/users/settings/data-sources";
     case "JOB":
@@ -153,23 +160,6 @@ export interface Auth0M2MConfig {
 
 export type TokenRequestFormat = "FORM" | "JSON";
 
-/**
- * Logo sources for a credential type. Any image URL works — SVG, PNG, local
- * asset or remote — because logos render through a plain <img>.
- *
- * Provide `light`/`dark` when the mark needs different ink per theme, or just
- * `default` when one asset reads correctly on both (most brand marks do).
- * Missing entries fall back: theme-specific → default → the built-in key mark.
- */
-export interface CredentialLogo {
-  /** Used when the app is in light theme. */
-  readonly light?: string;
-  /** Used when the app is in dark theme. */
-  readonly dark?: string;
-  /** Theme-agnostic asset, and the fallback for whichever theme is missing. */
-  readonly default?: string;
-}
-
 export interface CredentialTypeDescriptor {
   readonly id: CredentialTypeId;
   readonly nameKey: string;
@@ -183,34 +173,12 @@ export interface CredentialTypeDescriptor {
    * test at all rather than a button that can't mean anything.
    */
   readonly supportsTest: boolean;
-  /** Omit to fall back to {@link DEFAULT_CREDENTIAL_LOGO}. */
-  readonly logo?: CredentialLogo;
+  /** Omit to fall back to the built-in key mark. */
+  readonly logo?: BrandLogoSources;
   /** An icon from the app's icon library, drawn in the text colour; takes the place of `logo`. */
   readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
-}
-
-/** Neutral key mark (PNG) used when a type ships no logo of its own. */
-export const DEFAULT_CREDENTIAL_LOGO: CredentialLogo = {
-  default: "/credential-logos/credential-default.png",
-};
-
-/**
- * Collapses a logo to the two sources the renderer needs. When both come out
- * equal the caller can render a single <img> instead of a light/dark pair.
- */
-export function resolveCredentialLogo(logo?: CredentialLogo): {
-  lightSrc: string;
-  darkSrc: string;
-} {
-  const fallback =
-    logo?.default ??
-    DEFAULT_CREDENTIAL_LOGO.default ??
-    DEFAULT_CREDENTIAL_LOGO.light ??
-    "";
-  return {
-    lightSrc: logo?.light ?? fallback,
-    darkSrc: logo?.dark ?? fallback,
-  };
+  /** The mark's overall shape, which sets how much of the tile it fills. Square by default. */
+  readonly keyline?: LogoKeyline;
 }
 
 /**
@@ -294,6 +262,7 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     available: true,
     supportsTest: false,
     icon: Whatsapp,
+    keyline: "circle",
   },
   {
     id: "BASIC_AUTH",

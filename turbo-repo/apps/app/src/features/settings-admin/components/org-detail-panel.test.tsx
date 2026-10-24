@@ -15,7 +15,7 @@ vi.mock("../whatsapp/whatsapp-channel-card", () => ({
 }));
 
 describe("OrgDetailPanel", () => {
-  it("shows channel settings to an owner", () => {
+  it("shows GPS webhooks to an owner; WhatsApp and email are in Comunicaciones", () => {
     render(
       <OrgDetailPanel
         organization={{
@@ -30,7 +30,7 @@ describe("OrgDetailPanel", () => {
       />
     );
 
-    expect(screen.getByTestId("whatsapp-channel")).toBeInTheDocument();
+    expect(screen.queryByTestId("whatsapp-channel")).toBeNull();
     expect(screen.getByTestId("gps-webhooks")).toBeInTheDocument();
   });
 

@@ -3590,6 +3590,8 @@
         "channelOwnBody_whatsapp": "Envía desde el número de la organización. Las plantillas se copian desde la plataforma y Meta las aprueba en esta cuenta.",
         "channelOwnBody_email": "Envía desde el dominio de la organización, con su propia cuenta de correo.",
         "channelNotConfigured": "Sin configurar",
+        "channelPlatformScopeHint": "La cuenta de la plataforma. La usan todas las organizaciones que no tienen una cuenta propia.",
+        "channelOwnOwnersOnly": "Solo los dueños de la organización pueden conectar una cuenta propia.",
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Elige la conexión que llama el paso {n}.",
@@ -4223,7 +4225,15 @@
         "label": "Acciones"
       },
       "list": {
-        "loading": "Cargando conexiones…"
+        "loading": "Cargando conexiones…",
+        "colConnection": "Conexión",
+        "colType": "Tipo",
+        "colStatus": "Estado",
+        "colCredential": "Credencial",
+        "colTemplate": "Plantilla",
+        "colOperation": "Operación",
+        "colFields": "Campos",
+        "colConnections": "Conexiones"
       },
       "delete": {
         "connectionTitle": "¿Eliminar conexión?",
@@ -4322,6 +4332,18 @@
         "pinValue": "Valor",
         "addPin": "Agregar valor fijo",
         "loadFailed": "No se pudieron leer las funciones. Prueba la conexión."
+      },
+      "viewCards": "▦ Tarjetas",
+      "viewList": "☰ Lista",
+      "filters": {
+        "searchPlaceholder": "Buscar por nombre, tipo o URL",
+        "type": "Tipo",
+        "status": "Estado",
+        "sortLabel": "Ordenar",
+        "sortNameAsc": "Nombre (A-Z)",
+        "sortNameDesc": "Nombre (Z-A)",
+        "sortTested": "Prueba más reciente",
+        "noMatches": "Ninguna conexión coincide con estos filtros."
       }
     },
     "calendar": {
@@ -7721,6 +7743,7 @@
     "CARRIER_PORTAL": "Portal transportista"
   },
   "orgSwitcher": {
+    "platform": "Plataforma",
     "searchPlaceholder": "Buscar organización…",
     "recent": "Recientes",
     "all": "Todas las organizaciones",

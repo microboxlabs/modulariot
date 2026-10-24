@@ -15,6 +15,8 @@ import SectionMenu, {
 } from "@/features/common/components/section-menu";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { isPlatformScope } from "@/features/common/platform-scope";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
 import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
 import ActivityTab, {
@@ -36,6 +38,7 @@ import {
   type CommunicationsSection,
   DEFAULT_SECTION,
   sectionOf,
+  sectionsFor,
 } from "./communications-sections";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
 import LayoutToggle from "@/features/common/components/layout-toggle";
@@ -63,9 +66,14 @@ export default function CommunicationsPage({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const section = sectionOf(params);
-  const channel = channelType(channelKeyOf(section) ?? "");
   const { canMaintain, loaded } = useControlTowerAccess();
+  const { activeOrg } = useOrgScopes();
+  const platformScope = isPlatformScope(activeOrg?.slug);
+  const section = sectionOf(params, platformScope);
+  const channel = channelType(channelKeyOf(section) ?? "");
+  // Accounts hold secrets: organization owners set them up, and platform owners the platform's.
+  const canConfigureChannels =
+    activeOrg?.role === "OWNER" || activeOrg?.role === "PLATFORM_OWNER";
   const { data: rules } = useConversationRules();
   const { data: catalog } = useEventCatalog();
   const [ruleFilters, setRuleFilters] = useState<RuleFilters>(NO_RULE_FILTERS);
@@ -100,7 +108,7 @@ export default function CommunicationsPage({
     replaceQuery(q);
   };
 
-  const sections: SectionMenuEntry<CommunicationsSection>[] = [
+  const allSections: SectionMenuEntry<CommunicationsSection>[] = [
     {
       id: "rules",
       label: tr("tabRules", d),
@@ -121,6 +129,8 @@ export default function CommunicationsPage({
       group: tr("menuChannels", d),
     })),
   ];
+  const offered = sectionsFor(platformScope);
+  const sections = allSections.filter((s) => offered.includes(s.id));
 
   const filterBar = (): {
     defs: FilterDef[];
@@ -213,7 +223,14 @@ export default function CommunicationsPage({
             />
           )}
           {channel && !isConnectionChannel(channel.key) && (
-            <ChannelPanel channel={channel} d={d} />
+            <ChannelPanel
+              channel={channel}
+              d={d}
+              settingsDict={dict}
+              orgSlug={activeOrg?.slug ?? null}
+              platformScope={platformScope}
+              canConfigure={canConfigureChannels}
+            />
           )}
         </div>
       </div>

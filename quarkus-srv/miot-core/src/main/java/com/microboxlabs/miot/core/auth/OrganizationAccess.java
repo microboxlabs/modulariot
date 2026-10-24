@@ -29,6 +29,8 @@ import org.jboss.logging.Logger;
 public class OrganizationAccess {
 
     private static final Logger LOG = Logger.getLogger(OrganizationAccess.class);
+    static final String ORGANIZATION_NOT_FOUND = "Organization not found";
+    static final String PLATFORM_OWNER_REQUIRED = "Platform owner role required";
 
     /** Why a caller was refused, and the HTTP status for it. */
     public record Refusal(Response.Status status, String message) {
@@ -61,10 +63,36 @@ public class OrganizationAccess {
         if (!caller.isUser() && !caller.isClient() && !caller.isServiceAccount()) {
             return refuse(Response.Status.UNAUTHORIZED, "Cannot resolve caller identity for organization request");
         }
+        if (PlatformScope.reserved(slug)) {
+            // The platform scope is entered only through enterPlatform, from a verified token.
+            return refuse(Response.Status.NOT_FOUND, ORGANIZATION_NOT_FOUND);
+        }
         return Panache.withSession(() -> Organization.findBySlug(slug)
                 .flatMap(org -> org == null
                         ? refuse(Response.Status.FORBIDDEN, "Access denied")
                         : evaluator.evaluate(slug, caller).flatMap(access -> admit(org, caller, access))));
+    }
+
+    /**
+     * Lets a platform owner into the platform scope: tenant {@value PlatformScope#TENANT}, base role OWNER.
+     * {@code email} must come from a verified token, never from the development header.
+     */
+    public Uni<Refusal> enterPlatform(String email) {
+        if (email == null) {
+            return refuse(Response.Status.FORBIDDEN, PLATFORM_OWNER_REQUIRED);
+        }
+        return evaluator.evaluate(PlatformScope.SLUG, Caller.user(email)).map(access -> {
+            if (!access.member()) {
+                return new Refusal(Response.Status.FORBIDDEN, PLATFORM_OWNER_REQUIRED);
+            }
+            tenantContext.setClientId(PlatformScope.TENANT);
+            tenantContext.setTenantCode(PlatformScope.TENANT);
+            tenantContext.setEffectiveClientIds(List.of(PlatformScope.TENANT));
+            organizationContext.setOrganizationId(PlatformScope.SLUG);
+            organizationContext.setUserEmail(email);
+            organizationContext.setBaseRole(access.baseRole().name());
+            return null;
+        });
     }
 
     /** Lets a service account into its own organization, for paths that do not name one. */

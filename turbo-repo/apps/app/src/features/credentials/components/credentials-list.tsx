@@ -1,6 +1,8 @@
 "use client";
 
 import { Dropdown, DropdownItem } from "flowbite-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { HiDotsVertical, HiPencil, HiTrash } from "react-icons/hi";
 import CatalogTable from "@/features/common/components/catalog-table";
 import type { CatalogLayout } from "@/features/common/components/layout-toggle";
@@ -9,6 +11,7 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   findCredentialType,
   maskIdentifier,
+  usagePath,
   type CredentialListItem,
 } from "../credential.types";
 import { CredentialTestBadge, EnvironmentBadge } from "./credential-badges";
@@ -247,8 +250,8 @@ function CredentialRow({
           />
         </div>
       </td>
-      <td className="max-w-64 truncate px-4 py-2.5">
-        {usageLine(credential, dict)}
+      <td className="max-w-64 px-4 py-2.5">
+        <UsageLinks credential={credential} dict={dict} />
       </td>
       <td className="whitespace-nowrap px-4 py-2.5">
         {new Date(credential.updatedAt).toLocaleDateString()}
@@ -260,6 +263,32 @@ function CredentialRow({
         <CredentialMenu onOpen={onOpen} onDelete={onDelete} dict={dict} />
       </td>
     </tr>
+  );
+}
+
+/** The table's "Usada por": each consumer links to where it is managed, as in the details modal. */
+function UsageLinks({
+  credential,
+  dict,
+}: Readonly<{ credential: CredentialListItem; dict: I18nRecord }>) {
+  const params = useParams<{ lang?: string }>();
+  const lang = params?.lang ?? "es";
+  if (credential.usedBy.length === 0) {
+    return <span>{tr("list.unused", dict)}</span>;
+  }
+  return (
+    <ul className="flex flex-col gap-0.5">
+      {credential.usedBy.map((usage) => (
+        <li key={usage.id} className="truncate">
+          <Link
+            href={`/${lang}${usagePath(usage)}`}
+            className="text-gray-700 hover:text-blue-700 hover:underline dark:text-gray-300 dark:hover:text-blue-400"
+          >
+            {usage.label}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

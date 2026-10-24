@@ -44,7 +44,10 @@ export interface CredentialUsage {
 export function usagePath(usage: CredentialUsage): string {
   switch (usage.kind) {
     case "CHANNEL":
-      return "/users/settings/organizations";
+      // WhatsApp and email accounts are set up in Comunicaciones, one section per channel.
+      return usage.providerType === "RESEND"
+        ? "/users/settings/communications?section=channel:email"
+        : "/users/settings/communications?section=channel:whatsapp";
     case "DATA_SOURCE":
       return "/users/settings/data-sources";
     case "JOB":

@@ -34,7 +34,7 @@ public class PgStageStore implements StageStore {
             INSERT INTO miot_trips.stage
                 (tenant_code, subject_type, subject_id, seq, stage_type, service_status, location_id,
                  planned_start, planned_end, checklist, created_by, updated_by)
-            SELECT $1, $2, $3, COALESCE(max(seq), 0) + 1, $4, $5, $6, $7, $8, $9::jsonb, $10, $10
+            SELECT $1, $2, $3, COALESCE(max(seq), 0) + 1, $4, $5, $6, $7, $8, $9::text::jsonb, $10, $10
             FROM miot_trips.stage
             WHERE subject_type = $2 AND subject_id = $3 AND version_of IS NULL AND is_active
             RETURNING\s""" + COLUMNS;
@@ -42,7 +42,7 @@ public class PgStageStore implements StageStore {
     private static final String UPDATE = """
             UPDATE miot_trips.stage SET
                 stage_type = $3, service_status = $4, location_id = $5, planned_start = $6,
-                planned_end = $7, checklist = $8::jsonb, updated_by = $9
+                planned_end = $7, checklist = $8::text::jsonb, updated_by = $9
             WHERE id = $1 AND tenant_code = $2 AND version_of IS NULL
             RETURNING\s""" + COLUMNS;
 
@@ -53,13 +53,13 @@ public class PgStageStore implements StageStore {
     private static final String A_INSERT = """
             INSERT INTO miot_trips.stage_activity
                 (tenant_code, stage_id, seq, activity_type, assignee, evidence, created_by, updated_by)
-            SELECT $1, $2, COALESCE(max(seq), 0) + 1, $3, $4, $5::jsonb, $6, $6
+            SELECT $1, $2, COALESCE(max(seq), 0) + 1, $3, $4, $5::text::jsonb, $6, $6
             FROM miot_trips.stage_activity WHERE stage_id = $2 AND version_of IS NULL AND is_active
             RETURNING\s""" + A_COLUMNS;
 
     private static final String A_UPDATE = """
             UPDATE miot_trips.stage_activity SET
-                status = $3, assignee = $4, assignment_id = $5, evidence = $6::jsonb,
+                status = $3, assignee = $4, assignment_id = $5, evidence = $6::text::jsonb,
                 done_at = $7, updated_by = $8
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + A_COLUMNS;

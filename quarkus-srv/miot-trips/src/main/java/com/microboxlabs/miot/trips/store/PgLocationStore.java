@@ -43,7 +43,7 @@ public class PgLocationStore implements LocationStore {
         return location(query(pool.get(), """
                 INSERT INTO miot_trips.location
                     (tenant_code, name, type, external_code, geom_geojson, created_by, updated_by)
-                VALUES ($1, $2, $3, $4, $5::jsonb, $6, $6)
+                VALUES ($1, $2, $3, $4, $5::text::jsonb, $6, $6)
                 RETURNING\s""" + COLUMNS,
                 Tuple.tuple().addString(l.tenantCode()).addString(l.name()).addString(l.type())
                         .addString(l.externalCode()).addString(l.geomGeojson()).addString(l.createdBy()))
@@ -82,7 +82,7 @@ public class PgLocationStore implements LocationStore {
     public Optional<Location> update(Location l) {
         return first(query(pool.get(), """
                 UPDATE miot_trips.location SET
-                    name = $3, type = $4, external_code = $5, geom_geojson = $6::jsonb, updated_by = $7
+                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb, updated_by = $7
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + COLUMNS,
                 Tuple.tuple().addUUID(Pg.parse(l.id())).addString(l.tenantCode())

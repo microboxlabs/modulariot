@@ -258,4 +258,25 @@ class PgTripsStoresTest {
         assertEquals(1, page.size());
         assertEquals("mandate.created", page.get(0).action());
     }
+
+    @Test
+    void jsonColumnsHoldObjectsNotStrings() {
+        String tenant = tenant();
+        audit.append(new AuditEvent(null, tenant, ACTOR, "mandate.created", "mandate", "j", null,
+                Map.of("k", "v"), null));
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+                Stage.PENDING, null, null, null, null, null, "{\"items\":[\"sello\"]}", null, ACTOR, null, ACTOR));
+        locations.insert(new Location(null, tenant, "Puerto", "puerto", "PU-01",
+                "{\"type\":\"Point\",\"coordinates\":[-71.6,-33.0]}", null, ACTOR, null, ACTOR));
+
+        List<String> types = pool.preparedQuery("""
+                SELECT jsonb_typeof(details) FROM miot_trips.audit_event WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(checklist) FROM miot_trips.stage WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(geom_geojson) FROM miot_trips.location WHERE tenant_code = $1""")
+                .execute(io.vertx.mutiny.sqlclient.Tuple.of(tenant)).await().atMost(WAIT)
+                .stream().map(r -> r.getString(0)).toList();
+        assertEquals(List.of("object", "object", "object"), types);
+    }
 }

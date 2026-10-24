@@ -26,8 +26,8 @@ import type {
   SampleEvent,
   Simulation,
   TemplateBody,
-  WebhookChannel,
-  WebhookConnection,
+  ChannelConnection,
+  ConnectionChannel,
 } from "./conversations-types";
 
 export const CONVERSATIONS_BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/conversations`;
@@ -42,7 +42,8 @@ export const platformTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/
 export const platformTemplateKey = (key: string) =>
   `${platformTemplatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
-export const webhookChannelKey = `${CONVERSATIONS_BASE}/channels/webhook`;
+export const connectionChannelKey = (channel: string) =>
+  `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 /** The WhatsApp templates on Meta of the platform's connection, for platform owners. */
 export const metaTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/whatsapp-templates`;
 
@@ -219,24 +220,27 @@ export async function refreshTemplates(key?: string) {
   }
 }
 
-export function useWebhookChannel(enabled = true) {
-  return useSWR<WebhookChannel>(
-    enabled ? webhookChannelKey : null,
+export function useConnectionChannel(channel: string | null) {
+  return useSWR<ConnectionChannel>(
+    channel ? connectionChannelKey(channel) : null,
     fetcher,
     quiet
   );
 }
 
-/** A connection of the organization made from the webhook contract, through the integrations framework. */
-export async function createWebhookConnection(body: {
-  name: string;
-  baseUrl: string;
-  credentialProfileId: string | null;
-}) {
-  const created = await request<WebhookConnection>(
-    `${webhookChannelKey}/connections`,
+/** A connection of the organization made from the channel's template, through the integrations framework. */
+export async function createChannelConnection(
+  channel: string,
+  body: {
+    name: string;
+    baseUrl: string;
+    credentialProfileId: string | null;
+  }
+) {
+  const created = await request<ChannelConnection>(
+    `${connectionChannelKey(channel)}/connections`,
     { method: "POST", body }
   );
-  await mutate(webhookChannelKey);
+  await mutate(connectionChannelKey(channel));
   return created;
 }

@@ -4,8 +4,8 @@
  */
 export interface ChannelType {
   readonly key: string;
-  /** What a step addressed to this channel names as its recipient. */
-  readonly recipient: "phone" | "email" | "channel" | "connection";
+  /** What a step on this channel names as its recipient; `connection` channels call one of the organization's connections. */
+  readonly recipient: "phone" | "email" | "connection";
   /** The platform runs an account for it that any organization can use. */
   readonly platformOffered: boolean;
 }
@@ -13,10 +13,14 @@ export interface ChannelType {
 export const CHANNEL_TYPES: readonly ChannelType[] = [
   { key: "whatsapp", recipient: "phone", platformOffered: true },
   { key: "email", recipient: "email", platformOffered: true },
-  { key: "slack", recipient: "channel", platformOffered: false },
-  { key: "teams", recipient: "channel", platformOffered: false },
+  { key: "slack", recipient: "connection", platformOffered: false },
+  { key: "teams", recipient: "connection", platformOffered: false },
   { key: "webhook", recipient: "connection", platformOffered: false },
 ];
 
 export const channelType = (key: string) =>
   CHANNEL_TYPES.find((c) => c.key === key);
+
+/** Channels whose steps call an organization connection instead of writing to people. */
+export const isConnectionChannel = (key: string) =>
+  channelType(key)?.recipient === "connection";

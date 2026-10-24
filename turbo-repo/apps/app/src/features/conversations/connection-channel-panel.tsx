@@ -8,7 +8,7 @@ import { HiPlus } from "react-icons/hi";
 import { toast } from "sonner";
 import { fetchCredentials } from "@/features/credentials/credentials-data-service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ConnectionFormModal } from "@/features/integration-config/components/connection-form-modal";
 import { testConnection } from "@/features/integration-config/integration-config-data-service";
 import {
@@ -19,18 +19,22 @@ import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-sw
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { ChannelHeader } from "./channel-panel";
 import {
-  createWebhookConnection,
-  useWebhookChannel,
+  createChannelConnection,
+  useConnectionChannel,
 } from "./conversations-api";
-import type { WebhookChannel, WebhookConnection } from "./conversations-types";
+import type {
+  ConnectionChannel,
+  ChannelConnection,
+} from "./conversations-types";
 
-/** The webhook contract as the integrations form shows a template: read-only, POST, the fields it maps. */
+/** The channel's contract as the integrations form shows a template: read-only, POST, the fields it maps. */
 function contractTemplate(
-  channel: WebhookChannel,
+  channel: ConnectionChannel,
+  key: string,
   name: string
 ): IntegrationTemplate {
   return {
-    id: "webhook",
+    id: key,
     name,
     providerType: "CUSTOM_HTTP",
     operationName: channel.operation,
@@ -46,7 +50,7 @@ function ConnectionRow({
   orgSlug,
   d,
 }: Readonly<{
-  connection: WebhookConnection;
+  connection: ChannelConnection;
   orgSlug: string | null;
   d: I18nRecord;
 }>) {
@@ -56,10 +60,10 @@ function ConnectionRow({
     setTesting(true);
     try {
       const result = await testConnection(orgSlug, connection.id);
-      if (result.success) toast.success(tr("webhookTestOk", d));
-      else toast.error(result.message ?? tr("webhookTestFailed", d));
+      if (result.success) toast.success(tr("channelTestOk", d));
+      else toast.error(result.message ?? tr("channelTestFailed", d));
     } catch {
-      toast.error(tr("webhookTestFailed", d));
+      toast.error(tr("channelTestFailed", d));
     } finally {
       setTesting(false);
     }
@@ -75,19 +79,21 @@ function ConnectionRow({
         </p>
       </div>
       <Button size="xs" color="light" onClick={test} disabled={testing}>
-        {testing ? <Spinner size="xs" /> : tr("webhookTest", d)}
+        {testing ? <Spinner size="xs" /> : tr("channelTest", d)}
       </Button>
     </li>
   );
 }
 
-/** Comunicaciones › Webhook: the payload contract and the organization's connections that receive it. */
-export default function WebhookPanel({
+/** Comunicaciones › Webhook, Slack or Teams: the body each connection receives and the organization's connections. */
+export default function ConnectionChannelPanel({
+  channelKey,
   d,
   connectionsDict,
   lang,
   canMaintain,
 }: Readonly<{
+  channelKey: string;
   d: I18nRecord;
   connectionsDict: I18nRecord;
   lang: string;
@@ -95,11 +101,11 @@ export default function WebhookPanel({
 }>) {
   const { activeOrg } = useOrgScopes();
   const orgSlug = activeOrg?.slug ?? null;
-  const { data: channel, error } = useWebhookChannel();
+  const { data: channel, error } = useConnectionChannel(channelKey);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const { data: credentials } = useSWR(
-    creating && orgSlug ? ["webhook-credentials", orgSlug] : null,
+    creating && orgSlug ? ["channel-credentials", orgSlug] : null,
     () => fetchCredentials(orgSlug as string)
   );
 
@@ -113,34 +119,34 @@ export default function WebhookPanel({
   if (!channel) return <Spinner size="md" />;
 
   const fields = schemaLeafPaths(channel.requestSchema);
-  const name = tr("channel_webhook", d);
+  const name = trDynamic(`channel_${channelKey}`, d);
 
   return (
     <div className="flex flex-col gap-4">
-      <ChannelHeader channelKey="webhook" d={d} />
+      <ChannelHeader channelKey={channelKey} d={d} />
       <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <header className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-            {tr("webhookConnections", d)}
+            {tr("channelConnections", d)}
           </h3>
           <div className="flex items-center gap-2">
             <Link
               href={`/${lang}/users/settings/connections`}
               className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400"
             >
-              {tr("webhookManage", d)}
+              {tr("channelManage", d)}
             </Link>
             {canMaintain && (
               <Button size="xs" color="blue" onClick={() => setCreating(true)}>
                 <HiPlus className="mr-1 h-3.5 w-3.5" />
-                {tr("webhookNewConnection", d)}
+                {tr("channelNewConnection", d)}
               </Button>
             )}
           </div>
         </header>
         {channel.connections.length === 0 ? (
           <p className={`px-4 py-4 text-sm ${MUTED}`}>
-            {tr("webhookEmpty", d)}
+            {tr("channelEmpty", d)}
           </p>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -158,10 +164,10 @@ export default function WebhookPanel({
 
       <section className="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-          {tr("webhookContract", d)}
+          {tr("channelContract", d)}
         </h3>
         <p className={`mt-1 text-sm ${MUTED}`}>
-          {tr("webhookContractHint", d)}
+          {tr("channelContractHint", d)}
         </p>
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {fields.map((f) => (
@@ -178,7 +184,7 @@ export default function WebhookPanel({
       <ConnectionFormModal
         show={creating}
         connection={undefined}
-        template={contractTemplate(channel, name)}
+        template={contractTemplate(channel, channelKey, name)}
         credentials={credentials ?? []}
         onClose={() => setCreating(false)}
         saving={saving}
@@ -187,15 +193,15 @@ export default function WebhookPanel({
           if (!create) return;
           setSaving(true);
           try {
-            await createWebhookConnection({
+            await createChannelConnection(channelKey, {
               name: create.name,
               baseUrl: create.baseUrl,
               credentialProfileId: create.credentialProfileId,
             });
-            toast.success(tr("webhookCreated", d));
+            toast.success(tr("channelCreated", d));
             setCreating(false);
           } catch {
-            toast.error(tr("webhookCreateFailed", d));
+            toast.error(tr("channelCreateFailed", d));
           } finally {
             setSaving(false);
           }

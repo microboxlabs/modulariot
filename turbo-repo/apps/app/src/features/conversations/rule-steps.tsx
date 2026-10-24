@@ -16,10 +16,10 @@ import type {
   OnReply,
   RuleChannel,
   RuleStep,
-  WebhookConnection,
 } from "./conversations-types";
 import type { StepIssues } from "./rule-findings";
-import { useWebhookChannel } from "./conversations-api";
+import { isConnectionChannel } from "./channel-types";
+import { useConnectionChannel } from "./conversations-api";
 import { emptyStep, REPLY_CHANNELS, STEP_CHANNELS } from "./rule-model";
 import { moved, useRowKeys } from "./row-keys";
 
@@ -71,13 +71,54 @@ function StepActions({
   );
 }
 
+/** The connection a step on a connection channel calls, from that channel's connections. */
+function ConnectionSelect({
+  channel,
+  value,
+  invalid,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  channel: string;
+  value: string | undefined;
+  invalid: boolean;
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (connection: string | undefined) => void;
+}>) {
+  const { data } = useConnectionChannel(channel);
+  const connections = data?.connections ?? [];
+  const known = !value || connections.some((c) => c.id === value);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span>{tr("stepConnection", d)}</span>
+      <Select
+        aria-label={tr("stepConnection", d)}
+        className={`${FIELD} ${invalid ? FIELD_ERROR : ""}`}
+        wrapperClassName="min-w-44 flex-1"
+        disabled={readOnly}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value || undefined)}
+      >
+        <option value="">{tr("pickConnection", d)}</option>
+        {!known && <option value={value}>{value}</option>}
+        {connections.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+}
+
 function StepRow({
   step,
   index,
   count,
   templates,
   fields,
-  connections,
   issues,
   readOnly,
   d,
@@ -90,7 +131,6 @@ function StepRow({
   count: number;
   templates: ConversationTemplate[];
   fields: EventField[];
-  connections: WebhookConnection[];
   issues: StepIssues | undefined;
   readOnly: boolean;
   d: I18nRecord;
@@ -102,9 +142,7 @@ function StepRow({
   const knownTemplate =
     step.template === "" || templates.some((t) => t.key === step.template);
   const custom = Array.isArray(step.to);
-  const webhook = step.channel === "webhook";
-  const knownConnection =
-    !step.connection || connections.some((c) => c.id === step.connection);
+  const viaConnection = isConnectionChannel(step.channel);
   const templateError = issues?.template ? FIELD_ERROR : "";
   const channelError = issues?.channel ? FIELD_ERROR : "";
   return (
@@ -163,7 +201,9 @@ function StepRow({
             onChange={(e) => onSet({ template: e.target.value })}
           >
             <option value="">
-              {webhook ? tr("stepTemplateOptional", d) : tr("pickTemplate", d)}
+              {viaConnection
+                ? tr("stepTemplateOptional", d)
+                : tr("pickTemplate", d)}
             </option>
             {!knownTemplate && (
               <option value={step.template}>{step.template}</option>
@@ -184,33 +224,20 @@ function StepRow({
             />
           )}
         </div>
-        {webhook && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span>{tr("stepConnection", d)}</span>
-            <Select
-              aria-label={tr("stepConnection", d)}
-              className={`${FIELD} ${issues?.connection ? FIELD_ERROR : ""}`}
-              wrapperClassName="min-w-44 flex-1"
-              disabled={readOnly}
-              value={step.connection ?? ""}
-              onChange={(e) =>
-                onSet({ connection: e.target.value || undefined })
-              }
-            >
-              <option value="">{tr("pickConnection", d)}</option>
-              {!knownConnection && (
-                <option value={step.connection}>{step.connection}</option>
-              )}
-              {connections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </div>
+        {viaConnection && (
+          <ConnectionSelect
+            channel={step.channel}
+            value={step.connection}
+            invalid={issues?.connection ?? false}
+            readOnly={readOnly}
+            d={d}
+            onChange={(connection) => onSet({ connection })}
+          />
         )}
         <div
-          className={webhook ? "hidden" : "flex flex-wrap items-center gap-2"}
+          className={
+            viaConnection ? "hidden" : "flex flex-wrap items-center gap-2"
+          }
         >
           <span>{tr("stepToLabel", d)}</span>
           <Select
@@ -231,7 +258,7 @@ function StepRow({
             <option value="custom">{tr("stepToCustom", d)}</option>
           </Select>
         </div>
-        {!webhook && Array.isArray(step.to) && (
+        {!viaConnection && Array.isArray(step.to) && (
           <AudienceList
             entries={step.to}
             fields={fields}
@@ -306,9 +333,6 @@ export default function RuleSteps({
   onChange: (steps: RuleStep[]) => void;
 }>) {
   const rows = useRowKeys(steps.length);
-  const { data: webhook } = useWebhookChannel(
-    steps.some((s) => s.channel === "webhook")
-  );
   const set = (i: number, patch: Partial<RuleStep>) =>
     onChange(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   return (
@@ -331,7 +355,6 @@ export default function RuleSteps({
               count={steps.length}
               templates={templates}
               fields={fields}
-              connections={webhook?.connections ?? []}
               issues={errors[i]}
               readOnly={readOnly}
               d={d}

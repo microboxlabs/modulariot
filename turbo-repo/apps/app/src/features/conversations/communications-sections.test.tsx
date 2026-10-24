@@ -2,7 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import es from "@/lang/es.json";
 import ChannelPanel from "./channel-panel";
-import { CHANNEL_TYPES, channelType } from "./channel-types";
+import {
+  CHANNEL_TYPES,
+  channelType,
+  isConnectionChannel,
+} from "./channel-types";
 import { channelKeyOf, sectionOf } from "./communications-sections";
 
 const d = es.pages.userSettings.communications;
@@ -26,24 +30,20 @@ describe("sectionOf", () => {
 describe("ChannelPanel", () => {
   it("has every channel's texts in both dictionaries", () => {
     for (const c of CHANNEL_TYPES) {
-      for (const prefix of [
-        "channel_",
-        "channelMenu_",
-        "channelHint_",
-        "channelOwnBody_",
-      ]) {
+      for (const prefix of ["channel_", "channelMenu_", "channelHint_"]) {
         expect(d).toHaveProperty(`${prefix}${c.key}`);
+      }
+      if (!isConnectionChannel(c.key)) {
+        expect(d).toHaveProperty(`channelOwnBody_${c.key}`);
       }
     }
   });
 
-  it("offers the platform's account only where the platform has one", () => {
-    const { unmount } = render(
-      <ChannelPanel channel={channelType("whatsapp")!} d={d} />
-    );
+  it("sends Webhook, Slack and Teams through connections, and WhatsApp and email through the platform's account", () => {
+    expect(
+      CHANNEL_TYPES.filter((c) => isConnectionChannel(c.key)).map((c) => c.key)
+    ).toEqual(["slack", "teams", "webhook"]);
+    render(<ChannelPanel channel={channelType("whatsapp")!} d={d} />);
     expect(screen.getByText("Incluida")).toBeTruthy();
-    unmount();
-    render(<ChannelPanel channel={channelType("slack")!} d={d} />);
-    expect(screen.getByText("No disponible")).toBeTruthy();
   });
 });

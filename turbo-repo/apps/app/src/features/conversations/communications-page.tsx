@@ -24,8 +24,12 @@ import ActivityTab, {
 } from "./activity-tab";
 import { channelLogo } from "./channel-icon";
 import ChannelPanel from "./channel-panel";
-import WebhookPanel from "./webhook-panel";
-import { CHANNEL_TYPES, channelType } from "./channel-types";
+import ConnectionChannelPanel from "./connection-channel-panel";
+import {
+  CHANNEL_TYPES,
+  channelType,
+  isConnectionChannel,
+} from "./channel-types";
 import {
   channelKeyOf,
   channelSection,
@@ -192,15 +196,16 @@ export default function CommunicationsPage({
           {section === "activity" && (
             <ActivityTab lang={lang} filters={activityFilters} d={d} />
           )}
-          {channel?.key === "webhook" && (
-            <WebhookPanel
+          {channel && isConnectionChannel(channel.key) && (
+            <ConnectionChannelPanel
+              channelKey={channel.key}
               d={d}
               connectionsDict={connectionsDict}
               lang={lang}
               canMaintain={canMaintain}
             />
           )}
-          {channel && channel.key !== "webhook" && (
+          {channel && !isConnectionChannel(channel.key) && (
             <ChannelPanel channel={channel} d={d} />
           )}
         </div>

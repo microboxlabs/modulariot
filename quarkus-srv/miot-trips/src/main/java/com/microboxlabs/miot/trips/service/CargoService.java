@@ -87,7 +87,7 @@ public class CargoService {
     /** Patches quantities/cubication, and status only forward within anunciada→lista. */
     public CargoUnit update(String tenantCode, String actor, UUID id, CargoRequest body) {
         return tx.inTransaction(() -> {
-            List<UUID> carrying = store.lockTripsCarrying(tenantCode, id);
+            store.lockTripsCarrying(tenantCode, id);
             CargoRequest req = body == null ? CargoRequest.empty() : body;
             CargoUnit current = get(tenantCode, id);
             String status = nextStatus(current.status(), req.status());
@@ -103,7 +103,8 @@ public class CargoService {
                     current.createdAt(), current.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException(CARGO_NOT_FOUND));
             if (!Objects.equals(current.description(), updated.description())) {
-                live.refreshAll(tenantCode, carrying);
+                // read again under the cargo lock: a mount that committed while this waited is included
+                live.refreshAll(tenantCode, store.lockTripsCarrying(tenantCode, id));
             }
             audit.log(tenantCode, actor, "cargo.updated", ENTITY, updated.id(), null, Map.of());
             return updated;

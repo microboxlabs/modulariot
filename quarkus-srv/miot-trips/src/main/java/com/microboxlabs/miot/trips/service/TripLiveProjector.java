@@ -97,9 +97,13 @@ public class TripLiveProjector {
                 t.actualStart(), t.actualEnd(), eta(plan), typeLoad(tenantCode, tripId)));
     }
 
-    /** Refreshes several trips in id order, the order trips lock in, so two such calls cannot deadlock. */
+    /**
+     * Refreshes several trips in id order, the order trips lock in, so two such calls cannot deadlock. The order is
+     * the uuid text, as Postgres sorts them ({@code UUID.compareTo} compares signed longs).
+     */
     public void refreshAll(String tenantCode, Collection<UUID> tripIds) {
-        tripIds.stream().distinct().sorted().forEach(id -> refresh(tenantCode, id));
+        tripIds.stream().distinct().sorted(Comparator.comparing(UUID::toString))
+                .forEach(id -> refresh(tenantCode, id));
     }
 
     /** The newest open window of that type whose resource the fleet knows. */

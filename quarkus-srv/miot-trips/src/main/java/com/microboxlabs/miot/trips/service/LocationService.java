@@ -57,7 +57,7 @@ public class LocationService {
         return created;
     }
 
-    /** Renaming refreshes the hot row of the open trips that start or end there. */
+    /** Refreshes the hot row of the open trips that start or end there; their label is the location's name. */
     public Location update(String tenantCode, String actor, UUID id, LocationRequest body) {
         return tx.inTransaction(() -> {
             LocationRequest req = body == null ? LocationRequest.empty() : body;
@@ -71,9 +71,8 @@ public class LocationService {
                     req.geomGeojson() == null ? l.geomGeojson() : req.geomGeojson().toString(),
                     l.createdAt(), l.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException("location not found"));
-            if (!l.name().equals(updated.name())) {
-                live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, id));
-            }
+            // always: the name read above is not locked, so a concurrent rename can make it stale
+            live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, id));
             audit.log(tenantCode, actor, "location.updated", "location", updated.id(), null, Map.of());
             return updated;
         });

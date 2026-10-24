@@ -186,7 +186,7 @@ public class InMemoryTripsWorld {
         public List<UUID> lockTripsCarrying(String tenantCode, UUID cargoId) {
             return tripCargo.values().stream()
                     .filter(l -> l.tenantCode().equals(tenantCode) && l.cargoId().equals(cargoId.toString()))
-                    .map(l -> UUID.fromString(l.tripId())).sorted().toList();
+                    .map(l -> UUID.fromString(l.tripId())).sorted(Comparator.comparing(UUID::toString)).toList();
         }
 
         @Override

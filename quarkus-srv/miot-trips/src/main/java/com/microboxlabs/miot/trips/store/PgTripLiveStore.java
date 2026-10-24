@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.domain.TripLiveRow;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -58,10 +59,8 @@ public class PgTripLiveStore implements TripLiveStore {
         RowSet<Row> rows = query(pool.get(),
                 "SELECT " + COLUMNS + " FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2",
                 Tuple.of(tenantCode, tripId));
-        for (Row r : rows) {
-            return Optional.of(row(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(row(it.next())) : Optional.empty();
     }
 
     private static TripLiveRow row(Row r) {

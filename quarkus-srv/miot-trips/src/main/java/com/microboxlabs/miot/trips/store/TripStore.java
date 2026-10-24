@@ -2,7 +2,6 @@ package com.microboxlabs.miot.trips.store;
 
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Trip;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,8 +13,7 @@ public interface TripStore {
 
     Optional<Trip> find(String tenantCode, UUID id);
 
-    List<Trip> list(String tenantCode, String status, UUID mandateId, String assetId,
-            OffsetDateTime from, OffsetDateTime to, int page, int size);
+    List<Trip> list(String tenantCode, TripFilter filter, int page, int size);
 
     Optional<Trip> update(Trip trip);
 

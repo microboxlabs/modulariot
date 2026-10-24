@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.domain.Location;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -91,10 +92,8 @@ public class PgLocationStore implements LocationStore {
     }
 
     private static Optional<Location> first(RowSet<Row> rows) {
-        for (Row r : rows) {
-            return Optional.of(location(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(location(it.next())) : Optional.empty();
     }
 
     private static Location location(Row r) {

@@ -28,6 +28,7 @@ public class CargoService {
     static final String ENTITY = "cargo";
     private static final String DESCRIPTION = "description";
     private static final String QTY_UNIT = "qtyUnit";
+    private static final String CARGO_NOT_FOUND = "cargo not found";
 
     /** The statuses the API may set directly; retirada/entregada come from the execution. */
     private static final Set<String> ANNOUNCE_STATUSES = Set.of(CargoUnit.ANNOUNCED, CargoUnit.READY);
@@ -69,7 +70,7 @@ public class CargoService {
 
     public CargoUnit get(String tenantCode, UUID id) {
         return store.find(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("cargo not found"));
+                .orElseThrow(() -> new NoSuchElementException(CARGO_NOT_FOUND));
     }
 
     /** Patches quantities/cubication, and status only forward within anunciada→lista. */
@@ -97,7 +98,7 @@ public class CargoService {
                 req.volumeM3() == null ? current.volumeM3() : req.volumeM3(),
                 status, current.receiptResult(), current.receiptNotes(), current.receivedAt(),
                 current.createdAt(), current.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("cargo not found"));
+                .orElseThrow(() -> new NoSuchElementException(CARGO_NOT_FOUND));
         audit.log(tenantCode, actor, "cargo.updated", ENTITY, updated.id(), null, Map.of());
         return updated;
     }
@@ -121,7 +122,7 @@ public class CargoService {
                 CargoUnit.RECEIVED, req.result(), blankToNull(req.notes()),
                 OffsetDateTime.now(ZoneOffset.UTC),
                 current.createdAt(), current.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("cargo not found"));
+                .orElseThrow(() -> new NoSuchElementException(CARGO_NOT_FOUND));
         audit.log(tenantCode, actor, "cargo.received", ENTITY, received.id(), null,
                 Map.of("result", req.result()));
         return received;

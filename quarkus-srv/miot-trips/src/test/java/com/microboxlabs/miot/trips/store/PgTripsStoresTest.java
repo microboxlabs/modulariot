@@ -183,9 +183,10 @@ class PgTripsStoresTest {
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        assertThrows(IllegalArgumentException.class, () -> assignments.insert(new Assignment(null, tenant,
-                trip.id(), Assignment.TRUCK, UUID.randomUUID().toString(), now, null, null,
-                null, ACTOR, null, ACTOR)), "a truck id that does not exist is refused by the trigger");
+        Assignment unknownTruck = new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
+                UUID.randomUUID().toString(), now, null, null, null, ACTOR, null, ACTOR);
+        assertThrows(IllegalArgumentException.class, () -> assignments.insert(unknownTruck),
+                "a truck id that does not exist is refused by the trigger");
 
         Carrier carrier = resources.insertCarrier(new Carrier(null, tenant, null, "76.111.222-3",
                 "Transportes Test", null, null, null, null, null, Carrier.ACTIVE, false, null, null,

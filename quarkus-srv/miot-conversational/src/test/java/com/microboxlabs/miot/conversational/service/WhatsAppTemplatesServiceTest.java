@@ -9,6 +9,9 @@ import com.microboxlabs.miot.conversational.client.FakeMetaGraph;
 import com.microboxlabs.miot.conversational.client.MetaGraphException;
 import com.microboxlabs.miot.conversational.client.MetaTemplatesClient;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplate.Button;
+import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService.CopyResult;
+import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService.CopyStatus;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import io.vertx.core.json.JsonObject;
@@ -162,6 +165,54 @@ class WhatsAppTemplatesServiceTest {
         metadata = Map.of("waba_id", WABA);
         secret = Map.of();
         assertThrows(ConnectionResolutionException.class, () -> service.list("tenant-a"));
+        assertTrue(graph.seen().isEmpty());
+    }
+
+    private static final String ORG_WABA = "300000000000003";
+
+    /** The platform's WABA is {@link #WABA}; any other tenant's is {@link #ORG_WABA}. */
+    private final WhatsAppTemplatesService twoAccounts = new WhatsAppTemplatesService(
+            tenant -> new ResolvedConnection("conn-" + tenant, graph.baseUrl(),
+                    Map.of("waba_id", PlatformScope.TENANT.equals(tenant) ? WABA : ORG_WABA), secret),
+            new MetaTemplatesClient());
+
+    @Test
+    void copyingSubmitsThePlatformsTemplatesToTheOrganizationsAccount() {
+        graph.reply(200, "{\"data\": []}").reply(200, LIST)
+                .reply(200, "{\"id\": \"903\", \"status\": \"PENDING\", \"category\": \"UTILITY\"}");
+
+        List<CopyResult> results = twoAccounts.copyFromPlatform("tenant-a", null);
+
+        assertEquals(List.of(new CopyResult("panic_check", "es_CL", CopyStatus.COPIED, null)), results.subList(0, 1));
+        assertEquals("trip_reminder", results.get(1).name());
+        assertEquals(CopyStatus.FAILED, results.get(1).status());
+        assertTrue(results.get(1).error().contains("{{1}}"));
+        assertEquals(3, graph.seen().size());
+        assertEquals("/v25.0/" + ORG_WABA + "/message_templates", graph.seen().get(0).path());
+        assertEquals("/v25.0/" + WABA + "/message_templates", graph.seen().get(1).path());
+        assertEquals("POST", graph.last().method());
+        assertEquals("/v25.0/" + ORG_WABA + "/message_templates", graph.last().path());
+        JsonObject created = new JsonObject(graph.last().body());
+        assertEquals("panic_check", created.getString("name"));
+        assertEquals("es_CL", created.getString("language"));
+        assertEquals("UTILITY", created.getString("category"));
+    }
+
+    @Test
+    void copyingLeavesTemplatesTheAccountHasAndNamesTheMissingOnes() {
+        graph.reply(200, LIST).reply(200, LIST);
+
+        List<CopyResult> results = twoAccounts.copyFromPlatform("tenant-a", List.of("panic_check", "nope"));
+
+        assertEquals(new CopyResult("panic_check", "es_CL", CopyStatus.EXISTS, null), results.get(0));
+        assertEquals("nope", results.get(1).name());
+        assertEquals(CopyStatus.FAILED, results.get(1).status());
+        assertEquals(2, graph.seen().size());
+    }
+
+    @Test
+    void thePlatformDoesNotCopyToItself() {
+        assertThrows(IllegalArgumentException.class, () -> twoAccounts.copyFromPlatform(PlatformScope.TENANT, null));
         assertTrue(graph.seen().isEmpty());
     }
 

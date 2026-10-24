@@ -145,7 +145,7 @@ class JobFailureNotificationHandlerTest {
         RuntimeException throwFirst;
 
         FakeMessaging() {
-            super(null, null, null, null);
+            super(null, null, null, null, null);
         }
 
         @Override

@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.conversational.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.microboxlabs.miot.conversational.accounts.ChannelAccountsService;
+import com.microboxlabs.miot.conversational.accounts.ChannelMode;
 import com.microboxlabs.miot.conversational.client.MetaGraphException;
 import com.microboxlabs.miot.conversational.rules.ConnectionChannel;
 import com.microboxlabs.miot.conversational.rules.ConnectionChannels;
@@ -12,6 +14,7 @@ import com.microboxlabs.miot.conversational.rules.RuleSimulator;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
+import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
@@ -53,8 +56,8 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
- * Conversation rules, the platform's templates, the event catalog, the runs and the connection channels of an
- * organization. Any authenticated user of the organization reads; writes need an Owner or Admin of the organization,
+ * Conversation rules, the platform's templates, the event catalog, the runs, the connection channels and the
+ * WhatsApp and email accounts of an organization. Any authenticated user of the organization reads; writes need an Owner or Admin of the organization,
  * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}. Endpoints return {@link Uni} so the request stays on the event loop for the
  * reactive org filter; the blocking work runs on the worker pool.
  */
@@ -94,6 +97,13 @@ public class OrgConversationsResource {
     public record CreateConnectionRequest(String name, String baseUrl, String credentialProfileId) {
     }
 
+    public record AccountModeRequest(ChannelMode mode) {
+    }
+
+    /** {@code names} empty or null: every template of the platform's account. */
+    public record CopyTemplatesRequest(List<String> names) {
+    }
+
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final Function<String, Uni<Access>> access;
@@ -103,20 +113,24 @@ public class OrgConversationsResource {
     private final TemplatesService templates;
     private final RunsService runs;
     private final ConnectionChannels channels;
+    private final ChannelAccountsService accounts;
+    private final WhatsAppTemplatesService whatsappTemplates;
 
     /** The services behind the endpoints. */
     public record Services(RulesService rules, RuleSimulator simulator, TemplatesService templates,
-            RunsService runs, ConnectionChannels channels) {
+            RunsService runs, ConnectionChannels channels, ChannelAccountsService accounts,
+            WhatsAppTemplatesService whatsappTemplates) {
     }
 
     @Inject
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
             OrganizationRoleService roleService, SecurityIdentity identity, RulesService rules,
-            RuleSimulator simulator, TemplatesService templates, RunsService runs, ConnectionChannels channels) {
+            RuleSimulator simulator, TemplatesService templates, RunsService runs, ConnectionChannels channels,
+            ChannelAccountsService accounts, WhatsAppTemplatesService whatsappTemplates) {
         this(tenantContext, organizationContext,
                 org -> roleService.access(org, caller(identity, organizationContext, tenantContext)),
                 () -> actor(identity, organizationContext),
-                new Services(rules, simulator, templates, runs, channels));
+                new Services(rules, simulator, templates, runs, channels, accounts, whatsappTemplates));
     }
 
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
@@ -130,6 +144,8 @@ public class OrgConversationsResource {
         this.templates = services.templates();
         this.runs = services.runs();
         this.channels = services.channels();
+        this.accounts = services.accounts();
+        this.whatsappTemplates = services.whatsappTemplates();
     }
 
     // Rules
@@ -284,6 +300,49 @@ public class OrgConversationsResource {
         return "Unknown channel " + channel + ": webhook, slack or teams";
     }
 
+    // WhatsApp and email accounts
+
+    @GET
+    @Path("/accounts")
+    @Operation(operationId = "listConversationAccounts",
+            summary = "Whether the rules send WhatsApp and email from the platform's account or the organization's own")
+    public Uni<Response> listAccounts(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(accounts.list(tenant)).build());
+    }
+
+    @PUT
+    @Path("/accounts/{channel}")
+    @Operation(operationId = "setConversationAccountMode",
+            summary = "Send a channel from the platform's account or the organization's own; OWN needs an active "
+                    + "connection")
+    public Uni<Response> setAccountMode(@PathParam(ORG) String organizationId, @PathParam(CHANNEL) String channel,
+            AccountModeRequest body) {
+        String tenant = tenantCode(organizationId);
+        String who = actor.get();
+        return admin(organizationId,
+                () -> Response.ok(accounts.set(tenant, channel, body == null ? null : body.mode(), who)).build());
+    }
+
+    @GET
+    @Path("/whatsapp-templates")
+    @Operation(operationId = "listConversationWhatsAppTemplates",
+            summary = "The templates on the WABA of the organization's WhatsApp connection, with their status")
+    public Uni<Response> listWhatsAppTemplates(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(whatsappTemplates.list(tenant)).build());
+    }
+
+    @POST
+    @Path("/whatsapp-templates/copy")
+    @Operation(operationId = "copyConversationWhatsAppTemplates",
+            summary = "Submit the platform's WhatsApp templates to the organization's own WABA for Meta's review")
+    public Uni<Response> copyWhatsAppTemplates(@PathParam(ORG) String organizationId, CopyTemplatesRequest body) {
+        String tenant = tenantCode(organizationId);
+        return admin(organizationId, () -> Response.ok(
+                whatsappTemplates.copyFromPlatform(tenant, body == null ? null : body.names())).build());
+    }
+
     // Events and runs
 
     @GET
@@ -324,6 +383,13 @@ public class OrgConversationsResource {
         return access.apply(organizationId).flatMap(a -> canWrite(a) ? work(work)
                 : Uni.createFrom().item(error(Response.Status.FORBIDDEN,
                         "Owner, Admin or Control Tower maintainer required")));
+    }
+
+    /** Runs a change to the organization's accounts when the caller is an Owner or Admin; 403 otherwise. */
+    private Uni<Response> admin(String organizationId, Supplier<Response> work) {
+        return access.apply(organizationId).flatMap(a -> a != null && a.baseRole() != null
+                && a.baseRole().atLeast(BaseRole.ADMIN) ? work(work)
+                        : Uni.createFrom().item(error(Response.Status.FORBIDDEN, "Owner or Admin required")));
     }
 
     static boolean canWrite(Access access) {

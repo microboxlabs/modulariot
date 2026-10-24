@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
 import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.ContextKind;
@@ -26,7 +27,8 @@ class WhatsAppSendConversationTest {
 
     private final InMemoryConversations store = new InMemoryConversations();
     private final WhatsAppMessagingService service = new WhatsAppMessagingService(
-            new FakeResolver(), new FakeMeta(), store.conversationRepository, store.messageRepository);
+            new FakeResolver(), new FakeMeta(), store.conversationRepository, store.messageRepository,
+            new InMemoryChannelAccounts().service);
 
     @Test
     void twoPeopleAboutOneServiceGetTwoConversations() {

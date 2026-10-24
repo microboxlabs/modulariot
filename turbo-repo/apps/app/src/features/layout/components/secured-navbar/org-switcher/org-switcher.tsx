@@ -16,6 +16,7 @@ import {
   HiChevronDown,
   HiClock,
   HiOfficeBuilding,
+  HiServer,
   HiSearch,
   HiX,
 } from "react-icons/hi";
@@ -30,6 +31,7 @@ import {
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { isPlatformScope } from "@/features/common/platform-scope";
 
 interface OrgSwitcherProps {
   readonly dict: I18nRecord;
@@ -37,6 +39,7 @@ interface OrgSwitcherProps {
 
 const LIST_ID = "org-switcher-list";
 const RECENT_LABEL_ID = "org-switcher-recent";
+const PLATFORM_LABEL_ID = "org-switcher-platform";
 const ALL_LABEL_ID = "org-switcher-all";
 
 const AVATAR_COLORS = [
@@ -139,12 +142,21 @@ function OrgOption({
       onMouseMove={() => onHover(index)}
       className={`w-full text-left flex items-center gap-3 px-2.5 py-2 rounded-md cursor-pointer transition-colors duration-150 ${highlightClass}`}
     >
-      <span
-        className={`h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-xs font-semibold ${avatarColor(org.slug)}`}
-        aria-hidden="true"
-      >
-        {initials(org.displayName)}
-      </span>
+      {isPlatformScope(org.slug) ? (
+        <span
+          className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+          aria-hidden="true"
+        >
+          <HiServer className="h-4 w-4" />
+        </span>
+      ) : (
+        <span
+          className={`h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-xs font-semibold ${avatarColor(org.slug)}`}
+          aria-hidden="true"
+        >
+          {initials(org.displayName)}
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className={`block text-sm truncate ${nameClasses(isActive)}`}>
           <HighlightedName name={org.displayName} query={query} />
@@ -184,16 +196,29 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
 
   const activeSlug = activeOrg?.slug ?? "";
   const searching = query.trim().length > 0;
-
-  const recent = useMemo(
-    () => (searching ? [] : pickRecent(availableOrgs, recentSlugs, activeSlug)),
-    [searching, availableOrgs, recentSlugs, activeSlug]
+  // The platform scope is listed on its own, above the organizations.
+  const orgs = useMemo(
+    () => availableOrgs.filter((org) => !isPlatformScope(org.slug)),
+    [availableOrgs]
   );
-  const matches = useMemo(
-    () => filterOrgs(availableOrgs, query),
+  const platform = useMemo(
+    () =>
+      filterOrgs(
+        availableOrgs.filter((org) => isPlatformScope(org.slug)),
+        query
+      ),
     [availableOrgs, query]
   );
-  const options = useMemo(() => [...recent, ...matches], [recent, matches]);
+
+  const recent = useMemo(
+    () => (searching ? [] : pickRecent(orgs, recentSlugs, activeSlug)),
+    [searching, orgs, recentSlugs, activeSlug]
+  );
+  const matches = useMemo(() => filterOrgs(orgs, query), [orgs, query]);
+  const options = useMemo(
+    () => [...platform, ...recent, ...matches],
+    [platform, recent, matches]
+  );
   // The list can shrink under the highlight when the orgs are re-read.
   const activeIndex = Math.min(highlight, Math.max(options.length - 1, 0));
 
@@ -347,7 +372,11 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
         aria-expanded={open}
         className="h-10 select-none cursor-pointer flex items-center gap-1.5 px-2.5 bg-gray-100 dark:bg-gray-700 rounded-lg border border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-gray-600 active:ring-2 active:ring-gray-300 dark:active:ring-gray-600 disabled:opacity-50"
       >
-        <HiOfficeBuilding className="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
+        {isPlatformScope(activeSlug) ? (
+          <HiServer className="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
+        ) : (
+          <HiOfficeBuilding className="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
+        )}
         <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate max-w-[140px]">
           {activeOrg.displayName}
         </span>
@@ -411,6 +440,19 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
             role="listbox"
             className="max-h-[min(60vh,420px)] overflow-y-auto overscroll-contain px-1.5 pb-1.5"
           >
+            {platform.length > 0 && (
+              <div
+                role="group"
+                aria-labelledby={PLATFORM_LABEL_ID}
+                className="mb-1 pb-1 border-b border-gray-100 dark:border-gray-700"
+              >
+                <SectionLabel
+                  id={PLATFORM_LABEL_ID}
+                  text={tr("orgSwitcher.platform", dict)}
+                />
+                {platform.map((org, i) => optionFor(org, i, false))}
+              </div>
+            )}
             {recent.length > 0 && (
               <div
                 role="group"
@@ -421,7 +463,9 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
                   id={RECENT_LABEL_ID}
                   text={tr("orgSwitcher.recent", dict)}
                 />
-                {recent.map((org, i) => optionFor(org, i, true))}
+                {recent.map((org, i) =>
+                  optionFor(org, platform.length + i, true)
+                )}
               </div>
             )}
             <div role="group" aria-labelledby={ALL_LABEL_ID}>
@@ -431,11 +475,11 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
                 count={matches.length}
               />
               {matches.map((org, i) =>
-                optionFor(org, recent.length + i, false)
+                optionFor(org, platform.length + recent.length + i, false)
               )}
             </div>
           </div>
-          {matches.length === 0 && (
+          {options.length === 0 && (
             <div role="status" className="px-3 pb-8 pt-2 text-center">
               <HiSearch className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" />
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">

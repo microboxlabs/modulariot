@@ -13,6 +13,8 @@ import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platf
 import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
 import { useMyAccess } from "@/features/settings-admin/team/team-api";
 import { filterSettings } from "../models/pages";
+import { isPlatformScope } from "@/features/common/platform-scope";
+import { useOrgScopes } from "../components/secured-navbar/org-switcher/use-org-scopes";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
@@ -176,6 +178,7 @@ export function SidebarNavigationProvider({
   );
   const pages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
+  const platformScope = isPlatformScope(useOrgScopes().activeOrg?.slug);
   const { isTrainer } = useKnowledgeTrainer();
   const { can } = useMyAccess();
   const canViewGps = can("gps:view");
@@ -250,6 +253,7 @@ export function SidebarNavigationProvider({
       trainer: isTrainer,
       gps: canViewGps,
       fleet: canViewFleet,
+      platformScope,
     }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
@@ -275,6 +279,7 @@ export function SidebarNavigationProvider({
     isTrainer,
     canViewGps,
     canViewFleet,
+    platformScope,
   ]);
 
   return (

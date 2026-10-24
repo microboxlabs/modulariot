@@ -7721,6 +7721,7 @@
     "CARRIER_PORTAL": "Portal transportista"
   },
   "orgSwitcher": {
+    "platform": "Plataforma",
     "searchPlaceholder": "Buscar organización…",
     "recent": "Recientes",
     "all": "Todas las organizaciones",

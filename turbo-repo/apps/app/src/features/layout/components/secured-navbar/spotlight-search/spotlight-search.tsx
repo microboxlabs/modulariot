@@ -35,6 +35,8 @@ import { SpotlightElicitChips } from "./spotlight-elicit-chip";
 import { SpotlightEmptyState } from "./spotlight-empty-state";
 import { SpotlightFooter } from "./spotlight-footer";
 import { KbdHint } from "../searchbar/kbd-hint";
+import { useOrgScopes } from "../org-switcher/use-org-scopes";
+import { isPlatformScope } from "@/features/common/platform-scope";
 
 // ── Icon config ───────────────────────────────────────────────────────────────
 interface IconConfig {
@@ -203,6 +205,7 @@ export default function SpotlightSearch({
   const { can } = useMyAccess();
   const canViewGps = can("gps:view");
   const canViewFleet = can("fleet:assets.view");
+  const platformScope = isPlatformScope(useOrgScopes().activeOrg?.slug);
   const navigateItems = useMemo(
     () =>
       buildNavigateItems(
@@ -212,6 +215,7 @@ export default function SpotlightSearch({
           trainer: isTrainer,
           gps: canViewGps,
           fleet: canViewFleet,
+          platformScope,
         }),
         sidebarLabels ?? {},
         onNavigate,
@@ -224,6 +228,7 @@ export default function SpotlightSearch({
       isTrainer,
       canViewGps,
       canViewFleet,
+      platformScope,
       sidebarLabels,
       onNavigate,
       canAccess,

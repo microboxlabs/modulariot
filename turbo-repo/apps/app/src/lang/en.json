@@ -7721,6 +7721,7 @@
     "CARRIER_PORTAL": "Carrier portal"
   },
   "orgSwitcher": {
+    "platform": "Platform",
     "searchPlaceholder": "Search organizations…",
     "recent": "Recent",
     "all": "All organizations",

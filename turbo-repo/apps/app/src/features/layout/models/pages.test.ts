@@ -136,6 +136,25 @@ describe("filterSettings", () => {
     ).not.toContain("/harness/learning");
   });
 
+  it("keeps only Settings, with the platform's entries, in the platform scope", () => {
+    const filtered = filterSettings(pages, {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      gps: true,
+      fleet: true,
+      platformScope: true,
+    });
+    expect(filtered.map((page) => page.label)).toEqual(["settings"]);
+    expect(settingsHrefs(filtered)).toEqual([
+      "/users/settings/platform",
+      "/users/settings/organizations",
+      "/users/settings/communications",
+      "/users/settings/credentials",
+      "/users/settings/connections",
+    ]);
+  });
+
   it("offers GPS to those who may view it", () => {
     const gates = {
       harness: true,

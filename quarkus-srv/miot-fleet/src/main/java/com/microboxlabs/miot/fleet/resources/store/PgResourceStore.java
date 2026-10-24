@@ -20,6 +20,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -63,6 +64,7 @@ public class PgResourceStore implements ResourceStore {
     private static final String LICENSE_PLATE = "license_plate";
 
     private static final String BY_ID = " AND id = $2";
+    private static final Set<String> RESOURCE_TABLES = Set.of("carrier", "truck", "trailer", "driver");
 
     private final Supplier<Pool> pool;
 
@@ -302,6 +304,9 @@ public class PgResourceStore implements ResourceStore {
 
     @Override
     public boolean isCurrent(String tenantCode, String table, UUID id) {
+        if (!RESOURCE_TABLES.contains(table)) {
+            throw new IllegalArgumentException("not a resource table: " + table);
+        }
         return query(pool.get(), "SELECT EXISTS(" + select("1", table) + BY_ID + " AND is_active)",
                 Tuple.of(tenantCode, id)).iterator().next().getBoolean(0);
     }

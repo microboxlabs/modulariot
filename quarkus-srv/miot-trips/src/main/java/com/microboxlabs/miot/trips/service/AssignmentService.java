@@ -65,14 +65,15 @@ public class AssignmentService {
             String type = Check.oneOf(Check.required(body.resourceType(), RESOURCE_TYPE, 16), RESOURCE_TYPE,
                     Assignment.TRUCK, Assignment.TRAILER, Assignment.DRIVER);
             String resourceId = Check.required(body.resourceId(), RESOURCE_ID, 64);
-            if (!fleet.exists(tenantCode, type, TripService.parse(resourceId, RESOURCE_ID))) {
-                throw new IllegalArgumentException(type + " " + resourceId + " does not exist");
-            }
+            UUID resource = TripService.parse(resourceId, RESOURCE_ID);
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             OffsetDateTime from = body.validFrom() == null ? now : body.validFrom();
             // trip_live shows every open window at once, so a future start would replace today's resource early
             if (from.isAfter(now.plus(CLOCK_SKEW))) {
                 throw new IllegalArgumentException("validFrom cannot be in the future; assign the resource when it starts");
+            }
+            if (!fleet.exists(tenantCode, type, resource)) {
+                throw new IllegalArgumentException(type + " " + resourceId + " does not exist");
             }
             Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
                     from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));
@@ -88,6 +89,9 @@ public class AssignmentService {
         return tx.inTransaction(() -> {
             Assignment current = store.find(tenantCode, id)
                     .orElseThrow(() -> new NoSuchElementException("assignment not found"));
+            // lock the trip before the version archive takes a key-share lock on it: two concurrent ends of the
+            // same trip then queue here instead of deadlocking on the projector's FOR UPDATE
+            trips.find(tenantCode, UUID.fromString(current.tripId()));
             if (current.validTo() != null) {
                 throw new IllegalStateException("assignment already ended");
             }

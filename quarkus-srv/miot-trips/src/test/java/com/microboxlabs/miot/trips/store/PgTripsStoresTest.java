@@ -17,6 +17,8 @@ import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripCargoLink;
 import com.microboxlabs.miot.fleet.resources.domain.Truck;
+import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -31,6 +33,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -63,6 +66,14 @@ class PgTripsStoresTest {
     private final PgLocationStore locations = new PgLocationStore(() -> pool);
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
     private final PgAuditStore audit = new PgAuditStore(() -> pool);
+    private final TripLiveProjector projector = projector(() -> pool);
+
+    /** The projector over the Postgres stores, fleet included. */
+    static TripLiveProjector projector(Supplier<Pool> pool) {
+        return new TripLiveProjector(new PgTripStore(pool), new PgStageStore(pool), new PgAssignmentStore(pool),
+                new PgCargoStore(pool), new PgLocationStore(pool), new PgTripLiveStore(pool),
+                new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(pool)));
+    }
 
     @BeforeAll
     static void migrate() throws IOException {
@@ -80,7 +91,8 @@ class PgTripsStoresTest {
         for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
                 "/db/migration/trips/V0.10.3__trips_lock_order.sql",
                 "/db/migration/trips/V0.10.4__checks_in_services.sql",
-                "/db/migration/trips/V0.10.5__side_effects_in_services.sql"}) {
+                "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
+                "/db/migration/trips/V0.10.6__trip_live_in_services.sql"}) {
             try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(tripsSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -235,10 +247,14 @@ class PgTripsStoresTest {
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         UUID tripId = UUID.fromString(trip.id());
+        projector.refresh(tenant, tripId);
         assertTrue(live.find(tenant, tripId).isPresent(), "the projection is born with the trip");
+        projector.refresh(tenant, tripId);
+        assertEquals(1, live.list(tenant).size(), "a second refresh replaces the row");
 
         trips.update(new Trip(trip.id(), tenant, Trip.DONE, null, null, null, null,
                 OffsetDateTime.now(ZoneOffset.UTC), null, trip.createdAt(), trip.createdBy(), null, ACTOR));
+        projector.refresh(tenant, tripId);
         assertTrue(live.find(tenant, tripId).isEmpty(), "realizado kills the hot row");
     }
 
@@ -265,17 +281,20 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void renamingALocationRefreshesTheHotRow() {
+    void aRefreshAfterARenameShowsTheNewName() {
         String tenant = tenant();
         Location origin = locations.insert(new Location(null, tenant, "Bodega Norte", "cd", "CD-N",
                 null, null, ACTOR, null, ACTOR));
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, origin.id(), null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         UUID tripId = UUID.fromString(trip.id());
+        projector.refresh(tenant, tripId);
         assertEquals("Bodega Norte", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
 
         locations.update(new Location(origin.id(), tenant, "Bodega Norte 2", "cd", "CD-N", null,
                 origin.createdAt(), origin.createdBy(), null, ACTOR)).orElseThrow();
+        assertEquals(List.of(tripId), trips.openTripsAt(tenant, UUID.fromString(origin.id())));
+        projector.refreshAll(tenant, trips.openTripsAt(tenant, UUID.fromString(origin.id())));
         assertEquals("Bodega Norte 2", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
     }
 

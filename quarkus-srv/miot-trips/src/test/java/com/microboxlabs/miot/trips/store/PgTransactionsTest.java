@@ -32,6 +32,8 @@ import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.CargoService;
+import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripService;
@@ -80,18 +82,20 @@ class PgTransactionsTest {
     private final AuditService audit = new AuditService(new PgAuditStore(() -> pool));
     private final PgTripStore tripStore = new PgTripStore(() -> pool);
     private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit, tx);
-    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, audit, tx);
+    private final TripLiveProjector projector = PgTripsStoresTest.projector(() -> pool);
+    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, projector, audit,
+            tx);
     private final TripService trips = new TripService(tripStore, new PgStageStore(() -> pool),
             new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
-            mandates, audit, tx);
+            mandates, projector, audit, tx);
     private final StageService stages = new StageService(new PgStageStore(() -> pool), tripStore,
-            new PgTripCargoStore(() -> pool), mandates, audit, tx);
+            new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
     private final PgResourceStore fleetStore = new PgResourceStore(() -> pool);
     private final Transactions fleetTx =
             new PgTransactions(() -> pool);
     private final ResourceService fleet = new ResourceService(fleetStore, fleetTx);
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
-            tripStore, fleet, audit, tx);
+            tripStore, new FleetResourcesService(fleetStore), projector, audit, tx);
 
     @BeforeAll
     static void migrate() throws IOException {
@@ -107,7 +111,8 @@ class PgTransactionsTest {
                 "/db/migration/trips/V0.10.0__create_trips.sql",
                 "/db/migration/trips/V0.10.3__trips_lock_order.sql",
                 "/db/migration/trips/V0.10.4__checks_in_services.sql",
-                "/db/migration/trips/V0.10.5__side_effects_in_services.sql"}) {
+                "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
+                "/db/migration/trips/V0.10.6__trip_live_in_services.sql"}) {
             try (InputStream in = PgTransactionsTest.class.getResourceAsStream(sql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }

@@ -1,8 +1,10 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.dto.LocationRequest;
 import com.microboxlabs.miot.trips.store.LocationStore;
+import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -17,12 +19,19 @@ import java.util.UUID;
 public class LocationService {
 
     private final LocationStore store;
+    private final TripStore trips;
+    private final TripLiveProjector live;
     private final AuditService audit;
+    private final Transactions tx;
 
     @Inject
-    public LocationService(LocationStore store, AuditService audit) {
+    public LocationService(LocationStore store, TripStore trips, TripLiveProjector live, AuditService audit,
+            Transactions tx) {
         this.store = store;
+        this.trips = trips;
+        this.live = live;
         this.audit = audit;
+        this.tx = tx;
     }
 
     public List<Location> list(String tenantCode, String q, String type, Integer page, Integer size) {
@@ -48,19 +57,25 @@ public class LocationService {
         return created;
     }
 
+    /** Renaming refreshes the hot row of the open trips that start or end there. */
     public Location update(String tenantCode, String actor, UUID id, LocationRequest body) {
-        LocationRequest req = body == null ? LocationRequest.empty() : body;
-        Location l = store.find(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("location not found"));
-        String type = req.type() == null ? l.type()
-                : Check.oneOf(req.type(), "type", "planta", "puerto", "cd", "cliente", "zona");
-        Location updated = store.update(new Location(l.id(), tenantCode,
-                req.name() == null ? l.name() : Check.required(req.name(), "name", 255), type,
-                Check.orKeep(req.externalCode(), l.externalCode(), "externalCode", 128),
-                req.geomGeojson() == null ? l.geomGeojson() : req.geomGeojson().toString(),
-                l.createdAt(), l.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("location not found"));
-        audit.log(tenantCode, actor, "location.updated", "location", updated.id(), null, Map.of());
-        return updated;
+        return tx.inTransaction(() -> {
+            LocationRequest req = body == null ? LocationRequest.empty() : body;
+            Location l = store.find(tenantCode, id)
+                    .orElseThrow(() -> new NoSuchElementException("location not found"));
+            String type = req.type() == null ? l.type()
+                    : Check.oneOf(req.type(), "type", "planta", "puerto", "cd", "cliente", "zona");
+            Location updated = store.update(new Location(l.id(), tenantCode,
+                    req.name() == null ? l.name() : Check.required(req.name(), "name", 255), type,
+                    Check.orKeep(req.externalCode(), l.externalCode(), "externalCode", 128),
+                    req.geomGeojson() == null ? l.geomGeojson() : req.geomGeojson().toString(),
+                    l.createdAt(), l.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("location not found"));
+            if (!l.name().equals(updated.name())) {
+                live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, id));
+            }
+            audit.log(tenantCode, actor, "location.updated", "location", updated.id(), null, Map.of());
+            return updated;
+        });
     }
 }

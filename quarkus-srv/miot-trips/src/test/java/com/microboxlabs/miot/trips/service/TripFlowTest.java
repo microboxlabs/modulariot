@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
+import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
@@ -18,12 +19,14 @@ import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.dto.TripCargoRequest;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.core.fleet.FleetResources;
+import com.microboxlabs.miot.trips.domain.TripLiveRow;
+import com.microboxlabs.miot.trips.dto.LocationRequest;
+import com.microboxlabs.miot.trips.store.InMemoryFleet;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.time.OffsetDateTime;
-import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -36,23 +39,24 @@ class TripFlowTest {
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final AuditService audit = new AuditService(world.auditStore);
     private final Transactions tx = Transactions.none();
+    private final InMemoryFleet fleet = new InMemoryFleet();
+    private final TripLiveProjector live = world.projector(fleet);
     private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
-    private final CargoService cargo = new CargoService(world.cargoStore, mandates, audit, tx);
+    private final CargoService cargo = new CargoService(world.cargoStore, mandates, live, audit, tx);
     private final TripService trips = new TripService(world.tripStore, world.stageStore,
-            world.assignmentStore, world.tripCargoStore, world.cargoStore, mandates, audit, tx);
+            world.assignmentStore, world.tripCargoStore, world.cargoStore, mandates, live, audit, tx);
     private final StageService stages = new StageService(world.stageStore, world.tripStore,
-            world.tripCargoStore, mandates, audit, tx);
-    private final Set<UUID> fleetResources = new HashSet<>();
+            world.tripCargoStore, mandates, live, audit, tx);
     private final AssignmentService assignments = new AssignmentService(world.assignmentStore,
-            world.tripStore, (tenant, type, id) -> fleetResources.contains(id), audit, tx);
+            world.tripStore, fleet, live, audit, tx);
     private final TripCargoService tripCargo = new TripCargoService(world.tripCargoStore, world.tripStore,
-            world.cargoStore, world.stageStore, mandates, audit, tx);
+            world.cargoStore, world.stageStore, mandates, live, audit, tx);
+    private final LocationService locations = new LocationService(world.locationStore, world.tripStore, live,
+            audit, tx);
 
     /** A truck, trailer or driver id the fleet knows. */
     private String resource() {
-        UUID id = UUID.randomUUID();
-        fleetResources.add(id);
-        return id.toString();
+        return fleet.add().toString();
     }
 
     @Test
@@ -243,5 +247,55 @@ class TripFlowTest {
         assertThrows(IllegalArgumentException.class,
                 () -> trips.linkMandate(TENANT, ACTOR, tripId, unknown, null, null));
         assertTrue(trips.mandatesOf(TENANT, tripId).isEmpty());
+    }
+
+    @Test
+    void theBoardShowsWhatTheTripRecordSays() {
+        Mandate mandate = mandates.createOrGet(TENANT, ACTOR,
+                new MandateRequest("SRV-BOARD", "service", null, null, null, null)).mandate();
+        CargoUnit unit = cargo.announce(TENANT, ACTOR, UUID.fromString(mandate.id()),
+                new CargoRequest("Fruta", null, null, null, null, null));
+        Location origin = locations.create(TENANT, ACTOR, new LocationRequest("Bodega Norte", "cd", null, null));
+        UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR, new TripRequest(origin.id(), null, null, null,
+                List.of(new StageRequest("carga", null, null, null, null, null)))).id());
+        assertEquals("Bodega Norte", board(tripId).originGeofenceLabel());
+        assertEquals(Trip.PLANNED, board(tripId).status());
+
+        UUID carrierId = UUID.randomUUID();
+        fleet.add(new FleetResources.Carrier(carrierId, "Transportes Sur", "+56220000000"));
+        String truck = fleet.add(new FleetResources.Vehicle("AAAA11", carrierId)).toString();
+        String trailer = fleet.add(new FleetResources.Vehicle("CCCC33", null)).toString();
+        String ana = fleet.add(new FleetResources.Driver("1-9", "Ana Rojas", "+56900000001")).toString();
+        String luis = fleet.add(new FleetResources.Driver("2-7", "Luis Soto", null)).toString();
+        assignments.create(TENANT, ACTOR, tripId, new AssignmentRequest("truck", truck, null, null));
+        assignments.create(TENANT, ACTOR, tripId, new AssignmentRequest("trailer", trailer, null, null));
+        assignments.create(TENANT, ACTOR, tripId, new AssignmentRequest("driver", ana, null, null));
+        assignments.create(TENANT, ACTOR, tripId, new AssignmentRequest("driver", luis, null, null));
+        tripCargo.mount(TENANT, ACTOR, tripId, new TripCargoRequest(unit.id(), null, null));
+
+        TripLiveRow row = board(tripId);
+        assertEquals("AAAA11", row.assetId());
+        assertEquals("CCCC33", row.ramplaPlate());
+        assertEquals(carrierId.toString(), row.carrierId());
+        assertEquals("Transportes Sur", row.carrierName());
+        assertEquals("Ana Rojas", row.driverName());
+        assertTrue(row.doubleDriver());
+        assertEquals("Luis Soto", row.secondDriverName());
+        assertEquals("Fruta", row.typeLoad());
+        assertTrue(row.mandateCodes().contains("SRV-BOARD"), row.mandateCodes());
+
+        locations.update(TENANT, ACTOR, UUID.fromString(origin.id()),
+                new LocationRequest("Bodega Norte 2", null, null, null));
+        assertEquals("Bodega Norte 2", board(tripId).originGeofenceLabel());
+        cargo.update(TENANT, ACTOR, UUID.fromString(unit.id()),
+                new CargoRequest("Fruta fresca", null, null, null, null, null));
+        assertEquals("Fruta fresca", board(tripId).typeLoad());
+
+        trips.cancel(TENANT, ACTOR, tripId, "cliente anula");
+        assertTrue(world.tripLiveStore.find(TENANT, tripId).isEmpty(), "a cancelled trip leaves the board");
+    }
+
+    private TripLiveRow board(UUID tripId) {
+        return world.tripLiveStore.find(TENANT, tripId).orElseThrow();
     }
 }

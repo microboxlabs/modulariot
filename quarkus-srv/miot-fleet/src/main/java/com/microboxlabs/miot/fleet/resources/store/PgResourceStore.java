@@ -4,6 +4,7 @@ import static com.microboxlabs.miot.fleet.resources.store.Pg.query;
 import static com.microboxlabs.miot.fleet.resources.store.Pg.text;
 import static com.microboxlabs.miot.fleet.resources.store.Pg.time;
 
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
@@ -303,6 +304,25 @@ public class PgResourceStore implements ResourceStore {
     public boolean isCurrent(String tenantCode, String table, UUID id) {
         return query(pool.get(), "SELECT EXISTS(" + select("1", table) + BY_ID + " AND is_active)",
                 Tuple.of(tenantCode, id)).iterator().next().getBoolean(0);
+    }
+
+    @Override
+    public Optional<FleetResources.Vehicle> vehicle(String tenantCode, String table, UUID id) {
+        return first(query(pool.get(), select("license_plate, carrier_id", table) + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Vehicle(r.getString(LICENSE_PLATE), r.getUUID(CARRIER_ID)));
+    }
+
+    @Override
+    public Optional<FleetResources.Driver> driverSummary(String tenantCode, UUID id) {
+        return first(query(pool.get(), select("rut, full_name, COALESCE(mobile_phone, phone) AS phone", "driver")
+                + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Driver(r.getString("rut"), r.getString("full_name"), r.getString("phone")));
+    }
+
+    @Override
+    public Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id) {
+        return first(query(pool.get(), select("id, legal_name, phone", "carrier") + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Carrier(r.getUUID("id"), r.getString("legal_name"), r.getString("phone")));
     }
 
     // ---- shared ---------------------------------------------------------

@@ -155,6 +155,16 @@ public class PgTripStore implements TripStore {
     }
 
     @Override
+    public List<UUID> openTripsAt(String tenantCode, UUID locationId) {
+        return query(pool.get(), """
+                SELECT id FROM miot_trips.trip
+                WHERE tenant_code = $1 AND (origin_id = $2 OR destination_id = $2)
+                  AND version_of IS NULL AND is_active AND status NOT IN ('realizado', 'anulado')""",
+                Tuple.of(tenantCode, locationId))
+                .stream().map(r -> r.getUUID("id")).toList();
+    }
+
+    @Override
     public List<MandateRef> mandatesOf(String tenantCode, UUID tripId) {
         return query(pool.get(), """
                 SELECT tm.mandate_id, m.external_code, m.status, tm.seq, tm.role

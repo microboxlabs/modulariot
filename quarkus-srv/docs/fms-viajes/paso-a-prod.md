@@ -10,7 +10,7 @@ error (un fallo de la API avisa, no rompe la escritura actual).
 1. Merge del stack: docs → fleet (`V0.9.9`) → trips core (`V0.10.0`) → trips API.
 2. Deploy con `miot.component.fleet.enabled` y `miot.component.trips.enabled`; Flyway aplica las
    dos migraciones (schemas nuevos: cero riesgo sobre lo existente). Trips agrega también la
-   location de fleet, porque sus triggers leen `miot_fleet`.
+   location de fleet, porque lee los recursos de `miot_fleet`.
 3. Crear orgs/tenants que falten y **service accounts** con API key por feed: directorio
    (`fleet:resources.write` + `fleet:accreditation.write`) y servicios (`trips:*` de operación).
 

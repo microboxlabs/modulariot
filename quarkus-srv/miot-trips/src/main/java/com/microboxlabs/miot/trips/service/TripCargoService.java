@@ -34,17 +34,19 @@ public class TripCargoService {
     private final CargoStore cargo;
     private final StageStore stages;
     private final MandateService mandates;
+    private final TripLiveProjector live;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
     public TripCargoService(TripCargoStore store, TripStore trips, CargoStore cargo, StageStore stages,
-            MandateService mandates, AuditService audit, Transactions tx) {
+            MandateService mandates, TripLiveProjector live, AuditService audit, Transactions tx) {
         this.store = store;
         this.trips = trips;
         this.cargo = cargo;
         this.stages = stages;
         this.mandates = mandates;
+        this.live = live;
         this.audit = audit;
         this.tx = tx;
     }
@@ -75,6 +77,7 @@ public class TripCargoService {
                     stageOf(tenantCode, tripId, body.unloadStageId(), "unloadStageId"),
                     null, actor, null, actor))
                     .orElseThrow(() -> new IllegalStateException("cargo already mounted on this trip"));
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "trip_cargo.mounted", ENTITY, cargoId.toString(), tripId.toString(),
                     Map.of());
             return mounted;
@@ -118,6 +121,7 @@ public class TripCargoService {
                 throw new IllegalStateException("cargo already " + unit.status());
             }
             store.delete(tenantCode, tripId, cargoId);
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "trip_cargo.unmounted", ENTITY, cargoId.toString(), tripId.toString(),
                     Map.of());
         });

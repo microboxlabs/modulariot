@@ -32,15 +32,17 @@ public class AssignmentService {
     private final AssignmentStore store;
     private final TripStore trips;
     private final FleetResources fleet;
+    private final TripLiveProjector live;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
-    public AssignmentService(AssignmentStore store, TripStore trips, FleetResources fleet, AuditService audit,
-            Transactions tx) {
+    public AssignmentService(AssignmentStore store, TripStore trips, FleetResources fleet, TripLiveProjector live,
+            AuditService audit, Transactions tx) {
         this.store = store;
         this.trips = trips;
         this.fleet = fleet;
+        this.live = live;
         this.audit = audit;
         this.tx = tx;
     }
@@ -74,6 +76,7 @@ public class AssignmentService {
             }
             Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
                     from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "assignment.created", ENTITY, created.id(), tripId.toString(),
                     Map.of(RESOURCE_TYPE, type, RESOURCE_ID, resourceId));
             return created;
@@ -94,6 +97,7 @@ public class AssignmentService {
             }
             Assignment ended = store.end(tenantCode, id, to, Check.limitedOrNull(reason, "reason", 255), actor)
                     .orElseThrow(() -> new IllegalStateException("assignment already ended"));
+            live.refresh(tenantCode, UUID.fromString(ended.tripId()));
             audit.log(tenantCode, actor, "assignment.ended", ENTITY, ended.id(), ended.tripId(),
                     Map.of(RESOURCE_TYPE, ended.resourceType(), RESOURCE_ID, ended.resourceId()));
             return ended;

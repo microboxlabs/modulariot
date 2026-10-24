@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,13 +39,16 @@ public class CargoService {
 
     private final CargoStore store;
     private final MandateService mandates;
+    private final TripLiveProjector live;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
-    public CargoService(CargoStore store, MandateService mandates, AuditService audit, Transactions tx) {
+    public CargoService(CargoStore store, MandateService mandates, TripLiveProjector live, AuditService audit,
+            Transactions tx) {
         this.store = store;
         this.mandates = mandates;
+        this.live = live;
         this.audit = audit;
         this.tx = tx;
     }
@@ -83,7 +87,7 @@ public class CargoService {
     /** Patches quantities/cubication, and status only forward within anunciada→lista. */
     public CargoUnit update(String tenantCode, String actor, UUID id, CargoRequest body) {
         return tx.inTransaction(() -> {
-            store.lockTripsCarrying(tenantCode, id);
+            List<UUID> carrying = store.lockTripsCarrying(tenantCode, id);
             CargoRequest req = body == null ? CargoRequest.empty() : body;
             CargoUnit current = get(tenantCode, id);
             String status = nextStatus(current.status(), req.status());
@@ -98,6 +102,9 @@ public class CargoService {
                     status, current.receiptResult(), current.receiptNotes(), current.receivedAt(),
                     current.createdAt(), current.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException(CARGO_NOT_FOUND));
+            if (!Objects.equals(current.description(), updated.description())) {
+                live.refreshAll(tenantCode, carrying);
+            }
             audit.log(tenantCode, actor, "cargo.updated", ENTITY, updated.id(), null, Map.of());
             return updated;
         });

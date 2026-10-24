@@ -24,6 +24,9 @@ public interface TripStore {
 
     List<MandateRef> mandatesOf(String tenantCode, UUID tripId);
 
+    /** Trips not yet realized or cancelled that start or end at the location. */
+    List<UUID> openTripsAt(String tenantCode, UUID locationId);
+
     /** Cargo units of that mandate currently linked to the trip (guards unlink). */
     int cargoOfMandateOnTrip(String tenantCode, UUID tripId, UUID mandateId);
 }

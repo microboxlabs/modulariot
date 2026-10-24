@@ -11,6 +11,7 @@ import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.dto.MandateRequest;
 import com.microboxlabs.miot.trips.dto.TripRequest;
+import com.microboxlabs.miot.trips.store.InMemoryFleet;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.util.List;
 import java.util.UUID;
@@ -59,7 +60,7 @@ class MandateServiceTest {
         Mandate mandate = service.createOrGet(TENANT, ACTOR, request("OC-2001")).mandate();
         UUID mandateId = UUID.fromString(mandate.id());
         TripService trips = new TripService(world.tripStore, world.stageStore, world.assignmentStore,
-                world.tripCargoStore, world.cargoStore, service, audit, tx);
+                world.tripCargoStore, world.cargoStore, service, world.projector(new InMemoryFleet()), audit, tx);
         trips.create(TENANT, ACTOR, new TripRequest(null, null, null, List.of(mandate.id()), null));
 
         IllegalStateException open = assertThrows(IllegalStateException.class,

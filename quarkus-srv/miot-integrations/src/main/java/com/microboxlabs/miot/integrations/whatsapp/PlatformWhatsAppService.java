@@ -40,6 +40,8 @@ public class PlatformWhatsAppService {
     static final String TEST_MODE_ENABLED = "test_mode_enabled";
     static final String TEST_RECIPIENTS = "test_recipients";
     static final String TOKEN = "token";
+    /** Credential public config: the app shows the credential as WhatsApp's. */
+    static final String PROVIDER = "provider";
     static final String DEFAULT_GRAPH_VERSION = "v25.0";
     private static final String GRAPH_HOST = "https://graph.facebook.com/";
     private static final Pattern META_ID = Pattern.compile("\\d{1,30}");
@@ -106,7 +108,8 @@ public class PlatformWhatsAppService {
             if (token.isEmpty()) {
                 throw new IllegalArgumentException("accessToken is required");
             }
-            connectionId = store.create(AuthType.BEARER_TOKEN, Map.of(), Map.of(TOKEN, token), settings.baseUrl(),
+            connectionId = store.create(AuthType.BEARER_TOKEN, Map.of(PROVIDER, "whatsapp"), Map.of(TOKEN, token),
+                    settings.baseUrl(),
                     settings.metadata(), actor);
         } else {
             connectionId = existing.id();

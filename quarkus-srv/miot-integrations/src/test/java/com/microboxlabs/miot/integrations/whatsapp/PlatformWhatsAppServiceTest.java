@@ -65,6 +65,7 @@ class PlatformWhatsAppServiceTest {
         assertEquals(false, stored.metadata().get("test_mode_enabled"));
         assertEquals(Map.of("token", "tok-1"), secrets.get(stored.credentialProfileId()));
         assertEquals(AuthType.BEARER_TOKEN, credentialRows.get(0).authType());
+        assertEquals(Map.of("provider", "whatsapp"), credentialRows.get(0).publicConfig());
         assertEquals("ACTIVE", view.status());
         assertEquals(true, view.lastTestResult());
         assertEquals("****", view.tokenPreview());

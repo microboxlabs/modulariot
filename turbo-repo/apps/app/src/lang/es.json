@@ -3738,7 +3738,7 @@
         "metaNewTemplate": "Nueva plantilla de WhatsApp",
         "metaRefresh": "Actualizar estados",
         "metaNoTemplates": "La cuenta de WhatsApp aún no tiene plantillas.",
-        "metaNoConnection": "No hay una conexión de WhatsApp activa. Configúrala en Ajustes › Integraciones.",
+        "metaNoConnection": "La plataforma no tiene una conexión de WhatsApp activa: las plantillas de Meta viven en su cuenta de WhatsApp.",
         "metaStatusApproved": "Aprobada",
         "metaStatusPending": "En revisión",
         "metaStatusRejected": "Rechazada",

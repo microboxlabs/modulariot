@@ -66,7 +66,7 @@ public class FlywayMigrator {
 
         List<String> locations = new ArrayList<>(baseLocations);
 
-        // the trips triggers read miot_fleet's resource tables
+        // trips reads miot_fleet's resources through FleetResources
         if (fleetEnabled || tripsEnabled) {
             locations.add("db/migration/fleet");
         }

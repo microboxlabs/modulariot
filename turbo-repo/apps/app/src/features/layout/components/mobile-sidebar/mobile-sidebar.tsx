@@ -48,7 +48,7 @@ function findActiveSectionLabel(
 
 export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
   const pathname = pathNameWithoutLanguage(usePathname());
-  const { isOpen, close } = useSidebarContext().mobile;
+  const { isOpen, initialSection, close } = useSidebarContext().mobile;
   const { items, totals } = useSidebarNavigation();
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const settingsItem = items.find(
@@ -60,10 +60,12 @@ export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
   const prevIsOpen = useRef(false);
   useEffect(() => {
     if (isOpen && !prevIsOpen.current) {
-      setActiveSection(findActiveSectionLabel(items, pathname));
+      setActiveSection(
+        initialSection ?? findActiveSectionLabel(items, pathname)
+      );
     }
     prevIsOpen.current = isOpen;
-  }, [isOpen, items, pathname]);
+  }, [isOpen, initialSection, items, pathname]);
 
   if (!isOpen) return null;
 

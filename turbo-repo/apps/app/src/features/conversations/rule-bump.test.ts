@@ -70,6 +70,10 @@ describe("ruleBump", () => {
     expect(ruleBump(step(base, 1, { channel: "whatsapp" }), base)).toBe(
       "MINOR"
     );
+    const slack = step(base, 1, { channel: "slack", connection: "conn-1" });
+    expect(ruleBump(step(slack, 1, { connection: "conn-2" }), slack)).toBe(
+      "MINOR"
+    );
   });
 
   it("is MINOR when steps only change places", () => {

@@ -30,6 +30,16 @@ class ConnectionTestRecordsCredentialTest {
     private final List<String> credentialResults = new ArrayList<>();
     private String credentialId = "cred-1";
     private boolean succeeds = true;
+    private boolean validates = true;
+
+    @Test
+    void aContractOnlyCheckLeavesTheCredentialAlone() {
+        validates = false;
+
+        service().testConnection(TENANT, "conn-1", new ConnectionTestRequest(null, null));
+
+        assertTrue(credentialResults.isEmpty());
+    }
 
     @Test
     void aPassingTestIsRecordedOnTheCredential() {
@@ -116,6 +126,11 @@ class ConnectionTestRecordsCredentialTest {
                 public ConnectionTestResponse test(IntegrationConnection connection, CredentialProfile credential,
                         ConnectionTestRequest request) {
                     return new ConnectionTestResponse(succeeds, AT, succeeds ? "ok" : "HTTP 401");
+                }
+
+                @Override
+                public boolean validatesCredential() {
+                    return validates;
                 }
             };
         }

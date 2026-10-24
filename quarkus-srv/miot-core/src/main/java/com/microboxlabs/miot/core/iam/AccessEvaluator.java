@@ -60,10 +60,7 @@ public class AccessEvaluator {
         }
         Uni<Access> decided = PlatformScope.reserved(organizationSlug)
                 ? platformAccess(organizationSlug, caller)
-                : Panache.withSession(() -> Organization.findBySlug(organizationSlug)
-                        .flatMap(org -> org == null
-                                ? Uni.createFrom().item(Access.none(null, organizationSlug))
-                                : evaluate(org, caller)));
+                : organizationAccess(organizationSlug, caller);
         return decided
                 .invoke(access -> {
                     if (context != null) {
@@ -72,7 +69,13 @@ public class AccessEvaluator {
                 });
     }
 
-    /** Needs an open session: reads memberships and bindings through Hibernate Reactive. */
+    private Uni<Access> organizationAccess(String organizationSlug, Caller caller) {
+        return Panache.withSession(() -> Organization.findBySlug(organizationSlug)
+                .flatMap(org -> org == null
+                        ? Uni.createFrom().item(Access.none(null, organizationSlug))
+                        : evaluate(org, caller)));
+    }
+
     /**
      * The platform scope: a platform owner, signed in as a user, is its Owner. Nobody is a member of any other
      * reserved slug.
@@ -87,6 +90,7 @@ public class AccessEvaluator {
                 : Access.none(PlatformScope.ORGANIZATION_ID, slug));
     }
 
+    /** Needs an open session: reads memberships and bindings through Hibernate Reactive. */
     public Uni<Access> evaluate(Organization org, Caller caller) {
         return root(org).flatMap(root -> {
             List<Long> scope = org.parent == null ? List.of(org.id) : List.of(org.id, root.id);

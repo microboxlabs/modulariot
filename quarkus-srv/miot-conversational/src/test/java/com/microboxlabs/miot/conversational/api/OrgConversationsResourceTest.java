@@ -320,13 +320,14 @@ class OrgConversationsResourceTest {
         Response created = call(maintainer.createChannelConnection(ORG, "webhook", request));
         assertEquals(201, created.getStatus());
         JsonNode connection = body(created);
-        assertEquals(set("id", "name", "baseUrl", "status", "lastTestedAt", "lastTestResult"), keys(connection));
-        assertEquals("https://hooks.example.com/miot", connection.path("baseUrl").asText());
+        assertEquals(set("id", "name", "host", "status", "lastTestedAt", "lastTestResult"), keys(connection));
+        assertEquals("hooks.example.com", connection.path("host").asText());
         assertEquals("DRAFT", connection.path("status").asText());
 
         JsonNode listed = body(call(member.connectionChannel(ORG, "webhook"))).path("connections");
         assertEquals(1, listed.size());
         assertEquals(connection.path("id").asText(), listed.get(0).path("id").asText());
+        assertEquals("hooks.example.com", listed.get(0).path("host").asText());
 
         assertEquals(400, call(owner.createChannelConnection(ORG, "webhook",
                 new CreateConnectionRequest("x", "ftp://hooks.example.com", null))).getStatus());

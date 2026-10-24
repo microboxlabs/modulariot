@@ -13,11 +13,11 @@
    estado —en el vocabulario del tenant— proyecta al tablero mientras corre (un tenant:
    `ADDED`/`SCHEDULED`/`ONGOING`/`ARRIVED`/`FINISHED`; otro: `en ruta`/`cerrado`). Es dato, no
    comportamiento: el motor no conoce vocabularios.
-4. **`trip_live` es proyección, no registro.** La fila caliente del tablero la mantienen triggers
-   del registro (nace con el viaje, muere al realizarlo/anularlo). No tiene API de escritura.
+4. **`trip_live` es proyección, no registro.** La fila caliente del tablero la reconstruye `TripLiveProjector`
+   desde el registro (nace con el viaje, muere al realizarlo/anularlo). No tiene API de escritura.
 5. **Recursos en su propio módulo.** Flota (transportista, camión, remolque, conductor) y
    acreditación viven en `miot_fleet`, con ciclo de vida propio e independiente de los viajes.
-   `miot_trips` los referencia por id y un trigger valida la referencia entre schemas.
+   `miot_trips` los referencia por id; `AssignmentService` valida la referencia con el servicio de fleet.
 6. **Versionado SCD2 en la misma tabla.** Nada se pisa: cada UPDATE archiva la versión anterior
    (trigger genérico). La fila vigente conserva su `id` (las FKs no se tocan) y es la única con
    `version_of IS NULL AND is_active`. El borrado es lógico (`is_active = false`). La explotación
@@ -103,7 +103,7 @@ erDiagram
     trip ||--o{ trip_resource_assignment : "vigencias"
     trip ||--o{ trip_cargo : ""
     cargo_unit ||--o{ trip_cargo : ""
-    trip ||--o| trip_live : "proyección (triggers)"
+    trip ||--o| trip_live : "proyección (TripLiveProjector)"
 
     mandate {
         uuid id PK
@@ -137,7 +137,7 @@ erDiagram
     trip_resource_assignment {
         uuid id PK
         varchar resource_type "truck, trailer, driver -> miot_fleet"
-        uuid resource_id "validado por trigger entre schemas"
+        uuid resource_id "validado por el servicio de fleet"
         timestamptz valid_from
         timestamptz valid_to
     }
@@ -163,12 +163,18 @@ Columnas en cada tabla de registro: `version_of UUID` (NULL = vigente), `is_acti
   `valid_from/to` de `trip_resource_assignment` (vigencia **operativa** de la asignación).
 - Consulta histórica: misma tabla, `WHERE version_of = :id OR id = :id ORDER BY version_from`.
 
-## Triggers de integridad (además del versionado)
+## Integridad en la base (además del versionado)
 
-| Trigger | Regla |
+| Regla | Cómo |
 |---|---|
-| línea automática | crear mandato ⇒ crea su `mandate_line` seq 1 |
 | una etapa en curso | índice parcial único sobre `(subject_type, subject_id) WHERE status='en_curso' AND version_of IS NULL AND is_active` |
-| consistencia carga→mandato | solo se monta carga de mandatos vinculados al viaje |
-| chequeo de recursos | `trip_resource_assignment.resource_id` debe existir en la tabla de `miot_fleet` que corresponda |
-| proyección `trip_live` | nace con el viaje, refresca con etapas/asignaciones (`COALESCE(service_status, status)`), muere al realizar/anular |
+
+## Reglas en los services
+
+| Dónde | Regla |
+|---|---|
+| `AssignmentService` | el recurso asignado existe en `miot_fleet` para el tenant y no está `inactive` (400) |
+| `MandateStore.insertOrGet` | crear mandato ⇒ crea su `mandate_line` seq 1 |
+| `TripCargoService.mount` | montar una carga vincula al viaje el mandato dueño de la carga |
+| `TripLiveProjector` | reconstruye `trip_live` antes del commit de cada operación que cambia lo que muestra: nace con el viaje, refresca con etapas, asignaciones, mandatos y carga (`COALESCE(service_status, status)`), y con el renombre de una ubicación o la descripción de una carga; muere al realizar/anular |
+| `MandateService.requireOpen` | un mandato cerrado o anulado no toma viajes nuevos, directo ni por carga montada (409) |

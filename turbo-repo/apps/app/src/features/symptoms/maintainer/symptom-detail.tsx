@@ -497,9 +497,14 @@ export default function SymptomDetail({
           onSaved={(saved) => {
             setSavingTemplate(false);
             // The template lives in the platform scope: switch to it and open the template there.
-            void switchOrg(
+            // location.assign does not add the base path the way router.push does.
+            switchOrg(
               PLATFORM_SCOPE_SLUG,
-              `/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
+              `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
+            ).catch((error: unknown) =>
+              setActionError(
+                error instanceof Error ? error.message : String(error)
+              )
             );
           }}
         />

@@ -294,7 +294,8 @@ export interface ConversationRun {
 export interface ChannelConnection {
   id: string;
   name: string;
-  baseUrl: string;
+  /** Only the host: the full URL can carry the webhook's secret. */
+  host: string | null;
   status: string;
   lastTestedAt: string | null;
   lastTestResult: boolean | null;

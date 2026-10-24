@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -23,6 +24,8 @@ public class AssignmentService {
     static final String ENTITY = "assignment";
     private static final String RESOURCE_TYPE = "resourceType";
     private static final String RESOURCE_ID = "resourceId";
+    /** How far ahead of the server clock a feed's validFrom may be. */
+    private static final Duration CLOCK_SKEW = Duration.ofMinutes(5);
 
     private final AssignmentStore store;
     private final TripStore trips;
@@ -52,7 +55,12 @@ public class AssignmentService {
                 Assignment.TRUCK, Assignment.TRAILER, Assignment.DRIVER);
         String resourceId = Check.required(body.resourceId(), RESOURCE_ID, 64);
         TripService.parse(resourceId, RESOURCE_ID);
-        OffsetDateTime from = body.validFrom() == null ? OffsetDateTime.now(ZoneOffset.UTC) : body.validFrom();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime from = body.validFrom() == null ? now : body.validFrom();
+        // trip_live shows every open window at once, so a future start would replace today's resource early
+        if (from.isAfter(now.plus(CLOCK_SKEW))) {
+            throw new IllegalArgumentException("validFrom cannot be in the future; assign the resource when it starts");
+        }
         Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
                 from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));
         audit.log(tenantCode, actor, "assignment.created", ENTITY, created.id(), tripId.toString(),

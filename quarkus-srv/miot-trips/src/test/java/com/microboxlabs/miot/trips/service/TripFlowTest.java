@@ -182,5 +182,8 @@ class TripFlowTest {
         OffsetDateTime beforeStart = truck.validFrom().minusHours(1);
         assertThrows(IllegalArgumentException.class,
                 () -> assignments.end(TENANT, ACTOR, truckId, beforeStart, null));
+        AssignmentRequest tomorrow = new AssignmentRequest("truck", UUID.randomUUID().toString(),
+                OffsetDateTime.now().plusDays(1), "reemplazo de mañana");
+        assertThrows(IllegalArgumentException.class, () -> assignments.create(TENANT, ACTOR, tripId, tomorrow));
     }
 }

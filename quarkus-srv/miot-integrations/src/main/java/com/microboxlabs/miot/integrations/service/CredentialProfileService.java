@@ -281,9 +281,11 @@ public class CredentialProfileService {
 
     /** What identifies the connection in a "used by" row. */
     static String usageDetail(IntegrationConnection connection) {
-        ProviderType type = connection.providerType();
-        String key = type == ProviderType.WHATSAPP ? "phone_number_id"
-                : type == ProviderType.RESEND ? ResendEmailSender.FROM : null;
+        String key = switch (connection.providerType()) {
+            case WHATSAPP -> "phone_number_id";
+            case RESEND -> ResendEmailSender.FROM;
+            case null, default -> null;
+        };
         if (key == null) {
             return connection.baseUrl() == null ? null : connection.baseUrl().toString();
         }

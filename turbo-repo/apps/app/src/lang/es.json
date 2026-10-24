@@ -3570,7 +3570,7 @@
         "channelHint_slack": "Las reglas publican en un canal de Slack con el webhook entrante de la organización.",
         "channelHint_teams": "Las reglas publican en un canal de Teams con un flujo de webhook entrante de la organización.",
         "channelPlatformTitle": "Cuenta de la plataforma",
-        "channelPlatformBody": "Incluida: las reglas envían desde la cuenta de la plataforma, con sus plantillas. No hay que configurar nada.",
+        "channelPlatformBody": "Las reglas envían desde la cuenta de la plataforma, con sus plantillas. No hay que configurar nada.",
         "channelPlatformNone": "La plataforma no tiene una cuenta para este canal. Para usarlo, conecta la de la organización.",
         "channelPlatformIncluded": "Incluida",
         "channelNotOffered": "No disponible",

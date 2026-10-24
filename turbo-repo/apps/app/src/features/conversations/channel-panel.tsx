@@ -89,11 +89,12 @@ function SendFrom({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const account = accounts?.find((a) => a.channel === channel.key);
-  const mode = account?.mode ?? "PLATFORM";
+  // Nothing is checked until the accounts load.
+  const mode = account?.mode;
   const ownConnected = account?.ownConnected ?? false;
 
   const choose = async (next: ChannelAccountMode) => {
-    if (next === mode || saving) return;
+    if (!account || next === mode || saving) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -134,7 +135,7 @@ function SendFrom({
           }
           tone="gray"
           checked={mode === "PLATFORM"}
-          disabled={!canConfigure || saving || !channel.platformOffered}
+          disabled={!canConfigure || saving || !account || !channel.platformOffered}
           onSelect={() => void choose("PLATFORM")}
         />
         <ModeOption
@@ -147,7 +148,7 @@ function SendFrom({
           }
           tone={ownConnected ? "green" : "gray"}
           checked={mode === "OWN"}
-          disabled={!canConfigure || saving || !ownConnected}
+          disabled={!canConfigure || saving || !account || !ownConnected}
           onSelect={() => void choose("OWN")}
         />
       </div>

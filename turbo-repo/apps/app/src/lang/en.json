@@ -3570,7 +3570,7 @@
         "channelHint_slack": "Rules post to a Slack channel through the organization's incoming webhook.",
         "channelHint_teams": "Rules post to a Teams channel through the organization's incoming webhook workflow.",
         "channelPlatformTitle": "Platform account",
-        "channelPlatformBody": "Included: rules send from the platform's account, with its templates. Nothing to set up.",
+        "channelPlatformBody": "Rules send from the platform's account, with its templates. Nothing to set up.",
         "channelPlatformNone": "The platform has no account for this channel. To use it, connect the organization's own.",
         "channelPlatformIncluded": "Included",
         "channelNotOffered": "Not available",

@@ -18,8 +18,8 @@ public record Trip(
         OffsetDateTime updatedAt,
         String updatedBy) {
 
-    public static final String PLANNED = "planificado";
-    public static final String EN_ROUTE = "en_ruta";
-    public static final String DONE = "realizado";
-    public static final String CANCELLED = "anulado";
+    public static final String PLANNED = "planned";
+    public static final String IN_PROGRESS = "in_progress";
+    public static final String DONE = "completed";
+    public static final String CANCELLED = "cancelled";
 }

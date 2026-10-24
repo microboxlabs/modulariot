@@ -71,10 +71,10 @@ class TripFlowTest {
 
         // the trip is planned with its stages; mounting the cargo links the mandate
         TripView created = trips.create(TENANT, ACTOR, new TripRequest(null, null, null, null, List.of(
-                new StageRequest("carga", null, null, null, null, null),
-                new StageRequest("transito", null, null, null, null, null),
-                new StageRequest("descarga", null, null, null, null, null),
-                new StageRequest("cierre", null, null, null, null, null))));
+                new StageRequest("loading", null, null, null, null, null),
+                new StageRequest("transit", null, null, null, null, null),
+                new StageRequest("unloading", null, null, null, null, null),
+                new StageRequest("closing", null, null, null, null, null))));
         UUID tripId = UUID.fromString(created.id());
         List<Stage> plan = stages.listByTrip(TENANT, tripId);
         assertEquals(4, plan.size());
@@ -101,9 +101,9 @@ class TripFlowTest {
                 new AssignmentRequest("truck", resource(), null, "reemplazo"));
         assertEquals(3, assignments.listByTrip(TENANT, tripId).size());
 
-        // starting the first stage IS the state change: trip en_ruta, mandate en_ejecucion
+        // starting the first stage IS the state change: trip and mandate in_progress
         stages.start(TENANT, ACTOR, loadStage);
-        assertEquals(Trip.EN_ROUTE, trips.get(TENANT, tripId).status());
+        assertEquals(Trip.IN_PROGRESS, trips.get(TENANT, tripId).status());
         assertEquals(Mandate.RUNNING, mandates.get(TENANT, mandateId).status());
         UUID transitStage = UUID.fromString(plan.get(1).id());
         assertThrows(IllegalStateException.class, () -> stages.start(TENANT, ACTOR, transitStage));
@@ -157,8 +157,8 @@ class TripFlowTest {
     @Test
     void aCancelledTripRunsNoStages() {
         TripView created = trips.create(TENANT, ACTOR, new TripRequest(null, null, null, null, List.of(
-                new StageRequest("carga", null, null, null, null, null),
-                new StageRequest("cierre", null, null, null, null, null))));
+                new StageRequest("loading", null, null, null, null, null),
+                new StageRequest("closing", null, null, null, null, null))));
         UUID tripId = UUID.fromString(created.id());
         List<Stage> plan = stages.listByTrip(TENANT, tripId);
         UUID load = UUID.fromString(plan.get(0).id());
@@ -177,9 +177,9 @@ class TripFlowTest {
         CargoUnit unit = cargo.announce(TENANT, ACTOR, UUID.fromString(mandate.id()),
                 new CargoRequest("Fruta", null, null, null, null, null));
         UUID tripA = UUID.fromString(trips.create(TENANT, ACTOR, new TripRequest(null, null, null, null,
-                List.of(new StageRequest("carga", null, null, null, null, null)))).id());
+                List.of(new StageRequest("loading", null, null, null, null, null)))).id());
         UUID tripB = UUID.fromString(trips.create(TENANT, ACTOR, new TripRequest(null, null, null, null,
-                List.of(new StageRequest("carga", null, null, null, null, null)))).id());
+                List.of(new StageRequest("loading", null, null, null, null, null)))).id());
         String stageOfB = stages.listByTrip(TENANT, tripB).get(0).id();
 
         TripCargoRequest atStageOfB = new TripCargoRequest(unit.id(), stageOfB, null);
@@ -194,7 +194,7 @@ class TripFlowTest {
         TripRequest badOrigin = new TripRequest("not-a-uuid", null, null, null, null);
         assertThrows(IllegalArgumentException.class, () -> trips.create(TENANT, ACTOR, badOrigin));
         TripRequest badPlan = new TripRequest(null, null, null, null, List.of(
-                new StageRequest("carga", null, null, null, null, null),
+                new StageRequest("loading", null, null, null, null, null),
                 new StageRequest("volar", null, null, null, null, null)));
         assertThrows(IllegalArgumentException.class, () -> trips.create(TENANT, ACTOR, badPlan));
         assertTrue(trips.list(TENANT, TripService.filter(null, null, null, null, null), 0, 50).isEmpty(),
@@ -243,7 +243,7 @@ class TripFlowTest {
         String cancelled = mandate.id();
         IllegalStateException link = assertThrows(IllegalStateException.class,
                 () -> trips.linkMandate(TENANT, ACTOR, tripId, cancelled, null, null));
-        assertTrue(link.getMessage().contains("anulado"), link.getMessage());
+        assertTrue(link.getMessage().contains("cancelled"), link.getMessage());
         TripCargoRequest mount = new TripCargoRequest(unit.id(), null, null);
         assertThrows(IllegalStateException.class, () -> tripCargo.mount(TENANT, ACTOR, tripId, mount));
         String unknown = UUID.randomUUID().toString();
@@ -265,9 +265,9 @@ class TripFlowTest {
                 new MandateRequest("SRV-BOARD", "service", null, null, null, null)).mandate();
         CargoUnit unit = cargo.announce(TENANT, ACTOR, UUID.fromString(mandate.id()),
                 new CargoRequest("Fruta", null, null, null, null, null));
-        Location origin = locations.create(TENANT, ACTOR, new LocationRequest("Bodega Norte", "cd", null, null));
+        Location origin = locations.create(TENANT, ACTOR, new LocationRequest("Bodega Norte", "distribution_center", null, null));
         UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR, new TripRequest(origin.id(), null, null, null,
-                List.of(new StageRequest("carga", null, null, null, null, null)))).id());
+                List.of(new StageRequest("loading", null, null, null, null, null)))).id());
         assertEquals("Bodega Norte", board(tripId).originGeofenceLabel());
         assertEquals(Trip.PLANNED, board(tripId).status());
 

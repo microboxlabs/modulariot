@@ -131,10 +131,10 @@ public class CargoService {
         return tx.inTransaction(() -> {
             store.lockTripsCarrying(tenantCode, id);
             ReceiveRequest req = body == null ? new ReceiveRequest(null, null) : body;
-            if (req.result() == null || !Set.of("conforme", "diferencia").contains(req.result())) {
+            if (req.result() == null || !Set.of("conforming", "discrepancy").contains(req.result())) {
                 throw new IllegalArgumentException("result must be conforme or diferencia");
             }
-            if ("diferencia".equals(req.result()) && (req.notes() == null || req.notes().isBlank())) {
+            if ("discrepancy".equals(req.result()) && (req.notes() == null || req.notes().isBlank())) {
                 throw new IllegalArgumentException("notes: a diferencia needs the detail");
             }
             CargoUnit current = get(tenantCode, id);

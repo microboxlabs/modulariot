@@ -46,7 +46,7 @@ public class LocationService {
     public Location create(String tenantCode, String actor, LocationRequest body) {
         LocationRequest req = body == null ? LocationRequest.empty() : body;
         String type = Check.oneOf(Check.required(req.type(), "type", 32), "type",
-                "planta", "puerto", "cd", "cliente", "zona");
+                "plant", "port", "distribution_center", "customer", "zone");
         Location created = store.insert(new Location(null, tenantCode,
                 Check.required(req.name(), "name", 255), type,
                 Check.limitedOrNull(req.externalCode(), "externalCode", 128),
@@ -64,7 +64,7 @@ public class LocationService {
             Location l = store.find(tenantCode, id)
                     .orElseThrow(() -> new NoSuchElementException("location not found"));
             String type = req.type() == null ? l.type()
-                    : Check.oneOf(req.type(), "type", "planta", "puerto", "cd", "cliente", "zona");
+                    : Check.oneOf(req.type(), "type", "plant", "port", "distribution_center", "customer", "zone");
             Location updated = store.update(new Location(l.id(), tenantCode,
                     req.name() == null ? l.name() : Check.required(req.name(), "name", 255), type,
                     Check.orKeep(req.externalCode(), l.externalCode(), "externalCode", 128),

@@ -52,14 +52,14 @@ import java.util.UUID;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class FeedReconciler {
 
-    public static final String CREATE = "alta";
-    public static final String UPDATE = "cambios";
-    public static final String CLOSE = "cierre";
-    public static final String SKIP = "omitir";
-    public static final String REPORT = "reportar";
+    public static final String CREATE = "create";
+    public static final String UPDATE = "update";
+    public static final String CLOSE = "close";
+    public static final String SKIP = "skip";
+    public static final String REPORT = "report";
     public static final String ERROR = "error";
     /** Accepted from the feed, not applied yet. */
-    public static final String PENDING = "pendiente";
+    public static final String PENDING = "pending";
 
     private static final Duration SAME_TIME = Duration.ofMinutes(1);
     private static final String TRUCK = Assignment.TRUCK;

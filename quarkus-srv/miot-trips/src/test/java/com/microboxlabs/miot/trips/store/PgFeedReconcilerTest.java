@@ -127,7 +127,7 @@ class PgFeedReconcilerTest {
     @BeforeEach
     void tenantWithAFeed() {
         tenant = "t-" + UUID.randomUUID().toString().substring(0, 8);
-        feeds.saveProfile(profile(List.of("preparacion", "transito", "cierre")));
+        feeds.saveProfile(profile(List.of("preparation", "transit", "closing")));
         Carrier c = resources.insertCarrier(new Carrier(null, tenant, null, "20000000001", "Transportes Prueba SAC",
                 null, null, null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
         fleetIds = new Ids(truck(c, "ABC-123", Carrier.ACTIVE), truck(c, "GHI-789", Carrier.ACTIVE),
@@ -139,7 +139,7 @@ class PgFeedReconcilerTest {
 
     private FeedProfile profile(List<String> stageTypes) {
         return new FeedProfile(tenant, FEED, "Servicios", stageTypes.stream()
-                .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "transito", "cierre", 120,
+                .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "transit", "closing", 120,
                 new LinkedHashSet<>(List.of("truck", "driver")), true, null, ACTOR, null, ACTOR);
     }
 
@@ -188,13 +188,13 @@ class PgFeedReconcilerTest {
         assertEquals(FeedReconciler.CREATE, r.action());
         assertTrue(r.errors().isEmpty());
         TripView t = trip(r);
-        assertEquals(Trip.EN_ROUTE, t.status());
-        assertEquals(Stage.RUNNING, status(t, "preparacion"));
-        assertEquals(Stage.PENDING, status(t, "transito"));
+        assertEquals(Trip.IN_PROGRESS, t.status());
+        assertEquals(Stage.RUNNING, status(t, "preparation"));
+        assertEquals(Stage.PENDING, status(t, "transit"));
         assertEquals(List.of(fleetIds.abc()), openWindows(t, "truck"));
         assertEquals(List.of(fleetIds.def()), openWindows(t, "trailer"));
         assertEquals(List.of(fleetIds.d1()), openWindows(t, "driver"));
-        assertNotNull(t.stages().stream().filter(s -> s.stageType().equals("cierre")).findFirst().orElseThrow()
+        assertNotNull(t.stages().stream().filter(s -> s.stageType().equals("closing")).findFirst().orElseThrow()
                 .plannedEnd(), "the close stage carries the arrival time");
         assertEquals(Mandate.RUNNING, mandates.get(tenant, UUID.fromString(r.mandateId())).status());
         FeedService s = feeds.service(tenant, FEED, "S-001").orElseThrow();
@@ -207,8 +207,8 @@ class PgFeedReconcilerTest {
         FeedResult r = send("S-002", desired(-1, 5, "GHI 789", "DEF-456", "10000002", "10000003"));
 
         TripView t = trip(r);
-        assertEquals(Stage.CLOSED, status(t, "preparacion"));
-        assertEquals(Stage.RUNNING, status(t, "transito"));
+        assertEquals(Stage.CLOSED, status(t, "preparation"));
+        assertEquals(Stage.RUNNING, status(t, "transit"));
         assertEquals(List.of(fleetIds.d2(), fleetIds.d3()).stream().sorted().toList(), openWindows(t, "driver"));
     }
 
@@ -279,8 +279,8 @@ class PgFeedReconcilerTest {
 
         clock.advance(Duration.ofHours(3));
         FeedResult departed = reconciler.recheck(tenant, ACTOR, FEED, "S-001");
-        assertEquals(List.of("close preparacion (departure time passed)", "start transito"), departed.operations());
-        assertEquals(Stage.RUNNING, status(trip(created), "transito"));
+        assertEquals(List.of("close preparation (departure time passed)", "start transit"), departed.operations());
+        assertEquals(Stage.RUNNING, status(trip(created), "transit"));
 
         clock.advance(Duration.ofHours(10));
         FeedResult closed = reconciler.recheck(tenant, ACTOR, FEED, "S-001");
@@ -298,16 +298,16 @@ class PgFeedReconcilerTest {
                 "10000001"), true);
 
         assertTrue(r.dryRun());
-        assertEquals(List.of("create mandate S-009", "create trip with stages [preparacion, transito, cierre]",
-                "assign truck ABC-123", "assign driver 10000001", "start preparacion",
-                "close preparacion (departure time passed)", "start transito"), r.operations());
+        assertEquals(List.of("create mandate S-009", "create trip with stages [preparation, transit, closing]",
+                "assign truck ABC-123", "assign driver 10000001", "start preparation",
+                "close preparation (departure time passed)", "start transit"), r.operations());
         assertTrue(mandates.list(tenant, null, "S-009", 0, 10).isEmpty());
         assertTrue(feeds.service(tenant, FEED, "S-009").isEmpty());
     }
 
     @Test
     void aFailingStepUndoesTheWholeServiceAndIsRecorded() {
-        feeds.saveProfile(profile(List.of("preparacion", "volando", "cierre")));
+        feeds.saveProfile(profile(List.of("preparation", "volando", "closing")));
 
         assertThrows(IllegalArgumentException.class,
                 () -> send("S-010", desired(1, 6, "ABC-123", null, "10000001")));
@@ -366,16 +366,16 @@ class PgFeedReconcilerTest {
     @Test
     void aFeedProfileIsCheckedBeforeItIsSaved() {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
-        List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
-                new FeedProfile.StagePlan("cierre", "FINISHED"));
+        List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
+                new FeedProfile.StagePlan("closing", "FINISHED"));
 
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "transito", "cierre", 60, null, null)),
+                new FeedProfileRequest("Nuevo", plan, "transit", "closing", 60, null, null)),
                 "the departure stage must be in the plan");
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas",
-                new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", 60, null, null)));
+                new FeedProfileRequest("Nuevo", plan, "preparation", "closing", 60, null, null)));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", null, List.of("truck"), null));
+                new FeedProfileRequest("Nuevo", plan, "preparation", "closing", null, List.of("truck"), null));
         assertEquals(120, saved.closeToleranceMinutes());
         assertTrue(saved.active());
     }
@@ -396,7 +396,7 @@ class PgFeedReconcilerTest {
         feedClock.tick();
         assertEquals(1, queued.size());
         handler.handle(tenant, queued.remove(0).payload());
-        assertEquals(Stage.RUNNING, status(trip(created), "transito"));
+        assertEquals(Stage.RUNNING, status(trip(created), "transit"));
         feedClock.tick();
         assertTrue(queued.isEmpty(), "the departure is handled once");
 

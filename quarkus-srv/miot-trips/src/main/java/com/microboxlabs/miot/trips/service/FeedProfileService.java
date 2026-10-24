@@ -49,7 +49,7 @@ public class FeedProfileService {
         Set<String> types = new LinkedHashSet<>();
         for (FeedProfile.StagePlan s : stages) {
             String type = Check.oneOf(Check.required(s == null ? null : s.stageType(), "stageType", 32), "stageType",
-                    "preparacion", "carga", "transito", "parada", "descarga", "cierre");
+                    "preparation", "loading", "transit", "stop", "unloading", "closing");
             if (!types.add(type)) {
                 throw new IllegalArgumentException("stage " + type + " is listed twice");
             }

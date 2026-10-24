@@ -2,7 +2,7 @@ package com.microboxlabs.miot.trips.domain;
 
 import java.time.OffsetDateTime;
 
-/** A state of its subject: at most one 'en_curso' per subject (enforced by a partial unique index). */
+/** A state of its subject: at most one 'in_progress' per subject (enforced by a partial unique index). */
 public record Stage(
         String id,
         String tenantCode,
@@ -23,9 +23,9 @@ public record Stage(
         OffsetDateTime updatedAt,
         String updatedBy) {
 
-    public static final String PENDING = "pendiente";
-    public static final String RUNNING = "en_curso";
-    public static final String CLOSED = "cerrada";
+    public static final String PENDING = "pending";
+    public static final String RUNNING = "in_progress";
+    public static final String CLOSED = "completed";
 
     public static final String SUBJECT_TRIP = "trip";
 }

@@ -19,8 +19,8 @@ public record StageActivity(
         OffsetDateTime updatedAt,
         String updatedBy) {
 
-    public static final String PENDING = "pendiente";
-    public static final String RUNNING = "en_curso";
-    public static final String DONE = "hecha";
-    public static final String NOT_APPLICABLE = "no_aplica";
+    public static final String PENDING = "pending";
+    public static final String RUNNING = "in_progress";
+    public static final String DONE = "done";
+    public static final String NOT_APPLICABLE = "not_applicable";
 }

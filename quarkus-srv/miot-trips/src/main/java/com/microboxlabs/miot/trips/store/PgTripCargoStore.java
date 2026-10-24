@@ -106,22 +106,22 @@ public class PgTripCargoStore implements TripCargoStore {
     @Override
     public int markLoadedByStage(String tenantCode, UUID stageId, String actor) {
         return query(pool.get(), """
-                UPDATE miot_trips.cargo_unit cu SET status = 'retirada', updated_by = $3, updated_at = now()
+                UPDATE miot_trips.cargo_unit cu SET status = 'picked_up', updated_by = $3, updated_at = now()
                 FROM miot_trips.trip_cargo tc
                 WHERE tc.cargo_id = cu.id AND tc.tenant_code = $1 AND tc.loaded_at_stage = $2
                   AND tc.version_of IS NULL AND tc.is_active
-                  AND cu.status IN ('anunciada','lista')""",
+                  AND cu.status IN ('announced','ready')""",
                 Tuple.of(tenantCode, stageId).addString(actor)).rowCount();
     }
 
     @Override
     public int markDeliveredByStage(String tenantCode, UUID stageId, String actor) {
         return query(pool.get(), """
-                UPDATE miot_trips.cargo_unit cu SET status = 'entregada', updated_by = $3, updated_at = now()
+                UPDATE miot_trips.cargo_unit cu SET status = 'delivered', updated_by = $3, updated_at = now()
                 FROM miot_trips.trip_cargo tc
                 WHERE tc.cargo_id = cu.id AND tc.tenant_code = $1 AND tc.unloaded_at_stage = $2
                   AND tc.version_of IS NULL AND tc.is_active
-                  AND cu.status = 'retirada'""",
+                  AND cu.status = 'picked_up'""",
                 Tuple.of(tenantCode, stageId).addString(actor)).rowCount();
     }
 

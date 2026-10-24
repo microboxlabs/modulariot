@@ -1,16 +1,23 @@
 import type { ComponentType, SVGProps } from "react";
 import { Bell, Code } from "flowbite-react-icons/outline";
 import { Envelope, Whatsapp } from "flowbite-react-icons/solid";
+import { BsMicrosoftTeams } from "react-icons/bs";
+import { FaSlack } from "react-icons/fa";
 import { twMerge } from "tailwind-merge";
 
 type Logo = ComponentType<SVGProps<SVGSVGElement>>;
 
-/** Flowbite's logos, as on the sign-in page; "preferred" is a bell, anything else code. */
+/** Flowbite's logos, as on the sign-in page, and react-icons for brands Flowbite lacks; "preferred" is a bell, anything else code. */
 const LOGOS: Record<string, Logo> = {
   whatsapp: Whatsapp,
   email: Envelope,
+  slack: FaSlack,
+  teams: BsMicrosoftTeams,
   preferred: Bell,
 };
+
+export const channelLogo = (channel: string | null | undefined): Logo =>
+  (channel && LOGOS[channel]) || Code;
 
 /** A channel's logo in a bordered square, in the text colour; `size` is in Tailwind units (6 = 24 px). */
 export default function ChannelIcon({
@@ -24,7 +31,7 @@ export default function ChannelIcon({
   size?: number;
   className?: string;
 }>) {
-  const Icon = (channel && LOGOS[channel]) || Code;
+  const Icon = channelLogo(channel);
   const px = size * 4;
   return (
     <span

@@ -24,7 +24,7 @@ const SLACK_STEP: RuleStep = {
 const connection = (id: string, name: string) => ({
   id,
   name,
-  baseUrl: "https://example.com/hooks",
+  host: "example.com",
   status: "ACTIVE",
   lastTestedAt: null,
   lastTestResult: null,

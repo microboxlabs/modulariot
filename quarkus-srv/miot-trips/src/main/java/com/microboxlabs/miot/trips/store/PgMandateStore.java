@@ -27,22 +27,29 @@ import java.util.function.Supplier;
 public class PgMandateStore implements MandateStore {
 
     private static final String SELECT = "SELECT ";
+    private static final String STATUS = "status";
     private static final String COLUMNS = """
             id, tenant_code, external_code, order_type, order_ref, status, origin_id, destination_id,
             sla_minutes, closed_at, cancel_reason, created_at, created_by, updated_at, updated_by""";
 
+    /** The mandate and its line seq 1 in one statement: no item catalog yet, so every mandate carries one line. */
     private static final String INSERT = """
-            INSERT INTO miot_trips.mandate
-                (tenant_code, external_code, order_type, order_ref, origin_id, destination_id, sla_minutes,
-                 created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-            ON CONFLICT (tenant_code, external_code) WHERE version_of IS NULL AND is_active DO NOTHING
-            RETURNING\s""" + COLUMNS;
+            WITH m AS (
+                INSERT INTO miot_trips.mandate
+                    (tenant_code, external_code, order_type, order_ref, origin_id, destination_id, sla_minutes,
+                     created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+                ON CONFLICT (tenant_code, external_code) WHERE version_of IS NULL AND is_active DO NOTHING
+                RETURNING *),
+            line AS (
+                INSERT INTO miot_trips.mandate_line (tenant_code, mandate_id, seq, created_by, updated_by)
+                SELECT tenant_code, id, 1, created_by, created_by FROM m)
+            SELECT\s""" + COLUMNS + " FROM m";
 
     private static final String UPDATE = """
             UPDATE miot_trips.mandate SET
                 order_type = $3, order_ref = $4, status = $5, origin_id = $6, destination_id = $7,
-                sla_minutes = $8, closed_at = $9, cancel_reason = $10, updated_by = $11
+                sla_minutes = $8, closed_at = $9, cancel_reason = $10, updated_by = $11, updated_at = now()
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + COLUMNS;
 
@@ -146,9 +153,18 @@ public class PgMandateStore implements MandateStore {
                   AND tm.version_of IS NULL AND tm.is_active ORDER BY tm.seq""",
                 Tuple.of(tenantCode, mandateId))
                 .stream()
-                .map(r -> new TripRef(text(r.getUUID("trip_id")), r.getString("status"),
+                .map(r -> new TripRef(text(r.getUUID("trip_id")), r.getString(STATUS),
                         r.getInteger("seq"), r.getString("role")))
                 .toList();
+    }
+
+    @Override
+    public Optional<String> statusForLink(String tenantCode, UUID mandateId) {
+        RowIterator<Row> it = query(pool.get(),
+                "SELECT status FROM miot_trips.mandate WHERE tenant_code = $1 AND id = $2"
+                        + " AND version_of IS NULL AND is_active FOR SHARE",
+                Tuple.of(tenantCode, mandateId)).iterator();
+        return it.hasNext() ? Optional.of(it.next().getString(STATUS)) : Optional.empty();
     }
 
     @Override
@@ -170,7 +186,7 @@ public class PgMandateStore implements MandateStore {
     private static Mandate mandate(Row r) {
         return new Mandate(
                 text(r.getUUID("id")), r.getString("tenant_code"), r.getString("external_code"),
-                r.getString("order_type"), r.getString("order_ref"), r.getString("status"),
+                r.getString("order_type"), r.getString("order_ref"), r.getString(STATUS),
                 text(r.getUUID("origin_id")), text(r.getUUID("destination_id")),
                 r.getInteger("sla_minutes"), time(r, "closed_at"), r.getString("cancel_reason"),
                 time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));

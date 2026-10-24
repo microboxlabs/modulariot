@@ -1,7 +1,7 @@
 import { CHANNEL_TYPES } from "./channel-types";
 
-/** `rules`, `activity`, or `channel:<key>` for one of `CHANNEL_TYPES`. */
-export type CommunicationsSection = string;
+/** `channel:<key>` is one of `CHANNEL_TYPES`. */
+export type CommunicationsSection = "rules" | "activity" | `channel:${string}`;
 
 export const DEFAULT_SECTION: CommunicationsSection = "rules";
 
@@ -17,9 +17,7 @@ export const COMMUNICATIONS_SECTIONS: readonly CommunicationsSection[] = [
 /** The section in `?section=`; the old `?tab=activity` links still open Actividad. */
 export function sectionOf(params: URLSearchParams): CommunicationsSection {
   const value = params.get("section") ?? params.get("tab");
-  return value && COMMUNICATIONS_SECTIONS.includes(value)
-    ? value
-    : DEFAULT_SECTION;
+  return COMMUNICATIONS_SECTIONS.find((s) => s === value) ?? DEFAULT_SECTION;
 }
 
 export const channelKeyOf = (section: CommunicationsSection) =>

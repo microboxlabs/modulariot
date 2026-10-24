@@ -44,7 +44,7 @@ public class PgStageStore implements StageStore {
     private static final String UPDATE = """
             UPDATE miot_trips.stage SET
                 stage_type = $3, service_status = $4, location_id = $5, planned_start = $6,
-                planned_end = $7, checklist = $8::text::jsonb, updated_by = $9
+                planned_end = $7, checklist = $8::text::jsonb, updated_by = $9, updated_at = now()
             WHERE id = $1 AND tenant_code = $2 AND version_of IS NULL
             RETURNING\s""" + COLUMNS;
 
@@ -62,7 +62,7 @@ public class PgStageStore implements StageStore {
     private static final String A_UPDATE = """
             UPDATE miot_trips.stage_activity SET
                 status = $3, assignee = $4, assignment_id = $5, evidence = $6::text::jsonb,
-                done_at = $7, updated_by = $8
+                done_at = $7, updated_by = $8, updated_at = now()
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + A_COLUMNS;
 
@@ -118,7 +118,7 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<Stage> start(String tenantCode, UUID id, OffsetDateTime at, String actor) {
         return firstStage(query(pool.get(), """
-                UPDATE miot_trips.stage SET status = 'en_curso', actual_start = $3, updated_by = $4
+                UPDATE miot_trips.stage SET status = 'en_curso', actual_start = $3, updated_by = $4, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2 AND status = 'pendiente'
                 RETURNING\s""" + COLUMNS,
                 Tuple.of(id, tenantCode, at).addString(actor)));
@@ -127,7 +127,7 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<Stage> close(String tenantCode, UUID id, OffsetDateTime at, String actor) {
         return firstStage(query(pool.get(), """
-                UPDATE miot_trips.stage SET status = 'cerrada', actual_end = $3, updated_by = $4
+                UPDATE miot_trips.stage SET status = 'cerrada', actual_end = $3, updated_by = $4, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2 AND status = 'en_curso'
                 RETURNING\s""" + COLUMNS,
                 Tuple.of(id, tenantCode, at).addString(actor)));

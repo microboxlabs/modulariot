@@ -40,7 +40,7 @@ public class PgCargoStore implements CargoStore {
     private static final String UPDATE = """
             UPDATE miot_trips.cargo_unit SET
                 description = $3, qty = $4, qty_unit = $5, weight_kg = $6, volume_m3 = $7, status = $8,
-                receipt_result = $9, receipt_notes = $10, received_at = $11, updated_by = $12
+                receipt_result = $9, receipt_notes = $10, received_at = $11, updated_by = $12, updated_at = now()
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + COLUMNS;
 
@@ -62,6 +62,16 @@ public class PgCargoStore implements CargoStore {
                 .addBigDecimal(c.qty()).addString(c.qtyUnit()).addBigDecimal(c.weightKg())
                 .addBigDecimal(c.volumeM3()).addString(c.status()).addString(c.createdBy());
         return cargo(query(pool.get(), INSERT, params).iterator().next());
+    }
+
+    @Override
+    public Optional<UUID> mandateOf(String tenantCode, UUID cargoId) {
+        RowIterator<Row> it = query(pool.get(), """
+                SELECT ml.mandate_id FROM miot_trips.cargo_unit cu
+                JOIN miot_trips.mandate_line ml ON ml.id = cu.line_id AND ml.version_of IS NULL AND ml.is_active
+                WHERE cu.tenant_code = $1 AND cu.id = $2 AND cu.is_active""",
+                Tuple.of(tenantCode, cargoId)).iterator();
+        return it.hasNext() ? Optional.of(it.next().getUUID("mandate_id")) : Optional.empty();
     }
 
     @Override
@@ -105,14 +115,15 @@ public class PgCargoStore implements CargoStore {
     }
 
     @Override
-    public void lockTripsCarrying(String tenantCode, UUID cargoId) {
-        query(pool.get(), """
+    public List<UUID> lockTripsCarrying(String tenantCode, UUID cargoId) {
+        return query(pool.get(), """
                 SELECT t.id FROM miot_trips.trip t
                 JOIN miot_trips.trip_cargo tc ON tc.trip_id = t.id AND tc.tenant_code = t.tenant_code
                 WHERE tc.tenant_code = $1 AND tc.cargo_id = $2 AND tc.version_of IS NULL AND tc.is_active
                   AND t.version_of IS NULL
                 ORDER BY t.id
-                FOR UPDATE OF t""", Tuple.of(tenantCode, cargoId));
+                FOR UPDATE OF t""", Tuple.of(tenantCode, cargoId))
+                .stream().map(r -> r.getUUID("id")).toList();
     }
 
     @Override

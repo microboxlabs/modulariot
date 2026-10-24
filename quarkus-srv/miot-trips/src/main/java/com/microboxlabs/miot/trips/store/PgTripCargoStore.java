@@ -37,7 +37,7 @@ public class PgTripCargoStore implements TripCargoStore {
 
     private static final String UPDATE = """
             UPDATE miot_trips.trip_cargo SET
-                loaded_at_stage = $4, unloaded_at_stage = $5, updated_by = $6
+                loaded_at_stage = $4, unloaded_at_stage = $5, updated_by = $6, updated_at = now()
             WHERE tenant_code = $1 AND trip_id = $2 AND cargo_id = $3
               AND version_of IS NULL AND is_active
             RETURNING\s""" + COLUMNS;
@@ -95,7 +95,7 @@ public class PgTripCargoStore implements TripCargoStore {
     @Override
     public boolean delete(String tenantCode, UUID tripId, UUID cargoId) {
         RowSet<Row> rows = query(pool.get(), """
-                UPDATE miot_trips.trip_cargo SET is_active = FALSE
+                UPDATE miot_trips.trip_cargo SET is_active = FALSE, updated_at = now()
                 WHERE tenant_code = $1 AND trip_id = $2 AND cargo_id = $3
                   AND version_of IS NULL AND is_active
                 RETURNING trip_id""",
@@ -106,7 +106,7 @@ public class PgTripCargoStore implements TripCargoStore {
     @Override
     public int markLoadedByStage(String tenantCode, UUID stageId, String actor) {
         return query(pool.get(), """
-                UPDATE miot_trips.cargo_unit cu SET status = 'retirada', updated_by = $3
+                UPDATE miot_trips.cargo_unit cu SET status = 'retirada', updated_by = $3, updated_at = now()
                 FROM miot_trips.trip_cargo tc
                 WHERE tc.cargo_id = cu.id AND tc.tenant_code = $1 AND tc.loaded_at_stage = $2
                   AND tc.version_of IS NULL AND tc.is_active
@@ -117,7 +117,7 @@ public class PgTripCargoStore implements TripCargoStore {
     @Override
     public int markDeliveredByStage(String tenantCode, UUID stageId, String actor) {
         return query(pool.get(), """
-                UPDATE miot_trips.cargo_unit cu SET status = 'entregada', updated_by = $3
+                UPDATE miot_trips.cargo_unit cu SET status = 'entregada', updated_by = $3, updated_at = now()
                 FROM miot_trips.trip_cargo tc
                 WHERE tc.cargo_id = cu.id AND tc.tenant_code = $1 AND tc.unloaded_at_stage = $2
                   AND tc.version_of IS NULL AND tc.is_active

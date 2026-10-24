@@ -15,6 +15,8 @@ import com.microboxlabs.miot.conversational.dto.SendWhatsAppMessageRequest;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
+import com.microboxlabs.miot.integrations.email.PlatformMailService;
+import com.microboxlabs.miot.integrations.service.ConnectionNotConfiguredException;
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
@@ -38,6 +40,11 @@ import org.jboss.logging.Logger;
 @ApplicationScoped
 public class WhatsAppMessagingService {
 
+    /** The tenant of the platform's connections; its WhatsApp account sends the rule messages. */
+    public static final String PLATFORM_TENANT = PlatformMailService.PLATFORM_TENANT;
+    /** Message metadata: the tenant of the connection the message went through. */
+    public static final String CONNECTION_TENANT = "connectionTenant";
+    static final String NO_PLATFORM_WHATSAPP = "La plataforma no tiene WhatsApp configurado";
     private static final Logger LOG = Logger.getLogger(WhatsAppMessagingService.class);
     private static final String PHONE_NUMBER_ID = "phone_number_id";
     private static final String TOKEN = "token";
@@ -137,10 +144,11 @@ public class WhatsAppMessagingService {
 
     /**
      * Sends the Meta template {@code message.templateName()} with its NAMED parameters and stores it, with the
-     * run and step, on the conversation about the message's context with the recipient. The stored body is
-     * {@code message.body()}. Any failure (no connection, a recipient the connection's test mode does not
-     * allow, Meta refusing the send) is stored as FAILED with its reason. With {@code simulate} nothing is sent
-     * and the message is stored SIMULATED.
+     * run and step, on the organization's conversation about the message's context with the recipient. It goes
+     * through the platform's WhatsApp connection: the templates exist only on the platform's WABA. The stored
+     * body is {@code message.body()}. Any failure (no platform connection, a recipient the connection's test mode
+     * does not allow, Meta refusing the send) is stored as FAILED with its reason. With {@code simulate} nothing
+     * is sent and the message is stored SIMULATED.
      */
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -154,8 +162,9 @@ public class WhatsAppMessagingService {
             status = MessageStatus.SIMULATED;
         } else {
             try {
-                ResolvedConnection connection = connectionResolver.resolve(tenantCode, ProviderType.WHATSAPP);
+                ResolvedConnection connection = platformConnection();
                 metadata = metadata(connection);
+                metadata.put(CONNECTION_TENANT, PLATFORM_TENANT);
                 String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
                 String token = connection.secretString(TOKEN);
                 if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
@@ -183,6 +192,14 @@ public class WhatsAppMessagingService {
                 message.contextKind(), message.contextKey(), now,
                 truncate(message.body() != null ? message.body() : message.templateName())));
         return stored;
+    }
+
+    private ResolvedConnection platformConnection() {
+        try {
+            return connectionResolver.resolve(PLATFORM_TENANT, ProviderType.WHATSAPP);
+        } catch (ConnectionNotConfiguredException e) {
+            throw new ConnectionResolutionException(NO_PLATFORM_WHATSAPP);
+        }
     }
 
     private static String truncate(String text) {

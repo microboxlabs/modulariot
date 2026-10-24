@@ -94,8 +94,11 @@ final class InMemoryRules {
         }
 
         @Override
-        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump,
-                String reason, String actor, Instant at) {
+        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String from, String version,
+                RuleBump bump, String reason, String actor, Instant at) {
+            if (!java.util.Objects.equals(rules.get(ruleId).currentVersion(), from)) {
+                return Optional.empty();
+            }
             Optional<RuleVersion> draft = versions.stream()
                     .filter(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT
                             && v.spec().equals(validated)).findFirst();

@@ -77,7 +77,38 @@ public enum RuleBump {
         return spec.trigger() == null ? null : spec.trigger().event();
     }
 
+    /** The condition with whitespace outside quotes collapsed, as the app compares it; blank is no condition. */
     private static String when(RuleSpec spec) {
-        return spec.trigger() == null ? null : spec.trigger().when();
+        return spec.trigger() == null ? "" : squash(spec.trigger().when());
+    }
+
+    static String squash(String s) {
+        String text = s == null ? "" : s.strip();
+        StringBuilder out = new StringBuilder(text.length());
+        char quote = 0;
+        boolean space = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (quote != 0) {
+                out.append(c);
+                if (c == '\\' && i + 1 < text.length()) {
+                    out.append(text.charAt(++i));
+                } else if (c == quote) {
+                    quote = 0;
+                }
+            } else if (Character.isWhitespace(c)) {
+                space = true;
+            } else {
+                if (space) {
+                    out.append(' ');
+                }
+                space = false;
+                if (c == '\'' || c == '"') {
+                    quote = c;
+                }
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 }

@@ -367,8 +367,19 @@ export interface RuleChange {
   text: string;
 }
 
-const same = (a: unknown, b: unknown) =>
-  JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+/** JSON with object keys sorted, so property order never counts as a change; array order does. */
+function canonical(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
+  if (v && typeof v === "object") {
+    const entries = Object.entries(v)
+      .filter(([, x]) => x !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : Number(a > b)));
+    return `{${entries.map(([k, x]) => `${JSON.stringify(k)}:${canonical(x)}`).join(",")}}`;
+  }
+  return JSON.stringify(v ?? null);
+}
+
+const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
 
 /** Collapses runs of whitespace outside quotes; quoted text is kept as written. */
 function squash(s: string | null | undefined): string {
@@ -433,7 +444,7 @@ function stepsMovedOrRerouted(a: RuleStep[], b: RuleStep[]) {
   if (a.some((s, i) => s.channel !== b[i].channel || !same(s.to, b[i].to)))
     return true;
   const sorted = (steps: RuleStep[]) =>
-    steps.map((s) => JSON.stringify(s)).sort((x, y) => x.localeCompare(y));
+    steps.map(canonical).sort((x, y) => x.localeCompare(y));
   return !same(a, b) && same(sorted(a), sorted(b));
 }
 

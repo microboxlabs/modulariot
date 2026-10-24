@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Label,
@@ -92,14 +92,23 @@ function NewRuleForm({
   const [name, setName] = useState(prefill.name ?? "");
   const [key, setKey] = useState("");
   const [keyTouched, setKeyTouched] = useState(false);
-  const [event, setEvent] = useState(prefill.event || SYMPTOM_OPENED);
+  const prefilledEvent = prefill.event || SYMPTOM_OPENED;
+  const [event, setEvent] = useState(prefilledEvent);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The prefilled condition names the prefilled event's data; another event drops it.
-  const when = event === prefill.event ? (prefill.when ?? "") : "";
+  const when = event === prefilledEvent ? (prefill.when ?? "") : "";
   const spec = newRuleSpec(event, when);
   const effectiveKey = keyTouched ? key : keyFrom(name);
   const keyValid = KEY_PATTERN.test(effectiveKey);
+  // A modal dismissed while creating must not navigate when the request lands.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const submit = async () => {
     setBusy(true);
@@ -111,8 +120,9 @@ function NewRuleForm({
         spec,
       });
       await refreshRules();
-      onCreated(created);
+      if (mounted.current) onCreated(created);
     } catch (e) {
+      if (!mounted.current) return;
       setError(createError(e, d));
       setBusy(false);
     }

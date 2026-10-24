@@ -36,6 +36,17 @@ describe("ruleBump", () => {
     expect(ruleBump(base, structuredClone(base))).toBeNull();
   });
 
+  it("ignores property order and whitespace in the condition, like the server", () => {
+    const reordered: RuleSpec = {
+      ...base,
+      trigger: { ...base.trigger, when: "  event.data.level   >= 4 " },
+      steps: base.steps.map((s) =>
+        Object.fromEntries(Object.entries(s).reverse())
+      ) as RuleSpec["steps"],
+    };
+    expect(ruleBump(reordered, base)).toBeNull();
+  });
+
   it("is MAJOR when the event changes", () => {
     const closed = {
       ...base,

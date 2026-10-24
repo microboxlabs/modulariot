@@ -173,7 +173,8 @@ public class RulesService {
         }
         RuleBump bump = rule.currentVersion() == null ? plan.bump() : plan.bump().atLeast(requested);
         String version = rule.currentVersion() == null ? RuleBump.FIRST : bump.next(rule.currentVersion());
-        return rules.publish(rule.id(), draft.spec(), version, bump, reason, actor, clock.instant())
+        return rules.publish(rule.id(), draft.spec(), rule.currentVersion(), version, bump, reason, actor,
+                clock.instant())
                 .orElseThrow(() -> new IllegalStateException(
                         "El borrador cambió mientras se publicaba; vuelve a publicarlo"));
     }

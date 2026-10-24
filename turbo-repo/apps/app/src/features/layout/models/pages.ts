@@ -11,6 +11,7 @@ import { HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
+import { PLATFORM_SCOPE_SETTINGS } from "@/features/common/platform-scope";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
@@ -105,6 +106,22 @@ export interface SettingsGates {
   readonly gps: boolean;
   /** Whether the signed-in user may view the fleet (`fleet:assets.view`). */
   readonly fleet: boolean;
+  /** Whether the active scope is the platform rather than an organization. */
+  readonly platformScope?: boolean;
+}
+
+const SETTINGS_LABEL = "settings";
+
+/** In the platform scope only Settings remains, with the entries that exist for the platform. */
+function platformScopePages(input: SidebarItem[]): SidebarItem[] {
+  return input
+    .filter((page) => page.label === SETTINGS_LABEL)
+    .map((page) => ({
+      ...page,
+      items: (page.items ?? []).filter(
+        (item) => !!item.href && PLATFORM_SCOPE_SETTINGS.includes(item.href)
+      ),
+    }));
 }
 
 /**
@@ -119,6 +136,7 @@ export function filterSettings(
   input: SidebarItem[],
   gates: SettingsGates
 ): SidebarItem[] {
+  if (gates.platformScope) return platformScopePages(input);
   if (
     gates.harness &&
     gates.platformOwner &&

@@ -5,38 +5,21 @@ import { HiDotsVertical } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-/**
- * The row furniture both lists on this page share, kept identical to the rows in
- * Settings › Credentials so the two screens read as one family: a bordered card,
- * a leading glyph, two-line blocks, and a kebab for the actions.
- */
+/** The card and menu both lists on this page share, the same as the credential cards. */
 
 /** Secondary line of every block: same size, same grey. */
 export const SUBLINE = "truncate text-xs text-gray-500 dark:text-gray-400";
 
-export const ROW =
-  "relative flex cursor-pointer items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 transition focus-within:ring-2 focus-within:ring-blue-500 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700";
+export const CARD =
+  "relative flex flex-col rounded-lg border border-gray-200 bg-white transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500";
+
+/** A real button stretched over the card, so the kebab beside it stays a valid, clickable sibling. */
+export const CARD_BUTTON =
+  "block w-full cursor-pointer truncate text-left font-semibold text-gray-900 after:absolute after:inset-0 after:rounded-lg focus:outline-none dark:text-white";
 
 /**
- * Stretches a real button's hit area across the whole row, so Enter/Space and
- * assistive tech come for free. The row can't itself be a button — it contains the
- * kebab's button, which would be invalid nesting — so it uses an overlay instead.
- */
-export const ROW_BUTTON =
-  "cursor-pointer text-left after:absolute after:inset-0 after:rounded-lg focus:outline-none";
-
-/** Stands in for the credential list's provider logo: these rows have no artwork. */
-export function RowIcon({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-      {children}
-    </span>
-  );
-}
-
-/**
- * Positioned by its caller, so it stacks above the row-wide overlay and stays
- * clickable — the menu is a sibling of the row's button, never a child of it.
+ * Positioned by its caller, so it stacks above the card-wide overlay and stays
+ * clickable — the menu is a sibling of the card's button, never a child of it.
  */
 export function RowMenu({
   children,

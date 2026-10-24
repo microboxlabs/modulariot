@@ -87,7 +87,8 @@ public class PlatformMailService {
         if (apiKey.isEmpty()) {
             throw new IllegalArgumentException("apiKey is required");
         }
-        return store.create(AuthType.BEARER_TOKEN, Map.of(), Map.of(ResendEmailSender.TOKEN, apiKey),
+        // Tagged like an organization's Resend key, so Credenciales shows it as Resend.
+        return store.create(AuthType.BEARER_TOKEN, Map.of("provider", "resend"), Map.of(ResendEmailSender.TOKEN, apiKey),
                 client.baseUrl(), Map.of(ResendEmailSender.FROM, from), actor);
     }
 

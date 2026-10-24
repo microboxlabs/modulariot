@@ -7,6 +7,7 @@ import { mutate } from "swr";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { isPlatformScope } from "@/features/common/platform-scope";
 import {
   isNoOrganizationError,
   useOrgScopes,
@@ -53,11 +54,13 @@ export default function OrganizationsPageContent({
 }: OrganizationsPageContentProps) {
   const {
     activeOrg,
-    availableOrgs,
+    availableOrgs: scopes,
     isLoading,
     error: scopesError,
     refresh,
   } = useOrgScopes();
+  // The platform scope is in the switcher, not an organization to manage here.
+  const availableOrgs = scopes.filter((org) => !isPlatformScope(org.slug));
   // Belonging to no organization is a state, not a failure.
   const error = isNoOrganizationError(scopesError) ? undefined : scopesError;
 
@@ -92,7 +95,8 @@ export default function OrganizationsPageContent({
   // Default the selection to the active org once scopes load.
   useEffect(() => {
     if (selectedSlug) return;
-    if (activeOrg) setSelectedSlug(activeOrg.slug);
+    if (activeOrg && !isPlatformScope(activeOrg.slug))
+      setSelectedSlug(activeOrg.slug);
   }, [activeOrg, selectedSlug]);
 
   const orgsDict = dict?.organizations as I18nRecord;
@@ -120,11 +124,7 @@ export default function OrganizationsPageContent({
       );
     }
     return (
-      <OrgDetailPanel
-        organization={selectedOrganization}
-        dict={orgsDict}
-        credentialsDict={dict?.credentials as I18nRecord}
-      />
+      <OrgDetailPanel organization={selectedOrganization} dict={orgsDict} />
     );
   };
 

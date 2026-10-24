@@ -9,7 +9,6 @@ import {
   HiOutlineCreditCard,
   HiOutlineKey,
   HiOutlineLightningBolt,
-  HiOutlineMail,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
@@ -24,7 +23,6 @@ import BrandingSection from "./branding-section";
 import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
-import PlatformMailSection from "./platform-mail-section";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
@@ -66,7 +64,6 @@ export default function PlatformPageContent({
   const brandingDict = (platformDict?.branding as I18nRecord) ?? {};
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
-  const mailDict = (platformDict?.mail as I18nRecord) ?? {};
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
@@ -99,12 +96,6 @@ export default function PlatformPageContent({
       label: tr("title", modelsDict),
       description: tr("menuHint", modelsDict),
       icon: HiOutlineChip,
-    },
-    {
-      id: "mail",
-      label: tr("title", mailDict),
-      description: tr("menuHint", mailDict),
-      icon: HiOutlineMail,
     },
     {
       id: "vehicleImages",
@@ -154,7 +145,6 @@ export default function PlatformPageContent({
     branding: <BrandingSection dict={brandingDict} lang={lang} />,
     superusers: <PlatformOwnersCard dict={superusersDict} />,
     models: <ModelProvidersSection dict={modelsDict} />,
-    mail: <PlatformMailSection dict={mailDict} />,
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (

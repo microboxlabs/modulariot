@@ -5,25 +5,21 @@ import { tr } from "@/features/i18n/tr.service";
 import { useOrgModules } from "../hooks/use-org-modules";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
-import EmailChannelCard from "../email/email-channel-card";
-import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
 import type { OrgSummary } from "../types";
 
 interface OrgDetailPanelProps {
   readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
-  /** Settings › Credentials text, for the credential forms the channel cards open. */
-  readonly credentialsDict?: I18nRecord;
 }
 
 /**
  * Right-column detail view. Shows the selected org's enabled modules and, to
- * owners, its channel settings. Members and their access are on the Team page.
+ * owners, its GPS webhooks. Members are on the Team page; WhatsApp and email
+ * accounts are in Comunicaciones.
  */
 export default function OrgDetailPanel({
   organization,
   dict,
-  credentialsDict = {},
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
   const {
@@ -50,17 +46,7 @@ export default function OrgDetailPanel({
         error={modulesError}
         dict={dict}
       />
-      {isOwner && (
-        <>
-          <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
-          <EmailChannelCard
-            orgSlug={orgSlug}
-            dict={dict}
-            credentialsDict={credentialsDict}
-          />
-          <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
-        </>
-      )}
+      {isOwner && <GpsWebhookCard orgSlug={orgSlug} dict={dict} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.iam;
 
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import io.quarkus.security.identity.SecurityIdentity;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
@@ -57,15 +58,36 @@ public class AccessEvaluator {
                 return Uni.createFrom().item(cached);
             }
         }
-        return Panache.withSession(() -> Organization.findBySlug(organizationSlug)
-                .flatMap(org -> org == null
-                        ? Uni.createFrom().item(Access.none(null, organizationSlug))
-                        : evaluate(org, caller)))
+        Uni<Access> decided = PlatformScope.reserved(organizationSlug)
+                ? platformAccess(organizationSlug, caller)
+                : organizationAccess(organizationSlug, caller);
+        return decided
                 .invoke(access -> {
                     if (context != null) {
                         context.put(organizationSlug, caller, access);
                     }
                 });
+    }
+
+    private Uni<Access> organizationAccess(String organizationSlug, Caller caller) {
+        return Panache.withSession(() -> Organization.findBySlug(organizationSlug)
+                .flatMap(org -> org == null
+                        ? Uni.createFrom().item(Access.none(null, organizationSlug))
+                        : evaluate(org, caller)));
+    }
+
+    /**
+     * The platform scope: a platform owner, signed in as a user, is its Owner. Nobody is a member of any other
+     * reserved slug.
+     */
+    private Uni<Access> platformAccess(String slug, Caller caller) {
+        if (!PlatformScope.isPlatform(slug) || !caller.isUser()) {
+            return Uni.createFrom().item(Access.none(PlatformScope.ORGANIZATION_ID, slug));
+        }
+        return platform.isPlatformOwner(caller.email()).map(owner -> Boolean.TRUE.equals(owner)
+                ? AccessRules.resolve(PlatformScope.ORGANIZATION_ID, slug, caller,
+                        new AccessRules.Facts(null, false, Set.of(), true), registry)
+                : Access.none(PlatformScope.ORGANIZATION_ID, slug));
     }
 
     /** Needs an open session: reads memberships and bindings through Hibernate Reactive. */

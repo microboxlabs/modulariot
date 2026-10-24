@@ -3590,6 +3590,8 @@
         "channelOwnBody_whatsapp": "Send from the organization's number. Templates are copied from the platform and Meta approves them on this account.",
         "channelOwnBody_email": "Send from the organization's domain, with its own email account.",
         "channelNotConfigured": "Not set up",
+        "channelPlatformScopeHint": "The platform's account. Every organization without its own account uses it.",
+        "channelOwnOwnersOnly": "Only the organization's owners can connect its own account.",
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Pick the connection step {n} calls.",
@@ -4223,7 +4225,15 @@
         "label": "Actions"
       },
       "list": {
-        "loading": "Loading connections…"
+        "loading": "Loading connections…",
+        "colConnection": "Connection",
+        "colType": "Type",
+        "colStatus": "Status",
+        "colCredential": "Credential",
+        "colTemplate": "Template",
+        "colOperation": "Operation",
+        "colFields": "Fields",
+        "colConnections": "Connections"
       },
       "delete": {
         "connectionTitle": "Delete connection?",
@@ -4322,6 +4332,18 @@
         "pinValue": "Value",
         "addPin": "Add fixed value",
         "loadFailed": "Could not read the functions. Test the connection."
+      },
+      "viewCards": "▦ Cards",
+      "viewList": "☰ List",
+      "filters": {
+        "searchPlaceholder": "Search by name, type or URL",
+        "type": "Type",
+        "status": "Status",
+        "sortLabel": "Sort",
+        "sortNameAsc": "Name (A-Z)",
+        "sortNameDesc": "Name (Z-A)",
+        "sortTested": "Most recently tested",
+        "noMatches": "No connection matches these filters."
       }
     },
     "calendar": {
@@ -7721,6 +7743,7 @@
     "CARRIER_PORTAL": "Carrier portal"
   },
   "orgSwitcher": {
+    "platform": "Platform",
     "searchPlaceholder": "Search organizations…",
     "recent": "Recent",
     "all": "All organizations",

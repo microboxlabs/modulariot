@@ -2597,6 +2597,10 @@
           "JOB": "Trabajo",
           "CHANNEL": "Canal"
         },
+        "usageDetail": {
+          "WHATSAPP": "Número {detail}",
+          "RESEND": "Remitente {detail}"
+        },
         "types": {
           "azureEntra": {
             "name": "Microsoft Entra ID",

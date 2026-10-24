@@ -32,6 +32,24 @@ export interface CredentialUsage {
   readonly id: string;
   readonly label: string;
   readonly kind: CredentialUsageKind;
+  /** The connection's provider, e.g. WHATSAPP or CUSTOM_HTTP. */
+  readonly providerType?: string;
+  /** What identifies the connection: the WhatsApp number id, the sender, or the URL. */
+  readonly detail?: string | null;
+}
+
+/** The settings page where a credential's consumer is managed. */
+export function usagePath(usage: CredentialUsage): string {
+  switch (usage.kind) {
+    case "CHANNEL":
+      return "/users/settings/organizations";
+    case "DATA_SOURCE":
+      return "/users/settings/data-sources";
+    case "JOB":
+      return "/integrations";
+    default:
+      return "/users/settings/connections";
+  }
 }
 
 export interface CredentialListItem {

@@ -98,7 +98,7 @@ Migration version ranges are reserved per component so subset deployments can in
 | Tracking | `miot_tracking` | `V0.5.x` |
 | Integrations | `miot_integrations` | `V0.6.x` |
 | Conversational | `miot_conversational` | `V0.7.x` up to `V0.7.1`, then `V0.11.x` |
-| Symptoms | `miot_symptoms` (also reads StreamHub `prod_iot_gps`) | `V0.8.x` |
+| Symptoms | `miot_symptoms` (also reads StreamHub `prod_iot_gps`) | `V0.8.x` up to `V0.8.5`, then `V0.12.x` |
 | Fleet | `miot_fleet` (reads StreamHub `prod_iot_gps` for signals and trips) | `V0.9.x` |
 | Trips | `miot_trips` | `V0.10.x` |
 
@@ -109,7 +109,7 @@ These migrations sit outside their component's range. They are applied, so they 
 | Symptoms | `V0.9.2`, `V0.9.3`, `V0.9.4`, `V0.9.5`, `V0.9.7` |
 | Conversational | `V0.9.6`, `V0.9.8`, `V0.10.1`, `V0.10.2` |
 
-Conversational continues at `V0.11.x`: its schema changed in `V0.9.6`, and a new database applies migrations in version order, so a `V0.7.x` migration that touches what `V0.9.6` created fails there. A migration must sort after every migration it depends on, whatever its component's range.
+Conversational continues at `V0.11.x` and Symptoms at `V0.12.x`, for the same reason. Conversational's schema changed in `V0.9.6`, and a new database applies migrations in version order, so a `V0.7.x` migration that touches what `V0.9.6` created fails there. A migration must sort after every migration it depends on, whatever its component's range.
 
 ## API Documentation
 

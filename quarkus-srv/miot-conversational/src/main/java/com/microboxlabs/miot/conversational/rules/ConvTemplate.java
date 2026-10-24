@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import java.time.Instant;
 import java.util.List;
 
@@ -16,7 +17,7 @@ public record ConvTemplate(String id, String tenantCode, String key, String name
         WhatsApp whatsapp, Email email, Instant createdAt, Instant updatedAt, String updatedBy, String version) {
 
     /** The reserved tenant that owns the message templates. */
-    public static final String PLATFORM_TENANT = "platform";
+    public static final String PLATFORM_TENANT = PlatformScope.TENANT;
 
     public record WhatsApp(String metaName, String language, List<String> params) {
 

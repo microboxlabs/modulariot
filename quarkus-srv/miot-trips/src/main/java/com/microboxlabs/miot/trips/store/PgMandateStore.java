@@ -32,13 +32,19 @@ public class PgMandateStore implements MandateStore {
             id, tenant_code, external_code, order_type, order_ref, status, origin_id, destination_id,
             sla_minutes, closed_at, cancel_reason, created_at, created_by, updated_at, updated_by""";
 
+    /** The mandate and its line seq 1 in one statement: no item catalog yet, so every mandate carries one line. */
     private static final String INSERT = """
-            INSERT INTO miot_trips.mandate
-                (tenant_code, external_code, order_type, order_ref, origin_id, destination_id, sla_minutes,
-                 created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-            ON CONFLICT (tenant_code, external_code) WHERE version_of IS NULL AND is_active DO NOTHING
-            RETURNING\s""" + COLUMNS;
+            WITH m AS (
+                INSERT INTO miot_trips.mandate
+                    (tenant_code, external_code, order_type, order_ref, origin_id, destination_id, sla_minutes,
+                     created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+                ON CONFLICT (tenant_code, external_code) WHERE version_of IS NULL AND is_active DO NOTHING
+                RETURNING *),
+            line AS (
+                INSERT INTO miot_trips.mandate_line (tenant_code, mandate_id, seq, created_by, updated_by)
+                SELECT tenant_code, id, 1, created_by, created_by FROM m)
+            SELECT\s""" + COLUMNS + " FROM m";
 
     private static final String UPDATE = """
             UPDATE miot_trips.mandate SET

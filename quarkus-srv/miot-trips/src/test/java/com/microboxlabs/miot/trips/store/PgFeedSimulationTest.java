@@ -108,7 +108,8 @@ class PgFeedSimulationTest {
         }
         for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
                 "/db/migration/trips/V0.10.3__trips_lock_order.sql",
-                "/db/migration/trips/V0.10.4__checks_in_services.sql"}) {
+                "/db/migration/trips/V0.10.4__checks_in_services.sql",
+                "/db/migration/trips/V0.10.5__side_effects_in_services.sql"}) {
             try (InputStream in = PgFeedSimulationTest.class.getResourceAsStream(tripsSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -250,7 +251,7 @@ class PgFeedSimulationTest {
         assertEquals(1, p1.partialNo());
         assertEquals(2, p2.partialNo());
 
-        // 3. a trip moves the first partial; mounting it links the OC to the trip (the trigger)
+        // 3. a trip moves the first partial; mounting it links the OC to the trip
         TripView t1 = trips.create(TENANT_B, FEED_B, new TripRequest(null, null, null, null, List.of(
                 new StageRequest("carga", null, null, null, null, null),
                 new StageRequest("descarga", null, null, null, null, null),

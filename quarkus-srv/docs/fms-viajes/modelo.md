@@ -167,14 +167,14 @@ Columnas en cada tabla de registro: `version_of UUID` (NULL = vigente), `is_acti
 
 | Trigger | Regla |
 |---|---|
-| línea automática | crear mandato ⇒ crea su `mandate_line` seq 1 |
 | una etapa en curso | índice parcial único sobre `(subject_type, subject_id) WHERE status='en_curso' AND version_of IS NULL AND is_active` |
-| consistencia carga→mandato | solo se monta carga de mandatos vinculados al viaje |
 | proyección `trip_live` | nace con el viaje, refresca con etapas/asignaciones (`COALESCE(service_status, status)`), muere al realizar/anular |
 
 ## Reglas en los services
 
-| Service | Regla |
+| Dónde | Regla |
 |---|---|
 | `AssignmentService` | el recurso asignado existe en `miot_fleet` para el tenant y no está `inactive` (400) |
+| `MandateStore.insertOrGet` | crear mandato ⇒ crea su `mandate_line` seq 1 |
+| `TripCargoService.mount` | montar una carga vincula al viaje el mandato dueño de la carga |
 | `MandateService.requireOpen` | un mandato cerrado o anulado no toma viajes nuevos, directo ni por carga montada (409) |

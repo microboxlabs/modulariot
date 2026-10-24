@@ -458,14 +458,6 @@ public class InMemoryTripsWorld {
             if (unit == null) {
                 throw new IllegalArgumentException("a referenced entity does not exist");
             }
-            // the consistency trigger: the mandate that owns the cargo gets linked to the trip
-            linesByMandate.entrySet().stream()
-                    .filter(e -> e.getValue().id().equals(unit.lineId()))
-                    .findFirst()
-                    .ifPresent(e -> tripStore.linkMandate(l.tenantCode(), UUID.fromString(l.tripId()),
-                            UUID.fromString(e.getKey()),
-                            tripMandates.getOrDefault(l.tripId(), List.of()).size() + 1, "primary",
-                            l.createdBy()));
             TripCargoLink created = new TripCargoLink(l.tripId(), l.cargoId(), l.tenantCode(),
                     l.loadedAtStage(), l.unloadedAtStage(), now(), l.createdBy(), now(), l.updatedBy());
             tripCargo.put(key, created);

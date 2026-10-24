@@ -22,7 +22,7 @@ conservan el crudo de la fuente (el sistema de origen de cada integración).
 |---|---|---|
 | `location` | Ubicación nombrada (planta, puerto, cd, cliente, zona), geometría GeoJSON opcional | catálogo por tenant |
 | `mandate` | El encargo del cliente: `external_code` único por tenant, tipo, referencia, origen/destino, SLA, estado (`activo→en_ejecucion→cerrado`/`anulado`) | create-or-return por código; no cierra con viajes vivos (409) |
-| `mandate_line` | Línea del mandato (seq); la primera se crea sola por trigger | `UNIQUE (mandate_id, seq)` |
+| `mandate_line` | Línea del mandato (seq); la primera se crea junto con el mandato | `UNIQUE (mandate_id, seq)` |
 | `cargo_unit` | Unidad de carga de una línea, con parciales autonumerados, cantidades y ciclo `anunciada→lista→retirada→entregada→recibida/rechazada`; recepción `conforme`/`diferencia` (diferencia exige detalle) | estados de ejecución los mueve el viaje, no el PATCH |
 | `trip` | La ejecución: `planificado→en_ruta→realizado`/`anulado`, fechas plan/real | el estado lo mueven las etapas, nunca un PATCH de status |
 | `trip_mandate` | Vínculo N:M viaje↔mandato con rol y orden | re-vincular = 200 (idempotente); no desvincula con carga a bordo (409) |

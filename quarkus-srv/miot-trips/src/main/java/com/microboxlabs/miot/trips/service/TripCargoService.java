@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
+import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripCargoLink;
@@ -13,13 +14,14 @@ import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
 /**
- * Mounting cargo on a trip — the physical link. A DB trigger keeps the contractual
- * side consistent: the mandate that owns the cargo gets linked to the trip.
+ * Mounting cargo on a trip — the physical link. The contractual side follows: the mandate
+ * that owns the cargo gets linked to the trip.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -62,13 +64,21 @@ public class TripCargoService {
             UUID cargoId = TripService.parse(Check.required(body.cargoId(), "cargoId", 64), "cargoId");
             cargo.find(tenantCode, cargoId)
                     .orElseThrow(() -> new NoSuchElementException("cargo not found"));
-            mandates.requireOpen(tenantCode, cargo.mandateOf(tenantCode, cargoId)
-                    .orElseThrow(() -> new IllegalStateException("cargo " + cargoId + " has no mandate")));
+            UUID mandateId = cargo.mandateOf(tenantCode, cargoId)
+                    .orElseThrow(() -> new IllegalStateException("cargo " + cargoId + " has no mandate"));
+            mandates.requireOpen(tenantCode, mandateId);
             TripCargoLink mounted = store.insert(new TripCargoLink(tripId.toString(), cargoId.toString(), tenantCode,
                     stageOf(tenantCode, tripId, body.loadStageId(), "loadStageId"),
                     stageOf(tenantCode, tripId, body.unloadStageId(), "unloadStageId"),
                     null, actor, null, actor))
                     .orElseThrow(() -> new IllegalStateException("cargo already mounted on this trip"));
+            // the mandate that owns the cargo rides with it
+            List<MandateRef> links = trips.mandatesOf(tenantCode, tripId);
+            if (links.stream().noneMatch(m -> m.mandateId().equals(mandateId.toString()))
+                    && trips.linkMandate(tenantCode, tripId, mandateId, TripService.nextSeq(links), "primary", actor)) {
+                audit.log(tenantCode, actor, TripService.MANDATE_LINKED, TripService.ENTITY, tripId.toString(),
+                        tripId.toString(), Map.of(TripService.MANDATE_ID, mandateId.toString()));
+            }
             audit.log(tenantCode, actor, "trip_cargo.mounted", ENTITY, cargoId.toString(), tripId.toString(),
                     Map.of());
             return mounted;

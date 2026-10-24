@@ -79,7 +79,8 @@ class PgTripsStoresTest {
         }
         for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
                 "/db/migration/trips/V0.10.3__trips_lock_order.sql",
-                "/db/migration/trips/V0.10.4__checks_in_services.sql"}) {
+                "/db/migration/trips/V0.10.4__checks_in_services.sql",
+                "/db/migration/trips/V0.10.5__side_effects_in_services.sql"}) {
             try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(tripsSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -102,7 +103,7 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void mandateIsCreateOrReturnAndTheTriggerLaysItsLine() {
+    void mandateIsCreateOrReturnAndComesWithItsLine() {
         String tenant = tenant();
         MandateStore.CreateOrGet first = mandates.insertOrGet(new Mandate(null, tenant, "OC-1", "oc", null,
                 Mandate.ACTIVE, null, null, null, null, null, null, ACTOR, null, ACTOR));
@@ -118,7 +119,7 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void cargoNumbersItsPartialsAndMountingLinksTheMandate() {
+    void cargoNumbersItsPartialsAndMountsOnce() {
         String tenant = tenant();
         Mandate m = mandate(tenant, "OC-2");
         MandateLine line = mandates.lineOf(tenant, UUID.fromString(m.id())).orElseThrow();
@@ -132,7 +133,7 @@ class PgTripsStoresTest {
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         UUID tripId = UUID.fromString(trip.id());
-        // no explicit link: the consistency trigger upserts trip_mandate on mount
+        trips.linkMandate(tenant, tripId, UUID.fromString(m.id()), 1, "primary", ACTOR);
         TripCargoLink mounted = tripCargo.insert(new TripCargoLink(trip.id(), c1.id(), tenant, null, null,
                 null, ACTOR, null, ACTOR)).orElseThrow();
         assertNotNull(mounted.createdAt());

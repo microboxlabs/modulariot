@@ -41,7 +41,8 @@ public class TripService {
     /** Stands in for the trip id while the stage plan is validated before the trip exists. */
     private static final UUID NO_TRIP = new UUID(0, 0);
     private static final String TRIP_NOT_FOUND = "trip not found";
-    private static final String MANDATE_ID = "mandateId";
+    static final String MANDATE_ID = "mandateId";
+    static final String MANDATE_LINKED = "trip.mandate_linked";
 
     private final TripStore trips;
     private final StageStore stages;
@@ -185,11 +186,11 @@ public class TripService {
             if (current.stream().anyMatch(m -> m.mandateId().equals(mid.toString()))) {
                 return false;
             }
-            int s = seq == null ? current.size() + 1 : seq;
+            int s = seq == null ? nextSeq(current) : seq;
             mandates.requireOpen(tenantCode, mid);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
             if (linked) {
-                audit.log(tenantCode, actor, "trip.mandate_linked", ENTITY, tripId.toString(), tripId.toString(),
+                audit.log(tenantCode, actor, MANDATE_LINKED, ENTITY, tripId.toString(), tripId.toString(),
                         Map.of(MANDATE_ID, mid.toString()));
             }
             return linked;
@@ -223,6 +224,11 @@ public class TripService {
                 Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64), Stage.PENDING,
                 Check.uuidOrNull(s.locationId(), "locationId"), s.plannedStart(), s.plannedEnd(), null, null,
                 s.checklist() == null ? null : s.checklist().toString(), null, actor, null, actor);
+    }
+
+    /** The next link position: after the highest one in use, so an unlink does not cause a repeat. */
+    static int nextSeq(List<MandateRef> links) {
+        return links.stream().mapToInt(MandateRef::seq).max().orElse(0) + 1;
     }
 
     static UUID parse(String raw, String field) {

@@ -65,7 +65,7 @@ class TripFlowTest {
         CargoUnit unit = cargo.announce(TENANT, ACTOR, mandateId,
                 new CargoRequest("Fruta exportación", null, null, null, null, null));
 
-        // the trip is planned with its stages; mounting the cargo links the mandate (the trigger)
+        // the trip is planned with its stages; mounting the cargo links the mandate
         TripView created = trips.create(TENANT, ACTOR, new TripRequest(null, null, null, null, List.of(
                 new StageRequest("carga", null, null, null, null, null),
                 new StageRequest("transito", null, null, null, null, null),
@@ -182,6 +182,7 @@ class TripFlowTest {
         assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA, atStageOfB));
         TripCargoRequest badStage = new TripCargoRequest(unit.id(), "not-a-uuid", null);
         assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA, badStage));
+        assertTrue(trips.mandatesOf(TENANT, tripA).isEmpty(), "a refused mount links no mandate");
     }
 
     @Test

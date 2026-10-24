@@ -18,8 +18,8 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 
 /**
- * Mounting cargo on a trip — the physical link. A DB trigger keeps the contractual
- * side consistent: the mandate that owns the cargo gets linked to the trip.
+ * Mounting cargo on a trip — the physical link. The contractual side follows: the mandate
+ * that owns the cargo gets linked to the trip.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -62,8 +62,14 @@ public class TripCargoService {
             UUID cargoId = TripService.parse(Check.required(body.cargoId(), "cargoId", 64), "cargoId");
             cargo.find(tenantCode, cargoId)
                     .orElseThrow(() -> new NoSuchElementException("cargo not found"));
-            mandates.requireOpen(tenantCode, cargo.mandateOf(tenantCode, cargoId)
-                    .orElseThrow(() -> new IllegalStateException("cargo " + cargoId + " has no mandate")));
+            UUID mandateId = cargo.mandateOf(tenantCode, cargoId)
+                    .orElseThrow(() -> new IllegalStateException("cargo " + cargoId + " has no mandate"));
+            mandates.requireOpen(tenantCode, mandateId);
+            if (trips.linkMandate(tenantCode, tripId, mandateId, trips.mandatesOf(tenantCode, tripId).size() + 1,
+                    "primary", actor)) {
+                audit.log(tenantCode, actor, "trip.mandate_linked", TripService.ENTITY, tripId.toString(),
+                        tripId.toString(), Map.of("mandateId", mandateId.toString()));
+            }
             TripCargoLink mounted = store.insert(new TripCargoLink(tripId.toString(), cargoId.toString(), tenantCode,
                     stageOf(tenantCode, tripId, body.loadStageId(), "loadStageId"),
                     stageOf(tenantCode, tripId, body.unloadStageId(), "unloadStageId"),

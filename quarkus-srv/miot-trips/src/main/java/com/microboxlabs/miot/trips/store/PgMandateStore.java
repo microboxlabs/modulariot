@@ -65,7 +65,13 @@ public class PgMandateStore implements MandateStore {
                 .addInteger(m.slaMinutes()).addString(m.createdBy());
         RowSet<Row> rows = query(pool.get(), INSERT, params);
         if (rows.size() > 0) {
-            return new CreateOrGet(mandate(rows.iterator().next()), true);
+            Mandate created = mandate(rows.iterator().next());
+            // no item catalog yet: every mandate carries one line, seq 1
+            query(pool.get(), """
+                    INSERT INTO miot_trips.mandate_line (tenant_code, mandate_id, seq, created_by, updated_by)
+                    VALUES ($1, $2, 1, $3, $3)""",
+                    Tuple.of(created.tenantCode(), UUID.fromString(created.id()), created.createdBy()));
+            return new CreateOrGet(created, true);
         }
         Mandate existing = findByCode(m.tenantCode(), m.externalCode())
                 .orElseThrow(() -> new IllegalStateException("mandate vanished during insert"));

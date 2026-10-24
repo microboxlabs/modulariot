@@ -64,7 +64,7 @@ class TripFlowTest {
         CargoUnit unit = cargo.announce(TENANT, ACTOR, mandateId,
                 new CargoRequest("Fruta exportación", null, null, null, null, null));
 
-        // the trip is planned with its stages; mounting the cargo links the mandate (the trigger)
+        // the trip is planned with its stages; mounting the cargo links the mandate
         TripView created = trips.create(TENANT, ACTOR, new TripRequest(null, null, null, null, List.of(
                 new StageRequest("carga", null, null, null, null, null),
                 new StageRequest("transito", null, null, null, null, null),

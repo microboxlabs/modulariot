@@ -106,7 +106,8 @@ class PgTransactionsTest {
                 "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
                 "/db/migration/trips/V0.10.0__create_trips.sql",
                 "/db/migration/trips/V0.10.3__trips_lock_order.sql",
-                "/db/migration/trips/V0.10.4__checks_in_services.sql"}) {
+                "/db/migration/trips/V0.10.4__checks_in_services.sql",
+                "/db/migration/trips/V0.10.5__side_effects_in_services.sql"}) {
             try (InputStream in = PgTransactionsTest.class.getResourceAsStream(sql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }

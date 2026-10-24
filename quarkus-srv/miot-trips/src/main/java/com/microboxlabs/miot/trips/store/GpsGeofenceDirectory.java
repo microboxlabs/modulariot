@@ -8,7 +8,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -56,6 +59,20 @@ public class GpsGeofenceDirectory implements GeofenceDirectory {
                 .preparedQuery("SELECT " + COLUMNS + " FROM geofences WHERE client_id = $1 AND geofence_id = $2")
                 .execute(Tuple.of(tenantCode, id)).await().atMost(TIMEOUT);
         return rows.iterator().hasNext() ? Optional.of(geofence(rows.iterator().next())) : Optional.empty();
+    }
+
+    @Override
+    public Map<Integer, String> shapes(Collection<Integer> ids) {
+        Map<Integer, String> out = new HashMap<>();
+        if (ids.isEmpty() || !gps.configured()) {
+            return out;
+        }
+        gps.readPool().preparedQuery("""
+                SELECT geofence_id, ST_AsGeoJSON(coordinates::geometry) AS shape
+                FROM geofences WHERE geofence_id = ANY($1)""")
+                .execute(Tuple.of(ids.toArray(Integer[]::new))).await().atMost(TIMEOUT)
+                .forEach(r -> out.put(r.getInteger("geofence_id"), r.getString("shape")));
+        return out;
     }
 
     private static Geofence geofence(Row r) {

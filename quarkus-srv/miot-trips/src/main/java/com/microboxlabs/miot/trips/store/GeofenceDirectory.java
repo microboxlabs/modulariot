@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.trips.store;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** The tenant's GPS geofences, read from the GPS database; the tenant code is the GPS client id. */
@@ -14,4 +16,7 @@ public interface GeofenceDirectory {
     List<Geofence> search(String tenantCode, String q, int limit);
 
     Optional<Geofence> find(String tenantCode, int id);
+
+    /** The areas of these geofences as GeoJSON, by id; missing ids are left out. */
+    Map<Integer, String> shapes(Collection<Integer> ids);
 }

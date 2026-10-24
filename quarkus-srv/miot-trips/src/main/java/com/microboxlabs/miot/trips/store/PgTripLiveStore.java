@@ -123,6 +123,26 @@ public class PgTripLiveStore implements TripLiveStore {
                 Tuple.of(tenantCode, tripId));
     }
 
+    @Override
+    public List<TripLiveRow> watched() {
+        return query(pool.get(), "SELECT " + COLUMNS + """
+                 FROM miot_trips.trip_live
+                WHERE asset_id IS NOT NULL
+                  AND (origin_geofence_id IS NOT NULL OR destination_geofence_id IS NOT NULL
+                       OR cardinality(stop_geofence_ids) > 0)""", Tuple.tuple())
+                .stream().map(PgTripLiveStore::row).toList();
+    }
+
+    @Override
+    public void saveMotorState(String tenantCode, UUID tripId, Integer currentGeofenceId, boolean originVisited,
+            boolean destinationVisited) {
+        query(pool.get(), """
+                UPDATE miot_trips.trip_live
+                SET current_geofence_id = $3, origin_visited = $4, destination_visited = $5, updated_at = now()
+                WHERE tenant_code = $1 AND trip_id = $2""",
+                Tuple.of(tenantCode, tripId, currentGeofenceId, originVisited, destinationVisited));
+    }
+
     private static TripLiveRow row(Row r) {
         Integer[] stops = r.getArrayOfIntegers("stop_geofence_ids");
         String[] forwards = r.getArrayOfStrings("forward_id");

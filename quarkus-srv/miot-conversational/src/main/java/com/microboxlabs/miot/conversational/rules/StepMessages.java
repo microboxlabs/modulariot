@@ -21,7 +21,8 @@ public final class StepMessages {
      * One message.
      *
      * @param params WhatsApp: the Meta template's NAMED parameters
-     * @param text   WhatsApp: the base text, rendered; email: the body, rendered
+     * @param text   WhatsApp: the base text, rendered; email: the body, rendered; webhook: the email body, else the
+     *               base text
      */
     public record Planned(String channel, Participant to, ConvTemplate template, Map<String, String> params,
             String subject, String text) {
@@ -35,6 +36,9 @@ public final class StepMessages {
 
     public static Plan plan(Step step, RuleSpec spec, StoredEvent event, Optional<ConvTemplate> template,
             Audiences audiences) {
+        if (step.webhook()) {
+            return webhook(step, event, template);
+        }
         Audiences.Resolved resolved = audiences.resolve(event.tenantCode(), event.contextKind(), event.contextKey(),
                 step.to() != null ? step.to() : spec.audience(), event.data());
         List<String> warnings = new ArrayList<>(resolved.warnings());
@@ -57,6 +61,31 @@ public final class StepMessages {
             }
         }
         return new Plan(resolved.participants(), out, warnings);
+    }
+
+    /**
+     * A webhook step: one message to its connection, whose address is the connection id. Its subject is the
+     * template's email subject, else its name; its text the email body, else the base text. No template, neither.
+     */
+    private static Plan webhook(Step step, StoredEvent event, Optional<ConvTemplate> template) {
+        if (step.connection() == null) {
+            return new Plan(List.of(), List.of(), List.of("El paso no tiene conexión"));
+        }
+        if (step.template() != null && template.isEmpty()) {
+            return new Plan(List.of(), List.of(), List.of("La plantilla " + step.template() + " no existe"));
+        }
+        String subject = null;
+        String text = null;
+        if (template.isPresent()) {
+            ConvTemplate t = template.get();
+            Map<String, String> vars = TemplateVariables.of(event.data(), event.at(), null);
+            boolean email = t.email() != null;
+            subject = email ? TemplateVariables.render(t.email().subject(), vars) : t.name();
+            text = TemplateVariables.render(email ? t.email().body() : t.baseText(), vars);
+        }
+        Participant to = new Participant(step.connection(), RuleSpec.WEBHOOK, null, null, null);
+        return new Plan(List.of(), List.of(new Planned(RuleSpec.WEBHOOK, to, template.orElse(null), Map.of(),
+                subject, text)), List.of());
     }
 
     /** The message on this channel, or empty when the template has no variant for it. */

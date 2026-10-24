@@ -15,6 +15,9 @@ import com.microboxlabs.miot.conversational.service.EmailMessagingService;
 import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
+import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
+import com.microboxlabs.miot.integrations.service.OperationInvocationException;
+import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -69,15 +72,17 @@ public class RulesEngine {
     private final Supplier<List<ParticipantResolver>> resolvers;
     private final WhatsAppMessagingService whatsapp;
     private final EmailMessagingService email;
+    private final WebhookChannel webhook;
     private final ObjectMapper json;
     private final Clock clock;
 
     @Inject
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
-            WhatsAppMessagingService whatsapp, EmailMessagingService email, ObjectMapper json) {
+            WhatsAppMessagingService whatsapp, EmailMessagingService email, WebhookChannel webhook,
+            ObjectMapper json) {
         this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
-                new Senders(whatsapp, email), json, Clock.systemUTC());
+                new Senders(whatsapp, email, webhook), json, Clock.systemUTC());
     }
 
     /** Where rules, templates and runs are kept. */
@@ -85,7 +90,7 @@ public class RulesEngine {
     }
 
     /** The channels a step sends on. */
-    public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email) {
+    public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email, WebhookChannel webhook) {
     }
 
     public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
@@ -97,6 +102,7 @@ public class RulesEngine {
         this.resolvers = resolvers;
         this.whatsapp = senders.whatsapp();
         this.email = senders.email();
+        this.webhook = senders.webhook();
         this.json = json;
         this.clock = clock;
     }
@@ -239,6 +245,10 @@ public class RulesEngine {
         List<String> problems = new ArrayList<>(plan.warnings());
         ContextKind kind = contextKind(run.contextKind());
         for (StepMessages.Planned m : plan.messages()) {
+            if (RuleSpec.WEBHOOK.equals(m.channel())) {
+                deliver(run, event, m).ifPresent(problems::add);
+                continue;
+            }
             boolean isWhatsApp = RuleSpec.WHATSAPP.equals(m.channel());
             ContextMessage message = new ContextMessage(kind, run.contextKey(), m.to().address(), m.to().name(),
                     m.to().role(), m.to().contactId(),
@@ -252,6 +262,26 @@ public class RulesEngine {
             }
         }
         return problems.isEmpty() ? null : String.join("; ", problems);
+    }
+
+    /**
+     * Calls the webhook step's connection once; a test run calls nothing. Not stored as a message: the inbox keeps
+     * WhatsApp and email only. Returns the problem when the call failed or was refused.
+     */
+    private Optional<String> deliver(Run run, StoredEvent event, StepMessages.Planned m) {
+        if (run.test()) {
+            return Optional.empty();
+        }
+        String connection = m.to().address();
+        Rule rule = rules.find(run.tenantCode(), run.ruleId()).orElse(null);
+        try {
+            OperationInvocationResult result = webhook.deliver(run.tenantCode(), connection,
+                    WebhookChannel.payload(event, run, rule, m.subject(), m.text()));
+            return result.successful() ? Optional.empty()
+                    : Optional.of("webhook " + connection + ": " + result.summary());
+        } catch (OperationInvocationException | ConnectionResolutionException e) {
+            return Optional.of("webhook " + connection + ": " + e.getMessage());
+        }
     }
 
     /**

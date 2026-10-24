@@ -32,4 +32,14 @@ public class NoFleetResources implements FleetResources {
     public Optional<Carrier> carrier(String tenantCode, UUID id) {
         return Optional.empty();
     }
+
+    @Override
+    public Optional<Match> byPlate(String tenantCode, String resourceType, String plate) {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Match> driverByDocument(String tenantCode, String document) {
+        return Optional.empty();
+    }
 }

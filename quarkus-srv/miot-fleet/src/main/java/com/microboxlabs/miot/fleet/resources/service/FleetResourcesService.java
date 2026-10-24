@@ -5,6 +5,7 @@ import com.microboxlabs.miot.fleet.resources.store.ResourceStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,5 +42,22 @@ public class FleetResourcesService implements FleetResources {
     @Override
     public Optional<Carrier> carrier(String tenantCode, UUID id) {
         return store.carrierSummary(tenantCode, id);
+    }
+
+    @Override
+    public Optional<Match> byPlate(String tenantCode, String resourceType, String plate) {
+        String table = Check.oneOf(resourceType, RESOURCE_TYPE, "truck", "trailer");
+        return key(plate).flatMap(k -> store.findByKey(tenantCode, table, k));
+    }
+
+    @Override
+    public Optional<Match> driverByDocument(String tenantCode, String document) {
+        return key(document).flatMap(k -> store.findByKey(tenantCode, "driver", k));
+    }
+
+    /** A plate or document upper-cased and stripped to letters and digits; empty when nothing is left. */
+    static Optional<String> key(String raw) {
+        String k = raw == null ? "" : raw.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        return k.isEmpty() ? Optional.empty() : Optional.of(k);
     }
 }

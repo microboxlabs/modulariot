@@ -58,4 +58,10 @@ public interface ResourceStore {
 
     /** Takes no row lock. */
     Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id);
+
+    /**
+     * The current row of {@code table} (truck, trailer: plate; driver: rut) whose key, upper-cased and stripped to
+     * letters and digits, equals {@code key}; an active one first. Takes no row lock.
+     */
+    Optional<FleetResources.Match> findByKey(String tenantCode, String table, String key);
 }

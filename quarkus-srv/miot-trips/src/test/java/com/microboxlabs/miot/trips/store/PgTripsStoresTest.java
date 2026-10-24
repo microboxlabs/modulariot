@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.AuditEvent;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
+import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
@@ -228,6 +229,30 @@ class PgTripsStoresTest {
         assertTrue(assignments.end(tenant, UUID.fromString(a.id()), now.plusHours(2), null, ACTOR).isEmpty(),
                 "an ended window does not end twice");
         assertEquals(1, assignments.listByTrip(tenant, UUID.fromString(trip.id())).size());
+    }
+
+    @Test
+    void fleetFindsAResourceByItsPlateOrDocumentInAnyWriting() {
+        String tenant = tenant();
+        FleetResourcesService fleet = new FleetResourcesService(resources);
+        Carrier carrier = resources.insertCarrier(new Carrier(null, tenant, null, "20000000001",
+                "Transportes Test", null, null, null, null, null, Carrier.ACTIVE, false, null, null,
+                null, ACTOR, null, ACTOR));
+        Truck truck = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "ABC-123", null,
+                null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "JKL-000", null,
+                null, null, null, Carrier.INACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        Driver driver = resources.insertDriver(new Driver(null, tenant, carrier.id(), null, "11.111.111-1",
+                null, null, "Conductor Uno", null, null, null, null, Carrier.ACTIVE, false, null, null, null,
+                ACTOR, null, ACTOR));
+
+        assertEquals(UUID.fromString(truck.id()), fleet.byPlate(tenant, "truck", "abc 123").orElseThrow().id());
+        assertTrue(fleet.byPlate(tenant, "truck", "ABC123").orElseThrow().active());
+        assertFalse(fleet.byPlate(tenant, "truck", "JKL-000").orElseThrow().active(), "found, but switched off");
+        assertTrue(fleet.byPlate(tenant, "trailer", "ABC-123").isEmpty(), "a truck plate is not a trailer");
+        assertTrue(fleet.byPlate(tenant(), "truck", "ABC-123").isEmpty(), "another tenant does not see it");
+        assertTrue(fleet.byPlate(tenant, "truck", " - ").isEmpty(), "a blank plate finds nothing");
+        assertEquals(UUID.fromString(driver.id()), fleet.driverByDocument(tenant, "111111111").orElseThrow().id());
     }
 
     @Test

@@ -19,6 +19,7 @@ import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,18 +142,23 @@ public class AsyncJobService {
      * Tenant-agnostic lane claim for an in-process worker (no request/tenant
      * scope) — e.g. the modulith job worker draining the
      * {@code "modulith"} executor across all tenants. Same lease/backoff/CAS
-     * ledger semantics as {@link #claim}; only the tenant filter is dropped.
+     * ledger semantics as {@link #claim}; only the tenant filter is dropped. Only
+     * jobs of {@code jobTypes}, the types the worker has handlers for, are claimed.
      */
-    public List<AsyncJob> claimForExecutor(String executor, String workerId, int limit, int leaseSeconds) {
+    public List<AsyncJob> claimForExecutor(String executor, Collection<String> jobTypes, String workerId,
+            int limit, int leaseSeconds) {
         if (executor == null || executor.isBlank()) {
             throw new IllegalArgumentException("executor is required");
+        }
+        if (jobTypes == null || jobTypes.isEmpty()) {
+            return List.of();
         }
         if (workerId == null || workerId.isBlank()) {
             throw new IllegalArgumentException("workerId is required");
         }
         int lim = Math.min(Math.max(limit, 1), MAX_CLAIM_LIMIT);
         int lease = leaseSeconds < 1 ? DEFAULT_LEASE_SECONDS : leaseSeconds;
-        List<AsyncJob> claimed = repository.claimForExecutor(executor, workerId, lim, lease);
+        List<AsyncJob> claimed = repository.claimForExecutor(executor, jobTypes, workerId, lim, lease);
         claimed.forEach(job -> eventEmitter.emit(job, "claimed"));
         return claimed;
     }

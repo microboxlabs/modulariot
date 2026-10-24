@@ -17,9 +17,11 @@ import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 
@@ -153,14 +155,7 @@ public class WhatsAppInboundService {
                 message.contactName()));
         if (persisted == null) {
             LOG.debugf("Duplicate inbound WhatsApp message %s — already ingested", message.wamid());
-            Message stored = messageRepository.findByProviderMessageId(Channel.WHATSAPP, message.wamid());
-            Conversation storedConversation = stored == null ? null
-                    : conversationRepository.findById(stored.conversationId());
-            return storedConversation == null ? new Ingested(null, true, null)
-                    : new Ingested(new ConversationReplyReceived(storedConversation.tenantCode(),
-                            storedConversation.id(), stored.id(), stored.inReplyTo(), stored.runId(), null,
-                            Channel.WHATSAPP, message.fromE164(), message.body(), message.buttonPayload(),
-                            occurredAt), true, null);
+            return duplicate(message, occurredAt);
         }
 
         return new Ingested(new ConversationReplyReceived(
@@ -175,6 +170,19 @@ public class WhatsAppInboundService {
                 message.body(),
                 message.buttonPayload(),
                 occurredAt), false, null);
+    }
+
+    /** The reply of a message already stored, with the step of the message it answers, as the first time. */
+    private Ingested duplicate(InboundMessage message, OffsetDateTime occurredAt) {
+        Message stored = messageRepository.findByProviderMessageId(Channel.WHATSAPP, message.wamid());
+        Conversation conversation = stored == null ? null : conversationRepository.findById(stored.conversationId());
+        if (conversation == null) {
+            return new Ingested(null, true, null);
+        }
+        Message answered = stored.inReplyTo() == null ? null : messageRepository.findById(stored.inReplyTo());
+        return new Ingested(new ConversationReplyReceived(conversation.tenantCode(), conversation.id(), stored.id(),
+                stored.inReplyTo(), stored.runId(), answered == null ? null : answered.step(), Channel.WHATSAPP,
+                message.fromE164(), message.body(), message.buttonPayload(), occurredAt), true, null);
     }
 
     /** The button payload, if any, and the tenant of the connection whose number received the message. */
@@ -217,8 +225,20 @@ public class WhatsAppInboundService {
                 status.status(),
                 status.status() == MessageStatus.DELIVERED ? at : null,
                 status.status() == MessageStatus.READ ? at : null,
-                status.status() == MessageStatus.FAILED ? failureReason(status) : null);
+                status.status() == MessageStatus.FAILED ? failureReason(status) : null,
+                advancesFrom(status.status()));
         return true;
+    }
+
+    /** The statuses {@code next} advances from; the update applies only while the stored status is one. */
+    static Set<MessageStatus> advancesFrom(MessageStatus next) {
+        Set<MessageStatus> from = EnumSet.noneOf(MessageStatus.class);
+        for (MessageStatus current : MessageStatus.values()) {
+            if (advances(current, next)) {
+                from.add(current);
+            }
+        }
+        return from;
     }
 
     /**

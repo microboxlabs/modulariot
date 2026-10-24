@@ -91,7 +91,7 @@ class WhatsAppWebhookJobsTest {
         WhatsAppInboundMessageJob handler = new WhatsAppInboundMessageJob(m -> {
             stored.add(m);
             return new Ingested(reply, stored.size() > 1, null);
-        }, handed::add);
+        }, handed::add, jobs::tenantOf);
 
         JobOutcome first = handler.handle(ORG, payload);
         JobOutcome retried = handler.handle(ORG, payload);
@@ -113,7 +113,7 @@ class WhatsAppWebhookJobsTest {
                 m -> new Ingested(null, false, "No active WhatsApp connection for phone_number_id PNID_UNKNOWN"),
                 r -> {
                     throw new AssertionError("no reply to hand on");
-                });
+                }, jobs::tenantOf);
         JobOutcome skipped = unrouted.handle(PlatformScope.TENANT, Map.of("wamid", "wamid.IN2"));
         assertEquals(JobOutcome.SKIPPED, skipped.outcome());
         assertTrue(skipped.detail().contains("PNID_UNKNOWN"));
@@ -123,8 +123,40 @@ class WhatsAppWebhookJobsTest {
         WhatsAppInboundMessageJob failing = new WhatsAppInboundMessageJob(m -> new Ingested(reply, false, null),
                 r -> {
                     throw new IllegalStateException("rules down");
-                });
-        assertThrows(IllegalStateException.class, () -> failing.handle(ORG, Map.of("wamid", "wamid.IN1")));
+                }, jobs::tenantOf);
+        Map<String, Object> mine = Map.of("wamid", "wamid.IN1", "phoneNumberId", "PNID_ORG");
+        assertThrows(IllegalStateException.class, () -> failing.handle(ORG, mine));
+    }
+
+    @Test
+    void anOrganizationsJobCannotCarryAnotherTenantsEvent() {
+        jobs.enqueue(DELIVERY);
+        List<InboundMessage> stored = new ArrayList<>();
+        WhatsAppInboundMessageJob messages = new WhatsAppInboundMessageJob(m -> {
+            stored.add(m);
+            return new Ingested(null, false, "nothing");
+        }, r -> {
+        }, jobs::tenantOf);
+        List<StatusUpdate> applied = new ArrayList<>();
+        WhatsAppInboundStatusJob statuses = new WhatsAppInboundStatusJob(s -> applied.add(s), jobs::tenantOf);
+
+        JobOutcome message = messages.handle("tenant-b", enqueued.get(ORG).get(0).payload());
+        JobOutcome status = statuses.handle("tenant-b", enqueued.get(ORG).get(1).payload());
+
+        assertEquals(JobOutcome.SKIPPED, message.outcome());
+        assertEquals(JobOutcome.SKIPPED, status.outcome());
+        assertTrue(stored.isEmpty());
+        assertTrue(applied.isEmpty());
+        // The platform scope carries any event: a status waits there until its message is stored.
+        messages.handle(PlatformScope.TENANT, enqueued.get(ORG).get(0).payload());
+        assertEquals(1, stored.size());
+    }
+
+    @Test
+    void theInboundJobTypesAreEnqueuedOnlyByTheModulith() {
+        assertTrue(new WhatsAppInboundMessageJob(m -> null, r -> {
+        }, jobs::tenantOf).internalOnly());
+        assertTrue(new WhatsAppInboundStatusJob(s -> true, jobs::tenantOf).internalOnly());
     }
 
     @Test
@@ -134,7 +166,7 @@ class WhatsAppWebhookJobsTest {
         WhatsAppInboundStatusJob handler = new WhatsAppInboundStatusJob(s -> {
             applied.add(s);
             return "wamid.OUT1".equals(s.wamid());
-        });
+        }, jobs::tenantOf);
 
         JobOutcome read = handler.handle(ORG, enqueued.get(ORG).get(1).payload());
         assertEquals(JobOutcome.SUCCEEDED, read.outcome());

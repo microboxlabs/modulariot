@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /** Persistence for {@link Message} rows in a conversation timeline, on any channel. */
@@ -144,7 +145,7 @@ public class MessageRepository {
                 delivered_at = COALESCE($3, delivered_at),
                 read_at = COALESCE($4, read_at),
                 error_message = COALESCE($5, error_message)
-            WHERE id = $1
+            WHERE id = $1 AND status = ANY($6::varchar[])
             RETURNING\s""" + COLUMNS;
 
     private final Instance<Pool> clientInstance;
@@ -297,14 +298,22 @@ public class MessageRepository {
         }
     }
 
+    /**
+     * Sets the status only while the stored one is in {@code from}, in the same statement, so two status updates
+     * running at once cannot move a message backwards. Null when the message has another status.
+     */
     public Message markStatus(
             String messageId,
             MessageStatus status,
             OffsetDateTime deliveredAt,
             OffsetDateTime readAt,
-            String errorMessage) {
+            String errorMessage,
+            Set<MessageStatus> from) {
+        String[] fromNames = from.stream().map(MessageStatus::name).toArray(String[]::new);
         var rows = client().preparedQuery(MARK_STATUS)
-                .execute(Tuple.of(UUID.fromString(messageId), status.name(), deliveredAt, readAt, errorMessage))
+                .execute(Tuple.tuple().addUUID(UUID.fromString(messageId)).addString(status.name())
+                        .addOffsetDateTime(deliveredAt).addOffsetDateTime(readAt).addString(errorMessage)
+                        .addArrayOfString(fromNames))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;

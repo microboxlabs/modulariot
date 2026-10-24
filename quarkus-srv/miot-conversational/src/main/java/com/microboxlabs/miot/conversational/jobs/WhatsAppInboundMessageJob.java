@@ -24,17 +24,23 @@ public class WhatsAppInboundMessageJob implements ModulithJobHandler {
 
     private final Function<InboundMessage, Ingested> ingest;
     private final Consumer<ConversationReplyReceived> replies;
+    private final Function<InboundMessage, String> tenantOf;
 
     @Inject
-    public WhatsAppInboundMessageJob(WhatsAppInboundService inbound, Event<ConversationReplyReceived> replies) {
-        this(inbound::ingestMessage, replies::fire);
+    public WhatsAppInboundMessageJob(WhatsAppInboundService inbound, Event<ConversationReplyReceived> replies,
+            WhatsAppWebhookJobs webhookJobs) {
+        this(inbound::ingestMessage, replies::fire, webhookJobs::tenantOf);
     }
 
-    /** {@code replies} delivers the reply synchronously and throws when a rule fails. */
+    /**
+     * {@code replies} delivers the reply synchronously and throws when a rule fails; {@code tenantOf} names the
+     * tenant whose job the message belongs to.
+     */
     public WhatsAppInboundMessageJob(Function<InboundMessage, Ingested> ingest,
-            Consumer<ConversationReplyReceived> replies) {
+            Consumer<ConversationReplyReceived> replies, Function<InboundMessage, String> tenantOf) {
         this.ingest = ingest;
         this.replies = replies;
+        this.tenantOf = tenantOf;
     }
 
     @Override
@@ -42,9 +48,19 @@ public class WhatsAppInboundMessageJob implements ModulithJobHandler {
         return WhatsAppWebhookJobs.MESSAGE_JOB;
     }
 
+    /** Only the verified webhook enqueues these. */
+    @Override
+    public boolean internalOnly() {
+        return true;
+    }
+
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
-        Ingested ingested = ingest.apply(WhatsAppWebhookJobs.JSON.convertValue(payload, InboundMessage.class));
+        InboundMessage message = WhatsAppWebhookJobs.JSON.convertValue(payload, InboundMessage.class);
+        if (!WhatsAppWebhookJobs.carries(tenantCode, tenantOf.apply(message))) {
+            return JobOutcome.skipped("The number that received the message is not this tenant's");
+        }
+        Ingested ingested = ingest.apply(message);
         if (ingested.skipped() != null) {
             return JobOutcome.skipped(ingested.skipped());
         }

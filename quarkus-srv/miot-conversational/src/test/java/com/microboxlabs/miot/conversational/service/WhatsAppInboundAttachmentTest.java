@@ -94,6 +94,27 @@ class WhatsAppInboundAttachmentTest {
     }
 
     @Test
+    void aDuplicateKeepsTheStepOfTheMessageItAnswers() {
+        Conversation mine = store.put(InMemoryConversations.conversation(
+                "00000000-0000-0000-0000-00000000000e", TENANT, DRIVER, ContextKind.SERVICE, "SVC-1", at(0)));
+        store.messageRepository.append(new Message(
+                "00000000-0000-0000-0000-0000000000f9", mine.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,
+                MessageType.TEMPLATE, "¿Estás bien?", "check", null, null, null, "wamid.OUT9", MessageStatus.SENT,
+                null, null, null, null, Map.of(), at(0), null, null, at(0), Channel.WHATSAPP, DRIVER, null,
+                "run-1", 0));
+        InboundMessage message = MetaWebhookParser.parse(webhook("wamid.IN9", "\"type\":\"text\",\"text\":"
+                + "{\"body\":\"si\"},\"context\":{\"from\":\"15550000000\",\"id\":\"wamid.OUT9\"}")
+                .getBytes(StandardCharsets.UTF_8)).messages().get(0);
+
+        WhatsAppInboundService.Ingested first = service.ingestMessage(message);
+        WhatsAppInboundService.Ingested again = service.ingestMessage(message);
+
+        assertEquals(0, first.reply().answeredStep());
+        assertEquals(0, again.reply().answeredStep());
+        assertEquals("run-1", again.reply().runId());
+    }
+
+    @Test
     void anAnsweredMessageOfAnotherAddressIsIgnored() {
         Conversation others = store.put(InMemoryConversations.conversation(
                 "00000000-0000-0000-0000-00000000000c", TENANT, OTHER, ContextKind.SERVICE, "SVC-1", at(0)));

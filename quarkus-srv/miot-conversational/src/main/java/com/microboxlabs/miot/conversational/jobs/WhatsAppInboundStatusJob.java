@@ -8,6 +8,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -19,15 +20,20 @@ import java.util.function.Predicate;
 public class WhatsAppInboundStatusJob implements ModulithJobHandler {
 
     private final Predicate<StatusUpdate> ingest;
+    private final Function<StatusUpdate, String> tenantOf;
 
     @Inject
-    public WhatsAppInboundStatusJob(WhatsAppInboundService inbound) {
-        this(inbound::ingestStatus);
+    public WhatsAppInboundStatusJob(WhatsAppInboundService inbound, WhatsAppWebhookJobs webhookJobs) {
+        this(inbound::ingestStatus, webhookJobs::tenantOf);
     }
 
-    /** {@code ingest} returns false when no stored message has the status's wamid. */
-    public WhatsAppInboundStatusJob(Predicate<StatusUpdate> ingest) {
+    /**
+     * {@code ingest} returns false when no stored message has the status's wamid; {@code tenantOf} names the
+     * tenant whose job the status belongs to.
+     */
+    public WhatsAppInboundStatusJob(Predicate<StatusUpdate> ingest, Function<StatusUpdate, String> tenantOf) {
         this.ingest = ingest;
+        this.tenantOf = tenantOf;
     }
 
     @Override
@@ -35,9 +41,18 @@ public class WhatsAppInboundStatusJob implements ModulithJobHandler {
         return WhatsAppWebhookJobs.STATUS_JOB;
     }
 
+    /** Only the verified webhook enqueues these. */
+    @Override
+    public boolean internalOnly() {
+        return true;
+    }
+
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         StatusUpdate status = WhatsAppWebhookJobs.JSON.convertValue(payload, StatusUpdate.class);
+        if (!WhatsAppWebhookJobs.carries(tenantCode, tenantOf.apply(status))) {
+            return JobOutcome.skipped("The message " + status.wamid() + " is not this tenant's");
+        }
         if (!ingest.test(status)) {
             throw new IllegalStateException("No message with wamid " + status.wamid() + " is stored yet");
         }

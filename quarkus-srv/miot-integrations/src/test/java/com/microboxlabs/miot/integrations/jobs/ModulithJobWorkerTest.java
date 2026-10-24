@@ -80,6 +80,26 @@ class ModulithJobWorkerTest {
     }
 
     @Test
+    void aJobTypeIsInternalOnlyWhenItsHandlerSaysSo() {
+        var internal = new FakeHandler("webhook_event");
+        internal.internal = true;
+        var w = worker(new RecordingService(), true, new FakeHandler(CALENDAR), internal);
+
+        assertTrue(w.isInternalOnly("webhook_event"));
+        assertFalse(w.isInternalOnly(CALENDAR));
+        assertFalse(w.isInternalOnly("no_handler"));
+        assertFalse(w.isInternalOnly(null));
+    }
+
+    @Test
+    void drainClaimsOnlyTheTypesItHasHandlersFor() {
+        var service = new RecordingService();
+        worker(service, true, new FakeHandler(CALENDAR), new FakeHandler("other_type")).drain();
+
+        assertEquals(java.util.Set.of(CALENDAR, "other_type"), java.util.Set.copyOf(service.claimedTypes));
+    }
+
+    @Test
     void drainReportsFailedWhenHandlerThrows() {
         var service = new RecordingService();
         service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
@@ -204,6 +224,7 @@ class ModulithJobWorkerTest {
     private static final class FakeHandler implements ModulithJobHandler {
         private final String jobType;
         boolean ready = true;
+        boolean internal;
         RuntimeException throwWith;
         /** Stands in for the HTTP calls a real handler makes. */
         Runnable onHandle;
@@ -215,6 +236,11 @@ class ModulithJobWorkerTest {
         @Override
         public String jobType() {
             return jobType;
+        }
+
+        @Override
+        public boolean internalOnly() {
+            return internal;
         }
 
         @Override
@@ -238,14 +264,18 @@ class ModulithJobWorkerTest {
         final Deque<List<AsyncJob>> claimResults = new ArrayDeque<>();
         final List<ReportJobRequest> reports = new ArrayList<>();
         int claimCalls;
+        final List<String> claimedTypes = new ArrayList<>();
 
         RecordingService() {
             super(new NoopRepository(), new JobEventEmitter(Optional.empty()), null, 60, 3600);
         }
 
         @Override
-        public List<AsyncJob> claimForExecutor(String executor, String workerId, int limit, int leaseSeconds) {
+        public List<AsyncJob> claimForExecutor(String executor, java.util.Collection<String> jobTypes,
+                String workerId, int limit, int leaseSeconds) {
             claimCalls++;
+            claimedTypes.clear();
+            claimedTypes.addAll(jobTypes);
             return claimResults.isEmpty() ? List.of() : claimResults.poll();
         }
 

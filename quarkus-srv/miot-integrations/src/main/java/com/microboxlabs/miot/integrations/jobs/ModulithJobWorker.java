@@ -108,6 +108,12 @@ public class ModulithJobWorker {
         }
     }
 
+    /** Whether {@code jobType}'s handler says only the modulith enqueues it. */
+    public boolean isInternalOnly(String jobType) {
+        ModulithJobHandler handler = jobType == null ? null : handlers.get(jobType);
+        return handler != null && handler.internalOnly();
+    }
+
     boolean hasHandledLaneJob(EnqueueJobsResponse response) {
         if (response == null || response.created() == null) {
             return false;
@@ -129,7 +135,8 @@ public class ModulithJobWorker {
         while (remaining-- > 0) {
             List<AsyncJob> batch;
             try {
-                batch = jobService.claimForExecutor(ModulithJobHandler.EXECUTOR, workerId, 1, leaseSeconds);
+                batch = jobService.claimForExecutor(ModulithJobHandler.EXECUTOR, handlers.keySet(), workerId, 1,
+                        leaseSeconds);
             } catch (Exception e) {
                 LOG.error("modulith-worker claim failed — reconciler will retry", e);
                 return;

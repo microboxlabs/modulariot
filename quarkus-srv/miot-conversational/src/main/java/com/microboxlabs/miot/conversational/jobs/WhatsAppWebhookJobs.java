@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -87,11 +88,10 @@ public class WhatsAppWebhookJobs {
         ParsedWebhook parsed = MetaWebhookParser.parse(body);
         Map<String, List<AsyncJobSpec>> byTenant = new LinkedHashMap<>();
         for (InboundMessage m : parsed.messages()) {
-            add(byTenant, tenantOr(numberTenant, m.phoneNumberId()),
-                    spec(MESSAGE_JOB, m.wamid(), "wa:msg:" + m.wamid(), m));
+            add(byTenant, tenantOf(m), spec(MESSAGE_JOB, m.wamid(), "wa:msg:" + m.wamid(), m));
         }
         for (StatusUpdate s : parsed.statuses()) {
-            add(byTenant, tenantOr(messageTenant, s.wamid()),
+            add(byTenant, tenantOf(s),
                     spec(STATUS_JOB, s.wamid(), "wa:status:" + s.wamid() + ":" + s.status(), s));
         }
         int created = 0;
@@ -102,6 +102,25 @@ public class WhatsAppWebhookJobs {
             onEnqueued.accept(response);
         }
         return created;
+    }
+
+    /** The tenant a message's job belongs to: the organization of the number that received it, else the platform. */
+    public String tenantOf(InboundMessage message) {
+        return tenantOr(numberTenant, message.phoneNumberId());
+    }
+
+    /** The tenant a status's job belongs to: the organization of the message it updates, else the platform. */
+    public String tenantOf(StatusUpdate status) {
+        return tenantOr(messageTenant, status.wamid());
+    }
+
+    /**
+     * Whether a job of {@code rowTenant} may carry an event of {@code eventTenant}. A platform-scope job may carry
+     * any (the platform is trusted, and a status whose message was not stored yet waits there); an
+     * organization's job only its own, so a job enqueued under one organization cannot write into another's.
+     */
+    static boolean carries(String rowTenant, String eventTenant) {
+        return PlatformScope.TENANT.equals(rowTenant) || Objects.equals(rowTenant, eventTenant);
     }
 
     private static String tenantOr(Function<String, String> lookup, String key) {

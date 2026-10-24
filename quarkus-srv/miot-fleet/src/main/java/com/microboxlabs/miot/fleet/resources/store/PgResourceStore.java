@@ -64,7 +64,11 @@ public class PgResourceStore implements ResourceStore {
     private static final String LICENSE_PLATE = "license_plate";
 
     private static final String BY_ID = " AND id = $2";
-    private static final Set<String> RESOURCE_TABLES = Set.of("carrier", "truck", "trailer", "driver");
+    private static final String CARRIER = "carrier";
+    private static final String TRUCK = "truck";
+    private static final String TRAILER = "trailer";
+    private static final String DRIVER = "driver";
+    private static final Set<String> RESOURCE_TABLES = Set.of(CARRIER, TRUCK, TRAILER, DRIVER);
 
     private final Supplier<Pool> pool;
 
@@ -98,13 +102,13 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Carrier> findCarrier(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(CARRIER_COLS, "carrier") + BY_ID + Pg.lock(),
+                select(CARRIER_COLS, CARRIER) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::carrier);
     }
 
     @Override
     public List<Carrier> listCarriers(String tenantCode, String q, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(CARRIER_COLS, "carrier"));
+        StringBuilder sql = new StringBuilder(select(CARRIER_COLS, CARRIER));
         Tuple params = Tuple.of(tenantCode);
         if (q != null) {
             params.addString(contains(q));
@@ -153,13 +157,13 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Truck> findTruck(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRUCK_COLS, "truck") + BY_ID + Pg.lock(),
+                select(TRUCK_COLS, TRUCK) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::truck);
     }
 
     @Override
     public List<Truck> listTrucks(String tenantCode, String plate, UUID carrierId, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(TRUCK_COLS, "truck"));
+        StringBuilder sql = new StringBuilder(select(TRUCK_COLS, TRUCK));
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
             params.addString(contains(plate));
@@ -209,13 +213,13 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Trailer> findTrailer(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRAILER_COLS, "trailer") + BY_ID + Pg.lock(),
+                select(TRAILER_COLS, TRAILER) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::trailer);
     }
 
     @Override
     public List<Trailer> listTrailers(String tenantCode, String plate, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(TRAILER_COLS, "trailer"));
+        StringBuilder sql = new StringBuilder(select(TRAILER_COLS, TRAILER));
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
             params.addString(contains(plate));
@@ -264,13 +268,13 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Driver> findDriver(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(DRIVER_COLS, "driver") + BY_ID + Pg.lock(),
+                select(DRIVER_COLS, DRIVER) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::driver);
     }
 
     @Override
     public List<Driver> listDrivers(String tenantCode, String rut, String q, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(DRIVER_COLS, "driver"));
+        StringBuilder sql = new StringBuilder(select(DRIVER_COLS, DRIVER));
         Tuple params = Tuple.of(tenantCode);
         if (rut != null) {
             params.addString(rut);

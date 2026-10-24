@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.api;
 
+import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -30,7 +31,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
-public class OrgTripsAccessResource extends TripsResourceSupport {
+public class OrgTripsAccessResource extends OrgResourceSupport {
 
     /** {@code baseRole} OWNER, ADMIN or MEMBER; {@code roles} the module roles held; {@code permissions} theirs. */
     public record AccessView(String baseRole, Set<String> roles, Set<String> permissions) {

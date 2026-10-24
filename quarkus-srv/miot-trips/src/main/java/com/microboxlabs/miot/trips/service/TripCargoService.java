@@ -25,6 +25,7 @@ import java.util.UUID;
 public class TripCargoService {
 
     static final String ENTITY = "trip_cargo";
+    private static final String LINK_NOT_FOUND = "link not found";
 
     private final TripCargoStore store;
     private final TripStore trips;
@@ -76,7 +77,7 @@ public class TripCargoService {
                     .orElseThrow(() -> new NoSuchElementException("trip not found"));
             TripCargoRequest req = body == null ? new TripCargoRequest(null, null, null) : body;
             TripCargoLink current = store.find(tenantCode, tripId, cargoId)
-                    .orElseThrow(() -> new NoSuchElementException("link not found"));
+                    .orElseThrow(() -> new NoSuchElementException(LINK_NOT_FOUND));
             TripCargoLink updated = store.update(new TripCargoLink(
                     current.tripId(), current.cargoId(), tenantCode,
                     req.loadStageId() == null ? current.loadedAtStage()
@@ -84,7 +85,7 @@ public class TripCargoService {
                     req.unloadStageId() == null ? current.unloadedAtStage()
                             : stageOf(tenantCode, tripId, req.unloadStageId(), "unloadStageId"),
                     current.createdAt(), current.createdBy(), null, actor))
-                    .orElseThrow(() -> new NoSuchElementException("link not found"));
+                    .orElseThrow(() -> new NoSuchElementException(LINK_NOT_FOUND));
             audit.log(tenantCode, actor, "trip_cargo.stages_set", ENTITY, cargoId.toString(), tripId.toString(),
                     Map.of());
             return updated;
@@ -97,7 +98,7 @@ public class TripCargoService {
             trips.find(tenantCode, tripId)
                     .orElseThrow(() -> new NoSuchElementException("trip not found"));
             store.find(tenantCode, tripId, cargoId)
-                    .orElseThrow(() -> new NoSuchElementException("link not found"));
+                    .orElseThrow(() -> new NoSuchElementException(LINK_NOT_FOUND));
             CargoUnit unit = cargo.find(tenantCode, cargoId)
                     .orElseThrow(() -> new NoSuchElementException("cargo not found"));
             if (CargoUnit.PICKED.equals(unit.status()) || CargoUnit.DELIVERED.equals(unit.status())

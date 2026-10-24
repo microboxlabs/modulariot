@@ -32,6 +32,9 @@ public class StageService {
 
     static final String ENTITY = "stage";
     static final String ACTIVITY_ENTITY = "stage_activity";
+    private static final String STAGE_TYPE = "stageType";
+    private static final String CIERRE = "cierre";
+    private static final String ACTIVITY_NOT_FOUND = "activity not found";
 
     private final StageStore stages;
     private final TripStore trips;
@@ -52,6 +55,7 @@ public class StageService {
     }
 
     public List<Stage> listByTrip(String tenantCode, UUID tripId) {
+        trips.find(tenantCode, tripId).orElseThrow(() -> new NoSuchElementException("trip not found"));
         return stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId);
     }
 
@@ -69,15 +73,15 @@ public class StageService {
             if (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status())) {
                 throw new IllegalStateException("trip already " + trip.status());
             }
-            String type = Check.oneOf(Check.required(req.stageType(), "stageType", 32), "stageType",
-                    "preparacion", "carga", "transito", "parada", "descarga", "cierre");
+            String type = Check.oneOf(Check.required(req.stageType(), STAGE_TYPE, 32), STAGE_TYPE,
+                    "preparacion", "carga", "transito", "parada", "descarga", CIERRE);
             Stage created = stages.insert(new Stage(null, tenantCode, Stage.SUBJECT_TRIP, tripId.toString(), 0,
                     type, Check.limitedOrNull(req.serviceStatus(), "serviceStatus", 64),
                     Stage.PENDING, Check.uuidOrNull(req.locationId(), "locationId"),
                     req.plannedStart(), req.plannedEnd(), null, null,
                     req.checklist() == null ? null : req.checklist().toString(), null, actor, null, actor));
             audit.log(tenantCode, actor, "stage.added", ENTITY, created.id(), tripId.toString(),
-                    Map.of("stageType", type));
+                    Map.of(STAGE_TYPE, type));
             return created;
         });
     }
@@ -93,8 +97,8 @@ public class StageService {
                 throw new IllegalStateException("only pending stages can be re-planned");
             }
             String type = req.stageType() == null ? current.stageType()
-                    : Check.oneOf(req.stageType(), "stageType",
-                            "preparacion", "carga", "transito", "parada", "descarga", "cierre");
+                    : Check.oneOf(req.stageType(), STAGE_TYPE,
+                            "preparacion", "carga", "transito", "parada", "descarga", CIERRE);
             Stage updated = stages.update(new Stage(
                     current.id(), tenantCode, current.subjectType(), current.subjectId(), current.seq(),
                     type, Check.orKeep(req.serviceStatus(), current.serviceStatus(), "serviceStatus", 64),
@@ -125,7 +129,7 @@ public class StageService {
                     .orElseThrow(() -> new IllegalStateException("stage is no longer pendiente"));
             onTripStageStarted(tenantCode, actor, started, now);
             audit.log(tenantCode, actor, "stage.started", ENTITY, started.id(), started.subjectId(),
-                    Map.of("stageType", started.stageType()));
+                    Map.of(STAGE_TYPE, started.stageType()));
             return started;
         });
     }
@@ -144,22 +148,23 @@ public class StageService {
                     .orElseThrow(() -> new IllegalStateException("stage is no longer en_curso"));
             int loaded = tripCargo.markLoadedByStage(tenantCode, id, actor);
             int delivered = tripCargo.markDeliveredByStage(tenantCode, id, actor);
-            if ("cierre".equals(closed.stageType())) {
+            if (CIERRE.equals(closed.stageType())) {
                 onTripRealized(tenantCode, actor, closed, now);
             }
             audit.log(tenantCode, actor, "stage.closed", ENTITY, closed.id(), closed.subjectId(),
-                    Map.of("stageType", closed.stageType(), "cargoLoaded", loaded, "cargoDelivered", delivered));
+                    Map.of(STAGE_TYPE, closed.stageType(), "cargoLoaded", loaded, "cargoDelivered", delivered));
             return closed;
         });
     }
 
     public List<StageActivity> listActivities(String tenantCode, UUID stageId) {
+        get(tenantCode, stageId);
         return stages.listActivities(tenantCode, stageId);
     }
 
     public StageActivity getActivity(String tenantCode, UUID id) {
         return stages.findActivity(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("activity not found"));
+                .orElseThrow(() -> new NoSuchElementException(ACTIVITY_NOT_FOUND));
     }
 
     public StageActivity addActivity(String tenantCode, String actor, UUID stageId, ActivityRequest body) {
@@ -193,7 +198,7 @@ public class StageService {
                     StageActivity.DONE.equals(status) && current.doneAt() == null
                             ? OffsetDateTime.now(ZoneOffset.UTC) : current.doneAt(),
                     current.createdAt(), current.createdBy(), null, actor))
-                    .orElseThrow(() -> new NoSuchElementException("activity not found"));
+                    .orElseThrow(() -> new NoSuchElementException(ACTIVITY_NOT_FOUND));
             audit.log(tenantCode, actor, "activity.updated", ACTIVITY_ENTITY, updated.id(), null, Map.of());
             return updated;
         });
@@ -210,11 +215,11 @@ public class StageService {
             StageActivity done = stages.updateActivity(new StageActivity(
                     current.id(), tenantCode, current.stageId(), current.seq(), current.activityType(),
                     StageActivity.DONE, current.assignee(),
-                    assignmentId == null ? current.assignmentId() : assignmentId,
+                    assignmentId == null ? current.assignmentId() : Check.uuidOrNull(assignmentId, "assignmentId"),
                     evidence == null ? current.evidence() : evidence,
                     OffsetDateTime.now(ZoneOffset.UTC),
                     current.createdAt(), current.createdBy(), null, actor))
-                    .orElseThrow(() -> new NoSuchElementException("activity not found"));
+                    .orElseThrow(() -> new NoSuchElementException(ACTIVITY_NOT_FOUND));
             audit.log(tenantCode, actor, "activity.completed", ACTIVITY_ENTITY, done.id(), null, Map.of());
             return done;
         });

@@ -181,6 +181,11 @@ BEGIN
     IF OLD.version_of IS NOT NULL THEN
         RAISE EXCEPTION 'version rows are read-only (%.%)', TG_TABLE_NAME, OLD.id;
     END IF;
+    -- an update that changes no data (a feed re-sending the same row) keeps the row and archives nothing
+    IF to_jsonb(NEW) - ARRAY['updated_at','updated_by','version_from','version_to']
+       = to_jsonb(OLD) - ARRAY['updated_at','updated_by','version_from','version_to'] THEN
+        RETURN OLD;
+    END IF;
     v := to_jsonb(OLD) || jsonb_build_object(
             'id', gen_random_uuid(),
             'version_of', OLD.id,

@@ -9,7 +9,6 @@ import com.microboxlabs.miot.trips.domain.AuditEvent;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
-import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -34,7 +33,7 @@ public class PgAuditStore implements AuditStore {
     private static final String INSERT = """
             INSERT INTO miot_trips.audit_event
                 (tenant_code, actor, action, entity_type, entity_id, trip_id, details)
-            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb)
             RETURNING\s""" + COLUMNS;
 
     private final Supplier<Pool> pool;

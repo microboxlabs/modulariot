@@ -127,7 +127,7 @@ class PgTransactionsTest {
                         new StageRequest("carga", null, null, null, null, null),
                         new StageRequest("volar", null, null, null, null, null)))));
 
-        assertTrue(trips.list(tenant, null, null, null, null, null, 0, 50).isEmpty(),
+        assertTrue(trips.list(tenant, TripService.filter(null, null, null, null, null), 0, 50).isEmpty(),
                 "the trip inserted before the bad stage was rolled back");
     }
 

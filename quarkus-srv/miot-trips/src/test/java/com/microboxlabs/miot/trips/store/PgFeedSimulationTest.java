@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -190,7 +191,7 @@ class PgFeedSimulationTest {
         assignments.create(TENANT_A, FEED_A, tripId,
                 new AssignmentRequest("truck", fleet.backupTruck().id(), null, "reemplazo por panne"));
         assertEquals(4, assignments.listByTrip(TENANT_A, tripId).size());
-        assertTrue(driving.validTo() == null, "the driver window stays open through the truck change");
+        assertNull(driving.validTo(), "the driver window stays open through the truck change");
 
         // 6. the service finishes: transito → descarga → cierre realiza el viaje y mata la fila caliente
         stages.close(TENANT_A, FEED_A, UUID.fromString(plan.get(1).id()));
@@ -269,8 +270,9 @@ class PgFeedSimulationTest {
         assertEquals(CargoUnit.DELIVERED, cargo.get(TENANT_B, UUID.fromString(p1.id())).status());
 
         // 5. reception with a difference: the detail is mandatory
-        assertThrows(IllegalArgumentException.class, () -> cargo.receive(TENANT_B, FEED_B,
-                UUID.fromString(p1.id()), new ReceiveRequest("diferencia", null)));
+        UUID p1Id = UUID.fromString(p1.id());
+        ReceiveRequest noDetail = new ReceiveRequest("diferencia", null);
+        assertThrows(IllegalArgumentException.class, () -> cargo.receive(TENANT_B, FEED_B, p1Id, noDetail));
         CargoUnit received = cargo.receive(TENANT_B, FEED_B, UUID.fromString(p1.id()),
                 new ReceiveRequest("diferencia", "llegaron 19 de 20 pallets"));
         assertEquals(CargoUnit.RECEIVED, received.status());
@@ -285,8 +287,10 @@ class PgFeedSimulationTest {
                 "v1 closes by trips; closing against pending cargo is the integration's call");
     }
 
-    /** The 12 source-workflow route steps as prod's the source system lists them. */
-    /** type, FEED_A task, FEED_A name, and the service status the stage projects (null inherits). */
+    /**
+     * The 12 source-workflow route steps as prod's the source system lists them: type, FEED_A task,
+     * FEED_A name, and the service status the stage projects (null inherits).
+     */
     private static final String[][] TENANT_A_ROUTE = {
             {"carga", "flow:consolidateLoad", "Consolidación de Carga", "ADDED"},
             {"preparacion", "flow:separateDocuments", "Separar Documentos", null},

@@ -25,6 +25,8 @@ import java.util.UUID;
 public class MandateService {
 
     static final String ENTITY = "mandate";
+    private static final String ORDER_TYPE = "orderType";
+    private static final String MANDATE_NOT_FOUND = "mandate not found";
 
     public static final int MAX_PAGE_SIZE = 200;
 
@@ -45,7 +47,7 @@ public class MandateService {
             MandateRequest req = body == null ? MandateRequest.empty() : body;
             String code = required(req.externalCode(), "externalCode", 128);
             String orderType = req.orderType() == null || req.orderType().isBlank() ? "service"
-                    : limited(req.orderType(), "orderType", 32);
+                    : limited(req.orderType(), ORDER_TYPE, 32);
             MandateStore.CreateOrGet result = store.insertOrGet(new Mandate(
                     null, tenantCode, code, orderType, limitedOrNull(req.orderRef(), "orderRef", 255),
                     Mandate.ACTIVE, Check.uuidOrNull(req.originId(), "originId"),
@@ -53,7 +55,7 @@ public class MandateService {
                     null, null, null, actor, null, actor));
             if (result.created()) {
                 audit.log(tenantCode, actor, "mandate.created", ENTITY, result.mandate().id(), null,
-                        Map.of("externalCode", code, "orderType", orderType));
+                        Map.of("externalCode", code, ORDER_TYPE, orderType));
             }
             return new CreateOrGet(result.mandate(), result.created());
         });
@@ -61,12 +63,12 @@ public class MandateService {
 
     public Mandate get(String tenantCode, UUID id) {
         return store.find(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+                .orElseThrow(() -> new NoSuchElementException(MANDATE_NOT_FOUND));
     }
 
     public MandateLine lineOf(String tenantCode, UUID mandateId) {
         return store.lineOf(tenantCode, mandateId)
-                .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+                .orElseThrow(() -> new NoSuchElementException(MANDATE_NOT_FOUND));
     }
 
     public List<TripRef> tripsOf(String tenantCode, UUID mandateId) {
@@ -89,16 +91,15 @@ public class MandateService {
             Mandate current = get(tenantCode, id);
             Mandate updated = store.update(new Mandate(
                     current.id(), tenantCode, current.externalCode(),
-                    orKeep(req.orderType(), current.orderType(), "orderType", 32),
+                    orKeep(req.orderType(), current.orderType(), ORDER_TYPE, 32),
                     orKeep(req.orderRef(), current.orderRef(), "orderRef", 255),
                     current.status(),
                     req.originId() == null ? current.originId() : Check.uuidOrNull(req.originId(), "originId"),
-                    req.destinationId() == null ? current.destinationId()
-                            : Check.uuidOrNull(req.destinationId(), "destinationId"),
+                    req.destinationId() == null ? current.destinationId() : Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.slaMinutes() == null ? current.slaMinutes() : req.slaMinutes(),
                     current.closedAt(), current.cancelReason(),
                     current.createdAt(), current.createdBy(), null, actor))
-                    .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+                    .orElseThrow(() -> new NoSuchElementException(MANDATE_NOT_FOUND));
             audit.log(tenantCode, actor, "mandate.updated", ENTITY, updated.id(), null, Map.of());
             return updated;
         });
@@ -120,7 +121,7 @@ public class MandateService {
             }
             Mandate closed = store.update(withStatus(current, Mandate.CLOSED,
                     OffsetDateTime.now(ZoneOffset.UTC), current.cancelReason(), actor))
-                    .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+                    .orElseThrow(() -> new NoSuchElementException(MANDATE_NOT_FOUND));
             audit.log(tenantCode, actor, "mandate.closed", ENTITY, closed.id(), null, Map.of());
             return closed;
         });
@@ -135,7 +136,7 @@ public class MandateService {
             String why = required(reason, "reason", 500);
             Mandate cancelled = store.update(withStatus(current, Mandate.CANCELLED,
                     OffsetDateTime.now(ZoneOffset.UTC), why, actor))
-                    .orElseThrow(() -> new NoSuchElementException("mandate not found"));
+                    .orElseThrow(() -> new NoSuchElementException(MANDATE_NOT_FOUND));
             audit.log(tenantCode, actor, "mandate.cancelled", ENTITY, cancelled.id(), null, Map.of("reason", why));
             return cancelled;
         });

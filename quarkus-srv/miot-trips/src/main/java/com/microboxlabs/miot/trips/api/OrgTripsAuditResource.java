@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.api;
 
+import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -32,7 +33,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
-public class OrgTripsAuditResource extends TripsResourceSupport {
+public class OrgTripsAuditResource extends OrgResourceSupport {
 
     private static final String ORG = "organizationId";
 
@@ -58,8 +59,8 @@ public class OrgTripsAuditResource extends TripsResourceSupport {
             @QueryParam("entityType") String entityType,
             @QueryParam("entityId") String entityId,
             @QueryParam("before") String before,
-            @QueryParam("beforeId") Long beforeId,
-            @QueryParam("limit") Integer limit) {
+            @QueryParam("beforeId") String beforeId,
+            @QueryParam("limit") String limit) {
         String tenant = tenantCode(organizationId);
         return work(() -> {
             OffsetDateTime beforeTs = null;
@@ -70,7 +71,8 @@ public class OrgTripsAuditResource extends TripsResourceSupport {
                     throw new IllegalArgumentException("before must be an ISO-8601 timestamp");
                 }
             }
-            return Response.ok(audit.list(tenant, entityType, entityId, beforeTs, beforeId, limit)).build();
+            return Response.ok(audit.list(tenant, entityType, entityId, beforeTs, longParam(beforeId, "beforeId"),
+                    integer(limit, "limit"))).build();
         });
     }
 }

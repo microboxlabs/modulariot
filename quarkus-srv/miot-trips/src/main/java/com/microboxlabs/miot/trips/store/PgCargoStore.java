@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.domain.CargoUnit;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,6 +24,7 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgCargoStore implements CargoStore {
 
+    private static final String SELECT = "SELECT ";
     private static final String COLUMNS = """
             id, tenant_code, line_id, partial_no, description, qty, qty_unit, weight_kg, volume_m3,
             status, receipt_result, receipt_notes, received_at, created_at, created_by, updated_at, updated_by""";
@@ -65,12 +67,10 @@ public class PgCargoStore implements CargoStore {
     @Override
     public Optional<CargoUnit> find(String tenantCode, UUID id) {
         RowSet<Row> rows = query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.cargo_unit WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
+                SELECT + COLUMNS + " FROM miot_trips.cargo_unit WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id));
-        for (Row r : rows) {
-            return Optional.of(cargo(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(cargo(it.next())) : Optional.empty();
     }
 
     private static final String CU_COLUMNS = """
@@ -80,7 +80,7 @@ public class PgCargoStore implements CargoStore {
 
     @Override
     public List<CargoUnit> listByMandate(String tenantCode, UUID mandateId) {
-        return query(pool.get(), "SELECT " + CU_COLUMNS + """
+        return query(pool.get(), SELECT + CU_COLUMNS + """
 
                  FROM miot_trips.cargo_unit cu
                  JOIN miot_trips.mandate_line ml ON ml.id = cu.line_id
@@ -93,7 +93,7 @@ public class PgCargoStore implements CargoStore {
 
     @Override
     public List<CargoUnit> listByTrip(String tenantCode, UUID tripId) {
-        return query(pool.get(), "SELECT " + CU_COLUMNS + """
+        return query(pool.get(), SELECT + CU_COLUMNS + """
 
                  FROM miot_trips.cargo_unit cu
                  JOIN miot_trips.trip_cargo tc ON tc.cargo_id = cu.id
@@ -113,10 +113,8 @@ public class PgCargoStore implements CargoStore {
                 .addString(c.receiptResult()).addString(c.receiptNotes()).addOffsetDateTime(c.receivedAt())
                 .addString(c.updatedBy());
         RowSet<Row> rows = query(pool.get(), UPDATE, params);
-        for (Row r : rows) {
-            return Optional.of(cargo(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(cargo(it.next())) : Optional.empty();
     }
 
     private static CargoUnit cargo(Row r) {

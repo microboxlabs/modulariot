@@ -11,6 +11,7 @@ import com.microboxlabs.miot.fleet.resources.domain.Truck;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -47,6 +48,21 @@ public class PgResourceStore implements ResourceStore {
             mobile_phone, license_category, license_expires, status, is_occasional, source_system,
             source_data::text AS source_data, created_at, created_by, updated_at, updated_by""";
 
+    private static final String TENANT_CODE = "tenant_code";
+    private static final String EXTERNAL_ID = "external_id";
+    private static final String STATUS = "status";
+    private static final String IS_OCCASIONAL = "is_occasional";
+    private static final String SOURCE_SYSTEM = "source_system";
+    private static final String SOURCE_DATA = "source_data";
+    private static final String CREATED_AT = "created_at";
+    private static final String CREATED_BY = "created_by";
+    private static final String UPDATED_AT = "updated_at";
+    private static final String UPDATED_BY = "updated_by";
+    private static final String CARRIER_ID = "carrier_id";
+    private static final String LICENSE_PLATE = "license_plate";
+
+    private static final String BY_ID = " AND id = $2";
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -79,18 +95,16 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Carrier> findCarrier(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + CARRIER_COLS + " FROM miot_fleet.carrier WHERE tenant_code = $1 AND id = $2"
-                        + " AND version_of IS NULL" + Pg.lock(),
+                select(CARRIER_COLS, "carrier") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::carrier);
     }
 
     @Override
     public List<Carrier> listCarriers(String tenantCode, String q, int page, int size) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(CARRIER_COLS)
-                .append(" FROM miot_fleet.carrier WHERE tenant_code = $1 AND version_of IS NULL");
+        StringBuilder sql = new StringBuilder(select(CARRIER_COLS, "carrier"));
         Tuple params = Tuple.of(tenantCode);
         if (q != null) {
-            params.addString("%" + q + "%");
+            params.addString(contains(q));
             int n = params.size();
             sql.append(" AND (rut ILIKE $").append(n).append(" OR legal_name ILIKE $").append(n).append(')');
         }
@@ -136,25 +150,23 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Truck> findTruck(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + TRUCK_COLS + " FROM miot_fleet.truck WHERE tenant_code = $1 AND id = $2"
-                        + " AND version_of IS NULL" + Pg.lock(),
+                select(TRUCK_COLS, "truck") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::truck);
     }
 
     @Override
     public List<Truck> listTrucks(String tenantCode, String plate, UUID carrierId, int page, int size) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(TRUCK_COLS)
-                .append(" FROM miot_fleet.truck WHERE tenant_code = $1 AND version_of IS NULL");
+        StringBuilder sql = new StringBuilder(select(TRUCK_COLS, "truck"));
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
-            params.addString("%" + plate + "%");
+            params.addString(contains(plate));
             sql.append(" AND license_plate ILIKE $").append(params.size());
         }
         if (carrierId != null) {
             params.addUUID(carrierId);
             sql.append(" AND carrier_id = $").append(params.size());
         }
-        page(sql, params, "license_plate", page, size);
+        page(sql, params, LICENSE_PLATE, page, size);
         return query(pool.get(), sql.toString(), params).stream().map(PgResourceStore::truck).toList();
     }
 
@@ -194,21 +206,19 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Trailer> findTrailer(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + TRAILER_COLS + " FROM miot_fleet.trailer WHERE tenant_code = $1 AND id = $2"
-                        + " AND version_of IS NULL" + Pg.lock(),
+                select(TRAILER_COLS, "trailer") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::trailer);
     }
 
     @Override
     public List<Trailer> listTrailers(String tenantCode, String plate, int page, int size) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(TRAILER_COLS)
-                .append(" FROM miot_fleet.trailer WHERE tenant_code = $1 AND version_of IS NULL");
+        StringBuilder sql = new StringBuilder(select(TRAILER_COLS, "trailer"));
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
-            params.addString("%" + plate + "%");
+            params.addString(contains(plate));
             sql.append(" AND license_plate ILIKE $").append(params.size());
         }
-        page(sql, params, "license_plate", page, size);
+        page(sql, params, LICENSE_PLATE, page, size);
         return query(pool.get(), sql.toString(), params).stream().map(PgResourceStore::trailer).toList();
     }
 
@@ -251,22 +261,20 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Driver> findDriver(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + DRIVER_COLS + " FROM miot_fleet.driver WHERE tenant_code = $1 AND id = $2"
-                        + " AND version_of IS NULL" + Pg.lock(),
+                select(DRIVER_COLS, "driver") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::driver);
     }
 
     @Override
     public List<Driver> listDrivers(String tenantCode, String rut, String q, int page, int size) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(DRIVER_COLS)
-                .append(" FROM miot_fleet.driver WHERE tenant_code = $1 AND version_of IS NULL");
+        StringBuilder sql = new StringBuilder(select(DRIVER_COLS, "driver"));
         Tuple params = Tuple.of(tenantCode);
         if (rut != null) {
             params.addString(rut);
             sql.append(" AND rut = $").append(params.size());
         }
         if (q != null) {
-            params.addString("%" + q + "%");
+            params.addString(contains(q));
             sql.append(" AND full_name ILIKE $").append(params.size());
         }
         page(sql, params, "full_name", page, size);
@@ -293,6 +301,11 @@ public class PgResourceStore implements ResourceStore {
 
     // ---- shared ---------------------------------------------------------
 
+    /** An ILIKE pattern that matches {@code term} literally: % and _ in user input are not wildcards. */
+    private static String contains(String term) {
+        return "%" + term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    }
+
     private static void page(StringBuilder sql, Tuple params, String orderBy, int page, int size) {
         params.addInteger(size);
         sql.append(" ORDER BY ").append(orderBy).append(", id LIMIT $").append(params.size());
@@ -300,47 +313,50 @@ public class PgResourceStore implements ResourceStore {
         sql.append(" OFFSET $").append(params.size());
     }
 
+    /** The current rows of {@code table} in the tenant ($1). */
+    private static String select(String cols, String table) {
+        return "SELECT " + cols + " FROM miot_fleet." + table + " WHERE tenant_code = $1 AND version_of IS NULL";
+    }
+
     private static <T> Optional<T> first(RowSet<Row> rows, Function<Row, T> map) {
-        for (Row r : rows) {
-            return Optional.of(map.apply(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(map.apply(it.next())) : Optional.empty();
     }
 
     private static Carrier carrier(Row r) {
-        return new Carrier(text(r.getUUID("id")), r.getString("tenant_code"), r.getString("external_id"),
+        return new Carrier(text(r.getUUID("id")), r.getString(TENANT_CODE), r.getString(EXTERNAL_ID),
                 r.getString("rut"), r.getString("legal_name"), r.getString("transport_license"),
                 time(r, "transport_license_expires"), r.getString("contact_name"), r.getString("phone"),
-                r.getString("email"), r.getString("status"), r.getBoolean("is_occasional"),
-                r.getString("source_system"), r.getString("source_data"),
-                time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
+                r.getString("email"), r.getString(STATUS), r.getBoolean(IS_OCCASIONAL),
+                r.getString(SOURCE_SYSTEM), r.getString(SOURCE_DATA),
+                time(r, CREATED_AT), r.getString(CREATED_BY), time(r, UPDATED_AT), r.getString(UPDATED_BY));
     }
 
     private static Truck truck(Row r) {
-        return new Truck(text(r.getUUID("id")), r.getString("tenant_code"), text(r.getUUID("carrier_id")),
-                r.getString("external_id"), r.getString("license_plate"), r.getString("vin"),
+        return new Truck(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+                r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("truck_type"), r.getBigDecimal("max_weight"), r.getBigDecimal("volume"),
-                r.getString("status"), r.getBoolean("is_occasional"), r.getString("source_system"),
-                r.getString("source_data"),
-                time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
+                r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
+                r.getString(SOURCE_DATA),
+                time(r, CREATED_AT), r.getString(CREATED_BY), time(r, UPDATED_AT), r.getString(UPDATED_BY));
     }
 
     private static Trailer trailer(Row r) {
-        return new Trailer(text(r.getUUID("id")), r.getString("tenant_code"), text(r.getUUID("carrier_id")),
-                r.getString("external_id"), r.getString("license_plate"), r.getString("vin"),
+        return new Trailer(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+                r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("trailer_type"), r.getBigDecimal("max_weight"),
-                r.getString("status"), r.getBoolean("is_occasional"), r.getString("source_system"),
-                r.getString("source_data"),
-                time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
+                r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
+                r.getString(SOURCE_DATA),
+                time(r, CREATED_AT), r.getString(CREATED_BY), time(r, UPDATED_AT), r.getString(UPDATED_BY));
     }
 
     private static Driver driver(Row r) {
-        return new Driver(text(r.getUUID("id")), r.getString("tenant_code"), text(r.getUUID("carrier_id")),
-                r.getString("external_id"), r.getString("rut"), r.getString("first_name"),
+        return new Driver(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+                r.getString(EXTERNAL_ID), r.getString("rut"), r.getString("first_name"),
                 r.getString("last_name"), r.getString("full_name"), r.getString("phone"),
                 r.getString("mobile_phone"), r.getString("license_category"), time(r, "license_expires"),
-                r.getString("status"), r.getBoolean("is_occasional"), r.getString("source_system"),
-                r.getString("source_data"),
-                time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
+                r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
+                r.getString(SOURCE_DATA),
+                time(r, CREATED_AT), r.getString(CREATED_BY), time(r, UPDATED_AT), r.getString(UPDATED_BY));
     }
 }

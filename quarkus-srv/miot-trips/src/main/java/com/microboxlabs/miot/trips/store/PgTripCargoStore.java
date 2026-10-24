@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.domain.TripCargoLink;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -125,10 +126,8 @@ public class PgTripCargoStore implements TripCargoStore {
     }
 
     private static Optional<TripCargoLink> first(RowSet<Row> rows) {
-        for (Row r : rows) {
-            return Optional.of(link(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(link(it.next())) : Optional.empty();
     }
 
     private static TripCargoLink link(Row r) {

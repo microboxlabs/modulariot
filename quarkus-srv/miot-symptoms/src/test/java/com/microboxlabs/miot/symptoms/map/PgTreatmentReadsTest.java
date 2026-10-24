@@ -253,6 +253,7 @@ class PgTreatmentReadsTest {
         assertTrue(window.size() <= 10 && window.size() >= 8, "size " + window.size());
         assertEquals(1, window.get(0).path("speed").asInt());
         assertEquals(25, window.get(window.size() - 1).path("speed").asInt());
+        assertEquals("T6", window.get(0).path("tripid").asText(), "sent during trip T6");
         assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(1)), now, "org-b", 10)).size());
         assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-x", 10)).size(),
                 "the asset is not mapped to org-x");
@@ -271,5 +272,6 @@ class PgTreatmentReadsTest {
         JsonNode points = await(reads.assetPositions("OP56", now.minus(Duration.ofHours(1)), now, "org-b", 10));
         assertEquals(1, points.size());
         assertEquals(2, points.get(0).path("speed").asInt());
+        assertTrue(points.get(0).path("tripid").isNull(), "no trip");
     }
 }

@@ -14,6 +14,7 @@ import com.microboxlabs.miot.trips.store.AssignmentStore;
 import com.microboxlabs.miot.trips.store.CargoStore;
 import com.microboxlabs.miot.trips.store.StageStore;
 import com.microboxlabs.miot.trips.store.TripCargoStore;
+import com.microboxlabs.miot.trips.store.TripFilter;
 import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -32,6 +33,11 @@ import java.util.stream.Collectors;
 public class TripService {
 
     static final String ENTITY = "trip";
+    private static final String MANDATE_IDS = "mandateIds";
+    /** Stands in for the trip id while the stage plan is validated before the trip exists. */
+    private static final UUID NO_TRIP = new UUID(0, 0);
+    private static final String TRIP_NOT_FOUND = "trip not found";
+    private static final String MANDATE_ID = "mandateId";
 
     private final TripStore trips;
     private final StageStore stages;
@@ -57,16 +63,19 @@ public class TripService {
     public TripView create(String tenantCode, String actor, TripRequest body) {
         return tx.inTransaction(() -> {
             TripRequest req = body == null ? TripRequest.empty() : body;
+            // the whole request is validated before the first write
+            List<UUID> mandateIds = req.mandateIds() == null ? List.of() : req.mandateIds().stream()
+                    .map(m -> parse(Check.required(m, MANDATE_IDS, 64), MANDATE_IDS)).toList();
+            if (req.stages() != null) {
+                req.stages().forEach(s -> planned(tenantCode, actor, NO_TRIP, s));
+            }
             Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
                     Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart(), null, null, null, null, actor, null, actor));
             UUID tripId = UUID.fromString(trip.id());
-            if (req.mandateIds() != null) {
-                int seq = 1;
-                for (String mandateId : req.mandateIds()) {
-                    UUID mid = parse(mandateId, "mandateIds");
-                    trips.linkMandate(tenantCode, tripId, mid, seq++, "primary", actor);
-                }
+            int seq = 1;
+            for (UUID mid : mandateIds) {
+                trips.linkMandate(tenantCode, tripId, mid, seq++, "primary", actor);
             }
             if (req.stages() != null) {
                 for (StageRequest s : req.stages()) {
@@ -80,7 +89,7 @@ public class TripService {
 
     public Trip get(String tenantCode, UUID id) {
         return trips.find(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("trip not found"));
+                .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
     }
 
     /** The whole file of the trip: mandates, stages, assignments and cargo. */
@@ -98,15 +107,21 @@ public class TripService {
         return TripView.of(trip, mandates, stageViews, assignmentViews, cargoViews);
     }
 
-    public List<Trip> list(String tenantCode, String status, String mandateId, String assetId,
-            OffsetDateTime from, OffsetDateTime to, Integer page, Integer size) {
+    public List<Trip> list(String tenantCode, TripFilter filter, Integer page, Integer size) {
         int p = page == null ? 0 : Math.max(page, 0);
         int s = size == null ? 50 : size;
         if (s < 1 || s > MandateService.MAX_PAGE_SIZE) {
             throw new IllegalArgumentException("size must be between 1 and " + MandateService.MAX_PAGE_SIZE);
         }
-        UUID mid = mandateId == null || mandateId.isBlank() ? null : parse(mandateId, "mandateId");
-        return trips.list(tenantCode, Check.blankToNull(status), mid, Check.blankToNull(assetId), from, to, p, s);
+        return trips.list(tenantCode, new TripFilter(Check.blankToNull(filter.status()), filter.mandateId(),
+                Check.blankToNull(filter.assetId()), filter.from(), filter.to()), p, s);
+    }
+
+    /** Builds the list filter from query parameters; a blank mandateId does not filter. */
+    public static TripFilter filter(String status, String mandateId, String assetId, OffsetDateTime from,
+            OffsetDateTime to) {
+        UUID mid = mandateId == null || mandateId.isBlank() ? null : parse(mandateId, MANDATE_ID);
+        return new TripFilter(status, mid, assetId, from, to);
     }
 
     /** Patches the leg and planning; status moves through stages and cancel only. */
@@ -117,12 +132,11 @@ public class TripService {
             Trip updated = trips.update(new Trip(
                     current.id(), tenantCode, current.status(),
                     req.originId() == null ? current.originId() : Check.uuidOrNull(req.originId(), "originId"),
-                    req.destinationId() == null ? current.destinationId()
-                            : Check.uuidOrNull(req.destinationId(), "destinationId"),
+                    req.destinationId() == null ? current.destinationId() : Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart() == null ? current.plannedStart() : req.plannedStart(),
                     current.actualStart(), current.actualEnd(), current.cancelReason(),
                     current.createdAt(), current.createdBy(), null, actor))
-                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+                    .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
             audit.log(tenantCode, actor, "trip.updated", ENTITY, updated.id(), updated.id(), Map.of());
             return updated;
         });
@@ -140,7 +154,7 @@ public class TripService {
                     current.originId(), current.destinationId(), current.plannedStart(),
                     current.actualStart(), OffsetDateTime.now(ZoneOffset.UTC), why,
                     current.createdAt(), current.createdBy(), null, actor))
-                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+                    .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
             audit.log(tenantCode, actor, "trip.cancelled", ENTITY, cancelled.id(), cancelled.id(),
                     Map.of("reason", why));
             return cancelled;
@@ -152,13 +166,13 @@ public class TripService {
             String role) {
         return tx.inTransaction(() -> {
             get(tenantCode, tripId);
-            UUID mid = parse(Check.required(mandateId, "mandateId", 64), "mandateId");
+            UUID mid = parse(Check.required(mandateId, MANDATE_ID, 64), MANDATE_ID);
             int s = seq == null ? trips.mandatesOf(tenantCode, tripId).size() + 1 : seq;
             String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
             if (linked) {
                 audit.log(tenantCode, actor, "trip.mandate_linked", ENTITY, tripId.toString(), tripId.toString(),
-                        Map.of("mandateId", mid.toString()));
+                        Map.of(MANDATE_ID, mid.toString()));
             }
             return linked;
         });
@@ -176,7 +190,7 @@ public class TripService {
                 throw new NoSuchElementException("link not found");
             }
             audit.log(tenantCode, actor, "trip.mandate_unlinked", ENTITY, tripId.toString(), tripId.toString(),
-                    Map.of("mandateId", mandateId.toString()));
+                    Map.of(MANDATE_ID, mandateId.toString()));
         });
     }
 

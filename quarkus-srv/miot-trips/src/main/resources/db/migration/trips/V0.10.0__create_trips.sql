@@ -356,6 +356,24 @@ END $$;
 CREATE TRIGGER trg_trip_cargo_consistency BEFORE INSERT ON miot_trips.trip_cargo
 FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_cargo_consistency();
 
+-- a closed or cancelled mandate takes no new trips (directly or through mounted cargo)
+CREATE OR REPLACE FUNCTION miot_trips.fn_trip_mandate_open() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE v_status VARCHAR(16);
+BEGIN
+    IF NEW.version_of IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
+    SELECT m.status INTO v_status FROM miot_trips.mandate m
+    WHERE m.id = NEW.mandate_id AND m.tenant_code = NEW.tenant_code;
+    IF v_status IN ('cerrado', 'anulado') THEN
+        RAISE EXCEPTION 'mandate % is %', NEW.mandate_id, v_status;
+    END IF;
+    RETURN NEW;
+END $$;
+CREATE TRIGGER trg_trip_mandate_open BEFORE INSERT ON miot_trips.trip_mandate
+FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_mandate_open();
+
 -- 4) la asignación debe apuntar a un recurso existente del tenant (FK por tipo)
 CREATE OR REPLACE FUNCTION miot_trips.fn_assignment_resource_check() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -446,14 +464,11 @@ BEGIN
     SELECT s.planned_end INTO v_eta
     FROM miot_trips.stage s
     WHERE s.subject_type='trip' AND s.subject_id = p_trip AND s.version_of IS NULL AND s.is_active
+      AND s.planned_end IS NOT NULL
     ORDER BY s.seq DESC LIMIT 1;
 
-    SELECT array_agg(DISTINCT (abs(hashtext(s.location_id::text)) % 100000))
-           FILTER (WHERE s.location_id IS NOT NULL)
-      INTO v_stops
-    FROM miot_trips.stage s
-    WHERE s.subject_type='trip' AND s.subject_id = p_trip AND s.stage_type='parada'
-      AND s.version_of IS NULL AND s.is_active;
+    -- no stop geofences until locations map to real geofence ids
+    v_stops := NULL;
 
     -- estado de negocio: lo proyecta la etapa en curso, o la última cerrada que declaró uno
     SELECT s.service_status INTO v_sstatus
@@ -550,6 +565,34 @@ FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_child();
 CREATE TRIGGER trg_trip_live_tc AFTER INSERT OR UPDATE OR DELETE ON miot_trips.trip_cargo
 FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_child();
 
+-- the hot row shows location names and the cargo description: refresh the trips that use them
+CREATE OR REPLACE FUNCTION miot_trips.fn_trip_live_from_reference() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE v_trip UUID;
+BEGIN
+    IF NEW.version_of IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
+    IF TG_TABLE_NAME = 'location' THEN
+        FOR v_trip IN SELECT t.id FROM miot_trips.trip t
+                      WHERE (t.origin_id = NEW.id OR t.destination_id = NEW.id)
+                        AND t.version_of IS NULL AND t.is_active
+                        AND t.status NOT IN ('realizado','anulado') LOOP
+            PERFORM miot_trips.fn_trip_live_refresh(v_trip);
+        END LOOP;
+    ELSE
+        FOR v_trip IN SELECT tc.trip_id FROM miot_trips.trip_cargo tc
+                      WHERE tc.cargo_id = NEW.id AND tc.version_of IS NULL AND tc.is_active LOOP
+            PERFORM miot_trips.fn_trip_live_refresh(v_trip);
+        END LOOP;
+    END IF;
+    RETURN NEW;
+END $$;
+CREATE TRIGGER trg_trip_live_location AFTER UPDATE ON miot_trips.location
+FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_reference();
+CREATE TRIGGER trg_trip_live_cargo AFTER UPDATE ON miot_trips.cargo_unit
+FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_reference();
+
 -- ============================================================
 -- VERSIONADO (SCD2 en la misma tabla, decisión 2026-10-23)
 -- Nada se pisa: cada UPDATE archiva la versión anterior como fila
@@ -617,6 +660,11 @@ DECLARE v JSONB;
 BEGIN
     IF OLD.version_of IS NOT NULL THEN
         RAISE EXCEPTION 'version rows are read-only (%.%)', TG_TABLE_NAME, OLD.id;
+    END IF;
+    -- an update that changes no data (a feed re-sending the same row) keeps the row and archives nothing
+    IF to_jsonb(NEW) - ARRAY['updated_at','updated_by','version_from','version_to']
+       = to_jsonb(OLD) - ARRAY['updated_at','updated_by','version_from','version_to'] THEN
+        RETURN OLD;
     END IF;
     v := to_jsonb(OLD) || jsonb_build_object(
             'id', gen_random_uuid(),

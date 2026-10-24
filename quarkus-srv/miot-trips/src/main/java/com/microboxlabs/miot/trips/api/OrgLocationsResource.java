@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.api;
 
+import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -36,7 +37,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
-public class OrgLocationsResource extends TripsResourceSupport {
+public class OrgLocationsResource extends OrgResourceSupport {
 
     private static final String ORG = "organizationId";
 
@@ -57,10 +58,10 @@ public class OrgLocationsResource extends TripsResourceSupport {
     @Operation(operationId = "listLocations", summary = "Locations by name/code and type")
     @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = "organizationId")
     public Uni<Response> list(@PathParam(ORG) String organizationId, @QueryParam("q") String q,
-            @QueryParam("type") String type, @QueryParam("page") Integer page, @QueryParam("size") Integer size) {
+            @QueryParam("type") String type, @QueryParam("page") String page, @QueryParam("size") String size) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(
-                locations.list(tenant, q, type, page, size).stream().map(LocationView::of).toList()).build());
+                locations.list(tenant, q, type, integer(page, "page"), integer(size, "size")).stream().map(LocationView::of).toList()).build());
     }
 
     @POST

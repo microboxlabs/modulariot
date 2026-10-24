@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.api;
 
+import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -35,9 +36,10 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
-public class OrgStagesResource extends TripsResourceSupport {
+public class OrgStagesResource extends OrgResourceSupport {
 
     private static final String ORG = "organizationId";
+    private static final String STAGE_ID = "stageId";
 
     private final StageService stages;
 
@@ -80,11 +82,11 @@ public class OrgStagesResource extends TripsResourceSupport {
     @Operation(operationId = "updateStage", summary = "Re-plans a pending stage (window, location, checklist)")
     @PermissionsAllowed(value = TripsAccessCatalog.TRIP_WRITE, permission = OrgPermission.class,
             params = "organizationId")
-    public Uni<Response> update(@PathParam(ORG) String organizationId, @PathParam("stageId") String stageId,
+    public Uni<Response> update(@PathParam(ORG) String organizationId, @PathParam(STAGE_ID) String stageId,
             StageRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(StageView.of(stages.update(tenant, actor, uuid(stageId, "stageId"), body)))
+        return work(() -> Response.ok(StageView.of(stages.update(tenant, actor, uuid(stageId, STAGE_ID), body)))
                 .build());
     }
 
@@ -94,10 +96,10 @@ public class OrgStagesResource extends TripsResourceSupport {
             summary = "Opens the stage — the state change; 409 while another stage runs")
     @PermissionsAllowed(value = TripsAccessCatalog.STAGE_OPERATE, permission = OrgPermission.class,
             params = "organizationId")
-    public Uni<Response> start(@PathParam(ORG) String organizationId, @PathParam("stageId") String stageId) {
+    public Uni<Response> start(@PathParam(ORG) String organizationId, @PathParam(STAGE_ID) String stageId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(StageView.of(stages.start(tenant, actor, uuid(stageId, "stageId"))))
+        return work(() -> Response.ok(StageView.of(stages.start(tenant, actor, uuid(stageId, STAGE_ID))))
                 .build());
     }
 
@@ -107,10 +109,10 @@ public class OrgStagesResource extends TripsResourceSupport {
             summary = "Closes the stage; moves its cargo, and 'cierre' realizes the trip")
     @PermissionsAllowed(value = TripsAccessCatalog.STAGE_OPERATE, permission = OrgPermission.class,
             params = "organizationId")
-    public Uni<Response> close(@PathParam(ORG) String organizationId, @PathParam("stageId") String stageId) {
+    public Uni<Response> close(@PathParam(ORG) String organizationId, @PathParam(STAGE_ID) String stageId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(StageView.of(stages.close(tenant, actor, uuid(stageId, "stageId"))))
+        return work(() -> Response.ok(StageView.of(stages.close(tenant, actor, uuid(stageId, STAGE_ID))))
                 .build());
     }
 }

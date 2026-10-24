@@ -8,6 +8,7 @@ import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { handleDownloadCsv } from "./utils/download-csv";
 import PulseDetailView from "./pulse-detail-view";
+import { tripIdOfSignal } from "./utils/signal-legs";
 
 const SummaryTooltip = memo(function SummaryTooltip({
   data,
@@ -82,11 +83,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
           const date = new Date(element.timestamp);
           return [
             <FormattedDate key={element.timestamp} date={date} />,
-            String(
-              element.tripid !== "null"
-                ? element.tripid
-                : tr("signal_historic.no_trip", dict)
-            ),
+            tripIdOfSignal(element.tripid) ?? "—",
             String(element.speed || 0) + " Km/h",
             String(((element.distance || 0) / 1000).toFixed(1)) + " Km",
             `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,

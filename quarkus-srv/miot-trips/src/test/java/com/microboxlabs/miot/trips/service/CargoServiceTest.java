@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,8 +36,9 @@ class CargoServiceTest {
 
     @Test
     void partialsNumberThemselvesAgainstTheLine() {
+        CargoRequest empty = CargoRequest.empty();
         assertThrows(IllegalArgumentException.class,
-                () -> service.announce(TENANT, ACTOR, mandateId, CargoRequest.empty()));
+                () -> service.announce(TENANT, ACTOR, mandateId, empty));
 
         CargoUnit first = service.announce(TENANT, ACTOR, mandateId,
                 new CargoRequest("Camarón 20 pallets", new BigDecimal("20"), "pallet", null, null, null));
@@ -59,10 +61,11 @@ class CargoServiceTest {
         assertEquals(CargoUnit.READY,
                 service.update(TENANT, ACTOR, id, new CargoRequest(null, null, null, null, null, "lista"))
                         .status());
-        assertThrows(IllegalStateException.class, () -> service.update(TENANT, ACTOR, id,
-                new CargoRequest(null, null, null, null, null, "anunciada")));
+        CargoRequest backwards = new CargoRequest(null, null, null, null, null, "anunciada");
+        assertThrows(IllegalStateException.class, () -> service.update(TENANT, ACTOR, id, backwards));
+        CargoRequest picked = new CargoRequest(null, null, null, null, null, "retirada");
         IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
-                () -> service.update(TENANT, ACTOR, id, new CargoRequest(null, null, null, null, null, "retirada")));
+                () -> service.update(TENANT, ACTOR, id, picked));
         assertTrue(refused.getMessage().contains("execution"));
     }
 
@@ -72,19 +75,19 @@ class CargoServiceTest {
                 new CargoRequest("Carga", null, null, null, null, null));
         UUID id = UUID.fromString(unit.id());
 
-        assertThrows(IllegalStateException.class,
-                () -> service.receive(TENANT, ACTOR, id, new ReceiveRequest("conforme", null)));
+        ReceiveRequest conforme = new ReceiveRequest("conforme", null);
+        assertThrows(IllegalStateException.class, () -> service.receive(TENANT, ACTOR, id, conforme));
 
         // the execution delivers it
         world.cargoStore.update(new CargoUnit(unit.id(), TENANT, unit.lineId(), unit.partialNo(), unit.description(),
                 unit.qty(), unit.qtyUnit(), unit.weightKg(), unit.volumeM3(), CargoUnit.DELIVERED,
                 null, null, null, unit.createdAt(), unit.createdBy(), null, ACTOR));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.receive(TENANT, ACTOR, id, new ReceiveRequest("diferencia", " ")));
+        ReceiveRequest noDetail = new ReceiveRequest("diferencia", " ");
+        assertThrows(IllegalArgumentException.class, () -> service.receive(TENANT, ACTOR, id, noDetail));
         CargoUnit received = service.receive(TENANT, ACTOR, id, new ReceiveRequest("diferencia", "faltó 1 pallet"));
         assertEquals(CargoUnit.RECEIVED, received.status());
         assertEquals("diferencia", received.receiptResult());
-        assertTrue(received.receivedAt() != null);
+        assertNotNull(received.receivedAt());
     }
 }

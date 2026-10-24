@@ -1,25 +1,74 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
-import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import ActivityTab from "./activity-tab";
+import { MUTED, Tile } from "@/features/symptoms/maintainer/ui/card";
+import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
+import ActivityTab, {
+  type ActivityFilters,
+  activityFilterDefs,
+  NO_ACTIVITY_FILTERS,
+} from "./activity-tab";
 import CommunicationsTabs, {
   COMMUNICATIONS_PANEL_ID,
   COMMUNICATIONS_TABS,
   tabId,
   type CommunicationsTab,
 } from "./communications-tabs";
-import RulesTab from "./rules-tab";
-import TemplatesTab from "./templates-tab";
+import { useConversationRules, useEventCatalog } from "./conversations-api";
+import RulesTab, {
+  COMMUNICATIONS_PAGE,
+  NO_RULE_FILTERS,
+  type RuleFilters,
+  ruleFilterDefs,
+  type RulesLayout,
+} from "./rules-tab";
+import TemplatesTab, {
+  templateFilterDefs,
+  type TemplatesView,
+} from "./templates-tab";
+
+type FilterDef = { key: string; label: string; options: string[] };
 
 function tabOf(value: string | null): CommunicationsTab {
   return (COMMUNICATIONS_TABS as readonly string[]).includes(value ?? "")
     ? (value as CommunicationsTab)
     : "rules";
+}
+
+function LayoutToggle({
+  layout,
+  d,
+  onLayout,
+}: Readonly<{
+  layout: RulesLayout;
+  d: I18nRecord;
+  onLayout: (layout: RulesLayout) => void;
+}>) {
+  return (
+    <div className="flex rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
+      {(["cards", "list"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={layout === v}
+          onClick={() => onLayout(v)}
+          className={`rounded-md px-2.5 py-1 text-xs ${
+            layout === v
+              ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
+              : MUTED
+          }`}
+        >
+          {v === "cards" ? tr("viewCards", d) : tr("viewList", d)}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** Settings › Comunicaciones: the rules that send messages on events, their templates and what they did. */
@@ -33,6 +82,14 @@ export default function CommunicationsPage({
   const params = useSearchParams();
   const tab = tabOf(params.get("tab"));
   const { canMaintain } = useControlTowerAccess();
+  const { data: rules } = useConversationRules();
+  const { data: catalog } = useEventCatalog();
+  const [ruleFilters, setRuleFilters] = useState<RuleFilters>(NO_RULE_FILTERS);
+  const [activityFilters, setActivityFilters] =
+    useState<ActivityFilters>(NO_ACTIVITY_FILTERS);
+  const [templateChannel, setTemplateChannel] = useState("");
+  const [templatesView, setTemplatesView] = useState<TemplatesView>("messages");
+  const [layout, setLayout] = useState<RulesLayout>("cards");
 
   const onTab = (next: CommunicationsTab) => {
     const q = new URLSearchParams(params.toString());
@@ -44,6 +101,33 @@ export default function CommunicationsPage({
     });
   };
 
+  const filterBar = (): {
+    defs: FilterDef[];
+    value: (key: string) => string;
+    set: (key: string, value: string) => void;
+  } => {
+    if (tab === "rules") {
+      return {
+        defs: ruleFilterDefs(rules ?? [], catalog, d),
+        value: (k) => ruleFilters[k as keyof RuleFilters],
+        set: (k, v) => setRuleFilters({ ...ruleFilters, [k]: v }),
+      };
+    }
+    if (tab === "activity") {
+      return {
+        defs: activityFilterDefs(rules ?? [], d),
+        value: (k) => activityFilters[k as keyof ActivityFilters],
+        set: (k, v) => setActivityFilters({ ...activityFilters, [k]: v }),
+      };
+    }
+    return {
+      defs: templatesView === "messages" ? templateFilterDefs(d) : [],
+      value: () => templateChannel,
+      set: (_k, v) => setTemplateChannel(v),
+    };
+  };
+  const bar = filterBar();
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
       <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
@@ -54,13 +138,56 @@ export default function CommunicationsPage({
           disableLinks
         />
       </div>
+
+      {bar.defs.length > 0 && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
+          {bar.defs.map((f) => (
+            <FilterChip
+              key={`${tab}-${f.key}`}
+              label={f.label}
+              value={bar.value(f.key)}
+              options={f.options}
+              allLabel={tr("filterAll", d)}
+              onChange={(v) => bar.set(f.key, v)}
+            />
+          ))}
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pt-4 pb-10">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {tr("title", d)}
-            </h1>
-            <p className={`text-sm ${MUTED}`}>{tr("description", d)}</p>
+        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Tile>
+              <svg
+                aria-hidden
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                viewBox="0 0 24 24"
+              >
+                <path d="M4 5h16v10H8l-4 4V5Z" />
+              </svg>
+            </Tile>
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {tr("title", d)}
+              </h1>
+              <p className={`text-sm ${MUTED}`}>{tr("description", d)}</p>
+            </div>
+            {tab === "rules" && (
+              <div className="ml-auto flex items-center gap-2">
+                <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
+                {canMaintain && (
+                  <Link
+                    href={`/${lang}${COMMUNICATIONS_PAGE}/rules/new`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+                  >
+                    ＋ {tr("newRule", d)}
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
           <CommunicationsTabs tab={tab} d={d} onTab={onTab} />
           <div
@@ -69,12 +196,26 @@ export default function CommunicationsPage({
             aria-labelledby={tabId(tab)}
           >
             {tab === "rules" && (
-              <RulesTab lang={lang} canWrite={canMaintain} d={d} />
+              <RulesTab
+                lang={lang}
+                filters={ruleFilters}
+                layout={layout}
+                d={d}
+              />
             )}
             {tab === "templates" && (
-              <TemplatesTab lang={lang} canWrite={canMaintain} d={d} />
+              <TemplatesTab
+                lang={lang}
+                canWrite={canMaintain}
+                view={templatesView}
+                channel={templateChannel}
+                d={d}
+                onView={setTemplatesView}
+              />
             )}
-            {tab === "activity" && <ActivityTab lang={lang} d={d} />}
+            {tab === "activity" && (
+              <ActivityTab lang={lang} filters={activityFilters} d={d} />
+            )}
           </div>
         </div>
       </div>

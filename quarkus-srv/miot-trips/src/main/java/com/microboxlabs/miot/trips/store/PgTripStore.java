@@ -9,6 +9,7 @@ import com.microboxlabs.miot.trips.domain.Trip;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -74,8 +75,12 @@ public class PgTripStore implements TripStore {
     }
 
     @Override
-    public List<Trip> list(String tenantCode, String status, UUID mandateId, String assetId,
-            OffsetDateTime from, OffsetDateTime to, int page, int size) {
+    public List<Trip> list(String tenantCode, TripFilter filter, int page, int size) {
+        String status = filter.status();
+        UUID mandateId = filter.mandateId();
+        String assetId = filter.assetId();
+        OffsetDateTime from = filter.from();
+        OffsetDateTime to = filter.to();
         StringBuilder sql = new StringBuilder("SELECT ").append(T_COLUMNS)
                 .append(" FROM miot_trips.trip t");
         if (mandateId != null) {
@@ -177,10 +182,8 @@ public class PgTripStore implements TripStore {
     }
 
     private static Optional<Trip> first(RowSet<Row> rows) {
-        for (Row r : rows) {
-            return Optional.of(trip(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(trip(it.next())) : Optional.empty();
     }
 
     private static Trip trip(Row r) {

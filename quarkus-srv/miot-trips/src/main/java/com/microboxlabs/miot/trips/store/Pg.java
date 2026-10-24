@@ -142,6 +142,9 @@ public final class Pg {
             case "23505" -> new IllegalStateException("conflict: another row already holds that state");
             case "23503" -> new IllegalArgumentException("a referenced entity does not exist");
             case "23514" -> new IllegalArgumentException("a value is outside its allowed set");
+            case "23502" -> new IllegalArgumentException("a required value is missing");
+            case "22001" -> new IllegalArgumentException("a value is longer than its field allows");
+            case "P0001" -> new IllegalStateException(e.getErrorMessage());
             case "40001", "40P01" -> new IllegalStateException("conflict: a concurrent change won, retry");
             default -> e;
         };

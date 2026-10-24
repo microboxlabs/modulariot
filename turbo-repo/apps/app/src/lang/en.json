@@ -3593,6 +3593,7 @@
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Pick the connection step {n} calls.",
+        "findingStepUnknownConnection": "Step {n}'s connection no longer exists or belongs to another channel.",
         "channel_webhook": "Webhook",
         "channelMenu_webhook": "HTTP calls to your own systems",
         "channelHint_webhook": "Rules send the event and the message as JSON to a URL of the organization. All its connections get the same contract.",

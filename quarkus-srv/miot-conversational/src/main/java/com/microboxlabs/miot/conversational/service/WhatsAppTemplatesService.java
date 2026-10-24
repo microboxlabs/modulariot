@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 public class WhatsAppTemplatesService {
 
     private static final String WABA_ID = "waba_id";
+    private static final String APPROVED = "APPROVED";
     private static final String TOKEN = "token";
     private static final Pattern TEMPLATE_ID = Pattern.compile("\\d{1,30}");
     private static final Pattern NAME = Pattern.compile("[a-z0-9_]{1,512}");
@@ -117,7 +118,8 @@ public class WhatsAppTemplatesService {
     /**
      * Submits the platform's templates, or only those in {@code names}, to the WABA of the organization's own
      * WhatsApp connection, where Meta reviews them again. A template already there with the same name and
-     * language is left as it is. Only templates with a text header, or none, can be copied.
+     * language is left as it is. Only the platform's approved templates are copied, and only those with a text
+     * header or none; a named template Meta has not approved is reported as failed.
      */
     public List<CopyResult> copyFromPlatform(String tenant, List<String> names) {
         if (PlatformScope.TENANT.equals(tenant)) {
@@ -135,6 +137,13 @@ public class WhatsAppTemplatesService {
                 continue;
             }
             found.add(t.name());
+            if (!APPROVED.equals(t.status())) {
+                if (wanted != null) {
+                    out.add(new CopyResult(t.name(), t.language(), CopyStatus.FAILED,
+                            "The platform's template is " + t.status() + ", not approved"));
+                }
+                continue;
+            }
             out.add(copy(tenant, t, existing.contains(t.name() + "/" + t.language())));
         }
         if (wanted != null) {

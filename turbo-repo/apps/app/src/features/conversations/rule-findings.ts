@@ -61,7 +61,7 @@ const TEMPLATE_CODES = new Set([
 
 const CHANNEL_CODES = new Set(["stepBadChannel", "stepWaitNeedsReplies"]);
 
-const CONNECTION_CODES = new Set(["stepNoConnection"]);
+const CONNECTION_CODES = new Set(["stepNoConnection", "stepUnknownConnection"]);
 
 /** The recipient a recipient finding is about, matched by its params. */
 function recipientIndex(f: RuleFinding, entries: AudienceEntry[]): number {

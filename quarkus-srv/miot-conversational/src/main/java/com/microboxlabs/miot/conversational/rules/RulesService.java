@@ -77,21 +77,42 @@ public class RulesService {
     private final Supplier<List<EventTypeCatalog>> catalogs;
     private final Supplier<List<ParticipantResolver>> resolvers;
     private final Clock clock;
+    private final ConnectionCheck connectionCheck;
+
+    /** Whether a connection id is one of the organization's connections of a channel. */
+    @FunctionalInterface
+    public interface ConnectionCheck {
+        boolean known(String tenantCode, String channel, String connectionId);
+    }
 
     @Inject
     RulesService(RuleStore rules, TemplateStore templates, Instance<EventTypeCatalog> catalogs,
-            Instance<ParticipantResolver> resolvers) {
+            Instance<ParticipantResolver> resolvers, ConnectionChannels channels) {
         this(rules, templates, () -> catalogs.stream().toList(), () -> resolvers.stream().toList(),
-                Clock.systemUTC());
+                Clock.systemUTC(), (tenant, channel, id) -> known(channels, tenant, channel, id));
     }
 
     public RulesService(RuleStore rules, TemplateStore templates, Supplier<List<EventTypeCatalog>> catalogs,
             Supplier<List<ParticipantResolver>> resolvers, Clock clock) {
+        this(rules, templates, catalogs, resolvers, clock, (tenant, channel, id) -> true);
+    }
+
+    public RulesService(RuleStore rules, TemplateStore templates, Supplier<List<EventTypeCatalog>> catalogs,
+            Supplier<List<ParticipantResolver>> resolvers, Clock clock, ConnectionCheck connectionCheck) {
         this.rules = rules;
         this.templates = templates;
         this.catalogs = catalogs;
         this.resolvers = resolvers;
         this.clock = clock;
+        this.connectionCheck = connectionCheck;
+    }
+
+    private static boolean known(ConnectionChannels channels, String tenant, String channel, String id) {
+        try {
+            return ConnectionChannel.of(channel).flatMap(c -> channels.connection(c, tenant, id)).isPresent();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     // Rules
@@ -196,7 +217,8 @@ public class RulesService {
         templates.list(ConvTemplate.PLATFORM_TENANT).forEach(t -> byKey.put(t.key(), t));
         Audiences audiences = new Audiences(resolvers.get());
         return RuleSpecValidator.validate(spec, new RuleSpecValidator.Context(catalog().contextKinds(), byKey,
-                kind -> audiences.roles(tenantCode, kind)));
+                kind -> audiences.roles(tenantCode, kind),
+                (channel, id) -> connectionCheck.known(tenantCode, channel, id)));
     }
 
     /** The draft, else the version in force; null for neither. */

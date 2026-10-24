@@ -322,7 +322,7 @@ class OrgConversationsResourceTest {
         JsonNode connection = body(created);
         assertEquals(set("id", "name", "host", "status", "lastTestedAt", "lastTestResult"), keys(connection));
         assertEquals("hooks.example.com", connection.path("host").asText());
-        assertEquals("DRAFT", connection.path("status").asText());
+        assertEquals("ACTIVE", connection.path("status").asText(), "the status the store gave it");
 
         JsonNode listed = body(call(member.connectionChannel(ORG, "webhook"))).path("connections");
         assertEquals(1, listed.size());

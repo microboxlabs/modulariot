@@ -61,6 +61,8 @@ public class PgResourceStore implements ResourceStore {
     private static final String CARRIER_ID = "carrier_id";
     private static final String LICENSE_PLATE = "license_plate";
 
+    private static final String BY_ID = " AND id = $2";
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -93,7 +95,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Carrier> findCarrier(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(CARRIER_COLS, "carrier") + " AND id = $2",
+                select(CARRIER_COLS, "carrier") + BY_ID,
                 Tuple.of(tenantCode, id)), PgResourceStore::carrier);
     }
 
@@ -148,7 +150,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Truck> findTruck(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRUCK_COLS, "truck") + " AND id = $2",
+                select(TRUCK_COLS, "truck") + BY_ID,
                 Tuple.of(tenantCode, id)), PgResourceStore::truck);
     }
 
@@ -204,7 +206,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Trailer> findTrailer(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRAILER_COLS, "trailer") + " AND id = $2",
+                select(TRAILER_COLS, "trailer") + BY_ID,
                 Tuple.of(tenantCode, id)), PgResourceStore::trailer);
     }
 
@@ -259,7 +261,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Driver> findDriver(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(DRIVER_COLS, "driver") + " AND id = $2",
+                select(DRIVER_COLS, "driver") + BY_ID,
                 Tuple.of(tenantCode, id)), PgResourceStore::driver);
     }
 

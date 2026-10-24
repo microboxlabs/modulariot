@@ -32,7 +32,7 @@ public class PgAccreditationStore implements AccreditationStore {
             INSERT INTO miot_fleet.resource_attribute
                 (tenant_code, resource_type, resource_id, attribute_type, attribute_key, attribute_value,
                  context, valid_from, valid_until, source_system, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb, $8, $9, $10, $11, $11)
             ON CONFLICT (tenant_code, resource_type, resource_id, attribute_type, attribute_key)
                 WHERE version_of IS NULL AND is_active
             DO UPDATE SET
@@ -81,20 +81,28 @@ public class PgAccreditationStore implements AccreditationStore {
     public List<AccreditedRow> accredited(String tenantCode, String attributeType, String attributeKey,
             List<String> values, OffsetDateTime at) {
         RowSet<Row> rows = query(pool.get(), """
-                SELECT ra.resource_type, ra.resource_id, ra.attribute_value, ra.valid_until,
-                       CASE ra.resource_type
-                         WHEN 'truck'   THEN (SELECT t.license_plate FROM miot_fleet.truck t   WHERE t.id = ra.resource_id AND t.tenant_code = ra.tenant_code)
-                         WHEN 'trailer' THEN (SELECT t.license_plate FROM miot_fleet.trailer t WHERE t.id = ra.resource_id AND t.tenant_code = ra.tenant_code)
-                         WHEN 'driver'  THEN (SELECT d.full_name     FROM miot_fleet.driver d  WHERE d.id = ra.resource_id AND d.tenant_code = ra.tenant_code)
-                         WHEN 'carrier' THEN (SELECT c.legal_name    FROM miot_fleet.carrier c WHERE c.id = ra.resource_id AND c.tenant_code = ra.tenant_code)
-                       END AS label
+                SELECT ra.resource_type, ra.resource_id, ra.attribute_value, ra.valid_until, res.label
                 FROM miot_fleet.resource_attribute ra
+                LEFT JOIN LATERAL (
+                    SELECT t.license_plate AS label, t.status FROM miot_fleet.truck t
+                     WHERE ra.resource_type = 'truck' AND t.id = ra.resource_id AND t.tenant_code = ra.tenant_code
+                    UNION ALL
+                    SELECT t.license_plate, t.status FROM miot_fleet.trailer t
+                     WHERE ra.resource_type = 'trailer' AND t.id = ra.resource_id AND t.tenant_code = ra.tenant_code
+                    UNION ALL
+                    SELECT d.full_name, d.status FROM miot_fleet.driver d
+                     WHERE ra.resource_type = 'driver' AND d.id = ra.resource_id AND d.tenant_code = ra.tenant_code
+                    UNION ALL
+                    SELECT c.legal_name, c.status FROM miot_fleet.carrier c
+                     WHERE ra.resource_type = 'carrier' AND c.id = ra.resource_id AND c.tenant_code = ra.tenant_code
+                ) res ON TRUE
                 WHERE ra.tenant_code = $1 AND ra.attribute_type = $2 AND ra.attribute_key = $3
                   AND ra.version_of IS NULL AND ra.is_active
                   AND ra.attribute_value = ANY($4)
                   AND (ra.valid_from IS NULL OR ra.valid_from <= $5)
                   AND (ra.valid_until IS NULL OR ra.valid_until >= $5)
-                ORDER BY ra.resource_type, label""",
+                  AND COALESCE(res.status, 'active') <> 'inactive'
+                ORDER BY ra.resource_type, res.label, ra.resource_id""",
                 Tuple.tuple().addString(tenantCode).addString(attributeType).addString(attributeKey)
                         .addArrayOfString(values.toArray(String[]::new)).addOffsetDateTime(at));
         return rows.stream().map(r -> new AccreditedRow(r.getString("resource_type"),

@@ -105,8 +105,9 @@ public class OrgActivitiesResource extends OrgResourceSupport {
     @Path("/activities/{activityId}/complete")
     @Operation(operationId = "completeActivity",
             summary = "Completes; an assignment in the body is created and tied to the activity")
-    @PermissionsAllowed(value = TripsAccessCatalog.STAGE_OPERATE, permission = OrgPermission.class,
-            params = "organizationId")
+    // it may create an assignment, so it needs that permission too
+    @PermissionsAllowed(value = {TripsAccessCatalog.STAGE_OPERATE, TripsAccessCatalog.ASSIGNMENT_WRITE},
+            inclusive = true, permission = OrgPermission.class, params = "organizationId")
     public Uni<Response> complete(@PathParam(ORG) String organizationId,
             @PathParam("activityId") String activityId, CompleteActivityRequest body) {
         String tenant = tenantCode(organizationId);

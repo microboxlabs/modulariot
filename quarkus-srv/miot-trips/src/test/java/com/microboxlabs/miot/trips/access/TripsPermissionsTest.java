@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
 
 class TripsPermissionsTest {
@@ -77,7 +78,7 @@ class TripsPermissionsTest {
             Map.entry("OrgActivitiesResource.list", VIEW),
             Map.entry("OrgActivitiesResource.add", STAGE_OPERATE),
             Map.entry("OrgActivitiesResource.update", STAGE_OPERATE),
-            Map.entry("OrgActivitiesResource.complete", STAGE_OPERATE),
+            Map.entry("OrgActivitiesResource.complete", ASSIGNMENT_WRITE + " + " + STAGE_OPERATE),
             Map.entry("OrgAssignmentsResource.list", VIEW),
             Map.entry("OrgAssignmentsResource.create", ASSIGNMENT_WRITE),
             Map.entry("OrgAssignmentsResource.end", ASSIGNMENT_WRITE),
@@ -104,8 +105,9 @@ class TripsPermissionsTest {
                 assertNotNull(allowed, name + " has no @PermissionsAllowed");
                 assertEquals(OrgPermission.class, allowed.permission(), name);
                 assertArrayEquals(new String[] {"organizationId"}, allowed.params(), name);
-                assertEquals(1, allowed.value().length, name);
-                actual.put(name, allowed.value()[0]);
+                assertTrue(allowed.value().length == 1 || allowed.inclusive(),
+                        name + " lists several permissions: it must require all of them");
+                actual.put(name, String.join(" + ", new TreeSet<>(List.of(allowed.value()))));
             }
         }
         assertEquals(EXPECTED, actual);

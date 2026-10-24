@@ -76,6 +76,8 @@ public class TripService {
             if (req.stages() != null) {
                 req.stages().forEach(s -> planned(tenantCode, actor, NO_TRIP, s));
             }
+            // checked in id order, the order stage start locks mandates in
+            mandateIds.stream().sorted().forEach(m -> mandates.requireOpen(tenantCode, m));
             Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
                     Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart(), null, null, null, null, actor, null, actor));
@@ -84,7 +86,6 @@ public class TripService {
             List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
             order.sort(Comparator.comparing(mandateIds::get));
             for (int i : order) {
-                mandates.requireOpen(tenantCode, mandateIds.get(i));
                 trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
             }
             if (req.stages() != null) {
@@ -177,13 +178,13 @@ public class TripService {
         return tx.inTransaction(() -> {
             get(tenantCode, tripId);
             UUID mid = parse(Check.required(mandateId, MANDATE_ID, 64), MANDATE_ID);
+            String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
             List<MandateRef> current = trips.mandatesOf(tenantCode, tripId);
             // an existing link stays a no-op, even once its mandate has closed
             if (current.stream().anyMatch(m -> m.mandateId().equals(mid.toString()))) {
                 return false;
             }
             int s = seq == null ? current.size() + 1 : seq;
-            String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
             mandates.requireOpen(tenantCode, mid);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
             if (linked) {

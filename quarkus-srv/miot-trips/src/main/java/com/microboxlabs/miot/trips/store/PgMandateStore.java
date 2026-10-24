@@ -27,6 +27,7 @@ import java.util.function.Supplier;
 public class PgMandateStore implements MandateStore {
 
     private static final String SELECT = "SELECT ";
+    private static final String STATUS = "status";
     private static final String COLUMNS = """
             id, tenant_code, external_code, order_type, order_ref, status, origin_id, destination_id,
             sla_minutes, closed_at, cancel_reason, created_at, created_by, updated_at, updated_by""";
@@ -146,7 +147,7 @@ public class PgMandateStore implements MandateStore {
                   AND tm.version_of IS NULL AND tm.is_active ORDER BY tm.seq""",
                 Tuple.of(tenantCode, mandateId))
                 .stream()
-                .map(r -> new TripRef(text(r.getUUID("trip_id")), r.getString("status"),
+                .map(r -> new TripRef(text(r.getUUID("trip_id")), r.getString(STATUS),
                         r.getInteger("seq"), r.getString("role")))
                 .toList();
     }
@@ -156,7 +157,7 @@ public class PgMandateStore implements MandateStore {
         RowIterator<Row> it = query(pool.get(),
                 "SELECT status FROM miot_trips.mandate WHERE tenant_code = $1 AND id = $2 FOR SHARE",
                 Tuple.of(tenantCode, mandateId)).iterator();
-        return it.hasNext() ? Optional.of(it.next().getString("status")) : Optional.empty();
+        return it.hasNext() ? Optional.of(it.next().getString(STATUS)) : Optional.empty();
     }
 
     @Override
@@ -178,7 +179,7 @@ public class PgMandateStore implements MandateStore {
     private static Mandate mandate(Row r) {
         return new Mandate(
                 text(r.getUUID("id")), r.getString("tenant_code"), r.getString("external_code"),
-                r.getString("order_type"), r.getString("order_ref"), r.getString("status"),
+                r.getString("order_type"), r.getString("order_ref"), r.getString(STATUS),
                 text(r.getUUID("origin_id")), text(r.getUUID("destination_id")),
                 r.getInteger("sla_minutes"), time(r, "closed_at"), r.getString("cancel_reason"),
                 time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));

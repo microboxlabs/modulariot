@@ -18,6 +18,7 @@ export type CredentialTypeId =
   | "API_KEY"
   | "BEARER_TOKEN"
   | "RESEND"
+  | "WHATSAPP"
   | "BASIC_AUTH";
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
@@ -262,6 +263,15 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
       light: "/credential-logos/resend-light.svg",
       dark: "/credential-logos/resend-dark.svg",
     },
+  },
+  {
+    // A bearer token tagged with WHATSAPP_PROVIDER: a Meta app's access token for a WhatsApp channel.
+    id: "WHATSAPP",
+    nameKey: "types.whatsapp.name",
+    descriptionKey: "types.whatsapp.description",
+    available: true,
+    supportsTest: false,
+    logo: { default: "/credential-logos/whatsapp.svg" },
   },
   {
     id: "BASIC_AUTH",
@@ -514,7 +524,7 @@ export const BearerTokenCredentialEditSchema =
 export type BearerTokenFormData = z.infer<
   typeof BearerTokenCredentialSchema
 > & {
-  /** {@link RESEND_PROVIDER} on a Resend API key; absent on a plain bearer token. */
+  /** {@link RESEND_PROVIDER} or {@link WHATSAPP_PROVIDER}; absent on a plain bearer token. */
   provider?: string;
 };
 
@@ -531,6 +541,18 @@ export const ResendCredentialSchema =
 
 export const ResendCredentialEditSchema =
   BearerTokenCredentialEditSchema.extend(providerField);
+
+/** Marks a bearer credential as a WhatsApp (Meta) access token, like {@link RESEND_PROVIDER}. */
+export const WHATSAPP_PROVIDER = "whatsapp";
+
+const whatsAppProviderField = { provider: z.literal(WHATSAPP_PROVIDER) };
+
+export const WhatsAppCredentialSchema = BearerTokenCredentialSchema.extend(
+  whatsAppProviderField
+);
+
+export const WhatsAppCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(whatsAppProviderField);
 
 /**
  * Any credential form's data. The list/create/update paths are type-agnostic —

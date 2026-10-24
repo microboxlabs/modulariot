@@ -2626,6 +2626,10 @@
             "name": "Resend",
             "description": "A Resend API key, for sending email such as team invitations."
           },
+          "whatsapp": {
+            "name": "WhatsApp",
+            "description": "A Meta app's access token, for the WhatsApp channel."
+          },
           "basic": {
             "name": "Basic auth",
             "description": "Username and password sent as HTTP basic authentication."
@@ -2743,7 +2747,11 @@
           "resendAddTitle": "New Resend key",
           "resendEditTitle": "Edit Resend key",
           "resendSubtitle": "The key the email channel sends with. A send-only key is enough.",
-          "resendTokenHelp": "Starts with re_. Stored encrypted and never returned."
+          "resendTokenHelp": "Starts with re_. Stored encrypted and never returned.",
+          "whatsappAddTitle": "New WhatsApp token",
+          "whatsappEditTitle": "Edit WhatsApp token",
+          "whatsappSubtitle": "The access token the WhatsApp channel calls the Meta API with.",
+          "whatsappTokenHelp": "A Meta system user token. Stored encrypted and never returned."
         },
         "delete": {
           "title": "Delete this credential?",

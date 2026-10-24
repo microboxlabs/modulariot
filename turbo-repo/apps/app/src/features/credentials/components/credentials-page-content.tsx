@@ -31,6 +31,7 @@ import { AzureEntraCredentialModal } from "./azure-entra-credential-modal";
 import {
   BearerTokenCredentialModal,
   ResendCredentialModal,
+  WhatsAppCredentialModal,
 } from "./bearer-token-credential-modal";
 import { CredentialDeleteDialog } from "./credential-delete-dialog";
 import { CredentialTypePickerModal } from "./credential-type-picker-modal";
@@ -45,6 +46,7 @@ const AUTH0 = "AUTH0_M2M" as const;
 const GOOGLE = "GOOGLE_SERVICE_ACCOUNT" as const;
 const BEARER = "BEARER_TOKEN" as const;
 const RESEND = "RESEND" as const;
+const WHATSAPP = "WHATSAPP" as const;
 
 interface CredentialsPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -305,6 +307,7 @@ export default function CredentialsPageContent({
       />
       <BearerTokenCredentialModal show={shown(BEARER)} {...formProps} />
       <ResendCredentialModal show={shown(RESEND)} {...formProps} />
+      <WhatsAppCredentialModal show={shown(WHATSAPP)} {...formProps} />
 
       <CredentialDeleteDialog
         credential={deleting}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WHATSAPP_PROVIDER as WHATSAPP_CREDENTIAL } from "@/features/credentials/credential.types";
 import type { ChannelCreate, ChannelUpdate } from "../channels/channel.types";
 
 export const WHATSAPP_PROVIDER = "WHATSAPP";
@@ -115,6 +116,7 @@ export function whatsAppCreate(form: WhatsAppFormData): ChannelCreate {
     baseUrl: form.baseUrl,
     token: form.token,
     credentialName: `WhatsApp token · ${form.phoneNumberId}`,
+    credentialPublicConfig: { provider: WHATSAPP_CREDENTIAL },
     metadata: whatsAppMetadata(form),
   };
 }

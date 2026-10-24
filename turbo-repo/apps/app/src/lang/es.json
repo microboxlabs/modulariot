@@ -2626,6 +2626,10 @@
             "name": "Resend",
             "description": "Una clave API de Resend, para enviar correos como las invitaciones al equipo."
           },
+          "whatsapp": {
+            "name": "WhatsApp",
+            "description": "El token de acceso de una app de Meta, para el canal de WhatsApp."
+          },
           "basic": {
             "name": "Autenticación básica",
             "description": "Usuario y contraseña enviados como HTTP basic."
@@ -2743,7 +2747,11 @@
           "resendAddTitle": "Nueva clave de Resend",
           "resendEditTitle": "Editar clave de Resend",
           "resendSubtitle": "La clave con la que el canal de correo envía. Basta una clave de solo envío.",
-          "resendTokenHelp": "Empieza con re_. Se guarda cifrada y nunca se devuelve."
+          "resendTokenHelp": "Empieza con re_. Se guarda cifrada y nunca se devuelve.",
+          "whatsappAddTitle": "Nuevo token de WhatsApp",
+          "whatsappEditTitle": "Editar token de WhatsApp",
+          "whatsappSubtitle": "El token de acceso con el que el canal de WhatsApp llama a la API de Meta.",
+          "whatsappTokenHelp": "Un token de usuario del sistema de Meta. Se guarda cifrado y nunca se devuelve."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",

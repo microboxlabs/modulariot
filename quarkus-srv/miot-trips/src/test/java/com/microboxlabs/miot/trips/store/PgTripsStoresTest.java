@@ -264,7 +264,7 @@ class PgTripsStoresTest {
     void aFeedKeepsItsProfileAndTheLastStateOfEachService() {
         String tenant = tenant();
         PgFeedStore feeds = new PgFeedStore(() -> pool);
-        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "exacta-servicios", "Servicios",
+        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios",
                 List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
                         new FeedProfile.StagePlan("transito", "SCHEDULED"),
                         new FeedProfile.StagePlan("cierre", "FINISHED")),
@@ -274,24 +274,24 @@ class PgTripsStoresTest {
         assertEquals(List.of("preparacion", "transito", "cierre"),
                 saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
-        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "exacta-servicios", "Servicios v2",
+        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
                 saved.stages(), "transito", "cierre", 90, saved.requiredResources(), true, null, ACTOR, null, ACTOR));
         assertEquals(90, renamed.closeToleranceMinutes());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
 
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
                 null, null, true, null, null, null));
         OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
         String trip = UUID.randomUUID().toString();
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
                 null, trip, true, "alta", "{\"hechos\":[\"crear viaje\"]}", at));
-        FeedService s = feeds.service(tenant, "exacta-servicios", "S-001").orElseThrow();
+        FeedService s = feeds.service(tenant, "servicios", "S-001").orElseThrow();
         assertEquals("h2", s.desiredHash());
         assertEquals(trip, s.tripId());
         assertTrue(s.desired().contains("\"b\""));
         assertTrue(feeds.openServices(1000).stream().anyMatch(o -> o.externalCode().equals("S-001")
                 && o.tenantCode().equals(tenant)));
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", s.desired(), "h2", null, trip,
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", s.desired(), "h2", null, trip,
                 false, "cierre", null, at));
         assertTrue(feeds.openServices(1000).stream().noneMatch(o -> o.tenantCode().equals(tenant)),
                 "a closed service leaves the clock's list");

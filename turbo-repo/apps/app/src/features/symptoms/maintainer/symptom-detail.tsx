@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Button,
   Label,
@@ -497,9 +498,14 @@ export default function SymptomDetail({
           onSaved={(saved) => {
             setSavingTemplate(false);
             // The template lives in the platform scope: switch to it and open the template there.
-            void switchOrg(
+            // location.assign does not add the base path the way router.push does.
+            switchOrg(
               PLATFORM_SCOPE_SLUG,
-              `/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
+              `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
+            ).catch((error: unknown) =>
+              toast.error(
+                error instanceof Error ? error.message : String(error)
+              )
             );
           }}
         />

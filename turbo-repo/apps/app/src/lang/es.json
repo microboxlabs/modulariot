@@ -1892,6 +1892,12 @@
           "menuHint": "Síntomas listos que copian las organizaciones",
           "description": "Cada plantilla es un síntoma de la plataforma, con borrador, versiones y publicación. Las organizaciones ven la última versión publicada en «Nuevo síntoma desde plantilla».",
           "open": "Abrir plantillas"
+        },
+        "messageTemplates": {
+          "title": "Plantillas de mensajes",
+          "menuHint": "Los mensajes que envían las reglas de comunicación",
+          "description": "Las plantillas de WhatsApp y correo que usan las reglas de comunicación de todas las organizaciones. Cada cambio sube su versión.",
+          "open": "Abrir plantillas"
         }
       },
       "organizations": {
@@ -2419,7 +2425,8 @@
         "symptomCatalog": "Síntomas",
         "communications": "Comunicaciones",
         "gps": "GPS",
-        "symptomTemplates": "Plantillas de síntomas"
+        "symptomTemplates": "Plantillas de síntomas",
+        "messageTemplates": "Plantillas de mensajes"
       },
       "symptoms": {
         "config": {
@@ -3539,6 +3546,10 @@
         "tabRules": "Reglas",
         "tabTemplates": "Plantillas",
         "tabActivity": "Actividad",
+        "templatesTitle": "Plantillas de mensajes",
+        "templatesDescription": "Lo que envían las reglas de comunicación de todas las organizaciones, por WhatsApp y por correo.",
+        "backToTemplates": "Volver a las plantillas",
+        "colTemplate": "Plantilla",
         "viewCards": "▦ Tarjetas",
         "viewList": "☰ Lista",
         "filterAll": "Todos",

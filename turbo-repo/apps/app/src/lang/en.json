@@ -1892,6 +1892,12 @@
           "menuHint": "Ready symptoms that organizations copy",
           "description": "Each template is a platform symptom, with a draft, versions and publishing. Organizations see the latest published version in \"New symptom from template\".",
           "open": "Open templates"
+        },
+        "messageTemplates": {
+          "title": "Message templates",
+          "menuHint": "The messages communication rules send",
+          "description": "The WhatsApp and email templates every organization's communication rules use. Each change raises its version.",
+          "open": "Open templates"
         }
       },
       "organizations": {
@@ -2419,7 +2425,8 @@
         "symptomCatalog": "Symptoms",
         "communications": "Communications",
         "gps": "GPS",
-        "symptomTemplates": "Symptom templates"
+        "symptomTemplates": "Symptom templates",
+        "messageTemplates": "Message templates"
       },
       "symptoms": {
         "config": {
@@ -3539,6 +3546,10 @@
         "tabRules": "Rules",
         "tabTemplates": "Templates",
         "tabActivity": "Activity",
+        "templatesTitle": "Message templates",
+        "templatesDescription": "What every organization's communication rules send, by WhatsApp and by email.",
+        "backToTemplates": "Back to templates",
+        "colTemplate": "Template",
         "viewCards": "▦ Cards",
         "viewList": "☰ List",
         "filterAll": "All",

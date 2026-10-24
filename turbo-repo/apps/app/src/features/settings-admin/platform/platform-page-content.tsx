@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Spinner } from "flowbite-react";
 import {
   HiOutlineChartBar,
+  HiOutlineChatAlt2,
   HiOutlineChip,
   HiOutlineCreditCard,
   HiOutlineKey,
@@ -27,6 +28,7 @@ import PlatformMailSection from "./platform-mail-section";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
+import MessageTemplatesSection from "./message-templates-section";
 import SymptomTemplatesSection from "./symptom-templates-section";
 import PlatformSectionList, {
   type PlatformSectionEntry,
@@ -70,6 +72,8 @@ export default function PlatformPageContent({
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const symptomTemplatesDict =
     (platformDict?.symptomTemplates as I18nRecord) ?? {};
+  const messageTemplatesDict =
+    (platformDict?.messageTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
@@ -127,6 +131,12 @@ export default function PlatformPageContent({
       icon: HiOutlineLightningBolt,
     },
     {
+      id: "messageTemplates",
+      label: tr("title", messageTemplatesDict),
+      description: tr("menuHint", messageTemplatesDict),
+      icon: HiOutlineChatAlt2,
+    },
+    {
       id: "plan",
       label: tr("title", planDict),
       description: tr("menuHint", planDict),
@@ -152,6 +162,9 @@ export default function PlatformPageContent({
     ),
     symptomTemplates: (
       <SymptomTemplatesSection dict={symptomTemplatesDict} lang={lang} />
+    ),
+    messageTemplates: (
+      <MessageTemplatesSection dict={messageTemplatesDict} lang={lang} />
     ),
     plan: <HarnessPlanSection dict={planDict} />,
     usage: <ModelUsageCard dict={usageDict} lang={lang} />,

@@ -279,19 +279,51 @@ export default function MonitorEditor({
               </Section>
             </div>
 
-            <Section title={tr("rules", d)} hint={tr("rulesHint", d)}>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                    {tr("rules", d)}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {tr("rulesHint", d)}
+                  </p>
+                </div>
+                {canEdit && (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      sizing="sm"
+                      value={newTrigger}
+                      aria-label={tr("trigger", d)}
+                      onChange={(e) => setNewTrigger(e.target.value as Trigger)}
+                    >
+                      {TRIGGERS.map((t) => (
+                        <option key={t} value={t}>
+                          {tr(`triggers.${t}`, d)}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button color="light" size="sm" onClick={addRule}>
+                      <HiPlus className="mr-1 h-4 w-4" />
+                      {tr("addRule", d)}
+                    </Button>
+                  </div>
+                )}
+              </div>
               {body.rules.length === 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                   {tr("rulesEmpty", d)}
                 </p>
               )}
               {body.rules.map((r, i) => (
                 <RuleCard
                   key={ids[i]}
+                  number={i + 1}
                   rule={r}
                   params={body.params}
                   readOnly={readOnly}
                   d={d}
+                  formDict={dict?.symptomCatalog as I18nRecord}
                   findings={
                     dirty ? [] : findings.filter((f) => f.ruleKey === r.key)
                   }
@@ -299,27 +331,7 @@ export default function MonitorEditor({
                   onRemove={() => removeRule(i)}
                 />
               ))}
-              {canEdit && (
-                <div className="flex items-center gap-2">
-                  <Select
-                    sizing="sm"
-                    value={newTrigger}
-                    aria-label={tr("trigger", d)}
-                    onChange={(e) => setNewTrigger(e.target.value as Trigger)}
-                  >
-                    {TRIGGERS.map((t) => (
-                      <option key={t} value={t}>
-                        {tr(`triggers.${t}`, d)}
-                      </option>
-                    ))}
-                  </Select>
-                  <Button color="light" size="sm" onClick={addRule}>
-                    <HiPlus className="mr-1 h-4 w-4" />
-                    {tr("addRule", d)}
-                  </Button>
-                </div>
-              )}
-            </Section>
+            </div>
 
             <Section title={tr("versions", d)}>
               <ul className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-300">

@@ -33,27 +33,14 @@ export function editorFields(schema: SchemaField[] | undefined): CelField[] {
   return [...out.values()];
 }
 
-/** A CEL expression of a monitor, checked by the server while it is typed. */
-export default function ExpressionField({
-  label,
-  value,
-  onChange,
-  on,
-  expect,
-  params,
-  readOnly,
-  placeholder,
-}: Readonly<{
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  on: Trigger | "selector";
-  expect: "condition" | "time";
-  params: Record<string, ParamValue>;
-  readOnly?: boolean;
-  placeholder?: string;
-}>) {
-  const { data: schema } = useMonitorSchema(on, params);
+/** The server's check of an expression while it is typed: its problems and the type it returns. */
+export function useExpressionCheck(
+  value: string,
+  on: Trigger | "selector",
+  expect: "condition" | "time",
+  params: Record<string, ParamValue>,
+  readOnly = false
+) {
   const [problems, setProblems] = useState<CelProblem[]>([]);
   const [resultType, setResultType] = useState<string | null>(null);
   // Callers build params on every render; the check reruns only when they change.
@@ -94,6 +81,51 @@ export default function ExpressionField({
     };
   }, [value, on, expect, paramsKey, readOnly]);
 
+  return { problems, resultType };
+}
+
+export function ProblemList({
+  problems,
+}: Readonly<{ problems: CelProblem[] }>) {
+  return problems.map((p) => (
+    <p
+      key={`${p.position}-${p.message}`}
+      className="text-xs text-red-600 dark:text-red-400"
+    >
+      {p.message}
+    </p>
+  ));
+}
+
+/** A CEL expression of a monitor, checked by the server while it is typed. */
+export default function ExpressionField({
+  label,
+  value,
+  onChange,
+  on,
+  expect,
+  params,
+  readOnly,
+  placeholder,
+}: Readonly<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  on: Trigger | "selector";
+  expect: "condition" | "time";
+  params: Record<string, ParamValue>;
+  readOnly?: boolean;
+  placeholder?: string;
+}>) {
+  const { data: schema } = useMonitorSchema(on, params);
+  const { problems, resultType } = useExpressionCheck(
+    value,
+    on,
+    expect,
+    params,
+    readOnly
+  );
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between">
@@ -116,14 +148,7 @@ export default function ExpressionField({
         placeholder={placeholder}
         ariaLabel={label}
       />
-      {problems.map((p) => (
-        <p
-          key={`${p.position}-${p.message}`}
-          className="text-xs text-red-600 dark:text-red-400"
-        >
-          {p.message}
-        </p>
-      ))}
+      <ProblemList problems={problems} />
     </div>
   );
 }

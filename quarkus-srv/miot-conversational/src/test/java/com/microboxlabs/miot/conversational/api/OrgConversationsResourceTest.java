@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateRuleRequest;
+import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateWebhookConnectionRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.DraftRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.PublishRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.SimulateRequest;
@@ -51,7 +52,7 @@ class OrgConversationsResourceTest {
         tenant.setTenantCode(RulesFixtureAccess.TENANT);
         return new OrgConversationsResource(tenant, org, o -> Uni.createFrom().item(access),
                 () -> "owner@example.com", new OrgConversationsResource.Services(fixture.service(),
-                        fixture.simulator(), fixture.templates(), fixture.runs()));
+                        fixture.simulator(), fixture.templates(), fixture.runs(), fixture.webhook()));
     }
 
     private final OrgConversationsResource owner = resource(access(BaseRole.OWNER, Set.of()));
@@ -296,6 +297,36 @@ class OrgConversationsResourceTest {
         assertEquals(404, call(member.getRule(ORG, "missing")).getStatus());
         assertTrue(OrgConversationsResource.canWrite(access(BaseRole.ADMIN, Set.of())));
         assertFalse(OrgConversationsResource.canWrite(Access.none(1L, ORG)));
+    }
+
+    @Test
+    void theWebhookChannelListsItsContractAndConnections() {
+        JsonNode empty = body(call(member.webhookChannel(ORG)));
+        assertEquals(set("operation", "requestSchema", "connections"), keys(empty));
+        assertEquals("deliver", empty.path("operation").asText());
+        assertEquals(set("event", "at", "context", "rule", "run", "title", "text", "data"),
+                keys(empty.path("requestSchema").path("properties")));
+        assertEquals(0, empty.path("connections").size());
+
+        CreateWebhookConnectionRequest request =
+                new CreateWebhookConnectionRequest("Torre externa", "https://hooks.example.com/miot", null);
+        assertEquals(403, call(member.createWebhookConnection(ORG, request)).getStatus());
+        Response created = call(maintainer.createWebhookConnection(ORG, request));
+        assertEquals(201, created.getStatus());
+        JsonNode connection = body(created);
+        assertEquals(set("id", "name", "baseUrl", "status", "lastTestedAt", "lastTestResult"), keys(connection));
+        assertEquals("https://hooks.example.com/miot", connection.path("baseUrl").asText());
+        assertEquals("DRAFT", connection.path("status").asText());
+
+        JsonNode listed = body(call(member.webhookChannel(ORG))).path("connections");
+        assertEquals(1, listed.size());
+        assertEquals(connection.path("id").asText(), listed.get(0).path("id").asText());
+
+        assertEquals(400, call(owner.createWebhookConnection(ORG,
+                new CreateWebhookConnectionRequest("x", "ftp://hooks.example.com", null))).getStatus());
+        assertEquals(400, call(owner.createWebhookConnection(ORG,
+                new CreateWebhookConnectionRequest(" ", "https://hooks.example.com", null))).getStatus());
+        assertEquals(400, call(owner.createWebhookConnection(ORG, null)).getStatus());
     }
 
     @Test

@@ -150,6 +150,8 @@ final class RulesFixture {
         }
     }, store.conversations.conversationRepository, store.conversations.messageRepository);
 
+    final InMemoryIntegrations integrations = new InMemoryIntegrations();
+
     final RulesEngine engine = new RulesEngine(true,
             new RulesEngine.Stores(store.ruleStore, store.templateStore, store.runStore), () -> List.of(participants),
             new RulesEngine.Senders(whatsapp, email), JSON, clock);

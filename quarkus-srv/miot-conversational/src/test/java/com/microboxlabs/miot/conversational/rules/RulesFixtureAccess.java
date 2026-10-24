@@ -29,6 +29,10 @@ public final class RulesFixtureAccess {
         return fixture.runs;
     }
 
+    public WebhookChannel webhook() {
+        return fixture.integrations.webhook;
+    }
+
     public static JsonNode json(String text) {
         return RulesFixture.json(text);
     }

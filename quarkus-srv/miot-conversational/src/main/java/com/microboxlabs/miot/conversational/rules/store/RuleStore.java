@@ -33,6 +33,9 @@ public interface RuleStore {
 
     Optional<RuleVersion> version(String ruleId, String version);
 
+    /** The draft and the version in force of each of these rules, in one read. */
+    List<RuleVersion> liveVersions(List<String> ruleIds);
+
     /** Creates or replaces the rule's draft. */
     RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at);
 

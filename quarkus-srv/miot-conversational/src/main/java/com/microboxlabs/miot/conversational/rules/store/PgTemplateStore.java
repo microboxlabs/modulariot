@@ -42,6 +42,7 @@ public class PgTemplateStore implements TemplateStore {
                 name = EXCLUDED.name, base_text = EXCLUDED.base_text, whatsapp = EXCLUDED.whatsapp,
                 email = EXCLUDED.email, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by,
                 version = EXCLUDED.version
+            WHERE miot_conversational.conv_template.version IS NOT DISTINCT FROM $11::varchar
             RETURNING\s""" + COLUMNS;
 
     private final Supplier<Pool> pool;
@@ -66,12 +67,12 @@ public class PgTemplateStore implements TemplateStore {
     }
 
     @Override
-    public ConvTemplate upsert(ConvTemplate t) {
+    public Optional<ConvTemplate> upsert(ConvTemplate t, String expectedVersion) {
         Tuple params = Tuple.tuple().addUUID(uuid(t.id())).addString(t.tenantCode()).addString(t.key())
                 .addString(t.name()).addString(t.baseText()).addString(Pg.write(t.whatsapp()))
                 .addString(Pg.write(t.email())).addOffsetDateTime(time(t.updatedAt())).addString(t.updatedBy())
-                .addString(t.version());
-        return templates(query(pool.get(), UPSERT, params)).get(0);
+                .addString(t.version()).addString(expectedVersion);
+        return templates(query(pool.get(), UPSERT, params)).stream().findFirst();
     }
 
     private static List<ConvTemplate> templates(RowSet<Row> rows) {

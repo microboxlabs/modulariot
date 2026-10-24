@@ -289,7 +289,11 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     descriptionKey: "types.whatsapp.description",
     available: true,
     supportsTest: false,
-    logo: { default: "/credential-logos/whatsapp.svg" },
+    // Monochrome mark, so it needs per-theme ink.
+    logo: {
+      light: "/credential-logos/whatsapp-light.svg",
+      dark: "/credential-logos/whatsapp-dark.svg",
+    },
   },
   {
     id: "BASIC_AUTH",

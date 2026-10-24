@@ -1886,18 +1886,6 @@
               "ACCREDITATION": "Lo creó la integración de acreditación y vence con la acreditación."
             }
           }
-        },
-        "symptomTemplates": {
-          "title": "Plantillas de síntomas",
-          "menuHint": "Síntomas listos que copian las organizaciones",
-          "description": "Cada plantilla es un síntoma de la plataforma, con borrador, versiones y publicación. Las organizaciones ven la última versión publicada en «Nuevo síntoma desde plantilla».",
-          "open": "Abrir plantillas"
-        },
-        "messageTemplates": {
-          "title": "Plantillas de mensajes",
-          "menuHint": "Los mensajes que envían las reglas de comunicación",
-          "description": "Las plantillas de WhatsApp y correo que usan las reglas de comunicación de todas las organizaciones. Cada cambio sube su versión.",
-          "open": "Abrir plantillas"
         }
       },
       "organizations": {
@@ -3930,7 +3918,9 @@
         "findingStepNegativeMinutes": "Los minutos del paso {n} no pueden ser negativos.",
         "findingStepBadOnReply": "Al recibir respuesta, el paso {n} termina o sigue con el siguiente.",
         "findingStepBadRecipients": "Los destinatarios del paso {n} son los de la regla o una lista.",
-        "findingStepNoRecipients": "El paso {n} no tiene destinatarios."
+        "findingStepNoRecipients": "El paso {n} no tiene destinatarios.",
+        "menuTemplates": "Lo que envían las reglas de todas las organizaciones",
+        "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma"
       },
       "gps": {
         "title": "Integración GPS",

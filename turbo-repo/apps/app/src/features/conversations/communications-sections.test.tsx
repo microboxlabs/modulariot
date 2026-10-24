@@ -82,11 +82,17 @@ describe("ChannelPanel", () => {
 });
 
 describe("sections by scope", () => {
-  it("offers only the platform's accounts in the platform scope", () => {
-    expect(sectionsFor(true)).toEqual(["channel:whatsapp", "channel:email"]);
-    expect(sectionOf(new URLSearchParams(), true)).toBe("channel:whatsapp");
+  it("offers the message templates and the platform's accounts in the platform scope", () => {
+    expect(sectionsFor(true)).toEqual([
+      "templates",
+      "meta",
+      "channel:whatsapp",
+      "channel:email",
+    ]);
+    expect(sectionOf(new URLSearchParams(), true)).toBe("templates");
     expect(sectionOf(new URLSearchParams("section=rules"), true)).toBe(
-      "channel:whatsapp"
+      "templates"
     );
+    expect(sectionOf(new URLSearchParams("section=templates"))).toBe("rules");
   });
 });

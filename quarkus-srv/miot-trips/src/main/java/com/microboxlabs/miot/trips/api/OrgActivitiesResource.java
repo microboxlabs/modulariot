@@ -45,6 +45,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgActivitiesResource extends OrgResourceSupport {
 
     private static final String ORG = "organizationId";
+    private static final String STAGE_ID = "stageId";
 
     private final StageService stages;
     private final AssignmentService assignments;
@@ -66,10 +67,10 @@ public class OrgActivitiesResource extends OrgResourceSupport {
     @Path("/stages/{stageId}/activities")
     @Operation(operationId = "listActivities", summary = "The stage's checklist in sequence")
     @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = "organizationId")
-    public Uni<Response> list(@PathParam(ORG) String organizationId, @PathParam("stageId") String stageId) {
+    public Uni<Response> list(@PathParam(ORG) String organizationId, @PathParam(STAGE_ID) String stageId) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(
-                stages.listActivities(tenant, uuid(stageId, "stageId")).stream().map(ActivityView::of).toList())
+                stages.listActivities(tenant, uuid(stageId, STAGE_ID)).stream().map(ActivityView::of).toList())
                 .build());
     }
 
@@ -78,12 +79,12 @@ public class OrgActivitiesResource extends OrgResourceSupport {
     @Operation(operationId = "addActivity", summary = "Adds an activity to the stage")
     @PermissionsAllowed(value = TripsAccessCatalog.STAGE_OPERATE, permission = OrgPermission.class,
             params = "organizationId")
-    public Uni<Response> add(@PathParam(ORG) String organizationId, @PathParam("stageId") String stageId,
+    public Uni<Response> add(@PathParam(ORG) String organizationId, @PathParam(STAGE_ID) String stageId,
             ActivityRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> Response.status(Response.Status.CREATED)
-                .entity(ActivityView.of(stages.addActivity(tenant, actor, uuid(stageId, "stageId"), body)))
+                .entity(ActivityView.of(stages.addActivity(tenant, actor, uuid(stageId, STAGE_ID), body)))
                 .build());
     }
 
@@ -121,7 +122,7 @@ public class OrgActivitiesResource extends OrgResourceSupport {
                 if (StageActivity.DONE.equals(activity.status())) {
                     throw new IllegalStateException("activity already done");
                 }
-                Stage stage = stages.get(tenant, uuid(activity.stageId(), "stageId"));
+                Stage stage = stages.get(tenant, uuid(activity.stageId(), STAGE_ID));
                 if (!Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
                     throw new IllegalArgumentException("only a trip stage can produce an assignment");
                 }

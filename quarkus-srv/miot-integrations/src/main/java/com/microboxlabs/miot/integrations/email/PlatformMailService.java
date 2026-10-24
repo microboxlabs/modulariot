@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.email;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -25,7 +26,7 @@ public class PlatformMailService {
      * Starts with "_", which organizations may not use as their tenant client id
      * ({@code PlatformOrganizationsResource}), so no organization can own it.
      */
-    public static final String PLATFORM_TENANT = "_platform";
+    public static final String PLATFORM_TENANT = PlatformScope.TENANT;
     static final String NAME = "Platform email";
 
     /** {@code configured} is false and the rest null when no sender is set. */

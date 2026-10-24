@@ -43,6 +43,9 @@ public interface ResourceStore {
 
     Optional<Driver> updateDriver(Driver driver);
 
-    /** Whether {@code id} is a current, active row of {@code table} (carrier, truck, trailer, driver); no row lock. */
+    /**
+     * Whether {@code id} is a current row of {@code table} (carrier, truck, trailer, driver) that is neither deleted
+     * nor switched off ({@code status = 'inactive'}); no row lock.
+     */
     boolean isCurrent(String tenantCode, String table, UUID id);
 }

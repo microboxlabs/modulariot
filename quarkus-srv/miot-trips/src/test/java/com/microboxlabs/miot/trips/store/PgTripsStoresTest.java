@@ -197,6 +197,10 @@ class PgTripsStoresTest {
         assertTrue(resources.isCurrent(tenant, "truck", UUID.fromString(truck.id())));
         assertFalse(resources.isCurrent(tenant(), "truck", UUID.fromString(truck.id())),
                 "another tenant does not see it");
+        Truck parked = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "PLKV-13", null,
+                null, null, null, Carrier.INACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        assertFalse(resources.isCurrent(tenant, "truck", UUID.fromString(parked.id())),
+                "an inactive truck cannot be assigned");
         Assignment a = assignments.insert(new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
                 truck.id(), now, null, null, null, ACTOR, null, ACTOR));
         Assignment ended = assignments.end(tenant, UUID.fromString(a.id()), now.plusHours(1), "panne", ACTOR)

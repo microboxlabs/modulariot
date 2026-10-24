@@ -106,7 +106,8 @@ describe("SymptomRulesCard", () => {
       .getByRole("link", { name: "Nueva regla para este nivel" })
       .getAttribute("href") as string;
     const url = new URL(href, "http://x");
-    expect(url.pathname).toBe("/es/users/settings/communications/rules/new");
+    expect(url.pathname).toBe("/es/users/settings/communications");
+    expect(url.searchParams.get("new")).toBe("1");
     expect(url.searchParams.get("event")).toBe("symptom.case.opened");
     expect(url.searchParams.get("when")).toBe(
       "event.data.symptomKey == 'panic-button' && event.data.level >= 3"

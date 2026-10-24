@@ -10,7 +10,7 @@ import { ResponseBlock } from "@/features/symptoms/maintainer/ui/response-block"
 import { StatePill } from "@/features/symptoms/maintainer/ui/state";
 import ChannelIcon from "./channel-icon";
 import { useConversationRules } from "./conversations-api";
-import { newRuleHref } from "./new-rule";
+import { newRuleHref } from "./new-rule-modal";
 import { ruleTargets, SYMPTOM_OPENED, symptomLevelWhen } from "./rule-model";
 import { ruleHref } from "./rules-tab";
 

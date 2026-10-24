@@ -343,6 +343,8 @@ export function useControlTowerAccess() {
     data?.permissions.includes(permission) ?? false;
   return {
     can,
+    /** False until the permissions arrive; until then every `can*` is false. */
+    loaded: data !== undefined,
     canOperate: can("controltower:case.treat"),
     canMaintain: can("controltower:symptom.edit"),
   };

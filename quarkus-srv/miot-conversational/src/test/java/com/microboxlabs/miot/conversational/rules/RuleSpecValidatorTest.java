@@ -144,10 +144,32 @@ class RuleSpecValidatorTest {
         Finding finding = only(validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}],
                  "steps": [{"channel": "webhook", "to": []}]}
-                """), "stepWebhookNoConnection");
+                """), "stepNoConnection");
         assertEquals("steps.0", finding.section());
         assertEquals(Severity.ERROR, finding.severity());
-        assertEquals(Map.of("step", 1), finding.params());
+        assertEquals(Map.of("channel", "webhook", "step", 1), finding.params());
+        assertEquals("Elige la conexión que llama el paso.", finding.message());
+    }
+
+    @Test
+    void slackAndTeamsStepsFollowTheWebhookRules() {
+        assertEquals(List.of(), validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "slack", "connection": "conn-1"},
+                           {"channel": "Teams", "connection": "conn-2", "template": "panic-check"}]}
+                """));
+
+        List<Finding> findings = validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "slack", "waitForReply": 5},
+                           {"channel": "teams", "to": [], "template": "nope"}]}
+                """);
+        List<Finding> noConnection = findings.stream().filter(f -> "stepNoConnection".equals(f.code())).toList();
+        assertEquals(List.of(Map.of("channel", "slack", "step", 1), Map.of("channel", "teams", "step", 2)),
+                noConnection.stream().map(Finding::params).toList());
+        assertEquals(Map.of("channel", "slack", "step", 1), only(findings, "stepWaitNeedsReplies").params());
+        assertEquals("steps.1", only(findings, "stepUnknownTemplate").section());
+        assertEquals(4, findings.size(), findings.toString());
     }
 
     @Test

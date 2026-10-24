@@ -84,6 +84,29 @@ class WebhookStepTest {
     }
 
     @Test
+    void slackAndTeamsStepsSendTheirOwnBodies() {
+        f.rule("chat", """
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "slack", "connection": "conn-s", "template": "panic-tower"},
+                           {"channel": "teams", "connection": "conn-t"}]}
+                """, Rule.State.ACTIVE);
+
+        Run run = run();
+
+        assertEquals(Run.Status.DONE, run.status());
+        List<InMemoryIntegrations.Call> calls = f.integrations.calls;
+        assertEquals(List.of("conn-s", "conn-t"), calls.stream().map(InMemoryIntegrations.Call::connectionId).toList());
+        assertEquals(Map.of("text", "*Pánico en ABCD12 (Código negro)*\n"
+                + "El conductor no respondió. Ubicación: -33.45679, -70.64827."), calls.get(0).body());
+        assertEquals("message", calls.get(1).body().get("type"));
+
+        f.store.runs.clear();
+        f.integrations.calls.clear();
+        f.integrations.answer = new OperationInvocationResult(400, "invalid_payload");
+        assertEquals("teams conn-t: HTTP 400: invalid_payload", run().lastError());
+    }
+
+    @Test
     void aTestRunCallsNothing() {
         f.rule("hook", HOOK_SPEC, Rule.State.TEST);
 

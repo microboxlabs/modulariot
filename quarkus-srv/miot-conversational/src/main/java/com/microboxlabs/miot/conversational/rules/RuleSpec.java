@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * A rule version's spec, read from its JSON. The JSON is stored and returned as the editor sent it; this record is
@@ -17,8 +18,10 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
     public static final String WHATSAPP = "whatsapp";
     public static final String EMAIL = "email";
     public static final String PREFERRED = "preferred";
-    /** Calls the step's integration connection once, whoever the audience is. */
+    /** The connection channels: each calls the step's integration connection once, whoever the audience is. */
     public static final String WEBHOOK = "webhook";
+    public static final String SLACK = "slack";
+    public static final String TEAMS = "teams";
     public static final String STOP = "stop";
     public static final String CONTINUE = "continue";
 
@@ -35,16 +38,21 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
      *
      * @param after        minutes after the previous step finished waiting; null is 0
      * @param to           null when the step goes to the rule's audience, else its own recipients; unused by a
-     *                     webhook step
+     *                     connection step
      * @param waitForReply minutes to wait for a reply; null is 0
      * @param onReply      {@code stop} (the default) or {@code continue}
-     * @param connection   the integration connection a webhook step calls
+     * @param connection   the integration connection a connection step (webhook, slack, teams) calls
      */
     public record Step(Integer after, String channel, String template, List<Audience> to, boolean toInvalid,
             Integer waitForReply, String onReply, String connection) {
 
-        public boolean webhook() {
-            return WEBHOOK.equalsIgnoreCase(channel);
+        /** The connection channel the step sends on; empty for WhatsApp, email and preferred. */
+        public Optional<ConnectionChannel> connectionChannel() {
+            return ConnectionChannel.of(channel);
+        }
+
+        public boolean viaConnection() {
+            return connectionChannel().isPresent();
         }
 
         public int afterMinutes() {

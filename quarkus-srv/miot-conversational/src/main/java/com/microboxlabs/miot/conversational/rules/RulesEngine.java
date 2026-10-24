@@ -246,8 +246,9 @@ public class RulesEngine {
         List<String> problems = new ArrayList<>(plan.warnings());
         ContextKind kind = contextKind(run.contextKind());
         for (StepMessages.Planned m : plan.messages()) {
-            if (RuleSpec.WEBHOOK.equals(m.channel())) {
-                deliver(run, event, m).ifPresent(problems::add);
+            Optional<ConnectionChannel> viaConnection = ConnectionChannel.of(m.channel());
+            if (viaConnection.isPresent()) {
+                deliver(viaConnection.get(), run, event, m).ifPresent(problems::add);
                 continue;
             }
             boolean isWhatsApp = RuleSpec.WHATSAPP.equals(m.channel());
@@ -266,10 +267,10 @@ public class RulesEngine {
     }
 
     /**
-     * Calls the webhook step's connection once; a test run calls nothing. Not stored as a message: the inbox keeps
-     * WhatsApp and email only. Returns the problem when the call failed or was refused.
+     * Calls the connection step's connection once; a test run calls nothing. Returns the problem when the call
+     * failed or was refused.
      */
-    private Optional<String> deliver(Run run, StoredEvent event, StepMessages.Planned m) {
+    private Optional<String> deliver(ConnectionChannel kind, Run run, StoredEvent event, StepMessages.Planned m) {
         if (run.test()) {
             return Optional.empty();
         }
@@ -277,12 +278,11 @@ public class RulesEngine {
         Rule rule = rules.find(run.tenantCode(), run.ruleId()).orElse(null);
         try {
             OperationInvocationResult result = channels.deliver(run.tenantCode(), connection,
-                    ConnectionChannel.WEBHOOK.body(new ConnectionChannel.Delivery(event, run, rule, m.subject(),
-                            m.text())));
+                    kind.body(new ConnectionChannel.Delivery(event, run, rule, m.subject(), m.text())));
             return result.successful() ? Optional.empty()
-                    : Optional.of("webhook " + connection + ": " + result.summary());
+                    : Optional.of(kind.key() + " " + connection + ": " + result.summary());
         } catch (OperationInvocationException | ConnectionResolutionException e) {
-            return Optional.of("webhook " + connection + ": " + e.getMessage());
+            return Optional.of(kind.key() + " " + connection + ": " + e.getMessage());
         }
     }
 

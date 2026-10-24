@@ -50,7 +50,7 @@ public final class RuleSpecValidator {
     private static final String CHANNEL = "channel";
     private static final String TEMPLATE = "template";
     private static final Set<String> CHANNELS = Set.of(RuleSpec.WHATSAPP, RuleSpec.EMAIL, RuleSpec.PREFERRED,
-            RuleSpec.WEBHOOK);
+            RuleSpec.WEBHOOK, RuleSpec.SLACK, RuleSpec.TEAMS);
     private static final Set<String> CHANNELS_WITH_REPLIES = Set.of(RuleSpec.WHATSAPP, RuleSpec.EMAIL,
             RuleSpec.PREFERRED);
     private static final Set<String> ADDRESS_CHANNELS = Set.of(RuleSpec.WHATSAPP, RuleSpec.EMAIL);
@@ -66,7 +66,7 @@ public final class RuleSpecValidator {
         List<Finding> out = new ArrayList<>();
         String contextKind = trigger(out, spec, context);
         Optional<List<String>> roles = contextKind == null ? Optional.empty() : context.roles().apply(contextKind);
-        boolean usesAudience = spec.steps().stream().anyMatch(s -> !s.webhook() && s.to() == null && !s.toInvalid());
+        boolean usesAudience = spec.steps().stream().anyMatch(s -> !s.viaConnection() && s.to() == null && !s.toInvalid());
         if (spec.audience().isEmpty() && usesAudience) {
             out.add(error("audience.0", "noAudience", Map.of(), "Falta decir a quién se escribe."));
         }
@@ -131,13 +131,13 @@ public final class RuleSpecValidator {
         String channel = s.channel() == null ? null : s.channel().toLowerCase(Locale.ROOT);
         if (channel == null || !CHANNELS.contains(channel)) {
             out.add(error(section, "stepBadChannel", params(CHANNEL, s.channel()),
-                    "Elige el canal del paso: WhatsApp, correo, el preferido o un webhook."));
+                    "Elige el canal del paso: WhatsApp, correo, el preferido, un webhook, Slack o Teams."));
         }
         template(out, section, s, context, channel);
         timing(out, section, s, channel);
-        if (s.webhook()) {
+        if (s.viaConnection()) {
             if (s.connection() == null) {
-                out.add(error(section, "stepWebhookNoConnection", Map.of(),
+                out.add(error(section, "stepNoConnection", params(CHANNEL, channel),
                         "Elige la conexión que llama el paso."));
             }
         } else {
@@ -145,9 +145,9 @@ public final class RuleSpecValidator {
         }
     }
 
-    /** A webhook step may go without a template: it sends the event alone. */
+    /** A connection step may go without a template: it sends the event alone. */
     private static void template(List<Finding> out, String section, Step s, Context context, String channel) {
-        if (s.template() == null && s.webhook()) {
+        if (s.template() == null && s.viaConnection()) {
             return;
         }
         if (s.template() == null) {

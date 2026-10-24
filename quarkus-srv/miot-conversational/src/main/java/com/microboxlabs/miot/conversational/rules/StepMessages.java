@@ -21,8 +21,8 @@ public final class StepMessages {
      * One message.
      *
      * @param params WhatsApp: the Meta template's NAMED parameters
-     * @param text   WhatsApp: the base text, rendered; email: the body, rendered; webhook: the email body, else the
-     *               base text
+     * @param text   WhatsApp: the base text, rendered; email: the body, rendered; a connection channel: the email
+     *               body, else the base text
      */
     public record Planned(String channel, Participant to, ConvTemplate template, Map<String, String> params,
             String subject, String text) {
@@ -36,8 +36,9 @@ public final class StepMessages {
 
     public static Plan plan(Step step, RuleSpec spec, StoredEvent event, Optional<ConvTemplate> template,
             Audiences audiences) {
-        if (step.webhook()) {
-            return webhook(step, event, template);
+        Optional<ConnectionChannel> kind = step.connectionChannel();
+        if (kind.isPresent()) {
+            return viaConnection(kind.get(), step, event, template);
         }
         Audiences.Resolved resolved = audiences.resolve(event.tenantCode(), event.contextKind(), event.contextKey(),
                 step.to() != null ? step.to() : spec.audience(), event.data());
@@ -64,10 +65,11 @@ public final class StepMessages {
     }
 
     /**
-     * A webhook step: one message to its connection, whose address is the connection id. Its subject is the
+     * A connection step: one message to its connection, whose address is the connection id. Its subject is the
      * template's email subject, else its name; its text the email body, else the base text. No template, neither.
      */
-    private static Plan webhook(Step step, StoredEvent event, Optional<ConvTemplate> template) {
+    private static Plan viaConnection(ConnectionChannel kind, Step step, StoredEvent event,
+            Optional<ConvTemplate> template) {
         if (step.connection() == null) {
             return new Plan(List.of(), List.of(), List.of("El paso no tiene conexión"));
         }
@@ -83,8 +85,8 @@ public final class StepMessages {
             subject = email ? TemplateVariables.render(t.email().subject(), vars) : t.name();
             text = TemplateVariables.render(email ? t.email().body() : t.baseText(), vars);
         }
-        Participant to = new Participant(step.connection(), RuleSpec.WEBHOOK, null, null, null);
-        return new Plan(List.of(), List.of(new Planned(RuleSpec.WEBHOOK, to, template.orElse(null), Map.of(),
+        Participant to = new Participant(step.connection(), kind.key(), null, null, null);
+        return new Plan(List.of(), List.of(new Planned(kind.key(), to, template.orElse(null), Map.of(),
                 subject, text)), List.of());
     }
 

@@ -24,25 +24,34 @@ function ModeCard({
   );
 }
 
+/** A channel panel's heading: its logo, name and what it does. */
+export function ChannelHeader({
+  channelKey,
+  d,
+}: Readonly<{ channelKey: string; d: I18nRecord }>) {
+  return (
+    <div className="flex items-center gap-3">
+      <ChannelIcon channel={channelKey} size={9} />
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          {trDynamic(`channel_${channelKey}`, d)}
+        </h2>
+        <p className={`text-sm ${MUTED}`}>
+          {trDynamic(`channelHint_${channelKey}`, d)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /** Comunicaciones › one channel: the platform's account and the organization's own. */
 export default function ChannelPanel({
   channel,
   d,
 }: Readonly<{ channel: ChannelType; d: I18nRecord }>) {
-  const name = trDynamic(`channel_${channel.key}`, d);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <ChannelIcon channel={channel.key} size={9} />
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {name}
-          </h2>
-          <p className={`text-sm ${MUTED}`}>
-            {trDynamic(`channelHint_${channel.key}`, d)}
-          </p>
-        </div>
-      </div>
+      <ChannelHeader channelKey={channel.key} d={d} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ModeCard
           title={tr("channelPlatformTitle", d)}

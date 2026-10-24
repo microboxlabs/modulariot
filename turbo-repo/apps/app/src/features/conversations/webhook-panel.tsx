@@ -17,6 +17,7 @@ import {
 } from "@/features/integration-config/integration-config.types";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
+import { ChannelHeader } from "./channel-panel";
 import {
   createWebhookConnection,
   useWebhookChannel,
@@ -116,6 +117,7 @@ export default function WebhookPanel({
 
   return (
     <div className="flex flex-col gap-4">
+      <ChannelHeader channelKey="webhook" d={d} />
       <section className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <header className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">

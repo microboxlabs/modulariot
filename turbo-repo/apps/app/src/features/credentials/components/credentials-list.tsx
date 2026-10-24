@@ -15,6 +15,7 @@ import {
   type CredentialListItem,
 } from "../credential.types";
 import { CredentialTestBadge, EnvironmentBadge } from "./credential-badges";
+import { usageDetail } from "./credential-modal-parts";
 import { CredentialTypeLogo } from "./credential-type-logo";
 
 interface CredentialsListProps {
@@ -278,16 +279,20 @@ function UsageLinks({
   }
   return (
     <ul className="flex flex-col gap-0.5">
-      {credential.usedBy.map((usage) => (
-        <li key={usage.id} className="truncate">
-          <Link
-            href={`/${lang}${usagePath(usage)}`}
-            className="text-gray-700 hover:text-blue-700 hover:underline dark:text-gray-300 dark:hover:text-blue-400"
-          >
-            {usage.label}
-          </Link>
-        </li>
-      ))}
+      {credential.usedBy.map((usage) => {
+        const detail = usageDetail(usage, dict);
+        return (
+          <li key={usage.id} className="min-w-0">
+            <Link
+              href={`/${lang}${usagePath(usage)}`}
+              className="block truncate text-gray-700 hover:text-blue-700 hover:underline dark:text-gray-300 dark:hover:text-blue-300"
+            >
+              {usage.label}
+            </Link>
+            {detail && <div className={SUBLINE}>{detail}</div>}
+          </li>
+        );
+      })}
     </ul>
   );
 }

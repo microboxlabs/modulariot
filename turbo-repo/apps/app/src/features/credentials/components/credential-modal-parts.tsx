@@ -60,7 +60,10 @@ interface UsedByPanelProps {
 }
 
 /** "Número 123", "Remitente a@b.cl" or the URL, by the connection's provider. */
-function usageDetail(usage: CredentialUsage, dict: I18nRecord): string | null {
+export function usageDetail(
+  usage: CredentialUsage,
+  dict: I18nRecord
+): string | null {
   if (!usage.detail) return null;
   const key = `usageDetail.${usage.providerType ?? ""}`;
   const text = trDynamic(key, dict, { detail: usage.detail });

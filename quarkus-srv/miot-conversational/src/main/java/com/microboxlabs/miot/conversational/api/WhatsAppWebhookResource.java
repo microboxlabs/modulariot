@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.api;
 
+import com.microboxlabs.miot.conversational.jobs.WhatsAppWebhookJobs;
 import com.microboxlabs.miot.conversational.service.WhatsAppInboundService;
 import com.microboxlabs.miot.conversational.service.WhatsAppSignatureVerifier;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -51,6 +52,7 @@ public class WhatsAppWebhookResource {
     private final String verifyToken;
     private final String appSecret;
     private final WhatsAppInboundService inboundService;
+    private final WhatsAppWebhookJobs jobs;
 
     @Inject
     public WhatsAppWebhookResource(
@@ -61,10 +63,12 @@ public class WhatsAppWebhookResource {
             // blank token/secret then fails closed via the handshake + signature guards below.
             @ConfigProperty(name = "miot.whatsapp.webhook.verify-token") Optional<String> verifyToken,
             @ConfigProperty(name = "miot.whatsapp.app-secret") Optional<String> appSecret,
-            WhatsAppInboundService inboundService) {
+            WhatsAppInboundService inboundService,
+            WhatsAppWebhookJobs jobs) {
         this.verifyToken = verifyToken.orElse("");
         this.appSecret = appSecret.orElse("");
         this.inboundService = inboundService;
+        this.jobs = jobs;
     }
 
     /**
@@ -91,9 +95,10 @@ public class WhatsAppWebhookResource {
 
     /**
      * Inbound events (driver messages + delivery/read status). Verifies the HMAC over the exact
-     * received bytes, then ingests on a worker thread: 200 on success, 500 on a processing error so
-     * Meta retries. Ingestion is idempotent (wamid unique-index dedup + advance-only status), so a
-     * retry recovers transient failures instead of permanently dropping the event.
+     * received bytes. With the modulith job lane on, each event becomes an integration job and the
+     * answer is 200 once they are inserted; otherwise the delivery is stored inline. A failure answers
+     * 500 so Meta redelivers; both paths are idempotent (job dedupe key, wamid unique index,
+     * advance-only status).
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -110,7 +115,11 @@ public class WhatsAppWebhookResource {
         // better than swallowing a transient failure and losing the event.
         return Uni.createFrom().item(() -> {
             try {
-                inboundService.ingest(body);
+                if (jobs.enabled()) {
+                    jobs.enqueue(body);
+                } else {
+                    inboundService.ingest(body);
+                }
                 return Response.ok().build();
             } catch (RuntimeException e) {
                 LOG.error("WhatsApp webhook ingestion failed; returning 500 so Meta retries", e);

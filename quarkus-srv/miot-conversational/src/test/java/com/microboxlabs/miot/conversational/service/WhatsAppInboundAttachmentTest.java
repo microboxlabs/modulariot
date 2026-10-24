@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.conversational.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,6 +72,25 @@ class WhatsAppInboundAttachmentTest {
         assertEquals("Confirmo", stored.body());
         assertEquals(MessageType.TEXT, stored.type());
         assertEquals(outbound.id(), stored.metadata().get("buttonPayload"));
+    }
+
+    @Test
+    void aMessageStoredTwiceComesBackAsADuplicateWithItsReply() {
+        Conversation mine = store.put(InMemoryConversations.conversation(
+                "00000000-0000-0000-0000-00000000000e", TENANT, DRIVER, ContextKind.SERVICE, "SVC-1", at(0)));
+        InboundMessage message = MetaWebhookParser.parse(webhook("wamid.IN7",
+                "\"type\":\"text\",\"text\":{\"body\":\"listo\"}").getBytes(StandardCharsets.UTF_8))
+                .messages().get(0);
+
+        WhatsAppInboundService.Ingested first = service.ingestMessage(message);
+        WhatsAppInboundService.Ingested again = service.ingestMessage(message);
+
+        assertFalse(first.duplicate());
+        assertTrue(again.duplicate());
+        assertEquals(mine.id(), again.reply().conversationId());
+        assertEquals(first.reply().messageId(), again.reply().messageId());
+        assertEquals(TENANT, again.reply().tenantCode());
+        assertTrue(replies.fired.isEmpty(), "the caller hands the reply on");
     }
 
     @Test

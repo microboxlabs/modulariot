@@ -32,7 +32,7 @@ public class AsyncJobService {
     private static final Logger LOG = Logger.getLogger(AsyncJobService.class);
 
     private static final String OUTCOME_FAILED = "FAILED";
-    private static final Set<String> VALID_ENQUEUED_BY = Set.of("listener", "reconciler", "manual");
+    private static final Set<String> VALID_ENQUEUED_BY = Set.of("listener", "reconciler", "manual", "webhook");
     private static final Set<String> VALID_OUTCOMES = Set.of("SUCCEEDED", "SKIPPED", OUTCOME_FAILED);
 
     private static final int DEFAULT_MAX_ATTEMPTS = 5;

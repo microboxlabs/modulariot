@@ -101,6 +101,11 @@ public class ModulithJobWorker {
      * handler for, kick a drain on the worker pool (off the request thread).
      * Never throws — the reconciler is the backstop if the kick is dropped.
      */
+    /** Whether this instance runs the modulith lane; without it, enqueued jobs wait for an instance that does. */
+    public boolean enabled() {
+        return enabled;
+    }
+
     public void onEnqueued(EnqueueJobsResponse response) {
         if (enabled && hasHandledLaneJob(response)) {
             Infrastructure.getDefaultWorkerPool().execute(this::drain);

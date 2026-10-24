@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -289,12 +290,22 @@ class PgTripsStoresTest {
         assertEquals("h2", s.desiredHash());
         assertEquals(trip, s.tripId());
         assertTrue(s.desired().contains("\"b\""));
-        assertTrue(feeds.openServices(1000).stream().anyMatch(o -> o.externalCode().equals("S-001")
-                && o.tenantCode().equals(tenant)));
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", s.desired(), "h2", null, trip,
-                false, "cierre", null, at));
-        assertTrue(feeds.openServices(1000).stream().noneMatch(o -> o.tenantCode().equals(tenant)),
-                "a closed service leaves the clock's list");
+
+        // the clock: due when the departure passed after the last reconcile, or the close time passed
+        Predicate<OffsetDateTime> due = now -> feeds.dueServices(now, 60, 1000).stream()
+                .anyMatch(o -> o.externalCode().equals("S-001") && o.tenantCode().equals(tenant));
+        String times = "{\"plannedStart\":\"" + at.plusHours(2) + "\",\"plannedEnd\":\"" + at.plusHours(10) + "\"}";
+        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", times, "h3", null, trip, true,
+                "alta", null, at));
+        assertFalse(due.test(at.plusHours(1)), "before the departure");
+        assertTrue(due.test(at.plusHours(3)), "the departure passed after the last reconcile");
+        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", times, "h3", null, trip, true,
+                "cambios", null, at.plusHours(3)));
+        assertFalse(due.test(at.plusHours(4)), "the departure was already handled");
+        assertTrue(due.test(at.plusHours(10).plusMinutes(91)), "arrival + the 90 minutes of tolerance passed");
+        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", times, "h3", null, trip, false,
+                "cierre", null, at.plusHours(12)));
+        assertFalse(due.test(at.plusHours(13)), "a closed service leaves the clock's list");
     }
 
     @Test

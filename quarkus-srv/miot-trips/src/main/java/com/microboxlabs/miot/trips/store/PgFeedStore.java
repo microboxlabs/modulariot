@@ -16,6 +16,7 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +68,7 @@ public class PgFeedStore implements FeedStore {
                 INSERT INTO miot_trips.feed_profile
                     (tenant_code, feed_key, name, stages, departure_stage, close_stage, close_tolerance_minutes,
                      required_resources, active, created_by, updated_by)
-                VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $10)
+                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $10, $10)
                 ON CONFLICT (tenant_code, feed_key) DO UPDATE SET
                     name = EXCLUDED.name, stages = EXCLUDED.stages, departure_stage = EXCLUDED.departure_stage,
                     close_stage = EXCLUDED.close_stage, close_tolerance_minutes = EXCLUDED.close_tolerance_minutes,
@@ -105,7 +106,7 @@ public class PgFeedStore implements FeedStore {
                 INSERT INTO miot_trips.feed_service
                     (tenant_code, feed_key, external_code, desired, desired_hash, mandate_id, trip_id, open,
                      last_action, last_result, last_reconciled_at)
-                VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10::jsonb, $11)
+                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $10::text::jsonb, $11)
                 ON CONFLICT (tenant_code, feed_key, external_code) DO UPDATE SET
                     desired = EXCLUDED.desired, desired_hash = EXCLUDED.desired_hash,
                     mandate_id = EXCLUDED.mandate_id, trip_id = EXCLUDED.trip_id, open = EXCLUDED.open,
@@ -119,11 +120,21 @@ public class PgFeedStore implements FeedStore {
     }
 
     @Override
-    public List<FeedService> openServices(int limit) {
-        return query(pool.get(), "SELECT s.* FROM miot_trips.feed_service s JOIN miot_trips.feed_profile p"
-                + " ON p.tenant_code = s.tenant_code AND p.feed_key = s.feed_key"
-                + " WHERE s.open AND p.active ORDER BY s.last_reconciled_at NULLS FIRST LIMIT $1",
-                Tuple.of(limit)).stream().map(PgFeedStore::service).toList();
+    public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
+        return query(pool.get(), """
+                SELECT s.* FROM miot_trips.feed_service s
+                JOIN miot_trips.feed_profile p ON p.tenant_code = s.tenant_code AND p.feed_key = s.feed_key
+                WHERE s.open AND p.active AND (
+                    (s.last_action IN ('reportar', 'error', 'pendiente')
+                        AND s.updated_at < $1::timestamptz - make_interval(mins => $2))
+                    OR (s.last_action NOT IN ('reportar', 'error', 'pendiente') AND (
+                           ((s.desired->>'plannedStart')::timestamptz <= $1::timestamptz
+                            AND (s.last_reconciled_at IS NULL
+                                 OR s.last_reconciled_at < (s.desired->>'plannedStart')::timestamptz))
+                        OR (s.desired->>'plannedEnd')::timestamptz
+                               + make_interval(mins => p.close_tolerance_minutes) <= $1::timestamptz)))
+                ORDER BY s.last_reconciled_at NULLS FIRST
+                LIMIT $3""", Tuple.of(now, retryMinutes, limit)).stream().map(PgFeedStore::service).toList();
     }
 
     private static FeedProfile profile(Row r) {

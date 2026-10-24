@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -21,9 +20,13 @@ import CommunicationsTabs, {
   type CommunicationsTab,
 } from "./communications-tabs";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
+import NewRuleModal, {
+  type NewRulePrefill,
+  prefillFrom,
+} from "./new-rule-modal";
 import RulesTab, {
-  COMMUNICATIONS_PAGE,
   NO_RULE_FILTERS,
+  ruleHref,
   type RuleFilters,
   ruleFilterDefs,
   type RulesLayout,
@@ -81,7 +84,7 @@ export default function CommunicationsPage({
   const pathname = usePathname();
   const params = useSearchParams();
   const tab = tabOf(params.get("tab"));
-  const { canMaintain } = useControlTowerAccess();
+  const { canMaintain, loaded } = useControlTowerAccess();
   const { data: rules } = useConversationRules();
   const { data: catalog } = useEventCatalog();
   const [ruleFilters, setRuleFilters] = useState<RuleFilters>(NO_RULE_FILTERS);
@@ -90,15 +93,31 @@ export default function CommunicationsPage({
   const [templateChannel, setTemplateChannel] = useState("");
   const [templatesView, setTemplatesView] = useState<TemplatesView>("messages");
   const [layout, setLayout] = useState<RulesLayout>("cards");
+  const [newRule, setNewRule] = useState<NewRulePrefill | null>(null);
+  // A link from a symptom's Respuesta tab opens the modal already filled in.
+  const linked = prefillFrom(params);
+  const creating = newRule ?? linked;
+
+  const replaceQuery = (q: URLSearchParams) => {
+    const query = q.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
 
   const onTab = (next: CommunicationsTab) => {
     const q = new URLSearchParams(params.toString());
     if (next === "rules") q.delete("tab");
     else q.set("tab", next);
-    const query = q.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
+    replaceQuery(q);
+  };
+
+  const closeNewRule = () => {
+    setNewRule(null);
+    if (!linked) return;
+    const q = new URLSearchParams(params.toString());
+    for (const k of ["new", "event", "when", "name"]) q.delete(k);
+    replaceQuery(q);
   };
 
   const filterBar = (): {
@@ -179,12 +198,13 @@ export default function CommunicationsPage({
               <div className="ml-auto flex items-center gap-2">
                 <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
                 {canMaintain && (
-                  <Link
-                    href={`/${lang}${COMMUNICATIONS_PAGE}/rules/new`}
+                  <button
+                    type="button"
+                    onClick={() => setNewRule({})}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
                   >
                     ＋ {tr("newRule", d)}
-                  </Link>
+                  </button>
                 )}
               </div>
             )}
@@ -219,6 +239,15 @@ export default function CommunicationsPage({
           </div>
         </div>
       </div>
+      <NewRuleModal
+        open={creating !== null}
+        prefill={creating ?? {}}
+        canWrite={canMaintain}
+        accessKnown={loaded}
+        d={d}
+        onClose={closeNewRule}
+        onCreated={(created) => router.push(ruleHref(lang, created.rule.id))}
+      />
     </div>
   );
 }

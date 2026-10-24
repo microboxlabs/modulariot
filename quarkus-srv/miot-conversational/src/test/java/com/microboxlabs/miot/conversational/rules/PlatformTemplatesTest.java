@@ -57,8 +57,8 @@ class PlatformTemplatesTest {
         assertEquals(List.of("panic-check", "panic-tower", "welcome"),
                 f.templates.list(RulesFixture.TENANT).stream().map(TemplateView::key).toList(),
                 "an organization reads the platform's templates");
-        assertThrows(IllegalArgumentException.class,
-                () -> f.templates.save("Bad Key", new TemplateRequest("x", null, null, null), "owner@example.com"));
+        TemplateRequest any = new TemplateRequest("x", null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> f.templates.save("Bad Key", any, "owner@example.com"));
     }
 
     @Test

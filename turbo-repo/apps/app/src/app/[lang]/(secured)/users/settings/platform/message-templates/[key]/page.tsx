@@ -4,7 +4,7 @@ import PlatformTemplatePage from "@/features/conversations/platform-template-pag
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-/** Settings › Plataforma › Plantillas de mensajes › one template, or `new`. */
+/** Settings › Plataforma › Plantillas de mensajes › one template, or `NEW_TEMPLATE` to create one. */
 export default async function MessageTemplatePage({
   params,
 }: Readonly<{ params: Promise<{ lang: string; key: string }> }>) {

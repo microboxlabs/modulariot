@@ -13,7 +13,7 @@ set -euo pipefail
 # Extra Maven/Quarkus args can be appended after --:
 #   ./start.sh fleet -- -Dquarkus.http.port=9090
 
-KNOWN_COMPONENTS=(fleet tracking symptoms gateway integrations conversational)
+KNOWN_COMPONENTS=(fleet tracking symptoms trips gateway integrations conversational)
 COMPONENTS=()
 EXTRA_ARGS=()
 PROFILE=""

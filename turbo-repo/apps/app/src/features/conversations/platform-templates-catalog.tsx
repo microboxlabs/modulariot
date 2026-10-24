@@ -9,6 +9,7 @@ import { TAG } from "@/features/symptoms/maintainer/catalog-card";
 import { ago } from "@/features/symptoms/maintainer/catalog-format";
 import { MUTED, Tile } from "@/features/symptoms/maintainer/ui/card";
 import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
+import CatalogTable from "./catalog-table";
 import ChannelIcon from "./channel-icon";
 import LayoutToggle, { type CatalogLayout } from "./layout-toggle";
 import MetaTemplatesSection from "./meta-templates-section";
@@ -18,6 +19,9 @@ import { channelLabel } from "./rule-model";
 
 export const PLATFORM_TEMPLATES_PAGE =
   "/users/settings/platform/message-templates";
+
+/** The creation segment. Keys start with a letter or digit, so no stored template takes it. */
+export const NEW_TEMPLATE = "_new";
 
 export const platformTemplateHref = (lang: string, key: string) =>
   `/${lang}${PLATFORM_TEMPLATES_PAGE}/${encodeURIComponent(key)}`;
@@ -119,56 +123,47 @@ function TemplatesTable({
   d: I18nRecord;
 }>) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
-        <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-          <tr>
-            <th className="px-4 py-2">{tr("colTemplate", d)}</th>
-            <th className="px-4 py-2">{tr("colChannels", d)}</th>
-            <th className="px-4 py-2">{tr("usedBy", d)}</th>
-            <th className="px-4 py-2">{tr("colVersion", d)}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {templates.map((t) => (
-            <tr
-              key={t.key}
-              className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+    <CatalogTable
+      columns={[
+        tr("colTemplate", d),
+        tr("colChannels", d),
+        tr("usedBy", d),
+        tr("colVersion", d),
+      ]}
+    >
+      {templates.map((t) => (
+        <tr
+          key={t.key}
+          className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+        >
+          <td className="px-4 py-2.5">
+            <Link
+              href={platformTemplateHref(lang, t.key)}
+              className="text-sm font-medium text-gray-900 hover:underline dark:text-white"
             >
-              <td className="px-4 py-2.5">
-                <Link
-                  href={platformTemplateHref(lang, t.key)}
-                  className="text-sm font-medium text-gray-900 hover:underline dark:text-white"
-                >
-                  {t.name}
-                </Link>
-                <div className={`font-mono ${MUTED}`}>{t.key}</div>
-              </td>
-              <td className="px-4 py-2.5">
-                <span className="flex items-center gap-1">
-                  {channelsOf(t).map((c) => (
-                    <ChannelIcon
-                      key={c}
-                      channel={c}
-                      label={channelLabel(c, d)}
-                      size={6}
-                    />
-                  ))}
-                </span>
-              </td>
-              <td className="whitespace-nowrap px-4 py-2.5">
-                {usedByText(t, d)}
-              </td>
-              <td
-                className={`whitespace-nowrap px-4 py-2.5 font-mono ${MUTED}`}
-              >
-                {versionText(t)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+              {t.name}
+            </Link>
+            <div className={`font-mono ${MUTED}`}>{t.key}</div>
+          </td>
+          <td className="px-4 py-2.5">
+            <span className="flex items-center gap-1">
+              {channelsOf(t).map((c) => (
+                <ChannelIcon
+                  key={c}
+                  channel={c}
+                  label={channelLabel(c, d)}
+                  size={6}
+                />
+              ))}
+            </span>
+          </td>
+          <td className="whitespace-nowrap px-4 py-2.5">{usedByText(t, d)}</td>
+          <td className={`whitespace-nowrap px-4 py-2.5 font-mono ${MUTED}`}>
+            {versionText(t)}
+          </td>
+        </tr>
+      ))}
+    </CatalogTable>
   );
 }
 
@@ -318,7 +313,7 @@ export default function PlatformTemplatesCatalog({
               <div className="ml-auto flex items-center gap-2">
                 <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
                 <Link
-                  href={platformTemplateHref(lang, "new")}
+                  href={platformTemplateHref(lang, NEW_TEMPLATE)}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
                 >
                   ＋ {tr("newTemplate", d)}

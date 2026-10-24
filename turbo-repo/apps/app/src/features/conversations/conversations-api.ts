@@ -78,8 +78,12 @@ export function useConversationTemplates(enabled = true) {
 }
 
 /** The platform's templates with every organization's rules that use each. */
-export function usePlatformTemplates() {
-  return useSWR<ConversationTemplate[]>(platformTemplatesKey, fetcher, quiet);
+export function usePlatformTemplates(enabled = true) {
+  return useSWR<ConversationTemplate[]>(
+    enabled ? platformTemplatesKey : null,
+    fetcher,
+    quiet
+  );
 }
 
 export function usePlatformTemplate(key: string | null) {

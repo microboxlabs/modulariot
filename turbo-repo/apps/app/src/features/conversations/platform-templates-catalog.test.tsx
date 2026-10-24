@@ -61,6 +61,13 @@ describe("PlatformTemplatesCatalog", () => {
     expect(within(card).getByText("v0.2.1")).toBeTruthy();
   });
 
+  it("links creation to a segment no stored key can take", () => {
+    render(<PlatformTemplatesCatalog dict={dict} lang="es" />);
+    expect(
+      screen.getByRole("link", { name: /Nueva plantilla/ }).getAttribute("href")
+    ).toBe("/es/users/settings/platform/message-templates/_new");
+  });
+
   it("filters by channel and lists as a table", () => {
     render(<PlatformTemplatesCatalog dict={dict} lang="es" />);
     fireEvent.click(screen.getByRole("button", { name: "Canal" }));

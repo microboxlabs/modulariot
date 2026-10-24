@@ -85,6 +85,18 @@ final class InMemoryRules {
         }
 
         @Override
+        public List<RuleVersion> liveVersions(List<String> ruleIds) {
+            List<RuleVersion> out = new ArrayList<>();
+            for (String id : ruleIds) {
+                List<RuleVersion> all = versions(id);
+                Rule r = rules.get(id);
+                all.stream().filter(v -> v.status() == RuleVersion.Status.DRAFT
+                        || (r.currentVersion() != null && r.currentVersion().equals(v.version()))).forEach(out::add);
+            }
+            return out;
+        }
+
+        @Override
         public RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at) {
             versions.removeIf(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT);
             RuleVersion draft = new RuleVersion(UUID.randomUUID().toString(), ruleId, null, null,
@@ -94,16 +106,20 @@ final class InMemoryRules {
         }
 
         @Override
-        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump,
-                String reason, String actor, Instant at) {
+        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, Publication p) {
+            String version = p.version();
+            Instant at = p.at();
+            if (!java.util.Objects.equals(rules.get(ruleId).currentVersion(), p.from())) {
+                return Optional.empty();
+            }
             Optional<RuleVersion> draft = versions.stream()
                     .filter(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT
                             && v.spec().equals(validated)).findFirst();
             if (draft.isEmpty()) {
                 return Optional.empty();
             }
-            RuleVersion published = new RuleVersion(draft.get().id(), ruleId, version, bump,
-                    RuleVersion.Status.PUBLISHED, draft.get().spec(), reason, at, actor);
+            RuleVersion published = new RuleVersion(draft.get().id(), ruleId, version, p.bump(),
+                    RuleVersion.Status.PUBLISHED, draft.get().spec(), p.reason(), at, p.actor());
             versions.remove(draft.get());
             versions.add(published);
             Rule r = rules.get(ruleId);
@@ -137,13 +153,16 @@ final class InMemoryRules {
         }
 
         @Override
-        public ConvTemplate upsert(ConvTemplate t) {
+        public Optional<ConvTemplate> upsert(ConvTemplate t, String expectedVersion) {
             ConvTemplate existing = templates.get(t.tenantCode() + "/" + t.key());
+            if (existing != null && !java.util.Objects.equals(existing.version(), expectedVersion)) {
+                return Optional.empty();
+            }
             ConvTemplate saved = existing == null ? t : new ConvTemplate(existing.id(), t.tenantCode(), t.key(),
                     t.name(), t.baseText(), t.whatsapp(), t.email(), existing.createdAt(), t.updatedAt(),
                     t.updatedBy(), t.version());
             templates.put(t.tenantCode() + "/" + t.key(), saved);
-            return saved;
+            return Optional.of(saved);
         }
     }
 

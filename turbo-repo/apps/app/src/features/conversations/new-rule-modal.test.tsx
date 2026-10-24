@@ -129,6 +129,47 @@ describe("NewRuleModal", () => {
     });
   });
 
+  it("keeps a condition prefilled without an event, on the default event", async () => {
+    api.createRule.mockResolvedValue({ rule: { id: "r2" } });
+    open({ when: WHEN, name: "Pánico" });
+    fireEvent.click(createButton());
+    await waitFor(() => expect(api.createRule).toHaveBeenCalled());
+    expect(api.createRule.mock.calls[0][0].spec.trigger).toEqual({
+      event: "symptom.case.opened",
+      when: WHEN,
+    });
+  });
+
+  it("does not hand back a rule created after the modal was dismissed", async () => {
+    let finish: (v: unknown) => void = () => {};
+    api.createRule.mockReturnValue(new Promise((r) => (finish = r)));
+    const onCreated = vi.fn();
+    const { rerender } = render(
+      <NewRuleModal
+        open
+        prefill={{ name: "Pánico" }}
+        canWrite
+        d={d}
+        onClose={vi.fn()}
+        onCreated={onCreated}
+      />
+    );
+    fireEvent.click(createButton());
+    rerender(
+      <NewRuleModal
+        open={false}
+        prefill={{ name: "Pánico" }}
+        canWrite
+        d={d}
+        onClose={vi.fn()}
+        onCreated={onCreated}
+      />
+    );
+    finish({ rule: { id: "r3" } });
+    await waitFor(() => expect(api.refreshRules).toHaveBeenCalled());
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
   it("needs a name and a valid key before it creates anything", () => {
     open();
     expect(createButton().disabled).toBe(true);

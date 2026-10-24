@@ -77,7 +77,45 @@ public enum RuleBump {
         return spec.trigger() == null ? null : spec.trigger().event();
     }
 
+    /** The condition with whitespace outside quotes collapsed, as the app compares it; blank is no condition. */
     private static String when(RuleSpec spec) {
-        return spec.trigger() == null ? null : spec.trigger().when();
+        return spec.trigger() == null ? "" : squash(spec.trigger().when());
+    }
+
+    static String squash(String s) {
+        String text = s == null ? "" : s.strip();
+        StringBuilder out = new StringBuilder(text.length());
+        boolean space = false;
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (Character.isWhitespace(c)) {
+                space = true;
+                i++;
+                continue;
+            }
+            if (space) {
+                out.append(' ');
+            }
+            space = false;
+            int end = c == '\'' || c == '"' ? quotedEnd(text, i) : i + 1;
+            out.append(text, i, end);
+            i = end;
+        }
+        return out.toString();
+    }
+
+    /** Where the quoted text starting at {@code start} ends, past its closing quote; a backslash escapes. */
+    private static int quotedEnd(String text, int start) {
+        char quote = text.charAt(start);
+        int i = start + 1;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == quote) {
+                return i + 1;
+            }
+            i += c == '\\' ? 2 : 1;
+        }
+        return text.length();
     }
 }

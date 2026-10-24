@@ -8,6 +8,7 @@ import { ago } from "@/features/symptoms/maintainer/catalog-format";
 import { stateLabel } from "@/features/symptoms/maintainer/symptom-labels";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { STATES, StatePill } from "@/features/symptoms/maintainer/ui/state";
+import CatalogTable from "./catalog-table";
 import ChannelIcon from "./channel-icon";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
 import type { EventTypeInfo, RuleSummary } from "./conversations-types";
@@ -239,31 +240,26 @@ function RulesTable({
   d: I18nRecord;
 }>) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
-        <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-          <tr>
-            <th className="px-4 py-2">{tr("colRule", d)}</th>
-            <th className="px-4 py-2">{tr("colWhen", d)}</th>
-            <th className="px-4 py-2">{tr("colSteps", d)}</th>
-            <th className="px-4 py-2">{tr("colChannels", d)}</th>
-            <th className="px-4 py-2">{tr("filterState", d)}</th>
-            <th className="px-4 py-2">{tr("colVersion", d)}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rules.map((r) => (
-            <RuleRow
-              key={r.id}
-              rule={r}
-              summary={summaryOf(r)}
-              href={ruleHref(lang, r.id)}
-              d={d}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <CatalogTable
+      columns={[
+        tr("colRule", d),
+        tr("colWhen", d),
+        tr("colSteps", d),
+        tr("colChannels", d),
+        tr("filterState", d),
+        tr("colVersion", d),
+      ]}
+    >
+      {rules.map((r) => (
+        <RuleRow
+          key={r.id}
+          rule={r}
+          summary={summaryOf(r)}
+          href={ruleHref(lang, r.id)}
+          d={d}
+        />
+      ))}
+    </CatalogTable>
   );
 }
 

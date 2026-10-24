@@ -37,6 +37,16 @@ class RuleBumpTest {
     }
 
     @Test
+    void whitespaceInTheConditionIsNoChange() throws Exception {
+        assertNull(bump("\"event.data.level >= 4\"", "\"  event.data.level   >=\\n 4 \""));
+        assertEquals(RuleBump.MINOR, bump("event.data.level >= 4", "event.data.name == 'a  b'"));
+        assertEquals("event.data.name == 'a  b'", RuleBump.squash(" event.data.name  ==  'a  b' "));
+        assertEquals("", RuleBump.squash(null));
+        assertEquals("a == 'it\\'s  x' && b", RuleBump.squash("a  ==  'it\\'s  x'   &&  b"));
+        assertEquals("a == 'open", RuleBump.squash("a  == 'open"));
+    }
+
+    @Test
     void conditionRecipientsAndStepRoutingAreMinor() throws Exception {
         assertEquals(RuleBump.MINOR, bump(">= 4", ">= 3"));
         assertEquals(RuleBump.MINOR, bump("\"role\": \"driver\"", "\"role\": \"tower_lead\""));

@@ -211,6 +211,11 @@ public class IntegrationConnectionService {
         ConnectionStatus status = response.success() ? ConnectionStatus.ACTIVE : ConnectionStatus.TEST_FAILED;
         connectionRepository.updateTestResult(
                 connection.tenantCode(), connection.id(), status, response.testedAt(), response.success());
+        // The connection test exercised the credential too, so the credentials screen shows the same result.
+        if (credential != null) {
+            credentialProfileRepository.updateTestResult(
+                    connection.tenantCode(), credential.id(), response.testedAt(), response.success());
+        }
         return response;
     }
 

@@ -77,15 +77,16 @@ public class TripService {
             if (req.stages() != null) {
                 req.stages().forEach(s -> planned(tenantCode, actor, NO_TRIP, s));
             }
-            // checked in id order, the order stage start locks mandates in
-            mandateIds.stream().sorted().forEach(m -> mandates.requireOpen(tenantCode, m));
+            // checked in id order, the order stage start locks mandates in (text order, as Postgres sorts uuids)
+            mandateIds.stream().sorted(Comparator.comparing(UUID::toString))
+                    .forEach(m -> mandates.requireOpen(tenantCode, m));
             Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
                     Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart(), null, null, null, null, actor, null, actor));
             UUID tripId = UUID.fromString(trip.id());
             // linked in id order (the order stage start locks them in), each keeping its request position
             List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
-            order.sort(Comparator.comparing(mandateIds::get));
+            order.sort(Comparator.comparing(i -> mandateIds.get(i).toString()));
             for (int i : order) {
                 trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
             }

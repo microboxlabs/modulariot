@@ -3738,7 +3738,7 @@
         "metaNewTemplate": "New WhatsApp template",
         "metaRefresh": "Refresh statuses",
         "metaNoTemplates": "The WhatsApp account has no templates yet.",
-        "metaNoConnection": "There is no active WhatsApp connection. Set one up in Settings › Integrations.",
+        "metaNoConnection": "The platform has no active WhatsApp connection: Meta templates live on its WhatsApp account.",
         "metaStatusApproved": "Approved",
         "metaStatusPending": "In review",
         "metaStatusRejected": "Rejected",

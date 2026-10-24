@@ -12,21 +12,15 @@ import com.microboxlabs.miot.conversational.api.OrgConversationsResource.DraftRe
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.PublishRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.SimulateRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.StateRequest;
-import com.microboxlabs.miot.conversational.client.FakeMetaGraph;
-import com.microboxlabs.miot.conversational.client.MetaTemplatesClient;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RulesFixtureAccess;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleContext;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
-import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
-import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.BaseRole;
-import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
-import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -37,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -50,16 +43,6 @@ class OrgConversationsResourceTest {
     private static final Duration WAIT = Duration.ofSeconds(5);
 
     private final RulesFixtureAccess fixture = new RulesFixtureAccess();
-    private final FakeMetaGraph graph = new FakeMetaGraph();
-    private final WhatsAppTemplatesService whatsApp = new WhatsAppTemplatesService(
-            tenant -> new ResolvedConnection("conn-1", graph.baseUrl(), Map.of("waba_id", "100000000000001"),
-                    Map.of("token", "EAAtest-token")),
-            new MetaTemplatesClient());
-
-    @AfterEach
-    void stopGraph() {
-        graph.close();
-    }
 
     private OrgConversationsResource resource(Access access) {
         OrganizationContext org = new OrganizationContext();
@@ -68,7 +51,7 @@ class OrgConversationsResourceTest {
         tenant.setTenantCode(RulesFixtureAccess.TENANT);
         return new OrgConversationsResource(tenant, org, o -> Uni.createFrom().item(access),
                 () -> "owner@example.com", new OrgConversationsResource.Services(fixture.service(),
-                        fixture.simulator(), fixture.templates(), fixture.runs(), whatsApp));
+                        fixture.simulator(), fixture.templates(), fixture.runs()));
     }
 
     private final OrgConversationsResource owner = resource(access(BaseRole.OWNER, Set.of()));
@@ -319,84 +302,5 @@ class OrgConversationsResourceTest {
     void anotherOrganizationInThePathIsRefused() {
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> owner.listRules("org-b"));
         assertEquals(403, e.getResponse().getStatus());
-    }
-
-    private static WhatsAppTemplateDraft whatsAppDraft(String name) {
-        return new WhatsAppTemplateDraft(name, null, "UTILITY", null, "Hola {{nombre}}, ¿todo bien?", null, null,
-                Map.of("nombre", "Juan"));
-    }
-
-    @Test
-    void whatsAppTemplatesShapeAndWrites() {
-        graph.reply(200, """
-                {"data": [{"id": "901", "name": "panic_check", "language": "es_CL", "status": "APPROVED",
-                  "category": "UTILITY", "parameter_format": "NAMED",
-                  "components": [{"type": "BODY", "text": "Hola {{nombre}}, ¿todo bien?"}]}]}
-                """);
-        JsonNode list = body(call(member.listWhatsAppTemplates(ORG)));
-        assertEquals(set("id", "name", "language", "category", "status", "rejectedReason", "parameterFormat",
-                "headerFormat", "header", "body", "footer", "buttons", "params", "examples"), keys(list.get(0)));
-        assertEquals("[\"nombre\"]", list.get(0).path("params").toString());
-
-        graph.reply(200, "{\"id\": \"903\", \"status\": \"PENDING\", \"category\": \"UTILITY\"}");
-        Response created = call(maintainer.createWhatsAppTemplate(ORG, whatsAppDraft("panic_check_v2")));
-        assertEquals(201, created.getStatus());
-        assertEquals("903", body(created).path("id").asText());
-
-        graph.reply(200, "{\"success\": true}");
-        assertEquals(204, call(owner.deleteWhatsAppTemplate(ORG, "panic_check_v2", "903")).getStatus());
-        assertEquals("name=panic_check_v2&hsm_id=903", graph.last().query());
-    }
-
-    @Test
-    void whatsAppTemplateWritesNeedAnOwnerOrTheMaintainer() {
-        assertEquals(403, call(member.createWhatsAppTemplate(ORG, whatsAppDraft("x"))).getStatus());
-        assertEquals(403, call(member.editWhatsAppTemplate(ORG, "901", whatsAppDraft(null))).getStatus());
-        assertEquals(403, call(member.deleteWhatsAppTemplate(ORG, "x", null)).getStatus());
-        assertTrue(graph.seen().isEmpty());
-    }
-
-    @Test
-    void whatsAppTemplateErrorsMapToClearStatuses() {
-        Response invalid = call(owner.createWhatsAppTemplate(ORG, whatsAppDraft("Bad Name")));
-        assertEquals(400, invalid.getStatus());
-        assertTrue(body(invalid).path("error").asText().contains("name"));
-
-        graph.reply(400, """
-                {"error": {"message": "Invalid parameter", "code": 100,
-                 "error_user_title": "Duplicate", "error_user_msg": "The name is taken."}}
-                """);
-        Response refused = call(owner.createWhatsAppTemplate(ORG, whatsAppDraft("panic_check")));
-        assertEquals(400, refused.getStatus());
-        assertEquals("Meta: Duplicate: The name is taken.", body(refused).path("error").asText());
-
-        graph.reply(400, "{\"error\": {\"message\": \"Error validating access token\", \"code\": 190}}");
-        assertEquals(502, call(member.listWhatsAppTemplates(ORG)).getStatus());
-
-        graph.reply(404, "{\"error\": {\"message\": \"Unknown path\", \"code\": 803}}");
-        assertEquals(404, call(owner.editWhatsAppTemplate(ORG, "901", whatsAppDraft(null))).getStatus());
-
-        graph.reply(503, "upstream down");
-        assertEquals(502, call(member.listWhatsAppTemplates(ORG)).getStatus());
-    }
-
-    @Test
-    void aMissingWhatsAppConnectionIsAConflict() {
-        OrganizationContext org = new OrganizationContext();
-        org.setOrganizationId(ORG);
-        TenantContext tenant = new TenantContext();
-        tenant.setTenantCode(RulesFixtureAccess.TENANT);
-        WhatsAppTemplatesService none = new WhatsAppTemplatesService(t -> {
-            throw new ConnectionResolutionException("No usable WHATSAPP connection is configured");
-        }, new MetaTemplatesClient());
-        OrgConversationsResource r = new OrgConversationsResource(tenant, org,
-                o -> Uni.createFrom().item(access(BaseRole.OWNER, Set.of())), () -> "owner@example.com",
-                new OrgConversationsResource.Services(fixture.service(), fixture.simulator(), fixture.templates(),
-                        fixture.runs(), none));
-
-        Response response = call(r.listWhatsAppTemplates(ORG));
-
-        assertEquals(409, response.getStatus());
-        assertTrue(body(response).path("error").asText().contains("WHATSAPP"));
     }
 }

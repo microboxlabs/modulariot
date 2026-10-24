@@ -159,7 +159,7 @@ export function RuleCard({
         </div>
         <StatePill state={rule.state} d={d} />
       </div>
-      <p className="mt-3 line-clamp-2 min-h-[2.5rem] px-4 text-xs text-gray-600 dark:text-gray-300">
+      <p className="mt-3 line-clamp-2 h-8 px-4 text-xs text-gray-600 dark:text-gray-300">
         {summary}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-1.5 px-4 text-xs">

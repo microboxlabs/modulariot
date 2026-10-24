@@ -29,6 +29,7 @@ todos los tenants.
 - [objetos.md](objetos.md) — elementos y objetos: las 17 tablas una a una, y las decisiones de alineación A1–A8
 - [api.md](api.md) — superficie API, autenticación, y el catálogo estándar cambio→invocación
 - [paso-a-prod.md](paso-a-prod.md) — dual-write, orden de corte, rollback y checklist
+- [reglas-de-transicion.md](reglas-de-transicion.md) — monitores de viaje: reglas de transición por clase de viaje, eventos, temporizadores (diseño)
 
 ## Estado de pruebas (2026-10-23)
 

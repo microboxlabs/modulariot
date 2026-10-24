@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "flowbite-react";
-import { HiPlus, HiX } from "react-icons/hi";
+import { HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { keyFrom } from "@/features/symptoms/maintainer/create-symptom-modal";
@@ -19,7 +19,6 @@ import ChannelIcon from "./channel-icon";
 import {
   refreshTemplates,
   saveTemplate,
-  useConversationTemplates,
   useMetaTemplates,
 } from "./conversations-api";
 import type {
@@ -32,8 +31,7 @@ import MetaTemplateCombobox, {
   findMetaTemplate,
 } from "./meta-template-combobox";
 import MetaStatusChip from "./meta-template-status";
-import MetaTemplatesSection from "./meta-templates-section";
-import { channelLabel, fillText, textVariables } from "./rule-model";
+import { fillText, textVariables } from "./rule-model";
 import { ruleHref } from "./rules-tab";
 
 /** Values the preview fills a template with; no real person, phone or plate. */
@@ -46,6 +44,9 @@ export const SAMPLE_VALUES: Record<string, string> = {
   fecha: "23-10-2026",
   ubicacion: "-33.44890, -70.66930",
 };
+
+/** A sample value, or the `{{name}}` placeholder when there is none. */
+const sampleValue = (name: string) => SAMPLE_VALUES[name] ?? `{{${name}}}`;
 
 const EMPTY: TemplateBody = {
   name: "",
@@ -99,7 +100,7 @@ export function TemplatePreview({
             {body.whatsapp.params.length > 0 && (
               <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                 {body.whatsapp.params
-                  .map((p) => `${p} = ${SAMPLE_VALUES[p] ?? `{{${p}}}`}`)
+                  .map((p) => `${p} = ${sampleValue(p)}`)
                   .join(" · ")}
               </span>
             )}
@@ -510,12 +511,24 @@ export function TemplateEditor({
               {(template?.usedBy ?? []).map((r) => (
                 <li key={r.id} className="flex items-center gap-2 text-sm">
                   <StatePill state={r.state} d={d} />
-                  <Link
-                    href={ruleHref(lang, r.id)}
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    {r.name}
-                  </Link>
+                  {r.tenantCode ? (
+                    // The platform sees other organizations' rules; their editor is in each organization.
+                    <>
+                      <span className="text-gray-900 dark:text-white">
+                        {r.name}
+                      </span>
+                      <span className={`font-mono text-xs ${MUTED}`}>
+                        {r.tenantCode}
+                      </span>
+                    </>
+                  ) : (
+                    <Link
+                      href={ruleHref(lang, r.id)}
+                      className="text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                      {r.name}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -537,198 +550,6 @@ export function TemplateEditor({
             {saving ? tr("saving", d) : tr("saveTemplate", d)}
           </Button>
         </div>
-      )}
-    </div>
-  );
-}
-
-/** What the list has picked: a stored template by key, or a new one. */
-type Selection = { kind: "template"; key: string } | { kind: "new" } | null;
-
-export type TemplatesView = "messages" | "meta";
-
-const CHANNELS = ["whatsapp", "email"] as const;
-
-/** The filter chips over the message templates: by the channels a template has a version for. */
-export function templateFilterDefs(
-  d: I18nRecord
-): { key: "channel"; label: string; options: string[] }[] {
-  return [
-    {
-      key: "channel",
-      label: tr("filterChannel", d),
-      options: CHANNELS.map((c) => channelLabel(c, d)),
-    },
-  ];
-}
-
-function hasChannel(t: ConversationTemplate, channel: string, d: I18nRecord) {
-  if (!channel) return true;
-  return CHANNELS.some((c) => channelLabel(c, d) === channel && t[c] != null);
-}
-
-/** "Plantillas": the app's message templates, or the WhatsApp templates on Meta. */
-export default function TemplatesTab({
-  lang,
-  canWrite,
-  view,
-  channel,
-  d,
-  onView,
-}: Readonly<{
-  lang: string;
-  canWrite: boolean;
-  view: TemplatesView;
-  /** A channel label from the filter bar; empty shows every template. */
-  channel: string;
-  d: I18nRecord;
-  onView: (view: TemplatesView) => void;
-}>) {
-  const views: { value: TemplatesView; label: string }[] = [
-    { value: "messages", label: tr("templatesMessages", d) },
-    { value: "meta", label: tr("templatesMeta", d) },
-  ];
-  return (
-    <div className="flex flex-col gap-4">
-      <fieldset className="flex self-start rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
-        <legend className="sr-only">{tr("templatesView", d)}</legend>
-        {views.map((v) => (
-          <button
-            key={v.value}
-            type="button"
-            aria-pressed={view === v.value}
-            onClick={() => onView(v.value)}
-            className={`rounded-md px-2.5 py-1 text-xs ${
-              view === v.value
-                ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
-                : MUTED
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </fieldset>
-      {view === "messages" ? (
-        <MessageTemplates
-          lang={lang}
-          canWrite={canWrite}
-          channel={channel}
-          d={d}
-        />
-      ) : (
-        <MetaTemplatesSection canWrite={canWrite} d={d} />
-      )}
-    </div>
-  );
-}
-
-/** The app's templates: the list beside the selected template's editor. */
-function MessageTemplates({
-  lang,
-  canWrite,
-  channel,
-  d,
-}: Readonly<{
-  lang: string;
-  canWrite: boolean;
-  channel: string;
-  d: I18nRecord;
-}>) {
-  const { data: all, error, isLoading } = useConversationTemplates();
-  const templates = all?.filter((t) => hasChannel(t, channel, d));
-  // A stored template, a new one, or null for none picked.
-  const [selected, setSelected] = useState<Selection>(null);
-  const creating = selected?.kind === "new";
-  const selectedKey = selected?.kind === "template" ? selected.key : null;
-  const picked = templates?.find((t) => t.key === selectedKey) ?? null;
-  const current = picked?.key ?? templates?.[0]?.key ?? null;
-  const shown = creating ? null : (picked ?? templates?.[0] ?? null);
-
-  return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <nav
-        aria-label={tr("tabTemplates", d)}
-        className="flex flex-col gap-1 self-start rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800"
-      >
-        {canWrite && (
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-md px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-gray-700"
-            onClick={() => setSelected({ kind: "new" })}
-          >
-            <HiPlus aria-hidden className="h-4 w-4" />
-            {tr("newTemplate", d)}
-          </button>
-        )}
-        {error && (
-          <p
-            role="alert"
-            className="px-3 py-2 text-sm text-red-600 dark:text-red-400"
-          >
-            {tr("loadFailed", d)}
-          </p>
-        )}
-        {isLoading && (
-          <p className={`px-3 py-2 text-sm ${MUTED}`}>{tr("loading", d)}</p>
-        )}
-        {all?.length === 0 && (
-          <p className={`px-3 py-2 text-sm ${MUTED}`}>{tr("noTemplates", d)}</p>
-        )}
-        {all && all.length > 0 && templates?.length === 0 && (
-          <p className={`px-3 py-2 text-sm ${MUTED}`}>
-            {tr("templatesEmptyFiltered", d)}
-          </p>
-        )}
-        {(templates ?? []).map((t) => {
-          const active = t.key === current && !creating;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              aria-current={active ? "true" : undefined}
-              onClick={() => setSelected({ kind: "template", key: t.key })}
-              className={`flex flex-col gap-1 rounded-md px-3 py-2 text-left text-sm ${
-                active
-                  ? "bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-white"
-                  : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-              }`}
-            >
-              <span className="truncate font-medium">{t.name}</span>
-              <span className="flex items-center gap-1">
-                {t.whatsapp && (
-                  <ChannelIcon
-                    channel="whatsapp"
-                    label={channelLabel("whatsapp", d)}
-                    size={5}
-                  />
-                )}
-                {t.email && (
-                  <ChannelIcon
-                    channel="email"
-                    label={channelLabel("email", d)}
-                    size={5}
-                  />
-                )}
-                <span className={`ml-1 text-xs ${MUTED}`}>
-                  {tr("usedByCount", d, {
-                    n: String(t.usedBy?.length ?? 0),
-                  })}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </nav>
-      {(shown || creating) && (
-        <TemplateEditor
-          key={creating ? "new-template" : `template:${shown?.key}`}
-          template={shown}
-          readOnly={!canWrite}
-          takenKeys={(all ?? []).map((t) => t.key)}
-          lang={lang}
-          d={d}
-          onSaved={(saved) => setSelected({ kind: "template", key: saved.key })}
-        />
       )}
     </div>
   );

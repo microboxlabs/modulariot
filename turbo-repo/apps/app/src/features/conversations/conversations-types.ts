@@ -157,12 +157,22 @@ export interface TemplateBody {
   email: EmailVariant | null;
 }
 
+/** A platform template: every organization's rules send it. */
 export interface ConversationTemplate extends TemplateBody {
   id: string;
   key: string;
+  /** Semantic version, raised on each save that changes the template. */
+  version?: string;
   updatedAt?: string | null;
   updatedBy?: string | null;
-  usedBy?: { id: string; key: string; name: string; state: RuleState }[];
+  /** The reader's rules that use it; the platform also gets each rule's organization. */
+  usedBy?: {
+    id: string;
+    key: string;
+    name: string;
+    state: RuleState;
+    tenantCode?: string;
+  }[];
 }
 
 /** A template's review state on Meta. */

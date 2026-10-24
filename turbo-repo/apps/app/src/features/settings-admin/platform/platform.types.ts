@@ -57,6 +57,7 @@ export type PlatformSection =
   | "sharing"
   | "templates"
   | "symptomTemplates"
+  | "messageTemplates"
   | "plan"
   | "usage";
 

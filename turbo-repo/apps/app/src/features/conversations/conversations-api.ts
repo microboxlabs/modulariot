@@ -35,6 +35,10 @@ export const ruleKey = (id: string) => `${rulesKey}/${encodeURIComponent(id)}`;
 export const templatesKey = `${CONVERSATIONS_BASE}/templates`;
 export const templateKey = (key: string) =>
   `${templatesKey}/${encodeURIComponent(key)}`;
+/** The platform's templates, for platform owners; organizations read them through `templatesKey`. */
+export const platformTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/message-templates`;
+export const platformTemplateKey = (key: string) =>
+  `${platformTemplatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
 export const metaTemplatesKey = `${CONVERSATIONS_BASE}/whatsapp-templates`;
 
@@ -67,6 +71,23 @@ export function useConversationRule(id: string | null) {
 export function useConversationTemplates(enabled = true) {
   return useSWR<ConversationTemplate[]>(
     enabled ? templatesKey : null,
+    fetcher,
+    quiet
+  );
+}
+
+/** The platform's templates with every organization's rules that use each. */
+export function usePlatformTemplates(enabled = true) {
+  return useSWR<ConversationTemplate[]>(
+    enabled ? platformTemplatesKey : null,
+    fetcher,
+    quiet
+  );
+}
+
+export function usePlatformTemplate(key: string | null) {
+  return useSWR<ConversationTemplate>(
+    key ? platformTemplateKey(key) : null,
     fetcher,
     quiet
   );
@@ -145,8 +166,9 @@ export function simulateRule(id: string, event: SampleEvent) {
   });
 }
 
+/** Saves a platform template; only platform owners may. */
 export function saveTemplate(key: string, body: TemplateBody) {
-  return request<ConversationTemplate>(templateKey(key), {
+  return request<ConversationTemplate>(platformTemplateKey(key), {
     method: "PUT",
     body,
   });
@@ -186,5 +208,9 @@ export async function refreshRules(id?: string) {
 
 export async function refreshTemplates(key?: string) {
   await mutate(templatesKey);
-  if (key) await mutate(templateKey(key));
+  await mutate(platformTemplatesKey);
+  if (key) {
+    await mutate(templateKey(key));
+    await mutate(platformTemplateKey(key));
+  }
 }

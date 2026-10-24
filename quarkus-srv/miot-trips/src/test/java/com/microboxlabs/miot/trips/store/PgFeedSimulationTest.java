@@ -46,9 +46,7 @@ import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -105,25 +103,7 @@ class PgFeedSimulationTest {
         vertx = Vertx.vertx();
         pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(
                 PgTripsStoresTest.URL_PROPERTY))).using(vertx).build();
-        pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
-        pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
-        for (String fleetSql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
-                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
-                "/db/migration/fleet/V0.9.10__updated_at_in_stores.sql"}) {
-            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(fleetSql)) {
-                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
-            }
-        }
-        for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
-                "/db/migration/trips/V0.10.3__trips_lock_order.sql",
-                "/db/migration/trips/V0.10.4__checks_in_services.sql",
-                "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
-                "/db/migration/trips/V0.10.6__trip_live_in_services.sql",
-                "/db/migration/trips/V0.10.7__updated_at_in_stores.sql"}) {
-            try (InputStream in = PgFeedSimulationTest.class.getResourceAsStream(tripsSql)) {
-                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
-            }
-        }
+        PgTripsStoresTest.recreateSchemas(pool);
     }
 
     @AfterAll

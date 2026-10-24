@@ -178,11 +178,10 @@ public class PgRuleStore implements RuleStore {
     }
 
     @Override
-    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String from, String version,
-            RuleBump bump, String reason, String actor, Instant at) {
-        Tuple params = Tuple.tuple().addUUID(uuid(ruleId)).addString(reason).addString(actor)
-                .addOffsetDateTime(time(at)).addString(Pg.write(validated)).addString(version)
-                .addString(bump.name()).addString(from);
+    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, Publication p) {
+        Tuple params = Tuple.tuple().addUUID(uuid(ruleId)).addString(p.reason()).addString(p.actor())
+                .addOffsetDateTime(time(p.at())).addString(Pg.write(validated)).addString(p.version())
+                .addString(p.bump().name()).addString(p.from());
         return versions(query(pool.get(), PUBLISH, params), "").stream().findFirst();
     }
 

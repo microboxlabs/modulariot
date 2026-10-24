@@ -246,7 +246,16 @@ export default function CommunicationsPage({
         accessKnown={loaded}
         d={d}
         onClose={closeNewRule}
-        onCreated={(created) => router.push(ruleHref(lang, created.rule.id))}
+        onCreated={(created) => {
+          const href = ruleHref(lang, created.rule.id);
+          // A link's ?new=1 entry is replaced, so Back does not reopen the modal.
+          if (linked) {
+            router.replace(href);
+            return;
+          }
+          setNewRule(null);
+          router.push(href);
+        }}
       />
     </div>
   );

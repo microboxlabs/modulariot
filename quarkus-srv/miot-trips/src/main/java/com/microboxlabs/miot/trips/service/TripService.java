@@ -33,6 +33,9 @@ import java.util.stream.Collectors;
 public class TripService {
 
     static final String ENTITY = "trip";
+    private static final String MANDATE_IDS = "mandateIds";
+    /** Stands in for the trip id while the stage plan is validated before the trip exists. */
+    private static final UUID NO_TRIP = new UUID(0, 0);
     private static final String TRIP_NOT_FOUND = "trip not found";
     private static final String MANDATE_ID = "mandateId";
 
@@ -57,16 +60,19 @@ public class TripService {
     /** Creates the leg, links the given mandates and lays down the planned stages, in that order. */
     public TripView create(String tenantCode, String actor, TripRequest body) {
         TripRequest req = body == null ? TripRequest.empty() : body;
+        // the whole request is validated before the first write
+        List<UUID> mandateIds = req.mandateIds() == null ? List.of() : req.mandateIds().stream()
+                .map(m -> parse(Check.required(m, MANDATE_IDS, 64), MANDATE_IDS)).toList();
+        if (req.stages() != null) {
+            req.stages().forEach(s -> planned(tenantCode, actor, NO_TRIP, s));
+        }
         Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
                 Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                 req.plannedStart(), null, null, null, null, actor, null, actor));
         UUID tripId = UUID.fromString(trip.id());
-        if (req.mandateIds() != null) {
-            int seq = 1;
-            for (String mandateId : req.mandateIds()) {
-                UUID mid = parse(mandateId, "mandateIds");
-                trips.linkMandate(tenantCode, tripId, mid, seq++, "primary", actor);
-            }
+        int seq = 1;
+        for (UUID mid : mandateIds) {
+            trips.linkMandate(tenantCode, tripId, mid, seq++, "primary", actor);
         }
         if (req.stages() != null) {
             for (StageRequest s : req.stages()) {

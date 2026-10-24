@@ -174,6 +174,12 @@ class TripFlowTest {
     void badIdsAndWindowsAreRejected() {
         TripRequest badOrigin = new TripRequest("not-a-uuid", null, null, null, null);
         assertThrows(IllegalArgumentException.class, () -> trips.create(TENANT, ACTOR, badOrigin));
+        TripRequest badPlan = new TripRequest(null, null, null, null, List.of(
+                new StageRequest("carga", null, null, null, null, null),
+                new StageRequest("volar", null, null, null, null, null)));
+        assertThrows(IllegalArgumentException.class, () -> trips.create(TENANT, ACTOR, badPlan));
+        assertTrue(trips.list(TENANT, TripService.filter(null, null, null, null, null), 0, 50).isEmpty(),
+                "a refused plan writes no trip");
         UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR,
                 new TripRequest(null, null, null, null, null)).id());
         Assignment truck = assignments.create(TENANT, ACTOR, tripId,

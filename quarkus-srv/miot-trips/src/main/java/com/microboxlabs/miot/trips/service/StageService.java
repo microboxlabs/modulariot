@@ -192,7 +192,7 @@ public class StageService {
         StageActivity done = stages.updateActivity(new StageActivity(
                 current.id(), tenantCode, current.stageId(), current.seq(), current.activityType(),
                 StageActivity.DONE, current.assignee(),
-                assignmentId == null ? current.assignmentId() : assignmentId,
+                assignmentId == null ? current.assignmentId() : Check.uuidOrNull(assignmentId, "assignmentId"),
                 evidence == null ? current.evidence() : evidence,
                 OffsetDateTime.now(ZoneOffset.UTC),
                 current.createdAt(), current.createdBy(), null, actor))

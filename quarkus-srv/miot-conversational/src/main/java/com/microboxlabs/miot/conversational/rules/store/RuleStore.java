@@ -34,11 +34,12 @@ public interface RuleStore {
     RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at);
 
     /**
-     * Turns the draft into {@code version} and makes it current, provided its spec is still {@code validated};
-     * empty when there is no draft or it changed since it was validated.
+     * Turns the draft into {@code version} and makes it current, provided its spec is still {@code validated}
+     * and the rule's current version is still {@code from} (null: none); empty when there is no draft, it changed
+     * since it was validated, or another publish moved the current version.
      */
-    Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump, String reason,
-            String actor, Instant at);
+    Optional<RuleVersion> publish(String ruleId, JsonNode validated, String from, String version, RuleBump bump,
+            String reason, String actor, Instant at);
 
     List<InForce> inForce(String tenantCode);
 }

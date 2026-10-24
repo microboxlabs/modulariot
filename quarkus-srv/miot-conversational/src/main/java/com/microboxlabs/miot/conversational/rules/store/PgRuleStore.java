@@ -62,13 +62,16 @@ public class PgRuleStore implements RuleStore {
             DO UPDATE SET spec = EXCLUDED.spec, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by
             RETURNING\s""" + VERSION_COLUMNS;
     // One statement: the draft becomes version $6 and the rule points at it, only while its spec is the one that
-    // was validated ($5), so a draft saved meanwhile is never published unchecked.
+    // was validated ($5) and the rule is still on the version $6 was computed from ($8), so a draft saved
+    // meanwhile is never published unchecked and a concurrent publish never moves the version backwards.
     private static final String PUBLISH = """
             WITH v AS (
                 UPDATE miot_conversational.conv_rule_version
                 SET status = 'PUBLISHED', version = $6, bump = $7,
                     reason = $2, created_by = $3, created_at = $4
                 WHERE rule_id = $1 AND status = 'DRAFT' AND spec = $5::text::jsonb
+                  AND EXISTS (SELECT 1 FROM miot_conversational.conv_rule
+                              WHERE id = $1 AND current_version IS NOT DISTINCT FROM $8::varchar)
                 RETURNING *
             ), r AS (
                 UPDATE miot_conversational.conv_rule
@@ -152,11 +155,11 @@ public class PgRuleStore implements RuleStore {
     }
 
     @Override
-    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump,
-            String reason, String actor, Instant at) {
+    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String from, String version,
+            RuleBump bump, String reason, String actor, Instant at) {
         Tuple params = Tuple.tuple().addUUID(uuid(ruleId)).addString(reason).addString(actor)
                 .addOffsetDateTime(time(at)).addString(Pg.write(validated)).addString(version)
-                .addString(bump.name());
+                .addString(bump.name()).addString(from);
         return versions(query(pool.get(), PUBLISH, params), "").stream().findFirst();
     }
 

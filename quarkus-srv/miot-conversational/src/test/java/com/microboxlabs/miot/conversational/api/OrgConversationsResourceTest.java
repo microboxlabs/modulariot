@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -204,7 +205,7 @@ class OrgConversationsResourceTest {
         assertEquals(409, call(owner.publish(ORG, id, new PublishRequest("same", null))).getStatus());
 
         String later = same.replaceFirst("\"waitForReply\"\\s*:\\s*\\d+", "\"waitForReply\": 9");
-        assertTrue(!later.equals(same), "the fixture has a waitForReply to change");
+        assertNotEquals(same, later, "the fixture has a waitForReply to change");
         call(owner.saveDraft(ORG, id, new DraftRequest(RulesFixtureAccess.json(later))));
         JsonNode plan = body(call(member.getRule(ORG, id))).path("plan");
         assertEquals("PATCH", plan.path("bump").asText());

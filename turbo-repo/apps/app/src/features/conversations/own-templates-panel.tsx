@@ -76,25 +76,25 @@ export default function OwnTemplatesPanel({ d }: Readonly<{ d: I18nRecord }>) {
         </Button>
       </div>
       {results && (
-        <div role="status" className="flex flex-col gap-1 text-sm">
-          <p className="text-gray-900 dark:text-white">
+        <output className="flex flex-col gap-1 text-sm">
+          <span className="text-gray-900 dark:text-white">
             {tr("channelCopyResult", d, {
               copied: count(results, "COPIED"),
               exists: count(results, "EXISTS"),
               failed: count(results, "FAILED"),
             })}
-          </p>
+          </span>
           {results
             .filter((r) => r.status === "FAILED")
             .map((r) => (
-              <p
+              <span
                 key={`${r.name}/${r.language}`}
                 className="text-xs text-red-600 dark:text-red-400"
               >
                 <span className="font-mono">{r.name}</span>: {r.error}
-              </p>
+              </span>
             ))}
-        </div>
+        </output>
       )}
       {copyError && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">

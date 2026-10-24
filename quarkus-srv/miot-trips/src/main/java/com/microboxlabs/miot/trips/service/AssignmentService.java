@@ -73,7 +73,7 @@ public class AssignmentService {
                 throw new IllegalArgumentException("validFrom cannot be in the future; assign the resource when it starts");
             }
             if (!fleet.exists(tenantCode, type, resource)) {
-                throw new IllegalArgumentException(type + " " + resourceId + " does not exist");
+                throw new IllegalArgumentException(type + " " + resourceId + " does not exist or is inactive");
             }
             Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
                     from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));

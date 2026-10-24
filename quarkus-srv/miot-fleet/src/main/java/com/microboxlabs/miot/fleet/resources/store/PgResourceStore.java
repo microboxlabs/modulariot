@@ -311,7 +311,8 @@ public class PgResourceStore implements ResourceStore {
         if (!RESOURCE_TABLES.contains(table)) {
             throw new IllegalArgumentException("not a resource table: " + table);
         }
-        return query(pool.get(), "SELECT EXISTS(" + select("1", table) + BY_ID + " AND is_active)",
+        return query(pool.get(), "SELECT EXISTS(" + select("1", table) + BY_ID
+                + " AND is_active AND COALESCE(status, 'active') <> 'inactive')",
                 Tuple.of(tenantCode, id)).iterator().next().getBoolean(0);
     }
 

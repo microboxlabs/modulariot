@@ -20,7 +20,7 @@ public interface FleetResources {
     record Carrier(UUID id, String legalName, String phone) {
     }
 
-    /** Whether {@code resourceType} (truck, trailer, driver) {@code id} exists for the tenant. */
+    /** Whether {@code resourceType} (truck, trailer, driver) {@code id} exists for the tenant and is not inactive. */
     boolean exists(String tenantCode, String resourceType, UUID id);
 
     /** {@code resourceType} is truck or trailer. */

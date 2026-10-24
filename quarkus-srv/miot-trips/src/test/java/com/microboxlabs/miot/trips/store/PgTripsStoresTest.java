@@ -279,7 +279,7 @@ class PgTripsStoresTest {
     void aFeedKeepsItsProfileAndTheLastStateOfEachService() {
         String tenant = tenant();
         PgFeedStore feeds = new PgFeedStore(() -> pool);
-        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "exacta-servicios", "Servicios",
+        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios",
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
@@ -289,18 +289,18 @@ class PgTripsStoresTest {
         assertEquals(List.of("preparation", "transit", "closing"),
                 saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
-        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "exacta-servicios", "Servicios v2",
+        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
                 saved.stages(), "transit", "closing", 90, saved.requiredResources(), true, null, ACTOR, null, ACTOR));
         assertEquals(90, renamed.closeToleranceMinutes());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
 
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
                 null, null, true, null, null, null));
         OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
         String trip = UUID.randomUUID().toString();
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
                 null, trip, true, "create", "{\"done\":[\"create trip\"]}", at));
-        FeedService s = feeds.service(tenant, "exacta-servicios", "S-001").orElseThrow();
+        FeedService s = feeds.service(tenant, "servicios", "S-001").orElseThrow();
         assertEquals("h2", s.desiredHash());
         assertEquals(trip, s.tripId());
         assertTrue(s.desired().contains("\"b\""));
@@ -309,15 +309,15 @@ class PgTripsStoresTest {
         Predicate<OffsetDateTime> due = now -> feeds.dueServices(now, 60, 1000).stream()
                 .anyMatch(o -> o.externalCode().equals("S-001") && o.tenantCode().equals(tenant));
         String times = "{\"plannedStart\":\"" + at.plusHours(2) + "\",\"plannedEnd\":\"" + at.plusHours(10) + "\"}";
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", times, "h3", null, trip, true,
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, true,
                 "create", null, at));
         assertFalse(due.test(at.plusHours(1)), "before the departure");
         assertTrue(due.test(at.plusHours(3)), "the departure passed after the last reconcile");
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", times, "h3", null, trip, true,
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, true,
                 "update", null, at.plusHours(3)));
         assertFalse(due.test(at.plusHours(4)), "the departure was already handled");
         assertTrue(due.test(at.plusHours(10).plusMinutes(91)), "arrival + the 90 minutes of tolerance passed");
-        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", times, "h3", null, trip, false,
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, false,
                 "closing", null, at.plusHours(12)));
         assertFalse(due.test(at.plusHours(13)), "a closed service leaves the clock's list");
     }

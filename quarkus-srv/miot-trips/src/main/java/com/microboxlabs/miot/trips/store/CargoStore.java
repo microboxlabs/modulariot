@@ -13,6 +13,9 @@ public interface CargoStore {
 
     Optional<CargoUnit> find(String tenantCode, UUID id);
 
+    /** The mandate that owns the cargo, through its current line. */
+    Optional<UUID> mandateOf(String tenantCode, UUID cargoId);
+
     List<CargoUnit> listByMandate(String tenantCode, UUID mandateId);
 
     /** Cargo units currently linked to the trip. */

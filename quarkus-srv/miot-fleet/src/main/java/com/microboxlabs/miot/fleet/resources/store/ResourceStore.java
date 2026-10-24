@@ -42,4 +42,10 @@ public interface ResourceStore {
     List<Driver> listDrivers(String tenantCode, String rut, String q, int page, int size);
 
     Optional<Driver> updateDriver(Driver driver);
+
+    /**
+     * Whether {@code id} is a current row of {@code table} (carrier, truck, trailer, driver) that is neither deleted
+     * nor switched off ({@code status = 'inactive'}); no row lock.
+     */
+    boolean isCurrent(String tenantCode, String table, UUID id);
 }

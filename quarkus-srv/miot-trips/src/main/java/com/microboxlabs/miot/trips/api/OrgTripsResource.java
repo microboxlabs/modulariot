@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.api;
 
+import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -41,7 +42,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
-public class OrgTripsResource extends TripsResourceSupport {
+public class OrgTripsResource extends OrgResourceSupport {
 
     private static final String ORG = "organizationId";
 
@@ -72,7 +73,8 @@ public class OrgTripsResource extends TripsResourceSupport {
             @QueryParam("size") Integer size) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(
-                trips.list(tenant, status, mandateId, assetId, timestamp(from, "from"), timestamp(to, "to"),
+                trips.list(tenant,
+                        TripService.filter(status, mandateId, assetId, timestamp(from, "from"), timestamp(to, "to")),
                         page, size).stream().map(TripView::of).toList())
                 .build());
     }

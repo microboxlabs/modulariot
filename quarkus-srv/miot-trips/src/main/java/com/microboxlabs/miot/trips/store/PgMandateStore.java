@@ -42,7 +42,7 @@ public class PgMandateStore implements MandateStore {
     private static final String UPDATE = """
             UPDATE miot_trips.mandate SET
                 order_type = $3, order_ref = $4, status = $5, origin_id = $6, destination_id = $7,
-                sla_minutes = $8, closed_at = $9, cancel_reason = $10, updated_by = $11
+                sla_minutes = $8, closed_at = $9, cancel_reason = $10, updated_by = $11, updated_at = now()
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + COLUMNS;
 

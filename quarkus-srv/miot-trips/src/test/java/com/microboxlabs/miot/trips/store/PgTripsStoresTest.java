@@ -83,7 +83,8 @@ class PgTripsStoresTest {
         pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
         pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
         for (String fleetSql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
-                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql"}) {
+                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
+                "/db/migration/fleet/V0.9.10__updated_at_in_stores.sql"}) {
             try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(fleetSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -92,7 +93,8 @@ class PgTripsStoresTest {
                 "/db/migration/trips/V0.10.3__trips_lock_order.sql",
                 "/db/migration/trips/V0.10.4__checks_in_services.sql",
                 "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
-                "/db/migration/trips/V0.10.6__trip_live_in_services.sql"}) {
+                "/db/migration/trips/V0.10.6__trip_live_in_services.sql",
+                "/db/migration/trips/V0.10.7__updated_at_in_stores.sql"}) {
             try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(tripsSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -296,6 +298,18 @@ class PgTripsStoresTest {
         assertEquals(List.of(tripId), trips.openTripsAt(tenant, UUID.fromString(origin.id())));
         projector.refreshAll(tenant, trips.openTripsAt(tenant, UUID.fromString(origin.id())));
         assertEquals("Bodega Norte 2", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
+    }
+
+    @Test
+    void anUpdateStampsUpdatedAt() {
+        String tenant = tenant();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        Trip moved = trips.update(new Trip(trip.id(), tenant, Trip.PLANNED, null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).plusDays(1), null, null, null, null, ACTOR, null, ACTOR))
+                .orElseThrow();
+        assertTrue(moved.updatedAt().isAfter(trip.updatedAt()), "the store stamps updated_at on UPDATE");
+        assertEquals(trip.createdAt(), moved.createdAt());
     }
 
     @Test

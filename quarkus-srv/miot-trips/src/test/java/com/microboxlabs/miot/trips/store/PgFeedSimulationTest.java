@@ -108,7 +108,8 @@ class PgFeedSimulationTest {
         pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
         pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
         for (String fleetSql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
-                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql"}) {
+                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
+                "/db/migration/fleet/V0.9.10__updated_at_in_stores.sql"}) {
             try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(fleetSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -117,7 +118,8 @@ class PgFeedSimulationTest {
                 "/db/migration/trips/V0.10.3__trips_lock_order.sql",
                 "/db/migration/trips/V0.10.4__checks_in_services.sql",
                 "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
-                "/db/migration/trips/V0.10.6__trip_live_in_services.sql"}) {
+                "/db/migration/trips/V0.10.6__trip_live_in_services.sql",
+                "/db/migration/trips/V0.10.7__updated_at_in_stores.sql"}) {
             try (InputStream in = PgFeedSimulationTest.class.getResourceAsStream(tripsSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }

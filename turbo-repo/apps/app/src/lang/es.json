@@ -3036,6 +3036,34 @@
         "removeFailed": "No se pudo eliminar el contacto.",
         "tagUpdateError": "No se pudo actualizar la etiqueta en {count} contactos. Se deshizo el cambio."
       },
+      "tripLocations": {
+        "title": "Ubicaciones",
+        "description": "Los lugares que nombran los viajes. Asigna a cada uno su geocerca GPS para que las reglas de señal se disparen al entrar y salir.",
+        "search": "Buscar por nombre o código",
+        "onlyMissing": "Solo sin geocerca",
+        "missingCount": "{count} sin geocerca",
+        "empty": "No hay ubicaciones. El feed las crea al nombrar un lugar nuevo.",
+        "loading": "Cargando…",
+        "location": "Ubicación",
+        "code": "Código",
+        "type": "Tipo",
+        "geofence": "Geocerca GPS",
+        "noGeofence": "Sin geocerca",
+        "assign": "Asignar",
+        "change": "Cambiar",
+        "chooseGeofence": "Geocerca de {name}",
+        "searchGeofence": "Buscar geocerca por nombre o código",
+        "noGeofences": "No hay geocercas que coincidan.",
+        "removeGeofence": "Quitar geocerca",
+        "cancel": "Cancelar",
+        "types": {
+          "plant": "Planta",
+          "port": "Puerto",
+          "distribution_center": "Centro de distribución",
+          "customer": "Cliente",
+          "zone": "Zona"
+        }
+      },
       "tripMonitors": {
         "title": "Monitores de viajes",
         "description": "Reglas que mueven las etapas de cada clase de viaje: qué evento, bajo qué condición, con qué efecto.",

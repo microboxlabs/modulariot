@@ -3036,6 +3036,34 @@
         "removeFailed": "The contact couldn't be deleted.",
         "tagUpdateError": "The tag couldn't be updated on {count} contacts. The change was undone."
       },
+      "tripLocations": {
+        "title": "Locations",
+        "description": "The places trips name. Give each its GPS geofence so signal rules fire on entering and leaving.",
+        "search": "Search by name or code",
+        "onlyMissing": "Only without a geofence",
+        "missingCount": "{count} without a geofence",
+        "empty": "No locations yet. The feed creates one when it names a new place.",
+        "loading": "Loading…",
+        "location": "Location",
+        "code": "Code",
+        "type": "Type",
+        "geofence": "GPS geofence",
+        "noGeofence": "No geofence",
+        "assign": "Assign",
+        "change": "Change",
+        "chooseGeofence": "Geofence of {name}",
+        "searchGeofence": "Search geofences by name or code",
+        "noGeofences": "No geofences match.",
+        "removeGeofence": "Remove geofence",
+        "cancel": "Cancel",
+        "types": {
+          "plant": "Plant",
+          "port": "Port",
+          "distribution_center": "Distribution center",
+          "customer": "Customer",
+          "zone": "Zone"
+        }
+      },
       "tripMonitors": {
         "title": "Trip monitors",
         "description": "Rules that move the stages of each class of trip: which event, under which condition, with which effect.",

@@ -219,6 +219,20 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         return answer(() -> treatments.tripPositions(clientIds(), tripId, assetId));
     }
 
+    @GET
+    @Path("/assets/{assetId}/positions")
+    @Operation(operationId = "listMapAssetPositions", summary = "The asset's positions in a time range, oldest first",
+            description = "from and to are ISO-8601 date-times with an offset, from before to, at most 7 days apart "
+                    + "(400 otherwise). At most 20000, sampled evenly. Only the signals sent while the asset was the "
+                    + "organization's; an empty array when there are none or the asset is not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> assetPositions(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId, @QueryParam("from") String from, @QueryParam("to") String to) {
+        tenantCode(organizationId);
+        return answer(() -> treatments.rangePositions(clientIds(), assetId, from, to));
+    }
+
     /** The client id the symptom list reads as, so the treatment page shows the symptoms the list shows. */
     private List<String> clientIds() {
         return tenantContext.getClientId() == null ? List.of() : List.of(tenantContext.getClientId());

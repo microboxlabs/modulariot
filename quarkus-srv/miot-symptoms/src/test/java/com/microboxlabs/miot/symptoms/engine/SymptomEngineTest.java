@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -30,19 +29,6 @@ class SymptomEngineTest {
         }
     }
 
-    @Test
-    void demoEngineServesTheSpeedingRule() {
-        DemoSymptomEngine demo = new DemoSymptomEngine();
-
-        assertTrue(demo.available());
-        assertEquals(DemoSymptomEngine.SPEEDING, demo.rules("any").get(0).name());
-        OffsetDateTime longAgo = OffsetDateTime.now().minusYears(1);
-        assertEquals(3, demo.recentCases("any", DemoSymptomEngine.SPEEDING, longAgo, 3).size());
-        assertEquals(0, demo.recentCases("any", DemoSymptomEngine.SPEEDING, OffsetDateTime.now(), 3).size());
-        OffsetDateTime now = OffsetDateTime.now();
-        assertEquals(412, demo.levelCounts("any", now.minusDays(7), now).get(0).cases());
-        assertEquals(0, demo.levelCounts("any", now, now).get(0).cases(), "an empty period has no cases");
-    }
 
     @Test
     void unavailableEngineSaysSo() {

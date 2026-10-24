@@ -48,8 +48,8 @@ class PgRuleStoresTest {
     private static final List<String> MIGRATIONS = List.of("V0.7.0__create_conversational_schema.sql",
             "V0.7.1__fork_conversation_per_service.sql", "V0.9.6__conversation_by_context_and_participant.sql",
             "V0.9.8__conversation_rules.sql", "V0.10.1__rule_semantic_versions.sql",
-            "V0.10.2__platform_message_templates.sql", "V0.7.2__connection_channel_messages.sql",
-            "V0.7.3__whatsapp_outbound_by_address.sql");
+            "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
+            "V0.11.1__whatsapp_outbound_by_address.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 

@@ -323,14 +323,14 @@ public class PgResourceStore implements ResourceStore {
 
     @Override
     public Optional<FleetResources.Driver> driverSummary(String tenantCode, UUID id) {
-        return first(query(pool.get(), select("rut, full_name, COALESCE(mobile_phone, phone) AS phone", "driver")
+        return first(query(pool.get(), select("rut, full_name, COALESCE(mobile_phone, phone) AS phone", DRIVER)
                 + BY_ID, Tuple.of(tenantCode, id)),
                 r -> new FleetResources.Driver(r.getString("rut"), r.getString("full_name"), r.getString("phone")));
     }
 
     @Override
     public Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id) {
-        return first(query(pool.get(), select("id, legal_name, phone", "carrier") + BY_ID, Tuple.of(tenantCode, id)),
+        return first(query(pool.get(), select("id, legal_name, phone", CARRIER) + BY_ID, Tuple.of(tenantCode, id)),
                 r -> new FleetResources.Carrier(r.getUUID("id"), r.getString("legal_name"), r.getString("phone")));
     }
 

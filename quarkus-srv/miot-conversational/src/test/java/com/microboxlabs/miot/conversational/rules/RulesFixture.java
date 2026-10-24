@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
+import com.microboxlabs.miot.conversational.service.ConnectionMessagingService;
 import com.microboxlabs.miot.conversational.service.EmailMessagingService;
 import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
 import com.microboxlabs.miot.core.event.EventContext;
@@ -154,7 +155,9 @@ final class RulesFixture {
 
     final RulesEngine engine = new RulesEngine(true,
             new RulesEngine.Stores(store.ruleStore, store.templateStore, store.runStore), () -> List.of(participants),
-            new RulesEngine.Senders(whatsapp, email, integrations.channels), JSON, clock);
+            new RulesEngine.Senders(whatsapp, email, integrations.channels,
+                    new ConnectionMessagingService(store.conversations.conversationRepository,
+                            store.conversations.messageRepository)), JSON, clock);
 
     final RulesService service = new RulesService(store.ruleStore, store.templateStore, () -> List.of(catalog),
             () -> List.of(participants), clock);

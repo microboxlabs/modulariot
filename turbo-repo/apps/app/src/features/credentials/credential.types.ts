@@ -197,10 +197,10 @@ export interface CredentialTypeDescriptor {
  */
 export type LogoKeyline = "circle" | "square";
 
-/** The share of the tile a mark of each shape fills (Material: 20/24 circle, 18/24 square, inside the padding). */
+/** The share of the tile a mark fills. Library icons carry their own inner margin, so the round one fills more. */
 export const KEYLINE_FILL: Readonly<Record<LogoKeyline, number>> = {
-  circle: 0.7,
-  square: 0.62,
+  circle: 0.84,
+  square: 0.64,
 };
 
 /** Neutral key mark (PNG) used when a type ships no logo of its own. */

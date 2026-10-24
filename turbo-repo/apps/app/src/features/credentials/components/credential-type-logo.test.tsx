@@ -129,7 +129,7 @@ describe("CredentialTypeLogo", () => {
 
     const icon = screen.getByRole("img", { name: "WhatsApp" });
     expect(icon.tagName.toLowerCase()).toBe("svg");
-    expect(icon).toHaveAttribute("width", "28");
+    expect(icon).toHaveAttribute("width", "34");
     expect(icon.parentElement).toHaveAttribute("data-keyline", "circle");
     expect(icon.getAttribute("class")).toContain("text-gray-600");
   });

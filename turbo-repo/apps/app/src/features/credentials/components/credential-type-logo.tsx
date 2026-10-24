@@ -54,7 +54,7 @@ export function CredentialTypeLogo({
     <span
       data-keyline={keyline}
       style={{ width: size, height: size }}
-      className={`inline-flex shrink-0 items-center justify-center rounded-[22%] bg-gray-100 dark:bg-gray-700/60 ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center ${className}`}
     >
       <LogoMark {...mark} size={glyph} />
     </span>

@@ -47,4 +47,12 @@ describe("forwardToStreamhubModulith", () => {
     });
     expect(sentAuthorization()).toBe("Bearer user-jwt");
   });
+
+  it("forwards the user's token for the platform scope", async () => {
+    await forwardToStreamhubModulith(
+      "/api/v1/orgs/_platform/conversations/templates",
+      { method: "GET" }
+    );
+    expect(sentAuthorization()).toBe("Bearer user-jwt");
+  });
 });

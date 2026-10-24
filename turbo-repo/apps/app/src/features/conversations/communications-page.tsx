@@ -79,7 +79,7 @@ export default function CommunicationsPage({
   const pathname = usePathname();
   const params = useSearchParams();
   const { canMaintain, loaded } = useControlTowerAccess();
-  const { activeOrg, isLoading: scopeLoading } = useOrgScopes();
+  const { activeOrg } = useOrgScopes();
   const platformScope = isPlatformScope(activeOrg?.slug);
   const section = sectionOf(params, platformScope);
   const channel = channelType(channelKeyOf(section) ?? "");
@@ -197,8 +197,8 @@ export default function CommunicationsPage({
   };
   const bar = filterBar();
   const catalogLayout = section === "rules" || section === "templates";
-  // Until the scope is known, render nothing rather than the organization's sections.
-  if (scopeLoading && !activeOrg) return null;
+  // Until the scope is known (still loading, or the read failed), render nothing rather than the organization's sections.
+  if (!activeOrg) return null;
 
   return (
     <SettingsPageShell

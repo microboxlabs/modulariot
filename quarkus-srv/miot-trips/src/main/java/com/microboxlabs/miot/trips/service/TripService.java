@@ -105,7 +105,7 @@ public class TripService {
     /** The whole file of the trip: mandates, stages, assignments and cargo. */
     public TripView detail(String tenantCode, UUID id) {
         Trip trip = get(tenantCode, id);
-        List<MandateRef> mandates = trips.mandatesOf(tenantCode, id);
+        List<MandateRef> linked = trips.mandatesOf(tenantCode, id);
         List<StageView> stageViews = stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, id)
                 .stream().map(StageView::of).toList();
         List<AssignmentView> assignmentViews = assignments.listByTrip(tenantCode, id)
@@ -114,7 +114,7 @@ public class TripService {
                 .stream().collect(Collectors.toMap(CargoUnit::id, c -> c));
         List<TripCargoView> cargoViews = tripCargo.listByTrip(tenantCode, id)
                 .stream().map(l -> TripCargoView.of(l, byId.get(l.cargoId()))).toList();
-        return TripView.of(trip, mandates, stageViews, assignmentViews, cargoViews);
+        return TripView.of(trip, linked, stageViews, assignmentViews, cargoViews);
     }
 
     public List<Trip> list(String tenantCode, TripFilter filter, Integer page, Integer size) {
@@ -177,7 +177,12 @@ public class TripService {
         return tx.inTransaction(() -> {
             get(tenantCode, tripId);
             UUID mid = parse(Check.required(mandateId, MANDATE_ID, 64), MANDATE_ID);
-            int s = seq == null ? trips.mandatesOf(tenantCode, tripId).size() + 1 : seq;
+            List<MandateRef> current = trips.mandatesOf(tenantCode, tripId);
+            // an existing link stays a no-op, even once its mandate has closed
+            if (current.stream().anyMatch(m -> m.mandateId().equals(mid.toString()))) {
+                return false;
+            }
+            int s = seq == null ? current.size() + 1 : seq;
             String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
             mandates.requireOpen(tenantCode, mid);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);

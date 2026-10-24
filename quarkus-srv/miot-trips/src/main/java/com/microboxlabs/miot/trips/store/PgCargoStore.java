@@ -40,7 +40,7 @@ public class PgCargoStore implements CargoStore {
     private static final String UPDATE = """
             UPDATE miot_trips.cargo_unit SET
                 description = $3, qty = $4, qty_unit = $5, weight_kg = $6, volume_m3 = $7, status = $8,
-                receipt_result = $9, receipt_notes = $10, received_at = $11, updated_by = $12
+                receipt_result = $9, receipt_notes = $10, received_at = $11, updated_by = $12, updated_at = now()
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + COLUMNS;
 

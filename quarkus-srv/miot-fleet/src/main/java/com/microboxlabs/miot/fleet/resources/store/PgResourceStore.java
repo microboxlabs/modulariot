@@ -130,7 +130,7 @@ public class PgResourceStore implements ResourceStore {
                 UPDATE miot_fleet.carrier SET
                     external_id = $3, rut = $4, legal_name = $5, transport_license = $6,
                     transport_license_expires = $7, contact_name = $8, phone = $9, email = $10,
-                    status = $11, is_occasional = $12, updated_by = $13
+                    status = $11, is_occasional = $12, updated_by = $13, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + CARRIER_COLS,
                 Tuple.tuple().addUUID(Pg.parse(c.id())).addString(c.tenantCode())
@@ -187,7 +187,7 @@ public class PgResourceStore implements ResourceStore {
         return first(query(pool.get(), """
                 UPDATE miot_fleet.truck SET
                     carrier_id = $3, external_id = $4, license_plate = $5, vin = $6, truck_type = $7,
-                    max_weight = $8, volume = $9, status = $10, is_occasional = $11, updated_by = $12
+                    max_weight = $8, volume = $9, status = $10, is_occasional = $11, updated_by = $12, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + TRUCK_COLS,
                 Tuple.tuple().addUUID(Pg.parse(t.id())).addString(t.tenantCode())
@@ -239,7 +239,7 @@ public class PgResourceStore implements ResourceStore {
         return first(query(pool.get(), """
                 UPDATE miot_fleet.trailer SET
                     carrier_id = $3, external_id = $4, license_plate = $5, vin = $6, trailer_type = $7,
-                    max_weight = $8, status = $9, is_occasional = $10, updated_by = $11
+                    max_weight = $8, status = $9, is_occasional = $10, updated_by = $11, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + TRAILER_COLS,
                 Tuple.tuple().addUUID(Pg.parse(t.id())).addString(t.tenantCode())
@@ -299,7 +299,7 @@ public class PgResourceStore implements ResourceStore {
                 UPDATE miot_fleet.driver SET
                     carrier_id = $3, external_id = $4, rut = $5, first_name = $6, last_name = $7,
                     full_name = $8, phone = $9, mobile_phone = $10, license_category = $11,
-                    license_expires = $12, status = $13, is_occasional = $14, updated_by = $15
+                    license_expires = $12, status = $13, is_occasional = $14, updated_by = $15, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + DRIVER_COLS,
                 Tuple.tuple().addUUID(Pg.parse(d.id())).addString(d.tenantCode())

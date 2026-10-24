@@ -79,7 +79,7 @@ public class PgAssignmentStore implements AssignmentStore {
             String actor) {
         return first(query(pool.get(), """
                 UPDATE miot_trips.trip_resource_assignment
-                SET valid_to = $3, reason = COALESCE($4, reason), updated_by = $5
+                SET valid_to = $3, reason = COALESCE($4, reason), updated_by = $5, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2 AND valid_to IS NULL
                 RETURNING\s""" + COLUMNS,
                 Tuple.of(id, tenantCode, validTo).addString(reason).addString(actor)));

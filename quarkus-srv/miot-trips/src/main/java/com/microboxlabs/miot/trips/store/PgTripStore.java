@@ -43,7 +43,7 @@ public class PgTripStore implements TripStore {
     private static final String UPDATE = """
             UPDATE miot_trips.trip SET
                 status = $3, origin_id = $4, destination_id = $5, planned_start = $6,
-                actual_start = $7, actual_end = $8, cancel_reason = $9, updated_by = $10
+                actual_start = $7, actual_end = $8, cancel_reason = $9, updated_by = $10, updated_at = now()
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + COLUMNS;
 
@@ -146,7 +146,7 @@ public class PgTripStore implements TripStore {
     @Override
     public boolean unlinkMandate(String tenantCode, UUID tripId, UUID mandateId) {
         RowSet<Row> rows = query(pool.get(), """
-                UPDATE miot_trips.trip_mandate SET is_active = FALSE
+                UPDATE miot_trips.trip_mandate SET is_active = FALSE, updated_at = now()
                 WHERE tenant_code = $1 AND trip_id = $2 AND mandate_id = $3
                   AND version_of IS NULL AND is_active
                 RETURNING trip_id""",

@@ -41,7 +41,7 @@ public class PgAccreditationStore implements AccreditationStore {
                 valid_from = EXCLUDED.valid_from,
                 valid_until = EXCLUDED.valid_until,
                 source_system = EXCLUDED.source_system,
-                updated_by = EXCLUDED.updated_by
+                updated_by = EXCLUDED.updated_by, updated_at = now()
             RETURNING\s""" + COLUMNS;
 
     private final Supplier<Pool> pool;

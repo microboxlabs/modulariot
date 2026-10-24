@@ -3590,6 +3590,8 @@
         "channelOwnBody_whatsapp": "Envía desde el número de la organización. Las plantillas se copian desde la plataforma y Meta las aprueba en esta cuenta.",
         "channelOwnBody_email": "Envía desde el dominio de la organización, con su propia cuenta de correo.",
         "channelNotConfigured": "Sin configurar",
+        "channelPlatformScopeHint": "La cuenta de la plataforma. La usan todas las organizaciones que no tienen una cuenta propia.",
+        "channelOwnOwnersOnly": "Solo los dueños de la organización pueden conectar una cuenta propia.",
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Elige la conexión que llama el paso {n}.",

@@ -7,7 +7,11 @@ import {
   channelType,
   isConnectionChannel,
 } from "./channel-types";
-import { channelKeyOf, sectionOf } from "./communications-sections";
+import {
+  channelKeyOf,
+  sectionOf,
+  sectionsFor,
+} from "./communications-sections";
 
 const d = es.pages.userSettings.communications;
 
@@ -43,7 +47,46 @@ describe("ChannelPanel", () => {
     expect(
       CHANNEL_TYPES.filter((c) => isConnectionChannel(c.key)).map((c) => c.key)
     ).toEqual(["slack", "teams", "webhook"]);
-    render(<ChannelPanel channel={channelType("whatsapp")!} d={d} />);
+    render(
+      <ChannelPanel
+        channel={channelType("whatsapp")!}
+        d={d}
+        settingsDict={es.pages.userSettings}
+        orgSlug="demo"
+        platformScope={false}
+        canConfigure={false}
+      />
+    );
     expect(screen.getByText("Incluida")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Solo los dueños de la organización pueden conectar una cuenta propia."
+      )
+    ).toBeTruthy();
+  });
+
+  it("in the platform scope sets up only the platform's account", () => {
+    render(
+      <ChannelPanel
+        channel={channelType("email")!}
+        d={d}
+        settingsDict={es.pages.userSettings}
+        orgSlug="_platform"
+        platformScope
+        canConfigure={false}
+      />
+    );
+    expect(screen.queryByText("Incluida")).toBeNull();
+    expect(screen.getByText(/La cuenta de la plataforma/)).toBeTruthy();
+  });
+});
+
+describe("sections by scope", () => {
+  it("offers only the platform's accounts in the platform scope", () => {
+    expect(sectionsFor(true)).toEqual(["channel:whatsapp", "channel:email"]);
+    expect(sectionOf(new URLSearchParams(), true)).toBe("channel:whatsapp");
+    expect(sectionOf(new URLSearchParams("section=rules"), true)).toBe(
+      "channel:whatsapp"
+    );
   });
 });

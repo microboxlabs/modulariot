@@ -120,11 +120,7 @@ export default function OrganizationsPageContent({
       );
     }
     return (
-      <OrgDetailPanel
-        organization={selectedOrganization}
-        dict={orgsDict}
-        credentialsDict={dict?.credentials as I18nRecord}
-      />
+      <OrgDetailPanel organization={selectedOrganization} dict={orgsDict} />
     );
   };
 

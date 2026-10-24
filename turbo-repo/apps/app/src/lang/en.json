@@ -3590,6 +3590,8 @@
         "channelOwnBody_whatsapp": "Send from the organization's number. Templates are copied from the platform and Meta approves them on this account.",
         "channelOwnBody_email": "Send from the organization's domain, with its own email account.",
         "channelNotConfigured": "Not set up",
+        "channelPlatformScopeHint": "The platform's account. Every organization without its own account uses it.",
+        "channelOwnOwnersOnly": "Only the organization's owners can connect its own account.",
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Pick the connection step {n} calls.",

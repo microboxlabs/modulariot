@@ -16,7 +16,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { ControlTowerError } from "../control-tower/control-tower-api";
 import {
   saveAsTemplate,
-  usePlatformTemplates,
+  useSymptomTemplates,
   type SymptomDefinition,
   type SymptomDetail,
 } from "./maintainer-api";
@@ -50,7 +50,7 @@ export default function SaveAsTemplateModal({
   onClose: () => void;
   onSaved: (template: SymptomDetail) => void;
 }>) {
-  const { data: templates } = usePlatformTemplates(open);
+  const { data: templates } = useSymptomTemplates(open);
   const [target, setTarget] = useState("");
   const [name, setName] = useState(def.name);
   const [busy, setBusy] = useState(false);
@@ -64,12 +64,12 @@ export default function SaveAsTemplateModal({
   }, [open, def.name]);
 
   // A symptom copied from a template saves back to it unless another is picked.
-  const known = templates?.some((t) => t.definition.key === def.templateKey);
+  const known = templates?.some((t) => t.key === def.templateKey);
   useEffect(() => {
     if (open && known && def.templateKey) setTarget(def.templateKey);
   }, [open, known, def.templateKey]);
 
-  const replacing = templates?.find((t) => t.definition.key === target);
+  const replacing = templates?.find((t) => t.key === target);
 
   const submit = async () => {
     setBusy(true);
@@ -104,10 +104,10 @@ export default function SaveAsTemplateModal({
                 {tr("templateTargetNew", d, { key: def.key })}
               </option>
               {(templates ?? []).map((t) => (
-                <option key={t.definition.id} value={t.definition.key}>
-                  {t.definition.name}
-                  {t.definition.currentVersion
-                    ? ` · v${t.definition.currentVersion}`
+                <option key={t.key} value={t.key}>
+                  {t.name}
+                  {t.version
+                    ? ` · v${t.version}`
                     : ""}
                 </option>
               ))}
@@ -125,7 +125,7 @@ export default function SaveAsTemplateModal({
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {replacing
               ? tr("saveAsTemplateReplaceHint", d, {
-                  name: replacing.definition.name,
+                  name: replacing.name,
                   version: version ?? tr("unpublished", d),
                 })
               : tr("saveAsTemplateNewHint", d, {

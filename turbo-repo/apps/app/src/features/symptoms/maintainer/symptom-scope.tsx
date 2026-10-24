@@ -25,13 +25,10 @@ export const ORG_SYMPTOMS: SymptomScope = {
   pages: "/users/settings/symptoms",
 };
 
-const TEMPLATES_BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/symptom-templates`;
-
+/** The platform's templates are the symptoms of the platform scope, on the same endpoints. */
 export const PLATFORM_TEMPLATES: SymptomScope = {
+  ...ORG_SYMPTOMS,
   kind: "platform",
-  defs: TEMPLATES_BASE,
-  sources: `${TEMPLATES_BASE}/data-sources`,
-  pages: "/users/settings/symptoms",
 };
 
 const ScopeContext = createContext<SymptomScope>(ORG_SYMPTOMS);

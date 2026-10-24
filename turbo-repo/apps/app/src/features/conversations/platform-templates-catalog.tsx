@@ -9,7 +9,7 @@ import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import CatalogTable from "@/features/common/components/catalog-table";
 import ChannelIcon from "./channel-icon";
 import type { CatalogLayout } from "@/features/common/components/layout-toggle";
-import { usePlatformTemplates } from "./conversations-api";
+import { useConversationTemplates } from "./conversations-api";
 import type { ConversationTemplate } from "./conversations-types";
 import { channelLabel } from "./rule-model";
 
@@ -176,7 +176,7 @@ export default function MessageTemplatesPanel({
   lang: string;
   d: I18nRecord;
 }>) {
-  const { data, error, isLoading } = usePlatformTemplates();
+  const { data, error, isLoading } = useConversationTemplates();
   const all = data ?? [];
   const shown = all.filter(
     (t) => !channel || channelsOf(t).some((c) => channelLabel(c, d) === channel)

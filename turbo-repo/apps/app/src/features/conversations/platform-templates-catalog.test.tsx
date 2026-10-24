@@ -4,7 +4,7 @@ import es from "@/lang/es.json";
 import type { ConversationTemplate } from "./conversations-types";
 
 const api = vi.hoisted(() => ({
-  usePlatformTemplates: vi.fn(),
+  useConversationTemplates: vi.fn(),
   useMetaTemplates: vi.fn(),
 }));
 vi.mock("./conversations-api", () => api);
@@ -45,7 +45,7 @@ const TOWER: ConversationTemplate = {
 
 describe("MessageTemplatesPanel", () => {
   beforeEach(() => {
-    api.usePlatformTemplates.mockReturnValue({ data: [CHECK, TOWER] });
+    api.useConversationTemplates.mockReturnValue({ data: [CHECK, TOWER] });
   });
 
   it("shows each template as a card that opens it in Comunicaciones", () => {

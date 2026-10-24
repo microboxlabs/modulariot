@@ -11,8 +11,8 @@ import org.jboss.logging.Logger;
 
 /**
  * Picks the {@link SymptomEngine} from {@code miot.symptoms.engine.kind}:
- * {@code gps} reads the GPS database ({@link GpsDatabase#readPool()}), {@code demo} serves
- * fixed data, anything else is unavailable.
+ * {@code gps} reads the GPS database ({@link GpsDatabase#readPool()}), anything else is
+ * unavailable.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -35,10 +35,6 @@ public class SymptomEngineProducer {
     @Produces
     @ApplicationScoped
     SymptomEngine engine() {
-        if ("demo".equals(kind)) {
-            LOG.info("Symptom engine: demo data");
-            return new DemoSymptomEngine();
-        }
         if ("gps".equals(kind) && gps.configured()) {
             LOG.info("Symptom engine: GPS database, read only");
             return new GpsSymptomEngine(gps::readPool, EngineTenants.parse(clients));

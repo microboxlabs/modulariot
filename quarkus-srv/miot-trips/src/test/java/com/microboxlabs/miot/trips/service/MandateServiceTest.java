@@ -45,8 +45,8 @@ class MandateServiceTest {
 
     @Test
     void theCodeIsRequiredAndScopedByTenant() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.createOrGet(TENANT, ACTOR, request(" ")));
+        MandateRequest blank = request(" ");
+        assertThrows(IllegalArgumentException.class, () -> service.createOrGet(TENANT, ACTOR, blank));
         MandateService.CreateOrGet tenantB = service.createOrGet(TENANT, ACTOR, request("OC-77"));
         MandateService.CreateOrGet tenantA = service.createOrGet("tenant-a", "feed:a", request("OC-77"));
         assertTrue(tenantB.created() && tenantA.created());

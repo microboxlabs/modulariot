@@ -9,6 +9,7 @@ import com.microboxlabs.miot.trips.domain.StageActivity;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -25,6 +26,7 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgStageStore implements StageStore {
 
+    private static final String SELECT = "SELECT ";
     private static final String COLUMNS = """
             id, tenant_code, subject_type, subject_id, seq, stage_type, service_status, status, location_id,
             planned_start, planned_end, actual_start, actual_end, checklist::text AS checklist,
@@ -34,7 +36,7 @@ public class PgStageStore implements StageStore {
             INSERT INTO miot_trips.stage
                 (tenant_code, subject_type, subject_id, seq, stage_type, service_status, location_id,
                  planned_start, planned_end, checklist, created_by, updated_by)
-            SELECT $1, $2, $3, COALESCE(max(seq), 0) + 1, $4, $5, $6, $7, $8, $9::jsonb, $10, $10
+            SELECT $1, $2, $3, COALESCE(max(seq), 0) + 1, $4, $5, $6, $7, $8, $9::text::jsonb, $10, $10
             FROM miot_trips.stage
             WHERE subject_type = $2 AND subject_id = $3 AND version_of IS NULL AND is_active
             RETURNING\s""" + COLUMNS;
@@ -42,7 +44,7 @@ public class PgStageStore implements StageStore {
     private static final String UPDATE = """
             UPDATE miot_trips.stage SET
                 stage_type = $3, service_status = $4, location_id = $5, planned_start = $6,
-                planned_end = $7, checklist = $8::jsonb, updated_by = $9
+                planned_end = $7, checklist = $8::text::jsonb, updated_by = $9
             WHERE id = $1 AND tenant_code = $2 AND version_of IS NULL
             RETURNING\s""" + COLUMNS;
 
@@ -53,13 +55,13 @@ public class PgStageStore implements StageStore {
     private static final String A_INSERT = """
             INSERT INTO miot_trips.stage_activity
                 (tenant_code, stage_id, seq, activity_type, assignee, evidence, created_by, updated_by)
-            SELECT $1, $2, COALESCE(max(seq), 0) + 1, $3, $4, $5::jsonb, $6, $6
+            SELECT $1, $2, COALESCE(max(seq), 0) + 1, $3, $4, $5::text::jsonb, $6, $6
             FROM miot_trips.stage_activity WHERE stage_id = $2 AND version_of IS NULL AND is_active
             RETURNING\s""" + A_COLUMNS;
 
     private static final String A_UPDATE = """
             UPDATE miot_trips.stage_activity SET
-                status = $3, assignee = $4, assignment_id = $5, evidence = $6::jsonb,
+                status = $3, assignee = $4, assignment_id = $5, evidence = $6::text::jsonb,
                 done_at = $7, updated_by = $8
             WHERE id = $1 AND tenant_code = $2
             RETURNING\s""" + A_COLUMNS;
@@ -88,14 +90,14 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<Stage> find(String tenantCode, UUID id) {
         return firstStage(query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.stage WHERE tenant_code = $1 AND id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.stage WHERE tenant_code = $1 AND id = $2",
                 Tuple.of(tenantCode, id)));
     }
 
     @Override
     public List<Stage> listBySubject(String tenantCode, String subjectType, UUID subjectId) {
         return query(pool.get(),
-                "SELECT " + COLUMNS + """
+                SELECT + COLUMNS + """
                  FROM miot_trips.stage
                 WHERE tenant_code = $1 AND subject_type = $2 AND subject_id = $3
                   AND version_of IS NULL AND is_active ORDER BY seq""",
@@ -142,14 +144,14 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<StageActivity> findActivity(String tenantCode, UUID id) {
         return firstActivity(query(pool.get(),
-                "SELECT " + A_COLUMNS + " FROM miot_trips.stage_activity WHERE tenant_code = $1 AND id = $2",
+                SELECT + A_COLUMNS + " FROM miot_trips.stage_activity WHERE tenant_code = $1 AND id = $2",
                 Tuple.of(tenantCode, id)));
     }
 
     @Override
     public List<StageActivity> listActivities(String tenantCode, UUID stageId) {
         return query(pool.get(),
-                "SELECT " + A_COLUMNS + """
+                SELECT + A_COLUMNS + """
                  FROM miot_trips.stage_activity
                 WHERE tenant_code = $1 AND stage_id = $2 AND version_of IS NULL AND is_active ORDER BY seq""",
                 Tuple.of(tenantCode, stageId))
@@ -166,17 +168,13 @@ public class PgStageStore implements StageStore {
     }
 
     private static Optional<Stage> firstStage(RowSet<Row> rows) {
-        for (Row r : rows) {
-            return Optional.of(stage(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(stage(it.next())) : Optional.empty();
     }
 
     private static Optional<StageActivity> firstActivity(RowSet<Row> rows) {
-        for (Row r : rows) {
-            return Optional.of(activity(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(activity(it.next())) : Optional.empty();
     }
 
     private static Stage stage(Row r) {

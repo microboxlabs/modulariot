@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -21,6 +22,10 @@ import java.util.UUID;
 public class AssignmentService {
 
     static final String ENTITY = "assignment";
+    private static final String RESOURCE_TYPE = "resourceType";
+    private static final String RESOURCE_ID = "resourceId";
+    /** How far ahead of the server clock a feed's validFrom may be. */
+    private static final Duration CLOCK_SKEW = Duration.ofMinutes(5);
 
     private final AssignmentStore store;
     private final TripStore trips;
@@ -46,15 +51,20 @@ public class AssignmentService {
         if (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status())) {
             throw new IllegalStateException("trip already " + trip.status());
         }
-        String type = Check.oneOf(Check.required(body.resourceType(), "resourceType", 16), "resourceType",
+        String type = Check.oneOf(Check.required(body.resourceType(), RESOURCE_TYPE, 16), RESOURCE_TYPE,
                 Assignment.TRUCK, Assignment.TRAILER, Assignment.DRIVER);
-        String resourceId = Check.required(body.resourceId(), "resourceId", 64);
-        TripService.parse(resourceId, "resourceId");
-        OffsetDateTime from = body.validFrom() == null ? OffsetDateTime.now(ZoneOffset.UTC) : body.validFrom();
+        String resourceId = Check.required(body.resourceId(), RESOURCE_ID, 64);
+        TripService.parse(resourceId, RESOURCE_ID);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime from = body.validFrom() == null ? now : body.validFrom();
+        // trip_live shows every open window at once, so a future start would replace today's resource early
+        if (from.isAfter(now.plus(CLOCK_SKEW))) {
+            throw new IllegalArgumentException("validFrom cannot be in the future; assign the resource when it starts");
+        }
         Assignment created = store.insert(new Assignment(null, tenantCode, tripId.toString(), type, resourceId,
                 from, null, Check.limitedOrNull(body.reason(), "reason", 255), null, actor, null, actor));
         audit.log(tenantCode, actor, "assignment.created", ENTITY, created.id(), tripId.toString(),
-                Map.of("resourceType", type, "resourceId", resourceId));
+                Map.of(RESOURCE_TYPE, type, RESOURCE_ID, resourceId));
         return created;
     }
 
@@ -72,7 +82,7 @@ public class AssignmentService {
         Assignment ended = store.end(tenantCode, id, to, Check.limitedOrNull(reason, "reason", 255), actor)
                 .orElseThrow(() -> new IllegalStateException("assignment already ended"));
         audit.log(tenantCode, actor, "assignment.ended", ENTITY, ended.id(), ended.tripId(),
-                Map.of("resourceType", ended.resourceType(), "resourceId", ended.resourceId()));
+                Map.of(RESOURCE_TYPE, ended.resourceType(), RESOURCE_ID, ended.resourceId()));
         return ended;
     }
 }

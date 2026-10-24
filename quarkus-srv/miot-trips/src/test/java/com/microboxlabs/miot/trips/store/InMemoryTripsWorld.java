@@ -213,8 +213,9 @@ public class InMemoryTripsWorld {
         }
 
         @Override
-        public List<Trip> list(String tenantCode, String status, UUID mandateId, String assetId,
-                OffsetDateTime from, OffsetDateTime to, int page, int size) {
+        public List<Trip> list(String tenantCode, TripFilter filter, int page, int size) {
+            String status = filter.status();
+            UUID mandateId = filter.mandateId();
             return trips.values().stream()
                     .filter(t -> t.tenantCode().equals(tenantCode))
                     .filter(t -> status == null || t.status().equals(status))

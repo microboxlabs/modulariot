@@ -183,9 +183,10 @@ class PgTripsStoresTest {
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        assertThrows(IllegalArgumentException.class, () -> assignments.insert(new Assignment(null, tenant,
-                trip.id(), Assignment.TRUCK, UUID.randomUUID().toString(), now, null, null,
-                null, ACTOR, null, ACTOR)), "a truck id that does not exist is refused by the trigger");
+        Assignment unknownTruck = new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
+                UUID.randomUUID().toString(), now, null, null, null, ACTOR, null, ACTOR);
+        assertThrows(IllegalArgumentException.class, () -> assignments.insert(unknownTruck),
+                "a truck id that does not exist is refused by the trigger");
 
         Carrier carrier = resources.insertCarrier(new Carrier(null, tenant, null, "76.111.222-3",
                 "Transportes Test", null, null, null, null, null, Carrier.ACTIVE, false, null, null,
@@ -257,5 +258,62 @@ class PgTripsStoresTest {
         List<AuditEvent> page = audit.list(tenant, null, null, trail.get(0).createdAt(), trail.get(0).id(), 10);
         assertEquals(1, page.size());
         assertEquals("mandate.created", page.get(0).action());
+    }
+
+    @Test
+    void anUnchangedUpdateArchivesNothing() {
+        String tenant = tenant();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        trips.update(trip).orElseThrow();
+        assertEquals(0, versionsOf(trip.id()), "a re-sent trip leaves no history");
+        trips.update(new Trip(trip.id(), tenant, Trip.PLANNED, null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).plusDays(1), null, null, null, null, ACTOR, null, ACTOR))
+                .orElseThrow();
+        assertEquals(1, versionsOf(trip.id()), "a real change archives the previous version");
+    }
+
+    @Test
+    void aCancelledMandateTakesNoNewTrip() {
+        String tenant = tenant();
+        Mandate m = mandate(tenant, "OC-CANCEL");
+        mandates.update(new Mandate(m.id(), tenant, m.externalCode(), m.orderType(), m.orderRef(), "anulado",
+                null, null, null, OffsetDateTime.now(ZoneOffset.UTC), "cliente anula", m.createdAt(), ACTOR,
+                null, ACTOR)).orElseThrow();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+
+        UUID tripId = UUID.fromString(trip.id());
+        UUID mandateId = UUID.fromString(m.id());
+        IllegalStateException refused = assertThrows(IllegalStateException.class,
+                () -> trips.linkMandate(tenant, tripId, mandateId, 1, "primary", ACTOR));
+        assertTrue(refused.getMessage().contains("anulado"), refused.getMessage());
+    }
+
+    private long versionsOf(String id) {
+        return pool.preparedQuery("SELECT count(*) FROM miot_trips.trip WHERE version_of = $1")
+                .execute(io.vertx.mutiny.sqlclient.Tuple.of(UUID.fromString(id))).await().atMost(WAIT)
+                .iterator().next().getLong(0);
+    }
+
+    @Test
+    void jsonColumnsHoldObjectsNotStrings() {
+        String tenant = tenant();
+        audit.append(new AuditEvent(null, tenant, ACTOR, "mandate.created", "mandate", "j", null,
+                Map.of("k", "v"), null));
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+                Stage.PENDING, null, null, null, null, null, "{\"items\":[\"sello\"]}", null, ACTOR, null, ACTOR));
+        locations.insert(new Location(null, tenant, "Puerto", "puerto", "PU-01",
+                "{\"type\":\"Point\",\"coordinates\":[-71.6,-33.0]}", null, ACTOR, null, ACTOR));
+
+        List<String> types = pool.preparedQuery("""
+                SELECT jsonb_typeof(details) FROM miot_trips.audit_event WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(checklist) FROM miot_trips.stage WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(geom_geojson) FROM miot_trips.location WHERE tenant_code = $1""")
+                .execute(io.vertx.mutiny.sqlclient.Tuple.of(tenant)).await().atMost(WAIT)
+                .stream().map(r -> r.getString(0)).toList();
+        assertEquals(List.of("object", "object", "object"), types);
     }
 }

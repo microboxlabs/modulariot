@@ -5,11 +5,13 @@ import { HiChevronDown, HiChevronRight } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import { FIELD } from "@/features/symptoms/maintainer/ui/response-block";
-import Select from "@/features/symptoms/maintainer/ui/select";
 import ChannelIcon from "./channel-icon";
 import { useConversationRules, useConversationRuns } from "./conversations-api";
-import type { ConversationRun, RunStatus } from "./conversations-types";
+import type {
+  ConversationRun,
+  RuleSummary,
+  RunStatus,
+} from "./conversations-types";
 import { channelLabel } from "./rule-model";
 
 const RUN_STATUSES: RunStatus[] = [
@@ -201,53 +203,56 @@ export function RunsTable({
   );
 }
 
+export type ActivityFilterKey = "rule" | "status";
+export type ActivityFilters = Record<ActivityFilterKey, string>;
+
+export const NO_ACTIVITY_FILTERS: ActivityFilters = { rule: "", status: "" };
+
+/** A rule's name, with its key when another rule has the same name. */
+function ruleOption(rule: RuleSummary, rules: RuleSummary[]) {
+  const shared = rules.some((r) => r.id !== rule.id && r.name === rule.name);
+  return shared ? `${rule.name} (${rule.key})` : rule.name;
+}
+
+/** The filter chips over the runs: by rule name and by run status. */
+export function activityFilterDefs(
+  rules: RuleSummary[],
+  d: I18nRecord
+): { key: ActivityFilterKey; label: string; options: string[] }[] {
+  return [
+    {
+      key: "rule",
+      label: tr("filterRule", d),
+      options: rules.map((r) => ruleOption(r, rules)),
+    },
+    {
+      key: "status",
+      label: tr("filterStatus", d),
+      options: RUN_STATUSES.map((s) => statusLabel("runStatus", s, d)),
+    },
+  ];
+}
+
 /** "Actividad": the runs of every rule, filtered by rule and status. */
 export default function ActivityTab({
   lang,
+  filters,
   d,
-}: Readonly<{ lang: string; d: I18nRecord }>) {
-  const [rule, setRule] = useState("");
-  const [status, setStatus] = useState<RunStatus | "">("");
+}: Readonly<{ lang: string; filters: ActivityFilters; d: I18nRecord }>) {
   const { data: rules } = useConversationRules();
+  const rule =
+    rules?.find((r) => ruleOption(r, rules) === filters.rule)?.id ?? null;
+  const status =
+    RUN_STATUSES.find(
+      (s) => statusLabel("runStatus", s, d) === filters.status
+    ) ?? null;
   const {
     data: runs,
     error,
     isLoading,
-  } = useConversationRuns({
-    rule: rule || null,
-    status: status || null,
-  });
+  } = useConversationRuns({ rule, status });
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          aria-label={tr("filterRule", d)}
-          className={FIELD}
-          wrapperClassName="min-w-48"
-          value={rule}
-          onChange={(e) => setRule(e.target.value)}
-        >
-          <option value="">{tr("allRules", d)}</option>
-          {(rules ?? []).map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </Select>
-        <Select
-          aria-label={tr("filterStatus", d)}
-          className={FIELD}
-          value={status}
-          onChange={(e) => setStatus(e.target.value as RunStatus | "")}
-        >
-          <option value="">{tr("allStatuses", d)}</option>
-          {RUN_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {statusLabel("runStatus", s, d)}
-            </option>
-          ))}
-        </Select>
-      </div>
       {error && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {tr("loadFailed", d)}
@@ -258,7 +263,7 @@ export default function ActivityTab({
         <p
           className={`rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm dark:border-gray-600 dark:bg-gray-800 ${MUTED}`}
         >
-          {tr("noRuns", d)}
+          {rule || status ? tr("runsEmptyFiltered", d) : tr("noRuns", d)}
         </p>
       )}
       {runs && runs.length > 0 && <RunsTable runs={runs} lang={lang} d={d} />}

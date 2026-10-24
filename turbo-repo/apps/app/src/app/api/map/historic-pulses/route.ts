@@ -6,6 +6,13 @@ import { Readable } from "stream";
 import { getSharedAuthToken } from "../../utils/streamhub-api-client";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { HistoricSignal } from "@/features/signal-history/types/historic-signal.type";
+import {
+  forwardControlTowerMap,
+  isoDate,
+  positionsAsEvents,
+  SSE_HEADERS,
+} from "@/app/api/utils/control-tower-map";
+import { withDistances } from "@/features/signal-history/utils/signal-legs";
 
 const FLEET_TRIP_API_URL = `${process.env.STREAMHUB_IOT_URL}/api/v1/avl/fleet/streaming/positions`;
 
@@ -29,24 +36,29 @@ export async function GET(req: NextRequest) {
   if (!p_to)
     return NextResponse.json({ error: "Missing p_to" }, { status: 400 });
 
-  // Create a TransformStream for CSV processing
-  const { readable, writable } = new TransformStream();
+  // Without the AVL API, the modulith reads the asset's signals as the active organization.
+  if (!process.env.STREAMHUB_IOT_URL) {
+    const range = new URLSearchParams({
+      from: isoDate(p_from),
+      to: isoDate(p_to),
+    });
+    return positionsAsEvents(
+      await forwardControlTowerMap(
+        `assets/${encodeURIComponent(assetId.trim())}/positions`,
+        `?${range.toString()}`
+      ),
+      withDistances<HistoricSignal>
+    );
+  }
 
-  // Start streaming process
-  streamPositions(assetId, p_from, p_to, writable).catch((_error) => {
-    // TODO: Check if this is the correct way to handle the error Ignore some common errors
-    //console.error("Error streaming positions:", _error);
-  });
+  // Strings written to the stream go out as UTF-8 bytes.
+  const { readable, writable } = new TextEncoderStream();
+
+  // Errors are logged and close the stream.
+  void streamPositions(assetId, p_from, p_to, writable);
 
   // Return streaming response
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      //"Access-Control-Allow-Origin": "*",
-    },
-  });
+  return new Response(readable, { headers: SSE_HEADERS });
 }
 
 async function streamPositions(
@@ -56,7 +68,6 @@ async function streamPositions(
   writable: WritableStream
 ) {
   const writer = writable.getWriter();
-  const token = await authToken.getToken();
 
   // Format dates to StreamHub API format before encoding
   const formatToStreamHub = (dateStr: string) => {
@@ -90,13 +101,12 @@ async function streamPositions(
     return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss} -0000`;
   };
 
-  // URL encode the properly formatted dates
-  const encodedStartDate = encodeURIComponent(formatToStreamHub(p_from));
-  const encodedEndDate = encodeURIComponent(formatToStreamHub(p_to));
-
   try {
+    const encodedStartDate = encodeURIComponent(formatToStreamHub(p_from));
+    const encodedEndDate = encodeURIComponent(formatToStreamHub(p_to));
+    const token = await authToken.getToken();
     const response = await fetch(
-      `${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${encodedStartDate}&endDate=${encodedEndDate}`,
+      `${FLEET_TRIP_API_URL}?assetId=${encodeURIComponent(assetId)}&startDate=${encodedStartDate}&endDate=${encodedEndDate}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -143,11 +153,7 @@ async function streamPositions(
       trim: true,
     });
 
-    let recordCount = 0;
-
     for await (const record of nodeStream.pipe(parser)) {
-      recordCount++;
-
       const [longitude, latitude] = parseWKBPoint(
         (record as HistoricSignal).location
       );
@@ -161,15 +167,15 @@ async function streamPositions(
       // Format data according to SSE protocol
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);
     }
-
-    await writer.close();
   } catch (error) {
-    // Send error event
     console.error("Error streaming positions:", error);
-    /* await writer.write(
-      `event: error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`,
-    ); */
+    // The client tells this failure from the stream's normal end.
+    await writer
+      .write(
+        `event: failed\ndata: ${JSON.stringify({ error: String(error) })}\n\n`
+      )
+      .catch(() => {});
   } finally {
-    await writer.close();
+    await writer.close().catch(() => {});
   }
 }

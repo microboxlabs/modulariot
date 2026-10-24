@@ -1,4 +1,4 @@
-package com.microboxlabs.miot.fleet.resources.api;
+package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
@@ -13,31 +13,30 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.config.ConfigProvider;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.eclipse.microprofile.config.ConfigProvider;
 
 /**
- * Shared plumbing for the trips resources, cloned from the Control Tower's
- * pattern. Org-scoped endpoints return {@link Uni} so the request stays on the
- * event loop for the reactive {@code OrganizationRequestFilter}; the blocking
- * service call runs on the worker pool. The tenant comes from the resolved
- * organization and the actor from the session, never from the body. Service
- * exceptions map to HTTP: {@link IllegalArgumentException} 400,
- * {@link NoSuchElementException} 404, {@link IllegalStateException} 409.
+ * Shared plumbing for org-scoped module resources. Endpoints return {@link Uni} so the request
+ * stays on the event loop for the reactive {@code OrganizationRequestFilter}; the blocking service
+ * call runs on the worker pool. The tenant comes from the resolved organization and the actor from
+ * the session, never from the body. Service exceptions map to HTTP:
+ * {@link IllegalArgumentException} 400, {@link NoSuchElementException} 404,
+ * {@link IllegalStateException} 409; a module maps its own through {@link #unmapped}.
  */
-abstract class FleetResourceSupport {
+public abstract class OrgResourceSupport {
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final OrganizationRoleService roleService;
     private final SecurityIdentity identity;
 
-    protected FleetResourceSupport(
+    protected OrgResourceSupport(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
@@ -78,10 +77,8 @@ abstract class FleetResourceSupport {
 
     protected String tenantCode(String organizationId) {
         if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
-            throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(Map.of("error", "Organization context does not match request path"))
-                    .build());
+            throw new WebApplicationException(
+                    error(Response.Status.FORBIDDEN, "Organization context does not match request path"));
         }
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();
     }
@@ -98,7 +95,20 @@ abstract class FleetResourceSupport {
         return null;
     }
 
-    private static Response guarded(Supplier<Response> work) {
+    protected TenantContext tenantContext() {
+        return tenantContext;
+    }
+
+    protected OrganizationContext organizationContext() {
+        return organizationContext;
+    }
+
+    /** The response for a module exception the defaults do not cover; by default it propagates. */
+    protected Response unmapped(RuntimeException e) {
+        throw e;
+    }
+
+    private Response guarded(Supplier<Response> work) {
         try {
             return work.get();
         } catch (IllegalArgumentException e) {
@@ -107,6 +117,8 @@ abstract class FleetResourceSupport {
             return error(Response.Status.NOT_FOUND, e.getMessage());
         } catch (IllegalStateException e) {
             return error(Response.Status.CONFLICT, e.getMessage());
+        } catch (RuntimeException e) {
+            return unmapped(e);
         }
     }
 

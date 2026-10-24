@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,6 +18,7 @@ import com.microboxlabs.miot.trips.dto.TripCargoRequest;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -75,8 +77,8 @@ class TripFlowTest {
         assignments.create(TENANT, ACTOR, tripId,
                 new AssignmentRequest("driver", UUID.randomUUID().toString(), null, null));
         assignments.end(TENANT, ACTOR, UUID.fromString(truck.id()), null, "panne");
-        assertThrows(IllegalStateException.class,
-                () -> assignments.end(TENANT, ACTOR, UUID.fromString(truck.id()), null, null));
+        UUID truckId = UUID.fromString(truck.id());
+        assertThrows(IllegalStateException.class, () -> assignments.end(TENANT, ACTOR, truckId, null, null));
         assignments.create(TENANT, ACTOR, tripId,
                 new AssignmentRequest("truck", UUID.randomUUID().toString(), null, "reemplazo"));
         assertEquals(3, assignments.listByTrip(TENANT, tripId).size());
@@ -85,8 +87,8 @@ class TripFlowTest {
         stages.start(TENANT, ACTOR, loadStage);
         assertEquals(Trip.EN_ROUTE, trips.get(TENANT, tripId).status());
         assertEquals(Mandate.RUNNING, mandates.get(TENANT, mandateId).status());
-        assertThrows(IllegalStateException.class,
-                () -> stages.start(TENANT, ACTOR, UUID.fromString(plan.get(1).id())));
+        UUID transitStage = UUID.fromString(plan.get(1).id());
+        assertThrows(IllegalStateException.class, () -> stages.start(TENANT, ACTOR, transitStage));
 
         // closing the load stage picks the cargo up; closing the unload stage delivers it
         stages.close(TENANT, ACTOR, loadStage);
@@ -98,8 +100,8 @@ class TripFlowTest {
         assertEquals(CargoUnit.DELIVERED, cargo.get(TENANT, UUID.fromString(unit.id())).status());
 
         // once picked up, the cargo cannot be unmounted
-        assertThrows(IllegalStateException.class,
-                () -> tripCargo.unmount(TENANT, ACTOR, tripId, UUID.fromString(unit.id())));
+        UUID unitId = UUID.fromString(unit.id());
+        assertThrows(IllegalStateException.class, () -> tripCargo.unmount(TENANT, ACTOR, tripId, unitId));
 
         // the closing stage realizes the trip, and only then the mandate can close
         assertThrows(IllegalStateException.class, () -> mandates.close(TENANT, ACTOR, mandateId));
@@ -108,7 +110,7 @@ class TripFlowTest {
         stages.close(TENANT, ACTOR, closing);
         Trip done = trips.get(TENANT, tripId);
         assertEquals(Trip.DONE, done.status());
-        assertTrue(done.actualEnd() != null);
+        assertNotNull(done.actualEnd());
         assertEquals(Mandate.CLOSED, mandates.close(TENANT, ACTOR, mandateId).status());
 
         // the audit trail kept the story
@@ -146,8 +148,8 @@ class TripFlowTest {
         trips.cancel(TENANT, ACTOR, tripId, "cliente anula");
 
         assertThrows(IllegalStateException.class, () -> stages.close(TENANT, ACTOR, load));
-        assertThrows(IllegalStateException.class,
-                () -> stages.start(TENANT, ACTOR, UUID.fromString(plan.get(1).id())));
+        UUID closing = UUID.fromString(plan.get(1).id());
+        assertThrows(IllegalStateException.class, () -> stages.start(TENANT, ACTOR, closing));
     }
 
     @Test
@@ -162,21 +164,26 @@ class TripFlowTest {
                 List.of(new StageRequest("carga", null, null, null, null, null)))).id());
         String stageOfB = stages.listByTrip(TENANT, tripB).get(0).id();
 
-        assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA,
-                new TripCargoRequest(unit.id(), stageOfB, null)));
-        assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA,
-                new TripCargoRequest(unit.id(), "not-a-uuid", null)));
+        TripCargoRequest atStageOfB = new TripCargoRequest(unit.id(), stageOfB, null);
+        assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA, atStageOfB));
+        TripCargoRequest badStage = new TripCargoRequest(unit.id(), "not-a-uuid", null);
+        assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA, badStage));
     }
 
     @Test
     void badIdsAndWindowsAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> trips.create(TENANT, ACTOR,
-                new TripRequest("not-a-uuid", null, null, null, null)));
+        TripRequest badOrigin = new TripRequest("not-a-uuid", null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> trips.create(TENANT, ACTOR, badOrigin));
         UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR,
                 new TripRequest(null, null, null, null, null)).id());
         Assignment truck = assignments.create(TENANT, ACTOR, tripId,
                 new AssignmentRequest("truck", UUID.randomUUID().toString(), null, null));
-        assertThrows(IllegalArgumentException.class, () -> assignments.end(TENANT, ACTOR,
-                UUID.fromString(truck.id()), truck.validFrom().minusHours(1), null));
+        UUID truckId = UUID.fromString(truck.id());
+        OffsetDateTime beforeStart = truck.validFrom().minusHours(1);
+        assertThrows(IllegalArgumentException.class,
+                () -> assignments.end(TENANT, ACTOR, truckId, beforeStart, null));
+        AssignmentRequest tomorrow = new AssignmentRequest("truck", UUID.randomUUID().toString(),
+                OffsetDateTime.now().plusDays(1), "reemplazo de mañana");
+        assertThrows(IllegalArgumentException.class, () -> assignments.create(TENANT, ACTOR, tripId, tomorrow));
     }
 }

@@ -60,7 +60,59 @@ import TemplatesTab, { TemplateEditor } from "./templates-tab";
 
 const d = es.pages.userSettings.communications;
 
+function renderTab(channel = "") {
+  render(
+    <TemplatesTab
+      lang="es"
+      canWrite
+      view="messages"
+      channel={channel}
+      d={d}
+      onView={vi.fn()}
+    />
+  );
+}
+
 describe("TemplatesTab", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.useMetaTemplates.mockReturnValue({ data: undefined });
+  });
+
+  it("lists only the templates with a version for the filtered channel", () => {
+    api.useConversationTemplates.mockReturnValue({ data: [TEMPLATE, stored] });
+    renderTab("WhatsApp");
+    expect(screen.getByRole("button", { name: /^Pánico/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^New/ })).toBeNull();
+  });
+
+  it("marks the template it shows when the filter hides the picked one", () => {
+    api.useConversationTemplates.mockReturnValue({ data: [TEMPLATE, stored] });
+    const props = {
+      lang: "es",
+      canWrite: true,
+      view: "messages" as const,
+      d,
+      onView: vi.fn(),
+    };
+    const { rerender } = render(<TemplatesTab {...props} channel="" />);
+    fireEvent.click(screen.getByRole("button", { name: /^New/ }));
+    rerender(<TemplatesTab {...props} channel="WhatsApp" />);
+    expect(
+      screen
+        .getByRole("button", { name: /^Pánico/ })
+        .getAttribute("aria-current")
+    ).toBe("true");
+  });
+
+  it("says so when no template has the filtered channel", () => {
+    api.useConversationTemplates.mockReturnValue({ data: [TEMPLATE] });
+    renderTab("Correo");
+    expect(screen.getByText("Ninguna plantilla coincide.")).toBeTruthy();
+  });
+});
+
+describe("TemplatesTab editing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.useMetaTemplates.mockReturnValue({ data: undefined });
@@ -68,7 +120,7 @@ describe("TemplatesTab", () => {
 
   it("opens a stored template whose key is 'new' as that template", () => {
     api.useConversationTemplates.mockReturnValue({ data: [stored] });
-    render(<TemplatesTab lang="es" canWrite d={d} />);
+    renderTab();
 
     fireEvent.click(screen.getByRole("button", { name: /^New/ }));
 
@@ -79,7 +131,7 @@ describe("TemplatesTab", () => {
 
   it("does not let a new template take the key of a stored one", () => {
     api.useConversationTemplates.mockReturnValue({ data: [stored] });
-    render(<TemplatesTab lang="es" canWrite d={d} />);
+    renderTab();
 
     fireEvent.click(screen.getByRole("button", { name: "Nueva plantilla" }));
     fireEvent.change(screen.getByLabelText("Nombre"), {

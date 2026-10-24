@@ -10,6 +10,7 @@ import com.microboxlabs.miot.trips.domain.TripRef;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowIterator;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -25,6 +26,7 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgMandateStore implements MandateStore {
 
+    private static final String SELECT = "SELECT ";
     private static final String COLUMNS = """
             id, tenant_code, external_code, order_type, order_ref, status, origin_id, destination_id,
             sla_minutes, closed_at, cancel_reason, created_at, created_by, updated_at, updated_by""";
@@ -73,7 +75,7 @@ public class PgMandateStore implements MandateStore {
     @Override
     public Optional<Mandate> find(String tenantCode, UUID id) {
         RowSet<Row> rows = query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.mandate WHERE tenant_code = $1 AND id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.mandate WHERE tenant_code = $1 AND id = $2",
                 Tuple.of(tenantCode, id));
         return first(rows);
     }
@@ -81,7 +83,7 @@ public class PgMandateStore implements MandateStore {
     @Override
     public Optional<Mandate> findByCode(String tenantCode, String externalCode) {
         RowSet<Row> rows = query(pool.get(),
-                "SELECT " + COLUMNS + """
+                SELECT + COLUMNS + """
                  FROM miot_trips.mandate
                 WHERE tenant_code = $1 AND external_code = $2 AND version_of IS NULL AND is_active""",
                 Tuple.of(tenantCode, externalCode));
@@ -90,7 +92,7 @@ public class PgMandateStore implements MandateStore {
 
     @Override
     public List<Mandate> list(String tenantCode, String status, String externalCode, int page, int size) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS)
+        StringBuilder sql = new StringBuilder(SELECT).append(COLUMNS)
                 .append(" FROM miot_trips.mandate WHERE tenant_code = $1 AND version_of IS NULL AND is_active");
         Tuple params = Tuple.of(tenantCode);
         if (status != null) {
@@ -126,11 +128,13 @@ public class PgMandateStore implements MandateStore {
                 WHERE tenant_code = $1 AND mandate_id = $2 AND version_of IS NULL AND is_active
                 ORDER BY seq LIMIT 1""",
                 Tuple.of(tenantCode, mandateId));
-        for (Row r : rows) {
-            return Optional.of(new MandateLine(text(r.getUUID("id")), r.getString("tenant_code"),
-                    text(r.getUUID("mandate_id")), r.getInteger("seq"), text(r.getUUID("item_id"))));
+        RowIterator<Row> it = rows.iterator();
+        if (!it.hasNext()) {
+            return Optional.empty();
         }
-        return Optional.empty();
+        Row r = it.next();
+        return Optional.of(new MandateLine(text(r.getUUID("id")), r.getString("tenant_code"),
+                text(r.getUUID("mandate_id")), r.getInteger("seq"), text(r.getUUID("item_id"))));
     }
 
     @Override
@@ -159,10 +163,8 @@ public class PgMandateStore implements MandateStore {
     }
 
     private static Optional<Mandate> first(RowSet<Row> rows) {
-        for (Row r : rows) {
-            return Optional.of(mandate(r));
-        }
-        return Optional.empty();
+        RowIterator<Row> it = rows.iterator();
+        return it.hasNext() ? Optional.of(mandate(it.next())) : Optional.empty();
     }
 
     private static Mandate mandate(Row r) {

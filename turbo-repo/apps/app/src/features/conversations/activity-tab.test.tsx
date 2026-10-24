@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
-import type { ConversationRun } from "./conversations-types";
+import type { ConversationRun, RuleSummary } from "./conversations-types";
 
 const api = vi.hoisted(() => ({
   useConversationRules: vi.fn(),
@@ -9,7 +9,7 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("./conversations-api", () => api);
 
-import ActivityTab, { RunsTable } from "./activity-tab";
+import ActivityTab, { activityFilterDefs, RunsTable } from "./activity-tab";
 
 const d = es.pages.userSettings.communications;
 
@@ -93,22 +93,70 @@ describe("RunsTable", () => {
 });
 
 describe("ActivityTab", () => {
-  it("filters the runs by rule and status", () => {
+  it("filters the runs by the rule and status the filter bar names", () => {
     api.useConversationRules.mockReturnValue({
       data: [{ id: "r1", name: "Botón de pánico" }],
     });
     api.useConversationRuns.mockReturnValue({ data: [] });
-    render(<ActivityTab lang="es" d={d} />);
+    const { rerender } = render(
+      <ActivityTab lang="es" filters={{ rule: "", status: "" }} d={d} />
+    );
     expect(screen.getByText("Aún no hay ejecuciones.")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Regla"), {
-      target: { value: "r1" },
+    expect(api.useConversationRuns).toHaveBeenLastCalledWith({
+      rule: null,
+      status: null,
     });
-    fireEvent.change(screen.getByLabelText("Estado"), {
-      target: { value: "FAILED" },
-    });
+    rerender(
+      <ActivityTab
+        lang="es"
+        filters={{ rule: "Botón de pánico", status: "Falló" }}
+        d={d}
+      />
+    );
     expect(api.useConversationRuns).toHaveBeenLastCalledWith({
       rule: "r1",
       status: "FAILED",
     });
+    expect(screen.getByText("Ninguna ejecución coincide.")).toBeTruthy();
+  });
+
+  it("tells apart two rules with the same name by their key", () => {
+    const rules = [
+      { id: "r1", key: "panic-a", name: "Pánico" },
+      { id: "r2", key: "panic-b", name: "Pánico" },
+    ] as RuleSummary[];
+    expect(activityFilterDefs(rules, d)[0].options).toEqual([
+      "Pánico (panic-a)",
+      "Pánico (panic-b)",
+    ]);
+    api.useConversationRules.mockReturnValue({ data: rules });
+    api.useConversationRuns.mockReturnValue({ data: [] });
+    render(
+      <ActivityTab
+        lang="es"
+        filters={{ rule: "Pánico (panic-b)", status: "" }}
+        d={d}
+      />
+    );
+    expect(api.useConversationRuns).toHaveBeenLastCalledWith({
+      rule: "r2",
+      status: null,
+    });
+  });
+
+  it("offers each rule and run status as a filter option", () => {
+    const defs = activityFilterDefs(
+      [{ id: "r1", name: "Botón de pánico" } as RuleSummary],
+      d
+    );
+    expect(defs.map((f) => f.label)).toEqual(["Regla", "Estado"]);
+    expect(defs[0].options).toEqual(["Botón de pánico"]);
+    expect(defs[1].options).toEqual([
+      "Esperando",
+      "Respondió",
+      "Terminada",
+      "Falló",
+      "Cancelada",
+    ]);
   });
 });

@@ -359,6 +359,20 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
+    void anAssetsPositionsAreReadForARange() {
+        Response positions = call(resource.assetPositions(ORG, "AB12", "2026-10-22T00:00:00-03:00",
+                "2026-10-23T23:59:59-03:00"));
+
+        assertEquals(200, positions.getStatus());
+        assertEquals("AB12", ((JsonNode) positions.getEntity()).get(0).path("assetid").asText());
+        assertEquals(400, call(resource.assetPositions(ORG, "AB12", "2026-10-23T00:00:00Z",
+                "2026-10-22T00:00:00Z")).getStatus());
+        assertEquals(400, call(resource.assetPositions(ORG, "AB12", "2026-10-01T00:00:00Z",
+                "2026-10-22T00:00:00Z")).getStatus());
+        assertEquals(400, call(resource.assetPositions(ORG, "AB12", null, null)).getStatus());
+    }
+
+    @Test
     void theTreatmentPageInAnotherOrganizationIsRefused() {
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.symptom("org-b", "7"));
         assertEquals(403, e.getResponse().getStatus());

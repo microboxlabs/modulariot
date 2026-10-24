@@ -151,6 +151,7 @@ class PlatformScopeFilterTest {
         assertTrue(PlatformScope.supports("control-tower/symptom-definitions/1/draft"));
         assertTrue(PlatformScope.supports("control-tower/data-sources"));
         assertFalse(PlatformScope.supports("control-tower/map"));
+        assertTrue(PlatformScope.supports("integrations/console/jobs/overview"));
     }
 
     private Response filter(String path) {

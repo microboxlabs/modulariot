@@ -36,6 +36,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- CEL, the language of trip monitor rules: type-checked against the trip context on save. -->
+            <groupId>dev.cel</groupId>
+            <artifactId>cel</artifactId>
+            <version>0.13.1</version>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>

@@ -47,6 +47,7 @@ class TripsPermissionsTest {
     private static final String LOCATION_WRITE = TripsAccessCatalog.LOCATION_WRITE;
     private static final String FEED_WRITE = TripsAccessCatalog.FEED_WRITE;
     private static final String FEED_ADMIN = TripsAccessCatalog.FEED_ADMIN;
+    private static final String MONITOR_ADMIN = TripsAccessCatalog.MONITOR_ADMIN;
 
     /** Every endpoint and the permission it needs. A new endpoint without an entry here fails the test. */
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
@@ -92,7 +93,17 @@ class TripsPermissionsTest {
             Map.entry("OrgFeedsResource.save", FEED_ADMIN),
             Map.entry("OrgFeedsResource.batch", FEED_WRITE),
             Map.entry("OrgFeedsResource.reconcile", FEED_WRITE),
-            Map.entry("OrgFeedsResource.get", VIEW)));
+            Map.entry("OrgFeedsResource.get", VIEW),
+            Map.entry("OrgMonitorsResource.list", VIEW),
+            Map.entry("OrgMonitorsResource.schema", VIEW),
+            Map.entry("OrgMonitorsResource.check", VIEW),
+            Map.entry("OrgMonitorsResource.get", VIEW),
+            Map.entry("OrgMonitorsResource.save", MONITOR_ADMIN),
+            Map.entry("OrgMonitorsResource.discard", MONITOR_ADMIN),
+            Map.entry("OrgMonitorsResource.publish", MONITOR_ADMIN),
+            Map.entry("OrgMonitorsResource.version", VIEW),
+            Map.entry("OrgMonitorSelectorResource.get", VIEW),
+            Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN)));
 
     @Test
     void everyEndpointDeclaresItsOrganizationPermission() {
@@ -129,6 +140,7 @@ class TripsPermissionsTest {
         assertTrue(maintainer.containsAll(Set.of(VIEW, MANDATE_WRITE, CARGO_OPERATE, TRIP_WRITE, STAGE_OPERATE,
                 ASSIGNMENT_WRITE, LOCATION_WRITE, FEED_WRITE)));
         assertTrue(!maintainer.contains(FEED_ADMIN), "a feed's service account cannot change the feed's rules");
+        assertTrue(!maintainer.contains(MONITOR_ADMIN), "a feed's service account cannot change the monitors");
     }
 
     @Test

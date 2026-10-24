@@ -49,7 +49,8 @@ class PgValuesInEnglishMigrationTest {
 
     @Test
     void spanishRowsComeOutInEnglishWithoutNewVersions() throws IOException {
-        PgTripsStoresTest.recreateSchemas(pool, PgTripsStoresTest.migrationCount() - 1);
+        PgTripsStoresTest.recreateSchemas(pool,
+                PgTripsStoresTest.migrationsBefore("/db/migration/trips/V0.10.9__values_in_english.sql"));
         run("""
                 INSERT INTO miot_trips.location (id, tenant_code, name, type) VALUES
                     ('00000000-0000-0000-0000-000000000001', 't', 'Planta', 'planta');

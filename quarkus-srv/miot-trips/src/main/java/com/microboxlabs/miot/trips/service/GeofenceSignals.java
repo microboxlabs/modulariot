@@ -87,6 +87,7 @@ public class GeofenceSignals {
     private final Map<UUID, Pending> pending = new ConcurrentHashMap<>();
     private final Map<String, Instant> lastFrame = new ConcurrentHashMap<>();
     private volatile Instant shapesLoadedAt = Instant.EPOCH;
+    private volatile int watchedCount = -1;
 
     @Inject
     GeofenceSignals(TripLiveStore live, GeofenceDirectory geofences, MonitorEngine engine, Transactions tx,
@@ -155,6 +156,10 @@ public class GeofenceSignals {
         next.values().forEach(list -> list.forEach(w -> watched.add(w.tripId)));
         pending.keySet().retainAll(watched);
         lastFrame.keySet().retainAll(next.keySet());
+        if (watched.size() != watchedCount) {
+            LOG.infof("Trip geofences: watching %d trips, %d geofences with a shape", watched.size(), shapes.size());
+            watchedCount = watched.size();
+        }
         byAsset = next;
     }
 

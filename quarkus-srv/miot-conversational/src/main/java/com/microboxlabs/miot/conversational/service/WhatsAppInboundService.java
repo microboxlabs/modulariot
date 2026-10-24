@@ -25,7 +25,9 @@ import org.jboss.logging.Logger;
 /**
  * Ingests a verified Meta webhook body into the message pool: driver replies become INBOUND
  * messages on the right org's conversation, and delivery/read/failed callbacks mirror onto the
- * outbound message they refer to. Idempotent without a pre-write claim: inbound inserts dedupe on
+ * outbound message they refer to. A message on the platform's number goes to the organization
+ * {@link PlatformInboundRouter} chooses; one on an organization's number stays with that
+ * organization. Idempotent without a pre-write claim: inbound inserts dedupe on
  * the (channel, wamid) unique index ({@code appendInbound} returns null on a redelivery), and status
  * mirroring is advance-only, so a retry after a failure re-processes safely rather than being
  * silently swallowed.
@@ -48,6 +50,7 @@ public class WhatsAppInboundService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final Event<ConversationReplyReceived> replyReceived;
+    private final PlatformInboundRouter platformRouter;
 
     @Inject
     public WhatsAppInboundService(
@@ -59,6 +62,7 @@ public class WhatsAppInboundService {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.replyReceived = replyReceived;
+        this.platformRouter = new PlatformInboundRouter(conversationRepository, messageRepository);
     }
 
     public void ingest(byte[] rawBody) {
@@ -84,11 +88,14 @@ public class WhatsAppInboundService {
             return;
         }
 
-        String tenantCode = channel.get().tenantCode();
         OffsetDateTime occurredAt = message.timestamp() != null
                 ? message.timestamp()
                 : OffsetDateTime.now(ZoneOffset.UTC);
-        Attachment attachment = attach(tenantCode, message, occurredAt);
+        // The platform's number receives replies to every organization's rule messages.
+        InboundRoute attachment = WhatsAppMessagingService.PLATFORM_TENANT.equals(channel.get().tenantCode())
+                ? platformRouter.route(message, occurredAt)
+                : attach(channel.get().tenantCode(), message, occurredAt);
+        String tenantCode = attachment.tenantCode();
         Conversation conversation = attachment.conversation();
 
         // The insert IS the dedup: a redelivered wamid hits the unique index and returns null, and
@@ -176,7 +183,7 @@ public class WhatsAppInboundService {
     }
 
     /**
-     * Chooses the conversation for an inbound message; the first match wins:
+     * Chooses the conversation for an inbound message on an organization's own number; the first match wins:
      * <ol>
      *   <li>the message it answers, named by the provider ({@code context.id}, or a button payload
      *       carrying the outbound message id or wamid); also sets {@code inReplyTo};</li>
@@ -185,25 +192,33 @@ public class WhatsAppInboundService {
      *   <li>a new conversation without context.</li>
      * </ol>
      */
-    private Attachment attach(String tenantCode, InboundMessage message, OffsetDateTime now) {
+    private InboundRoute attach(String tenantCode, InboundMessage message, OffsetDateTime now) {
         String address = message.fromE164();
-        Message answered = answeredMessage(message);
+        Message answered = PlatformInboundRouter.answeredMessage(messageRepository, message);
         if (answered != null) {
             Conversation conversation = conversationRepository.findByTenantAndId(tenantCode, answered.conversationId());
             if (conversation != null && address.equals(conversation.participantAddress())) {
-                return new Attachment(conversation, answered.id(), answered.runId(), answered.step());
+                return new InboundRoute(tenantCode, conversation, answered.id(), answered.runId(), answered.step());
             }
         }
-        Attachment waiting = conversationWithWaitingRun(tenantCode, address);
+        InboundRoute waiting = conversationWithWaitingRun(tenantCode, address);
         if (waiting != null) {
             return waiting;
         }
+        return InboundRoute.to(latestOpenOrNew(conversationRepository, tenantCode, message, now));
+    }
+
+    /** The newest open conversation of the tenant with the sender, else a new one without context. */
+    static Conversation latestOpenOrNew(
+            ConversationRepository conversationRepository, String tenantCode, InboundMessage message,
+            OffsetDateTime now) {
+        String address = message.fromE164();
         Conversation latest = conversationRepository.findLatestOpenByAddress(tenantCode, address);
         if (latest != null) {
-            return new Attachment(latest, null, null, null);
+            return latest;
         }
         // appendInbound then applies the first inbound touch (unread 1, timestamps).
-        return new Attachment(conversationRepository.create(new Conversation(
+        return conversationRepository.create(new Conversation(
                 UUID.randomUUID().toString(),
                 tenantCode,
                 address,
@@ -227,35 +242,16 @@ public class WhatsAppInboundService {
                 null,
                 null,
                 message.contactName(),
-                Map.of())), null, null, null);
-    }
-
-    private Message answeredMessage(InboundMessage message) {
-        Message byContext = messageRepository.findByProviderMessageId(Channel.WHATSAPP, message.contextMessageId());
-        if (byContext != null) {
-            return byContext;
-        }
-        String payload = message.buttonPayload();
-        if (payload == null || payload.isBlank()) {
-            return null;
-        }
-        Message byId = messageRepository.findById(payload);
-        if (byId != null) {
-            return byId;
-        }
-        return messageRepository.findByProviderMessageId(Channel.WHATSAPP, payload);
+                Map.of()));
     }
 
     /**
      * Step 2 of the attachment order: the conversation where a WAITING run last messaged this
      * address. The reply carries the run.
      */
-    private Attachment conversationWithWaitingRun(String tenantCode, String address) {
+    private InboundRoute conversationWithWaitingRun(String tenantCode, String address) {
         ConversationRepository.WithWaitingRun waiting = conversationRepository.findWithWaitingRun(tenantCode, address);
-        return waiting == null ? null : new Attachment(waiting.conversation(), null, waiting.runId(), null);
-    }
-
-    private record Attachment(Conversation conversation, String inReplyTo, String runId, Integer answeredStep) {
+        return waiting == null ? null : new InboundRoute(tenantCode, waiting.conversation(), null, waiting.runId(), null);
     }
 
     /**

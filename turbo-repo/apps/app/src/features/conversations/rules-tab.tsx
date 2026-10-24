@@ -8,7 +8,7 @@ import { ago } from "@/features/symptoms/maintainer/catalog-format";
 import { stateLabel } from "@/features/symptoms/maintainer/symptom-labels";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { STATES, StatePill } from "@/features/symptoms/maintainer/ui/state";
-import CatalogTable from "./catalog-table";
+import CatalogTable from "@/features/common/components/catalog-table";
 import ChannelIcon from "./channel-icon";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
 import type { EventTypeInfo, RuleSummary } from "./conversations-types";

@@ -1,19 +1,15 @@
 "use client";
 
-import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
-import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-
 export type CatalogLayout = "cards" | "list";
 
-/** Tarjetas / Lista, like the symptom catalog's. */
+/** Tarjetas / Lista for a settings catalog (síntomas, reglas, credenciales…). */
 export default function LayoutToggle({
   layout,
-  d,
+  labels,
   onLayout,
 }: Readonly<{
   layout: CatalogLayout;
-  d: I18nRecord;
+  labels: Readonly<Record<CatalogLayout, string>>;
   onLayout: (layout: CatalogLayout) => void;
 }>) {
   return (
@@ -27,10 +23,10 @@ export default function LayoutToggle({
           className={`rounded-md px-2.5 py-1 text-xs ${
             layout === v
               ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
-              : MUTED
+              : "text-gray-500 dark:text-gray-400"
           }`}
         >
-          {v === "cards" ? tr("viewCards", d) : tr("viewList", d)}
+          {labels[v]}
         </button>
       ))}
     </div>

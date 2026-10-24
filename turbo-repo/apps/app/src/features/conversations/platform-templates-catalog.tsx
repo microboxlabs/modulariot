@@ -9,9 +9,11 @@ import { TAG } from "@/features/symptoms/maintainer/catalog-card";
 import { ago } from "@/features/symptoms/maintainer/catalog-format";
 import { MUTED, Tile } from "@/features/symptoms/maintainer/ui/card";
 import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
-import CatalogTable from "./catalog-table";
+import CatalogTable from "@/features/common/components/catalog-table";
 import ChannelIcon from "./channel-icon";
-import LayoutToggle, { type CatalogLayout } from "./layout-toggle";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
 import MetaTemplatesSection from "./meta-templates-section";
 import { usePlatformTemplates } from "./conversations-api";
 import type { ConversationTemplate } from "./conversations-types";
@@ -311,7 +313,14 @@ export default function PlatformTemplatesCatalog({
             </div>
             {messages && (
               <div className="ml-auto flex items-center gap-2">
-                <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
+                <LayoutToggle
+                  layout={layout}
+                  labels={{
+                    cards: tr("viewCards", d),
+                    list: tr("viewList", d),
+                  }}
+                  onLayout={setLayout}
+                />
                 <Link
                   href={platformTemplateHref(lang, NEW_TEMPLATE)}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"

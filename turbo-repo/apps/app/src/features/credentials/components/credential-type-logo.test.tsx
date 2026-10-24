@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { Whatsapp } from "flowbite-react-icons/solid";
 import { CredentialTypeLogo } from "./credential-type-logo";
 
 /**
@@ -114,5 +115,14 @@ describe("CredentialTypeLogo", () => {
       "src",
       "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
     );
+  });
+
+  it("draws a library icon in gray instead of an image", () => {
+    render(<CredentialTypeLogo icon={Whatsapp} alt="WhatsApp" size={40} />);
+
+    const icon = screen.getByRole("img", { name: "WhatsApp" });
+    expect(icon.tagName.toLowerCase()).toBe("svg");
+    expect(icon).toHaveAttribute("width", "40");
+    expect(icon.getAttribute("class")).toContain("text-gray-600");
   });
 });

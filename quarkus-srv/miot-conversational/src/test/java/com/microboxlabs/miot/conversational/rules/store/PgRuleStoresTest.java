@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
+import com.microboxlabs.miot.conversational.persistence.MessageRepository;
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RuleBump;
@@ -17,6 +18,7 @@ import com.microboxlabs.miot.conversational.rules.StoredEvent;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
@@ -46,7 +48,8 @@ class PgRuleStoresTest {
     private static final List<String> MIGRATIONS = List.of("V0.7.0__create_conversational_schema.sql",
             "V0.7.1__fork_conversation_per_service.sql", "V0.9.6__conversation_by_context_and_participant.sql",
             "V0.9.8__conversation_rules.sql", "V0.10.1__rule_semantic_versions.sql",
-            "V0.10.2__platform_message_templates.sql");
+            "V0.10.2__platform_message_templates.sql", "V0.7.2__connection_channel_messages.sql",
+            "V0.7.3__whatsapp_outbound_by_address.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -221,6 +224,82 @@ class PgRuleStoresTest {
 
         assertTrue(runs.waitingOnConversation(tenant, conversation).isEmpty());
         assertNull(waitingRunFromInboundLookup(tenant));
+    }
+
+    @Test
+    void aReplyOnThePlatformNumberFindsTheNewestPlatformSendToThePhone() throws Exception {
+        String tenantA = "tenant-" + UUID.randomUUID();
+        String tenantB = "tenant-" + UUID.randomUUID();
+        String phone = "+5690" + (1_000_000 + (int) (Math.random() * 8_999_999));
+        Rule rule = rule(tenantA, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenantA,
+                "symptom.case.opened", "miot-symptoms", "symptom_case", "-7", Map.of(), false, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenantA, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", false, Run.Status.WAITING, 1, T0, null, T0, T0));
+        UUID a = conversation(tenantA, phone);
+        UUID b = conversation(tenantB, phone);
+        UUID waitingSend = platformSend(a, phone, run.id(), "SENT", "_platform", T0);
+        UUID newest = platformSend(b, phone, null, "DELIVERED", "_platform", T0.plusSeconds(60));
+        platformSend(b, phone, null, "FAILED", "_platform", T0.plusSeconds(120));
+        platformSend(b, phone, null, "SENT", null, T0.plusSeconds(180));
+
+        Row any = latestOutboundVia("SELECT_LATEST_OUTBOUND_VIA_ANY", phone);
+        assertEquals(newest, any.getUUID("id"));
+        assertEquals(tenantB, any.getString("tenant_code"));
+        Row waiting = latestOutboundVia("SELECT_LATEST_OUTBOUND_VIA_WAITING", phone);
+        assertEquals(waitingSend, waiting.getUUID("id"));
+        assertEquals(a, waiting.getUUID("conversation_id"));
+        assertEquals(tenantA, waiting.getString("tenant_code"));
+        assertEquals(UUID.fromString(run.id()), waiting.getUUID("run_id"));
+        assertNull(latestOutboundVia("SELECT_LATEST_OUTBOUND_VIA_ANY", "+56900000009"));
+
+        String explain = "EXPLAIN " + sql("SELECT_LATEST_OUTBOUND_VIA_ANY");
+        String plan = pool.withTransaction(conn -> conn.query("SET LOCAL enable_seqscan = off").execute()
+                .flatMap(ignored -> conn.preparedQuery(explain)
+                        .execute(Tuple.of(phone, "_platform"))))
+                .await().atMost(WAIT).stream().map(r -> r.getString(0)).reduce("", String::concat);
+        assertTrue(plan.contains("idx_wa_message_whatsapp_outbound_address"), plan);
+    }
+
+    private static UUID conversation(String tenant, String phone) {
+        UUID id = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation
+                    (id, tenant_code, phone_e164, participant_address, context_kind, context_key)
+                VALUES ($1, $2, $3, $3, 'symptom_case', '-7')
+                """).execute(Tuple.of(id, tenant, phone)).await().atMost(WAIT);
+        return id;
+    }
+
+    private static UUID platformSend(UUID conversation, String phone, String runId, String status,
+            String connectionTenant, Instant at) {
+        UUID id = UUID.randomUUID();
+        io.vertx.core.json.JsonObject metadata = new io.vertx.core.json.JsonObject().put("connectionId", "c-1");
+        if (connectionTenant != null) {
+            metadata.put("connectionTenant", connectionTenant);
+        }
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_message
+                    (id, conversation_id, direction, role, msg_type, body, status, channel, address, run_id, step,
+                     metadata, created_at)
+                VALUES ($1, $2, 'OUTBOUND', 'SYSTEM', 'TEMPLATE', 'Hola', $3, 'whatsapp', $4, $5, 0, $6, $7)
+                """).execute(Tuple.tuple().addUUID(id).addUUID(conversation).addString(status).addString(phone)
+                        .addUUID(runId == null ? null : UUID.fromString(runId)).addJsonObject(metadata)
+                        .addOffsetDateTime(at.atOffset(java.time.ZoneOffset.UTC)))
+                .await().atMost(WAIT);
+        return id;
+    }
+
+    private static Row latestOutboundVia(String constant, String phone) throws Exception {
+        var rows = pool.preparedQuery(sql(constant)).execute(Tuple.of(phone, "_platform")).await().atMost(WAIT)
+                .iterator();
+        return rows.hasNext() ? rows.next() : null;
+    }
+
+    private static String sql(String constant) throws Exception {
+        Field f = MessageRepository.class.getDeclaredField(constant);
+        f.setAccessible(true);
+        return (String) f.get(null);
     }
 
     /** A conversation with one message of the run to +56900000000, in the given status. */

@@ -17,6 +17,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.CredentialTestResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
@@ -199,14 +200,24 @@ class CredentialProfileServiceTest {
     @Test
     void reportsWhichConnectionsUseACredential() {
         CredentialProfileResponse created = service().create(TENANT, ACTOR, entraRequest("Partner API", "QA"));
-        connections.rows.add(connection("WhatsApp Cloud", ProviderType.WHATSAPP, created.id()));
+        connections.rows.add(connection("WhatsApp Cloud", ProviderType.WHATSAPP, created.id(),
+                Map.of("phone_number_id", "100000000000001")));
+        connections.rows.add(connection("Correo", ProviderType.RESEND, created.id(),
+                Map.of("from", "Avisos <avisos@example.test>")));
         connections.rows.add(connection("Partner API connection", ProviderType.CUSTOM_HTTP, created.id()));
 
         List<CredentialProfileResponse> listed = service().list(TENANT);
 
-        assertEquals(2, listed.get(0).usedBy().size());
-        assertEquals(CredentialUsageKind.CHANNEL, listed.get(0).usedBy().get(0).kind());
-        assertEquals(CredentialUsageKind.INTEGRATION, listed.get(0).usedBy().get(1).kind());
+        List<CredentialUsageResponse> usedBy = listed.get(0).usedBy();
+        assertEquals(3, usedBy.size());
+        assertEquals(CredentialUsageKind.CHANNEL, usedBy.get(0).kind());
+        assertEquals(ProviderType.WHATSAPP, usedBy.get(0).providerType());
+        assertEquals("100000000000001", usedBy.get(0).detail());
+        assertEquals(ProviderType.RESEND, usedBy.get(1).providerType());
+        assertEquals("Avisos <avisos@example.test>", usedBy.get(1).detail());
+        assertEquals(CredentialUsageKind.INTEGRATION, usedBy.get(2).kind());
+        assertEquals(ProviderType.CUSTOM_HTTP, usedBy.get(2).providerType());
+        assertEquals("https://example.test", usedBy.get(2).detail());
     }
 
     @Test
@@ -297,10 +308,15 @@ class CredentialProfileServiceTest {
     }
 
     private static IntegrationConnection connection(String name, ProviderType type, String credentialId) {
+        return connection(name, type, credentialId, Map.of());
+    }
+
+    private static IntegrationConnection connection(String name, ProviderType type, String credentialId,
+            Map<String, Object> metadata) {
         return new IntegrationConnection(
                 UUID.randomUUID().toString(), TENANT, name, type,
                 URI.create("https://example.test"), credentialId,
-                ConnectionStatus.ACTIVE, null, null, Map.of());
+                ConnectionStatus.ACTIVE, null, null, metadata);
     }
 
     /** In-memory stand-in; the repository's own SQL is covered by the integrity test. */

@@ -115,6 +115,7 @@ function CredentialTypeOption({
       <span className="flex h-10 w-10 shrink-0 items-center justify-center">
         <CredentialTypeLogo
           logo={type.logo}
+          icon={type.icon}
           alt={trDynamic(type.nameKey, dict)}
           size={40}
         />

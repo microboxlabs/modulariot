@@ -4,6 +4,7 @@ import { ApiError } from "@/features/settings-admin/data/json-client";
 import {
   AUTH0_M2M_PROVIDER,
   RESEND_PROVIDER,
+  WHATSAPP_PROVIDER,
   buildAuth0TokenUrl,
   type Auth0M2MFormData,
   type AzureEntraFormData,
@@ -98,7 +99,7 @@ async function sendJson<T>(
  */
 function toApiCredentialType(typeId: CredentialTypeId): CredentialTypeId {
   if (typeId === "AUTH0_M2M") return "OAUTH2_CLIENT_CREDENTIALS";
-  if (typeId === "RESEND") return "BEARER_TOKEN";
+  if (typeId === "RESEND" || typeId === "WHATSAPP") return "BEARER_TOKEN";
   return typeId;
 }
 
@@ -116,6 +117,12 @@ function fromApiCredentialType(
     response.publicConfig?.provider === RESEND_PROVIDER
   ) {
     return "RESEND";
+  }
+  if (
+    response.credentialType === "BEARER_TOKEN" &&
+    response.publicConfig?.provider === WHATSAPP_PROVIDER
+  ) {
+    return "WHATSAPP";
   }
   return response.credentialType;
 }

@@ -1,0 +1,136 @@
+package com.microboxlabs.miot.core.db;
+
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.SqlClient;
+import io.vertx.mutiny.sqlclient.SqlConnection;
+import io.vertx.pgclient.PgException;
+import java.time.Duration;
+import java.util.function.Supplier;
+
+/**
+ * Blocking transactions over the reactive Postgres client. {@link #inTransaction} binds one
+ * connection to the calling thread; every store query that goes through {@link #client} joins it.
+ * BEGIN/COMMIT are plain statements, not a Vert.x {@code Transaction}, which rolls everything back
+ * on the first failed statement, even one inside a savepoint. Blocking: call it off the event loop.
+ */
+public final class PgTx {
+
+    public static final Duration TIMEOUT = Duration.ofSeconds(10);
+    /** Shorter than {@link #TIMEOUT}, so a lock wait fails in Postgres (55P03) before the client gives up. */
+    private static final Duration LOCK_TIMEOUT = Duration.ofSeconds(5);
+
+    private static final ThreadLocal<Tx> TX = new ThreadLocal<>();
+
+    private static final class Tx {
+        private final SqlConnection conn;
+        private int savepoints;
+        private boolean failed;
+
+        private Tx(SqlConnection conn) {
+            this.conn = conn;
+        }
+    }
+
+    private PgTx() {
+    }
+
+    /** The open transaction's connection, or {@code fallback} outside one. */
+    public static SqlClient client(SqlClient fallback) {
+        Tx tx = TX.get();
+        return tx == null ? fallback : tx.conn;
+    }
+
+    /** Records a failed statement: outside a savepoint it leaves the transaction unable to commit. */
+    public static void statementFailed() {
+        Tx tx = TX.get();
+        if (tx != null && tx.savepoints == 0) {
+            tx.failed = true;
+        }
+    }
+
+    /** {@code " FOR UPDATE"} inside a transaction: a row read there stays locked until it ends. */
+    public static String lock() {
+        return TX.get() == null ? "" : " FOR UPDATE";
+    }
+
+    /**
+     * Runs {@code work} in one transaction: commits when it returns, rolls back otherwise. A nested
+     * call joins the outer transaction.
+     */
+    public static <T> T inTransaction(Pool pool, Supplier<T> work) {
+        if (TX.get() != null) {
+            return work.get();
+        }
+        SqlConnection conn = pool.getConnection().await().atMost(TIMEOUT);
+        boolean committed = false;
+        try {
+            simple(conn, "BEGIN");
+            simple(conn, "SET LOCAL lock_timeout = '" + LOCK_TIMEOUT.toMillis() + "ms'");
+            Tx tx = new Tx(conn);
+            TX.set(tx);
+            T result = work.get();
+            TX.remove();
+            if (tx.failed) {
+                throw new IllegalStateException("a statement failed in the transaction");
+            }
+            simple(conn, "COMMIT");
+            committed = true;
+            return result;
+        } finally {
+            TX.remove();
+            if (!committed) {
+                rollbackQuietly(conn);
+            }
+            conn.close().await().atMost(TIMEOUT);
+        }
+    }
+
+    /**
+     * Inside a transaction, runs {@code work} under a savepoint: when it throws, only its own
+     * statements are undone and the transaction stays usable. Outside one, just runs it.
+     */
+    public static <T> T savepoint(Supplier<T> work) {
+        Tx tx = TX.get();
+        if (tx == null) {
+            return work.get();
+        }
+        String name = "miot_sp" + tx.savepoints;
+        simple(tx.conn, "SAVEPOINT " + name);
+        tx.savepoints++;
+        T result;
+        try {
+            result = work.get();
+        } catch (RuntimeException e) {
+            tx.savepoints--;
+            simple(tx.conn, "ROLLBACK TO SAVEPOINT " + name);
+            throw e;
+        }
+        tx.savepoints--;
+        simple(tx.conn, "RELEASE SAVEPOINT " + name);
+        return result;
+    }
+
+    private static void simple(SqlConnection conn, String sql) {
+        try {
+            conn.query(sql).execute().await().atMost(TIMEOUT);
+        } catch (PgException e) {
+            throw conflictOr(e);
+        }
+    }
+
+    private static void rollbackQuietly(SqlConnection conn) {
+        try {
+            conn.query("ROLLBACK").execute().await().atMost(TIMEOUT);
+        } catch (RuntimeException ignored) {
+            // the connection is closed right after; a failed rollback leaves nothing to keep
+        }
+    }
+
+    /** A serialization failure, deadlock or lock timeout is a 409 the caller may retry. */
+    public static RuntimeException conflictOr(PgException e) {
+        return switch (e.getSqlState() == null ? "" : e.getSqlState()) {
+            case "40001", "40P01", "55P03" -> new IllegalStateException("conflict: a concurrent change won, retry");
+            default -> e;
+        };
+    }
+}

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.MandateLine;
 import com.microboxlabs.miot.trips.dto.CargoRequest;
@@ -82,19 +83,10 @@ public class CargoService {
     /** Patches quantities/cubication, and status only forward within anunciada→lista. */
     public CargoUnit update(String tenantCode, String actor, UUID id, CargoRequest body) {
         return tx.inTransaction(() -> {
+            store.lockTripsCarrying(tenantCode, id);
             CargoRequest req = body == null ? CargoRequest.empty() : body;
             CargoUnit current = get(tenantCode, id);
-            String status = current.status();
-            if (req.status() != null && !req.status().isBlank() && !req.status().equals(status)) {
-                if (!ANNOUNCE_STATUSES.contains(req.status())) {
-                    throw new IllegalArgumentException("the API only sets " + ANNOUNCE_STATUSES
-                            + "; the execution moves the rest");
-                }
-                if (ORDER.indexOf(req.status()) < ORDER.indexOf(status)) {
-                    throw new IllegalStateException("status cannot move backwards");
-                }
-                status = req.status();
-            }
+            String status = nextStatus(current.status(), req.status());
             CargoUnit updated = store.update(new CargoUnit(
                     current.id(), tenantCode, current.lineId(), current.partialNo(),
                     req.description() == null || req.description().isBlank() ? current.description()
@@ -111,9 +103,25 @@ public class CargoService {
         });
     }
 
+    /** The status a PATCH asks for: only forward, and only within anunciada→lista. */
+    private static String nextStatus(String current, String requested) {
+        if (requested == null || requested.isBlank() || requested.equals(current)) {
+            return current;
+        }
+        if (!ANNOUNCE_STATUSES.contains(requested)) {
+            throw new IllegalArgumentException("the API only sets " + ANNOUNCE_STATUSES
+                    + "; the execution moves the rest");
+        }
+        if (ORDER.indexOf(requested) < ORDER.indexOf(current)) {
+            throw new IllegalStateException("status cannot move backwards");
+        }
+        return requested;
+    }
+
     /** Receives a delivered cargo as conforme or diferencia. */
     public CargoUnit receive(String tenantCode, String actor, UUID id, ReceiveRequest body) {
         return tx.inTransaction(() -> {
+            store.lockTripsCarrying(tenantCode, id);
             ReceiveRequest req = body == null ? new ReceiveRequest(null, null) : body;
             if (req.result() == null || !Set.of("conforme", "diferencia").contains(req.result())) {
                 throw new IllegalArgumentException("result must be conforme or diferencia");

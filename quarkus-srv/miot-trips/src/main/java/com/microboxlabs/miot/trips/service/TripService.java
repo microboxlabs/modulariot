@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Stage;
@@ -21,11 +22,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /** Trips: the leg a carrier runs; it may serve several mandates (the convergence). */
 @ApplicationScoped
@@ -73,9 +77,11 @@ public class TripService {
                     Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart(), null, null, null, null, actor, null, actor));
             UUID tripId = UUID.fromString(trip.id());
-            int seq = 1;
-            for (UUID mid : mandateIds) {
-                trips.linkMandate(tenantCode, tripId, mid, seq++, "primary", actor);
+            // linked in id order (the order stage start locks them in), each keeping its request position
+            List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
+            order.sort(Comparator.comparing(mandateIds::get));
+            for (int i : order) {
+                trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
             }
             if (req.stages() != null) {
                 for (StageRequest s : req.stages()) {

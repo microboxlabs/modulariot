@@ -105,6 +105,17 @@ public class PgCargoStore implements CargoStore {
     }
 
     @Override
+    public void lockTripsCarrying(String tenantCode, UUID cargoId) {
+        query(pool.get(), """
+                SELECT t.id FROM miot_trips.trip t
+                JOIN miot_trips.trip_cargo tc ON tc.trip_id = t.id AND tc.tenant_code = t.tenant_code
+                WHERE tc.tenant_code = $1 AND tc.cargo_id = $2 AND tc.version_of IS NULL AND tc.is_active
+                  AND t.version_of IS NULL
+                ORDER BY t.id
+                FOR UPDATE OF t""", Tuple.of(tenantCode, cargoId));
+    }
+
+    @Override
     public Optional<CargoUnit> update(CargoUnit c) {
         Tuple params = Tuple.tuple()
                 .addUUID(Pg.parse(c.id())).addString(c.tenantCode())

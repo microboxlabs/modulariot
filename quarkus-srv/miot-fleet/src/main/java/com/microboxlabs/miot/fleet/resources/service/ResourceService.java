@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.resources.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;

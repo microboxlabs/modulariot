@@ -19,4 +19,8 @@ public interface CargoStore {
     List<CargoUnit> listByTrip(String tenantCode, UUID tripId);
 
     Optional<CargoUnit> update(CargoUnit cargo);
+
+    /** Locks, in id order, the open trips that carry the cargo: a trip's lock comes before its cargo's. */
+    default void lockTripsCarrying(String tenantCode, UUID cargoId) {
+    }
 }

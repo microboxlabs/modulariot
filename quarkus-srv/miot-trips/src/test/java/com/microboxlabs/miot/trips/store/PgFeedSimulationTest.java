@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.db.PgTransactions;
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
@@ -33,7 +35,6 @@ import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.fleet.resources.service.ResourceService;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripCargoService;
-import com.microboxlabs.miot.trips.service.Transactions;
 import com.microboxlabs.miot.trips.service.TripService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -88,7 +89,7 @@ class PgFeedSimulationTest {
             new PgTripStore(() -> pool), new PgCargoStore(() -> pool), new PgStageStore(() -> pool), audit, tx);
     private final ResourceService resources = new ResourceService(
             new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool),
-            new com.microboxlabs.miot.fleet.resources.store.PgTransactions(() -> pool));
+            new PgTransactions(() -> pool));
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
 
     @BeforeAll
@@ -104,9 +105,11 @@ class PgFeedSimulationTest {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
         }
-        try (InputStream in = PgFeedSimulationTest.class
-                .getResourceAsStream("/db/migration/trips/V0.10.0__create_trips.sql")) {
-            pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+        for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
+                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
+            try (InputStream in = PgFeedSimulationTest.class.getResourceAsStream(tripsSql)) {
+                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+            }
         }
     }
 

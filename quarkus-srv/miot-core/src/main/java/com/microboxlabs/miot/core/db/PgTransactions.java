@@ -1,15 +1,13 @@
-package com.microboxlabs.miot.trips.store;
+package com.microboxlabs.miot.core.db;
 
-import com.microboxlabs.miot.trips.service.Transactions;
-import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.function.Supplier;
 
+/** {@link Transactions} on the modulith database pool. */
 @ApplicationScoped
-@IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgTransactions implements Transactions {
 
     private final Supplier<Pool> pool;
@@ -25,6 +23,6 @@ public class PgTransactions implements Transactions {
 
     @Override
     public <T> T inTransaction(Supplier<T> work) {
-        return Pg.inTransaction(pool.get(), work);
+        return PgTx.inTransaction(pool.get(), work);
     }
 }

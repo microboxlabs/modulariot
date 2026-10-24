@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.StageActivity;

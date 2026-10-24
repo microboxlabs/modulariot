@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class TripCargoService {
 
     static final String ENTITY = "trip_cargo";
+    private static final String TRIP_NOT_FOUND = "trip not found";
     private static final String LINK_NOT_FOUND = "link not found";
 
     private final TripCargoStore store;
@@ -51,7 +53,7 @@ public class TripCargoService {
                 throw new IllegalArgumentException("body is required");
             }
             Trip trip = trips.find(tenantCode, tripId)
-                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+                    .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
             if (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status())) {
                 throw new IllegalStateException("trip already " + trip.status());
             }
@@ -74,7 +76,7 @@ public class TripCargoService {
             TripCargoRequest body) {
         return tx.inTransaction(() -> {
             trips.find(tenantCode, tripId)
-                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+                    .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
             TripCargoRequest req = body == null ? new TripCargoRequest(null, null, null) : body;
             TripCargoLink current = store.find(tenantCode, tripId, cargoId)
                     .orElseThrow(() -> new NoSuchElementException(LINK_NOT_FOUND));
@@ -96,7 +98,7 @@ public class TripCargoService {
     public void unmount(String tenantCode, String actor, UUID tripId, UUID cargoId) {
         tx.inTransaction(() -> {
             trips.find(tenantCode, tripId)
-                    .orElseThrow(() -> new NoSuchElementException("trip not found"));
+                    .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
             store.find(tenantCode, tripId, cargoId)
                     .orElseThrow(() -> new NoSuchElementException(LINK_NOT_FOUND));
             CargoUnit unit = cargo.find(tenantCode, cargoId)

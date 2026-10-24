@@ -1,10 +1,13 @@
 package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.db.PgTransactions;
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
@@ -31,7 +34,6 @@ import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.CargoService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.StageService;
-import com.microboxlabs.miot.trips.service.Transactions;
 import com.microboxlabs.miot.trips.service.TripService;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
@@ -87,8 +89,8 @@ class PgTransactionsTest {
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
             tripStore, audit, tx);
     private final PgResourceStore fleetStore = new PgResourceStore(() -> pool);
-    private final com.microboxlabs.miot.fleet.resources.service.Transactions fleetTx =
-            new com.microboxlabs.miot.fleet.resources.store.PgTransactions(() -> pool);
+    private final Transactions fleetTx =
+            new PgTransactions(() -> pool);
     private final ResourceService fleet = new ResourceService(fleetStore, fleetTx);
 
     @BeforeAll
@@ -102,7 +104,8 @@ class PgTransactionsTest {
         pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
         for (String sql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
                 "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
-                "/db/migration/trips/V0.10.0__create_trips.sql"}) {
+                "/db/migration/trips/V0.10.0__create_trips.sql",
+                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
             try (InputStream in = PgTransactionsTest.class.getResourceAsStream(sql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -122,13 +125,14 @@ class PgTransactionsTest {
     @Test
     void aRefusedCreateLeavesNoTrip() {
         String tenant = tenant();
-        assertThrows(IllegalArgumentException.class, () -> trips.create(tenant, ACTOR,
-                new TripRequest(null, null, null, null, List.of(
-                        new StageRequest("carga", null, null, null, null, null),
-                        new StageRequest("volar", null, null, null, null, null)))));
+        // the second stage passes validation but fails in the database (no such location)
+        TripRequest request = new TripRequest(null, null, null, null, List.of(
+                new StageRequest("carga", null, null, null, null, null),
+                new StageRequest("descarga", null, UUID.randomUUID().toString(), null, null, null)));
+        assertThrows(IllegalArgumentException.class, () -> trips.create(tenant, ACTOR, request));
 
         assertTrue(trips.list(tenant, TripService.filter(null, null, null, null, null), 0, 50).isEmpty(),
-                "the trip inserted before the bad stage was rolled back");
+                "the trip inserted before the failing stage was rolled back");
     }
 
     @Test
@@ -309,9 +313,11 @@ class PgTransactionsTest {
         other.shutdown();
     }
 
+    /** Holds the open transaction for {@code ms}, the window in which the other thread must wait. */
     private static void sleep(long ms) {
         try {
-            Thread.sleep(ms);
+            boolean released = new CountDownLatch(1).await(ms, TimeUnit.MILLISECONDS);
+            assertFalse(released);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.dto.AssignmentRequest;

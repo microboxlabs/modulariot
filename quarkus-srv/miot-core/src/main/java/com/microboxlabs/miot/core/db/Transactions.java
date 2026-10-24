@@ -1,4 +1,4 @@
-package com.microboxlabs.miot.trips.service;
+package com.microboxlabs.miot.core.db;
 
 import java.util.function.Supplier;
 
@@ -17,7 +17,7 @@ public interface Transactions {
         });
     }
 
-    /** No transaction: for stores without one, like the in-memory test world. */
+    /** No transaction: for stores without one, like an in-memory test world. */
     static Transactions none() {
         return new Transactions() {
             @Override

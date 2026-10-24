@@ -77,9 +77,11 @@ class PgTripsStoresTest {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
         }
-        try (InputStream in = PgTripsStoresTest.class
-                .getResourceAsStream("/db/migration/trips/V0.10.0__create_trips.sql")) {
-            pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+        for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
+                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
+            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(tripsSql)) {
+                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+            }
         }
     }
 

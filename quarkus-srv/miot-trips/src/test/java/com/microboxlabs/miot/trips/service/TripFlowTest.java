@@ -182,6 +182,7 @@ class TripFlowTest {
         assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA, atStageOfB));
         TripCargoRequest badStage = new TripCargoRequest(unit.id(), "not-a-uuid", null);
         assertThrows(IllegalArgumentException.class, () -> tripCargo.mount(TENANT, ACTOR, tripA, badStage));
+        assertTrue(trips.mandatesOf(TENANT, tripA).isEmpty(), "a refused mount links no mandate");
     }
 
     @Test

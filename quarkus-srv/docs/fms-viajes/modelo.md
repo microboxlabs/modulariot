@@ -172,7 +172,7 @@ Columnas en cada tabla de registro: `version_of UUID` (NULL = vigente), `is_acti
 
 ## Reglas en los services
 
-| Service | Regla |
+| Dónde | Regla |
 |---|---|
 | `AssignmentService` | el recurso asignado existe en `miot_fleet` para el tenant (400) |
 | `MandateStore.insertOrGet` | crear mandato ⇒ crea su `mandate_line` seq 1 |

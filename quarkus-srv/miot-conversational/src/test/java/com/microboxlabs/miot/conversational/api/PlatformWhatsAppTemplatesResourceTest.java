@@ -7,10 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.client.FakeMetaGraph;
 import com.microboxlabs.miot.conversational.client.MetaTemplatesClient;
-import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.rules.RulesFixtureAccess;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
+import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import io.smallrye.mutiny.Uni;
@@ -79,7 +79,7 @@ class PlatformWhatsAppTemplatesResourceTest {
                 "parameterFormat", "headerFormat", "header", "body", "footer", "buttons", "params", "examples")),
                 keys(list.get(0)));
         assertEquals("[\"nombre\"]", list.get(0).path("params").toString());
-        assertEquals(List.of(ConvTemplate.PLATFORM_TENANT), tenants, "the platform's WhatsApp connection");
+        assertEquals(List.of(PlatformMailService.PLATFORM_TENANT), tenants, "the platform's WhatsApp connection");
 
         graph.reply(200, "{\"id\": \"903\", \"status\": \"PENDING\", \"category\": \"UTILITY\"}");
         Response created = call(owner.create(draft("panic_check_v2")));
@@ -93,10 +93,10 @@ class PlatformWhatsAppTemplatesResourceTest {
 
     @Test
     void onlyPlatformOwners() {
-        assertThrows(ForbiddenException.class, () -> call(stranger.list()));
-        assertThrows(ForbiddenException.class, () -> call(stranger.create(draft("x"))));
-        assertThrows(ForbiddenException.class, () -> call(stranger.edit("901", draft(null))));
-        assertThrows(ForbiddenException.class, () -> call(stranger.delete("x", null)));
+        for (Uni<Response> refused : List.of(stranger.list(), stranger.create(draft("x")),
+                stranger.edit("901", draft(null)), stranger.delete("x", null))) {
+            assertThrows(ForbiddenException.class, () -> call(refused));
+        }
         assertTrue(graph.seen().isEmpty());
     }
 

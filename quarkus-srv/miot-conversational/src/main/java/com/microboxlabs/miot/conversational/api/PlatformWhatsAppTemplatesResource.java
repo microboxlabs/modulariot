@@ -2,10 +2,10 @@ package com.microboxlabs.miot.conversational.api;
 
 import static com.microboxlabs.miot.conversational.api.OrgConversationsResource.work;
 
-import com.microboxlabs.miot.conversational.rules.ConvTemplate;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
+import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
@@ -39,7 +39,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class PlatformWhatsAppTemplatesResource {
 
-    private static final String PLATFORM = ConvTemplate.PLATFORM_TENANT;
+    /** The reserved tenant of the platform's connections; no organization can take a tenant code starting with "_". */
+    private static final String PLATFORM = PlatformMailService.PLATFORM_TENANT;
     private static final String ID = "id";
 
     private final Supplier<Uni<String>> owner;

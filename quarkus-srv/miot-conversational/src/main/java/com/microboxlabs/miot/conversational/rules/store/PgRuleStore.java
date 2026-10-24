@@ -39,6 +39,8 @@ public class PgRuleStore implements RuleStore {
 
     private static final String LIST = SELECT + RULE_COLUMNS
             + " FROM miot_conversational.conv_rule WHERE tenant_code = $1 ORDER BY name, key";
+    private static final String LIST_ALL = SELECT + RULE_COLUMNS
+            + " FROM miot_conversational.conv_rule ORDER BY tenant_code, name, key";
     private static final String FIND = SELECT + RULE_COLUMNS
             + " FROM miot_conversational.conv_rule WHERE tenant_code = $1 AND id = $2";
     private static final String INSERT = "INSERT INTO miot_conversational.conv_rule (" + RULE_COLUMNS + """
@@ -102,6 +104,11 @@ public class PgRuleStore implements RuleStore {
     @Override
     public List<Rule> list(String tenantCode) {
         return rules(query(pool.get(), LIST, Tuple.of(tenantCode)));
+    }
+
+    @Override
+    public List<Rule> listAll() {
+        return rules(query(pool.get(), LIST_ALL, Tuple.tuple()));
     }
 
     @Override

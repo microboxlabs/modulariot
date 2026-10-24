@@ -17,6 +17,9 @@ public interface RuleStore {
 
     List<Rule> list(String tenantCode);
 
+    /** Every organization's rules, for the platform's template usage. */
+    List<Rule> listAll();
+
     Optional<Rule> find(String tenantCode, String id);
 
     /** Throws {@link IllegalStateException} when the tenant already has a rule with that key. */

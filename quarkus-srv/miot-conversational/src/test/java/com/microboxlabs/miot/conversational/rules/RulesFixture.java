@@ -162,11 +162,11 @@ final class RulesFixture {
     final RunsService runs = new RunsService(store.runStore);
 
     RulesFixture() {
-        templates.save(TENANT, "panic-check", new TemplatesService.TemplateRequest("Botón de pánico · conductor",
+        templates.save("panic-check", new TemplatesService.TemplateRequest("Botón de pánico · conductor",
                 "Hola {{nombre}}, se activó el botón de pánico en {{patente}} a las {{hora}}. ¿Estás bien?",
                 new ConvTemplate.WhatsApp("miot_panic_check_v1", "es_CL", List.of("nombre", "patente", "hora")),
                 null), "owner@example.com");
-        templates.save(TENANT, "panic-tower", new TemplatesService.TemplateRequest("Botón de pánico · torre",
+        templates.save("panic-tower", new TemplatesService.TemplateRequest("Botón de pánico · torre",
                 "Sin respuesta de {{nombre}}", null,
                 new ConvTemplate.Email("Pánico en {{patente}} ({{nivel}})",
                         "El conductor no respondió. Ubicación: {{ubicacion}}.")), "owner@example.com");

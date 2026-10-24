@@ -10,7 +10,6 @@ import com.microboxlabs.miot.conversational.rules.RuleSimulator;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
-import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
@@ -220,7 +219,8 @@ public class OrgConversationsResource {
 
     @GET
     @Path("/templates")
-    @Operation(operationId = "listConversationTemplates", summary = "The organization's message templates")
+    @Operation(operationId = "listConversationTemplates",
+            summary = "The platform's message templates, with the organization's rules that use each")
     public Uni<Response> listTemplates(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(templates.list(tenant)).build());
@@ -228,20 +228,11 @@ public class OrgConversationsResource {
 
     @GET
     @Path("/templates/{key}")
-    @Operation(operationId = "getConversationTemplate", summary = "One template, with the rules that use it")
+    @Operation(operationId = "getConversationTemplate",
+            summary = "One platform template, with the organization's rules that use it")
     public Uni<Response> getTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(templates.get(tenant, key)).build());
-    }
-
-    @PUT
-    @Path("/templates/{key}")
-    @Operation(operationId = "saveConversationTemplate", summary = "Create or replace a template")
-    public Uni<Response> saveTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key,
-            TemplateRequest body) {
-        String tenant = tenantCode(organizationId);
-        String who = actor.get();
-        return write(organizationId, () -> Response.ok(templates.save(tenant, key, body, who)).build());
     }
 
     // WhatsApp templates on Meta
@@ -335,7 +326,7 @@ public class OrgConversationsResource {
                 || access.can(MAINTAINER_PERMISSION));
     }
 
-    private static Uni<Response> work(Supplier<Response> work) {
+    static Uni<Response> work(Supplier<Response> work) {
         return Uni.createFrom().item(() -> guarded(work)).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 

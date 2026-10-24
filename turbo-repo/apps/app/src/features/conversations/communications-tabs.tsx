@@ -2,7 +2,7 @@ import type { KeyboardEvent } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { trDynamic } from "@/features/i18n/tr.service";
 
-export const COMMUNICATIONS_TABS = ["rules", "templates", "activity"] as const;
+export const COMMUNICATIONS_TABS = ["rules", "activity"] as const;
 export type CommunicationsTab = (typeof COMMUNICATIONS_TABS)[number];
 
 export const COMMUNICATIONS_PANEL_ID = "communications-panel";
@@ -11,11 +11,10 @@ export const tabId = (tab: CommunicationsTab) => `communications-tab-${tab}`;
 
 const LABEL: Record<CommunicationsTab, string> = {
   rules: "tabRules",
-  templates: "tabTemplates",
   activity: "tabActivity",
 };
 
-/** Reglas, Plantillas, Actividad: arrows move between them, Home and End pick the first and last. */
+/** Reglas and Actividad: arrows move between them, Home and End pick the first and last. */
 export default function CommunicationsTabs({
   tab,
   d,

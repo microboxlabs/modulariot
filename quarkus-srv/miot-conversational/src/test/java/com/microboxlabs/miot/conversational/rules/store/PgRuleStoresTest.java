@@ -131,10 +131,10 @@ class PgRuleStoresTest {
         String tenant = "tenant-" + UUID.randomUUID();
         ConvTemplate first = templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check",
                 "Pánico", "Hola {{nombre}}", new ConvTemplate.WhatsApp("miot_panic_check_v1", "es_CL",
-                        List.of("nombre", "patente")), null, T0, T0, "a@example.com"));
+                        List.of("nombre", "patente")), null, T0, T0, "a@example.com", "0.1.0"));
         ConvTemplate second = templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check",
                 "Pánico 2", null, null, new ConvTemplate.Email("Asunto", "Cuerpo"), T0, T0.plusSeconds(5),
-                "b@example.com"));
+                "b@example.com", "0.2.0"));
 
         assertEquals(first.id(), second.id());
         ConvTemplate read = templates.find(tenant, "panic-check").orElseThrow();

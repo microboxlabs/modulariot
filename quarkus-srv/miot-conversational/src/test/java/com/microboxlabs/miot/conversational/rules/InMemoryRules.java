@@ -39,6 +39,11 @@ final class InMemoryRules {
         }
 
         @Override
+        public List<Rule> listAll() {
+            return List.copyOf(rules.values());
+        }
+
+        @Override
         public Optional<Rule> find(String tenantCode, String id) {
             return Optional.ofNullable(rules.get(id)).filter(r -> r.tenantCode().equals(tenantCode));
         }
@@ -136,7 +141,7 @@ final class InMemoryRules {
             ConvTemplate existing = templates.get(t.tenantCode() + "/" + t.key());
             ConvTemplate saved = existing == null ? t : new ConvTemplate(existing.id(), t.tenantCode(), t.key(),
                     t.name(), t.baseText(), t.whatsapp(), t.email(), existing.createdAt(), t.updatedAt(),
-                    t.updatedBy());
+                    t.updatedBy(), t.version());
             templates.put(t.tenantCode() + "/" + t.key(), saved);
             return saved;
         }

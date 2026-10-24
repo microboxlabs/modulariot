@@ -20,6 +20,7 @@ import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -180,6 +181,10 @@ class TripFlowTest {
         assertThrows(IllegalArgumentException.class, () -> trips.create(TENANT, ACTOR, badPlan));
         assertTrue(trips.list(TENANT, TripService.filter(null, null, null, null, null), 0, 50).isEmpty(),
                 "a refused plan writes no trip");
+        UUID missing = UUID.randomUUID();
+        assertThrows(NoSuchElementException.class, () -> stages.listByTrip(TENANT, missing));
+        assertThrows(NoSuchElementException.class, () -> assignments.listByTrip(TENANT, missing));
+        assertThrows(NoSuchElementException.class, () -> stages.listActivities(TENANT, missing));
         UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR,
                 new TripRequest(null, null, null, null, null)).id());
         Assignment truck = assignments.create(TENANT, ACTOR, tripId,

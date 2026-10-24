@@ -1,0 +1,78 @@
+package com.microboxlabs.miot.trips.access;
+
+import com.microboxlabs.miot.core.iam.AccessCatalog;
+import com.microboxlabs.miot.core.iam.ModuleDef;
+import com.microboxlabs.miot.core.iam.PermissionDef;
+import com.microboxlabs.miot.core.iam.RoleDef;
+import io.quarkus.arc.properties.IfBuildProperty;
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * The trips module's permissions and roles.
+ *
+ * <table>
+ *   <caption>Roles</caption>
+ *   <tr><th>Role</th><th>Permissions</th></tr>
+ *   <tr><td>{@value #VIEWER}</td><td>{@value #VIEW}</td></tr>
+ *   <tr><td>{@value #OPERATOR}</td><td>+ {@value #STAGE_OPERATE}, {@value #CARGO_OPERATE},
+ *       {@value #ASSIGNMENT_WRITE}</td></tr>
+ *   <tr><td>{@value #MAINTAINER}</td><td>every trips permission (the feeds' service accounts use it)</td></tr>
+ * </table>
+ */
+@ApplicationScoped
+@IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
+public class TripsAccessCatalog implements AccessCatalog {
+
+    public static final String MODULE = "trips";
+
+    public static final String VIEW = "trips:view";
+    public static final String MANDATE_WRITE = "trips:mandate.write";
+    public static final String CARGO_OPERATE = "trips:cargo.operate";
+    public static final String TRIP_WRITE = "trips:trip.write";
+    public static final String STAGE_OPERATE = "trips:stage.operate";
+    public static final String ASSIGNMENT_WRITE = "trips:assignment.write";
+    public static final String LOCATION_WRITE = "trips:location.write";
+
+    public static final String VIEWER = "TRIPS_VIEWER";
+    public static final String OPERATOR = "TRIPS_OPERATOR";
+    public static final String MAINTAINER = "TRIPS_MAINTAINER";
+
+    @Override
+    public List<PermissionDef> permissions() {
+        return List.of(
+                PermissionDef.of(VIEW, "Ver mandatos y viajes", "View mandates and trips"),
+                PermissionDef.of(MANDATE_WRITE, "Crear y cerrar mandatos", "Create and close mandates"),
+                PermissionDef.of(CARGO_OPERATE, "Anunciar y recepcionar cargas", "Announce and receive cargo"),
+                PermissionDef.of(TRIP_WRITE, "Crear y vincular viajes", "Create and link trips"),
+                PermissionDef.of(STAGE_OPERATE, "Operar etapas y actividades", "Operate stages and activities"),
+                PermissionDef.of(ASSIGNMENT_WRITE, "Asignar recursos a viajes", "Assign resources to trips"),
+                PermissionDef.of(LOCATION_WRITE, "Mantener ubicaciones", "Maintain locations"));
+    }
+
+    @Override
+    public List<RoleDef> roles() {
+        return List.of(
+                RoleDef.of(VIEWER, MODULE, "Lector", "Viewer", Set.of(VIEW))
+                        .describedAs("Ve mandatos, viajes y su historia sin cambiar nada.",
+                                "Sees mandates, trips and their history without changing anything."),
+                RoleDef.of(OPERATOR, MODULE, "Operador", "Operator",
+                                Set.of(VIEW, STAGE_OPERATE, CARGO_OPERATE, ASSIGNMENT_WRITE))
+                        .asLegacyDefault()
+                        .describedAs("Opera las etapas, las cargas y los recursos de los viajes en curso.",
+                                "Operates stages, cargo and resources of running trips."),
+                RoleDef.of(MAINTAINER, MODULE, "Mantenedor", "Maintainer",
+                                Set.of(VIEW, MANDATE_WRITE, CARGO_OPERATE, TRIP_WRITE, STAGE_OPERATE,
+                                        ASSIGNMENT_WRITE, LOCATION_WRITE))
+                        .describedAs("Además crea mandatos y viajes y mantiene recursos y ubicaciones.",
+                                "Also creates mandates and trips and maintains resources and locations."));
+    }
+
+    @Override
+    public List<ModuleDef> modules() {
+        return List.of(ModuleDef.of(MODULE, "Viajes", "Trips",
+                "Mandatos de carga y los viajes que los ejecutan.",
+                "Cargo mandates and the trips that execute them."));
+    }
+}

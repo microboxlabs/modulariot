@@ -51,6 +51,7 @@ public class StageService {
     }
 
     public List<Stage> listByTrip(String tenantCode, UUID tripId) {
+        trips.find(tenantCode, tripId).orElseThrow(() -> new NoSuchElementException("trip not found"));
         return stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId);
     }
 
@@ -141,6 +142,7 @@ public class StageService {
     }
 
     public List<StageActivity> listActivities(String tenantCode, UUID stageId) {
+        get(tenantCode, stageId);
         return stages.listActivities(tenantCode, stageId);
     }
 

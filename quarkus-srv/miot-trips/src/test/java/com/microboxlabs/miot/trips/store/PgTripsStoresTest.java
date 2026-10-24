@@ -11,6 +11,8 @@ import com.microboxlabs.miot.trips.domain.AuditEvent;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
+import com.microboxlabs.miot.trips.domain.FeedProfile;
+import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateLine;
@@ -31,8 +33,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
@@ -94,7 +98,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.4__checks_in_services.sql",
             "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
             "/db/migration/trips/V0.10.6__trip_live_in_services.sql",
-            "/db/migration/trips/V0.10.7__updated_at_in_stores.sql"};
+            "/db/migration/trips/V0.10.7__updated_at_in_stores.sql",
+            "/db/migration/trips/V0.10.8__create_feeds.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -253,6 +258,43 @@ class PgTripsStoresTest {
         assertTrue(fleet.byPlate(tenant(), "truck", "ABC-123").isEmpty(), "another tenant does not see it");
         assertTrue(fleet.byPlate(tenant, "truck", " - ").isEmpty(), "a blank plate finds nothing");
         assertEquals(UUID.fromString(driver.id()), fleet.driverByDocument(tenant, "111111111").orElseThrow().id());
+    }
+
+    @Test
+    void aFeedKeepsItsProfileAndTheLastStateOfEachService() {
+        String tenant = tenant();
+        PgFeedStore feeds = new PgFeedStore(() -> pool);
+        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "exacta-servicios", "Servicios",
+                List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
+                        new FeedProfile.StagePlan("transito", "SCHEDULED"),
+                        new FeedProfile.StagePlan("cierre", "FINISHED")),
+                "transito", "cierre", 120, new LinkedHashSet<>(List.of("truck", "driver")), true,
+                null, ACTOR, null, ACTOR));
+        assertEquals("transito", saved.departureStage());
+        assertEquals(List.of("preparacion", "transito", "cierre"),
+                saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
+        assertEquals(Set.of("truck", "driver"), saved.requiredResources());
+        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "exacta-servicios", "Servicios v2",
+                saved.stages(), "transito", "cierre", 90, saved.requiredResources(), true, null, ACTOR, null, ACTOR));
+        assertEquals(90, renamed.closeToleranceMinutes());
+        assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
+
+        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
+                null, null, true, null, null, null));
+        OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
+        String trip = UUID.randomUUID().toString();
+        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
+                null, trip, true, "alta", "{\"hechos\":[\"crear viaje\"]}", at));
+        FeedService s = feeds.service(tenant, "exacta-servicios", "S-001").orElseThrow();
+        assertEquals("h2", s.desiredHash());
+        assertEquals(trip, s.tripId());
+        assertTrue(s.desired().contains("\"b\""));
+        assertTrue(feeds.openServices(1000).stream().anyMatch(o -> o.externalCode().equals("S-001")
+                && o.tenantCode().equals(tenant)));
+        feeds.saveService(new FeedService(tenant, "exacta-servicios", "S-001", s.desired(), "h2", null, trip,
+                false, "cierre", null, at));
+        assertTrue(feeds.openServices(1000).stream().noneMatch(o -> o.tenantCode().equals(tenant)),
+                "a closed service leaves the clock's list");
     }
 
     @Test

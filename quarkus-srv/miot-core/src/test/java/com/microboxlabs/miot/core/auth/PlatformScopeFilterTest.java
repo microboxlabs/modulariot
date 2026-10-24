@@ -134,9 +134,11 @@ class PlatformScopeFilterTest {
         roles.requireOwner("_platform").await().indefinitely();
 
         organization.setUserEmail(MEMBER);
-        assertThrows(ForbiddenException.class, () -> roles.requireOwner("_platform").await().indefinitely());
+        Uni<Void> memberCheck = roles.requireOwner("_platform");
+        assertThrows(ForbiddenException.class, () -> memberCheck.await().indefinitely());
         organization.setUserEmail(OWNER);
-        assertThrows(ForbiddenException.class, () -> roles.requireOwner("_other").await().indefinitely());
+        Uni<Void> otherCheck = roles.requireOwner("_other");
+        assertThrows(ForbiddenException.class, () -> otherCheck.await().indefinitely());
     }
 
     @Test

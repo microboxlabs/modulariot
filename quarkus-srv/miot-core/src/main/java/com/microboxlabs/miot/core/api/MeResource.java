@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.api;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
@@ -112,7 +113,7 @@ public class MeResource {
                 .filter(org -> org.parent != null && org.taxId != null)
                 .collect(Collectors.groupingBy(org -> org.parent.id,
                         Collectors.mapping(org -> org.taxId, Collectors.toList())));
-        return orgs.stream().map(org -> new OrganizationScopeDto(
+        List<OrganizationScopeDto> scopes = new ArrayList<>(orgs.stream().map(org -> new OrganizationScopeDto(
                         org.id,
                         org.slug,
                         org.displayName != null ? org.displayName : org.name,
@@ -121,8 +122,14 @@ public class MeResource {
                         org.parent == null,
                         org.parent == null ? childTaxIds.getOrDefault(org.id, List.of()) : ownTaxId(org),
                         modulesByOrg.getOrDefault(org.id, List.of())))
-                .toList();
+                .toList());
+        scopes.add(PLATFORM_SCOPE);
+        return scopes;
     }
+
+    /** The platform as a scope; only platform owners get it, after their organizations. */
+    static final OrganizationScopeDto PLATFORM_SCOPE = new OrganizationScopeDto(PlatformScope.ORGANIZATION_ID,
+            PlatformScope.SLUG, PlatformScope.DISPLAY_NAME, null, PlatformScope.ROLE, false, List.of(), List.of());
 
     private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email) {
         // Sequential chain: Phase 1 uses the stub client so this is effectively free.

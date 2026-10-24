@@ -152,6 +152,14 @@ public class PgMandateStore implements MandateStore {
     }
 
     @Override
+    public Optional<String> statusForLink(String tenantCode, UUID mandateId) {
+        RowIterator<Row> it = query(pool.get(),
+                "SELECT status FROM miot_trips.mandate WHERE tenant_code = $1 AND id = $2 FOR SHARE",
+                Tuple.of(tenantCode, mandateId)).iterator();
+        return it.hasNext() ? Optional.of(it.next().getString("status")) : Optional.empty();
+    }
+
+    @Override
     public int openTrips(String tenantCode, UUID mandateId) {
         RowSet<Row> rows = query(pool.get(), """
                 SELECT count(*) AS n

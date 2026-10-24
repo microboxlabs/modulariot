@@ -42,4 +42,7 @@ public interface ResourceStore {
     List<Driver> listDrivers(String tenantCode, String rut, String q, int page, int size);
 
     Optional<Driver> updateDriver(Driver driver);
+
+    /** Whether {@code id} is a current, active row of {@code table}; takes no row lock. */
+    boolean isCurrent(String tenantCode, String table, UUID id);
 }

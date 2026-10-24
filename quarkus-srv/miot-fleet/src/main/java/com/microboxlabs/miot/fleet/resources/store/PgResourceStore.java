@@ -299,6 +299,12 @@ public class PgResourceStore implements ResourceStore {
                 PgResourceStore::driver);
     }
 
+    @Override
+    public boolean isCurrent(String tenantCode, String table, UUID id) {
+        return query(pool.get(), "SELECT EXISTS(" + select("1", table) + BY_ID + " AND is_active)",
+                Tuple.of(tenantCode, id)).iterator().next().getBoolean(0);
+    }
+
     // ---- shared ---------------------------------------------------------
 
     /** An ILIKE pattern that matches {@code term} literally: % and _ in user input are not wildcards. */

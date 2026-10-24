@@ -83,15 +83,15 @@ class PgTransactionsTest {
     private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, audit, tx);
     private final TripService trips = new TripService(tripStore, new PgStageStore(() -> pool),
             new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
-            audit, tx);
+            mandates, audit, tx);
     private final StageService stages = new StageService(new PgStageStore(() -> pool), tripStore,
             new PgTripCargoStore(() -> pool), mandates, audit, tx);
-    private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
-            tripStore, audit, tx);
     private final PgResourceStore fleetStore = new PgResourceStore(() -> pool);
     private final Transactions fleetTx =
             new PgTransactions(() -> pool);
     private final ResourceService fleet = new ResourceService(fleetStore, fleetTx);
+    private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
+            tripStore, fleet, audit, tx);
 
     @BeforeAll
     static void migrate() throws IOException {
@@ -105,7 +105,8 @@ class PgTransactionsTest {
         for (String sql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
                 "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
                 "/db/migration/trips/V0.10.0__create_trips.sql",
-                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
+                "/db/migration/trips/V0.10.3__trips_lock_order.sql",
+                "/db/migration/trips/V0.10.4__checks_in_services.sql"}) {
             try (InputStream in = PgTransactionsTest.class.getResourceAsStream(sql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }

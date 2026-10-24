@@ -24,6 +24,9 @@ public interface MandateStore {
 
     Optional<MandateLine> lineOf(String tenantCode, UUID mandateId);
 
+    /** The status, read FOR SHARE: a new link waits for a concurrent close and sees its result. */
+    Optional<String> statusForLink(String tenantCode, UUID mandateId);
+
     List<TripRef> tripsOf(String tenantCode, UUID mandateId);
 
     /** Trips of the mandate not yet realizado/anulado; closing requires zero. */

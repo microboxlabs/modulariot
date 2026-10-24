@@ -48,17 +48,20 @@ public class TripService {
     private final AssignmentStore assignments;
     private final TripCargoStore tripCargo;
     private final CargoStore cargo;
+    private final MandateService mandates;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
     public TripService(TripStore trips, StageStore stages, AssignmentStore assignments,
-            TripCargoStore tripCargo, CargoStore cargo, AuditService audit, Transactions tx) {
+            TripCargoStore tripCargo, CargoStore cargo, MandateService mandates, AuditService audit,
+            Transactions tx) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
         this.tripCargo = tripCargo;
         this.cargo = cargo;
+        this.mandates = mandates;
         this.audit = audit;
         this.tx = tx;
     }
@@ -81,6 +84,7 @@ public class TripService {
             List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
             order.sort(Comparator.comparing(mandateIds::get));
             for (int i : order) {
+                mandates.requireOpen(tenantCode, mandateIds.get(i));
                 trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
             }
             if (req.stages() != null) {
@@ -175,6 +179,7 @@ public class TripService {
             UUID mid = parse(Check.required(mandateId, MANDATE_ID, 64), MANDATE_ID);
             int s = seq == null ? trips.mandatesOf(tenantCode, tripId).size() + 1 : seq;
             String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
+            mandates.requireOpen(tenantCode, mid);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
             if (linked) {
                 audit.log(tenantCode, actor, "trip.mandate_linked", ENTITY, tripId.toString(), tripId.toString(),

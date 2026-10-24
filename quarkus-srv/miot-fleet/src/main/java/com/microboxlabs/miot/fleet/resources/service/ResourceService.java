@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.fleet.resources.service;
 
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
@@ -20,7 +21,7 @@ import java.util.UUID;
 /** The resource directory: no deletes — resources deactivate by status. */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
-public class ResourceService {
+public class ResourceService implements FleetResources {
 
     public static final int MAX_PAGE_SIZE = 200;
 
@@ -230,6 +231,12 @@ public class ResourceService {
                     d.sourceSystem(), d.sourceData(), d.createdAt(), d.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException("driver not found"));
         });
+    }
+
+    @Override
+    public boolean exists(String tenantCode, String resourceType, UUID id) {
+        return store.isCurrent(tenantCode, Check.oneOf(resourceType, "resourceType", "truck", "trailer", "driver"),
+                id);
     }
 
     // ---- shared ---------------------------------------------------------

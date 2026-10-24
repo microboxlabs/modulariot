@@ -121,6 +121,11 @@ public class InMemoryTripsWorld {
         }
 
         @Override
+        public Optional<String> statusForLink(String tenantCode, UUID mandateId) {
+            return find(tenantCode, mandateId).map(Mandate::status);
+        }
+
+        @Override
         public List<TripRef> tripsOf(String tenantCode, UUID mandateId) {
             List<TripRef> refs = new ArrayList<>();
             for (Map.Entry<String, List<MandateRef>> e : tripMandates.entrySet()) {
@@ -161,6 +166,13 @@ public class InMemoryTripsWorld {
         public Optional<CargoUnit> find(String tenantCode, UUID id) {
             return Optional.ofNullable(cargo.get(id.toString()))
                     .filter(c -> c.tenantCode().equals(tenantCode));
+        }
+
+        @Override
+        public Optional<UUID> mandateOf(String tenantCode, UUID cargoId) {
+            return find(tenantCode, cargoId).flatMap(c -> linesByMandate.values().stream()
+                    .filter(l -> l.id().equals(c.lineId())).findFirst())
+                    .map(l -> UUID.fromString(l.mandateId()));
         }
 
         @Override

@@ -59,7 +59,7 @@ class MandateServiceTest {
         Mandate mandate = service.createOrGet(TENANT, ACTOR, request("OC-2001")).mandate();
         UUID mandateId = UUID.fromString(mandate.id());
         TripService trips = new TripService(world.tripStore, world.stageStore, world.assignmentStore,
-                world.tripCargoStore, world.cargoStore, audit, tx);
+                world.tripCargoStore, world.cargoStore, service, audit, tx);
         trips.create(TENANT, ACTOR, new TripRequest(null, null, null, List.of(mandate.id()), null));
 
         IllegalStateException open = assertThrows(IllegalStateException.class,

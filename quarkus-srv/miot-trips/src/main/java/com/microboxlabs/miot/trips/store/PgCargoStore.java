@@ -65,6 +65,16 @@ public class PgCargoStore implements CargoStore {
     }
 
     @Override
+    public Optional<UUID> mandateOf(String tenantCode, UUID cargoId) {
+        RowIterator<Row> it = query(pool.get(), """
+                SELECT ml.mandate_id FROM miot_trips.cargo_unit cu
+                JOIN miot_trips.mandate_line ml ON ml.id = cu.line_id AND ml.version_of IS NULL AND ml.is_active
+                WHERE cu.tenant_code = $1 AND cu.id = $2 AND cu.is_active""",
+                Tuple.of(tenantCode, cargoId)).iterator();
+        return it.hasNext() ? Optional.of(it.next().getUUID("mandate_id")) : Optional.empty();
+    }
+
+    @Override
     public Optional<CargoUnit> find(String tenantCode, UUID id) {
         RowSet<Row> rows = query(pool.get(),
                 SELECT + COLUMNS + " FROM miot_trips.cargo_unit WHERE tenant_code = $1 AND id = $2" + Pg.lock(),

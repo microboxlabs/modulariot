@@ -78,7 +78,8 @@ class PgTripsStoresTest {
             }
         }
         for (String tripsSql : new String[] {"/db/migration/trips/V0.10.0__create_trips.sql",
-                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
+                "/db/migration/trips/V0.10.3__trips_lock_order.sql",
+                "/db/migration/trips/V0.10.4__checks_in_services.sql"}) {
             try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(tripsSql)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -180,21 +181,21 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void theResourceCheckTriggerRefusesAGhostAndAcceptsARealTruck() {
+    void fleetKnowsARealTruckAndItsAssignmentWindowEndsOnce() {
         String tenant = tenant();
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        Assignment unknownTruck = new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
-                UUID.randomUUID().toString(), now, null, null, null, ACTOR, null, ACTOR);
-        assertThrows(IllegalArgumentException.class, () -> assignments.insert(unknownTruck),
-                "a truck id that does not exist is refused by the trigger");
+        assertFalse(resources.isCurrent(tenant, "truck", UUID.randomUUID()), "an unknown truck is not current");
 
         Carrier carrier = resources.insertCarrier(new Carrier(null, tenant, null, "76.111.222-3",
                 "Transportes Test", null, null, null, null, null, Carrier.ACTIVE, false, null, null,
                 null, ACTOR, null, ACTOR));
         Truck truck = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "PLKV-12", null,
                 null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        assertTrue(resources.isCurrent(tenant, "truck", UUID.fromString(truck.id())));
+        assertFalse(resources.isCurrent(tenant(), "truck", UUID.fromString(truck.id())),
+                "another tenant does not see it");
         Assignment a = assignments.insert(new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
                 truck.id(), now, null, null, null, ACTOR, null, ACTOR));
         Assignment ended = assignments.end(tenant, UUID.fromString(a.id()), now.plusHours(1), "panne", ACTOR)
@@ -291,20 +292,20 @@ class PgTripsStoresTest {
     }
 
     @Test
-    void aCancelledMandateTakesNoNewTrip() {
+    void aMandateStatusAndTheMandateOfACargoAreReadBack() {
         String tenant = tenant();
         Mandate m = mandate(tenant, "OC-CANCEL");
         mandates.update(new Mandate(m.id(), tenant, m.externalCode(), m.orderType(), m.orderRef(), "anulado",
                 null, null, null, OffsetDateTime.now(ZoneOffset.UTC), "cliente anula", m.createdAt(), ACTOR,
                 null, ACTOR)).orElseThrow();
-        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
-                null, ACTOR, null, ACTOR));
-
-        UUID tripId = UUID.fromString(trip.id());
         UUID mandateId = UUID.fromString(m.id());
-        IllegalStateException refused = assertThrows(IllegalStateException.class,
-                () -> trips.linkMandate(tenant, tripId, mandateId, 1, "primary", ACTOR));
-        assertTrue(refused.getMessage().contains("anulado"), refused.getMessage());
+        assertEquals("anulado", mandates.statusForLink(tenant, mandateId).orElseThrow());
+        assertTrue(mandates.statusForLink(tenant(), mandateId).isEmpty(), "another tenant does not see it");
+
+        MandateLine line = mandates.lineOf(tenant, mandateId).orElseThrow();
+        CargoUnit unit = cargo.insert(new CargoUnit(null, tenant, line.id(), 0, "Carga", null, null, null,
+                null, CargoUnit.READY, null, null, null, null, ACTOR, null, ACTOR));
+        assertEquals(mandateId, cargo.mandateOf(tenant, UUID.fromString(unit.id())).orElseThrow());
     }
 
     private long versionsOf(String id) {

@@ -33,16 +33,18 @@ public class TripCargoService {
     private final TripStore trips;
     private final CargoStore cargo;
     private final StageStore stages;
+    private final MandateService mandates;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
     public TripCargoService(TripCargoStore store, TripStore trips, CargoStore cargo, StageStore stages,
-            AuditService audit, Transactions tx) {
+            MandateService mandates, AuditService audit, Transactions tx) {
         this.store = store;
         this.trips = trips;
         this.cargo = cargo;
         this.stages = stages;
+        this.mandates = mandates;
         this.audit = audit;
         this.tx = tx;
     }
@@ -60,6 +62,8 @@ public class TripCargoService {
             UUID cargoId = TripService.parse(Check.required(body.cargoId(), "cargoId", 64), "cargoId");
             cargo.find(tenantCode, cargoId)
                     .orElseThrow(() -> new NoSuchElementException("cargo not found"));
+            mandates.requireOpen(tenantCode, cargo.mandateOf(tenantCode, cargoId)
+                    .orElseThrow(() -> new IllegalStateException("cargo " + cargoId + " has no mandate")));
             TripCargoLink mounted = store.insert(new TripCargoLink(tripId.toString(), cargoId.toString(), tenantCode,
                     stageOf(tenantCode, tripId, body.loadStageId(), "loadStageId"),
                     stageOf(tenantCode, tripId, body.unloadStageId(), "unloadStageId"),

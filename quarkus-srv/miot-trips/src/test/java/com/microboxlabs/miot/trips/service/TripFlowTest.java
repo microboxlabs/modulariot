@@ -20,8 +20,10 @@ import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -37,13 +39,21 @@ class TripFlowTest {
     private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
     private final CargoService cargo = new CargoService(world.cargoStore, mandates, audit, tx);
     private final TripService trips = new TripService(world.tripStore, world.stageStore,
-            world.assignmentStore, world.tripCargoStore, world.cargoStore, audit, tx);
+            world.assignmentStore, world.tripCargoStore, world.cargoStore, mandates, audit, tx);
     private final StageService stages = new StageService(world.stageStore, world.tripStore,
             world.tripCargoStore, mandates, audit, tx);
+    private final Set<UUID> fleetResources = new HashSet<>();
     private final AssignmentService assignments = new AssignmentService(world.assignmentStore,
-            world.tripStore, audit, tx);
+            world.tripStore, (tenant, type, id) -> fleetResources.contains(id), audit, tx);
     private final TripCargoService tripCargo = new TripCargoService(world.tripCargoStore, world.tripStore,
-            world.cargoStore, world.stageStore, audit, tx);
+            world.cargoStore, world.stageStore, mandates, audit, tx);
+
+    /** A truck, trailer or driver id the fleet knows. */
+    private String resource() {
+        UUID id = UUID.randomUUID();
+        fleetResources.add(id);
+        return id.toString();
+    }
 
     @Test
     void aTripRunsItsStagesAndEverythingFollows() {
@@ -76,14 +86,14 @@ class TripFlowTest {
 
         // resources go on with validity windows; ending one is the truck change
         Assignment truck = assignments.create(TENANT, ACTOR, tripId,
-                new AssignmentRequest("truck", UUID.randomUUID().toString(), null, null));
+                new AssignmentRequest("truck", resource(), null, null));
         assignments.create(TENANT, ACTOR, tripId,
-                new AssignmentRequest("driver", UUID.randomUUID().toString(), null, null));
+                new AssignmentRequest("driver", resource(), null, null));
         assignments.end(TENANT, ACTOR, UUID.fromString(truck.id()), null, "panne");
         UUID truckId = UUID.fromString(truck.id());
         assertThrows(IllegalStateException.class, () -> assignments.end(TENANT, ACTOR, truckId, null, null));
         assignments.create(TENANT, ACTOR, tripId,
-                new AssignmentRequest("truck", UUID.randomUUID().toString(), null, "reemplazo"));
+                new AssignmentRequest("truck", resource(), null, "reemplazo"));
         assertEquals(3, assignments.listByTrip(TENANT, tripId).size());
 
         // starting the first stage IS the state change: trip en_ruta, mandate en_ejecucion
@@ -190,13 +200,48 @@ class TripFlowTest {
         UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR,
                 new TripRequest(null, null, null, null, null)).id());
         Assignment truck = assignments.create(TENANT, ACTOR, tripId,
-                new AssignmentRequest("truck", UUID.randomUUID().toString(), null, null));
+                new AssignmentRequest("truck", resource(), null, null));
         UUID truckId = UUID.fromString(truck.id());
         OffsetDateTime beforeStart = truck.validFrom().minusHours(1);
         assertThrows(IllegalArgumentException.class,
                 () -> assignments.end(TENANT, ACTOR, truckId, beforeStart, null));
-        AssignmentRequest tomorrow = new AssignmentRequest("truck", UUID.randomUUID().toString(),
+        AssignmentRequest tomorrow = new AssignmentRequest("truck", resource(),
                 OffsetDateTime.now().plusDays(1), "reemplazo de mañana");
         assertThrows(IllegalArgumentException.class, () -> assignments.create(TENANT, ACTOR, tripId, tomorrow));
+    }
+
+    @Test
+    void anAssignmentNeedsAResourceTheFleetKnows() {
+        UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR,
+                new TripRequest(null, null, null, null, null)).id());
+        AssignmentRequest ghost = new AssignmentRequest("truck", UUID.randomUUID().toString(), null, null);
+        IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+                () -> assignments.create(TENANT, ACTOR, tripId, ghost));
+        assertTrue(refused.getMessage().contains("does not exist"), refused.getMessage());
+        assertTrue(assignments.listByTrip(TENANT, tripId).isEmpty());
+    }
+
+    @Test
+    void aCancelledMandateTakesNoNewTrip() {
+        Mandate mandate = mandates.createOrGet(TENANT, ACTOR,
+                new MandateRequest("SRV-CANCEL", "service", null, null, null, null)).mandate();
+        UUID mandateId = UUID.fromString(mandate.id());
+        CargoUnit unit = cargo.announce(TENANT, ACTOR, mandateId,
+                new CargoRequest("Carga", null, null, null, null, null));
+        mandates.cancel(TENANT, ACTOR, mandateId, "cliente anula");
+
+        TripRequest withMandate = new TripRequest(null, null, null, List.of(mandate.id()), null);
+        assertThrows(IllegalStateException.class, () -> trips.create(TENANT, ACTOR, withMandate));
+        UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR,
+                new TripRequest(null, null, null, null, null)).id());
+        IllegalStateException link = assertThrows(IllegalStateException.class,
+                () -> trips.linkMandate(TENANT, ACTOR, tripId, mandate.id(), null, null));
+        assertTrue(link.getMessage().contains("anulado"), link.getMessage());
+        TripCargoRequest mount = new TripCargoRequest(unit.id(), null, null);
+        assertThrows(IllegalStateException.class, () -> tripCargo.mount(TENANT, ACTOR, tripId, mount));
+        String unknown = UUID.randomUUID().toString();
+        assertThrows(IllegalArgumentException.class,
+                () -> trips.linkMandate(TENANT, ACTOR, tripId, unknown, null, null));
+        assertTrue(trips.mandatesOf(TENANT, tripId).isEmpty());
     }
 }

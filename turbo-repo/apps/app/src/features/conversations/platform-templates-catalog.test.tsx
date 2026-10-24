@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { ConversationTemplate } from "./conversations-types";
 
-const api = vi.hoisted(() => ({ usePlatformTemplates: vi.fn() }));
+const api = vi.hoisted(() => ({
+  usePlatformTemplates: vi.fn(),
+  useMetaTemplates: vi.fn(),
+}));
 vi.mock("./conversations-api", () => api);
 
 import PlatformTemplatesCatalog from "./platform-templates-catalog";
@@ -70,5 +73,20 @@ describe("PlatformTemplatesCatalog", () => {
       .getByRole("link", { name: "Pánico · torre" })
       .closest("tr") as HTMLElement;
     expect(within(row).getByText("v0.1.0")).toBeTruthy();
+  });
+
+  it("shows the WhatsApp templates on Meta of the platform in their own view", async () => {
+    const { ControlTowerError } =
+      await import("@/features/symptoms/control-tower/control-tower-api");
+    api.useMetaTemplates.mockReturnValue({
+      data: undefined,
+      error: new ControlTowerError("No usable WHATSAPP connection", 409),
+    });
+    render(<PlatformTemplatesCatalog dict={dict} lang="es" />);
+    fireEvent.click(screen.getByRole("button", { name: "WhatsApp en Meta" }));
+    expect(
+      screen.getByText(/La plataforma no tiene una conexión de WhatsApp activa/)
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Canal" })).toBeNull();
   });
 });

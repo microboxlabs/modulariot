@@ -11,6 +11,7 @@ import { MUTED, Tile } from "@/features/symptoms/maintainer/ui/card";
 import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
 import ChannelIcon from "./channel-icon";
 import LayoutToggle, { type CatalogLayout } from "./layout-toggle";
+import MetaTemplatesSection from "./meta-templates-section";
 import { usePlatformTemplates } from "./conversations-api";
 import type { ConversationTemplate } from "./conversations-types";
 import { channelLabel } from "./rule-model";
@@ -171,19 +172,103 @@ function TemplatesTable({
   );
 }
 
-/** Settings › Plataforma › Plantillas de mensajes: the templates every organization's rules send. */
+export type TemplatesView = "messages" | "meta";
+
+/** Mensajes / WhatsApp en Meta. */
+function ViewToggle({
+  view,
+  d,
+  onView,
+}: Readonly<{
+  view: TemplatesView;
+  d: I18nRecord;
+  onView: (view: TemplatesView) => void;
+}>) {
+  const views: { value: TemplatesView; label: string }[] = [
+    { value: "messages", label: tr("templatesMessages", d) },
+    { value: "meta", label: tr("templatesMeta", d) },
+  ];
+  return (
+    <fieldset className="flex self-start rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
+      <legend className="sr-only">{tr("templatesView", d)}</legend>
+      {views.map((v) => (
+        <button
+          key={v.value}
+          type="button"
+          aria-pressed={view === v.value}
+          onClick={() => onView(v.value)}
+          className={`rounded-md px-2.5 py-1 text-xs ${
+            view === v.value
+              ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
+              : MUTED
+          }`}
+        >
+          {v.label}
+        </button>
+      ))}
+    </fieldset>
+  );
+}
+
+/** The app's templates as cards or a table. */
+function MessageTemplates({
+  channel,
+  layout,
+  lang,
+  d,
+}: Readonly<{
+  channel: string;
+  layout: CatalogLayout;
+  lang: string;
+  d: I18nRecord;
+}>) {
+  const { data, error, isLoading } = usePlatformTemplates();
+  const all = data ?? [];
+  const shown = all.filter(
+    (t) => !channel || channelsOf(t).some((c) => channelLabel(c, d) === channel)
+  );
+  return (
+    <>
+      {error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {tr("loadFailed", d)}
+        </p>
+      )}
+      {isLoading && <p className={`text-sm ${MUTED}`}>{tr("loading", d)}</p>}
+      {data && shown.length === 0 && (
+        <p className={`py-10 text-center text-sm ${MUTED}`}>
+          {all.length === 0
+            ? tr("noTemplates", d)
+            : tr("templatesEmptyFiltered", d)}
+        </p>
+      )}
+      {shown.length > 0 && layout === "cards" && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {shown.map((t) => (
+            <TemplateCard key={t.key} t={t} lang={lang} d={d} />
+          ))}
+        </div>
+      )}
+      {shown.length > 0 && layout === "list" && (
+        <TemplatesTable templates={shown} lang={lang} d={d} />
+      )}
+    </>
+  );
+}
+
+/**
+ * Settings › Plataforma › Plantillas de mensajes: the templates every organization's rules send, and the WhatsApp
+ * templates on Meta of the platform's connection, which their WhatsApp variants name.
+ */
 export default function PlatformTemplatesCatalog({
   dict,
   lang,
 }: Readonly<{ dict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
-  const { data, error, isLoading } = usePlatformTemplates();
+  const [view, setView] = useState<TemplatesView>("messages");
   const [channel, setChannel] = useState("");
   const [layout, setLayout] = useState<CatalogLayout>("cards");
-  const all = data ?? [];
-  const shown = all.filter(
-    (t) => !channel || channelsOf(t).some((c) => channelLabel(c, d) === channel)
-  );
+  const messages = view === "messages";
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
@@ -195,15 +280,17 @@ export default function PlatformTemplatesCatalog({
           disableLinks
         />
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
-        <FilterChip
-          label={tr("filterChannel", d)}
-          value={channel}
-          options={CHANNELS.map((c) => channelLabel(c, d))}
-          allLabel={tr("filterAll", d)}
-          onChange={setChannel}
-        />
-      </div>
+      {messages && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
+          <FilterChip
+            label={tr("filterChannel", d)}
+            value={channel}
+            options={CHANNELS.map((c) => channelLabel(c, d))}
+            allLabel={tr("filterAll", d)}
+            onChange={setChannel}
+          />
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -227,40 +314,28 @@ export default function PlatformTemplatesCatalog({
                 {tr("templatesDescription", d)}
               </p>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
-              <Link
-                href={platformTemplateHref(lang, "new")}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
-              >
-                ＋ {tr("newTemplate", d)}
-              </Link>
-            </div>
+            {messages && (
+              <div className="ml-auto flex items-center gap-2">
+                <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
+                <Link
+                  href={platformTemplateHref(lang, "new")}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+                >
+                  ＋ {tr("newTemplate", d)}
+                </Link>
+              </div>
+            )}
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {tr("loadFailed", d)}
-            </p>
-          )}
-          {isLoading && (
-            <p className={`text-sm ${MUTED}`}>{tr("loading", d)}</p>
-          )}
-          {data && shown.length === 0 && (
-            <p className={`py-10 text-center text-sm ${MUTED}`}>
-              {all.length === 0
-                ? tr("noTemplates", d)
-                : tr("templatesEmptyFiltered", d)}
-            </p>
-          )}
-          {shown.length > 0 && layout === "cards" && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-              {shown.map((t) => (
-                <TemplateCard key={t.key} t={t} lang={lang} d={d} />
-              ))}
-            </div>
-          )}
-          {shown.length > 0 && layout === "list" && (
-            <TemplatesTable templates={shown} lang={lang} d={d} />
+          <ViewToggle view={view} d={d} onView={setView} />
+          {messages ? (
+            <MessageTemplates
+              channel={channel}
+              layout={layout}
+              lang={lang}
+              d={d}
+            />
+          ) : (
+            <MetaTemplatesSection canWrite d={d} />
           )}
         </div>
       </div>

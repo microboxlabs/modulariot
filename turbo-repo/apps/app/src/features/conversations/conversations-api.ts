@@ -40,7 +40,8 @@ export const platformTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/
 export const platformTemplateKey = (key: string) =>
   `${platformTemplatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
-export const metaTemplatesKey = `${CONVERSATIONS_BASE}/whatsapp-templates`;
+/** The WhatsApp templates on Meta of the platform's connection, for platform owners. */
+export const metaTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/whatsapp-templates`;
 
 export function runsKey(filter: {
   rule?: string | null;

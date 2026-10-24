@@ -179,6 +179,14 @@ class ConnectionStepTest {
         assertEquals(MessageStatus.FAILED, thrown.status());
         assertEquals("connection refused", thrown.errorMessage());
         assertEquals("FAILED", f.runs.list(TENANT, null, null, null).get(0).messages().get(0).status());
+
+        f.store.runs.clear();
+        f.store.conversations.messages.clear();
+        f.integrations.thrown = new IllegalArgumentException("connection base URL points to an internal address");
+        assertEquals(Run.Status.DONE, run().status());
+        Message guarded = f.store.conversations.messages.get(0);
+        assertEquals(MessageStatus.FAILED, guarded.status());
+        assertEquals("connection base URL points to an internal address", guarded.errorMessage());
     }
 
     @Test

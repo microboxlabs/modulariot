@@ -200,8 +200,10 @@ export default function ConnectionChannelPanel({
             });
             toast.success(tr("channelCreated", d));
             setCreating(false);
-          } catch {
+          } catch (cause) {
             toast.error(tr("channelCreateFailed", d));
+            // The form stays open with what was typed and shows the error.
+            throw cause;
           } finally {
             setSaving(false);
           }

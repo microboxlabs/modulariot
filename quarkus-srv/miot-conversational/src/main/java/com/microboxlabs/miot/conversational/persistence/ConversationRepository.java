@@ -57,6 +57,8 @@ public class ConversationRepository {
     private static final String SELECT_BY_TENANT_AND_ID =
             SELECT_FROM + "WHERE tenant_code = $1 AND id = $2";
 
+    private static final String SELECT_BY_ID = SELECT_FROM + "WHERE id = $1";
+
     // The conversation where a WAITING run last sent to this address. Only real sends count: a test run's
     // SIMULATED messages and failed sends never reached the person replying.
     private static final String SELECT_WITH_WAITING_RUN = "SELECT " + COLUMNS + """
@@ -203,6 +205,17 @@ public class ConversationRepository {
         }
         return first(client().preparedQuery(SELECT_BY_TENANT_AND_ID)
                 .execute(Tuple.of(tenantCode, id))
+                .await().indefinitely());
+    }
+
+    /** Any tenant's conversation; for routing a reply on the platform's number by the message it answers. */
+    public Conversation findById(String conversationId) {
+        UUID id = parseUuidOrNull(conversationId);
+        if (id == null) {
+            return null;
+        }
+        return first(client().preparedQuery(SELECT_BY_ID)
+                .execute(Tuple.of(id))
                 .await().indefinitely());
     }
 

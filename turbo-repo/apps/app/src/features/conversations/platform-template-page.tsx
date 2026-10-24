@@ -10,12 +10,13 @@ import { ago } from "@/features/symptoms/maintainer/catalog-format";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { usePlatformTemplate, usePlatformTemplates } from "./conversations-api";
 import {
+  NEW_TEMPLATE,
   PLATFORM_TEMPLATES_PAGE,
   platformTemplateHref,
 } from "./platform-templates-catalog";
 import { TemplateEditor } from "./template-editor";
 
-/** Settings › Plataforma › Plantillas de mensajes › one template, or `new` to create one. */
+/** Settings › Plataforma › Plantillas de mensajes › one template, or `NEW_TEMPLATE` to create one. */
 export default function PlatformTemplatePage({
   templateKey,
   dict,
@@ -23,13 +24,15 @@ export default function PlatformTemplatePage({
 }: Readonly<{ templateKey: string; dict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
   const router = useRouter();
-  const isNew = templateKey === "new";
-  const { data: template, error } = usePlatformTemplate(
+  const isNew = templateKey === NEW_TEMPLATE;
+  const { data: template, error: templateError } = usePlatformTemplate(
     isNew ? null : templateKey
   );
-  const { data: all } = usePlatformTemplates();
+  // Saving is create-or-replace: a new template waits for the taken keys.
+  const { data: all, error: listError } = usePlatformTemplates(isNew);
+  const error = isNew ? listError : templateError;
   const backHref = `/${lang}${PLATFORM_TEMPLATES_PAGE}`;
-  const ready = isNew || template;
+  const ready = isNew ? all !== undefined : template;
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">

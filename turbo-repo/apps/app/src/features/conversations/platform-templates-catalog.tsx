@@ -18,6 +18,9 @@ import { channelLabel } from "./rule-model";
 export const PLATFORM_TEMPLATES_PAGE =
   "/users/settings/platform/message-templates";
 
+/** The creation segment. Keys start with a letter or digit, so no stored template takes it. */
+export const NEW_TEMPLATE = "_new";
+
 export const platformTemplateHref = (lang: string, key: string) =>
   `/${lang}${PLATFORM_TEMPLATES_PAGE}/${encodeURIComponent(key)}`;
 
@@ -230,7 +233,7 @@ export default function PlatformTemplatesCatalog({
             <div className="ml-auto flex items-center gap-2">
               <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
               <Link
-                href={platformTemplateHref(lang, "new")}
+                href={platformTemplateHref(lang, NEW_TEMPLATE)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
               >
                 ＋ {tr("newTemplate", d)}

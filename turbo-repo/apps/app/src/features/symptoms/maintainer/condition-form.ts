@@ -36,7 +36,7 @@ export interface ConditionForm {
 
 const ORDER_OPS: ConditionOp[] = [">", ">=", "<", "<="];
 const NUMBER = /^-?\d+(\.\d+)?$/;
-const STRING = /^"(?:[^"\\]|\\.)*"$/;
+const STRING = /^"(?:[^"\\]|\\.)*"$|^'(?:[^'\\]|\\.)*'$/;
 const COMPARISON = /^([A-Za-z_][\w.]*)\s*(==|!=|>=|<=|>|<)/;
 const HAS = /^has\(\s*([A-Za-z_][\w.]*)\s*\)$/;
 const OPTIONAL_BOOL = /^([A-Za-z_][\w.?]*)\s*==\s*(TRUE|FALSE)$/;
@@ -147,19 +147,20 @@ type Join = "&&" | "||";
 
 /** Where a scan of a rule stands: inside a string, and how many parentheses deep. */
 interface Scan {
-  quoted: boolean;
+  /** The quote that opened the string the scan is in; empty outside strings. */
+  quote: string;
   depth: number;
 }
 
 /** Moves the scan past the character at i; returns how many characters that took. */
 function advance(rule: string, i: number, scan: Scan): number {
   const c = rule[i];
-  if (scan.quoted) {
+  if (scan.quote) {
     if (c === "\\") return 2;
-    if (c === '"') scan.quoted = false;
+    if (c === scan.quote) scan.quote = "";
     return 1;
   }
-  if (c === '"') scan.quoted = true;
+  if (c === '"' || c === "'") scan.quote = c;
   else if (c === "(") scan.depth++;
   else if (c === ")") scan.depth--;
   return 1;
@@ -167,7 +168,7 @@ function advance(rule: string, i: number, scan: Scan): number {
 
 /** The && or || at i when it is outside parentheses and strings. */
 function topLevelJoin(rule: string, i: number, scan: Scan): Join | null {
-  if (scan.quoted || scan.depth !== 0) return null;
+  if (scan.quote || scan.depth !== 0) return null;
   const pair = rule.slice(i, i + 2);
   return pair === "&&" || pair === "||" ? pair : null;
 }
@@ -175,7 +176,7 @@ function topLevelJoin(rule: string, i: number, scan: Scan): Join | null {
 /** Splits a rule on one operator at the top level, outside parentheses and strings; null when both appear. */
 function split(rule: string): { op: Join | null; parts: string[] } | null {
   const parts: string[] = [];
-  const scan: Scan = { quoted: false, depth: 0 };
+  const scan: Scan = { quote: "", depth: 0 };
   let op: Join | null = null;
   let start = 0;
   let i = 0;
@@ -191,7 +192,7 @@ function split(rule: string): { op: Join | null; parts: string[] } | null {
       i += advance(rule, i, scan);
     }
   }
-  if (scan.depth !== 0 || scan.quoted) return null;
+  if (scan.depth !== 0 || scan.quote) return null;
   parts.push(rule.slice(start).trim());
   return { op, parts };
 }
@@ -199,10 +200,10 @@ function split(rule: string): { op: Join | null; parts: string[] } | null {
 /** The text inside one pair of parentheses around the whole term, or null. */
 function unwrap(term: string): string | null {
   if (!term.startsWith("(") || !term.endsWith(")")) return null;
-  const scan: Scan = { quoted: false, depth: 0 };
+  const scan: Scan = { quote: "", depth: 0 };
   let i = 0;
   while (i < term.length - 1) {
-    const closes = !scan.quoted && term[i] === ")";
+    const closes = !scan.quote && term[i] === ")";
     i += advance(term, i, scan);
     if (closes && scan.depth === 0) return null;
   }
@@ -223,6 +224,11 @@ function boolRow(term: string, field: SourceField): Condition | null {
 
 /** A CEL string literal's text; null for escapes the form does not write (\\x, \\', octal). */
 function unquote(raw: string): string | null {
+  // CEL also quotes with '; the form reads those only without escapes and writes them back with ".
+  if (raw.startsWith("'")) {
+    const text = raw.slice(1, -1);
+    return text.includes("\\") ? null : text;
+  }
   try {
     const value: unknown = JSON.parse(raw);
     return typeof value === "string" ? value : null;

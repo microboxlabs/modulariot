@@ -2,6 +2,8 @@ package com.microboxlabs.miot.conversational.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.client.MetaGraphException;
+import com.microboxlabs.miot.conversational.rules.ConnectionChannel;
+import com.microboxlabs.miot.conversational.rules.ConnectionChannels;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.Run;
@@ -42,6 +44,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.ConfigProvider;
@@ -50,9 +53,9 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
- * Conversation rules, the platform's templates, the event catalog and the runs of an organization. Any authenticated
- * user of the organization reads; writes need an Owner or Admin of the organization, or the Control Tower maintainer's
- * {@value #MAINTAINER_PERMISSION}. Endpoints return {@link Uni} so the request stays on the event loop for the
+ * Conversation rules, the platform's templates, the event catalog, the runs and the connection channels of an
+ * organization. Any authenticated user of the organization reads; writes need an Owner or Admin of the organization,
+ * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}. Endpoints return {@link Uni} so the request stays on the event loop for the
  * reactive org filter; the blocking work runs on the worker pool.
  */
 @Path("/api/v1/orgs/{organizationId}/conversations")
@@ -70,6 +73,7 @@ public class OrgConversationsResource {
     private static final String ID = "id";
     private static final String KEY = "key";
     private static final String ERROR = "error";
+    private static final String CHANNEL = "channel";
 
     public record CreateRuleRequest(String key, String name, JsonNode spec) {
     }
@@ -87,6 +91,9 @@ public class OrgConversationsResource {
     public record SimulateRequest(SampleEvent event) {
     }
 
+    public record CreateConnectionRequest(String name, String baseUrl, String credentialProfileId) {
+    }
+
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final Function<String, Uni<Access>> access;
@@ -95,20 +102,21 @@ public class OrgConversationsResource {
     private final RuleSimulator simulator;
     private final TemplatesService templates;
     private final RunsService runs;
+    private final ConnectionChannels channels;
 
     /** The services behind the endpoints. */
     public record Services(RulesService rules, RuleSimulator simulator, TemplatesService templates,
-            RunsService runs) {
+            RunsService runs, ConnectionChannels channels) {
     }
 
     @Inject
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
             OrganizationRoleService roleService, SecurityIdentity identity, RulesService rules,
-            RuleSimulator simulator, TemplatesService templates, RunsService runs) {
+            RuleSimulator simulator, TemplatesService templates, RunsService runs, ConnectionChannels channels) {
         this(tenantContext, organizationContext,
                 org -> roleService.access(org, caller(identity, organizationContext, tenantContext)),
                 () -> actor(identity, organizationContext),
-                new Services(rules, simulator, templates, runs));
+                new Services(rules, simulator, templates, runs, channels));
     }
 
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
@@ -121,6 +129,7 @@ public class OrgConversationsResource {
         this.simulator = services.simulator();
         this.templates = services.templates();
         this.runs = services.runs();
+        this.channels = services.channels();
     }
 
     // Rules
@@ -227,6 +236,52 @@ public class OrgConversationsResource {
     public Uni<Response> getTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(templates.get(tenant, key)).build());
+    }
+
+    // Channels
+
+    @GET
+    @Path("/channels/{channel}")
+    @Operation(operationId = "getConversationConnectionChannel",
+            summary = "A connection channel (webhook, slack, teams): the body its connections receive, and the "
+                    + "organization's connections")
+    public Uni<Response> connectionChannel(@PathParam(ORG) String organizationId,
+            @PathParam(CHANNEL) String channel) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(channels.view(channel(channel), tenant)).build());
+    }
+
+    @POST
+    @Path("/channels/{channel}/connections")
+    @Operation(operationId = "createConversationChannelConnection",
+            summary = "Create a connection from the channel's integration template")
+    public Uni<Response> createChannelConnection(@PathParam(ORG) String organizationId,
+            @PathParam(CHANNEL) String channel, CreateConnectionRequest body) {
+        String tenant = tenantCode(organizationId);
+        Optional<ConnectionChannel> kind = ConnectionChannel.of(channel);
+        if (kind.isEmpty()) {
+            return Uni.createFrom().item(unknownChannel(channel));
+        }
+        return write(organizationId, () -> {
+            if (body == null) {
+                throw new IllegalArgumentException("name and baseUrl are required");
+            }
+            return Response.status(Response.Status.CREATED).entity(ConnectionChannels.Connection.of(
+                    channels.create(kind.get(), tenant, body.name(), body.baseUrl(), body.credentialProfileId())))
+                    .build();
+        });
+    }
+
+    private static ConnectionChannel channel(String channel) {
+        return ConnectionChannel.of(channel).orElseThrow(() -> new NoSuchElementException(unknown(channel)));
+    }
+
+    private static Response unknownChannel(String channel) {
+        return error(Response.Status.NOT_FOUND, unknown(channel));
+    }
+
+    private static String unknown(String channel) {
+        return "Unknown channel " + channel + ": webhook, slack or teams";
     }
 
     // Events and runs

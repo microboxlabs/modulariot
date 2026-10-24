@@ -173,6 +173,7 @@ describe("RuleSteps", () => {
             messages: ["El paso 1 no tiene plantilla."],
             template: true,
             channel: false,
+            connection: false,
             entries: {},
           },
         }}
@@ -202,6 +203,7 @@ describe("RuleSteps", () => {
             messages: [],
             template: false,
             channel: false,
+            connection: false,
             entries: { 0: ["Ningún contacto tiene el rol Jefe de torre."] },
           },
         }}

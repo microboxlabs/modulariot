@@ -29,6 +29,10 @@ public final class RulesFixtureAccess {
         return fixture.runs;
     }
 
+    public ConnectionChannels channels() {
+        return fixture.integrations.channels;
+    }
+
     public static JsonNode json(String text) {
         return RulesFixture.json(text);
     }

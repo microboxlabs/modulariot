@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.rules;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
@@ -10,6 +11,7 @@ import com.microboxlabs.miot.conversational.rules.RuleSpec.Step;
 import com.microboxlabs.miot.conversational.rules.store.RuleStore;
 import com.microboxlabs.miot.conversational.rules.store.RunStore;
 import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
+import com.microboxlabs.miot.conversational.service.ConnectionMessagingService;
 import com.microboxlabs.miot.conversational.service.ContextMessage;
 import com.microboxlabs.miot.conversational.service.EmailMessagingService;
 import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
@@ -69,23 +71,27 @@ public class RulesEngine {
     private final Supplier<List<ParticipantResolver>> resolvers;
     private final WhatsAppMessagingService whatsapp;
     private final EmailMessagingService email;
+    private final ConnectionChannels channels;
+    private final ConnectionMessagingService connectionMessages;
     private final ObjectMapper json;
     private final Clock clock;
 
     @Inject
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
-            WhatsAppMessagingService whatsapp, EmailMessagingService email, ObjectMapper json) {
+            WhatsAppMessagingService whatsapp, EmailMessagingService email, ConnectionChannels channels,
+            ConnectionMessagingService connectionMessages, ObjectMapper json) {
         this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
-                new Senders(whatsapp, email), json, Clock.systemUTC());
+                new Senders(whatsapp, email, channels, connectionMessages), json, Clock.systemUTC());
     }
 
     /** Where rules, templates and runs are kept. */
     public record Stores(RuleStore rules, TemplateStore templates, RunStore runs) {
     }
 
-    /** The channels a step sends on. */
-    public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email) {
+    /** The channels a step sends on; {@code connectionMessages} stores what a connection step sends. */
+    public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email,
+            ConnectionChannels channels, ConnectionMessagingService connectionMessages) {
     }
 
     public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
@@ -97,6 +103,8 @@ public class RulesEngine {
         this.resolvers = resolvers;
         this.whatsapp = senders.whatsapp();
         this.email = senders.email();
+        this.channels = senders.channels();
+        this.connectionMessages = senders.connectionMessages();
         this.json = json;
         this.clock = clock;
     }
@@ -239,6 +247,11 @@ public class RulesEngine {
         List<String> problems = new ArrayList<>(plan.warnings());
         ContextKind kind = contextKind(run.contextKind());
         for (StepMessages.Planned m : plan.messages()) {
+            Optional<ConnectionChannel> viaConnection = ConnectionChannel.of(m.channel());
+            if (viaConnection.isPresent()) {
+                deliver(viaConnection.get(), run, event, kind, m).ifPresent(problems::add);
+                continue;
+            }
             boolean isWhatsApp = RuleSpec.WHATSAPP.equals(m.channel());
             ContextMessage message = new ContextMessage(kind, run.contextKey(), m.to().address(), m.to().name(),
                     m.to().role(), m.to().contactId(),
@@ -252,6 +265,26 @@ public class RulesEngine {
             }
         }
         return problems.isEmpty() ? null : String.join("; ", problems);
+    }
+
+    /**
+     * Calls the connection step's connection once and stores the call as a message to the connection; a test run
+     * calls nothing and stores it SIMULATED. Returns the problem when the call failed or was refused.
+     */
+    private Optional<String> deliver(ConnectionChannel channel, Run run, StoredEvent event, ContextKind kind,
+            StepMessages.Planned m) {
+        String connection = m.to().address();
+        Rule rule = rules.find(run.tenantCode(), run.ruleId()).orElse(null);
+        String name = channels.name(run.tenantCode(), connection).orElse(null);
+        ConnectionChannel.Delivery delivery = new ConnectionChannel.Delivery(event, run, rule, m.subject(), m.text());
+        ContextMessage message = new ContextMessage(kind, run.contextKey(), connection, name, null, null,
+                m.template() == null ? null : m.template().key(), null, Map.of(), m.subject(),
+                delivery.textOrSummary(), run.id(), run.step());
+        Message stored = connectionMessages.sendInContext(run.tenantCode(), Channel.fromDb(channel.key()), message,
+                run.test(), () -> channels.deliver(channel, run.tenantCode(), connection, channel.body(delivery)));
+        return stored.status() == MessageStatus.FAILED
+                ? Optional.of(channel.key() + " " + connection + ": " + stored.errorMessage())
+                : Optional.empty();
     }
 
     /**

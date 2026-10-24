@@ -25,6 +25,9 @@ export const STEP_CHANNELS = [
   { value: "whatsapp", label: "channelWhatsapp" },
   { value: "email", label: "channelEmail" },
   { value: "preferred", label: "channelPreferred" },
+  { value: "webhook", label: "channelWebhook" },
+  { value: "slack", label: "channelSlack" },
+  { value: "teams", label: "channelTeams" },
 ] as const;
 
 /** Channels a person can answer on, so a step may wait for the reply. */
@@ -441,7 +444,14 @@ export const FIRST_VERSION = "0.1.0";
 
 function stepsMovedOrRerouted(a: RuleStep[], b: RuleStep[]) {
   if (a.length !== b.length) return true;
-  if (a.some((s, i) => s.channel !== b[i].channel || !same(s.to, b[i].to)))
+  if (
+    a.some(
+      (s, i) =>
+        s.channel !== b[i].channel ||
+        !same(s.to, b[i].to) ||
+        (s.connection ?? null) !== (b[i].connection ?? null)
+    )
+  )
     return true;
   const sorted = (steps: RuleStep[]) =>
     steps.map(canonical).sort((x, y) => x.localeCompare(y));

@@ -61,6 +61,8 @@ const TEMPLATE_CODES = new Set([
 
 const CHANNEL_CODES = new Set(["stepBadChannel", "stepWaitNeedsReplies"]);
 
+const CONNECTION_CODES = new Set(["stepNoConnection"]);
+
 /** The recipient a recipient finding is about, matched by its params. */
 function recipientIndex(f: RuleFinding, entries: AudienceEntry[]): number {
   const p = f.params ?? {};
@@ -80,6 +82,7 @@ export interface StepIssues {
   messages: string[];
   template: boolean;
   channel: boolean;
+  connection: boolean;
   /** Messages for the step's own recipients, by their index. */
   entries: Record<number, string[]>;
 }
@@ -122,6 +125,7 @@ export function placeFindings(
         messages: [],
         template: false,
         channel: false,
+        connection: false,
         entries: {},
       });
       const to = spec.steps[index]?.to;
@@ -133,6 +137,7 @@ export function placeFindings(
       else issues.messages.push(text);
       if (TEMPLATE_CODES.has(f.code ?? "")) issues.template = true;
       if (CHANNEL_CODES.has(f.code ?? "")) issues.channel = true;
+      if (CONNECTION_CODES.has(f.code ?? "")) issues.connection = true;
     }
   }
   return out;

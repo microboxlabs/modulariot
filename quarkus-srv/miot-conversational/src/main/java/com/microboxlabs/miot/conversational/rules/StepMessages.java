@@ -16,12 +16,14 @@ public final class StepMessages {
 
     /** A blank NAMED parameter is refused by Meta, so a variable without a value is sent as this. */
     static final String EMPTY_PARAM = "-";
+    private static final String TEMPLATE = "La plantilla ";
 
     /**
      * One message.
      *
      * @param params WhatsApp: the Meta template's NAMED parameters
-     * @param text   WhatsApp: the base text, rendered; email: the body, rendered
+     * @param text   WhatsApp: the base text, rendered; email: the body, rendered; a connection channel: the email
+     *               body, else the base text
      */
     public record Planned(String channel, Participant to, ConvTemplate template, Map<String, String> params,
             String subject, String text) {
@@ -35,12 +37,16 @@ public final class StepMessages {
 
     public static Plan plan(Step step, RuleSpec spec, StoredEvent event, Optional<ConvTemplate> template,
             Audiences audiences) {
+        Optional<ConnectionChannel> kind = step.connectionChannel();
+        if (kind.isPresent()) {
+            return viaConnection(kind.get(), step, event, template);
+        }
         Audiences.Resolved resolved = audiences.resolve(event.tenantCode(), event.contextKind(), event.contextKey(),
                 step.to() != null ? step.to() : spec.audience(), event.data());
         List<String> warnings = new ArrayList<>(resolved.warnings());
         List<Planned> out = new ArrayList<>();
         if (template.isEmpty()) {
-            warnings.add("La plantilla " + step.template() + " no existe");
+            warnings.add(TEMPLATE + step.template() + " no existe");
             return new Plan(resolved.participants(), out, warnings);
         }
         if (resolved.participants().isEmpty()) {
@@ -53,10 +59,36 @@ public final class StepMessages {
             } else {
                 message(channel, p, template.get(), TemplateVariables.of(event.data(), event.at(), p.name()))
                         .ifPresentOrElse(out::add, () -> warnings.add(
-                                "La plantilla " + template.get().key() + " no tiene versión de " + channel));
+                                TEMPLATE + template.get().key() + " no tiene versión de " + channel));
             }
         }
         return new Plan(resolved.participants(), out, warnings);
+    }
+
+    /**
+     * A connection step: one message to its connection, whose address is the connection id. Its subject is the
+     * template's email subject, else its name; its text the email body, else the base text. No template, neither.
+     */
+    private static Plan viaConnection(ConnectionChannel kind, Step step, StoredEvent event,
+            Optional<ConvTemplate> template) {
+        if (step.connection() == null) {
+            return new Plan(List.of(), List.of(), List.of("El paso no tiene conexión"));
+        }
+        if (step.template() != null && template.isEmpty()) {
+            return new Plan(List.of(), List.of(), List.of(TEMPLATE + step.template() + " no existe"));
+        }
+        String subject = null;
+        String text = null;
+        if (template.isPresent()) {
+            ConvTemplate t = template.get();
+            Map<String, String> vars = TemplateVariables.of(event.data(), event.at(), null);
+            boolean email = t.email() != null;
+            subject = email ? TemplateVariables.render(t.email().subject(), vars) : t.name();
+            text = TemplateVariables.render(email ? t.email().body() : t.baseText(), vars);
+        }
+        Participant to = new Participant(step.connection(), kind.key(), null, null, null);
+        return new Plan(List.of(), List.of(new Planned(kind.key(), to, template.orElse(null), Map.of(),
+                subject, text)), List.of());
     }
 
     /** The message on this channel, or empty when the template has no variant for it. */

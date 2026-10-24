@@ -2565,6 +2565,11 @@
         "description": "Reusable identities and secrets. Configure once, then reference them from data sources, integrations and jobs.",
         "addButton": "Add credential",
         "list": {
+          "colCredential": "Credential",
+          "colType": "Type",
+          "colEnvironment": "Environment",
+          "colUsedBy": "Used by",
+          "colUpdated": "Updated",
           "usedByCount": "Used by {count}",
           "unused": "Not used yet",
           "empty": "No credentials yet. Add one to get started.",
@@ -2591,6 +2596,8 @@
           "QA": "QA",
           "PRODUCTION": "Production"
         },
+        "viewCards": "▦ Cards",
+        "viewList": "☰ List",
         "usageKinds": {
           "DATA_SOURCE": "Data source",
           "INTEGRATION": "Integration",

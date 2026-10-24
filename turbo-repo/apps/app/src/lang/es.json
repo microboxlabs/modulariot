@@ -2565,6 +2565,11 @@
         "description": "Identidades y secretos reutilizables. Configúralos una vez y referéncialos desde fuentes de datos, integraciones y trabajos.",
         "addButton": "Agregar credencial",
         "list": {
+          "colCredential": "Credencial",
+          "colType": "Tipo",
+          "colEnvironment": "Ambiente",
+          "colUsedBy": "Usada por",
+          "colUpdated": "Actualizada",
           "usedByCount": "Usada por {count}",
           "unused": "Sin uso aún",
           "empty": "Aún no hay credenciales. Agrega una para comenzar.",
@@ -2591,6 +2596,8 @@
           "QA": "QA",
           "PRODUCTION": "Producción"
         },
+        "viewCards": "▦ Tarjetas",
+        "viewList": "☰ Lista",
         "usageKinds": {
           "DATA_SOURCE": "Fuente de datos",
           "INTEGRATION": "Integración",

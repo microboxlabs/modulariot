@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import {
   Button,
   Label,
@@ -503,7 +502,7 @@ export default function SymptomDetail({
               PLATFORM_SCOPE_SLUG,
               `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
             ).catch((error: unknown) =>
-              toast.error(
+              setActionError(
                 error instanceof Error ? error.message : String(error)
               )
             );

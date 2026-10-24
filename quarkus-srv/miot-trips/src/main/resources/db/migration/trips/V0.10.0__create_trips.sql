@@ -467,12 +467,8 @@ BEGIN
       AND s.planned_end IS NOT NULL
     ORDER BY s.seq DESC LIMIT 1;
 
-    SELECT array_agg(DISTINCT (abs(hashtext(s.location_id::text)) % 100000))
-           FILTER (WHERE s.location_id IS NOT NULL)
-      INTO v_stops
-    FROM miot_trips.stage s
-    WHERE s.subject_type='trip' AND s.subject_id = p_trip AND s.stage_type='parada'
-      AND s.version_of IS NULL AND s.is_active;
+    -- no stop geofences until locations map to real geofence ids
+    v_stops := NULL;
 
     -- estado de negocio: lo proyecta la etapa en curso, o la última cerrada que declaró uno
     SELECT s.service_status INTO v_sstatus
@@ -568,6 +564,34 @@ CREATE TRIGGER trg_trip_live_tm AFTER INSERT OR UPDATE OR DELETE ON miot_trips.t
 FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_child();
 CREATE TRIGGER trg_trip_live_tc AFTER INSERT OR UPDATE OR DELETE ON miot_trips.trip_cargo
 FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_child();
+
+-- the hot row shows location names and the cargo description: refresh the trips that use them
+CREATE OR REPLACE FUNCTION miot_trips.fn_trip_live_from_reference() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE v_trip UUID;
+BEGIN
+    IF NEW.version_of IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
+    IF TG_TABLE_NAME = 'location' THEN
+        FOR v_trip IN SELECT t.id FROM miot_trips.trip t
+                      WHERE (t.origin_id = NEW.id OR t.destination_id = NEW.id)
+                        AND t.version_of IS NULL AND t.is_active
+                        AND t.status NOT IN ('realizado','anulado') LOOP
+            PERFORM miot_trips.fn_trip_live_refresh(v_trip);
+        END LOOP;
+    ELSE
+        FOR v_trip IN SELECT tc.trip_id FROM miot_trips.trip_cargo tc
+                      WHERE tc.cargo_id = NEW.id AND tc.version_of IS NULL AND tc.is_active LOOP
+            PERFORM miot_trips.fn_trip_live_refresh(v_trip);
+        END LOOP;
+    END IF;
+    RETURN NEW;
+END $$;
+CREATE TRIGGER trg_trip_live_location AFTER UPDATE ON miot_trips.location
+FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_reference();
+CREATE TRIGGER trg_trip_live_cargo AFTER UPDATE ON miot_trips.cargo_unit
+FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_live_from_reference();
 
 -- ============================================================
 -- VERSIONADO (SCD2 en la misma tabla, decisión 2026-10-23)

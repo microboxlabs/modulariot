@@ -261,6 +261,21 @@ class PgTripsStoresTest {
     }
 
     @Test
+    void renamingALocationRefreshesTheHotRow() {
+        String tenant = tenant();
+        Location origin = locations.insert(new Location(null, tenant, "Bodega Norte", "cd", "CD-N",
+                null, null, ACTOR, null, ACTOR));
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, origin.id(), null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        UUID tripId = UUID.fromString(trip.id());
+        assertEquals("Bodega Norte", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
+
+        locations.update(new Location(origin.id(), tenant, "Bodega Norte 2", "cd", "CD-N", null,
+                origin.createdAt(), origin.createdBy(), null, ACTOR)).orElseThrow();
+        assertEquals("Bodega Norte 2", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
+    }
+
+    @Test
     void anUnchangedUpdateArchivesNothing() {
         String tenant = tenant();
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,

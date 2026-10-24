@@ -1,6 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
 import { Whatsapp } from "flowbite-react-icons/solid";
-import { SiResend } from "react-icons/si";
 import { z } from "zod";
 
 /**
@@ -281,7 +280,11 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     descriptionKey: "types.resend.description",
     available: true,
     supportsTest: false,
-    icon: SiResend,
+    // Monochrome mark in the gray of the library icons, with per-theme ink.
+    logo: {
+      light: "/credential-logos/resend-light.svg",
+      dark: "/credential-logos/resend-dark.svg",
+    },
   },
   {
     // A bearer token tagged with WHATSAPP_PROVIDER: a Meta app's access token for a WhatsApp channel.

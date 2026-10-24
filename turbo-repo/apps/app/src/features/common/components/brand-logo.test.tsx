@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Whatsapp } from "flowbite-react-icons/solid";
-import { CredentialTypeLogo } from "./credential-type-logo";
+import { BrandLogo } from "./brand-logo";
 
 /**
  * The logo contract: light/dark/default fallbacks, format-agnostic sources, and
@@ -10,7 +10,7 @@ import { CredentialTypeLogo } from "./credential-type-logo";
  * Next inlines NEXT_PUBLIC_BASE_PATH at build time from next.config.mjs; under
  * vitest it has to be stubbed, which is also what pins the prefixing behaviour.
  */
-describe("CredentialTypeLogo", () => {
+describe("BrandLogo", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_BASE_PATH", "/app");
   });
@@ -20,7 +20,7 @@ describe("CredentialTypeLogo", () => {
   });
   it("renders a single image when one asset covers both themes", () => {
     render(
-      <CredentialTypeLogo
+      <BrandLogo
         logo={{ default: "/credential-logos/azure-entra.svg" }}
         alt="Azure Entra ID"
       />
@@ -36,7 +36,7 @@ describe("CredentialTypeLogo", () => {
 
   it("renders a theme-switched pair when light and dark differ", () => {
     const { container } = render(
-      <CredentialTypeLogo
+      <BrandLogo
         logo={{
           light: "/credential-logos/oauth2-light.svg",
           dark: "/credential-logos/oauth2-dark.svg",
@@ -55,7 +55,7 @@ describe("CredentialTypeLogo", () => {
 
   it("falls back to default for the theme variant that is missing", () => {
     const { container } = render(
-      <CredentialTypeLogo
+      <BrandLogo
         logo={{
           dark: "/credential-logos/oauth2-dark.svg",
           default: "/credential-logos/credential-default.png",
@@ -76,7 +76,7 @@ describe("CredentialTypeLogo", () => {
   });
 
   it("falls back to the built-in key mark when a type ships no logo", () => {
-    render(<CredentialTypeLogo alt="Unknown type" />);
+    render(<BrandLogo alt="Unknown type" />);
 
     expect(screen.getByRole("img")).toHaveAttribute(
       "src",
@@ -87,7 +87,7 @@ describe("CredentialTypeLogo", () => {
   it("serves bare paths when no basePath is configured", () => {
     vi.stubEnv("NEXT_PUBLIC_BASE_PATH", "");
 
-    render(<CredentialTypeLogo alt="No base path" />);
+    render(<BrandLogo alt="No base path" />);
 
     expect(screen.getByRole("img")).toHaveAttribute(
       "src",
@@ -97,7 +97,7 @@ describe("CredentialTypeLogo", () => {
 
   it("leaves absolute and data URLs unprefixed", () => {
     const { container } = render(
-      <CredentialTypeLogo
+      <BrandLogo
         logo={{
           light: "https://cdn.example.com/brand.png",
           dark: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
@@ -119,12 +119,7 @@ describe("CredentialTypeLogo", () => {
 
   it("draws a library icon in gray instead of an image", () => {
     render(
-      <CredentialTypeLogo
-        icon={Whatsapp}
-        keyline="circle"
-        alt="WhatsApp"
-        size={40}
-      />
+      <BrandLogo icon={Whatsapp} keyline="circle" alt="WhatsApp" size={40} />
     );
 
     const icon = screen.getByRole("img", { name: "WhatsApp" });

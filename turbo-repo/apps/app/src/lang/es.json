@@ -4225,7 +4225,15 @@
         "label": "Acciones"
       },
       "list": {
-        "loading": "Cargando conexiones…"
+        "loading": "Cargando conexiones…",
+        "colConnection": "Conexión",
+        "colType": "Tipo",
+        "colStatus": "Estado",
+        "colCredential": "Credencial",
+        "colTemplate": "Plantilla",
+        "colOperation": "Operación",
+        "colFields": "Campos",
+        "colConnections": "Conexiones"
       },
       "delete": {
         "connectionTitle": "¿Eliminar conexión?",
@@ -4324,6 +4332,18 @@
         "pinValue": "Valor",
         "addPin": "Agregar valor fijo",
         "loadFailed": "No se pudieron leer las funciones. Prueba la conexión."
+      },
+      "viewCards": "▦ Tarjetas",
+      "viewList": "☰ Lista",
+      "filters": {
+        "searchPlaceholder": "Buscar por nombre, tipo o URL",
+        "type": "Tipo",
+        "status": "Estado",
+        "sortLabel": "Ordenar",
+        "sortNameAsc": "Nombre (A-Z)",
+        "sortNameDesc": "Nombre (Z-A)",
+        "sortTested": "Prueba más reciente",
+        "noMatches": "Ninguna conexión coincide con estos filtros."
       }
     },
     "calendar": {

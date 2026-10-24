@@ -4225,7 +4225,15 @@
         "label": "Actions"
       },
       "list": {
-        "loading": "Loading connections…"
+        "loading": "Loading connections…",
+        "colConnection": "Connection",
+        "colType": "Type",
+        "colStatus": "Status",
+        "colCredential": "Credential",
+        "colTemplate": "Template",
+        "colOperation": "Operation",
+        "colFields": "Fields",
+        "colConnections": "Connections"
       },
       "delete": {
         "connectionTitle": "Delete connection?",
@@ -4324,6 +4332,18 @@
         "pinValue": "Value",
         "addPin": "Add fixed value",
         "loadFailed": "Could not read the functions. Test the connection."
+      },
+      "viewCards": "▦ Cards",
+      "viewList": "☰ List",
+      "filters": {
+        "searchPlaceholder": "Search by name, type or URL",
+        "type": "Type",
+        "status": "Status",
+        "sortLabel": "Sort",
+        "sortNameAsc": "Name (A-Z)",
+        "sortNameDesc": "Name (Z-A)",
+        "sortTested": "Most recently tested",
+        "noMatches": "No connection matches these filters."
       }
     },
     "calendar": {

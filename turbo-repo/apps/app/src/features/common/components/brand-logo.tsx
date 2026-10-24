@@ -1,13 +1,59 @@
 "use client";
 
 import { useState, type ComponentType, type SVGProps } from "react";
-import {
-  DEFAULT_CREDENTIAL_LOGO,
-  KEYLINE_FILL,
-  type LogoKeyline,
-  resolveCredentialLogo,
-  type CredentialLogo,
-} from "../credential.types";
+
+/**
+ * Logo sources for a brand. Any image URL works — SVG, PNG, local asset or remote —
+ * because logos render through a plain <img>.
+ *
+ * Provide `light`/`dark` when the mark needs different ink per theme, or just
+ * `default` when one asset reads correctly on both (most brand marks do).
+ * Missing entries fall back: theme-specific → default → the built-in key mark.
+ */
+export interface BrandLogoSources {
+  /** Used when the app is in light theme. */
+  readonly light?: string;
+  /** Used when the app is in dark theme. */
+  readonly dark?: string;
+  /** Theme-agnostic asset, and the fallback for whichever theme is missing. */
+  readonly default?: string;
+}
+
+/**
+ * Keylines, as in Material's icon grid and the iOS icon template: every mark sits in the
+ * same tile, and a round mark is drawn larger than a square one so both read the same size.
+ */
+export type LogoKeyline = "circle" | "square";
+
+/** The share of the tile a mark fills. Library icons carry their own inner margin, so the round one fills more. */
+export const KEYLINE_FILL: Readonly<Record<LogoKeyline, number>> = {
+  circle: 0.84,
+  square: 0.64,
+};
+
+/** Neutral key mark (PNG) used when no logo or icon is given. */
+export const DEFAULT_BRAND_LOGO: BrandLogoSources = {
+  default: "/credential-logos/credential-default.png",
+};
+
+/**
+ * Collapses a logo to the two sources the renderer needs. When both come out
+ * equal the caller can render a single <img> instead of a light/dark pair.
+ */
+export function resolveBrandLogo(logo?: BrandLogoSources): {
+  lightSrc: string;
+  darkSrc: string;
+} {
+  const fallback =
+    logo?.default ??
+    DEFAULT_BRAND_LOGO.default ??
+    DEFAULT_BRAND_LOGO.light ??
+    "";
+  return {
+    lightSrc: logo?.light ?? fallback,
+    darkSrc: logo?.dark ?? fallback,
+  };
+}
 
 /**
  * A raw <img> does not get the app's basePath the way next/image and next/link
@@ -21,13 +67,13 @@ function withBasePath(src: string): string {
   return `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${src}`;
 }
 
-interface CredentialTypeLogoProps {
-  readonly logo?: CredentialLogo;
+interface BrandLogoProps {
+  readonly logo?: BrandLogoSources;
   /** A library icon; drawn in gray instead of the logo image. */
   readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
   /** The mark's shape; a round mark fills more of the tile. */
   readonly keyline?: LogoKeyline;
-  /** Accessible name — pass the translated credential type name. */
+  /** Accessible name — pass the translated type name. */
   readonly alt: string;
   /** Rendered box in pixels (square). */
   readonly size?: number;
@@ -35,7 +81,7 @@ interface CredentialTypeLogoProps {
 }
 
 /**
- * Renders a credential type's logo, honouring the app's light/dark theme.
+ * Renders the logo of a credential or connection type, honouring the app's light/dark theme.
  *
  * Theme switching is CSS-only (`dark:hidden` / `hidden dark:block`, matching the
  * navbar logo idiom) so there is no flash and no hydration mismatch. A plain
@@ -43,12 +89,12 @@ interface CredentialTypeLogoProps {
  * A source that fails to load falls back to the built-in key mark rather than
  * leaving a broken image in the row.
  */
-export function CredentialTypeLogo({
+export function BrandLogo({
   keyline = "square",
   size = 24,
   className = "",
   ...mark
-}: CredentialTypeLogoProps) {
+}: BrandLogoProps) {
   const glyph = Math.round(size * KEYLINE_FILL[keyline]);
   return (
     <span
@@ -67,7 +113,7 @@ function LogoMark({
   icon: Icon,
   alt,
   size = 24,
-}: Omit<CredentialTypeLogoProps, "keyline" | "className">) {
+}: Omit<BrandLogoProps, "keyline" | "className">) {
   const [failed, setFailed] = useState(false);
   if (Icon) {
     return (
@@ -80,9 +126,7 @@ function LogoMark({
       />
     );
   }
-  const resolved = resolveCredentialLogo(
-    failed ? DEFAULT_CREDENTIAL_LOGO : logo
-  );
+  const resolved = resolveBrandLogo(failed ? DEFAULT_BRAND_LOGO : logo);
   const lightSrc = withBasePath(resolved.lightSrc);
   const darkSrc = withBasePath(resolved.darkSrc);
 

@@ -16,7 +16,7 @@ import {
 } from "../credential.types";
 import { CredentialTestBadge, EnvironmentBadge } from "./credential-badges";
 import { usageDetail } from "./credential-modal-parts";
-import { CredentialTypeLogo } from "./credential-type-logo";
+import { BrandLogo } from "@/features/common/components/brand-logo";
 
 interface CredentialsListProps {
   readonly credentials: readonly CredentialListItem[];
@@ -152,7 +152,7 @@ function CredentialCard({
     <div className="relative flex flex-col rounded-lg border border-gray-200 bg-white transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500">
       <div className="flex items-start gap-3 px-4 pt-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center">
-          <CredentialTypeLogo
+          <BrandLogo
             logo={descriptor?.logo}
             icon={descriptor?.icon}
             keyline={descriptor?.keyline}
@@ -218,7 +218,7 @@ function CredentialRow({
     <tr className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/40">
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-3">
-          <CredentialTypeLogo
+          <BrandLogo
             logo={descriptor?.logo}
             icon={descriptor?.icon}
             keyline={descriptor?.keyline}

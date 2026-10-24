@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentType, type SVGProps } from "react";
 import {
   DEFAULT_CREDENTIAL_LOGO,
   resolveCredentialLogo,
@@ -21,6 +21,8 @@ function withBasePath(src: string): string {
 
 interface CredentialTypeLogoProps {
   readonly logo?: CredentialLogo;
+  /** A library icon; drawn in gray instead of the logo image. */
+  readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
   /** Accessible name — pass the translated credential type name. */
   readonly alt: string;
   /** Rendered box in pixels (square). */
@@ -39,11 +41,23 @@ interface CredentialTypeLogoProps {
  */
 export function CredentialTypeLogo({
   logo,
+  icon: Icon,
   alt,
   size = 24,
   className = "",
 }: CredentialTypeLogoProps) {
   const [failed, setFailed] = useState(false);
+  if (Icon) {
+    return (
+      <Icon
+        role="img"
+        aria-label={alt}
+        width={size}
+        height={size}
+        className={`shrink-0 text-gray-600 dark:text-gray-400 ${className}`}
+      />
+    );
+  }
   const resolved = resolveCredentialLogo(
     failed ? DEFAULT_CREDENTIAL_LOGO : logo
   );

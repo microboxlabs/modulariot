@@ -83,7 +83,12 @@ function CredentialRow({
   return (
     <div className="relative flex cursor-pointer items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 transition focus-within:ring-2 focus-within:ring-blue-500 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center">
-        <CredentialTypeLogo logo={descriptor?.logo} alt={typeName} size={40} />
+        <CredentialTypeLogo
+          logo={descriptor?.logo}
+          icon={descriptor?.icon}
+          alt={typeName}
+          size={40}
+        />
       </span>
 
       <div className="min-w-0 flex-1">

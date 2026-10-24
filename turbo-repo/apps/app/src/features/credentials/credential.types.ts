@@ -1,3 +1,5 @@
+import type { ComponentType, SVGProps } from "react";
+import { Whatsapp } from "flowbite-react-icons/solid";
 import { z } from "zod";
 
 /**
@@ -183,6 +185,8 @@ export interface CredentialTypeDescriptor {
   readonly supportsTest: boolean;
   /** Omit to fall back to {@link DEFAULT_CREDENTIAL_LOGO}. */
   readonly logo?: CredentialLogo;
+  /** An icon from the app's icon library, drawn in the text colour; takes the place of `logo`. */
+  readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
 /** Neutral key mark (PNG) used when a type ships no logo of its own. */
@@ -289,11 +293,7 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     descriptionKey: "types.whatsapp.description",
     available: true,
     supportsTest: false,
-    // Monochrome mark, so it needs per-theme ink.
-    logo: {
-      light: "/credential-logos/whatsapp-light.svg",
-      dark: "/credential-logos/whatsapp-dark.svg",
-    },
+    icon: Whatsapp,
   },
   {
     id: "BASIC_AUTH",

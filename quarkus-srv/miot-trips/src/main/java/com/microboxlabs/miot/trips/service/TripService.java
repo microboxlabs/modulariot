@@ -98,7 +98,9 @@ public class TripService {
                 }
             }
             live.refresh(tenantCode, tripId);
-            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), Map.of());
+            String monitor = Check.limitedOrNull(req.monitor(), "monitor", 64);
+            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(),
+                    monitor == null ? Map.of() : Map.of("monitor", monitor));
             return detail(tenantCode, tripId);
         });
     }

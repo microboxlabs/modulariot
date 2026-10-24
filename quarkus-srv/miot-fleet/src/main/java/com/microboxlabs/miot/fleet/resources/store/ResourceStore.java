@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.resources.store;
 
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
@@ -48,4 +49,13 @@ public interface ResourceStore {
      * nor switched off ({@code status = 'inactive'}); no row lock.
      */
     boolean isCurrent(String tenantCode, String table, UUID id);
+
+    /** {@code table} is truck or trailer; takes no row lock. */
+    Optional<FleetResources.Vehicle> vehicle(String tenantCode, String table, UUID id);
+
+    /** Takes no row lock. */
+    Optional<FleetResources.Driver> driverSummary(String tenantCode, UUID id);
+
+    /** Takes no row lock. */
+    Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id);
 }

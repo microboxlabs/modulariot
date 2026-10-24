@@ -30,7 +30,7 @@ conservan el crudo de la fuente (el sistema de origen de cada integración).
 | `stage_activity` | Actividad dentro de una etapa (tipo libre, asignatario, evidencia JSONB) | `UNIQUE (stage_id, seq)` |
 | `trip_resource_assignment` | Asignación de recurso de `miot_fleet` al viaje con **vigencia operativa** (`valid_from/to`): cambio de camión = cerrar una ventana y abrir otra; nada se pisa | el service valida que el recurso exista en `miot_fleet`; `double_driver` se deriva de 2 ventanas driver abiertas |
 | `trip_cargo` | Qué carga va en qué viaje, con la etapa donde se montó/desmontó | no desmonta una vez retirada (409) |
-| `trip_live` † | **Proyección** del tablero caliente — compatible con el contrato `live_trip` actual (asset, conductor(es), carrier, rampla, geocercas, ETA). La escriben solo los triggers | nace con el viaje, muere en `realizado`/`anulado`; sin API de escritura |
+| `trip_live` † | **Proyección** del tablero caliente — compatible con el contrato `live_trip` actual (asset, conductor(es), carrier, rampla, geocercas, ETA). La escribe solo `TripLiveProjector` (y el motor sus campos) | nace con el viaje, muere en `realizado`/`anulado`; sin API de escritura |
 | `audit_event` † | Bitácora: actor, acción, entidad, detalle JSONB, keyset por tenant | best-effort, nunca bloquea la operación |
 
 † sin versionado SCD2: `trip_live` es proyección efímera y `audit_event` es append-only.

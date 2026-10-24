@@ -50,19 +50,21 @@ public class TripService {
     private final TripCargoStore tripCargo;
     private final CargoStore cargo;
     private final MandateService mandates;
+    private final TripLiveProjector live;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
     public TripService(TripStore trips, StageStore stages, AssignmentStore assignments,
-            TripCargoStore tripCargo, CargoStore cargo, MandateService mandates, AuditService audit,
-            Transactions tx) {
+            TripCargoStore tripCargo, CargoStore cargo, MandateService mandates, TripLiveProjector live,
+            AuditService audit, Transactions tx) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
         this.tripCargo = tripCargo;
         this.cargo = cargo;
         this.mandates = mandates;
+        this.live = live;
         this.audit = audit;
         this.tx = tx;
     }
@@ -95,6 +97,7 @@ public class TripService {
                     stages.insert(planned(tenantCode, actor, tripId, s));
                 }
             }
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), Map.of());
             return detail(tenantCode, tripId);
         });
@@ -150,6 +153,7 @@ public class TripService {
                     current.actualStart(), current.actualEnd(), current.cancelReason(),
                     current.createdAt(), current.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
+            live.refresh(tenantCode, id);
             audit.log(tenantCode, actor, "trip.updated", ENTITY, updated.id(), updated.id(), Map.of());
             return updated;
         });
@@ -168,6 +172,7 @@ public class TripService {
                     current.actualStart(), OffsetDateTime.now(ZoneOffset.UTC), why,
                     current.createdAt(), current.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException(TRIP_NOT_FOUND));
+            live.refresh(tenantCode, id);
             audit.log(tenantCode, actor, "trip.cancelled", ENTITY, cancelled.id(), cancelled.id(),
                     Map.of("reason", why));
             return cancelled;
@@ -190,6 +195,7 @@ public class TripService {
             mandates.requireOpen(tenantCode, mid);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
             if (linked) {
+                live.refresh(tenantCode, tripId);
                 audit.log(tenantCode, actor, MANDATE_LINKED, ENTITY, tripId.toString(), tripId.toString(),
                         Map.of(MANDATE_ID, mid.toString()));
             }
@@ -208,6 +214,7 @@ public class TripService {
             if (!trips.unlinkMandate(tenantCode, tripId, mandateId)) {
                 throw new NoSuchElementException("link not found");
             }
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "trip.mandate_unlinked", ENTITY, tripId.toString(), tripId.toString(),
                     Map.of(MANDATE_ID, mandateId.toString()));
         });

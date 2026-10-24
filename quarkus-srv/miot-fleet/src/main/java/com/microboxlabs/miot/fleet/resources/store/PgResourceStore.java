@@ -4,6 +4,7 @@ import static com.microboxlabs.miot.fleet.resources.store.Pg.query;
 import static com.microboxlabs.miot.fleet.resources.store.Pg.text;
 import static com.microboxlabs.miot.fleet.resources.store.Pg.time;
 
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
@@ -61,6 +62,11 @@ public class PgResourceStore implements ResourceStore {
     private static final String UPDATED_BY = "updated_by";
     private static final String CARRIER_ID = "carrier_id";
     private static final String LICENSE_PLATE = "license_plate";
+    private static final String ID = "id";
+    private static final String RUT = "rut";
+    private static final String LEGAL_NAME = "legal_name";
+    private static final String FULL_NAME = "full_name";
+    private static final String PHONE = "phone";
 
     private static final String BY_ID = " AND id = $2";
     private static final String CARRIER = "carrier";
@@ -114,7 +120,7 @@ public class PgResourceStore implements ResourceStore {
             int n = params.size();
             sql.append(" AND (rut ILIKE $").append(n).append(" OR legal_name ILIKE $").append(n).append(')');
         }
-        page(sql, params, "legal_name", page, size);
+        page(sql, params, LEGAL_NAME, page, size);
         return query(pool.get(), sql.toString(), params).stream().map(PgResourceStore::carrier).toList();
     }
 
@@ -283,7 +289,7 @@ public class PgResourceStore implements ResourceStore {
             params.addString(contains(q));
             sql.append(" AND full_name ILIKE $").append(params.size());
         }
-        page(sql, params, "full_name", page, size);
+        page(sql, params, FULL_NAME, page, size);
         return query(pool.get(), sql.toString(), params).stream().map(PgResourceStore::driver).toList();
     }
 
@@ -315,6 +321,25 @@ public class PgResourceStore implements ResourceStore {
                 Tuple.of(tenantCode, id)).iterator().next().getBoolean(0);
     }
 
+    @Override
+    public Optional<FleetResources.Vehicle> vehicle(String tenantCode, String table, UUID id) {
+        return first(query(pool.get(), select("license_plate, carrier_id", table) + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Vehicle(r.getString(LICENSE_PLATE), r.getUUID(CARRIER_ID)));
+    }
+
+    @Override
+    public Optional<FleetResources.Driver> driverSummary(String tenantCode, UUID id) {
+        return first(query(pool.get(), select("rut, full_name, COALESCE(mobile_phone, phone) AS phone", DRIVER)
+                + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Driver(r.getString(RUT), r.getString(FULL_NAME), r.getString(PHONE)));
+    }
+
+    @Override
+    public Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id) {
+        return first(query(pool.get(), select("id, legal_name, phone", CARRIER) + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Carrier(r.getUUID(ID), r.getString(LEGAL_NAME), r.getString(PHONE)));
+    }
+
     // ---- shared ---------------------------------------------------------
 
     /** An ILIKE pattern that matches {@code term} literally: % and _ in user input are not wildcards. */
@@ -340,16 +365,16 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Carrier carrier(Row r) {
-        return new Carrier(text(r.getUUID("id")), r.getString(TENANT_CODE), r.getString(EXTERNAL_ID),
-                r.getString("rut"), r.getString("legal_name"), r.getString("transport_license"),
-                time(r, "transport_license_expires"), r.getString("contact_name"), r.getString("phone"),
+        return new Carrier(text(r.getUUID(ID)), r.getString(TENANT_CODE), r.getString(EXTERNAL_ID),
+                r.getString(RUT), r.getString(LEGAL_NAME), r.getString("transport_license"),
+                time(r, "transport_license_expires"), r.getString("contact_name"), r.getString(PHONE),
                 r.getString("email"), r.getString(STATUS), r.getBoolean(IS_OCCASIONAL),
                 r.getString(SOURCE_SYSTEM), r.getString(SOURCE_DATA),
                 time(r, CREATED_AT), r.getString(CREATED_BY), time(r, UPDATED_AT), r.getString(UPDATED_BY));
     }
 
     private static Truck truck(Row r) {
-        return new Truck(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+        return new Truck(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
                 r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("truck_type"), r.getBigDecimal("max_weight"), r.getBigDecimal("volume"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
@@ -358,7 +383,7 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Trailer trailer(Row r) {
-        return new Trailer(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+        return new Trailer(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
                 r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("trailer_type"), r.getBigDecimal("max_weight"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
@@ -367,9 +392,9 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Driver driver(Row r) {
-        return new Driver(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
-                r.getString(EXTERNAL_ID), r.getString("rut"), r.getString("first_name"),
-                r.getString("last_name"), r.getString("full_name"), r.getString("phone"),
+        return new Driver(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+                r.getString(EXTERNAL_ID), r.getString(RUT), r.getString("first_name"),
+                r.getString("last_name"), r.getString(FULL_NAME), r.getString(PHONE),
                 r.getString("mobile_phone"), r.getString("license_category"), time(r, "license_expires"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
                 r.getString(SOURCE_DATA),

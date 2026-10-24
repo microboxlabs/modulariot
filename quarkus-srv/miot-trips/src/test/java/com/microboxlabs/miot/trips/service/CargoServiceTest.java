@@ -10,6 +10,7 @@ import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.dto.CargoRequest;
 import com.microboxlabs.miot.trips.dto.MandateRequest;
 import com.microboxlabs.miot.trips.dto.ReceiveRequest;
+import com.microboxlabs.miot.trips.store.InMemoryFleet;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -25,7 +26,8 @@ class CargoServiceTest {
     private final AuditService audit = new AuditService(world.auditStore);
     private final Transactions tx = Transactions.none();
     private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
-    private final CargoService service = new CargoService(world.cargoStore, mandates, audit, tx);
+    private final CargoService service = new CargoService(world.cargoStore, mandates,
+            world.projector(new InMemoryFleet()), audit, tx);
 
     private UUID mandateId;
 

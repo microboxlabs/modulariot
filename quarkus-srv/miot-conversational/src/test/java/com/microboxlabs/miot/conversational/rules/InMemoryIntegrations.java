@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Integration templates, connections and operation calls in memory, for {@link WebhookChannel}. */
+/** Integration templates, connections and operation calls in memory, for {@link ConnectionChannels}. */
 final class InMemoryIntegrations {
 
     record Call(String tenantCode, String connectionId, String operation, Map<String, Object> body) {
@@ -52,6 +52,12 @@ final class InMemoryIntegrations {
         }
 
         @Override
+        public IntegrationConnection getConnection(String tenantCode, String connectionId) {
+            return connections.stream().filter(c -> c.tenantCode().equals(tenantCode) && c.id().equals(connectionId))
+                    .findFirst().orElse(null);
+        }
+
+        @Override
         public IntegrationConnection createConnection(String tenantCode, CreateIntegrationConnectionRequest req) {
             IntegrationConnection c = new IntegrationConnection(UUID.randomUUID().toString(), tenantCode, req.name(),
                     req.providerType(), req.baseUrl(), req.credentialProfileId(), ConnectionStatus.DRAFT, null, null,
@@ -73,5 +79,5 @@ final class InMemoryIntegrations {
         }
     };
 
-    final WebhookChannel webhook = new WebhookChannel(templateService, connectionService, invoker);
+    final ConnectionChannels channels = new ConnectionChannels(templateService, connectionService, invoker);
 }

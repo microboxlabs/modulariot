@@ -29,8 +29,8 @@ public final class RulesFixtureAccess {
         return fixture.runs;
     }
 
-    public WebhookChannel webhook() {
-        return fixture.integrations.webhook;
+    public ConnectionChannels channels() {
+        return fixture.integrations.channels;
     }
 
     public static JsonNode json(String text) {

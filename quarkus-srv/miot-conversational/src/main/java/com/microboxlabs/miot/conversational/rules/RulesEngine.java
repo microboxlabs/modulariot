@@ -72,17 +72,17 @@ public class RulesEngine {
     private final Supplier<List<ParticipantResolver>> resolvers;
     private final WhatsAppMessagingService whatsapp;
     private final EmailMessagingService email;
-    private final WebhookChannel webhook;
+    private final ConnectionChannels channels;
     private final ObjectMapper json;
     private final Clock clock;
 
     @Inject
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
-            WhatsAppMessagingService whatsapp, EmailMessagingService email, WebhookChannel webhook,
+            WhatsAppMessagingService whatsapp, EmailMessagingService email, ConnectionChannels channels,
             ObjectMapper json) {
         this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
-                new Senders(whatsapp, email, webhook), json, Clock.systemUTC());
+                new Senders(whatsapp, email, channels), json, Clock.systemUTC());
     }
 
     /** Where rules, templates and runs are kept. */
@@ -90,7 +90,8 @@ public class RulesEngine {
     }
 
     /** The channels a step sends on. */
-    public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email, WebhookChannel webhook) {
+    public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email,
+            ConnectionChannels channels) {
     }
 
     public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
@@ -102,7 +103,7 @@ public class RulesEngine {
         this.resolvers = resolvers;
         this.whatsapp = senders.whatsapp();
         this.email = senders.email();
-        this.webhook = senders.webhook();
+        this.channels = senders.channels();
         this.json = json;
         this.clock = clock;
     }
@@ -275,8 +276,9 @@ public class RulesEngine {
         String connection = m.to().address();
         Rule rule = rules.find(run.tenantCode(), run.ruleId()).orElse(null);
         try {
-            OperationInvocationResult result = webhook.deliver(run.tenantCode(), connection,
-                    WebhookChannel.payload(event, run, rule, m.subject(), m.text()));
+            OperationInvocationResult result = channels.deliver(run.tenantCode(), connection,
+                    ConnectionChannel.WEBHOOK.body(new ConnectionChannel.Delivery(event, run, rule, m.subject(),
+                            m.text())));
             return result.successful() ? Optional.empty()
                     : Optional.of("webhook " + connection + ": " + result.summary());
         } catch (OperationInvocationException | ConnectionResolutionException e) {

@@ -154,7 +154,7 @@ final class RulesFixture {
 
     final RulesEngine engine = new RulesEngine(true,
             new RulesEngine.Stores(store.ruleStore, store.templateStore, store.runStore), () -> List.of(participants),
-            new RulesEngine.Senders(whatsapp, email, integrations.webhook), JSON, clock);
+            new RulesEngine.Senders(whatsapp, email, integrations.channels), JSON, clock);
 
     final RulesService service = new RulesService(store.ruleStore, store.templateStore, () -> List.of(catalog),
             () -> List.of(participants), clock);

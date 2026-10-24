@@ -26,6 +26,8 @@ import java.util.UUID;
 public class CargoService {
 
     static final String ENTITY = "cargo";
+    private static final String DESCRIPTION = "description";
+    private static final String QTY_UNIT = "qtyUnit";
 
     /** The statuses the API may set directly; retirada/entregada come from the execution. */
     private static final Set<String> ANNOUNCE_STATUSES = Set.of(CargoUnit.ANNOUNCED, CargoUnit.READY);
@@ -45,17 +47,15 @@ public class CargoService {
 
     public CargoUnit announce(String tenantCode, String actor, UUID mandateId, CargoRequest body) {
         CargoRequest req = body == null ? CargoRequest.empty() : body;
-        if (req.description() == null || req.description().isBlank()) {
-            throw new IllegalArgumentException("description is required");
-        }
+        String description = Check.required(req.description(), DESCRIPTION, 500);
         String status = req.status() == null || req.status().isBlank() ? CargoUnit.ANNOUNCED : req.status();
         if (!ANNOUNCE_STATUSES.contains(status)) {
             throw new IllegalArgumentException("status must be one of " + ANNOUNCE_STATUSES);
         }
         MandateLine line = mandates.lineOf(tenantCode, mandateId);
         CargoUnit created = store.insert(new CargoUnit(
-                null, tenantCode, line.id(), 0, req.description().trim(),
-                req.qty(), blankToNull(req.qtyUnit()), req.weightKg(), req.volumeM3(),
+                null, tenantCode, line.id(), 0, description,
+                req.qty(), Check.limitedOrNull(req.qtyUnit(), QTY_UNIT, 32), req.weightKg(), req.volumeM3(),
                 status, null, null, null, null, actor, null, actor));
         audit.log(tenantCode, actor, "cargo.announced", ENTITY, created.id(), null,
                 Map.of("mandateId", mandateId.toString(), "partial", created.partialNo()));
@@ -90,9 +90,9 @@ public class CargoService {
         CargoUnit updated = store.update(new CargoUnit(
                 current.id(), tenantCode, current.lineId(), current.partialNo(),
                 req.description() == null || req.description().isBlank() ? current.description()
-                        : req.description().trim(),
+                        : Check.required(req.description(), DESCRIPTION, 500),
                 req.qty() == null ? current.qty() : req.qty(),
-                req.qtyUnit() == null ? current.qtyUnit() : blankToNull(req.qtyUnit()),
+                Check.orKeep(req.qtyUnit(), current.qtyUnit(), QTY_UNIT, 32),
                 req.weightKg() == null ? current.weightKg() : req.weightKg(),
                 req.volumeM3() == null ? current.volumeM3() : req.volumeM3(),
                 status, current.receiptResult(), current.receiptNotes(), current.receivedAt(),

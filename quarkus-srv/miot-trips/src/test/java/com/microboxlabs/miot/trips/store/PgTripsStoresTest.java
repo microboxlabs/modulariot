@@ -260,6 +260,40 @@ class PgTripsStoresTest {
     }
 
     @Test
+    void anUnchangedUpdateArchivesNothing() {
+        String tenant = tenant();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        trips.update(trip).orElseThrow();
+        assertEquals(0, versionsOf(trip.id()), "a re-sent trip leaves no history");
+        trips.update(new Trip(trip.id(), tenant, Trip.PLANNED, null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).plusDays(1), null, null, null, null, ACTOR, null, ACTOR))
+                .orElseThrow();
+        assertEquals(1, versionsOf(trip.id()), "a real change archives the previous version");
+    }
+
+    @Test
+    void aCancelledMandateTakesNoNewTrip() {
+        String tenant = tenant();
+        Mandate m = mandate(tenant, "OC-CANCEL");
+        mandates.update(new Mandate(m.id(), tenant, m.externalCode(), m.orderType(), m.orderRef(), "anulado",
+                null, null, null, OffsetDateTime.now(ZoneOffset.UTC), "cliente anula", m.createdAt(), ACTOR,
+                null, ACTOR)).orElseThrow();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+
+        IllegalStateException refused = assertThrows(IllegalStateException.class, () -> trips.linkMandate(tenant,
+                UUID.fromString(trip.id()), UUID.fromString(m.id()), 1, "primary", ACTOR));
+        assertTrue(refused.getMessage().contains("anulado"), refused.getMessage());
+    }
+
+    private long versionsOf(String id) {
+        return pool.preparedQuery("SELECT count(*) FROM miot_trips.trip WHERE version_of = $1")
+                .execute(io.vertx.mutiny.sqlclient.Tuple.of(UUID.fromString(id))).await().atMost(WAIT)
+                .iterator().next().getLong(0);
+    }
+
+    @Test
     void jsonColumnsHoldObjectsNotStrings() {
         String tenant = tenant();
         audit.append(new AuditEvent(null, tenant, ACTOR, "mandate.created", "mandate", "j", null,

@@ -356,6 +356,24 @@ END $$;
 CREATE TRIGGER trg_trip_cargo_consistency BEFORE INSERT ON miot_trips.trip_cargo
 FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_cargo_consistency();
 
+-- a closed or cancelled mandate takes no new trips (directly or through mounted cargo)
+CREATE OR REPLACE FUNCTION miot_trips.fn_trip_mandate_open() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE v_status VARCHAR(16);
+BEGIN
+    IF NEW.version_of IS NOT NULL THEN
+        RETURN NEW;
+    END IF;
+    SELECT m.status INTO v_status FROM miot_trips.mandate m
+    WHERE m.id = NEW.mandate_id AND m.tenant_code = NEW.tenant_code;
+    IF v_status IN ('cerrado', 'anulado') THEN
+        RAISE EXCEPTION 'mandate % is %', NEW.mandate_id, v_status;
+    END IF;
+    RETURN NEW;
+END $$;
+CREATE TRIGGER trg_trip_mandate_open BEFORE INSERT ON miot_trips.trip_mandate
+FOR EACH ROW EXECUTE FUNCTION miot_trips.fn_trip_mandate_open();
+
 -- 4) la asignación debe apuntar a un recurso existente del tenant (FK por tipo)
 CREATE OR REPLACE FUNCTION miot_trips.fn_assignment_resource_check() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -446,6 +464,7 @@ BEGIN
     SELECT s.planned_end INTO v_eta
     FROM miot_trips.stage s
     WHERE s.subject_type='trip' AND s.subject_id = p_trip AND s.version_of IS NULL AND s.is_active
+      AND s.planned_end IS NOT NULL
     ORDER BY s.seq DESC LIMIT 1;
 
     SELECT array_agg(DISTINCT (abs(hashtext(s.location_id::text)) % 100000))

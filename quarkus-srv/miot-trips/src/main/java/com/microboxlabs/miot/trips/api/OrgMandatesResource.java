@@ -67,11 +67,11 @@ public class OrgMandatesResource extends OrgResourceSupport {
             @PathParam(ORG) String organizationId,
             @QueryParam("status") String status,
             @QueryParam("externalCode") String externalCode,
-            @QueryParam("page") Integer page,
-            @QueryParam("size") Integer size) {
+            @QueryParam("page") String page,
+            @QueryParam("size") String size) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(
-                mandates.list(tenant, status, externalCode, page, size).stream().map(MandateView::of).toList())
+                mandates.list(tenant, status, externalCode, integer(page, "page"), integer(size, "size")).stream().map(MandateView::of).toList())
                 .build());
     }
 

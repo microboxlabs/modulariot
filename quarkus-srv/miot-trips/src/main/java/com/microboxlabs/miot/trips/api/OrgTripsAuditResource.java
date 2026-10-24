@@ -59,8 +59,8 @@ public class OrgTripsAuditResource extends OrgResourceSupport {
             @QueryParam("entityType") String entityType,
             @QueryParam("entityId") String entityId,
             @QueryParam("before") String before,
-            @QueryParam("beforeId") Long beforeId,
-            @QueryParam("limit") Integer limit) {
+            @QueryParam("beforeId") String beforeId,
+            @QueryParam("limit") String limit) {
         String tenant = tenantCode(organizationId);
         return work(() -> {
             OffsetDateTime beforeTs = null;
@@ -71,7 +71,8 @@ public class OrgTripsAuditResource extends OrgResourceSupport {
                     throw new IllegalArgumentException("before must be an ISO-8601 timestamp");
                 }
             }
-            return Response.ok(audit.list(tenant, entityType, entityId, beforeTs, beforeId, limit)).build();
+            return Response.ok(audit.list(tenant, entityType, entityId, beforeTs, longParam(beforeId, "beforeId"),
+                    integer(limit, "limit"))).build();
         });
     }
 }

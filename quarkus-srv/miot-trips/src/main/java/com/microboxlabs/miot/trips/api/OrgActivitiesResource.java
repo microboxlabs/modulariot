@@ -122,6 +122,9 @@ public class OrgActivitiesResource extends OrgResourceSupport {
                     throw new IllegalStateException("activity already done");
                 }
                 Stage stage = stages.get(tenant, uuid(activity.stageId(), "stageId"));
+                if (!Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
+                    throw new IllegalArgumentException("only a trip stage can produce an assignment");
+                }
                 Assignment created = assignments.create(tenant, actor,
                         uuid(stage.subjectId(), "subjectId"), body.assignment());
                 assignmentId = created.id();

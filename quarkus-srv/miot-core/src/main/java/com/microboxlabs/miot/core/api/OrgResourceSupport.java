@@ -129,6 +129,29 @@ public abstract class OrgResourceSupport {
                 .build();
     }
 
+    /** Parses an optional numeric query parameter; a malformed one becomes a 400 inside {@link #work}. */
+    protected static Integer integer(String raw, String field) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(field + " must be an integer");
+        }
+    }
+
+    protected static Long longParam(String raw, String field) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.valueOf(raw.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(field + " must be an integer");
+        }
+    }
+
     /** Parses an API id; a malformed one becomes a 400 inside {@link #work}. */
     protected static UUID uuid(String raw, String field) {
         if (raw == null || raw.isBlank()) {

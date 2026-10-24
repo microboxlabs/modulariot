@@ -39,6 +39,7 @@ public class AssignmentService {
     }
 
     public List<Assignment> listByTrip(String tenantCode, UUID tripId) {
+        trips.find(tenantCode, tripId).orElseThrow(() -> new NoSuchElementException("trip not found"));
         return store.listByTrip(tenantCode, tripId);
     }
 

@@ -69,13 +69,13 @@ public class OrgTripsResource extends OrgResourceSupport {
             @QueryParam("assetId") String assetId,
             @QueryParam("from") String from,
             @QueryParam("to") String to,
-            @QueryParam("page") Integer page,
-            @QueryParam("size") Integer size) {
+            @QueryParam("page") String page,
+            @QueryParam("size") String size) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(
                 trips.list(tenant,
                         TripService.filter(status, mandateId, assetId, timestamp(from, "from"), timestamp(to, "to")),
-                        page, size).stream().map(TripView::of).toList())
+                        integer(page, "page"), integer(size, "size")).stream().map(TripView::of).toList())
                 .build());
     }
 

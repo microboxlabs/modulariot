@@ -11,15 +11,7 @@ import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
-import com.microboxlabs.miot.trips.api.OrgActivitiesResource;
-import com.microboxlabs.miot.trips.api.OrgAssignmentsResource;
-import com.microboxlabs.miot.trips.api.OrgCargoResource;
-import com.microboxlabs.miot.trips.api.OrgLocationsResource;
-import com.microboxlabs.miot.trips.api.OrgMandatesResource;
-import com.microboxlabs.miot.trips.api.OrgStagesResource;
-import com.microboxlabs.miot.trips.api.OrgTripCargoResource;
-import com.microboxlabs.miot.trips.api.OrgTripsAuditResource;
-import com.microboxlabs.miot.trips.api.OrgTripsLiveResource;
+import com.microboxlabs.miot.trips.api.OrgTripsAccessResource;
 import com.microboxlabs.miot.trips.api.OrgTripsResource;
 import io.quarkus.security.PermissionsAllowed;
 import jakarta.ws.rs.DELETE;
@@ -27,21 +19,24 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 class TripsPermissionsTest {
 
-    private static final List<Class<?>> RESOURCES = List.of(OrgMandatesResource.class, OrgCargoResource.class,
-            OrgTripsResource.class, OrgStagesResource.class, OrgActivitiesResource.class,
-            OrgAssignmentsResource.class, OrgTripCargoResource.class,
-            OrgLocationsResource.class, OrgTripsLiveResource.class, OrgTripsAuditResource.class);
+    /** Every resource class in the api package; only the access endpoint needs no permission. */
+    private static final List<Class<?>> RESOURCES = resources();
 
     private static final String VIEW = TripsAccessCatalog.VIEW;
     private static final String MANDATE_WRITE = TripsAccessCatalog.MANDATE_WRITE;
@@ -95,6 +90,7 @@ class TripsPermissionsTest {
     @Test
     void everyEndpointDeclaresItsOrganizationPermission() {
         Map<String, String> actual = new TreeMap<>();
+        assertTrue(RESOURCES.size() >= 10, "resources found: " + RESOURCES);
         for (Class<?> resource : RESOURCES) {
             for (Method method : resource.getDeclaredMethods()) {
                 if (!Modifier.isPublic(method.getModifiers()) || !isEndpoint(method)) {
@@ -149,5 +145,29 @@ class TripsPermissionsTest {
         return method.isAnnotationPresent(GET.class) || method.isAnnotationPresent(POST.class)
                 || method.isAnnotationPresent(PUT.class) || method.isAnnotationPresent(PATCH.class)
                 || method.isAnnotationPresent(DELETE.class);
+    }
+
+    private static List<Class<?>> resources() {
+        String pkg = OrgTripsResource.class.getPackageName();
+        try (Stream<java.nio.file.Path> files = Files.list(
+                java.nio.file.Path.of(OrgTripsResource.class.getResource("").toURI()))) {
+            return files.map(f -> f.getFileName().toString())
+                    .filter(n -> n.endsWith(".class") && !n.contains("$"))
+                    .<Class<?>>map(n -> load(pkg + "." + n.substring(0, n.length() - ".class".length())))
+                    .filter(c -> c.isAnnotationPresent(jakarta.ws.rs.Path.class)
+                            && c != OrgTripsAccessResource.class)
+                    .sorted(Comparator.comparing(Class::getSimpleName))
+                    .toList();
+        } catch (IOException | URISyntaxException e) {
+            throw new IllegalStateException("cannot list " + pkg, e);
+        }
+    }
+
+    private static Class<?> load(String name) {
+        try {
+            return Class.forName(name);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

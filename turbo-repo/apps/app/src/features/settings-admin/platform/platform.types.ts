@@ -52,7 +52,6 @@ export type PlatformSection =
   | "branding"
   | "superusers"
   | "models"
-  | "mail"
   | "vehicleImages"
   | "sharing"
   | "templates"

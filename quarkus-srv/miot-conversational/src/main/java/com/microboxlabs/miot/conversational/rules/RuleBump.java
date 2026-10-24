@@ -85,30 +85,37 @@ public enum RuleBump {
     static String squash(String s) {
         String text = s == null ? "" : s.strip();
         StringBuilder out = new StringBuilder(text.length());
-        char quote = 0;
         boolean space = false;
-        for (int i = 0; i < text.length(); i++) {
+        int i = 0;
+        while (i < text.length()) {
             char c = text.charAt(i);
-            if (quote != 0) {
-                out.append(c);
-                if (c == '\\' && i + 1 < text.length()) {
-                    out.append(text.charAt(++i));
-                } else if (c == quote) {
-                    quote = 0;
-                }
-            } else if (Character.isWhitespace(c)) {
+            if (Character.isWhitespace(c)) {
                 space = true;
-            } else {
-                if (space) {
-                    out.append(' ');
-                }
-                space = false;
-                if (c == '\'' || c == '"') {
-                    quote = c;
-                }
-                out.append(c);
+                i++;
+                continue;
             }
+            if (space) {
+                out.append(' ');
+            }
+            space = false;
+            int end = c == '\'' || c == '"' ? quotedEnd(text, i) : i + 1;
+            out.append(text, i, end);
+            i = end;
         }
         return out.toString();
+    }
+
+    /** Where the quoted text starting at {@code start} ends, past its closing quote; a backslash escapes. */
+    private static int quotedEnd(String text, int start) {
+        char quote = text.charAt(start);
+        int i = start + 1;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == quote) {
+                return i + 1;
+            }
+            i += c == '\\' ? 2 : 1;
+        }
+        return text.length();
     }
 }

@@ -106,9 +106,10 @@ final class InMemoryRules {
         }
 
         @Override
-        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String from, String version,
-                RuleBump bump, String reason, String actor, Instant at) {
-            if (!java.util.Objects.equals(rules.get(ruleId).currentVersion(), from)) {
+        public Optional<RuleVersion> publish(String ruleId, JsonNode validated, Publication p) {
+            String version = p.version();
+            Instant at = p.at();
+            if (!java.util.Objects.equals(rules.get(ruleId).currentVersion(), p.from())) {
                 return Optional.empty();
             }
             Optional<RuleVersion> draft = versions.stream()
@@ -117,8 +118,8 @@ final class InMemoryRules {
             if (draft.isEmpty()) {
                 return Optional.empty();
             }
-            RuleVersion published = new RuleVersion(draft.get().id(), ruleId, version, bump,
-                    RuleVersion.Status.PUBLISHED, draft.get().spec(), reason, at, actor);
+            RuleVersion published = new RuleVersion(draft.get().id(), ruleId, version, p.bump(),
+                    RuleVersion.Status.PUBLISHED, draft.get().spec(), p.reason(), at, p.actor());
             versions.remove(draft.get());
             versions.add(published);
             Rule r = rules.get(ruleId);

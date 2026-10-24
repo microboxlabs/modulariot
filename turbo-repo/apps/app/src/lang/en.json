@@ -3584,6 +3584,7 @@
         "channelOwnConnected": "Connected",
         "channelOwnNotConnected": "Not connected",
         "channelOwnConnectFirst": "To send from the organization's account, connect it below.",
+        "channelOwnMissing": "Rules send from the organization's account, but none is connected. Sends fail until you connect it below or choose the platform's.",
         "channelModeFailed": "The account could not be changed.",
         "channelOwnTemplatesTitle": "Templates on the organization's account",
         "channelOwnTemplatesHint": "Rules send templates approved by Meta on this account. Copy the platform's and Meta reviews them again.",

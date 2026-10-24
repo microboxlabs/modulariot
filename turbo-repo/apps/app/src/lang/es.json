@@ -3584,6 +3584,7 @@
         "channelOwnConnected": "Conectada",
         "channelOwnNotConnected": "Sin conectar",
         "channelOwnConnectFirst": "Para enviar desde la cuenta de la organización, conéctala abajo.",
+        "channelOwnMissing": "Las reglas envían desde la cuenta de la organización, pero no hay una conectada. Los envíos fallan hasta que la conectes abajo o elijas la de la plataforma.",
         "channelModeFailed": "No se pudo cambiar la cuenta.",
         "channelOwnTemplatesTitle": "Plantillas en la cuenta de la organización",
         "channelOwnTemplatesHint": "Las reglas envían plantillas aprobadas por Meta en esta cuenta. Copia las de la plataforma y Meta las revisa otra vez.",

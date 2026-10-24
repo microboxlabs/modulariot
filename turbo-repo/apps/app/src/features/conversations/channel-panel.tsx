@@ -8,7 +8,9 @@ import WhatsAppChannelCard from "@/features/settings-admin/whatsapp/whatsapp-cha
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import ChannelIcon from "./channel-icon";
 import type { ChannelType } from "./channel-types";
+import { mutate } from "swr";
 import {
+  accountsKey,
   setChannelAccountMode,
   useChannelAccounts,
 } from "./conversations-api";
@@ -17,8 +19,7 @@ import OwnTemplatesPanel from "./own-templates-panel";
 
 const BADGE = {
   gray: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-  green:
-    "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  green: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
 };
 
 /** One of the two accounts the rules can send from, as a radio. */
@@ -135,7 +136,9 @@ function SendFrom({
           }
           tone="gray"
           checked={mode === "PLATFORM"}
-          disabled={!canConfigure || saving || !account || !channel.platformOffered}
+          disabled={
+            !canConfigure || saving || !account || !channel.platformOffered
+          }
           onSelect={() => void choose("PLATFORM")}
         />
         <ModeOption
@@ -154,6 +157,11 @@ function SendFrom({
       </div>
       {canConfigure && !ownConnected && mode === "PLATFORM" && (
         <p className={`text-sm ${MUTED}`}>{tr("channelOwnConnectFirst", d)}</p>
+      )}
+      {!ownConnected && mode === "OWN" && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {tr("channelOwnMissing", d)}
+        </p>
       )}
       {(saveError || error) && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -207,8 +215,16 @@ function AccountCard({
   settingsDict: I18nRecord;
 }>) {
   const orgsDict = settingsDict?.organizations as I18nRecord;
+  // "Send from" offers OWN only once the organization's own account exists.
+  const refreshAccounts = () => void mutate(accountsKey);
   if (channelKey === "whatsapp") {
-    return <WhatsAppChannelCard orgSlug={orgSlug} dict={orgsDict} />;
+    return (
+      <WhatsAppChannelCard
+        orgSlug={orgSlug}
+        dict={orgsDict}
+        onChanged={refreshAccounts}
+      />
+    );
   }
   if (channelKey === "email") {
     return (
@@ -216,6 +232,7 @@ function AccountCard({
         orgSlug={orgSlug}
         dict={orgsDict}
         credentialsDict={settingsDict?.credentials as I18nRecord}
+        onChanged={refreshAccounts}
       />
     );
   }

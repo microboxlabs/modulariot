@@ -5,7 +5,7 @@
 export interface ChannelType {
   readonly key: string;
   /** What a step addressed to this channel names as its recipient. */
-  readonly recipient: "phone" | "email" | "channel";
+  readonly recipient: "phone" | "email" | "channel" | "connection";
   /** The platform runs an account for it that any organization can use. */
   readonly platformOffered: boolean;
 }
@@ -15,6 +15,7 @@ export const CHANNEL_TYPES: readonly ChannelType[] = [
   { key: "email", recipient: "email", platformOffered: true },
   { key: "slack", recipient: "channel", platformOffered: false },
   { key: "teams", recipient: "channel", platformOffered: false },
+  { key: "webhook", recipient: "connection", platformOffered: false },
 ];
 
 export const channelType = (key: string) =>

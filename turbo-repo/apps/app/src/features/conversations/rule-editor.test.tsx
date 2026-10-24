@@ -51,6 +51,7 @@ const api = vi.hoisted(() => ({
   setRuleState: vi.fn(),
   simulateRule: vi.fn(),
   refreshRules: vi.fn(),
+  useWebhookChannel: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock("./conversations-api", () => api);
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({

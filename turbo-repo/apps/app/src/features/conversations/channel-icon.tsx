@@ -3,6 +3,7 @@ import { Bell, Code } from "flowbite-react-icons/outline";
 import { Envelope, Whatsapp } from "flowbite-react-icons/solid";
 import { BsMicrosoftTeams } from "react-icons/bs";
 import { FaSlack } from "react-icons/fa";
+import { TbWebhook } from "react-icons/tb";
 import { twMerge } from "tailwind-merge";
 
 type Logo = ComponentType<SVGProps<SVGSVGElement>>;
@@ -13,6 +14,7 @@ const LOGOS: Record<string, Logo> = {
   email: Envelope,
   slack: FaSlack,
   teams: BsMicrosoftTeams,
+  webhook: TbWebhook,
   preferred: Bell,
 };
 

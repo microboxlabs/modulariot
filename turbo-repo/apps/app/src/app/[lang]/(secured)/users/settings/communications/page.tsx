@@ -13,11 +13,17 @@ export default async function CommunicationsSettingsPage({
   const [, dictionary] = await getDictionary(lang);
   const userSettings = (dictionary.pages as I18nRecord)
     ?.userSettings as I18nRecord;
+  const connectionsDict = (dictionary.pages as I18nRecord)
+    ?.integrationConnections as I18nRecord;
 
   return (
     <RouteGuard path="/users/settings/communications">
       <Suspense>
-        <CommunicationsPage dict={userSettings} lang={lang} />
+        <CommunicationsPage
+          dict={userSettings}
+          connectionsDict={connectionsDict ?? {}}
+          lang={lang}
+        />
       </Suspense>
     </RouteGuard>
   );

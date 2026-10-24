@@ -25,6 +25,7 @@ export const STEP_CHANNELS = [
   { value: "whatsapp", label: "channelWhatsapp" },
   { value: "email", label: "channelEmail" },
   { value: "preferred", label: "channelPreferred" },
+  { value: "webhook", label: "channelWebhook" },
 ] as const;
 
 /** Channels a person can answer on, so a step may wait for the reply. */

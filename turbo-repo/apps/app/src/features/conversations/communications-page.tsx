@@ -24,6 +24,7 @@ import ActivityTab, {
 } from "./activity-tab";
 import { channelLogo } from "./channel-icon";
 import ChannelPanel from "./channel-panel";
+import WebhookPanel from "./webhook-panel";
 import { CHANNEL_TYPES, channelType } from "./channel-types";
 import {
   channelKeyOf,
@@ -51,8 +52,9 @@ type FilterDef = { key: string; label: string; options: string[] };
 /** Settings › Comunicaciones: rules, what they did, and the channels they send through. Templates are the platform's. */
 export default function CommunicationsPage({
   dict,
+  connectionsDict,
   lang,
-}: Readonly<{ dict: I18nRecord; lang: string }>) {
+}: Readonly<{ dict: I18nRecord; connectionsDict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
   const router = useRouter();
   const pathname = usePathname();
@@ -190,7 +192,17 @@ export default function CommunicationsPage({
           {section === "activity" && (
             <ActivityTab lang={lang} filters={activityFilters} d={d} />
           )}
-          {channel && <ChannelPanel channel={channel} d={d} />}
+          {channel?.key === "webhook" && (
+            <WebhookPanel
+              d={d}
+              connectionsDict={connectionsDict}
+              lang={lang}
+              canMaintain={canMaintain}
+            />
+          )}
+          {channel && channel.key !== "webhook" && (
+            <ChannelPanel channel={channel} d={d} />
+          )}
         </div>
       </div>
       <NewRuleModal

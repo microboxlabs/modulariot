@@ -4,7 +4,7 @@
  */
 
 export type RuleState = "OFF" | "TEST" | "ACTIVE";
-export type RuleChannel = "whatsapp" | "email" | "preferred";
+export type RuleChannel = "whatsapp" | "email" | "preferred" | "webhook";
 export type OnReply = "stop" | "continue";
 export type RunStatus = "WAITING" | "REPLIED" | "DONE" | "FAILED" | "CANCELLED";
 
@@ -27,8 +27,10 @@ export interface RuleStep {
   /** Minutes after the previous step finished waiting. */
   after: number;
   channel: RuleChannel;
-  /** A template key. */
+  /** A template key; optional on a webhook step. */
   template: string;
+  /** The integration connection a webhook step calls. */
+  connection?: string;
   to: "audience" | AudienceEntry[];
   /** Minutes to wait for a reply; 0 does not wait. */
   waitForReply: number;
@@ -280,4 +282,21 @@ export interface ConversationRun {
   createdAt: string;
   updatedAt: string | null;
   messages: RunMessage[];
+}
+
+/** An organization connection a webhook step can call. */
+export interface WebhookConnection {
+  id: string;
+  name: string;
+  baseUrl: string;
+  status: string;
+  lastTestedAt: string | null;
+  lastTestResult: boolean | null;
+}
+
+/** The webhook channel: the payload contract every webhook connection receives, and the connections. */
+export interface WebhookChannel {
+  operation: string;
+  requestSchema: Record<string, unknown>;
+  connections: WebhookConnection[];
 }

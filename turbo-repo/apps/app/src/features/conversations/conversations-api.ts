@@ -26,6 +26,8 @@ import type {
   SampleEvent,
   Simulation,
   TemplateBody,
+  WebhookChannel,
+  WebhookConnection,
 } from "./conversations-types";
 
 export const CONVERSATIONS_BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/conversations`;
@@ -40,6 +42,7 @@ export const platformTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/
 export const platformTemplateKey = (key: string) =>
   `${platformTemplatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
+export const webhookChannelKey = `${CONVERSATIONS_BASE}/channels/webhook`;
 /** The WhatsApp templates on Meta of the platform's connection, for platform owners. */
 export const metaTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/whatsapp-templates`;
 
@@ -214,4 +217,26 @@ export async function refreshTemplates(key?: string) {
     await mutate(templateKey(key));
     await mutate(platformTemplateKey(key));
   }
+}
+
+export function useWebhookChannel(enabled = true) {
+  return useSWR<WebhookChannel>(
+    enabled ? webhookChannelKey : null,
+    fetcher,
+    quiet
+  );
+}
+
+/** A connection of the organization made from the webhook contract, through the integrations framework. */
+export async function createWebhookConnection(body: {
+  name: string;
+  baseUrl: string;
+  credentialProfileId: string | null;
+}) {
+  const created = await request<WebhookConnection>(
+    `${webhookChannelKey}/connections`,
+    { method: "POST", body }
+  );
+  await mutate(webhookChannelKey);
+  return created;
 }

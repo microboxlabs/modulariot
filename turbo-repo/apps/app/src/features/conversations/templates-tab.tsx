@@ -545,15 +545,45 @@ export function TemplateEditor({
 /** What the list has picked: a stored template by key, or a new one. */
 type Selection = { kind: "template"; key: string } | { kind: "new" } | null;
 
-type TemplatesView = "messages" | "meta";
+export type TemplatesView = "messages" | "meta";
+
+const CHANNELS = ["whatsapp", "email"] as const;
+
+/** The filter chips over the message templates: by the channels a template has a version for. */
+export function templateFilterDefs(
+  d: I18nRecord
+): { key: "channel"; label: string; options: string[] }[] {
+  return [
+    {
+      key: "channel",
+      label: tr("filterChannel", d),
+      options: CHANNELS.map((c) => channelLabel(c, d)),
+    },
+  ];
+}
+
+function hasChannel(t: ConversationTemplate, channel: string, d: I18nRecord) {
+  if (!channel) return true;
+  return CHANNELS.some((c) => channelLabel(c, d) === channel && t[c] != null);
+}
 
 /** "Plantillas": the app's message templates, or the WhatsApp templates on Meta. */
 export default function TemplatesTab({
   lang,
   canWrite,
+  view,
+  channel,
   d,
-}: Readonly<{ lang: string; canWrite: boolean; d: I18nRecord }>) {
-  const [view, setView] = useState<TemplatesView>("messages");
+  onView,
+}: Readonly<{
+  lang: string;
+  canWrite: boolean;
+  view: TemplatesView;
+  /** A channel label from the filter bar; empty shows every template. */
+  channel: string;
+  d: I18nRecord;
+  onView: (view: TemplatesView) => void;
+}>) {
   const views: { value: TemplatesView; label: string }[] = [
     { value: "messages", label: tr("templatesMessages", d) },
     { value: "meta", label: tr("templatesMeta", d) },
@@ -567,11 +597,11 @@ export default function TemplatesTab({
             key={v.value}
             type="button"
             aria-pressed={view === v.value}
-            onClick={() => setView(v.value)}
-            className={`rounded-md px-3 py-1 text-sm font-medium ${
+            onClick={() => onView(v.value)}
+            className={`rounded-md px-2.5 py-1 text-xs ${
               view === v.value
-                ? "bg-blue-600 text-white"
-                : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
+                : MUTED
             }`}
           >
             {v.label}
@@ -579,7 +609,12 @@ export default function TemplatesTab({
         ))}
       </fieldset>
       {view === "messages" ? (
-        <MessageTemplates lang={lang} canWrite={canWrite} d={d} />
+        <MessageTemplates
+          lang={lang}
+          canWrite={canWrite}
+          channel={channel}
+          d={d}
+        />
       ) : (
         <MetaTemplatesSection canWrite={canWrite} d={d} />
       )}
@@ -591,15 +626,22 @@ export default function TemplatesTab({
 function MessageTemplates({
   lang,
   canWrite,
+  channel,
   d,
-}: Readonly<{ lang: string; canWrite: boolean; d: I18nRecord }>) {
-  const { data: templates, error, isLoading } = useConversationTemplates();
+}: Readonly<{
+  lang: string;
+  canWrite: boolean;
+  channel: string;
+  d: I18nRecord;
+}>) {
+  const { data: all, error, isLoading } = useConversationTemplates();
+  const templates = all?.filter((t) => hasChannel(t, channel, d));
   // A stored template, a new one, or null for none picked.
   const [selected, setSelected] = useState<Selection>(null);
   const creating = selected?.kind === "new";
   const selectedKey = selected?.kind === "template" ? selected.key : null;
   const picked = templates?.find((t) => t.key === selectedKey) ?? null;
-  const current = selectedKey ?? templates?.[0]?.key ?? null;
+  const current = picked?.key ?? templates?.[0]?.key ?? null;
   const shown = creating ? null : (picked ?? templates?.[0] ?? null);
 
   return (
@@ -629,8 +671,13 @@ function MessageTemplates({
         {isLoading && (
           <p className={`px-3 py-2 text-sm ${MUTED}`}>{tr("loading", d)}</p>
         )}
-        {templates?.length === 0 && (
+        {all?.length === 0 && (
           <p className={`px-3 py-2 text-sm ${MUTED}`}>{tr("noTemplates", d)}</p>
+        )}
+        {all && all.length > 0 && templates?.length === 0 && (
+          <p className={`px-3 py-2 text-sm ${MUTED}`}>
+            {tr("templatesEmptyFiltered", d)}
+          </p>
         )}
         {(templates ?? []).map((t) => {
           const active = t.key === current && !creating;
@@ -677,7 +724,7 @@ function MessageTemplates({
           key={creating ? "new-template" : `template:${shown?.key}`}
           template={shown}
           readOnly={!canWrite}
-          takenKeys={(templates ?? []).map((t) => t.key)}
+          takenKeys={(all ?? []).map((t) => t.key)}
           lang={lang}
           d={d}
           onSaved={(saved) => setSelected({ kind: "template", key: saved.key })}

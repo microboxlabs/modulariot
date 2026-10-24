@@ -9,6 +9,9 @@ import {
   useState,
 } from "react";
 
+/** The section the gear opens: the Ajustes menu. */
+export const SETTINGS_SECTION_LABEL = "settings";
+
 interface SidebarContextProps {
   desktop: {
     activeSection: string | null;
@@ -54,6 +57,11 @@ export function SidebarProvider({ children }: Readonly<PropsWithChildren>) {
   return (
     <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>
   );
+}
+
+/** The sidebar, or null outside the secured layout (e.g. in a test or a kiosk page). */
+export function useOptionalSidebarContext(): SidebarContextProps | null {
+  return useContext(SidebarContext);
 }
 
 export function useSidebarContext(): SidebarContextProps {

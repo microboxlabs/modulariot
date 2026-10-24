@@ -8,6 +8,10 @@ import { HiHome } from "react-icons/hi";
 import { HiPencilSquare } from "react-icons/hi2";
 import { trDynamic } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import {
+  SETTINGS_SECTION_LABEL,
+  useOptionalSidebarContext,
+} from "@/features/sidebar/context/sidebar-context";
 
 interface BreadcrumbProps {
   path: string[];
@@ -31,6 +35,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   editableLast = false,
   onEditLast,
 }) => {
+  const sidebar = useOptionalSidebarContext();
   const translatedPath = path.map((item) => trDynamic(item, dict));
   const lastIndex = translatedPath.length - 1;
   const lastValue = translatedPath[lastIndex] ?? "";
@@ -109,10 +114,34 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
       );
     }
 
+    // "Ajustes" has no page of its own: it opens the Ajustes menu, like the gear.
+    if (path[index] === SETTINGS_SECTION_LABEL && sidebar) {
+      return (
+        <BreadcrumbItem key={key}>
+          <button
+            type="button"
+            onClick={() =>
+              sidebar.desktop.setActiveSection(SETTINGS_SECTION_LABEL)
+            }
+            aria-expanded={
+              sidebar.desktop.activeSection === SETTINGS_SECTION_LABEL
+            }
+            className="cursor-pointer hover:text-gray-900 hover:underline underline-offset-2 dark:hover:text-white"
+          >
+            {item}
+          </button>
+        </BreadcrumbItem>
+      );
+    }
+
     return (
       <BreadcrumbItem
         key={key}
-        href={disableLinks ? undefined : `/app/${lang}/${path.slice(1, index + 1).join("/")}`}
+        href={
+          disableLinks
+            ? undefined
+            : `/app/${lang}/${path.slice(1, index + 1).join("/")}`
+        }
       >
         {item}
       </BreadcrumbItem>

@@ -12,9 +12,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The platform's message templates, which every organization's rules use. Organizations read them with the rules of
@@ -102,7 +104,9 @@ public class TemplatesService {
             next = new ConvTemplate(next.id(), next.tenantCode(), key, next.name(), next.baseText(), next.whatsapp(),
                     next.email(), next.createdAt(), now, actor, bump.next(existing.get().version()));
         }
-        templates.upsert(next);
+        templates.upsert(next, existing.map(ConvTemplate::version).orElse(null))
+                .orElseThrow(() -> new IllegalStateException(
+                        "La plantilla cambió mientras se guardaba; vuelve a guardarla"));
         return platformGet(key);
     }
 
@@ -112,9 +116,11 @@ public class TemplatesService {
     }
 
     private List<Usage> usage(List<Rule> list, boolean withTenant) {
+        Map<String, List<RuleVersion>> live = rules.liveVersions(list.stream().map(Rule::id).toList()).stream()
+                .collect(Collectors.groupingBy(RuleVersion::ruleId));
         List<Usage> out = new ArrayList<>();
         for (Rule r : list) {
-            List<RuleVersion> versions = rules.versions(r.id());
+            List<RuleVersion> versions = live.getOrDefault(r.id(), List.of());
             List<String> keys = new ArrayList<>();
             for (RuleVersion v : new RuleVersion[] {RulesService.current(r, versions), RulesService.draft(versions)}) {
                 if (v != null) {

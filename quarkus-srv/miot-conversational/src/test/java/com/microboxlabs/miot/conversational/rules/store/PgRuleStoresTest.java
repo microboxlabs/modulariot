@@ -45,7 +45,8 @@ class PgRuleStoresTest {
     private static final Duration WAIT = Duration.ofSeconds(10);
     private static final List<String> MIGRATIONS = List.of("V0.7.0__create_conversational_schema.sql",
             "V0.7.1__fork_conversation_per_service.sql", "V0.9.6__conversation_by_context_and_participant.sql",
-            "V0.9.8__conversation_rules.sql");
+            "V0.9.8__conversation_rules.sql", "V0.10.1__rule_semantic_versions.sql",
+            "V0.10.2__platform_message_templates.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -98,16 +99,18 @@ class PgRuleStoresTest {
         assertNull(draft.version());
         assertEquals(1, rules.versions(rule.id()).size());
 
-        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"), "0.1.0", RuleBump.MINOR, "stale", "b@example.com", T0).isEmpty(),
+        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"), null, "0.1.0", RuleBump.MINOR, "stale", "b@example.com", T0).isEmpty(),
                 "the draft changed after this spec was validated");
-        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), "0.1.0", RuleBump.MINOR, "first", "b@example.com", T0).orElseThrow();
+        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), null, "0.1.0", RuleBump.MINOR, "first", "b@example.com", T0).orElseThrow();
         assertEquals("0.1.0", v1.version());
         assertEquals(RuleBump.MINOR, v1.bump());
         assertEquals("x", v1.spec().path("steps").get(0).path("template").asText());
-        assertTrue(rules.publish(rule.id(), draft.spec(), "0.1.1", RuleBump.PATCH, "none", "b@example.com", T0).isEmpty());
+        assertTrue(rules.publish(rule.id(), draft.spec(), "0.1.0", "0.1.1", RuleBump.PATCH, "none", "b@example.com", T0).isEmpty());
 
         RuleVersion second = rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[]}"), "c@example.com", T0);
-        assertEquals("0.1.1", rules.publish(rule.id(), second.spec(), "0.1.1", RuleBump.PATCH, "second", "c@example.com", T0)
+        assertTrue(rules.publish(rule.id(), second.spec(), null, "0.1.1", RuleBump.PATCH, "behind", "c@example.com",
+                T0).isEmpty(), "another publish moved the current version");
+        assertEquals("0.1.1", rules.publish(rule.id(), second.spec(), "0.1.0", "0.1.1", RuleBump.PATCH, "second", "c@example.com", T0)
                 .orElseThrow().version());
         rules.saveDraft(rule.id(), JSON.readTree("{}"), "c@example.com", T0);
 
@@ -116,12 +119,16 @@ class PgRuleStoresTest {
                 versions.stream().map(RuleVersion::status).toList());
         assertEquals("0.1.1", rules.find(tenant, rule.id()).orElseThrow().currentVersion());
         assertEquals("first", rules.version(rule.id(), "0.1.0").orElseThrow().reason());
+        assertEquals(List.of("0.1.1", "DRAFT"), rules.liveVersions(List.of(rule.id())).stream()
+                .map(v -> v.version() == null ? "DRAFT" : v.version()).sorted().toList(),
+                "the draft and the version in force, not 0.1.0");
+        assertTrue(rules.liveVersions(List.of()).isEmpty());
 
         assertTrue(rules.inForce(tenant).isEmpty());
         rules.updateState(tenant, rule.id(), Rule.State.TEST, T0);
         List<RuleStore.InForce> inForce = rules.inForce(tenant);
         assertEquals(1, inForce.size());
-        assertEquals(2, inForce.get(0).version().version());
+        assertEquals("0.1.1", inForce.get(0).version().version());
         assertTrue(rules.find("other", rule.id()).isEmpty());
         assertTrue(rules.find(tenant, "not-a-uuid").isEmpty());
     }
@@ -131,10 +138,16 @@ class PgRuleStoresTest {
         String tenant = "tenant-" + UUID.randomUUID();
         ConvTemplate first = templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check",
                 "Pánico", "Hola {{nombre}}", new ConvTemplate.WhatsApp("miot_panic_check_v1", "es_CL",
-                        List.of("nombre", "patente")), null, T0, T0, "a@example.com", "0.1.0"));
+                        List.of("nombre", "patente")), null, T0, T0, "a@example.com", "0.1.0"), null).orElseThrow();
         ConvTemplate second = templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check",
                 "Pánico 2", null, null, new ConvTemplate.Email("Asunto", "Cuerpo"), T0, T0.plusSeconds(5),
-                "b@example.com", "0.2.0"));
+                "b@example.com", "0.2.0"), "0.1.0").orElseThrow();
+        assertTrue(templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check", "Stale",
+                null, null, new ConvTemplate.Email("A", "B"), T0, T0, "c@example.com", "0.1.1"), "0.1.0").isEmpty(),
+                "a save from a version that is no longer stored");
+        assertTrue(templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check", "Twice",
+                null, null, new ConvTemplate.Email("A", "B"), T0, T0, "c@example.com", "0.1.0"), null).isEmpty(),
+                "a second create of the same key");
 
         assertEquals(first.id(), second.id());
         ConvTemplate read = templates.find(tenant, "panic-check").orElseThrow();
@@ -143,6 +156,7 @@ class PgRuleStoresTest {
         assertEquals("Asunto", read.email().subject());
         assertEquals(List.of("nombre", "patente"), first.whatsapp().params());
         assertEquals(1, templates.list(tenant).size());
+        assertEquals("0.2.0", templates.find(tenant, "panic-check").orElseThrow().version());
     }
 
     @Test

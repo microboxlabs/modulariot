@@ -57,6 +57,13 @@ public class PgRuleStore implements RuleStore {
             """;
     private static final String VERSION = SELECT + VERSION_COLUMNS
             + " FROM miot_conversational.conv_rule_version WHERE rule_id = $1 AND version = $2";
+    private static final String LIVE_VERSIONS = """
+            SELECT v.id, v.rule_id, v.version, v.bump, v.status, v.spec::text AS spec, v.reason, v.created_at,
+                   v.created_by
+            FROM miot_conversational.conv_rule_version v
+            JOIN miot_conversational.conv_rule r ON r.id = v.rule_id
+            WHERE v.rule_id = ANY($1::uuid[]) AND (v.status = 'DRAFT' OR v.version = r.current_version)
+            """;
     private static final String SAVE_DRAFT = """
             INSERT INTO miot_conversational.conv_rule_version (id, rule_id, version, status, spec, created_at, created_by)
             VALUES ($1, $2, NULL, 'DRAFT', $3::text::jsonb, $4, $5)
@@ -64,13 +71,16 @@ public class PgRuleStore implements RuleStore {
             DO UPDATE SET spec = EXCLUDED.spec, created_at = EXCLUDED.created_at, created_by = EXCLUDED.created_by
             RETURNING\s""" + VERSION_COLUMNS;
     // One statement: the draft becomes version $6 and the rule points at it, only while its spec is the one that
-    // was validated ($5), so a draft saved meanwhile is never published unchecked.
+    // was validated ($5) and the rule is still on the version $6 was computed from ($8), so a draft saved
+    // meanwhile is never published unchecked and a concurrent publish never moves the version backwards.
     private static final String PUBLISH = """
             WITH v AS (
                 UPDATE miot_conversational.conv_rule_version
                 SET status = 'PUBLISHED', version = $6, bump = $7,
                     reason = $2, created_by = $3, created_at = $4
                 WHERE rule_id = $1 AND status = 'DRAFT' AND spec = $5::text::jsonb
+                  AND EXISTS (SELECT 1 FROM miot_conversational.conv_rule
+                              WHERE id = $1 AND current_version IS NOT DISTINCT FROM $8::varchar)
                 RETURNING *
             ), r AS (
                 UPDATE miot_conversational.conv_rule
@@ -153,17 +163,26 @@ public class PgRuleStore implements RuleStore {
     }
 
     @Override
+    public List<RuleVersion> liveVersions(List<String> ruleIds) {
+        if (ruleIds.isEmpty()) {
+            return List.of();
+        }
+        UUID[] ids = ruleIds.stream().map(Pg::uuid).toArray(UUID[]::new);
+        return versions(query(pool.get(), LIVE_VERSIONS, Tuple.tuple().addArrayOfUUID(ids)), "");
+    }
+
+    @Override
     public RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at) {
         Tuple params = Tuple.of(UUID.randomUUID(), uuid(ruleId), Pg.write(spec), time(at), actor);
         return versions(query(pool.get(), SAVE_DRAFT, params), "").get(0);
     }
 
     @Override
-    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String version, RuleBump bump,
-            String reason, String actor, Instant at) {
+    public Optional<RuleVersion> publish(String ruleId, JsonNode validated, String from, String version,
+            RuleBump bump, String reason, String actor, Instant at) {
         Tuple params = Tuple.tuple().addUUID(uuid(ruleId)).addString(reason).addString(actor)
                 .addOffsetDateTime(time(at)).addString(Pg.write(validated)).addString(version)
-                .addString(bump.name());
+                .addString(bump.name()).addString(from);
         return versions(query(pool.get(), PUBLISH, params), "").stream().findFirst();
     }
 

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -238,8 +239,9 @@ class TripFlowTest {
         assertThrows(IllegalStateException.class, () -> trips.create(TENANT, ACTOR, withMandate));
         UUID tripId = UUID.fromString(trips.create(TENANT, ACTOR,
                 new TripRequest(null, null, null, null, null)).id());
+        String cancelled = mandate.id();
         IllegalStateException link = assertThrows(IllegalStateException.class,
-                () -> trips.linkMandate(TENANT, ACTOR, tripId, mandate.id(), null, null));
+                () -> trips.linkMandate(TENANT, ACTOR, tripId, cancelled, null, null));
         assertTrue(link.getMessage().contains("anulado"), link.getMessage());
         TripCargoRequest mount = new TripCargoRequest(unit.id(), null, null);
         assertThrows(IllegalStateException.class, () -> tripCargo.mount(TENANT, ACTOR, tripId, mount));
@@ -247,6 +249,13 @@ class TripFlowTest {
         assertThrows(IllegalArgumentException.class,
                 () -> trips.linkMandate(TENANT, ACTOR, tripId, unknown, null, null));
         assertTrue(trips.mandatesOf(TENANT, tripId).isEmpty());
+
+        String later = mandates.createOrGet(TENANT, ACTOR,
+                new MandateRequest("SRV-LATER", "service", null, null, null, null)).mandate().id();
+        assertTrue(trips.linkMandate(TENANT, ACTOR, tripId, later, null, null));
+        mandates.cancel(TENANT, ACTOR, UUID.fromString(later), "cliente anula");
+        assertFalse(trips.linkMandate(TENANT, ACTOR, tripId, later, null, null),
+                "re-linking an existing link is a no-op, even once the mandate is cancelled");
     }
 
     @Test

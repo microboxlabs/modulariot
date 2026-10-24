@@ -26,6 +26,8 @@ public final class InMemoryConversations {
     public final List<Message> messages = new ArrayList<>();
     /** Ids of the runs {@code findWithWaitingRun} treats as WAITING. */
     public final Set<String> waitingRuns = new HashSet<>();
+    /** Ids of the messages {@code markStatus} was called for, in order. */
+    public final List<String> statusMarked = new ArrayList<>();
     public final Conversations conversationRepository = new Conversations();
     public final Messages messageRepository = new Messages();
 
@@ -102,6 +104,11 @@ public final class InMemoryConversations {
         }
 
         @Override
+        public Conversation findById(String conversationId) {
+            return conversations.get(conversationId);
+        }
+
+        @Override
         public Conversation create(Conversation conversation) {
             return put(conversation);
         }
@@ -175,6 +182,24 @@ public final class InMemoryConversations {
         public Message markStatus(
                 String messageId, MessageStatus status, OffsetDateTime deliveredAt,
                 OffsetDateTime readAt, String errorMessage) {
+            statusMarked.add(messageId);
+            return null;
+        }
+
+        /** The newest stored message wins, as {@code created_at DESC} on the SQL side. */
+        @Override
+        public OutboundRef findLatestOutboundVia(String address, String connectionTenant, boolean waitingRun) {
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                Message m = messages.get(i);
+                Conversation c = conversations.get(m.conversationId());
+                if (c != null && m.channel() == Channel.WHATSAPP && m.direction() == MessageDirection.OUTBOUND
+                        && address.equals(m.address())
+                        && connectionTenant.equals(m.metadata().get("connectionTenant"))
+                        && m.status() != MessageStatus.SIMULATED && m.status() != MessageStatus.FAILED
+                        && (!waitingRun || (m.runId() != null && waitingRuns.contains(m.runId())))) {
+                    return new OutboundRef(m.id(), c.id(), c.tenantCode(), m.runId(), m.step());
+                }
+            }
             return null;
         }
     }

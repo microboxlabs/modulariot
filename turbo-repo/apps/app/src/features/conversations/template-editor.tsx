@@ -45,6 +45,9 @@ export const SAMPLE_VALUES: Record<string, string> = {
   ubicacion: "-33.44890, -70.66930",
 };
 
+/** A sample value, or the `{{name}}` placeholder when there is none. */
+const sampleValue = (name: string) => SAMPLE_VALUES[name] ?? `{{${name}}}`;
+
 const EMPTY: TemplateBody = {
   name: "",
   baseText: "",
@@ -97,7 +100,7 @@ export function TemplatePreview({
             {body.whatsapp.params.length > 0 && (
               <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                 {body.whatsapp.params
-                  .map((p) => `${p} = ${SAMPLE_VALUES[p] ?? `{{${p}}}`}`)
+                  .map((p) => `${p} = ${sampleValue(p)}`)
                   .join(" · ")}
               </span>
             )}

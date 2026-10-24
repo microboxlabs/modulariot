@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateRuleRequest;
+import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateConnectionRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.DraftRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.PublishRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.SimulateRequest;
@@ -51,7 +52,7 @@ class OrgConversationsResourceTest {
         tenant.setTenantCode(RulesFixtureAccess.TENANT);
         return new OrgConversationsResource(tenant, org, o -> Uni.createFrom().item(access),
                 () -> "owner@example.com", new OrgConversationsResource.Services(fixture.service(),
-                        fixture.simulator(), fixture.templates(), fixture.runs()));
+                        fixture.simulator(), fixture.templates(), fixture.runs(), fixture.channels()));
     }
 
     private final OrgConversationsResource owner = resource(access(BaseRole.OWNER, Set.of()));
@@ -296,6 +297,62 @@ class OrgConversationsResourceTest {
         assertEquals(404, call(member.getRule(ORG, "missing")).getStatus());
         assertTrue(OrgConversationsResource.canWrite(access(BaseRole.ADMIN, Set.of())));
         assertFalse(OrgConversationsResource.canWrite(Access.none(1L, ORG)));
+    }
+
+    @Test
+    void theWebhookChannelListsItsContractAndConnections() {
+        JsonNode empty = body(call(member.connectionChannel(ORG, "webhook")));
+        assertEquals(set("operation", "requestSchema", "connections"), keys(empty));
+        assertEquals("deliver", empty.path("operation").asText());
+        assertEquals(set("event", "at", "context", "rule", "run", "title", "text", "data"),
+                keys(empty.path("requestSchema").path("properties")));
+        assertEquals(0, empty.path("connections").size());
+
+        CreateConnectionRequest request =
+                new CreateConnectionRequest("Torre externa", "https://hooks.example.com/miot", null);
+        assertEquals(403, call(member.createChannelConnection(ORG, "webhook", request)).getStatus());
+        Response created = call(maintainer.createChannelConnection(ORG, "webhook", request));
+        assertEquals(201, created.getStatus());
+        JsonNode connection = body(created);
+        assertEquals(set("id", "name", "baseUrl", "status", "lastTestedAt", "lastTestResult"), keys(connection));
+        assertEquals("https://hooks.example.com/miot", connection.path("baseUrl").asText());
+        assertEquals("DRAFT", connection.path("status").asText());
+
+        JsonNode listed = body(call(member.connectionChannel(ORG, "webhook"))).path("connections");
+        assertEquals(1, listed.size());
+        assertEquals(connection.path("id").asText(), listed.get(0).path("id").asText());
+
+        assertEquals(400, call(owner.createChannelConnection(ORG, "webhook",
+                new CreateConnectionRequest("x", "ftp://hooks.example.com", null))).getStatus());
+        assertEquals(400, call(owner.createChannelConnection(ORG, "webhook",
+                new CreateConnectionRequest(" ", "https://hooks.example.com", null))).getStatus());
+        assertEquals(400, call(owner.createChannelConnection(ORG, "webhook", null)).getStatus());
+    }
+
+    @Test
+    void slackAndTeamsListOnlyTheirOwnConnections() {
+        CreateConnectionRequest slack =
+                new CreateConnectionRequest("Canal torre", "https://hooks.example.com/slack", null);
+        assertEquals(201, call(owner.createChannelConnection(ORG, "slack", slack)).getStatus());
+
+        JsonNode slackView = body(call(member.connectionChannel(ORG, "Slack")));
+        assertEquals(set("text"), keys(slackView.path("requestSchema").path("properties")));
+        assertEquals(1, slackView.path("connections").size());
+        assertEquals("Canal torre", slackView.path("connections").get(0).path("name").asText());
+
+        JsonNode teamsView = body(call(member.connectionChannel(ORG, "teams")));
+        assertEquals(set("type", "attachments"), keys(teamsView.path("requestSchema").path("properties")));
+        assertEquals(0, teamsView.path("connections").size());
+        assertEquals(0, body(call(member.connectionChannel(ORG, "webhook"))).path("connections").size());
+    }
+
+    @Test
+    void anUnknownChannelIs404() {
+        assertEquals(404, call(member.connectionChannel(ORG, "sms")).getStatus());
+        assertEquals(404, call(owner.createChannelConnection(ORG, "sms",
+                new CreateConnectionRequest("x", "https://hooks.example.com", null))).getStatus());
+        assertEquals(404, call(member.createChannelConnection(ORG, "whatsapp",
+                new CreateConnectionRequest("x", "https://hooks.example.com", null))).getStatus());
     }
 
     @Test

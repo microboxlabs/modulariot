@@ -2,23 +2,41 @@
 
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import { Button } from "flowbite-react";
+import {
+  HiChatAlt2,
+  HiOutlineClipboardList,
+  HiOutlineClock,
+  HiPlus,
+} from "react-icons/hi";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import SectionMenu, {
+  type SectionMenuEntry,
+} from "@/features/common/components/section-menu";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
-import { MUTED, Tile } from "@/features/symptoms/maintainer/ui/card";
 import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
 import ActivityTab, {
   type ActivityFilters,
   activityFilterDefs,
   NO_ACTIVITY_FILTERS,
 } from "./activity-tab";
-import CommunicationsTabs, {
-  COMMUNICATIONS_PANEL_ID,
-  COMMUNICATIONS_TABS,
-  tabId,
-  type CommunicationsTab,
-} from "./communications-tabs";
+import { channelLogo } from "./channel-icon";
+import ChannelPanel from "./channel-panel";
+import ConnectionChannelPanel from "./connection-channel-panel";
+import {
+  CHANNEL_TYPES,
+  channelType,
+  isConnectionChannel,
+} from "./channel-types";
+import {
+  channelKeyOf,
+  channelSection,
+  type CommunicationsSection,
+  DEFAULT_SECTION,
+  sectionOf,
+} from "./communications-sections";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
 import LayoutToggle from "./layout-toggle";
 import NewRuleModal, {
@@ -35,22 +53,18 @@ import RulesTab, {
 
 type FilterDef = { key: string; label: string; options: string[] };
 
-function tabOf(value: string | null): CommunicationsTab {
-  return (COMMUNICATIONS_TABS as readonly string[]).includes(value ?? "")
-    ? (value as CommunicationsTab)
-    : "rules";
-}
-
-/** Settings › Comunicaciones: the rules that send messages on events, and what they did. Templates are the platform's. */
+/** Settings › Comunicaciones: rules, what they did, and the channels they send through. Templates are the platform's. */
 export default function CommunicationsPage({
   dict,
+  connectionsDict,
   lang,
-}: Readonly<{ dict: I18nRecord; lang: string }>) {
+}: Readonly<{ dict: I18nRecord; connectionsDict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab = tabOf(params.get("tab"));
+  const section = sectionOf(params);
+  const channel = channelType(channelKeyOf(section) ?? "");
   const { canMaintain, loaded } = useControlTowerAccess();
   const { data: rules } = useConversationRules();
   const { data: catalog } = useEventCatalog();
@@ -70,10 +84,11 @@ export default function CommunicationsPage({
     });
   };
 
-  const onTab = (next: CommunicationsTab) => {
+  const onSection = (next: CommunicationsSection) => {
     const q = new URLSearchParams(params.toString());
-    if (next === "rules") q.delete("tab");
-    else q.set("tab", next);
+    q.delete("tab");
+    if (next === DEFAULT_SECTION) q.delete("section");
+    else q.set("section", next);
     replaceQuery(q);
   };
 
@@ -85,106 +100,114 @@ export default function CommunicationsPage({
     replaceQuery(q);
   };
 
+  const sections: SectionMenuEntry<CommunicationsSection>[] = [
+    {
+      id: "rules",
+      label: tr("tabRules", d),
+      description: tr("menuRules", d),
+      icon: HiOutlineClipboardList,
+    },
+    {
+      id: "activity",
+      label: tr("tabActivity", d),
+      description: tr("menuActivity", d),
+      icon: HiOutlineClock,
+    },
+    ...CHANNEL_TYPES.map((c) => ({
+      id: channelSection(c.key),
+      label: trDynamic(`channel_${c.key}`, d),
+      description: trDynamic(`channelMenu_${c.key}`, d),
+      icon: channelLogo(c.key),
+      group: tr("menuChannels", d),
+    })),
+  ];
+
   const filterBar = (): {
     defs: FilterDef[];
     value: (key: string) => string;
     set: (key: string, value: string) => void;
-  } => {
-    if (tab === "activity") {
+  } | null => {
+    if (section === "activity") {
       return {
         defs: activityFilterDefs(rules ?? [], d),
         value: (k) => activityFilters[k as keyof ActivityFilters],
         set: (k, v) => setActivityFilters({ ...activityFilters, [k]: v }),
       };
     }
-    return {
-      defs: ruleFilterDefs(rules ?? [], catalog, d),
-      value: (k) => ruleFilters[k as keyof RuleFilters],
-      set: (k, v) => setRuleFilters({ ...ruleFilters, [k]: v }),
-    };
+    if (section === "rules") {
+      return {
+        defs: ruleFilterDefs(rules ?? [], catalog, d),
+        value: (k) => ruleFilters[k as keyof RuleFilters],
+        set: (k, v) => setRuleFilters({ ...ruleFilters, [k]: v }),
+      };
+    }
+    return null;
   };
   const bar = filterBar();
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={dict?.breadcrumb as I18nRecord}
-          lang={lang}
-          path={["user", "settings", "communications"]}
-          disableLinks
+    <SettingsPageShell
+      breadcrumbDict={dict?.breadcrumb as I18nRecord}
+      lang={lang}
+      path={["user", "settings", "communications"]}
+      icon={HiChatAlt2}
+      title={tr("title", d)}
+      description={tr("description", d)}
+      actions={
+        section === "rules" &&
+        canMaintain && (
+          <Button size="sm" color="blue" onClick={() => setNewRule({})}>
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("newRule", d)}
+          </Button>
+        )
+      }
+    >
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
+        <SectionMenu
+          title={tr("menuTitle", d)}
+          sections={sections}
+          selected={section}
+          onSelect={onSection}
         />
-      </div>
-
-      {bar.defs.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
-          {bar.defs.map((f) => (
-            <FilterChip
-              key={`${tab}-${f.key}`}
-              label={f.label}
-              value={bar.value(f.key)}
-              options={f.options}
-              allLabel={tr("filterAll", d)}
-              onChange={(v) => bar.set(f.key, v)}
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Tile>
-              <svg
-                aria-hidden
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                viewBox="0 0 24 24"
-              >
-                <path d="M4 5h16v10H8l-4 4V5Z" />
-              </svg>
-            </Tile>
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", d)}
-              </h1>
-              <p className={`text-sm ${MUTED}`}>{tr("description", d)}</p>
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+          {bar && (
+            <div className="flex flex-wrap items-center gap-2">
+              {bar.defs.map((f) => (
+                <FilterChip
+                  key={`${section}-${f.key}`}
+                  label={f.label}
+                  value={bar.value(f.key)}
+                  options={f.options}
+                  allLabel={tr("filterAll", d)}
+                  onChange={(v) => bar.set(f.key, v)}
+                />
+              ))}
+              {section === "rules" && (
+                <div className="ml-auto">
+                  <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
+                </div>
+              )}
             </div>
-            {tab === "rules" && (
-              <div className="ml-auto flex items-center gap-2">
-                <LayoutToggle layout={layout} d={d} onLayout={setLayout} />
-                {canMaintain && (
-                  <button
-                    type="button"
-                    onClick={() => setNewRule({})}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
-                  >
-                    ＋ {tr("newRule", d)}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <CommunicationsTabs tab={tab} d={d} onTab={onTab} />
-          <div
-            role="tabpanel"
-            id={COMMUNICATIONS_PANEL_ID}
-            aria-labelledby={tabId(tab)}
-          >
-            {tab === "rules" && (
-              <RulesTab
-                lang={lang}
-                filters={ruleFilters}
-                layout={layout}
-                d={d}
-              />
-            )}
-            {tab === "activity" && (
-              <ActivityTab lang={lang} filters={activityFilters} d={d} />
-            )}
-          </div>
+          )}
+          {section === "rules" && (
+            <RulesTab lang={lang} filters={ruleFilters} layout={layout} d={d} />
+          )}
+          {section === "activity" && (
+            <ActivityTab lang={lang} filters={activityFilters} d={d} />
+          )}
+          {channel && isConnectionChannel(channel.key) && (
+            <ConnectionChannelPanel
+              channelKey={channel.key}
+              d={d}
+              connectionsDict={connectionsDict}
+              lang={lang}
+              canMaintain={canMaintain}
+            />
+          )}
+          {channel && !isConnectionChannel(channel.key) && (
+            <ChannelPanel channel={channel} d={d} />
+          )}
         </div>
       </div>
       <NewRuleModal
@@ -205,6 +228,6 @@ export default function CommunicationsPage({
           router.push(href);
         }}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

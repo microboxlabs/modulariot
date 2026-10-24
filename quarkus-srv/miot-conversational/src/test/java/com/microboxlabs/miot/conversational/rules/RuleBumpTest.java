@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class RuleBumpTest {
@@ -53,6 +54,13 @@ class RuleBumpTest {
         assertEquals(RuleBump.MINOR, bump("\"channel\": \"email\"", "\"channel\": \"whatsapp\""));
         assertEquals(RuleBump.MINOR, bump("\"template\": \"tower\", \"to\": \"audience\"",
                 "\"template\": \"tower\", \"to\": [{\"address\": \"ops@example.com\", \"channel\": \"email\"}]"));
+        for (String channel : List.of("webhook", "slack", "teams")) {
+            String step = BASE.replace("\"channel\": \"email\"",
+                    "\"channel\": \"" + channel + "\", \"connection\": \"c-1\"");
+            assertEquals(RuleBump.MINOR, RuleBump.between(spec(step), spec(step.replace("c-1", "c-2"))), channel);
+        }
+        String slack = BASE.replace("\"channel\": \"email\"", "\"channel\": \"slack\", \"connection\": \"c-1\"");
+        assertEquals(RuleBump.MINOR, RuleBump.between(spec(slack), spec(slack.replace("slack", "teams"))));
         RuleSpec base = spec(BASE);
         RuleSpec oneStep = new RuleSpec(base.trigger(), base.audience(), base.steps().subList(0, 1));
         assertEquals(RuleBump.MINOR, RuleBump.between(base, oneStep));

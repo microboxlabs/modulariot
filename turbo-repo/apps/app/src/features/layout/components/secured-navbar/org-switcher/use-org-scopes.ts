@@ -1,6 +1,10 @@
 "use client";
 
 import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
+import {
+  isPlatformScope,
+  platformScopeLanding,
+} from "@/features/common/platform-scope";
 
 import useSWR from "swr";
 
@@ -101,7 +105,12 @@ export function useOrgScopes() {
     }
 
     await mutate();
-    globalThis.location.reload();
+    // Organization-only pages answer 404 in the platform scope: land on one it has.
+    const landing = isPlatformScope(slug)
+      ? platformScopeLanding(globalThis.location.pathname)
+      : null;
+    if (landing) globalThis.location.assign(landing);
+    else globalThis.location.reload();
     return true;
   };
 

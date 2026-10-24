@@ -173,14 +173,15 @@ export default function CommunicationsPage({
         )
       }
     >
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
+      {/* Below md the menu and the detail stack and scroll together; from md only the detail scrolls. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 max-md:overflow-y-auto md:grid-cols-[320px_1fr]">
         <SectionMenu
           title={tr("menuTitle", d)}
           sections={sections}
           selected={section}
           onSelect={onSection}
         />
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+        <div className="flex min-h-0 flex-col gap-4 pr-1 md:overflow-y-auto">
           {bar && (
             <div className="flex flex-wrap items-center gap-2">
               {bar.defs.map((f) => (

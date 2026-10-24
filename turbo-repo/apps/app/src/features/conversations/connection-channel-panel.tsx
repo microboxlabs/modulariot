@@ -45,13 +45,17 @@ function contractTemplate(
   };
 }
 
+const TEST_ROLES = new Set(["OWNER", "ADMIN", "PLATFORM_OWNER"]);
+
 function ConnectionRow({
   connection,
   orgSlug,
+  canTest,
   d,
 }: Readonly<{
   connection: ChannelConnection;
   orgSlug: string | null;
+  canTest: boolean;
   d: I18nRecord;
 }>) {
   const [testing, setTesting] = useState(false);
@@ -75,12 +79,14 @@ function ConnectionRow({
           {connection.name}
         </p>
         <p className={`truncate font-mono text-xs ${MUTED}`}>
-          {connection.baseUrl}
+          {connection.host}
         </p>
       </div>
-      <Button size="xs" color="light" onClick={test} disabled={testing}>
-        {testing ? <Spinner size="xs" /> : tr("channelTest", d)}
-      </Button>
+      {canTest && (
+        <Button size="xs" color="light" onClick={test} disabled={testing}>
+          {testing ? <Spinner size="xs" /> : tr("channelTest", d)}
+        </Button>
+      )}
     </li>
   );
 }
@@ -101,6 +107,8 @@ export default function ConnectionChannelPanel({
 }>) {
   const { activeOrg } = useOrgScopes();
   const orgSlug = activeOrg?.slug ?? null;
+  // The integrations test endpoint is for Owners and Admins.
+  const canTest = TEST_ROLES.has(activeOrg?.role ?? "");
   const { data: channel, error } = useConnectionChannel(channelKey);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -155,6 +163,7 @@ export default function ConnectionChannelPanel({
                 key={c.id}
                 connection={c}
                 orgSlug={orgSlug}
+                canTest={canTest}
                 d={d}
               />
             ))}
@@ -200,8 +209,10 @@ export default function ConnectionChannelPanel({
             });
             toast.success(tr("channelCreated", d));
             setCreating(false);
-          } catch {
+          } catch (cause) {
             toast.error(tr("channelCreateFailed", d));
+            // The form stays open with what was typed and shows the error.
+            throw cause;
           } finally {
             setSaving(false);
           }

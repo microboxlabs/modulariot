@@ -22,15 +22,15 @@ conservan el crudo de la fuente (el sistema de origen de cada integración).
 |---|---|---|
 | `location` | Ubicación nombrada (planta, puerto, cd, cliente, zona), geometría GeoJSON opcional | catálogo por tenant |
 | `mandate` | El encargo del cliente: `external_code` único por tenant, tipo, referencia, origen/destino, SLA, estado (`activo→en_ejecucion→cerrado`/`anulado`) | create-or-return por código; no cierra con viajes vivos (409) |
-| `mandate_line` | Línea del mandato (seq); la primera se crea sola por trigger | `UNIQUE (mandate_id, seq)` |
+| `mandate_line` | Línea del mandato (seq); la primera se crea junto con el mandato | `UNIQUE (mandate_id, seq)` |
 | `cargo_unit` | Unidad de carga de una línea, con parciales autonumerados, cantidades y ciclo `anunciada→lista→retirada→entregada→recibida/rechazada`; recepción `conforme`/`diferencia` (diferencia exige detalle) | estados de ejecución los mueve el viaje, no el PATCH |
 | `trip` | La ejecución: `planificado→en_ruta→realizado`/`anulado`, fechas plan/real | el estado lo mueven las etapas, nunca un PATCH de status |
 | `trip_mandate` | Vínculo N:M viaje↔mandato con rol y orden | re-vincular = 200 (idempotente); no desvincula con carga a bordo (409) |
 | `stage` | Etapa = estado: catálogo cerrado de 6 tipos, `seq`, una `en_curso` a la vez, fechas plan/real, checklist JSONB, **`service_status`** (estado de negocio que proyecta al tablero) | `start`/`close`; solo etapas pendientes se re-planifican |
 | `stage_activity` | Actividad dentro de una etapa (tipo libre, asignatario, evidencia JSONB) | `UNIQUE (stage_id, seq)` |
-| `trip_resource_assignment` | Asignación de recurso de `miot_fleet` al viaje con **vigencia operativa** (`valid_from/to`): cambio de camión = cerrar una ventana y abrir otra; nada se pisa | trigger valida que el recurso exista en `miot_fleet`; `double_driver` se deriva de 2 ventanas driver abiertas |
+| `trip_resource_assignment` | Asignación de recurso de `miot_fleet` al viaje con **vigencia operativa** (`valid_from/to`): cambio de camión = cerrar una ventana y abrir otra; nada se pisa | el service valida que el recurso exista en `miot_fleet`; `double_driver` se deriva de 2 ventanas driver abiertas |
 | `trip_cargo` | Qué carga va en qué viaje, con la etapa donde se montó/desmontó | no desmonta una vez retirada (409) |
-| `trip_live` † | **Proyección** del tablero caliente — compatible con el contrato `live_trip` actual (asset, conductor(es), carrier, rampla, geocercas, ETA). La escriben solo los triggers | nace con el viaje, muere en `realizado`/`anulado`; sin API de escritura |
+| `trip_live` † | **Proyección** del tablero caliente — compatible con el contrato `live_trip` actual (asset, conductor(es), carrier, rampla, geocercas, ETA). La escribe solo `TripLiveProjector` (y el motor sus campos) | nace con el viaje, muere en `realizado`/`anulado`; sin API de escritura |
 | `audit_event` † | Bitácora: actor, acción, entidad, detalle JSONB, keyset por tenant | best-effort, nunca bloquea la operación |
 
 † sin versionado SCD2: `trip_live` es proyección efímera y `audit_event` es append-only.

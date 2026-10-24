@@ -32,6 +32,8 @@ import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.CargoService;
+import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripService;
@@ -41,8 +43,6 @@ import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,18 +80,20 @@ class PgTransactionsTest {
     private final AuditService audit = new AuditService(new PgAuditStore(() -> pool));
     private final PgTripStore tripStore = new PgTripStore(() -> pool);
     private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit, tx);
-    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, audit, tx);
+    private final TripLiveProjector projector = PgTripsStoresTest.projector(() -> pool);
+    private final CargoService cargo = new CargoService(new PgCargoStore(() -> pool), mandates, projector, audit,
+            tx);
     private final TripService trips = new TripService(tripStore, new PgStageStore(() -> pool),
             new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
-            audit, tx);
+            mandates, projector, audit, tx);
     private final StageService stages = new StageService(new PgStageStore(() -> pool), tripStore,
-            new PgTripCargoStore(() -> pool), mandates, audit, tx);
-    private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
-            tripStore, audit, tx);
+            new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
     private final PgResourceStore fleetStore = new PgResourceStore(() -> pool);
     private final Transactions fleetTx =
             new PgTransactions(() -> pool);
     private final ResourceService fleet = new ResourceService(fleetStore, fleetTx);
+    private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
+            tripStore, new FleetResourcesService(fleetStore), projector, audit, tx);
 
     @BeforeAll
     static void migrate() throws IOException {
@@ -100,16 +102,7 @@ class PgTransactionsTest {
                 .connectingTo(PgConnectOptions.fromUri(System.getProperty(PgTripsStoresTest.URL_PROPERTY)))
                 .with(new PoolOptions().setMaxSize(12))
                 .using(vertx).build();
-        pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
-        pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
-        for (String sql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
-                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
-                "/db/migration/trips/V0.10.0__create_trips.sql",
-                "/db/migration/trips/V0.10.3__trips_lock_order.sql"}) {
-            try (InputStream in = PgTransactionsTest.class.getResourceAsStream(sql)) {
-                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
-            }
-        }
+        PgTripsStoresTest.recreateSchemas(pool);
     }
 
     @AfterAll

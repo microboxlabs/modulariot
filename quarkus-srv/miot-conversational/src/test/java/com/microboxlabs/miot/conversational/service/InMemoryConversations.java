@@ -90,7 +90,9 @@ public final class InMemoryConversations {
                 if (m.runId() != null && waitingRuns.contains(m.runId()) && address.equals(m.address())
                         && m.direction() == MessageDirection.OUTBOUND && c != null
                         && m.status() != MessageStatus.SIMULATED && m.status() != MessageStatus.FAILED
-                        && c.tenantCode().equals(tenantCode)) {
+                        && c.tenantCode().equals(tenantCode) && !WhatsAppMessagingService.PLATFORM_TENANT
+                                .equals(m.metadata() == null ? null : m.metadata().get(
+                                        WhatsAppMessagingService.CONNECTION_TENANT))) {
                     return new WithWaitingRun(c, m.runId());
                 }
             }

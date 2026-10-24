@@ -11,7 +11,7 @@ todos los tenants.
   propio. No hay historia, no hay etapas, no hay carga, no hay reglas comunes.
 - Este estándar separa **el encargo** (mandato del cliente) de **la ejecución** (viaje con
   etapas) y de **los recursos** (flota y acreditación, en su propio módulo), y deja el tablero
-  caliente (`trip_live`) como una **proyección** que mantienen triggers — nadie la escribe por API.
+  caliente (`trip_live`) como una **proyección** que mantiene `TripLiveProjector` — nadie la escribe por API.
 - Los pipelines de integración ya no escriben Postgres: invocan la API con service accounts.
 
 ## Mapa de lectura (el stack de PRs)

@@ -106,6 +106,15 @@ public class MandateService {
         });
     }
 
+    /** A closed or cancelled mandate takes no new trip, directly or through mounted cargo. */
+    void requireOpen(String tenantCode, UUID mandateId) {
+        String status = store.statusForLink(tenantCode, mandateId)
+                .orElseThrow(() -> new IllegalArgumentException("mandate " + mandateId + " does not exist"));
+        if (Mandate.CLOSED.equals(status) || Mandate.CANCELLED.equals(status)) {
+            throw new IllegalStateException("mandate " + mandateId + " is " + status);
+        }
+    }
+
     /** Closes; every linked trip must be realizado or anulado. */
     public Mandate close(String tenantCode, String actor, UUID id) {
         return tx.inTransaction(() -> {

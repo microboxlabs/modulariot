@@ -27,6 +27,8 @@ final class InMemoryIntegrations {
     /** What the next calls answer; null throws {@link #failure}. */
     OperationInvocationResult answer = new OperationInvocationResult(204, "");
     String failure = "connection refused";
+    /** Thrown as is by the next calls when set, like the invoker's URL guard. */
+    RuntimeException thrown;
 
     final IntegrationTemplateService templateService = new IntegrationTemplateService(null, null) {
         @Override
@@ -72,6 +74,9 @@ final class InMemoryIntegrations {
         public OperationInvocationResult invokeByName(String tenantCode, String connectionId, String operationName,
                 Map<String, Object> body) {
             calls.add(new Call(tenantCode, connectionId, operationName, body));
+            if (thrown != null) {
+                throw thrown;
+            }
             if (answer == null) {
                 throw new OperationInvocationException(failure);
             }

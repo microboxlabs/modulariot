@@ -27,6 +27,7 @@ class PlatformScopeFilterTest {
 
     private static final String OWNER = "owner@example.test";
     private static final String MEMBER = "member@example.test";
+    private static final String DISABLED_OWNER = "disabled-owner@example.test";
 
     private final TenantContext tenant = new TenantContext();
     private final OrganizationContext organization = new OrganizationContext();
@@ -69,6 +70,14 @@ class PlatformScopeFilterTest {
         assertEquals(403, refused.getStatus());
         assertNull(tenant.getTenantCode());
         assertFalse(organization.isResolved());
+    }
+
+    @Test
+    void aPlatformOwnerWhoseUserIsDisabledIsRefused() {
+        platform.caller = DISABLED_OWNER;
+
+        assertEquals(403, filter("/api/v1/orgs/_platform/integrations/connections").getStatus());
+        assertNull(tenant.getTenantCode());
     }
 
     @Test
@@ -147,7 +156,7 @@ class PlatformScopeFilterTest {
         return filter.filter(request).await().indefinitely();
     }
 
-    /** The caller's verified email, and {@value #OWNER} as the only platform owner. */
+    /** The caller's verified email; {@value #OWNER} and {@value #DISABLED_OWNER} hold the owner role. */
     private static final class FakePlatform extends PlatformAuthorizer {
         String caller;
 
@@ -161,8 +170,13 @@ class PlatformScopeFilterTest {
         }
 
         @Override
-        public Uni<Boolean> isPlatformOwner(String email) {
-            return Uni.createFrom().item(OWNER.equals(email));
+        protected Uni<Boolean> hasOwnerAssignment(String email) {
+            return Uni.createFrom().item(OWNER.equals(email) || DISABLED_OWNER.equals(email));
+        }
+
+        @Override
+        protected Uni<Boolean> accountActive(String email) {
+            return Uni.createFrom().item(!DISABLED_OWNER.equals(email));
         }
     }
 }

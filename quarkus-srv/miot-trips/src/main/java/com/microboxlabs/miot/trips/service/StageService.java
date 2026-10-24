@@ -1,0 +1,245 @@
+package com.microboxlabs.miot.trips.service;
+
+import com.microboxlabs.miot.trips.domain.MandateRef;
+import com.microboxlabs.miot.trips.domain.Stage;
+import com.microboxlabs.miot.trips.domain.StageActivity;
+import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.dto.ActivityRequest;
+import com.microboxlabs.miot.trips.dto.StageRequest;
+import com.microboxlabs.miot.trips.store.StageStore;
+import com.microboxlabs.miot.trips.store.TripCargoStore;
+import com.microboxlabs.miot.trips.store.TripStore;
+import io.quarkus.arc.properties.IfBuildProperty;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+
+/**
+ * Stages ARE the state machine of a trip: starting one is the state change (only
+ * one runs at a time), closing one moves the cargo it loads or unloads, and the
+ * closing stage of type 'cierre' realizes the trip.
+ */
+@ApplicationScoped
+@IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
+public class StageService {
+
+    static final String ENTITY = "stage";
+    static final String ACTIVITY_ENTITY = "stage_activity";
+    private static final String STAGE_TYPE = "stageType";
+    private static final String CIERRE = "cierre";
+    private static final String ACTIVITY_NOT_FOUND = "activity not found";
+
+    private final StageStore stages;
+    private final TripStore trips;
+    private final TripCargoStore tripCargo;
+    private final MandateService mandates;
+    private final AuditService audit;
+
+    @Inject
+    public StageService(StageStore stages, TripStore trips, TripCargoStore tripCargo,
+            MandateService mandates, AuditService audit) {
+        this.stages = stages;
+        this.trips = trips;
+        this.tripCargo = tripCargo;
+        this.mandates = mandates;
+        this.audit = audit;
+    }
+
+    public List<Stage> listByTrip(String tenantCode, UUID tripId) {
+        return stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId);
+    }
+
+    public Stage get(String tenantCode, UUID id) {
+        return stages.find(tenantCode, id)
+                .orElseThrow(() -> new NoSuchElementException("stage not found"));
+    }
+
+    /** Adds a planned stage at the end of the trip's sequence. */
+    public Stage add(String tenantCode, String actor, UUID tripId, StageRequest body) {
+        StageRequest req = body == null ? StageRequest.empty() : body;
+        Trip trip = trips.find(tenantCode, tripId)
+                .orElseThrow(() -> new NoSuchElementException("trip not found"));
+        if (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status())) {
+            throw new IllegalStateException("trip already " + trip.status());
+        }
+        String type = Check.oneOf(Check.required(req.stageType(), STAGE_TYPE, 32), STAGE_TYPE,
+                "preparacion", "carga", "transito", "parada", "descarga", CIERRE);
+        Stage created = stages.insert(new Stage(null, tenantCode, Stage.SUBJECT_TRIP, tripId.toString(), 0,
+                type, Check.limitedOrNull(req.serviceStatus(), "serviceStatus", 64),
+                Stage.PENDING, Check.uuidOrNull(req.locationId(), "locationId"),
+                req.plannedStart(), req.plannedEnd(), null, null,
+                req.checklist() == null ? null : req.checklist().toString(), null, actor, null, actor));
+        audit.log(tenantCode, actor, "stage.added", ENTITY, created.id(), tripId.toString(),
+                Map.of(STAGE_TYPE, type));
+        return created;
+    }
+
+    /** Patches the plan of a stage that has not started. */
+    public Stage update(String tenantCode, String actor, UUID id, StageRequest body) {
+        StageRequest req = body == null ? StageRequest.empty() : body;
+        Stage current = get(tenantCode, id);
+        if (!Stage.PENDING.equals(current.status())) {
+            throw new IllegalStateException("only pending stages can be re-planned");
+        }
+        String type = req.stageType() == null ? current.stageType()
+                : Check.oneOf(req.stageType(), STAGE_TYPE,
+                        "preparacion", "carga", "transito", "parada", "descarga", CIERRE);
+        Stage updated = stages.update(new Stage(
+                current.id(), tenantCode, current.subjectType(), current.subjectId(), current.seq(),
+                type, Check.orKeep(req.serviceStatus(), current.serviceStatus(), "serviceStatus", 64),
+                current.status(),
+                req.locationId() == null ? current.locationId() : Check.uuidOrNull(req.locationId(), "locationId"),
+                req.plannedStart() == null ? current.plannedStart() : req.plannedStart(),
+                req.plannedEnd() == null ? current.plannedEnd() : req.plannedEnd(),
+                null, null,
+                req.checklist() == null ? current.checklist() : req.checklist().toString(),
+                current.createdAt(), current.createdBy(), null, actor))
+                .orElseThrow(() -> new NoSuchElementException("stage not found"));
+        audit.log(tenantCode, actor, "stage.updated", ENTITY, updated.id(), updated.subjectId(), Map.of());
+        return updated;
+    }
+
+    /** Opens the stage — THE state change. 409 while another stage of the subject runs. */
+    public Stage start(String tenantCode, String actor, UUID id) {
+        Stage current = get(tenantCode, id);
+        if (!Stage.PENDING.equals(current.status())) {
+            throw new IllegalStateException("stage is " + current.status());
+        }
+        requireOpenTrip(tenantCode, current);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Stage started = stages.start(tenantCode, id, now, actor)
+                .orElseThrow(() -> new IllegalStateException("stage is no longer pendiente"));
+        onTripStageStarted(tenantCode, actor, started, now);
+        audit.log(tenantCode, actor, "stage.started", ENTITY, started.id(), started.subjectId(),
+                Map.of(STAGE_TYPE, started.stageType()));
+        return started;
+    }
+
+    /** Closes the stage; moves the cargo it loads/unloads, and 'cierre' realizes the trip. */
+    public Stage close(String tenantCode, String actor, UUID id) {
+        Stage current = get(tenantCode, id);
+        if (!Stage.RUNNING.equals(current.status())) {
+            throw new IllegalStateException("stage is " + current.status());
+        }
+        requireOpenTrip(tenantCode, current);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Stage closed = stages.close(tenantCode, id, now, actor)
+                .orElseThrow(() -> new IllegalStateException("stage is no longer en_curso"));
+        int loaded = tripCargo.markLoadedByStage(tenantCode, id, actor);
+        int delivered = tripCargo.markDeliveredByStage(tenantCode, id, actor);
+        if (CIERRE.equals(closed.stageType())) {
+            onTripRealized(tenantCode, actor, closed, now);
+        }
+        audit.log(tenantCode, actor, "stage.closed", ENTITY, closed.id(), closed.subjectId(),
+                Map.of(STAGE_TYPE, closed.stageType(), "cargoLoaded", loaded, "cargoDelivered", delivered));
+        return closed;
+    }
+
+    public List<StageActivity> listActivities(String tenantCode, UUID stageId) {
+        return stages.listActivities(tenantCode, stageId);
+    }
+
+    public StageActivity getActivity(String tenantCode, UUID id) {
+        return stages.findActivity(tenantCode, id)
+                .orElseThrow(() -> new NoSuchElementException(ACTIVITY_NOT_FOUND));
+    }
+
+    public StageActivity addActivity(String tenantCode, String actor, UUID stageId, ActivityRequest body) {
+        ActivityRequest req = body == null ? ActivityRequest.empty() : body;
+        Stage stage = get(tenantCode, stageId);
+        if (Stage.CLOSED.equals(stage.status())) {
+            throw new IllegalStateException("stage already closed");
+        }
+        String type = Check.required(req.activityType(), "activityType", 64);
+        StageActivity created = stages.insertActivity(new StageActivity(null, tenantCode, stageId.toString(), 0,
+                type, StageActivity.PENDING, Check.limitedOrNull(req.assignee(), "assignee", 255), null,
+                req.evidence() == null ? null : req.evidence().toString(), null, null, actor, null, actor));
+        audit.log(tenantCode, actor, "activity.added", ACTIVITY_ENTITY, created.id(), stage.subjectId(),
+                Map.of("activityType", type));
+        return created;
+    }
+
+    public StageActivity updateActivity(String tenantCode, String actor, UUID id, ActivityRequest body) {
+        ActivityRequest req = body == null ? ActivityRequest.empty() : body;
+        StageActivity current = getActivity(tenantCode, id);
+        String status = req.status() == null ? current.status()
+                : Check.oneOf(req.status(), "status", StageActivity.PENDING, StageActivity.RUNNING,
+                        StageActivity.DONE, StageActivity.NOT_APPLICABLE);
+        StageActivity updated = stages.updateActivity(new StageActivity(
+                current.id(), tenantCode, current.stageId(), current.seq(), current.activityType(), status,
+                Check.orKeep(req.assignee(), current.assignee(), "assignee", 255), current.assignmentId(),
+                req.evidence() == null ? current.evidence() : req.evidence().toString(),
+                StageActivity.DONE.equals(status) && current.doneAt() == null
+                        ? OffsetDateTime.now(ZoneOffset.UTC) : current.doneAt(),
+                current.createdAt(), current.createdBy(), null, actor))
+                .orElseThrow(() -> new NoSuchElementException(ACTIVITY_NOT_FOUND));
+        audit.log(tenantCode, actor, "activity.updated", ACTIVITY_ENTITY, updated.id(), null, Map.of());
+        return updated;
+    }
+
+    /** Marks the activity done; the assignment it produces (if any) is created by the caller. */
+    public StageActivity completeActivity(String tenantCode, String actor, UUID id, String evidence,
+            String assignmentId) {
+        StageActivity current = getActivity(tenantCode, id);
+        if (StageActivity.DONE.equals(current.status())) {
+            throw new IllegalStateException("activity already done");
+        }
+        StageActivity done = stages.updateActivity(new StageActivity(
+                current.id(), tenantCode, current.stageId(), current.seq(), current.activityType(),
+                StageActivity.DONE, current.assignee(),
+                assignmentId == null ? current.assignmentId() : Check.uuidOrNull(assignmentId, "assignmentId"),
+                evidence == null ? current.evidence() : evidence,
+                OffsetDateTime.now(ZoneOffset.UTC),
+                current.createdAt(), current.createdBy(), null, actor))
+                .orElseThrow(() -> new NoSuchElementException(ACTIVITY_NOT_FOUND));
+        audit.log(tenantCode, actor, "activity.completed", ACTIVITY_ENTITY, done.id(), null, Map.of());
+        return done;
+    }
+
+    private void requireOpenTrip(String tenantCode, Stage stage) {
+        if (!Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
+            return;
+        }
+        trips.find(tenantCode, UUID.fromString(stage.subjectId()))
+                .filter(t -> Trip.DONE.equals(t.status()) || Trip.CANCELLED.equals(t.status()))
+                .ifPresent(t -> {
+                    throw new IllegalStateException("trip already " + t.status());
+                });
+    }
+
+    /** The first running stage puts the trip en_ruta and its mandates en_ejecucion. */
+    private void onTripStageStarted(String tenantCode, String actor, Stage started, OffsetDateTime now) {
+        if (!Stage.SUBJECT_TRIP.equals(started.subjectType())) {
+            return;
+        }
+        UUID tripId = UUID.fromString(started.subjectId());
+        trips.find(tenantCode, tripId)
+                .filter(t -> Trip.PLANNED.equals(t.status()))
+                .ifPresent(t -> {
+                    trips.update(new Trip(t.id(), tenantCode, Trip.EN_ROUTE, t.originId(), t.destinationId(),
+                            t.plannedStart(), now, t.actualEnd(), t.cancelReason(),
+                            t.createdAt(), t.createdBy(), null, actor));
+                    for (MandateRef m : trips.mandatesOf(tenantCode, tripId)) {
+                        mandates.markRunning(tenantCode, actor, UUID.fromString(m.mandateId()));
+                    }
+                });
+    }
+
+    private void onTripRealized(String tenantCode, String actor, Stage closed, OffsetDateTime now) {
+        if (!Stage.SUBJECT_TRIP.equals(closed.subjectType())) {
+            return;
+        }
+        UUID tripId = UUID.fromString(closed.subjectId());
+        trips.find(tenantCode, tripId)
+                .filter(t -> !Trip.DONE.equals(t.status()) && !Trip.CANCELLED.equals(t.status()))
+                .ifPresent(t -> trips.update(new Trip(t.id(), tenantCode, Trip.DONE,
+                        t.originId(), t.destinationId(), t.plannedStart(),
+                        t.actualStart() == null ? now : t.actualStart(), now, t.cancelReason(),
+                        t.createdAt(), t.createdBy(), null, actor)));
+    }
+}

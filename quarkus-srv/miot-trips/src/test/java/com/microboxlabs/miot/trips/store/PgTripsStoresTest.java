@@ -1,0 +1,334 @@
+package com.microboxlabs.miot.trips.store;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.microboxlabs.miot.trips.domain.Assignment;
+import com.microboxlabs.miot.trips.domain.AuditEvent;
+import com.microboxlabs.miot.fleet.resources.domain.Carrier;
+import com.microboxlabs.miot.trips.domain.CargoUnit;
+import com.microboxlabs.miot.trips.domain.Location;
+import com.microboxlabs.miot.trips.domain.Mandate;
+import com.microboxlabs.miot.trips.domain.MandateLine;
+import com.microboxlabs.miot.trips.domain.Stage;
+import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripCargoLink;
+import com.microboxlabs.miot.fleet.resources.domain.Truck;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.pgclient.PgBuilder;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.pgclient.PgConnectOptions;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+
+/**
+ * Runs the trips Postgres stores against a real database, triggers included. Skipped
+ * unless {@code -Dmiot.trips.test.pg-url=postgresql://user:password@host:port/db}
+ * is set; the database's {@code miot_trips} schema is dropped and re-created, so
+ * use a scratch database. Each test uses its own tenant.
+ */
+@EnabledIfSystemProperty(named = PgTripsStoresTest.URL_PROPERTY, matches = ".+")
+class PgTripsStoresTest {
+
+    static final String URL_PROPERTY = "miot.trips.test.pg-url";
+    private static final Duration WAIT = Duration.ofSeconds(10);
+    private static final String ACTOR = "feed:test";
+
+    private static Vertx vertx;
+    private static Pool pool;
+
+    private final PgMandateStore mandates = new PgMandateStore(() -> pool);
+    private final PgCargoStore cargo = new PgCargoStore(() -> pool);
+    private final PgTripStore trips = new PgTripStore(() -> pool);
+    private final PgStageStore stages = new PgStageStore(() -> pool);
+    private final PgAssignmentStore assignments = new PgAssignmentStore(() -> pool);
+    private final PgTripCargoStore tripCargo = new PgTripCargoStore(() -> pool);
+    private final com.microboxlabs.miot.fleet.resources.store.PgResourceStore resources =
+            new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool);
+    private final PgLocationStore locations = new PgLocationStore(() -> pool);
+    private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
+    private final PgAuditStore audit = new PgAuditStore(() -> pool);
+
+    @BeforeAll
+    static void migrate() throws IOException {
+        vertx = Vertx.vertx();
+        pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(URL_PROPERTY)))
+                .using(vertx).build();
+        pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
+        pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
+        for (String fleetSql : new String[] {"/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
+                "/db/migration/fleet/V0.9.9__create_fleet_resources.sql"}) {
+            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(fleetSql)) {
+                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+            }
+        }
+        try (InputStream in = PgTripsStoresTest.class
+                .getResourceAsStream("/db/migration/trips/V0.10.0__create_trips.sql")) {
+            pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+        }
+    }
+
+    @AfterAll
+    static void close() {
+        pool.close().await().atMost(WAIT);
+        vertx.close().await().atMost(WAIT);
+    }
+
+    private static String tenant() {
+        return "t-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    private Mandate mandate(String tenant, String code) {
+        return mandates.insertOrGet(new Mandate(null, tenant, code, "oc", null, Mandate.ACTIVE,
+                null, null, null, null, null, null, ACTOR, null, ACTOR)).mandate();
+    }
+
+    @Test
+    void mandateIsCreateOrReturnAndTheTriggerLaysItsLine() {
+        String tenant = tenant();
+        MandateStore.CreateOrGet first = mandates.insertOrGet(new Mandate(null, tenant, "OC-1", "oc", null,
+                Mandate.ACTIVE, null, null, null, null, null, null, ACTOR, null, ACTOR));
+        MandateStore.CreateOrGet again = mandates.insertOrGet(new Mandate(null, tenant, "OC-1", "oc", null,
+                Mandate.ACTIVE, null, null, null, null, null, null, ACTOR, null, ACTOR));
+
+        assertTrue(first.created());
+        assertFalse(again.created());
+        assertEquals(first.mandate().id(), again.mandate().id());
+        MandateLine line = mandates.lineOf(tenant, UUID.fromString(first.mandate().id())).orElseThrow();
+        assertEquals(1, line.seq());
+        assertTrue(mandates.find("other-tenant", UUID.fromString(first.mandate().id())).isEmpty());
+    }
+
+    @Test
+    void cargoNumbersItsPartialsAndMountingLinksTheMandate() {
+        String tenant = tenant();
+        Mandate m = mandate(tenant, "OC-2");
+        MandateLine line = mandates.lineOf(tenant, UUID.fromString(m.id())).orElseThrow();
+        CargoUnit c1 = cargo.insert(new CargoUnit(null, tenant, line.id(), 0, "Pallets", new BigDecimal("20"),
+                "pallet", null, null, CargoUnit.ANNOUNCED, null, null, null, null, ACTOR, null, ACTOR));
+        CargoUnit c2 = cargo.insert(new CargoUnit(null, tenant, line.id(), 0, "Saldo", new BigDecimal("8"),
+                "pallet", null, null, CargoUnit.READY, null, null, null, null, ACTOR, null, ACTOR));
+        assertEquals(1, c1.partialNo());
+        assertEquals(2, c2.partialNo());
+
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        UUID tripId = UUID.fromString(trip.id());
+        // no explicit link: the consistency trigger upserts trip_mandate on mount
+        TripCargoLink mounted = tripCargo.insert(new TripCargoLink(trip.id(), c1.id(), tenant, null, null,
+                null, ACTOR, null, ACTOR)).orElseThrow();
+        assertNotNull(mounted.createdAt());
+        assertTrue(tripCargo.insert(new TripCargoLink(trip.id(), c1.id(), tenant, null, null,
+                null, ACTOR, null, ACTOR)).isEmpty(), "second mount of the same cargo returns empty");
+        assertEquals(List.of(m.id()),
+                trips.mandatesOf(tenant, tripId).stream().map(r -> r.mandateId()).toList());
+        assertEquals(1, trips.cargoOfMandateOnTrip(tenant, tripId, UUID.fromString(m.id())));
+        assertEquals(1, cargo.listByTrip(tenant, tripId).size());
+    }
+
+    @Test
+    void onlyOneStageRunsAndClosingMovesTheCargo() {
+        String tenant = tenant();
+        Mandate m = mandate(tenant, "OC-3");
+        MandateLine line = mandates.lineOf(tenant, UUID.fromString(m.id())).orElseThrow();
+        CargoUnit unit = cargo.insert(new CargoUnit(null, tenant, line.id(), 0, "Carga", null, null, null,
+                null, CargoUnit.READY, null, null, null, null, ACTOR, null, ACTOR));
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        Stage load = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+                Stage.PENDING, null, null, null, null, null, null, null, ACTOR, null, ACTOR));
+        Stage unload = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "descarga", null,
+                Stage.PENDING, null, null, null, null, null, null, null, ACTOR, null, ACTOR));
+        assertEquals(1, load.seq());
+        assertEquals(2, unload.seq());
+        tripCargo.insert(new TripCargoLink(trip.id(), unit.id(), tenant, load.id(), unload.id(),
+                null, ACTOR, null, ACTOR)).orElseThrow();
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        UUID loadId = UUID.fromString(load.id());
+        UUID unloadId = UUID.fromString(unload.id());
+        Stage started = stages.start(tenant, loadId, now, ACTOR).orElseThrow();
+        assertEquals(Stage.RUNNING, started.status());
+        assertThrows(IllegalStateException.class, () -> stages.start(tenant, unloadId, now, ACTOR),
+                "the partial unique index allows one running stage per subject");
+
+        stages.close(tenant, loadId, now, ACTOR).orElseThrow();
+        assertEquals(1, tripCargo.markLoadedByStage(tenant, loadId, ACTOR));
+        assertEquals(CargoUnit.PICKED, cargo.find(tenant, UUID.fromString(unit.id())).orElseThrow().status());
+        stages.start(tenant, unloadId, now, ACTOR).orElseThrow();
+        stages.close(tenant, unloadId, now, ACTOR).orElseThrow();
+        assertEquals(1, tripCargo.markDeliveredByStage(tenant, unloadId, ACTOR));
+        assertEquals(CargoUnit.DELIVERED,
+                cargo.find(tenant, UUID.fromString(unit.id())).orElseThrow().status());
+    }
+
+    @Test
+    void theResourceCheckTriggerRefusesAGhostAndAcceptsARealTruck() {
+        String tenant = tenant();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Assignment unknownTruck = new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
+                UUID.randomUUID().toString(), now, null, null, null, ACTOR, null, ACTOR);
+        assertThrows(IllegalArgumentException.class, () -> assignments.insert(unknownTruck),
+                "a truck id that does not exist is refused by the trigger");
+
+        Carrier carrier = resources.insertCarrier(new Carrier(null, tenant, null, "76.111.222-3",
+                "Transportes Test", null, null, null, null, null, Carrier.ACTIVE, false, null, null,
+                null, ACTOR, null, ACTOR));
+        Truck truck = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "PLKV-12", null,
+                null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        Assignment a = assignments.insert(new Assignment(null, tenant, trip.id(), Assignment.TRUCK,
+                truck.id(), now, null, null, null, ACTOR, null, ACTOR));
+        Assignment ended = assignments.end(tenant, UUID.fromString(a.id()), now.plusHours(1), "panne", ACTOR)
+                .orElseThrow();
+        assertNotNull(ended.validTo());
+        assertTrue(assignments.end(tenant, UUID.fromString(a.id()), now.plusHours(2), null, ACTOR).isEmpty(),
+                "an ended window does not end twice");
+        assertEquals(1, assignments.listByTrip(tenant, UUID.fromString(trip.id())).size());
+    }
+
+    @Test
+    void unmountIsLogicalAndRemountWorks() {
+        String tenant = tenant();
+        Mandate m = mandate(tenant, "OC-REMOUNT");
+        MandateLine line = mandates.lineOf(tenant, UUID.fromString(m.id())).orElseThrow();
+        CargoUnit unit = cargo.insert(new CargoUnit(null, tenant, line.id(), 0, "Carga", null, null, null,
+                null, CargoUnit.READY, null, null, null, null, ACTOR, null, ACTOR));
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        UUID tripId = UUID.fromString(trip.id());
+        UUID cargoId = UUID.fromString(unit.id());
+
+        tripCargo.insert(new TripCargoLink(trip.id(), unit.id(), tenant, null, null,
+                null, ACTOR, null, ACTOR)).orElseThrow();
+        assertTrue(tripCargo.delete(tenant, tripId, cargoId), "unmount marks the link inactive");
+        assertTrue(tripCargo.find(tenant, tripId, cargoId).isEmpty(), "an inactive link is not current");
+        assertFalse(tripCargo.delete(tenant, tripId, cargoId), "nothing current left to unmount");
+        // the partial unique only guards current+active links, so remounting works
+        assertTrue(tripCargo.insert(new TripCargoLink(trip.id(), unit.id(), tenant, null, null,
+                null, ACTOR, null, ACTOR)).isPresent(), "remount after a logical unmount");
+    }
+
+    @Test
+    void theHotRowIsBornWithTheTripAndDiesWhenItEnds() {
+        String tenant = tenant();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        UUID tripId = UUID.fromString(trip.id());
+        assertTrue(live.find(tenant, tripId).isPresent(), "the projection is born with the trip");
+
+        trips.update(new Trip(trip.id(), tenant, Trip.DONE, null, null, null, null,
+                OffsetDateTime.now(ZoneOffset.UTC), null, trip.createdAt(), trip.createdBy(), null, ACTOR));
+        assertTrue(live.find(tenant, tripId).isEmpty(), "realizado kills the hot row");
+    }
+
+    @Test
+    void locationsAndAuditKeepTheirTenantAndOrder() {
+        String tenant = tenant();
+        Location planta = locations.insert(new Location(null, tenant, "Planta Talca", "planta", "PL-01",
+                null, null, ACTOR, null, ACTOR));
+        locations.update(new Location(planta.id(), tenant, "Planta Talca", "planta", "PL-01-B", null,
+                planta.createdAt(), planta.createdBy(), null, ACTOR)).orElseThrow();
+        assertEquals("PL-01-B", locations.list(tenant, "Talca", null, 0, 10).get(0).externalCode());
+        assertTrue(locations.list("other-tenant", null, null, 0, 10).isEmpty());
+
+        audit.append(new AuditEvent(null, tenant, ACTOR, "mandate.created", "mandate", "x", null,
+                Map.of("k", "v"), null));
+        audit.append(new AuditEvent(null, tenant, ACTOR, "mandate.closed", "mandate", "x", null, null, null));
+        List<AuditEvent> trail = audit.list(tenant, "mandate", "x", null, null, 10);
+        assertEquals(2, trail.size());
+        assertEquals("mandate.closed", trail.get(0).action());
+        assertEquals("v", trail.get(1).details().get("k"));
+        List<AuditEvent> page = audit.list(tenant, null, null, trail.get(0).createdAt(), trail.get(0).id(), 10);
+        assertEquals(1, page.size());
+        assertEquals("mandate.created", page.get(0).action());
+    }
+
+    @Test
+    void renamingALocationRefreshesTheHotRow() {
+        String tenant = tenant();
+        Location origin = locations.insert(new Location(null, tenant, "Bodega Norte", "cd", "CD-N",
+                null, null, ACTOR, null, ACTOR));
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, origin.id(), null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        UUID tripId = UUID.fromString(trip.id());
+        assertEquals("Bodega Norte", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
+
+        locations.update(new Location(origin.id(), tenant, "Bodega Norte 2", "cd", "CD-N", null,
+                origin.createdAt(), origin.createdBy(), null, ACTOR)).orElseThrow();
+        assertEquals("Bodega Norte 2", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
+    }
+
+    @Test
+    void anUnchangedUpdateArchivesNothing() {
+        String tenant = tenant();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        trips.update(trip).orElseThrow();
+        assertEquals(0, versionsOf(trip.id()), "a re-sent trip leaves no history");
+        trips.update(new Trip(trip.id(), tenant, Trip.PLANNED, null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).plusDays(1), null, null, null, null, ACTOR, null, ACTOR))
+                .orElseThrow();
+        assertEquals(1, versionsOf(trip.id()), "a real change archives the previous version");
+    }
+
+    @Test
+    void aCancelledMandateTakesNoNewTrip() {
+        String tenant = tenant();
+        Mandate m = mandate(tenant, "OC-CANCEL");
+        mandates.update(new Mandate(m.id(), tenant, m.externalCode(), m.orderType(), m.orderRef(), "anulado",
+                null, null, null, OffsetDateTime.now(ZoneOffset.UTC), "cliente anula", m.createdAt(), ACTOR,
+                null, ACTOR)).orElseThrow();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+
+        UUID tripId = UUID.fromString(trip.id());
+        UUID mandateId = UUID.fromString(m.id());
+        IllegalStateException refused = assertThrows(IllegalStateException.class,
+                () -> trips.linkMandate(tenant, tripId, mandateId, 1, "primary", ACTOR));
+        assertTrue(refused.getMessage().contains("anulado"), refused.getMessage());
+    }
+
+    private long versionsOf(String id) {
+        return pool.preparedQuery("SELECT count(*) FROM miot_trips.trip WHERE version_of = $1")
+                .execute(io.vertx.mutiny.sqlclient.Tuple.of(UUID.fromString(id))).await().atMost(WAIT)
+                .iterator().next().getLong(0);
+    }
+
+    @Test
+    void jsonColumnsHoldObjectsNotStrings() {
+        String tenant = tenant();
+        audit.append(new AuditEvent(null, tenant, ACTOR, "mandate.created", "mandate", "j", null,
+                Map.of("k", "v"), null));
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+                Stage.PENDING, null, null, null, null, null, "{\"items\":[\"sello\"]}", null, ACTOR, null, ACTOR));
+        locations.insert(new Location(null, tenant, "Puerto", "puerto", "PU-01",
+                "{\"type\":\"Point\",\"coordinates\":[-71.6,-33.0]}", null, ACTOR, null, ACTOR));
+
+        List<String> types = pool.preparedQuery("""
+                SELECT jsonb_typeof(details) FROM miot_trips.audit_event WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(checklist) FROM miot_trips.stage WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(geom_geojson) FROM miot_trips.location WHERE tenant_code = $1""")
+                .execute(io.vertx.mutiny.sqlclient.Tuple.of(tenant)).await().atMost(WAIT)
+                .stream().map(r -> r.getString(0)).toList();
+        assertEquals(List.of("object", "object", "object"), types);
+    }
+}

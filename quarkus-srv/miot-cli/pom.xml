@@ -56,6 +56,10 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-trips</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-gateway</artifactId>
         </dependency>
         <dependency>

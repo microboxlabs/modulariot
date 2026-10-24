@@ -55,7 +55,6 @@ public class WhatsAppWebhookJobs {
 
     private final Enqueuer jobs;
     private final Consumer<EnqueueJobsResponse> onEnqueued;
-    private final boolean enabled;
     private final Function<String, String> numberTenant;
     private final Function<String, String> messageTenant;
 
@@ -63,7 +62,7 @@ public class WhatsAppWebhookJobs {
     public WhatsAppWebhookJobs(AsyncJobService jobs, ModulithJobWorker worker,
             IntegrationConnectionResolver resolver, MessageRepository messages,
             ConversationRepository conversations) {
-        this(jobs::enqueue, worker::onEnqueued, worker.enabled(),
+        this(jobs::enqueue, worker::onEnqueued,
                 phoneNumberId -> resolver.resolveByWhatsAppPhoneNumberId(phoneNumberId)
                         .map(InboundChannelRef::tenantCode).orElse(null),
                 wamid -> {
@@ -75,18 +74,12 @@ public class WhatsAppWebhookJobs {
     }
 
     /** {@code numberTenant} maps a phone_number_id, {@code messageTenant} a wamid, to a tenant or null. */
-    public WhatsAppWebhookJobs(Enqueuer jobs, Consumer<EnqueueJobsResponse> onEnqueued, boolean enabled,
+    public WhatsAppWebhookJobs(Enqueuer jobs, Consumer<EnqueueJobsResponse> onEnqueued,
             Function<String, String> numberTenant, Function<String, String> messageTenant) {
         this.jobs = jobs;
         this.onEnqueued = onEnqueued;
-        this.enabled = enabled;
         this.numberTenant = numberTenant;
         this.messageTenant = messageTenant;
-    }
-
-    /** Whether this instance runs the jobs; without the modulith lane the webhook stores events inline. */
-    public boolean enabled() {
-        return enabled;
     }
 
     /** Parses the delivery and enqueues its events; returns how many jobs were created. */

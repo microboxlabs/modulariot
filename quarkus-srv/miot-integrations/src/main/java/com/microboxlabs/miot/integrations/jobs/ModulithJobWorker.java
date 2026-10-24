@@ -34,7 +34,8 @@ import org.jboss.logging.Logger;
  *       in a topology where nothing kicks.</li>
  * </ul>
  *
- * <p>Off by default ({@code miot.integrations.modulith-worker.enabled}). Per-handler
+ * <p>On by default; {@code miot.integrations.modulith-worker.enabled=false} keeps a local modulith that shares a
+ * deployed database from running its jobs. Per-handler
  * readiness (e.g. a downstream base URL) is the handler's own concern via
  * {@link ModulithJobHandler#isReady()}.
  */
@@ -55,7 +56,7 @@ public class ModulithJobWorker {
     ModulithJobWorker(
             AsyncJobService jobService,
             Instance<ModulithJobHandler> handlers,
-            @ConfigProperty(name = "miot.integrations.modulith-worker.enabled", defaultValue = "false")
+            @ConfigProperty(name = "miot.integrations.modulith-worker.enabled", defaultValue = "true")
                     boolean enabled,
             @ConfigProperty(name = "miot.integrations.modulith-worker.claim-limit", defaultValue = "20")
                     int claimLimit,
@@ -101,11 +102,6 @@ public class ModulithJobWorker {
      * handler for, kick a drain on the worker pool (off the request thread).
      * Never throws — the reconciler is the backstop if the kick is dropped.
      */
-    /** Whether this instance runs the modulith lane; without it, enqueued jobs wait for an instance that does. */
-    public boolean enabled() {
-        return enabled;
-    }
-
     public void onEnqueued(EnqueueJobsResponse response) {
         if (enabled && hasHandledLaneJob(response)) {
             Infrastructure.getDefaultWorkerPool().execute(this::drain);

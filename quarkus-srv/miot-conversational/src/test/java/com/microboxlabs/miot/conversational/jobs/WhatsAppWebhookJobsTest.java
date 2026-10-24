@@ -47,7 +47,7 @@ class WhatsAppWebhookJobsTest {
     private final Map<String, List<AsyncJobSpec>> enqueued = new LinkedHashMap<>();
     private final List<String> enqueuedBy = new ArrayList<>();
     private final List<EnqueueJobsResponse> kicked = new ArrayList<>();
-    private final WhatsAppWebhookJobs jobs = new WhatsAppWebhookJobs(this::enqueue, kicked::add, true,
+    private final WhatsAppWebhookJobs jobs = new WhatsAppWebhookJobs(this::enqueue, kicked::add,
             pnid -> "PNID_ORG".equals(pnid) ? ORG : null,
             wamid -> "wamid.OUT1".equals(wamid) ? ORG : null);
 
@@ -142,12 +142,5 @@ class WhatsAppWebhookJobsTest {
 
         Map<String, Object> unknown = enqueued.get(PlatformScope.TENANT).get(1).payload();
         assertThrows(IllegalStateException.class, () -> handler.handle(PlatformScope.TENANT, unknown));
-    }
-
-    @Test
-    void theInstanceThatRunsNoJobsSaysSo() {
-        assertTrue(jobs.enabled());
-        assertEquals(false, new WhatsAppWebhookJobs(this::enqueue, kicked::add, false, p -> null, w -> null)
-                .enabled());
     }
 }

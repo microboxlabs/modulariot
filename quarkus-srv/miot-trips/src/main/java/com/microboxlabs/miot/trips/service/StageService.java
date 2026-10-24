@@ -232,13 +232,13 @@ public class StageService {
         });
     }
 
-    /** Locks the stage's trip, so every operation that takes several locks takes the trip's first. */
     private void refreshTrip(String tenantCode, Stage stage) {
         if (Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
             live.refresh(tenantCode, UUID.fromString(stage.subjectId()));
         }
     }
 
+    /** Locks the stage's trip, so every operation that takes several locks takes the trip's first. */
     private Optional<Trip> lockTrip(String tenantCode, Stage stage) {
         if (!Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
             return Optional.empty();

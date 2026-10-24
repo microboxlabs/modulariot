@@ -3,7 +3,6 @@ package com.microboxlabs.miot.trips.service;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
-import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripLiveProjection;
@@ -37,6 +36,7 @@ import java.util.stream.Collectors;
 public class TripLiveProjector {
 
     private static final int TYPE_LOAD_MAX = 255;
+    private static final int LABEL_MAX = 128;
 
     private final TripStore trips;
     private final StageStore stages;
@@ -123,7 +123,8 @@ public class TripLiveProjector {
 
     private String locationName(String tenantCode, String locationId) {
         UUID id = Pg.parse(locationId);
-        return id == null ? null : locations.find(tenantCode, id).map(Location::name).orElse(null);
+        return id == null ? null
+                : locations.find(tenantCode, id).map(l -> truncate(l.name(), LABEL_MAX)).orElse(null);
     }
 
     /** The running stage's service status, else that of the stage that started last; empty when none declared one. */
@@ -145,9 +146,12 @@ public class TripLiveProjector {
     private String typeLoad(String tenantCode, UUID tripId) {
         String load = cargo.listByTrip(tenantCode, tripId).stream()
                 .map(CargoUnit::description).filter(Objects::nonNull).collect(Collectors.joining(" + "));
-        if (load.isEmpty()) {
-            return null;
-        }
-        return load.length() > TYPE_LOAD_MAX ? load.substring(0, TYPE_LOAD_MAX) : load;
+        return load.isEmpty() ? null : truncate(load, TYPE_LOAD_MAX);
+    }
+
+    /** The first {@code max} characters, counted as code points like the column's VARCHAR length. */
+    private static String truncate(String text, int max) {
+        return text.codePointCount(0, text.length()) <= max ? text
+                : text.substring(0, text.offsetByCodePoints(0, max));
     }
 }

@@ -159,8 +159,8 @@ public class PgTripStore implements TripStore {
         return query(pool.get(), """
                 SELECT id FROM miot_trips.trip
                 WHERE tenant_code = $1 AND (origin_id = $2 OR destination_id = $2)
-                  AND version_of IS NULL AND is_active AND status NOT IN ('realizado', 'anulado')""",
-                Tuple.of(tenantCode, locationId))
+                  AND version_of IS NULL AND is_active AND status NOT IN ($3, $4)""",
+                Tuple.of(tenantCode, locationId, Trip.DONE, Trip.CANCELLED))
                 .stream().map(r -> r.getUUID("id")).toList();
     }
 

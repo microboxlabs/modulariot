@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Used when the fleet module is not in the build: a resource cannot be checked, so an assignment is refused, and
+ * Used when the fleet module is not in the build: an assignment cannot be checked, so it fails (500), and
  * lookups find nothing.
  */
 @ApplicationScoped
@@ -15,7 +15,7 @@ public class NoFleetResources implements FleetResources {
 
     @Override
     public boolean exists(String tenantCode, String resourceType, UUID id) {
-        throw new IllegalStateException("the fleet component is not enabled in this build");
+        throw new UnsupportedOperationException("the fleet component is not enabled in this build");
     }
 
     @Override

@@ -41,7 +41,8 @@ public class TripService {
     /** Stands in for the trip id while the stage plan is validated before the trip exists. */
     private static final UUID NO_TRIP = new UUID(0, 0);
     private static final String TRIP_NOT_FOUND = "trip not found";
-    private static final String MANDATE_ID = "mandateId";
+    static final String MANDATE_ID = "mandateId";
+    static final String MANDATE_LINKED = "trip.mandate_linked";
 
     private final TripStore trips;
     private final StageStore stages;
@@ -78,6 +79,8 @@ public class TripService {
             if (req.stages() != null) {
                 req.stages().forEach(s -> planned(tenantCode, actor, NO_TRIP, s));
             }
+            // checked in id order, the order stage start locks mandates in
+            mandateIds.stream().sorted().forEach(m -> mandates.requireOpen(tenantCode, m));
             Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
                     Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart(), null, null, null, null, actor, null, actor));
@@ -86,7 +89,6 @@ public class TripService {
             List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
             order.sort(Comparator.comparing(mandateIds::get));
             for (int i : order) {
-                mandates.requireOpen(tenantCode, mandateIds.get(i));
                 trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
             }
             if (req.stages() != null) {
@@ -182,18 +184,18 @@ public class TripService {
         return tx.inTransaction(() -> {
             get(tenantCode, tripId);
             UUID mid = parse(Check.required(mandateId, MANDATE_ID, 64), MANDATE_ID);
+            String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
             List<MandateRef> current = trips.mandatesOf(tenantCode, tripId);
             // an existing link stays a no-op, even once its mandate has closed
             if (current.stream().anyMatch(m -> m.mandateId().equals(mid.toString()))) {
                 return false;
             }
-            int s = seq == null ? current.size() + 1 : seq;
-            String r = role == null || role.isBlank() ? "primary" : Check.limited(role, "role", 32);
+            int s = seq == null ? nextSeq(current) : seq;
             mandates.requireOpen(tenantCode, mid);
             boolean linked = trips.linkMandate(tenantCode, tripId, mid, s, r, actor);
             if (linked) {
                 live.refresh(tenantCode, tripId);
-                audit.log(tenantCode, actor, "trip.mandate_linked", ENTITY, tripId.toString(), tripId.toString(),
+                audit.log(tenantCode, actor, MANDATE_LINKED, ENTITY, tripId.toString(), tripId.toString(),
                         Map.of(MANDATE_ID, mid.toString()));
             }
             return linked;
@@ -228,6 +230,11 @@ public class TripService {
                 Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64), Stage.PENDING,
                 Check.uuidOrNull(s.locationId(), "locationId"), s.plannedStart(), s.plannedEnd(), null, null,
                 s.checklist() == null ? null : s.checklist().toString(), null, actor, null, actor);
+    }
+
+    /** The next link position: after the highest one in use, so an unlink does not cause a repeat. */
+    static int nextSeq(List<MandateRef> links) {
+        return links.stream().mapToInt(MandateRef::seq).max().orElse(0) + 1;
     }
 
     static UUID parse(String raw, String field) {

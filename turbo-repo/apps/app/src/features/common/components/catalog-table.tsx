@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** The list layout of a communications catalog: a header row of `columns`, then the rows. */
+/** The list layout of a settings catalog: a header row of `columns`, then the rows. */
 export default function CatalogTable({
   columns,
   children,

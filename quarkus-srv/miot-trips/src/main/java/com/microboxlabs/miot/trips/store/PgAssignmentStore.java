@@ -59,7 +59,7 @@ public class PgAssignmentStore implements AssignmentStore {
     public Optional<Assignment> find(String tenantCode, UUID id) {
         return first(query(pool.get(),
                 "SELECT " + COLUMNS
-                        + " FROM miot_trips.trip_resource_assignment WHERE tenant_code = $1 AND id = $2",
+                        + " FROM miot_trips.trip_resource_assignment WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id)));
     }
 

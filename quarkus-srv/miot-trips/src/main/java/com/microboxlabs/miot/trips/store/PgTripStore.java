@@ -69,7 +69,7 @@ public class PgTripStore implements TripStore {
     @Override
     public Optional<Trip> find(String tenantCode, UUID id) {
         RowSet<Row> rows = query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2",
+                "SELECT " + COLUMNS + " FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id));
         return first(rows);
     }

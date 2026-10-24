@@ -75,7 +75,7 @@ public class PgMandateStore implements MandateStore {
     @Override
     public Optional<Mandate> find(String tenantCode, UUID id) {
         RowSet<Row> rows = query(pool.get(),
-                SELECT + COLUMNS + " FROM miot_trips.mandate WHERE tenant_code = $1 AND id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.mandate WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id));
         return first(rows);
     }

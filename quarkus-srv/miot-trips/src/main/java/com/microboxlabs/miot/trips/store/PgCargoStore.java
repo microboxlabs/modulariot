@@ -67,7 +67,7 @@ public class PgCargoStore implements CargoStore {
     @Override
     public Optional<CargoUnit> find(String tenantCode, UUID id) {
         RowSet<Row> rows = query(pool.get(),
-                SELECT + COLUMNS + " FROM miot_trips.cargo_unit WHERE tenant_code = $1 AND id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.cargo_unit WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id));
         RowIterator<Row> it = rows.iterator();
         return it.hasNext() ? Optional.of(cargo(it.next())) : Optional.empty();
@@ -102,6 +102,17 @@ public class PgCargoStore implements CargoStore {
                  ORDER BY cu.partial_no""",
                 Tuple.of(tenantCode, tripId))
                 .stream().map(PgCargoStore::cargo).toList();
+    }
+
+    @Override
+    public void lockTripsCarrying(String tenantCode, UUID cargoId) {
+        query(pool.get(), """
+                SELECT t.id FROM miot_trips.trip t
+                JOIN miot_trips.trip_cargo tc ON tc.trip_id = t.id AND tc.tenant_code = t.tenant_code
+                WHERE tc.tenant_code = $1 AND tc.cargo_id = $2 AND tc.version_of IS NULL AND tc.is_active
+                  AND t.version_of IS NULL
+                ORDER BY t.id
+                FOR UPDATE OF t""", Tuple.of(tenantCode, cargoId));
     }
 
     @Override

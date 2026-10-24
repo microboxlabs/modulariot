@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.core.db.PgTx;
 import io.vertx.pgclient.PgException;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -25,12 +26,19 @@ public final class Pg {
     private Pg() {
     }
 
+    /** Runs on the open transaction ({@link PgTx}) when there is one, on {@code client} otherwise. */
     public static RowSet<Row> query(SqlClient client, String sql, Tuple params) {
         try {
-            return client.preparedQuery(sql).execute(params).await().atMost(QUERY_TIMEOUT);
+            return PgTx.client(client).preparedQuery(sql).execute(params).await().atMost(QUERY_TIMEOUT);
         } catch (PgException e) {
+            PgTx.statementFailed();
             throw translate(e);
         }
+    }
+
+    /** {@code " FOR UPDATE"} inside a transaction. */
+    public static String lock() {
+        return PgTx.lock();
     }
 
     /** Constraint violations become domain exceptions the resource layer already maps (400/409). */
@@ -39,7 +47,7 @@ public final class Pg {
             case "23505" -> new IllegalStateException("conflict: another row already holds that state");
             case "23503" -> new IllegalArgumentException("a referenced entity does not exist");
             case "23514" -> new IllegalArgumentException("a value is outside its allowed set");
-            default -> e;
+            default -> PgTx.conflictOr(e);
         };
     }
 

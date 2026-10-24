@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.api;
 import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.trips.access.TripsAccessCatalog;
@@ -49,6 +50,7 @@ public class OrgActivitiesResource extends OrgResourceSupport {
 
     private final StageService stages;
     private final AssignmentService assignments;
+    private final Transactions transactions;
 
     @Inject
     public OrgActivitiesResource(
@@ -57,10 +59,12 @@ public class OrgActivitiesResource extends OrgResourceSupport {
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             StageService stages,
-            AssignmentService assignments) {
+            AssignmentService assignments,
+            Transactions transactions) {
         super(tenantContext, organizationContext, roleService, identity);
         this.stages = stages;
         this.assignments = assignments;
+        this.transactions = transactions;
     }
 
     @GET
@@ -115,24 +119,23 @@ public class OrgActivitiesResource extends OrgResourceSupport {
         String actor = actor();
         return work(() -> {
             UUID id = uuid(activityId, "activityId");
-            String assignmentId = null;
-            if (body != null && body.assignment() != null) {
-                StageActivity activity = stages.getActivity(tenant, id);
-                // a retried completion must not create a second assignment before the 409
-                if (StageActivity.DONE.equals(activity.status())) {
-                    throw new IllegalStateException("activity already done");
-                }
-                Stage stage = stages.get(tenant, uuid(activity.stageId(), STAGE_ID));
-                if (!Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
-                    throw new IllegalArgumentException("only a trip stage can produce an assignment");
-                }
-                Assignment created = assignments.create(tenant, actor,
-                        uuid(stage.subjectId(), "subjectId"), body.assignment());
-                assignmentId = created.id();
+            String evidence = body == null || body.evidence() == null ? null : body.evidence().toString();
+            Stage stage = body == null || body.assignment() == null ? null
+                    : stages.get(tenant, uuid(stages.getActivity(tenant, id).stageId(), STAGE_ID));
+            if (stage != null && !Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
+                throw new IllegalArgumentException("only a trip stage can produce an assignment");
             }
-            return Response.ok(ActivityView.of(stages.completeActivity(tenant, actor, id,
-                    body == null || body.evidence() == null ? null : body.evidence().toString(), assignmentId)))
-                    .build();
+            // one transaction: when the completion is refused (already done), the assignment is rolled back
+            StageActivity done = transactions.inTransaction(() -> {
+                String assignmentId = null;
+                if (stage != null) {
+                    Assignment created = assignments.create(tenant, actor,
+                            uuid(stage.subjectId(), "subjectId"), body.assignment());
+                    assignmentId = created.id();
+                }
+                return stages.completeActivity(tenant, actor, id, evidence, assignmentId);
+            });
+            return Response.ok(ActivityView.of(done)).build();
         });
     }
 }

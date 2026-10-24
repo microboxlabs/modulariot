@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.resources.service;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
@@ -32,10 +33,12 @@ public class ResourceService {
     private static final String FULL_NAME = "fullName";
 
     private final ResourceStore store;
+    private final Transactions tx;
 
     @Inject
-    public ResourceService(ResourceStore store) {
+    public ResourceService(ResourceStore store, Transactions tx) {
         this.store = store;
+        this.tx = tx;
     }
 
     // ---- carriers -------------------------------------------------------
@@ -63,22 +66,24 @@ public class ResourceService {
     }
 
     public Carrier updateCarrier(String tenantCode, String actor, UUID id, CarrierRequest body) {
-        CarrierRequest req = body == null ? CarrierRequest.empty() : body;
-        Carrier c = store.findCarrier(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("carrier not found"));
-        return store.updateCarrier(new Carrier(c.id(), tenantCode,
-                Check.orKeep(req.externalId(), c.externalId(), EXTERNAL_ID, 128),
-                Check.orKeep(req.rut(), c.rut(), "rut", 32),
-                req.legalName() == null ? c.legalName() : Check.required(req.legalName(), "legalName", 255),
-                Check.orKeep(req.transportLicense(), c.transportLicense(), "transportLicense", 64),
-                req.transportLicenseExpires() == null ? c.transportLicenseExpires() : req.transportLicenseExpires(),
-                Check.orKeep(req.contactName(), c.contactName(), "contactName", 255),
-                Check.orKeep(req.phone(), c.phone(), PHONE, 64),
-                Check.orKeep(req.email(), c.email(), "email", 255),
-                req.status() == null ? c.status() : Check.required(req.status(), STATUS, 32),
-                req.isOccasional() == null ? c.isOccasional() : req.isOccasional(),
-                c.sourceSystem(), c.sourceData(), c.createdAt(), c.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("carrier not found"));
+        return tx.inTransaction(() -> {
+            CarrierRequest req = body == null ? CarrierRequest.empty() : body;
+            Carrier c = store.findCarrier(tenantCode, id)
+                    .orElseThrow(() -> new NoSuchElementException("carrier not found"));
+            return store.updateCarrier(new Carrier(c.id(), tenantCode,
+                    Check.orKeep(req.externalId(), c.externalId(), EXTERNAL_ID, 128),
+                    Check.orKeep(req.rut(), c.rut(), "rut", 32),
+                    req.legalName() == null ? c.legalName() : Check.required(req.legalName(), "legalName", 255),
+                    Check.orKeep(req.transportLicense(), c.transportLicense(), "transportLicense", 64),
+                    req.transportLicenseExpires() == null ? c.transportLicenseExpires() : req.transportLicenseExpires(),
+                    Check.orKeep(req.contactName(), c.contactName(), "contactName", 255),
+                    Check.orKeep(req.phone(), c.phone(), PHONE, 64),
+                    Check.orKeep(req.email(), c.email(), "email", 255),
+                    req.status() == null ? c.status() : Check.required(req.status(), STATUS, 32),
+                    req.isOccasional() == null ? c.isOccasional() : req.isOccasional(),
+                    c.sourceSystem(), c.sourceData(), c.createdAt(), c.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("carrier not found"));
+        });
     }
 
     // ---- trucks ---------------------------------------------------------
@@ -106,22 +111,24 @@ public class ResourceService {
     }
 
     public Truck updateTruck(String tenantCode, String actor, UUID id, TruckRequest body) {
-        TruckRequest req = body == null ? TruckRequest.empty() : body;
-        Truck t = store.findTruck(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("truck not found"));
-        return store.updateTruck(new Truck(t.id(), tenantCode,
-                req.carrierId() == null ? t.carrierId() : carrierId(req.carrierId()),
-                Check.orKeep(req.externalId(), t.externalId(), EXTERNAL_ID, 128),
-                req.licensePlate() == null ? t.licensePlate()
-                        : Check.required(req.licensePlate(), LICENSE_PLATE, 16),
-                Check.orKeep(req.vin(), t.vin(), "vin", 32),
-                Check.orKeep(req.truckType(), t.truckType(), "truckType", 64),
-                req.maxWeight() == null ? t.maxWeight() : req.maxWeight(),
-                req.volume() == null ? t.volume() : req.volume(),
-                req.status() == null ? t.status() : Check.required(req.status(), STATUS, 32),
-                req.isOccasional() == null ? t.isOccasional() : req.isOccasional(),
-                t.sourceSystem(), t.sourceData(), t.createdAt(), t.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("truck not found"));
+        return tx.inTransaction(() -> {
+            TruckRequest req = body == null ? TruckRequest.empty() : body;
+            Truck t = store.findTruck(tenantCode, id)
+                    .orElseThrow(() -> new NoSuchElementException("truck not found"));
+            return store.updateTruck(new Truck(t.id(), tenantCode,
+                    req.carrierId() == null ? t.carrierId() : carrierId(req.carrierId()),
+                    Check.orKeep(req.externalId(), t.externalId(), EXTERNAL_ID, 128),
+                    req.licensePlate() == null ? t.licensePlate()
+                            : Check.required(req.licensePlate(), LICENSE_PLATE, 16),
+                    Check.orKeep(req.vin(), t.vin(), "vin", 32),
+                    Check.orKeep(req.truckType(), t.truckType(), "truckType", 64),
+                    req.maxWeight() == null ? t.maxWeight() : req.maxWeight(),
+                    req.volume() == null ? t.volume() : req.volume(),
+                    req.status() == null ? t.status() : Check.required(req.status(), STATUS, 32),
+                    req.isOccasional() == null ? t.isOccasional() : req.isOccasional(),
+                    t.sourceSystem(), t.sourceData(), t.createdAt(), t.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("truck not found"));
+        });
     }
 
     // ---- trailers -------------------------------------------------------
@@ -148,21 +155,23 @@ public class ResourceService {
     }
 
     public Trailer updateTrailer(String tenantCode, String actor, UUID id, TrailerRequest body) {
-        TrailerRequest req = body == null ? TrailerRequest.empty() : body;
-        Trailer t = store.findTrailer(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("trailer not found"));
-        return store.updateTrailer(new Trailer(t.id(), tenantCode,
-                req.carrierId() == null ? t.carrierId() : carrierId(req.carrierId()),
-                Check.orKeep(req.externalId(), t.externalId(), EXTERNAL_ID, 128),
-                req.licensePlate() == null ? t.licensePlate()
-                        : Check.required(req.licensePlate(), LICENSE_PLATE, 16),
-                Check.orKeep(req.vin(), t.vin(), "vin", 32),
-                Check.orKeep(req.trailerType(), t.trailerType(), "trailerType", 64),
-                req.maxWeight() == null ? t.maxWeight() : req.maxWeight(),
-                req.status() == null ? t.status() : Check.required(req.status(), STATUS, 32),
-                req.isOccasional() == null ? t.isOccasional() : req.isOccasional(),
-                t.sourceSystem(), t.sourceData(), t.createdAt(), t.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("trailer not found"));
+        return tx.inTransaction(() -> {
+            TrailerRequest req = body == null ? TrailerRequest.empty() : body;
+            Trailer t = store.findTrailer(tenantCode, id)
+                    .orElseThrow(() -> new NoSuchElementException("trailer not found"));
+            return store.updateTrailer(new Trailer(t.id(), tenantCode,
+                    req.carrierId() == null ? t.carrierId() : carrierId(req.carrierId()),
+                    Check.orKeep(req.externalId(), t.externalId(), EXTERNAL_ID, 128),
+                    req.licensePlate() == null ? t.licensePlate()
+                            : Check.required(req.licensePlate(), LICENSE_PLATE, 16),
+                    Check.orKeep(req.vin(), t.vin(), "vin", 32),
+                    Check.orKeep(req.trailerType(), t.trailerType(), "trailerType", 64),
+                    req.maxWeight() == null ? t.maxWeight() : req.maxWeight(),
+                    req.status() == null ? t.status() : Check.required(req.status(), STATUS, 32),
+                    req.isOccasional() == null ? t.isOccasional() : req.isOccasional(),
+                    t.sourceSystem(), t.sourceData(), t.createdAt(), t.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("trailer not found"));
+        });
     }
 
     // ---- drivers --------------------------------------------------------
@@ -197,28 +206,30 @@ public class ResourceService {
     }
 
     public Driver updateDriver(String tenantCode, String actor, UUID id, DriverRequest body) {
-        DriverRequest req = body == null ? DriverRequest.empty() : body;
-        Driver d = store.findDriver(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("driver not found"));
-        String firstName = Check.orKeep(req.firstName(), d.firstName(), "firstName", 128);
-        String lastName = Check.orKeep(req.lastName(), d.lastName(), "lastName", 128);
-        String fullName = req.fullName() == null && (req.firstName() != null || req.lastName() != null)
-                ? join(firstName, lastName) : Check.orKeep(req.fullName(), d.fullName(), FULL_NAME, 255);
-        return store.updateDriver(new Driver(d.id(), tenantCode,
-                driverCarrier(req.carrierId(), d.carrierId()),
-                Check.orKeep(req.externalId(), d.externalId(), EXTERNAL_ID, 128),
-                req.rut() == null ? d.rut() : Check.required(req.rut(), "rut", 32),
-                firstName,
-                lastName,
-                Check.limitedOrNull(fullName, FULL_NAME, 255),
-                Check.orKeep(req.phone(), d.phone(), PHONE, 64),
-                Check.orKeep(req.mobilePhone(), d.mobilePhone(), "mobilePhone", 64),
-                Check.orKeep(req.licenseCategory(), d.licenseCategory(), "licenseCategory", 16),
-                req.licenseExpires() == null ? d.licenseExpires() : req.licenseExpires(),
-                req.status() == null ? d.status() : Check.required(req.status(), STATUS, 32),
-                req.isOccasional() == null ? d.isOccasional() : req.isOccasional(),
-                d.sourceSystem(), d.sourceData(), d.createdAt(), d.createdBy(), null, actor))
-                .orElseThrow(() -> new NoSuchElementException("driver not found"));
+        return tx.inTransaction(() -> {
+            DriverRequest req = body == null ? DriverRequest.empty() : body;
+            Driver d = store.findDriver(tenantCode, id)
+                    .orElseThrow(() -> new NoSuchElementException("driver not found"));
+            String firstName = Check.orKeep(req.firstName(), d.firstName(), "firstName", 128);
+            String lastName = Check.orKeep(req.lastName(), d.lastName(), "lastName", 128);
+            String fullName = req.fullName() == null && (req.firstName() != null || req.lastName() != null)
+                    ? join(firstName, lastName) : Check.orKeep(req.fullName(), d.fullName(), FULL_NAME, 255);
+            return store.updateDriver(new Driver(d.id(), tenantCode,
+                    driverCarrier(req.carrierId(), d.carrierId()),
+                    Check.orKeep(req.externalId(), d.externalId(), EXTERNAL_ID, 128),
+                    req.rut() == null ? d.rut() : Check.required(req.rut(), "rut", 32),
+                    firstName,
+                    lastName,
+                    Check.limitedOrNull(fullName, FULL_NAME, 255),
+                    Check.orKeep(req.phone(), d.phone(), PHONE, 64),
+                    Check.orKeep(req.mobilePhone(), d.mobilePhone(), "mobilePhone", 64),
+                    Check.orKeep(req.licenseCategory(), d.licenseCategory(), "licenseCategory", 16),
+                    req.licenseExpires() == null ? d.licenseExpires() : req.licenseExpires(),
+                    req.status() == null ? d.status() : Check.required(req.status(), STATUS, 32),
+                    req.isOccasional() == null ? d.isOccasional() : req.isOccasional(),
+                    d.sourceSystem(), d.sourceData(), d.createdAt(), d.createdBy(), null, actor))
+                    .orElseThrow(() -> new NoSuchElementException("driver not found"));
+        });
     }
 
     // ---- shared ---------------------------------------------------------

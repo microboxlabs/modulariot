@@ -36,7 +36,7 @@ public class PgStageStore implements StageStore {
             INSERT INTO miot_trips.stage
                 (tenant_code, subject_type, subject_id, seq, stage_type, service_status, location_id,
                  planned_start, planned_end, checklist, created_by, updated_by)
-            SELECT $1, $2, $3, COALESCE(max(seq), 0) + 1, $4, $5, $6, $7, $8, $9::text::jsonb, $10, $10
+            SELECT $1, $2::text, $3, COALESCE(max(seq), 0) + 1, $4, $5, $6, $7, $8, $9::text::jsonb, $10, $10
             FROM miot_trips.stage
             WHERE subject_type = $2 AND subject_id = $3 AND version_of IS NULL AND is_active
             RETURNING\s""" + COLUMNS;
@@ -90,7 +90,7 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<Stage> find(String tenantCode, UUID id) {
         return firstStage(query(pool.get(),
-                SELECT + COLUMNS + " FROM miot_trips.stage WHERE tenant_code = $1 AND id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.stage WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id)));
     }
 
@@ -144,7 +144,7 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<StageActivity> findActivity(String tenantCode, UUID id) {
         return firstActivity(query(pool.get(),
-                SELECT + A_COLUMNS + " FROM miot_trips.stage_activity WHERE tenant_code = $1 AND id = $2",
+                SELECT + A_COLUMNS + " FROM miot_trips.stage_activity WHERE tenant_code = $1 AND id = $2" + Pg.lock(),
                 Tuple.of(tenantCode, id)));
     }
 

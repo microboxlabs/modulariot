@@ -95,7 +95,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Carrier> findCarrier(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(CARRIER_COLS, "carrier") + BY_ID,
+                select(CARRIER_COLS, "carrier") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::carrier);
     }
 
@@ -150,7 +150,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Truck> findTruck(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRUCK_COLS, "truck") + BY_ID,
+                select(TRUCK_COLS, "truck") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::truck);
     }
 
@@ -206,7 +206,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Trailer> findTrailer(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRAILER_COLS, "trailer") + BY_ID,
+                select(TRAILER_COLS, "trailer") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::trailer);
     }
 
@@ -261,7 +261,7 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Driver> findDriver(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(DRIVER_COLS, "driver") + BY_ID,
+                select(DRIVER_COLS, "driver") + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::driver);
     }
 

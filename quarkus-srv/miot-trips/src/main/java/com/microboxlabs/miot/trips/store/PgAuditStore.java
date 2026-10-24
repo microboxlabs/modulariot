@@ -5,6 +5,7 @@ import static com.microboxlabs.miot.trips.store.Pg.text;
 import static com.microboxlabs.miot.trips.store.Pg.time;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.trips.domain.AuditEvent;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -53,7 +54,8 @@ public class PgAuditStore implements AuditStore {
                 .addString(e.tenantCode()).addString(e.actor()).addString(e.action())
                 .addString(e.entityType()).addString(e.entityId()).addUUID(Pg.parse(e.tripId()))
                 .addString(Pg.json(e.details() == null ? Map.of() : e.details()));
-        return event(query(pool.get(), INSERT, params).iterator().next());
+        // a failed insert must not abort the operation's transaction: the savepoint confines it
+        return PgTx.savepoint(() -> event(query(pool.get(), INSERT, params).iterator().next()));
     }
 
     @Override

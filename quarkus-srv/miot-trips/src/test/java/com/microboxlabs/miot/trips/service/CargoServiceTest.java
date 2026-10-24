@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.dto.CargoRequest;
 import com.microboxlabs.miot.trips.dto.MandateRequest;
@@ -22,8 +23,9 @@ class CargoServiceTest {
 
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final AuditService audit = new AuditService(world.auditStore);
-    private final MandateService mandates = new MandateService(world.mandateStore, audit);
-    private final CargoService service = new CargoService(world.cargoStore, mandates, audit);
+    private final Transactions tx = Transactions.none();
+    private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
+    private final CargoService service = new CargoService(world.cargoStore, mandates, audit, tx);
 
     private UUID mandateId;
 

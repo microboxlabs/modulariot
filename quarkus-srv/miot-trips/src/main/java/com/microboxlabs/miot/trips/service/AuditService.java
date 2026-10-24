@@ -27,8 +27,8 @@ public class AuditService {
     }
 
     /**
-     * Appends an event after the change it records has been stored. The two writes are not one
-     * transaction: if the append fails, the change stays, the failure is logged, and null is
+     * Appends an event in the transaction of the change it records, so a rolled-back change leaves
+     * no event. If the append itself fails, the change stays, the failure is logged, and null is
      * returned rather than failing the request.
      */
     public AuditEvent log(String tenantCode, String actor, String action, String entityType, String entityId,

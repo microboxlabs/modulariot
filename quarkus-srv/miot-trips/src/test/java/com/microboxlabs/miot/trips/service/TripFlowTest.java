@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.Mandate;
@@ -32,16 +33,17 @@ class TripFlowTest {
 
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final AuditService audit = new AuditService(world.auditStore);
-    private final MandateService mandates = new MandateService(world.mandateStore, audit);
-    private final CargoService cargo = new CargoService(world.cargoStore, mandates, audit);
+    private final Transactions tx = Transactions.none();
+    private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
+    private final CargoService cargo = new CargoService(world.cargoStore, mandates, audit, tx);
     private final TripService trips = new TripService(world.tripStore, world.stageStore,
-            world.assignmentStore, world.tripCargoStore, world.cargoStore, audit);
+            world.assignmentStore, world.tripCargoStore, world.cargoStore, audit, tx);
     private final StageService stages = new StageService(world.stageStore, world.tripStore,
-            world.tripCargoStore, mandates, audit);
+            world.tripCargoStore, mandates, audit, tx);
     private final AssignmentService assignments = new AssignmentService(world.assignmentStore,
-            world.tripStore, audit);
+            world.tripStore, audit, tx);
     private final TripCargoService tripCargo = new TripCargoService(world.tripCargoStore, world.tripStore,
-            world.cargoStore, world.stageStore, audit);
+            world.cargoStore, world.stageStore, audit, tx);
 
     @Test
     void aTripRunsItsStagesAndEverythingFollows() {

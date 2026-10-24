@@ -48,7 +48,8 @@ public class MonitorClock {
         this.limit = limit;
     }
 
-    @Scheduled(every = "${miot.trips.monitors.clock.every:15s}",
+    /** The first tick waits for startup, so it never runs before the migrations. */
+    @Scheduled(every = "${miot.trips.monitors.clock.every:15s}", delayed = "${miot.trips.monitors.clock.delay:60s}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void scheduled() {
         if (enabled) {

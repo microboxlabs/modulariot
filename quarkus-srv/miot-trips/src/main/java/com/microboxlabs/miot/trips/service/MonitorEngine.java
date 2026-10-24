@@ -245,6 +245,13 @@ public class MonitorEngine implements TripChanges {
                     "more than " + MAX_DEPTH + " chained events: the rules start each other");
             return;
         }
+        List<TripMonitor.Rule> candidates = m.rules().stream()
+                .filter(r -> r.active() && r.on().equals(e.on())
+                        && (!TIMER.equals(e.on()) || r.key().equals(e.kind())))
+                .toList();
+        if (candidates.isEmpty()) {
+            return;
+        }
         Map<String, Object> ctx = context.of(trip, e, m.params());
         String from = running(trip);
         String actor = "monitor:" + m.monitorKey() + "@v" + m.version();
@@ -252,10 +259,7 @@ public class MonitorEngine implements TripChanges {
         List<String> errors = new ArrayList<>();
         List<Map<String, Object>> done = new ArrayList<>();
         TripMonitor.Rule stateRule = null;
-        for (TripMonitor.Rule r : m.rules()) {
-            if (!r.active() || !r.on().equals(e.on()) || (TIMER.equals(e.on()) && !r.key().equals(e.kind()))) {
-                continue;
-            }
+        for (TripMonitor.Rule r : candidates) {
             if (!holds(m, r, ctx, errors)) {
                 continue;
             }
@@ -315,7 +319,10 @@ public class MonitorEngine implements TripChanges {
         }
         MonitorLanguage.Result result = prepared(m, r, "when", r.when()).run(ctx);
         if (!result.ok()) {
-            errors.add(r.key() + ": " + result.error());
+            // fields were checked on save: a missing key here is a value the trip does not have yet
+            if (!MonitorLanguage.missingValue(result.error())) {
+                errors.add(r.key() + ": " + result.error());
+            }
             return false;
         }
         return Boolean.TRUE.equals(result.value());
@@ -397,15 +404,14 @@ public class MonitorEngine implements TripChanges {
         }
         int epoch = runs.nextEpoch(tenant, tripId);
         TripMonitor m = monitor(tenant, state.get().monitorKey(), state.get().monitorVersion()).orElse(null);
-        if (m == null) {
+        List<TripMonitor.Rule> timers = m == null ? List.of()
+                : m.rules().stream().filter(r -> r.active() && TIMER.equals(r.on())).toList();
+        if (timers.isEmpty()) {
             return;
         }
-        for (TripMonitor.Rule r : m.rules()) {
-            if (!r.active() || !TIMER.equals(r.on())) {
-                continue;
-            }
-            Map<String, Object> ctx = context.of(trip.get(), new MonitorRun.Event(tenant, tripId.toString(), TIMER,
-                    r.key(), now(), "monitor:clock", Map.of()), m.params());
+        Map<String, Object> ctx = context.of(trip.get(), new MonitorRun.Event(tenant, tripId.toString(), TIMER, null,
+                now(), "monitor:clock", Map.of()), m.params());
+        for (TripMonitor.Rule r : timers) {
             MonitorLanguage.Result at = prepared(m, r, "at", r.at()).run(ctx);
             if (at.ok() && at.value() instanceof Instant i) {
                 OffsetDateTime due = OffsetDateTime.ofInstant(i, ZoneOffset.UTC);

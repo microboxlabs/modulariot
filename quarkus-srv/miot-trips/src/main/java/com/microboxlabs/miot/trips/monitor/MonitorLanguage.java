@@ -140,6 +140,11 @@ public final class MonitorLanguage {
         }
     }
 
+    /** True when evaluation failed only because the context has no value at a path the schema declares. */
+    public static boolean missingValue(String error) {
+        return error != null && (error.contains("is not present") || error.contains("No such key"));
+    }
+
     public static Result evaluate(MonitorSchema schema, String expression, Map<String, Object> context) {
         return prepare(schema, expression).run(context);
     }

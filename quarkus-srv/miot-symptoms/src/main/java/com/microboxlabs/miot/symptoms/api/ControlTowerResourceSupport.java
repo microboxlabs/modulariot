@@ -33,7 +33,7 @@ abstract class ControlTowerResourceSupport extends OrgResourceSupport {
     protected Response unmapped(RuntimeException e) {
         return e instanceof RuleDescriptionService.UnavailableException
                 ? error(Response.Status.SERVICE_UNAVAILABLE, e.getMessage())
-                : null;
+                : super.unmapped(e);
     }
 
     protected static long parseSymptomId(String raw) {

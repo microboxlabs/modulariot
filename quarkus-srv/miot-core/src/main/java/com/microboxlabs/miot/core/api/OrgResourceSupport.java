@@ -103,9 +103,9 @@ public abstract class OrgResourceSupport {
         return organizationContext;
     }
 
-    /** The response for a module exception the defaults do not cover; null lets it propagate. */
+    /** The response for a module exception the defaults do not cover; by default it propagates. */
     protected Response unmapped(RuntimeException e) {
-        return null;
+        throw e;
     }
 
     private Response guarded(Supplier<Response> work) {
@@ -118,11 +118,7 @@ public abstract class OrgResourceSupport {
         } catch (IllegalStateException e) {
             return error(Response.Status.CONFLICT, e.getMessage());
         } catch (RuntimeException e) {
-            Response mapped = unmapped(e);
-            if (mapped == null) {
-                throw e;
-            }
-            return mapped;
+            return unmapped(e);
         }
     }
 

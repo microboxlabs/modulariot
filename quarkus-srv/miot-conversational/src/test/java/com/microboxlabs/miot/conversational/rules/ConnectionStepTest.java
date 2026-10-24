@@ -15,9 +15,14 @@ import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageDirection;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
+import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
+import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
+import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -43,6 +48,15 @@ class ConnectionStepTest {
     private static final String TITLE = "Pánico en ABCD12 (Código negro)";
 
     private final RulesFixture f = new RulesFixture();
+
+    /** conn-9, the organization's webhook connection without a name. */
+    @BeforeEach
+    void aWebhookConnection() {
+        String template = f.integrations.channels.ensureTemplate(ConnectionChannel.WEBHOOK, TENANT).id();
+        f.integrations.connections.add(new IntegrationConnection("conn-9", TENANT, null, ProviderType.CUSTOM_HTTP,
+                URI.create("https://hooks.example.com/miot"), null, ConnectionStatus.ACTIVE, null, null, Map.of(),
+                template));
+    }
 
     private Run run() {
         f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));
@@ -122,8 +136,14 @@ class ConnectionStepTest {
         assertEquals(ids[0], conversation.participantAddress());
         assertEquals("Canal torre", conversation.displayName());
         assertNull(conversation.phoneE164());
+    }
 
-        Message teams = messages.get(1);
+    @Test
+    void theTeamsStepWithoutATemplateSendsTheEventsLineAndTheActivityNamesEachConnection() {
+        String[] ids = chatRule(Rule.State.ACTIVE);
+        run();
+
+        Message teams = f.store.conversations.messages.get(1);
         assertEquals(Channel.TEAMS, teams.channel());
         assertEquals(ids[1], teams.address());
         assertEquals("symptom.case.opened · symptom_case -7", teams.body(), "no template: the event's line");
@@ -138,6 +158,23 @@ class ConnectionStepTest {
         assertEquals("SENT", first.status());
         assertEquals(TEXT, first.text());
         assertEquals("Equipo torre", activity.get(1).toName());
+    }
+
+    @Test
+    void aStepOnAnotherChannelsConnectionIsRefusedWithoutACall() {
+        String slack = f.integrations.channels.create(ConnectionChannel.SLACK, TENANT, "Canal torre",
+                "https://hooks.example.com/slack", null).id();
+        f.rule("chat", """
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "teams", "connection": "SLACK"}]}
+                """.replace("SLACK", slack), Rule.State.ACTIVE);
+
+        Run run = run();
+
+        assertEquals("teams " + slack + ": The connection is not one of the organization's teams connections",
+                run.lastError());
+        assertTrue(f.integrations.calls.isEmpty());
+        assertEquals(MessageStatus.FAILED, f.store.conversations.messages.get(0).status());
     }
 
     @Test
@@ -169,7 +206,7 @@ class ConnectionStepTest {
         assertEquals("HTTP 500: boom", failed.errorMessage());
         assertNull(failed.sentAt());
         assertNull(f.store.conversations.conversations.get(failed.conversationId()).displayName(),
-                "an unknown connection has no name");
+                "a connection without a name");
 
         f.store.runs.clear();
         f.store.conversations.messages.clear();

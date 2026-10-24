@@ -8,6 +8,7 @@ import com.microboxlabs.miot.integrations.dto.CreateIntegrationTemplateRequest;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import com.microboxlabs.miot.integrations.service.IntegrationOperationInvoker;
 import com.microboxlabs.miot.integrations.service.IntegrationTemplateService;
+import com.microboxlabs.miot.integrations.service.OperationInvocationException;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -29,12 +30,15 @@ import java.util.Set;
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class ConnectionChannels {
 
-    /** A connection as the channel's page lists it. */
-    public record Connection(String id, String name, String baseUrl, String status, OffsetDateTime lastTestedAt,
+    /**
+     * A connection as the channel's page lists it, for every member. Only the URL's host: Slack and Teams URLs
+     * carry their secret in the path and query; the full URL stays in the connections API.
+     */
+    public record Connection(String id, String name, String host, String status, OffsetDateTime lastTestedAt,
             Boolean lastTestResult) {
 
         public static Connection of(IntegrationConnection c) {
-            return new Connection(c.id(), c.name(), c.baseUrl() == null ? null : c.baseUrl().toString(),
+            return new Connection(c.id(), c.name(), c.baseUrl() == null ? null : c.baseUrl().getHost(),
                     c.status() == null ? null : c.status().name(), c.lastTestedAt(), c.lastTestResult());
         }
     }
@@ -103,8 +107,18 @@ public class ConnectionChannels {
         return Optional.ofNullable(c).map(IntegrationConnection::name);
     }
 
-    /** Calls the connection's {@link ConnectionChannel#OPERATION}; throws what the invoker throws. */
-    public OperationInvocationResult deliver(String tenantCode, String connectionId, Map<String, Object> body) {
+    /**
+     * Calls the connection's {@link ConnectionChannel#OPERATION}; throws what the invoker throws. Refuses a
+     * connection made from another channel's template, so a Teams card never reaches a Slack webhook.
+     */
+    public OperationInvocationResult deliver(ConnectionChannel channel, String tenantCode, String connectionId,
+            Map<String, Object> body) {
+        IntegrationConnection connection = connections.getConnection(tenantCode, connectionId);
+        Optional<String> templateId = template(channel, tenantCode).map(IntegrationTemplate::id);
+        if (connection == null || templateId.isEmpty() || !templateId.get().equals(connection.templateId())) {
+            throw new OperationInvocationException(
+                    "The connection is not one of the organization's " + channel.key() + " connections");
+        }
         return invoker.invokeByName(tenantCode, connectionId, ConnectionChannel.OPERATION, body);
     }
 

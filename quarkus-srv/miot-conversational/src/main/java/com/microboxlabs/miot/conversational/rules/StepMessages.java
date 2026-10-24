@@ -16,6 +16,7 @@ public final class StepMessages {
 
     /** A blank NAMED parameter is refused by Meta, so a variable without a value is sent as this. */
     static final String EMPTY_PARAM = "-";
+    private static final String TEMPLATE = "La plantilla ";
 
     /**
      * One message.
@@ -45,7 +46,7 @@ public final class StepMessages {
         List<String> warnings = new ArrayList<>(resolved.warnings());
         List<Planned> out = new ArrayList<>();
         if (template.isEmpty()) {
-            warnings.add("La plantilla " + step.template() + " no existe");
+            warnings.add(TEMPLATE + step.template() + " no existe");
             return new Plan(resolved.participants(), out, warnings);
         }
         if (resolved.participants().isEmpty()) {
@@ -58,7 +59,7 @@ public final class StepMessages {
             } else {
                 message(channel, p, template.get(), TemplateVariables.of(event.data(), event.at(), p.name()))
                         .ifPresentOrElse(out::add, () -> warnings.add(
-                                "La plantilla " + template.get().key() + " no tiene versión de " + channel));
+                                TEMPLATE + template.get().key() + " no tiene versión de " + channel));
             }
         }
         return new Plan(resolved.participants(), out, warnings);
@@ -74,7 +75,7 @@ public final class StepMessages {
             return new Plan(List.of(), List.of(), List.of("El paso no tiene conexión"));
         }
         if (step.template() != null && template.isEmpty()) {
-            return new Plan(List.of(), List.of(), List.of("La plantilla " + step.template() + " no existe"));
+            return new Plan(List.of(), List.of(), List.of(TEMPLATE + step.template() + " no existe"));
         }
         String subject = null;
         String text = null;

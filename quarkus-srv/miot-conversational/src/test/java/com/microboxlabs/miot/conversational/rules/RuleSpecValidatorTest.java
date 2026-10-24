@@ -164,7 +164,7 @@ class RuleSpecValidatorTest {
                  "steps": [{"channel": "slack", "waitForReply": 5},
                            {"channel": "teams", "to": [], "template": "nope"}]}
                 """);
-        List<Finding> noConnection = findings.stream().filter(f -> "stepNoConnection".equals(f.code())).toList();
+        List<Finding> noConnection = findings.stream().filter(found -> "stepNoConnection".equals(found.code())).toList();
         assertEquals(List.of(Map.of("channel", "slack", "step", 1), Map.of("channel", "teams", "step", 2)),
                 noConnection.stream().map(Finding::params).toList());
         assertEquals(Map.of("channel", "slack", "step", 1), only(findings, "stepWaitNeedsReplies").params());

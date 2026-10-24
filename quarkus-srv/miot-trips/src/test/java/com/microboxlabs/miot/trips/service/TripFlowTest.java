@@ -24,6 +24,7 @@ import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.TripLiveRow;
 import com.microboxlabs.miot.trips.dto.LocationRequest;
 import com.microboxlabs.miot.trips.store.InMemoryFleet;
+import com.microboxlabs.miot.trips.store.FakeGeofences;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -52,8 +53,8 @@ class TripFlowTest {
             world.tripStore, fleet, live, audit, tx);
     private final TripCargoService tripCargo = new TripCargoService(world.tripCargoStore, world.tripStore,
             world.cargoStore, world.stageStore, mandates, live, audit, tx);
-    private final LocationService locations = new LocationService(world.locationStore, world.tripStore, live,
-            audit, tx);
+    private final LocationService locations = new LocationService(world.locationStore, new FakeGeofences(),
+            world.tripStore, live, audit, tx);
 
     /** A truck, trailer or driver id the fleet knows. */
     private String resource() {

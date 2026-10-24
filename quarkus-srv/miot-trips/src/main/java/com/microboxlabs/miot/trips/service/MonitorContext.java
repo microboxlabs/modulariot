@@ -143,6 +143,7 @@ final class MonitorContext {
                 putIf(m, "code", loc.externalCode());
                 putIf(m, "name", loc.name());
                 putIf(m, "type", loc.type());
+                putIf(m, "geofenceId", loc.geofenceId() == null ? null : loc.geofenceId().toString());
             });
             return m;
         });

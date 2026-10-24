@@ -10,6 +10,12 @@ public interface LocationStore {
 
     Location insert(Location location);
 
+    /** Inserts unless the tenant already has a current location with that external code; empty then. */
+    Optional<Location> insertIfAbsent(Location location);
+
+    /** The current location with that external code, compared as stored. */
+    Optional<Location> byCode(String tenantCode, String externalCode);
+
     Optional<Location> find(String tenantCode, UUID id);
 
     List<Location> list(String tenantCode, String q, String type, int page, int size);

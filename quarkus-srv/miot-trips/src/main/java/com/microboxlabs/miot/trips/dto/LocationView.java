@@ -11,11 +11,12 @@ public record LocationView(
         String type,
         String externalCode,
         JsonNode geomGeojson,
+        Integer geofenceId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
 
     public static LocationView of(Location l) {
         return new LocationView(l.id(), l.name(), l.type(), l.externalCode(), Jsons.node(l.geomGeojson()),
-                l.createdAt(), l.updatedAt());
+                l.geofenceId(), l.createdAt(), l.updatedAt());
     }
 }

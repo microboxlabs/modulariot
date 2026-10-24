@@ -17,19 +17,28 @@ import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
 import com.microboxlabs.miot.fleet.resources.domain.Truck;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
+import com.microboxlabs.miot.integrations.jobs.JobOutcome;
+import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.dto.AssignmentView;
+import com.microboxlabs.miot.trips.dto.FeedBatchRequest;
+import com.microboxlabs.miot.trips.dto.FeedBatchResult;
+import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
 import com.microboxlabs.miot.trips.dto.FeedResult;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
+import com.microboxlabs.miot.trips.service.FeedBatchService;
+import com.microboxlabs.miot.trips.service.FeedProfileService;
 import com.microboxlabs.miot.trips.service.FeedReconciler;
+import com.microboxlabs.miot.trips.service.FeedServiceJobHandler;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
@@ -45,6 +54,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
@@ -266,18 +276,18 @@ class PgFeedReconcilerTest {
         FeedResult created = send("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001"));
 
         clock.advance(Duration.ofHours(3));
-        FeedResult departed = reconciler.recheck(tenant, FEED, "S-001");
+        FeedResult departed = reconciler.recheck(tenant, ACTOR, FEED, "S-001");
         assertEquals(List.of("close preparacion (departure time passed)", "start transito"), departed.operations());
         assertEquals(Stage.RUNNING, status(trip(created), "transito"));
 
         clock.advance(Duration.ofHours(10));
-        FeedResult closed = reconciler.recheck(tenant, FEED, "S-001");
+        FeedResult closed = reconciler.recheck(tenant, ACTOR, FEED, "S-001");
         assertEquals(FeedReconciler.CLOSE, closed.action());
         assertEquals(Trip.DONE, trip(created).status());
         assertEquals(Mandate.CLOSED, mandates.get(tenant, UUID.fromString(created.mandateId())).status());
         assertFalse(feeds.service(tenant, FEED, "S-001").orElseThrow().open(), "a realized trip leaves the clock");
 
-        assertEquals(FeedReconciler.SKIP, reconciler.recheck(tenant, FEED, "S-001").action());
+        assertEquals(FeedReconciler.SKIP, reconciler.recheck(tenant, ACTOR, FEED, "S-001").action());
     }
 
     @Test
@@ -311,6 +321,61 @@ class PgFeedReconcilerTest {
     void anUnknownOrSwitchedOffFeedIsNotFound() {
         assertThrows(java.util.NoSuchElementException.class, () -> reconciler.reconcile(tenant, ACTOR, "otro",
                 "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+    }
+
+    @Test
+    void aBatchQueuesOnlyChangedServicesAndTheJobAppliesTheLatestState() {
+        List<AsyncJobSpec> queued = new ArrayList<>();
+        FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
+        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
+        FeedBatchRequest first = new FeedBatchRequest("b1", List.of(
+                new FeedBatchRequest.Item("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001")),
+                new FeedBatchRequest.Item(" ", desired(2, 10, "ABC-123", null, "10000001"))));
+
+        FeedBatchResult r1 = batches.send(tenant, ACTOR, FEED, first);
+        assertEquals(List.of("S-001"), r1.queued());
+        assertEquals(List.of(""), List.copyOf(r1.refused().keySet()), "a blank code is refused, not queued");
+        assertEquals("trips-feed:" + FEED + ":S-001:b1", queued.get(0).dedupeKey());
+        assertEquals(FeedReconciler.PENDING, feeds.service(tenant, FEED, "S-001").orElseThrow().lastAction());
+
+        JobOutcome done = handler.handle(tenant, queued.get(0).payload());
+        assertEquals(JobOutcome.SUCCEEDED, done.outcome());
+        assertEquals(FeedReconciler.CREATE, done.result().get("action"));
+
+        FeedBatchResult again = batches.send(tenant, ACTOR, FEED, new FeedBatchRequest("b2", first.services()
+                .subList(0, 1)));
+        assertEquals(List.of("S-001"), again.unchanged());
+        assertEquals(1, queued.size(), "an unchanged service queues nothing");
+    }
+
+    @Test
+    void aJobForAServiceThatCannotBeCreatedFailsWithoutRetry() {
+        List<AsyncJobSpec> queued = new ArrayList<>();
+        FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
+        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
+        batches.send(tenant, ACTOR, FEED, new FeedBatchRequest(null, List.of(
+                new FeedBatchRequest.Item("S-005", desired(1, 6, "JKL-000", null, "10000001")))));
+
+        NonRetryableJobException e = assertThrows(NonRetryableJobException.class,
+                () -> handler.handle(tenant, queued.get(0).payload()));
+        assertEquals("truck JKL-000 is inactive", e.getMessage());
+    }
+
+    @Test
+    void aFeedProfileIsCheckedBeforeItIsSaved() {
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+        List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
+                new FeedProfile.StagePlan("cierre", "FINISHED"));
+
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo",
+                new FeedProfileRequest("Nuevo", plan, "transito", "cierre", 60, null, null)),
+                "the departure stage must be in the plan");
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas",
+                new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", 60, null, null)));
+        FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
+                new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", null, List.of("truck"), null));
+        assertEquals(120, saved.closeToleranceMinutes());
+        assertTrue(saved.active());
     }
 
     /** A clock the test moves forward. */

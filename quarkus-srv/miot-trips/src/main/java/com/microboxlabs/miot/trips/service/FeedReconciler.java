@@ -58,6 +58,8 @@ public class FeedReconciler {
     public static final String SKIP = "omitir";
     public static final String REPORT = "reportar";
     public static final String ERROR = "error";
+    /** Accepted from the feed, not applied yet. */
+    public static final String PENDING = "pendiente";
 
     private static final Duration SAME_TIME = Duration.ofMinutes(1);
     private static final String TRUCK = Assignment.TRUCK;
@@ -143,12 +145,34 @@ public class FeedReconciler {
         }
     }
 
-    /** Runs the service again with its last desired state, as the clock: departure and close need no new send. */
-    public FeedResult recheck(String tenantCode, String feedKey, String externalCode) {
+    /**
+     * Keeps {@code desired} as the service's latest state, to be applied by {@link #recheck}. Returns false when it
+     * is the state already applied or waiting: nothing new to apply.
+     */
+    public boolean accept(String tenantCode, String feedKey, String externalCode, FeedServiceRequest desired) {
+        String code = Check.required(externalCode, "externalCode", 128);
+        if (desired == null) {
+            throw new IllegalArgumentException("desired is required for " + code);
+        }
+        profile(tenantCode, feedKey);
+        String hash = hash(desired);
+        return tx.inTransaction(() -> {
+            FeedService before = feeds.lockService(tenantCode, feedKey, code);
+            // the same state, applied or already waiting; a failed apply keeps no hash, so a resend counts
+            if (hash.equals(before.desiredHash())) {
+                return false;
+            }
+            feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), hash, before.mandateId(),
+                    before.tripId(), true, PENDING, before.lastResult(), before.lastReconciledAt()));
+            return true;
+        });
+    }
+
+    /** Applies the service's latest desired state: after {@link #accept}, and for the clock's departure and close. */
+    public FeedResult recheck(String tenantCode, String actor, String feedKey, String externalCode) {
         FeedService s = feeds.service(tenantCode, feedKey, externalCode)
                 .orElseThrow(() -> new NoSuchElementException("feed service " + externalCode + " not found"));
-        FeedServiceRequest desired = read(s.desired());
-        return reconcile(tenantCode, "feed:" + feedKey + ":clock", feedKey, externalCode, desired, false);
+        return reconcile(tenantCode, actor, feedKey, externalCode, read(s.desired()), false);
     }
 
     /** The service keeps its last desired state but no hash, so the feed's next send is applied, not skipped. */

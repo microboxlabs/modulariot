@@ -12,6 +12,7 @@ export const isPlatformScope = (slug: string | null | undefined) =>
 export const PLATFORM_SCOPE_SETTINGS: readonly string[] = [
   "/users/settings/platform",
   "/users/settings/organizations",
+  "/users/settings/symptoms",
   "/users/settings/communications",
   "/users/settings/credentials",
   "/users/settings/connections",

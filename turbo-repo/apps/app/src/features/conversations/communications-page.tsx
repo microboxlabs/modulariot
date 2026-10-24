@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "flowbite-react";
 import {
   HiChatAlt2,
   HiOutlineClipboardList,
   HiOutlineClock,
+  HiOutlineDocumentText,
   HiPlus,
 } from "react-icons/hi";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
@@ -41,6 +43,13 @@ import {
   sectionsFor,
 } from "./communications-sections";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
+import MetaTemplatesSection from "./meta-templates-section";
+import MessageTemplatesPanel, {
+  NEW_TEMPLATE,
+  platformTemplateHref,
+  TEMPLATE_CHANNELS,
+} from "./platform-templates-catalog";
+import { channelLabel } from "./rule-model";
 import LayoutToggle from "@/features/common/components/layout-toggle";
 import NewRuleModal, {
   type NewRulePrefill,
@@ -56,7 +65,10 @@ import RulesTab, {
 
 type FilterDef = { key: string; label: string; options: string[] };
 
-/** Settings › Comunicaciones: rules, what they did, and the channels they send through. Templates are the platform's. */
+/**
+ * Settings › Comunicaciones: rules, what they did, and the channels they send through. In the platform scope:
+ * the message templates every organization's rules send, and the platform's accounts.
+ */
 export default function CommunicationsPage({
   dict,
   connectionsDict,
@@ -80,6 +92,7 @@ export default function CommunicationsPage({
   const [activityFilters, setActivityFilters] =
     useState<ActivityFilters>(NO_ACTIVITY_FILTERS);
   const [layout, setLayout] = useState<RulesLayout>("cards");
+  const [templateChannel, setTemplateChannel] = useState("");
   const [newRule, setNewRule] = useState<NewRulePrefill | null>(null);
   // A link from a symptom's Respuesta tab opens the modal already filled in.
   const linked = prefillFrom(params);
@@ -121,6 +134,20 @@ export default function CommunicationsPage({
       description: tr("menuActivity", d),
       icon: HiOutlineClock,
     },
+    {
+      id: "templates",
+      label: tr("templatesTitle", d),
+      description: tr("menuTemplates", d),
+      icon: HiOutlineDocumentText,
+      group: tr("tabTemplates", d),
+    },
+    {
+      id: "meta",
+      label: tr("templatesMeta", d),
+      description: tr("menuMeta", d),
+      icon: channelLogo("whatsapp"),
+      group: tr("tabTemplates", d),
+    },
     ...CHANNEL_TYPES.map((c) => ({
       id: channelSection(c.key),
       label: trDynamic(`channel_${c.key}`, d),
@@ -151,9 +178,23 @@ export default function CommunicationsPage({
         set: (k, v) => setRuleFilters({ ...ruleFilters, [k]: v }),
       };
     }
+    if (section === "templates") {
+      return {
+        defs: [
+          {
+            key: "channel",
+            label: tr("filterChannel", d),
+            options: TEMPLATE_CHANNELS.map((c) => channelLabel(c, d)),
+          },
+        ],
+        value: () => templateChannel,
+        set: (_, v) => setTemplateChannel(v),
+      };
+    }
     return null;
   };
   const bar = filterBar();
+  const catalogLayout = section === "rules" || section === "templates";
 
   return (
     <SettingsPageShell
@@ -164,13 +205,21 @@ export default function CommunicationsPage({
       title={tr("title", d)}
       description={tr("description", d)}
       actions={
-        section === "rules" &&
-        canMaintain && (
+        (section === "rules" && canMaintain && (
           <Button size="sm" color="blue" onClick={() => setNewRule({})}>
             <HiPlus className="mr-1 h-4 w-4" />
             {tr("newRule", d)}
           </Button>
-        )
+        )) ||
+        (section === "templates" && (
+          <Link
+            href={platformTemplateHref(lang, NEW_TEMPLATE)}
+            className="inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+          >
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("newTemplate", d)}
+          </Link>
+        ))
       }
     >
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
@@ -193,7 +242,7 @@ export default function CommunicationsPage({
                   onChange={(v) => bar.set(f.key, v)}
                 />
               ))}
-              {section === "rules" && (
+              {catalogLayout && (
                 <div className="ml-auto">
                   <LayoutToggle
                     layout={layout}
@@ -213,6 +262,15 @@ export default function CommunicationsPage({
           {section === "activity" && (
             <ActivityTab lang={lang} filters={activityFilters} d={d} />
           )}
+          {section === "templates" && (
+            <MessageTemplatesPanel
+              channel={templateChannel}
+              layout={layout}
+              lang={lang}
+              d={d}
+            />
+          )}
+          {section === "meta" && <MetaTemplatesSection canWrite d={d} />}
           {channel && isConnectionChannel(channel.key) && (
             <ConnectionChannelPanel
               channelKey={channel.key}

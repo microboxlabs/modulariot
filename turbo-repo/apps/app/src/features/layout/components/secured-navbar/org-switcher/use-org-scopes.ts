@@ -74,8 +74,11 @@ export function useOrgScopes() {
     }
   );
 
-  /** False when the user kept their unsaved changes; true when the page reloads into the org. */
-  const switchOrg = async (slug: string): Promise<boolean> => {
+  /**
+   * False when the user kept their unsaved changes; true when the page reloads into the org, or
+   * opens `href` in it.
+   */
+  const switchOrg = async (slug: string, href?: string): Promise<boolean> => {
     if (!confirmNavigation()) return false;
     let response: Response;
     try {
@@ -101,7 +104,8 @@ export function useOrgScopes() {
     }
 
     await mutate();
-    globalThis.location.reload();
+    if (href) globalThis.location.assign(href);
+    else globalThis.location.reload();
     return true;
   };
 

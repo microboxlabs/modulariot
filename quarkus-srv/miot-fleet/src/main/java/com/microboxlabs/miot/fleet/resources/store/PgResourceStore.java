@@ -4,6 +4,7 @@ import static com.microboxlabs.miot.fleet.resources.store.Pg.query;
 import static com.microboxlabs.miot.fleet.resources.store.Pg.text;
 import static com.microboxlabs.miot.fleet.resources.store.Pg.time;
 
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
@@ -19,6 +20,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -60,8 +62,18 @@ public class PgResourceStore implements ResourceStore {
     private static final String UPDATED_BY = "updated_by";
     private static final String CARRIER_ID = "carrier_id";
     private static final String LICENSE_PLATE = "license_plate";
+    private static final String ID = "id";
+    private static final String RUT = "rut";
+    private static final String LEGAL_NAME = "legal_name";
+    private static final String FULL_NAME = "full_name";
+    private static final String PHONE = "phone";
 
     private static final String BY_ID = " AND id = $2";
+    private static final String CARRIER = "carrier";
+    private static final String TRUCK = "truck";
+    private static final String TRAILER = "trailer";
+    private static final String DRIVER = "driver";
+    private static final Set<String> RESOURCE_TABLES = Set.of(CARRIER, TRUCK, TRAILER, DRIVER);
 
     private final Supplier<Pool> pool;
 
@@ -95,20 +107,20 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Carrier> findCarrier(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(CARRIER_COLS, "carrier") + BY_ID + Pg.lock(),
+                select(CARRIER_COLS, CARRIER) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::carrier);
     }
 
     @Override
     public List<Carrier> listCarriers(String tenantCode, String q, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(CARRIER_COLS, "carrier"));
+        StringBuilder sql = new StringBuilder(select(CARRIER_COLS, CARRIER));
         Tuple params = Tuple.of(tenantCode);
         if (q != null) {
             params.addString(contains(q));
             int n = params.size();
             sql.append(" AND (rut ILIKE $").append(n).append(" OR legal_name ILIKE $").append(n).append(')');
         }
-        page(sql, params, "legal_name", page, size);
+        page(sql, params, LEGAL_NAME, page, size);
         return query(pool.get(), sql.toString(), params).stream().map(PgResourceStore::carrier).toList();
     }
 
@@ -118,7 +130,7 @@ public class PgResourceStore implements ResourceStore {
                 UPDATE miot_fleet.carrier SET
                     external_id = $3, rut = $4, legal_name = $5, transport_license = $6,
                     transport_license_expires = $7, contact_name = $8, phone = $9, email = $10,
-                    status = $11, is_occasional = $12, updated_by = $13
+                    status = $11, is_occasional = $12, updated_by = $13, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + CARRIER_COLS,
                 Tuple.tuple().addUUID(Pg.parse(c.id())).addString(c.tenantCode())
@@ -150,13 +162,13 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Truck> findTruck(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRUCK_COLS, "truck") + BY_ID + Pg.lock(),
+                select(TRUCK_COLS, TRUCK) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::truck);
     }
 
     @Override
     public List<Truck> listTrucks(String tenantCode, String plate, UUID carrierId, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(TRUCK_COLS, "truck"));
+        StringBuilder sql = new StringBuilder(select(TRUCK_COLS, TRUCK));
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
             params.addString(contains(plate));
@@ -175,7 +187,7 @@ public class PgResourceStore implements ResourceStore {
         return first(query(pool.get(), """
                 UPDATE miot_fleet.truck SET
                     carrier_id = $3, external_id = $4, license_plate = $5, vin = $6, truck_type = $7,
-                    max_weight = $8, volume = $9, status = $10, is_occasional = $11, updated_by = $12
+                    max_weight = $8, volume = $9, status = $10, is_occasional = $11, updated_by = $12, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + TRUCK_COLS,
                 Tuple.tuple().addUUID(Pg.parse(t.id())).addString(t.tenantCode())
@@ -206,13 +218,13 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Trailer> findTrailer(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(TRAILER_COLS, "trailer") + BY_ID + Pg.lock(),
+                select(TRAILER_COLS, TRAILER) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::trailer);
     }
 
     @Override
     public List<Trailer> listTrailers(String tenantCode, String plate, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(TRAILER_COLS, "trailer"));
+        StringBuilder sql = new StringBuilder(select(TRAILER_COLS, TRAILER));
         Tuple params = Tuple.of(tenantCode);
         if (plate != null) {
             params.addString(contains(plate));
@@ -227,7 +239,7 @@ public class PgResourceStore implements ResourceStore {
         return first(query(pool.get(), """
                 UPDATE miot_fleet.trailer SET
                     carrier_id = $3, external_id = $4, license_plate = $5, vin = $6, trailer_type = $7,
-                    max_weight = $8, status = $9, is_occasional = $10, updated_by = $11
+                    max_weight = $8, status = $9, is_occasional = $10, updated_by = $11, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + TRAILER_COLS,
                 Tuple.tuple().addUUID(Pg.parse(t.id())).addString(t.tenantCode())
@@ -261,13 +273,13 @@ public class PgResourceStore implements ResourceStore {
     @Override
     public Optional<Driver> findDriver(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                select(DRIVER_COLS, "driver") + BY_ID + Pg.lock(),
+                select(DRIVER_COLS, DRIVER) + BY_ID + Pg.lock(),
                 Tuple.of(tenantCode, id)), PgResourceStore::driver);
     }
 
     @Override
     public List<Driver> listDrivers(String tenantCode, String rut, String q, int page, int size) {
-        StringBuilder sql = new StringBuilder(select(DRIVER_COLS, "driver"));
+        StringBuilder sql = new StringBuilder(select(DRIVER_COLS, DRIVER));
         Tuple params = Tuple.of(tenantCode);
         if (rut != null) {
             params.addString(rut);
@@ -277,7 +289,7 @@ public class PgResourceStore implements ResourceStore {
             params.addString(contains(q));
             sql.append(" AND full_name ILIKE $").append(params.size());
         }
-        page(sql, params, "full_name", page, size);
+        page(sql, params, FULL_NAME, page, size);
         return query(pool.get(), sql.toString(), params).stream().map(PgResourceStore::driver).toList();
     }
 
@@ -287,7 +299,7 @@ public class PgResourceStore implements ResourceStore {
                 UPDATE miot_fleet.driver SET
                     carrier_id = $3, external_id = $4, rut = $5, first_name = $6, last_name = $7,
                     full_name = $8, phone = $9, mobile_phone = $10, license_category = $11,
-                    license_expires = $12, status = $13, is_occasional = $14, updated_by = $15
+                    license_expires = $12, status = $13, is_occasional = $14, updated_by = $15, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + DRIVER_COLS,
                 Tuple.tuple().addUUID(Pg.parse(d.id())).addString(d.tenantCode())
@@ -297,6 +309,35 @@ public class PgResourceStore implements ResourceStore {
                         .addOffsetDateTime(d.licenseExpires()).addString(d.status())
                         .addBoolean(d.isOccasional()).addString(d.updatedBy())),
                 PgResourceStore::driver);
+    }
+
+    @Override
+    public boolean isCurrent(String tenantCode, String table, UUID id) {
+        if (!RESOURCE_TABLES.contains(table)) {
+            throw new IllegalArgumentException("not a resource table: " + table);
+        }
+        return query(pool.get(), "SELECT EXISTS(" + select("1", table) + BY_ID
+                + " AND is_active AND COALESCE(status, 'active') <> 'inactive')",
+                Tuple.of(tenantCode, id)).iterator().next().getBoolean(0);
+    }
+
+    @Override
+    public Optional<FleetResources.Vehicle> vehicle(String tenantCode, String table, UUID id) {
+        return first(query(pool.get(), select("license_plate, carrier_id", table) + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Vehicle(r.getString(LICENSE_PLATE), r.getUUID(CARRIER_ID)));
+    }
+
+    @Override
+    public Optional<FleetResources.Driver> driverSummary(String tenantCode, UUID id) {
+        return first(query(pool.get(), select("rut, full_name, COALESCE(mobile_phone, phone) AS phone", DRIVER)
+                + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Driver(r.getString(RUT), r.getString(FULL_NAME), r.getString(PHONE)));
+    }
+
+    @Override
+    public Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id) {
+        return first(query(pool.get(), select("id, legal_name, phone", CARRIER) + BY_ID, Tuple.of(tenantCode, id)),
+                r -> new FleetResources.Carrier(r.getUUID(ID), r.getString(LEGAL_NAME), r.getString(PHONE)));
     }
 
     // ---- shared ---------------------------------------------------------
@@ -324,16 +365,16 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Carrier carrier(Row r) {
-        return new Carrier(text(r.getUUID("id")), r.getString(TENANT_CODE), r.getString(EXTERNAL_ID),
-                r.getString("rut"), r.getString("legal_name"), r.getString("transport_license"),
-                time(r, "transport_license_expires"), r.getString("contact_name"), r.getString("phone"),
+        return new Carrier(text(r.getUUID(ID)), r.getString(TENANT_CODE), r.getString(EXTERNAL_ID),
+                r.getString(RUT), r.getString(LEGAL_NAME), r.getString("transport_license"),
+                time(r, "transport_license_expires"), r.getString("contact_name"), r.getString(PHONE),
                 r.getString("email"), r.getString(STATUS), r.getBoolean(IS_OCCASIONAL),
                 r.getString(SOURCE_SYSTEM), r.getString(SOURCE_DATA),
                 time(r, CREATED_AT), r.getString(CREATED_BY), time(r, UPDATED_AT), r.getString(UPDATED_BY));
     }
 
     private static Truck truck(Row r) {
-        return new Truck(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+        return new Truck(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
                 r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("truck_type"), r.getBigDecimal("max_weight"), r.getBigDecimal("volume"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
@@ -342,7 +383,7 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Trailer trailer(Row r) {
-        return new Trailer(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+        return new Trailer(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
                 r.getString(EXTERNAL_ID), r.getString(LICENSE_PLATE), r.getString("vin"),
                 r.getString("trailer_type"), r.getBigDecimal("max_weight"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
@@ -351,9 +392,9 @@ public class PgResourceStore implements ResourceStore {
     }
 
     private static Driver driver(Row r) {
-        return new Driver(text(r.getUUID("id")), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
-                r.getString(EXTERNAL_ID), r.getString("rut"), r.getString("first_name"),
-                r.getString("last_name"), r.getString("full_name"), r.getString("phone"),
+        return new Driver(text(r.getUUID(ID)), r.getString(TENANT_CODE), text(r.getUUID(CARRIER_ID)),
+                r.getString(EXTERNAL_ID), r.getString(RUT), r.getString("first_name"),
+                r.getString("last_name"), r.getString(FULL_NAME), r.getString(PHONE),
                 r.getString("mobile_phone"), r.getString("license_category"), time(r, "license_expires"),
                 r.getString(STATUS), r.getBoolean(IS_OCCASIONAL), r.getString(SOURCE_SYSTEM),
                 r.getString(SOURCE_DATA),

@@ -13,6 +13,9 @@ public interface CargoStore {
 
     Optional<CargoUnit> find(String tenantCode, UUID id);
 
+    /** The mandate that owns the cargo, through its current line. */
+    Optional<UUID> mandateOf(String tenantCode, UUID cargoId);
+
     List<CargoUnit> listByMandate(String tenantCode, UUID mandateId);
 
     /** Cargo units currently linked to the trip. */
@@ -20,7 +23,6 @@ public interface CargoStore {
 
     Optional<CargoUnit> update(CargoUnit cargo);
 
-    /** Locks, in id order, the open trips that carry the cargo: a trip's lock comes before its cargo's. */
-    default void lockTripsCarrying(String tenantCode, UUID cargoId) {
-    }
+    /** Locks, in id order, the trips that carry the cargo and returns them: a trip's lock comes before its cargo's. */
+    List<UUID> lockTripsCarrying(String tenantCode, UUID cargoId);
 }

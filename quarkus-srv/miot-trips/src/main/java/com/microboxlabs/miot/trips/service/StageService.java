@@ -41,16 +41,18 @@ public class StageService {
     private final TripStore trips;
     private final TripCargoStore tripCargo;
     private final MandateService mandates;
+    private final TripLiveProjector live;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
     public StageService(StageStore stages, TripStore trips, TripCargoStore tripCargo,
-            MandateService mandates, AuditService audit, Transactions tx) {
+            MandateService mandates, TripLiveProjector live, AuditService audit, Transactions tx) {
         this.stages = stages;
         this.trips = trips;
         this.tripCargo = tripCargo;
         this.mandates = mandates;
+        this.live = live;
         this.audit = audit;
         this.tx = tx;
     }
@@ -81,6 +83,7 @@ public class StageService {
                     Stage.PENDING, Check.uuidOrNull(req.locationId(), "locationId"),
                     req.plannedStart(), req.plannedEnd(), null, null,
                     req.checklist() == null ? null : req.checklist().toString(), null, actor, null, actor));
+            live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "stage.added", ENTITY, created.id(), tripId.toString(),
                     Map.of(STAGE_TYPE, type));
             return created;
@@ -111,6 +114,7 @@ public class StageService {
                     req.checklist() == null ? current.checklist() : req.checklist().toString(),
                     current.createdAt(), current.createdBy(), null, actor))
                     .orElseThrow(() -> new NoSuchElementException("stage not found"));
+            refreshTrip(tenantCode, updated);
             audit.log(tenantCode, actor, "stage.updated", ENTITY, updated.id(), updated.subjectId(), Map.of());
             return updated;
         });
@@ -129,6 +133,7 @@ public class StageService {
             Stage started = stages.start(tenantCode, id, now, actor)
                     .orElseThrow(() -> new IllegalStateException("stage is no longer pendiente"));
             onTripStageStarted(tenantCode, actor, started, now);
+            refreshTrip(tenantCode, started);
             audit.log(tenantCode, actor, "stage.started", ENTITY, started.id(), started.subjectId(),
                     Map.of(STAGE_TYPE, started.stageType()));
             return started;
@@ -152,6 +157,7 @@ public class StageService {
             if (CIERRE.equals(closed.stageType())) {
                 onTripRealized(tenantCode, actor, closed, now);
             }
+            refreshTrip(tenantCode, closed);
             audit.log(tenantCode, actor, "stage.closed", ENTITY, closed.id(), closed.subjectId(),
                     Map.of(STAGE_TYPE, closed.stageType(), "cargoLoaded", loaded, "cargoDelivered", delivered));
             return closed;
@@ -224,6 +230,12 @@ public class StageService {
             audit.log(tenantCode, actor, "activity.completed", ACTIVITY_ENTITY, done.id(), null, Map.of());
             return done;
         });
+    }
+
+    private void refreshTrip(String tenantCode, Stage stage) {
+        if (Stage.SUBJECT_TRIP.equals(stage.subjectType())) {
+            live.refresh(tenantCode, UUID.fromString(stage.subjectId()));
+        }
     }
 
     /** Locks the stage's trip, so every operation that takes several locks takes the trip's first. */

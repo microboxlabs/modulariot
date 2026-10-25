@@ -153,13 +153,13 @@ class FeedReconcilerTest {
     @Test
     void profileStoresNormalizedStagesAndRejectsANonClosingCloseStage() {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
-        List<FeedProfile.StagePlan> stages = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
+        List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
-        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stages,
+        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
                 "preparation", "closing", 0, List.of(), true));
         assertEquals("preparation", saved.stages().get(0).stageType());
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
-        FeedProfileRequest invalid = new FeedProfileRequest("Test", stages, "preparation", "preparation", 0,
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "preparation", "preparation", 0,
                 List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
     }

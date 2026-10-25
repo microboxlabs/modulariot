@@ -16,7 +16,7 @@ const SAVE_DELAY_MS = 600;
 /**
  * The rule's draft as edited on screen: it starts from the saved draft, else
  * the published spec, and is saved a moment after each change. The server's
- * findings come back with every save.
+ * findings come with the saved draft and back with every save.
  *
  * Saves run one at a time, in the order of the edits, so an older save never
  * lands after a newer one. The latest edit stays pending until a save of it
@@ -43,6 +43,7 @@ export function useRuleDraft(id: string) {
     if (!detail || loadedFor.current === detail.rule.id) return;
     loadedFor.current = detail.rule.id;
     setSpec(normalizeSpec(detail.draft?.spec ?? detail.current?.spec));
+    setFindings(detail.findings ?? null);
   }, [detail]);
 
   useEffect(

@@ -21,6 +21,10 @@ public final class RulesFixtureAccess {
         return fixture.simulator;
     }
 
+    public RuleInvocations invocations() {
+        return fixture.invocations;
+    }
+
     public TemplatesService templates() {
         return fixture.templates;
     }

@@ -24,7 +24,11 @@ public interface RunStore {
 
     Optional<StoredEvent> event(String id);
 
+    /** With an {@code invocationKey} the rule already ran, the run that key started. */
     Run createRun(Run run);
+
+    /** The run an invocation with this key started for the rule. */
+    Optional<Run> invoked(String ruleId, String key);
 
     Optional<Run> find(String id);
 

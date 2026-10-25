@@ -16,6 +16,7 @@ import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
+import com.microboxlabs.miot.conversational.rules.Invocation;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -31,6 +32,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -55,7 +57,7 @@ class PgRuleStoresTest {
             "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
             "V0.11.1__whatsapp_outbound_by_address.sql",
             // This constraint change is independent of 0.11.3, which needs the integrations schema.
-            "V0.11.4__trip_conversations.sql");
+            "V0.11.4__trip_conversations.sql", "V0.11.5__run_invocations.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -283,6 +285,26 @@ class PgRuleStoresTest {
         assertTrue(runs.waiting(tenant, "symptom_case", "-7").isEmpty());
         assertTrue(runs.list(tenant, null, Run.Status.WAITING, 10).isEmpty());
         assertEquals(1, runs.list(tenant, null, null, 10).size());
+    }
+
+    @Test
+    void anInvokedRunKeepsItsRecipientsAndItsKeyStartsItOnce() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", Invocation.SOURCE, "symptom_case", "-7", Map.of(), true, T0, T0));
+        Map<String, List<Invocation.Person>> to = new LinkedHashMap<>();
+        to.put("rule", List.of(new Invocation.Person("Tester", "tester@example.com", null)));
+        to.put("unchanged", null);
+        Run first = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, to, "k-1"));
+        Run again = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, null, "k-1"));
+
+        assertEquals(first.id(), again.id());
+        assertEquals(to, runs.find(first.id()).orElseThrow().recipients());
+        assertEquals(first.id(), runs.invoked(rule.id(), "k-1").orElseThrow().id());
+        assertTrue(runs.invoked(rule.id(), "k-2").isEmpty());
     }
 
     @Test

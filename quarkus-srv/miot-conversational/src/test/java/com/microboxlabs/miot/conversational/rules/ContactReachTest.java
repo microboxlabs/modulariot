@@ -18,7 +18,7 @@ class ContactReachTest {
 
     private static final ContactDirectory BOOK = tenant -> List.of(
             new ContactDirectory.Entry("c1", "Supervisora", "Supervisor de transporte", List.of("torre"), "Mi Cuenta",
-                    null, null, true, "supervisora@example.com", null),
+                    null, null, false, "supervisora@example.com", null),
             new ContactDirectory.Entry("c2", "Despacho Sur", "Despachador", List.of("transportista"),
                     "Transportes Sur", "761112223", null, false, "despacho@example.com", null),
             new ContactDirectory.Entry("c3", "Sin relación", "Otro", List.of(), null, null, null, false, null, null));

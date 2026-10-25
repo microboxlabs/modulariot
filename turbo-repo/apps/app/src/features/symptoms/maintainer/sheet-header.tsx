@@ -79,7 +79,8 @@ export function familyOptions(
   return options;
 }
 
-function VersionMenu({
+/** The version chip and its menu: history, and duplicate or save as template where the editor offers them. */
+export function VersionMenu({
   label,
   canFork,
   d,
@@ -91,7 +92,7 @@ function VersionMenu({
   canFork: boolean;
   d: I18nRecord;
   onHistory: () => void;
-  onDuplicate: () => void;
+  onDuplicate?: () => void;
   onSaveAsTemplate?: () => void;
 }>) {
   const [open, setOpen] = useState(false);
@@ -142,7 +143,7 @@ function VersionMenu({
           >
             ↺ {tr("versionsHistory", d)}
           </button>
-          {canFork && (
+          {canFork && onDuplicate && (
             <button
               type="button"
               role="menuitem"

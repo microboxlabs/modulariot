@@ -6,8 +6,9 @@ import java.util.Objects;
 
 /**
  * How much a publish changes a rule, and so its next semantic version. MAJOR: the event. MINOR: the condition,
- * the recipients, a step added, removed or moved, or a step's channel, recipients or connection. PATCH: only a step's
- * minutes, template or what it does on a reply, or the family. Declared from smallest to largest.
+ * the groups' ids or recipients, a step added, removed or moved, or a step's channel, groups or connection. PATCH:
+ * only a step's minutes, template or what it does on a reply, a group's name, or the family. Declared from smallest
+ * to largest.
  */
 public enum RuleBump {
     PATCH,
@@ -22,12 +23,12 @@ public enum RuleBump {
         if (!Objects.equals(event(before), event(after))) {
             return MAJOR;
         }
-        if (!Objects.equals(when(before), when(after)) || !before.audience().equals(after.audience())
+        if (!Objects.equals(when(before), when(after)) || !recipients(before).equals(recipients(after))
                 || stepsMovedOrRerouted(before.steps(), after.steps())) {
             return MINOR;
         }
-        return before.steps().equals(after.steps()) && Objects.equals(before.family(), after.family()) ? null
-                : PATCH;
+        return before.steps().equals(after.steps()) && before.groups().equals(after.groups())
+                && Objects.equals(before.family(), after.family()) ? null : PATCH;
     }
 
     /** The version after {@code current} for this bump; {@link #FIRST} when nothing is published yet. */
@@ -68,6 +69,11 @@ public enum RuleBump {
         }
         // Same steps in another order.
         return !before.equals(after) && sorted(before).equals(sorted(after));
+    }
+
+    /** The groups without their names: who receives, not what the group is called. */
+    private static List<RuleSpec.Group> recipients(RuleSpec spec) {
+        return spec.groups().stream().map(g -> new RuleSpec.Group(g.id(), null, g.entries())).toList();
     }
 
     private static List<RuleSpec.Step> sorted(List<RuleSpec.Step> steps) {

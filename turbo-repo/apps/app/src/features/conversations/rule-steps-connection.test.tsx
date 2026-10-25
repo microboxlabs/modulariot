@@ -5,6 +5,7 @@ import type { RuleStep } from "./conversations-types";
 
 const api = vi.hoisted(() => ({
   useConnectionChannel: vi.fn(),
+  useOrgMetaTemplates: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock("./conversations-api", () => api);
 
@@ -16,10 +17,12 @@ const SLACK_STEP: RuleStep = {
   after: 0,
   channel: "slack",
   template: "",
-  to: "audience",
+  to: [],
   waitForReply: 0,
   onReply: "stop",
 };
+
+const GROUPS = [{ id: "drivers", entries: [{ role: "driver" }] }];
 
 const connection = (id: string, name: string) => ({
   id,
@@ -31,7 +34,7 @@ const connection = (id: string, name: string) => ({
 });
 
 describe("RuleSteps, steps that call a connection", () => {
-  it("asks for one of the channel's connections instead of recipients, and the template is optional", () => {
+  it("asks for one of the channel's connections instead of groups, and the template is optional", () => {
     api.useConnectionChannel.mockImplementation((channel: string | null) => ({
       data:
         channel === "slack"
@@ -46,16 +49,18 @@ describe("RuleSteps, steps that call a connection", () => {
     render(
       <RuleSteps
         steps={[SLACK_STEP]}
+        groups={GROUPS}
         templates={[]}
-        fields={[]}
         readOnly={false}
         d={d}
         onChange={onChange}
       />
     );
     expect(api.useConnectionChannel).toHaveBeenCalledWith("slack");
-    expect(screen.getByRole("option", { name: "Sin plantilla" })).toBeTruthy();
-    expect(screen.getByText("A").parentElement?.className).toContain("hidden");
+    expect(screen.getByLabelText("Plantilla").getAttribute("placeholder")).toBe(
+      "Sin plantilla"
+    );
+    expect(screen.queryByRole("group", { name: /Grupos/ })).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Conexión"), {
       target: { value: "c1" },
@@ -65,18 +70,40 @@ describe("RuleSteps, steps that call a connection", () => {
     ]);
   });
 
-  it("shows no connection field on a step written to people", () => {
-    api.useConnectionChannel.mockReturnValue({ data: undefined });
+  it("links to the channel's page when it has no connections", () => {
+    api.useConnectionChannel.mockReturnValue({
+      data: { operation: null, requestSchema: null, connections: [] },
+    });
     render(
       <RuleSteps
-        steps={[{ ...SLACK_STEP, channel: "email" }]}
+        steps={[SLACK_STEP]}
+        groups={GROUPS}
         templates={[]}
-        fields={[]}
         readOnly={false}
         d={d}
         onChange={vi.fn()}
       />
     );
     expect(screen.queryByLabelText("Conexión")).toBeNull();
+    expect(screen.getByText(/No hay conexiones de Slack/)).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Crear una" }).getAttribute("href")
+    ).toBe("/es/users/settings/communications?section=channel%3Aslack");
+  });
+
+  it("shows the groups and no connection on a step written to people", () => {
+    api.useConnectionChannel.mockReturnValue({ data: undefined });
+    render(
+      <RuleSteps
+        steps={[{ ...SLACK_STEP, channel: "email", to: ["drivers"] }]}
+        groups={GROUPS}
+        templates={[]}
+        readOnly={false}
+        d={d}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByLabelText("Conexión")).toBeNull();
+    expect(screen.getByRole("group", { name: /Grupos/ })).toBeTruthy();
   });
 });

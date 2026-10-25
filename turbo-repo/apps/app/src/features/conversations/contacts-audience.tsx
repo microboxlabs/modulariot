@@ -149,6 +149,7 @@ function ClauseRow({
             lang="es"
             dict={fieldDict}
             disabled={readOnly}
+            compact
           />
         </div>
       )}

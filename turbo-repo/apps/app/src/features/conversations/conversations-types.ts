@@ -31,6 +31,14 @@ export interface AudienceEntry {
   contacts?: string;
 }
 
+/** Recipients with a name; steps name the groups they write to by `id`. */
+export interface RecipientGroup {
+  id: string;
+  /** Empty shows a default name: the rule's recipients, step N, or group N. */
+  name?: string | null;
+  entries: AudienceEntry[];
+}
+
 export interface RuleStep {
   /** Minutes after the previous step finished waiting. */
   after: number;
@@ -39,7 +47,8 @@ export interface RuleStep {
   template: string;
   /** The integration connection a Webhook, Slack or Teams step calls. */
   connection?: string;
-  to: "audience" | AudienceEntry[];
+  /** The ids of the groups the step writes to; unused by a connection step. */
+  to: string[];
   /** Minutes to wait for a reply; 0 does not wait. */
   waitForReply: number;
   onReply: OnReply;
@@ -47,7 +56,7 @@ export interface RuleStep {
 
 export interface RuleSpec {
   trigger: RuleTrigger;
-  audience: AudienceEntry[];
+  groups: RecipientGroup[];
   steps: RuleStep[];
   /** A communication_families value from Ajustes › Seleccionables. */
   family?: string | null;
@@ -101,6 +110,8 @@ export interface RuleDetail {
   versions: RuleVersion[];
   /** Null without a draft. */
   plan?: PublishPlan | null;
+  /** The draft's findings; null without a draft. */
+  findings?: RuleFinding[] | null;
 }
 
 export interface RuleFinding {

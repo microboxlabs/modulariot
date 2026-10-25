@@ -2,7 +2,7 @@
 
 import { type ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
-import { HiChevronLeft } from "react-icons/hi";
+import { HiChevronLeft, HiPlay } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -12,32 +12,26 @@ import {
   type SymptomFamily,
   useControlTowerAccess,
 } from "@/features/symptoms/maintainer/maintainer-api";
-import { familyOptions } from "@/features/symptoms/maintainer/sheet-header";
+import {
+  familyOptions,
+  VersionMenu,
+} from "@/features/symptoms/maintainer/sheet-header";
 import {
   canonicalFamily,
   familyLabel,
 } from "@/features/symptoms/maintainer/symptom-labels";
 import { PillSelect } from "@/features/symptoms/maintainer/ui/pill";
-import { Problems } from "@/features/symptoms/maintainer/rule-problems";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import NumberedSection from "@/features/symptoms/maintainer/ui/section";
 import SheetTop from "@/features/symptoms/maintainer/ui/sheet-top";
 import { StateToggle } from "@/features/symptoms/maintainer/ui/state";
-import AudienceList from "./audience-list";
 import {
   refreshRules,
   setRuleState,
-  simulateRule,
   useConversationTemplates,
   useEventCatalog,
   useRuleFamilies,
 } from "./conversations-api";
-import type {
-  EventTypeInfo,
-  RuleSpec,
-  RuleState,
-  SampleEvent,
-} from "./conversations-types";
+import type { EventTypeInfo, RuleSpec, RuleState } from "./conversations-types";
 import RuleDraftBar, { PublishRuleDialog } from "./rule-draft-bar";
 import { placeFindings, ruleFindingText } from "./rule-findings";
 import {
@@ -49,10 +43,11 @@ import {
   triggerSummary,
 } from "./rule-model";
 import { RuleReviewPanel, VariablesPanel } from "./rule-side-panel";
-import RuleSteps from "./rule-steps";
+import { GroupsSection, StepsSection } from "./rule-sections";
 import RuleTriggerSection from "./rule-trigger";
 import { COMMUNICATIONS_PAGE } from "./rules-tab";
-import SimulationSection from "./simulation";
+import RuleVersionsDrawer from "./rule-versions-drawer";
+import TestSendDialog from "./test-send-dialog";
 import { useRuleDraft } from "./use-rule-draft";
 import { useSymptomNames } from "./use-symptom-names";
 
@@ -87,6 +82,7 @@ function RuleHeader({
   d,
   onState,
   onFamily,
+  onHistory,
   actions,
 }: Readonly<{
   name: string;
@@ -104,6 +100,7 @@ function RuleHeader({
   d: I18nRecord;
   onState: (state: RuleState) => void;
   onFamily: (family: string | null) => void;
+  onHistory: () => void;
   /** The draft's changes and actions, shown before the state. */
   actions?: ReactNode;
 }>) {
@@ -123,9 +120,18 @@ function RuleHeader({
           <h1 className="text-2xl font-semibold break-words text-gray-900 dark:text-white">
             {name}
           </h1>
-          <span className="rounded-md border border-gray-300 px-2 py-0.5 font-mono text-xs text-gray-700 dark:border-gray-600 dark:text-gray-200">
-            {version ? `v${version}` : tr("unpublished", d)}
-          </span>
+          {version ? (
+            <VersionMenu
+              label={`v${version}`}
+              canFork={false}
+              d={d}
+              onHistory={onHistory}
+            />
+          ) : (
+            <span className="rounded-md border border-gray-300 px-2 py-0.5 font-mono text-xs text-gray-700 dark:border-gray-600 dark:text-gray-200">
+              {tr("unpublished", d)}
+            </span>
+          )}
         </div>
         <div
           className={`mt-1 flex flex-wrap items-center gap-2 text-xs ${MUTED}`}
@@ -212,6 +218,8 @@ export default function RuleEditor({
   const { data: families, error: familiesError } = useRuleFamilies();
   const symptomName = useSymptomNames();
   const [reviewing, setReviewing] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [history, setHistory] = useState(false);
   const [stateError, setStateError] = useState<string | null>(null);
 
   const info = catalog?.find((e) => e.type === spec?.trigger.event);
@@ -268,14 +276,9 @@ export default function RuleEditor({
     );
   };
 
-  const simulate = async (event: SampleEvent) => {
-    await flush();
-    return simulateRule(id, event);
-  };
-
   const placed = spec
     ? placeFindings(findings, spec, d)
-    : { trigger: [], audience: {}, audienceGeneral: [], steps: {} };
+    : { trigger: [], groups: {}, steps: {} };
 
   const showBar = canMaintain && Boolean(detail?.draft || saving || saveError);
 
@@ -313,6 +316,7 @@ export default function RuleEditor({
               d={d}
               onState={(s) => void changeState(s)}
               onFamily={(family) => set({ family })}
+              onHistory={() => setHistory(true)}
               actions={
                 <>
                   {stateError && (
@@ -322,6 +326,24 @@ export default function RuleEditor({
                     >
                       {stateError}
                     </span>
+                  )}
+                  {canMaintain && spec && (
+                    <button
+                      type="button"
+                      aria-label={tr("testSend", d)}
+                      title={
+                        errors > 0
+                          ? tr("testSendHasErrors", d)
+                          : tr("testSend", d)
+                      }
+                      disabled={
+                        discarding || errors > 0 || spec.steps.length === 0
+                      }
+                      onClick={() => setTesting(true)}
+                      className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      <HiPlay className="h-4 w-4" />
+                    </button>
                   )}
                   {showBar && (
                     <RuleDraftBar
@@ -380,63 +402,26 @@ export default function RuleEditor({
                   onChange={(trigger) => set({ trigger })}
                 />
 
-                <NumberedSection
-                  number={2}
-                  title={tr("sectionAudience", d)}
-                  subtitle={tr("sectionAudienceSub", d)}
+                <GroupsSection
+                  spec={spec}
+                  fields={info?.fields ?? []}
+                  errors={placed.groups}
                   changed={changedKeys.has("audience")}
-                >
-                  <p className={`text-sm ${MUTED}`}>{tr("audienceHint", d)}</p>
-                  <Problems
-                    items={placed.audienceGeneral.map((message) => ({
-                      position: 0,
-                      message,
-                      severity: "error",
-                    }))}
-                  />
-                  <AudienceList
-                    entries={spec.audience}
-                    fields={info?.fields ?? []}
-                    errors={placed.audience}
-                    readOnly={readOnly}
-                    d={d}
-                    fieldDict={fieldDict}
-                    label={tr("sectionAudience", d)}
-                    onChange={(audience) => set({ audience })}
-                  />
-                </NumberedSection>
+                  readOnly={readOnly}
+                  d={d}
+                  fieldDict={fieldDict}
+                  onChange={set}
+                />
 
-                <NumberedSection
-                  number={3}
-                  title={tr("sectionSteps", d)}
-                  subtitle={tr("sectionStepsSub", d)}
+                <StepsSection
+                  spec={spec}
+                  templates={templates ?? []}
+                  errors={placed.steps}
                   changed={changes.some((c) => c.key.startsWith("step"))}
-                >
-                  <RuleSteps
-                    steps={spec.steps}
-                    templates={templates ?? []}
-                    fields={info?.fields ?? []}
-                    errors={placed.steps}
-                    readOnly={readOnly}
-                    d={d}
-                    fieldDict={fieldDict}
-                    onChange={(steps) => set({ steps })}
-                  />
-                </NumberedSection>
-
-                <NumberedSection
-                  number={4}
-                  title={tr("sectionSimulation", d)}
-                  subtitle={tr("sectionSimulationSub", d)}
-                >
-                  <SimulationSection
-                    key={`${spec.trigger.event}-${info ? "catalog" : ""}`}
-                    initial={sample}
-                    disabled={!canMaintain || discarding || !spec.trigger.event}
-                    d={d}
-                    onSimulate={simulate}
-                  />
-                </NumberedSection>
+                  readOnly={readOnly}
+                  d={d}
+                  onChange={(steps) => set({ steps })}
+                />
               </div>
               <div className="flex flex-col gap-4">
                 <RuleReviewPanel findings={findings} d={d} />
@@ -446,6 +431,31 @@ export default function RuleEditor({
           )}
         </div>
       </div>
+      <RuleVersionsDrawer
+        show={history}
+        versions={detail?.versions ?? []}
+        current={rule?.currentVersion ?? null}
+        canWrite={canMaintain && !discarding}
+        d={d}
+        onClose={() => setHistory(false)}
+        onRestore={(restored) => {
+          update(restored);
+          setHistory(false);
+        }}
+      />
+      {spec && (
+        <TestSendDialog
+          open={testing}
+          ruleId={id}
+          groups={spec.groups.map((g) => g.id)}
+          steps={spec.steps}
+          sample={sample}
+          lang={lang}
+          d={d}
+          beforeSend={flush}
+          onClose={() => setTesting(false)}
+        />
+      )}
       <PublishRuleDialog
         open={reviewing}
         changes={changes}

@@ -99,7 +99,7 @@ public class ContactReach {
         List<Condition> out = new ArrayList<>();
         for (Step s : spec.steps()) {
             if (!s.viaConnection()) {
-                addContacts(s.to() != null ? s.to() : spec.audience(), s.channel(), out);
+                addContacts(spec.recipients(s), s.channel(), out);
             }
         }
         return out;

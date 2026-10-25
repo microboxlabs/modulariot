@@ -185,6 +185,10 @@ final class InMemoryRules {
 
         @Override
         public Run createRun(Run run) {
+            Optional<Run> first = invoked(run.ruleId(), run.invocationKey());
+            if (first.isPresent()) {
+                return first.get();
+            }
             runs.put(run.id(), run);
             if (run.status() == Run.Status.WAITING) {
                 conversations.waitingRuns.add(run.id());
@@ -195,6 +199,13 @@ final class InMemoryRules {
         @Override
         public Optional<Run> find(String id) {
             return Optional.ofNullable(runs.get(id));
+        }
+
+        @Override
+        public Optional<Run> invoked(String ruleId, String key) {
+            return key == null ? Optional.empty()
+                    : runs.values().stream()
+                            .filter(r -> r.ruleId().equals(ruleId) && key.equals(r.invocationKey())).findFirst();
         }
 
         @Override

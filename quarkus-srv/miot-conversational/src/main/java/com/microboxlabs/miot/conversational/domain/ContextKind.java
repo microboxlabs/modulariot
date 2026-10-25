@@ -7,7 +7,8 @@ public enum ContextKind {
     SERVICE,
     SYMPTOM_CASE,
     DOCUMENT,
-    JOB;
+    JOB,
+    TRIP;
 
     public String dbValue() {
         return name().toLowerCase(Locale.ROOT);

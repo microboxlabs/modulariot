@@ -42,10 +42,12 @@ class FeedReconcilerTest {
     private final AssignmentService assignments = new AssignmentService(world.assignmentStore, world.tripStore,
             fleet, live, audit, tx);
     private final ObjectMapper json = JsonMapper.builder().findAndAddModules().build();
+    private final MilestoneService milestones = new MilestoneService(world.milestoneStore, world.tripStore, audit,
+            tx);
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
             new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
                     world.tripStore, live, audit, tx),
-            fleet, tx, json, Clock.systemUTC());
+            milestones, audit, fleet, tx, json, Clock.systemUTC());
 
     private void monitorChange(String tenant, String actor, String action, String tripId,
             Map<String, Object> details) {
@@ -127,7 +129,7 @@ class FeedReconcilerTest {
         String latest = json.writeValueAsString(desired(null, List.of()));
         tx.onEnter = () -> feeds.saved = new FeedService(previous.tenantCode(), previous.feedKey(),
                 previous.externalCode(), latest, "new-hash", previous.mandateId(), previous.tripId(), true,
-                previous.lastAction(), previous.lastResult(), previous.lastReconciledAt());
+                previous.lastAction(), previous.lastResult(), previous.lastReconciledAt(), previous.appliedDesired());
         feeds.requireTransaction = true;
         reconciler.recheck("test", "test-feed", "S-TEST");
         assertEquals(json.readTree(latest), json.readTree(feeds.saved.desired()));
@@ -156,7 +158,7 @@ class FeedReconcilerTest {
         FeedReconciler timed = new FeedReconciler(feeds, mandates, trips, stages, assignments,
             new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
                     world.tripStore, live, audit, tx),
-                fleet, tx, json, crossingClock);
+                milestones, audit, fleet, tx, json, crossingClock);
         OffsetDateTime departure = OffsetDateTime.ofInstant(evaluated.plusSeconds(60), java.time.ZoneOffset.UTC);
         FeedServiceRequest request = new FeedServiceRequest("service", "test reference", departure,
                 departure.plusHours(2), new FeedServiceRequest.Resources(null, null, List.of()), null);
@@ -251,7 +253,7 @@ class FeedReconcilerTest {
         }
         public FeedService lockService(String tenant, String key, String code) {
             if (saved == null) {
-                saved = new FeedService(tenant, key, code, "{}", "", null, null, true, null, null, null);
+                saved = new FeedService(tenant, key, code, "{}", "", null, null, true, null, null, null, null);
             }
             return saved;
         }

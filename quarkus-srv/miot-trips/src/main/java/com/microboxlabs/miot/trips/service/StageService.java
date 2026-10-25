@@ -122,6 +122,11 @@ public class StageService {
 
     /** Opens the stage — THE state change. 409 while another stage of the subject runs. */
     public Stage start(String tenantCode, String actor, UUID id) {
+        return start(tenantCode, actor, id, null);
+    }
+
+    /** Opens the stage at {@code at}, the time it actually started; null is now. */
+    public Stage start(String tenantCode, String actor, UUID id, OffsetDateTime at) {
         Stage subject = get(tenantCode, id);
         return tx.inTransaction(() -> {
             requireOpenTrip(tenantCode, subject);
@@ -129,7 +134,8 @@ public class StageService {
             if (!Stage.PENDING.equals(current.status())) {
                 throw new IllegalStateException("stage is " + current.status());
             }
-            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime now = at == null ? OffsetDateTime.now(ZoneOffset.UTC) : at.withOffsetSameInstant(
+                    ZoneOffset.UTC);
             Stage started = stages.start(tenantCode, id, now, actor)
                     .orElseThrow(() -> new IllegalStateException("stage is no longer pending"));
             onTripStageStarted(tenantCode, actor, started, now);
@@ -142,6 +148,11 @@ public class StageService {
 
     /** Closes the stage; moves the cargo it loads/unloads, and 'closing' realizes the trip. */
     public Stage close(String tenantCode, String actor, UUID id) {
+        return close(tenantCode, actor, id, null);
+    }
+
+    /** Closes the stage at {@code at}, the time it actually ended; null is now. */
+    public Stage close(String tenantCode, String actor, UUID id, OffsetDateTime at) {
         Stage subject = get(tenantCode, id);
         return tx.inTransaction(() -> {
             requireOpenTrip(tenantCode, subject);
@@ -149,7 +160,8 @@ public class StageService {
             if (!Stage.RUNNING.equals(current.status())) {
                 throw new IllegalStateException("stage is " + current.status());
             }
-            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime now = at == null ? OffsetDateTime.now(ZoneOffset.UTC) : at.withOffsetSameInstant(
+                    ZoneOffset.UTC);
             Stage closed = stages.close(tenantCode, id, now, actor)
                     .orElseThrow(() -> new IllegalStateException("stage is no longer in_progress"));
             int loaded = tripCargo.markLoadedByStage(tenantCode, id, actor);

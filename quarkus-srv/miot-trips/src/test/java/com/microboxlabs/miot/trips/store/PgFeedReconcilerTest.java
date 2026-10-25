@@ -25,6 +25,8 @@ import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
+import com.microboxlabs.miot.trips.dto.MonitorViews;
 import com.microboxlabs.miot.trips.dto.AssignmentView;
 import com.microboxlabs.miot.trips.dto.FeedBatchRequest;
 import com.microboxlabs.miot.trips.dto.FeedBatchResult;
@@ -109,11 +111,11 @@ class PgFeedReconcilerTest {
     private final FakeGeofences geofences = new FakeGeofences();
     private final LocationService locations = new LocationService(new PgLocationStore(() -> pool), geofences,
             new PgTripStore(() -> pool), projector, audit, tx);
-    private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-            locations, fleet, tx, json, clock);
-    private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final MilestoneService milestones = new MilestoneService(new PgMilestoneStore(() -> pool),
             new PgTripStore(() -> pool), audit, tx);
+    private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
+            locations, milestones, audit, fleet, tx, json, clock);
+    private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
             new PgTripStore(() -> pool), new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool),
             new PgLocationStore(() -> pool), stages, trips, mandates, milestones, fleet, audit, tx, clock);
@@ -540,5 +542,165 @@ class PgFeedReconcilerTest {
         public Instant instant() {
             return now;
         }
+    }
+
+    private FeedServiceRequest withActuals(FeedServiceRequest d, OffsetDateTime start, OffsetDateTime arrival,
+            OffsetDateTime end) {
+        return new FeedServiceRequest(d.orderType(), d.orderRef(), d.origin(), d.destination(), d.plannedStart(),
+                d.plannedEnd(), start, arrival, end, d.resources(), null);
+    }
+
+    private TripMilestone milestone(String tripId, String name) {
+        return milestones.list(tenant, UUID.fromString(tripId)).stream().filter(m -> m.milestone().equals(name))
+                .findFirst().orElseThrow();
+    }
+
+    @Test
+    void anActualTimeConfirmsItsMilestoneOnce() {
+        FeedServiceRequest d = desired(-1, 5, "ABC-123", null, "10000001");
+        FeedResult created = send("S-030", withActuals(d, at(-0.5), null, null));
+
+        assertTrue(created.operations().stream().anyMatch(o -> o.startsWith("confirm departure at ")),
+                created.operations().toString());
+        TripMilestone departure = milestone(created.tripId(), TripMilestone.DEPARTURE);
+        assertEquals(TripMilestone.CONFIRMED, departure.status());
+        assertEquals("feed", departure.channel());
+        assertTrue(at(-0.5).isEqual(departure.confirmedAt()));
+        assertEquals(TripMilestone.OPEN, milestone(created.tripId(), TripMilestone.ARRIVAL).status());
+
+        FeedResult same = send("S-030", withActuals(d, at(-0.5), null, null));
+        assertEquals(List.of(), same.operations(), "the same actual time confirms nothing again");
+
+        FeedResult secondsLater = send("S-030", withActuals(d, at(-0.5).plusSeconds(30), null, null));
+        assertTrue(secondsLater.warnings().stream().anyMatch(w -> w.startsWith("departure was confirmed at")),
+                "a different confirmed time must be reported even within one minute");
+
+        FeedResult other = send("S-030", withActuals(d, at(-0.25), null, null));
+        assertTrue(other.operations().stream().noneMatch(o -> o.startsWith("confirm")));
+        assertTrue(other.warnings().stream().anyMatch(w -> w.startsWith("departure was confirmed at")),
+                other.warnings().toString());
+        assertTrue(at(-0.5).isEqual(milestone(created.tripId(), TripMilestone.DEPARTURE).confirmedAt()),
+                "the first confirmation stays");
+    }
+
+    @Test
+    void anEndedServiceWithItsActualTimesIsRecordedAsARegularizedTrip() {
+        MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+        monitors.saveDraft(tenant, ACTOR, "direct", new MonitorRequest("Direct", null, List.of(), Map.of(), List.of(
+                new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
+                        List.of(new TripMonitor.Action("alert", "created")), 10, true))));
+        monitors.publish(tenant, ACTOR, "direct");
+        monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
+                new MonitorViews.SelectorRequest.Entry("trip.orderType == 'directo'", "direct"))));
+
+        FeedResult skipped = send("S-031", desired(-12, -5, "ABC-123", null, "10000001"));
+        assertEquals(FeedReconciler.SKIP, skipped.action());
+        assertTrue(skipped.warnings().get(0).contains("send its actual departure and closure"));
+
+        FeedResult r = send("S-031", withActuals(desired(-12, -5, "ABC-123", null, "10000001"), at(-11.5), at(-6),
+                at(-5.5)));
+
+        assertEquals(FeedReconciler.REGULARIZE, r.action());
+        assertEquals(List.of(), r.errors());
+        UUID tripId = UUID.fromString(r.tripId());
+        Trip t = trips.get(tenant, tripId);
+        assertEquals(Trip.DONE, t.status());
+        assertTrue(at(-11.5).isEqual(t.actualStart()), "the trip keeps its actual departure");
+        assertTrue(at(-5.5).isEqual(t.actualEnd()), "and its actual closure");
+        assertTrue(trip(r).assignments().stream().allMatch(a -> at(-11.5).isEqual(a.validFrom())),
+                "historical assignments begin at the actual departure");
+        assertTrue(engine.state(tenant, tripId).isEmpty(), "a regularized trip gets no monitor, not even the selector's");
+        assertEquals(List.of(), engine.transitions(tenant, tripId, 50));
+        for (String m : TripMilestone.MILESTONES) {
+            assertEquals(TripMilestone.CONFIRMED, milestone(r.tripId(), m).status(), m);
+        }
+        assertEquals(Mandate.CLOSED, mandates.get(tenant, UUID.fromString(r.mandateId())).status());
+        assertFalse(feeds.service(tenant, FEED, "S-031").orElseThrow().open());
+    }
+
+    @Test
+    void actualClosureTakesPrecedenceOverMissingOrFuturePlannedEnd() {
+        FeedServiceRequest futurePlan = desired(-12, 5, "ABC-123", null, "10000001");
+        FeedResult future = send("S-036", withActuals(futurePlan, at(-11), at(-6), at(-5)));
+        assertEquals(FeedReconciler.REGULARIZE, future.action());
+        assertEquals(Trip.DONE, trips.get(tenant, UUID.fromString(future.tripId())).status());
+
+        FeedServiceRequest noPlannedEnd = new FeedServiceRequest(futurePlan.orderType(), futurePlan.orderRef(),
+                futurePlan.origin(), futurePlan.destination(), futurePlan.plannedStart(), null, at(-11), at(-6),
+                at(-5), futurePlan.resources(), null);
+        FeedResult missing = send("S-037", noPlannedEnd);
+        assertEquals(FeedReconciler.REGULARIZE, missing.action());
+        assertEquals(Trip.DONE, trips.get(tenant, UUID.fromString(missing.tripId())).status());
+    }
+
+    @Test
+    void invalidRegularizationDoesNotCreateAPartialTrip() {
+        FeedServiceRequest ended = desired(-12, -5, "ABC-123", null, "10000001");
+        FeedResult outOfOrder = send("S-034", withActuals(ended, at(-4), at(-7), at(-6)));
+        assertEquals(FeedReconciler.REPORT, outOfOrder.action());
+        assertTrue(outOfOrder.errors().get(0).contains("chronological order"));
+        assertNull(outOfOrder.tripId());
+        assertNull(outOfOrder.mandateId());
+
+        FeedProfile current = feeds.profile(tenant, FEED).orElseThrow();
+        feeds.saveProfile(new FeedProfile(tenant, FEED, current.name(),
+                List.of(new FeedProfile.StagePlan("preparation", "ADDED")), "preparation", null,
+                current.requiredResources(), true, null, ACTOR, null, ACTOR));
+        FeedResult noClosing = send("S-035", withActuals(ended, at(-11), null, at(-6)));
+        assertEquals(FeedReconciler.REPORT, noClosing.action());
+        assertTrue(noClosing.errors().get(0).contains("closing as its final stage"));
+        assertNull(noClosing.tripId());
+        assertNull(noClosing.mandateId());
+    }
+
+    @Test
+    void aChangeToAClosedTripIsReportedNotApplied() {
+        FeedResult created = send("S-032", desired(2, 10, "ABC-123", null, "10000001"));
+        UUID tripId = UUID.fromString(created.tripId());
+        trip(created).stages().forEach(st -> {
+            stages.start(tenant, ACTOR, UUID.fromString(st.id()));
+            stages.close(tenant, ACTOR, UUID.fromString(st.id()));
+        });
+
+        FeedResult changed = send("S-032", desired(3, 12, "MNO-111", null, "10000001"));
+
+        assertEquals(FeedReconciler.SKIP, changed.action());
+        assertEquals(List.of("the trip is completed; the feed changed plannedStart, plannedEnd, resources,"
+                + " which is not applied"), changed.warnings());
+        assertEquals(at(2).toInstant(), trips.get(tenant, tripId).plannedStart().toInstant());
+        assertEquals(List.of(fleetIds.abc()), openWindows(trip(created), "truck"));
+        assertTrue(audit.list(tenant, "trip", tripId.toString(), null, null, 100).stream()
+                .anyMatch(e -> FeedReconciler.CLOSED_CHANGED.equals(e.action())), "the change is audited");
+
+        FeedResult closure = send("S-032", withActuals(desired(3, 12, "MNO-111", null, "10000001"), null, null,
+                at(11)));
+        assertEquals(FeedReconciler.UPDATE, closure.action(), "a closed trip still records its milestones");
+        assertEquals(TripMilestone.CONFIRMED, milestone(created.tripId(), TripMilestone.CLOSURE).status());
+    }
+
+    @Test
+    void asynchronousRecheckReportsChangesAgainstLastAppliedFeedState() throws Exception {
+        FeedServiceRequest original = desired(2, 10, "ABC-123", null, "10000001");
+        FeedResult created = send("S-033", original);
+        trip(created).stages().forEach(stage -> {
+            stages.start(tenant, ACTOR, UUID.fromString(stage.id()));
+            stages.close(tenant, ACTOR, UUID.fromString(stage.id()));
+        });
+
+        FeedServiceRequest changed = desired(3, 12, "MNO-111", null, "10000001");
+        assertTrue(reconciler.accept(tenant, FEED, "S-033", changed));
+        FeedResult result = reconciler.recheck(tenant, ACTOR, FEED, "S-033");
+
+        assertEquals(FeedReconciler.SKIP, result.action());
+        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("plannedStart, plannedEnd, resources")));
+        assertEquals(at(2).toInstant(), trips.get(tenant, UUID.fromString(created.tripId())).plannedStart().toInstant());
+        assertEquals(List.of(fleetIds.abc()), openWindows(trip(created), "truck"));
+        FeedServiceRequest applied = json.readValue(
+                feeds.service(tenant, FEED, "S-033").orElseThrow().appliedDesired(), FeedServiceRequest.class);
+        assertTrue(applied.plannedStart().isEqual(changed.plannedStart()));
+        assertTrue(applied.plannedEnd().isEqual(changed.plannedEnd()));
+        assertEquals(changed.resources(), applied.resources());
+        assertTrue(audit.list(tenant, "trip", created.tripId(), null, null, 100).stream()
+                .anyMatch(event -> FeedReconciler.CLOSED_CHANGED.equals(event.action())));
     }
 }

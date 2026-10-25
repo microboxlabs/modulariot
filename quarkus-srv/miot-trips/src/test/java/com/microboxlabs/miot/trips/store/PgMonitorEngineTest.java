@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.db.PgTransactions;
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
 import com.microboxlabs.miot.trips.domain.Mandate;
@@ -436,6 +437,22 @@ class PgMonitorEngineTest {
         assertEquals(Stage.RUNNING, status(tripId, "transit"));
         assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
                 replies.apply(reply(tripId, detected, "departure", "confirm", null)), "a late tap changes nothing");
+    }
+
+    @Test
+    void aRolledBackSavepointDoesNotPublishItsDetectionAfterTheOuterCommit() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        tx.inTransaction(() -> {
+            assertThrows(IllegalStateException.class, () -> PgTx.savepoint(() -> {
+                milestones.request(tenant, ACTOR, tripId, "departure", "gps",
+                        OffsetDateTime.parse("2026-10-25T08:32:00Z"), Map.of());
+                throw new IllegalStateException("discard this detection");
+            }));
+            return null;
+        });
+        assertEquals(List.of(), firedFor(tripId, TripEventCatalog.MILESTONE_DETECTED));
+        assertEquals(TripMilestone.OPEN, milestone(tripId, "departure").status());
     }
 
     @Test

@@ -116,7 +116,7 @@
     "use-debounce": "^10.0.4",
     "wkx": "^0.5.0",
     "xlsx": "file:../../vendor/xlsx-0.20.3.tgz",
-    "zod": "^4.6.6"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",

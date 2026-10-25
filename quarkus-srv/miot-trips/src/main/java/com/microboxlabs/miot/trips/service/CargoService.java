@@ -132,10 +132,10 @@ public class CargoService {
             store.lockTripsCarrying(tenantCode, id);
             ReceiveRequest req = body == null ? new ReceiveRequest(null, null) : body;
             if (req.result() == null || !Set.of("conforming", "discrepancy").contains(req.result())) {
-                throw new IllegalArgumentException("result must be conforme or diferencia");
+                throw new IllegalArgumentException("result must be conforming or discrepancy");
             }
             if ("discrepancy".equals(req.result()) && (req.notes() == null || req.notes().isBlank())) {
-                throw new IllegalArgumentException("notes: a diferencia needs the detail");
+                throw new IllegalArgumentException("notes: a discrepancy needs the detail");
             }
             CargoUnit current = get(tenantCode, id);
             if (!CargoUnit.DELIVERED.equals(current.status())) {

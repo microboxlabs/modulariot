@@ -27,11 +27,13 @@ export function useRuleDraft(id: string) {
   const [spec, setSpec] = useState<RuleSpec | null>(null);
   const [findings, setFindings] = useState<RuleFinding[] | null>(null);
   const [saving, setSaving] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const loadedFor = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The latest edit not saved yet. */
   const pending = useRef<RuleSpec | null>(null);
+  const discardInProgress = useRef(false);
   /** The saves queued so far; it never rejects. */
   const chain = useRef<Promise<void>>(Promise.resolve());
   const running = useRef(0);
@@ -89,6 +91,7 @@ export function useRuleDraft(id: string) {
 
   const update = useCallback(
     (next: RuleSpec) => {
+      if (discardInProgress.current) return;
       setSpec(next);
       pending.current = next;
       setSaving(true);
@@ -128,20 +131,42 @@ export function useRuleDraft(id: string) {
 
   /** Drops the draft, after any save in flight, and goes back to the version in force. */
   const discard = useCallback(async () => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
+    if (discardInProgress.current) return;
+    discardInProgress.current = true;
+    setDiscarding(true);
+    const unsaved = pending.current;
+    try {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      pending.current = null;
+      await chain.current;
+      try {
+        await discardRuleDraft(id);
+      } catch (e) {
+        if (unsaved) {
+          pending.current = unsaved;
+          void enqueue(unsaved);
+        }
+        throw e;
+      }
+      setSaveError(null);
+      setFindings(null);
+      setSaving(false);
+      setSpec(normalizeSpec(detail?.current?.spec));
+      await mutate(
+        (current) => (current ? { ...current, draft: null } : current),
+        { revalidate: false }
+      );
+      const fresh = await mutate();
+      setSpec(normalizeSpec(fresh?.current?.spec ?? detail?.current?.spec));
+      await refreshRules(id);
+    } finally {
+      discardInProgress.current = false;
+      setDiscarding(false);
     }
-    pending.current = null;
-    await chain.current;
-    await discardRuleDraft(id);
-    setSaveError(null);
-    setFindings(null);
-    setSaving(false);
-    const fresh = await mutate();
-    setSpec(normalizeSpec(fresh?.draft?.spec ?? fresh?.current?.spec));
-    await refreshRules(id);
-  }, [id, mutate]);
+  }, [detail, enqueue, id, mutate]);
 
   return {
     detail,
@@ -149,6 +174,7 @@ export function useRuleDraft(id: string) {
     spec,
     findings,
     saving,
+    discarding,
     saveError,
     update,
     flush,

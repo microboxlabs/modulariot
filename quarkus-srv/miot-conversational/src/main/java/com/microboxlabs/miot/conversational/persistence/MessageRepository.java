@@ -6,6 +6,7 @@ import com.microboxlabs.miot.conversational.domain.MessageDirection;
 import com.microboxlabs.miot.conversational.domain.MessageRole;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.domain.MessageType;
+import com.microboxlabs.miot.conversational.persistence.ConversationRepository.OutboundTouch;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -32,7 +33,7 @@ public class MessageRepository {
 
     private static final String SELECT = "SELECT " + COLUMNS;
 
-    private static final String INSERT = """
+    private static final String INSERT_VALUES = """
             INSERT INTO miot_conversational.wa_message (
                 id, conversation_id, direction, role, msg_type, body, template_name,
                 media_ref, media_mime_type, media_file_name, provider_message_id, status,
@@ -40,7 +41,36 @@ public class MessageRepository {
                 sent_at, delivered_at, read_at, created_at, channel, address, in_reply_to, run_id, step
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
                       $22, $23, $24, $25, $26)
+            """;
+
+    private static final String INSERT = INSERT_VALUES + "RETURNING " + COLUMNS;
+
+    private static final String INSERT_IF_NEW_PROVIDER_MESSAGE_ID = INSERT_VALUES + """
+            ON CONFLICT (channel, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING
             RETURNING\s""" + COLUMNS;
+
+    // The provider id only counts as persisted after its conversation activity is updated. If the
+    // update fails, PostgreSQL rolls the insert back, so a retry can safely insert and touch both.
+    private static final String INSERT_OUTBOUND_AND_TOUCH = "WITH inserted AS (" +
+            INSERT_IF_NEW_PROVIDER_MESSAGE_ID + """
+            ), touched AS (
+                UPDATE miot_conversational.wa_conversation
+                SET context_kind = COALESCE(context_kind, $33),
+                    context_key = CASE WHEN context_kind IS NULL THEN $34 ELSE context_key END,
+                    context_service_code = CASE WHEN context_kind IS NULL THEN $27 ELSE context_service_code END,
+                    context_process_instance_id = COALESCE($28, context_process_instance_id),
+                    context_task_id = COALESCE($29, context_task_id),
+                    driver_id = COALESCE($30, driver_id),
+                    participant_role = COALESCE(participant_role, CASE WHEN $30 IS NOT NULL THEN 'driver' END),
+                    last_outbound_at = $31,
+                    last_message_at = $31,
+                    last_message_preview = $32,
+                    updated_at = $31
+                WHERE id = $2 AND EXISTS (SELECT 1 FROM inserted)
+                RETURNING id
+            )
+            SELECT * FROM inserted
+            """;
 
     // Inbound idempotency and the conversation touch live in this one atomic statement: the
     // (channel, provider id) partial unique index is the dedup, so a redelivered event inserts
@@ -159,6 +189,24 @@ public class MessageRepository {
                 .execute(toParams(message))
                 .await().indefinitely()
                 .iterator().next());
+    }
+
+    /** Inserts and touches atomically; returns null when another send already stored this provider id. */
+    public Message appendOutbound(Message message, OutboundTouch touch) {
+        Tuple params = toParams(message)
+                .addString(touch.contextServiceCode())
+                .addString(touch.contextProcessInstanceId())
+                .addString(touch.contextTaskId())
+                .addString(touch.driverId())
+                .addOffsetDateTime(touch.occurredAt())
+                .addString(touch.lastMessagePreview())
+                .addString(touch.contextKind() == null ? null : touch.contextKind().dbValue())
+                .addString(touch.contextKey());
+        var rows = client().preparedQuery(INSERT_OUTBOUND_AND_TOUCH)
+                .execute(params)
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
     }
 
     /**

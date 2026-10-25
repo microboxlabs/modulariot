@@ -139,8 +139,10 @@ export default function RuleTriggerSection({
   const setWhen = (value: string) =>
     onChange({ ...trigger, when: value || null });
   // The form writes "true" when it has no conditions: the rule then always applies.
-  const { form, update } = useActivationForm(when, formFields, (rule) =>
-    setWhen(rule === "true" ? "" : rule)
+  const { form, update } = useActivationForm(
+    when || "true",
+    formFields,
+    (rule) => setWhen(rule === "true" ? "" : rule)
   );
   const samples = useMemo(() => [{ event: sample }], [sample]);
 

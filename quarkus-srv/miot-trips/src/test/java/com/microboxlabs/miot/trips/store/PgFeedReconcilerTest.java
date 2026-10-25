@@ -101,7 +101,8 @@ class PgFeedReconcilerTest {
             new PgTripStore(() -> pool), fleet, projector, audit, tx);
     private final PgFeedStore feeds = new PgFeedStore(() -> pool);
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments, fleet,
-            tx, json, clock);
+            tx, json, clock, (tenantCode, tripId) -> new PgMonitorRunStore(() -> pool)
+                    .state(tenantCode, tripId).isPresent());
 
     private String tenant;
     private Ids fleetIds;

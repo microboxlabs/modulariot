@@ -22,6 +22,8 @@ import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.store.FeedStore;
+import com.microboxlabs.miot.trips.store.MonitorRunStore;
+import java.util.function.BiPredicate;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -77,17 +79,21 @@ public class FeedReconciler {
     private final Transactions tx;
     private final ObjectMapper json;
     private final Clock clock;
+    private final BiPredicate<String, UUID> monitored;
 
     @Inject
     FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
-            AssignmentService assignments, FleetResources fleet, Transactions tx, ObjectMapper json) {
-        this(feeds, mandates, trips, stages, assignments, fleet, tx, json, Clock.systemUTC());
+            AssignmentService assignments, FleetResources fleet, Transactions tx, ObjectMapper json,
+            MonitorRunStore monitorRuns) {
+        this(feeds, mandates, trips, stages, assignments, fleet, tx, json, Clock.systemUTC(),
+                (tenant, tripId) -> monitorRuns.state(tenant, tripId).isPresent());
     }
 
     // Mirrors CDI dependencies while allowing a deterministic clock in tests.
     @SuppressWarnings("java:S107")
     public FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
-            AssignmentService assignments, FleetResources fleet, Transactions tx, ObjectMapper json, Clock clock) {
+            AssignmentService assignments, FleetResources fleet, Transactions tx, ObjectMapper json, Clock clock,
+            BiPredicate<String, UUID> monitored) {
         this.feeds = feeds;
         this.mandates = mandates;
         this.trips = trips;
@@ -97,6 +103,7 @@ public class FeedReconciler {
         this.tx = tx;
         this.json = json;
         this.clock = clock;
+        this.monitored = monitored;
     }
 
     /** The feed's profile; 404 when the tenant has no such feed or it is switched off. */
@@ -243,7 +250,7 @@ public class FeedReconciler {
             planCreate(plan, context, code, mandate.orElse(null), resources);
             return plan.decided(CREATE, true);
         }
-        if (closeDue) {
+        if (closeDue && !monitored.test(tenantCode, UUID.fromString(trip.id()))) {
             planClose(plan, tenantCode, actor, profile, trip, mandate.orElseThrow());
             return plan.decided(CLOSE, false);
         }
@@ -364,12 +371,21 @@ public class FeedReconciler {
                     UUID.fromString(plan.tripId), new AssignmentRequest(res.type(), res.id().toString(), null, null)));
         }
         String first = planned.get(0).stageType();
-        plan.step(START_NOTE + first, () -> stages.start(tenantCode, actor, plan.stageIds.get(first)));
+        plan.step(START_NOTE + first, () -> feedLifecycle(tenantCode, plan,
+                () -> stages.start(tenantCode, actor, plan.stageIds.get(first))));
         if (departed && !first.equals(profile.departureStage())) {
             plan.step(CLOSE_NOTE + first + " (departure time passed)",
-                    () -> stages.close(tenantCode, actor, plan.stageIds.get(first)));
+                    () -> feedLifecycle(tenantCode, plan,
+                            () -> stages.close(tenantCode, actor, plan.stageIds.get(first))));
             plan.step(START_NOTE + profile.departureStage(),
-                    () -> stages.start(tenantCode, actor, plan.stageIds.get(profile.departureStage())));
+                    () -> feedLifecycle(tenantCode, plan,
+                            () -> stages.start(tenantCode, actor, plan.stageIds.get(profile.departureStage()))));
+        }
+    }
+
+    private void feedLifecycle(String tenant, Plan plan, Runnable action) {
+        if (!monitored.test(tenant, UUID.fromString(plan.tripId))) {
+            action.run();
         }
     }
 
@@ -397,7 +413,8 @@ public class FeedReconciler {
         }
         planAssignments(plan, tenantCode, actor, trip, resources);
         StageView departure = stage(trip, profile.departureStage());
-        if (departed && departure != null && Stage.PENDING.equals(departure.status())) {
+        if (departed && departure != null && Stage.PENDING.equals(departure.status())
+                && !monitored.test(tenantCode, tripId)) {
             for (StageView s : trip.stages()) {
                 if (Stage.RUNNING.equals(s.status())) {
                     plan.step(CLOSE_NOTE + s.stageType() + " (departure time passed)",

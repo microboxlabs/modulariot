@@ -30,6 +30,7 @@ import {
 import { familyLabel, stateLabel } from "./symptom-labels";
 import { isTemplateScope, useSymptomScope } from "./symptom-scope";
 import { MUTED, Tile } from "./ui/card";
+import FilterStrip from "@/features/common/components/filter-strip";
 import { FilterChip } from "./ui/filter-chip";
 import { STATES } from "./ui/state";
 
@@ -193,7 +194,7 @@ export default function SymptomCatalog({
         />
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
+      <FilterStrip>
         {filterDefs.map((f) => (
           <FilterChip
             key={f.key}
@@ -204,7 +205,7 @@ export default function SymptomCatalog({
             onChange={(v) => setFilters({ ...filters, [f.key]: v })}
           />
         ))}
-      </div>
+      </FilterStrip>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">

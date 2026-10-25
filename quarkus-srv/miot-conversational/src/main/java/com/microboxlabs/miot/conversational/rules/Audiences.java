@@ -83,18 +83,23 @@ public final class Audiences {
         for (ContactDirectory.Entry c : book(tenantCode)) {
             if (EventCondition.matchesContact(when, event, contactVars(c))) {
                 matched++;
-                String ch = contactChannel(channel, c);
-                String address = RuleSpec.EMAIL.equals(ch) ? c.email() : c.whatsapp();
-                if (address == null || address.isBlank()) {
-                    warnings.add(c.name() + (RuleSpec.EMAIL.equals(ch) ? " no tiene correo" : " no tiene WhatsApp"));
-                } else {
-                    Participant p = new Participant(address, ch, c.name(), c.id(), c.role());
-                    out.putIfAbsent(p.channel() + ":" + p.address(), p);
-                }
+                addContact(c, channel, out, warnings);
             }
         }
         if (matched == 0) {
             warnings.add("Ningún contacto de la libreta cumple la condición");
+        }
+    }
+
+    private static void addContact(ContactDirectory.Entry c, String channel, Map<String, Participant> out,
+            List<String> warnings) {
+        String ch = contactChannel(channel, c);
+        String address = RuleSpec.EMAIL.equals(ch) ? c.email() : c.whatsapp();
+        if (address == null || address.isBlank()) {
+            warnings.add(c.name() + (RuleSpec.EMAIL.equals(ch) ? " no tiene correo" : " no tiene WhatsApp"));
+        } else {
+            Participant p = new Participant(address, ch, c.name(), c.id(), c.role());
+            out.putIfAbsent(p.channel() + ":" + p.address(), p);
         }
     }
 

@@ -18,7 +18,7 @@ import {
   HiUserGroup,
 } from "react-icons/hi2";
 import { toast } from "sonner";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -215,29 +215,15 @@ export default function HarnessPageContent({
   }, [members]);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "harness"]}
-          disableLinks
-        />
-      </div>
-
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900">
-        <div className="flex items-center gap-3">
-          <IconTile icon={HiChip} />
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {tr("title", harnessDict)}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("description", harnessDict)}
-            </p>
-          </div>
-        </div>
-
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "harness"]}
+      icon={HiChip}
+      title={tr("title", harnessDict)}
+      description={tr("description", harnessDict)}
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-4">
         {isTrainer && (
           <p className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
             <HiAcademicCap className="h-5 w-5 shrink-0 text-amber-500" />
@@ -629,7 +615,7 @@ export default function HarnessPageContent({
           dict={seatsModalDict}
         />
       )}
-    </div>
+    </SettingsPageShell>
   );
 }
 

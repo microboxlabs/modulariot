@@ -202,6 +202,18 @@ describe("parseConditions", () => {
     ).toBe('say "hi"');
   });
 
+  it("reads values in single quotes and writes them back in double quotes", () => {
+    const form = parseConditions(
+      "signal.geo.zone == 'Faena (Norte) && Sur' && signal.trip.active",
+      FIELDS
+    );
+    expect(form?.rows[0]?.value).toBe("Faena (Norte) && Sur");
+    expect(compileConditions(form!)).toBe(
+      'signal.geo.zone == "Faena (Norte) && Sur"\n&& signal.trip.active'
+    );
+    expect(parseConditions("signal.geo.zone == 'a\\'b'", FIELDS)).toBeNull();
+  });
+
   it("returns null for logic the form cannot show", () => {
     for (const rule of [
       "signal.trip.active && signal.derived.speed_avg_5m > signal.road.maxspeed_osm", // field against field
@@ -217,7 +229,6 @@ describe("parseConditions", () => {
       "signal.derived.speed_avg_5m > 007", // leading zeros
       'signal.derived.speed_avg_5m > "90"', // text on a number field
       'signal.geo.zone > "A"', // order on text
-      "signal.geo.zone == 'A'", // single quotes
       'signal.geo.zone == "\\x41"', // an escape the form does not write
       "signal.trip.active == 1", // number on a yes/no field
       "signal.trip.active && (signal.derived.moving", // unbalanced

@@ -1,0 +1,321 @@
+package com.microboxlabs.miot.trips.store;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.microboxlabs.miot.core.db.PgTransactions;
+import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.domain.Mandate;
+import com.microboxlabs.miot.trips.domain.MonitorRun;
+import com.microboxlabs.miot.trips.domain.Stage;
+import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripMonitor;
+import com.microboxlabs.miot.trips.dto.MandateRequest;
+import com.microboxlabs.miot.trips.dto.MonitorRequest;
+import com.microboxlabs.miot.trips.dto.MonitorViews;
+import com.microboxlabs.miot.trips.dto.StageRequest;
+import com.microboxlabs.miot.trips.dto.StageView;
+import com.microboxlabs.miot.trips.dto.TripRequest;
+import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.trips.service.AuditService;
+import com.microboxlabs.miot.trips.service.MandateService;
+import com.microboxlabs.miot.trips.service.MonitorClock;
+import com.microboxlabs.miot.trips.service.MonitorEngine;
+import com.microboxlabs.miot.trips.service.MonitorService;
+import com.microboxlabs.miot.trips.service.StageService;
+import com.microboxlabs.miot.trips.service.TripLiveProjector;
+import com.microboxlabs.miot.trips.service.TripService;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.pgclient.PgBuilder;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.pgclient.PgConnectOptions;
+import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+
+/**
+ * Monitors running on real trips: the plan rule that opens a trip, GPS signals that move it, a chained stage rule,
+ * a timer fired by the clock once, the selector, a hand command, and a failing action that undoes only itself.
+ * Skipped unless {@code -Dmiot.trips.test.pg-url=…} is set.
+ */
+@EnabledIfSystemProperty(named = PgTripsStoresTest.URL_PROPERTY, matches = ".+")
+class PgMonitorEngineTest {
+
+    private static final Duration WAIT = Duration.ofSeconds(10);
+    private static final String ACTOR = "ops@example.com";
+    private static final String DIRECT = "direct";
+
+    private static Vertx vertx;
+    private static Pool pool;
+
+    private final Transactions tx = new PgTransactions(() -> pool);
+    private final MonitorEngine[] engineRef = new MonitorEngine[1];
+    private final AuditService audit = new AuditService(new PgAuditStore(() -> pool), () -> engineRef[0]);
+    private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit, tx);
+    private final TripLiveProjector projector = PgTripsStoresTest.projector(() -> pool);
+    private final TripService trips = new TripService(new PgTripStore(() -> pool), new PgStageStore(() -> pool),
+            new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
+            mandates, projector, audit, tx);
+    private final StageService stages = new StageService(new PgStageStore(() -> pool), new PgTripStore(() -> pool),
+            new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
+    private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
+    private final PgMonitorRunStore runs = new PgMonitorRunStore(() -> pool);
+    private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final MonitorEngine engine = new MonitorEngine(runs, monitorStore, new PgTripStore(() -> pool),
+            new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool), new PgLocationStore(() -> pool), stages,
+            trips, mandates, new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(
+                    () -> pool)), audit, tx);
+
+    private String tenant;
+
+    @BeforeAll
+    static void migrate() throws IOException {
+        vertx = Vertx.vertx();
+        pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(
+                PgTripsStoresTest.URL_PROPERTY))).using(vertx).build();
+        PgTripsStoresTest.recreateSchemas(pool);
+    }
+
+    @AfterAll
+    static void close() {
+        pool.close().await().atMost(WAIT);
+        vertx.close().await().atMost(WAIT);
+    }
+
+    @BeforeEach
+    void tenantWithAMonitor() {
+        engineRef[0] = engine;
+        tenant = "t-" + UUID.randomUUID().toString().substring(0, 8);
+        publish(DIRECT, List.of(
+                rule("open-preparation", "plan", null, "event.kind == 'created'", 10, act("start", "preparation")),
+                rule("departure-by-gps", "signal", null,
+                        "stage.type == 'preparation' && signal.kind == 'left_origin'", 10, act("advance", "transit")),
+                rule("departed", "stage", null, "event.kind == 'started' && event.stageType == 'transit'", 10,
+                        act("alert", "departed")),
+                rule("late-departure", "timer", "trip.plannedStart + minutes(params.lateDepartureMinutes)",
+                        "stage.type == 'preparation'", 10, act("alert", "late_departure")),
+                rule("arrival-by-gps", "signal", null,
+                        "stage.type == 'transit' && signal.kind == 'entered_destination'", 20,
+                        act("completeTrip", null), act("closeMandates", null)),
+                rule("hand-close", "command", null, "event.kind == 'close'", 10, act("alert", "closed_by_hand"))));
+    }
+
+    private void publish(String key, List<MonitorRequest.Rule> rules) {
+        monitors.saveDraft(tenant, ACTOR, key, new MonitorRequest("Direct", null, List.of(),
+                Map.of("lateDepartureMinutes", 30), rules));
+        monitors.publish(tenant, ACTOR, key);
+    }
+
+    private static TripMonitor.Action act(String type, String value) {
+        return new TripMonitor.Action(type, value);
+    }
+
+    private static MonitorRequest.Rule rule(String key, String on, String at, String when, int priority,
+            TripMonitor.Action... then) {
+        return new MonitorRequest.Rule(key, null, on, at, when, List.of(then), priority, true);
+    }
+
+    private TripView newTrip(String monitor, OffsetDateTime plannedStart) {
+        Mandate m = mandates.createOrGet(tenant, ACTOR, new MandateRequest("S-" + UUID.randomUUID()
+                .toString().substring(0, 6), "direct", null, null, null, null)).mandate();
+        List<StageRequest> plan = List.of("preparation", "transit", "closing").stream()
+                .map(t -> new StageRequest(t, null, null, null, null, null)).toList();
+        return trips.create(tenant, ACTOR, new TripRequest(null, null, plannedStart, List.of(m.id()), plan,
+                monitor));
+    }
+
+    private UUID id(TripView t) {
+        return UUID.fromString(t.id());
+    }
+
+    private String status(UUID tripId, String type) {
+        return trips.detail(tenant, tripId).stages().stream().filter(s -> s.stageType().equals(type))
+                .map(StageView::status).findFirst().orElseThrow();
+    }
+
+    private List<String> matched(UUID tripId) {
+        return engine.transitions(tenant, tripId, 50).stream().flatMap(t -> t.matched().stream()).toList();
+    }
+
+    @Test
+    void aTripRunsFromPlanToCompletionOnSignals() {
+        TripView t = newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).plusHours(2));
+        UUID tripId = id(t);
+        assertEquals(DIRECT, engine.state(tenant, tripId).orElseThrow().monitorKey());
+        assertEquals(Stage.RUNNING, status(tripId, "preparation"), "the plan rule opens preparation");
+        assertEquals(1, engine.pendingTimers(tenant, tripId).size(), "late-departure is scheduled");
+
+        List<MonitorRun.Transition> moved = engine.signal(tenant, "gps", tripId, "left_origin", "17", null);
+        assertEquals("departure-by-gps", moved.get(0).ruleKey());
+        assertEquals("preparation", moved.get(0).fromStage());
+        assertEquals("transit", moved.get(0).toStage());
+        assertTrue(moved.stream().anyMatch(x -> x.matched().contains("departed") && x.depth() > 0),
+                "the stage it started is evaluated as a chained event");
+        assertEquals(Stage.RUNNING, status(tripId, "transit"));
+
+        engine.signal(tenant, "gps", tripId, "left_origin", "17", null);
+        assertEquals(Stage.RUNNING, status(tripId, "transit"), "a repeated signal matches nothing");
+
+        engine.signal(tenant, "gps", tripId, "entered_destination", "42", null);
+        assertEquals(Trip.DONE, trips.get(tenant, tripId).status());
+        assertEquals(Mandate.CLOSED, mandates.get(tenant, UUID.fromString(t.mandates().get(0).mandateId()))
+                .status());
+        assertEquals(List.of(), engine.pendingTimers(tenant, tripId), "a finished trip keeps no timers");
+    }
+
+    @Test
+    void aTimerFiresOnceWhenDue() {
+        UUID tripId = id(newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)));
+        MonitorClock clock = new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500);
+        assertTrue(clock.tick() >= 1);
+        assertTrue(matched(tripId).contains("late-departure"));
+        List<MonitorRun.Transition> late = engine.transitions(tenant, tripId, 50).stream()
+                .filter(x -> x.matched().contains("late-departure")).toList();
+        assertEquals("late_departure", late.get(0).actions().get(0).get("value"));
+        clock.tick();
+        engine.signal(tenant, "gps", tripId, "noise", null, null);
+        clock.tick();
+        assertEquals(1, matched(tripId).stream().filter("late-departure"::equals).count(),
+                "rescheduling does not fire the same due time again");
+    }
+
+    @Test
+    void theSelectorPicksTheMonitorAndATripWithoutOneStaysStill() {
+        UUID none = id(newTrip(null, null));
+        assertTrue(engine.state(tenant, none).isEmpty());
+        assertEquals(Stage.PENDING, status(none, "preparation"));
+        assertEquals(List.of(), engine.signal(tenant, "gps", none, "left_origin", null, null));
+
+        monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
+                new MonitorViews.SelectorRequest.Entry("trip.orderType == 'direct'", DIRECT))));
+        UUID picked = id(newTrip(null, null));
+        assertEquals(DIRECT, engine.state(tenant, picked).orElseThrow().monitorKey());
+        assertEquals(Stage.RUNNING, status(picked, "preparation"));
+    }
+
+    @Test
+    void aStageClosedByHandIsACommandAndAFailingActionUndoesOnlyItself() {
+        publish("broken", List.of(rule("to-unloading", "stage", null, "event.kind == 'closed'", 10,
+                act("advance", "unloading"))));
+        UUID tripId = id(newTrip(DIRECT, null));
+        engine.bind(tenant, ACTOR, tripId, "broken", null);
+        Stage preparation = new PgStageStore(() -> pool).listBySubject(tenant, Stage.SUBJECT_TRIP, tripId).stream()
+                .filter(s -> s.stageType().equals("preparation")).findFirst().orElseThrow();
+
+        stages.close(tenant, ACTOR, UUID.fromString(preparation.id()));
+
+        assertEquals(Stage.CLOSED, status(tripId, "preparation"), "the hand close stays");
+        MonitorRun.Transition failed = engine.transitions(tenant, tripId, 50).stream()
+                .filter(x -> "to-unloading".equals(x.ruleKey())).findFirst().orElseThrow();
+        assertNotNull(failed.error());
+        assertTrue(failed.error().contains("no pending unloading stage"), failed.error());
+        assertNull(failed.toStage());
+    }
+
+    @Test
+    void aCommandRuleSeesTheHandClose() {
+        UUID tripId = id(newTrip(DIRECT, null));
+        Stage preparation = new PgStageStore(() -> pool).listBySubject(tenant, Stage.SUBJECT_TRIP, tripId).stream()
+                .filter(s -> s.stageType().equals("preparation")).findFirst().orElseThrow();
+        stages.close(tenant, ACTOR, UUID.fromString(preparation.id()));
+        assertTrue(matched(tripId).contains("hand-close"));
+    }
+    @Test
+    void cancellationImmediatelyRemovesPendingTimers() {
+        UUID tripId = id(newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).plusHours(1)));
+        assertEquals(1, engine.pendingTimers(tenant, tripId).size());
+        trips.cancel(tenant, ACTOR, tripId, "test cancellation");
+        assertTrue(engine.pendingTimers(tenant, tripId).isEmpty());
+    }
+
+    @Test
+    void terminalStageStillEmitsCommandAndStageEvents() {
+        publish("terminal", List.of(
+                rule("closed-command", "command", null, "event.kind == 'close'", 10, act("alert", "command")),
+                rule("closed-stage", "stage", null, "event.kind == 'closed'", 10, act("alert", "stage")),
+                rule("late-signal", "signal", null, null, 10, act("alert", "unexpected"))));
+        TripView created = trips.create(tenant, ACTOR, new TripRequest(null, null, null, List.of(),
+                List.of(new StageRequest("closing", null, null, null, null, null)), "terminal"));
+        UUID tripId = id(created);
+        UUID stageId = UUID.fromString(stages.listByTrip(tenant, tripId).get(0).id());
+        stages.start(tenant, ACTOR, stageId);
+        stages.close(tenant, ACTOR, stageId);
+        assertEquals(Trip.DONE, trips.get(tenant, tripId).status());
+        assertTrue(matched(tripId).containsAll(List.of("closed-command", "closed-stage")));
+        assertTrue(engine.signal(tenant, ACTOR, tripId, "late", null, null).isEmpty());
+    }
+
+    @Test
+    void emptyTripGetsMonitorPlanForExplicitAndSelectorBindings() {
+        monitors.saveDraft(tenant, ACTOR, "default-plan", new MonitorRequest("Default plan", null,
+                List.of(new TripMonitor.StagePlan("preparation", "ready")), Map.of(),
+                List.of(rule("start", "plan", null, "event.kind == 'created'", 10,
+                        act("start", "preparation")))));
+        monitors.publish(tenant, ACTOR, "default-plan");
+        UUID explicit = id(trips.create(tenant, ACTOR,
+                new TripRequest(null, null, null, List.of(), List.of(), "default-plan")));
+        assertEquals(Stage.RUNNING, status(explicit, "preparation"));
+        monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
+                new MonitorViews.SelectorRequest.Entry("true", "default-plan"))));
+        UUID selected = id(trips.create(tenant, ACTOR,
+                new TripRequest(null, null, null, List.of(), List.of(), null)));
+        assertEquals(Stage.RUNNING, status(selected, "preparation"));
+        UUID supplied = id(trips.create(tenant, ACTOR,
+                new TripRequest(null, null, null, List.of(),
+                        List.of(new StageRequest("transit", null, null, null, null, null)), "default-plan")));
+        assertEquals(List.of("transit"), stages.listByTrip(tenant, supplied).stream().map(Stage::stageType).toList());
+    }
+
+    @Test
+    void allClaimedTimersOnOneTripFireInTheSameTick() {
+        publish("two-timers", List.of(
+                rule("first", "timer", "trip.plannedStart", null, 10, act("alert", "first")),
+                rule("second", "timer", "trip.plannedStart", null, 20, act("alert", "second"))));
+        UUID tripId = id(newTrip("two-timers", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)));
+        List<Long> before = engine.pendingTimers(tenant, tripId).stream().map(MonitorRun.Timer::id).sorted().toList();
+        engine.signal(tenant, ACTOR, tripId, "unrelated", null, null);
+        assertEquals(before,
+                engine.pendingTimers(tenant, tripId).stream().map(MonitorRun.Timer::id).sorted().toList());
+        MonitorClock clock = new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500);
+        clock.tick();
+        assertTrue(matched(tripId).containsAll(List.of("first", "second")));
+        assertTrue(engine.pendingTimers(tenant, tripId).isEmpty());
+    }
+
+    @Test
+    void timerHistoryIsScopedToMonitorAndVersion() {
+        List<MonitorRequest.Rule> rules = List.of(
+                rule("deadline", "timer", "trip.plannedStart", null, 10, act("alert", "deadline")));
+        publish("timer-a", rules);
+        publish("timer-b", rules);
+        UUID tripId = id(newTrip("timer-a", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)));
+        MonitorClock clock = new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500);
+        clock.tick();
+        assertEquals(1, matched(tripId).stream().filter("deadline"::equals).count());
+        engine.bind(tenant, ACTOR, tripId, "timer-b", null);
+        assertEquals(1, engine.pendingTimers(tenant, tripId).size());
+        clock.tick();
+        assertEquals(2, matched(tripId).stream().filter("deadline"::equals).count());
+        engine.bind(tenant, ACTOR, tripId, "timer-a", null);
+        assertTrue(engine.pendingTimers(tenant, tripId).isEmpty(), "same monitor version does not fire twice");
+        publish("timer-a", rules);
+        engine.bind(tenant, ACTOR, tripId, "timer-a", null);
+        assertEquals(1, engine.pendingTimers(tenant, tripId).size());
+        clock.tick();
+        assertEquals(3, matched(tripId).stream().filter("deadline"::equals).count());
+    }
+
+}

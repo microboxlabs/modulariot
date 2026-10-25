@@ -106,7 +106,7 @@ public class OrgStagesResource extends OrgResourceSupport {
     @POST
     @Path("/stages/{stageId}/close")
     @Operation(operationId = "closeStage",
-            summary = "Closes the stage; moves its cargo, and 'cierre' realizes the trip")
+            summary = "Closes the stage; moves its cargo, and 'closing' realizes the trip")
     @PermissionsAllowed(value = TripsAccessCatalog.STAGE_OPERATE, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> close(@PathParam(ORG) String organizationId, @PathParam(STAGE_ID) String stageId) {

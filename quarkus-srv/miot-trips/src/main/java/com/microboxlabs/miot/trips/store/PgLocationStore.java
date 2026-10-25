@@ -23,9 +23,10 @@ import java.util.function.Supplier;
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgLocationStore implements LocationStore {
+    private static final String SELECT = "SELECT ";
 
     private static final String COLUMNS = """
-            id, tenant_code, name, type, external_code, geom_geojson::text AS geom_geojson,
+            id, tenant_code, name, type, external_code, geom_geojson::text AS geom_geojson, geofence_id,
             created_at, created_by, updated_at, updated_by""";
 
     private final Supplier<Pool> pool;
@@ -43,24 +44,46 @@ public class PgLocationStore implements LocationStore {
     public Location insert(Location l) {
         return location(query(pool.get(), """
                 INSERT INTO miot_trips.location
-                    (tenant_code, name, type, external_code, geom_geojson, created_by, updated_by)
-                VALUES ($1, $2, $3, $4, $5::text::jsonb, $6, $6)
-                RETURNING\s""" + COLUMNS,
-                Tuple.tuple().addString(l.tenantCode()).addString(l.name()).addString(l.type())
-                        .addString(l.externalCode()).addString(l.geomGeojson()).addString(l.createdBy()))
-                .iterator().next());
+                    (tenant_code, name, type, external_code, geom_geojson, geofence_id, created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5::text::jsonb, $6, $7, $7)
+                RETURNING\s""" + COLUMNS, insertParams(l)).iterator().next());
+    }
+
+    @Override
+    public Optional<Location> insertIfAbsent(Location l) {
+        return first(query(pool.get(), """
+                INSERT INTO miot_trips.location
+                    (tenant_code, name, type, external_code, geom_geojson, geofence_id, created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5::text::jsonb, $6, $7, $7)
+                ON CONFLICT (tenant_code, external_code) WHERE external_code IS NOT NULL AND version_of IS NULL
+                DO NOTHING
+                RETURNING\s""" + COLUMNS, insertParams(l)));
+    }
+
+    @Override
+    public Optional<Location> byCode(String tenantCode, String externalCode) {
+        return first(query(pool.get(), SELECT + COLUMNS + """
+                 FROM miot_trips.location
+                WHERE tenant_code = $1 AND external_code = $2 AND version_of IS NULL""",
+                Tuple.of(tenantCode, externalCode)));
+    }
+
+    private static Tuple insertParams(Location l) {
+        return Tuple.tuple().addString(l.tenantCode()).addString(l.name()).addString(l.type())
+                .addString(l.externalCode()).addString(l.geomGeojson()).addInteger(l.geofenceId())
+                .addString(l.createdBy());
     }
 
     @Override
     public Optional<Location> find(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.location WHERE tenant_code = $1 AND id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.location WHERE tenant_code = $1 AND id = $2",
                 Tuple.of(tenantCode, id)));
     }
 
     @Override
     public List<Location> list(String tenantCode, String q, String type, int page, int size) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS)
+        StringBuilder sql = new StringBuilder(SELECT).append(COLUMNS)
                 .append(" FROM miot_trips.location WHERE tenant_code = $1 AND version_of IS NULL");
         Tuple params = Tuple.of(tenantCode);
         if (q != null) {
@@ -83,12 +106,21 @@ public class PgLocationStore implements LocationStore {
     public Optional<Location> update(Location l) {
         return first(query(pool.get(), """
                 UPDATE miot_trips.location SET
-                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb, updated_by = $7, updated_at = now()
+                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb,
+                    updated_by = $7, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + COLUMNS,
                 Tuple.tuple().addUUID(Pg.parse(l.id())).addString(l.tenantCode())
                         .addString(l.name()).addString(l.type()).addString(l.externalCode())
                         .addString(l.geomGeojson()).addString(l.updatedBy())));
+    }
+
+    @Override
+    public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
+        return first(query(pool.get(), """
+                UPDATE miot_trips.location SET geofence_id = $3, updated_by = $4, updated_at = now()
+                WHERE tenant_code = $1 AND id = $2 RETURNING\s""" + COLUMNS,
+                Tuple.of(tenantCode, id, geofenceId, actor)));
     }
 
     private static Optional<Location> first(RowSet<Row> rows) {
@@ -99,6 +131,7 @@ public class PgLocationStore implements LocationStore {
     private static Location location(Row r) {
         return new Location(text(r.getUUID("id")), r.getString("tenant_code"), r.getString("name"),
                 r.getString("type"), r.getString("external_code"), r.getString("geom_geojson"),
-                time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
+                r.getInteger("geofence_id"), time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"),
+                r.getString("updated_by"));
     }
 }

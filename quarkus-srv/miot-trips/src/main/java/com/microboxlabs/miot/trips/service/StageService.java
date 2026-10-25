@@ -25,7 +25,7 @@ import java.util.UUID;
 /**
  * Stages ARE the state machine of a trip: starting one is the state change (only
  * one runs at a time), closing one moves the cargo it loads or unloads, and the
- * closing stage of type 'cierre' realizes the trip.
+ * closing stage of type 'closing' realizes the trip.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -34,7 +34,7 @@ public class StageService {
     static final String ENTITY = "stage";
     static final String ACTIVITY_ENTITY = "stage_activity";
     private static final String STAGE_TYPE = "stageType";
-    private static final String CIERRE = "cierre";
+    private static final String CLOSING = "closing";
     private static final String ACTIVITY_NOT_FOUND = "activity not found";
 
     private final StageStore stages;
@@ -77,7 +77,7 @@ public class StageService {
                 throw new IllegalStateException("trip already " + trip.status());
             }
             String type = Check.oneOf(Check.required(req.stageType(), STAGE_TYPE, 32), STAGE_TYPE,
-                    "preparacion", "carga", "transito", "parada", "descarga", CIERRE);
+                    "preparation", "loading", "transit", "stop", "unloading", CLOSING);
             Stage created = stages.insert(new Stage(null, tenantCode, Stage.SUBJECT_TRIP, tripId.toString(), 0,
                     type, Check.limitedOrNull(req.serviceStatus(), "serviceStatus", 64),
                     Stage.PENDING, Check.uuidOrNull(req.locationId(), "locationId"),
@@ -102,7 +102,7 @@ public class StageService {
             }
             String type = req.stageType() == null ? current.stageType()
                     : Check.oneOf(req.stageType(), STAGE_TYPE,
-                            "preparacion", "carga", "transito", "parada", "descarga", CIERRE);
+                            "preparation", "loading", "transit", "stop", "unloading", CLOSING);
             Stage updated = stages.update(new Stage(
                     current.id(), tenantCode, current.subjectType(), current.subjectId(), current.seq(),
                     type, Check.orKeep(req.serviceStatus(), current.serviceStatus(), "serviceStatus", 64),
@@ -131,7 +131,7 @@ public class StageService {
             }
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             Stage started = stages.start(tenantCode, id, now, actor)
-                    .orElseThrow(() -> new IllegalStateException("stage is no longer pendiente"));
+                    .orElseThrow(() -> new IllegalStateException("stage is no longer pending"));
             onTripStageStarted(tenantCode, actor, started, now);
             refreshTrip(tenantCode, started);
             audit.log(tenantCode, actor, "stage.started", ENTITY, started.id(), started.subjectId(),
@@ -140,7 +140,7 @@ public class StageService {
         });
     }
 
-    /** Closes the stage; moves the cargo it loads/unloads, and 'cierre' realizes the trip. */
+    /** Closes the stage; moves the cargo it loads/unloads, and 'closing' realizes the trip. */
     public Stage close(String tenantCode, String actor, UUID id) {
         Stage subject = get(tenantCode, id);
         return tx.inTransaction(() -> {
@@ -151,10 +151,10 @@ public class StageService {
             }
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             Stage closed = stages.close(tenantCode, id, now, actor)
-                    .orElseThrow(() -> new IllegalStateException("stage is no longer en_curso"));
+                    .orElseThrow(() -> new IllegalStateException("stage is no longer in_progress"));
             int loaded = tripCargo.markLoadedByStage(tenantCode, id, actor);
             int delivered = tripCargo.markDeliveredByStage(tenantCode, id, actor);
-            if (CIERRE.equals(closed.stageType())) {
+            if (CLOSING.equals(closed.stageType())) {
                 onTripRealized(tenantCode, actor, closed, now);
             }
             refreshTrip(tenantCode, closed);
@@ -254,7 +254,7 @@ public class StageService {
                 });
     }
 
-    /** The first running stage puts the trip en_ruta and its mandates en_ejecucion. */
+    /** The first running stage puts the trip and its mandates in_progress. */
     private void onTripStageStarted(String tenantCode, String actor, Stage started, OffsetDateTime now) {
         if (!Stage.SUBJECT_TRIP.equals(started.subjectType())) {
             return;
@@ -263,7 +263,7 @@ public class StageService {
         trips.find(tenantCode, tripId)
                 .filter(t -> Trip.PLANNED.equals(t.status()))
                 .ifPresent(t -> {
-                    trips.update(new Trip(t.id(), tenantCode, Trip.EN_ROUTE, t.originId(), t.destinationId(),
+                    trips.update(new Trip(t.id(), tenantCode, Trip.IN_PROGRESS, t.originId(), t.destinationId(),
                             t.plannedStart(), now, t.actualEnd(), t.cancelReason(),
                             t.createdAt(), t.createdBy(), null, actor));
                     // mandates are locked in id order, so trips sharing mandates cannot deadlock

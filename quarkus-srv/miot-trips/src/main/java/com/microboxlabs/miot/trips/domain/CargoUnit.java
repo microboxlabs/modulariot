@@ -23,10 +23,10 @@ public record CargoUnit(
         OffsetDateTime updatedAt,
         String updatedBy) {
 
-    public static final String ANNOUNCED = "anunciada";
-    public static final String READY = "lista";
-    public static final String PICKED = "retirada";
-    public static final String DELIVERED = "entregada";
-    public static final String RECEIVED = "recibida";
-    public static final String REJECTED = "rechazada";
+    public static final String ANNOUNCED = "announced";
+    public static final String READY = "ready";
+    public static final String PICKED = "picked_up";
+    public static final String DELIVERED = "delivered";
+    public static final String RECEIVED = "received";
+    public static final String REJECTED = "rejected";
 }

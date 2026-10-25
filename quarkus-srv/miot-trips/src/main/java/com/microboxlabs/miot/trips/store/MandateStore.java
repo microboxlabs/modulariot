@@ -29,7 +29,7 @@ public interface MandateStore {
 
     List<TripRef> tripsOf(String tenantCode, UUID mandateId);
 
-    /** Trips of the mandate not yet realizado/anulado; closing requires zero. */
+    /** Trips of the mandate not yet completed or cancelled; closing requires zero. */
     int openTrips(String tenantCode, UUID mandateId);
 
     record CreateOrGet(Mandate mandate, boolean created) {

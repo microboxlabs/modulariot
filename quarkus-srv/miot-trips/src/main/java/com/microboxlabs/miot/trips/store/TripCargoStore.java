@@ -20,9 +20,9 @@ public interface TripCargoStore {
 
     boolean delete(String tenantCode, UUID tripId, UUID cargoId);
 
-    /** Closing a load stage picks up its cargo: lista/anunciada → retirada. Returns rows moved. */
+    /** Closing a load stage picks up its cargo: announced or ready → picked_up. Returns rows moved. */
     int markLoadedByStage(String tenantCode, UUID stageId, String actor);
 
-    /** Closing an unload stage delivers its cargo: retirada → entregada. Returns rows moved. */
+    /** Closing an unload stage delivers its cargo: picked_up → delivered. Returns rows moved. */
     int markDeliveredByStage(String tenantCode, UUID stageId, String actor);
 }

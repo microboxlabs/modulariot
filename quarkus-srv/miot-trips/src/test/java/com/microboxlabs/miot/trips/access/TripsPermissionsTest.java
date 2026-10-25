@@ -45,6 +45,9 @@ class TripsPermissionsTest {
     private static final String STAGE_OPERATE = TripsAccessCatalog.STAGE_OPERATE;
     private static final String ASSIGNMENT_WRITE = TripsAccessCatalog.ASSIGNMENT_WRITE;
     private static final String LOCATION_WRITE = TripsAccessCatalog.LOCATION_WRITE;
+    private static final String FEED_WRITE = TripsAccessCatalog.FEED_WRITE;
+    private static final String FEED_ADMIN = TripsAccessCatalog.FEED_ADMIN;
+    private static final String MONITOR_ADMIN = TripsAccessCatalog.MONITOR_ADMIN;
 
     /** Every endpoint and the permission it needs. A new endpoint without an entry here fails the test. */
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
@@ -83,9 +86,30 @@ class TripsPermissionsTest {
             Map.entry("OrgLocationsResource.list", VIEW),
             Map.entry("OrgLocationsResource.create", LOCATION_WRITE),
             Map.entry("OrgLocationsResource.update", LOCATION_WRITE),
+            Map.entry("OrgLocationsResource.linkGeofence", LOCATION_WRITE),
+            Map.entry("OrgLocationsResource.geofences", VIEW),
             Map.entry("OrgTripsLiveResource.list", VIEW),
             Map.entry("OrgTripsLiveResource.get", VIEW),
-            Map.entry("OrgTripsAuditResource.list", VIEW)));
+            Map.entry("OrgTripsAuditResource.list", VIEW),
+            Map.entry("OrgFeedsResource.list", VIEW),
+            Map.entry("OrgFeedsResource.save", FEED_ADMIN),
+            Map.entry("OrgFeedsResource.batch", FEED_WRITE),
+            Map.entry("OrgFeedsResource.reconcile", FEED_WRITE),
+            Map.entry("OrgFeedsResource.get", VIEW),
+            Map.entry("OrgMonitorsResource.list", VIEW),
+            Map.entry("OrgMonitorsResource.schema", VIEW),
+            Map.entry("OrgMonitorsResource.check", VIEW),
+            Map.entry("OrgMonitorsResource.get", VIEW),
+            Map.entry("OrgMonitorsResource.save", MONITOR_ADMIN),
+            Map.entry("OrgMonitorsResource.discard", MONITOR_ADMIN),
+            Map.entry("OrgMonitorsResource.publish", MONITOR_ADMIN),
+            Map.entry("OrgMonitorsResource.version", VIEW),
+            Map.entry("OrgMonitorSelectorResource.get", VIEW),
+            Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN),
+            Map.entry("OrgTripMonitorResource.get", VIEW),
+            Map.entry("OrgTripMonitorResource.bind", TRIP_WRITE),
+            Map.entry("OrgTripMonitorResource.signal", STAGE_OPERATE),
+            Map.entry("OrgTripMonitorResource.transitions", VIEW)));
 
     @Test
     void everyEndpointDeclaresItsOrganizationPermission() {
@@ -120,7 +144,9 @@ class TripsPermissionsTest {
         assertTrue(operator.containsAll(Set.of(VIEW, STAGE_OPERATE, CARGO_OPERATE, ASSIGNMENT_WRITE)));
         assertTrue(!operator.contains(MANDATE_WRITE) && !operator.contains(TRIP_WRITE));
         assertTrue(maintainer.containsAll(Set.of(VIEW, MANDATE_WRITE, CARGO_OPERATE, TRIP_WRITE, STAGE_OPERATE,
-                ASSIGNMENT_WRITE, LOCATION_WRITE)));
+                ASSIGNMENT_WRITE, LOCATION_WRITE, FEED_WRITE)));
+        assertTrue(!maintainer.contains(FEED_ADMIN), "a feed's service account cannot change the feed's rules");
+        assertTrue(!maintainer.contains(MONITOR_ADMIN), "a feed's service account cannot change the monitors");
     }
 
     @Test

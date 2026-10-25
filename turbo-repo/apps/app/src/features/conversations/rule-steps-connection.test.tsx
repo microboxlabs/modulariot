@@ -67,6 +67,27 @@ describe("RuleSteps, steps that call a connection", () => {
     ]);
   });
 
+  it("links to the channel's page when it has no connections", () => {
+    api.useConnectionChannel.mockReturnValue({
+      data: { operation: null, requestSchema: null, connections: [] },
+    });
+    render(
+      <RuleSteps
+        steps={[SLACK_STEP]}
+        groups={GROUPS}
+        templates={[]}
+        readOnly={false}
+        d={d}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByLabelText("Conexión")).toBeNull();
+    expect(screen.getByText(/No hay conexiones de Slack/)).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Crear una" }).getAttribute("href")
+    ).toBe("/es/users/settings/communications?section=channel%3Aslack");
+  });
+
   it("shows the groups and no connection on a step written to people", () => {
     api.useConnectionChannel.mockReturnValue({ data: undefined });
     render(

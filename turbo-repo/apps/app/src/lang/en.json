@@ -3857,6 +3857,8 @@
         "channelCreateFailed": "Could not create the connection.",
         "stepConnection": "Connection",
         "pickConnection": "Pick a connection",
+        "noConnections": "There are no {channel} connections.",
+        "createConnection": "Create one",
         "stepTemplateOptional": "No template",
         "channelWebhook": "Webhook",
         "templatesTitle": "Message templates",

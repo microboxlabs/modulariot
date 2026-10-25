@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { HiPlus, HiTrash } from "react-icons/hi";
 import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -25,6 +27,8 @@ import {
   writesToGroups,
 } from "./rule-model";
 import { moved, useRowKeys } from "./row-keys";
+import { COMMUNICATIONS_PAGE } from "./rules-tab";
+import { channelSection } from "./communications-sections";
 
 const minutes = (value: number | null) =>
   value ? Math.max(0, Math.round(value)) : 0;
@@ -81,7 +85,10 @@ export function withGapMode(
   );
 }
 
-/** The connection a step on a connection channel calls, from that channel's connections. */
+/**
+ * The connection a step on a connection channel calls, from that channel's connections. Without any, it
+ * links to the channel's page, where one is created; the list reloads when the tab is back in focus.
+ */
 function ConnectionPill({
   channel,
   value,
@@ -98,8 +105,26 @@ function ConnectionPill({
   onChange: (connection: string | undefined) => void;
 }>) {
   const { data } = useConnectionChannel(channel);
+  const lang = useParams<{ lang?: string }>()?.lang ?? "es";
   const connections = data?.connections ?? [];
   const known = !value || connections.some((c) => c.id === value);
+  const label = STEP_CHANNELS.find((c) => c.value === channel)?.label;
+  if (data && connections.length === 0 && !value)
+    return (
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        {tr("noConnections", d, {
+          channel: label ? trDynamic(label, d) : channel,
+        })}{" "}
+        <Link
+          href={`/${lang}${COMMUNICATIONS_PAGE}?section=${encodeURIComponent(channelSection(channel))}`}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-blue-600 hover:underline dark:text-blue-500"
+        >
+          {tr("createConnection", d)}
+        </Link>
+      </span>
+    );
   return (
     <PillSelect
       ariaLabel={tr("stepConnection", d)}

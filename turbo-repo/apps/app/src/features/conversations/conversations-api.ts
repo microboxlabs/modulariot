@@ -209,9 +209,12 @@ export function editMetaTemplate(id: string, draft: MetaTemplateDraft) {
 /** Deletes one language of the template when `id` is given, else every language. */
 export function deleteMetaTemplate(name: string, id?: string) {
   const q = id ? `?id=${encodeURIComponent(id)}` : "";
-  return request<void>(`${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`, {
-    method: "DELETE",
-  });
+  return request<void>(
+    `${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
 export async function refreshMetaTemplates() {
@@ -229,11 +232,12 @@ export async function refreshTemplates(key?: string) {
   if (key) await mutate(templateKey(key));
 }
 
+/** Reloaded on focus, so a connection created in another tab shows up. */
 export function useConnectionChannel(channel: string | null) {
   return useSWR<ConnectionChannel>(
     channel ? connectionChannelKey(channel) : null,
     fetcher,
-    quiet
+    { shouldRetryOnError: false }
   );
 }
 

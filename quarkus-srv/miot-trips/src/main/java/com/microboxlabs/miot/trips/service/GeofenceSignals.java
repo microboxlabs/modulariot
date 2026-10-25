@@ -77,6 +77,9 @@ public class GeofenceSignals {
     public record Settings(boolean enabled, int confirm, Duration shapesEvery) {
     }
 
+    private record FrameKey(String asset, String tenantCode, UUID tripId) {
+    }
+
     private record Pending(Integer zone, int frames) {
     }
 
@@ -92,7 +95,7 @@ public class GeofenceSignals {
     private Map<String, List<Watched>> byAsset = Map.of();
     private final Map<Integer, GeoShape> shapes = new ConcurrentHashMap<>();
     private final Map<UUID, Pending> pending = new ConcurrentHashMap<>();
-    private final Map<String, Instant> lastFrame = new ConcurrentHashMap<>();
+    private final Map<FrameKey, Instant> lastFrame = new ConcurrentHashMap<>();
     private Instant shapesLoadedAt = Instant.EPOCH;
     private boolean initialized;
     private int watchedCount = -1;
@@ -139,10 +142,13 @@ public class GeofenceSignals {
         Map<String, List<Watched>> next = new HashMap<>();
         Set<Integer> needed = new HashSet<>();
         for (TripLiveRow r : live.watched()) {
+            String assetKey = asset(r.assetId());
+            if (assetKey == null) {
+                continue;
+            }
             GeofenceEdges.Watch w = new GeofenceEdges.Watch(r.originGeofenceId(), r.destinationGeofenceId(),
                     r.stopGeofenceIds(), r.currentGeofenceId(), r.originVisited(), r.destinationVisited());
             needed.addAll(w.geofences());
-            String assetKey = asset(r.assetId());
             boolean unchanged = byAsset.getOrDefault(assetKey, List.of()).stream()
                     .anyMatch(previous -> previous.tripId.toString().equals(r.tripId()) && previous.watch.equals(w));
             if (!unchanged) {
@@ -153,9 +159,13 @@ public class GeofenceSignals {
         }
         refreshShapes(needed, next);
         Set<UUID> watched = new HashSet<>();
-        next.values().forEach(list -> list.forEach(w -> watched.add(w.tripId)));
+        Set<FrameKey> watchedFrames = new HashSet<>();
+        next.forEach((assetKey, list) -> list.forEach(w -> {
+            watched.add(w.tripId);
+            watchedFrames.add(new FrameKey(assetKey, w.tenantCode, w.tripId));
+        }));
         pending.keySet().retainAll(watched);
-        lastFrame.keySet().retainAll(next.keySet());
+        lastFrame.keySet().retainAll(watchedFrames);
         if (watched.size() != watchedCount) {
             LOG.infof("Trip geofences: watching %d trips, %d geofences with a shape", watched.size(), shapes.size());
             watchedCount = watched.size();
@@ -235,20 +245,24 @@ public class GeofenceSignals {
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("not a signal time", e);
         }
-        Instant previous = lastFrame.get(asset);
-        if (previous != null && !at.isAfter(previous)) {
-            return 0;
-        }
-        lastFrame.put(asset, at);
         Set<String> clients = new HashSet<>();
         signal.path("clients").forEach(c -> clients.add(c.asText()));
         int given = 0;
         for (Watched w : trips) {
-            if (clients.contains(w.tenantCode)) {
+            if (clients.contains(w.tenantCode) && newerFrame(new FrameKey(asset, w.tenantCode, w.tripId), at)) {
                 given += track(w, asset, lon, lat, at);
             }
         }
         return given;
+    }
+
+    private boolean newerFrame(FrameKey key, Instant at) {
+        Instant previous = lastFrame.get(key);
+        if (previous != null && !at.isAfter(previous)) {
+            return false;
+        }
+        lastFrame.put(key, at);
+        return true;
     }
 
     private static JsonNode parseSignal(String json) {

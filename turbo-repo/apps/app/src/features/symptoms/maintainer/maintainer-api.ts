@@ -507,15 +507,6 @@ export async function saveAsTemplate(
   return saved;
 }
 
-/** The platform's templates, drafts included (platform owners); nothing is fetched while `enabled` is false. */
-export function usePlatformTemplates(enabled: boolean) {
-  return useSWR<SymptomSummary[]>(
-    enabled ? PLATFORM_TEMPLATES.defs : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
-}
-
 /** Creates an off draft for each engine rule the organization does not have yet. */
 export function importEngineRules() {
   return request<ImportResult>(`${DEFS}/import-engine`, { method: "POST" });

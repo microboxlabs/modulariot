@@ -24,7 +24,13 @@ public final class PlatformScope {
             "integrations/connections",
             "integrations/credential-profiles",
             "integrations/templates",
-            "conversations");
+            "integrations/console/jobs",
+            "integrations/console/notification-rules",
+            "conversations",
+            "control-tower/access",
+            "control-tower/symptom-definitions",
+            "control-tower/symptom-families",
+            "control-tower/data-sources");
 
     private PlatformScope() {
     }

@@ -574,6 +574,9 @@ class PgFeedReconcilerTest {
         FeedResult secondsLater = send("S-030", withActuals(d, at(-0.5).plusSeconds(30), null, null));
         assertTrue(secondsLater.warnings().stream().anyMatch(w -> w.startsWith("departure was confirmed at")),
                 "a different confirmed time must be reported even within one minute");
+        assertTrue(audit.list(tenant, "trip", created.tripId(), null, null, 100).stream()
+                .anyMatch(event -> MilestoneService.CONFLICT.equals(event.action())),
+                "the feed conflict reaches the milestone service and its event publisher");
 
         FeedResult other = send("S-030", withActuals(d, at(-0.25), null, null));
         assertTrue(other.operations().stream().noneMatch(o -> o.startsWith("confirm")));

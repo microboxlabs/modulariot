@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Alert, Button } from "flowbite-react";
-import { HiPlus, HiClipboardList, HiOutlineLightBulb } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import { HiPlus, HiOutlineDatabase, HiOutlineLightBulb } from "react-icons/hi";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useDataSources } from "../hooks/use-data-sources";
@@ -152,40 +152,21 @@ export default function DataSourcesPageContent({
   };
 
   return (
-    // Breadcrumb bar sits outside the scroll container so it never moves —
-    // including during rubber-band overscroll — while the content column
-    // below scrolls independently.
-    <div className="w-full h-full flex flex-col overflow-hidden">
-      <div className="p-5 flex items-center justify-between border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 dark:text-white w-full">
-        <Breadcrumb
-          path={[
-            "breadcrumb.user",
-            "breadcrumb.settings",
-            "breadcrumb.dataSources",
-          ]}
-          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          dict={dict}
-          lang={lang}
-          disableLinks
-        />
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900 max-w-screen-2xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold dark:text-white">
-              {tr("title", dsDict)}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("description", dsDict)}
-            </p>
-          </div>
-          <Button onClick={handleAdd}>
-            <HiPlus className="mr-2 h-4 w-4" />
-            {tr("addButton", dsDict)}
-          </Button>
-        </div>
-
+    <SettingsPageShell
+      breadcrumbDict={dict?.breadcrumb as I18nRecord}
+      lang={lang}
+      path={["user", "settings", "dataSources"]}
+      icon={HiOutlineDatabase}
+      title={tr("title", dsDict)}
+      description={tr("description", dsDict)}
+      actions={
+        <Button size="sm" color="blue" onClick={handleAdd}>
+          <HiPlus className="mr-1 h-4 w-4" />
+          {tr("addButton", dsDict)}
+        </Button>
+      }
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-4">
         {isLoading && (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
@@ -214,7 +195,7 @@ export default function DataSourcesPageContent({
         )}
 
         {isTrainer && (
-          <p className="mt-6 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+          <p className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
             <HiOutlineLightBulb className="h-5 w-5 shrink-0 text-yellow-400" />
             <span>
               {tr("learningWorkspace.text", dsDict)}{" "}
@@ -250,6 +231,6 @@ export default function DataSourcesPageContent({
         loading={actionLoading}
         dict={dsDict}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

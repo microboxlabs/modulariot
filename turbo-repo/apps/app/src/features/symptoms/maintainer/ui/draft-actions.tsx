@@ -9,7 +9,7 @@ import { MUTED } from "./card";
 import { CHANGED_DOT } from "./changed";
 
 const ICON_BUTTON =
-  "flex h-8 w-8 items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-40";
+  "flex h-[30px] w-[30px] items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-40";
 
 function changesLabel(n: number, d: I18nRecord) {
   if (n === 0) return tr("draftNoChanges", d);
@@ -85,7 +85,7 @@ export default function DraftActions({
           aria-haspopup="dialog"
           aria-expanded={open}
           title={status}
-          className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-sm text-gray-900 hover:border-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+          className="flex h-[30px] items-center gap-2 rounded-lg border border-gray-300 bg-white px-2.5 text-xs font-medium text-gray-900 hover:border-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
           onClick={() => setOpen(!open)}
         >
           <span
@@ -154,7 +154,7 @@ export default function DraftActions({
           className={`${ICON_BUTTON} border-gray-300 bg-white text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`}
           onClick={onDiscard}
         >
-          <HiOutlineReply className="h-4 w-4" />
+          <HiOutlineReply className="h-3.5 w-3.5" />
         </button>
       )}
       <button
@@ -165,7 +165,7 @@ export default function DraftActions({
         className={`${ICON_BUTTON} border-blue-700 bg-blue-700 text-white hover:bg-blue-800 dark:border-blue-600 dark:bg-blue-600`}
         onClick={onReview}
       >
-        <HiOutlineCloudUpload className="h-4 w-4" />
+        <HiOutlineCloudUpload className="h-3.5 w-3.5" />
       </button>
     </section>
   );

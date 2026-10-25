@@ -55,7 +55,7 @@ class EventCatalogTest {
         record Payload(List<String> changedFields, Map<String, Object> eventData, String label) {
         }
         assertEquals(List.of("changedFields:array", "eventData:object", "label:string"),
-                EventCatalog.fields(Payload.class).stream().map(f -> f.name() + ":" + f.type()).toList());
+                EventCatalog.fields(Payload.class).stream().map(field -> field.name() + ":" + field.type()).toList());
     }
 
     private static List<String> fields(JsonNode type) {

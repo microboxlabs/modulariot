@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateLine;
 import com.microboxlabs.miot.trips.domain.MandateRef;
+import com.microboxlabs.miot.trips.domain.PendingMilestone;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.StageActivity;
 import com.microboxlabs.miot.trips.domain.Trip;
@@ -642,6 +643,16 @@ public class InMemoryTripsWorld {
         public TripMilestone save(TripMilestone m) {
             milestones.put(key(m.tenantCode(), m.tripId(), m.milestone()), m);
             return m;
+        }
+
+        /** Without the trip's service, places and plan, which the database store joins in. */
+        @Override
+        public List<PendingMilestone> pending(String tenantCode, int limit) {
+            return milestones.values().stream()
+                    .filter(m -> m.tenantCode().equals(tenantCode) && m.isPending())
+                    .sorted(Comparator.comparing(TripMilestone::proposedAt,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .limit(limit).map(m -> new PendingMilestone(m, null, null, null, null)).toList();
         }
     }
 

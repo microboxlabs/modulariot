@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
+import com.microboxlabs.miot.trips.domain.PendingMilestone;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.store.InMemoryFleet;
@@ -52,6 +53,11 @@ class MonitorContextTest {
                             @Override
                             public TripMilestone save(TripMilestone milestone) {
                                 throw new UnsupportedOperationException();
+                            }
+
+                            @Override
+                            public List<PendingMilestone> pending(String tenantCode, int limit) {
+                                return List.of();
                             }
                         }, world.tripStore, new AuditService(world.auditStore), Transactions.none()), fleet);
         Map<String, Object> result = context.of(trip,

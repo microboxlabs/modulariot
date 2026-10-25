@@ -110,6 +110,7 @@ class TripsPermissionsTest {
             Map.entry("OrgTripMonitorResource.get", VIEW),
             Map.entry("OrgTripMilestonesResource.confirm", MILESTONE_CONFIRM),
             Map.entry("OrgTripMilestonesResource.list", VIEW),
+            Map.entry("OrgTripMilestonesResource.pending", VIEW),
             Map.entry("OrgTripMilestonesResource.reject", MILESTONE_CONFIRM),
             Map.entry("OrgTripMonitorResource.bind", TRIP_WRITE),
             Map.entry("OrgTripMonitorResource.signal", STAGE_OPERATE),

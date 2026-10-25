@@ -12,6 +12,9 @@ import dev.cel.common.types.SimpleType;
 import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
+import dev.cel.runtime.CelAttributePattern;
+import dev.cel.runtime.CelUnknownSet;
+import dev.cel.runtime.PartialVars;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -28,6 +31,7 @@ import java.util.Optional;
 public final class EventCondition {
 
     private static final String EVENT_VAR = "event";
+    private static final String CONTACT_VAR = "contact";
 
     /** A compile error at a zero-based character offset. */
     public record Issue(int position, String message, String detail) {
@@ -41,10 +45,11 @@ public final class EventCondition {
 
     /** An audience's condition: {@code contact} is one entry of the contact book, {@code event} the event. */
     private static final Cel CONTACT_CEL = CelFactory.standardCelBuilder()
-            .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true).build())
+            .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true)
+                    .enableUnknownTracking(true).build())
             .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
             .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
-            .addVar("contact", MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .addVar(CONTACT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
             .build();
 
     private static final int MAX_PROGRAMS = 512;
@@ -101,7 +106,7 @@ public final class EventCondition {
         if (when == null || when.isBlank()) {
             return false;
         }
-        return eval(CONTACT_CEL, when, Map.of(EVENT_VAR, normalize(event), "contact", normalize(contact)));
+        return eval(CONTACT_CEL, when, Map.of(EVENT_VAR, normalize(event), CONTACT_VAR, normalize(contact)));
     }
 
     /** Whether a contact meets an audience's condition with no event at hand. */
@@ -112,7 +117,7 @@ public final class EventCondition {
         DEPENDS
     }
 
-    /** Evaluates the condition with an empty event: a part that reads the event fails, so the answer depends on it. */
+    /** Evaluate with the event unknown, preserving contact-only short circuits. */
     public static Reach reachContact(String when, Map<String, Object> contact) {
         if (when == null || when.isBlank()) {
             return Reach.NO;
@@ -122,7 +127,11 @@ public final class EventCondition {
             return Reach.NO;
         }
         try {
-            Object result = program.eval(Map.of("event", Map.of(), "contact", normalize(contact)));
+            Object result = program.eval(PartialVars.of(Map.of(CONTACT_VAR, normalize(contact)),
+                    CelAttributePattern.create(EVENT_VAR)));
+            if (result instanceof CelUnknownSet) {
+                return Reach.DEPENDS;
+            }
             return Boolean.TRUE.equals(result) ? Reach.YES : Reach.NO;
         } catch (CelEvaluationException | RuntimeException e) {
             return Reach.DEPENDS;

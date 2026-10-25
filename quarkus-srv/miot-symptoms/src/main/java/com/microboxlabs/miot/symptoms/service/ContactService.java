@@ -85,7 +85,7 @@ public class ContactService {
         seeder.ensureContacts(tenantCode);
         List<Contact> found = contacts.page(tenantCode, filter, after(cursor), size + 1);
         List<Contact> items = found.subList(0, Math.min(size, found.size()));
-        Map<String, ContactCallStats> stats = statsByContact(tenantCode);
+        Map<String, ContactCallStats> stats = statsByContact(tenantCode, items.stream().map(Contact::id).toList());
         String next = found.size() > size ? cursor(items.get(items.size() - 1)) : null;
         return new ContactPage(items.stream().map(c -> ContactView.of(c, stats.get(c.id()))).toList(), next);
     }
@@ -307,6 +307,14 @@ public class ContactService {
 
     private Map<String, ContactCallStats> statsByContact(String tenantCode) {
         return treatments.contactStats(tenantCode).stream()
+                .collect(Collectors.toMap(ContactCallStats::contactId, Function.identity(), (a, b) -> a));
+    }
+
+    private Map<String, ContactCallStats> statsByContact(String tenantCode, List<String> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return treatments.contactStats(tenantCode, ids).stream()
                 .collect(Collectors.toMap(ContactCallStats::contactId, Function.identity(), (a, b) -> a));
     }
 

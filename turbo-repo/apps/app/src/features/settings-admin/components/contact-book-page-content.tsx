@@ -226,7 +226,7 @@ export default function ContactBookPageContent({
         </>
       }
       actions={
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <LayoutToggle
             layout={layout}
             labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}

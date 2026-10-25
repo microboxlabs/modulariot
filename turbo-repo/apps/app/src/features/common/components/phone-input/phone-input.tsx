@@ -79,7 +79,7 @@ export function pastedPhone(
   const candidates = [`+${digits}`, text];
   for (const candidate of text.trim().startsWith("+")
     ? candidates
-    : candidates.reverse()) {
+    : candidates.toReversed()) {
     try {
       const number = parsePhoneNumber(candidate, country)?.number;
       if (number && isValidPhoneNumber(number)) return number;

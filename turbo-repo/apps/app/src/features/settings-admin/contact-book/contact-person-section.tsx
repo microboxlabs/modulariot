@@ -48,7 +48,8 @@ const NO_IDS: ReadonlySet<string> = new Set();
 
 export function memberName(member: OrgMember): string {
   const full = [member.firstName, member.lastName]
-    .filter((part) => part?.trim())
+    .map((part) => part?.trim())
+    .filter(Boolean)
     .join(" ");
   return member.displayName?.trim() || full || member.email;
 }
@@ -247,12 +248,10 @@ export default function ContactPersonSection({
         <span className={LABEL_CLASS}>{tr("companyLabel", d)}</span>
         <ContactOrganizationSection
           value={organization}
-          onChange={(company, rut) => {
+          onChange={(company, rut, taxIdType) => {
             onOrganizationChange(company);
-            if (rut) {
-              const type = guessCompanyIdType(rut);
-              onCompanyRutChange(displayId(type, rut), type);
-            }
+            const type = taxIdType ?? (rut ? guessCompanyIdType(rut) : "RUT");
+            onCompanyRutChange(rut ? displayId(type, rut) : "", type);
           }}
           organizations={organizations}
           d={d}

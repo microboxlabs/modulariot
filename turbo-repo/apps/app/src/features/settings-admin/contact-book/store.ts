@@ -30,6 +30,8 @@ import {
   type TowerContactQuery,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import { displayId } from "./tax-id";
+import type { IdType } from "./tax-id";
+import { contactReachKey } from "@/features/conversations/conversations-api";
 import {
   ensureBadge,
   normalizeLabel,
@@ -157,6 +159,7 @@ export interface CompanyOption {
   name: string;
   /** Normalized RUT, when known. */
   rut?: string;
+  taxIdType?: IdType;
   source: "book" | "carrier";
 }
 
@@ -168,6 +171,7 @@ export function bookCompanies(
     .map((c) => ({
       name: c.name,
       rut: c.rut ?? undefined,
+      taxIdType: (c.taxIdType ?? undefined) as IdType | undefined,
       source: "book" as const,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
@@ -286,7 +290,12 @@ export function useContactBook() {
   const tags = useMemo(() => (data ?? []).flatMap((c) => c.tags ?? []), [data]);
   const ensured = useEnsuredBadges(tags);
   const refresh = useCallback(
-    () => Promise.all([mutate(), mutateKey(contactFacetsKey)]),
+    () =>
+      Promise.all([
+        mutate(),
+        mutateKey(contactFacetsKey),
+        mutateKey(contactReachKey),
+      ]),
     [mutate, mutateKey]
   );
   const actions = useBookActions(refresh, ensured);
@@ -313,7 +322,13 @@ export function useContactBookPages(query: TowerContactQuery) {
   const { mutate: mutatePages } = pages;
   const { mutate: mutateFacets } = facets;
   const refresh = useCallback(
-    () => Promise.all([mutatePages(), mutateFacets(), mutateKey(contactsKey)]),
+    () =>
+      Promise.all([
+        mutatePages(),
+        mutateFacets(),
+        mutateKey(contactsKey),
+        mutateKey(contactReachKey),
+      ]),
     [mutatePages, mutateFacets, mutateKey]
   );
   const actions = useBookActions(refresh, ensured);
@@ -326,7 +341,7 @@ export function useContactBookPages(query: TowerContactQuery) {
     [pages.data, badges]
   );
   const loaded = pages.data?.length ?? 0;
-  const hasMore = Boolean(pages.data?.[loaded - 1]?.next);
+  const hasMore = !pages.error && Boolean(pages.data?.[loaded - 1]?.next);
   const loadingMore = pages.size > loaded && !pages.error;
   const { size, setSize } = pages;
   const loadMore = useCallback(() => {

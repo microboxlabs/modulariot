@@ -205,7 +205,8 @@ public class PgContactStore implements ContactStore {
             sql.append(") ");
         }
         if (f.member() != null) {
-            sql.append(f.member() ? "AND member_user_id IS NOT NULL " : "AND member_user_id IS NULL ");
+            sql.append(Boolean.TRUE.equals(f.member()) ? "AND member_user_id IS NOT NULL "
+                    : "AND member_user_id IS NULL ");
         }
         if (f.role() != null) {
             params.add(f.role());

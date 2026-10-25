@@ -548,6 +548,12 @@ describe("ContactFormModal — organization", () => {
         organizations={[
           { name: "Transportes Norte", rut: "761112228", source: "book" },
           { name: "Minera Sur", source: "book" },
+          {
+            name: "Empresa Especial",
+            rut: "761112228",
+            taxIdType: "OTRO",
+            source: "book",
+          },
         ]}
         dict={dict}
       />
@@ -599,6 +605,32 @@ describe("ContactFormModal — organization", () => {
     });
   });
 
+  it("clears the old company ID when selecting one without it", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: /Transportes Norte/ }));
+    await user.click(screen.getByRole("button", { name: "Quitar empresa" }));
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: "Minera Sur" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({
+      company: "Minera Sur",
+      companyRut: undefined,
+    });
+  });
+
+  it("keeps a company's stored tax ID type", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: /Empresa Especial/ }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({ companyRutType: "OTRO" });
+  });
+
   it("searches the carriers before offering to create the company", async () => {
     const user = userEvent.setup();
     const onSave = renderWithOrganizations();
@@ -626,6 +658,33 @@ describe("ContactFormModal — organization", () => {
       );
       await user.click(screen.getByRole("button", { name: "Guardar" }));
       expect(saved(onSave)).toMatchObject({ company: "Logística Centro" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fills a book company's missing tax ID from its carrier entry", async () => {
+    const user = userEvent.setup();
+    renderWithOrganizations();
+    await startOutsideContact(user);
+    let answer: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>((resolve) => (answer = resolve)))
+    );
+    try {
+      await user.type(screen.getByLabelText("Empresa"), "Minera Sur");
+      await waitFor(() => expect(fetch).toHaveBeenCalled());
+      answer(
+        new Response(
+          JSON.stringify([{ name: "Minera Sur", rut: "761112228" }]),
+          { status: 200 }
+        )
+      );
+      await user.click(
+        await screen.findByRole("button", { name: /Minera Sur 76.111.222-8/ })
+      );
+      expect(screen.getByDisplayValue("76.111.222-8")).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }

@@ -131,6 +131,28 @@ class ContactServiceTest {
     }
 
     @Test
+    void theEmailAndTheCompanysRutAreNormalisedAndChecked() {
+        var service = service(false);
+        ContactView created = service.create(TENANT, "o", new ContactRequest("Despacho", null, null, null, null, null,
+                null, null, "Transportes Sur", null, new ContactChannels(null, null, null, null, " Despacho@Example.com "),
+                null, null, null, "76.111.222-8"));
+        assertEquals("despacho@example.com", created.channels().email());
+        assertEquals("761112228", created.companyRut());
+
+        ContactView cleared = service.update(TENANT, "o", created.id(), new ContactRequest(null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, ""));
+        assertNull(cleared.companyRut());
+        assertEquals("despacho@example.com", cleared.channels().email(), "channels not sent stay");
+
+        ContactRequest badCompanyRut = new ContactRequest("X", null, null, null, null, null, null, null, null, null,
+                null, null, null, null, "76.111.222-3");
+        ContactRequest badEmail = new ContactRequest("Y", null, null, null, null, null, null, null, null, null,
+                new ContactChannels(null, null, null, null, "no-at"), null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", badCompanyRut));
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", badEmail));
+    }
+
+    @Test
     void importCreatesSkipsAndReportsEachRow() {
         var service = service(false);
         service.create(TENANT, "o", book("Ya existe", "11.111.111-1"));

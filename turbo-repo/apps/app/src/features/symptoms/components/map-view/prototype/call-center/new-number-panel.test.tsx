@@ -128,7 +128,11 @@ describe("CallCenterMenu — new number", () => {
         name: "Ana Soto",
         phone: "+56912345678",
         methods: ["PHONE", "WHATSAPP"],
-        channels: { phone: "+56912345678", whatsapp: "+56912345678" },
+        channels: {
+          phone: "+56912345678",
+          whatsapp: "+56912345678",
+          email: "",
+        },
         provisional: true,
       })
     );

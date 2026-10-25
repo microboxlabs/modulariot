@@ -133,9 +133,12 @@ public final class RuleSpecValidator {
                 out.add(error(section, "audienceBadChannel", Map.of("address", a.address()),
                         "Di si la dirección " + a.address() + " es de WhatsApp o de correo."));
             }
+        } else if (a.contacts() != null) {
+            EventCondition.checkContact(a.contacts()).ifPresent(issue -> out.add(new Finding(section, Severity.ERROR,
+                    "contactsInvalid", Map.of("detail", issue.detail()), issue.message(), issue.position())));
         } else if (a.path() == null) {
             out.add(error(section, "audienceEmptyEntry", Map.of(),
-                    "Elige un rol, una dirección o un campo del evento."));
+                    "Elige un rol, una dirección, un campo del evento o una condición sobre la libreta."));
         }
     }
 

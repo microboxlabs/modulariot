@@ -190,6 +190,8 @@ export default function RuleEditor({
   lang,
 }: Readonly<{ id: string; dict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
+  const fieldDict = (dict?.selectables as I18nRecord | undefined)
+    ?.field as I18nRecord;
   const { canMaintain } = useControlTowerAccess();
   const {
     detail,
@@ -398,6 +400,7 @@ export default function RuleEditor({
                     errors={placed.audience}
                     readOnly={readOnly}
                     d={d}
+                    fieldDict={fieldDict}
                     label={tr("sectionAudience", d)}
                     onChange={(audience) => set({ audience })}
                   />
@@ -416,6 +419,7 @@ export default function RuleEditor({
                     errors={placed.steps}
                     readOnly={readOnly}
                     d={d}
+                    fieldDict={fieldDict}
                     onChange={(steps) => set({ steps })}
                   />
                 </NumberedSection>

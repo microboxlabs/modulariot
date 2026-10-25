@@ -48,6 +48,10 @@ export interface BookContact {
   /** Chilean RUT; unique in the organization (compared normalized). */
   rut?: string;
   company?: string;
+  /** The company's RUT, as shown (12.345.678-5). */
+  companyRut?: string;
+  /** Where communication rules send email; not a call method. */
+  email?: string;
   position?: string;
   /** Id of the organization member this contact was created from, if any. */
   orgMemberId?: string;
@@ -82,7 +86,7 @@ export function toBookContact(
   const idByName = badgeIdByName(badges);
   const channels: Partial<Record<CallMethod, string>> = {};
   for (const [method, address] of Object.entries(c.channels ?? {})) {
-    if (address) channels[method as CallMethod] = address;
+    if (address && method !== "email") channels[method as CallMethod] = address;
   }
   return {
     id: c.id,
@@ -94,6 +98,8 @@ export function toBookContact(
     description: c.notes ?? undefined,
     rut: c.nationalId ? displayRut(c.nationalId) : undefined,
     company: c.company ?? undefined,
+    companyRut: c.companyRut ? displayRut(c.companyRut) : undefined,
+    email: c.channels?.email ?? undefined,
     position: c.position ?? undefined,
     orgMemberId: c.memberUserId ?? undefined,
     badgeIds: (c.tags ?? []).flatMap(
@@ -118,8 +124,9 @@ export function toContactBody(
     nationalId: c.rut ?? "",
     nationalIdType: "RUT",
     company: c.company ?? "",
+    companyRut: c.companyRut ?? "",
     position: c.position ?? "",
-    channels: c.channels ?? {},
+    channels: { ...c.channels, email: c.email ?? "" },
     tags: (c.badgeIds ?? []).flatMap((id) => nameById.get(id) ?? []),
     memberUserId: c.orgMemberId ?? "",
     provisional: c.provisional ?? false,
@@ -132,7 +139,8 @@ export function organizationNames(contacts: readonly BookContact[]): string[] {
   const byKey = new Map<string, string>();
   for (const c of contacts) {
     const name = c.company?.trim();
-    if (name && !byKey.has(normalizeLabel(name))) byKey.set(normalizeLabel(name), name);
+    if (name && !byKey.has(normalizeLabel(name)))
+      byKey.set(normalizeLabel(name), name);
   }
   return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
 }

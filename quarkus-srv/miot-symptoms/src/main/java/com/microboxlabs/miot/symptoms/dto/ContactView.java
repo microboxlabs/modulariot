@@ -19,6 +19,7 @@ public record ContactView(
         String nationalId,
         String nationalIdType,
         String company,
+        String companyRut,
         String position,
         ContactChannels channels,
         List<String> tags,
@@ -33,7 +34,7 @@ public record ContactView(
     public static ContactView of(Contact c, ContactCallStats stats) {
         return new ContactView(
                 c.id(), c.name(), c.role(), c.phone(), c.methods(), c.active(), c.notes(),
-                c.nationalId(), c.nationalIdType(), c.company(), c.position(), c.channels(), c.tags(),
+                c.nationalId(), c.nationalIdType(), c.company(), c.companyRut(), c.position(), c.channels(), c.tags(),
                 c.memberUserId(), c.provisional(),
                 stats == null ? null : stats.lastCalledAt(),
                 stats == null ? 0 : stats.answered(),

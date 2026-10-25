@@ -17,7 +17,11 @@ public interface FleetResources {
     record Driver(String rut, String fullName, String phone) {
     }
 
-    record Carrier(UUID id, String legalName, String phone) {
+    record Carrier(UUID id, String legalName, String phone, String rut) {
+
+        public Carrier(UUID id, String legalName, String phone) {
+            this(id, legalName, phone, null);
+        }
     }
 
     /** A resource found by its natural key; {@code active} is false when it is switched off. */

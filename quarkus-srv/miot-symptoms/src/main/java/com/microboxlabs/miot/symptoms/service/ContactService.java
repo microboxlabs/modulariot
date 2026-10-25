@@ -163,7 +163,8 @@ public class ContactService {
                 channels,
                 patch(req.tags(), current.tags(), ContactService::tags),
                 patch(req.memberUserId(), current.memberUserId(), ContactService::trimOrNull),
-                patch(req.provisional(), current.provisional(), Function.identity()));
+                patch(req.provisional(), current.provisional(), Function.identity()),
+                patch(req.companyRut(), current.companyRut(), ContactService::companyRut));
     }
 
     /** A field the request leaves out keeps its current value. */
@@ -204,7 +205,8 @@ public class ContactService {
                 null, tenantCode, req.name().trim(), trimOrNull(req.role()), phone, methods,
                 req.active() == null || req.active(), trimOrNull(req.notes()), actor, null, null,
                 nationalId(req.nationalId(), idType), idType, trimOrNull(req.company()), trimOrNull(req.position()),
-                channels, tags(req.tags()), trimOrNull(req.memberUserId()), Boolean.TRUE.equals(req.provisional()));
+                channels, tags(req.tags()), trimOrNull(req.memberUserId()), Boolean.TRUE.equals(req.provisional()),
+                companyRut(req.companyRut()));
     }
 
     /** Checks first for a clear message; the store's unique index still catches a race. */
@@ -304,7 +306,52 @@ public class ContactService {
             return ContactChannels.NONE;
         }
         return new ContactChannels(normalizePhone(raw.phone()), normalizePhone(raw.whatsapp()),
-                trimOrNull(raw.meet()), trimOrNull(raw.teams()));
+                trimOrNull(raw.meet()), trimOrNull(raw.teams()), email(raw.email()));
+    }
+
+    /** A plain address, lower case; blank is null. */
+    static String email(String raw) {
+        String email = trimOrNull(raw);
+        if (email == null) {
+            return null;
+        }
+        if (email.length() > 254 || !validEmail(email)) {
+            throw new IllegalArgumentException("email is not a valid address");
+        }
+        return email.toLowerCase(Locale.ROOT);
+    }
+
+    /** A simple address shape, checked in linear time without backtracking. */
+    private static boolean validEmail(String email) {
+        int at = email.indexOf('@');
+        if (at < 1 || email.indexOf('@', at + 1) >= 0) {
+            return false;
+        }
+        int labelStart = at + 1;
+        boolean hasDot = false;
+        for (int i = 0; i < email.length(); i++) {
+            char c = email.charAt(i);
+            if (Character.isWhitespace(c) || Character.isSpaceChar(c)) {
+                return false;
+            }
+            if (i > at && c == '.') {
+                if (i == labelStart) {
+                    return false;
+                }
+                hasDot = true;
+                labelStart = i + 1;
+            }
+        }
+        return hasDot && labelStart < email.length();
+    }
+
+    /** The company's RUT, normalised and checked like a person's; blank is null. */
+    static String companyRut(String raw) {
+        String rut = normalizeNationalId(raw);
+        if (rut != null && !isValidRut(rut)) {
+            throw new IllegalArgumentException("companyRut is not a valid RUT");
+        }
+        return rut;
     }
 
     private static String phoneFrom(ContactChannels channels) {

@@ -314,9 +314,10 @@ export function normalizeSpec(
   };
 }
 
-export type AudienceKind = "role" | "address" | "path";
+export type AudienceKind = "role" | "address" | "path" | "contacts";
 
 export function audienceKind(e: AudienceEntry): AudienceKind {
+  if (e.contacts !== undefined) return "contacts";
   if (e.path !== undefined) return "path";
   if (e.address !== undefined) return "address";
   return "role";
@@ -326,6 +327,8 @@ export function audienceText(e: AudienceEntry, d: I18nRecord): string {
   const kind = audienceKind(e);
   if (kind === "role") return roleLabel(e.role ?? "", d);
   if (kind === "path") return `event.data.${e.path ?? ""}`;
+  if (kind === "contacts")
+    return tr("audienceContactsText", d, { condition: e.contacts ?? "" });
   return e.name || e.address || "";
 }
 

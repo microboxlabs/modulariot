@@ -78,8 +78,11 @@ export function useOrgScopes() {
     }
   );
 
-  /** False when the user kept their unsaved changes; true when the page reloads into the org. */
-  const switchOrg = async (slug: string): Promise<boolean> => {
+  /**
+   * False when the user kept their unsaved changes; true when the page reloads into the org, or
+   * opens `href` in it.
+   */
+  const switchOrg = async (slug: string, href?: string): Promise<boolean> => {
     if (!confirmNavigation()) return false;
     let response: Response;
     try {
@@ -106,9 +109,11 @@ export function useOrgScopes() {
 
     await mutate();
     // Organization-only pages answer 404 in the platform scope: land on one it has.
-    const landing = isPlatformScope(slug)
-      ? platformScopeLanding(globalThis.location.pathname)
-      : null;
+    const landing =
+      href ??
+      (isPlatformScope(slug)
+        ? platformScopeLanding(globalThis.location.pathname)
+        : null);
     if (landing) globalThis.location.assign(landing);
     else globalThis.location.reload();
     return true;

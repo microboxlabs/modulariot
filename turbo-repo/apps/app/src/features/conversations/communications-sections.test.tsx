@@ -1,7 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import { SWRConfig } from "swr";
 import { describe, expect, it } from "vitest";
 import es from "@/lang/es.json";
 import ChannelPanel from "./channel-panel";
+import { accountsKey } from "./conversations-api";
 import {
   CHANNEL_TYPES,
   channelType,
@@ -65,6 +67,45 @@ describe("ChannelPanel", () => {
     ).toBeTruthy();
   });
 
+  it("sends from the platform until an owner picks the connected own account", () => {
+    const accounts = (ownConnected: boolean) => ({
+      [accountsKey]: [
+        {
+          channel: "whatsapp",
+          mode: "PLATFORM",
+          ownConnected,
+          updatedBy: null,
+          updatedAt: null,
+        },
+      ],
+    });
+    const panel = (ownConnected: boolean) => (
+      <SWRConfig
+        value={{ provider: () => new Map(), fallback: accounts(ownConnected) }}
+      >
+        <ChannelPanel
+          channel={channelType("whatsapp")!}
+          d={d}
+          settingsDict={es.pages.userSettings}
+          orgSlug={null}
+          platformScope={false}
+          canConfigure
+        />
+      </SWRConfig>
+    );
+    const { rerender } = render(panel(false));
+    const [platform, own] = screen.getAllByRole("radio");
+    expect(platform.getAttribute("aria-checked")).toBe("true");
+    expect((own as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Sin conectar")).toBeTruthy();
+
+    rerender(panel(true));
+    expect(
+      (screen.getAllByRole("radio")[1] as HTMLButtonElement).disabled
+    ).toBe(false);
+    expect(screen.getByText("Conectada")).toBeTruthy();
+  });
+
   it("in the platform scope sets up only the platform's account", () => {
     render(
       <ChannelPanel
@@ -82,11 +123,17 @@ describe("ChannelPanel", () => {
 });
 
 describe("sections by scope", () => {
-  it("offers only the platform's accounts in the platform scope", () => {
-    expect(sectionsFor(true)).toEqual(["channel:whatsapp", "channel:email"]);
-    expect(sectionOf(new URLSearchParams(), true)).toBe("channel:whatsapp");
+  it("offers the message templates and the platform's accounts in the platform scope", () => {
+    expect(sectionsFor(true)).toEqual([
+      "templates",
+      "meta",
+      "channel:whatsapp",
+      "channel:email",
+    ]);
+    expect(sectionOf(new URLSearchParams(), true)).toBe("templates");
     expect(sectionOf(new URLSearchParams("section=rules"), true)).toBe(
-      "channel:whatsapp"
+      "templates"
     );
+    expect(sectionOf(new URLSearchParams("section=templates"))).toBe("rules");
   });
 });

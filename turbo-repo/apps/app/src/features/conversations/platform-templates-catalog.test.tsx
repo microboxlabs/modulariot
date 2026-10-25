@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { ConversationTemplate } from "./conversations-types";
@@ -9,9 +9,9 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("./conversations-api", () => api);
 
-import PlatformTemplatesCatalog from "./platform-templates-catalog";
+import MessageTemplatesPanel from "./platform-templates-catalog";
 
-const dict = es.pages.userSettings;
+const d = es.pages.userSettings.communications;
 
 const CHECK: ConversationTemplate = {
   id: "t1",
@@ -43,57 +43,32 @@ const TOWER: ConversationTemplate = {
   usedBy: [],
 };
 
-describe("PlatformTemplatesCatalog", () => {
+describe("MessageTemplatesPanel", () => {
   beforeEach(() => {
     api.usePlatformTemplates.mockReturnValue({ data: [CHECK, TOWER] });
   });
 
-  it("shows each template as a card with its key, channels, usage and version", () => {
-    render(<PlatformTemplatesCatalog dict={dict} lang="es" />);
+  it("shows each template as a card that opens it in Comunicaciones", () => {
+    render(<MessageTemplatesPanel channel="" layout="cards" lang="es" d={d} />);
     const card = screen
       .getByText("Pánico · conductor")
       .closest("a") as HTMLElement;
     expect(card.getAttribute("href")).toBe(
-      "/es/users/settings/platform/message-templates/panic-check"
+      "/es/users/settings/communications/templates/panic-check"
     );
     expect(within(card).getByText("panic-check")).toBeTruthy();
     expect(within(card).getByText("Usada por 1")).toBeTruthy();
     expect(within(card).getByText("v0.2.1")).toBeTruthy();
   });
 
-  it("links creation to a segment no stored key can take", () => {
-    render(<PlatformTemplatesCatalog dict={dict} lang="es" />);
-    expect(
-      screen.getByRole("link", { name: /Nueva plantilla/ }).getAttribute("href")
-    ).toBe("/es/users/settings/platform/message-templates/_new");
-  });
-
   it("filters by channel and lists as a table", () => {
-    render(<PlatformTemplatesCatalog dict={dict} lang="es" />);
-    fireEvent.click(screen.getByRole("button", { name: "Canal" }));
-    fireEvent.click(screen.getByRole("button", { name: "Correo" }));
+    render(
+      <MessageTemplatesPanel channel="Correo" layout="list" lang="es" d={d} />
+    );
     expect(screen.queryByText("Pánico · conductor")).toBeNull();
-    expect(screen.getByText("Pánico · torre")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "☰ Lista" }));
     const row = screen
       .getByRole("link", { name: "Pánico · torre" })
       .closest("tr") as HTMLElement;
     expect(within(row).getByText("v0.1.0")).toBeTruthy();
-  });
-
-  it("shows the WhatsApp templates on Meta of the platform in their own view", async () => {
-    const { ControlTowerError } =
-      await import("@/features/symptoms/control-tower/control-tower-api");
-    api.useMetaTemplates.mockReturnValue({
-      data: undefined,
-      error: new ControlTowerError("No usable WHATSAPP connection", 409),
-    });
-    render(<PlatformTemplatesCatalog dict={dict} lang="es" />);
-    fireEvent.click(screen.getByRole("button", { name: "WhatsApp en Meta" }));
-    expect(
-      screen.getByText(/La plataforma no tiene una conexión de WhatsApp activa/)
-    ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Canal" })).toBeNull();
   });
 });

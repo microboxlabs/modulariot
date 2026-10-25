@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { TextInput } from "flowbite-react";
-import { HiArrowLeft, HiCheck, HiOutlineSearch, HiUserAdd, HiXCircle } from "react-icons/hi";
+import {
+  HiArrowLeft,
+  HiCheck,
+  HiOutlineSearch,
+  HiUserAdd,
+  HiXCircle,
+} from "react-icons/hi";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -31,7 +37,11 @@ export interface PersonDraft {
 }
 
 export function memberName(member: OrgMember): string {
-  return member.displayName || `${member.firstName} ${member.lastName}`.trim() || member.email;
+  return (
+    member.displayName ||
+    `${member.firstName} ${member.lastName}`.trim() ||
+    member.email
+  );
 }
 
 function MemberRow({
@@ -55,9 +65,13 @@ function MemberRow({
           <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">
             {memberName(member)}
           </span>
-          <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{member.email}</span>
+          <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+            {member.email}
+          </span>
         </span>
-        {selected && <HiCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />}
+        {selected && (
+          <HiCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+        )}
       </button>
     </li>
   );
@@ -78,7 +92,9 @@ function OrgMemberList({
 }>) {
   const [query, setQuery] = useState("");
   const key = normalizeLabel(query);
-  const shown = members.filter((m) => !key || normalizeLabel(`${memberName(m)} ${m.email}`).includes(key));
+  const shown = members.filter(
+    (m) => !key || normalizeLabel(`${memberName(m)} ${m.email}`).includes(key)
+  );
   let emptyText = "";
   if (isLoading) emptyText = tr("orgLoading", d);
   else if (shown.length === 0) emptyText = tr("orgEmpty", d);
@@ -96,10 +112,19 @@ function OrgMemberList({
         />
       </div>
       <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-        {emptyText && <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">{emptyText}</p>}
+        {emptyText && (
+          <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+            {emptyText}
+          </p>
+        )}
         <ul className="max-h-40 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-700">
           {shown.map((m) => (
-            <MemberRow key={m.id} member={m} selected={selectedId === m.id} onPick={() => onPick(m)} />
+            <MemberRow
+              key={m.id}
+              member={m}
+              selected={selectedId === m.id}
+              onPick={() => onPick(m)}
+            />
           ))}
         </ul>
       </div>
@@ -120,6 +145,9 @@ export default function ContactPersonSection({
   rutInvalid,
   organization,
   onOrganizationChange,
+  companyRut,
+  onCompanyRutChange,
+  companyRutInvalid,
   organizations,
   d,
 }: Readonly<{
@@ -131,6 +159,10 @@ export default function ContactPersonSection({
   /** The outside contact's organization (API `company`); "" for none. */
   organization: string;
   onOrganizationChange: (next: string) => void;
+  /** The organization's RUT; "" for none. */
+  companyRut: string;
+  onCompanyRutChange: (next: string) => void;
+  companyRutInvalid: boolean;
   /** The organizations already used in the book, offered to pick from. */
   organizations: readonly string[];
   d: I18nRecord;
@@ -142,7 +174,9 @@ export default function ContactPersonSection({
           members={members}
           isLoading={membersLoading}
           selectedId={value.orgMemberId}
-          onPick={(m) => onChange({ ...value, orgMemberId: m.id, name: memberName(m) })}
+          onPick={(m) =>
+            onChange({ ...value, orgMemberId: m.id, name: memberName(m) })
+          }
           d={d}
         />
         <button
@@ -191,6 +225,21 @@ export default function ContactPersonSection({
           d={d}
         />
       </div>
+      <label className="flex flex-col gap-1">
+        <span className={LABEL_CLASS}>{tr("companyRutLabel", d)}</span>
+        <TextInput
+          color={inputValidationColor(companyRut, !companyRutInvalid)}
+          placeholder="76.123.456-7"
+          value={companyRut}
+          onChange={(e) => onCompanyRutChange(e.target.value)}
+        />
+      </label>
+      {companyRutInvalid && (
+        <p className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
+          <HiXCircle className="h-3.5 w-3.5" />
+          {tr("rutInvalid", d)}
+        </p>
+      )}
       <button
         type="button"
         onClick={() => onChange({ source: "org", name: "", rut: "" })}

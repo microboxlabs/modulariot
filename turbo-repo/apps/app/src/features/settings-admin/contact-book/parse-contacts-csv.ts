@@ -1,8 +1,8 @@
 /**
  * PROTOTYPE — reads the contact-book import CSV. Fixed columns (header row
  * required, any order, case/accent-insensitive, Spanish or English names):
- * nombre, descripcion, rut, empresa, cargo, etiquetas, telefono, whatsapp,
- * meet, teams. Comma or semicolon separated (Excel in Spanish uses `;`).
+ * nombre, descripcion, rut, empresa, rut empresa, cargo, etiquetas, telefono,
+ * whatsapp, meet, teams, correo. Comma or semicolon separated (Excel in Spanish uses `;`).
  * `etiquetas` holds several badges separated by `|`
  * ("transportista|norte|santiago").
  */
@@ -17,6 +17,8 @@ export type ImportField =
   | "description"
   | "rut"
   | "company"
+  | "companyRut"
+  | "email"
   | "position"
   | "badges"
   | CallMethod;
@@ -28,12 +30,14 @@ export const IMPORT_COLUMNS: readonly { field: ImportField; header: string }[] =
     { field: "description", header: "descripcion" },
     { field: "rut", header: "rut" },
     { field: "company", header: "empresa" },
+    { field: "companyRut", header: "rut empresa" },
     { field: "position", header: "cargo" },
     { field: "badges", header: "etiquetas" },
     { field: "phone", header: "telefono" },
     { field: "whatsapp", header: "whatsapp" },
     { field: "meet", header: "meet" },
     { field: "teams", header: "teams" },
+    { field: "email", header: "correo" },
   ];
 
 const HEADER_ALIASES: Record<string, ImportField> = {
@@ -44,6 +48,10 @@ const HEADER_ALIASES: Record<string, ImportField> = {
   rut: "rut",
   empresa: "company",
   company: "company",
+  "rut empresa": "companyRut",
+  "company rut": "companyRut",
+  correo: "email",
+  email: "email",
   cargo: "position",
   position: "position",
   etiquetas: "badges",

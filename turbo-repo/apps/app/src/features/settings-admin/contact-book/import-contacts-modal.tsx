@@ -30,10 +30,12 @@ const EXAMPLE_ROWS: ImportRow["values"][] = [
     description: "Jefe de turno",
     rut: "11.111.111-1",
     company: "Empresa Ejemplo",
+    companyRut: "76.111.222-8",
     position: "Jefe de turno",
     badges: "transportista|turno noche|santiago",
     whatsapp: "+56 9 0000 0001",
     meet: "persona@example.com",
+    email: "persona@example.com",
   },
   {
     name: "Otra Persona",
@@ -78,6 +80,8 @@ function rowToContact(values: ImportRow["values"]): BookContact {
     description: values.description,
     rut: values.rut,
     company: values.company,
+    companyRut: values.companyRut,
+    email: values.email,
     position: values.position,
     role: position || (values.description ?? ""),
     badgeIds: splitBadgeNames(values.badges).map(

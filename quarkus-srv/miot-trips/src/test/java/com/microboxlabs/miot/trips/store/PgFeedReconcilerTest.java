@@ -356,8 +356,8 @@ class PgFeedReconcilerTest {
     void aFailingStepUndoesTheWholeServiceAndIsRecorded() {
         feeds.saveProfile(profile(List.of("preparation", "volando", "closing")));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> send("S-010", desired(1, 6, "ABC-123", null, "10000001")));
+        FeedServiceRequest request = desired(1, 6, "ABC-123", null, "10000001");
+        assertThrows(IllegalArgumentException.class, () -> send("S-010", request));
 
         assertTrue(mandates.list(tenant, null, "S-010", 0, 10).isEmpty(), "the mandate created first is undone");
         FeedService s = feeds.service(tenant, FEED, "S-010").orElseThrow();

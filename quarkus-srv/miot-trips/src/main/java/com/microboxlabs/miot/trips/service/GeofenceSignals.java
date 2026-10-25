@@ -87,15 +87,20 @@ public class GeofenceSignals {
     private final Map<UUID, Pending> pending = new ConcurrentHashMap<>();
     private final Map<String, Instant> lastFrame = new ConcurrentHashMap<>();
     private volatile Instant shapesLoadedAt = Instant.EPOCH;
+    private boolean initialized;
     private volatile int watchedCount = -1;
 
     @Inject
-    GeofenceSignals(TripLiveStore live, GeofenceDirectory geofences, MonitorEngine engine, Transactions tx,
+    public GeofenceSignals(TripLiveStore live, GeofenceDirectory geofences, MonitorEngine engine, Transactions tx,
             @ConfigProperty(name = "miot.trips.geofences.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.trips.geofences.confirm-frames", defaultValue = "2") int confirm,
             @ConfigProperty(name = "miot.trips.geofences.shapes-every", defaultValue = "10m") Duration shapesEvery) {
-        this(live, geofences, (tenant, trip, kind, geofence, at) -> engine.signal(tenant, ACTOR, trip, kind,
-                String.valueOf(geofence), at), tx, Clock.systemUTC(), enabled, confirm, shapesEvery);
+        this(live, geofences, (tenant, trip, kind, geofence, at) -> {
+            if (engine.signal(tenant, ACTOR, trip, kind, String.valueOf(geofence), at).stream()
+                    .anyMatch(transition -> transition.error() != null)) {
+                throw new IllegalStateException("Geofence monitor transition failed");
+            }
+        }, tx, Clock.systemUTC(), enabled, confirm, shapesEvery);
     }
 
     public GeofenceSignals(TripLiveStore live, GeofenceDirectory geofences, Sink sink, Transactions tx, Clock clock,
@@ -176,6 +181,7 @@ public class GeofenceSignals {
             watchedCount = watched.size();
         }
         byAsset = next;
+        initialized = true;
     }
 
     @Incoming("trip-gps-signals")
@@ -185,6 +191,8 @@ public class GeofenceSignals {
             accept(new String(in.getPayload(), StandardCharsets.UTF_8));
         } catch (IllegalArgumentException e) {
             LOG.debugf("Trip geofences: signal skipped (%s)", e.getMessage());
+        } catch (RuntimeException e) {
+            return in.nack(e);
         }
         return in.ack();
     }
@@ -192,6 +200,13 @@ public class GeofenceSignals {
     /** Reads one GPS signal; returns how many trip signals it gave. */
     public synchronized int accept(String json) {
         JsonNode signal = parseSignal(json);
+        if (!initialized) {
+            try {
+                refresh();
+            } catch (RuntimeException e) {
+                throw new IllegalStateException("Geofence watch initialization failed", e);
+            }
+        }
         String asset = asset(signal.path("asset_id").asText(null));
         List<Watched> trips = asset == null ? null : byAsset.get(asset);
         if (trips == null) {
@@ -218,8 +233,8 @@ public class GeofenceSignals {
         signal.path("clients").forEach(c -> clients.add(c.asText()));
         int given = 0;
         for (Watched w : trips) {
-            if (clients.contains(w.tenantCode) && shapes.keySet().containsAll(w.watch.geofences())) {
-                given += track(w, GeofenceEdges.zoneOf(w.watch, shapes, lon, lat), at);
+            if (clients.contains(w.tenantCode)) {
+                given += track(w, asset, lon, lat, at);
             }
         }
         return given;
@@ -247,8 +262,35 @@ public class GeofenceSignals {
         return Double.isFinite(lon) && Double.isFinite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90;
     }
 
-    private int track(Watched w, Integer zone, Instant at) {
-        if (Objects.equals(zone, w.watch.current())) {
+    private int track(Watched w, String assetKey, double lon, double lat, Instant at) {
+        try {
+            return tx.inTransaction(() -> trackLocked(w, assetKey, lon, lat, at));
+        } catch (RuntimeException e) {
+            // Read the authoritative state again on the next frame after rollback.
+            pending.remove(w.tripId);
+            LOG.warnf(e, "Trip geofences: trip %s move not applied", w.tripId);
+            return 0;
+        }
+    }
+
+    private int trackLocked(Watched w, String assetKey, double lon, double lat, Instant at) {
+        TripLiveRow row = live.lockWatched(w.tenantCode, w.tripId).orElse(null);
+        if (row == null || !Objects.equals(assetKey, asset(row.assetId()))) {
+            pending.remove(w.tripId);
+            return 0;
+        }
+        GeofenceEdges.Watch current = new GeofenceEdges.Watch(row.originGeofenceId(), row.destinationGeofenceId(),
+                row.stopGeofenceIds(), row.currentGeofenceId(), row.originVisited(), row.destinationVisited());
+        if (!current.equals(w.watch)) {
+            pending.remove(w.tripId);
+            w.watch = current;
+        }
+        if (!shapes.keySet().containsAll(current.geofences())) {
+            pending.remove(w.tripId);
+            return 0;
+        }
+        Integer zone = GeofenceEdges.zoneOf(current, shapes, lon, lat);
+        if (Objects.equals(zone, current.current())) {
             pending.remove(w.tripId);
             return 0;
         }
@@ -258,21 +300,11 @@ public class GeofenceSignals {
             return 0;
         }
         pending.remove(w.tripId);
-        GeofenceEdges.Move move = GeofenceEdges.move(w.watch, zone);
+        GeofenceEdges.Move move = GeofenceEdges.move(current, zone);
+        live.saveMotorState(w.tenantCode, w.tripId, move.current(), move.originVisited(), move.destinationVisited());
         OffsetDateTime when = at.atOffset(ZoneOffset.UTC);
-        try {
-            tx.inTransaction(() -> {
-                live.saveMotorState(w.tenantCode, w.tripId, move.current(), move.originVisited(),
-                        move.destinationVisited());
-                move.edges().forEach(e -> sink.signal(w.tenantCode, w.tripId, e.kind(), e.geofenceId(), when));
-                return null;
-            });
-        } catch (RuntimeException e) {
-            // the watch keeps its state, so the next frames find the same move again
-            LOG.warnf(e, "Trip geofences: trip %s move to %s not applied", w.tripId, zone);
-            return 0;
-        }
-        w.watch = new GeofenceEdges.Watch(w.watch.origin(), w.watch.destination(), w.watch.stops(), move.current(),
+        move.edges().forEach(e -> sink.signal(w.tenantCode, w.tripId, e.kind(), e.geofenceId(), when));
+        w.watch = new GeofenceEdges.Watch(current.origin(), current.destination(), current.stops(), move.current(),
                 move.originVisited(), move.destinationVisited());
         return move.edges().size();
     }

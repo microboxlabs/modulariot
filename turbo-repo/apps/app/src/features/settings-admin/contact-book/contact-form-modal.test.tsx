@@ -499,6 +499,41 @@ describe("ContactFormModal — contact channels", () => {
   });
 });
 
+describe("ContactFormModal — role", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("offers the book's roles and creates a new one", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <ContactFormModal
+        show
+        onClose={vi.fn()}
+        editing={null}
+        onSave={onSave}
+        roles={["Jefe de operaciones", "Supervisor de transporte"]}
+        dict={dict}
+      />
+    );
+    await user.click(screen.getByRole("button", { name: /Ana Soto/ }));
+    await user.type(screen.getByLabelText("Rol"), "super");
+    expect(
+      screen.queryByRole("button", { name: "Jefe de operaciones" })
+    ).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Supervisor de transporte" })
+    );
+    expect(
+      screen.getByRole("button", { name: "Quitar rol" })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Quitar rol" }));
+    await user.type(screen.getByLabelText("Rol"), "Despachador{Enter}");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({ role: "Despachador" });
+  });
+});
+
 describe("ContactFormModal — organization", () => {
   beforeEach(() => window.localStorage.clear());
 

@@ -293,6 +293,7 @@ export default function ContactBookPageContent({
         onRenameTag={renameTag}
         onDeleteTag={deleteTag}
         organizations={organizations}
+        roles={roles}
         takenMemberIds={
           new Set(
             contacts.flatMap((c) =>

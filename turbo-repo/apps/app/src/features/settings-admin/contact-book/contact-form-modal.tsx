@@ -11,6 +11,7 @@ import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-sw
 import { ALL_CALL_METHODS } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
 import { useOrgMembers } from "../hooks/use-org-members";
 import ContactBadgesSection from "./contact-badges-section";
+import ContactRoleSection from "./contact-role-section";
 import ContactChannelsSection, {
   channelFieldStatus,
   emptyChannelValues,
@@ -158,6 +159,7 @@ export default function ContactFormModal({
   onRenameTag,
   onDeleteTag,
   organizations = [],
+  roles = [],
   takenMemberIds,
   dict,
 }: Readonly<{
@@ -171,6 +173,8 @@ export default function ContactFormModal({
   onDeleteTag?: (name: string) => Promise<void>;
   /** The organizations already used in the book, offered in Organización. */
   organizations?: readonly CompanyOption[];
+  /** The roles already used in the book, offered in Rol. */
+  roles?: readonly string[];
   /** Members other contacts of the book were created from; they can't be picked again. */
   takenMemberIds?: ReadonlySet<string>;
   /** `pages.userSettings` dictionary. */
@@ -323,16 +327,17 @@ export default function ContactFormModal({
             title={tr("sectionGrouping", d)}
             subtitle={tr("sectionGroupingHint", d)}
           >
-            <label className="mb-3 flex flex-col gap-1">
+            <div className="mb-3 flex flex-col gap-1">
               <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                 {tr("roleLabel", d)}
               </span>
-              <TextInput
-                placeholder={tr("rolePlaceholder", d)}
+              <ContactRoleSection
                 value={draft.role}
-                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+                onChange={(role) => setDraft((prev) => ({ ...prev, role }))}
+                roles={roles}
+                d={d}
               />
-            </label>
+            </div>
             <ContactBadgesSection
               selectedIds={draft.badgeIds}
               onChange={(badgeIds) => setDraft({ ...draft, badgeIds })}

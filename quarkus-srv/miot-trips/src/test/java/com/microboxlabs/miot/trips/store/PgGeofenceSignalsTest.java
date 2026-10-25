@@ -166,6 +166,34 @@ class PgGeofenceSignalsTest {
     }
 
     @Test
+    void unusableAssetDoesNotPreventOtherTripsFromInitializing() {
+        UUID invalid = tripWithTruck("TEST-INVALID");
+        Pg.query(pool, "UPDATE miot_trips.trip_live SET asset_id = '-' WHERE trip_id = $1",
+                io.vertx.mutiny.sqlclient.Tuple.of(invalid));
+        tenantWithAMonitor();
+        UUID valid = tripWithTruck("TEST-VALID");
+        signals.refresh();
+        assertEquals(0, frame("TEST-VALID", -70.6, -33.4, tenant));
+        assertEquals(1, frame("TEST-VALID", -70.6, -33.4, tenant));
+        assertEquals(ORIGIN, row(valid).currentGeofenceId());
+    }
+
+    @Test
+    void sharedAssetWatermarksAreIsolatedByTenantAndTrip() {
+        UUID first = tripWithTruck("TEST-SHARED");
+        String firstTenant = tenant;
+        tenantWithAMonitor();
+        UUID second = tripWithTruck("TEST-SHARED");
+        GeofenceSignals checked = new GeofenceSignals(live, geofences, engine, tx, true, 1, Duration.ofMinutes(10));
+        checked.refresh();
+        assertEquals(1, checked.accept(signal("TEST-SHARED", -70.6, -33.4, firstTenant, at.plusSeconds(60))));
+        assertEquals(1, checked.accept(signal("TEST-SHARED", -70.6, -33.4, tenant, at)));
+        assertEquals(0, checked.accept(signal("TEST-SHARED", -70.5, -33.4, tenant, at)));
+        assertEquals(ORIGIN, live.find(firstTenant, first).orElseThrow().currentGeofenceId());
+        assertEquals(ORIGIN, row(second).currentGeofenceId());
+    }
+
+    @Test
     void repeatedFramesCannotConfirmAMoveAndMissingShapesCannotMeanDeparture() {
         UUID tripId = tripWithTruck("TEST-123");
         GeofenceSignals checked = new GeofenceSignals(live, geofences,

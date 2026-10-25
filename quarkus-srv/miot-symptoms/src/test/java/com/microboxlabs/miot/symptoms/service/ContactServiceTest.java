@@ -144,11 +144,12 @@ class ContactServiceTest {
         assertNull(cleared.companyRut());
         assertEquals("despacho@example.com", cleared.channels().email(), "channels not sent stay");
 
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", new ContactRequest("X", null,
-                null, null, null, null, null, null, null, null, null, null, null, null, "76.111.222-3")));
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", new ContactRequest("Y", null,
-                null, null, null, null, null, null, null, null, new ContactChannels(null, null, null, null, "no-at"),
-                null, null, null, null)));
+        ContactRequest badCompanyRut = new ContactRequest("X", null, null, null, null, null, null, null, null, null,
+                null, null, null, null, "76.111.222-3");
+        ContactRequest badEmail = new ContactRequest("Y", null, null, null, null, null, null, null, null, null,
+                new ContactChannels(null, null, null, null, "no-at"), null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", badCompanyRut));
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", badEmail));
     }
 
     @Test

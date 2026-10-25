@@ -134,17 +134,14 @@ export default function SinglePick<T extends PickOption>({
           onKeyDown={handleKeyDown}
         />
         {showList && (
-          // Buttons keep the input focused on mousedown so the click lands.
-          <ul
-            onMouseDown={(e) => e.preventDefault()}
-            className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800"
-          >
+          <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
             {matches.map((option) => {
               const OptionIcon = option.icon ?? ValueIcon;
               return (
                 <li key={`${option.iconLabel ?? ""}:${option.label}`}>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => pick(option)}
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700/50"
                   >
@@ -177,6 +174,7 @@ export default function SinglePick<T extends PickOption>({
               <li>
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={create}
                   className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10"
                 >

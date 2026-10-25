@@ -153,13 +153,13 @@ class FeedReconcilerTest {
     @Test
     void profileStoresNormalizedStagesAndRejectsAnAbsentArrivalStage() {
         FeedProfileService profiles = new FeedProfileService(feeds, null, audit);
-        List<FeedProfile.StagePlan> stages = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
+        List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
-        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stages,
+        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
                 "closing", null, List.of(), true));
         assertEquals("preparation", saved.stages().get(0).stageType());
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
-        FeedProfileRequest invalid = new FeedProfileRequest("Test", stages, "transit", null, List.of(), true);
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "transit", null, List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
     }
 

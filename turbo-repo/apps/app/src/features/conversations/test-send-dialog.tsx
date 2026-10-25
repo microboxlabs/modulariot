@@ -19,7 +19,7 @@ import {
 } from "@/features/symptoms/control-tower/control-tower-api";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import ChannelIcon from "./channel-icon";
-import { testSendRule } from "./conversations-api";
+import { invokeRule } from "./conversations-api";
 import type { RuleStep, SampleEvent } from "./conversations-types";
 import { STEP_CHANNELS, writesToGroups } from "./rule-model";
 import { COMMUNICATIONS_PAGE } from "./rules-tab";
@@ -79,6 +79,7 @@ const fold = (s: string) =>
 export default function TestSendDialog({
   open,
   ruleId,
+  groups,
   steps,
   sample,
   lang,
@@ -88,6 +89,8 @@ export default function TestSendDialog({
 }: Readonly<{
   open: boolean;
   ruleId: string;
+  /** The ids of the rule's groups: the person replaces each of them. */
+  groups: string[];
   steps: RuleStep[];
   sample: SampleEvent;
   lang: string;
@@ -131,10 +134,15 @@ export default function TestSendDialog({
     setError(null);
     try {
       await beforeSend();
-      await testSendRule(ruleId, testEvent(sample), {
+      const person = {
+        name: to.name.trim() || null,
         email: to.email.trim() || null,
         phone: to.phone.trim() || null,
-        name: to.name.trim() || null,
+      };
+      await invokeRule(ruleId, {
+        version: "draft",
+        event: testEvent(sample),
+        to: Object.fromEntries(groups.map((g) => [g, [person]])),
       });
       setStarted(true);
     } catch (e) {

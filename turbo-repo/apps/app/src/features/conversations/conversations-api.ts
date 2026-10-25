@@ -176,16 +176,26 @@ export function setRuleState(id: string, state: RuleState) {
   });
 }
 
-/** Sends the rule's draft for real to one person, each step at its time; 409 when the draft has errors. */
-export function testSendRule(
+export type InvocationPerson = {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+/**
+ * Starts the rule without its trigger, each step at its time: the version in force, or the draft (sent for real).
+ * `to` replaces the entries of the groups it names. 409 when the rule is off or the draft has errors.
+ */
+export function invokeRule(
   id: string,
-  event: SampleEvent,
-  to: { email: string | null; phone: string | null; name: string | null }
+  body: {
+    version: "current" | "draft";
+    event: SampleEvent;
+    to?: Record<string, InvocationPerson[]>;
+    key?: string;
+  }
 ) {
-  return request<unknown>(`${ruleKey(id)}/test-send`, {
-    method: "POST",
-    body: { event, to },
-  });
+  return request<unknown>(`${ruleKey(id)}/invoke`, { method: "POST", body });
 }
 
 /** Saves a template; only platform owners, in the platform scope, may. */

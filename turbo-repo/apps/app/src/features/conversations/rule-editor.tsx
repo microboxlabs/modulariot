@@ -447,6 +447,7 @@ export default function RuleEditor({
         <TestSendDialog
           open={testing}
           ruleId={id}
+          groups={spec.groups.map((g) => g.id)}
           steps={spec.steps}
           sample={sample}
           lang={lang}

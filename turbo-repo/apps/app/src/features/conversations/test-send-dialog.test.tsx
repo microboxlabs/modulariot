@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { RuleStep, SampleEvent } from "./conversations-types";
 
-const api = vi.hoisted(() => ({ testSendRule: vi.fn() }));
+const api = vi.hoisted(() => ({ invokeRule: vi.fn() }));
 vi.mock("./conversations-api", () => api);
 vi.mock(
   "@/features/symptoms/control-tower/control-tower-api",
@@ -73,11 +73,12 @@ describe("testEvent", () => {
 describe("TestSendDialog", () => {
   it("takes a contact from the book and sends the draft to them", async () => {
     const beforeSend = vi.fn().mockResolvedValue(undefined);
-    api.testSendRule.mockResolvedValue({});
+    api.invokeRule.mockResolvedValue({});
     render(
       <TestSendDialog
         open
         ruleId="r1"
+        groups={["g", "h"]}
         steps={[step("whatsapp"), step("email"), step("slack")]}
         sample={SAMPLE}
         lang="es"
@@ -99,11 +100,16 @@ describe("TestSendDialog", () => {
       fireEvent.click(screen.getByRole("button", { name: "Enviar prueba" }));
     });
     expect(beforeSend).toHaveBeenCalled();
-    expect(api.testSendRule).toHaveBeenCalledWith(
-      "r1",
-      expect.objectContaining({ type: "trip.alert" }),
-      { email: "ana@example.com", phone: "+56 9 1234 5678", name: "Ana Prueba" }
-    );
+    const ana = {
+      name: "Ana Prueba",
+      email: "ana@example.com",
+      phone: "+56 9 1234 5678",
+    };
+    expect(api.invokeRule).toHaveBeenCalledWith("r1", {
+      version: "draft",
+      event: expect.objectContaining({ type: "trip.alert" }),
+      to: { g: [ana], h: [ana] },
+    });
     expect(screen.getByText(/La prueba empezó/)).toBeTruthy();
   });
 
@@ -112,6 +118,7 @@ describe("TestSendDialog", () => {
       <TestSendDialog
         open
         ruleId="r1"
+        groups={["g"]}
         steps={[step("email")]}
         sample={SAMPLE}
         lang="es"

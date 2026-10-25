@@ -5,6 +5,7 @@ import com.microboxlabs.miot.fleet.resources.store.ResourceStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,6 +45,14 @@ public class FleetResourcesService implements FleetResources {
     @Override
     public Optional<Carrier> carrier(String tenantCode, UUID id) {
         return store.carrierSummary(tenantCode, id);
+    }
+
+    @Override
+    public List<Carrier> carriers(String tenantCode, String query, int limit) {
+        String q = query == null || query.isBlank() ? null : query.trim();
+        return store.listActiveCarriers(tenantCode, q, limit).stream()
+                .map(c -> new Carrier(UUID.fromString(c.id()), c.legalName(), c.phone(), c.rut()))
+                .toList();
     }
 
     @Override

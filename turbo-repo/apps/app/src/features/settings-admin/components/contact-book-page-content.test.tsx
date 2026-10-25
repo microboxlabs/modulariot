@@ -23,13 +23,18 @@ vi.mock("../contact-book/taxonomy-store", () => ({
   useContactBadges: () => ({ badges: [] }),
 }));
 vi.mock("../contact-book/store", () => ({
-  organizationNames: () => [],
-  useContactBook: () => ({
+  bookCompanies: () => [],
+  toBookContact: vi.fn(),
+  useContactBookPages: () => ({
     contacts: [
       { id: "c1", name: "Persona Ejemplo", phone: "", role: "", methods: [] },
     ],
+    facets: undefined,
     hydrated: true,
     error: undefined,
+    hasMore: false,
+    loadingMore: false,
+    loadMore: vi.fn(),
     save: vi.fn(),
     addMany: vi.fn(),
     remove: book.remove,

@@ -15,7 +15,7 @@ import { useRuleDraft } from "./use-rule-draft";
 
 const published: RuleSpec = {
   trigger: { event: "trip.opened", when: null },
-  audience: [],
+  groups: [],
   steps: [],
 };
 const edited: RuleSpec = { ...published, family: "operations" };

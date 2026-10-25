@@ -9,15 +9,15 @@ import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { ALL_CALL_METHODS } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
-import { isRutValid } from "@/utils/rut";
 import { useOrgMembers } from "../hooks/use-org-members";
 import ContactBadgesSection from "./contact-badges-section";
+import ContactRoleSection from "./contact-role-section";
 import ContactChannelsSection, {
   channelFieldStatus,
   emptyChannelValues,
   type ChannelValues,
 } from "./contact-channels-section";
-import { normalizeRut } from "./contact-duplicates";
+import { asIdType, displayId, isIdValid, type IdType } from "./tax-id";
 import { inputValidationColor } from "./input-validation";
 import {
   channelsFromContact,
@@ -27,7 +27,12 @@ import {
 import ContactPersonSection, {
   type PersonDraft,
 } from "./contact-person-section";
-import { makeContactId, TagUpdateError, type BookContact } from "./store";
+import {
+  makeContactId,
+  TagUpdateError,
+  type BookContact,
+  type CompanyOption,
+} from "./store";
 import {
   ensureBadge,
   renameBadge,
@@ -42,8 +47,9 @@ interface ContactDraft {
   badgeIds: string[];
   /** The outside contact's organization (API `company`); "" for none. */
   company: string;
-  /** The organization's RUT, as typed; "" for none. */
+  /** The organization's tax id, as typed; "" for none. */
   companyRut: string;
+  companyRutType: IdType;
   /** Where communication rules send email; "" for none. */
   email: string;
   /** What the contact does, as communication rules match it. */
@@ -64,11 +70,15 @@ function draftFromContact(contact: BookContact | null): ContactDraft {
       source: contact && !contact.orgMemberId ? "external" : "org",
       orgMemberId: contact?.orgMemberId,
       name: contact?.name ?? "",
-      rut: contact?.rut ?? "",
+      rut: contact?.rut ? displayId(contact.rutType, contact.rut) : "",
+      rutType: asIdType(contact?.rutType),
     },
     badgeIds: contact?.badgeIds ?? [],
     company: contact?.company ?? "",
-    companyRut: contact?.companyRut ?? "",
+    companyRut: contact?.companyRut
+      ? displayId(contact.companyRutType, contact.companyRut)
+      : "",
+    companyRutType: asIdType(contact?.companyRutType),
     email: contact?.email ?? "",
     role: contact?.role ?? "",
     channels: contact
@@ -92,7 +102,7 @@ function storedChannels(
 function isPersonValid(person: PersonDraft): boolean {
   if (!person.name.trim()) return false;
   if (person.source === "org") return Boolean(person.orgMemberId);
-  return !person.rut.trim() || isRutValid(normalizeRut(person.rut));
+  return !person.rut.trim() || isIdValid(person.rutType ?? "RUT", person.rut);
 }
 
 /** One section of the form, shown as a white card on the shaded body. */
@@ -149,6 +159,8 @@ export default function ContactFormModal({
   onRenameTag,
   onDeleteTag,
   organizations = [],
+  roles = [],
+  takenMemberIds,
   dict,
 }: Readonly<{
   show: boolean;
@@ -160,7 +172,11 @@ export default function ContactFormModal({
   onRenameTag?: (from: string, to: string) => Promise<void>;
   onDeleteTag?: (name: string) => Promise<void>;
   /** The organizations already used in the book, offered in Organización. */
-  organizations?: readonly string[];
+  organizations?: readonly CompanyOption[];
+  /** The roles already used in the book, offered in Rol. */
+  roles?: readonly string[];
+  /** Members other contacts of the book were created from; they can't be picked again. */
+  takenMemberIds?: ReadonlySet<string>;
   /** `pages.userSettings` dictionary. */
   dict: I18nRecord;
 }>) {
@@ -183,10 +199,10 @@ export default function ContactFormModal({
   const rutInvalid =
     person.source === "external" &&
     person.rut.trim() !== "" &&
-    !isRutValid(normalizeRut(person.rut));
+    !isIdValid(person.rutType ?? "RUT", person.rut);
   const companyRutInvalid =
     draft.companyRut.trim() !== "" &&
-    !isRutValid(normalizeRut(draft.companyRut));
+    !isIdValid(draft.companyRutType, draft.companyRut);
   const emailInvalid =
     draft.email.trim() !== "" && !EMAIL.test(draft.email.trim());
   const canSave =
@@ -205,6 +221,7 @@ export default function ContactFormModal({
         id: editing?.id ?? makeContactId(),
         name: person.name.trim(),
         rut: external ? person.rut.trim() || undefined : editing?.rut,
+        rutType: external ? (person.rutType ?? "RUT") : editing?.rutType,
         orgMemberId: external ? undefined : person.orgMemberId,
         role: draft.role.trim(),
         badgeIds,
@@ -214,6 +231,9 @@ export default function ContactFormModal({
         companyRut: external
           ? draft.companyRut.trim() || undefined
           : editing?.companyRut,
+        companyRutType: external
+          ? draft.companyRutType
+          : editing?.companyRutType,
         email: draft.email.trim() || undefined,
         provisional: false,
         ...storedChannels(draft.channels),
@@ -289,14 +309,16 @@ export default function ContactFormModal({
               rutInvalid={rutInvalid}
               organization={draft.company}
               onOrganizationChange={(company) =>
-                setDraft({ ...draft, company })
+                setDraft((prev) => ({ ...prev, company }))
               }
               companyRut={draft.companyRut}
-              onCompanyRutChange={(companyRut) =>
-                setDraft({ ...draft, companyRut })
+              companyRutType={draft.companyRutType}
+              onCompanyRutChange={(companyRut, companyRutType) =>
+                setDraft((prev) => ({ ...prev, companyRut, companyRutType }))
               }
               companyRutInvalid={companyRutInvalid}
               organizations={organizations}
+              takenMemberIds={takenMemberIds}
               d={d}
             />
           </SectionCard>
@@ -305,16 +327,17 @@ export default function ContactFormModal({
             title={tr("sectionGrouping", d)}
             subtitle={tr("sectionGroupingHint", d)}
           >
-            <label className="mb-3 flex flex-col gap-1">
+            <div className="mb-3 flex flex-col gap-1">
               <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                 {tr("roleLabel", d)}
               </span>
-              <TextInput
-                placeholder={tr("rolePlaceholder", d)}
+              <ContactRoleSection
                 value={draft.role}
-                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+                onChange={(role) => setDraft((prev) => ({ ...prev, role }))}
+                roles={roles}
+                d={d}
               />
-            </label>
+            </div>
             <ContactBadgesSection
               selectedIds={draft.badgeIds}
               onChange={(badgeIds) => setDraft({ ...draft, badgeIds })}

@@ -1,56 +1,64 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { trDynamic } from "@/features/i18n/tr.service";
-import type {
-  AudienceEntry,
-  RuleFinding,
-  RuleSpec,
-} from "./conversations-types";
-import { channelLabel, roleLabel } from "./rule-model";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
+import type { RuleFinding, RuleSpec } from "./conversations-types";
+import { channelLabel, groupLabel, roleLabel } from "./rule-model";
 
-const SECTION = /^(audience|steps)\.(\d+)$/;
+const SECTION = /^(groups|steps)\.(\d+)$/;
 
-/** `audience.2` → {kind: "audience", index: 2}; the trigger has no index. */
+/** `groups.2` → {kind: "groups", index: 2}; the trigger has no index. */
 export function findingSection(section: string): {
-  kind: "trigger" | "audience" | "steps";
+  kind: "trigger" | "groups" | "steps";
   index: number | null;
 } {
   const m = SECTION.exec(section);
   if (!m) return { kind: "trigger", index: null };
-  return { kind: m[1] as "audience" | "steps", index: Number(m[2]) };
+  return { kind: m[1] as "groups" | "steps", index: Number(m[2]) };
 }
 
 const upperFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/**
- * A finding of the rule validator in the user's language, as
- * `finding<Code>`. The step or recipient number `{n}` is the server's
- * `step` or `entry` param (1-based), else the section index + 1; roles and
- * channels are named. Without a known code, the server's Spanish message.
- */
-export function ruleFindingText(f: RuleFinding, d: I18nRecord): string {
-  if (!f.code) return f.message;
-  const { index } = findingSection(f.section);
+function findingParams(
+  f: RuleFinding,
+  d: I18nRecord,
+  index: number | null
+): Record<string, string> {
   const params: Record<string, string> = {};
-  const number = f.params?.step ?? f.params?.entry;
+  const number = f.params?.step ?? f.params?.entry ?? f.params?.group;
   if (number != null) params.n = String(number);
   else if (index !== null) params.n = String(index + 1);
   for (const [name, value] of Object.entries(f.params ?? {})) {
     const text = value == null ? "" : String(value);
     if (name === "role") params.role = roleLabel(text, d);
     else if (name === "channel") params.channel = channelLabel(text, d);
-    else params[name] = text;
+    else if (name !== "group") params[name] = text;
   }
+  return params;
+}
+
+/**
+ * A finding of the rule validator in the user's language, as
+ * `finding<Code>`. `{n}` is the server's `step`, `entry` or `group` param
+ * (1-based), else the section index + 1; `{group}` names the group; roles and
+ * channels are named. Without a known code, the server's Spanish message.
+ */
+export function ruleFindingText(
+  f: RuleFinding,
+  d: I18nRecord,
+  spec?: RuleSpec
+): string {
+  if (!f.code) return f.message;
+  const { kind, index } = findingSection(f.section);
+  const params = findingParams(f, d, index);
+  const group =
+    kind === "groups" && index !== null ? spec?.groups[index] : undefined;
+  if (kind === "groups" && index !== null)
+    params.group = group
+      ? groupLabel(group, index, d)
+      : tr("groupN", d, { n: String(index + 1) });
   const key = `finding${upperFirst(f.code)}`;
   const text = trDynamic(key, d, params);
   return text === key ? f.message : text;
 }
-
-/** Codes about one recipient; in a step they name one of its own recipients. */
-const RECIPIENT_CODES = new Set([
-  "unknownRole",
-  "audienceBadChannel",
-  "audienceEmptyEntry",
-]);
 
 /** Codes that are about the step's template. */
 const TEMPLATE_CODES = new Set([
@@ -63,42 +71,33 @@ const CHANNEL_CODES = new Set(["stepBadChannel", "stepWaitNeedsReplies"]);
 
 const CONNECTION_CODES = new Set(["stepNoConnection", "stepUnknownConnection"]);
 
-/** The recipient a recipient finding is about, matched by its params. */
-function recipientIndex(f: RuleFinding, entries: AudienceEntry[]): number {
-  const p = f.params ?? {};
-  if (f.code === "unknownRole") {
-    const role = String(p.role ?? "").toLowerCase();
-    return entries.findIndex((e) => (e.role ?? "").toLowerCase() === role);
-  }
-  if (f.code === "audienceBadChannel") {
-    return entries.findIndex((e) => e.address === p.address);
-  }
-  return entries.findIndex(
-    (e) => !e.role && e.address === undefined && !e.path
-  );
-}
+const GROUPS_CODES = new Set([
+  "stepNoRecipients",
+  "stepUnknownGroup",
+  "stepBadRecipients",
+]);
 
 export interface StepIssues {
   messages: string[];
   template: boolean;
   channel: boolean;
   connection: boolean;
-  /** Messages for the step's own recipients, by their index. */
+  /** The groups the step writes to are missing or unknown. */
+  groups: boolean;
+}
+
+export interface GroupIssues {
+  /** About the group itself: no recipients, no id, unused. */
+  messages: string[];
+  /** Messages for one of its recipients, by the recipient's index. */
   entries: Record<number, string[]>;
 }
 
 export interface PlacedFindings {
   trigger: RuleFinding[];
-  /** Messages for the rule's recipients, by their index. */
-  audience: Record<number, string[]>;
-  /** Audience findings with no row to sit beside, such as no recipients at all. */
-  audienceGeneral: string[];
+  groups: Record<number, GroupIssues>;
   steps: Record<number, StepIssues>;
 }
-
-const push = (map: Record<number, string[]>, i: number, text: string) => {
-  (map[i] ??= []).push(text);
-};
 
 /** Each finding beside the control it is about. */
 export function placeFindings(
@@ -106,39 +105,37 @@ export function placeFindings(
   spec: RuleSpec,
   d: I18nRecord
 ): PlacedFindings {
-  const out: PlacedFindings = {
-    trigger: [],
-    audience: {},
-    audienceGeneral: [],
-    steps: {},
-  };
+  const out: PlacedFindings = { trigger: [], groups: {}, steps: {} };
   for (const f of findings ?? []) {
     const { kind, index } = findingSection(f.section);
-    const text = ruleFindingText(f, d);
     if (kind === "trigger" || index === null) {
       out.trigger.push(f);
-    } else if (kind === "audience") {
-      if (index < spec.audience.length) push(out.audience, index, text);
-      else out.audienceGeneral.push(text);
-    } else {
-      const issues = (out.steps[index] ??= {
-        messages: [],
-        template: false,
-        channel: false,
-        connection: false,
-        entries: {},
-      });
-      const to = spec.steps[index]?.to;
-      const entry =
-        RECIPIENT_CODES.has(f.code ?? "") && Array.isArray(to)
-          ? recipientIndex(f, to)
-          : -1;
-      if (entry >= 0) push(issues.entries, entry, text);
-      else issues.messages.push(text);
-      if (TEMPLATE_CODES.has(f.code ?? "")) issues.template = true;
-      if (CHANNEL_CODES.has(f.code ?? "")) issues.channel = true;
-      if (CONNECTION_CODES.has(f.code ?? "")) issues.connection = true;
+      continue;
     }
+    const text = ruleFindingText(f, d, spec);
+    if (kind === "groups") {
+      const issues = (out.groups[index] ??= { messages: [], entries: {} });
+      const entry = Number(f.params?.entry);
+      if (Number.isInteger(entry) && entry > 0) {
+        const messages = issues.entries[entry - 1] ?? [];
+        messages.push(text);
+        issues.entries[entry - 1] = messages;
+      } else issues.messages.push(text);
+      continue;
+    }
+    const issues = (out.steps[index] ??= {
+      messages: [],
+      template: false,
+      channel: false,
+      connection: false,
+      groups: false,
+    });
+    issues.messages.push(text);
+    const code = f.code ?? "";
+    if (TEMPLATE_CODES.has(code)) issues.template = true;
+    if (CHANNEL_CODES.has(code)) issues.channel = true;
+    if (CONNECTION_CODES.has(code)) issues.connection = true;
+    if (GROUPS_CODES.has(code)) issues.groups = true;
   }
   return out;
 }

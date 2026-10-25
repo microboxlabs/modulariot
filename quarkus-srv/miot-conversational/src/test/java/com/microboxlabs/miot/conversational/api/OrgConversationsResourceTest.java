@@ -7,15 +7,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.microboxlabs.miot.conversational.access.ConversationsAccessCatalog;
 import com.microboxlabs.miot.conversational.accounts.ChannelMode;
 import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.AccountModeRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateRuleRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateConnectionRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.DraftRequest;
+import com.microboxlabs.miot.conversational.api.OrgConversationsResource.InvokeRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.PublishRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.SimulateRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.StateRequest;
+import com.microboxlabs.miot.conversational.rules.Invocation;
 import com.microboxlabs.miot.conversational.rules.Rule;
 import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RulesFixtureAccess;
@@ -58,7 +61,7 @@ class OrgConversationsResourceTest {
         return new OrgConversationsResource(tenant, org, o -> Uni.createFrom().item(access),
                 () -> "owner@example.com", new OrgConversationsResource.Services(fixture.service(),
                         fixture.simulator(), fixture.templates(), fixture.runs(), fixture.channels(),
-                        accounts.service, null));
+                        accounts.service, null, fixture.invocations()));
     }
 
     private final OrgConversationsResource owner = resource(access(BaseRole.OWNER, Set.of()));
@@ -120,7 +123,8 @@ class OrgConversationsResourceTest {
     void ruleDetailShapeAndDraftFindings() {
         String id = createPanicRule();
         JsonNode detail = body(call(member.getRule(ORG, id)));
-        assertEquals(set("rule", "current", "draft", "versions", "plan"), keys(detail));
+        assertEquals(set("rule", "current", "draft", "versions", "plan", "findings"), keys(detail));
+        assertEquals(0, detail.path("findings").size(), "the new rule's draft has no findings");
         assertEquals("MINOR", detail.path("plan").path("bump").asText());
         assertEquals("0.1.0", detail.path("plan").path("nextVersion").asText());
         assertEquals(set("id", "key", "name", "state", "currentVersion", "createdAt", "updatedAt"),
@@ -146,6 +150,8 @@ class OrgConversationsResourceTest {
         List<String> codes = new ArrayList<>();
         draft.path("findings").forEach(x -> codes.add(x.path("code").asText()));
         assertEquals(List.of("whenInvalid", "noSteps"), codes);
+        assertEquals(2, body(call(member.getRule(ORG, id))).path("findings").size(),
+                "the detail carries the saved draft's findings");
 
         Response refused = call(owner.publish(ORG, id, new PublishRequest("broken", null)));
         assertEquals(409, refused.getStatus());
@@ -179,6 +185,7 @@ class OrgConversationsResourceTest {
         assertEquals("0.1.0", detail.path("current").path("version").asText());
         assertTrue(detail.path("draft").isNull());
         assertTrue(detail.path("plan").isNull(), "no draft, no plan");
+        assertTrue(detail.path("findings").isNull(), "no draft, no findings");
         assertEquals(1, detail.path("versions").size());
     }
 
@@ -289,6 +296,32 @@ class OrgConversationsResourceTest {
         assertEquals("Ana", message.path("toName").asText());
         assertEquals(0, body(call(member.listRuns(ORG, null, "DONE", null))).size());
         assertEquals(400, call(member.listRuns(ORG, null, "LATER", null)).getStatus());
+    }
+
+    @Test
+    void anIntegrationInvokesThePublishedRuleAndOnlyAWriterTheDraft() {
+        String id = createPanicRule();
+        OrgConversationsResource integration =
+                resource(access(BaseRole.MEMBER, Set.of(ConversationsAccessCatalog.RULE_INVOKE)));
+        InvokeRequest current = new InvokeRequest(null, null, null, "OT-1-salida");
+        assertEquals(409, call(integration.invoke(ORG, id, current)).getStatus(), "never published");
+        call(owner.publish(ORG, id, new PublishRequest("first", null)));
+        assertEquals(409, call(integration.invoke(ORG, id, current)).getStatus(), "the rule is OFF");
+        call(owner.setState(ORG, id, new StateRequest(Rule.State.ACTIVE)));
+
+        assertEquals(403, call(member.invoke(ORG, id, current)).getStatus());
+        Response started = call(integration.invoke(ORG, id, current));
+        assertEquals(200, started.getStatus());
+        assertEquals("0.1.0", body(started).path("ruleVersion").asText());
+        assertEquals(body(started).path("id"), body(call(integration.invoke(ORG, id, current))).path("id"),
+                "the same key starts nothing new");
+
+        InvokeRequest draft = new InvokeRequest("draft", null, null, null);
+        assertEquals(403, call(integration.invoke(ORG, id, draft)).getStatus());
+        assertEquals("draft", body(call(maintainer.invoke(ORG, id, draft))).path("ruleVersion").asText());
+        assertEquals(400, call(owner.invoke(ORG, id, new InvokeRequest("0.1.0", null, null, null))).getStatus());
+        assertEquals(400, call(owner.invoke(ORG, id, new InvokeRequest(null, null,
+                Map.of("nope", List.of(new Invocation.Person("A", "a@example.com", null))), null))).getStatus());
     }
 
     @Test

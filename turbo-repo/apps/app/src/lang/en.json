@@ -4073,6 +4073,7 @@
         "close": "Close",
         "jsonInvalid": "The JSON is not valid.",
         "jsonNotAList": "It must be a list of objects: [ { … }, { … } ].",
+        "jsonInvalidShape": "Check the types of the fields and nested entries before switching to the form.",
         "jsonHint": "Ctrl+Space suggests properties, channels, templates and groups.",
         "jsonUnknownChannel": "There is no channel {value}.",
         "jsonUnknownTemplate": "There is no template {value}.",

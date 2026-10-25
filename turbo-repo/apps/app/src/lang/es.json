@@ -4073,6 +4073,7 @@
         "close": "Cerrar",
         "jsonInvalid": "El JSON no es válido.",
         "jsonNotAList": "Debe ser una lista de objetos: [ { … }, { … } ].",
+        "jsonInvalidShape": "Revisa los tipos de los campos y destinatarios antes de volver al formulario.",
         "jsonHint": "Ctrl+Espacio sugiere propiedades, canales, plantillas y grupos.",
         "jsonUnknownChannel": "No existe el canal {value}.",
         "jsonUnknownTemplate": "No existe la plantilla {value}.",

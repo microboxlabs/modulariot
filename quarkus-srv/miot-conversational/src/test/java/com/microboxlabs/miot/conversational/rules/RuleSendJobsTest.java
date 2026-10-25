@@ -10,9 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.client.WhatsAppSendException;
+import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.jobs.WhatsAppSendJob;
+import com.microboxlabs.miot.conversational.service.ContextMessage;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
@@ -63,8 +65,20 @@ class RuleSendJobsTest {
     void aJobRunTwiceSendsOnce() {
         f.runSendJobs();
         new WhatsAppSendJob(f.whatsapp).handle(TENANT, f.sendJobs.get(0).payload());
+        f.park(f.sendJobs.get(0), "late failure");
         assertEquals(1, f.whatsappSent.size());
         assertEquals(MessageStatus.SENT, message().status());
+        assertNull(run().lastError(), "a late park must not mark a sent message's run as failed");
+    }
+
+    @Test
+    void replayingTheStepKeepsTheSameQueuedMessage() {
+        Message first = message();
+        ContextMessage repeated = new ContextMessage(ContextKind.SYMPTOM_CASE, "-7", DRIVER, null, null, null,
+                first.templateName(), "es_CL", java.util.Map.of(), null, first.body(), run().id(), 0);
+        Message second = f.whatsapp.queueInContext(TENANT, repeated);
+        assertEquals(first.id(), second.id());
+        assertEquals(1, f.store.conversations.messages.size());
     }
 
     @Test
@@ -89,6 +103,10 @@ class RuleSendJobsTest {
         assertEquals("Invalid parameter", message().errorMessage());
         assertEquals(DRIVER + ": Invalid parameter", run().lastError());
         assertEquals(Run.Status.WAITING, run().status(), "the run goes on with its next steps");
+
+        f.metaFailure = null;
+        new WhatsAppSendJob(f.whatsapp).handle(TENANT, f.sendJobs.get(0).payload());
+        assertEquals(MessageStatus.SENT, message().status(), "manual job retry sends a formerly failed message");
     }
 
     @Test
@@ -105,6 +123,8 @@ class RuleSendJobsTest {
         WhatsAppSendJob job = new WhatsAppSendJob(f.whatsapp);
         AsyncJobSpec spec = f.sendJobs.get(0);
         assertThrows(NonRetryableJobException.class, () -> job.handle("tenant-2", spec.payload()));
+        f.parkAs("tenant-2", spec, "foreign job");
         assertEquals(MessageStatus.PENDING, message().status());
+        assertNull(run().lastError());
     }
 }

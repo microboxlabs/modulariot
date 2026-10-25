@@ -5,6 +5,7 @@ import JsonCodeEditor, {
   jsonIssues,
   jsonItemAt,
   type JsonKeys,
+  type JsonType,
   type JsonValues,
 } from "@/features/common/components/json-code-editor";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -16,9 +17,50 @@ import ModeToggle from "@/features/symptoms/maintainer/ui/mode-toggle";
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
-/** Whether `data` is a list of objects, the shape both groups and steps have. */
-export function isObjectList(data: unknown): data is Record<string, unknown>[] {
-  return Array.isArray(data) && data.every(isObject);
+function matchesField(value: unknown, type: JsonType, name: string): boolean {
+  if (name === "name" && value === null) return true;
+  if (type === "array") return Array.isArray(value);
+  if (type === "object") return isObject(value);
+  return typeof value === type;
+}
+
+function validEntry(entry: unknown, keys: JsonKeys): boolean {
+  if (!isObject(entry)) return false;
+  return Object.entries(entry).every(([name, value]) => {
+    const field = keys.objects.entries?.find((key) => key.label === name);
+    return !field || matchesField(value, field.type, name);
+  });
+}
+
+function validItem(item: Record<string, unknown>, keys: JsonKeys): boolean {
+  if (
+    keys.objects.entries &&
+    (typeof item.id !== "string" || !Array.isArray(item.entries))
+  )
+    return false;
+  return Object.entries(item).every(([name, value]) => {
+    const field = keys.objects[""]?.find((key) => key.label === name);
+    if (!field) return true;
+    if (name === "entries")
+      return (
+        Array.isArray(value) && value.every((entry) => validEntry(entry, keys))
+      );
+    if (name === "to")
+      return (
+        Array.isArray(value) && value.every((id) => typeof id === "string")
+      );
+    return matchesField(value, field.type, name);
+  });
+}
+
+/** Check the fields that the form reads before replacing its current, safe spec. */
+export function isObjectList(
+  data: unknown,
+  keys?: JsonKeys
+): data is Record<string, unknown>[] {
+  if (!Array.isArray(data) || !data.every(isObject)) return false;
+  if (!keys) return true;
+  return data.every((item) => validItem(item, keys));
 }
 
 /** ☰ form / { } JSON for one section; JSON with an error keeps the section in code until it is fixed. */
@@ -99,7 +141,9 @@ export default function SpecCode<T>({
         readOnly={readOnly}
         ariaLabel={label}
         parseError={tr("jsonInvalid", d)}
-        normalize={(data) => (isObjectList(data) ? normalize(data) : data)}
+        normalize={(data) =>
+          isObjectList(data, keys) ? normalize(data) : data
+        }
         onChange={(data, edited) => {
           setText(edited);
           if (data === null) {
@@ -107,9 +151,9 @@ export default function SpecCode<T>({
             setShapeError(null);
             return;
           }
-          if (!isObjectList(data)) {
+          if (!isObjectList(data, keys)) {
             onBroken(true);
-            setShapeError(tr("jsonNotAList", d));
+            setShapeError(tr("jsonInvalidShape", d));
             return;
           }
           onBroken(false);

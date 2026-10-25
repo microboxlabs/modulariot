@@ -45,6 +45,10 @@ public class MessageRepository {
 
     private static final String INSERT = INSERT_VALUES + "RETURNING " + COLUMNS;
 
+    private static final String INSERT_QUEUED = INSERT_VALUES + """
+            ON CONFLICT (id) DO NOTHING
+            RETURNING\s""" + COLUMNS;
+
     private static final String INSERT_IF_NEW_PROVIDER_MESSAGE_ID = INSERT_VALUES + """
             ON CONFLICT (channel, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING
             RETURNING\s""" + COLUMNS;
@@ -185,7 +189,7 @@ public class MessageRepository {
                 metadata = COALESCE(metadata, '{}'::jsonb) || $3::text::jsonb,
                 sent_at = $4,
                 error_message = NULL
-            WHERE id = $1 AND status = 'PENDING'
+            WHERE id = $1 AND status IN ('PENDING', 'FAILED')
             RETURNING\s""" + COLUMNS;
 
     private final Instance<Pool> clientInstance;
@@ -199,6 +203,14 @@ public class MessageRepository {
                 .execute(toParams(message))
                 .await().indefinitely()
                 .iterator().next());
+    }
+
+    /** Insert a queued rule message once, including when its leased step is replayed. */
+    public Message appendQueued(Message message) {
+        var rows = client().preparedQuery(INSERT_QUEUED)
+                .execute(toParams(message)).await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : findById(message.id());
     }
 
     /** Inserts and touches atomically; returns null when another send already stored this provider id. */

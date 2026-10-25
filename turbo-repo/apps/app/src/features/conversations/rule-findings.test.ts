@@ -70,6 +70,12 @@ describe("ruleFindingText", () => {
       "mensaje del servidor"
     );
   });
+
+  it("names a group by its ordinal when the sidebar has no spec", () => {
+    expect(
+      ruleFindingText(finding("groups.1", "groupEmpty", { group: 2 }), d)
+    ).toBe("«Grupo 2» no tiene destinatarios.");
+  });
 });
 
 describe("placeFindings", () => {

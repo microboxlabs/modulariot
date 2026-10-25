@@ -1,5 +1,5 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { trDynamic } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { RuleFinding, RuleSpec } from "./conversations-types";
 import { channelLabel, groupLabel, roleLabel } from "./rule-model";
 
@@ -17,6 +17,24 @@ export function findingSection(section: string): {
 
 const upperFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+function findingParams(
+  f: RuleFinding,
+  d: I18nRecord,
+  index: number | null
+): Record<string, string> {
+  const params: Record<string, string> = {};
+  const number = f.params?.step ?? f.params?.entry ?? f.params?.group;
+  if (number != null) params.n = String(number);
+  else if (index !== null) params.n = String(index + 1);
+  for (const [name, value] of Object.entries(f.params ?? {})) {
+    const text = value == null ? "" : String(value);
+    if (name === "role") params.role = roleLabel(text, d);
+    else if (name === "channel") params.channel = channelLabel(text, d);
+    else if (name !== "group") params[name] = text;
+  }
+  return params;
+}
+
 /**
  * A finding of the rule validator in the user's language, as
  * `finding<Code>`. `{n}` is the server's `step`, `entry` or `group` param
@@ -30,19 +48,13 @@ export function ruleFindingText(
 ): string {
   if (!f.code) return f.message;
   const { kind, index } = findingSection(f.section);
-  const params: Record<string, string> = {};
-  const number = f.params?.step ?? f.params?.entry ?? f.params?.group;
-  if (number != null) params.n = String(number);
-  else if (index !== null) params.n = String(index + 1);
-  for (const [name, value] of Object.entries(f.params ?? {})) {
-    const text = value == null ? "" : String(value);
-    if (name === "role") params.role = roleLabel(text, d);
-    else if (name === "channel") params.channel = channelLabel(text, d);
-    else if (name !== "group") params[name] = text;
-  }
+  const params = findingParams(f, d, index);
   const group =
     kind === "groups" && index !== null ? spec?.groups[index] : undefined;
-  if (group && index !== null) params.group = groupLabel(group, index, d);
+  if (kind === "groups" && index !== null)
+    params.group = group
+      ? groupLabel(group, index, d)
+      : tr("groupN", d, { n: String(index + 1) });
   const key = `finding${upperFirst(f.code)}`;
   const text = trDynamic(key, d, params);
   return text === key ? f.message : text;
@@ -104,9 +116,11 @@ export function placeFindings(
     if (kind === "groups") {
       const issues = (out.groups[index] ??= { messages: [], entries: {} });
       const entry = Number(f.params?.entry);
-      if (Number.isInteger(entry) && entry > 0)
-        (issues.entries[entry - 1] ??= []).push(text);
-      else issues.messages.push(text);
+      if (Number.isInteger(entry) && entry > 0) {
+        const messages = issues.entries[entry - 1] ?? [];
+        messages.push(text);
+        issues.entries[entry - 1] = messages;
+      } else issues.messages.push(text);
       continue;
     }
     const issues = (out.steps[index] ??= {

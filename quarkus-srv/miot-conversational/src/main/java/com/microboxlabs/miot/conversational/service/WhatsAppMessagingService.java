@@ -214,9 +214,9 @@ public class WhatsAppMessagingService {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
                 message.participant(message.to()), now);
-        Message stored = messageRepository.append(new Message(
-                UUID.randomUUID().toString(), conversation.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,
-                MessageType.TEMPLATE, message.body(), message.templateName(), null, null, null, null,
+        Message stored = messageRepository.appendQueued(new Message(
+                QueuedMessageId.forStep(message, Channel.WHATSAPP), conversation.id(), MessageDirection.OUTBOUND,
+                MessageRole.SYSTEM, MessageType.TEMPLATE, message.body(), message.templateName(), null, null, null, null,
                 MessageStatus.PENDING, null, null, null, null, Map.of(), null, null, null, now, Channel.WHATSAPP,
                 message.to(), null, message.runId(), message.step()));
         conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
@@ -227,13 +227,13 @@ public class WhatsAppMessagingService {
 
     /**
      * Sends a PENDING message of this organization through its sending account and marks it SENT. A message
-     * no longer PENDING is returned as it is, so a repeated job sends nothing twice.
+     * no longer PENDING is returned as it is, except FAILED after a manual retry of its parked job.
      *
      * @throws SendFailure when Meta did not take it
      */
     public Message deliverQueued(String tenantCode, String messageId, String language, Map<String, String> params) {
         Message message = queued(messageRepository, conversationRepository, tenantCode, messageId);
-        if (message.status() != MessageStatus.PENDING) {
+        if (message.status() != MessageStatus.PENDING && message.status() != MessageStatus.FAILED) {
             return message;
         }
         try {

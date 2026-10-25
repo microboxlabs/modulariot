@@ -187,11 +187,10 @@ function GroupChips({
   const toggle = (id: string) =>
     onChange(to.includes(id) ? to.filter((x) => x !== id) : [...to, id]);
   return (
-    <span
-      role="group"
-      aria-label={tr("stepGroups", d)}
-      className={`flex flex-wrap items-center gap-1 rounded-full ${invalid ? "ring-1 ring-red-500 ring-offset-2 dark:ring-offset-gray-800" : ""}`}
+    <fieldset
+      className={`flex min-w-0 flex-wrap items-center gap-1 rounded-full border-0 p-0 ${invalid ? "ring-1 ring-red-500 ring-offset-2 dark:ring-offset-gray-800" : ""}`}
     >
+      <legend className="sr-only">{tr("stepGroups", d)}</legend>
       {groups.map((g, i) => (
         <button
           key={g.id}
@@ -216,7 +215,7 @@ function GroupChips({
           {id} ✕
         </button>
       ))}
-    </span>
+    </fieldset>
   );
 }
 

@@ -255,8 +255,8 @@ public class OrgConversationsResource {
         Invocation invocation = body == null ? new Invocation(null, null, null, null)
                 : new Invocation(body.version(), body.event(), body.to(), body.key());
         return access.apply(organizationId).flatMap(a -> {
-            if (!(invocation.draft() ? canWrite(a) : canInvoke(a))) {
-                return Uni.createFrom().item(error(Response.Status.FORBIDDEN, invocation.draft()
+            if (!(invocation.isDraft() ? canWrite(a) : canInvoke(a))) {
+                return Uni.createFrom().item(error(Response.Status.FORBIDDEN, invocation.isDraft()
                         ? "Owner, Admin or Control Tower maintainer required"
                         : "Owner, Admin, Control Tower maintainer or " + ConversationsAccessCatalog.RULE_INVOKE
                                 + " required"));

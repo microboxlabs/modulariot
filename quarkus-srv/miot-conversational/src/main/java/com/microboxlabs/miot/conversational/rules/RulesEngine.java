@@ -212,7 +212,7 @@ public class RulesEngine {
             return;
         }
         for (Run run : runs.waiting(event.tenantCode(), event.contextKind(), event.contextKey())) {
-            runs.updateIfWaiting(run.advanced(Run.Status.CANCELLED, run.step(), null, run.lastError(), now));
+            runs.updateIfWaiting(run.advanced(Run.Status.CANCELLED, run.step(), null, null, now));
         }
     }
 
@@ -281,21 +281,20 @@ public class RulesEngine {
         Run current = run;
         while (true) {
             if (current.step() >= steps.size()) {
-                runs.updateIfWaiting(current.advanced(Run.Status.DONE, current.step(), null, current.lastError(), now));
+                runs.updateIfWaiting(current.advanced(Run.Status.DONE, current.step(), null, null, now));
                 return;
             }
             Step step = steps.get(current.step());
             String problems = send(current, step, spec, event.get());
-            String lastError = problems != null ? problems : current.lastError();
             int next = current.step() + 1;
             int wait = step.waitMinutes();
             if (next >= steps.size() && wait == 0) {
-                runs.updateIfWaiting(current.advanced(Run.Status.DONE, next, null, lastError, now));
+                runs.updateIfWaiting(current.advanced(Run.Status.DONE, next, null, problems, now));
                 return;
             }
             int after = next < steps.size() ? steps.get(next).afterMinutes() : 0;
             Instant nextAt = now.plus(Duration.ofMinutes((long) wait + after));
-            current = current.advanced(Run.Status.WAITING, next, nextAt, lastError, now);
+            current = current.advanced(Run.Status.WAITING, next, nextAt, problems, now);
             // A run replied or cancelled meanwhile is no longer WAITING: it stops here.
             if (!runs.updateIfWaiting(current) || nextAt.isAfter(now)) {
                 return;
@@ -326,22 +325,26 @@ public class RulesEngine {
                     isWhatsApp ? m.template().whatsapp().metaName() : m.template().key(),
                     isWhatsApp ? m.template().whatsapp().language() : null, m.params(), m.subject(), m.text(),
                     run.id(), run.step());
-            if (run.test()) {
-                if (isWhatsApp) {
-                    whatsapp.sendInContext(run.tenantCode(), message, true);
-                } else {
-                    email.sendInContext(run.tenantCode(), message, true);
-                }
-            } else if (isWhatsApp) {
-                jobs.add(SendJobs.whatsapp(whatsapp.queueInContext(run.tenantCode(), message), message));
-            } else {
-                jobs.add(SendJobs.email(email.queueInContext(run.tenantCode(), message)));
-            }
+            queueOrSimulate(run, message, isWhatsApp, jobs);
         }
         if (!jobs.isEmpty()) {
             queue.enqueue(run.tenantCode(), jobs);
         }
         return problems.isEmpty() ? null : String.join("; ", problems);
+    }
+
+    private void queueOrSimulate(Run run, ContextMessage message, boolean isWhatsApp, List<AsyncJobSpec> jobs) {
+        if (run.test()) {
+            if (isWhatsApp) {
+                whatsapp.sendInContext(run.tenantCode(), message, true);
+            } else {
+                email.sendInContext(run.tenantCode(), message, true);
+            }
+        } else if (isWhatsApp) {
+            jobs.add(SendJobs.whatsapp(whatsapp.queueInContext(run.tenantCode(), message), message));
+        } else {
+            jobs.add(SendJobs.email(email.queueInContext(run.tenantCode(), message)));
+        }
     }
 
     /**
@@ -363,13 +366,6 @@ public class RulesEngine {
         return stored.status() == MessageStatus.FAILED
                 ? Optional.of(channel.key() + " " + connection + ": " + stored.errorMessage())
                 : Optional.empty();
-    }
-
-    /** A message of the run that its job could not send: the problem is written on the run. */
-    public void sendFailed(String runId, String problem) {
-        if (runId != null) {
-            runs.recordError(runId, problem, clock.instant());
-        }
     }
 
     /**
@@ -394,8 +390,8 @@ public class RulesEngine {
         if (answered < 0 || answered >= r.step() || answered >= steps.size() || !steps.get(answered).stopsOnReply()) {
             return Optional.empty();
         }
-        Run done = r.advanced(Run.Status.REPLIED, r.step(), null, r.lastError(), clock.instant());
-        return runs.updateIfWaiting(done) ? Optional.of(done) : Optional.empty();
+        Run done = r.advanced(Run.Status.REPLIED, r.step(), null, null, clock.instant());
+        return runs.updateIfWaiting(done) ? runs.find(done.id()) : Optional.empty();
     }
 
     private Map<String, Object> data(Object data) {

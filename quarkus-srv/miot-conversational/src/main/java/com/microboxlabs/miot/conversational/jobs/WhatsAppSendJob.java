@@ -45,7 +45,7 @@ public class WhatsAppSendJob implements ModulithJobHandler {
         String messageId = text(payload, SendJobs.MESSAGE_ID);
         try {
             Message sent = whatsapp.deliverQueued(tenantCode, messageId, text(payload, SendJobs.LANGUAGE),
-                    params(payload.get(SendJobs.PARAMS)));
+                    params(payload == null ? null : payload.get(SendJobs.PARAMS)));
             return SendOutcome.of(sent);
         } catch (SendFailure e) {
             if (e.retryable()) {

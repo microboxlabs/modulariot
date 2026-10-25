@@ -1,17 +1,16 @@
 package com.microboxlabs.miot.conversational.jobs;
 
-import com.microboxlabs.miot.conversational.domain.Message;
-import com.microboxlabs.miot.conversational.domain.MessageStatus;
-import com.microboxlabs.miot.conversational.persistence.MessageRepository;
-import com.microboxlabs.miot.conversational.rules.RulesEngine;
 import com.microboxlabs.miot.conversational.rules.SendJobs;
+import com.microboxlabs.miot.conversational.rules.store.RunStore;
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
 import com.microboxlabs.miot.integrations.events.JobParkedEvent;
 import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import java.time.Instant;
 import java.util.Set;
 import org.jboss.logging.Logger;
 
@@ -26,13 +25,11 @@ public class SendJobsOnPark {
     private static final Logger LOG = Logger.getLogger(SendJobsOnPark.class);
     private static final Set<String> TYPES = Set.of(InternalJobTypes.WHATSAPP_SEND, InternalJobTypes.EMAIL_SEND);
 
-    private final MessageRepository messages;
-    private final RulesEngine engine;
+    private final RunStore runs;
 
     @Inject
-    public SendJobsOnPark(MessageRepository messages, RulesEngine engine) {
-        this.messages = messages;
-        this.engine = engine;
+    public SendJobsOnPark(RunStore runs) {
+        this.runs = runs;
     }
 
     void onParked(@Observes JobParkedEvent event) {
@@ -45,15 +42,23 @@ public class SendJobsOnPark {
         }
         try {
             String messageId = WhatsAppSendJob.text(job.payload(), SendJobs.MESSAGE_ID);
-            Message message = messageId == null ? null : messages.findById(messageId);
-            if (message == null || message.status() != MessageStatus.PENDING) {
-                return;
-            }
-            messages.markStatus(messageId, MessageStatus.FAILED, null, null, job.lastError(),
-                    Set.of(MessageStatus.PENDING));
-            engine.sendFailed(message.runId(), message.address() + ": " + job.lastError());
+            runs.failQueuedMessage(job.tenantCode(), messageId, job.lastError(), Instant.now());
         } catch (RuntimeException e) {
             LOG.warnf(e, "Parked send job %s: message not marked failed", job.id());
+        }
+    }
+
+    /** Repair a park whose database side effect failed after the job ledger was committed. */
+    @Scheduled(every = "${miot.conversational.send-jobs.reconcile-every:1m}", delayed = "1m",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void reconcile() {
+        try {
+            int repaired = runs.reconcileFailedSends(100, Instant.now());
+            if (repaired > 0) {
+                LOG.warnf("Repaired %d parked send message(s)", repaired);
+            }
+        } catch (RuntimeException e) {
+            LOG.warn("Could not reconcile parked send messages", e);
         }
     }
 }

@@ -1,7 +1,9 @@
 package com.microboxlabs.miot.conversational.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
@@ -120,6 +122,25 @@ class EmailMessagingServiceTest {
 
         assertEquals(MessageStatus.SIMULATED, m.status());
         assertTrue(sent.isEmpty());
+    }
+
+    @Test
+    void aConfigurationFailureParksAndManualRetryCanSendTheFailedMessage() {
+        EmailMessagingService unavailable = service(Set.of(TENANT),
+                SendResult.failedPermanently("Invalid sender"));
+        Message queued = unavailable.queueInContext(TENANT, email("Subject", "Body"));
+        String messageId = queued.id();
+        SendFailure failure = assertThrows(SendFailure.class,
+                () -> unavailable.deliverQueued(TENANT, messageId));
+        assertFalse(failure.retryable());
+        store.messageRepository.markStatus(queued.id(), MessageStatus.FAILED, null, null,
+                failure.getMessage(), Set.of(MessageStatus.PENDING));
+
+        EmailMessagingService repaired = service(Set.of(TENANT), SendResult.accepted(200, "re-fixed"));
+        Message sentAfterRetry = repaired.deliverQueued(TENANT, queued.id());
+        assertEquals(MessageStatus.SENT, sentAfterRetry.status());
+        assertEquals("re-fixed", sentAfterRetry.providerMessageId());
+        assertEquals(1, store.messages.size());
     }
 
     @Test

@@ -97,9 +97,7 @@ public class LocationService {
             throw new IllegalArgumentException("geofence " + geofenceId + " not found");
         }
         return tx.inTransaction(() -> {
-            Location l = store.find(tenantCode, id)
-                    .orElseThrow(() -> new NoSuchElementException("location not found"));
-            Location updated = store.update(l.withGeofence(geofenceId, actor))
+            Location updated = store.setGeofence(tenantCode, id, geofenceId, actor)
                     .orElseThrow(() -> new NoSuchElementException("location not found"));
             live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, id));
             Map<String, Object> details = new HashMap<>();

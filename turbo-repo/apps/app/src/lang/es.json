@@ -3928,6 +3928,8 @@
         "discard": "Descartar",
         "audienceContacts": "Desde la libreta",
         "audienceContactsText": "Libreta: {condition}",
+        "contactWithValue": "1 contacto",
+        "contactsWithValue": "{count} contactos",
         "contactsHint": "Los contactos activos de la libreta que cumplen todas estas condiciones. El canal del paso elige su correo o su WhatsApp.",
         "contactsCel": "Condición sobre el contacto",
         "contactClauseKind": "Tipo de condición",

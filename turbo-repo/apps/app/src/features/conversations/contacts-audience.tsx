@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -8,16 +8,19 @@ import CelEditor, {
   type CelField,
 } from "@/features/symptoms/maintainer/cel-editor";
 import type { EditMode } from "@/features/symptoms/maintainer/level-row";
+import { useContacts } from "@/features/symptoms/control-tower/control-tower-api";
 import ModeToggle from "@/features/symptoms/maintainer/ui/mode-toggle";
 import { FIELD } from "@/features/symptoms/maintainer/ui/response-block";
 import Select from "@/features/symptoms/maintainer/ui/select";
 import {
+  bookSuggestions,
   CLAUSE_KINDS,
   compileClauses,
   newClause,
   parseClauses,
   type ContactClause,
   type ContactClauseKind,
+  type Suggestion,
 } from "./contact-condition";
 import type { EventField } from "./conversations-types";
 
@@ -45,6 +48,7 @@ export function contactCelFields(fields: EventField[]): CelField[] {
 function ClauseRow({
   clause,
   fields,
+  suggestions,
   readOnly,
   d,
   onChange,
@@ -52,11 +56,14 @@ function ClauseRow({
 }: Readonly<{
   clause: ContactClause;
   fields: EventField[];
+  /** The book's values for this clause's kind. */
+  suggestions: Suggestion[];
   readOnly: boolean;
   d: I18nRecord;
   onChange: (clause: ContactClause) => void;
   onRemove: () => void;
 }>) {
+  const listId = useId();
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
@@ -98,9 +105,26 @@ function ClauseRow({
           className={`${FIELD} min-w-40 flex-1`}
           disabled={readOnly}
           placeholder={trDynamic(`contactClausePlaceholder.${clause.kind}`, d)}
+          list={listId}
+          autoComplete="off"
           value={clause.value}
           onChange={(e) => onChange({ ...clause, value: e.target.value })}
         />
+      )}
+      {clause.kind !== "companyRutIs" && (
+        <datalist id={listId}>
+          {suggestions.map((s) => (
+            <option
+              key={s.value}
+              value={s.value}
+              label={
+                s.count === 1
+                  ? tr("contactWithValue", d)
+                  : tr("contactsWithValue", d, { count: String(s.count) })
+              }
+            />
+          ))}
+        </datalist>
       )}
       {!readOnly && (
         <button
@@ -134,6 +158,8 @@ export default function ContactsAudience({
   onChange: (condition: string) => void;
 }>) {
   const clauses = parseClauses(condition);
+  const { data: contacts } = useContacts();
+  const book = useMemo(() => bookSuggestions(contacts ?? []), [contacts]);
   const [mode, setMode] = useState<EditMode>(clauses ? "form" : "expr");
   const setClauses = (next: ContactClause[]) => onChange(compileClauses(next));
 
@@ -152,6 +178,7 @@ export default function ContactsAudience({
               key={`${i}-${c.kind}`}
               clause={c}
               fields={fields}
+              suggestions={c.kind === "companyRutIs" ? [] : book[c.kind]}
               readOnly={readOnly}
               d={d}
               onChange={(next) =>

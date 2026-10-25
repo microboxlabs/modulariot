@@ -3928,6 +3928,8 @@
         "discard": "Discard",
         "audienceContacts": "From the contact book",
         "audienceContactsText": "Contact book: {condition}",
+        "contactWithValue": "1 contact",
+        "contactsWithValue": "{count} contacts",
         "contactsHint": "The contact book's active contacts that meet all these conditions. The step's channel picks their email or WhatsApp.",
         "contactsCel": "Condition on the contact",
         "contactClauseKind": "Condition type",

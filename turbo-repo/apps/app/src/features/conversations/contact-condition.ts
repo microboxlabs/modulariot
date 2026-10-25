@@ -80,3 +80,50 @@ export function parseClauses(condition: string): ContactClause[] | null {
 }
 
 const QUOTED_ANY = /'[^']*'|"[^"]*"/g;
+
+/** A value the book uses and how many active contacts have it. */
+export interface Suggestion {
+  value: string;
+  count: number;
+}
+
+export interface BookValues {
+  role?: string | null;
+  tags?: string[] | null;
+  company?: string | null;
+  active?: boolean;
+}
+
+/** The tags, roles and companies of the active contacts, most used first, ignoring case. */
+export function bookSuggestions(
+  contacts: readonly BookValues[]
+): Record<"tag" | "role" | "company", Suggestion[]> {
+  const counts = {
+    tag: new Map<string, Suggestion>(),
+    role: new Map<string, Suggestion>(),
+    company: new Map<string, Suggestion>(),
+  };
+  const add = (kind: keyof typeof counts, raw: string | null | undefined) => {
+    const value = raw?.trim();
+    if (!value) return;
+    const key = value.toLowerCase();
+    const s = counts[kind].get(key);
+    if (s) s.count += 1;
+    else counts[kind].set(key, { value, count: 1 });
+  };
+  for (const c of contacts) {
+    if (c.active === false) continue;
+    add("role", c.role);
+    add("company", c.company);
+    for (const t of new Set((c.tags ?? []).map((x) => x.trim()))) add("tag", t);
+  }
+  const sorted = (m: Map<string, Suggestion>) =>
+    [...m.values()].sort(
+      (a, b) => b.count - a.count || a.value.localeCompare(b.value, "es")
+    );
+  return {
+    tag: sorted(counts.tag),
+    role: sorted(counts.role),
+    company: sorted(counts.company),
+  };
+}

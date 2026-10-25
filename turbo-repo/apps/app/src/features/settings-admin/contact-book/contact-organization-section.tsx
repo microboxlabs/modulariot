@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
+import { Spinner } from "flowbite-react";
 import {
   HiCheck,
   HiOutlineOfficeBuilding,
@@ -37,7 +38,7 @@ export default function ContactOrganizationSection({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const key = normalizeLabel(query);
-  const carriers = useCarrierCompanies(query);
+  const { companies: carriers, searching } = useCarrierCompanies(query);
   const options = mergeCompanies(organizations, carriers);
   const exact = options.find((o) => normalizeLabel(o.name) === key);
   const matches = key
@@ -66,7 +67,7 @@ export default function ContactOrganizationSection({
     if (e.key !== "Enter" || !key) return;
     e.preventDefault();
     if (exact) pick(exact);
-    else create(query);
+    else if (!searching) create(query);
   };
 
   const showList = open && (matches.length > 0 || Boolean(key));
@@ -138,7 +139,16 @@ export default function ContactOrganizationSection({
                 </button>
               </li>
             ))}
-            {key && !exact && (
+            {searching && (
+              <li
+                role="status"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400"
+              >
+                <Spinner size="xs" />
+                {tr("companySearching", d)}
+              </li>
+            )}
+            {key && !exact && !searching && (
               <li>
                 <button
                   type="button"

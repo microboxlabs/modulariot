@@ -564,16 +564,36 @@ describe("ContactFormModal — organization", () => {
     });
   });
 
-  it("creates an organization that isn't in the list", async () => {
+  it("searches the carriers before offering to create the company", async () => {
     const user = userEvent.setup();
     const onSave = renderWithOrganizations();
     await startOutsideContact(user);
-    await user.type(screen.getByLabelText("Empresa"), "Logística Centro");
-    await user.click(
-      screen.getByRole("button", { name: 'Crear empresa "Logística Centro"' })
+    let answer: (r: Response) => void = () => {};
+    const fetchMock = vi.fn(
+      () => new Promise<Response>((resolve) => (answer = resolve))
     );
-    await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(saved(onSave)).toMatchObject({ company: "Logística Centro" });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await user.type(screen.getByLabelText("Empresa"), "Logística Centro");
+      expect(
+        screen.getByText("Buscando en tus transportistas…")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Crear empresa/ })
+      ).toBeNull();
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      answer(new Response("[]", { status: 200 }));
+      await user.click(
+        await screen.findByRole("button", {
+          name: 'Crear empresa "Logística Centro"',
+        })
+      );
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      expect(saved(onSave)).toMatchObject({ company: "Logística Centro" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("clears the contact's organization", async () => {

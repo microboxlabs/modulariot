@@ -3032,6 +3032,7 @@
         "idType_PASAPORTE": "Pasaporte",
         "idType_OTRO": "Otro",
         "idType_RUC": "RUC (Perú)",
+        "companySearching": "Buscando en tus transportistas…",
         "externalContactButton": "O ingresa un contacto fuera de la organización",
         "fullNameLabel": "Nombre completo",
         "rutLabel": "Documento",

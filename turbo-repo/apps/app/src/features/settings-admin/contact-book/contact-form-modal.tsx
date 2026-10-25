@@ -46,6 +46,8 @@ interface ContactDraft {
   companyRut: string;
   /** Where communication rules send email; "" for none. */
   email: string;
+  /** What the contact does, as communication rules match it. */
+  role: string;
   channels: ChannelValues;
 }
 
@@ -68,6 +70,7 @@ function draftFromContact(contact: BookContact | null): ContactDraft {
     company: contact?.company ?? "",
     companyRut: contact?.companyRut ?? "",
     email: contact?.email ?? "",
+    role: contact?.role ?? "",
     channels: contact
       ? channelValuesFromContact(contact)
       : emptyChannelValues(),
@@ -203,7 +206,7 @@ export default function ContactFormModal({
         name: person.name.trim(),
         rut: external ? person.rut.trim() || undefined : editing?.rut,
         orgMemberId: external ? undefined : person.orgMemberId,
-        role: editing?.role ?? "",
+        role: draft.role.trim(),
         badgeIds,
         company: external
           ? draft.company.trim() || undefined
@@ -302,6 +305,16 @@ export default function ContactFormModal({
             title={tr("sectionGrouping", d)}
             subtitle={tr("sectionGroupingHint", d)}
           >
+            <label className="mb-3 flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                {tr("roleLabel", d)}
+              </span>
+              <TextInput
+                placeholder={tr("rolePlaceholder", d)}
+                value={draft.role}
+                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+              />
+            </label>
             <ContactBadgesSection
               selectedIds={draft.badgeIds}
               onChange={(badgeIds) => setDraft({ ...draft, badgeIds })}

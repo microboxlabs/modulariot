@@ -5,6 +5,7 @@ import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiCheck,
   HiOutlineClipboardCopy,
+  HiOutlineMail,
   HiDotsVertical,
   HiOutlinePencil,
   HiOutlineTrash,
@@ -22,14 +23,26 @@ import { BADGE_CLASS } from "./contact-badges-section";
 import HoverTooltip from "./hover-tooltip";
 import type { ContactBadge } from "./taxonomy-store";
 
+/** The call methods and the email the communication rules write to. */
+type ContactMethod = CallMethod | "email";
+
+const METHOD_ICONS: Record<ContactMethod, typeof HiOutlineMail> = {
+  ...CALL_METHOD_ICONS,
+  email: HiOutlineMail,
+};
+
+const TABLE_METHODS: ContactMethod[] = [...ALL_CALL_METHODS, "email"];
+
 export interface ContactTableLabels {
   columns: {
     name: string;
+    role: string;
+    company: string;
     badges: string;
     methods: string;
     actions: string;
   };
-  methodLabels: Record<CallMethod, string>;
+  methodLabels: Record<ContactMethod, string>;
   copied: string;
   notConnected: string;
   clickToCopy: string;
@@ -42,15 +55,16 @@ export interface ContactTableLabels {
  *  the legacy `phone` for phone/WhatsApp. */
 export function contactMethodValue(
   contact: BookContact,
-  method: CallMethod
+  method: ContactMethod
 ): string {
+  if (method === "email") return contact.email ?? "";
   const value = contact.channels?.[method];
   if (value) return value;
   if (!contact.methods.includes(method)) return "";
   return method === "phone" || method === "whatsapp" ? contact.phone : "";
 }
 
-function displayValue(method: CallMethod, value: string): string {
+function displayValue(method: ContactMethod, value: string): string {
   return method === "phone" || method === "whatsapp"
     ? formatChileanPhone(value)
     : value;
@@ -66,11 +80,11 @@ function MethodTooltipContent({
   labels,
   value,
 }: Readonly<{
-  method: CallMethod;
+  method: ContactMethod;
   labels: ContactTableLabels;
   value?: string;
 }>) {
-  const Icon = CALL_METHOD_ICONS[method];
+  const Icon = METHOD_ICONS[method];
   return (
     <div className="flex flex-col gap-1.5 py-1">
       <div className="flex items-center gap-2">
@@ -104,14 +118,14 @@ function MethodTooltipContent({
 }
 
 interface MethodIconProps {
-  readonly method: CallMethod;
+  readonly method: ContactMethod;
   readonly labels: ContactTableLabels;
 }
 
 /** A method the contact has no address for: shown muted, hover explains
  *  it isn't connected, nothing to copy. */
 function DisconnectedMethodIcon({ method, labels }: Readonly<MethodIconProps>) {
-  const Icon = CALL_METHOD_ICONS[method];
+  const Icon = METHOD_ICONS[method];
   const label = `${labels.methodLabels[method]}: ${labels.notConnected}`;
   return (
     <HoverTooltip
@@ -132,7 +146,7 @@ function ConnectedMethodIcon({
   labels,
 }: Readonly<MethodIconProps & { value: string }>) {
   const [copied, setCopied] = useState(false);
-  const Icon = CALL_METHOD_ICONS[method];
+  const Icon = METHOD_ICONS[method];
   const shown = displayValue(method, value);
 
   const handleCopy = () => {
@@ -173,7 +187,7 @@ function ContactMethods({
 }: Readonly<{ contact: BookContact; labels: ContactTableLabels }>) {
   return (
     <div className="flex items-center gap-1.5">
-      {ALL_CALL_METHODS.map((m) => {
+      {TABLE_METHODS.map((m) => {
         const value = contactMethodValue(contact, m);
         if (value) {
           return (
@@ -259,7 +273,7 @@ function ContactTableRow({
   onRemove: (id: string) => void;
   badgesById: ReadonlyMap<string, ContactBadge>;
 }>) {
-  const description = contact.description || contact.role || contact.rut;
+  const description = contact.description || contact.rut;
   const badges = (contact.badgeIds ?? []).flatMap((id) => {
     const badge = badgesById.get(id);
     return badge ? [badge] : [];
@@ -281,6 +295,25 @@ function ContactTableRow({
             )}
           </div>
         </div>
+      </td>
+      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+        {contact.role || EMPTY_CELL}
+      </td>
+      <td className="px-4 py-3">
+        {contact.company || contact.companyRut ? (
+          <div className="min-w-0">
+            <p className="truncate text-gray-700 dark:text-gray-300">
+              {contact.company || EMPTY_CELL}
+            </p>
+            {contact.companyRut && (
+              <p className="truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+                {contact.companyRut}
+              </p>
+            )}
+          </div>
+        ) : (
+          EMPTY_CELL
+        )}
       </td>
       <td className="px-4 py-3">
         {badges.length > 0 ? (
@@ -310,8 +343,8 @@ function ContactTableRow({
 }
 
 /** Settings › Libreta de contactos listing: one row per contact with its
- *  initial, name (description underneath), badges, contact methods and a
- *  row menu. */
+ *  initial, name (description underneath), role, company and its RUT,
+ *  badges, contact methods with the email, and a row menu. */
 export default function ContactTable({
   contacts,
   badges,
@@ -343,6 +376,8 @@ export default function ContactTable({
         <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
           <tr>
             <th className={headerClass}>{labels.columns.name}</th>
+            <th className={headerClass}>{labels.columns.role}</th>
+            <th className={headerClass}>{labels.columns.company}</th>
             <th className={headerClass}>{labels.columns.badges}</th>
             <th className={`${headerClass} text-left w-50`}>
               {labels.columns.methods}

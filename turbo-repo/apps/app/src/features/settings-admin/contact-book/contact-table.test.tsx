@@ -20,6 +20,8 @@ vi.mock("@/features/notifications/notification", () => ({
 const labels: ContactTableLabels = {
   columns: {
     name: "Nombre",
+    role: "Rol",
+    company: "Empresa",
     badges: "Etiquetas",
     methods: "Métodos de contacto",
     actions: "Acciones",
@@ -29,6 +31,7 @@ const labels: ContactTableLabels = {
     whatsapp: "Llamada por WhatsApp",
     meet: "Llamada por Google Meet",
     teams: "Llamada por Microsoft Teams",
+    email: "Correo",
   },
   copied: "Copiado",
   notConnected: "No conectado",

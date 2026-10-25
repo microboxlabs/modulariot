@@ -31,6 +31,8 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
   return {
     columns: {
       name: tr("colName", d),
+      role: tr("colRole", d),
+      company: tr("colCompany", d),
       badges: tr("colBadges", d),
       methods: tr("colMethods", d),
       actions: tr("colActions", d),
@@ -40,6 +42,7 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
       whatsapp: tr("methodWhatsapp", d),
       meet: tr("methodMeet", d),
       teams: tr("methodTeams", d),
+      email: tr("methodEmail", d),
     },
     copied: tr("copied", d),
     notConnected: tr("methodNotConnected", d),

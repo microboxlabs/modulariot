@@ -138,7 +138,7 @@ class WhatsAppWebhookJobsTest {
         }, r -> {
         }, jobs::tenantOf);
         List<StatusUpdate> applied = new ArrayList<>();
-        WhatsAppInboundStatusJob statuses = new WhatsAppInboundStatusJob(s -> applied.add(s), jobs::tenantOf);
+        WhatsAppInboundStatusJob statuses = new WhatsAppInboundStatusJob(applied::add, jobs::tenantOf);
 
         JobOutcome message = messages.handle("tenant-b", enqueued.get(ORG).get(0).payload());
         JobOutcome status = statuses.handle("tenant-b", enqueued.get(ORG).get(1).payload());

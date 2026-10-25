@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * Turns a Meta webhook delivery into one integration job per event, on the modulith lane: an inbound message
@@ -57,8 +57,8 @@ public class WhatsAppWebhookJobs {
 
     private final Enqueuer jobs;
     private final Consumer<EnqueueJobsResponse> onEnqueued;
-    private final Function<String, String> numberTenant;
-    private final Function<String, String> messageTenant;
+    private final UnaryOperator<String> numberTenant;
+    private final UnaryOperator<String> messageTenant;
 
     @Inject
     public WhatsAppWebhookJobs(AsyncJobService jobs, ModulithJobWorker worker,
@@ -77,7 +77,7 @@ public class WhatsAppWebhookJobs {
 
     /** {@code numberTenant} maps a phone_number_id, {@code messageTenant} a wamid, to a tenant or null. */
     public WhatsAppWebhookJobs(Enqueuer jobs, Consumer<EnqueueJobsResponse> onEnqueued,
-            Function<String, String> numberTenant, Function<String, String> messageTenant) {
+            UnaryOperator<String> numberTenant, UnaryOperator<String> messageTenant) {
         this.jobs = jobs;
         this.onEnqueued = onEnqueued;
         this.numberTenant = numberTenant;
@@ -124,7 +124,7 @@ public class WhatsAppWebhookJobs {
         return PlatformScope.TENANT.equals(rowTenant) || Objects.equals(rowTenant, eventTenant);
     }
 
-    private static String tenantOr(Function<String, String> lookup, String key) {
+    private static String tenantOr(UnaryOperator<String> lookup, String key) {
         String tenant = key == null ? null : lookup.apply(key);
         return tenant == null ? PlatformScope.TENANT : tenant;
     }

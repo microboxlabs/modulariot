@@ -16,6 +16,7 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -120,11 +121,21 @@ public class PgFeedStore implements FeedStore {
     }
 
     @Override
-    public List<FeedService> openServices(int limit) {
-        return query(pool.get(), "SELECT s.* FROM miot_trips.feed_service s JOIN miot_trips.feed_profile p"
-                + " ON p.tenant_code = s.tenant_code AND p.feed_key = s.feed_key"
-                + " WHERE s.open AND p.active ORDER BY s.last_reconciled_at NULLS FIRST LIMIT $1",
-                Tuple.of(limit)).stream().map(PgFeedStore::service).toList();
+    public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
+        return query(pool.get(), """
+                SELECT s.* FROM miot_trips.feed_service s
+                JOIN miot_trips.feed_profile p ON p.tenant_code = s.tenant_code AND p.feed_key = s.feed_key
+                WHERE s.open AND p.active AND (
+                    (s.last_action IN ('reportar', 'error', 'pendiente')
+                        AND s.updated_at < $1::timestamptz - make_interval(mins => $2))
+                    OR (s.last_action NOT IN ('reportar', 'error', 'pendiente') AND (
+                           ((s.desired->>'plannedStart')::timestamptz <= $1::timestamptz
+                            AND (s.last_reconciled_at IS NULL
+                                 OR s.last_reconciled_at < (s.desired->>'plannedStart')::timestamptz))
+                        OR (s.desired->>'plannedEnd')::timestamptz
+                               + make_interval(mins => p.close_tolerance_minutes) <= $1::timestamptz)))
+                ORDER BY s.last_reconciled_at NULLS FIRST
+                LIMIT $3""", Tuple.of(now, retryMinutes, limit)).stream().map(PgFeedStore::service).toList();
     }
 
     private static FeedProfile profile(Row r) {

@@ -115,6 +115,25 @@ class FeedReconcilerTest {
     }
 
     @Test
+    void reconciliationWatermarkUsesThePlanEvaluationTime() {
+        java.time.Instant evaluated = java.time.Instant.parse("2026-01-01T12:00:00Z");
+        Clock crossingClock = new Clock() {
+            private int reads;
+            public java.time.ZoneId getZone() { return java.time.ZoneOffset.UTC; }
+            public Clock withZone(java.time.ZoneId zone) { return this; }
+            public java.time.Instant instant() { return evaluated.plusSeconds(reads++ * 120L); }
+        };
+        FeedReconciler timed = new FeedReconciler(feeds, mandates, trips, stages, assignments,
+                fleet, tx, json, crossingClock);
+        OffsetDateTime departure = OffsetDateTime.ofInstant(evaluated.plusSeconds(60), java.time.ZoneOffset.UTC);
+        FeedServiceRequest request = new FeedServiceRequest("service", "test reference", departure,
+                departure.plusHours(2), new FeedServiceRequest.Resources(null, null, List.of()), null);
+        timed.reconcile("test", "test:actor", "test-feed", "S-TEST", request, false);
+        assertEquals(evaluated, feeds.saved.lastReconciledAt().toInstant());
+        assertTrue(feeds.saved.lastReconciledAt().isBefore(departure));
+    }
+
+    @Test
     void reportedStateCanBeSubmittedAgain() {
         FeedServiceRequest incomplete = new FeedServiceRequest(null, null, null, null, null, null);
         assertEquals(FeedReconciler.REPORT, send(incomplete).action());
@@ -209,6 +228,9 @@ class FeedReconcilerTest {
             assertTrue(tx.depth > 0, "outcomes must be saved before releasing the service lock");
             saved = value;
         }
-        public List<FeedService> openServices(int limit) { return saved == null ? List.of() : List.of(saved); }
+        public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
+            return openServices(limit);
+        }
+        public List<FeedService> openServices(int limit) { return saved == null || limit <= 0 ? List.of() : List.of(saved); }
     }
 }

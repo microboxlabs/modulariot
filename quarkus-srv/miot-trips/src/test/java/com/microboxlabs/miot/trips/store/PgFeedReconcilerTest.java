@@ -36,6 +36,8 @@ import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.FeedBatchService;
+import com.microboxlabs.miot.trips.service.FeedClock;
+import com.microboxlabs.miot.trips.service.FeedJobQueue;
 import com.microboxlabs.miot.trips.service.FeedProfileService;
 import com.microboxlabs.miot.trips.service.FeedReconciler;
 import com.microboxlabs.miot.trips.service.FeedServiceJobHandler;
@@ -377,6 +379,34 @@ class PgFeedReconcilerTest {
                 new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", null, List.of("truck"), null));
         assertEquals(120, saved.closeToleranceMinutes());
         assertTrue(saved.active());
+    }
+
+    @Test
+    void theClockQueuesAServiceOnlyWhenItsDepartureOrCloseTimePasses() {
+        List<AsyncJobSpec> queued = new ArrayList<>();
+        FeedJobQueue queue = (t, f, specs) -> queued.addAll(specs.stream()
+                .filter(s -> tenant.equals(t)).toList());
+        FeedClock feedClock = new FeedClock(feeds, queue, clock, true, 5, 60, 1000);
+        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
+        FeedResult created = send("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001"));
+
+        feedClock.tick();
+        assertTrue(queued.isEmpty(), "nothing is due before the departure");
+
+        clock.advance(Duration.ofHours(3));
+        feedClock.tick();
+        assertEquals(1, queued.size());
+        handler.handle(tenant, queued.remove(0).payload());
+        assertEquals(Stage.RUNNING, status(trip(created), "transito"));
+        feedClock.tick();
+        assertTrue(queued.isEmpty(), "the departure is handled once");
+
+        clock.advance(Duration.ofHours(10));
+        feedClock.tick();
+        handler.handle(tenant, queued.remove(0).payload());
+        assertEquals(Trip.DONE, trip(created).status());
+        feedClock.tick();
+        assertTrue(queued.isEmpty(), "a closed service leaves the clock");
     }
 
     /** A clock the test moves forward. */

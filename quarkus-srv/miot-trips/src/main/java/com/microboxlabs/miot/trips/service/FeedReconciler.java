@@ -189,7 +189,7 @@ public class FeedReconciler {
                     feeds.saveService(new FeedService(tenantCode, profile.feedKey(), code, write(desired),
                             hash(desired), plan.mandateId != null ? plan.mandateId : before.mandateId(),
                             plan.tripId != null ? plan.tripId : before.tripId(), plan.isOpen(), plan.action,
-                            write(result), now()));
+                            write(result), plan.evaluatedAt));
                     return new Attempt(result, null);
                 });
             } catch (RuntimeException e) {
@@ -214,8 +214,8 @@ public class FeedReconciler {
     // ---------------------------------------------------------------- reading and deciding
 
     private Plan plan(String tenantCode, String actor, FeedProfile profile, String code, FeedServiceRequest d) {
-        Plan plan = new Plan(code);
         OffsetDateTime now = now();
+        Plan plan = new Plan(code, now);
         Optional<Mandate> mandate = mandates.list(tenantCode, null, code, 0, 1).stream()
                 .filter(m -> m.externalCode().equals(code)).findFirst();
         TripView trip = feeds.service(tenantCode, profile.feedKey(), code).map(FeedService::tripId)
@@ -555,6 +555,7 @@ public class FeedReconciler {
     /** The decision for one service and its steps, which run in order inside the service's transaction. */
     private static final class Plan {
         private final String code;
+        private final OffsetDateTime evaluatedAt;
         private final List<String> notes = new ArrayList<>();
         private final List<Runnable> steps = new ArrayList<>();
         private final List<String> warnings = new ArrayList<>();
@@ -566,8 +567,9 @@ public class FeedReconciler {
         private String mandateId;
         private String tripId;
 
-        private Plan(String code) {
+        private Plan(String code, OffsetDateTime evaluatedAt) {
             this.code = code;
+            this.evaluatedAt = evaluatedAt;
         }
 
         String locationId(Place place) {

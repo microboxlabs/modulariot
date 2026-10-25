@@ -49,7 +49,8 @@ export function PillSelect({
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className={`${BARE} pr-1`}
+        inline
+        className={BARE}
       >
         {options.map((o) => (
           <option

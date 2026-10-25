@@ -6,6 +6,7 @@ import {
   type ReactNode,
   type SVGProps,
 } from "react";
+import Link from "next/link";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiCheck,
@@ -27,6 +28,7 @@ import {
 } from "@/features/common/components/brand-logo";
 import CatalogTable from "@/features/common/components/catalog-table";
 import { channelLogo } from "@/features/conversations/channel-icon";
+import type { ContactReachRule } from "@/features/conversations/conversations-api";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
@@ -95,6 +97,9 @@ export interface ContactTableLabels {
     provisional: string;
     unreachable: string;
     rut: string;
+    reaches: string;
+    reachesNone: string;
+    dependsOnEvent: string;
   };
 }
 
@@ -471,18 +476,79 @@ export function reachableByRules(contact: BookContact): boolean {
   );
 }
 
+const REACH_SHOWN = 3;
+
+/** The rules in force that write to the contact, each a link to its rule; one that depends on the event is dashed. */
+function ContactReachLine({
+  rules,
+  labels,
+  ruleHref,
+}: Readonly<{
+  rules: readonly ContactReachRule[];
+  labels: ContactTableLabels;
+  ruleHref: (ruleId: string) => string;
+}>) {
+  if (rules.length === 0) {
+    return (
+      <p className="text-xs text-gray-400 dark:text-gray-500">
+        {labels.card.reachesNone}
+      </p>
+    );
+  }
+  const shown = rules.slice(0, REACH_SHOWN);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+      <span className="text-gray-500 dark:text-gray-400">
+        {labels.card.reaches}
+      </span>
+      {shown.map((r) => (
+        <Link
+          key={r.ruleId}
+          href={ruleHref(r.ruleId)}
+          title={
+            r.always ? r.name : `${r.name} · ${labels.card.dependsOnEvent}`
+          }
+          className={`max-w-[12rem] truncate rounded-full border px-2 py-0.5 font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/30 ${
+            r.always
+              ? "border-blue-200 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-900/20"
+              : "border-dashed border-blue-300 dark:border-blue-700"
+          }`}
+        >
+          {r.name}
+        </Link>
+      ))}
+      {rules.length > REACH_SHOWN && (
+        <span
+          className="text-gray-500 dark:text-gray-400"
+          title={rules
+            .slice(REACH_SHOWN)
+            .map((r) => r.name)
+            .join(", ")}
+        >
+          +{rules.length - REACH_SHOWN}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function ContactCard({
   contact,
   labels,
   onEdit,
   onRemove,
   badgesById,
+  reach,
+  ruleHref,
 }: Readonly<{
   contact: BookContact;
   labels: ContactTableLabels;
   onEdit: (contact: BookContact) => void;
   onRemove: (id: string) => void;
   badgesById: ReadonlyMap<string, ContactBadge>;
+  /** The rules that write to the contact; undefined while unknown. */
+  reach?: readonly ContactReachRule[];
+  ruleHref?: (ruleId: string) => string;
 }>) {
   const badges = (contact.badgeIds ?? []).flatMap((id) => {
     const badge = badgesById.get(id);
@@ -576,6 +642,11 @@ export function ContactCard({
               {b.name}
             </span>
           ))}
+        </div>
+      )}
+      {reach && ruleHref && (
+        <div className="mt-3 px-4">
+          <ContactReachLine rules={reach} labels={labels} ruleHref={ruleHref} />
         </div>
       )}
       {/* Keeps the footers of a row of cards on one line. */}

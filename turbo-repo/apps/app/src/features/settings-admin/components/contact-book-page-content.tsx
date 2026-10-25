@@ -12,6 +12,8 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
+import { useContactReach } from "@/features/conversations/conversations-api";
+import { ruleHref } from "@/features/conversations/rules-tab";
 import ContactFormModal from "../contact-book/contact-form-modal";
 import ContactTable, {
   ContactCard,
@@ -98,6 +100,9 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
       provisional: tr("cardProvisional", d),
       unreachable: tr("cardUnreachable", d),
       rut: tr("cardRut", d),
+      reaches: tr("cardReaches", d),
+      reachesNone: tr("cardReachesNone", d),
+      dependsOnEvent: tr("cardDependsOnEvent", d),
     },
   };
 }
@@ -127,6 +132,7 @@ export default function ContactBookPageContent({
     deleteTag,
   } = useContactBook();
   const { badges } = useContactBadges();
+  const { data: reach } = useContactReach();
   const organizations = useMemo(() => organizationNames(contacts), [contacts]);
   const [editing, setEditing] = useState<BookContact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -247,6 +253,8 @@ export default function ContactBookPageContent({
                 onEdit={openEdit}
                 onRemove={removeContact}
                 badgesById={badgesById}
+                reach={reach ? (reach[c.id] ?? []) : undefined}
+                ruleHref={(id) => ruleHref(lang, id)}
               />
             ))}
           </div>

@@ -45,6 +45,9 @@ const labels: ContactTableLabels = {
     provisional: "Por completar",
     unreachable: "Sin correo ni WhatsApp",
     rut: "RUT",
+    reaches: "Recibe",
+    reachesNone: "Ninguna regla en uso le escribe",
+    dependsOnEvent: "según el evento",
   },
 };
 
@@ -278,6 +281,48 @@ describe("ContactCard", () => {
     expect(screen.getByText("persona@example.com")).toBeInTheDocument();
     expect(screen.getByText("Jefe de turno")).toBeInTheDocument();
     expect(screen.queryByLabelText("Sin correo ni WhatsApp")).toBeNull();
+  });
+
+  it("lists the rules that write to the contact, dashed when it depends on the event", () => {
+    render(
+      <ContactCard
+        contact={person}
+        labels={labels}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        badgesById={new Map()}
+        reach={[
+          { ruleId: "r1", name: "Alertas", state: "ACTIVE", always: true },
+          { ruleId: "r2", name: "Hitos", state: "ACTIVE", always: false },
+        ]}
+        ruleHref={(id) => `/rules/${id}`}
+      />
+    );
+    expect(screen.getByRole("link", { name: "Alertas" })).toHaveAttribute(
+      "href",
+      "/rules/r1"
+    );
+    expect(screen.getByRole("link", { name: "Hitos" })).toHaveAttribute(
+      "title",
+      "Hitos · según el evento"
+    );
+  });
+
+  it("says when no rule writes to the contact", () => {
+    render(
+      <ContactCard
+        contact={person}
+        labels={labels}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        badgesById={new Map()}
+        reach={[]}
+        ruleHref={(id) => id}
+      />
+    );
+    expect(
+      screen.getByText("Ninguna regla en uso le escribe")
+    ).toBeInTheDocument();
   });
 
   it("warns when rules can't reach the contact and marks it external", () => {

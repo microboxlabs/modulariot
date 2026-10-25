@@ -47,6 +47,7 @@ export const platformTemplateKey = (key: string) =>
   `${platformTemplatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
 export const ruleFamiliesKey = `${CONVERSATIONS_BASE}/rule-families`;
+export const contactReachKey = `${CONVERSATIONS_BASE}/contact-reach`;
 export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 /** The WhatsApp templates on Meta of the platform's connection, for platform owners. */
@@ -130,6 +131,23 @@ export function useEventCatalog() {
 /** The organization's rule families; a 404 means it has no such list. */
 export function useRuleFamilies() {
   return useSWR<SymptomFamily[]>(ruleFamiliesKey, fetcher, quiet);
+}
+
+/** A rule in force that writes to a contact; `always` is false when it depends on the event. */
+export interface ContactReachRule {
+  ruleId: string;
+  name: string;
+  state: "TEST" | "ACTIVE";
+  always: boolean;
+}
+
+/** Contact id to the rules in force that write to it. */
+export function useContactReach() {
+  return useSWR<Record<string, ContactReachRule[]>>(
+    contactReachKey,
+    fetcher,
+    quiet
+  );
 }
 
 export function useConversationRuns(filter: {

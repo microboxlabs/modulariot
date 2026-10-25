@@ -113,7 +113,7 @@ class PgFeedReconcilerTest {
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
             new PgTripStore(() -> pool), new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool),
-            new PgLocationStore(() -> pool), stages, trips, mandates, fleet, audit, tx, clock);
+            new PgLocationStore(() -> pool), stages, trips, mandates, fleet, audit, tx);
 
     private String tenant;
     private Ids fleetIds;

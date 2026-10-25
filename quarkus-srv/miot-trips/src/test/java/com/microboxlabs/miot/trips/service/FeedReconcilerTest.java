@@ -160,6 +160,26 @@ class FeedReconcilerTest {
         FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "preparacion", "preparacion", 0,
                 List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, "preparacion", "cierre", 0,
+                java.util.Collections.singletonList(null), true);
+        assertThrows(IllegalArgumentException.class,
+                () -> profiles.save("test", "test", "test-feed", nullResource));
+    }
+
+    @Test
+    void batchRetainsEveryRefusedItemEvenWithRepeatedOrIndexLikeCodes() {
+        FeedBatchService batch = new FeedBatchService(reconciler, (tenant, feed, specs) -> {
+            throw new IllegalStateException("test refusal");
+        });
+        var items = List.of("#1", "", "#1").stream()
+                .map(code -> new com.microboxlabs.miot.trips.dto.FeedBatchRequest.Item(code, desired(null, List.of())))
+                .toList();
+        var result = batch.send("test", "test", "test-feed",
+                new com.microboxlabs.miot.trips.dto.FeedBatchRequest("test-batch", items));
+        assertEquals(List.of(0, 1, 2), result.refused().stream()
+                .map(com.microboxlabs.miot.trips.dto.FeedBatchResult.Refusal::index).toList());
+        assertEquals(List.of("#1", "", "#1"), result.refused().stream()
+                .map(com.microboxlabs.miot.trips.dto.FeedBatchResult.Refusal::externalCode).toList());
     }
 
     private static class TestTransactions implements Transactions {

@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.conversational.service;
 
+import com.microboxlabs.miot.conversational.client.MetaGraphException;
 import com.microboxlabs.miot.conversational.client.MetaTemplatesClient;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
@@ -8,9 +10,13 @@ import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -41,6 +47,18 @@ public class WhatsAppTemplatesService {
     }
 
     private record Waba(ResolvedConnection connection, String wabaId, String token) {
+    }
+
+    /** What a copy did with one template. */
+    public enum CopyStatus {
+        /** Submitted to Meta for review on the organization's account. */
+        COPIED,
+        /** The account already has a template with this name and language. */
+        EXISTS,
+        FAILED
+    }
+
+    public record CopyResult(String name, String language, CopyStatus status, String error) {
     }
 
     /** Every template on the WABA, by name then language. */
@@ -94,6 +112,53 @@ public class WhatsAppTemplatesService {
         }
         Waba waba = waba(tenant);
         meta.delete(waba.connection().baseUrl(), waba.wabaId(), waba.token(), name, templateId);
+    }
+
+    /**
+     * Submits the platform's templates, or only those in {@code names}, to the WABA of the organization's own
+     * WhatsApp connection, where Meta reviews them again. A template already there with the same name and
+     * language is left as it is. Only templates with a text header, or none, can be copied.
+     */
+    public List<CopyResult> copyFromPlatform(String tenant, List<String> names) {
+        if (PlatformScope.TENANT.equals(tenant)) {
+            throw new IllegalArgumentException("The platform's templates are the ones copied");
+        }
+        Waba target = waba(tenant);
+        Set<String> existing = meta.list(target.connection().baseUrl(), target.wabaId(), target.token()).stream()
+                .map(t -> t.getString("name") + "/" + t.getString("language"))
+                .collect(Collectors.toSet());
+        Set<String> wanted = names == null || names.isEmpty() ? null : new LinkedHashSet<>(names);
+        Set<String> found = new LinkedHashSet<>();
+        List<CopyResult> out = new ArrayList<>();
+        for (WhatsAppTemplate t : list(PlatformScope.TENANT)) {
+            if (wanted != null && !wanted.contains(t.name())) {
+                continue;
+            }
+            found.add(t.name());
+            out.add(copy(tenant, t, existing.contains(t.name() + "/" + t.language())));
+        }
+        if (wanted != null) {
+            wanted.stream().filter(n -> !found.contains(n)).forEach(n -> out.add(new CopyResult(n, null,
+                    CopyStatus.FAILED, "The platform's account has no template " + n)));
+        }
+        return out;
+    }
+
+    private CopyResult copy(String tenant, WhatsAppTemplate t, boolean exists) {
+        if (exists) {
+            return new CopyResult(t.name(), t.language(), CopyStatus.EXISTS, null);
+        }
+        if (t.headerFormat() != null && !"TEXT".equals(t.headerFormat())) {
+            return new CopyResult(t.name(), t.language(), CopyStatus.FAILED,
+                    "Only templates with a text header can be copied; create it in Meta");
+        }
+        try {
+            create(tenant, new WhatsAppTemplateDraft(t.name(), t.language(), t.category(), t.header(), t.body(),
+                    t.footer(), t.buttons(), t.examples()));
+            return new CopyResult(t.name(), t.language(), CopyStatus.COPIED, null);
+        } catch (IllegalArgumentException | MetaGraphException e) {
+            return new CopyResult(t.name(), t.language(), CopyStatus.FAILED, e.getMessage());
+        }
     }
 
     private static void checkId(String templateId) {

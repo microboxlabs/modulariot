@@ -1,38 +1,33 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { TAG } from "@/features/symptoms/maintainer/catalog-card";
 import { ago } from "@/features/symptoms/maintainer/catalog-format";
-import { MUTED, Tile } from "@/features/symptoms/maintainer/ui/card";
-import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
+import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import CatalogTable from "@/features/common/components/catalog-table";
 import ChannelIcon from "./channel-icon";
-import LayoutToggle, {
-  type CatalogLayout,
-} from "@/features/common/components/layout-toggle";
-import MetaTemplatesSection from "./meta-templates-section";
+import type { CatalogLayout } from "@/features/common/components/layout-toggle";
 import { usePlatformTemplates } from "./conversations-api";
 import type { ConversationTemplate } from "./conversations-types";
 import { channelLabel } from "./rule-model";
 
+/** Comunicaciones › Plantillas, in the platform scope. */
 export const PLATFORM_TEMPLATES_PAGE =
-  "/users/settings/platform/message-templates";
+  "/users/settings/communications?section=templates";
 
 /** The creation segment. Keys start with a letter or digit, so no stored template takes it. */
 export const NEW_TEMPLATE = "_new";
 
 export const platformTemplateHref = (lang: string, key: string) =>
-  `/${lang}${PLATFORM_TEMPLATES_PAGE}/${encodeURIComponent(key)}`;
+  `/${lang}/users/settings/communications/templates/${encodeURIComponent(key)}`;
 
-const CHANNELS = ["whatsapp", "email"] as const;
+export const TEMPLATE_CHANNELS = ["whatsapp", "email"] as const;
 
 /** The channels a template has a version for. */
 function channelsOf(t: ConversationTemplate) {
-  return CHANNELS.filter((c) => t[c] != null);
+  return TEMPLATE_CHANNELS.filter((c) => t[c] != null);
 }
 
 function usedByText(t: ConversationTemplate, d: I18nRecord) {
@@ -169,46 +164,8 @@ function TemplatesTable({
   );
 }
 
-export type TemplatesView = "messages" | "meta";
-
-/** Mensajes / WhatsApp en Meta. */
-function ViewToggle({
-  view,
-  d,
-  onView,
-}: Readonly<{
-  view: TemplatesView;
-  d: I18nRecord;
-  onView: (view: TemplatesView) => void;
-}>) {
-  const views: { value: TemplatesView; label: string }[] = [
-    { value: "messages", label: tr("templatesMessages", d) },
-    { value: "meta", label: tr("templatesMeta", d) },
-  ];
-  return (
-    <fieldset className="flex self-start rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
-      <legend className="sr-only">{tr("templatesView", d)}</legend>
-      {views.map((v) => (
-        <button
-          key={v.value}
-          type="button"
-          aria-pressed={view === v.value}
-          onClick={() => onView(v.value)}
-          className={`rounded-md px-2.5 py-1 text-xs ${
-            view === v.value
-              ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
-              : MUTED
-          }`}
-        >
-          {v.label}
-        </button>
-      ))}
-    </fieldset>
-  );
-}
-
-/** The app's templates as cards or a table. */
-function MessageTemplates({
+/** Comunicaciones › Plantillas in the platform scope: the templates every organization's rules send, as cards or a table. */
+export default function MessageTemplatesPanel({
   channel,
   layout,
   lang,
@@ -250,99 +207,5 @@ function MessageTemplates({
         <TemplatesTable templates={shown} lang={lang} d={d} />
       )}
     </>
-  );
-}
-
-/**
- * Settings › Plataforma › Plantillas de mensajes: the templates every organization's rules send, and the WhatsApp
- * templates on Meta of the platform's connection, which their WhatsApp variants name.
- */
-export default function PlatformTemplatesCatalog({
-  dict,
-  lang,
-}: Readonly<{ dict: I18nRecord; lang: string }>) {
-  const d = dict?.communications as I18nRecord;
-  const [view, setView] = useState<TemplatesView>("messages");
-  const [channel, setChannel] = useState("");
-  const [layout, setLayout] = useState<CatalogLayout>("cards");
-  const messages = view === "messages";
-
-  return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={dict?.breadcrumb as I18nRecord}
-          lang={lang}
-          path={["user", "settings", "platform", "messageTemplates"]}
-          disableLinks
-        />
-      </div>
-      {messages && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <FilterChip
-            label={tr("filterChannel", d)}
-            value={channel}
-            options={CHANNELS.map((c) => channelLabel(c, d))}
-            allLabel={tr("filterAll", d)}
-            onChange={setChannel}
-          />
-        </div>
-      )}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Tile>
-              <svg
-                aria-hidden
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                viewBox="0 0 24 24"
-              >
-                <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />
-              </svg>
-            </Tile>
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("templatesTitle", d)}
-              </h1>
-              <p className={`text-sm ${MUTED}`}>
-                {tr("templatesDescription", d)}
-              </p>
-            </div>
-            {messages && (
-              <div className="ml-auto flex items-center gap-2">
-                <LayoutToggle
-                  layout={layout}
-                  labels={{
-                    cards: tr("viewCards", d),
-                    list: tr("viewList", d),
-                  }}
-                  onLayout={setLayout}
-                />
-                <Link
-                  href={platformTemplateHref(lang, NEW_TEMPLATE)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
-                >
-                  ＋ {tr("newTemplate", d)}
-                </Link>
-              </div>
-            )}
-          </div>
-          <ViewToggle view={view} d={d} onView={setView} />
-          {messages ? (
-            <MessageTemplates
-              channel={channel}
-              layout={layout}
-              lang={lang}
-              d={d}
-            />
-          ) : (
-            <MetaTemplatesSection canWrite d={d} />
-          )}
-        </div>
-      </div>
-    </div>
   );
 }

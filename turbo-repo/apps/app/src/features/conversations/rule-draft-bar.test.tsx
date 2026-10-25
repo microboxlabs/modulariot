@@ -7,7 +7,7 @@ const d = es.pages.userSettings.communications;
 const CHANGES = [{ key: "step0", text: "Paso 1 cambiado" }];
 
 describe("RuleDraftBar", () => {
-  it("shows the version the draft makes and its bump", () => {
+  it("opens a panel with the version the draft makes and its bump", () => {
     render(
       <RuleDraftBar
         changes={CHANGES}
@@ -20,6 +20,8 @@ describe("RuleDraftBar", () => {
         onReview={vi.fn()}
       />
     );
+    expect(screen.queryByText("0.2.1")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /1 cambio/ }));
     expect(screen.getByText("0.2.1")).toBeTruthy();
     expect(screen.getByText("PARCHE")).toBeTruthy();
   });

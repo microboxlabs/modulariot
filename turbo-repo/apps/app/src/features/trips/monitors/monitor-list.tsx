@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Alert,
   Badge,
@@ -218,14 +219,14 @@ function SelectorPanel({
               on="selector"
               expect="condition"
               params={{}}
-              readOnly={!canEdit}
+              readOnly={!canEdit || busy}
               placeholder="trip.orderType == 'reparto'"
             />
           </div>
           <Select
             sizing="sm"
             value={e.monitorKey}
-            disabled={!canEdit}
+            disabled={!canEdit || busy}
             aria-label={tr("monitor", d)}
             onChange={(ev) => set(i, { monitorKey: ev.target.value })}
           >
@@ -239,6 +240,7 @@ function SelectorPanel({
             <button
               type="button"
               className="mb-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700"
+              disabled={busy}
               aria-label={tr("removeEntry", d)}
               onClick={() => setEntries(entries.filter((_, j) => j !== i))}
             >
@@ -255,7 +257,7 @@ function SelectorPanel({
           <Button
             color="light"
             size="sm"
-            disabled={published.length === 0}
+            disabled={busy || published.length === 0}
             onClick={() =>
               setEntries([
                 ...entries,
@@ -461,12 +463,14 @@ export default function MonitorList({
               <tr
                 key={m.key}
                 className="cursor-pointer border-t border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
-                onClick={() => open(m.key)}
               >
                 <td className="px-4 py-2.5">
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <Link
+                    href={`/${lang}/users/settings/trips/monitors/${encodeURIComponent(m.key)}`}
+                    className="font-medium text-gray-900 hover:underline dark:text-white"
+                  >
                     {m.name}
-                  </div>
+                  </Link>
                   <div className="font-mono text-gray-400">{m.key}</div>
                 </td>
                 <td className="px-4 py-2.5">

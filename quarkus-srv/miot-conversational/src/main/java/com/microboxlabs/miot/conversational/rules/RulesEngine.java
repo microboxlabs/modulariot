@@ -1,7 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.ContextKind;
@@ -223,37 +222,41 @@ public class RulesEngine {
     }
 
     /**
-     * Starts a test send of a rule's draft: an event of the sample stored as a test, and a run that sends the
-     * draft's steps at their times to the chosen person, real messages, and stops on a reply as the rule says.
+     * Starts a run of an {@link Invocation}: its event stored, and the run due at its first step's time. With a
+     * key the rule already ran, the run that key started.
      */
-    public Run startTestSend(String ruleId, JsonNode draft, StoredEvent sample, TestSend.To to) {
+    public Run invoke(StoredEvent sample, Run run, List<Step> steps) {
+        Optional<Run> first = runs.invoked(run.ruleId(), run.invocationKey());
+        if (first.isPresent()) {
+            return first.get();
+        }
         Instant now = clock.instant();
         StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), sample.tenantCode(),
-                sample.type(), TestSend.VERSION, sample.contextKind(), sample.contextKey(), sample.data(), true,
-                now, now));
-        List<Step> steps = RuleSpec.read(draft).steps();
-        // Created without a time, so no scan claims it before its test send is stored.
-        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), event.tenantCode(), ruleId,
-                TestSend.VERSION, event.id(), event.contextKind(), event.contextKey(), false, Run.Status.WAITING, 0,
-                null, null, now, now));
-        runs.saveTestSend(new TestSend(run.id(), draft, to));
-        if (steps.isEmpty()) {
-            Run done = run.advanced(Run.Status.DONE, 0, null, null, now);
-            runs.updateIfWaiting(done);
-            return done;
-        }
-        Run due = run.advanced(Run.Status.WAITING, 0, now.plus(Duration.ofMinutes(steps.get(0).afterMinutes())),
-                null, now);
-        runs.updateIfWaiting(due);
-        return due;
+                sample.type(), Invocation.SOURCE, sample.contextKind(), sample.contextKey(), sample.data(),
+                sample.test(), sample.at() != null ? sample.at() : now, now));
+        boolean empty = steps.isEmpty();
+        return runs.createRun(new Run(UUID.randomUUID().toString(), event.tenantCode(), run.ruleId(),
+                run.ruleVersion(), event.id(), event.contextKind(), event.contextKey(), run.test(),
+                empty ? Run.Status.DONE : Run.Status.WAITING, 0,
+                empty ? null : now.plus(Duration.ofMinutes(steps.get(0).afterMinutes())), null, now, now,
+                run.recipients(), run.invocationKey()));
     }
 
-    /** The spec a run sends: its version's, or for a test send the draft it copied, written to the chosen person. */
+    /** The spec a run sends: its version's, or the draft as it is now for a run of the draft. */
     private Optional<RuleSpec> spec(Run run) {
-        if (TestSend.VERSION.equals(run.ruleVersion())) {
-            return runs.testSend(run.id()).map(TestSend::rule);
+        Optional<RuleVersion> version = Invocation.DRAFT.equals(run.ruleVersion()) ? draftOrCurrent(run)
+                : rules.version(run.ruleId(), run.ruleVersion());
+        return version.map(v -> RuleSpec.read(v.spec()));
+    }
+
+    /** The draft; once it is published, the version in force. */
+    private Optional<RuleVersion> draftOrCurrent(Run run) {
+        List<RuleVersion> versions = rules.versions(run.ruleId());
+        RuleVersion draft = RulesService.draft(versions);
+        if (draft != null) {
+            return Optional.of(draft);
         }
-        return rules.version(run.ruleId(), run.ruleVersion()).map(v -> RuleSpec.read(v.spec()));
+        return rules.find(run.tenantCode(), run.ruleId()).map(r -> RulesService.current(r, versions));
     }
 
     private void advance(Run run, Instant now) {
@@ -295,14 +298,15 @@ public class RulesEngine {
     private String send(Run run, Step step, RuleSpec spec, StoredEvent event) {
         Optional<ConvTemplate> template = step.template() == null ? Optional.empty()
                 : templates.find(ConvTemplate.PLATFORM_TENANT, step.template());
-        StepMessages.Plan plan = StepMessages.plan(step, spec, event, template, new Audiences(resolvers.get(), directories.get()));
+        StepMessages.Plan plan = StepMessages.plan(step, Invocation.forStep(spec, step, run.recipients()), event,
+                template, new Audiences(resolvers.get(), directories.get()));
         List<String> problems = new ArrayList<>(plan.warnings());
         ContextKind kind = contextKind(run.contextKind());
         for (StepMessages.Planned m : plan.messages()) {
             Optional<ConnectionChannel> viaConnection = ConnectionChannel.of(m.channel());
             if (viaConnection.isPresent()) {
-                // A test send writes to its person only: the connection is not called.
-                boolean simulate = run.test() || TestSend.VERSION.equals(run.ruleVersion());
+                // A run of the draft is a test: it writes to people only, the connection is not called.
+                boolean simulate = run.test() || Invocation.DRAFT.equals(run.ruleVersion());
                 deliver(viaConnection.get(), run, event, kind, m, simulate).ifPresent(problems::add);
                 continue;
             }

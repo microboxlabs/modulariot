@@ -8,9 +8,11 @@ import static com.microboxlabs.miot.conversational.rules.store.Pg.time;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.uuid;
 import static com.microboxlabs.miot.conversational.rules.store.Pg.uuidOrNull;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.microboxlabs.miot.conversational.rules.Invocation;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
-import com.microboxlabs.miot.conversational.rules.TestSend;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -24,6 +26,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -43,19 +46,22 @@ public class PgRunStore implements RunStore {
     private static final String EVENT = SELECT + EVENT_COLUMNS
             + " FROM miot_conversational.conv_event WHERE id = $1";
 
+    private static final TypeReference<Map<String, List<Invocation.Person>>> RECIPIENTS = new TypeReference<>() {
+    };
     private static final String RUN_COLUMNS = """
             id, tenant_code, rule_id, rule_version, event_id, context_kind, context_key, test, status, step,
-            next_at, last_error, created_at, updated_at""";
-    private static final String INSERT_RUN = "INSERT INTO miot_conversational.conv_run (" + RUN_COLUMNS + """
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            next_at, last_error, created_at, updated_at, recipients::text AS recipients, invocation_key""";
+    // A second invocation with the same key inserts nothing; the run it started is read instead.
+    private static final String INSERT_RUN = """
+            INSERT INTO miot_conversational.conv_run (
+                id, tenant_code, rule_id, rule_version, event_id, context_kind, context_key, test, status, step,
+                next_at, last_error, created_at, updated_at, recipients, invocation_key
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::text::jsonb, $16)
+            ON CONFLICT (rule_id, invocation_key) WHERE invocation_key IS NOT NULL DO NOTHING
             RETURNING\s""" + RUN_COLUMNS;
     private static final String RUN = SELECT + RUN_COLUMNS + " FROM miot_conversational.conv_run WHERE id = $1";
-    private static final String INSERT_TEST_SEND = """
-            INSERT INTO miot_conversational.conv_run_test_send (run_id, spec, email, phone, name)
-            VALUES ($1, $2::text::jsonb, $3, $4, $5)""";
-    private static final String TEST_SEND = SELECT + """
-            run_id, spec::text AS spec, email, phone, name
-             FROM miot_conversational.conv_run_test_send WHERE run_id = $1""";
+    private static final String INVOKED = SELECT + RUN_COLUMNS
+            + " FROM miot_conversational.conv_run WHERE rule_id = $1 AND invocation_key = $2";
     // SKIP LOCKED leaves runs another pod is claiming; the lease keeps them off later scans while they are worked.
     private static final String CLAIM = """
             UPDATE miot_conversational.conv_run SET next_at = $2, updated_at = $1
@@ -87,6 +93,7 @@ public class PgRunStore implements RunStore {
     private static final String LIST = """
             SELECT r.id, r.tenant_code, r.rule_id, r.rule_version, r.event_id, r.context_kind, r.context_key, r.test,
                    r.status, r.step, r.next_at, r.last_error, r.created_at, r.updated_at,
+                   r.recipients::text AS recipients, r.invocation_key,
                    rule.name AS rule_name, e.type AS event_type,
                    e.data ->> 'symptomName' AS symptom_name, e.data ->> 'assetId' AS asset_id
             FROM miot_conversational.conv_run r
@@ -142,29 +149,22 @@ public class PgRunStore implements RunStore {
                 .addString(r.ruleVersion()).addUUID(uuid(r.eventId())).addString(r.contextKind())
                 .addString(r.contextKey()).addBoolean(r.test()).addString(r.status().name()).addInteger(r.step())
                 .addOffsetDateTime(time(r.nextAt())).addString(r.lastError()).addOffsetDateTime(time(r.createdAt()))
-                .addOffsetDateTime(time(r.updatedAt()));
-        return runs(query(pool.get(), INSERT_RUN, params)).get(0);
+                .addOffsetDateTime(time(r.updatedAt()))
+                .addString(r.recipients() == null ? null : Pg.write(r.recipients())).addString(r.invocationKey());
+        List<Run> created = runs(query(pool.get(), INSERT_RUN, params));
+        if (!created.isEmpty()) {
+            return created.get(0);
+        }
+        return invoked(r.ruleId(), r.invocationKey()).orElseThrow();
     }
 
     @Override
-    public void saveTestSend(TestSend t) {
-        query(pool.get(), INSERT_TEST_SEND, Tuple.tuple().addUUID(uuid(t.runId())).addString(t.spec().toString())
-                .addString(t.to().email()).addString(t.to().phone()).addString(t.to().name()));
-    }
-
-    @Override
-    public Optional<TestSend> testSend(String runId) {
-        UUID id = uuidOrNull(runId);
-        if (id == null) {
+    public Optional<Run> invoked(String ruleId, String key) {
+        UUID rule = uuidOrNull(ruleId);
+        if (rule == null || key == null) {
             return Optional.empty();
         }
-        var rows = query(pool.get(), TEST_SEND, Tuple.of(id)).iterator();
-        if (!rows.hasNext()) {
-            return Optional.empty();
-        }
-        Row r = rows.next();
-        return Optional.of(new TestSend(string(r, "run_id"), Pg.node(r.getString("spec")),
-                new TestSend.To(r.getString("email"), r.getString("phone"), r.getString("name"))));
+        return runs(query(pool.get(), INVOKED, Tuple.of(rule, key))).stream().findFirst();
     }
 
     @Override
@@ -249,6 +249,18 @@ public class PgRunStore implements RunStore {
         return new Run(string(r, "id"), r.getString("tenant_code"), string(r, "rule_id"), r.getString("rule_version"),
                 string(r, "event_id"), r.getString("context_kind"), r.getString("context_key"), r.getBoolean("test"),
                 Run.Status.valueOf(r.getString("status")), r.getInteger("step"), instant(r, "next_at"),
-                r.getString("last_error"), instant(r, "created_at"), instant(r, "updated_at"));
+                r.getString("last_error"), instant(r, "created_at"), instant(r, "updated_at"),
+                recipients(r.getString("recipients")), r.getString("invocation_key"));
+    }
+
+    private static Map<String, List<Invocation.Person>> recipients(String text) {
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Pg.JSON.readValue(text, RECIPIENTS);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("conv_run.recipients is not valid JSON", e);
+        }
     }
 }

@@ -14,6 +14,7 @@ import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.events.ConversationReplyReceived;
+import com.microboxlabs.miot.conversational.rules.Invocation.Person;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleContext;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import java.time.Duration;
@@ -23,12 +24,15 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** A rule's draft sent for real to one chosen person, at its steps' times. */
-class RuleTestSendsTest {
+/** A rule started on request: the version in force or the draft, to its groups or to the people named for them. */
+class RuleInvocationsTest {
 
     private static final String TESTER_EMAIL = "tester@example.com";
     private static final String TESTER_PHONE = "+56900000099";
-    private static final TestSend.To TESTER = new TestSend.To(TESTER_EMAIL, TESTER_PHONE, "Tester");
+    private static final Person TESTER = new Person("Tester", TESTER_EMAIL, TESTER_PHONE);
+    /** PANIC_SPEC's groups: the driver, and the tower address of its second step. */
+    private static final Map<String, List<Person>> TO_TESTER =
+            Map.of(RuleSpec.RULE_GROUP, List.of(TESTER), "step-2", List.of(TESTER));
 
     private final RulesFixture f = new RulesFixture();
 
@@ -41,11 +45,15 @@ class RuleTestSendsTest {
                 Map.of("symptomKey", "panic-button", "level", 4, "assetId", "ABCD12"), false, null);
     }
 
+    private static Invocation ofDraft(Map<String, List<Person>> to) {
+        return new Invocation(Invocation.DRAFT, sample(), to, null);
+    }
+
     @Test
-    void eachStepGoesToTheChosenPersonAtItsTime() {
+    void theDraftGoesToTheNamedPersonAtEachStepsTime() {
         String id = draft(PANIC_SPEC);
-        Run run = f.testSends.start(TENANT, id, sample(), TESTER);
-        assertEquals(TestSend.VERSION, run.ruleVersion());
+        Run run = f.invocations.start(TENANT, id, ofDraft(TO_TESTER));
+        assertEquals(Invocation.DRAFT, run.ruleVersion());
         assertFalse(run.test(), "the messages are sent for real");
 
         f.engine.runDue();
@@ -62,7 +70,7 @@ class RuleTestSendsTest {
     @Test
     void aReplyStopsItAsTheRuleSays() {
         String id = draft(PANIC_SPEC);
-        Run run = f.testSends.start(TENANT, id, sample(), TESTER);
+        Run run = f.invocations.start(TENANT, id, ofDraft(TO_TESTER));
         f.engine.runDue();
         Message sent = f.store.conversations.messages.get(0);
 
@@ -75,49 +83,83 @@ class RuleTestSendsTest {
     }
 
     @Test
-    void itSendsTheDraftAsItWasWhenItStarted() {
+    void aRunOfTheDraftReadsTheDraftAsItIsWhenEachStepGoesOut() {
         String id = draft(PANIC_SPEC);
-        f.testSends.start(TENANT, id, sample(), TESTER);
+        f.invocations.start(TENANT, id, ofDraft(Map.of(RuleSpec.RULE_GROUP, List.of(TESTER))));
         f.service.saveDraft(TENANT, id, json("""
-                {"trigger": {"event": "symptom.case.opened", "when": ""}, "groups": [],
-                 "steps": [{"channel": "email", "template": "panic-tower", "to": []}]}
+                {"trigger": {"event": "symptom.case.opened", "when": ""},
+                 "groups": [{"id": "rule", "entries": [{"role": "driver"}]}],
+                 "steps": [{"channel": "email", "template": "panic-tower", "to": ["rule"]}]}
                 """), "owner@example.com");
 
         f.engine.runDue();
-        assertEquals(1, f.whatsappSent.size(), "the copied draft's first step is WhatsApp");
+        assertTrue(f.whatsappSent.isEmpty());
+        assertEquals(List.of(TESTER_EMAIL), f.emailsSent.stream().map(e -> e.to()).toList());
+    }
+
+    @Test
+    void aGroupNotNamedKeepsItsRecipients() {
+        String id = draft(PANIC_SPEC);
+        f.invocations.start(TENANT, id, ofDraft(Map.of("step-2", List.of(TESTER))));
+        f.engine.runDue();
+        assertEquals(DRIVER, f.whatsappSent.get(0).to());
     }
 
     @Test
     void aStepOnAChannelThePersonHasNoAddressForSendsNothing() {
         String id = draft(PANIC_SPEC);
-        f.testSends.start(TENANT, id, sample(), new TestSend.To(TESTER_EMAIL, null, null));
+        f.invocations.start(TENANT, id,
+                ofDraft(Map.of(RuleSpec.RULE_GROUP, List.of(new Person(null, TESTER_EMAIL, null)))));
         f.engine.runDue();
         assertTrue(f.whatsappSent.isEmpty());
-        assertFalse(f.whatsappSent.stream().anyMatch(s -> DRIVER.equals(s.to())));
     }
 
     @Test
-    void connectionStepsCallNothing() {
+    void theDraftsConnectionStepsCallNothing() {
         String id = draft("""
                 {"trigger": {"event": "symptom.case.opened", "when": ""}, "groups": [],
                  "steps": [{"channel": "slack", "template": "panic-tower", "connection": "slack-1"}]}
                 """);
-        f.testSends.start(TENANT, id, sample(), TESTER);
+        f.invocations.start(TENANT, id, ofDraft(null));
         f.engine.runDue();
         assertTrue(f.integrations.calls.isEmpty());
         assertEquals(MessageStatus.SIMULATED, f.store.conversations.messages.get(0).status());
     }
 
     @Test
-    void aDraftWithErrorsOrNoPersonIsRefused() {
+    void theVersionInForceGoesToTheRulesGroupsAndAKeyStartsItOnce() {
+        Rule rule = f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
+        Invocation invocation = new Invocation(null, sample(), null, "OT-1-salida");
+        Run run = f.invocations.start(TENANT, rule.id(), invocation);
+        assertEquals("0.1.0", run.ruleVersion());
+        assertEquals(run.id(), f.invocations.start(TENANT, rule.id(), invocation).id());
+        assertEquals(1, f.store.runs.size());
+
+        f.engine.runDue();
+        assertEquals(DRIVER, f.whatsappSent.get(0).to());
+    }
+
+    @Test
+    void aTestRuleSimulatesAndAnOffRuleIsRefused() {
+        Rule test = f.rule("panic", PANIC_SPEC, Rule.State.TEST);
+        assertTrue(f.invocations.start(TENANT, test.id(), new Invocation(null, sample(), null, null)).test());
+        Rule off = f.rule("panic-off", PANIC_SPEC, Rule.State.OFF);
+        assertThrows(IllegalStateException.class,
+                () -> f.invocations.start(TENANT, off.id(), new Invocation(null, sample(), null, null)));
+    }
+
+    @Test
+    void aDraftWithErrorsAnUnknownGroupOrAPersonWithoutAddressIsRefused() {
         String broken = draft("""
                 {"trigger": {"event": "symptom.case.opened", "when": ""}, "groups": [], "steps": []}
                 """);
-        assertThrows(RulesService.NotPublishable.class, () -> f.testSends.start(TENANT, broken, sample(), TESTER));
+        assertThrows(RulesService.NotPublishable.class, () -> f.invocations.start(TENANT, broken, ofDraft(null)));
         String id = f.service.create(TENANT, "panic-2", "Pánico 2", json(PANIC_SPEC), "owner@example.com").rule()
                 .id();
         assertThrows(IllegalArgumentException.class,
-                () -> f.testSends.start(TENANT, id, sample(), new TestSend.To(" ", null, "x")));
+                () -> f.invocations.start(TENANT, id, ofDraft(Map.of("nope", List.of(TESTER)))));
+        assertThrows(IllegalArgumentException.class, () -> f.invocations.start(TENANT, id,
+                ofDraft(Map.of(RuleSpec.RULE_GROUP, List.of(new Person("x", " ", null))))));
         assertTrue(f.store.runs.isEmpty());
     }
 }

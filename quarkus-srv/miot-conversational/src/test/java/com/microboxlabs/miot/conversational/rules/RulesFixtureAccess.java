@@ -21,8 +21,8 @@ public final class RulesFixtureAccess {
         return fixture.simulator;
     }
 
-    public RuleTestSends testSends() {
-        return fixture.testSends;
+    public RuleInvocations invocations() {
+        return fixture.invocations;
     }
 
     public TemplatesService templates() {

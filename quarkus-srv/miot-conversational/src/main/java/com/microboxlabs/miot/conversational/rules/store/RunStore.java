@@ -2,7 +2,6 @@ package com.microboxlabs.miot.conversational.rules.store;
 
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
-import com.microboxlabs.miot.conversational.rules.TestSend;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -25,7 +24,11 @@ public interface RunStore {
 
     Optional<StoredEvent> event(String id);
 
+    /** With an {@code invocationKey} the rule already ran, the run that key started. */
     Run createRun(Run run);
+
+    /** The run an invocation with this key started for the rule. */
+    Optional<Run> invoked(String ruleId, String key);
 
     Optional<Run> find(String id);
 
@@ -52,9 +55,4 @@ public interface RunStore {
 
     /** The messages of these runs, oldest first. */
     List<RunMessage> messages(Collection<String> runIds);
-
-    /** Keeps the draft and the person of a test send, beside its run. */
-    void saveTestSend(TestSend testSend);
-
-    Optional<TestSend> testSend(String runId);
 }

@@ -18,10 +18,10 @@ class ContactReachTest {
 
     private static final ContactDirectory BOOK = tenant -> List.of(
             new ContactDirectory.Entry("c1", "Supervisora", "Supervisor de transporte", List.of("torre"), "Mi Cuenta",
-                    null, null, "supervisora@example.com", null),
+                    null, null, false, "supervisora@example.com", null),
             new ContactDirectory.Entry("c2", "Despacho Sur", "Despachador", List.of("transportista"),
-                    "Transportes Sur", "761112223", null, "despacho@example.com", null),
-            new ContactDirectory.Entry("c3", "Sin relación", "Otro", List.of(), null, null, null, null, null));
+                    "Transportes Sur", "761112223", null, false, "despacho@example.com", null),
+            new ContactDirectory.Entry("c3", "Sin relación", "Otro", List.of(), null, null, null, false, null, null));
 
     private final InMemoryRules store = new InMemoryRules();
 
@@ -51,7 +51,7 @@ class ContactReachTest {
     @Test
     void aConditionWithoutTheEventDecidesWhenItCan() {
         Map<String, Object> carrier = Audiences.contactVars(new ContactDirectory.Entry("c2", "Despacho", "Despachador",
-                List.of("transportista"), null, "761112223", null, null, null));
+                List.of("transportista"), null, "761112223", null, false, null, null));
         assertEquals(EventCondition.Reach.NO,
                 EventCondition.reachContact("contact.role == 'Jefe' && contact.companyRut == event.data.x", carrier));
         assertEquals(EventCondition.Reach.YES,

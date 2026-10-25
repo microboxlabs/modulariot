@@ -16,7 +16,7 @@ import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
-import com.microboxlabs.miot.conversational.rules.TestSend;
+import com.microboxlabs.miot.conversational.rules.Invocation;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -56,7 +56,7 @@ class PgRuleStoresTest {
             "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
             "V0.11.1__whatsapp_outbound_by_address.sql",
             // This constraint change is independent of 0.11.3, which needs the integrations schema.
-            "V0.11.4__trip_conversations.sql", "V0.11.5__rule_test_sends.sql");
+            "V0.11.4__trip_conversations.sql", "V0.11.5__run_invocations.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -287,20 +287,22 @@ class PgRuleStoresTest {
     }
 
     @Test
-    void aTestSendKeepsItsDraftAndPersonBesideItsRun() throws Exception {
+    void anInvokedRunKeepsItsRecipientsAndItsKeyStartsItOnce() {
         String tenant = "tenant-" + UUID.randomUUID();
         Rule rule = rule(tenant, "panic");
         StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
-                "symptom.case.opened", TestSend.VERSION, "symptom_case", "-7", Map.of(), true, T0, T0));
-        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), TestSend.VERSION,
-                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, null, null, T0, T0));
-        runs.saveTestSend(new TestSend(run.id(), JSON.readTree("{\"steps\": [{\"channel\": \"email\"}]}"),
-                new TestSend.To("tester@example.com", null, "Tester")));
+                "symptom.case.opened", Invocation.SOURCE, "symptom_case", "-7", Map.of(), true, T0, T0));
+        Map<String, List<Invocation.Person>> to =
+                Map.of("rule", List.of(new Invocation.Person("Tester", "tester@example.com", null)));
+        Run first = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, to, "k-1"));
+        Run again = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, null, "k-1"));
 
-        TestSend read = runs.testSend(run.id()).orElseThrow();
-        assertEquals("email", read.spec().path("steps").get(0).path("channel").asText());
-        assertEquals(new TestSend.To("tester@example.com", null, "Tester"), read.to());
-        assertTrue(runs.testSend(UUID.randomUUID().toString()).isEmpty());
+        assertEquals(first.id(), again.id());
+        assertEquals(to, runs.find(first.id()).orElseThrow().recipients());
+        assertEquals(first.id(), runs.invoked(rule.id(), "k-1").orElseThrow().id());
+        assertTrue(runs.invoked(rule.id(), "k-2").isEmpty());
     }
 
     @Test

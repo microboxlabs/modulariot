@@ -28,7 +28,6 @@ final class InMemoryRules {
     final Map<String, ConvTemplate> templates = new LinkedHashMap<>();
     final Map<String, StoredEvent> events = new LinkedHashMap<>();
     final Map<String, Run> runs = new LinkedHashMap<>();
-    final Map<String, TestSend> testSends = new LinkedHashMap<>();
     final Rules ruleStore = new Rules();
     final Templates templateStore = new Templates();
     final Runs runStore = new Runs();
@@ -186,6 +185,10 @@ final class InMemoryRules {
 
         @Override
         public Run createRun(Run run) {
+            Optional<Run> first = invoked(run.ruleId(), run.invocationKey());
+            if (first.isPresent()) {
+                return first.get();
+            }
             runs.put(run.id(), run);
             if (run.status() == Run.Status.WAITING) {
                 conversations.waitingRuns.add(run.id());
@@ -199,13 +202,10 @@ final class InMemoryRules {
         }
 
         @Override
-        public void saveTestSend(TestSend testSend) {
-            testSends.put(testSend.runId(), testSend);
-        }
-
-        @Override
-        public Optional<TestSend> testSend(String runId) {
-            return Optional.ofNullable(testSends.get(runId));
+        public Optional<Run> invoked(String ruleId, String key) {
+            return key == null ? Optional.empty()
+                    : runs.values().stream()
+                            .filter(r -> r.ruleId().equals(ruleId) && key.equals(r.invocationKey())).findFirst();
         }
 
         @Override

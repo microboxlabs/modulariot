@@ -170,7 +170,7 @@ final class RulesFixture {
             clock);
     final TemplatesService templates = new TemplatesService(store.ruleStore, store.templateStore, clock);
     final RunsService runs = new RunsService(store.runStore);
-    final RuleTestSends testSends = new RuleTestSends(service, engine, clock);
+    final RuleInvocations invocations = new RuleInvocations(service, engine, clock);
 
     RulesFixture() {
         templates.save("panic-check", new TemplatesService.TemplateRequest("Botón de pánico · conductor",

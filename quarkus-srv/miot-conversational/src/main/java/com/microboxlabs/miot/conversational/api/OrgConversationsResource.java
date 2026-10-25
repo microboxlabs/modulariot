@@ -11,8 +11,9 @@ import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.RulesService;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator;
-import com.microboxlabs.miot.conversational.rules.TestSend;
-import com.microboxlabs.miot.conversational.rules.RuleTestSends;
+import com.microboxlabs.miot.conversational.access.ConversationsAccessCatalog;
+import com.microboxlabs.miot.conversational.rules.Invocation;
+import com.microboxlabs.miot.conversational.rules.RuleInvocations;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
@@ -64,7 +65,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * Conversation rules, the platform's templates, the event catalog, the runs, the connection channels and the
  * WhatsApp and email accounts of an organization. Any authenticated user of the organization reads; writes need an Owner or Admin of the organization,
- * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}; the accounts only an Owner changes. Endpoints return {@link Uni} so the request stays on the event loop for the
+ * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}; invoking a published rule also takes
+ * {@value ConversationsAccessCatalog#RULE_INVOKE}; the accounts only an Owner changes. Endpoints return {@link Uni} so the request stays on the event loop for the
  * reactive org filter; the blocking work runs on the worker pool.
  */
 @Path("/api/v1/orgs/{organizationId}/conversations")
@@ -100,8 +102,9 @@ public class OrgConversationsResource {
     public record SimulateRequest(SampleEvent event) {
     }
 
-    /** {@code event} is optional: without it the trigger's event type with no data. */
-    public record TestSendRequest(SampleEvent event, TestSend.To to) {
+    /** See {@link Invocation}; every field is optional. */
+    public record InvokeRequest(String version, SampleEvent event, Map<String, List<Invocation.Person>> to,
+            String key) {
     }
 
     public record CreateConnectionRequest(String name, String baseUrl, String credentialProfileId) {
@@ -120,7 +123,7 @@ public class OrgConversationsResource {
     private final Supplier<String> actor;
     private final RulesService service;
     private final RuleSimulator simulator;
-    private final RuleTestSends testSends;
+    private final RuleInvocations invocations;
     private final TemplatesService templates;
     private final RunsService runs;
     private final ConnectionChannels channels;
@@ -130,7 +133,7 @@ public class OrgConversationsResource {
     /** The services behind the endpoints. */
     public record Services(RulesService rules, RuleSimulator simulator, TemplatesService templates,
             RunsService runs, ConnectionChannels channels, ChannelAccountsService accounts,
-            WhatsAppTemplatesService whatsappTemplates, RuleTestSends testSends) {
+            WhatsAppTemplatesService whatsappTemplates, RuleInvocations invocations) {
 
         public Services(RulesService rules, RuleSimulator simulator, TemplatesService templates, RunsService runs,
                 ConnectionChannels channels, ChannelAccountsService accounts,
@@ -143,12 +146,12 @@ public class OrgConversationsResource {
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
             OrganizationRoleService roleService, SecurityIdentity identity, RulesService rules,
             RuleSimulator simulator, TemplatesService templates, RunsService runs, ConnectionChannels channels,
-            ChannelAccountsService accounts, WhatsAppTemplatesService whatsappTemplates, RuleTestSends testSends) {
+            ChannelAccountsService accounts, WhatsAppTemplatesService whatsappTemplates, RuleInvocations invocations) {
         this(tenantContext, organizationContext,
                 org -> roleService.access(org, caller(identity, organizationContext, tenantContext)),
                 () -> actor(identity, organizationContext),
                 new Services(rules, simulator, templates, runs, channels, accounts, whatsappTemplates,
-                        testSends));
+                        invocations));
     }
 
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
@@ -159,7 +162,7 @@ public class OrgConversationsResource {
         this.actor = actor;
         this.service = services.rules();
         this.simulator = services.simulator();
-        this.testSends = services.testSends();
+        this.invocations = services.invocations();
         this.templates = services.templates();
         this.runs = services.runs();
         this.channels = services.channels();
@@ -242,20 +245,29 @@ public class OrgConversationsResource {
     }
 
     @POST
-    @Path("/rules/{id}/test-send")
-    @Operation(operationId = "testSendConversationRule",
-            summary = "Send the draft for real to one person: its steps at their times, on a sample event; "
-                    + "409 with the findings when the draft has errors")
-    public Uni<Response> testSend(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
-            TestSendRequest body) {
+    @Path("/rules/{id}/invoke")
+    @Operation(operationId = "invokeConversationRule",
+            summary = "Start the rule without its trigger: the version in force or the draft, to its groups or to "
+                    + "the people named for them; 409 when the rule is off or the draft has errors")
+    public Uni<Response> invoke(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            InvokeRequest body) {
         String tenant = tenantCode(organizationId);
-        return write(organizationId, () -> {
-            try {
-                return Response.ok(testSends.start(tenant, id, body == null ? null : body.event(),
-                        body == null ? null : body.to())).build();
-            } catch (RulesService.NotPublishable e) {
-                return notPublishable(e);
+        Invocation invocation = body == null ? new Invocation(null, null, null, null)
+                : new Invocation(body.version(), body.event(), body.to(), body.key());
+        return access.apply(organizationId).flatMap(a -> {
+            if (!(invocation.draft() ? canWrite(a) : canInvoke(a))) {
+                return Uni.createFrom().item(error(Response.Status.FORBIDDEN, invocation.draft()
+                        ? "Owner, Admin or Control Tower maintainer required"
+                        : "Owner, Admin, Control Tower maintainer or " + ConversationsAccessCatalog.RULE_INVOKE
+                                + " required"));
             }
+            return work(() -> {
+                try {
+                    return Response.ok(invocations.start(tenant, id, invocation)).build();
+                } catch (RulesService.NotPublishable e) {
+                    return notPublishable(e);
+                }
+            });
         });
     }
 
@@ -498,6 +510,10 @@ public class OrgConversationsResource {
     static boolean canWrite(Access access) {
         return access != null && ((access.baseRole() != null && access.baseRole().atLeast(BaseRole.ADMIN))
                 || access.can(MAINTAINER_PERMISSION));
+    }
+
+    static boolean canInvoke(Access access) {
+        return canWrite(access) || (access != null && access.can(ConversationsAccessCatalog.RULE_INVOKE));
     }
 
     static Uni<Response> work(Supplier<Response> work) {

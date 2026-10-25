@@ -158,6 +158,9 @@ class FeedReconcilerTest {
             assertTrue(tx.depth > 0, "outcomes must be saved before releasing the service lock");
             saved = value;
         }
+        public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
+            return openServices(limit);
+        }
         public List<FeedService> openServices(int limit) { return saved == null ? List.of() : List.of(saved); }
     }
 }

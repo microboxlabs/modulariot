@@ -177,7 +177,7 @@ export default function ContactBookPageContent({
       options: companies,
     },
     { key: "tag" as const, label: tr("filterTag", d), options: tags },
-  ].filter((f) => f.options.length > 0);
+  ];
   const shown = contacts.filter((c) => contactPasses(c, filters, badges));
   const labels = contactTableLabels(d);
   const badgesById = new Map(badges.map((b) => [b.id, b]));
@@ -191,19 +191,16 @@ export default function ContactBookPageContent({
       icon={HiOutlineBookOpen}
       title={tr("title", d)}
       description={tr("description", d)}
-      filters={
-        filterDefs.length > 0 &&
-        filterDefs.map((f) => (
-          <FilterChip
-            key={f.key}
-            label={f.label}
-            value={filters[f.key]}
-            options={f.options}
-            allLabel={tr("filterAll", d)}
-            onChange={(v) => setFilters({ ...filters, [f.key]: v })}
-          />
-        ))
-      }
+      filters={filterDefs.map((f) => (
+        <FilterChip
+          key={f.key}
+          label={f.label}
+          value={filters[f.key]}
+          options={f.options}
+          allLabel={tr("filterAll", d)}
+          onChange={(v) => setFilters({ ...filters, [f.key]: v })}
+        />
+      ))}
       actions={
         <div className="flex shrink-0 items-center gap-2">
           <LayoutToggle

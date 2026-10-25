@@ -107,6 +107,9 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             UUID tripId = trip(tenant, id);
             String ch = channel(body == null ? null : body.channel());
             if (body != null && body.expectedDetection() != null) {
+                if (body.at() != null) {
+                    throw new IllegalArgumentException("at cannot be combined with expectedDetection");
+                }
                 DetectionRequest expected = body.expectedDetection();
                 return Response.ok(milestones.respondToDetection(tenant, actor, tripId,
                         new DetectionRef(milestone, expected.proposedAt(), expected.source()), true, ch,

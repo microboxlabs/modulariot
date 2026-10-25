@@ -134,6 +134,10 @@ describe("sections by scope", () => {
     expect(sectionOf(new URLSearchParams("section=rules"), true)).toBe(
       "templates"
     );
-    expect(sectionOf(new URLSearchParams("section=templates"))).toBe("rules");
+    // Organizations read the templates; only the platform scope sees them on Meta.
+    expect(sectionOf(new URLSearchParams("section=templates"))).toBe(
+      "templates"
+    );
+    expect(sectionOf(new URLSearchParams("section=meta"))).toBe("rules");
   });
 });

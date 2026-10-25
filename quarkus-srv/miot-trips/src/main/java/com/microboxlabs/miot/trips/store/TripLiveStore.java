@@ -13,6 +13,9 @@ public interface TripLiveStore {
 
     Optional<TripLiveRow> find(String tenantCode, UUID tripId);
 
+    /** Locks the parent trip before reading its current hot row; call inside a transaction. */
+    Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId);
+
     /** Inserts or replaces the projected fields; the motor-state fields keep their values. */
     void upsert(TripLiveProjection projection);
 

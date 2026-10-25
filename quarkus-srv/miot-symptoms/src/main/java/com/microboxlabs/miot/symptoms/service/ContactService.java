@@ -4,18 +4,26 @@ import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.domain.ContactChannels;
+import com.microboxlabs.miot.symptoms.domain.ContactFacets;
+import com.microboxlabs.miot.symptoms.domain.ContactFilter;
 import com.microboxlabs.miot.symptoms.dto.ContactImportResult;
 import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
+import com.microboxlabs.miot.symptoms.dto.ContactPage;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
+import com.microboxlabs.miot.symptoms.store.ContactStore.After;
 import com.microboxlabs.miot.symptoms.store.DuplicateMemberException;
 import com.microboxlabs.miot.symptoms.store.DuplicateNationalIdException;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,6 +45,8 @@ public class ContactService {
 
     static final String ENTITY = "contact";
     static final int MAX_IMPORT_ROWS = 1000;
+    static final int PAGE_SIZE = 100;
+    static final int MAX_PAGE_SIZE = 200;
     /** Full international number: plus sign, then 8 to 15 digits. */
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
@@ -65,6 +75,43 @@ public class ContactService {
         return contacts.list(tenantCode, active).stream()
                 .map(c -> ContactView.of(c, stats.get(c.id())))
                 .toList();
+    }
+
+    /** Up to {@code limit} contacts (100 by default) that pass {@code filter}, from {@code cursor} on. */
+    public ContactPage page(String tenantCode, ContactFilter filter, String cursor, Integer limit) {
+        int size = limit == null ? PAGE_SIZE : limit;
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("limit must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        seeder.ensureContacts(tenantCode);
+        List<Contact> found = contacts.page(tenantCode, filter, after(cursor), size + 1);
+        List<Contact> items = found.subList(0, Math.min(size, found.size()));
+        Map<String, ContactCallStats> stats = statsByContact(tenantCode);
+        String next = found.size() > size ? cursor(items.get(items.size() - 1)) : null;
+        return new ContactPage(items.stream().map(c -> ContactView.of(c, stats.get(c.id()))).toList(), next);
+    }
+
+    public ContactFacets facets(String tenantCode) {
+        seeder.ensureContacts(tenantCode);
+        return contacts.facets(tenantCode);
+    }
+
+    private static String cursor(Contact last) {
+        String raw = last.createdAt() + "|" + last.id();
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static After after(String cursor) {
+        if (blank(cursor)) {
+            return null;
+        }
+        try {
+            String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+            int bar = raw.indexOf('|');
+            return new After(OffsetDateTime.parse(raw.substring(0, bar)), raw.substring(bar + 1));
+        } catch (IllegalArgumentException | DateTimeParseException | StringIndexOutOfBoundsException e) {
+            throw new IllegalArgumentException("cursor is not valid");
+        }
     }
 
     public ContactView get(String tenantCode, String id) {
@@ -234,9 +281,9 @@ public class ContactService {
         if (contact.memberUserId() == null) {
             return;
         }
-        boolean taken = contacts.list(contact.tenantCode(), null).stream()
-                .anyMatch(other -> contact.memberUserId().equals(other.memberUserId())
-                        && !Objects.equals(other.id(), contact.id()));
+        boolean taken = contacts.findByMember(contact.tenantCode(), contact.memberUserId())
+                .filter(other -> !Objects.equals(other.id(), contact.id()))
+                .isPresent();
         if (taken) {
             throw new DuplicateMemberException();
         }

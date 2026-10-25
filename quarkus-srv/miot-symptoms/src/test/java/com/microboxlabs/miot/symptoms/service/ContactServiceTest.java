@@ -8,7 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.ContactChannels;
+import com.microboxlabs.miot.symptoms.domain.ContactFacets;
+import com.microboxlabs.miot.symptoms.domain.ContactFilter;
 import com.microboxlabs.miot.symptoms.dto.ContactImportResult;
+import com.microboxlabs.miot.symptoms.dto.ContactPage;
 import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
@@ -229,6 +232,64 @@ class ContactServiceTest {
                 "saving the same member again is not a duplicate");
         assertEquals("Persona Uno", service.create("tenant-b", "o", member("Persona Uno", "user-1")).name(),
                 "another organization may have the same member");
+    }
+
+    @Test
+    void theBookComesInPagesThatFollowEachOther() {
+        var service = service(false);
+        for (String name : List.of("Persona Uno", "Persona Dos", "Persona Tres")) {
+            service.create(TENANT, "o", new ContactRequest(name, null, null, null, null, null));
+        }
+
+        ContactPage first = service.page(TENANT, ContactFilter.ALL, null, 2);
+        assertEquals(List.of("Persona Uno", "Persona Dos"), first.items().stream().map(ContactView::name).toList());
+        ContactPage last = service.page(TENANT, ContactFilter.ALL, first.next(), 2);
+        assertEquals(List.of("Persona Tres"), last.items().stream().map(ContactView::name).toList());
+        assertNull(last.next());
+        assertThrows(IllegalArgumentException.class, () -> service.page(TENANT, ContactFilter.ALL, "nope", 2));
+        assertThrows(IllegalArgumentException.class, () -> service.page(TENANT, ContactFilter.ALL, null, 500));
+    }
+
+    @Test
+    void aPageKeepsOnlyTheContactsThatPassTheFilter() {
+        var service = service(false);
+        service.create(TENANT, "o", new ContactRequest("Persona Uno", "Supervisor", null, null, null, null, null,
+                null, "Empresa Ejemplo", null, null, List.of("Turno"), "user-1", null));
+        service.create(TENANT, "o", new ContactRequest("Persona Dos", "Chofer", null, null, null, null, null,
+                null, "Otra Empresa", null, null, List.of("turno"), null, null));
+
+        assertEquals(List.of("Persona Uno"), names(service, new ContactFilter(null, true, null, null, null, null)));
+        assertEquals(List.of("Persona Dos"), names(service, new ContactFilter(null, false, null, null, null, null)));
+        assertEquals(List.of("Persona Uno"),
+                names(service, new ContactFilter(null, null, "supervisor", null, null, null)));
+        assertEquals(List.of("Persona Dos"),
+                names(service, new ContactFilter(null, null, null, "otra empresa", null, null)));
+        assertEquals(2, names(service, new ContactFilter(null, null, null, null, "TURNO", null)).size());
+        assertEquals(List.of("Persona Dos"), names(service, new ContactFilter("dos", null, null, null, null, null)));
+    }
+
+    @Test
+    void theFacetsListEachRoleCompanyAndTagOnce() {
+        var service = service(false);
+        service.create(TENANT, "o", new ContactRequest("Persona Uno", "Supervisor", null, null, null, null, null,
+                null, "Empresa Ejemplo", null, null, List.of("Turno"), "user-1", null));
+        ContactView two = service.create(TENANT, "o", new ContactRequest("Persona Dos", "supervisor", null, null,
+                null, null, null, null, "empresa ejemplo", null, null, List.of("turno", "Noche"), null, null,
+                "11.111.111-1"));
+
+        ContactFacets facets = service.facets(TENANT);
+        assertEquals(2, facets.total());
+        assertEquals(List.of("Supervisor"), facets.roles());
+        assertEquals(List.of(new ContactFacets.Company("Empresa Ejemplo", "111111111", "RUT")), facets.companies(),
+                "the company keeps the tax id one of its contacts gave");
+        assertEquals(List.of("Noche", "Turno"), facets.tags());
+        assertEquals(1, facets.members().size());
+        assertEquals("user-1", facets.members().get(0).memberUserId());
+        assertFalse(facets.members().stream().anyMatch(m -> m.contactId().equals(two.id())));
+    }
+
+    private static List<String> names(ContactService service, ContactFilter filter) {
+        return service.page(TENANT, filter, null, 10).items().stream().map(ContactView::name).toList();
     }
 
     private static ContactRequest member(String name, String memberUserId) {

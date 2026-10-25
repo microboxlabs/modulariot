@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jsonStrings, parseJson } from "./json-code-editor";
+import { jsonSlot, jsonStrings, parseJson } from "./json-code-editor";
 
 describe("jsonStrings", () => {
   it("names the property of each value, and the array's for its items", () => {
@@ -25,6 +25,43 @@ describe("jsonStrings", () => {
       "pan",
     ]);
     expect(strings.at(-1)?.key).toBe("template");
+  });
+});
+
+describe("jsonStrings keys", () => {
+  it("gives each key the property its object sits under and the type of its value", () => {
+    const text = `[{"after1": 0, "channel": ["email"], "entries": [{"role": "x"}]}]`;
+    expect(
+      jsonStrings(text)
+        .filter((s) => s.isKey)
+        .map((s) => [s.owner, s.value, s.type])
+    ).toEqual([
+      ["", "after1", "number"],
+      ["", "channel", "array"],
+      ["", "entries", "array"],
+      ["entries", "role", "string"],
+    ]);
+  });
+});
+
+describe("jsonSlot", () => {
+  it("tells a key slot, with the keys already written, from a value slot", () => {
+    expect(jsonSlot(`[{"after": 0, `)).toEqual({
+      kind: "key",
+      owner: "",
+      present: ["after"],
+    });
+    expect(jsonSlot(`[{"entries": [{`)).toEqual({
+      kind: "key",
+      owner: "entries",
+      present: [],
+    });
+    expect(jsonSlot(`[{"channel": `)).toEqual({
+      kind: "value",
+      key: "channel",
+    });
+    expect(jsonSlot(`[{"to": ["a", `)).toEqual({ kind: "value", key: "to" });
+    expect(jsonSlot(`[{"after": 0`)).toBeNull();
   });
 });
 

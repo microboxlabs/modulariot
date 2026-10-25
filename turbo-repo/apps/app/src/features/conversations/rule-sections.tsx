@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { JsonValues } from "@/features/common/components/json-code-editor";
+import type {
+  JsonKey,
+  JsonKeys,
+  JsonType,
+  JsonValues,
+} from "@/features/common/components/json-code-editor";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { EditMode } from "@/features/symptoms/maintainer/level-row";
@@ -22,6 +27,35 @@ import SpecCode, { CodeToggle } from "./spec-code";
 
 const flat = (issues: Record<number, { messages: string[] }>) =>
   Object.values(issues).flatMap((i) => i.messages);
+
+const TYPE_NAMES: Record<JsonType, string> = {
+  string: "jsonTypeString",
+  number: "jsonTypeNumber",
+  boolean: "jsonTypeBoolean",
+  array: "jsonTypeArray",
+  object: "jsonTypeObject",
+};
+
+/** The properties of the objects in a section's JSON, by where they sit; each detail is an i18n key. */
+function jsonKeys(
+  objects: Record<string, [string, JsonType, string][]>,
+  d: I18nRecord
+): JsonKeys {
+  const keys = (list: [string, JsonType, string][]): JsonKey[] =>
+    list.map(([label, type, detail]) => ({
+      label,
+      type,
+      detail: trDynamic(detail, d),
+    }));
+  return {
+    objects: Object.fromEntries(
+      Object.entries(objects).map(([owner, list]) => [owner, keys(list)])
+    ),
+    unknown: (key) => tr("jsonUnknownKey", d, { key }),
+    wrongType: (key, type) =>
+      tr("jsonWrongType", d, { key, type: trDynamic(TYPE_NAMES[type], d) }),
+  };
+}
 
 /** "A quién": the rule's groups of recipients, as a form or as JSON. */
 export function GroupsSection({
@@ -63,6 +97,28 @@ export function GroupsSection({
     }),
     [d, fields]
   );
+  const keys = useMemo(
+    () =>
+      jsonKeys(
+        {
+          "": [
+            ["id", "string", "jsonKeyGroupId"],
+            ["name", "string", "jsonKeyGroupName"],
+            ["entries", "array", "jsonKeyEntries"],
+          ],
+          entries: [
+            ["role", "string", "jsonKeyRole"],
+            ["address", "string", "jsonKeyAddress"],
+            ["channel", "string", "jsonKeyEntryChannel"],
+            ["name", "string", "jsonKeyEntryName"],
+            ["path", "string", "jsonKeyPath"],
+            ["contacts", "string", "jsonKeyContacts"],
+          ],
+        },
+        d
+      ),
+    [d]
+  );
   const messages = Object.values(errors).flatMap((g) => [
     ...g.messages,
     ...Object.values(g.entries).flat(),
@@ -93,6 +149,7 @@ export function GroupsSection({
         <SpecCode<RecipientGroup>
           value={spec.groups}
           values={values}
+          keys={keys}
           messages={messages}
           readOnly={readOnly}
           label={tr("sectionAudience", d)}
@@ -161,6 +218,24 @@ export function StepsSection({
     }),
     [d, templates, spec.groups]
   );
+  const keys = useMemo(
+    () =>
+      jsonKeys(
+        {
+          "": [
+            ["after", "number", "jsonKeyAfter"],
+            ["channel", "string", "jsonKeyChannel"],
+            ["template", "string", "jsonKeyTemplate"],
+            ["connection", "string", "jsonKeyConnection"],
+            ["to", "array", "jsonKeyTo"],
+            ["waitForReply", "number", "jsonKeyWaitForReply"],
+            ["onReply", "string", "jsonKeyOnReply"],
+          ],
+        },
+        d
+      ),
+    [d]
+  );
   return (
     <NumberedSection
       number={3}
@@ -185,6 +260,7 @@ export function StepsSection({
         <SpecCode<RuleStep>
           value={spec.steps}
           values={values}
+          keys={keys}
           messages={flat(errors)}
           readOnly={readOnly}
           label={tr("sectionSteps", d)}

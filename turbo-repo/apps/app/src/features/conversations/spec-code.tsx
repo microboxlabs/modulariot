@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import JsonCodeEditor, {
+  type JsonKeys,
   type JsonValues,
 } from "@/features/common/components/json-code-editor";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -50,6 +51,7 @@ export function CodeToggle({
 export default function SpecCode<T>({
   value,
   values,
+  keys,
   normalize,
   messages,
   readOnly,
@@ -60,6 +62,7 @@ export default function SpecCode<T>({
 }: Readonly<{
   value: T[];
   values: Record<string, JsonValues>;
+  keys: JsonKeys;
   /** The list with every part present, as the rule keeps it. */
   normalize: (list: Record<string, unknown>[]) => T[];
   /** The validator's findings for this section. */
@@ -76,6 +79,7 @@ export default function SpecCode<T>({
       <JsonCodeEditor
         value={value}
         values={values}
+        keys={keys}
         readOnly={readOnly}
         ariaLabel={label}
         parseError={tr("jsonInvalid", d)}

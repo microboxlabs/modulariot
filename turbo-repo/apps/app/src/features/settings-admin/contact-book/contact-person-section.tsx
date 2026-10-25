@@ -39,7 +39,8 @@ export interface PersonDraft {
 /** The member's name; the email when the directory has none. */
 export function memberName(member: OrgMember): string {
   const full = [member.firstName, member.lastName]
-    .filter((part) => part?.trim())
+    .map((part) => part?.trim())
+    .filter(Boolean)
     .join(" ");
   return member.displayName?.trim() || full || member.email;
 }

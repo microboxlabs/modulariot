@@ -17,7 +17,7 @@ import ContactChannelsSection, {
   emptyChannelValues,
   type ChannelValues,
 } from "./contact-channels-section";
-import { normalizeRut } from "./contact-duplicates";
+import { displayRut, normalizeRut } from "./contact-duplicates";
 import { inputValidationColor } from "./input-validation";
 import {
   channelsFromContact,
@@ -64,11 +64,11 @@ function draftFromContact(contact: BookContact | null): ContactDraft {
       source: contact && !contact.orgMemberId ? "external" : "org",
       orgMemberId: contact?.orgMemberId,
       name: contact?.name ?? "",
-      rut: contact?.rut ?? "",
+      rut: contact?.rut ? displayRut(contact.rut) : "",
     },
     badgeIds: contact?.badgeIds ?? [],
     company: contact?.company ?? "",
-    companyRut: contact?.companyRut ?? "",
+    companyRut: contact?.companyRut ? displayRut(contact.companyRut) : "",
     email: contact?.email ?? "",
     role: contact?.role ?? "",
     channels: contact

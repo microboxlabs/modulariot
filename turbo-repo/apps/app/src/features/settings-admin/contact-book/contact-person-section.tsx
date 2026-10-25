@@ -13,6 +13,7 @@ import InitialIdentifier from "@/features/common/components/user-related/initial
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { OrgMember } from "../types";
+import { maskRut } from "./contact-duplicates";
 import ContactOrganizationSection from "./contact-organization-section";
 import { inputValidationColor } from "./input-validation";
 import { normalizeLabel } from "./taxonomy-store";
@@ -231,7 +232,7 @@ export default function ContactPersonSection({
           color={inputValidationColor(value.rut, !rutInvalid)}
           placeholder="12.345.678-5"
           value={value.rut}
-          onChange={(e) => onChange({ ...value, rut: e.target.value })}
+          onChange={(e) => onChange({ ...value, rut: maskRut(e.target.value) })}
         />
       </label>
       {rutInvalid && (
@@ -255,7 +256,7 @@ export default function ContactPersonSection({
           color={inputValidationColor(companyRut, !companyRutInvalid)}
           placeholder="76.123.456-7"
           value={companyRut}
-          onChange={(e) => onCompanyRutChange(e.target.value)}
+          onChange={(e) => onCompanyRutChange(maskRut(e.target.value))}
         />
       </label>
       {companyRutInvalid && (

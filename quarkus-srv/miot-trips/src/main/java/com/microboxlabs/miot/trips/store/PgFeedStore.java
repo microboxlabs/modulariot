@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgFeedStore implements FeedStore {
 
+    private static final String SELECT = "SELECT ";
     private static final String PROFILE_COLUMNS = """
             tenant_code, feed_key, name, stages, arrival_stage, monitor_key,
             required_resources, active, created_at, created_by, updated_at, updated_by""";
@@ -50,14 +51,14 @@ public class PgFeedStore implements FeedStore {
 
     @Override
     public Optional<FeedProfile> profile(String tenantCode, String feedKey) {
-        return first(query(pool.get(), "SELECT " + PROFILE_COLUMNS
+        return first(query(pool.get(), SELECT + PROFILE_COLUMNS
                 + " FROM miot_trips.feed_profile WHERE tenant_code = $1 AND feed_key = $2",
                 Tuple.of(tenantCode, feedKey)), PgFeedStore::profile);
     }
 
     @Override
     public List<FeedProfile> profiles(String tenantCode) {
-        return query(pool.get(), "SELECT " + PROFILE_COLUMNS
+        return query(pool.get(), SELECT + PROFILE_COLUMNS
                 + " FROM miot_trips.feed_profile WHERE tenant_code = $1 ORDER BY feed_key", Tuple.of(tenantCode))
                 .stream().map(PgFeedStore::profile).toList();
     }
@@ -68,7 +69,7 @@ public class PgFeedStore implements FeedStore {
                 INSERT INTO miot_trips.feed_profile
                     (tenant_code, feed_key, name, stages, arrival_stage, monitor_key,
                      required_resources, active, created_by, updated_by)
-                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $9)
+                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $10)
                 ON CONFLICT (tenant_code, feed_key) DO UPDATE SET
                     name = EXCLUDED.name, stages = EXCLUDED.stages, arrival_stage = EXCLUDED.arrival_stage,
                     monitor_key = EXCLUDED.monitor_key,
@@ -78,13 +79,13 @@ public class PgFeedStore implements FeedStore {
                 Tuple.tuple().addString(p.tenantCode()).addString(p.feedKey()).addString(p.name())
                         .addString(Pg.json(p.stages())).addString(p.arrivalStage()).addString(p.monitor())
                         .addArrayOfString(p.requiredResources().toArray(String[]::new))
-                        .addBoolean(p.active()).addString(p.updatedBy()))
+                        .addBoolean(p.active()).addString(p.createdBy()).addString(p.updatedBy()))
                 .stream().map(PgFeedStore::profile).findFirst().orElseThrow();
     }
 
     @Override
     public Optional<FeedService> service(String tenantCode, String feedKey, String externalCode) {
-        return first(query(pool.get(), "SELECT " + SERVICE_COLUMNS + " FROM miot_trips.feed_service"
+        return first(query(pool.get(), SELECT + SERVICE_COLUMNS + " FROM miot_trips.feed_service"
                 + " WHERE tenant_code = $1 AND feed_key = $2 AND external_code = $3" + Pg.lock(),
                 Tuple.of(tenantCode, feedKey, externalCode)), PgFeedStore::service);
     }

@@ -29,7 +29,7 @@ public class WhatsAppInboundStatusJob implements ModulithJobHandler {
 
     /**
      * {@code ingest} returns false when no stored message has the status's wamid; {@code tenantOf} names the
-     * tenant whose job the status belongs to.
+     * tenant of that message, or null while the message has not been stored.
      */
     public WhatsAppInboundStatusJob(Predicate<StatusUpdate> ingest, Function<StatusUpdate, String> tenantOf) {
         this.ingest = ingest;
@@ -50,7 +50,11 @@ public class WhatsAppInboundStatusJob implements ModulithJobHandler {
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         StatusUpdate status = WhatsAppWebhookJobs.JSON.convertValue(payload, StatusUpdate.class);
-        if (!WhatsAppWebhookJobs.carries(tenantCode, tenantOf.apply(status))) {
+        String messageTenant = tenantOf.apply(status);
+        if (messageTenant == null) {
+            throw new IllegalStateException("No message with wamid " + status.wamid() + " is stored yet");
+        }
+        if (!WhatsAppWebhookJobs.carries(tenantCode, messageTenant)) {
             return JobOutcome.skipped("The message " + status.wamid() + " is not this tenant's");
         }
         if (!ingest.test(status)) {

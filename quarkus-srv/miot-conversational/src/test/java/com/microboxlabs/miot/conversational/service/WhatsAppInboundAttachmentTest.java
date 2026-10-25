@@ -94,6 +94,42 @@ class WhatsAppInboundAttachmentTest {
     }
 
     @Test
+    void aDuplicateIdFromAnotherTenantDoesNotReturnItsReply() {
+        Conversation foreign = store.put(InMemoryConversations.conversation(
+                "00000000-0000-0000-0000-00000000000f", "tenant-2", DRIVER,
+                ContextKind.SERVICE, "SVC-2", at(0)));
+        store.messageRepository.append(new Message(
+                "00000000-0000-0000-0000-0000000000f1", foreign.id(),
+                MessageDirection.INBOUND, MessageRole.DRIVER, MessageType.TEXT, "reply", null,
+                null, null, null, "wamid.FOREIGN", MessageStatus.RECEIVED, null, null, null, null,
+                Map.of(), null, null, null, at(0), Channel.WHATSAPP, DRIVER, null, "run-2", null));
+        InboundMessage forged = MetaWebhookParser.parse(webhook("wamid.FOREIGN",
+                "\"type\":\"text\",\"text\":{\"body\":\"forged\"}")
+                .getBytes(StandardCharsets.UTF_8)).messages().get(0);
+
+        WhatsAppInboundService.Ingested result = service.ingestMessage(forged);
+
+        assertNull(result.reply());
+        assertTrue(result.skipped().contains("another organization"));
+    }
+
+    @Test
+    void anOutboundIdCannotBeTreatedAsAnInboundDuplicate() {
+        Conversation mine = store.put(InMemoryConversations.conversation(
+                "00000000-0000-0000-0000-00000000000e", TENANT, DRIVER,
+                ContextKind.SERVICE, "SVC-1", at(0)));
+        outbound(mine.id(), "wamid.OUTBOUND", DRIVER);
+        InboundMessage forged = MetaWebhookParser.parse(webhook("wamid.OUTBOUND",
+                "\"type\":\"text\",\"text\":{\"body\":\"forged\"}")
+                .getBytes(StandardCharsets.UTF_8)).messages().get(0);
+
+        WhatsAppInboundService.Ingested result = service.ingestMessage(forged);
+
+        assertNull(result.reply());
+        assertTrue(result.skipped().contains("outbound message"));
+    }
+
+    @Test
     void aDuplicateKeepsTheStepOfTheMessageItAnswers() {
         Conversation mine = store.put(InMemoryConversations.conversation(
                 "00000000-0000-0000-0000-00000000000e", TENANT, DRIVER, ContextKind.SERVICE, "SVC-1", at(0)));

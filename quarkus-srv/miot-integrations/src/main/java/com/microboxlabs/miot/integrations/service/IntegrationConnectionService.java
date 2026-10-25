@@ -126,7 +126,9 @@ public class IntegrationConnectionService {
         if (existing == null) {
             return null;
         }
-        updateSecrets(tenantCode, existing, req.token(), req.secrets());
+        String credentialId = req.credentialProfileId() == null
+                ? existing.credentialProfileId() : req.credentialProfileId();
+        updateSecrets(tenantCode, credentialId, req.token(), req.secrets());
         String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
         return connectionRepository.update(
                 tenantCode, connectionId, req.name(), baseUrl, req.credentialProfileId(), req.metadata());
@@ -153,7 +155,7 @@ public class IntegrationConnectionService {
      * change is part of the update's success contract.
      */
     private void updateSecrets(
-            String tenantCode, IntegrationConnection existing, String token, Map<String, String> secrets) {
+            String tenantCode, String credentialId, String token, Map<String, String> secrets) {
         Map<String, Object> updates = new LinkedHashMap<>();
         if (secrets != null) {
             secrets.forEach((key, value) -> {
@@ -168,9 +170,9 @@ public class IntegrationConnectionService {
         if (updates.isEmpty()) {
             return;
         }
-        CredentialProfile updated = existing.credentialProfileId() == null
+        CredentialProfile updated = credentialId == null
                 ? null
-                : credentialProfileService.mergeSecret(tenantCode, existing.credentialProfileId(), updates);
+                : credentialProfileService.mergeSecret(tenantCode, credentialId, updates);
         if (updated == null) {
             throw new IllegalStateException(
                     "Cannot store the secret: the connection has no resolvable credential profile");

@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /** The Meta webhook as integration jobs: one per event, on the right tenant, and the handlers' outcomes. */
@@ -82,12 +83,37 @@ class WhatsAppWebhookJobsTest {
 
     @Test
     void anOrganizationsConnectionCarriesOnlyItsOwnEvents() {
-        assertEquals(2, jobs.enqueue(DELIVERY, ORG));
+        assertEquals(3, jobs.enqueue(DELIVERY, ORG));
         assertEquals(List.of(ORG), List.copyOf(enqueued.keySet()));
+        assertEquals(List.of("wa:msg:wamid.IN1", "wa:status:wamid.OUT1:READ",
+                "wa:status:wamid.GONE:DELIVERED"),
+                enqueued.get(ORG).stream().map(AsyncJobSpec::dedupeKey).toList());
 
         enqueued.clear();
-        assertEquals(0, jobs.enqueue(DELIVERY, "tenant-b"));
-        assertTrue(enqueued.isEmpty());
+        assertEquals(1, jobs.enqueue(DELIVERY, "tenant-b"));
+        assertEquals(List.of("wa:status:wamid.GONE:DELIVERED"),
+                enqueued.get("tenant-b").stream().map(AsyncJobSpec::dedupeKey).toList());
+    }
+
+    @Test
+    void anUnknownStatusWaitsInItsConnectionScopeAndChecksOwnershipOnRetry() {
+        AtomicReference<String> owner = new AtomicReference<>();
+        WhatsAppWebhookJobs pending = new WhatsAppWebhookJobs(this::enqueue, kicked::add,
+                pnid -> null, wamid -> owner.get());
+        assertEquals(2, pending.enqueue(DELIVERY, ORG));
+        Map<String, Object> payload = enqueued.get(ORG).get(0).payload();
+        List<StatusUpdate> applied = new ArrayList<>();
+        WhatsAppInboundStatusJob handler = new WhatsAppInboundStatusJob(s -> {
+            applied.add(s);
+            return true;
+        }, pending::tenantOf);
+
+        assertThrows(IllegalStateException.class, () -> handler.handle(ORG, payload));
+        owner.set("tenant-b");
+        assertEquals(JobOutcome.SKIPPED, handler.handle(ORG, payload).outcome());
+        owner.set(ORG);
+        assertEquals(JobOutcome.SUCCEEDED, handler.handle(ORG, payload).outcome());
+        assertEquals(1, applied.size());
     }
 
     @Test
@@ -160,6 +186,22 @@ class WhatsAppWebhookJobsTest {
         // The platform scope carries any event: a status waits there until its message is stored.
         messages.handle(PlatformScope.TENANT, enqueued.get(ORG).get(0).payload());
         assertEquals(1, stored.size());
+    }
+
+    @Test
+    void anOrganizationJobNeverPublishesAnotherOrganizationsReply() {
+        jobs.enqueue(DELIVERY, ORG);
+        ConversationReplyReceived foreign = new ConversationReplyReceived("tenant-b", "c2", "m2", null,
+                "run-2", null, Channel.WHATSAPP, "+56900000001", "reply", null, OffsetDateTime.now());
+        List<ConversationReplyReceived> published = new ArrayList<>();
+        WhatsAppInboundMessageJob handler = new WhatsAppInboundMessageJob(
+                m -> new Ingested(foreign, true, null), published::add, jobs::tenantOf);
+        Map<String, Object> payload = enqueued.get(ORG).get(0).payload();
+
+        assertEquals(JobOutcome.SKIPPED, handler.handle(ORG, payload).outcome());
+        assertTrue(published.isEmpty());
+        assertEquals(JobOutcome.SUCCEEDED, handler.handle(PlatformScope.TENANT, payload).outcome());
+        assertEquals(List.of(foreign), published);
     }
 
     @Test

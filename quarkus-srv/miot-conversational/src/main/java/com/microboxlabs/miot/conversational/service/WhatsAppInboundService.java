@@ -155,7 +155,7 @@ public class WhatsAppInboundService {
                 message.contactName()));
         if (persisted == null) {
             LOG.debugf("Duplicate inbound WhatsApp message %s — already ingested", message.wamid());
-            return duplicate(message, occurredAt);
+            return duplicate(message, occurredAt, tenantCode);
         }
 
         return new Ingested(new ConversationReplyReceived(
@@ -173,16 +173,22 @@ public class WhatsAppInboundService {
     }
 
     /** The reply of a message already stored, with the step of the message it answers, as the first time. */
-    private Ingested duplicate(InboundMessage message, OffsetDateTime occurredAt) {
+    private Ingested duplicate(InboundMessage message, OffsetDateTime occurredAt, String tenantCode) {
         Message stored = messageRepository.findByProviderMessageId(Channel.WHATSAPP, message.wamid());
         Conversation conversation = stored == null ? null : conversationRepository.findById(stored.conversationId());
-        if (conversation == null) {
-            return new Ingested(null, true, null);
+        if (!isOwnInboundDuplicate(stored, conversation, tenantCode)) {
+            return Ingested.skip("The message id belongs to another organization or an outbound message");
         }
         Message answered = stored.inReplyTo() == null ? null : messageRepository.findById(stored.inReplyTo());
         return new Ingested(new ConversationReplyReceived(conversation.tenantCode(), conversation.id(), stored.id(),
                 stored.inReplyTo(), stored.runId(), answered == null ? null : answered.step(), Channel.WHATSAPP,
                 message.fromE164(), message.body(), message.buttonPayload(), occurredAt), true, null);
+    }
+
+    /** A shared provider id may belong to another tenant or to an outbound message. */
+    private static boolean isOwnInboundDuplicate(Message stored, Conversation conversation, String tenantCode) {
+        return stored != null && stored.direction() == MessageDirection.INBOUND
+                && conversation != null && tenantCode.equals(conversation.tenantCode());
     }
 
     /** The button payload, if any, and the tenant of the connection whose number received the message. */

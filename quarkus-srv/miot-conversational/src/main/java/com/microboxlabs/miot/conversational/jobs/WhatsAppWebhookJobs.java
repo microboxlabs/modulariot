@@ -36,8 +36,8 @@ import org.jboss.logging.Logger;
 /**
  * Turns a Meta webhook delivery into one integration job per event, on the modulith lane: an inbound message
  * ({@value #MESSAGE_JOB}) or a status ({@value #STATUS_JOB}). A message's job belongs to the organization of the
- * number that received it, a status's to the organization of the message it updates; anything without one goes
- * to the platform scope, where its job explains why nothing was stored.
+ * number that received it, a status's to the organization of the message it updates. A status that arrives before
+ * its message is stored waits in the signing connection's scope; an unknown number goes to the platform scope.
  */
 @ApplicationScoped
 public class WhatsAppWebhookJobs {
@@ -100,7 +100,10 @@ public class WhatsAppWebhookJobs {
                     spec(MESSAGE_JOB, m.wamid(), "wa:msg:" + m.wamid(), m));
         }
         for (StatusUpdate s : parsed.statuses()) {
-            skipped += add(byTenant, connectionTenant, tenantOf(s),
+            String tenant = tenantOf(s);
+            // A status may arrive before markSent stores its wamid. Keep it in the signing
+            // connection's scope until the job can resolve its actual tenant on retry.
+            skipped += add(byTenant, connectionTenant, tenant == null ? connectionTenant : tenant,
                     spec(STATUS_JOB, s.wamid(), "wa:status:" + s.wamid() + ":" + s.status(), s));
         }
         if (skipped > 0) {
@@ -122,9 +125,9 @@ public class WhatsAppWebhookJobs {
         return tenantOr(numberTenant, message.phoneNumberId());
     }
 
-    /** The tenant a status's job belongs to: the organization of the message it updates, else the platform. */
+    /** The tenant of the message a status updates, or null until that message is stored. */
     public String tenantOf(StatusUpdate status) {
-        return tenantOr(messageTenant, status.wamid());
+        return status.wamid() == null ? null : messageTenant.apply(status.wamid());
     }
 
     /**

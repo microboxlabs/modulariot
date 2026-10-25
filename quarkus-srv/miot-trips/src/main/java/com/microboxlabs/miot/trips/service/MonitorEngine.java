@@ -9,6 +9,7 @@ import com.microboxlabs.miot.trips.domain.MonitorSelector;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
+import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.monitor.MonitorLanguage;
 import com.microboxlabs.miot.trips.monitor.MonitorSchema;
 import com.microboxlabs.miot.trips.store.AssignmentStore;
@@ -230,7 +231,7 @@ public class MonitorEngine implements TripChanges {
             return;
         }
         run.touched.add(tenant + "|" + tripId);
-        if (finished(trip)) {
+        if (finished(trip) && !"stage".equals(e.on()) && !"command".equals(e.on())) {
             return;
         }
         if (TIMER.equals(e.on()) && !due(e, state.get())) {
@@ -435,7 +436,14 @@ public class MonitorEngine implements TripChanges {
             LOG.warnf("Trip %s asked for monitor %s, which has no published version", trip.id(), key);
             return Optional.empty();
         }
-        MonitorRun.State state = runs.bind(tenant, UUID.fromString(trip.id()), key, m.get().version(), e.actor());
+        UUID tripId = UUID.fromString(trip.id());
+        MonitorRun.State state = runs.bind(tenant, tripId, key, m.get().version(), e.actor());
+        if (stageStore.listBySubject(tenant, Stage.SUBJECT_TRIP, tripId).isEmpty()) {
+            for (TripMonitor.StagePlan planned : m.get().plan()) {
+                stages.add(tenant, e.actor(), tripId, new StageRequest(planned.stageType(),
+                        planned.serviceStatus(), null, null, null, null));
+            }
+        }
         audit.log(tenant, e.actor(), "monitor.bound", "trip", trip.id(), null,
                 Map.of("monitor", key, "version", m.get().version()));
         return Optional.of(state);
@@ -516,7 +524,7 @@ public class MonitorEngine implements TripChanges {
         Map<String, Object> d = details == null ? Map.of() : details;
         String[] onKind = switch (action) {
             case "trip.created" -> new String[] {"plan", "created"};
-            case "trip.updated" -> new String[] {"plan", "trip"};
+            case "trip.updated", "trip.cancelled" -> new String[] {"plan", "trip"};
             case "trip.mandate_linked", "trip.mandate_unlinked" -> new String[] {"plan", "mandates"};
             case "stage.added", "stage.updated" -> new String[] {"plan", "stages"};
             case "assignment.created", "assignment.ended" -> new String[] {"plan", "resources"};

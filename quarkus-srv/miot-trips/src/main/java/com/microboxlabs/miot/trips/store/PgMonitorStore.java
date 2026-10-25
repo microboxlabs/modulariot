@@ -77,7 +77,7 @@ public class PgMonitorStore implements MonitorStore {
                 INSERT INTO miot_trips.trip_monitor
                     (tenant_code, monitor_key, version, status, name, description, plan, params, rules,
                      created_by, updated_by)
-                SELECT $1, $2, COALESCE(MAX(version), 0) + 1, 'draft', $3, $4, $5::text::jsonb, $6::text::jsonb,
+                SELECT $1::varchar, $2::varchar, COALESCE(MAX(version), 0) + 1, 'draft', $3, $4, $5::text::jsonb, $6::text::jsonb,
                        $7::text::jsonb, $8, $8
                 FROM miot_trips.trip_monitor WHERE tenant_code = $1 AND monitor_key = $2
                 ON CONFLICT (tenant_code, monitor_key) WHERE status = 'draft' DO UPDATE SET

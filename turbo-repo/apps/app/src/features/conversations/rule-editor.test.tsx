@@ -53,6 +53,7 @@ const api = vi.hoisted(() => ({
   simulateRule: vi.fn(),
   refreshRules: vi.fn(),
   useConnectionChannel: vi.fn(() => ({ data: undefined })),
+  useOrgMetaTemplates: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock("./conversations-api", () => api);
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({

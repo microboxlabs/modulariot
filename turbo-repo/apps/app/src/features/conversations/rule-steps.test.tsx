@@ -88,8 +88,8 @@ describe("RuleSteps", () => {
       (within(first).getByLabelText("Canal") as HTMLSelectElement).value
     ).toBe("whatsapp");
     expect(
-      (within(first).getByLabelText("Plantilla") as HTMLSelectElement).value
-    ).toBe("panic-check");
+      (within(first).getByLabelText("Plantilla") as HTMLInputElement).value
+    ).toBe(TEMPLATES.find((t) => t.key === "panic-check")?.name);
     expect(chip(first, "Conductores").getAttribute("aria-pressed")).toBe(
       "true"
     );

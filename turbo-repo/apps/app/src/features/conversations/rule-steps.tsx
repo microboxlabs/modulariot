@@ -1,9 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { HiPlus, HiTrash } from "react-icons/hi";
+import { HiEye, HiEyeOff, HiPlus, HiTrash } from "react-icons/hi";
 import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -12,13 +12,15 @@ import { PillNumber, PillSelect } from "@/features/symptoms/maintainer/ui/pill";
 import { channelLogo } from "./channel-icon";
 import type {
   ConversationTemplate,
+  MetaTemplate,
   OnReply,
   RecipientGroup,
   RuleChannel,
   RuleStep,
 } from "./conversations-types";
 import type { StepIssues } from "./rule-findings";
-import { useConnectionChannel } from "./conversations-api";
+import { useConnectionChannel, useOrgMetaTemplates } from "./conversations-api";
+import TemplatePicker, { TemplatePreview } from "./template-picker";
 import {
   emptyStep,
   groupLabel,
@@ -223,6 +225,7 @@ function StepCard({
   handle,
   templates,
   groups,
+  meta,
   issues,
   readOnly,
   d,
@@ -233,6 +236,7 @@ function StepCard({
   handle: ReactNode;
   templates: ConversationTemplate[];
   groups: RecipientGroup[];
+  meta: MetaTemplate[];
   issues: StepIssues | undefined;
   readOnly: boolean;
   d: I18nRecord;
@@ -240,8 +244,8 @@ function StepCard({
   onRemove: () => void;
 }>) {
   const viaConnection = !writesToGroups(step.channel);
-  const knownTemplate =
-    step.template === "" || templates.some((t) => t.key === step.template);
+  const [previewing, setPreviewing] = useState(false);
+  const template = templates.find((t) => t.key === step.template);
   const emptyLabel = viaConnection
     ? tr("stepTemplateOptional", d)
     : tr("pickTemplate", d);
@@ -261,20 +265,34 @@ function StepCard({
         }))}
       />
       <span>{tr("stepWithTemplate", d)}</span>
-      <PillSelect
-        ariaLabel={tr("stepTemplate", d)}
-        className={issues?.template ? ERROR_PILL : ""}
-        disabled={readOnly}
+      <TemplatePicker
         value={step.template}
-        onChange={(template) => onSet({ template })}
-        options={[
-          { value: "", label: emptyLabel },
-          ...(knownTemplate
-            ? []
-            : [{ value: step.template, label: step.template }]),
-          ...templates.map((t) => ({ value: t.key, label: t.name })),
-        ]}
+        templates={templates}
+        channel={step.channel}
+        meta={meta}
+        emptyLabel={emptyLabel}
+        invalid={issues?.template ?? false}
+        readOnly={readOnly}
+        d={d}
+        onChange={(key) => onSet({ template: key })}
       />
+      {template && (
+        <button
+          type="button"
+          aria-label={
+            previewing ? tr("hideTemplate", d) : tr("showTemplate", d)
+          }
+          aria-pressed={previewing}
+          className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+          onClick={() => setPreviewing(!previewing)}
+        >
+          {previewing ? (
+            <HiEyeOff className="h-4 w-4" />
+          ) : (
+            <HiEye className="h-4 w-4" />
+          )}
+        </button>
+      )}
       <span aria-hidden className="text-gray-400">
         →
       </span>
@@ -312,6 +330,16 @@ function StepCard({
           {(issues?.messages ?? []).map((e) => (
             <FieldError key={e} text={e} />
           ))}
+        </div>
+      )}
+      {template && previewing && (
+        <div className="w-full border-t border-gray-100 pt-2 dark:border-gray-700">
+          <TemplatePreview
+            template={template}
+            channel={step.channel}
+            meta={meta}
+            d={d}
+          />
         </div>
       )}
     </div>
@@ -477,6 +505,9 @@ export default function RuleSteps({
   onChange: (steps: RuleStep[]) => void;
 }>) {
   const rows = useRowKeys(steps.length);
+  const { data: meta } = useOrgMetaTemplates(
+    steps.some((s) => s.channel === "whatsapp" || s.channel === "preferred")
+  );
   const set = (i: number, patch: Partial<RuleStep>) => {
     if (patch.channel && patch.channel !== steps[i].channel) {
       onChange(withChannel(steps, i, patch.channel));
@@ -522,6 +553,7 @@ export default function RuleSteps({
                   handle={handle}
                   templates={templates}
                   groups={groups}
+                  meta={meta ?? []}
                   issues={errors[i]}
                   readOnly={readOnly}
                   d={d}

@@ -5,6 +5,7 @@ import type { RuleStep } from "./conversations-types";
 
 const api = vi.hoisted(() => ({
   useConnectionChannel: vi.fn(),
+  useOrgMetaTemplates: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock("./conversations-api", () => api);
 
@@ -56,7 +57,9 @@ describe("RuleSteps, steps that call a connection", () => {
       />
     );
     expect(api.useConnectionChannel).toHaveBeenCalledWith("slack");
-    expect(screen.getByRole("option", { name: "Sin plantilla" })).toBeTruthy();
+    expect(screen.getByLabelText("Plantilla").getAttribute("placeholder")).toBe(
+      "Sin plantilla"
+    );
     expect(screen.queryByRole("group", { name: /Grupos/ })).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Conexión"), {

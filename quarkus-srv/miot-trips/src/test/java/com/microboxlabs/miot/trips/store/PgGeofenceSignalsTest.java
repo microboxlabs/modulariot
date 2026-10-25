@@ -169,7 +169,7 @@ class PgGeofenceSignalsTest {
     void repeatedFramesCannotConfirmAMoveAndMissingShapesCannotMeanDeparture() {
         UUID tripId = tripWithTruck("TEST-123");
         GeofenceSignals checked = new GeofenceSignals(live, geofences,
-                (tenantCode, id, kind, fence, time) -> {}, tx, Clock.systemUTC(), true, 2, Duration.ZERO);
+                (tenantCode, id, kind, fence, time) -> {}, tx, Clock.systemUTC(), new GeofenceSignals.Settings(true, 2, Duration.ZERO));
         checked.refresh();
         String first = signal("TEST-123", -70.6, -33.4, tenant, at);
         assertEquals(0, checked.accept(first));
@@ -189,10 +189,10 @@ class PgGeofenceSignalsTest {
         UUID tripId = tripWithTruck("TEST-REPLICA");
         java.util.ArrayList<String> edges = new java.util.ArrayList<>();
         GeofenceSignals.Sink sink = (t, id, kind, fence, time) -> edges.add(kind);
-        GeofenceSignals first = new GeofenceSignals(live, geofences, sink, tx, Clock.systemUTC(), true, 1,
-                Duration.ofMinutes(10));
-        GeofenceSignals second = new GeofenceSignals(live, geofences, sink, tx, Clock.systemUTC(), true, 1,
-                Duration.ofMinutes(10));
+        GeofenceSignals first = new GeofenceSignals(live, geofences, sink, tx, Clock.systemUTC(),
+                new GeofenceSignals.Settings(true, 1, Duration.ofMinutes(10)));
+        GeofenceSignals second = new GeofenceSignals(live, geofences, sink, tx, Clock.systemUTC(),
+                new GeofenceSignals.Settings(true, 1, Duration.ofMinutes(10)));
         first.refresh();
         second.refresh();
         assertEquals(1, first.accept(signal("TEST-REPLICA", -70.6, -33.4, tenant, at)));
@@ -233,7 +233,8 @@ class PgGeofenceSignalsTest {
             }
         };
         GeofenceSignals checked = new GeofenceSignals(startupLive, geofences,
-                (t, id, kind, fence, time) -> {}, tx, Clock.systemUTC(), true, 1, Duration.ofMinutes(10));
+                (t, id, kind, fence, time) -> {}, tx, Clock.systemUTC(),
+                new GeofenceSignals.Settings(true, 1, Duration.ofMinutes(10)));
         java.util.concurrent.atomic.AtomicInteger acks = new java.util.concurrent.atomic.AtomicInteger();
         java.util.concurrent.atomic.AtomicInteger nacks = new java.util.concurrent.atomic.AtomicInteger();
         byte[] payload = signal("TEST-START", -70.6, -33.4, tenant, at)

@@ -71,6 +71,9 @@ public class GeofenceSignals {
         }
     }
 
+    public record Settings(boolean enabled, int confirm, Duration shapesEvery) {
+    }
+
     private record Pending(Integer zone, int frames) {
     }
 
@@ -82,13 +85,14 @@ public class GeofenceSignals {
     private final boolean enabled;
     private final int confirm;
     private final Duration shapesEvery;
-    private volatile Map<String, List<Watched>> byAsset = Map.of();
+    // Guarded by this: refresh and accept synchronize every access, including Watched mutations.
+    private Map<String, List<Watched>> byAsset = Map.of();
     private final Map<Integer, GeoShape> shapes = new ConcurrentHashMap<>();
     private final Map<UUID, Pending> pending = new ConcurrentHashMap<>();
     private final Map<String, Instant> lastFrame = new ConcurrentHashMap<>();
-    private volatile Instant shapesLoadedAt = Instant.EPOCH;
+    private Instant shapesLoadedAt = Instant.EPOCH;
     private boolean initialized;
-    private volatile int watchedCount = -1;
+    private int watchedCount = -1;
 
     @Inject
     public GeofenceSignals(TripLiveStore live, GeofenceDirectory geofences, MonitorEngine engine, Transactions tx,
@@ -100,19 +104,19 @@ public class GeofenceSignals {
                     .anyMatch(transition -> transition.error() != null)) {
                 throw new IllegalStateException("Geofence monitor transition failed");
             }
-        }, tx, Clock.systemUTC(), enabled, confirm, shapesEvery);
+        }, tx, Clock.systemUTC(), new Settings(enabled, confirm, shapesEvery));
     }
 
     public GeofenceSignals(TripLiveStore live, GeofenceDirectory geofences, Sink sink, Transactions tx, Clock clock,
-            boolean enabled, int confirm, Duration shapesEvery) {
+            Settings settings) {
         this.live = live;
         this.geofences = geofences;
         this.sink = sink;
         this.tx = tx;
         this.clock = clock;
-        this.enabled = enabled;
-        this.confirm = Math.max(1, confirm);
-        this.shapesEvery = shapesEvery;
+        this.enabled = settings.enabled();
+        this.confirm = Math.max(1, settings.confirm());
+        this.shapesEvery = settings.shapesEvery();
     }
 
     @Scheduled(every = "${miot.trips.geofences.refresh-every:30s}", delayed = "${miot.trips.monitors.clock.delay:60s}",

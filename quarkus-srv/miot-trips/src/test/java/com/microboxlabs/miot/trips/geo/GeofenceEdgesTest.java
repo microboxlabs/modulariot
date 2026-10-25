@@ -84,7 +84,6 @@ class GeofenceEdgesTest {
 
     @Test
     void aRoundTripArrivesWhenItComesBack() {
-        Map<Integer, GeoShape> shapes = Map.of(10, square(0, 0));
         GeofenceEdges.Watch start = new GeofenceEdges.Watch(10, 10, null, null, false, false);
         assertEquals("entered_origin", GeofenceEdges.move(start, 10).edges().get(0).kind());
         GeofenceEdges.Watch out = new GeofenceEdges.Watch(10, 10, null, 10, true, false);

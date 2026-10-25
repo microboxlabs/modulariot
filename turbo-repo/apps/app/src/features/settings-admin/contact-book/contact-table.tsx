@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiCheck,
@@ -10,6 +10,7 @@ import {
   HiOutlinePencil,
   HiOutlineTrash,
 } from "react-icons/hi";
+import CatalogTable from "@/features/common/components/catalog-table";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
@@ -280,7 +281,7 @@ function ContactTableRow({
   });
 
   return (
-    <tr className="border-b border-gray-200 bg-white last:border-b-0 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700/50">
+    <tr className="border-t border-gray-100 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50">
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <InitialIdentifier name={contact.name || "?"} size={32} />
@@ -342,65 +343,108 @@ function ContactTableRow({
   );
 }
 
-/** Settings › Libreta de contactos listing: one row per contact with its
- *  initial, name (description underneath), role, company and its RUT,
- *  badges, contact methods with the email, and a row menu. */
+/** Settings › Libreta de contactos as a list, in the settings catalogs'
+ *  table: initial, name (description underneath), role, company and its
+ *  RUT, badges, contact methods with the email, and a row menu. */
 export default function ContactTable({
   contacts,
   badges,
   labels,
   onEdit,
   onRemove,
-  className = "",
-  footer,
 }: Readonly<{
   contacts: readonly BookContact[];
   badges: readonly ContactBadge[];
   labels: ContactTableLabels;
   onEdit: (contact: BookContact) => void;
   onRemove: (id: string) => void;
-  /** Extra classes for the scroll container (e.g. to fill its parent). */
-  className?: string;
-  /** Rendered after the table, inside the scroll container. */
-  footer?: ReactNode;
 }>) {
   const badgesById = new Map(badges.map((b) => [b.id, b]));
-  const headerClass =
-    "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
-
   return (
-    <div
-      className={`overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+    <CatalogTable
+      columns={[
+        labels.columns.name,
+        labels.columns.role,
+        labels.columns.company,
+        labels.columns.badges,
+        labels.columns.methods,
+        "",
+      ]}
     >
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-          <tr>
-            <th className={headerClass}>{labels.columns.name}</th>
-            <th className={headerClass}>{labels.columns.role}</th>
-            <th className={headerClass}>{labels.columns.company}</th>
-            <th className={headerClass}>{labels.columns.badges}</th>
-            <th className={`${headerClass} text-left w-50`}>
-              {labels.columns.methods}
-            </th>
-            <th className="w-12 px-2 py-3">
-              <span className="sr-only">{labels.columns.actions}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {contacts.map((contact) => (
-            <ContactTableRow
-              key={contact.id}
-              contact={contact}
-              labels={labels}
-              onEdit={onEdit}
-              onRemove={onRemove}
-              badgesById={badgesById}
-            />
-          ))}
-        </tbody>
-      </table>
-      {footer}
+      {contacts.map((contact) => (
+        <ContactTableRow
+          key={contact.id}
+          contact={contact}
+          labels={labels}
+          onEdit={onEdit}
+          onRemove={onRemove}
+          badgesById={badgesById}
+        />
+      ))}
+    </CatalogTable>
+  );
+}
+
+/** A contact laid out like a rule or symptom card: initial, name and role,
+ *  company, badges, and its contact methods at the foot. The card opens the
+ *  contact; the menu edits or removes it. */
+export function ContactCard({
+  contact,
+  labels,
+  onEdit,
+  onRemove,
+  badgesById,
+}: Readonly<{
+  contact: BookContact;
+  labels: ContactTableLabels;
+  onEdit: (contact: BookContact) => void;
+  onRemove: (id: string) => void;
+  badgesById: ReadonlyMap<string, ContactBadge>;
+}>) {
+  const badges = (contact.badgeIds ?? []).flatMap((id) => {
+    const badge = badgesById.get(id);
+    return badge ? [badge] : [];
+  });
+  const company = [contact.company, contact.companyRut]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <div className="flex flex-col rounded-lg border border-gray-200 bg-white text-left transition hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500">
+      <div className="flex w-full items-start gap-3 px-4 pt-4">
+        <InitialIdentifier name={contact.name || "?"} size={44} />
+        <button
+          type="button"
+          className="min-w-0 flex-1 text-left focus:outline-none"
+          onClick={() => onEdit(contact)}
+        >
+          <div className="truncate font-semibold text-gray-900 hover:underline dark:text-white">
+            {contact.name}
+          </div>
+          <div className="truncate text-xs text-gray-500 dark:text-gray-400">
+            {contact.role || contact.description || EMPTY_CELL}
+          </div>
+        </button>
+        <RowMenu
+          labels={labels}
+          onEdit={() => onEdit(contact)}
+          onRemove={() => onRemove(contact.id)}
+        />
+      </div>
+      <p className="mt-3 h-4 truncate px-4 text-xs text-gray-600 dark:text-gray-300">
+        {company}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 px-4 text-xs">
+        {badges.map((b) => (
+          <span key={b.id} className={BADGE_CLASS}>
+            {b.name}
+          </span>
+        ))}
+      </div>
+      {/* Keeps the footers of a row of cards on one line. */}
+      <div className="min-h-3 flex-1" />
+      <div className="flex w-full items-center border-t border-gray-100 px-4 py-2.5 dark:border-gray-700/60">
+        <ContactMethods contact={contact} labels={labels} />
+      </div>
     </div>
   );
 }

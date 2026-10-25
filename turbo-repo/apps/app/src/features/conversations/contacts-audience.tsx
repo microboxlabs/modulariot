@@ -38,6 +38,7 @@ export function contactCelFields(fields: EventField[]): CelField[] {
     { path: "contact.company", detail: "string" },
     { path: "contact.companyRut", detail: "string" },
     { path: "contact.position", detail: "string" },
+    { path: "contact.member", detail: "bool" },
     { path: "contact.email", detail: "string" },
     { path: "contact.whatsapp", detail: "string" },
     ...fields.map((f) => ({

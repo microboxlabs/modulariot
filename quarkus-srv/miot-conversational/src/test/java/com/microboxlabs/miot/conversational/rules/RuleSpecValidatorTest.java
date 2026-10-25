@@ -85,6 +85,16 @@ class RuleSpecValidatorTest {
     }
 
     @Test
+    void anEmptyContactConditionCannotBePublished() {
+        Finding finding = only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"contacts": ""}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "audienceEmptyEntry");
+        assertEquals(Severity.ERROR, finding.severity());
+        assertFalse(RuleSpecValidator.publishable(List.of(finding)));
+    }
+
+    @Test
     void anUnknownRoleIsAWarning() {
         Finding finding = only(validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}, {"role": "carrier"}],

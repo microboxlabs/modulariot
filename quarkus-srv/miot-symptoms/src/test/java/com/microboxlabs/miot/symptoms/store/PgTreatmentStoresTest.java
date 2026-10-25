@@ -80,7 +80,7 @@ class PgTreatmentStoresTest {
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
         for (String file : List.of("V0.8.0__create_symptoms_catalog.sql",
                 "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
-                "V0.8.3__create_tower_settings.sql")) {
+                "V0.8.3__create_tower_settings.sql", "V0.12.1__contact_company_rut.sql")) {
             try (InputStream in = PgTreatmentStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -316,12 +316,14 @@ class PgTreatmentStoresTest {
     @Test
     void contactBookFieldsRoundTripAndNationalIdIsUniquePerTenant() {
         String tenant = tenant();
-        ContactChannels channels = new ContactChannels("+56900000111", "+56900000112", "persona@example.com", null);
+        ContactChannels channels = new ContactChannels("+56900000111", "+56900000112", "persona@example.com", null,
+                "messages@example.invalid");
         Contact saved = contacts.insert(bookContact(tenant, "Persona Uno", "111111111", channels));
 
         assertEquals("111111111", saved.nationalId());
         assertEquals("RUT", saved.nationalIdType());
         assertEquals("Empresa Ejemplo", saved.company());
+        assertEquals("761112228", saved.companyRut());
         assertEquals("Supervisor", saved.position());
         assertEquals(channels, saved.channels());
         assertEquals(List.of("transporte", "turno noche"), saved.tags());
@@ -479,7 +481,7 @@ class PgTreatmentStoresTest {
     private static Contact bookContact(String tenant, String name, String nationalId, ContactChannels channels) {
         return new Contact(null, tenant, name, null, channels.phone(), List.of(CallMethod.PHONE), true, null, ACTOR,
                 null, null, nationalId, "RUT", "Empresa Ejemplo", "Supervisor", channels,
-                List.of("transporte", "turno noche"), "member-1", true);
+                List.of("transporte", "turno noche"), "member-1", true, "761112228");
     }
 
     private static AuditEvent event(String tenant, String action, String entityType, String entityId, Long symptom) {

@@ -245,8 +245,9 @@ class PgFeedReconcilerTest {
         assertNull(new PgTripLiveStore(() -> pool).find(tenant, UUID.fromString(t.id())).orElseThrow()
                 .destinationGeofenceId());
 
+        UUID originId = UUID.fromString(origin.id());
         assertThrows(IllegalArgumentException.class,
-                () -> locations.linkGeofence(tenant, ACTOR, UUID.fromString(origin.id()), 7),
+                () -> locations.linkGeofence(tenant, ACTOR, originId, 7),
                 "a geofence of another client is refused");
     }
 

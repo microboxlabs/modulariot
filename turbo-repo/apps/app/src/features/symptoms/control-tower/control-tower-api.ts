@@ -77,8 +77,10 @@ export interface TowerContact {
   nationalId: string | null;
   nationalIdType: string | null;
   company: string | null;
-  /** The company's RUT, stored without dots or dashes, upper case. */
+  /** The company's tax id, stored without dots or dashes, upper case. */
   companyRut?: string | null;
+  /** RUT, RUC or OTRO. */
+  companyTaxIdType?: string | null;
   position: string | null;
   channels: TowerContactChannels | null;
   tags: string[] | null;
@@ -101,6 +103,7 @@ export interface TowerContactBody {
   nationalIdType?: string;
   company?: string;
   companyRut?: string;
+  companyTaxIdType?: string;
   position?: string;
   channels?: TowerContactChannels;
   tags?: string[];

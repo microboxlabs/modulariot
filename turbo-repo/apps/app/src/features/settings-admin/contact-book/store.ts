@@ -21,7 +21,7 @@ import {
   type TowerContactBody,
   type TowerContactImportResult,
 } from "@/features/symptoms/control-tower/control-tower-api";
-import { displayRut } from "./contact-duplicates";
+import { displayId } from "./tax-id";
 import {
   ensureBadge,
   normalizeLabel,
@@ -45,11 +45,15 @@ export interface BookContact {
   /** Free text about the person; the API's `notes`. The table falls back to
    *  `role` when it is empty. */
   description?: string;
-  /** Chilean RUT; unique in the organization (compared normalized). */
+  /** The document's number (a Chilean RUT by default); unique in the organization (compared normalized). */
   rut?: string;
+  /** What `rut` holds: RUT, DNI, CE, PASAPORTE or OTRO. */
+  rutType?: string;
   company?: string;
   /** The company's RUT, as shown (12.345.678-5). */
   companyRut?: string;
+  /** What `companyRut` holds: RUT, RUC or OTRO. */
+  companyRutType?: string;
   /** Where communication rules send email; not a call method. */
   email?: string;
   position?: string;
@@ -96,9 +100,15 @@ export function toBookContact(
     methods: c.methods.map(fromApiMethod),
     channels,
     description: c.notes ?? undefined,
-    rut: c.nationalId ? displayRut(c.nationalId) : undefined,
+    rut: c.nationalId
+      ? displayId(c.nationalIdType ?? undefined, c.nationalId)
+      : undefined,
+    rutType: c.nationalIdType ?? undefined,
     company: c.company ?? undefined,
-    companyRut: c.companyRut ? displayRut(c.companyRut) : undefined,
+    companyRut: c.companyRut
+      ? displayId(c.companyTaxIdType ?? undefined, c.companyRut)
+      : undefined,
+    companyRutType: c.companyTaxIdType ?? undefined,
     email: c.channels?.email ?? undefined,
     position: c.position ?? undefined,
     orgMemberId: c.memberUserId ?? undefined,
@@ -122,9 +132,10 @@ export function toContactBody(
     methods: c.methods.map(toApiMethod),
     notes: c.description ?? "",
     nationalId: c.rut ?? "",
-    nationalIdType: "RUT",
+    nationalIdType: c.rutType ?? "RUT",
     company: c.company ?? "",
     companyRut: c.companyRut ?? "",
+    companyTaxIdType: c.companyRut ? (c.companyRutType ?? "RUT") : "",
     position: c.position ?? "",
     channels: { ...c.channels, email: c.email ?? "" },
     tags: (c.badgeIds ?? []).flatMap((id) => nameById.get(id) ?? []),

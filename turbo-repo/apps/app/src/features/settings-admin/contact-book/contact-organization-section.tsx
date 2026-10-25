@@ -10,7 +10,7 @@ import {
 } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { displayRut } from "./contact-duplicates";
+import { displayId, guessCompanyIdType } from "./tax-id";
 import { SECTION_INPUT_CLASS } from "./contact-person-section";
 import type { CompanyOption } from "./store";
 import { normalizeLabel } from "./taxonomy-store";
@@ -129,7 +129,7 @@ export default function ContactOrganizationSection({
                   <span className="min-w-0 flex-1 truncate">{option.name}</span>
                   {option.rut && (
                     <span className="shrink-0 font-mono text-xs text-gray-400">
-                      {displayRut(option.rut)}
+                      {displayId(guessCompanyIdType(option.rut), option.rut)}
                     </span>
                   )}
                   {normalizeLabel(option.name) === selectedKey && (

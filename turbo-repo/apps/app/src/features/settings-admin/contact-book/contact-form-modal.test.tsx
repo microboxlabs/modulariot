@@ -109,6 +109,34 @@ describe("ContactFormModal — persona", () => {
     ).toBeEnabled();
   });
 
+  it("takes a Peruvian DNI and a company's RUC", async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm();
+    await user.click(
+      screen.getByRole("button", {
+        name: "O ingresa un contacto fuera de la organización",
+      })
+    );
+    await user.type(screen.getByLabelText("Nombre completo"), "Persona Perú");
+    await user.selectOptions(screen.getByLabelText("Documento · tipo"), "DNI");
+    await user.type(screen.getByLabelText("Documento"), "1234-5678");
+    await user.selectOptions(
+      screen.getByLabelText("RUT o RUC de la empresa · tipo"),
+      "RUC"
+    );
+    await user.type(
+      screen.getByLabelText("RUT o RUC de la empresa"),
+      "20100070970"
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({
+      rut: "12345678",
+      rutType: "DNI",
+      companyRut: "20100070970",
+      companyRutType: "RUC",
+    });
+  });
+
   it("switches to an outside contact with full name and RUT", async () => {
     const user = userEvent.setup();
     const onSave = renderForm();
@@ -118,16 +146,19 @@ describe("ContactFormModal — persona", () => {
       })
     );
     await user.type(screen.getByLabelText("Nombre completo"), "Pedro Externo");
-    await user.type(screen.getByLabelText("RUT"), "12.345.678-0");
-    expect(screen.getByText("El RUT no es válido.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Documento"), "12.345.678-0");
+    expect(
+      screen.getByText("El número no es válido para ese tipo.")
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
 
-    await user.clear(screen.getByLabelText("RUT"));
-    await user.type(screen.getByLabelText("RUT"), "12.345.678-5");
+    await user.clear(screen.getByLabelText("Documento"));
+    await user.type(screen.getByLabelText("Documento"), "123456785");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(saved(onSave)).toMatchObject({
       name: "Pedro Externo",
       rut: "12.345.678-5",
+      rutType: "RUT",
       orgMemberId: undefined,
     });
   });

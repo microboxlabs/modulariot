@@ -78,6 +78,7 @@ describe("contact book mapping", () => {
       nationalIdType: "RUT",
       company: "Empresa Ejemplo",
       companyRut: "",
+      companyTaxIdType: "",
       position: "Supervisor",
       channels: {
         phone: "+56900000001",

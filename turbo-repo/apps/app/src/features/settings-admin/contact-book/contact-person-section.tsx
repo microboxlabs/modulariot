@@ -1,22 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { TextInput } from "flowbite-react";
 import {
   HiArrowLeft,
   HiCheck,
   HiOutlineSearch,
   HiUserAdd,
-  HiXCircle,
 } from "react-icons/hi";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { OrgMember } from "../types";
-import { displayRut, maskRut } from "./contact-duplicates";
+import IdField from "./id-field";
+import {
+  COMPANY_ID_TYPES,
+  displayId,
+  guessCompanyIdType,
+  PERSON_ID_TYPES,
+  type IdType,
+} from "./tax-id";
 import type { CompanyOption } from "./store";
 import ContactOrganizationSection from "./contact-organization-section";
-import { inputValidationColor } from "./input-validation";
 import { normalizeLabel } from "./taxonomy-store";
 
 export const SECTION_INPUT_CLASS =
@@ -34,8 +38,9 @@ export interface PersonDraft {
   orgMemberId?: string;
   /** Full name: the member's name, or typed for an external contact. */
   name: string;
-  /** Only typed for an external contact. */
+  /** Only typed for an external contact: the document's number, and its type. */
   rut: string;
+  rutType?: IdType;
 }
 
 /** The member's name; the email when the directory has none. */
@@ -168,6 +173,7 @@ export default function ContactPersonSection({
   organization,
   onOrganizationChange,
   companyRut,
+  companyRutType = "RUT",
   onCompanyRutChange,
   companyRutInvalid,
   organizations,
@@ -182,9 +188,10 @@ export default function ContactPersonSection({
   /** The outside contact's organization (API `company`); "" for none. */
   organization: string;
   onOrganizationChange: (next: string) => void;
-  /** The organization's RUT; "" for none. */
+  /** The organization's tax id; "" for none. */
   companyRut: string;
-  onCompanyRutChange: (next: string) => void;
+  companyRutType?: IdType;
+  onCompanyRutChange: (next: string, type: IdType) => void;
   companyRutInvalid: boolean;
   /** The companies already used in the book, offered to pick from. */
   organizations: readonly CompanyOption[];
@@ -227,48 +234,39 @@ export default function ContactPersonSection({
           onChange={(e) => onChange({ ...value, name: e.target.value })}
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLASS}>{tr("rutLabel", d)}</span>
-        <TextInput
-          color={inputValidationColor(value.rut, !rutInvalid)}
-          placeholder="12.345.678-5"
-          value={value.rut}
-          onChange={(e) => onChange({ ...value, rut: maskRut(e.target.value) })}
-        />
-      </label>
-      {rutInvalid && (
-        <p className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
-          <HiXCircle className="h-3.5 w-3.5" />
-          {tr("rutInvalid", d)}
-        </p>
-      )}
+      <IdField
+        label={tr("rutLabel", d)}
+        types={PERSON_ID_TYPES}
+        type={value.rutType ?? "RUT"}
+        value={value.rut}
+        invalid={rutInvalid}
+        onChange={(rutType, rut) => onChange({ ...value, rut, rutType })}
+        d={d}
+      />
       <div className="flex flex-col gap-1">
         <span className={LABEL_CLASS}>{tr("companyLabel", d)}</span>
         <ContactOrganizationSection
           value={organization}
           onChange={(company, rut) => {
             onOrganizationChange(company);
-            if (rut) onCompanyRutChange(displayRut(rut));
+            if (rut) {
+              const type = guessCompanyIdType(rut);
+              onCompanyRutChange(displayId(type, rut), type);
+            }
           }}
           organizations={organizations}
           d={d}
         />
       </div>
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLASS}>{tr("companyRutLabel", d)}</span>
-        <TextInput
-          color={inputValidationColor(companyRut, !companyRutInvalid)}
-          placeholder="76.123.456-7"
-          value={companyRut}
-          onChange={(e) => onCompanyRutChange(maskRut(e.target.value))}
-        />
-      </label>
-      {companyRutInvalid && (
-        <p className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
-          <HiXCircle className="h-3.5 w-3.5" />
-          {tr("rutInvalid", d)}
-        </p>
-      )}
+      <IdField
+        label={tr("companyRutLabel", d)}
+        types={COMPANY_ID_TYPES}
+        type={companyRutType}
+        value={companyRut}
+        invalid={companyRutInvalid}
+        onChange={(type, rut) => onCompanyRutChange(rut, type)}
+        d={d}
+      />
       <button
         type="button"
         onClick={() => onChange({ source: "org", name: "", rut: "" })}

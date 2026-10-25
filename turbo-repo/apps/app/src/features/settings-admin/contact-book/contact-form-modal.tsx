@@ -9,7 +9,6 @@ import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { ALL_CALL_METHODS } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
-import { isRutValid } from "@/utils/rut";
 import { useOrgMembers } from "../hooks/use-org-members";
 import ContactBadgesSection from "./contact-badges-section";
 import ContactChannelsSection, {
@@ -17,7 +16,7 @@ import ContactChannelsSection, {
   emptyChannelValues,
   type ChannelValues,
 } from "./contact-channels-section";
-import { displayRut, normalizeRut } from "./contact-duplicates";
+import { asIdType, displayId, isIdValid, type IdType } from "./tax-id";
 import { inputValidationColor } from "./input-validation";
 import {
   channelsFromContact,
@@ -47,8 +46,9 @@ interface ContactDraft {
   badgeIds: string[];
   /** The outside contact's organization (API `company`); "" for none. */
   company: string;
-  /** The organization's RUT, as typed; "" for none. */
+  /** The organization's tax id, as typed; "" for none. */
   companyRut: string;
+  companyRutType: IdType;
   /** Where communication rules send email; "" for none. */
   email: string;
   /** What the contact does, as communication rules match it. */
@@ -69,11 +69,15 @@ function draftFromContact(contact: BookContact | null): ContactDraft {
       source: contact && !contact.orgMemberId ? "external" : "org",
       orgMemberId: contact?.orgMemberId,
       name: contact?.name ?? "",
-      rut: contact?.rut ? displayRut(contact.rut) : "",
+      rut: contact?.rut ? displayId(contact.rutType, contact.rut) : "",
+      rutType: asIdType(contact?.rutType),
     },
     badgeIds: contact?.badgeIds ?? [],
     company: contact?.company ?? "",
-    companyRut: contact?.companyRut ? displayRut(contact.companyRut) : "",
+    companyRut: contact?.companyRut
+      ? displayId(contact.companyRutType, contact.companyRut)
+      : "",
+    companyRutType: asIdType(contact?.companyRutType),
     email: contact?.email ?? "",
     role: contact?.role ?? "",
     channels: contact
@@ -97,7 +101,7 @@ function storedChannels(
 function isPersonValid(person: PersonDraft): boolean {
   if (!person.name.trim()) return false;
   if (person.source === "org") return Boolean(person.orgMemberId);
-  return !person.rut.trim() || isRutValid(normalizeRut(person.rut));
+  return !person.rut.trim() || isIdValid(person.rutType ?? "RUT", person.rut);
 }
 
 /** One section of the form, shown as a white card on the shaded body. */
@@ -191,10 +195,10 @@ export default function ContactFormModal({
   const rutInvalid =
     person.source === "external" &&
     person.rut.trim() !== "" &&
-    !isRutValid(normalizeRut(person.rut));
+    !isIdValid(person.rutType ?? "RUT", person.rut);
   const companyRutInvalid =
     draft.companyRut.trim() !== "" &&
-    !isRutValid(normalizeRut(draft.companyRut));
+    !isIdValid(draft.companyRutType, draft.companyRut);
   const emailInvalid =
     draft.email.trim() !== "" && !EMAIL.test(draft.email.trim());
   const canSave =
@@ -213,6 +217,7 @@ export default function ContactFormModal({
         id: editing?.id ?? makeContactId(),
         name: person.name.trim(),
         rut: external ? person.rut.trim() || undefined : editing?.rut,
+        rutType: external ? (person.rutType ?? "RUT") : editing?.rutType,
         orgMemberId: external ? undefined : person.orgMemberId,
         role: draft.role.trim(),
         badgeIds,
@@ -222,6 +227,9 @@ export default function ContactFormModal({
         companyRut: external
           ? draft.companyRut.trim() || undefined
           : editing?.companyRut,
+        companyRutType: external
+          ? draft.companyRutType
+          : editing?.companyRutType,
         email: draft.email.trim() || undefined,
         provisional: false,
         ...storedChannels(draft.channels),
@@ -300,8 +308,9 @@ export default function ContactFormModal({
                 setDraft((prev) => ({ ...prev, company }))
               }
               companyRut={draft.companyRut}
-              onCompanyRutChange={(companyRut) =>
-                setDraft((prev) => ({ ...prev, companyRut }))
+              companyRutType={draft.companyRutType}
+              onCompanyRutChange={(companyRut, companyRutType) =>
+                setDraft((prev) => ({ ...prev, companyRut, companyRutType }))
               }
               companyRutInvalid={companyRutInvalid}
               organizations={organizations}

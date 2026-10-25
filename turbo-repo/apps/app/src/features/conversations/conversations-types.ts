@@ -27,6 +27,8 @@ export interface AudienceEntry {
   channel?: string;
   name?: string | null;
   path?: string;
+  /** CEL over `contact` and `event`: the contact book's active contacts for which it holds. */
+  contacts?: string;
 }
 
 export interface RuleStep {

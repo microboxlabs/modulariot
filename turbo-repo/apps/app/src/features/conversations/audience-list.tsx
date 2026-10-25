@@ -9,6 +9,7 @@ import {
   FieldError,
 } from "@/features/symptoms/maintainer/ui/response-block";
 import Select from "@/features/symptoms/maintainer/ui/select";
+import ContactsAudience from "./contacts-audience";
 import type { AudienceEntry, EventField } from "./conversations-types";
 import { audienceKind, ROLES, type AudienceKind } from "./rule-model";
 import { useRowKeys } from "./row-keys";
@@ -20,11 +21,13 @@ const KINDS: { value: AudienceKind; label: string }[] = [
   { value: "role", label: "audienceRole" },
   { value: "address", label: "audienceAddress" },
   { value: "path", label: "audiencePath" },
+  { value: "contacts", label: "audienceContacts" },
 ];
 
 function entryOf(kind: AudienceKind): AudienceEntry {
   if (kind === "address") return { address: "", channel: "whatsapp", name: "" };
   if (kind === "path") return { path: "" };
+  if (kind === "contacts") return { contacts: "" };
   return { role: "driver" };
 }
 
@@ -45,6 +48,17 @@ function EntryFields({
 }>) {
   const kind = audienceKind(entry);
   const field = error ? `${FIELD} ${FIELD_ERROR}` : FIELD;
+  if (kind === "contacts") {
+    return (
+      <ContactsAudience
+        condition={entry.contacts ?? ""}
+        fields={fields}
+        readOnly={readOnly}
+        d={d}
+        onChange={(contacts) => onChange({ contacts })}
+      />
+    );
+  }
   if (kind === "role") {
     const known = ROLES.some((r) => r.value === entry.role);
     return (
@@ -122,7 +136,7 @@ function EntryFields({
   );
 }
 
-/** Who a rule writes to: roles of the event's context, fixed addresses, or fields of the event. */
+/** Who a rule writes to: roles of the event's context, fixed addresses, fields of the event, or contact book entries. */
 export default function AudienceList({
   entries,
   fields,

@@ -160,6 +160,25 @@ class RulesEngineTest {
     }
 
     @Test
+    void eachStepWritesToTheGroupsItNames() {
+        f.rule("groups", """
+                {"trigger": {"event": "symptom.case.opened", "when": ""},
+                 "groups": [{"id": "drivers", "name": "Conductores", "entries": [{"role": "driver"}]},
+                            {"id": "tower", "name": "Torre",
+                             "entries": [{"address": "tower@example.com", "channel": "email"}]}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "to": ["drivers"]},
+                           {"channel": "email", "template": "panic-tower", "to": ["tower"]}]}
+                """, Rule.State.ACTIVE);
+        f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));
+
+        f.engine.runDue();
+
+        assertEquals(List.of(DRIVER), f.whatsappSent.stream().map(RulesFixture.Sent::to).toList());
+        assertEquals(1, f.emailsSent.size());
+        assertEquals(Run.Status.DONE, onlyRun().status());
+    }
+
+    @Test
     void aReplyToAStopStepEndsTheRun() {
         f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
         f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));

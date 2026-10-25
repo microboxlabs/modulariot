@@ -77,12 +77,13 @@ public class ContactReach {
         return best;
     }
 
-    /** The contact conditions of the rule's audience and of each step's own recipients. */
+    /** The contact conditions of the groups the rule's steps write to. */
     static List<String> conditions(RuleSpec spec) {
         List<String> out = new ArrayList<>();
-        addContacts(spec.audience(), out);
         for (Step s : spec.steps()) {
-            addContacts(s.to(), out);
+            if (!s.viaConnection()) {
+                addContacts(spec.recipients(s), out);
+            }
         }
         return out;
     }

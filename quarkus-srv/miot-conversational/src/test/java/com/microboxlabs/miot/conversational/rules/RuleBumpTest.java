@@ -62,7 +62,7 @@ class RuleBumpTest {
         String slack = BASE.replace("\"channel\": \"email\"", "\"channel\": \"slack\", \"connection\": \"c-1\"");
         assertEquals(RuleBump.MINOR, RuleBump.between(spec(slack), spec(slack.replace("slack", "teams"))));
         RuleSpec base = spec(BASE);
-        RuleSpec oneStep = new RuleSpec(base.trigger(), base.audience(), base.steps().subList(0, 1));
+        RuleSpec oneStep = new RuleSpec(base.trigger(), base.groups(), base.steps().subList(0, 1));
         assertEquals(RuleBump.MINOR, RuleBump.between(base, oneStep));
     }
 
@@ -70,7 +70,7 @@ class RuleBumpTest {
     void movingAStepIsMinor() throws Exception {
         RuleSpec base = spec(BASE);
         RuleSpec sameChannels = spec(BASE.replace("\"channel\": \"email\"", "\"channel\": \"whatsapp\""));
-        RuleSpec swapped = new RuleSpec(base.trigger(), base.audience(),
+        RuleSpec swapped = new RuleSpec(base.trigger(), base.groups(),
                 java.util.List.of(sameChannels.steps().get(1), sameChannels.steps().get(0)));
         assertEquals(RuleBump.MINOR, RuleBump.between(sameChannels, swapped));
     }
@@ -110,5 +110,29 @@ class RuleBumpTest {
         assertEquals(RuleBump.MINOR, RuleBump.PATCH.atLeast(RuleBump.MINOR));
         assertEquals(RuleBump.MAJOR, RuleBump.MAJOR.atLeast(RuleBump.PATCH));
         assertEquals(RuleBump.PATCH, RuleBump.PATCH.atLeast(null));
+    }
+
+    @Test
+    void aGroupsNameIsPatchAndItsRecipientsMinor() throws Exception {
+        String groups = """
+                {"trigger": {"event": "symptom.case.opened"},
+                 "groups": [{"id": "drivers", "name": "Conductores", "entries": [{"role": "driver"}]}],
+                 "steps": [{"channel": "whatsapp", "template": "check", "to": ["drivers"]}]}""";
+        assertEquals(RuleBump.PATCH, RuleBump.between(spec(groups), spec(groups.replace("Conductores", "Choferes"))));
+        assertEquals(RuleBump.MINOR,
+                RuleBump.between(spec(groups), spec(groups.replace("\"driver\"", "\"carrier\""))));
+    }
+
+    @Test
+    void aRuleSavedBeforeGroupsReadsAsTheSameRuleWithGroups() throws Exception {
+        String groups = """
+                {"trigger": {"event": "symptom.case.opened", "when": "event.data.level >= 4"},
+                 "groups": [{"id": "rule", "entries": [{"role": "driver"}]}],
+                 "steps": [
+                   {"after": 0, "channel": "whatsapp", "template": "check", "to": ["rule"], "waitForReply": 5,
+                    "onReply": "stop"},
+                   {"after": 5, "channel": "email", "template": "tower", "to": ["rule"], "waitForReply": 0}
+                 ]}""";
+        assertNull(RuleBump.between(spec(BASE), spec(groups)));
     }
 }

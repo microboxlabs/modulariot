@@ -43,6 +43,7 @@ export const templateKey = (key: string) =>
   `${templatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
 export const ruleFamiliesKey = `${CONVERSATIONS_BASE}/rule-families`;
+export const contactReachKey = `${CONVERSATIONS_BASE}/contact-reach`;
 export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 export const accountsKey = `${CONVERSATIONS_BASE}/accounts`;
@@ -107,6 +108,23 @@ export function useEventCatalog() {
 /** The organization's rule families; a 404 means it has no such list. */
 export function useRuleFamilies() {
   return useSWR<SymptomFamily[]>(ruleFamiliesKey, fetcher, quiet);
+}
+
+/** A rule in force that writes to a contact; `always` is false when it depends on the event. */
+export interface ContactReachRule {
+  ruleId: string;
+  name: string;
+  state: "TEST" | "ACTIVE";
+  always: boolean;
+}
+
+/** Contact id to the rules in force that write to it. */
+export function useContactReach() {
+  return useSWR<Record<string, ContactReachRule[]>>(
+    contactReachKey,
+    fetcher,
+    quiet
+  );
 }
 
 export function useConversationRuns(filter: {
@@ -191,9 +209,12 @@ export function editMetaTemplate(id: string, draft: MetaTemplateDraft) {
 /** Deletes one language of the template when `id` is given, else every language. */
 export function deleteMetaTemplate(name: string, id?: string) {
   const q = id ? `?id=${encodeURIComponent(id)}` : "";
-  return request<void>(`${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`, {
-    method: "DELETE",
-  });
+  return request<void>(
+    `${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
 export async function refreshMetaTemplates() {
@@ -202,7 +223,7 @@ export async function refreshMetaTemplates() {
 
 /** Refreshes the rule list and, when given, one rule. */
 export async function refreshRules(id?: string) {
-  await mutate(rulesKey);
+  await Promise.all([mutate(rulesKey), mutate(contactReachKey)]);
   if (id) await mutate(ruleKey(id));
 }
 

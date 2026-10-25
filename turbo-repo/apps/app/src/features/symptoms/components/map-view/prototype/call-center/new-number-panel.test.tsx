@@ -20,6 +20,8 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   updateContact: api.updateContact,
   deleteContact: api.deleteContact,
   importContacts: api.importContacts,
+  contactsKey: "contacts",
+  contactFacetsKey: "contacts/facets",
   useContacts: () => ({ data: [], error: undefined, mutate: api.mutate }),
 }));
 

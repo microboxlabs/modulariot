@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.domain.ContactFilter;
 import com.microboxlabs.miot.symptoms.dto.ContactImportRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.service.ContactService;
@@ -64,6 +65,58 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             @QueryParam("active") Boolean active) {
         String tenant = tenantCode(organizationId);
         return work(() -> Response.ok(contacts.list(tenant, active)).build());
+    }
+
+    @GET
+    @Path("/page")
+    @Operation(operationId = "pageContacts", summary = "One page of contacts, filtered",
+            description = "In creation order, 100 per page by default (at most 200). Pass the `next` of a page as "
+                    + "`cursor` to get the following one; `next` is null on the last page. `q` searches the name, "
+                    + "role, company, email and document. `kind` is `member` or `external`; `role`, `company` "
+                    + "and `tag` match whole values, ignoring case.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> page(
+            @PathParam("organizationId") String organizationId,
+            @QueryParam("q") String q,
+            @QueryParam("kind") String kind,
+            @QueryParam("role") String role,
+            @QueryParam("company") String company,
+            @QueryParam("tag") String tag,
+            @QueryParam("active") Boolean active,
+            @QueryParam("cursor") String cursor,
+            @QueryParam("limit") Integer limit) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> {
+            String requestedKind = value(kind);
+            Boolean member = requestedKind == null ? null : isMember(requestedKind);
+            ContactFilter filter = new ContactFilter(value(q), member, value(role), value(company),
+                    value(tag), active);
+            return Response.ok(contacts.page(tenant, filter, cursor, limit)).build();
+        });
+    }
+
+    @GET
+    @Path("/facets")
+    @Operation(operationId = "contactFacets", summary = "Roles, companies, tags and members used in the book",
+            description = "With the number of contacts. Feeds the filters and pickers of the paged list.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> facets(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(contacts.facets(tenant)).build());
+    }
+
+    private static String value(String raw) {
+        return raw == null || raw.isBlank() ? null : raw.trim();
+    }
+
+    private static boolean isMember(String kind) {
+        return switch (kind) {
+            case "member" -> true;
+            case "external" -> false;
+            default -> throw new IllegalArgumentException("kind must be member or external");
+        };
     }
 
     @GET

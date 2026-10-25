@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.fleet;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,4 +47,9 @@ public interface FleetResources {
 
     /** The current driver whose document (RUT, DNI) matches {@code document} ignoring dots, dashes and spaces. */
     Optional<Match> driverByDocument(String tenantCode, String document);
+
+    /** The tenant's active carriers whose RUT or legal name contains {@code query}, by legal name; at most {@code limit}. */
+    default List<Carrier> carriers(String tenantCode, String query, int limit) {
+        return List.of();
+    }
 }

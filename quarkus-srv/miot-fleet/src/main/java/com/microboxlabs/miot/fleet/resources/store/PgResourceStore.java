@@ -113,8 +113,21 @@ public class PgResourceStore implements ResourceStore {
 
     @Override
     public List<Carrier> listCarriers(String tenantCode, String q, int page, int size) {
+        return listCarriers(tenantCode, q, page, size, false);
+    }
+
+    @Override
+    public List<Carrier> listActiveCarriers(String tenantCode, String q, int limit) {
+        return listCarriers(tenantCode, q, 0, limit, true);
+    }
+
+    private List<Carrier> listCarriers(String tenantCode, String q, int page, int size, boolean activeOnly) {
         StringBuilder sql = new StringBuilder(select(CARRIER_COLS, CARRIER));
         Tuple params = Tuple.of(tenantCode);
+        if (activeOnly) {
+            params.addString(Carrier.INACTIVE);
+            sql.append(" AND status <> $").append(params.size());
+        }
         if (q != null) {
             params.addString(contains(q));
             int n = params.size();

@@ -52,6 +52,8 @@ function Harness({
   );
 }
 
+const DRAG = "Arrastra para cambiar el orden, o usa ↑ ↓.";
+
 const rows = () => screen.getAllByRole("listitem", { name: /^Paso \d$/ });
 
 describe("RuleSteps", () => {
@@ -86,7 +88,9 @@ describe("RuleSteps", () => {
       template: "",
     });
 
-    fireEvent.click(within(rows()[1]).getByRole("button", { name: "Subir" }));
+    fireEvent.keyDown(within(rows()[1]).getByRole("button", { name: DRAG }), {
+      key: "ArrowUp",
+    });
     expect(
       onChange.mock.lastCall?.[0].map((s: RuleStep) => s.template)
     ).toEqual(["panic-tower", "panic-check", ""]);
@@ -103,23 +107,30 @@ describe("RuleSteps", () => {
     ).toEqual(["panic-check", ""]);
   });
 
-  it("first step cannot move up and the last cannot move down", () => {
-    render(<Harness initial={STEPS} onChange={vi.fn()} />);
+  it("moves a step by dropping it on another, and keeps the ends in place", () => {
+    const onChange = vi.fn();
+    render(<Harness initial={STEPS} onChange={onChange} />);
     const [first, second] = rows();
+    const handle = within(second).getByRole("button", { name: DRAG });
+    fireEvent.dragStart(handle, {
+      dataTransfer: { setData: vi.fn(), setDragImage: vi.fn() },
+    });
+    fireEvent.dragOver(first);
+    fireEvent.drop(first);
     expect(
-      (
-        within(first).getByRole("button", {
-          name: "Subir",
-        }) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
-    expect(
-      (
-        within(second).getByRole("button", {
-          name: "Bajar",
-        }) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+      onChange.mock.lastCall?.[0].map((s: RuleStep) => s.template)
+    ).toEqual(["panic-tower", "panic-check"]);
+
+    onChange.mockClear();
+    fireEvent.keyDown(within(rows()[0]).getByRole("button", { name: DRAG }), {
+      key: "ArrowUp",
+    });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("has no drag handle with a single step", () => {
+    render(<Harness initial={[STEPS[0]]} onChange={vi.fn()} />);
+    expect(within(rows()[0]).queryByRole("button", { name: DRAG })).toBeNull();
   });
 
   it("waits for a reply only on WhatsApp and email", () => {

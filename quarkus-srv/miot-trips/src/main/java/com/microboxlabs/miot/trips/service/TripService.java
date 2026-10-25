@@ -98,7 +98,9 @@ public class TripService {
                 }
             }
             live.refresh(tenantCode, tripId);
-            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), Map.of());
+            String monitor = Check.limitedOrNull(req.monitor(), "monitor", 64);
+            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(),
+                    monitor == null ? Map.of() : Map.of("monitor", monitor));
             return detail(tenantCode, tripId);
         });
     }
@@ -226,7 +228,7 @@ public class TripService {
 
     private static Stage planned(String tenantCode, String actor, UUID tripId, StageRequest s) {
         String type = Check.oneOf(Check.required(s.stageType(), "stageType", 32), "stageType",
-                "preparacion", "carga", "transito", "parada", "descarga", "cierre");
+                "preparation", "loading", "transit", "stop", "unloading", "closing");
         return new Stage(null, tenantCode, Stage.SUBJECT_TRIP, tripId.toString(), 0, type,
                 Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64), Stage.PENDING,
                 Check.uuidOrNull(s.locationId(), "locationId"), s.plannedStart(), s.plannedEnd(), null, null,

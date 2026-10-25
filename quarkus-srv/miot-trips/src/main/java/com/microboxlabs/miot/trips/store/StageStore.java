@@ -20,10 +20,10 @@ public interface StageStore {
     /** Patches the planning window and location. */
     Optional<Stage> update(Stage stage);
 
-    /** pendiente → en_curso; empty when the stage is not pendiente. The partial unique index rejects a second running stage. */
+    /** pending → in_progress; empty when the stage is not pending. The partial unique index rejects a second running stage. */
     Optional<Stage> start(String tenantCode, UUID id, OffsetDateTime at, String actor);
 
-    /** en_curso → cerrada; empty when the stage is not en_curso. */
+    /** in_progress → completed; empty when the stage is not in_progress. */
     Optional<Stage> close(String tenantCode, UUID id, OffsetDateTime at, String actor);
 
     /** Inserts with the next seq of the stage. */

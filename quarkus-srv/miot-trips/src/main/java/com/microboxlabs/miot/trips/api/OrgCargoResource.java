@@ -97,7 +97,7 @@ public class OrgCargoResource extends OrgResourceSupport {
     @POST
     @Path("/cargo/{cargoId}/receive")
     @Operation(operationId = "receiveCargo",
-            summary = "Receive a delivered cargo unit: conforme | diferencia (notes required on diferencia)")
+            summary = "Receive a delivered cargo unit: conforming | discrepancy (notes required on discrepancy)")
     @PermissionsAllowed(value = TripsAccessCatalog.CARGO_OPERATE, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> receive(@PathParam(ORG) String organizationId, @PathParam("cargoId") String cargoId,

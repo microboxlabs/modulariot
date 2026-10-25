@@ -46,7 +46,7 @@ class CargoServiceTest {
         CargoUnit first = service.announce(TENANT, ACTOR, mandateId,
                 new CargoRequest("Camarón 20 pallets", new BigDecimal("20"), "pallet", null, null, null));
         CargoUnit second = service.announce(TENANT, ACTOR, mandateId,
-                new CargoRequest("Camarón saldo", new BigDecimal("8"), "pallet", null, null, "lista"));
+                new CargoRequest("Camarón saldo", new BigDecimal("8"), "pallet", null, null, "ready"));
 
         assertEquals(1, first.partialNo());
         assertEquals(2, second.partialNo());
@@ -62,11 +62,11 @@ class CargoServiceTest {
         UUID id = UUID.fromString(unit.id());
 
         assertEquals(CargoUnit.READY,
-                service.update(TENANT, ACTOR, id, new CargoRequest(null, null, null, null, null, "lista"))
+                service.update(TENANT, ACTOR, id, new CargoRequest(null, null, null, null, null, "ready"))
                         .status());
-        CargoRequest backwards = new CargoRequest(null, null, null, null, null, "anunciada");
+        CargoRequest backwards = new CargoRequest(null, null, null, null, null, "announced");
         assertThrows(IllegalStateException.class, () -> service.update(TENANT, ACTOR, id, backwards));
-        CargoRequest picked = new CargoRequest(null, null, null, null, null, "retirada");
+        CargoRequest picked = new CargoRequest(null, null, null, null, null, "picked_up");
         IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
                 () -> service.update(TENANT, ACTOR, id, picked));
         assertTrue(refused.getMessage().contains("execution"));
@@ -78,7 +78,7 @@ class CargoServiceTest {
                 new CargoRequest("Carga", null, null, null, null, null));
         UUID id = UUID.fromString(unit.id());
 
-        ReceiveRequest conforme = new ReceiveRequest("conforme", null);
+        ReceiveRequest conforme = new ReceiveRequest("conforming", null);
         assertThrows(IllegalStateException.class, () -> service.receive(TENANT, ACTOR, id, conforme));
 
         // the execution delivers it
@@ -86,11 +86,11 @@ class CargoServiceTest {
                 unit.qty(), unit.qtyUnit(), unit.weightKg(), unit.volumeM3(), CargoUnit.DELIVERED,
                 null, null, null, unit.createdAt(), unit.createdBy(), null, ACTOR));
 
-        ReceiveRequest noDetail = new ReceiveRequest("diferencia", " ");
+        ReceiveRequest noDetail = new ReceiveRequest("discrepancy", " ");
         assertThrows(IllegalArgumentException.class, () -> service.receive(TENANT, ACTOR, id, noDetail));
-        CargoUnit received = service.receive(TENANT, ACTOR, id, new ReceiveRequest("diferencia", "faltó 1 pallet"));
+        CargoUnit received = service.receive(TENANT, ACTOR, id, new ReceiveRequest("discrepancy", "faltó 1 pallet"));
         assertEquals(CargoUnit.RECEIVED, received.status());
-        assertEquals("diferencia", received.receiptResult());
+        assertEquals("discrepancy", received.receiptResult());
         assertNotNull(received.receivedAt());
     }
 }

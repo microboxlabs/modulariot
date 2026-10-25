@@ -157,10 +157,10 @@ class PgFeedSimulationTest {
         // 2. the trip with the stage plan the integration defines (origin → destination)
         TripView trip = trips.create(TENANT_A, FEED_A, new TripRequest(null, null, null,
                 List.of(first.mandate().id()), List.of(
-                        new StageRequest("carga", null, null, null, null, null),
-                        new StageRequest("transito", null, null, null, null, null),
-                        new StageRequest("descarga", null, null, null, null, null),
-                        new StageRequest("cierre", null, null, null, null, null))));
+                        new StageRequest("loading", null, null, null, null, null),
+                        new StageRequest("transit", null, null, null, null, null),
+                        new StageRequest("unloading", null, null, null, null, null),
+                        new StageRequest("closing", null, null, null, null, null))));
         UUID tripId = UUID.fromString(trip.id());
         assertTrue(live.find(TENANT_A, tripId).isPresent(), "the hot row is born with the trip (ADDED)");
 
@@ -181,12 +181,12 @@ class PgFeedSimulationTest {
         assertEquals(fleet.carrier().id(), board.carrierId());
         assertEquals("TRANSPORTES EJEMPLO SPA", board.carrierName());
         assertTrue(board.mandateCodes().contains("SRV-1000001"), board.mandateCodes());
-        assertEquals("planificado", board.status());
+        assertEquals("planned", board.status());
 
-        // 4. the stages run; the first start puts the trip en_ruta and the mandate en_ejecucion
+        // 4. the stages run; the first start puts the trip and the mandate in_progress
         List<Stage> plan = stages.listByTrip(TENANT_A, tripId);
         stages.start(TENANT_A, FEED_A, UUID.fromString(plan.get(0).id()));
-        assertEquals("en_ruta", trips.get(TENANT_A, tripId).status());
+        assertEquals("in_progress", trips.get(TENANT_A, tripId).status());
         assertEquals(Mandate.RUNNING,
                 mandates.get(TENANT_A, UUID.fromString(first.mandate().id())).status());
         stages.close(TENANT_A, FEED_A, UUID.fromString(plan.get(0).id()));
@@ -199,17 +199,17 @@ class PgFeedSimulationTest {
                 new AssignmentRequest("truck", fleet.backupTruck().id(), null, "reemplazo por panne"));
         assertEquals(4, assignments.listByTrip(TENANT_A, tripId).size());
         assertEquals("BBBB22", live.find(TENANT_A, tripId).orElseThrow().assetId(), "the board shows the backup");
-        assertEquals("en_ruta", live.find(TENANT_A, tripId).orElseThrow().status());
+        assertEquals("in_progress", live.find(TENANT_A, tripId).orElseThrow().status());
         assertNull(driving.validTo(), "the driver window stays open through the truck change");
 
-        // 6. the service finishes: transito → descarga → cierre realiza el viaje y mata la fila caliente
+        // 6. the service finishes: transit → unloading → closing completes the trip and kills the hot row
         stages.close(TENANT_A, FEED_A, UUID.fromString(plan.get(1).id()));
         stages.start(TENANT_A, FEED_A, UUID.fromString(plan.get(2).id()));
         stages.close(TENANT_A, FEED_A, UUID.fromString(plan.get(2).id()));
         stages.start(TENANT_A, FEED_A, UUID.fromString(plan.get(3).id()));
         stages.close(TENANT_A, FEED_A, UUID.fromString(plan.get(3).id()));
-        assertEquals("realizado", trips.get(TENANT_A, tripId).status());
-        assertTrue(live.find(TENANT_A, tripId).isEmpty(), "realizado kills the hot row");
+        assertEquals("completed", trips.get(TENANT_A, tripId).status());
+        assertTrue(live.find(TENANT_A, tripId).isEmpty(), "completed kills the hot row");
         assertEquals(Mandate.CLOSED, mandates.close(TENANT_A, FEED_A,
                 UUID.fromString(first.mandate().id())).status());
     }
@@ -217,24 +217,24 @@ class PgFeedSimulationTest {
     @Test
     void theIntegrationCanJoinATripAlreadyInTransit() {
         // the integration learns of VDPF81's trip when it is already on the road:
-        // its stage plan starts where reality is — transito, then cierre
+        // its stage plan starts where reality is — transit, then closing
         Mandate m = mandates.createOrGet(TENANT_A, FEED_A,
                 new MandateRequest("SRV-1000002", "service", null, null, null, null)).mandate();
         TripView trip = trips.create(TENANT_A, FEED_A, new TripRequest(null, null, null, List.of(m.id()),
-                List.of(new StageRequest("transito", null, null, null, null, null),
-                        new StageRequest("cierre", null, null, null, null, null))));
+                List.of(new StageRequest("transit", null, null, null, null, null),
+                        new StageRequest("closing", null, null, null, null, null))));
         UUID tripId = UUID.fromString(trip.id());
 
         List<Stage> plan = stages.listByTrip(TENANT_A, tripId);
         stages.start(TENANT_A, FEED_A, UUID.fromString(plan.get(0).id()));
-        assertEquals("en_ruta", trips.get(TENANT_A, tripId).status(),
-                "starting at transito is valid: the plan is the integration's");
+        assertEquals("in_progress", trips.get(TENANT_A, tripId).status(),
+                "starting at transit is valid: the plan is the integration's");
 
         // and it can also end wherever the integration says: cancel mid-route with a reason
         assertThrows(IllegalArgumentException.class, () -> trips.cancel(TENANT_A, FEED_A, tripId, " "));
         trips.cancel(TENANT_A, FEED_A, tripId, "cliente anuló el servicio");
-        assertEquals("anulado", trips.get(TENANT_A, tripId).status());
-        assertTrue(live.find(TENANT_A, tripId).isEmpty(), "anulado also kills the hot row");
+        assertEquals("cancelled", trips.get(TENANT_A, tripId).status());
+        assertTrue(live.find(TENANT_A, tripId).isEmpty(), "cancelled also kills the hot row");
     }
 
     @Test
@@ -247,7 +247,7 @@ class PgFeedSimulationTest {
         // 2. the shipper announces how it will deliver: two partials against the single line
         CargoUnit p1 = cargo.announce(TENANT_B, FEED_B, mandateId, new CargoRequest(
                 "Camarón congelado 20 pallets", new BigDecimal("20"), "pallet", new BigDecimal("18000"),
-                null, "lista"));
+                null, "ready"));
         CargoUnit p2 = cargo.announce(TENANT_B, FEED_B, mandateId, new CargoRequest(
                 "Camarón congelado saldo", new BigDecimal("8"), "pallet", new BigDecimal("7200"),
                 null, null));
@@ -256,9 +256,9 @@ class PgFeedSimulationTest {
 
         // 3. a trip moves the first partial; mounting it links the OC to the trip
         TripView t1 = trips.create(TENANT_B, FEED_B, new TripRequest(null, null, null, null, List.of(
-                new StageRequest("carga", null, null, null, null, null),
-                new StageRequest("descarga", null, null, null, null, null),
-                new StageRequest("cierre", null, null, null, null, null))));
+                new StageRequest("loading", null, null, null, null, null),
+                new StageRequest("unloading", null, null, null, null, null),
+                new StageRequest("closing", null, null, null, null, null))));
         UUID trip1 = UUID.fromString(t1.id());
         List<Stage> plan = stages.listByTrip(TENANT_B, trip1);
         tripCargo.mount(TENANT_B, FEED_B, trip1, new TripCargoRequest(p1.id(), plan.get(0).id(), plan.get(1).id()));
@@ -273,7 +273,7 @@ class PgFeedSimulationTest {
         assertThrows(IllegalStateException.class,
                 () -> trips.unlinkMandate(TENANT_B, FEED_B, trip1, mandateId));
 
-        // 4. the execution moves the cargo: closing carga picks it up, closing descarga delivers it
+        // 4. the execution moves the cargo: closing loading picks it up, closing unloading delivers it
         stages.start(TENANT_B, FEED_B, UUID.fromString(plan.get(0).id()));
         stages.close(TENANT_B, FEED_B, UUID.fromString(plan.get(0).id()));
         assertEquals(CargoUnit.PICKED, cargo.get(TENANT_B, UUID.fromString(p1.id())).status());
@@ -283,16 +283,16 @@ class PgFeedSimulationTest {
 
         // 5. reception with a difference: the detail is mandatory
         UUID p1Id = UUID.fromString(p1.id());
-        ReceiveRequest noDetail = new ReceiveRequest("diferencia", null);
+        ReceiveRequest noDetail = new ReceiveRequest("discrepancy", null);
         assertThrows(IllegalArgumentException.class, () -> cargo.receive(TENANT_B, FEED_B, p1Id, noDetail));
         CargoUnit received = cargo.receive(TENANT_B, FEED_B, UUID.fromString(p1.id()),
-                new ReceiveRequest("diferencia", "llegaron 19 de 20 pallets"));
+                new ReceiveRequest("discrepancy", "llegaron 19 de 20 pallets"));
         assertEquals(CargoUnit.RECEIVED, received.status());
 
         // 6. the trip closes, but the OC stays open: the second partial has not moved
         stages.start(TENANT_B, FEED_B, UUID.fromString(plan.get(2).id()));
         stages.close(TENANT_B, FEED_B, UUID.fromString(plan.get(2).id()));
-        assertEquals("realizado", trips.get(TENANT_B, trip1).status());
+        assertEquals("completed", trips.get(TENANT_B, trip1).status());
         assertEquals(CargoUnit.ANNOUNCED, cargo.get(TENANT_B, UUID.fromString(p2.id())).status(),
                 "the saldo waits for its own trip — the OC is still alive");
         assertEquals(Mandate.CLOSED, mandates.close(TENANT_B, FEED_B, mandateId).status(),
@@ -304,18 +304,18 @@ class PgFeedSimulationTest {
      * FEED_A name, and the service status the stage projects (null inherits).
      */
     private static final String[][] TENANT_A_ROUTE = {
-            {"carga", "flow:consolidateLoad", "Consolidación de Carga", "ADDED"},
-            {"preparacion", "flow:separateDocuments", "Separar Documentos", null},
-            {"preparacion", "flow:planService", "Planificar Servicio", "SCHEDULED"},
-            {"preparacion", "flow:assignDriver", "Viaje con Transporte Asignado", null},
-            {"preparacion", "flow:presentDriver", "Presentación Conductor", null},
-            {"preparacion", "flow:prepareService", "Validación Condiciones", null},
-            {"transito", "flow:missionControl", "Iniciar Viaje", "ONGOING"},
-            {"transito", "flow:monitorTrip", "Viaje en Tránsito", null},
-            {"parada", "flow:confirmArrival", "Viaje Arribado", "ARRIVED"},
-            {"parada", "flow:closeMonitoring", "Confirmar Cierre del Monitoreo", null},
-            {"descarga", "flow:confirmDelivery", "Carga Entregada", null},
-            {"cierre", "flow:receiveDelivery", "Confirmar POD", "FINISHED"}};
+            {"loading", "flow:consolidateLoad", "Consolidación de Carga", "ADDED"},
+            {"preparation", "flow:separateDocuments", "Separar Documentos", null},
+            {"preparation", "flow:planService", "Planificar Servicio", "SCHEDULED"},
+            {"preparation", "flow:assignDriver", "Viaje con Transporte Asignado", null},
+            {"preparation", "flow:presentDriver", "Presentación Conductor", null},
+            {"preparation", "flow:prepareService", "Validación Condiciones", null},
+            {"transit", "flow:missionControl", "Iniciar Viaje", "ONGOING"},
+            {"transit", "flow:monitorTrip", "Viaje en Tránsito", null},
+            {"stop", "flow:confirmArrival", "Viaje Arribado", "ARRIVED"},
+            {"stop", "flow:closeMonitoring", "Confirmar Cierre del Monitoreo", null},
+            {"unloading", "flow:confirmDelivery", "Carga Entregada", null},
+            {"closing", "flow:receiveDelivery", "Confirmar POD", "FINISHED"}};
 
     @Test
     void tenantATwelveRouteStepsRunAsStages() {
@@ -332,7 +332,7 @@ class PgFeedSimulationTest {
         Mandate m = mandates.createOrGet(TENANT_A, FEED_A,
                 new MandateRequest("SRV-RUTA-12", "service", null, null, null, null)).mandate();
         CargoUnit unit = cargo.announce(TENANT_A, FEED_A, UUID.fromString(m.id()),
-                new CargoRequest("Expedición consolidada", null, null, null, null, "lista"));
+                new CargoRequest("Expedición consolidada", null, null, null, null, "ready"));
         List<StageRequest> plan12 = new java.util.ArrayList<>();
         for (String[] step : TENANT_A_ROUTE) {
             ObjectNode source = json.createObjectNode();
@@ -363,7 +363,7 @@ class PgFeedSimulationTest {
             Stage step = plan.get(i);
             stages.start(TENANT_A, FEED_A, UUID.fromString(step.id()));
             if (i == 0) {
-                assertEquals("en_ruta", trips.get(TENANT_A, tripId).status(),
+                assertEquals("in_progress", trips.get(TENANT_A, tripId).status(),
                         "the FIRST opened step moves the trip, whichever it is");
                 assertEquals(Mandate.RUNNING,
                         mandates.get(TENANT_A, UUID.fromString(m.id())).status());
@@ -392,8 +392,8 @@ class PgFeedSimulationTest {
             }
         }
 
-        // Confirmar POD (cierre) realized the trip; the hot row died; the mandate closes
-        assertEquals("realizado", trips.get(TENANT_A, tripId).status());
+        // Confirmar POD (closing) completed the trip; the hot row died; the mandate closes
+        assertEquals("completed", trips.get(TENANT_A, tripId).status());
         assertTrue(live.find(TENANT_A, tripId).isEmpty());
         assertEquals(Mandate.CLOSED,
                 mandates.close(TENANT_A, FEED_A, UUID.fromString(m.id())).status());
@@ -412,34 +412,34 @@ class PgFeedSimulationTest {
 
         // PROGRAMADO = the trip exists, nothing started: its plan is just transito + cierre
         TripView t = trips.create(TENANT_B, FEED_B, new TripRequest(null, null, null, List.of(oc.id()),
-                List.of(new StageRequest("transito", "en ruta", null, null, null, null),
-                        new StageRequest("cierre", "cerrado", null, null, null, null))));
+                List.of(new StageRequest("transit", "en ruta", null, null, null, null),
+                        new StageRequest("closing", "closed", null, null, null, null))));
         UUID tripId = UUID.fromString(t.id());
-        assertEquals("planificado", trips.get(TENANT_B, tripId).status());
-        assertEquals("planificado", live.find(TENANT_B, tripId).orElseThrow().status(),
+        assertEquals("planned", trips.get(TENANT_B, tripId).status());
+        assertEquals("planned", live.find(TENANT_B, tripId).orElseThrow().status(),
                 "programado = the lifecycle fallback while no stage projects");
 
         // EN RUTA = the single transito stage opens and projects tenant B's own words
         List<Stage> plan = stages.listByTrip(TENANT_B, tripId);
         stages.start(TENANT_B, FEED_B, UUID.fromString(plan.get(0).id()));
-        assertEquals("en_ruta", trips.get(TENANT_B, tripId).status());
+        assertEquals("in_progress", trips.get(TENANT_B, tripId).status());
         assertEquals("en ruta", live.find(TENANT_B, tripId).orElseThrow().status());
 
         // CERRADO = transito closes and cierre opens+closes
         stages.close(TENANT_B, FEED_B, UUID.fromString(plan.get(0).id()));
         stages.start(TENANT_B, FEED_B, UUID.fromString(plan.get(1).id()));
         stages.close(TENANT_B, FEED_B, UUID.fromString(plan.get(1).id()));
-        assertEquals("realizado", trips.get(TENANT_B, tripId).status());
+        assertEquals("completed", trips.get(TENANT_B, tripId).status());
         assertTrue(live.find(TENANT_B, tripId).isEmpty());
 
         // ANULADO: a second trip of the same OC dies mid-route with its reason
         TripView t2 = trips.create(TENANT_B, FEED_B, new TripRequest(null, null, null, List.of(oc.id()),
-                List.of(new StageRequest("transito", null, null, null, null, null),
-                        new StageRequest("cierre", null, null, null, null, null))));
+                List.of(new StageRequest("transit", null, null, null, null, null),
+                        new StageRequest("closing", null, null, null, null, null))));
         UUID trip2 = UUID.fromString(t2.id());
         stages.start(TENANT_B, FEED_B, UUID.fromString(stages.listByTrip(TENANT_B, trip2).get(0).id()));
         trips.cancel(TENANT_B, FEED_B, trip2, "cliente anuló");
-        assertEquals("anulado", trips.get(TENANT_B, trip2).status());
+        assertEquals("cancelled", trips.get(TENANT_B, trip2).status());
         assertTrue(live.find(TENANT_B, trip2).isEmpty());
 
         // with one trip realizado and one anulado, the OC closes

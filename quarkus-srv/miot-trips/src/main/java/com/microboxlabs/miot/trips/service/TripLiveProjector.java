@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.service;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
+import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripLiveProjection;
@@ -81,11 +82,15 @@ public class TripLiveProjector {
         FleetResources.Driver first = drivers.isEmpty() ? null : drivers.get(0);
         FleetResources.Driver second = drivers.size() > 1 ? drivers.get(1) : null;
         List<Stage> plan = stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId);
+        Optional<Location> origin = location(tenantCode, t.originId());
+        Optional<Location> destination = location(tenantCode, t.destinationId());
 
         live.upsert(new TripLiveProjection(t.id(), tenantCode, mandateCodes(tenantCode, tripId),
                 truck.map(FleetResources.Vehicle::licensePlate).orElse(null),
-                locationName(tenantCode, t.originId()), locationName(tenantCode, t.destinationId()),
-                serviceStatus(plan).orElse(t.status()),
+                origin.map(l -> truncate(l.name(), LABEL_MAX)).orElse(null),
+                destination.map(l -> truncate(l.name(), LABEL_MAX)).orElse(null),
+                origin.map(Location::geofenceId).orElse(null), destination.map(Location::geofenceId).orElse(null),
+                stopGeofences(tenantCode, plan), serviceStatus(plan).orElse(t.status()),
                 first == null ? null : first.rut(), first == null ? null : first.fullName(),
                 first == null ? null : first.phone(),
                 second == null ? null : second.rut(), second == null ? null : second.fullName(),
@@ -125,10 +130,18 @@ public class TripLiveProjector {
         return codes.isEmpty() ? null : Pg.json(codes);
     }
 
-    private String locationName(String tenantCode, String locationId) {
+    private Optional<Location> location(String tenantCode, String locationId) {
         UUID id = Pg.parse(locationId);
-        return id == null ? null
-                : locations.find(tenantCode, id).map(l -> truncate(l.name(), LABEL_MAX)).orElse(null);
+        return id == null ? Optional.empty() : locations.find(tenantCode, id);
+    }
+
+    /** The geofences of the stop stages' locations, in stage order; null when none has one. */
+    private List<Integer> stopGeofences(String tenantCode, List<Stage> plan) {
+        List<Integer> ids = plan.stream().filter(s -> Stage.STOP.equals(s.stageType()))
+                .sorted(Comparator.comparingInt(Stage::seq))
+                .map(s -> location(tenantCode, s.locationId()).map(Location::geofenceId).orElse(null))
+                .filter(Objects::nonNull).distinct().toList();
+        return ids.isEmpty() ? null : ids;
     }
 
     /** The running stage's service status, else that of the stage that started last; empty when none declared one. */

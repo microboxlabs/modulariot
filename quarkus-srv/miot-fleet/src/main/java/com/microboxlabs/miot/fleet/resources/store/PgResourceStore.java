@@ -340,6 +340,19 @@ public class PgResourceStore implements ResourceStore {
                 r -> new FleetResources.Carrier(r.getUUID(ID), r.getString(LEGAL_NAME), r.getString(PHONE)));
     }
 
+    @Override
+    public Optional<FleetResources.Match> findByKey(String tenantCode, String table, String key) {
+        String column = switch (table) {
+            case TRUCK, TRAILER -> LICENSE_PLATE;
+            case DRIVER -> RUT;
+            default -> throw new IllegalArgumentException("not a keyed resource table: " + table);
+        };
+        return first(query(pool.get(), select("id, is_active AND COALESCE(status, 'active') <> 'inactive' AS usable",
+                table) + " AND upper(regexp_replace(" + column + " COLLATE \"C\", '[^A-Za-z0-9]', '', 'g')) = $2"
+                + " ORDER BY usable DESC, id LIMIT 1", Tuple.of(tenantCode, key)),
+                r -> new FleetResources.Match(r.getUUID(ID), r.getBoolean("usable")));
+    }
+
     // ---- shared ---------------------------------------------------------
 
     /** An ILIKE pattern that matches {@code term} literally: % and _ in user input are not wildcards. */

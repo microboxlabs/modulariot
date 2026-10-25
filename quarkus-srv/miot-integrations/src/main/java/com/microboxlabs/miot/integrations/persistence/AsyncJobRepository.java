@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.persistence;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.integrations.domain.JobLedgerFacets;
 import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.domain.JobState;
@@ -235,7 +236,7 @@ public class AsyncJobRepository {
                 .addJsonObject(toJson(job.payload()))
                 .addInteger(job.maxAttempts())
                 .addString(job.enqueuedBy());
-        RowSet<Row> rows = client().preparedQuery(INSERT)
+        RowSet<Row> rows = PgTx.client(client()).preparedQuery(INSERT)
                 .execute(params)
                 .await().indefinitely();
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;

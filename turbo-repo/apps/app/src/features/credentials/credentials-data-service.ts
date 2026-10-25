@@ -181,10 +181,6 @@ function isBearerForm(form: CredentialFormData): form is BearerTokenFormData {
   return "token" in form;
 }
 
-/**
- * The secret half. A service account's secret is its private key, a bearer
- * credential's is the token; every OAuth2 flavour carries a client secret.
- */
 /** The token and, on a WhatsApp credential, the webhook keys that were filled in. */
 function bearerSecret(
   form: BearerTokenFormData
@@ -204,6 +200,7 @@ function bearerSecret(
   return Object.keys(secret).length > 0 ? secret : undefined;
 }
 
+/** The secret half. A service account uses its private key; OAuth2 uses a client secret. */
 function toSecretConfig(
   form: CredentialFormData
 ): Record<string, string> | undefined {

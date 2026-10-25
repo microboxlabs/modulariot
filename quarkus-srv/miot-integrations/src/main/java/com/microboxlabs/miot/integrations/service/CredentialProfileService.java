@@ -138,7 +138,7 @@ public class CredentialProfileService {
     /**
      * Partial update. An absent or empty {@code secretConfig} keeps the stored secret —
      * the form cannot show it, so it submits nothing to mean "leave it alone". A bearer
-     * credential's secret keys that the request leaves out are kept.
+     * credential keeps every secret key that the request leaves out.
      *
      * @return the updated credential, or {@code null} when it does not exist
      */
@@ -154,30 +154,8 @@ public class CredentialProfileService {
             if (current == null) {
                 return null;
             }
-
-            String displayName = req.displayName() == null ? null : requireName(req.displayName());
-            List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
-            String environment = req.environment() == null ? null : resolveEnvironment(req.environment(), existing);
-            requireNameAvailable(
-                    existing,
-                    displayName != null ? displayName : current.displayName(),
-                    environment != null ? environment : current.environment(),
-                    current.id());
-
-            // A caller may send only the public half it changed; the stored half must still validate.
-            Map<String, Object> publicConfig = req.publicConfig() == null ? null : safeMap(req.publicConfig());
-            validateConfig(current.credentialType(), publicConfig != null ? publicConfig : current.publicConfig());
-
-            Map<String, Object> secretConfig = rotating ? new LinkedHashMap<>(requestedSecret) : Map.of();
-            if (rotating && current.credentialType() == CredentialType.BEARER_TOKEN) {
-                // A WhatsApp credential holds the token and the webhook keys; the form sends only
-                // the ones it changed, so the stored keys it left out are kept.
-                decrypt(current).forEach(secretConfig::putIfAbsent);
-            }
-            UpdateCredentialProfileParams params = new UpdateCredentialProfileParams(
-                    tenantCode, id, displayName, environment, publicConfig,
-                    rotating ? encrypt(secretConfig, current.displayName()) : null,
-                    rotating ? maskSecret(secretConfig) : null, actor);
+            UpdateCredentialProfileParams params = prepareProfileUpdate(
+                    tenantCode, actor, id, req, current, requestedSecret);
             CredentialProfile updated = rotating
                     ? credentialProfileRepository.updateIfVersion(params, current.secretVersion())
                     : credentialProfileRepository.update(params);
@@ -191,6 +169,39 @@ public class CredentialProfileService {
         throw new IllegalStateException("Credential changed concurrently; retry the update");
     }
 
+    private UpdateCredentialProfileParams prepareProfileUpdate(
+            String tenantCode, String actor, String id, UpdateCredentialProfileRequest req,
+            CredentialProfile current, Map<String, Object> requestedSecret) {
+        String displayName = req.displayName() == null ? null : requireName(req.displayName());
+        List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
+        String environment = req.environment() == null ? null : resolveEnvironment(req.environment(), existing);
+        requireNameAvailable(existing,
+                displayName != null ? displayName : current.displayName(),
+                environment != null ? environment : current.environment(), current.id());
+
+        // A caller may send only the public half it changed; the stored half must still validate.
+        Map<String, Object> publicConfig = req.publicConfig() == null ? null : safeMap(req.publicConfig());
+        validateConfig(current.credentialType(), publicConfig != null ? publicConfig : current.publicConfig());
+
+        Map<String, Object> secretConfig = secretForProfileUpdate(current, requestedSecret);
+        boolean rotating = !secretConfig.isEmpty();
+        return new UpdateCredentialProfileParams(tenantCode, id, displayName, environment, publicConfig,
+                rotating ? encrypt(secretConfig, current.displayName()) : null,
+                rotating ? maskSecret(secretConfig) : null, actor);
+    }
+
+    private Map<String, Object> secretForProfileUpdate(
+            CredentialProfile current, Map<String, Object> requestedSecret) {
+        if (requestedSecret.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> secret = new LinkedHashMap<>(requestedSecret);
+        if (current.credentialType() == CredentialType.BEARER_TOKEN) {
+            // The WhatsApp credential form sends only the keys it changed.
+            decrypt(current).forEach(secret::putIfAbsent);
+        }
+        return secret;
+    }
 
     /**
      * Soft-deletes a credential.

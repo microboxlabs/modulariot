@@ -16,10 +16,12 @@ const SLACK_STEP: RuleStep = {
   after: 0,
   channel: "slack",
   template: "",
-  to: "audience",
+  to: [],
   waitForReply: 0,
   onReply: "stop",
 };
+
+const GROUPS = [{ id: "drivers", entries: [{ role: "driver" }] }];
 
 const connection = (id: string, name: string) => ({
   id,
@@ -31,7 +33,7 @@ const connection = (id: string, name: string) => ({
 });
 
 describe("RuleSteps, steps that call a connection", () => {
-  it("asks for one of the channel's connections instead of recipients, and the template is optional", () => {
+  it("asks for one of the channel's connections instead of groups, and the template is optional", () => {
     api.useConnectionChannel.mockImplementation((channel: string | null) => ({
       data:
         channel === "slack"
@@ -46,8 +48,8 @@ describe("RuleSteps, steps that call a connection", () => {
     render(
       <RuleSteps
         steps={[SLACK_STEP]}
+        groups={GROUPS}
         templates={[]}
-        fields={[]}
         readOnly={false}
         d={d}
         onChange={onChange}
@@ -55,7 +57,7 @@ describe("RuleSteps, steps that call a connection", () => {
     );
     expect(api.useConnectionChannel).toHaveBeenCalledWith("slack");
     expect(screen.getByRole("option", { name: "Sin plantilla" })).toBeTruthy();
-    expect(screen.getByText("A").parentElement?.className).toContain("hidden");
+    expect(screen.queryByRole("group", { name: /Grupos/ })).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Conexión"), {
       target: { value: "c1" },
@@ -65,18 +67,19 @@ describe("RuleSteps, steps that call a connection", () => {
     ]);
   });
 
-  it("shows no connection field on a step written to people", () => {
+  it("shows the groups and no connection on a step written to people", () => {
     api.useConnectionChannel.mockReturnValue({ data: undefined });
     render(
       <RuleSteps
-        steps={[{ ...SLACK_STEP, channel: "email" }]}
+        steps={[{ ...SLACK_STEP, channel: "email", to: ["drivers"] }]}
+        groups={GROUPS}
         templates={[]}
-        fields={[]}
         readOnly={false}
         d={d}
         onChange={vi.fn()}
       />
     );
     expect(screen.queryByLabelText("Conexión")).toBeNull();
+    expect(screen.getByRole("group", { name: /Grupos/ })).toBeTruthy();
   });
 });

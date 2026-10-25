@@ -8,13 +8,13 @@ const SPEC: RuleSpec = {
     event: "symptom.case.opened",
     when: "event.data.symptomKey == 'panic-button' && event.data.level >= 4",
   },
-  audience: [{ role: "driver" }],
+  groups: [{ id: "drivers", entries: [{ role: "driver" }] }],
   steps: [
     {
       after: 0,
       channel: "whatsapp",
       template: "panic-check",
-      to: "audience",
+      to: ["drivers"],
       waitForReply: 5,
       onReply: "stop",
     },

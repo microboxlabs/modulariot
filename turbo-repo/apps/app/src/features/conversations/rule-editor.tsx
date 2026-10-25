@@ -18,12 +18,10 @@ import {
   familyLabel,
 } from "@/features/symptoms/maintainer/symptom-labels";
 import { PillSelect } from "@/features/symptoms/maintainer/ui/pill";
-import { Problems } from "@/features/symptoms/maintainer/rule-problems";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import NumberedSection from "@/features/symptoms/maintainer/ui/section";
 import SheetTop from "@/features/symptoms/maintainer/ui/sheet-top";
 import { StateToggle } from "@/features/symptoms/maintainer/ui/state";
-import AudienceList from "./audience-list";
 import {
   refreshRules,
   setRuleState,
@@ -49,7 +47,7 @@ import {
   triggerSummary,
 } from "./rule-model";
 import { RuleReviewPanel, VariablesPanel } from "./rule-side-panel";
-import RuleSteps from "./rule-steps";
+import { GroupsSection, StepsSection } from "./rule-sections";
 import RuleTriggerSection from "./rule-trigger";
 import { COMMUNICATIONS_PAGE } from "./rules-tab";
 import SimulationSection from "./simulation";
@@ -267,7 +265,7 @@ export default function RuleEditor({
 
   const placed = spec
     ? placeFindings(findings, spec, d)
-    : { trigger: [], audience: {}, audienceGeneral: [], steps: {} };
+    : { trigger: [], groups: {}, steps: {} };
 
   const showBar = canMaintain && Boolean(detail?.draft || saving || saveError);
 
@@ -371,49 +369,26 @@ export default function RuleEditor({
                   onChange={(trigger) => set({ trigger })}
                 />
 
-                <NumberedSection
-                  number={2}
-                  title={tr("sectionAudience", d)}
-                  subtitle={tr("sectionAudienceSub", d)}
+                <GroupsSection
+                  spec={spec}
+                  fields={info?.fields ?? []}
+                  errors={placed.groups}
                   changed={changedKeys.has("audience")}
-                >
-                  <p className={`text-sm ${MUTED}`}>{tr("audienceHint", d)}</p>
-                  <Problems
-                    items={placed.audienceGeneral.map((message) => ({
-                      position: 0,
-                      message,
-                      severity: "error",
-                    }))}
-                  />
-                  <AudienceList
-                    entries={spec.audience}
-                    fields={info?.fields ?? []}
-                    errors={placed.audience}
-                    readOnly={readOnly}
-                    d={d}
-                    fieldDict={fieldDict}
-                    label={tr("sectionAudience", d)}
-                    onChange={(audience) => set({ audience })}
-                  />
-                </NumberedSection>
+                  readOnly={readOnly}
+                  d={d}
+                  fieldDict={fieldDict}
+                  onChange={set}
+                />
 
-                <NumberedSection
-                  number={3}
-                  title={tr("sectionSteps", d)}
-                  subtitle={tr("sectionStepsSub", d)}
+                <StepsSection
+                  spec={spec}
+                  templates={templates ?? []}
+                  errors={placed.steps}
                   changed={changes.some((c) => c.key.startsWith("step"))}
-                >
-                  <RuleSteps
-                    steps={spec.steps}
-                    templates={templates ?? []}
-                    fields={info?.fields ?? []}
-                    errors={placed.steps}
-                    readOnly={readOnly}
-                    d={d}
-                    fieldDict={fieldDict}
-                    onChange={(steps) => set({ steps })}
-                  />
-                </NumberedSection>
+                  readOnly={readOnly}
+                  d={d}
+                  onChange={(steps) => set({ steps })}
+                />
 
                 <NumberedSection
                   number={4}

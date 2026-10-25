@@ -4,8 +4,10 @@ import type { RuleSpec } from "./conversations-types";
 import {
   conditionValues,
   fillText,
+  groupLabel,
   minutesAfter,
   newRuleSpec,
+  normalizeSpec,
   parseWhen,
   ruleChanges,
   ruleTargets,
@@ -210,7 +212,7 @@ describe("ruleChanges", () => {
   it("lists each part that changed, ignoring spacing in the condition", () => {
     const draft: RuleSpec = {
       trigger: { event: "symptom.case.opened", when: "  true " },
-      audience: [{ role: "tower_lead" }],
+      groups: [{ id: "group-1", entries: [{ role: "tower_lead" }] }],
       steps: [
         { ...published.steps[0], waitForReply: 10 },
         { ...published.steps[0], channel: "email" },
@@ -238,6 +240,54 @@ describe("ruleChanges", () => {
     );
     expect(ruleChanges(after, before, d).map((c) => c.key)).toEqual(["when"]);
     expect(ruleChanges(respaced, before, d)).toEqual([]);
+  });
+});
+
+describe("normalizeSpec", () => {
+  it("reads a rule saved before groups as the server does", () => {
+    const spec = normalizeSpec({
+      trigger: { event: "symptom.case.opened" },
+      audience: [{ role: "driver" }],
+      steps: [
+        { channel: "whatsapp", template: "a", to: "audience", waitForReply: 5 },
+        {
+          channel: "email",
+          template: "b",
+          to: [{ address: "tower@example.com", channel: "email" }],
+        },
+        { channel: "slack", connection: "c-1" },
+      ],
+    });
+    expect(spec.groups).toEqual([
+      { id: "rule", name: null, entries: [{ role: "driver" }] },
+      {
+        id: "step-2",
+        name: null,
+        entries: [{ address: "tower@example.com", channel: "email" }],
+      },
+    ]);
+    expect(spec.steps.map((s) => s.to)).toEqual([["rule"], ["step-2"], []]);
+    expect(spec.steps.map((s) => s.waitForReply)).toEqual([5, 0, 0]);
+  });
+
+  it("keeps a rule with groups as it is, with only group ids in a step", () => {
+    const spec = normalizeSpec({
+      groups: [{ id: "a", name: "A", entries: [{ role: "driver" }] }],
+      steps: [{ channel: "whatsapp", template: "x", to: ["a", 3] }],
+    });
+    expect(spec.groups[0].name).toBe("A");
+    expect(spec.steps[0].to).toEqual(["a"]);
+  });
+
+  it("names a group without a name by where it came from", () => {
+    expect(groupLabel({ id: "rule", entries: [] }, 0, d)).toBe(
+      "Destinatarios de la regla"
+    );
+    expect(groupLabel({ id: "step-2", entries: [] }, 1, d)).toBe("Paso 2");
+    expect(groupLabel({ id: "group-7", entries: [] }, 2, d)).toBe("Grupo 3");
+    expect(groupLabel({ id: "x", name: " Torre ", entries: [] }, 0, d)).toBe(
+      "Torre"
+    );
   });
 });
 

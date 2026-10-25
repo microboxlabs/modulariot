@@ -4,13 +4,15 @@ import { nextRuleVersion, ruleBump } from "./rule-model";
 
 const base: RuleSpec = {
   trigger: { event: "symptom.case.opened", when: "event.data.level >= 4" },
-  audience: [{ role: "driver" }],
+  groups: [
+    { id: "drivers", name: "Conductores", entries: [{ role: "driver" }] },
+  ],
   steps: [
     {
       after: 0,
       channel: "whatsapp",
       template: "check",
-      to: "audience",
+      to: ["drivers"],
       waitForReply: 5,
       onReply: "stop",
     },
@@ -18,7 +20,7 @@ const base: RuleSpec = {
       after: 5,
       channel: "email",
       template: "tower",
-      to: "audience",
+      to: ["drivers"],
       waitForReply: 0,
       onReply: "stop",
     },
@@ -67,8 +69,15 @@ describe("ruleBump", () => {
     };
     expect(ruleBump(level3, base)).toBe("MINOR");
     expect(
-      ruleBump({ ...base, audience: [{ role: "tower_lead" }] }, base)
+      ruleBump(
+        {
+          ...base,
+          groups: [{ id: "drivers", entries: [{ role: "tower_lead" }] }],
+        },
+        base
+      )
     ).toBe("MINOR");
+    expect(ruleBump(step(base, 1, { to: [] }), base)).toBe("MINOR");
     expect(ruleBump({ ...base, steps: base.steps.slice(0, 1) }, base)).toBe(
       "MINOR"
     );
@@ -95,6 +104,14 @@ describe("ruleBump", () => {
     expect(ruleBump(step(base, 0, { onReply: "continue" }), base)).toBe(
       "PATCH"
     );
+  });
+
+  it("is PATCH when only a group's name changes, like the server", () => {
+    const renamed = {
+      ...base,
+      groups: [{ ...base.groups[0], name: "Choferes" }],
+    };
+    expect(ruleBump(renamed, base)).toBe("PATCH");
   });
 });
 

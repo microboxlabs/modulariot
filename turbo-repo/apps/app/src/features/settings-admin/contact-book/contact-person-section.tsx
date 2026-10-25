@@ -36,12 +36,12 @@ export interface PersonDraft {
   rut: string;
 }
 
+/** The member's name; the email when the directory has none. */
 export function memberName(member: OrgMember): string {
-  return (
-    member.displayName ||
-    `${member.firstName} ${member.lastName}`.trim() ||
-    member.email
-  );
+  const full = [member.firstName, member.lastName]
+    .filter((part) => part?.trim())
+    .join(" ");
+  return member.displayName?.trim() || full || member.email;
 }
 
 function MemberRow({

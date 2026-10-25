@@ -276,6 +276,8 @@ class PgTreatmentStoresTest {
         assertEquals(2, stats.size());
         assertEquals(new ContactCallStats(camila.id(), base.plusMinutes(2), 1, 1), stats.get(camila.id()));
         assertEquals(new ContactCallStats(ignacio.id(), base, 0, 1), stats.get(ignacio.id()));
+        assertEquals(List.of(stats.get(camila.id())), treatments.contactStats(tenant, List.of(camila.id())));
+        assertTrue(treatments.contactStats(tenant, List.of()).isEmpty());
         assertTrue(treatments.contactStats("other-tenant").isEmpty());
         TreatmentAction badContact = call(tenant, t.id(), "not-a-uuid", true, base);
         assertThrows(IllegalArgumentException.class, () -> treatments.addAction(badContact));

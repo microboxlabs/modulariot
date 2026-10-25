@@ -7,7 +7,7 @@ import { tr } from "@/features/i18n/tr.service";
 import SinglePick, { type PickOption } from "./single-pick";
 import type { CompanyOption } from "./store";
 import { normalizeLabel } from "./taxonomy-store";
-import { displayId, guessCompanyIdType } from "./tax-id";
+import { displayId, guessCompanyIdType, type IdType } from "./tax-id";
 import { useCarrierCompanies } from "./use-carrier-companies";
 
 type CompanyPick = PickOption & { company: CompanyOption };
@@ -26,7 +26,7 @@ export default function ContactOrganizationSection({
 }: Readonly<{
   value: string;
   /** `rut` is set when the picked company has one. */
-  onChange: (next: string, rut?: string) => void;
+  onChange: (next: string, rut?: string, taxIdType?: IdType) => void;
   organizations: readonly CompanyOption[];
   d: I18nRecord;
 }>) {
@@ -45,7 +45,9 @@ export default function ContactOrganizationSection({
       query={query}
       onQuery={setQuery}
       searching={searching}
-      onPick={(o) => onChange(o.company.name.trim(), o.company.rut)}
+      onPick={(o) =>
+        onChange(o.company.name.trim(), o.company.rut, o.company.taxIdType)
+      }
       onCreate={(name) => onChange(name)}
       onClear={() => onChange("")}
       texts={{
@@ -70,7 +72,10 @@ function companyPick(
     company,
     label: company.name,
     hint: company.rut
-      ? displayId(guessCompanyIdType(company.rut), company.rut)
+      ? displayId(
+          company.taxIdType ?? guessCompanyIdType(company.rut),
+          company.rut
+        )
       : undefined,
     icon: carrier ? HiOutlineTruck : HiOutlineOfficeBuilding,
     iconLabel: carrier ? carrierLabel : undefined,
@@ -82,9 +87,13 @@ function mergeCompanies(
   book: readonly CompanyOption[],
   carriers: readonly CompanyOption[]
 ): CompanyOption[] {
-  const seen = new Set(book.map((o) => normalizeLabel(o.name)));
-  return [
-    ...book,
-    ...carriers.filter((c) => !seen.has(normalizeLabel(c.name))),
-  ];
+  const merged = new Map(book.map((o) => [normalizeLabel(o.name), o]));
+  for (const carrier of carriers) {
+    const key = normalizeLabel(carrier.name);
+    const existing = merged.get(key);
+    if (!existing) merged.set(key, carrier);
+    else if (!existing.rut && carrier.rut)
+      merged.set(key, { ...existing, rut: carrier.rut });
+  }
+  return [...merged.values()];
 }

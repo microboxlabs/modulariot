@@ -502,10 +502,7 @@ function CardLine({
 
 /** Whether a communication rule can write to the contact: by email or WhatsApp. */
 export function reachableByRules(contact: BookContact): boolean {
-  return Boolean(
-    contactMethodValue(contact, "email") ||
-    contactMethodValue(contact, "whatsapp")
-  );
+  return Boolean(contact.email || contact.channels?.whatsapp || contact.phone);
 }
 
 const REACH_SHOWN = 3;

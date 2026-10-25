@@ -237,7 +237,7 @@ export async function refreshMetaTemplates() {
 
 /** Refreshes the rule list and, when given, one rule. */
 export async function refreshRules(id?: string) {
-  await mutate(rulesKey);
+  await Promise.all([mutate(rulesKey), mutate(contactReachKey)]);
   if (id) await mutate(ruleKey(id));
 }
 

@@ -47,12 +47,12 @@ public class ContactReach {
         List<ContactDirectory.Entry> book = book(tenantCode);
         Map<String, List<Reached>> out = new LinkedHashMap<>();
         for (RuleStore.InForce f : rules.inForce(tenantCode)) {
-            List<String> conditions = conditions(RuleSpec.read(f.version().spec()));
+            List<Condition> conditions = conditions(RuleSpec.read(f.version().spec()));
             if (conditions.isEmpty()) {
                 continue;
             }
             for (ContactDirectory.Entry c : book) {
-                Reach reach = reach(conditions, Audiences.contactVars(c));
+                Reach reach = reach(conditions, c);
                 if (reach != Reach.NO) {
                     out.computeIfAbsent(c.id(), k -> new ArrayList<>()).add(
                             new Reached(f.rule().id(), f.rule().name(), f.rule().state(), reach == Reach.YES));
@@ -63,10 +63,13 @@ public class ContactReach {
     }
 
     /** YES when any condition always takes the contact, else DEPENDS when one may, else NO. */
-    static Reach reach(List<String> conditions, Map<String, Object> contact) {
+    static Reach reach(List<Condition> conditions, ContactDirectory.Entry contact) {
         Reach best = Reach.NO;
-        for (String when : conditions) {
-            Reach r = EventCondition.reachContact(when, contact);
+        for (Condition condition : conditions) {
+            if (!hasAddress(contact, condition.channel())) {
+                continue;
+            }
+            Reach r = EventCondition.reachContact(condition.when(), Audiences.contactVars(contact));
             if (r == Reach.YES) {
                 return r;
             }
@@ -77,24 +80,39 @@ public class ContactReach {
         return best;
     }
 
-    /** The contact conditions of the groups the rule's steps write to. */
-    static List<String> conditions(RuleSpec spec) {
-        List<String> out = new ArrayList<>();
+    record Condition(String when, String channel) {
+    }
+
+    private static boolean hasAddress(ContactDirectory.Entry contact, String channel) {
+        if (RuleSpec.EMAIL.equals(channel)) {
+            return contact.email() != null && !contact.email().isBlank();
+        }
+        if (RuleSpec.WHATSAPP.equals(channel)) {
+            return contact.whatsapp() != null && !contact.whatsapp().isBlank();
+        }
+        return (contact.email() != null && !contact.email().isBlank())
+                || (contact.whatsapp() != null && !contact.whatsapp().isBlank());
+    }
+
+    /** Only contact conditions in audiences actually used by messaging steps. */
+    static List<Condition> conditions(RuleSpec spec) {
+        List<Condition> out = new ArrayList<>();
         for (Step s : spec.steps()) {
             if (!s.viaConnection()) {
-                addContacts(spec.recipients(s), out);
+                addContacts(spec.recipients(s), s.channel(), out);
             }
         }
         return out;
     }
 
-    private static void addContacts(List<Audience> entries, List<String> out) {
+    private static void addContacts(List<Audience> entries, String channel, List<Condition> out) {
         if (entries == null) {
             return;
         }
         for (Audience a : entries) {
-            if (a.contacts() != null && !a.contacts().isBlank() && !out.contains(a.contacts())) {
-                out.add(a.contacts());
+            Condition condition = new Condition(a.contacts(), channel);
+            if (a.contacts() != null && !a.contacts().isBlank() && !out.contains(condition)) {
+                out.add(condition);
             }
         }
     }

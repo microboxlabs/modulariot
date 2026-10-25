@@ -348,6 +348,7 @@ describe("ContactCard", () => {
   it("warns when rules can't reach the contact and marks it external", () => {
     renderCard({
       ...person,
+      phone: "",
       methods: ["meet"],
       channels: { meet: "persona@example.com" },
       provisional: true,
@@ -355,5 +356,10 @@ describe("ContactCard", () => {
     expect(screen.getByText("Externo")).toBeInTheDocument();
     expect(screen.getByText("Por completar")).toBeInTheDocument();
     expect(screen.getByLabelText("Sin correo ni WhatsApp")).toBeInTheDocument();
+  });
+
+  it("treats a phone number as a WhatsApp fallback for rules", () => {
+    renderCard({ ...person, methods: ["meet"], channels: {} });
+    expect(screen.queryByLabelText("Sin correo ni WhatsApp")).toBeNull();
   });
 });

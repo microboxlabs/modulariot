@@ -20,6 +20,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import LocationsPanel from "../locations/locations-panel";
 import ExpressionField from "./expression-field";
+import { useRowKeys } from "./use-row-keys";
 import {
   saveDraft,
   saveSelector,
@@ -38,7 +39,8 @@ export function keyFromName(name: string) {
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/^-/, "")
+    .replace(/-$/, "")
     .slice(0, 64);
 }
 
@@ -168,6 +170,8 @@ function SelectorPanel({
     }
   }, [data, entries]);
 
+  const rowKeys = useRowKeys(entries?.length ?? 0);
+
   if (!entries) return null;
   const set = (i: number, patch: Partial<(typeof entries)[number]>) =>
     setEntries(entries.map((e, j) => (j === i ? { ...e, ...patch } : e)));
@@ -201,8 +205,8 @@ function SelectorPanel({
         </p>
       )}
       {entries.map((e, i) => (
-        // Entries are ordered rows without an identity of their own.
-        <div key={i} className="flex items-end gap-2">
+        // Keep editor identity when earlier rows are removed.
+        <div key={rowKeys.keys[i]} className="flex items-end gap-2">
           <span className="w-6 pb-2 text-right text-xs text-gray-400">
             {i + 1}
           </span>
@@ -237,7 +241,10 @@ function SelectorPanel({
               className="mb-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700"
               disabled={busy}
               aria-label={tr("removeEntry", d)}
-              onClick={() => setEntries(entries.filter((_, j) => j !== i))}
+              onClick={() => {
+                rowKeys.remove(i);
+                setEntries(entries.filter((_, j) => j !== i));
+              }}
             >
               <HiX className="h-4 w-4" />
             </button>
@@ -253,12 +260,13 @@ function SelectorPanel({
             color="light"
             size="sm"
             disabled={busy || published.length === 0}
-            onClick={() =>
+            onClick={() => {
+              rowKeys.append();
               setEntries([
                 ...entries,
                 { condition: "", monitorKey: published[0].key },
-              ])
-            }
+              ]);
+            }}
           >
             <HiPlus className="mr-1 h-4 w-4" />
             {tr("addEntry", d)}

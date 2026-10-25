@@ -11,7 +11,10 @@ import { HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
-import { PLATFORM_SCOPE_SETTINGS } from "@/features/common/platform-scope";
+import {
+  PLATFORM_SCOPE_PAGES,
+  PLATFORM_SCOPE_SETTINGS,
+} from "@/features/common/platform-scope";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
@@ -112,10 +115,17 @@ export interface SettingsGates {
 
 const SETTINGS_LABEL = "settings";
 
-/** In the platform scope only Settings remains, with the entries that exist for the platform. */
+/**
+ * In the platform scope only the pages the platform has remain: Settings, with the entries that
+ * exist for the platform, and the job console.
+ */
 function platformScopePages(input: SidebarItem[]): SidebarItem[] {
   return input
-    .filter((page) => page.label === SETTINGS_LABEL)
+    .filter(
+      (page) =>
+        page.label === SETTINGS_LABEL ||
+        (!!page.href && PLATFORM_SCOPE_PAGES.includes(page.href))
+    )
     .map((page) => ({
       ...page,
       items: (page.items ?? []).filter(

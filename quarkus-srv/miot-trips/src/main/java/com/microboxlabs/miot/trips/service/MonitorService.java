@@ -98,15 +98,19 @@ public class MonitorService {
         TripMonitor draft = new TripMonitor(tenantCode, key, 0, TripMonitor.DRAFT, Check.required(body.name(),
                 "name", 255), Check.limitedOrNull(body.description(), "description", 2000), plan(body.plan()),
                 params(body.params()), rules(body.rules()), null, actor, null, actor, null, null);
-        TripMonitor saved = store.saveDraft(draft);
-        audit.log(tenantCode, actor, "monitor.draft_saved", ENTITY, key, null,
-                Map.of("version", String.valueOf(saved.version())));
-        return view(saved);
+        return tx.inTransaction(() -> {
+            store.lock(tenantCode, key);
+            TripMonitor saved = store.saveDraft(draft);
+            audit.log(tenantCode, actor, "monitor.draft_saved", ENTITY, key, null,
+                    Map.of("version", String.valueOf(saved.version())));
+            return view(saved);
+        });
     }
 
     /** Publishes the draft as a new version; refused while it has findings. */
     public MonitorViews.Monitor publish(String tenantCode, String actor, String monitorKey) {
         return tx.inTransaction(() -> {
+            store.lock(tenantCode, monitorKey);
             TripMonitor draft = store.versions(tenantCode, monitorKey).stream()
                     .filter(v -> TripMonitor.DRAFT.equals(v.status())).findFirst()
                     .orElseThrow(() -> new NoSuchElementException("the monitor has no draft"));
@@ -124,10 +128,14 @@ public class MonitorService {
     }
 
     public void discardDraft(String tenantCode, String actor, String monitorKey) {
-        if (!store.deleteDraft(tenantCode, monitorKey)) {
-            throw new NoSuchElementException("the monitor has no draft");
-        }
-        audit.log(tenantCode, actor, "monitor.draft_discarded", ENTITY, monitorKey, null, Map.of());
+        tx.inTransaction(() -> {
+            store.lock(tenantCode, monitorKey);
+            if (!store.deleteDraft(tenantCode, monitorKey)) {
+                throw new NoSuchElementException("the monitor has no draft");
+            }
+            audit.log(tenantCode, actor, "monitor.draft_discarded", ENTITY, monitorKey, null, Map.of());
+            return null;
+        });
     }
 
     /** What an expression of a rule triggered by {@code on} may read. */
@@ -170,6 +178,7 @@ public class MonitorService {
             throw new IllegalArgumentException("the selector holds at most " + MAX_SELECTOR + " entries");
         }
         return tx.inTransaction(() -> {
+            store.lock(tenantCode, "_selector");
             Set<String> published = new HashSet<>();
             store.all(tenantCode).stream().filter(m -> TripMonitor.PUBLISHED.equals(m.status()))
                     .forEach(m -> published.add(m.monitorKey()));
@@ -242,15 +251,17 @@ public class MonitorService {
             return List.of();
         }
         Set<String> types = new LinkedHashSet<>();
+        List<TripMonitor.StagePlan> normalized = new ArrayList<>();
         for (TripMonitor.StagePlan s : plan) {
             String type = Check.oneOf(Check.required(s == null ? null : s.stageType(), "stageType", 32),
                     "stageType", MonitorSchema.STAGE_TYPES.toArray(String[]::new));
             if (!types.add(type)) {
                 throw new IllegalArgumentException("stage " + type + " is listed twice in the plan");
             }
-            Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64);
+            normalized.add(new TripMonitor.StagePlan(type,
+                    Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64)));
         }
-        return List.copyOf(plan);
+        return List.copyOf(normalized);
     }
 
     /** Parameters are named like identifiers and hold a number, a yes/no or a text. */
@@ -314,7 +325,7 @@ public class MonitorService {
         }
         List<TripMonitor.Action> out = new ArrayList<>();
         for (TripMonitor.Action a : then) {
-            String type = a == null ? null : a.type();
+            String type = Check.required(a == null ? null : a.type(), "action type", 32);
             String value = a == null ? null : Check.blankToNull(a.value());
             if (STAGE_ACTIONS.contains(type)) {
                 Check.oneOf(value, "rule " + rule + ": " + type, MonitorSchema.STAGE_TYPES.toArray(String[]::new));

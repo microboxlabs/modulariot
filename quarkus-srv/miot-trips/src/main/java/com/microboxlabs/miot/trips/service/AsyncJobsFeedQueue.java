@@ -1,6 +1,9 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
+import com.microboxlabs.miot.integrations.dto.EnqueueJobsResponse;
+import com.microboxlabs.miot.core.db.Transactions;
+import java.util.function.BooleanSupplier;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobWorker;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
@@ -16,11 +19,13 @@ public class AsyncJobsFeedQueue implements FeedJobQueue {
 
     private final AsyncJobService jobs;
     private final ModulithJobWorker worker;
+    private final Transactions tx;
 
     @Inject
-    public AsyncJobsFeedQueue(AsyncJobService jobs, ModulithJobWorker worker) {
+    public AsyncJobsFeedQueue(AsyncJobService jobs, ModulithJobWorker worker, Transactions tx) {
         this.jobs = jobs;
         this.worker = worker;
+        this.tx = tx;
     }
 
     @Override
@@ -28,4 +33,25 @@ public class AsyncJobsFeedQueue implements FeedJobQueue {
         worker.onEnqueued(jobs.enqueue(tenantCode, new EnqueueJobsRequest("trips-feed:" + feedKey, "listener",
                 specs)));
     }
+    @Override
+    public boolean acceptAndQueue(String tenantCode, String feedKey, AsyncJobSpec job, BooleanSupplier accept) {
+        EnqueueJobsResponse response = tx.inTransaction(() -> {
+            if (!accept.getAsBoolean()) {
+                return null;
+            }
+            EnqueueJobsResponse result = jobs.enqueue(tenantCode,
+                    new EnqueueJobsRequest("trips-feed:" + feedKey, "listener", List.of(job)));
+            if (result.duplicates() > 0) {
+                throw new IllegalStateException("feed job already exists for this batch");
+            }
+            return result;
+        });
+        if (response == null) {
+            return false;
+        }
+        // Wake the worker only after both the desired state and ledger row have committed.
+        worker.onEnqueued(response);
+        return true;
+    }
+
 }

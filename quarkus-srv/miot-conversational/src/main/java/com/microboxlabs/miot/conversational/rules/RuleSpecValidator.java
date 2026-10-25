@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 /**
@@ -40,7 +41,13 @@ public final class RuleSpecValidator {
      * @param roles      the roles known for a context kind; empty when nobody resolves roles for it
      */
     public record Context(Map<String, String> eventTypes, Map<String, ConvTemplate> templates,
-            Function<String, Optional<List<String>>> roles) {
+            Function<String, Optional<List<String>>> roles, BiPredicate<String, String> connections) {
+
+        /** Every connection id counts as one of the organization's. */
+        public Context(Map<String, String> eventTypes, Map<String, ConvTemplate> templates,
+                Function<String, Optional<List<String>>> roles) {
+            this(eventTypes, templates, roles, (channel, id) -> true);
+        }
     }
 
     public static final String TRIGGER = "trigger";
@@ -145,6 +152,9 @@ public final class RuleSpecValidator {
             if (s.connection() == null) {
                 out.add(error(section, "stepNoConnection", params(CHANNEL, channel),
                         "Elige la conexión que llama el paso."));
+            } else if (!context.connections().test(channel, s.connection())) {
+                out.add(error(section, "stepUnknownConnection", params(CHANNEL, channel),
+                        "La conexión del paso ya no existe o no es de este canal."));
             }
         } else {
             recipients(out, section, s, roles, contextKind);

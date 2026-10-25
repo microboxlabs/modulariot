@@ -20,5 +20,8 @@ public interface LocationStore {
 
     List<Location> list(String tenantCode, String q, String type, int page, int size);
 
+    /** Updates descriptive fields without replacing the independently managed geofence link. */
     Optional<Location> update(Location location);
+
+    Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor);
 }

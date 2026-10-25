@@ -27,15 +27,25 @@ export interface Geofence {
 }
 
 const API = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/trips`;
+const searchQuery = (q: string) => (q ? `&q=${encodeURIComponent(q)}` : "");
 export const locationsKey = (q: string) =>
-  `${API}/locations?size=200${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+  `${API}/locations?size=200${searchQuery(q)}`;
 const geofencesKey = (q: string) =>
-  `${API}/locations/geofences?size=200${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+  `${API}/locations/geofences?size=200${searchQuery(q)}`;
 
 const fetcher = <T>(url: string) => tripsRequest<T>(url);
 
+async function fetchLocations(url: string) {
+  const locations: TripLocation[] = [];
+  for (let page = 0; ; page++) {
+    const rows = await tripsRequest<TripLocation[]>(`${url}&page=${page}`);
+    locations.push(...rows);
+    if (rows.length < 200) return locations;
+  }
+}
+
 export function useLocations(q: string) {
-  return useSWR<TripLocation[]>(locationsKey(q), fetcher, {
+  return useSWR<TripLocation[]>(locationsKey(q), fetchLocations, {
     keepPreviousData: true,
   });
 }

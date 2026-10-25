@@ -55,6 +55,8 @@ const whatsAppBaseShape = {
   baseUrl: z.string().url("validation.baseUrlInvalid"),
   testModeEnabled: z.boolean(),
   testRecipients: z.string(),
+  appSecret: z.string(),
+  verifyToken: z.string(),
 };
 
 /**
@@ -109,24 +111,44 @@ function whatsAppMetadata(form: WhatsAppFormData): Record<string, unknown> {
   };
 }
 
-/** The access token becomes a bearer credential; the ids go in the connection metadata. */
+/** Where Meta sends this connection's webhook, relative to the API's public URL. */
+export function whatsAppWebhookPath(connectionId: string): string {
+  return `/webhooks/whatsapp/${encodeURIComponent(connectionId)}`;
+}
+
+/** The webhook keys the form filled in; a blank one is left out. */
+function webhookSecrets(form: WhatsAppFormData): Record<string, string> {
+  const secrets: Record<string, string> = {};
+  const appSecret = form.appSecret.trim();
+  const verifyToken = form.verifyToken.trim();
+  if (appSecret) secrets.app_secret = appSecret;
+  if (verifyToken) secrets.verify_token = verifyToken;
+  return secrets;
+}
+
+/**
+ * The access token, the Meta App secret and the webhook verify token go in one credential;
+ * the ids go in the connection metadata.
+ */
 export function whatsAppCreate(form: WhatsAppFormData): ChannelCreate {
   return {
     name: form.name,
     baseUrl: form.baseUrl,
     token: form.token,
+    secrets: webhookSecrets(form),
     credentialName: `WhatsApp token · ${form.phoneNumberId}`,
     credentialPublicConfig: { provider: WHATSAPP_CREDENTIAL },
     metadata: whatsAppMetadata(form),
   };
 }
 
-/** A blank token keeps the stored one. */
+/** A blank token, App secret or verify token keeps the stored one. */
 export function whatsAppUpdate(form: WhatsAppFormData): ChannelUpdate {
   return {
     name: form.name,
     baseUrl: form.baseUrl,
     token: form.token,
+    secrets: webhookSecrets(form),
     metadata: whatsAppMetadata(form),
   };
 }

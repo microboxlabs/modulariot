@@ -4,6 +4,7 @@ import com.microboxlabs.miot.conversational.events.ConversationReplyReceived;
 import com.microboxlabs.miot.conversational.service.InboundMessage;
 import com.microboxlabs.miot.conversational.service.WhatsAppInboundService;
 import com.microboxlabs.miot.conversational.service.WhatsAppInboundService.Ingested;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -66,6 +67,10 @@ public class WhatsAppInboundMessageJob implements ModulithJobHandler {
         }
         if (ingested.reply() == null) {
             return JobOutcome.skipped("Already stored");
+        }
+        if (!PlatformScope.TENANT.equals(tenantCode)
+                && !tenantCode.equals(ingested.reply().tenantCode())) {
+            return JobOutcome.skipped("The reply belongs to another organization");
         }
         replies.accept(ingested.reply());
         return JobOutcome.succeeded((ingested.duplicate() ? "Already stored; reply handed on again to "

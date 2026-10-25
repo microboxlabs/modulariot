@@ -279,6 +279,61 @@ class CredentialProfileServiceTest {
         assertEquals("tokenUrl must not point to an internal address", response.message());
     }
 
+    @Test
+    void mergingASecretKeepsTheOtherKeys() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(), Map.of("token", "access")));
+
+        service().mergeSecret(TENANT, created.id(), Map.of("app_secret", "signing"));
+
+        Map<String, Object> secret = new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                .decrypt(credentials.storedSecret);
+        assertEquals(Map.of("token", "access", "app_secret", "signing"), secret);
+    }
+
+    @Test
+    void credentialsScreenRotationKeepsWhatsAppWebhookKeys() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "old", "app_secret", "signing", "verify_token", "verify")));
+
+        service().update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(
+                null, null, null, Map.of("token", "new")));
+
+        assertEquals(Map.of("token", "new", "app_secret", "signing", "verify_token", "verify"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
+    @Test
+    void mergingSecretsRetriesAfterAConcurrentRotation() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "old", "app_secret", "old-signing")));
+        credentials.concurrentSecret = Map.of("token", "new-access", "app_secret", "old-signing");
+
+        service().mergeSecret(TENANT, created.id(), Map.of("app_secret", "new-signing"));
+
+        assertEquals(Map.of("token", "new-access", "app_secret", "new-signing"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
+    @Test
+    void credentialsScreenRotationRetriesAndPreservesAConcurrentWebhookKey() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "old", "app_secret", "old-signing")));
+        credentials.concurrentSecret = Map.of("token", "old", "app_secret", "new-signing");
+
+        service().update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(
+                null, null, null, Map.of("token", "new-access")));
+
+        assertEquals(Map.of("token", "new-access", "app_secret", "new-signing"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
     private CredentialProfileService service() {
         return new CredentialProfileService(
                 credentials,
@@ -324,6 +379,8 @@ class CredentialProfileServiceTest {
 
         final List<CredentialProfile> rows = new ArrayList<>();
         UpdateCredentialProfileParams lastUpdate;
+        String storedSecret;
+        Map<String, Object> concurrentSecret;
         OffsetDateTime recordedTestedAt;
         Boolean recordedTestResult;
         boolean deleted;
@@ -352,6 +409,64 @@ class CredentialProfileServiceTest {
         public CredentialProfile update(UpdateCredentialProfileParams params) {
             lastUpdate = params;
             return findByTenantAndId(params.tenantCode(), params.id());
+        }
+
+        @Override
+        public CredentialProfile updateIfVersion(UpdateCredentialProfileParams params, int expectedVersion) {
+            lastUpdate = params;
+            if (simulateConcurrentWrite(params.tenantCode(), params.id())) {
+                return null;
+            }
+            CredentialProfile current = findByTenantAndId(params.tenantCode(), params.id());
+            if (current == null || current.secretVersion() != expectedVersion) {
+                return null;
+            }
+            storedSecret = params.encryptedSecretJson();
+            return replaceSecret(current, storedSecret, params.secretPreview());
+        }
+
+        @Override
+        public CredentialProfile updateSecret(
+                String tenantCode, String id, String encryptedSecretJson, String secretPreview) {
+            storedSecret = encryptedSecretJson;
+            return findByTenantAndId(tenantCode, id);
+        }
+
+        @Override
+        public CredentialProfile updateSecretIfVersion(
+                String tenantCode, String id, int expectedVersion,
+                String encryptedSecretJson, String secretPreview) {
+            if (simulateConcurrentWrite(tenantCode, id)) {
+                return null;
+            }
+            CredentialProfile current = findByTenantAndId(tenantCode, id);
+            if (current == null || current.secretVersion() != expectedVersion) {
+                return null;
+            }
+            storedSecret = encryptedSecretJson;
+            return replaceSecret(current, storedSecret, secretPreview);
+        }
+
+        private boolean simulateConcurrentWrite(String tenantCode, String id) {
+            if (concurrentSecret == null) {
+                return false;
+            }
+            CredentialProfile current = findByTenantAndId(tenantCode, id);
+            Map<String, Object> replacement = concurrentSecret;
+            concurrentSecret = null;
+            replaceSecret(current, new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                    .encrypt(replacement), "****");
+            return true;
+        }
+
+        private CredentialProfile replaceSecret(CredentialProfile current, String encrypted, String preview) {
+            CredentialProfile updated = new CredentialProfile(current.id(), current.tenantCode(),
+                    current.displayName(), current.credentialType(), current.authType(), current.environment(),
+                    current.publicConfig(), encrypted, preview, current.secretVersion() + 1,
+                    current.lastTestedAt(), current.lastTestResult(), current.createdAt(), current.updatedAt(),
+                    current.createdBy(), current.updatedBy());
+            rows.set(rows.indexOf(current), updated);
+            return updated;
         }
 
         @Override

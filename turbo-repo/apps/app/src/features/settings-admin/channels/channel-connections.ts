@@ -83,7 +83,7 @@ export async function createChannelConnection(
       displayName: input.credentialName,
       authType: "BEARER_TOKEN",
       publicConfig: input.credentialPublicConfig ?? {},
-      secretConfig: { token: input.token },
+      secretConfig: { ...input.secrets, token: input.token },
     }
   );
   try {
@@ -117,7 +117,7 @@ function postConnection(
   );
 }
 
-/** Updates name, base URL and metadata; a non-blank token rotates the stored one. */
+/** Updates name, base URL and metadata; a non-blank token or secret replaces the stored one. */
 export async function updateChannelConnection(
   orgSlug: string,
   connectionId: string,
@@ -131,6 +131,9 @@ export async function updateChannelConnection(
   const token = input.token?.trim();
   if (token) {
     body.token = token;
+  }
+  if (input.secrets && Object.keys(input.secrets).length > 0) {
+    body.secrets = input.secrets;
   }
   if (input.credentialProfileId) {
     body.credentialProfileId = input.credentialProfileId;

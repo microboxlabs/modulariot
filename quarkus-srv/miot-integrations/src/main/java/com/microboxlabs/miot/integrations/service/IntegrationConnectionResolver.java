@@ -135,4 +135,28 @@ public class IntegrationConnectionResolver {
         }
         return Optional.of(new InboundChannelRef(connection.tenantCode(), connection.id()));
     }
+
+    /**
+     * The webhook keys of the active WHATSAPP connection {@code connectionId}, of any tenant. Empty when there is
+     * no such connection or its credential cannot be read, so the webhook refuses the request.
+     */
+    public Optional<WhatsAppWebhookKeys> whatsAppWebhookKeys(String connectionId) {
+        IntegrationConnection connection = connectionRepository.findActiveWhatsAppById(connectionId);
+        if (connection == null) {
+            return Optional.empty();
+        }
+        ResolvedConnection resolved;
+        try {
+            resolved = withCredential(connection.tenantCode(), connection, "WhatsApp connection");
+        } catch (ConnectionResolutionException e) {
+            return Optional.empty();
+        }
+        return Optional.of(new WhatsAppWebhookKeys(connection.tenantCode(), connection.id(),
+                blankIfNull(resolved.secretString(WhatsAppWebhookKeys.APP_SECRET)),
+                blankIfNull(resolved.secretString(WhatsAppWebhookKeys.VERIFY_TOKEN))));
+    }
+
+    private static String blankIfNull(String value) {
+        return value == null ? "" : value;
+    }
 }

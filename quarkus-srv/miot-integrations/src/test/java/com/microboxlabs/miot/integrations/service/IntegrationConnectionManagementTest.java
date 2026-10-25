@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
+import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
@@ -23,9 +24,10 @@ class IntegrationConnectionManagementTest {
 
     private final FakeConnections connections = new FakeConnections();
     private final FakeBindings bindings = new FakeBindings();
+    private final FakeCredentials credentials = new FakeCredentials();
 
     private IntegrationConnectionService service() {
-        return new IntegrationConnectionService(null, null, connections, null, null, bindings, null);
+        return new IntegrationConnectionService(null, credentials, connections, null, null, bindings, null);
     }
 
     @Test
@@ -65,6 +67,15 @@ class IntegrationConnectionManagementTest {
 
         assertEquals("cred-new", connections.updatedCredentialId);
         assertNotNull(updated);
+    }
+
+    @Test
+    void updatingSecretsWhileSwappingCredentialsUpdatesTheNewCredential() {
+        service().updateConnection(TENANT, "conn-1", new UpdateIntegrationConnectionRequest(
+                null, null, null, "cred-new", null, Map.of("app_secret", "example-signing-key")));
+
+        assertEquals("cred-new", credentials.updatedId);
+        assertEquals(Map.of("app_secret", "example-signing-key"), credentials.updates);
     }
 
     /* ---- fakes ---- */
@@ -115,6 +126,23 @@ class IntegrationConnectionManagementTest {
         @Override
         public int countByConnection(String connectionId) {
             return count;
+        }
+    }
+
+    private static final class FakeCredentials extends CredentialProfileService {
+        private String updatedId;
+        private Map<String, Object> updates;
+
+        private FakeCredentials() {
+            super(null, null, null, null);
+        }
+
+        @Override
+        public CredentialProfile mergeSecret(String tenantCode, String id, Map<String, Object> values) {
+            updatedId = id;
+            updates = values;
+            return new CredentialProfile(id, tenantCode, "Example", null, null, null,
+                    Map.of(), null, null, 1, null, null, null, null, null, null);
         }
     }
 }

@@ -31,12 +31,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import org.jboss.logging.Logger;
 
 /**
  * Turns a Meta webhook delivery into one integration job per event, on the modulith lane: an inbound message
  * ({@value #MESSAGE_JOB}) or a status ({@value #STATUS_JOB}). A message's job belongs to the organization of the
- * number that received it, a status's to the organization of the message it updates; anything without one goes
- * to the platform scope, where its job explains why nothing was stored.
+ * number that received it, a status's to the organization of the message it updates. A status that arrives before
+ * its message is stored waits in the signing connection's scope; an unknown number goes to the platform scope.
  */
 @ApplicationScoped
 public class WhatsAppWebhookJobs {
@@ -48,6 +49,7 @@ public class WhatsAppWebhookJobs {
     static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private static final int DEDUPE_MAX = 640;
+    private static final Logger LOG = Logger.getLogger(WhatsAppWebhookJobs.class);
 
     /** Enqueues jobs for one tenant and returns what the ledger created. */
     @FunctionalInterface
@@ -84,16 +86,29 @@ public class WhatsAppWebhookJobs {
         this.messageTenant = messageTenant;
     }
 
-    /** Parses the delivery and enqueues its events; returns how many jobs were created. */
-    public int enqueue(byte[] body) {
+    /**
+     * Parses a delivery received on a connection of {@code connectionTenant} and enqueues the events that
+     * connection may carry (see {@link #carries}); returns how many jobs were created. An organization that
+     * holds its own App secret can sign any payload, so its connection never reaches another organization.
+     */
+    public int enqueue(byte[] body, String connectionTenant) {
         ParsedWebhook parsed = MetaWebhookParser.parse(body);
         Map<String, List<AsyncJobSpec>> byTenant = new LinkedHashMap<>();
+        int skipped = 0;
         for (InboundMessage m : parsed.messages()) {
-            add(byTenant, tenantOf(m), spec(MESSAGE_JOB, m.wamid(), "wa:msg:" + m.wamid(), m));
+            skipped += add(byTenant, connectionTenant, tenantOf(m),
+                    spec(MESSAGE_JOB, m.wamid(), "wa:msg:" + m.wamid(), m));
         }
         for (StatusUpdate s : parsed.statuses()) {
-            add(byTenant, tenantOf(s),
+            String tenant = tenantOf(s);
+            // A status may arrive before markSent stores its wamid. Keep it in the signing
+            // connection's scope until the job can resolve its actual tenant on retry.
+            skipped += add(byTenant, connectionTenant, tenant == null ? connectionTenant : tenant,
                     spec(STATUS_JOB, s.wamid(), "wa:status:" + s.wamid() + ":" + s.status(), s));
+        }
+        if (skipped > 0) {
+            LOG.warnf("Skipped %d WhatsApp webhook event(s) that do not belong to organization %s",
+                    skipped, connectionTenant);
         }
         int created = 0;
         for (Map.Entry<String, List<AsyncJobSpec>> e : byTenant.entrySet()) {
@@ -110,9 +125,9 @@ public class WhatsAppWebhookJobs {
         return tenantOr(numberTenant, message.phoneNumberId());
     }
 
-    /** The tenant a status's job belongs to: the organization of the message it updates, else the platform. */
+    /** The tenant of the message a status updates, or null until that message is stored. */
     public String tenantOf(StatusUpdate status) {
-        return tenantOr(messageTenant, status.wamid());
+        return status.wamid() == null ? null : messageTenant.apply(status.wamid());
     }
 
     /**
@@ -129,8 +144,14 @@ public class WhatsAppWebhookJobs {
         return tenant == null ? PlatformScope.TENANT : tenant;
     }
 
-    private static void add(Map<String, List<AsyncJobSpec>> byTenant, String tenant, AsyncJobSpec spec) {
+    /** Adds the event under its tenant when the connection may carry it; returns 1 when it was skipped. */
+    private static int add(Map<String, List<AsyncJobSpec>> byTenant, String connectionTenant, String tenant,
+            AsyncJobSpec spec) {
+        if (!carries(connectionTenant, tenant)) {
+            return 1;
+        }
         byTenant.computeIfAbsent(tenant, t -> new ArrayList<>()).add(spec);
+        return 0;
     }
 
     @SuppressWarnings("unchecked")

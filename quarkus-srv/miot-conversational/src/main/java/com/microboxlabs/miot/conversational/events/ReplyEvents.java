@@ -8,6 +8,7 @@ import com.microboxlabs.miot.core.event.OperationalEvent;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
 import java.time.Instant;
@@ -50,10 +51,17 @@ public class ReplyEvents {
         }
     }
 
+    /** The inbound webhook job dispatches replies synchronously. */
+    public void onReplyInJob(@Observes ConversationReplyReceived reply) {
+        publish(reply);
+    }
+
     /** The event published for {@code reply}, if its run has a context. */
     public Optional<OperationalEvent> publish(ConversationReplyReceived reply) {
-        Optional<Run> run = reply.runId() != null ? runs.find(reply.runId())
-                : runs.waitingOnConversation(reply.tenantCode(), reply.conversationId());
+        if (reply.runId() == null) {
+            return Optional.empty();
+        }
+        Optional<Run> run = runs.find(reply.runId());
         if (run.isEmpty() || !run.get().tenantCode().equals(reply.tenantCode())
                 || run.get().contextKind() == null || run.get().contextKey() == null) {
             return Optional.empty();

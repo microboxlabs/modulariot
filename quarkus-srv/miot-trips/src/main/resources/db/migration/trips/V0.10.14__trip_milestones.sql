@@ -1,5 +1,5 @@
 -- ============================================================
--- V0.10.16 — trip milestones: departure, arrival and closure.
+-- V0.10.14 — trip milestones: departure, arrival and closure.
 --   A detection (GPS, ETA) leaves a milestone pending; a person
 --   confirms or rejects it (feed, notice reply, UI). Only a
 --   confirmation reaches the trip's monitor as a command event.

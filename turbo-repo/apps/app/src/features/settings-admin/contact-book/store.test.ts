@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   mutate: vi.fn(),
   setSize: vi.fn(),
   pages: [] as { items: TowerContact[]; next: string | null }[],
+  pageError: undefined as Error | undefined,
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -35,7 +36,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data: api.pages,
     size: api.pages.length,
     setSize: api.setSize,
-    error: undefined,
+    error: api.pageError,
     mutate: api.mutate,
   }),
   useContactFacets: () => ({ data: undefined, mutate: api.mutate }),
@@ -293,8 +294,18 @@ describe("bookCompanies", () => {
         ],
       })
     ).toEqual([
-      { name: "Logística", rut: undefined, source: "book" },
-      { name: "Minera Sur", rut: "761112228", source: "book" },
+      {
+        name: "Logística",
+        rut: undefined,
+        taxIdType: undefined,
+        source: "book",
+      },
+      {
+        name: "Minera Sur",
+        rut: "761112228",
+        taxIdType: "RUT",
+        source: "book",
+      },
     ]);
     expect(bookCompanies(undefined)).toEqual([]);
   });
@@ -304,6 +315,7 @@ describe("useContactBookPages", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.pages = [];
+    api.pageError = undefined;
   });
 
   it("shows the pages loaded so far and asks for the next one", () => {
@@ -322,6 +334,15 @@ describe("useContactBookPages", () => {
     ];
     const { result } = renderHook(() => useContactBookPages({}));
     expect(result.current.contacts.map((c) => c.id)).toEqual(["c1", "c2"]);
+    expect(result.current.hasMore).toBe(false);
+    act(() => result.current.loadMore());
+    expect(api.setSize).not.toHaveBeenCalled();
+  });
+
+  it("stops automatic pagination after a later page fails", () => {
+    api.pages = [{ items: [apiContact({ id: "c1" })], next: "cursor-1" }];
+    api.pageError = new Error("Unavailable");
+    const { result } = renderHook(() => useContactBookPages({}));
     expect(result.current.hasMore).toBe(false);
     act(() => result.current.loadMore());
     expect(api.setSize).not.toHaveBeenCalled();

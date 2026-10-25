@@ -209,9 +209,12 @@ export function editMetaTemplate(id: string, draft: MetaTemplateDraft) {
 /** Deletes one language of the template when `id` is given, else every language. */
 export function deleteMetaTemplate(name: string, id?: string) {
   const q = id ? `?id=${encodeURIComponent(id)}` : "";
-  return request<void>(`${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`, {
-    method: "DELETE",
-  });
+  return request<void>(
+    `${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
 export async function refreshMetaTemplates() {
@@ -220,7 +223,7 @@ export async function refreshMetaTemplates() {
 
 /** Refreshes the rule list and, when given, one rule. */
 export async function refreshRules(id?: string) {
-  await mutate(rulesKey);
+  await Promise.all([mutate(rulesKey), mutate(contactReachKey)]);
   if (id) await mutate(ruleKey(id));
 }
 

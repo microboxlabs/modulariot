@@ -114,7 +114,13 @@ export default function SinglePick<T extends PickOption>({
           </button>
         </div>
       )}
-      <div className="relative">
+      <div
+        className="relative"
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+            setOpen(false);
+        }}
+      >
         <input
           className={SECTION_INPUT_CLASS}
           aria-label={texts.label}
@@ -125,7 +131,6 @@ export default function SinglePick<T extends PickOption>({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
           onKeyDown={handleKeyDown}
         />
         {showList && (

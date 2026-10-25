@@ -58,6 +58,26 @@ class ContactReachTest {
                 EventCondition.reachContact("contact.role == 'Despachador' || event.data.x == 1", carrier));
         assertEquals(EventCondition.Reach.DEPENDS,
                 EventCondition.reachContact("contact.companyRut == event.data.carrierRut", carrier));
+        assertEquals(EventCondition.Reach.DEPENDS,
+                EventCondition.reachContact("has(event.data) && contact.member", Map.of("member", true)));
+        assertEquals(EventCondition.Reach.NO,
+                EventCondition.reachContact("has(event.data) && contact.member", Map.of("member", false)));
+        assertEquals(EventCondition.Reach.DEPENDS,
+                EventCondition.reachContact("!has(event.data) && contact.member", Map.of("member", true)));
         assertEquals(EventCondition.Reach.NO, EventCondition.reachContact("not valid ((", carrier));
+    }
+
+    @Test
+    void reachRequiresTheStepToUseTheAudienceAndTheContactChannel() throws Exception {
+        rule("override", "Override", Rule.State.ACTIVE, """
+                {"audience":[{"contacts":"true"}],"steps":[{"channel":"email","to":[{"address":"x@example.com"}]}]}""");
+        rule("connection", "Connection", Rule.State.ACTIVE, """
+                {"audience":[{"contacts":"true"}],"steps":[{"channel":"webhook","connection":"a"}]}""");
+        rule("email", "Email", Rule.State.ACTIVE, """
+                {"audience":[{"contacts":"true"}],"steps":[{"channel":"email"}]}""");
+        ContactDirectory whatsappOnly = tenant -> List.of(new ContactDirectory.Entry("only-whatsapp", "Example", "",
+                List.of(), null, null, null, false, null, "+56912345678"));
+
+        assertEquals(Map.of(), new ContactReach(store.ruleStore, () -> List.of(whatsappOnly)).byContact(TENANT));
     }
 }

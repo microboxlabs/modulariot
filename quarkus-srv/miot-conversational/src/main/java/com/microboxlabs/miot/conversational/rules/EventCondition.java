@@ -12,6 +12,9 @@ import dev.cel.common.types.SimpleType;
 import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
+import dev.cel.runtime.CelAttributePattern;
+import dev.cel.runtime.CelUnknownSet;
+import dev.cel.runtime.PartialVars;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -41,7 +44,8 @@ public final class EventCondition {
 
     /** An audience's condition: {@code contact} is one entry of the contact book, {@code event} the event. */
     private static final Cel CONTACT_CEL = CelFactory.standardCelBuilder()
-            .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true).build())
+            .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true)
+                    .enableUnknownTracking(true).build())
             .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
             .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
             .addVar("contact", MapType.create(SimpleType.STRING, SimpleType.DYN))
@@ -112,7 +116,7 @@ public final class EventCondition {
         DEPENDS
     }
 
-    /** Evaluates the condition with an empty event: a part that reads the event fails, so the answer depends on it. */
+    /** Evaluate with the event unknown, preserving contact-only short circuits. */
     public static Reach reachContact(String when, Map<String, Object> contact) {
         if (when == null || when.isBlank()) {
             return Reach.NO;
@@ -122,7 +126,11 @@ public final class EventCondition {
             return Reach.NO;
         }
         try {
-            Object result = program.eval(Map.of("event", Map.of(), "contact", normalize(contact)));
+            Object result = program.eval(PartialVars.of(Map.of("contact", normalize(contact)),
+                    CelAttributePattern.create(EVENT_VAR)));
+            if (result instanceof CelUnknownSet) {
+                return Reach.DEPENDS;
+            }
             return Boolean.TRUE.equals(result) ? Reach.YES : Reach.NO;
         } catch (CelEvaluationException | RuntimeException e) {
             return Reach.DEPENDS;

@@ -41,7 +41,8 @@ class FeedReconcilerTest {
             fleet, live, audit, tx);
     private final ObjectMapper json = JsonMapper.builder().findAndAddModules().build();
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-            fleet, tx, json, Clock.systemUTC());
+            new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
+                    world.tripStore, live, audit, tx), fleet, tx, json, Clock.systemUTC());
 
     private FeedServiceRequest desired(String trailer, List<String> drivers) {
         return new FeedServiceRequest("service", "test reference", OffsetDateTime.now().plusHours(2),
@@ -124,7 +125,8 @@ class FeedReconcilerTest {
             public java.time.Instant instant() { return evaluated.plusSeconds(reads++ * 120L); }
         };
         FeedReconciler timed = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-                fleet, tx, json, crossingClock);
+                new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
+                        world.tripStore, live, audit, tx), fleet, tx, json, crossingClock);
         OffsetDateTime departure = OffsetDateTime.ofInstant(evaluated.plusSeconds(60), java.time.ZoneOffset.UTC);
         FeedServiceRequest request = new FeedServiceRequest("service", "test reference", departure,
                 departure.plusHours(2), new FeedServiceRequest.Resources(null, null, List.of()), null);

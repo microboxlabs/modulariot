@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,6 +98,12 @@ public final class EventCatalog {
     }
 
     static String type(Class<?> type) {
+        if (type.isArray() || Collection.class.isAssignableFrom(type)) {
+            return "array";
+        }
+        if (Map.class.isAssignableFrom(type)) {
+            return "object";
+        }
         if (NUMBERS.contains(type) || Number.class.isAssignableFrom(type)) {
             return "number";
         }

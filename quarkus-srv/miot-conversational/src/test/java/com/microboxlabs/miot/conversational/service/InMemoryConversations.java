@@ -49,6 +49,8 @@ public final class InMemoryConversations {
     }
 
     public final class Conversations extends ConversationRepository {
+        public int outboundTouches;
+
         Conversations() {
             super(null);
         }
@@ -117,6 +119,7 @@ public final class InMemoryConversations {
 
         @Override
         public Conversation updateOutbound(String conversationId, OutboundTouch t) {
+            outboundTouches += 1;
             Conversation c = conversations.get(conversationId);
             boolean adopt = c.contextKind() == null;
             return put(new Conversation(c.id(), c.tenantCode(), c.phoneE164(), c.waContactName(),
@@ -132,6 +135,8 @@ public final class InMemoryConversations {
     }
 
     public final class Messages extends MessageRepository {
+        public boolean hideNextProviderLookup;
+
         Messages() {
             super(null);
         }
@@ -140,6 +145,16 @@ public final class InMemoryConversations {
         public Message append(Message message) {
             messages.add(message);
             return message;
+        }
+
+        @Override
+        public Message appendOutbound(Message message, ConversationRepository.OutboundTouch touch) {
+            if (findByProviderMessageId(message.channel(), message.providerMessageId()) != null) {
+                return null;
+            }
+            Message stored = append(message);
+            conversationRepository.updateOutbound(message.conversationId(), touch);
+            return stored;
         }
 
         /** Set to make the next {@code appendInbound} fail before writing anything, as a rolled-back statement. */
@@ -167,6 +182,10 @@ public final class InMemoryConversations {
 
         @Override
         public Message findByProviderMessageId(Channel channel, String providerMessageId) {
+            if (hideNextProviderLookup) {
+                hideNextProviderLookup = false;
+                return null;
+            }
             if (providerMessageId == null) {
                 return null;
             }

@@ -2,6 +2,7 @@
 
 import {
   forwardRef,
+  useState,
   type ClipboardEvent,
   type ComponentPropsWithoutRef,
 } from "react";
@@ -71,7 +72,7 @@ export function isValidPhone(
 /** A pasted number as E.164: with or without "+", spaces and dashes, or national. */
 export function pastedPhone(
   text: string,
-  defaultCountry: Country = "CL"
+  country?: Country
 ): Value | undefined {
   const digits = text.replace(/\D/g, "");
   if (!digits) return undefined;
@@ -80,7 +81,7 @@ export function pastedPhone(
     ? candidates
     : candidates.reverse()) {
     try {
-      const number = parsePhoneNumber(candidate, defaultCountry)?.number;
+      const number = parsePhoneNumber(candidate, country)?.number;
       if (number && isValidPhoneNumber(number)) return number;
     } catch {
       // Not a number in this reading; try the next one.
@@ -135,6 +136,9 @@ export default function PhoneInput({
   // `useParams` is null outside a route (e.g. tests) — fall back to English.
   const lang = useParams<{ lang: string }>()?.lang ?? "";
   const labels = PHONE_LOCALES[lang] ?? en;
+  const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(
+    defaultCountry
+  );
 
   return (
     <PhoneInputWithCountry
@@ -147,6 +151,7 @@ export default function PhoneInput({
       placeholder={placeholder}
       value={value}
       onChange={onChange}
+      onCountryChange={setSelectedCountry}
       onBlur={onBlur}
       countrySelectComponent={PhoneCountrySelect}
       inputComponent={PhoneNumberField}
@@ -156,7 +161,7 @@ export default function PhoneInput({
         onPaste: (e: ClipboardEvent<HTMLInputElement>) => {
           const pasted = pastedPhone(
             e.clipboardData.getData("text"),
-            defaultCountry
+            selectedCountry
           );
           if (!pasted) return;
           e.preventDefault();

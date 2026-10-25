@@ -3012,6 +3012,7 @@
         "viewCards": "Cards",
         "viewList": "List",
         "emptyFiltered": "No contact matches the filters.",
+        "loadingMore": "Loading more contacts…",
         "cardMember": "Member",
         "cardExternal": "External",
         "cardProvisional": "To complete",

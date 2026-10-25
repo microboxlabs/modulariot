@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button } from "flowbite-react";
+import { Button, Spinner } from "flowbite-react";
 import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
 import LayoutToggle, {
   type CatalogLayout,
@@ -11,7 +11,11 @@ import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
-import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  ControlTowerError,
+  useContacts,
+  type TowerContactQuery,
+} from "@/features/symptoms/control-tower/control-tower-api";
 import { useContactReach } from "@/features/conversations/conversations-api";
 import { ruleHref } from "@/features/conversations/rules-tab";
 import ContactFormModal from "../contact-book/contact-form-modal";
@@ -22,52 +26,16 @@ import ContactTable, {
 import ImportContactsModal from "../contact-book/import-contacts-modal";
 import {
   bookCompanies,
-  useContactBook,
+  toBookContact,
+  useContactBookPages,
   type BookContact,
 } from "../contact-book/store";
-import {
-  useContactBadges,
-  type ContactBadge,
-} from "../contact-book/taxonomy-store";
-import { useIncrementalCount } from "../contact-book/use-incremental-count";
-
-const PAGE_SIZE = 30;
+import { useContactBadges } from "../contact-book/taxonomy-store";
+import { useLoadMore } from "../contact-book/use-load-more";
 
 type ContactFilters = Record<"kind" | "role" | "company" | "tag", string>;
 const NO_FILTERS: ContactFilters = { kind: "", role: "", company: "", tag: "" };
-
-/** Each value once, ignoring case, sorted. */
-function distinct(values: readonly (string | undefined)[]): string[] {
-  const byKey = new Map<string, string>();
-  for (const v of values) {
-    const text = v?.trim();
-    if (text && !byKey.has(text.toLowerCase()))
-      byKey.set(text.toLowerCase(), text);
-  }
-  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
-}
-
-const same = (a: string | undefined, b: string) =>
-  (a ?? "").trim().toLowerCase() === b.toLowerCase();
-
-/** Whether the contact has the picked role, company and tag; an empty filter lets everyone through. */
-export function contactPasses(
-  c: BookContact,
-  f: ContactFilters,
-  badges: readonly ContactBadge[],
-  kindOf: (c: BookContact) => string = () => ""
-): boolean {
-  if (f.kind && kindOf(c) !== f.kind) return false;
-  if (f.role && !same(c.role, f.role)) return false;
-  if (f.company && !same(c.company, f.company)) return false;
-  if (f.tag) {
-    const names = (c.badgeIds ?? []).map(
-      (id) => badges.find((b) => b.id === id)?.name
-    );
-    if (!names.some((n) => same(n, f.tag))) return false;
-  }
-  return true;
-}
+const NO_VALUES: string[] = [];
 
 interface ContactBookPageContentProps {
   readonly dict: I18nRecord;
@@ -115,7 +83,7 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
  * The organization's directory of people, stored by the Control Tower API
  * and shared by every operator. Contacts created here (or from the call
  * panel's "Llamar y guardar en la libreta") can be picked in "who to call".
- * The table loads 10 rows at a time as it's scrolled.
+ * The API filters the book and sends it 100 contacts at a time; the next 100 load as the list is scrolled.
  */
 export default function ContactBookPageContent({
   dict,
@@ -123,34 +91,44 @@ export default function ContactBookPageContent({
 }: ContactBookPageContentProps) {
   const d = dict?.contactBook as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
+  const [filters, setFilters] = useState<ContactFilters>(NO_FILTERS);
+  const member = tr("cardMember", d);
+  const external = tr("cardExternal", d);
+  const query = useMemo<TowerContactQuery>(() => {
+    let kind: TowerContactQuery["kind"];
+    if (filters.kind === member) kind = "member";
+    else if (filters.kind === external) kind = "external";
+    return {
+      kind,
+      role: filters.role,
+      company: filters.company,
+      tag: filters.tag,
+    };
+  }, [filters, member, external]);
   const {
     contacts,
+    facets,
     hydrated,
     error,
+    hasMore,
+    loadingMore,
+    loadMore,
     save,
     addMany,
     remove,
     renameTag,
     deleteTag,
-  } = useContactBook();
+  } = useContactBookPages(query);
+  const sentinelRef = useLoadMore(loadMore, hasMore && !loadingMore);
   const { badges } = useContactBadges();
   const { data: reach } = useContactReach();
-  const organizations = useMemo(() => bookCompanies(contacts), [contacts]);
+  const organizations = useMemo(() => bookCompanies(facets), [facets]);
   const [editing, setEditing] = useState<BookContact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [filters, setFilters] = useState<ContactFilters>(NO_FILTERS);
   const [layout, setLayout] = useState<CatalogLayout>("cards");
-  const member = tr("cardMember", d);
-  const external = tr("cardExternal", d);
-  const kindOf = (c: BookContact) => (c.orgMemberId ? member : external);
-  const filteredCount = contacts.filter((c) =>
-    contactPasses(c, filters, badges, kindOf)
-  ).length;
-  const { visible, hasMore, sentinelRef } = useIncrementalCount(
-    filteredCount,
-    PAGE_SIZE
-  );
+  // The CSV preview flags documents already in the book, so the import reads the whole book.
+  const { data: wholeBook } = useContacts(importOpen);
 
   const openCreate = () => {
     setEditing(null);
@@ -186,9 +164,9 @@ export default function ContactBookPageContent({
     });
   };
 
-  const roles = distinct(contacts.map((c) => c.role));
-  const companies = distinct(contacts.map((c) => c.company));
-  const tags = distinct(badges.map((b) => b.name));
+  const roles = facets?.roles ?? NO_VALUES;
+  const companies = organizations.map((o) => o.name);
+  const tags = facets?.tags ?? NO_VALUES;
   const filterDefs = [
     {
       key: "kind" as const,
@@ -203,12 +181,9 @@ export default function ContactBookPageContent({
     },
     { key: "tag" as const, label: tr("filterTag", d), options: tags },
   ];
-  const shown = contacts.filter((c) =>
-    contactPasses(c, filters, badges, kindOf)
-  );
   const labels = contactTableLabels(d);
   const badgesById = new Map(badges.map((b) => [b.id, b]));
-  const page = shown.slice(0, visible);
+  const emptyBook = facets?.total === 0;
 
   return (
     <SettingsPageShell
@@ -247,19 +222,19 @@ export default function ContactBookPageContent({
       }
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-        {hydrated && contacts.length === 0 && (
+        {hydrated && contacts.length === 0 && (error || emptyBook) && (
           <p className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
             {error ? tr("loadError", d) : tr("empty", d)}
           </p>
         )}
-        {hydrated && contacts.length > 0 && shown.length === 0 && (
+        {hydrated && !error && !emptyBook && contacts.length === 0 && (
           <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
             {tr("emptyFiltered", d)}
           </p>
         )}
-        {page.length > 0 && layout === "cards" && (
+        {contacts.length > 0 && layout === "cards" && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-            {page.map((c) => (
+            {contacts.map((c) => (
               <ContactCard
                 key={c.id}
                 contact={c}
@@ -273,9 +248,9 @@ export default function ContactBookPageContent({
             ))}
           </div>
         )}
-        {page.length > 0 && layout === "list" && (
+        {contacts.length > 0 && layout === "list" && (
           <ContactTable
-            contacts={page}
+            contacts={contacts}
             badges={badges}
             labels={labels}
             onEdit={openEdit}
@@ -283,6 +258,11 @@ export default function ContactBookPageContent({
           />
         )}
         {hasMore && <div ref={sentinelRef} className="h-8" aria-hidden />}
+        {loadingMore && (
+          <div className="flex justify-center py-3">
+            <Spinner size="sm" aria-label={tr("loadingMore", d)} />
+          </div>
+        )}
       </div>
 
       <ContactFormModal
@@ -296,8 +276,8 @@ export default function ContactBookPageContent({
         roles={roles}
         takenMemberIds={
           new Set(
-            contacts.flatMap((c) =>
-              c.orgMemberId && c.id !== editing?.id ? [c.orgMemberId] : []
+            (facets?.members ?? []).flatMap((m) =>
+              m.contactId === editing?.id ? [] : [m.memberUserId]
             )
           )
         }
@@ -306,7 +286,7 @@ export default function ContactBookPageContent({
       <ImportContactsModal
         show={importOpen}
         onClose={() => setImportOpen(false)}
-        contacts={contacts}
+        contacts={(wholeBook ?? []).map((c) => toBookContact(c, badges))}
         onImport={addMany}
         dict={dict}
       />

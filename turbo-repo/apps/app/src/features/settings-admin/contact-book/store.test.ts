@@ -8,6 +8,7 @@ import {
   toBookContact,
   toContactBody,
   useContactBook,
+  useContactBookPages,
   type BookContact,
 } from "./store";
 
@@ -18,6 +19,8 @@ const api = vi.hoisted(() => ({
   deleteContact: vi.fn(),
   importContacts: vi.fn(),
   mutate: vi.fn(),
+  setSize: vi.fn(),
+  pages: [] as { items: TowerContact[]; next: string | null }[],
 }));
 
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
@@ -25,7 +28,23 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   updateContact: api.updateContact,
   deleteContact: api.deleteContact,
   importContacts: api.importContacts,
+  contactsKey: "contacts",
+  contactFacetsKey: "contacts/facets",
   useContacts: () => ({ data: api.data, error: undefined, mutate: api.mutate }),
+  useContactPages: () => ({
+    data: api.pages,
+    size: api.pages.length,
+    setSize: api.setSize,
+    error: undefined,
+    mutate: api.mutate,
+  }),
+  useContactFacets: () => ({ data: undefined, mutate: api.mutate }),
+  fetchAllContacts: (query: { tag: string }) =>
+    Promise.resolve(
+      api.data.filter((c) =>
+        (c.tags ?? []).some((t) => t.toLowerCase() === query.tag.toLowerCase())
+      )
+    ),
 }));
 
 const BADGES_KEY = "miot.prototype.contact-badges.v1";
@@ -261,29 +280,50 @@ describe("useContactBook", () => {
 });
 
 describe("bookCompanies", () => {
-  const contact = (company?: string, companyRut?: string): BookContact => ({
-    id: crypto.randomUUID(),
-    name: "x",
-    phone: "",
-    role: "",
-    methods: [],
-    company,
-    companyRut,
-  });
-
-  it("lists each company once, ignoring case and accents, sorted, with the first RUT given", () => {
+  it("lists the book's companies sorted, with the RUT the API gave", () => {
     expect(
-      bookCompanies([
-        contact("Minera Sur"),
-        contact(" minera sur ", "761112228"),
-        contact("Logística"),
-        contact("LOGISTICA"),
-        contact(),
-        contact("  "),
-      ])
+      bookCompanies({
+        total: 3,
+        roles: [],
+        tags: [],
+        members: [],
+        companies: [
+          { name: "Minera Sur", rut: "761112228", taxIdType: "RUT" },
+          { name: "Logística", rut: null, taxIdType: null },
+        ],
+      })
     ).toEqual([
       { name: "Logística", rut: undefined, source: "book" },
       { name: "Minera Sur", rut: "761112228", source: "book" },
     ]);
+    expect(bookCompanies(undefined)).toEqual([]);
+  });
+});
+
+describe("useContactBookPages", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.pages = [];
+  });
+
+  it("shows the pages loaded so far and asks for the next one", () => {
+    api.pages = [{ items: [apiContact({ id: "c1" })], next: "cursor-1" }];
+    const { result } = renderHook(() => useContactBookPages({}));
+    expect(result.current.contacts.map((c) => c.id)).toEqual(["c1"]);
+    expect(result.current.hasMore).toBe(true);
+    act(() => result.current.loadMore());
+    expect(api.setSize).toHaveBeenCalledWith(2);
+  });
+
+  it("stops at the last page", () => {
+    api.pages = [
+      { items: [apiContact({ id: "c1" })], next: "cursor-1" },
+      { items: [apiContact({ id: "c2" })], next: null },
+    ];
+    const { result } = renderHook(() => useContactBookPages({}));
+    expect(result.current.contacts.map((c) => c.id)).toEqual(["c1", "c2"]);
+    expect(result.current.hasMore).toBe(false);
+    act(() => result.current.loadMore());
+    expect(api.setSize).not.toHaveBeenCalled();
   });
 });

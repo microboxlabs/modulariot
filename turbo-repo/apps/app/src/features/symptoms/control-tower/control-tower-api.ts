@@ -7,6 +7,7 @@
  */
 
 import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 
 export type TowerTreatmentType =
   | "CALL"
@@ -89,6 +90,30 @@ export interface TowerContact {
   lastCalledAt: string | null;
   answered: number;
   missed: number;
+}
+
+/** One page of the book; `next` is the cursor of the following page, null on the last. */
+export interface TowerContactPage {
+  items: TowerContact[];
+  next: string | null;
+}
+
+/** Which contacts a page holds. `role`, `company` and `tag` match whole values, ignoring case. */
+export interface TowerContactQuery {
+  q?: string;
+  kind?: "member" | "external";
+  role?: string;
+  company?: string;
+  tag?: string;
+}
+
+/** What the whole book holds, for the filters and pickers. */
+export interface TowerContactFacets {
+  total: number;
+  roles: string[];
+  companies: { name: string; rut: string | null; taxIdType: string | null }[];
+  tags: string[];
+  members: { memberUserId: string; contactId: string }[];
 }
 
 /** Create or update body. On update, a field left out keeps its value and "" clears it. */
@@ -189,6 +214,21 @@ const fetcher = <T>(path: string) => request<T>(path);
 export const treatmentsKey = (symptomId: number | string) =>
   `${BASE}/symptoms/${symptomId}/treatments`;
 export const contactsKey = `${BASE}/contacts`;
+export const contactFacetsKey = `${BASE}/contacts/facets`;
+export const CONTACT_PAGE_SIZE = 100;
+
+export function contactPageKey(
+  query: TowerContactQuery,
+  cursor?: string | null
+): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(query)) {
+    if (value) params.set(name, value);
+  }
+  params.set("limit", String(CONTACT_PAGE_SIZE));
+  if (cursor) params.set("cursor", cursor);
+  return `${BASE}/contacts/page?${params}`;
+}
 
 /* ---------- treatments ---------- */
 
@@ -242,8 +282,41 @@ export function cancelTreatment(treatmentId: string, reason?: string) {
 
 /* ---------- contacts ---------- */
 
-export function useContacts() {
-  return useSWR<TowerContact[]>(contactsKey, fetcher);
+/** The whole book in one request; `enabled` false fetches nothing. */
+export function useContacts(enabled = true) {
+  return useSWR<TowerContact[]>(enabled ? contactsKey : null, fetcher);
+}
+
+/** The book 100 at a time: `setSize(size + 1)` fetches the next page. */
+export function useContactPages(query: TowerContactQuery) {
+  return useSWRInfinite<TowerContactPage>(
+    (index, previous: TowerContactPage | null) =>
+      index > 0 && !previous?.next
+        ? null
+        : contactPageKey(query, previous?.next),
+    fetcher,
+    { revalidateFirstPage: false, keepPreviousData: true }
+  );
+}
+
+export function useContactFacets() {
+  return useSWR<TowerContactFacets>(contactFacetsKey, fetcher);
+}
+
+/** Every contact that passes `query`, page after page. */
+export async function fetchAllContacts(
+  query: TowerContactQuery
+): Promise<TowerContact[]> {
+  const all: TowerContact[] = [];
+  let cursor: string | null = null;
+  do {
+    const page: TowerContactPage = await request<TowerContactPage>(
+      contactPageKey(query, cursor)
+    );
+    all.push(...page.items);
+    cursor = page.next;
+  } while (cursor);
+  return all;
 }
 
 export function createContact(body: TowerContactBody & { name: string }) {

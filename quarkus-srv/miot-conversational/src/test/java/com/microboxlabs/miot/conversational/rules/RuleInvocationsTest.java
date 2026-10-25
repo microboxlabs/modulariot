@@ -177,9 +177,10 @@ class RuleInvocationsTest {
         Rule test = f.rule("panic", PANIC_SPEC, Rule.State.TEST);
         assertTrue(f.invocations.start(TENANT, test.id(), new Invocation(null, sample(), null, null)).test());
         Rule off = f.rule("panic-off", PANIC_SPEC, Rule.State.OFF);
+        String offId = off.id();
         Invocation offRequest = new Invocation(null, sample(), null, null);
         assertThrows(IllegalStateException.class,
-                () -> f.invocations.start(TENANT, off.id(), offRequest));
+                () -> f.invocations.start(TENANT, offId, offRequest));
     }
 
     @Test

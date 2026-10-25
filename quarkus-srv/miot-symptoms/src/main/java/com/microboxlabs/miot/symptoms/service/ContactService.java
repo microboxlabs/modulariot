@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
+import com.microboxlabs.miot.symptoms.store.DuplicateMemberException;
 import com.microboxlabs.miot.symptoms.store.DuplicateNationalIdException;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -114,7 +115,7 @@ public class ContactService {
             audit.log(tenantCode, actor, "contact.created", ENTITY, saved.id(), null,
                     createdDetails(saved, "import"));
             return new ContactImportResult.Row(index, Status.CREATED, null, ContactView.of(saved, null));
-        } catch (DuplicateNationalIdException e) {
+        } catch (DuplicateNationalIdException | DuplicateMemberException e) {
             return new ContactImportResult.Row(index, Status.SKIPPED, e.getMessage(), null);
         } catch (IllegalArgumentException e) {
             return new ContactImportResult.Row(index, Status.ERROR, e.getMessage(), null);
@@ -133,6 +134,7 @@ public class ContactService {
         }
         Contact next = merge(current, name, req);
         requireFreeNationalId(next);
+        requireFreeMember(next);
         Contact updated = contacts.update(next).orElseThrow(() -> new NoSuchElementException(CONTACT_NOT_FOUND));
         audit.log(tenantCode, actor, "contact.updated", ENTITY, updated.id(), null,
                 Map.of("name", updated.name(), "active", updated.active()));
@@ -213,7 +215,20 @@ public class ContactService {
     /** Checks first for a clear message; the store's unique index still catches a race. */
     private Contact insert(Contact contact) {
         requireFreeNationalId(contact);
+        requireFreeMember(contact);
         return contacts.insert(contact);
+    }
+
+    private void requireFreeMember(Contact contact) {
+        if (contact.memberUserId() == null) {
+            return;
+        }
+        boolean taken = contacts.list(contact.tenantCode(), null).stream()
+                .anyMatch(other -> contact.memberUserId().equals(other.memberUserId())
+                        && !Objects.equals(other.id(), contact.id()));
+        if (taken) {
+            throw new DuplicateMemberException();
+        }
     }
 
     private void requireFreeNationalId(Contact contact) {

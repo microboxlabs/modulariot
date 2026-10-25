@@ -12,6 +12,7 @@ import com.microboxlabs.miot.symptoms.dto.ContactImportResult;
 import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
+import com.microboxlabs.miot.symptoms.store.DuplicateMemberException;
 import com.microboxlabs.miot.symptoms.store.DuplicateNationalIdException;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryContactStore;
@@ -179,6 +180,28 @@ class ContactServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.importContacts(TENANT, "o", List.of()));
         assertThrows(IllegalArgumentException.class, () -> service.importContacts(TENANT, "o", null));
+    }
+
+    @Test
+    void aMemberIsInTheBookOnce() {
+        var service = service(false);
+        service.create(TENANT, "o", member("Persona Uno", "user-1"));
+        ContactRequest again = member("Persona Uno", "user-1");
+        assertThrows(DuplicateMemberException.class, () -> service.create(TENANT, "o", again));
+
+        ContactView other = service.create(TENANT, "o", member("Persona Dos", "user-2"));
+        String otherId = other.id();
+        ContactRequest clash = member("Persona Dos", "user-1");
+        assertThrows(DuplicateMemberException.class, () -> service.update(TENANT, "o", otherId, clash));
+        assertEquals("Persona Dos", service.update(TENANT, "o", otherId, member("Persona Dos", "user-2")).name(),
+                "saving the same member again is not a duplicate");
+        assertEquals("Persona Uno", service.create("tenant-b", "o", member("Persona Uno", "user-1")).name(),
+                "another organization may have the same member");
+    }
+
+    private static ContactRequest member(String name, String memberUserId) {
+        return new ContactRequest(name, null, null, null, null, null, null, null, null, null, null, null,
+                memberUserId, null);
     }
 
     private static ContactRequest book(String name, String nationalId) {

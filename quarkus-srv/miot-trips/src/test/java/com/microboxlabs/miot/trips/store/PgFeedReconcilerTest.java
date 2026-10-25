@@ -337,7 +337,7 @@ class PgFeedReconcilerTest {
 
         FeedBatchResult r1 = batches.send(tenant, ACTOR, FEED, first);
         assertEquals(List.of("S-001"), r1.queued());
-        assertEquals(List.of(""), List.copyOf(r1.refused().keySet()), "a blank code is refused, not queued");
+        assertEquals(List.of(""), r1.refused().stream().map(FeedBatchResult.Refusal::externalCode).toList(), "a blank code is refused, not queued");
         assertEquals("trips-feed:" + FEED + ":S-001:b1", queued.get(0).dedupeKey());
         assertEquals(FeedReconciler.PENDING, feeds.service(tenant, FEED, "S-001").orElseThrow().lastAction());
 

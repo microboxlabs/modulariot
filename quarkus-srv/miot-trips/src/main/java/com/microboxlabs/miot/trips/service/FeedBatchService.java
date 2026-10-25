@@ -8,7 +8,6 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,8 +47,9 @@ public class FeedBatchService {
                 ? UUID.randomUUID().toString() : Check.limited(body.batchId().trim(), BATCH_ID, 64);
         List<String> queued = new ArrayList<>();
         List<String> unchanged = new ArrayList<>();
-        Map<String, String> refused = new LinkedHashMap<>();
-        for (FeedBatchRequest.Item item : items) {
+        List<FeedBatchResult.Refusal> refused = new ArrayList<>();
+        for (int index = 0; index < items.size(); index++) {
+            FeedBatchRequest.Item item = items.get(index);
             String code = item == null || item.externalCode() == null ? "" : item.externalCode().trim();
             try {
                 if (!queue.acceptAndQueue(tenantCode, feedKey, spec(feedKey, code, actor, batchId),
@@ -59,7 +59,7 @@ public class FeedBatchService {
                 }
                 queued.add(code);
             } catch (IllegalArgumentException | IllegalStateException e) {
-                refused.put(code, e.getMessage());
+                refused.add(new FeedBatchResult.Refusal(index, code, e.getMessage()));
             }
         }
         return new FeedBatchResult(batchId, items.size(), queued, unchanged, refused);

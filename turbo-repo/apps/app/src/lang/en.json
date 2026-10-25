@@ -3920,7 +3920,7 @@
         "eventDescTripMilestoneConfirmed": "A person or the feed confirmed a departure, arrival or closure.",
         "eventDescTripMilestoneRejected": "A person said the departure, arrival or closure that GPS or ETA detected did not happen (a false positive). The trip does not change and the next detection asks again.",
         "eventDescTripMilestoneConflict": "A second confirmation of a departure, arrival or closure already confirmed arrived with another time. For example, the feed brings an actual arrival that differs from the one a person confirmed. The first time stays; the new one is not applied and someone should check which is right.",
-        "eventDescTripFeedClosedChanged": "The feed brought changes for a closed trip. They were not applied.",
+        "eventDescTripFeedClosedChanged": "The feed brought different data for a trip that is already closed, such as another time, truck or driver. The system does not apply those changes because the trip is closed. Use it to have someone check whether the trip was closed by mistake. The changed fields are in {{changedFields}}.",
         "eventDescConversationReplyReceived": "Someone replied to a message a rule sent.",
         "sectionWhen": "When it sends",
         "sectionAudience": "To whom",

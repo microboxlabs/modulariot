@@ -21,8 +21,15 @@ public interface MonitorRunStore {
     /** Removes the timers that have not fired. */
     void dropPendingTimers(String tenantCode, UUID tripId);
 
-    /** True when the rule already fired at that time on the trip. */
-    boolean fired(String tenantCode, UUID tripId, String ruleKey, OffsetDateTime dueAt);
+    /** True when this monitor version evaluated the timer at that time on the trip. */
+    boolean fired(String tenantCode, UUID tripId, String monitorKey, int monitorVersion, String ruleKey,
+            OffsetDateTime dueAt);
+
+    /** Retains an unchanged timer, including its claim, in the new scheduling epoch. */
+    void retainTimer(long id, int epoch);
+
+    /** Removes pending timers not retained or scheduled in this epoch. */
+    void dropObsoleteTimers(String tenantCode, UUID tripId, int epoch);
 
     void schedule(String tenantCode, UUID tripId, String ruleKey, int monitorVersion, OffsetDateTime dueAt,
             int epoch);

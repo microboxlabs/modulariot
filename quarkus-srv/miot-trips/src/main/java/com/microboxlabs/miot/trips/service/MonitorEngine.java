@@ -112,6 +112,7 @@ public class MonitorEngine implements TripChanges {
     }
 
     /** Without trip events. */
+    @SuppressWarnings("java:S107") // Preserves the constructor used by existing in-memory monitor tests.
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,

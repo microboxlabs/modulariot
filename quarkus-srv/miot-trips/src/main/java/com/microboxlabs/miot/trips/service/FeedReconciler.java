@@ -162,7 +162,7 @@ public class FeedReconciler {
         }
         FeedProfile profile = profile(tenantCode, feedKey);
         if (dryRun) {
-            FeedServiceRequest previous = feeds.service(tenantCode, feedKey, code).map(FeedService::desired)
+            FeedServiceRequest previous = feeds.service(tenantCode, feedKey, code).map(FeedService::appliedDesired)
                     .map(this::readOrNull).orElse(null);
             return plan(tenantCode, actor, profile, code, desired, previous).result(true);
         }
@@ -188,7 +188,8 @@ public class FeedReconciler {
                 return false;
             }
             feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), hash, before.mandateId(),
-                    before.tripId(), true, PENDING, before.lastResult(), before.lastReconciledAt()));
+                    before.tripId(), true, PENDING, before.lastResult(), before.lastReconciledAt(),
+                    before.appliedDesired()));
             return true;
         });
     }
@@ -206,7 +207,7 @@ public class FeedReconciler {
                     service.tripId(), List.of(), List.of(), List.of());
             feeds.saveService(new FeedService(service.tenantCode(), service.feedKey(), service.externalCode(),
                     service.desired(), service.desiredHash(), service.mandateId(), service.tripId(), false,
-                    SKIP, write(result), now()));
+                    SKIP, write(result), now(), service.appliedDesired()));
         }
     }
 
@@ -231,13 +232,15 @@ public class FeedReconciler {
             FeedServiceRequest desired = replay ? read(before.desired()) : requested;
             try {
                 return PgTx.savepoint(() -> {
-                    Plan plan = plan(tenantCode, actor, profile, code, desired, readOrNull(before.desired()));
+                    Plan plan = plan(tenantCode, actor, profile, code, desired,
+                            readOrNull(before.appliedDesired()));
                     plan.run();
                     FeedResult result = plan.result(false);
                     feeds.saveService(new FeedService(tenantCode, profile.feedKey(), code, write(desired),
                             hash(desired), plan.mandateId != null ? plan.mandateId : before.mandateId(),
                             plan.tripId != null ? plan.tripId : before.tripId(), plan.isOpen(), plan.action,
-                            write(result), plan.evaluatedAt));
+                            write(result), plan.evaluatedAt,
+                            REPORT.equals(plan.action) ? before.appliedDesired() : write(desired)));
                     return new Attempt(result, null);
                 });
             } catch (RuntimeException e) {
@@ -256,7 +259,8 @@ public class FeedReconciler {
         FeedResult failed = new FeedResult(before.externalCode(), ERROR, false, before.mandateId(), before.tripId(),
                 List.of(), List.of(), List.of(String.valueOf(failure.getMessage())));
         feeds.saveService(new FeedService(before.tenantCode(), before.feedKey(), before.externalCode(),
-                write(desired), "", before.mandateId(), before.tripId(), true, ERROR, write(failed), now()));
+                write(desired), "", before.mandateId(), before.tripId(), true, ERROR, write(failed), now(),
+                before.appliedDesired()));
     }
 
     // ---------------------------------------------------------------- reading and deciding
@@ -299,6 +303,14 @@ public class FeedReconciler {
                 plan.warnings.add("the service ended before the feed sent it; send its actual departure and"
                         + " closure to record it");
                 return plan.decided(SKIP, false);
+            }
+            if (!chronologicalActuals(d)) {
+                plan.errors.add("actual departure, arrival and closure must be in chronological order");
+                return plan.decided(REPORT, true);
+            }
+            if (!"closing".equals(profile.stages().get(profile.stages().size() - 1).stageType())) {
+                plan.errors.add("a regularized trip requires closing as its final stage");
+                return plan.decided(REPORT, true);
             }
             planPlaces(plan, tenantCode, actor, origin, destination);
             planCreate(plan, context, code, mandate.orElse(null), resources, origin, destination);
@@ -478,7 +490,7 @@ public class FeedReconciler {
                     null)).toList();
             TripView created = trips.create(tenantCode, actor, new TripRequest(plan.locationId(origin),
                     plan.locationId(destination), plannedStart, List.of(plan.mandateId), stageRequests,
-                    regularized ? null : profile.monitor(), regularized));
+                    context.regularized() ? null : profile.monitor(), context.regularized()));
             plan.tripId = created.id();
         });
         for (Resource res : assignable(truck, trailer, drivers)) {
@@ -547,10 +559,6 @@ public class FeedReconciler {
      */
     private void planRegularized(Plan plan, String tenantCode, String actor, FeedProfile profile,
             FeedServiceRequest d) {
-        if (profile.stages().stream().noneMatch(s -> "closing".equals(s.stageType()))) {
-            plan.errors.add("the feed's stage plan has no closing stage, so a regularized trip cannot be closed");
-            return;
-        }
         plan.step("record the trip as run", () -> {
             UUID tripId = UUID.fromString(plan.tripId);
             List<StageView> ordered = trips.detail(tenantCode, tripId).stages().stream()
@@ -583,6 +591,14 @@ public class FeedReconciler {
             return departed;
         }
         return arrived;
+    }
+
+    private static boolean chronologicalActuals(FeedServiceRequest desired) {
+        if (desired.actualEnd().isBefore(desired.actualStart())) {
+            return false;
+        }
+        OffsetDateTime arrival = desired.actualArrival();
+        return arrival == null || (!arrival.isBefore(desired.actualStart()) && !arrival.isAfter(desired.actualEnd()));
     }
 
     /** A closed trip is not changed: what the feed changed on it is reported and audited. */

@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -292,8 +293,9 @@ class PgRuleStoresTest {
         Rule rule = rule(tenant, "panic");
         StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
                 "symptom.case.opened", Invocation.SOURCE, "symptom_case", "-7", Map.of(), true, T0, T0));
-        Map<String, List<Invocation.Person>> to =
-                Map.of("rule", List.of(new Invocation.Person("Tester", "tester@example.com", null)));
+        Map<String, List<Invocation.Person>> to = new LinkedHashMap<>();
+        to.put("rule", List.of(new Invocation.Person("Tester", "tester@example.com", null)));
+        to.put("unchanged", null);
         Run first = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
                 event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, to, "k-1"));
         Run again = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,

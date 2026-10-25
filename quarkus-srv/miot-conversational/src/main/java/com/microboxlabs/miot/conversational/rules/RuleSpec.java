@@ -31,6 +31,9 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
     public static final String TEAMS = "teams";
     public static final String STOP = "stop";
     public static final String CONTINUE = "continue";
+    private static final String GROUPS_FIELD = "groups";
+    private static final String STEPS_FIELD = "steps";
+    private static final String CHANNEL_FIELD = "channel";
 
     /** {@code when} is CEL over {@code event}; blank means always. */
     public record Trigger(String event, String when) {
@@ -104,8 +107,8 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
         ObjectNode trigger = spec.putObject("trigger");
         trigger.put("event", "");
         trigger.put("when", "");
-        spec.putArray("groups");
-        spec.putArray("steps");
+        spec.putArray(GROUPS_FIELD);
+        spec.putArray(STEPS_FIELD);
         return spec;
     }
 
@@ -117,9 +120,9 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
         Trigger trigger = t.isObject() ? new Trigger(text(t, "event"), text(t, "when")) : null;
         List<Group> groups = new ArrayList<>();
         List<Step> steps = new ArrayList<>();
-        if (spec.has("groups")) {
-            spec.path("groups").forEach(g -> groups.add(group(g)));
-            spec.path("steps").forEach(s -> steps.add(step(s)));
+        if (spec.has(GROUPS_FIELD)) {
+            spec.path(GROUPS_FIELD).forEach(g -> groups.add(group(g)));
+            spec.path(STEPS_FIELD).forEach(s -> steps.add(step(s)));
         } else {
             readLegacy(spec, groups, steps);
         }
@@ -160,7 +163,7 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
     }
 
     private static Step step(JsonNode s, List<String> to, boolean invalid) {
-        return new Step(integer(s, "after"), text(s, "channel"), text(s, "template"), List.copyOf(to), invalid,
+        return new Step(integer(s, "after"), text(s, CHANNEL_FIELD), text(s, "template"), List.copyOf(to), invalid,
                 integer(s, "waitForReply"), text(s, "onReply"), text(s, "connection"));
     }
 
@@ -171,10 +174,10 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
         List<Group> own = new ArrayList<>();
         boolean usesAudience = false;
         int n = 0;
-        for (JsonNode s : spec.path("steps")) {
+        for (JsonNode s : spec.path(STEPS_FIELD)) {
             n++;
             JsonNode to = s.path("to");
-            boolean viaConnection = ConnectionChannel.of(text(s, "channel")).isPresent();
+            boolean viaConnection = ConnectionChannel.of(text(s, CHANNEL_FIELD)).isPresent();
             if (viaConnection) {
                 steps.add(step(s, List.of(), false));
             } else if (to.isArray()) {
@@ -196,7 +199,7 @@ public record RuleSpec(Trigger trigger, List<Group> groups, List<Step> steps, St
     }
 
     private static Audience audience(JsonNode a) {
-        return new Audience(text(a, "role"), text(a, "address"), text(a, "channel"), text(a, "name"),
+        return new Audience(text(a, "role"), text(a, "address"), text(a, CHANNEL_FIELD), text(a, "name"),
                 text(a, "path"), text(a, "contacts"));
     }
 

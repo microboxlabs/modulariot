@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -106,6 +107,38 @@ class RuleInvocationsTest {
     }
 
     @Test
+    void aGroupAddedAfterARedirectedDraftStartedCannotReceiveTheTestSend() {
+        String id = draft(PANIC_SPEC);
+        f.invocations.start(TENANT, id, ofDraft(TO_TESTER));
+        f.engine.runDue();
+        f.service.saveDraft(TENANT, id, json("""
+                {"trigger": {"event": "symptom.case.opened", "when": ""},
+                 "groups": [{"id": "rule", "entries": [{"role": "driver"}]},
+                            {"id": "late", "entries": [{"address": "other@example.com", "channel": "email"}]}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "to": ["rule"],
+                            "waitForReply": 5},
+                           {"channel": "email", "template": "panic-tower", "to": ["late"]}]}
+                """), "owner@example.com");
+
+        f.now = T0.plus(Duration.ofMinutes(5));
+        f.engine.runDue();
+
+        assertTrue(f.emailsSent.isEmpty());
+    }
+
+    @Test
+    void aNullRecipientListIsAnEmptyOverride() {
+        String id = draft(PANIC_SPEC);
+        Map<String, List<Person>> recipients = new LinkedHashMap<>();
+        recipients.put(RuleSpec.RULE_GROUP, null);
+
+        f.invocations.start(TENANT, id, ofDraft(recipients));
+        f.engine.runDue();
+
+        assertTrue(f.whatsappSent.isEmpty());
+    }
+
+    @Test
     void aStepOnAChannelThePersonHasNoAddressForSendsNothing() {
         String id = draft(PANIC_SPEC);
         f.invocations.start(TENANT, id,
@@ -144,8 +177,10 @@ class RuleInvocationsTest {
         Rule test = f.rule("panic", PANIC_SPEC, Rule.State.TEST);
         assertTrue(f.invocations.start(TENANT, test.id(), new Invocation(null, sample(), null, null)).test());
         Rule off = f.rule("panic-off", PANIC_SPEC, Rule.State.OFF);
+        String offId = off.id();
+        Invocation offRequest = new Invocation(null, sample(), null, null);
         assertThrows(IllegalStateException.class,
-                () -> f.invocations.start(TENANT, off.id(), new Invocation(null, sample(), null, null)));
+                () -> f.invocations.start(TENANT, offId, offRequest));
     }
 
     @Test
@@ -153,13 +188,15 @@ class RuleInvocationsTest {
         String broken = draft("""
                 {"trigger": {"event": "symptom.case.opened", "when": ""}, "groups": [], "steps": []}
                 """);
-        assertThrows(RulesService.NotPublishable.class, () -> f.invocations.start(TENANT, broken, ofDraft(null)));
+        Invocation brokenRequest = ofDraft(null);
+        assertThrows(RulesService.NotPublishable.class, () -> f.invocations.start(TENANT, broken, brokenRequest));
         String id = f.service.create(TENANT, "panic-2", "Pánico 2", json(PANIC_SPEC), "owner@example.com").rule()
                 .id();
+        Invocation unknownGroup = ofDraft(Map.of("nope", List.of(TESTER)));
         assertThrows(IllegalArgumentException.class,
-                () -> f.invocations.start(TENANT, id, ofDraft(Map.of("nope", List.of(TESTER)))));
-        assertThrows(IllegalArgumentException.class, () -> f.invocations.start(TENANT, id,
-                ofDraft(Map.of(RuleSpec.RULE_GROUP, List.of(new Person("x", " ", null))))));
+                () -> f.invocations.start(TENANT, id, unknownGroup));
+        Invocation missingAddress = ofDraft(Map.of(RuleSpec.RULE_GROUP, List.of(new Person("x", " ", null))));
+        assertThrows(IllegalArgumentException.class, () -> f.invocations.start(TENANT, id, missingAddress));
         assertTrue(f.store.runs.isEmpty());
     }
 }

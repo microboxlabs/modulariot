@@ -75,6 +75,17 @@ function personOf(c: TowerContact): TestPerson {
   };
 }
 
+/** Content keys keep the read-only preview stable when steps are reordered. */
+function previewSteps(steps: RuleStep[]) {
+  const seen = new Map<string, number>();
+  return steps.map((step) => {
+    const content = JSON.stringify(step);
+    const occurrence = seen.get(content) ?? 0;
+    seen.set(content, occurrence + 1);
+    return { step, key: `${content}:${occurrence}` };
+  });
+}
+
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -256,13 +267,13 @@ export default function TestSendDialog({
               aria-label={tr("testSendSteps", d)}
               className="flex flex-col gap-1.5 text-sm text-gray-700 dark:text-gray-300"
             >
-              {steps.map((s, i) => {
+              {previewSteps(steps).map(({ step: s, key }, i) => {
                 const dest = testDestination(s, to);
                 const label = STEP_CHANNELS.find(
                   (c) => c.value === s.channel
                 )?.label;
                 return (
-                  <li key={i} className="flex items-center gap-2">
+                  <li key={key} className="flex items-center gap-2">
                     <span className={`w-14 shrink-0 text-xs ${MUTED}`}>
                       {tr("stepN", d, { n: String(i + 1) })}
                     </span>

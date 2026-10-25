@@ -19,9 +19,9 @@ const VALUES = {
 };
 const DOC = `[\n  {\n    "after": 0,\n    "onReply": "continue",\n    "wa": 0,\n    \n  }\n]`;
 
-function complete(pos: number) {
+function complete(pos: number, doc = DOC) {
   const result = completions(() => ({ values: VALUES, keys: KEYS }))(
-    new CompletionContext(EditorState.create({ doc: DOC }), pos, true)
+    new CompletionContext(EditorState.create({ doc }), pos, true)
   );
   return (
     result && {
@@ -48,5 +48,12 @@ describe("completions", () => {
       from: start,
       labels: ["stop", "continue"],
     });
+  });
+
+  it("offers a key already used in a different object", () => {
+    const doc = '[{"connection":"first"},{"co":"second"}]';
+    expect(complete(doc.indexOf('"co"') + 1, doc)?.labels).toContain(
+      "connection"
+    );
   });
 });

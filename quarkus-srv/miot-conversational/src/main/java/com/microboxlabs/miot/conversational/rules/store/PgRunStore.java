@@ -266,7 +266,7 @@ public class PgRunStore implements RunStore {
 
     private static Map<String, List<Invocation.Person>> recipients(String text) {
         if (text == null) {
-            return null;
+            return Map.of();
         }
         try {
             return Pg.JSON.readValue(text, RECIPIENTS);

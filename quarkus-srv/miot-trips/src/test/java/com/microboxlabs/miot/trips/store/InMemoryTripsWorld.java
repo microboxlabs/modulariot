@@ -633,6 +633,11 @@ public class InMemoryTripsWorld {
         }
 
         @Override
+        public Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId) {
+            return find(tenantCode, tripId);
+        }
+
+        @Override
         public void upsert(TripLiveProjection projection) {
             live.put(projection.tripId(), projection);
         }

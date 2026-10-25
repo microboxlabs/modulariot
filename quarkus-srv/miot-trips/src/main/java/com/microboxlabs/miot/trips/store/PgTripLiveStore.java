@@ -65,6 +65,13 @@ public class PgTripLiveStore implements TripLiveStore {
     }
 
     @Override
+    public Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId) {
+        query(pool.get(), "SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR UPDATE",
+                Tuple.of(tenantCode, tripId));
+        return find(tenantCode, tripId);
+    }
+
+    @Override
     public void upsert(TripLiveProjection p) {
         query(pool.get(), """
                 INSERT INTO miot_trips.trip_live (

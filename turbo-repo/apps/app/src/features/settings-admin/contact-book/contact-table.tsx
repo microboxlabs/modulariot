@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, type ComponentType, type SVGProps } from "react";
+import {
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiCheck,
+  HiExclamation,
   HiOutlineClipboardCopy,
+  HiOutlineIdentification,
+  HiOutlineMail,
+  HiOutlineOfficeBuilding,
+  HiOutlinePhone,
   HiDotsVertical,
   HiOutlinePencil,
   HiOutlineTrash,
@@ -79,6 +89,13 @@ export interface ContactTableLabels {
   clickToCopy: string;
   edit: string;
   remove: string;
+  card: {
+    member: string;
+    external: string;
+    provisional: string;
+    unreachable: string;
+    rut: string;
+  };
 }
 
 /** The address a contact is reached on for `method`, or "" when that method
@@ -425,6 +442,35 @@ export default function ContactTable({
 /** A contact laid out like a rule or symptom card: initial, name and role,
  *  company, badges, and its contact methods at the foot. The card opens the
  *  contact; the menu edits or removes it. */
+/** One detail line of a card: an icon and its text, left out when there is no text. */
+function CardLine({
+  icon: Icon,
+  label,
+  children,
+}: Readonly<{
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  children: ReactNode;
+}>) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+      <Icon
+        aria-label={label}
+        className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
+      />
+      <span className="min-w-0 truncate">{children}</span>
+    </div>
+  );
+}
+
+/** Whether a communication rule can write to the contact: by email or WhatsApp. */
+export function reachableByRules(contact: BookContact): boolean {
+  return Boolean(
+    contactMethodValue(contact, "email") ||
+    contactMethodValue(contact, "whatsapp")
+  );
+}
+
 export function ContactCard({
   contact,
   labels,
@@ -442,9 +488,11 @@ export function ContactCard({
     const badge = badgesById.get(id);
     return badge ? [badge] : [];
   });
-  const company = [contact.company, contact.companyRut]
-    .filter(Boolean)
-    .join(" · ");
+  const phone =
+    contactMethodValue(contact, "phone") ||
+    contactMethodValue(contact, "whatsapp");
+  const subtitle = [contact.role, contact.position].filter(Boolean).join(" · ");
+  const reachable = reachableByRules(contact);
   return (
     <div className="flex flex-col rounded-lg border border-gray-200 bg-white text-left transition hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500">
       <div className="flex w-full items-start gap-3 px-4 pt-4">
@@ -454,11 +502,27 @@ export function ContactCard({
           className="min-w-0 flex-1 text-left focus:outline-none"
           onClick={() => onEdit(contact)}
         >
-          <div className="truncate font-semibold text-gray-900 hover:underline dark:text-white">
-            {contact.name}
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-semibold text-gray-900 hover:underline dark:text-white">
+              {contact.name}
+            </span>
+            <span
+              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                contact.orgMemberId
+                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                  : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+              }`}
+            >
+              {contact.orgMemberId ? labels.card.member : labels.card.external}
+            </span>
+            {contact.provisional && (
+              <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                {labels.card.provisional}
+              </span>
+            )}
           </div>
           <div className="truncate text-xs text-gray-500 dark:text-gray-400">
-            {contact.role || contact.description || EMPTY_CELL}
+            {subtitle || EMPTY_CELL}
           </div>
         </button>
         <RowMenu
@@ -467,20 +531,69 @@ export function ContactCard({
           onRemove={() => onRemove(contact.id)}
         />
       </div>
-      <p className="mt-3 h-4 truncate px-4 text-xs text-gray-600 dark:text-gray-300">
-        {company}
-      </p>
-      <div className="mt-3 flex flex-wrap items-center gap-1.5 px-4 text-xs">
-        {badges.map((b) => (
-          <span key={b.id} className={BADGE_CLASS}>
-            {b.name}
-          </span>
-        ))}
+
+      <div className="mt-3 flex flex-col gap-1.5 px-4">
+        {(contact.company || contact.companyRut) && (
+          <CardLine
+            icon={HiOutlineOfficeBuilding}
+            label={labels.columns.company}
+          >
+            {contact.company}
+            {contact.companyRut && (
+              <span className="ml-1.5 font-mono text-gray-400 dark:text-gray-500">
+                {contact.companyRut}
+              </span>
+            )}
+          </CardLine>
+        )}
+        {contact.rut && (
+          <CardLine icon={HiOutlineIdentification} label={labels.card.rut}>
+            <span className="font-mono">{contact.rut}</span>
+          </CardLine>
+        )}
+        {contact.email && (
+          <CardLine icon={HiOutlineMail} label={labels.methodLabels.email}>
+            {contact.email}
+          </CardLine>
+        )}
+        {phone && (
+          <CardLine icon={HiOutlinePhone} label={labels.methodLabels.phone}>
+            {formatChileanPhone(phone)}
+          </CardLine>
+        )}
       </div>
+
+      {contact.description && (
+        <p className="mt-3 line-clamp-2 px-4 text-xs text-gray-500 dark:text-gray-400">
+          {contact.description}
+        </p>
+      )}
+
+      {badges.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 px-4 text-xs">
+          {badges.map((b) => (
+            <span key={b.id} className={BADGE_CLASS}>
+              {b.name}
+            </span>
+          ))}
+        </div>
+      )}
       {/* Keeps the footers of a row of cards on one line. */}
-      <div className="min-h-3 flex-1" />
-      <div className="flex w-full items-center border-t border-gray-100 px-4 py-2.5 dark:border-gray-700/60">
+      <div className="min-h-4 flex-1" />
+      <div className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 dark:border-gray-700/60">
         <ContactMethods contact={contact} labels={labels} />
+        {!reachable && (
+          <div className="ml-auto">
+            <HoverTooltip content={labels.card.unreachable}>
+              <span className="flex items-center text-amber-500">
+                <HiExclamation
+                  aria-label={labels.card.unreachable}
+                  className="h-4 w-4"
+                />
+              </span>
+            </HoverTooltip>
+          </div>
+        )}
       </div>
     </div>
   );

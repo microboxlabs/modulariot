@@ -92,6 +92,13 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
     clickToCopy: tr("clickToCopy", d),
     edit: tr("edit", d),
     remove: tr("removeContact", d),
+    card: {
+      member: tr("cardMember", d),
+      external: tr("cardExternal", d),
+      provisional: tr("cardProvisional", d),
+      unreachable: tr("cardUnreachable", d),
+      rut: tr("cardRut", d),
+    },
   };
 }
 

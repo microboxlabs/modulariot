@@ -303,6 +303,11 @@ class PgRuleStoresTest {
         assertEquals(to, runs.find(first.id()).orElseThrow().recipients());
         assertEquals(first.id(), runs.invoked(rule.id(), "k-1").orElseThrow().id());
         assertTrue(runs.invoked(rule.id(), "k-2").isEmpty());
+
+        runs.recordError(first.id(), "tester@example.com: refused", T0);
+        runs.updateIfWaiting(first.advanced(Run.Status.WAITING, 1, T0, null, T0));
+        assertEquals("tester@example.com: refused", runs.find(first.id()).orElseThrow().lastError(),
+                "an update without an error keeps the one a send job wrote");
     }
 
     @Test

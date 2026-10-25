@@ -76,6 +76,58 @@ public class EmailMessagingService {
         return storeOutbound(conversation, message, now, metadata, status, providerMessageId, errorMessage);
     }
 
+    /** Stores a rule's email as PENDING on its context's conversation; its job sends it. */
+    public Message queueInContext(String tenantCode, ContextMessage message) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
+                message.participant(null), now);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (message.subject() != null) {
+            metadata.put(SUBJECT, message.subject());
+        }
+        Message stored = messageRepository.append(new Message(
+                UUID.randomUUID().toString(), conversation.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,
+                MessageType.TEXT, message.body(), message.templateName(), null, null, null, null,
+                MessageStatus.PENDING, null, null, null, null, metadata, null, null, null, now, Channel.EMAIL,
+                message.to(), null, message.runId(), message.step()));
+        String preview = message.subject() != null ? message.subject() : message.body();
+        conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
+                message.contextKind(), message.contextKey(), now,
+                preview == null || preview.length() <= PREVIEW_MAX ? preview : preview.substring(0, PREVIEW_MAX)));
+        return stored;
+    }
+
+    /**
+     * Sends a PENDING email of this organization through its sending account and marks it SENT. A message no
+     * longer PENDING is returned as it is. A repeated send uses the same idempotency key, so the provider does
+     * not send it twice.
+     *
+     * @throws SendFailure when the provider did not take it
+     */
+    public Message deliverQueued(String tenantCode, String messageId) {
+        Message message = WhatsAppMessagingService.queued(messageRepository, conversationRepository, tenantCode,
+                messageId);
+        if (message.status() != MessageStatus.PENDING) {
+            return message;
+        }
+        Object subject = message.metadata() == null ? null : message.metadata().get(SUBJECT);
+        SendResult result = deliver(tenantCode, new ContextMessage(null, null, message.address(), null, null, null,
+                message.templateName(), null, Map.of(), subject == null ? null : subject.toString(), message.body(),
+                message.runId(), message.step()));
+        if (!result.accepted()) {
+            boolean retryable = SendFailure.retryable(result.status())
+                    && (result.status() != 0 || configured(tenantCode));
+            throw new SendFailure(result.error(), retryable);
+        }
+        Message sent = messageRepository.markSent(messageId, result.messageId(), Map.of(),
+                OffsetDateTime.now(ZoneOffset.UTC));
+        return sent != null ? sent : messageRepository.findById(messageId);
+    }
+
+    private boolean configured(String tenantCode) {
+        return sender.configured(accounts.sendingTenant(tenantCode, ChannelAccountsService.EMAIL));
+    }
+
     private Message storeOutbound(Conversation conversation, ContextMessage message, OffsetDateTime now,
             Map<String, Object> metadata, MessageStatus status, String providerMessageId, String errorMessage) {
         Message outgoing = new Message(

@@ -204,6 +204,39 @@ public final class InMemoryConversations {
                 String messageId, MessageStatus status, OffsetDateTime deliveredAt,
                 OffsetDateTime readAt, String errorMessage, Set<MessageStatus> from) {
             statusMarked.add(messageId);
+            for (int i = 0; i < messages.size(); i++) {
+                Message m = messages.get(i);
+                if (m.id().equals(messageId) && m.status() == MessageStatus.PENDING && status == MessageStatus.FAILED
+                        && from.contains(MessageStatus.PENDING)) {
+                    Message failed = new Message(m.id(), m.conversationId(), m.direction(), m.role(), m.type(),
+                            m.body(), m.templateName(), m.mediaRef(), m.mediaMimeType(), m.mediaFileName(),
+                            m.providerMessageId(), MessageStatus.FAILED, errorMessage, m.sentByUserId(),
+                            m.serviceCode(), m.processInstanceId(), m.metadata(), m.sentAt(), m.deliveredAt(),
+                            m.readAt(), m.createdAt(), m.channel(), m.address(), m.inReplyTo(), m.runId(), m.step());
+                    messages.set(i, failed);
+                    return failed;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public Message markSent(String messageId, String providerMessageId, Map<String, Object> metadata,
+                OffsetDateTime sentAt) {
+            for (int i = 0; i < messages.size(); i++) {
+                Message m = messages.get(i);
+                if (m.id().equals(messageId) && m.status() == MessageStatus.PENDING) {
+                    Map<String, Object> merged = new LinkedHashMap<>(m.metadata() == null ? Map.of() : m.metadata());
+                    merged.putAll(metadata);
+                    Message sent = new Message(m.id(), m.conversationId(), m.direction(), m.role(), m.type(),
+                            m.body(), m.templateName(), m.mediaRef(), m.mediaMimeType(), m.mediaFileName(),
+                            providerMessageId, MessageStatus.SENT, null, m.sentByUserId(), m.serviceCode(),
+                            m.processInstanceId(), merged, sentAt, m.deliveredAt(), m.readAt(), m.createdAt(),
+                            m.channel(), m.address(), m.inReplyTo(), m.runId(), m.step());
+                    messages.set(i, sent);
+                    return sent;
+                }
+            }
             return null;
         }
 

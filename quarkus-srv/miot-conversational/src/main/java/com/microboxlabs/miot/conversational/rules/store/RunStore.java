@@ -38,8 +38,14 @@ public interface RunStore {
      */
     List<Run> claimDue(Instant now, Duration lease, int limit);
 
-    /** Writes status, step, next_at and last_error if the run is still WAITING; false when it no longer is. */
+    /**
+     * Writes status, step, next_at and last_error if the run is still WAITING; false when it no longer is. A null
+     * last_error keeps the stored one, which a send job may have written meanwhile.
+     */
     boolean updateIfWaiting(Run run);
+
+    /** Writes a problem found after the step went out, such as a message that could not be sent. */
+    void recordError(String runId, String error, Instant at);
 
     /** The WAITING runs about this context. */
     List<Run> waiting(String tenantCode, String contextKind, String contextKey);

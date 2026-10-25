@@ -18,6 +18,7 @@ import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
+import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -52,8 +53,10 @@ import org.jboss.logging.Logger;
  *   <li>{@code symptom.case.closed} cancels the WAITING runs about the same case.</li>
  * </ul>
  *
- * Delivery errors and audience warnings are stored on the run as {@code last_error}; the run goes on. Observers
- * are asynchronous, so the producer is never held. Off with {@code miot.conversational.rules.enabled=false}.
+ * A step's WhatsApp and email messages are stored PENDING and sent by integration jobs ({@link SendJobs}), which
+ * retry with backoff; the run does not wait for them. A message whose job gives up becomes FAILED. Audience
+ * warnings and failed sends are stored on the run as {@code last_error}; the run goes on. Observers are
+ * asynchronous, so the producer is never held. Off with {@code miot.conversational.rules.enabled=false}.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
@@ -76,6 +79,7 @@ public class RulesEngine {
     private final EmailMessagingService email;
     private final ConnectionChannels channels;
     private final ConnectionMessagingService connectionMessages;
+    private final SendQueue queue;
     private final ObjectMapper json;
     private final Clock clock;
 
@@ -83,19 +87,23 @@ public class RulesEngine {
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
             Instance<ContactDirectory> directories, WhatsAppMessagingService whatsapp, EmailMessagingService email,
-            ConnectionChannels channels, ConnectionMessagingService connectionMessages, ObjectMapper json) {
+            ConnectionChannels channels, ConnectionMessagingService connectionMessages, SendQueue queue,
+            ObjectMapper json) {
         this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
-                () -> directories.stream().toList(), new Senders(whatsapp, email, channels, connectionMessages), json,
-                Clock.systemUTC());
+                () -> directories.stream().toList(),
+                new Senders(whatsapp, email, channels, connectionMessages, queue), json, Clock.systemUTC());
     }
 
     /** Where rules, templates and runs are kept. */
     public record Stores(RuleStore rules, TemplateStore templates, RunStore runs) {
     }
 
-    /** The channels a step sends on; {@code connectionMessages} stores what a connection step sends. */
+    /**
+     * The channels a step sends on. WhatsApp and email messages are stored PENDING and go out through
+     * {@code queue}; {@code connectionMessages} stores what a connection step sends.
+     */
     public record Senders(WhatsAppMessagingService whatsapp, EmailMessagingService email,
-            ConnectionChannels channels, ConnectionMessagingService connectionMessages) {
+            ConnectionChannels channels, ConnectionMessagingService connectionMessages, SendQueue queue) {
     }
 
     public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
@@ -115,6 +123,7 @@ public class RulesEngine {
         this.email = senders.email();
         this.channels = senders.channels();
         this.connectionMessages = senders.connectionMessages();
+        this.queue = senders.queue();
         this.json = json;
         this.clock = clock;
     }
@@ -301,6 +310,7 @@ public class RulesEngine {
         StepMessages.Plan plan = StepMessages.plan(step, Invocation.forStep(spec, step, run.recipients()), event,
                 template, new Audiences(resolvers.get(), directories.get()));
         List<String> problems = new ArrayList<>(plan.warnings());
+        List<AsyncJobSpec> jobs = new ArrayList<>();
         ContextKind kind = contextKind(run.contextKind());
         for (StepMessages.Planned m : plan.messages()) {
             Optional<ConnectionChannel> viaConnection = ConnectionChannel.of(m.channel());
@@ -316,11 +326,20 @@ public class RulesEngine {
                     isWhatsApp ? m.template().whatsapp().metaName() : m.template().key(),
                     isWhatsApp ? m.template().whatsapp().language() : null, m.params(), m.subject(), m.text(),
                     run.id(), run.step());
-            Message stored = isWhatsApp ? whatsapp.sendInContext(run.tenantCode(), message, run.test())
-                    : email.sendInContext(run.tenantCode(), message, run.test());
-            if (stored.status() == MessageStatus.FAILED) {
-                problems.add(m.to().address() + ": " + stored.errorMessage());
+            if (run.test()) {
+                if (isWhatsApp) {
+                    whatsapp.sendInContext(run.tenantCode(), message, true);
+                } else {
+                    email.sendInContext(run.tenantCode(), message, true);
+                }
+            } else if (isWhatsApp) {
+                jobs.add(SendJobs.whatsapp(whatsapp.queueInContext(run.tenantCode(), message), message));
+            } else {
+                jobs.add(SendJobs.email(email.queueInContext(run.tenantCode(), message)));
             }
+        }
+        if (!jobs.isEmpty()) {
+            queue.enqueue(run.tenantCode(), jobs);
         }
         return problems.isEmpty() ? null : String.join("; ", problems);
     }
@@ -344,6 +363,13 @@ public class RulesEngine {
         return stored.status() == MessageStatus.FAILED
                 ? Optional.of(channel.key() + " " + connection + ": " + stored.errorMessage())
                 : Optional.empty();
+    }
+
+    /** A message of the run that its job could not send: the problem is written on the run. */
+    public void sendFailed(String runId, String problem) {
+        if (runId != null) {
+            runs.recordError(runId, problem, clock.instant());
+        }
     }
 
     /**

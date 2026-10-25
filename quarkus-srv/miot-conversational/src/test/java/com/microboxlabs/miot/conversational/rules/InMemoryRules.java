@@ -202,6 +202,16 @@ final class InMemoryRules {
         }
 
         @Override
+        public void recordError(String runId, String error, Instant at) {
+            Run r = runs.get(runId);
+            if (r != null) {
+                runs.put(runId, new Run(r.id(), r.tenantCode(), r.ruleId(), r.ruleVersion(), r.eventId(),
+                        r.contextKind(), r.contextKey(), r.test(), r.status(), r.step(), r.nextAt(), error,
+                        r.createdAt(), at, r.recipients(), r.invocationKey()));
+            }
+        }
+
+        @Override
         public Optional<Run> invoked(String ruleId, String key) {
             return key == null ? Optional.empty()
                     : runs.values().stream()
@@ -223,7 +233,8 @@ final class InMemoryRules {
             if (current == null || current.status() != Run.Status.WAITING) {
                 return false;
             }
-            runs.put(run.id(), run);
+            runs.put(run.id(), run.lastError() != null || current.lastError() == null ? run
+                    : run.advanced(run.status(), run.step(), run.nextAt(), current.lastError(), run.updatedAt()));
             if (run.status() != Run.Status.WAITING) {
                 conversations.waitingRuns.remove(run.id());
             }

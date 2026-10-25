@@ -74,8 +74,11 @@ public class PgRunStore implements RunStore {
             RETURNING\s""" + RUN_COLUMNS;
     private static final String UPDATE_IF_WAITING = """
             UPDATE miot_conversational.conv_run
-            SET status = $2, step = $3, next_at = $4, last_error = $5, updated_at = $6
+            SET status = $2, step = $3, next_at = $4, last_error = COALESCE($5, last_error), updated_at = $6
             WHERE id = $1 AND status = 'WAITING'
+            """;
+    private static final String RECORD_ERROR = """
+            UPDATE miot_conversational.conv_run SET last_error = $2, updated_at = $3 WHERE id = $1
             """;
     private static final String WAITING = SELECT + RUN_COLUMNS + """
              FROM miot_conversational.conv_run
@@ -186,6 +189,14 @@ public class PgRunStore implements RunStore {
         Tuple params = Tuple.tuple().addUUID(uuid(r.id())).addString(r.status().name()).addInteger(r.step())
                 .addOffsetDateTime(time(r.nextAt())).addString(r.lastError()).addOffsetDateTime(time(r.updatedAt()));
         return query(pool.get(), UPDATE_IF_WAITING, params).rowCount() > 0;
+    }
+
+    @Override
+    public void recordError(String runId, String error, Instant at) {
+        UUID id = uuidOrNull(runId);
+        if (id != null) {
+            query(pool.get(), RECORD_ERROR, Tuple.of(id, error, time(at)));
+        }
     }
 
     @Override

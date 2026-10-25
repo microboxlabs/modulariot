@@ -209,6 +209,69 @@ public class WhatsAppMessagingService {
         return stored;
     }
 
+    /** Stores a rule's WhatsApp message as PENDING on its context's conversation; its job sends it. */
+    public Message queueInContext(String tenantCode, ContextMessage message) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
+                message.participant(message.to()), now);
+        Message stored = messageRepository.append(new Message(
+                UUID.randomUUID().toString(), conversation.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,
+                MessageType.TEMPLATE, message.body(), message.templateName(), null, null, null, null,
+                MessageStatus.PENDING, null, null, null, null, Map.of(), null, null, null, now, Channel.WHATSAPP,
+                message.to(), null, message.runId(), message.step()));
+        conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
+                message.contextKind(), message.contextKey(), now,
+                truncate(message.body() != null ? message.body() : message.templateName())));
+        return stored;
+    }
+
+    /**
+     * Sends a PENDING message of this organization through its sending account and marks it SENT. A message
+     * no longer PENDING is returned as it is, so a repeated job sends nothing twice.
+     *
+     * @throws SendFailure when Meta did not take it
+     */
+    public Message deliverQueued(String tenantCode, String messageId, String language, Map<String, String> params) {
+        Message message = queued(messageRepository, conversationRepository, tenantCode, messageId);
+        if (message.status() != MessageStatus.PENDING) {
+            return message;
+        }
+        try {
+            String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.WHATSAPP);
+            ResolvedConnection connection = sendingConnection(sendingTenant);
+            Map<String, Object> metadata = metadata(connection);
+            metadata.put(CONNECTION_TENANT, sendingTenant);
+            String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
+            String token = connection.secretString(TOKEN);
+            if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
+                throw new ConnectionResolutionException(
+                        "WhatsApp connection is missing phone_number_id or the access token");
+            }
+            enforceTestMode(connection, message.address());
+            String wamid = metaClient.sendTemplate(connection.baseUrl(), phoneNumberId, token, message.address(),
+                    message.templateName(), language == null ? DEFAULT_LANGUAGE : language,
+                    params == null ? Map.of() : params);
+            Message sent = messageRepository.markSent(messageId, wamid, metadata, OffsetDateTime.now(ZoneOffset.UTC));
+            return sent != null ? sent : messageRepository.findById(messageId);
+        } catch (ConnectionResolutionException | IllegalArgumentException e) {
+            throw new SendFailure(e.getMessage(), false);
+        } catch (WhatsAppSendException e) {
+            LOG.warnf("WhatsApp send of message %s failed (HTTP %s): %s", messageId, e.httpStatus(), e.getMessage());
+            throw new SendFailure(e.getMessage(), SendFailure.retryable(e.httpStatus()));
+        }
+    }
+
+    /** The message of this organization; a missing or foreign one fails for good. */
+    static Message queued(MessageRepository messages, ConversationRepository conversations, String tenantCode,
+            String messageId) {
+        Message message = messageId == null ? null : messages.findById(messageId);
+        Conversation conversation = message == null ? null : conversations.findById(message.conversationId());
+        if (conversation == null || !tenantCode.equals(conversation.tenantCode())) {
+            throw new SendFailure("The message " + messageId + " is not a message of this organization", false);
+        }
+        return message;
+    }
+
     private Conversation targetConversation(String tenantCode, SendWhatsAppMessageRequest request) {
         if (request.conversationId() == null) {
             return null;

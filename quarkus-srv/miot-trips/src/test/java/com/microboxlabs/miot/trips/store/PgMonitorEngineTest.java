@@ -233,4 +233,50 @@ class PgMonitorEngineTest {
         stages.close(tenant, ACTOR, UUID.fromString(preparation.id()));
         assertTrue(matched(tripId).contains("hand-close"));
     }
+    @Test
+    void cancellationImmediatelyRemovesPendingTimers() {
+        UUID tripId = id(newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).plusHours(1)));
+        assertEquals(1, engine.pendingTimers(tenant, tripId).size());
+        trips.cancel(tenant, ACTOR, tripId, "test cancellation");
+        assertTrue(engine.pendingTimers(tenant, tripId).isEmpty());
+    }
+
+    @Test
+    void terminalStageStillEmitsCommandAndStageEvents() {
+        publish("terminal", List.of(
+                rule("closed-command", "command", null, "event.kind == 'close'", 10, act("alert", "command")),
+                rule("closed-stage", "stage", null, "event.kind == 'closed'", 10, act("alert", "stage")),
+                rule("late-signal", "signal", null, null, 10, act("alert", "unexpected"))));
+        TripView created = trips.create(tenant, ACTOR, new TripRequest(null, null, null, List.of(),
+                List.of(new StageRequest("closing", null, null, null, null, null)), "terminal"));
+        UUID tripId = id(created);
+        UUID stageId = UUID.fromString(stages.listByTrip(tenant, tripId).get(0).id());
+        stages.start(tenant, ACTOR, stageId);
+        stages.close(tenant, ACTOR, stageId);
+        assertEquals(Trip.DONE, trips.get(tenant, tripId).status());
+        assertTrue(matched(tripId).containsAll(List.of("closed-command", "closed-stage")));
+        assertTrue(engine.signal(tenant, ACTOR, tripId, "late", null, null).isEmpty());
+    }
+
+    @Test
+    void emptyTripGetsMonitorPlanForExplicitAndSelectorBindings() {
+        monitors.saveDraft(tenant, ACTOR, "default-plan", new MonitorRequest("Default plan", null,
+                List.of(new TripMonitor.StagePlan("preparation", "ready")), Map.of(),
+                List.of(rule("start", "plan", null, "event.kind == 'created'", 10,
+                        act("start", "preparation")))));
+        monitors.publish(tenant, ACTOR, "default-plan");
+        UUID explicit = id(trips.create(tenant, ACTOR,
+                new TripRequest(null, null, null, List.of(), List.of(), "default-plan")));
+        assertEquals(Stage.RUNNING, status(explicit, "preparation"));
+        monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
+                new MonitorViews.SelectorRequest.Entry("true", "default-plan"))));
+        UUID selected = id(trips.create(tenant, ACTOR,
+                new TripRequest(null, null, null, List.of(), List.of(), null)));
+        assertEquals(Stage.RUNNING, status(selected, "preparation"));
+        UUID supplied = id(trips.create(tenant, ACTOR,
+                new TripRequest(null, null, null, List.of(),
+                        List.of(new StageRequest("transit", null, null, null, null, null)), "default-plan")));
+        assertEquals(List.of("transit"), stages.listByTrip(tenant, supplied).stream().map(Stage::stageType).toList());
+    }
+
 }

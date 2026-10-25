@@ -566,6 +566,8 @@ public class FeedReconciler {
                 if (!m.confirmedAt().toInstant().truncatedTo(ChronoUnit.MICROS)
                         .equals(at.toInstant().truncatedTo(ChronoUnit.MICROS))) {
                     plan.warnings.add(name + " was confirmed at " + m.confirmedAt() + "; the feed says " + utc(at));
+                    plan.step("report conflicting " + name + " at " + utc(at), () -> milestones.confirm(tenantCode,
+                            actor, UUID.fromString(plan.tripId), name, at, "feed", null));
                 }
                 return;
             }

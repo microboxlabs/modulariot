@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.Location;
+import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.jboss.logging.Logger;
 
 /**
@@ -75,12 +77,16 @@ public class TripEvents {
         publish(TripEventCatalog.ALERT, tenantCode, tripId, at, d -> d.alert(monitor, alert, rule));
     }
 
+    /** The facts that distinguish one milestone event from the trip shared by all its events. */
+    public record MilestoneNotice(String milestone, String source, Instant proposedAt, Instant confirmedAt,
+            Instant otherAt, String channel, String actor, String rule) {
+    }
+
     /** A milestone event: detected, confirmed, rejected or in conflict. */
-    public void milestone(String type, String tenantCode, String tripId, Instant at, String milestone,
-            String source, Instant proposedAt, Instant confirmedAt, Instant otherAt, String channel, String actor,
-            String rule) {
-        publish(type, tenantCode, tripId, at, d -> d.milestone(milestone, source, proposedAt, confirmedAt, otherAt,
-                channel, actor, rule));
+    public void milestone(String type, String tenantCode, String tripId, Instant at, MilestoneNotice notice) {
+        publish(type, tenantCode, tripId, at, d -> d.milestone(notice.milestone(), notice.source(),
+                notice.proposedAt(), notice.confirmedAt(), notice.otherAt(), notice.channel(), notice.actor(),
+                notice.rule()));
     }
 
     /** The feed changed {@code fields} on a closed trip. */
@@ -89,13 +95,13 @@ public class TripEvents {
     }
 
     private void publish(String type, String tenantCode, String tripId, Instant at,
-            Function<TripEventData, TripEventData> detail) {
+            UnaryOperator<TripEventData> detail) {
         if (fire == null) {
             return;
         }
         TripEventData data;
         try {
-            data = detail.apply(summary(tenantCode, UUID.fromString(tripId)));
+            data = PgTx.savepoint(() -> detail.apply(summary(tenantCode, UUID.fromString(tripId))));
         } catch (RuntimeException e) {
             LOG.warnf("Trip event %s for trip %s not published: %s", type, tripId, e.getMessage());
             return;
@@ -115,7 +121,7 @@ public class TripEvents {
         List<MandateRef> refs = trips.mandatesOf(tenantCode, tripId);
         MandateRef first = refs.isEmpty() ? null : refs.get(0);
         String orderRef = first == null ? null : mandates.find(tenantCode, UUID.fromString(first.mandateId()))
-                .map(m -> m.orderRef()).orElse(null);
+                .map(Mandate::orderRef).orElse(null);
         Instant plannedEnd = stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId).stream()
                 .map(Stage::plannedEnd).filter(Objects::nonNull).max(Comparator.naturalOrder())
                 .map(OffsetDateTime::toInstant).orElse(null);
@@ -147,7 +153,7 @@ public class TripEvents {
                 return fleet.driver(tenantCode, id).map(FleetResources.Driver::rut).orElse(null);
             }
             return fleet.vehicle(tenantCode, type, id).map(FleetResources.Vehicle::licensePlate).orElse(null);
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException e) {
             return null;
         }
     }

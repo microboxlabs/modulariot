@@ -39,6 +39,7 @@ import com.microboxlabs.miot.trips.service.TripService;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.time.Clock;
@@ -48,6 +49,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
@@ -353,6 +355,7 @@ class PgMonitorEngineTest {
         assertEquals(TripEventCatalog.CONTEXT_KIND, detected.context().kind());
         TripEventData d = (TripEventData) detected.data();
         assertEquals("departure", d.milestone());
+        assertEquals("departure-detected", d.rule());
         assertEquals("eta", d.source(), "a signal can name its source");
         assertEquals(seen.toInstant(), d.proposedAt());
         assertNotNull(d.serviceCode(), "the event says which service it is about");
@@ -403,6 +406,30 @@ class PgMonitorEngineTest {
         });
         assertEquals(List.of(), firedFor(tripId, TripEventCatalog.MILESTONE_DETECTED));
         assertEquals(TripMilestone.OPEN, milestone(tripId, "departure").status());
+    }
+
+    @Test
+    void eventEnrichmentDatabaseFailureDoesNotUndoTheConfirmation() {
+        UUID tripId = id(newTrip(null, null));
+        List<OperationalEvent> published = new CopyOnWriteArrayList<>();
+        PgMandateStore brokenMandates = new PgMandateStore(() -> pool) {
+            @Override
+            public Optional<Mandate> find(String tenantCode, UUID id) {
+                Pg.query(pool, "SELECT 1 / 0", Tuple.tuple());
+                return Optional.empty();
+            }
+        };
+        TripEvents failingEvents = TripEvents.collecting(published, new PgTripStore(() -> pool),
+                new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool), new PgLocationStore(() -> pool),
+                brokenMandates, fleet);
+        MilestoneService service = new MilestoneService(new PgMilestoneStore(() -> pool), new PgTripStore(() -> pool),
+                audit, failingEvents, tx, Clock.systemUTC());
+
+        assertEquals(MilestoneService.Result.CONFIRMED,
+                service.confirm(tenant, ACTOR, tripId, "departure", OffsetDateTime.parse("2026-10-25T08:32:00Z"),
+                        "api", null).result());
+        assertEquals(TripMilestone.CONFIRMED, milestone(tripId, "departure").status());
+        assertEquals(List.of(), published);
     }
 
     @Test

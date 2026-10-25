@@ -68,6 +68,7 @@ public class MonitorEngine implements TripChanges {
     private static final String STAGE_TYPE = "stageType";
     private static final String COMMAND = "command";
     private static final String REGULARIZED = "regularized";
+    private static final String SOURCE = "source";
     private static final String REQUEST_CONFIRMATION = "requestConfirmation";
 
     /** The evaluation running on this thread; changes made by its actions queue up here. */
@@ -101,6 +102,7 @@ public class MonitorEngine implements TripChanges {
     }
 
     @Inject
+    @SuppressWarnings("java:S107") // CDI wiring requires the monitor's existing service dependencies.
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
@@ -150,13 +152,13 @@ public class MonitorEngine implements TripChanges {
             return;
         }
         String command = "started".equals(event.kind()) ? START : CLOSE;
-        List<MonitorRun.Event> events = STAGE.equals(event.on())
+        List<MonitorRun.Event> queuedEvents = STAGE.equals(event.on())
                 ? List.of(new MonitorRun.Event(tenantCode, tripId, COMMAND,
                         command, event.at(), actor, event.data()), event)
                 : List.of(event);
         try {
             // a failure here must not undo the change that was audited
-            PgTx.savepoint(() -> process(events));
+            PgTx.savepoint(() -> process(queuedEvents));
         } catch (RuntimeException e) {
             LOG.errorf(e, "Monitor evaluation failed: tenant=%s trip=%s action=%s", tenantCode, tripId, action);
         }
@@ -174,7 +176,7 @@ public class MonitorEngine implements TripChanges {
         String k = Check.required(kind, "kind", 64);
         Map<String, Object> data = new LinkedHashMap<>();
         if (source != null && !source.isBlank()) {
-            data.put("source", Check.limited(source.trim(), "source", 32));
+            data.put(SOURCE, Check.limited(source.trim(), SOURCE, 32));
         }
         if (geofenceId != null && !geofenceId.isBlank()) {
             data.put("geofenceId", Check.limited(geofenceId.trim(), "geofenceId", 64));
@@ -228,9 +230,9 @@ public class MonitorEngine implements TripChanges {
         return runs.transitions(tenantCode, tripId, n);
     }
 
-    private List<MonitorRun.Transition> process(List<MonitorRun.Event> events) {
+    private List<MonitorRun.Transition> process(List<MonitorRun.Event> queuedEvents) {
         Run run = new Run();
-        events.forEach(e -> run.queue.add(new Queued(e, 0)));
+        queuedEvents.forEach(e -> run.queue.add(new Queued(e, 0)));
         RUN.set(run);
         try {
             return tx.inTransaction(() -> {
@@ -435,7 +437,7 @@ public class MonitorEngine implements TripChanges {
         evidence.put("kind", e.kind());
         try {
             MilestoneService.Outcome outcome = PgTx.savepoint(() -> milestones.request(tenant, actor, tripId,
-                    a.value(), source, e.at(), evidence));
+                    a.value(), source, e.at(), evidence, rule));
             return action(a, rule, outcome.result() == MilestoneService.Result.SKIPPED ? "skipped" : "pending");
         } catch (RuntimeException ex) {
             errors.add(rule + ": " + message(ex));
@@ -453,7 +455,7 @@ public class MonitorEngine implements TripChanges {
     }
 
     private static String sourceOf(MonitorRun.Event e) {
-        if (e.data().get("source") instanceof String named) {
+        if (e.data().get(SOURCE) instanceof String named) {
             return named;
         }
         return "signal".equals(e.on()) ? "gps" : e.on();
@@ -686,7 +688,7 @@ public class MonitorEngine implements TripChanges {
         String kind = m + (MilestoneService.CONFIRMED.equals(action) ? "_confirmed" : "_rejected");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("milestone", m);
-        for (String key : List.of("channel", "source")) {
+        for (String key : List.of("channel", SOURCE)) {
             if (d.get(key) != null) {
                 data.put(key, d.get(key));
             }

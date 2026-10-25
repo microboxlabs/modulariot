@@ -15,6 +15,32 @@ public class InMemoryFleet implements FleetResources {
     private final Map<UUID, Vehicle> vehicles = new HashMap<>();
     private final Map<UUID, Driver> drivers = new HashMap<>();
     private final Map<UUID, Carrier> carriers = new HashMap<>();
+    private final Map<String, Match> byKey = new HashMap<>();
+
+    /** A truck, trailer or driver found by its plate or document; an inactive one cannot be assigned. */
+    public UUID add(String resourceType, String naturalKey, boolean active) {
+        UUID id = UUID.randomUUID();
+        if (active) {
+            known.add(id);
+        }
+        byKey.merge(resourceType + ":" + key(naturalKey), new Match(id, active),
+                (existing, added) -> existing.active() ? existing : added);
+        return id;
+    }
+
+    private static String key(String raw) {
+        return raw.replaceAll("[^A-Za-z0-9]", "").toUpperCase(java.util.Locale.ROOT);
+    }
+
+    @Override
+    public Optional<Match> byPlate(String tenantCode, String resourceType, String plate) {
+        return plate == null ? Optional.empty() : Optional.ofNullable(byKey.get(resourceType + ":" + key(plate)));
+    }
+
+    @Override
+    public Optional<Match> driverByDocument(String tenantCode, String document) {
+        return document == null ? Optional.empty() : Optional.ofNullable(byKey.get("driver:" + key(document)));
+    }
 
     /** A resource id the fleet knows, with no details. */
     public UUID add() {

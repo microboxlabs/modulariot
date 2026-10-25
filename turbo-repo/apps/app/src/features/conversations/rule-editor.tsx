@@ -12,7 +12,10 @@ import {
   type SymptomFamily,
   useControlTowerAccess,
 } from "@/features/symptoms/maintainer/maintainer-api";
-import { familyOptions } from "@/features/symptoms/maintainer/sheet-header";
+import {
+  familyOptions,
+  VersionMenu,
+} from "@/features/symptoms/maintainer/sheet-header";
 import {
   canonicalFamily,
   familyLabel,
@@ -43,6 +46,7 @@ import { RuleReviewPanel, VariablesPanel } from "./rule-side-panel";
 import { GroupsSection, StepsSection } from "./rule-sections";
 import RuleTriggerSection from "./rule-trigger";
 import { COMMUNICATIONS_PAGE } from "./rules-tab";
+import RuleVersionsDrawer from "./rule-versions-drawer";
 import TestSendDialog from "./test-send-dialog";
 import { useRuleDraft } from "./use-rule-draft";
 import { useSymptomNames } from "./use-symptom-names";
@@ -78,6 +82,7 @@ function RuleHeader({
   d,
   onState,
   onFamily,
+  onHistory,
   actions,
 }: Readonly<{
   name: string;
@@ -95,6 +100,7 @@ function RuleHeader({
   d: I18nRecord;
   onState: (state: RuleState) => void;
   onFamily: (family: string | null) => void;
+  onHistory: () => void;
   /** The draft's changes and actions, shown before the state. */
   actions?: ReactNode;
 }>) {
@@ -114,9 +120,18 @@ function RuleHeader({
           <h1 className="text-2xl font-semibold break-words text-gray-900 dark:text-white">
             {name}
           </h1>
-          <span className="rounded-md border border-gray-300 px-2 py-0.5 font-mono text-xs text-gray-700 dark:border-gray-600 dark:text-gray-200">
-            {version ? `v${version}` : tr("unpublished", d)}
-          </span>
+          {version ? (
+            <VersionMenu
+              label={`v${version}`}
+              canFork={false}
+              d={d}
+              onHistory={onHistory}
+            />
+          ) : (
+            <span className="rounded-md border border-gray-300 px-2 py-0.5 font-mono text-xs text-gray-700 dark:border-gray-600 dark:text-gray-200">
+              {tr("unpublished", d)}
+            </span>
+          )}
         </div>
         <div
           className={`mt-1 flex flex-wrap items-center gap-2 text-xs ${MUTED}`}
@@ -204,6 +219,7 @@ export default function RuleEditor({
   const symptomName = useSymptomNames();
   const [reviewing, setReviewing] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [history, setHistory] = useState(false);
   const [stateError, setStateError] = useState<string | null>(null);
 
   const info = catalog?.find((e) => e.type === spec?.trigger.event);
@@ -300,6 +316,7 @@ export default function RuleEditor({
               d={d}
               onState={(s) => void changeState(s)}
               onFamily={(family) => set({ family })}
+              onHistory={() => setHistory(true)}
               actions={
                 <>
                   {stateError && (
@@ -414,6 +431,18 @@ export default function RuleEditor({
           )}
         </div>
       </div>
+      <RuleVersionsDrawer
+        show={history}
+        versions={detail?.versions ?? []}
+        current={rule?.currentVersion ?? null}
+        canWrite={canMaintain && !discarding}
+        d={d}
+        onClose={() => setHistory(false)}
+        onRestore={(restored) => {
+          update(restored);
+          setHistory(false);
+        }}
+      />
       {spec && (
         <TestSendDialog
           open={testing}

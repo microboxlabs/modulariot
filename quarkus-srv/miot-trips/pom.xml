@@ -50,6 +50,23 @@
             <artifactId>quarkus-reactive-pg-client</artifactId>
         </dependency>
         <dependency>
+            <!-- GPS signals, for the geofence edges of trips with a vehicle. -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-messaging-pulsar</artifactId>
+            <exclusions>
+                <!-- Pulsar 3.3.0 packages bcprov-ext 1.78 alongside Bouncy Castle
+                     1.84, which causes a native-image linkage error. -->
+                <exclusion>
+                    <groupId>org.apache.pulsar</groupId>
+                    <artifactId>bouncy-castle-bc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
             <scope>test</scope>

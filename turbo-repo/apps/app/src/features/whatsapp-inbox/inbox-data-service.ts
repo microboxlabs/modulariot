@@ -36,6 +36,8 @@ export interface SendTextInput {
   /** Kept so the reply lands on the same service thread (null = the unassigned thread). */
   readonly serviceCode: string | null;
   readonly driverId: string | null;
+  /** The reply goes on this conversation, from the number it used last. */
+  readonly conversationId: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export async function sendTextMessage(input: SendTextInput): Promise<Message> {
       body: input.body,
       serviceCode: input.serviceCode,
       driverId: input.driverId,
+      conversationId: input.conversationId,
     }),
   });
   if (!res.ok) {

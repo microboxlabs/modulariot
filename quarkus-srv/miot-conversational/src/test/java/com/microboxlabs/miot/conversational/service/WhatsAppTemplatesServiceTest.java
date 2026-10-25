@@ -183,10 +183,8 @@ class WhatsAppTemplatesServiceTest {
 
         List<CopyResult> results = twoAccounts.copyFromPlatform("tenant-a", null);
 
-        assertEquals(List.of(new CopyResult("panic_check", "es_CL", CopyStatus.COPIED, null)), results.subList(0, 1));
-        assertEquals("trip_reminder", results.get(1).name());
-        assertEquals(CopyStatus.FAILED, results.get(1).status());
-        assertTrue(results.get(1).error().contains("{{1}}"));
+        // trip_reminder is REJECTED on the platform, so only panic_check is copied.
+        assertEquals(List.of(new CopyResult("panic_check", "es_CL", CopyStatus.COPIED, null)), results);
         assertEquals(3, graph.seen().size());
         assertEquals("/v25.0/" + ORG_WABA + "/message_templates", graph.seen().get(0).path());
         assertEquals("/v25.0/" + WABA + "/message_templates", graph.seen().get(1).path());
@@ -207,6 +205,18 @@ class WhatsAppTemplatesServiceTest {
         assertEquals(new CopyResult("panic_check", "es_CL", CopyStatus.EXISTS, null), results.get(0));
         assertEquals("nope", results.get(1).name());
         assertEquals(CopyStatus.FAILED, results.get(1).status());
+        assertEquals(2, graph.seen().size());
+    }
+
+    @Test
+    void aNamedTemplateMetaHasNotApprovedIsNotCopied() {
+        graph.reply(200, "{\"data\": []}").reply(200, LIST);
+
+        List<CopyResult> results = twoAccounts.copyFromPlatform("tenant-a", List.of("trip_reminder"));
+
+        assertEquals(1, results.size());
+        assertEquals(CopyStatus.FAILED, results.get(0).status());
+        assertTrue(results.get(0).error().contains("REJECTED"));
         assertEquals(2, graph.seen().size());
     }
 

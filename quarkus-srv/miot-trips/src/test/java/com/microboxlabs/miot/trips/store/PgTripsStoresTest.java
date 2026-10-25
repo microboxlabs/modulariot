@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -103,7 +102,12 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.8__create_feeds.sql",
             "/db/migration/trips/V0.10.9__values_in_english.sql",
             "/db/migration/trips/V0.10.10__create_monitors.sql",
-            "/db/migration/trips/V0.10.15__backfill_english_projections.sql"};
+            "/db/migration/trips/V0.10.11__monitors_on_trips.sql",
+            "/db/migration/trips/V0.10.12__location_geofences.sql",
+            "/db/migration/trips/V0.10.13__feeds_plan_only.sql",
+            "/db/migration/trips/V0.10.15__backfill_english_projections.sql",
+            "/db/migration/trips/V0.10.16__trip_milestones.sql",
+            "/db/migration/trips/V0.10.17__feed_applied_desired.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -297,43 +301,27 @@ class PgTripsStoresTest {
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
-                "transit", "closing", 120, new LinkedHashSet<>(List.of("truck", "driver")), true,
+                "closing", null, new LinkedHashSet<>(List.of("truck", "driver")), true,
                 null, ACTOR, null, ACTOR));
-        assertEquals("transit", saved.departureStage());
+        assertEquals("closing", saved.arrivalStage());
         assertEquals(List.of("preparation", "transit", "closing"),
                 saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
         FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
-                saved.stages(), "transit", "closing", 90, saved.requiredResources(), true, null, ACTOR, null, ACTOR));
-        assertEquals(90, renamed.closeToleranceMinutes());
+                saved.stages(), "closing", "direct", saved.requiredResources(), true, null, ACTOR, null, ACTOR));
+        assertEquals("direct", renamed.monitor());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
 
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
-                null, null, true, null, null, null));
+                null, null, true, null, null, null, null));
         OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
         String trip = UUID.randomUUID().toString();
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
-                null, trip, true, "create", "{\"done\":[\"create trip\"]}", at));
+                null, trip, true, "create", "{\"done\":[\"create trip\"]}", at, "{\"orderRef\":\"b\"}"));
         FeedService s = feeds.service(tenant, "servicios", "S-001").orElseThrow();
         assertEquals("h2", s.desiredHash());
         assertEquals(trip, s.tripId());
         assertTrue(s.desired().contains("\"b\""));
-
-        // the clock: due when the departure passed after the last reconcile, or the close time passed
-        Predicate<OffsetDateTime> due = now -> feeds.dueServices(now, 60, 1000).stream()
-                .anyMatch(o -> o.externalCode().equals("S-001") && o.tenantCode().equals(tenant));
-        String times = "{\"plannedStart\":\"" + at.plusHours(2) + "\",\"plannedEnd\":\"" + at.plusHours(10) + "\"}";
-        feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, true,
-                "create", null, at));
-        assertFalse(due.test(at.plusHours(1)), "before the departure");
-        assertTrue(due.test(at.plusHours(3)), "the departure passed after the last reconcile");
-        feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, true,
-                "update", null, at.plusHours(3)));
-        assertFalse(due.test(at.plusHours(4)), "the departure was already handled");
-        assertTrue(due.test(at.plusHours(10).plusMinutes(91)), "arrival + the 90 minutes of tolerance passed");
-        feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, false,
-                "closing", null, at.plusHours(12)));
-        assertFalse(due.test(at.plusHours(13)), "a closed service leaves the clock's list");
     }
 
     @Test
@@ -342,16 +330,16 @@ class PgTripsStoresTest {
         PgFeedStore feeds = new PgFeedStore(() -> pool);
         FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed",
                 List.of(new FeedProfile.StagePlan("preparacion", "ADDED")),
-                "preparacion", "preparacion", 0, Set.of(), true, null, "creator", null, null);
+                "preparacion", null, Set.of(), true, null, "creator", null, null);
         FeedProfile created = feeds.saveProfile(profile);
         assertEquals("creator", created.createdBy());
         FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed",
-                profile.stages(), "preparacion", "preparacion", 0, Set.of(), true,
+                profile.stages(), "preparacion", null, Set.of(), true,
                 null, "ignored-creator", null, "updater"));
         assertEquals("creator", updated.createdBy());
         assertEquals("updater", updated.updatedBy());
         feeds.saveService(new FeedService(tenant, "test-feed", "S-TEST", "{\"value\":1}", "hash",
-                null, null, true, "test", "{\"ok\":true}", null));
+                null, null, true, "test", "{\"ok\":true}", null, null));
         var rows = pool.preparedQuery("""
                 SELECT jsonb_typeof(stages) AS kind FROM miot_trips.feed_profile WHERE tenant_code = $1
                 UNION ALL SELECT jsonb_typeof(desired) FROM miot_trips.feed_service WHERE tenant_code = $1

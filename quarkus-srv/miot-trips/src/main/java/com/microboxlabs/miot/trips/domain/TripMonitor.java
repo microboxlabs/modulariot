@@ -42,8 +42,8 @@ public record TripMonitor(
 
     /**
      * {@code advance}, {@code start} and {@code close} take a stage type; {@code cancelTrip} a reason;
-     * {@code alert} an alert key; {@code invoke} a process name; {@code completeTrip} and {@code closeMandates}
-     * nothing.
+     * {@code alert} an alert key; {@code invoke} a process name; {@code requestConfirmation} a milestone
+     * ({@code departure}, {@code arrival}, {@code closure}); {@code completeTrip} and {@code closeMandates} nothing.
      */
     public record Action(String type, String value) {
     }

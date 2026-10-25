@@ -38,7 +38,7 @@ An invitation names an email, a base role and optional module roles. It lasts 30
 
 ### Emailing the link
 
-Creating or resending an invitation emails the link, in the request's `lang` (`es` default, or `en`). The email goes through the organization's `RESEND` connection, else through the platform sender (`/api/v1/platform/mail`). The link is still returned once, so the admin can copy it when the email was not sent.
+Creating or resending an invitation emails the link, in the request's `lang` (`es` default, or `en`). The email goes through the organization's `RESEND` connection, else through the platform sender, the `RESEND` connection of the platform scope. The link is still returned once, so the admin can copy it when the email was not sent.
 
 | Setting | Purpose |
 |---|---|

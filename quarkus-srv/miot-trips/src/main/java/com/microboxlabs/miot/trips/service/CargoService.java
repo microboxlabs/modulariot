@@ -21,7 +21,7 @@ import java.util.UUID;
 /**
  * Cargo units: the partials a shipper announces against a mandate line, the
  * indivisible units of delivery. The execution (stages) moves their status
- * forward; reception closes them as conforme or diferencia.
+ * forward; reception closes them as conforming or discrepancy.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -32,7 +32,7 @@ public class CargoService {
     private static final String QTY_UNIT = "qtyUnit";
     private static final String CARGO_NOT_FOUND = "cargo not found";
 
-    /** The statuses the API may set directly; retirada/entregada come from the execution. */
+    /** The statuses the API may set directly; picked_up and delivered come from the execution. */
     private static final Set<String> ANNOUNCE_STATUSES = Set.of(CargoUnit.ANNOUNCED, CargoUnit.READY);
     private static final List<String> ORDER = List.of(CargoUnit.ANNOUNCED, CargoUnit.READY, CargoUnit.PICKED,
             CargoUnit.DELIVERED, CargoUnit.RECEIVED, CargoUnit.REJECTED);
@@ -126,7 +126,7 @@ public class CargoService {
         return requested;
     }
 
-    /** Receives a delivered cargo as conforme or diferencia. */
+    /** Receives a delivered cargo as conforming or discrepancy. */
     public CargoUnit receive(String tenantCode, String actor, UUID id, ReceiveRequest body) {
         return tx.inTransaction(() -> {
             store.lockTripsCarrying(tenantCode, id);
@@ -139,7 +139,7 @@ public class CargoService {
             }
             CargoUnit current = get(tenantCode, id);
             if (!CargoUnit.DELIVERED.equals(current.status())) {
-                throw new IllegalStateException("cargo must be entregada to receive it (is " + current.status() + ")");
+                throw new IllegalStateException("cargo must be delivered to receive it (is " + current.status() + ")");
             }
             CargoUnit received = store.update(new CargoUnit(
                     current.id(), tenantCode, current.lineId(), current.partialNo(), current.description(),

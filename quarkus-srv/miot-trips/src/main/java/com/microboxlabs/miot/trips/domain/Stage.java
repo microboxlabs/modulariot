@@ -27,5 +27,7 @@ public record Stage(
     public static final String RUNNING = "in_progress";
     public static final String CLOSED = "completed";
 
+    public static final String STOP = "stop";
+
     public static final String SUBJECT_TRIP = "trip";
 }

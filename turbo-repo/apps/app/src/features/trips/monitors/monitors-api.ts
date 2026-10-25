@@ -33,10 +33,14 @@ export const ACTIONS = [
   "completeTrip",
   "closeMandates",
   "cancelTrip",
+  "requestConfirmation",
   "alert",
   "invoke",
 ] as const;
 export type ActionType = (typeof ACTIONS)[number];
+
+/** Departure, arrival and closure: a detection asks a person to confirm them. */
+export const MILESTONES = ["departure", "arrival", "closure"] as const;
 
 /** Actions whose value is a stage type; the flag actions take no value. */
 export const STAGE_ACTIONS: readonly ActionType[] = [
@@ -211,10 +215,14 @@ export function useMonitor(key: string | null) {
   return useSWR<MonitorDetail>(key ? monitorKey(key) : null, fetcher);
 }
 
-/** Whether the caller may edit monitors; false until the access loads. */
-export function useCanEditMonitors() {
+/** Whether the caller holds a trips permission; false until the access loads. */
+export function useTripsPermission(permission: string) {
   const { data } = useSWR<{ permissions: string[] }>(accessKey, fetcher);
-  return data?.permissions?.includes(MONITOR_ADMIN) ?? false;
+  return data?.permissions?.includes(permission) ?? false;
+}
+
+export function useCanEditMonitors() {
+  return useTripsPermission(MONITOR_ADMIN);
 }
 
 /** The fields an expression of `on` may read, with the monitor's parameters. */

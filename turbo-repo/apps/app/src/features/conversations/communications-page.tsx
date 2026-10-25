@@ -137,7 +137,9 @@ export default function CommunicationsPage({
     {
       id: "templates",
       label: tr("templatesTitle", d),
-      description: tr("menuTemplates", d),
+      description: platformScope
+        ? tr("menuTemplates", d)
+        : tr("menuTemplatesOrg", d),
       icon: HiOutlineDocumentText,
       group: tr("tabTemplates", d),
     },
@@ -195,6 +197,8 @@ export default function CommunicationsPage({
   };
   const bar = filterBar();
   const catalogLayout = section === "rules" || section === "templates";
+  // Until the scope is known (still loading, or the read failed), render nothing rather than the organization's sections.
+  if (!activeOrg) return null;
 
   return (
     <SettingsPageShell
@@ -211,7 +215,7 @@ export default function CommunicationsPage({
             {tr("newRule", d)}
           </Button>
         )) ||
-        (section === "templates" && (
+        (section === "templates" && platformScope && (
           <Link
             href={platformTemplateHref(lang, NEW_TEMPLATE)}
             className="inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
@@ -269,6 +273,7 @@ export default function CommunicationsPage({
               layout={layout}
               lang={lang}
               d={d}
+              readOnly={!platformScope}
             />
           )}
           {section === "meta" && <MetaTemplatesSection canWrite d={d} />}

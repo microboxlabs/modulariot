@@ -3024,10 +3024,69 @@
         "removeFailed": "No se pudo eliminar el contacto.",
         "tagUpdateError": "No se pudo actualizar la etiqueta en {count} contactos. Se deshizo el cambio."
       },
+      "tripLocations": {
+        "title": "Ubicaciones",
+        "description": "Los lugares que nombran los viajes. Asigna a cada uno su geocerca GPS para que las reglas de señal se disparen al entrar y salir.",
+        "search": "Buscar por nombre o código",
+        "onlyMissing": "Solo sin geocerca",
+        "missingCount": "{count} sin geocerca",
+        "empty": "No hay ubicaciones. El feed las crea al nombrar un lugar nuevo.",
+        "loading": "Cargando…",
+        "location": "Ubicación",
+        "code": "Código",
+        "type": "Tipo",
+        "geofence": "Geocerca GPS",
+        "noGeofence": "Sin geocerca",
+        "assign": "Asignar",
+        "change": "Cambiar",
+        "chooseGeofence": "Geocerca de {name}",
+        "searchGeofence": "Buscar geocerca por nombre o código",
+        "noGeofences": "No hay geocercas que coincidan.",
+        "removeGeofence": "Quitar geocerca",
+        "cancel": "Cancelar",
+        "types": {
+          "plant": "Planta",
+          "port": "Puerto",
+          "distribution_center": "Centro de distribución",
+          "customer": "Cliente",
+          "zone": "Zona"
+        }
+      },
       "tripMonitors": {
         "title": "Monitores de viajes",
         "description": "Reglas que mueven las etapas de cada clase de viaje: qué evento, bajo qué condición, con qué efecto.",
         "newMonitor": "Nuevo monitor",
+        "milestoneStatus": {
+          "open": "Abierto",
+          "pending": "Por confirmar",
+          "confirmed": "Confirmado",
+          "rejected": "Rechazado"
+        },
+        "milestone": "Hito",
+        "milestones": {
+          "departure": "Salida",
+          "arrival": "Llegada",
+          "closure": "Cierre"
+        },
+        "fieldsTitle": "Campos del viaje",
+        "insertField": "Insertar {path} en la expresión",
+        "formCannotShow": "Esta condición usa lógica que el formulario no puede mostrar: horas, listas, parámetros, cálculos o paréntesis anidados.",
+        "editAsExpression": "Editar en CEL",
+        "celLabel": "Condición · CEL",
+        "signalKinds": {
+          "entered_origin": "Entró al origen",
+          "left_origin": "Salió del origen",
+          "entered_destination": "Entró al destino",
+          "left_destination": "Salió del destino",
+          "entered_stop": "Entró a una parada",
+          "left_stop": "Salió de una parada"
+        },
+        "search": "Buscar monitor por nombre o clave",
+        "viewCards": "Tarjetas",
+        "viewList": "Lista",
+        "noMatches": "Ningún monitor coincide con la búsqueda.",
+        "rulesCount": "{count} reglas",
+        "noDescription": "Sin descripción",
         "empty": "Todavía no hay monitores. Crea uno por cada clase de viaje.",
         "loading": "Cargando…",
         "monitor": "Monitor",
@@ -3088,7 +3147,7 @@
         "priority": "Prioridad",
         "active": "Activa",
         "at": "Vence a las (CEL)",
-        "when": "Condición (CEL)",
+        "when": "Condición",
         "whenPlaceholder": "Vacío: siempre",
         "then": "Acciones",
         "action": "Acción",
@@ -3109,6 +3168,7 @@
           "completeTrip": "Completar viaje",
           "closeMandates": "Cerrar mandatos",
           "cancelTrip": "Anular viaje",
+          "requestConfirmation": "Pedir confirmación",
           "alert": "Alerta",
           "invoke": "Ejecutar proceso"
         },
@@ -3715,6 +3775,7 @@
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Elige la conexión que llama el paso {n}.",
+        "findingStepUnknownConnection": "La conexión del paso {n} ya no existe o no es de este canal.",
         "channel_webhook": "Webhook",
         "channelMenu_webhook": "Llamadas HTTP a sistemas propios",
         "channelHint_webhook": "Las reglas envían el evento y el mensaje en JSON a una URL de la organización. El contrato es el mismo para todas sus conexiones.",
@@ -4052,6 +4113,7 @@
         "findingStepBadRecipients": "Los destinatarios del paso {n} son los de la regla o una lista.",
         "findingStepNoRecipients": "El paso {n} no tiene destinatarios.",
         "menuTemplates": "Lo que envían las reglas de todas las organizaciones",
+        "menuTemplatesOrg": "Lo que pueden enviar las reglas; las edita la plataforma",
         "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma"
       },
       "gps": {

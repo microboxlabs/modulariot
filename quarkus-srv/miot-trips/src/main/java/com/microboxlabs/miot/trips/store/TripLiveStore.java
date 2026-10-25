@@ -13,8 +13,18 @@ public interface TripLiveStore {
 
     Optional<TripLiveRow> find(String tenantCode, UUID tripId);
 
+    /** Locks the parent trip before reading its current hot row; call inside a transaction. */
+    Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId);
+
     /** Inserts or replaces the projected fields; the motor-state fields keep their values. */
     void upsert(TripLiveProjection projection);
 
     void delete(String tenantCode, UUID tripId);
+
+    /** Every tenant's rows with a vehicle and at least one geofence: the trips whose geofence edges are signals. */
+    List<TripLiveRow> watched();
+
+    /** The motor-state fields: the trip geofence the vehicle is in, and whether it reached origin and destination. */
+    void saveMotorState(String tenantCode, UUID tripId, Integer currentGeofenceId, boolean originVisited,
+            boolean destinationVisited);
 }

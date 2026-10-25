@@ -19,6 +19,7 @@ import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -30,7 +31,8 @@ class FeedReconcilerTest {
     private final InMemoryFleet fleet = new InMemoryFleet();
     private final TestTransactions tx = new TestTransactions();
     private final TestFeeds feeds = new TestFeeds();
-    private final AuditService audit = new AuditService(world.auditStore);
+    private boolean monitorOwnsLifecycle;
+    private final AuditService audit = new AuditService(world.auditStore, () -> this::monitorChange);
     private final TripLiveProjector live = world.projector(fleet);
     private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
     private final TripService trips = new TripService(world.tripStore, world.stageStore, world.assignmentStore,
@@ -40,8 +42,38 @@ class FeedReconcilerTest {
     private final AssignmentService assignments = new AssignmentService(world.assignmentStore, world.tripStore,
             fleet, live, audit, tx);
     private final ObjectMapper json = JsonMapper.builder().findAndAddModules().build();
+    private final MilestoneService milestones = new MilestoneService(world.milestoneStore, world.tripStore, audit,
+            tx);
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-            fleet, tx, json, Clock.systemUTC());
+            new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
+                    world.tripStore, live, audit, tx),
+            milestones, audit, fleet, tx, json, Clock.systemUTC());
+
+    private void monitorChange(String tenant, String actor, String action, String tripId,
+            Map<String, Object> details) {
+        if (monitorOwnsLifecycle && "trip.created".equals(action)) {
+            stages.start(tenant, actor, UUID.fromString(stages.listByTrip(tenant, UUID.fromString(tripId)).get(0).id()));
+        }
+    }
+
+    @Test
+    void monitorOwnsLifecycleAcrossFeedCreationDepartureAndClosing() {
+        monitorOwnsLifecycle = true;
+        OffsetDateTime now = OffsetDateTime.now();
+        FeedServiceRequest request = new FeedServiceRequest("service", "test reference", now.minusHours(1),
+                now.plusHours(1), new FeedServiceRequest.Resources(null, null, List.of()), null);
+        FeedResult result = send(request);
+        assertEquals(FeedReconciler.CREATE, result.action());
+        UUID tripId = UUID.fromString(result.tripId());
+        assertEquals("preparation", stages.listByTrip("test", tripId).stream()
+                .filter(s -> "in_progress".equals(s.status())).findFirst().orElseThrow().stageType());
+        FeedServiceRequest ended = new FeedServiceRequest("service", "updated reference", now.minusHours(2),
+                now.minusHours(1), request.resources(), null);
+        assertEquals(FeedReconciler.UPDATE, send(ended).action());
+        assertEquals("in_progress", trips.get("test", tripId).status());
+        assertEquals("preparation", stages.listByTrip("test", tripId).stream()
+                .filter(s -> "in_progress".equals(s.status())).findFirst().orElseThrow().stageType());
+    }
 
     private FeedServiceRequest desired(String trailer, List<String> drivers) {
         return new FeedServiceRequest("service", "test reference", OffsetDateTime.now().plusHours(2),
@@ -97,7 +129,7 @@ class FeedReconcilerTest {
         String latest = json.writeValueAsString(desired(null, List.of()));
         tx.onEnter = () -> feeds.saved = new FeedService(previous.tenantCode(), previous.feedKey(),
                 previous.externalCode(), latest, "new-hash", previous.mandateId(), previous.tripId(), true,
-                previous.lastAction(), previous.lastResult(), previous.lastReconciledAt());
+                previous.lastAction(), previous.lastResult(), previous.lastReconciledAt(), previous.appliedDesired());
         feeds.requireTransaction = true;
         reconciler.recheck("test", "test-feed", "S-TEST");
         assertEquals(json.readTree(latest), json.readTree(feeds.saved.desired()));
@@ -124,7 +156,9 @@ class FeedReconcilerTest {
             public java.time.Instant instant() { return evaluated.plusSeconds(reads++ * 120L); }
         };
         FeedReconciler timed = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-                fleet, tx, json, crossingClock);
+            new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
+                    world.tripStore, live, audit, tx),
+                milestones, audit, fleet, tx, json, crossingClock);
         OffsetDateTime departure = OffsetDateTime.ofInstant(evaluated.plusSeconds(60), java.time.ZoneOffset.UTC);
         FeedServiceRequest request = new FeedServiceRequest("service", "test reference", departure,
                 departure.plusHours(2), new FeedServiceRequest.Resources(null, null, List.of()), null);
@@ -149,18 +183,17 @@ class FeedReconcilerTest {
     }
 
     @Test
-    void profileStoresNormalizedStagesAndRejectsANonClosingCloseStage() {
-        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+    void profileStoresNormalizedStagesAndRejectsAnAbsentArrivalStage() {
+        FeedProfileService profiles = new FeedProfileService(feeds, null, audit);
         List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
         FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
-                "preparation", "closing", 0, List.of(), true));
+                "closing", null, List.of(), true));
         assertEquals("preparation", saved.stages().get(0).stageType());
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
-        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "preparation", "preparation", 0,
-                List.of(), true);
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "transit", null, List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
-        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.departureStage(), saved.closeStage(), 0,
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.arrivalStage(), saved.monitor(),
                 java.util.Collections.singletonList(null), true);
         assertThrows(IllegalArgumentException.class,
                 () -> profiles.save("test", "test", "test-feed", nullResource));
@@ -210,7 +243,7 @@ class FeedReconcilerTest {
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
-                "transit", "closing", 120, Set.of(), true, null, "test", null, "test");
+                "closing", null, Set.of(), true, null, "test", null, "test");
         public Optional<FeedProfile> profile(String tenant, String key) { return Optional.of(profile); }
         public List<FeedProfile> profiles(String tenant) { return List.of(profile); }
         public FeedProfile saveProfile(FeedProfile value) { return value; }
@@ -220,7 +253,7 @@ class FeedReconcilerTest {
         }
         public FeedService lockService(String tenant, String key, String code) {
             if (saved == null) {
-                saved = new FeedService(tenant, key, code, "{}", "", null, null, true, null, null, null);
+                saved = new FeedService(tenant, key, code, "{}", "", null, null, true, null, null, null, null);
             }
             return saved;
         }
@@ -228,9 +261,5 @@ class FeedReconcilerTest {
             assertTrue(tx.depth > 0, "outcomes must be saved before releasing the service lock");
             saved = value;
         }
-        public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
-            return openServices(limit);
-        }
-        public List<FeedService> openServices(int limit) { return saved == null || limit <= 0 ? List.of() : List.of(saved); }
     }
 }

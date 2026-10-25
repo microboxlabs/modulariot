@@ -14,6 +14,7 @@ import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripCargoLink;
 import com.microboxlabs.miot.trips.domain.TripLiveProjection;
 import com.microboxlabs.miot.trips.domain.TripLiveRow;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.domain.TripRef;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import java.time.OffsetDateTime;
@@ -46,6 +47,7 @@ public class InMemoryTripsWorld {
     private final Map<String, TripCargoLink> tripCargo = new LinkedHashMap<>();
     private final Map<String, Location> locations = new LinkedHashMap<>();
     private final Map<String, TripLiveProjection> live = new LinkedHashMap<>();
+    private final Map<String, TripMilestone> milestones = new LinkedHashMap<>();
     private final List<AuditEvent> audit = new ArrayList<>();
     private final AtomicLong auditSeq = new AtomicLong();
 
@@ -58,6 +60,7 @@ public class InMemoryTripsWorld {
     public final AuditStore auditStore = new Audits();
     public final LocationStore locationStore = new Locations();
     public final TripLiveStore tripLiveStore = new Lives();
+    public final MilestoneStore milestoneStore = new Milestones();
 
     private static OffsetDateTime now() {
         return OffsetDateTime.now(ZoneOffset.UTC);
@@ -570,9 +573,21 @@ public class InMemoryTripsWorld {
         @Override
         public Location insert(Location l) {
             Location created = new Location(newId(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
-                    l.geomGeojson(), now(), l.createdBy(), now(), l.updatedBy());
+                    l.geomGeojson(), l.geofenceId(), now(), l.createdBy(), now(), l.updatedBy());
             locations.put(created.id(), created);
             return created;
+        }
+
+        @Override
+        public Optional<Location> insertIfAbsent(Location l) {
+            return byCode(l.tenantCode(), l.externalCode()).isPresent() ? Optional.empty() : Optional.of(insert(l));
+        }
+
+        @Override
+        public Optional<Location> byCode(String tenantCode, String externalCode) {
+            return locations.values().stream()
+                    .filter(l -> l.tenantCode().equals(tenantCode) && externalCode.equals(l.externalCode()))
+                    .findFirst();
         }
 
         @Override
@@ -592,9 +607,41 @@ public class InMemoryTripsWorld {
                 return Optional.empty();
             }
             Location updated = new Location(l.id(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
-                    l.geomGeojson(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
+                    l.geomGeojson(), locations.get(l.id()).geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
             locations.put(l.id(), updated);
             return Optional.of(updated);
+        }
+        @Override
+        public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
+            return find(tenantCode, id).map(location -> {
+                Location updated = location.withGeofence(geofenceId, actor);
+                locations.put(location.id(), updated);
+                return updated;
+            });
+        }
+    }
+
+    private class Milestones implements MilestoneStore {
+
+        private static String key(String tenantCode, String tripId, String milestone) {
+            return tenantCode + "/" + tripId + "/" + milestone;
+        }
+
+        @Override
+        public List<TripMilestone> list(String tenantCode, UUID tripId) {
+            return milestones.values().stream()
+                    .filter(m -> m.tenantCode().equals(tenantCode) && m.tripId().equals(tripId.toString())).toList();
+        }
+
+        @Override
+        public Optional<TripMilestone> find(String tenantCode, UUID tripId, String milestone) {
+            return Optional.ofNullable(milestones.get(key(tenantCode, tripId.toString(), milestone)));
+        }
+
+        @Override
+        public TripMilestone save(TripMilestone m) {
+            milestones.put(key(m.tenantCode(), m.tripId(), m.milestone()), m);
+            return m;
         }
     }
 
@@ -613,6 +660,11 @@ public class InMemoryTripsWorld {
         }
 
         @Override
+        public Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId) {
+            return find(tenantCode, tripId);
+        }
+
+        @Override
         public void upsert(TripLiveProjection projection) {
             live.put(projection.tripId(), projection);
         }
@@ -621,11 +673,25 @@ public class InMemoryTripsWorld {
         public void delete(String tenantCode, UUID tripId) {
             live.remove(tripId.toString());
         }
+
+        @Override
+        public List<TripLiveRow> watched() {
+            return live.values().stream().filter(p -> p.assetId() != null
+                    && (p.originGeofenceId() != null || p.destinationGeofenceId() != null))
+                    .map(InMemoryTripsWorld::row).toList();
+        }
+
+        @Override
+        public void saveMotorState(String tenantCode, UUID tripId, Integer currentGeofenceId, boolean originVisited,
+                boolean destinationVisited) {
+            // the in-memory row keeps no motor state
+        }
     }
 
     private static TripLiveRow row(TripLiveProjection p) {
-        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), "v", null, null,
-                p.originGeofenceLabel(), p.destinationGeofenceLabel(), null, p.status(), p.driverId(),
+        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), "v",
+                p.originGeofenceId(), p.destinationGeofenceId(), p.originGeofenceLabel(),
+                p.destinationGeofenceLabel(), p.stopGeofenceIds(), p.status(), p.driverId(),
                 p.driverName(), p.driverContactPhone(), p.secondDriverId() != null, p.secondDriverId(),
                 p.secondDriverName(), p.secondDriverContactPhone(), p.carrierId(), p.carrierName(),
                 p.carrierContactPhone(), p.ramplaPlate(), p.startTime(), p.endTime(), p.estimatedArrivalTime(),

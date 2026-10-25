@@ -42,6 +42,7 @@ class TripsPermissionsTest {
     private static final String MANDATE_WRITE = TripsAccessCatalog.MANDATE_WRITE;
     private static final String CARGO_OPERATE = TripsAccessCatalog.CARGO_OPERATE;
     private static final String TRIP_WRITE = TripsAccessCatalog.TRIP_WRITE;
+    private static final String MILESTONE_CONFIRM = TripsAccessCatalog.MILESTONE_CONFIRM;
     private static final String STAGE_OPERATE = TripsAccessCatalog.STAGE_OPERATE;
     private static final String ASSIGNMENT_WRITE = TripsAccessCatalog.ASSIGNMENT_WRITE;
     private static final String LOCATION_WRITE = TripsAccessCatalog.LOCATION_WRITE;
@@ -86,6 +87,8 @@ class TripsPermissionsTest {
             Map.entry("OrgLocationsResource.list", VIEW),
             Map.entry("OrgLocationsResource.create", LOCATION_WRITE),
             Map.entry("OrgLocationsResource.update", LOCATION_WRITE),
+            Map.entry("OrgLocationsResource.linkGeofence", LOCATION_WRITE),
+            Map.entry("OrgLocationsResource.geofences", VIEW),
             Map.entry("OrgTripsLiveResource.list", VIEW),
             Map.entry("OrgTripsLiveResource.get", VIEW),
             Map.entry("OrgTripsAuditResource.list", VIEW),
@@ -103,7 +106,14 @@ class TripsPermissionsTest {
             Map.entry("OrgMonitorsResource.publish", MONITOR_ADMIN),
             Map.entry("OrgMonitorsResource.version", VIEW),
             Map.entry("OrgMonitorSelectorResource.get", VIEW),
-            Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN)));
+            Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN),
+            Map.entry("OrgTripMonitorResource.get", VIEW),
+            Map.entry("OrgTripMilestonesResource.confirm", MILESTONE_CONFIRM),
+            Map.entry("OrgTripMilestonesResource.list", VIEW),
+            Map.entry("OrgTripMilestonesResource.reject", MILESTONE_CONFIRM),
+            Map.entry("OrgTripMonitorResource.bind", TRIP_WRITE),
+            Map.entry("OrgTripMonitorResource.signal", STAGE_OPERATE),
+            Map.entry("OrgTripMonitorResource.transitions", VIEW)));
 
     @Test
     void everyEndpointDeclaresItsOrganizationPermission() {

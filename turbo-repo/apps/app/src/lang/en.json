@@ -3024,10 +3024,69 @@
         "removeFailed": "The contact couldn't be deleted.",
         "tagUpdateError": "The tag couldn't be updated on {count} contacts. The change was undone."
       },
+      "tripLocations": {
+        "title": "Locations",
+        "description": "The places trips name. Give each its GPS geofence so signal rules fire on entering and leaving.",
+        "search": "Search by name or code",
+        "onlyMissing": "Only without a geofence",
+        "missingCount": "{count} without a geofence",
+        "empty": "No locations yet. The feed creates one when it names a new place.",
+        "loading": "Loading…",
+        "location": "Location",
+        "code": "Code",
+        "type": "Type",
+        "geofence": "GPS geofence",
+        "noGeofence": "No geofence",
+        "assign": "Assign",
+        "change": "Change",
+        "chooseGeofence": "Geofence of {name}",
+        "searchGeofence": "Search geofences by name or code",
+        "noGeofences": "No geofences match.",
+        "removeGeofence": "Remove geofence",
+        "cancel": "Cancel",
+        "types": {
+          "plant": "Plant",
+          "port": "Port",
+          "distribution_center": "Distribution center",
+          "customer": "Customer",
+          "zone": "Zone"
+        }
+      },
       "tripMonitors": {
         "title": "Trip monitors",
         "description": "Rules that move the stages of each class of trip: which event, under which condition, with which effect.",
         "newMonitor": "New monitor",
+        "milestoneStatus": {
+          "open": "Open",
+          "pending": "To confirm",
+          "confirmed": "Confirmed",
+          "rejected": "Rejected"
+        },
+        "milestone": "Milestone",
+        "milestones": {
+          "departure": "Departure",
+          "arrival": "Arrival",
+          "closure": "Closure"
+        },
+        "fieldsTitle": "Trip fields",
+        "insertField": "Insert {path} into the expression",
+        "formCannotShow": "This condition uses logic the form cannot show: times, lists, parameters, calculations or nested parentheses.",
+        "editAsExpression": "Edit as CEL",
+        "celLabel": "Condition · CEL",
+        "signalKinds": {
+          "entered_origin": "Entered the origin",
+          "left_origin": "Left the origin",
+          "entered_destination": "Entered the destination",
+          "left_destination": "Left the destination",
+          "entered_stop": "Entered a stop",
+          "left_stop": "Left a stop"
+        },
+        "search": "Search monitors by name or key",
+        "viewCards": "Cards",
+        "viewList": "List",
+        "noMatches": "No monitor matches the search.",
+        "rulesCount": "{count} rules",
+        "noDescription": "No description",
         "empty": "No monitors yet. Create one for each class of trip.",
         "loading": "Loading…",
         "monitor": "Monitor",
@@ -3088,7 +3147,7 @@
         "priority": "Priority",
         "active": "Active",
         "at": "Due at (CEL)",
-        "when": "Condition (CEL)",
+        "when": "Condition",
         "whenPlaceholder": "Empty: always",
         "then": "Actions",
         "action": "Action",
@@ -3109,6 +3168,7 @@
           "completeTrip": "Complete trip",
           "closeMandates": "Close mandates",
           "cancelTrip": "Cancel trip",
+          "requestConfirmation": "Ask for confirmation",
           "alert": "Alert",
           "invoke": "Run process"
         },
@@ -3715,6 +3775,7 @@
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Pick the connection step {n} calls.",
+        "findingStepUnknownConnection": "Step {n}'s connection no longer exists or belongs to another channel.",
         "channel_webhook": "Webhook",
         "channelMenu_webhook": "HTTP calls to your own systems",
         "channelHint_webhook": "Rules send the event and the message as JSON to a URL of the organization. All its connections get the same contract.",
@@ -4052,6 +4113,7 @@
         "findingStepBadRecipients": "The recipients of step {n} are the rule's or a list.",
         "findingStepNoRecipients": "Step {n} has no recipients.",
         "menuTemplates": "What every organization's rules send",
+        "menuTemplatesOrg": "What rules can send; the platform edits them",
         "menuMeta": "The approved templates of the platform's account"
       },
       "gps": {

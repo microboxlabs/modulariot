@@ -2,11 +2,10 @@ package com.microboxlabs.miot.trips.store;
 
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/** Feed profiles and the per-service state of each feed. Every call but {@link #dueServices} is tenant-scoped. */
+/** Feed profiles and the per-service state of each feed. Every call is tenant-scoped. */
 public interface FeedStore {
 
     Optional<FeedProfile> profile(String tenantCode, String feedKey);
@@ -27,11 +26,4 @@ public interface FeedStore {
 
     /** Inserts or replaces the service row. */
     void saveService(FeedService service);
-
-    /**
-     * The clock's work list, across tenants: open services of active feeds whose departure time passed after their
-     * last reconcile, whose close time (arrival + tolerance) passed, or that failed, were reported or wait for a job
-     * longer than {@code retryMinutes}. Least recently reconciled first.
-     */
-    List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit);
 }

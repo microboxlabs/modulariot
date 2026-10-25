@@ -48,6 +48,9 @@ import org.jboss.logging.Logger;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class GeofenceSignals {
 
+    private static final String LONGITUDE = "longitude";
+    private static final String LATITUDE = "latitude";
+
     public static final String ACTOR = "gps:geofences";
     private static final Logger LOG = Logger.getLogger(GeofenceSignals.class);
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -148,6 +151,20 @@ public class GeofenceSignals {
             next.computeIfAbsent(assetKey, k -> new ArrayList<>())
                     .add(new Watched(r.tenantCode(), UUID.fromString(r.tripId()), w));
         }
+        refreshShapes(needed, next);
+        Set<UUID> watched = new HashSet<>();
+        next.values().forEach(list -> list.forEach(w -> watched.add(w.tripId)));
+        pending.keySet().retainAll(watched);
+        lastFrame.keySet().retainAll(next.keySet());
+        if (watched.size() != watchedCount) {
+            LOG.infof("Trip geofences: watching %d trips, %d geofences with a shape", watched.size(), shapes.size());
+            watchedCount = watched.size();
+        }
+        byAsset = next;
+        initialized = true;
+    }
+
+    private void refreshShapes(Set<Integer> needed, Map<String, List<Watched>> next) {
         Instant now = clock.instant();
         boolean all = !shapesLoadedAt.plus(shapesEvery).isAfter(now);
         Set<Integer> load = new HashSet<>(needed);
@@ -176,16 +193,6 @@ public class GeofenceSignals {
             shapes.keySet().retainAll(needed);
             shapesLoadedAt = now;
         }
-        Set<UUID> watched = new HashSet<>();
-        next.values().forEach(list -> list.forEach(w -> watched.add(w.tripId)));
-        pending.keySet().retainAll(watched);
-        lastFrame.keySet().retainAll(next.keySet());
-        if (watched.size() != watchedCount) {
-            LOG.infof("Trip geofences: watching %d trips, %d geofences with a shape", watched.size(), shapes.size());
-            watchedCount = watched.size();
-        }
-        byAsset = next;
-        initialized = true;
     }
 
     @Incoming("trip-gps-signals")
@@ -220,8 +227,8 @@ public class GeofenceSignals {
         if (!validPosition(gps)) {
             return 0;
         }
-        double lon = gps.path("longitude").asDouble();
-        double lat = gps.path("latitude").asDouble();
+        double lon = gps.path(LONGITUDE).asDouble();
+        double lat = gps.path(LATITUDE).asDouble();
         Instant at;
         try {
             at = Instant.parse(signal.path("at").asText());
@@ -258,11 +265,11 @@ public class GeofenceSignals {
     }
 
     private static boolean validPosition(JsonNode gps) {
-        if (!gps.path("latitude").isNumber() || !gps.path("longitude").isNumber()) {
+        if (!gps.path(LATITUDE).isNumber() || !gps.path(LONGITUDE).isNumber()) {
             return false;
         }
-        double lon = gps.path("longitude").asDouble();
-        double lat = gps.path("latitude").asDouble();
+        double lon = gps.path(LONGITUDE).asDouble();
+        double lat = gps.path(LATITUDE).asDouble();
         return Double.isFinite(lon) && Double.isFinite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90;
     }
 

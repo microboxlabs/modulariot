@@ -37,7 +37,7 @@ public class ContactService {
     static final String ENTITY = "contact";
     static final int MAX_IMPORT_ROWS = 1000;
     /** Full international number: plus sign, then 8 to 15 digits. */
-    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s.]+(?:\\.[^@\\s.]+)+$");
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
     /** A RUT without dots or dash: up to 8 digits, then the check digit. */
     private static final Pattern RUT = Pattern.compile("^(\\d{1,8})([\\dK])$");

@@ -7,7 +7,9 @@ import PhoneInput from "./phone-input";
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 
-function Controlled({ onValue }: Readonly<{ onValue: (v: Value | undefined) => void }>) {
+function Controlled({
+  onValue,
+}: Readonly<{ onValue: (v: Value | undefined) => void }>) {
   const [value, setValue] = useState<Value | undefined>();
   return (
     <PhoneInput
@@ -33,6 +35,18 @@ describe("PhoneInput", () => {
     await user.type(screen.getByRole("textbox"), "912345678");
     expect(onValue).toHaveBeenLastCalledWith("+56912345678");
   });
+
+  it.each(["+56 9 1234 5678", "9 1234 5678", "56912345678"])(
+    "takes a pasted number with its spaces: %s",
+    async (pasted) => {
+      const user = userEvent.setup();
+      const onValue = vi.fn();
+      render(<Controlled onValue={onValue} />);
+      await user.click(screen.getByRole("textbox"));
+      await user.paste(pasted);
+      expect(onValue).toHaveBeenLastCalledWith("+56912345678");
+    }
+  );
 
   it("lists countries with their calling code in the app's language", async () => {
     const user = userEvent.setup();

@@ -1,6 +1,10 @@
 "use client";
 
-import { forwardRef, type ComponentPropsWithoutRef } from "react";
+import {
+  forwardRef,
+  type ClipboardEvent,
+  type ComponentPropsWithoutRef,
+} from "react";
 import { useParams } from "next/navigation";
 import { textInputTheme } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
@@ -40,7 +44,10 @@ type PhoneInputProps = Readonly<{
 /** Normalizes any stored phone string ("+56 9 1234 5678", "912345678", …) to
  *  the E.164 value this input expects, reading national numbers as
  *  `defaultCountry`. Returns undefined when it can't be parsed. */
-export function toE164(raw: string, defaultCountry: Country = "CL"): Value | undefined {
+export function toE164(
+  raw: string,
+  defaultCountry: Country = "CL"
+): Value | undefined {
   if (!raw.trim()) return undefined;
   // Already E.164 (including a number still being typed): pass it through
   // untouched so the input doesn't reset mid-typing.
@@ -53,9 +60,33 @@ export function toE164(raw: string, defaultCountry: Country = "CL"): Value | und
 }
 
 /** Real per-country validation (libphonenumber) for any stored format. */
-export function isValidPhone(raw: string, defaultCountry: Country = "CL"): boolean {
+export function isValidPhone(
+  raw: string,
+  defaultCountry: Country = "CL"
+): boolean {
   const value = toE164(raw, defaultCountry);
   return value !== undefined && isValidPhoneNumber(value);
+}
+
+/** A pasted number as E.164: with or without "+", spaces and dashes, or national. */
+export function pastedPhone(
+  text: string,
+  defaultCountry: Country = "CL"
+): Value | undefined {
+  const digits = text.replace(/\D/g, "");
+  if (!digits) return undefined;
+  const candidates = [`+${digits}`, text];
+  for (const candidate of text.trim().startsWith("+")
+    ? candidates
+    : candidates.reverse()) {
+    try {
+      const number = parsePhoneNumber(candidate, defaultCountry)?.number;
+      if (number && isValidPhoneNumber(number)) return number;
+    } catch {
+      // Not a number in this reading; try the next one.
+    }
+  }
+  return undefined;
 }
 
 // Reuses TextInput's own token set (the ones it applies to its <input> when
@@ -121,7 +152,20 @@ export default function PhoneInput({
       inputComponent={PhoneNumberField}
       numberInputProps={{
         "aria-label": ariaLabel,
-        className: twMerge(textInputTheme.field.input.sizes[sizing], inputClassName),
+        // The field already shows the calling code, so a pasted "+56 9 …" would land after it.
+        onPaste: (e: ClipboardEvent<HTMLInputElement>) => {
+          const pasted = pastedPhone(
+            e.clipboardData.getData("text"),
+            defaultCountry
+          );
+          if (!pasted) return;
+          e.preventDefault();
+          onChange(pasted);
+        },
+        className: twMerge(
+          textInputTheme.field.input.sizes[sizing],
+          inputClassName
+        ),
       }}
     />
   );

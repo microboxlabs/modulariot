@@ -58,17 +58,20 @@ describe("templateFits", () => {
 });
 
 describe("TemplatePreview", () => {
-  it("draws an email with its subject and body, and warns when the channel has no version", () => {
+  it("draws an email with its subject and body, with sample values", () => {
     render(
       <TemplatePreview template={ALERT} channel="email" meta={[]} d={d} />
     );
     expect(screen.getByText("Revisa el viaje.")).toBeTruthy();
     expect(screen.getByText("OT-0001")).toBeTruthy();
-    expect(
-      screen.queryByText(
-        "Esta plantilla no tiene versión para el canal del paso."
-      )
-    ).toBeNull();
+  });
+
+  it("says the message is not sent on a channel the template has no version for", () => {
+    render(
+      <TemplatePreview template={ALERT} channel="whatsapp" meta={[]} d={d} />
+    );
+    expect(screen.getByText(/No se envía por WhatsApp/)).toBeTruthy();
+    expect(screen.queryByText(/Alerta en el viaje/)).toBeNull();
   });
 
   it("shows the base text in a bubble when the Meta template is not in the account", () => {
@@ -81,13 +84,13 @@ describe("TemplatePreview", () => {
 });
 
 describe("TemplatePicker", () => {
-  it("filters the list while typing and picks a template", async () => {
+  it("lists only the templates the channel can send, filters them while typing and picks one", async () => {
     const onChange = vi.fn();
     render(
       <TemplatePicker
         value=""
         templates={[ALERT, PANIC]}
-        channel="email"
+        channel="whatsapp"
         meta={[]}
         emptyLabel="Elegir plantilla"
         invalid={false}
@@ -96,8 +99,9 @@ describe("TemplatePicker", () => {
         onChange={onChange}
       />
     );
-    await userEvent.type(screen.getByLabelText("Plantilla"), "pánico");
+    await userEvent.click(screen.getByLabelText("Plantilla"));
     expect(screen.queryByRole("option", { name: /Viaje · alerta/ })).toBeNull();
+    await userEvent.type(screen.getByLabelText("Plantilla"), "pánico");
     await userEvent.click(
       screen.getByRole("option", { name: /Pánico · chequeo/ })
     );

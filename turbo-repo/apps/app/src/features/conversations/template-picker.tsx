@@ -153,10 +153,19 @@ export function TemplatePreview({
         <div key={p} className="flex items-start gap-2">
           {p !== "base" && <ChannelIcon channel={p} size={6} />}
           <div className="min-w-0 flex-1">
-            {p === "whatsapp" && (
+            {p !== "base" && template[p] === null && (
+              <p className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                {p === "whatsapp"
+                  ? tr("templateNoWhatsapp", d)
+                  : tr("templateNoEmail", d)}
+              </p>
+            )}
+            {p === "whatsapp" && template.whatsapp && (
               <WhatsAppPreview template={template} meta={meta} d={d} />
             )}
-            {p === "email" && <EmailPreview template={template} />}
+            {p === "email" && template.email && (
+              <EmailPreview template={template} />
+            )}
             {p === "base" && (
               <p className="whitespace-pre-wrap break-words rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">
                 <Filled text={template.baseText || "—"} />
@@ -165,11 +174,6 @@ export function TemplatePreview({
           </div>
         </div>
       ))}
-      {!templateFits(template, channel) && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
-          {tr("templateNoVariant", d)}
-        </p>
-      )}
     </div>
   );
 }
@@ -212,13 +216,13 @@ export default function TemplatePicker({
   const [query, setQuery] = useState("");
   const [hovered, setHovered] = useState<string | null>(null);
   const current = templates.find((t) => t.key === value);
-  const matches = matchStepTemplates(templates, query);
+  // Only templates the channel can send; the chosen one stays listed so it can be seen and replaced.
+  const usable = templates.filter(
+    (t) => templateFits(t, channel) || t.key === value
+  );
+  const matches = matchStepTemplates(usable, query);
   const shown =
-    templates.find((t) => t.key === hovered) ??
-    current ??
-    matches.find((t) => templateFits(t, channel)) ??
-    matches[0] ??
-    null;
+    templates.find((t) => t.key === hovered) ?? current ?? matches[0] ?? null;
   return (
     <Combobox
       value={value}
@@ -266,7 +270,9 @@ export default function TemplatePicker({
           </ComboboxOption>
           {matches.length === 0 && (
             <p className="px-3 py-2 text-gray-500 dark:text-gray-400">
-              {tr("templateNoMatch", d)}
+              {usable.length === 0
+                ? tr("templateNoneForChannel", d)
+                : tr("templateNoMatch", d)}
             </p>
           )}
           {matches.map((t) => (

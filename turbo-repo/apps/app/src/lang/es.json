@@ -3926,7 +3926,7 @@
         "eventDescTripFeedClosedChanged": "El feed trajo datos distintos para un viaje que ya está cerrado, por ejemplo otra hora, otro camión u otro conductor. El sistema no aplica esos cambios porque el viaje está cerrado. Avisa para que alguien revise si el viaje se cerró por error. Los campos que cambiaron vienen en {{changedFields}}.",
         "eventDescConversationReplyReceived": "Alguien respondió un mensaje que envió otra regla, con texto o tocando un botón. Por ahora llegan las respuestas de WhatsApp. El evento lleva el contexto del mensaje original: si el aviso era de un viaje, la respuesta queda en ese viaje. Sirve para avisar a otras personas lo que se respondió. El texto viene en {{text}}, el botón en {{buttonPayload}} y quién respondió en {{address}}.",
         "discard": "Descartar",
-        "audienceContacts": "De la libreta",
+        "audienceContacts": "Desde la libreta",
         "audienceContactsText": "Libreta: {condition}",
         "contactsHint": "Los contactos activos de la libreta que cumplen todas estas condiciones. El canal del paso elige su correo o su WhatsApp.",
         "contactsCel": "Condición sobre el contacto",

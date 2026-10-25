@@ -148,11 +148,13 @@ public final class InMemoryConversations {
         }
 
         @Override
-        public Message appendIfNewProviderMessageId(Message message) {
+        public Message appendOutbound(Message message, ConversationRepository.OutboundTouch touch) {
             if (findByProviderMessageId(message.channel(), message.providerMessageId()) != null) {
                 return null;
             }
-            return append(message);
+            Message stored = append(message);
+            conversationRepository.updateOutbound(message.conversationId(), touch);
+            return stored;
         }
 
         /** Set to make the next {@code appendInbound} fail before writing anything, as a rolled-back statement. */

@@ -259,6 +259,13 @@ export default function RuleEditor({
     }
   };
 
+  const discardDraft = () => {
+    setStateError(null);
+    void discard().catch((e: unknown) =>
+      setStateError(e instanceof Error ? e.message : String(e))
+    );
+  };
+
   const simulate = async (event: SampleEvent) => {
     await flush();
     return simulateRule(id, event);
@@ -326,14 +333,7 @@ export default function RuleEditor({
                       d={d}
                       onReview={() => setReviewing(true)}
                       onDiscard={
-                        rule?.currentVersion
-                          ? () =>
-                              void discard().catch((e: unknown) =>
-                                setStateError(
-                                  e instanceof Error ? e.message : String(e)
-                                )
-                              )
-                          : undefined
+                        rule?.currentVersion ? discardDraft : undefined
                       }
                     />
                   )}

@@ -98,4 +98,32 @@ describe("useRuleDraft discard", () => {
     expect(result.current.discarding).toBe(false);
     expect(result.current.spec).toEqual(edited);
   });
+
+  it("keeps the published spec if reloading fails after a successful discard", async () => {
+    const mutate = vi
+      .fn()
+      .mockResolvedValueOnce({ current: { spec: published }, draft: null })
+      .mockRejectedValueOnce(new Error("Reload failed"));
+    api.useConversationRule.mockReturnValue({
+      data: { rule: { id: "r1" }, current: { spec: published }, draft: null },
+      mutate,
+    });
+    const { result } = renderHook(() => useRuleDraft("r1"));
+    await waitFor(() => expect(result.current.spec).not.toBeNull());
+    act(() => result.current.update(edited));
+
+    let discard!: Promise<void>;
+    act(() => {
+      discard = result.current.discard();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      completeDiscard?.();
+      await expect(discard).rejects.toThrow("Reload failed");
+    });
+
+    expect(result.current.spec).toEqual({ ...published, family: null });
+    expect(result.current.discarding).toBe(false);
+    expect(api.saveRuleDraft).not.toHaveBeenCalled();
+  });
 });

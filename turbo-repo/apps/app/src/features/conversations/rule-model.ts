@@ -305,7 +305,11 @@ export function normalizeSpec(
       when: spec?.trigger?.when ?? null,
     },
     audience: spec?.audience ?? [],
-    steps: (spec?.steps ?? []).map((s) => ({ ...emptyStep(), ...s })),
+    steps: (spec?.steps ?? []).map((s) => ({
+      ...emptyStep(),
+      ...s,
+      waitForReply: s.waitForReply ?? 0,
+    })),
     family: spec?.family ?? null,
   };
 }

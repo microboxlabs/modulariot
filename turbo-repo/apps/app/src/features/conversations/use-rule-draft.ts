@@ -153,14 +153,19 @@ export function useRuleDraft(id: string) {
       setSaveError(null);
       setFindings(null);
       setSaving(false);
+      setSpec(normalizeSpec(detail?.current?.spec));
+      await mutate(
+        (current) => (current ? { ...current, draft: null } : current),
+        { revalidate: false }
+      );
       const fresh = await mutate();
-      setSpec(normalizeSpec(fresh?.draft?.spec ?? fresh?.current?.spec));
+      setSpec(normalizeSpec(fresh?.current?.spec ?? detail?.current?.spec));
       await refreshRules(id);
     } finally {
       discardInProgress.current = false;
       setDiscarding(false);
     }
-  }, [enqueue, id, mutate]);
+  }, [detail, enqueue, id, mutate]);
 
   return {
     detail,

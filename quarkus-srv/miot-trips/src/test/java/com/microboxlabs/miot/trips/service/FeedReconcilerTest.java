@@ -191,7 +191,7 @@ class FeedReconcilerTest {
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
         FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "transit", null, List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
-        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, "preparacion", "cierre", 0,
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.arrivalStage(), saved.monitor(),
                 java.util.Collections.singletonList(null), true);
         assertThrows(IllegalArgumentException.class,
                 () -> profiles.save("test", "test", "test-feed", nullResource));

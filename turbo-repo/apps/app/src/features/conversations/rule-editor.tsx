@@ -2,7 +2,7 @@
 
 import { type ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
-import { HiChevronLeft } from "react-icons/hi";
+import { HiChevronLeft, HiPlay } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -19,23 +19,16 @@ import {
 } from "@/features/symptoms/maintainer/symptom-labels";
 import { PillSelect } from "@/features/symptoms/maintainer/ui/pill";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import NumberedSection from "@/features/symptoms/maintainer/ui/section";
 import SheetTop from "@/features/symptoms/maintainer/ui/sheet-top";
 import { StateToggle } from "@/features/symptoms/maintainer/ui/state";
 import {
   refreshRules,
   setRuleState,
-  simulateRule,
   useConversationTemplates,
   useEventCatalog,
   useRuleFamilies,
 } from "./conversations-api";
-import type {
-  EventTypeInfo,
-  RuleSpec,
-  RuleState,
-  SampleEvent,
-} from "./conversations-types";
+import type { EventTypeInfo, RuleSpec, RuleState } from "./conversations-types";
 import RuleDraftBar, { PublishRuleDialog } from "./rule-draft-bar";
 import { placeFindings, ruleFindingText } from "./rule-findings";
 import {
@@ -50,7 +43,7 @@ import { RuleReviewPanel, VariablesPanel } from "./rule-side-panel";
 import { GroupsSection, StepsSection } from "./rule-sections";
 import RuleTriggerSection from "./rule-trigger";
 import { COMMUNICATIONS_PAGE } from "./rules-tab";
-import SimulationSection from "./simulation";
+import TestSendDialog from "./test-send-dialog";
 import { useRuleDraft } from "./use-rule-draft";
 import { useSymptomNames } from "./use-symptom-names";
 
@@ -210,6 +203,7 @@ export default function RuleEditor({
   const { data: families, error: familiesError } = useRuleFamilies();
   const symptomName = useSymptomNames();
   const [reviewing, setReviewing] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [stateError, setStateError] = useState<string | null>(null);
 
   const info = catalog?.find((e) => e.type === spec?.trigger.event);
@@ -266,11 +260,6 @@ export default function RuleEditor({
     );
   };
 
-  const simulate = async (event: SampleEvent) => {
-    await flush();
-    return simulateRule(id, event);
-  };
-
   const placed = spec
     ? placeFindings(findings, spec, d)
     : { trigger: [], groups: {}, steps: {} };
@@ -320,6 +309,24 @@ export default function RuleEditor({
                     >
                       {stateError}
                     </span>
+                  )}
+                  {canMaintain && spec && (
+                    <button
+                      type="button"
+                      aria-label={tr("testSend", d)}
+                      title={
+                        errors > 0
+                          ? tr("testSendHasErrors", d)
+                          : tr("testSend", d)
+                      }
+                      disabled={
+                        discarding || errors > 0 || spec.steps.length === 0
+                      }
+                      onClick={() => setTesting(true)}
+                      className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      <HiPlay className="h-4 w-4" />
+                    </button>
                   )}
                   {showBar && (
                     <RuleDraftBar
@@ -398,20 +405,6 @@ export default function RuleEditor({
                   d={d}
                   onChange={(steps) => set({ steps })}
                 />
-
-                <NumberedSection
-                  number={4}
-                  title={tr("sectionSimulation", d)}
-                  subtitle={tr("sectionSimulationSub", d)}
-                >
-                  <SimulationSection
-                    key={`${spec.trigger.event}-${info ? "catalog" : ""}`}
-                    initial={sample}
-                    disabled={!canMaintain || discarding || !spec.trigger.event}
-                    d={d}
-                    onSimulate={simulate}
-                  />
-                </NumberedSection>
               </div>
               <div className="flex flex-col gap-4">
                 <RuleReviewPanel findings={findings} d={d} />
@@ -421,6 +414,18 @@ export default function RuleEditor({
           )}
         </div>
       </div>
+      {spec && (
+        <TestSendDialog
+          open={testing}
+          ruleId={id}
+          steps={spec.steps}
+          sample={sample}
+          lang={lang}
+          d={d}
+          beforeSend={flush}
+          onClose={() => setTesting(false)}
+        />
+      )}
       <PublishRuleDialog
         open={reviewing}
         changes={changes}

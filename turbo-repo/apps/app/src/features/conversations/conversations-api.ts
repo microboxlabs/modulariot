@@ -27,7 +27,6 @@ import type {
   RuleVersion,
   RunStatus,
   SampleEvent,
-  Simulation,
   TemplateBody,
   ChannelConnection,
   ConnectionChannel,
@@ -177,10 +176,15 @@ export function setRuleState(id: string, state: RuleState) {
   });
 }
 
-export function simulateRule(id: string, event: SampleEvent) {
-  return request<Simulation>(`${ruleKey(id)}/simulate`, {
+/** Sends the rule's draft for real to one person, each step at its time; 409 when the draft has errors. */
+export function testSendRule(
+  id: string,
+  event: SampleEvent,
+  to: { email: string | null; phone: string | null; name: string | null }
+) {
+  return request<unknown>(`${ruleKey(id)}/test-send`, {
     method: "POST",
-    body: { event },
+    body: { event, to },
   });
 }
 

@@ -105,7 +105,8 @@ class PgFeedReconcilerTest {
     private final LocationService locations = new LocationService(new PgLocationStore(() -> pool), geofences,
             new PgTripStore(() -> pool), projector, audit, tx);
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-            locations, fleet, tx, json, clock);
+            locations, fleet, tx, json, clock, (tenantCode, tripId) -> new PgMonitorRunStore(() -> pool)
+                    .state(tenantCode, tripId).isPresent());
 
     private String tenant;
     private Ids fleetIds;

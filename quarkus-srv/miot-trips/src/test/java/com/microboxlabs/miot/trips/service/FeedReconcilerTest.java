@@ -129,7 +129,7 @@ class FeedReconcilerTest {
         String latest = json.writeValueAsString(desired(null, List.of()));
         tx.onEnter = () -> feeds.saved = new FeedService(previous.tenantCode(), previous.feedKey(),
                 previous.externalCode(), latest, "new-hash", previous.mandateId(), previous.tripId(), true,
-                previous.lastAction(), previous.lastResult(), previous.lastReconciledAt());
+                previous.lastAction(), previous.lastResult(), previous.lastReconciledAt(), previous.appliedDesired());
         feeds.requireTransaction = true;
         reconciler.recheck("test", "test-feed", "S-TEST");
         assertEquals(json.readTree(latest), json.readTree(feeds.saved.desired()));
@@ -253,7 +253,7 @@ class FeedReconcilerTest {
         }
         public FeedService lockService(String tenant, String key, String code) {
             if (saved == null) {
-                saved = new FeedService(tenant, key, code, "{}", "", null, null, true, null, null, null);
+                saved = new FeedService(tenant, key, code, "{}", "", null, null, true, null, null, null, null);
             }
             return saved;
         }

@@ -604,9 +604,17 @@ public class InMemoryTripsWorld {
                 return Optional.empty();
             }
             Location updated = new Location(l.id(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
-                    l.geomGeojson(), l.geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
+                    l.geomGeojson(), locations.get(l.id()).geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
             locations.put(l.id(), updated);
             return Optional.of(updated);
+        }
+        @Override
+        public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
+            return find(tenantCode, id).map(location -> {
+                Location updated = location.withGeofence(geofenceId, actor);
+                locations.put(location.id(), updated);
+                return updated;
+            });
         }
     }
 

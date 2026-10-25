@@ -105,13 +105,21 @@ public class PgLocationStore implements LocationStore {
     public Optional<Location> update(Location l) {
         return first(query(pool.get(), """
                 UPDATE miot_trips.location SET
-                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb, geofence_id = $7,
-                    updated_by = $8, updated_at = now()
+                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb,
+                    updated_by = $7, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + COLUMNS,
                 Tuple.tuple().addUUID(Pg.parse(l.id())).addString(l.tenantCode())
                         .addString(l.name()).addString(l.type()).addString(l.externalCode())
-                        .addString(l.geomGeojson()).addInteger(l.geofenceId()).addString(l.updatedBy())));
+                        .addString(l.geomGeojson()).addString(l.updatedBy())));
+    }
+
+    @Override
+    public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
+        return first(query(pool.get(), """
+                UPDATE miot_trips.location SET geofence_id = $3, updated_by = $4, updated_at = now()
+                WHERE tenant_code = $1 AND id = $2 RETURNING\s""" + COLUMNS,
+                Tuple.of(tenantCode, id, geofenceId, actor)));
     }
 
     private static Optional<Location> first(RowSet<Row> rows) {

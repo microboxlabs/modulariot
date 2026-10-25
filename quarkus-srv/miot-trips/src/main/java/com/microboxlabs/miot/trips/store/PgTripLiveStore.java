@@ -73,15 +73,18 @@ public class PgTripLiveStore implements TripLiveStore {
                     status, driver_id, driver_name, driver_contact_phone,
                     double_driver, second_driver_id, second_driver_name, second_driver_contact_phone,
                     carrier_id, carrier_name, carrier_contact_phone, rampla_plate,
-                    start_time, end_time, estimated_arrival_time, type_load)
+                    start_time, end_time, estimated_arrival_time, type_load,
+                    origin_geofence_id, destination_geofence_id, stop_geofence_ids)
                 VALUES ($1, $2, $3::jsonb, $4, 'v', $5, $6, $7, $8, $9, $10, $11::text IS NOT NULL, $11, $12, $13,
-                    $14, $15, $16, $17, $18, $19, $20, $21)
+                    $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
                 ON CONFLICT (trip_id) DO UPDATE SET
                     mandate_codes = EXCLUDED.mandate_codes,
                     asset_id = EXCLUDED.asset_id,
                     origin_geofence_label = EXCLUDED.origin_geofence_label,
                     destination_geofence_label = EXCLUDED.destination_geofence_label,
-                    stop_geofence_ids = NULL,
+                    origin_geofence_id = EXCLUDED.origin_geofence_id,
+                    destination_geofence_id = EXCLUDED.destination_geofence_id,
+                    stop_geofence_ids = EXCLUDED.stop_geofence_ids,
                     status = EXCLUDED.status,
                     driver_id = EXCLUDED.driver_id,
                     driver_name = EXCLUDED.driver_name,
@@ -108,7 +111,10 @@ public class PgTripLiveStore implements TripLiveStore {
                         .addString(p.carrierId()).addString(p.carrierName()).addString(p.carrierContactPhone())
                         .addString(p.ramplaPlate()).addOffsetDateTime(p.startTime())
                         .addOffsetDateTime(p.endTime()).addOffsetDateTime(p.estimatedArrivalTime())
-                        .addString(p.typeLoad()));
+                        .addString(p.typeLoad()).addInteger(p.originGeofenceId())
+                        .addInteger(p.destinationGeofenceId())
+                        .addArrayOfInteger(p.stopGeofenceIds() == null ? null
+                                : p.stopGeofenceIds().toArray(Integer[]::new)));
     }
 
     @Override

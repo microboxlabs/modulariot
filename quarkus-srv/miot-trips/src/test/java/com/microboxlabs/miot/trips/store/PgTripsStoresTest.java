@@ -104,6 +104,7 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.9__values_in_english.sql",
             "/db/migration/trips/V0.10.10__create_monitors.sql",
             "/db/migration/trips/V0.10.11__monitors_on_trips.sql",
+            "/db/migration/trips/V0.10.12__location_geofences.sql",
             "/db/migration/trips/V0.10.15__backfill_english_projections.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */

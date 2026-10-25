@@ -570,9 +570,21 @@ public class InMemoryTripsWorld {
         @Override
         public Location insert(Location l) {
             Location created = new Location(newId(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
-                    l.geomGeojson(), now(), l.createdBy(), now(), l.updatedBy());
+                    l.geomGeojson(), l.geofenceId(), now(), l.createdBy(), now(), l.updatedBy());
             locations.put(created.id(), created);
             return created;
+        }
+
+        @Override
+        public Optional<Location> insertIfAbsent(Location l) {
+            return byCode(l.tenantCode(), l.externalCode()).isPresent() ? Optional.empty() : Optional.of(insert(l));
+        }
+
+        @Override
+        public Optional<Location> byCode(String tenantCode, String externalCode) {
+            return locations.values().stream()
+                    .filter(l -> l.tenantCode().equals(tenantCode) && externalCode.equals(l.externalCode()))
+                    .findFirst();
         }
 
         @Override
@@ -592,9 +604,17 @@ public class InMemoryTripsWorld {
                 return Optional.empty();
             }
             Location updated = new Location(l.id(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
-                    l.geomGeojson(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
+                    l.geomGeojson(), locations.get(l.id()).geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
             locations.put(l.id(), updated);
             return Optional.of(updated);
+        }
+        @Override
+        public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
+            return find(tenantCode, id).map(location -> {
+                Location updated = location.withGeofence(geofenceId, actor);
+                locations.put(location.id(), updated);
+                return updated;
+            });
         }
     }
 
@@ -624,8 +644,9 @@ public class InMemoryTripsWorld {
     }
 
     private static TripLiveRow row(TripLiveProjection p) {
-        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), "v", null, null,
-                p.originGeofenceLabel(), p.destinationGeofenceLabel(), null, p.status(), p.driverId(),
+        return new TripLiveRow(p.tripId(), p.tenantCode(), p.mandateCodes(), p.assetId(), "v",
+                p.originGeofenceId(), p.destinationGeofenceId(), p.originGeofenceLabel(),
+                p.destinationGeofenceLabel(), p.stopGeofenceIds(), p.status(), p.driverId(),
                 p.driverName(), p.driverContactPhone(), p.secondDriverId() != null, p.secondDriverId(),
                 p.secondDriverName(), p.secondDriverContactPhone(), p.carrierId(), p.carrierName(),
                 p.carrierContactPhone(), p.ramplaPlate(), p.startTime(), p.endTime(), p.estimatedArrivalTime(),

@@ -86,6 +86,8 @@ class TripsPermissionsTest {
             Map.entry("OrgLocationsResource.list", VIEW),
             Map.entry("OrgLocationsResource.create", LOCATION_WRITE),
             Map.entry("OrgLocationsResource.update", LOCATION_WRITE),
+            Map.entry("OrgLocationsResource.linkGeofence", LOCATION_WRITE),
+            Map.entry("OrgLocationsResource.geofences", VIEW),
             Map.entry("OrgTripsLiveResource.list", VIEW),
             Map.entry("OrgTripsLiveResource.get", VIEW),
             Map.entry("OrgTripsAuditResource.list", VIEW),

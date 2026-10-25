@@ -8,6 +8,7 @@ import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
+import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
@@ -35,6 +36,9 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +46,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -75,6 +80,7 @@ public class FeedReconciler {
     private final TripService trips;
     private final StageService stages;
     private final AssignmentService assignments;
+    private final LocationService locations;
     private final FleetResources fleet;
     private final Transactions tx;
     private final ObjectMapper json;
@@ -83,22 +89,23 @@ public class FeedReconciler {
 
     @Inject
     FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
-            AssignmentService assignments, FleetResources fleet, Transactions tx, ObjectMapper json,
-            MonitorRunStore monitorRuns) {
-        this(feeds, mandates, trips, stages, assignments, fleet, tx, json, Clock.systemUTC(),
+            AssignmentService assignments, LocationService locations, FleetResources fleet, Transactions tx,
+            ObjectMapper json, MonitorRunStore monitorRuns) {
+        this(feeds, mandates, trips, stages, assignments, locations, fleet, tx, json, Clock.systemUTC(),
                 (tenant, tripId) -> monitorRuns.state(tenant, tripId).isPresent());
     }
 
     // Mirrors CDI dependencies while allowing a deterministic clock in tests.
     @SuppressWarnings("java:S107")
     public FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
-            AssignmentService assignments, FleetResources fleet, Transactions tx, ObjectMapper json, Clock clock,
-            BiPredicate<String, UUID> monitored) {
+            AssignmentService assignments, LocationService locations, FleetResources fleet, Transactions tx,
+            ObjectMapper json, Clock clock, BiPredicate<String, UUID> monitored) {
         this.feeds = feeds;
         this.mandates = mandates;
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
+        this.locations = locations;
         this.fleet = fleet;
         this.tx = tx;
         this.json = json;
@@ -115,7 +122,8 @@ public class FeedReconciler {
     /** The hash of the desired state, without {@code source}: the same hash means nothing to apply but the clock. */
     public String hash(FeedServiceRequest desired) {
         FeedServiceRequest compared = new FeedServiceRequest(desired.orderType(), desired.orderRef(),
-                utc(desired.plannedStart()), utc(desired.plannedEnd()), desired.resourcesOrEmpty(), null);
+                desired.origin(), desired.destination(), utc(desired.plannedStart()), utc(desired.plannedEnd()),
+                desired.resourcesOrEmpty(), null);
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
                     json.writeValueAsString(compared).getBytes(StandardCharsets.UTF_8)));
@@ -231,6 +239,8 @@ public class FeedReconciler {
         Resource truck = resources.truck();
         Resource trailer = resources.trailer();
         List<Resource> drivers = resources.drivers();
+        Place origin = place(tenantCode, d.origin());
+        Place destination = place(tenantCode, d.destination());
 
         boolean departed = d.plannedStart() != null && !d.plannedStart().isAfter(now);
         boolean closeDue = d.plannedEnd() != null
@@ -247,7 +257,8 @@ public class FeedReconciler {
                 return plan.decided(REPORT, !closeDue);
             }
             warnAboutOptionalResources(plan, profile, resources);
-            planCreate(plan, context, code, mandate.orElse(null), resources);
+            planPlaces(plan, tenantCode, actor, origin, destination);
+            planCreate(plan, context, code, mandate.orElse(null), resources, origin, destination);
             return plan.decided(CREATE, true);
         }
         if (closeDue && !monitored.test(tenantCode, UUID.fromString(trip.id()))) {
@@ -258,6 +269,8 @@ public class FeedReconciler {
         named.add(0, trailer);
         named.add(0, truck);
         warnAbout(plan, named);
+        planPlaces(plan, tenantCode, actor, origin, destination);
+        planRoute(plan, tenantCode, actor, trip, origin, destination);
         planChanges(plan, context, mandate.orElseThrow(), trip, resources);
         return plan.decided(UPDATE, true);
     }
@@ -322,6 +335,50 @@ public class FeedReconciler {
                 found.map(FleetResources.Match::active).orElse(false));
     }
 
+    /** A place the feed names; {@code found} null when no location has that external code yet. */
+    private Place place(String tenantCode, String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        return new Place(name, locations.byCode(tenantCode, name).orElse(null));
+    }
+
+    /** Creates the places that do not exist yet and warns about those without a geofence. */
+    private void planPlaces(Plan plan, String tenantCode, String actor, Place... places) {
+        for (Place p : Arrays.stream(places).filter(Objects::nonNull)
+                .sorted(Comparator.comparing(Place::code)).toList()) {
+            if (plan.locationIds.containsKey(p.code()) || plan.creating.contains(p.code())) {
+                continue;
+            }
+            if (p.found() == null) {
+                plan.creating.add(p.code());
+                plan.step("create location " + p.code(), () -> plan.locationIds.put(p.code(),
+                        locations.resolve(tenantCode, actor, p.code()).id()));
+            } else {
+                plan.locationIds.put(p.code(), p.found().id());
+            }
+            if (p.found() == null || p.found().geofenceId() == null) {
+                plan.warnings.add("location " + p.code() + " has no GPS geofence");
+            }
+        }
+    }
+
+    /** Moves the trip to the origin and destination the feed names, when they differ. */
+    private void planRoute(Plan plan, String tenantCode, String actor, TripView trip, Place origin,
+            Place destination) {
+        boolean originChanged = origin != null
+                && (origin.found() == null || !origin.found().id().equals(trip.originId()));
+        boolean destinationChanged = destination != null
+                && (destination.found() == null || !destination.found().id().equals(trip.destinationId()));
+        if (!originChanged && !destinationChanged) {
+            return;
+        }
+        UUID tripId = UUID.fromString(trip.id());
+        plan.step("change route", () -> trips.update(tenantCode, actor, tripId, new TripRequest(
+                originChanged ? plan.locationId(origin) : null,
+                destinationChanged ? plan.locationId(destination) : null, null, null, null)));
+    }
+
     private static void warnAbout(Plan plan, List<Resource> resources) {
         resources.stream().filter(Objects::nonNull).map(Resource::problem).filter(Objects::nonNull)
                 .forEach(plan.warnings::add);
@@ -343,7 +400,7 @@ public class FeedReconciler {
     // ---------------------------------------------------------------- the steps
 
     private void planCreate(Plan plan, PlanningContext context, String code, Mandate mandate,
-            ResolvedResources resources) {
+            ResolvedResources resources, Place origin, Place destination) {
         String tenantCode = context.tenantCode();
         String actor = context.actor();
         FeedProfile profile = context.profile();
@@ -354,15 +411,16 @@ public class FeedReconciler {
         List<Resource> drivers = resources.drivers();
         if (mandate == null) {
             plan.step("create mandate " + code, () -> plan.mandateId = mandates.createOrGet(tenantCode, actor,
-                    new MandateRequest(code, d.orderType(), d.orderRef(), null, null, null)).mandate().id());
+                    new MandateRequest(code, d.orderType(), d.orderRef(), plan.locationId(origin),
+                            plan.locationId(destination), null)).mandate().id());
         }
         List<FeedProfile.StagePlan> planned = profile.stages();
         plan.step("create trip with stages " + planned.stream().map(FeedProfile.StagePlan::stageType).toList(), () -> {
             List<StageRequest> stageRequests = planned.stream().map(s -> new StageRequest(s.stageType(),
                     s.serviceStatus(), null, null, s.stageType().equals(profile.closeStage()) ? d.plannedEnd() : null,
                     null)).toList();
-            TripView created = trips.create(tenantCode, actor, new TripRequest(null, null, d.plannedStart(),
-                    List.of(plan.mandateId), stageRequests));
+            TripView created = trips.create(tenantCode, actor, new TripRequest(plan.locationId(origin),
+                    plan.locationId(destination), d.plannedStart(), List.of(plan.mandateId), stageRequests));
             plan.tripId = created.id();
             created.stages().forEach(s -> plan.stageIds.put(s.stageType(), UUID.fromString(s.id())));
         });
@@ -559,6 +617,10 @@ public class FeedReconciler {
         }
     }
 
+    /** A place the feed names by its code, and the location that has it, if any. */
+    private record Place(String code, Location found) {
+    }
+
     /** The decision for one service and its steps, which run in order inside the service's transaction. */
     private static final class Plan {
         private final String code;
@@ -568,6 +630,8 @@ public class FeedReconciler {
         private final List<String> warnings = new ArrayList<>();
         private final List<String> errors = new ArrayList<>();
         private final Map<String, UUID> stageIds = new LinkedHashMap<>();
+        private final Map<String, String> locationIds = new LinkedHashMap<>();
+        private final Set<String> creating = new HashSet<>();
         private String action;
         private boolean open;
         private String mandateId;
@@ -576,6 +640,10 @@ public class FeedReconciler {
         private Plan(String code, OffsetDateTime evaluatedAt) {
             this.code = code;
             this.evaluatedAt = evaluatedAt;
+        }
+
+        String locationId(Place place) {
+            return place == null ? null : locationIds.get(place.code());
         }
 
         void step(String note, Runnable run) {

@@ -18,6 +18,7 @@ import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import LocationsPanel from "../locations/locations-panel";
 import ExpressionField from "./expression-field";
 import { useRowKeys } from "./use-row-keys";
 import {
@@ -404,6 +405,8 @@ export default function MonitorList({
         )}
 
         {data && <SelectorPanel monitors={monitors} canEdit={canEdit} d={d} />}
+
+        <LocationsPanel d={dict?.tripLocations as I18nRecord} />
       </div>
 
       <CreateMonitorModal

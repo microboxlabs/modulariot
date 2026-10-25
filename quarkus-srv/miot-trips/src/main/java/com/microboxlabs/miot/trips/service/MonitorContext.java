@@ -29,6 +29,7 @@ import java.util.UUID;
  * not have yet is left out, so rules test it with {@code has()}. Times are {@link java.time.Instant}s.
  */
 final class MonitorContext {
+    private static final String GEOFENCE_ID = "geofenceId";
 
     private static final String STATUS = "status";
 
@@ -76,7 +77,7 @@ final class MonitorContext {
         if ("signal".equals(event.on())) {
             Map<String, Object> signal = new LinkedHashMap<>();
             putIf(signal, "kind", event.kind());
-            putIf(signal, "geofenceId", event.data().get("geofenceId"));
+            putIf(signal, GEOFENCE_ID, event.data().get(GEOFENCE_ID));
             putIf(signal, "at", instant(event.at()));
             ctx.put("signal", signal);
         }
@@ -150,6 +151,7 @@ final class MonitorContext {
                 putIf(m, "code", loc.externalCode());
                 putIf(m, "name", loc.name());
                 putIf(m, "type", loc.type());
+                putIf(m, GEOFENCE_ID, loc.geofenceId() == null ? null : loc.geofenceId().toString());
             });
             return m;
         }));

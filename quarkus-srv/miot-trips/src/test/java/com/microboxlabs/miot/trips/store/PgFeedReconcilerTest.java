@@ -41,6 +41,7 @@ import com.microboxlabs.miot.trips.service.FeedJobQueue;
 import com.microboxlabs.miot.trips.service.FeedProfileService;
 import com.microboxlabs.miot.trips.service.FeedReconciler;
 import com.microboxlabs.miot.trips.service.FeedServiceJobHandler;
+import com.microboxlabs.miot.trips.service.LocationService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
@@ -100,8 +101,11 @@ class PgFeedReconcilerTest {
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
             new PgTripStore(() -> pool), fleet, projector, audit, tx);
     private final PgFeedStore feeds = new PgFeedStore(() -> pool);
-    private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments, fleet,
-            tx, json, clock, (tenantCode, tripId) -> new PgMonitorRunStore(() -> pool)
+    private final FakeGeofences geofences = new FakeGeofences();
+    private final LocationService locations = new LocationService(new PgLocationStore(() -> pool), geofences,
+            new PgTripStore(() -> pool), projector, audit, tx);
+    private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
+            locations, fleet, tx, json, clock, (tenantCode, tripId) -> new PgMonitorRunStore(() -> pool)
                     .state(tenantCode, tripId).isPresent());
 
     private String tenant;
@@ -201,6 +205,50 @@ class PgFeedReconcilerTest {
         FeedService s = feeds.service(tenant, FEED, "S-001").orElseThrow();
         assertEquals(reconciler.hash(desired(2, 10, "abc 123", "DEF-456", "10000001")), s.desiredHash());
         assertTrue(s.open());
+    }
+
+    private FeedServiceRequest routed(String origin, String destination) {
+        FeedServiceRequest d = desired(2, 10, "ABC-123", null, "10000001");
+        return new FeedServiceRequest(d.orderType(), d.orderRef(), origin, destination, d.plannedStart(),
+                d.plannedEnd(), d.resources(), null);
+    }
+
+    @Test
+    void placesAreMatchedByTheirNameAsSentAndCreatedWhenMissing() {
+        FeedResult dry = reconciler.reconcile(tenant, ACTOR, FEED, "S-010", routed("Terminal Norte", "Planta Sur"),
+                true);
+        assertTrue(dry.operations().contains("create location Terminal Norte"), dry.operations().toString());
+        assertTrue(locations.byCode(tenant, "Terminal Norte").isEmpty(), "a dry run creates nothing");
+
+        FeedResult r = send("S-010", routed("Terminal Norte", "Planta Sur"));
+        TripView t = trip(r);
+        var origin = locations.byCode(tenant, "Terminal Norte").orElseThrow();
+        var destination = locations.byCode(tenant, "Planta Sur").orElseThrow();
+        assertEquals(LocationService.FEED_TYPE, origin.type());
+        assertEquals(origin.id(), t.originId());
+        assertEquals(destination.id(), t.destinationId());
+        assertEquals(origin.id(), mandates.get(tenant, UUID.fromString(r.mandateId())).originId());
+        assertTrue(r.warnings().contains("location Planta Sur has no GPS geofence"), r.warnings().toString());
+        assertTrue(locations.byCode(tenant, "planta sur").isEmpty(), "names are compared as sent");
+
+        geofences.add(tenant, 42, "PS", "Planta Sur");
+        locations.linkGeofence(tenant, ACTOR, UUID.fromString(destination.id()), 42);
+        var live = new PgTripLiveStore(() -> pool).find(tenant, UUID.fromString(t.id())).orElseThrow();
+        assertEquals(42, live.destinationGeofenceId());
+        assertEquals("Planta Sur", live.destinationGeofenceLabel());
+
+        FeedResult moved = send("S-010", routed("Terminal Norte", "Puerto Centro"));
+        assertTrue(moved.operations().contains("change route"), moved.operations().toString());
+        assertEquals(locations.byCode(tenant, "Puerto Centro").orElseThrow().id(), trip(moved).destinationId());
+        assertEquals(origin.id(), trip(moved).originId());
+        assertTrue(moved.warnings().contains("location Puerto Centro has no GPS geofence"));
+        assertNull(new PgTripLiveStore(() -> pool).find(tenant, UUID.fromString(t.id())).orElseThrow()
+                .destinationGeofenceId());
+
+        UUID originId = UUID.fromString(origin.id());
+        assertThrows(IllegalArgumentException.class,
+                () -> locations.linkGeofence(tenant, ACTOR, originId, 7),
+                "a geofence of another client is refused");
     }
 
     @Test
@@ -324,6 +372,33 @@ class PgFeedReconcilerTest {
     void anUnknownOrSwitchedOffFeedIsNotFound() {
         assertThrows(java.util.NoSuchElementException.class, () -> reconciler.reconcile(tenant, ACTOR, "otro",
                 "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+    }
+
+    @Test
+    void inverseRoutesCreateLocationsInTheSameOrder() {
+        FeedServiceRequest base = desired(1, 6, "ABC-123", null, "10000001");
+        for (List<String> route : List.of(List.of("TEST-A", "TEST-B"), List.of("TEST-B", "TEST-A"))) {
+            FeedServiceRequest request = new FeedServiceRequest(base.orderType(), base.orderRef(),
+                    route.get(0), route.get(1), base.plannedStart(), base.plannedEnd(), base.resources(), null);
+            FeedResult result = reconciler.reconcile(tenant, ACTOR, FEED, "TEST-ROUTE", request, true);
+            assertEquals(List.of("create location TEST-A", "create location TEST-B"), result.operations().stream()
+                    .filter(operation -> operation.startsWith("create location ")).toList());
+        }
+    }
+
+    @Test
+    void descriptiveEditsAndGeofenceLinksDoNotOverwriteEachOther() {
+        var created = locations.resolve(tenant, ACTOR, "TEST-LOCATION");
+        PgLocationStore store = new PgLocationStore(() -> pool);
+        UUID locationId = UUID.fromString(created.id());
+        geofences.add(tenant, 42, "TEST-FENCE", "Test geofence");
+        locations.linkGeofence(tenant, ACTOR, locationId, 42);
+        var staleRename = new com.microboxlabs.miot.trips.domain.Location(created.id(), tenant, "Renamed test location",
+                created.type(), created.externalCode(), created.geomGeojson(), null,
+                created.createdAt(), created.createdBy(), null, ACTOR);
+        assertEquals(42, store.update(staleRename).orElseThrow().geofenceId());
+        assertEquals("Renamed test location", locations.linkGeofence(tenant, ACTOR, locationId, null).name());
+        assertNull(store.find(tenant, locationId).orElseThrow().geofenceId());
     }
 
     @Test

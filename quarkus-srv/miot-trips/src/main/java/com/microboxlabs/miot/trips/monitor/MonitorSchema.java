@@ -103,5 +103,6 @@ public record MonitorSchema(Map<String, String> fields) {
         f.put(root + ".code", TEXT);
         f.put(root + ".name", TEXT);
         f.put(root + ".type", TEXT);
+        f.put(root + ".geofenceId", TEXT);
     }
 }

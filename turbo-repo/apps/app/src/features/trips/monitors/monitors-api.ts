@@ -211,10 +211,14 @@ export function useMonitor(key: string | null) {
   return useSWR<MonitorDetail>(key ? monitorKey(key) : null, fetcher);
 }
 
-/** Whether the caller may edit monitors; false until the access loads. */
-export function useCanEditMonitors() {
+/** Whether the caller holds a trips permission; false until the access loads. */
+export function useTripsPermission(permission: string) {
   const { data } = useSWR<{ permissions: string[] }>(accessKey, fetcher);
-  return data?.permissions?.includes(MONITOR_ADMIN) ?? false;
+  return data?.permissions?.includes(permission) ?? false;
+}
+
+export function useCanEditMonitors() {
+  return useTripsPermission(MONITOR_ADMIN);
 }
 
 /** The fields an expression of `on` may read, with the monitor's parameters. */

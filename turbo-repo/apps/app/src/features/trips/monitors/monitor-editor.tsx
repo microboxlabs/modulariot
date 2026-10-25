@@ -25,6 +25,22 @@ import {
 import { ParamsEditor, PlanEditor } from "./plan-params";
 import RuleCard from "./rule-card";
 
+function versionAttribution(
+  version: {
+    status: string;
+    publishedBy: string | null;
+    publishedAt: string | null;
+    updatedBy: string | null;
+    updatedAt: string | null;
+  },
+  lang: string
+) {
+  const published = version.status === "published";
+  const actor = published ? version.publishedBy : version.updatedBy;
+  const at = published ? version.publishedAt : version.updatedAt;
+  return `${actor ?? ""} · ${at ? new Date(at).toLocaleString(lang) : ""}`;
+}
+
 function Section({
   title,
   hint,
@@ -336,9 +352,7 @@ export default function MonitorEditor({
                     <span className="w-10 font-mono">v{v.version}</span>
                     <span className="w-24">{tr(`status.${v.status}`, d)}</span>
                     <span className="text-gray-400">
-                      {v.status === "published"
-                        ? `${v.publishedBy ?? ""} · ${v.publishedAt ? new Date(v.publishedAt).toLocaleString(lang) : ""}`
-                        : `${v.updatedBy ?? ""} · ${v.updatedAt ? new Date(v.updatedAt).toLocaleString(lang) : ""}`}
+                      {versionAttribution(v, lang)}
                     </span>
                   </li>
                 ))}

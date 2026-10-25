@@ -34,8 +34,17 @@ const geofencesKey = (q: string) =>
 
 const fetcher = <T>(url: string) => tripsRequest<T>(url);
 
+async function fetchLocations(url: string) {
+  const locations: TripLocation[] = [];
+  for (let page = 0; ; page++) {
+    const rows = await tripsRequest<TripLocation[]>(`${url}&page=${page}`);
+    locations.push(...rows);
+    if (rows.length < 200) return locations;
+  }
+}
+
 export function useLocations(q: string) {
-  return useSWR<TripLocation[]>(locationsKey(q), fetcher, {
+  return useSWR<TripLocation[]>(locationsKey(q), fetchLocations, {
     keepPreviousData: true,
   });
 }

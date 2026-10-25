@@ -34,6 +34,8 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -329,8 +331,9 @@ public class FeedReconciler {
 
     /** Creates the places that do not exist yet and warns about those without a geofence. */
     private void planPlaces(Plan plan, String tenantCode, String actor, Place... places) {
-        for (Place p : places) {
-            if (p == null || plan.locationIds.containsKey(p.code()) || plan.creating.contains(p.code())) {
+        for (Place p : Arrays.stream(places).filter(Objects::nonNull)
+                .sorted(Comparator.comparing(Place::code)).toList()) {
+            if (plan.locationIds.containsKey(p.code()) || plan.creating.contains(p.code())) {
                 continue;
             }
             if (p.found() == null) {

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
 import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Message;
@@ -30,8 +31,9 @@ class WhatsAppRuleSendTest {
     private final InMemoryConversations store = new InMemoryConversations();
     private final Map<String, ResolvedConnection> connections = new HashMap<>();
     private final List<String> sentFrom = new ArrayList<>();
+    private final InMemoryChannelAccounts accounts = new InMemoryChannelAccounts();
     private final WhatsAppMessagingService service = new WhatsAppMessagingService(new FakeResolver(),
-            new FakeMeta(), store.conversationRepository, store.messageRepository);
+            new FakeMeta(), store.conversationRepository, store.messageRepository, accounts.service);
 
     @Test
     void aRuleMessageIsSentFromThePlatformNumberOnTheOrganizationsConversation() {
@@ -59,6 +61,23 @@ class WhatsAppRuleSendTest {
         assertEquals("La plataforma no tiene WhatsApp configurado", sent.errorMessage());
         assertNull(sent.providerMessageId());
         assertEquals(TENANT, store.conversations.get(sent.conversationId()).tenantCode());
+    }
+
+    @Test
+    void anOrganizationOnItsOwnAccountSendsFromItsNumber() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+        accounts.own(TENANT, "whatsapp");
+
+        Message sent = service.sendInContext(TENANT, message(), false);
+
+        assertEquals(List.of("ORG-PNID"), sentFrom);
+        assertEquals(TENANT, sent.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+
+        connections.remove(TENANT);
+        Message failed = service.sendInContext(TENANT, message(), false);
+        assertEquals(MessageStatus.FAILED, failed.status());
+        assertEquals(WhatsAppMessagingService.NO_OWN_WHATSAPP, failed.errorMessage());
     }
 
     @Test

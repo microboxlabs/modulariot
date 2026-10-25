@@ -20,12 +20,14 @@ import type { WhatsAppFormData } from "./whatsapp.types";
 interface WhatsAppChannelCardProps {
   readonly orgSlug: string | null;
   readonly dict: I18nRecord;
+  readonly onChanged?: () => void;
 }
 
 /** Settings card for the organization's WhatsApp channel. */
 export default function WhatsAppChannelCard({
   orgSlug,
   dict,
+  onChanged,
 }: WhatsAppChannelCardProps) {
   const waDict = (dict?.whatsappChannel as I18nRecord) ?? {};
   return (
@@ -41,6 +43,7 @@ export default function WhatsAppChannelCard({
       Badges={WhatsAppBadges}
       Modal={WhatsAppConnectionModal}
       modalProps={{ dict: waDict }}
+      onChanged={onChanged}
     />
   );
 }

@@ -16,7 +16,7 @@ import {
 } from "./platform-templates-catalog";
 import { TemplateEditor } from "./template-editor";
 
-/** Settings › Plataforma › Plantillas de mensajes › one template, or `NEW_TEMPLATE` to create one. */
+/** Comunicaciones › Plantillas › one template, or `NEW_TEMPLATE` to create one; platform scope. */
 export default function PlatformTemplatePage({
   templateKey,
   dict,
@@ -40,7 +40,7 @@ export default function PlatformTemplatePage({
         <Breadcrumb
           dict={dict?.breadcrumb as I18nRecord}
           lang={lang}
-          path={["user", "settings", "platform", "messageTemplates"]}
+          path={["user", "settings", "communications"]}
           disableLinks
         />
       </div>

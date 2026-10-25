@@ -8,12 +8,14 @@ import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateLine;
 import com.microboxlabs.miot.trips.domain.MandateRef;
+import com.microboxlabs.miot.trips.domain.PendingMilestone;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.StageActivity;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripCargoLink;
 import com.microboxlabs.miot.trips.domain.TripLiveProjection;
 import com.microboxlabs.miot.trips.domain.TripLiveRow;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.domain.TripRef;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import java.time.OffsetDateTime;
@@ -46,6 +48,7 @@ public class InMemoryTripsWorld {
     private final Map<String, TripCargoLink> tripCargo = new LinkedHashMap<>();
     private final Map<String, Location> locations = new LinkedHashMap<>();
     private final Map<String, TripLiveProjection> live = new LinkedHashMap<>();
+    private final Map<String, TripMilestone> milestones = new LinkedHashMap<>();
     private final List<AuditEvent> audit = new ArrayList<>();
     private final AtomicLong auditSeq = new AtomicLong();
 
@@ -58,6 +61,7 @@ public class InMemoryTripsWorld {
     public final AuditStore auditStore = new Audits();
     public final LocationStore locationStore = new Locations();
     public final TripLiveStore tripLiveStore = new Lives();
+    public final MilestoneStore milestoneStore = new Milestones();
 
     private static OffsetDateTime now() {
         return OffsetDateTime.now(ZoneOffset.UTC);
@@ -604,9 +608,51 @@ public class InMemoryTripsWorld {
                 return Optional.empty();
             }
             Location updated = new Location(l.id(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
-                    l.geomGeojson(), l.geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
+                    l.geomGeojson(), locations.get(l.id()).geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
             locations.put(l.id(), updated);
             return Optional.of(updated);
+        }
+        @Override
+        public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
+            return find(tenantCode, id).map(location -> {
+                Location updated = location.withGeofence(geofenceId, actor);
+                locations.put(location.id(), updated);
+                return updated;
+            });
+        }
+    }
+
+    private class Milestones implements MilestoneStore {
+
+        private static String key(String tenantCode, String tripId, String milestone) {
+            return tenantCode + "/" + tripId + "/" + milestone;
+        }
+
+        @Override
+        public List<TripMilestone> list(String tenantCode, UUID tripId) {
+            return milestones.values().stream()
+                    .filter(m -> m.tenantCode().equals(tenantCode) && m.tripId().equals(tripId.toString())).toList();
+        }
+
+        @Override
+        public Optional<TripMilestone> find(String tenantCode, UUID tripId, String milestone) {
+            return Optional.ofNullable(milestones.get(key(tenantCode, tripId.toString(), milestone)));
+        }
+
+        @Override
+        public TripMilestone save(TripMilestone m) {
+            milestones.put(key(m.tenantCode(), m.tripId(), m.milestone()), m);
+            return m;
+        }
+
+        /** Without the trip's service, places and plan, which the database store joins in. */
+        @Override
+        public List<PendingMilestone> pending(String tenantCode, int limit) {
+            return milestones.values().stream()
+                    .filter(m -> m.tenantCode().equals(tenantCode) && m.isPending())
+                    .sorted(Comparator.comparing(TripMilestone::proposedAt,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .limit(limit).map(m -> new PendingMilestone(m, null, null, null, null)).toList();
         }
     }
 
@@ -622,6 +668,11 @@ public class InMemoryTripsWorld {
         public Optional<TripLiveRow> find(String tenantCode, UUID tripId) {
             return Optional.ofNullable(live.get(tripId.toString())).filter(p -> p.tenantCode().equals(tenantCode))
                     .map(InMemoryTripsWorld::row);
+        }
+
+        @Override
+        public Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId) {
+            return find(tenantCode, tripId);
         }
 
         @Override

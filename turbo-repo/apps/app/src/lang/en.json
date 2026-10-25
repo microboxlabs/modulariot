@@ -3798,6 +3798,7 @@
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Pick the connection step {n} calls.",
+        "findingStepUnknownConnection": "Step {n}'s connection no longer exists or belongs to another channel.",
         "channel_webhook": "Webhook",
         "channelMenu_webhook": "HTTP calls to your own systems",
         "channelHint_webhook": "Rules send the event and the message as JSON to a URL of the organization. All its connections get the same contract.",
@@ -4135,6 +4136,7 @@
         "findingStepBadRecipients": "The recipients of step {n} are the rule's or a list.",
         "findingStepNoRecipients": "Step {n} has no recipients.",
         "menuTemplates": "What every organization's rules send",
+        "menuTemplatesOrg": "What rules can send; the platform edits them",
         "menuMeta": "The approved templates of the platform's account"
       },
       "gps": {

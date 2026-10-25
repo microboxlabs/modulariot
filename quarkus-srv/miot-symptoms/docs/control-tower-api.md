@@ -141,7 +141,7 @@ Templates are the symptoms of the reserved tenant `platform`. They have drafts, 
 | `GET /symptom-definitions/templates` | `controltower:view` | Published templates with their `version` |
 | `POST /symptom-definitions/from-template` | `controltower:symptom.edit` | The copy records `templateKey` and `templateVersion` |
 | `POST /symptom-definitions/{id}/save-as-template` | platform owner with `controltower:view` | Body `{version, templateKey, name}`, all optional. Saves the version in force (else the draft) as a template draft: a new template, or the draft of `templateKey`. Notice connections, message templates and recipients are dropped. Platform data sources only |
-| `/api/v1/platform/symptom-templates/**` | platform owner | The symptom-definitions routes for templates: list, create, get, identity, draft, validate, preview, publish plan, publish, rollback, fork, compare, describe, plus `GET /data-sources` and `GET /data-sources/{key}`. No state, stats, import or response |
+| `/api/v1/orgs/_platform/control-tower/symptom-definitions/**` | platform owner | Templates are the symptom definitions of the platform scope: list, create, get, identity, draft, validate, preview, publish plan, publish, rollback, fork, compare, describe, and `/control-tower/data-sources`. State, import, from-template, response and save-as-template answer 404 there; publishing ignores `state` |
 
 Organizations see a template once a platform owner publishes it.
 

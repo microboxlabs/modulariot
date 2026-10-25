@@ -42,6 +42,7 @@ export default function ComposeBox({
         body: text.trim(),
         serviceCode: conversation.contextServiceCode,
         driverId: conversation.driverId,
+        conversationId: conversation.id,
       });
       setText("");
       onSent();

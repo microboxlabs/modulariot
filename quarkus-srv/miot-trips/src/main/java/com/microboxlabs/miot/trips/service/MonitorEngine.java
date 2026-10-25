@@ -66,6 +66,7 @@ public class MonitorEngine implements TripChanges {
     private static final String TIMER = "timer";
     private static final String STAGE_TYPE = "stageType";
     private static final String COMMAND = "command";
+    private static final String REGULARIZED = "regularized";
     private static final String REQUEST_CONFIRMATION = "requestConfirmation";
 
     /** The evaluation running on this thread; changes made by its actions queue up here. */
@@ -511,7 +512,7 @@ public class MonitorEngine implements TripChanges {
      * gets none: it is recorded after it ran.
      */
     private Optional<MonitorRun.State> bindNew(Trip trip, MonitorRun.Event e) {
-        if (Boolean.TRUE.equals(e.data().get("regularized"))) {
+        if (Boolean.TRUE.equals(e.data().get(REGULARIZED))) {
             return Optional.empty();
         }
         String tenant = trip.tenantCode();
@@ -635,8 +636,8 @@ public class MonitorEngine implements TripChanges {
         if (d.get(MONITOR) != null) {
             data.put(MONITOR, d.get(MONITOR));
         }
-        if (Boolean.TRUE.equals(d.get("regularized"))) {
-            data.put("regularized", true);
+        if (Boolean.TRUE.equals(d.get(REGULARIZED))) {
+            data.put(REGULARIZED, true);
         }
         return new MonitorRun.Event(tenant, tripId, onKind[0], onKind[1], at, actor, data);
     }

@@ -80,7 +80,8 @@ class ContactAudienceTest {
             throw new IllegalStateException("Database unavailable");
         };
         Audiences audiences = new Audiences(List.of(), List.of(unavailable));
+        List<Audience> entries = List.of(new Audience(null, null, null, null, null, "true"));
         assertThrows(IllegalStateException.class, () -> audiences.resolve(TENANT, "trip", "trip-1",
-                List.of(new Audience(null, null, null, null, null, "true")), DATA, RuleSpec.EMAIL, EVENT));
+                entries, DATA, RuleSpec.EMAIL, EVENT));
     }
 }

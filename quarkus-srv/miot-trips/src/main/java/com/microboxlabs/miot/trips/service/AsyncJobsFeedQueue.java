@@ -35,9 +35,17 @@ public class AsyncJobsFeedQueue implements FeedJobQueue {
     }
     @Override
     public boolean acceptAndQueue(String tenantCode, String feedKey, AsyncJobSpec job, BooleanSupplier accept) {
-        EnqueueJobsResponse response = tx.inTransaction(() -> accept.getAsBoolean()
-                ? jobs.enqueue(tenantCode, new EnqueueJobsRequest("trips-feed:" + feedKey, "listener", List.of(job)))
-                : null);
+        EnqueueJobsResponse response = tx.inTransaction(() -> {
+            if (!accept.getAsBoolean()) {
+                return null;
+            }
+            EnqueueJobsResponse result = jobs.enqueue(tenantCode,
+                    new EnqueueJobsRequest("trips-feed:" + feedKey, "listener", List.of(job)));
+            if (result.duplicates() > 0) {
+                throw new IllegalStateException("feed job already exists for this batch");
+            }
+            return result;
+        });
         if (response == null) {
             return false;
         }

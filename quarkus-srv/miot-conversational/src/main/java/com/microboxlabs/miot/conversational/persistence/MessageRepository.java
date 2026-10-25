@@ -32,7 +32,7 @@ public class MessageRepository {
 
     private static final String SELECT = "SELECT " + COLUMNS;
 
-    private static final String INSERT = """
+    private static final String INSERT_VALUES = """
             INSERT INTO miot_conversational.wa_message (
                 id, conversation_id, direction, role, msg_type, body, template_name,
                 media_ref, media_mime_type, media_file_name, provider_message_id, status,
@@ -40,6 +40,12 @@ public class MessageRepository {
                 sent_at, delivered_at, read_at, created_at, channel, address, in_reply_to, run_id, step
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
                       $22, $23, $24, $25, $26)
+            """;
+
+    private static final String INSERT = INSERT_VALUES + "RETURNING " + COLUMNS;
+
+    private static final String INSERT_IF_NEW_PROVIDER_MESSAGE_ID = INSERT_VALUES + """
+            ON CONFLICT (channel, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING
             RETURNING\s""" + COLUMNS;
 
     // Inbound idempotency and the conversation touch live in this one atomic statement: the
@@ -159,6 +165,15 @@ public class MessageRepository {
                 .execute(toParams(message))
                 .await().indefinitely()
                 .iterator().next());
+    }
+
+    /** Returns null when another send has already stored this provider id. */
+    public Message appendIfNewProviderMessageId(Message message) {
+        var rows = client().preparedQuery(INSERT_IF_NEW_PROVIDER_MESSAGE_ID)
+                .execute(toParams(message))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
     }
 
     /**

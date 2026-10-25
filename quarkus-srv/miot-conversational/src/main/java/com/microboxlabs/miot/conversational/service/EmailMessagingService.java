@@ -73,11 +73,20 @@ public class EmailMessagingService {
                 return already;
             }
         }
-        Message stored = messageRepository.append(new Message(
+        Message outgoing = new Message(
                 UUID.randomUUID().toString(), conversation.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,
                 MessageType.TEXT, message.body(), message.templateName(), null, null, null, providerMessageId, status,
                 errorMessage, null, null, null, metadata, status == MessageStatus.SENT ? now : null, null, null, now,
-                Channel.EMAIL, message.to(), null, message.runId(), message.step()));
+                Channel.EMAIL, message.to(), null, message.runId(), message.step());
+        Message stored = providerMessageId == null ? messageRepository.append(outgoing)
+                : messageRepository.appendIfNewProviderMessageId(outgoing);
+        if (stored == null) {
+            Message already = messageRepository.findByProviderMessageId(Channel.EMAIL, providerMessageId);
+            if (already == null) {
+                throw new IllegalStateException("Email provider message was not found after an insert conflict");
+            }
+            return already;
+        }
         String preview = message.subject() != null ? message.subject() : message.body();
         conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
                 message.contextKind(), message.contextKey(), now,

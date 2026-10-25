@@ -197,6 +197,7 @@ export default function RuleEditor({
     spec,
     findings,
     saving,
+    discarding,
     saveError,
     update,
     flush,
@@ -233,7 +234,7 @@ export default function RuleEditor({
     [spec, published]
   );
   const changedKeys = new Set(changes.map((c) => c.key));
-  const readOnly = !canMaintain;
+  const readOnly = !canMaintain || discarding;
   const errors = (findings ?? []).filter((f) => f.severity === "ERROR").length;
   const backHref = `/${lang}${COMMUNICATIONS_PAGE}`;
   const rule = detail?.rule;
@@ -294,36 +295,49 @@ export default function RuleEditor({
                 familiesError instanceof ControlTowerError &&
                 familiesError.status === 404
               }
-              canSetState={canMaintain && rule.currentVersion !== null}
-              canEdit={canMaintain && spec !== null}
+              canSetState={
+                canMaintain && !discarding && rule.currentVersion !== null
+              }
+              canEdit={canMaintain && !discarding && spec !== null}
               backHref={backHref}
               lang={lang}
               d={d}
               onState={(s) => void changeState(s)}
               onFamily={(family) => set({ family })}
               actions={
-                showBar && (
-                  <RuleDraftBar
-                    changes={changes}
-                    errors={errors}
-                    saving={saving}
-                    saveError={saveError}
-                    current={rule?.currentVersion ?? null}
-                    bump={bump}
-                    d={d}
-                    onReview={() => setReviewing(true)}
-                    onDiscard={
-                      rule?.currentVersion
-                        ? () =>
-                            void discard().catch((e: unknown) =>
-                              setStateError(
-                                e instanceof Error ? e.message : String(e)
+                <>
+                  {stateError && (
+                    <span
+                      role="alert"
+                      className="max-w-56 break-words text-right text-xs text-red-600 dark:text-red-400"
+                    >
+                      {stateError}
+                    </span>
+                  )}
+                  {showBar && (
+                    <RuleDraftBar
+                      changes={changes}
+                      errors={errors}
+                      saving={saving}
+                      discarding={discarding}
+                      saveError={saveError}
+                      current={rule?.currentVersion ?? null}
+                      bump={bump}
+                      d={d}
+                      onReview={() => setReviewing(true)}
+                      onDiscard={
+                        rule?.currentVersion
+                          ? () =>
+                              void discard().catch((e: unknown) =>
+                                setStateError(
+                                  e instanceof Error ? e.message : String(e)
+                                )
                               )
-                            )
-                        : undefined
-                    }
-                  />
-                )
+                          : undefined
+                      }
+                    />
+                  )}
+                </>
               }
             />
           )}
@@ -336,11 +350,6 @@ export default function RuleEditor({
           )}
           {!detail && !error && (
             <p className={`text-sm ${MUTED}`}>{tr("loading", d)}</p>
-          )}
-          {stateError && (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {stateError}
-            </p>
           )}
           {spec && detail && (
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -419,7 +428,7 @@ export default function RuleEditor({
                   <SimulationSection
                     key={`${spec.trigger.event}-${info ? "catalog" : ""}`}
                     initial={sample}
-                    disabled={!canMaintain || !spec.trigger.event}
+                    disabled={!canMaintain || discarding || !spec.trigger.event}
                     d={d}
                     onSimulate={simulate}
                   />
@@ -440,6 +449,7 @@ export default function RuleEditor({
         bump={bump}
         canPublish={
           canMaintain &&
+          !discarding &&
           errors === 0 &&
           changes.length > 0 &&
           bump !== null &&

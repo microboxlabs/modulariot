@@ -35,6 +35,7 @@ export default function DraftActions({
   d,
   onReview,
   onDiscard,
+  discardDisabled = false,
 }: Readonly<{
   /** Null while the changes are not known yet. */
   changes: number | null;
@@ -51,6 +52,7 @@ export default function DraftActions({
   onReview: () => void;
   /** Absent when there is no version to go back to. */
   onDiscard?: () => void;
+  discardDisabled?: boolean;
 }>) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -151,6 +153,7 @@ export default function DraftActions({
           type="button"
           title={tr("discard", d)}
           aria-label={tr("discard", d)}
+          disabled={discardDisabled}
           className={`${ICON_BUTTON} border-gray-300 bg-white text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`}
           onClick={onDiscard}
         >

@@ -167,6 +167,25 @@ class PgGeofenceSignalsTest {
     }
 
     @Test
+    void repeatedFramesCannotConfirmAMoveAndMissingShapesCannotMeanDeparture() {
+        UUID tripId = tripWithTruck("TEST-123");
+        GeofenceSignals checked = new GeofenceSignals(live, geofences,
+                (tenantCode, id, kind, fence, time) -> {}, tx, Clock.systemUTC(), true, 2, Duration.ZERO);
+        checked.refresh();
+        String first = signal("TEST-123", -70.6, -33.4, tenant, at);
+        assertEquals(0, checked.accept(first));
+        assertEquals(0, checked.accept(first));
+        assertNull(row(tripId).currentGeofenceId());
+        assertEquals(1, checked.accept(signal("TEST-123", -70.6, -33.4, tenant, at.plusSeconds(1))));
+        assertEquals(ORIGIN, row(tripId).currentGeofenceId());
+        geofences.shape(ORIGIN, "null");
+        checked.refresh();
+        assertEquals(0, checked.accept(signal("TEST-123", -70.5, -33.4, tenant, at.plusSeconds(2))));
+        assertEquals(0, checked.accept(signal("TEST-123", -70.5, -33.4, tenant, at.plusSeconds(3))));
+        assertEquals(ORIGIN, row(tripId).currentGeofenceId());
+    }
+
+    @Test
     void leavingTheOriginAndEnteringTheDestinationMoveTheTrip() {
         UUID tripId = tripWithTruck("ABC-123");
         assertEquals(ORIGIN, row(tripId).originGeofenceId());

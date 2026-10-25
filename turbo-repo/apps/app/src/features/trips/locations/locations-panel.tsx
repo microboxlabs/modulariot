@@ -35,7 +35,7 @@ function GeofenceModal({
   d: I18nRecord;
 }>) {
   const [q, setQ] = useState("");
-  const { data, isLoading } = useGeofences(q);
+  const { data, isLoading, error: searchError } = useGeofences(q);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,9 +54,13 @@ function GeofenceModal({
     }
   };
 
+  const close = () => {
+    if (!busy) onClose();
+  };
+
   const geofences = data ?? [];
   return (
-    <Modal show={location !== null} onClose={onClose} size="lg">
+    <Modal show={location !== null} onClose={close} size="lg">
       <ModalHeader>
         {tr("chooseGeofence", d, { name: location?.name ?? "" })}
       </ModalHeader>
@@ -99,8 +103,10 @@ function GeofenceModal({
               </li>
             ))}
           </ul>
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          {(error || searchError) && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error || searchError.message}
+            </p>
           )}
         </div>
       </ModalBody>
@@ -112,7 +118,7 @@ function GeofenceModal({
         >
           {tr("removeGeofence", d)}
         </Button>
-        <Button color="gray" onClick={onClose}>
+        <Button color="gray" disabled={busy} onClick={close}>
           {tr("cancel", d)}
         </Button>
       </ModalFooter>
@@ -234,11 +240,13 @@ export default function LocationsPanel({ d }: Readonly<{ d: I18nRecord }>) {
         </div>
       )}
 
-      <GeofenceModal
-        location={editing}
-        onClose={() => setEditing(null)}
-        d={d}
-      />
+      {editing && (
+        <GeofenceModal
+          location={editing}
+          onClose={() => setEditing(null)}
+          d={d}
+        />
+      )}
     </section>
   );
 }

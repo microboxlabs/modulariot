@@ -14,6 +14,7 @@ import com.microboxlabs.miot.trips.store.LocationStore;
 import com.microboxlabs.miot.trips.store.StageStore;
 import com.microboxlabs.miot.trips.store.TripStore;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -29,6 +30,14 @@ import java.util.UUID;
  * not have yet is left out, so rules test it with {@code has()}. Times are {@link java.time.Instant}s.
  */
 final class MonitorContext {
+    private static final String GEOFENCE_ID = "geofenceId";
+
+    private static final String STATUS = "status";
+    private static final String CHANNEL = "channel";
+
+    private static final String PLANNED_START = "plannedStart";
+
+    private static final String ORDER_TYPE = "orderType";
 
     private final TripStore trips;
     private final StageStore stages;
@@ -73,7 +82,7 @@ final class MonitorContext {
         if ("signal".equals(event.on())) {
             Map<String, Object> signal = new LinkedHashMap<>();
             putIf(signal, "kind", event.kind());
-            putIf(signal, "geofenceId", event.data().get("geofenceId"));
+            putIf(signal, GEOFENCE_ID, event.data().get(GEOFENCE_ID));
             putIf(signal, "at", instant(event.at()));
             ctx.put("signal", signal);
         }
@@ -89,10 +98,10 @@ final class MonitorContext {
         Map<String, Map<String, Object>> places = new HashMap<>();
         List<Map<String, Object>> linked = mandates(tenant, tripId);
         Map<String, Object> t = new LinkedHashMap<>();
-        putIf(t, "orderType", linked.isEmpty() ? null : linked.get(0).get("orderType"));
-        putIf(t, "plannedStart", instant(trip.plannedStart()));
-        putIf(t, "origin", location(tenant, trip.originId(), places));
-        putIf(t, "destination", location(tenant, trip.destinationId(), places));
+        putIf(t, ORDER_TYPE, linked.isEmpty() ? null : linked.get(0).get(ORDER_TYPE));
+        putIf(t, PLANNED_START, instant(trip.plannedStart()));
+        location(tenant, trip.originId(), places).ifPresent(value -> t.put("origin", value));
+        location(tenant, trip.destinationId(), places).ifPresent(value -> t.put("destination", value));
         return Map.of("trip", t, "mandates", linked);
     }
 
@@ -102,7 +111,7 @@ final class MonitorContext {
         putIf(e, "kind", event.kind());
         putIf(e, "stageType", event.data().get("stageType"));
         putIf(e, "milestone", event.data().get("milestone"));
-        putIf(e, "channel", event.data().get("channel"));
+        putIf(e, CHANNEL, event.data().get(CHANNEL));
         putIf(e, "at", instant(event.at()));
         putIf(e, "actor", event.actor());
         return e;
@@ -113,46 +122,46 @@ final class MonitorContext {
         String tenant = trip.tenantCode();
         Map<String, Object> t = new LinkedHashMap<>();
         putIf(t, "id", trip.id());
-        putIf(t, "status", trip.status());
-        putIf(t, "orderType", linked.isEmpty() ? null : linked.get(0).get("orderType"));
-        putIf(t, "plannedStart", instant(trip.plannedStart()));
+        putIf(t, STATUS, trip.status());
+        putIf(t, ORDER_TYPE, linked.isEmpty() ? null : linked.get(0).get(ORDER_TYPE));
+        putIf(t, PLANNED_START, instant(trip.plannedStart()));
         putIf(t, "plannedEnd", plan.stream().map(Stage::plannedEnd).filter(Objects::nonNull)
                 .max(Comparator.naturalOrder()).map(MonitorContext::instant).orElse(null));
         putIf(t, "actualStart", instant(trip.actualStart()));
         putIf(t, "actualEnd", instant(trip.actualEnd()));
-        putIf(t, "origin", location(tenant, trip.originId(), places));
-        putIf(t, "destination", location(tenant, trip.destinationId(), places));
+        location(tenant, trip.originId(), places).ifPresent(value -> t.put("origin", value));
+        location(tenant, trip.destinationId(), places).ifPresent(value -> t.put("destination", value));
         return t;
     }
 
     private Map<String, Object> stage(String tenant, Stage s, Map<String, Map<String, Object>> places) {
         Map<String, Object> m = new LinkedHashMap<>();
         putIf(m, "type", s.stageType());
-        putIf(m, "status", s.status());
+        putIf(m, STATUS, s.status());
         putIf(m, "serviceStatus", s.serviceStatus());
-        putIf(m, "plannedStart", instant(s.plannedStart()));
+        putIf(m, PLANNED_START, instant(s.plannedStart()));
         putIf(m, "plannedEnd", instant(s.plannedEnd()));
         putIf(m, "actualStart", instant(s.actualStart()));
         putIf(m, "actualEnd", instant(s.actualEnd()));
-        putIf(m, "location", location(tenant, s.locationId(), places));
+        location(tenant, s.locationId(), places).ifPresent(value -> m.put("location", value));
         return m;
     }
 
-    private Map<String, Object> location(String tenant, String id, Map<String, Map<String, Object>> places) {
+    private Optional<Map<String, Object>> location(String tenant, String id, Map<String, Map<String, Object>> places) {
         if (id == null) {
-            return null;
+            return Optional.empty();
         }
-        return places.computeIfAbsent(id, k -> {
+        return Optional.of(places.computeIfAbsent(id, k -> {
             Optional<Location> l = locations.find(tenant, UUID.fromString(k));
             Map<String, Object> m = new LinkedHashMap<>();
             l.ifPresent(loc -> {
                 putIf(m, "code", loc.externalCode());
                 putIf(m, "name", loc.name());
                 putIf(m, "type", loc.type());
-                putIf(m, "geofenceId", loc.geofenceId() == null ? null : loc.geofenceId().toString());
+                putIf(m, GEOFENCE_ID, loc.geofenceId() == null ? null : loc.geofenceId().toString());
             });
             return m;
-        });
+        }));
     }
 
     private List<Map<String, Object>> mandates(String tenant, UUID tripId) {
@@ -160,10 +169,10 @@ final class MonitorContext {
         for (MandateRef ref : trips.mandatesOf(tenant, tripId)) {
             Map<String, Object> m = new LinkedHashMap<>();
             putIf(m, "externalCode", ref.externalCode());
-            putIf(m, "status", ref.status());
+            putIf(m, STATUS, ref.status());
             try {
                 Mandate mandate = mandates.get(tenant, UUID.fromString(ref.mandateId()));
-                putIf(m, "orderType", mandate.orderType());
+                putIf(m, ORDER_TYPE, mandate.orderType());
                 putIf(m, "orderRef", mandate.orderRef());
             } catch (RuntimeException e) {
                 // a mandate that cannot be read keeps its code and status only
@@ -178,9 +187,9 @@ final class MonitorContext {
         Map<String, Object> out = new LinkedHashMap<>();
         for (TripMilestone m : milestones.list(tenant, tripId)) {
             Map<String, Object> v = new LinkedHashMap<>();
-            putIf(v, "status", m.status());
+            putIf(v, STATUS, m.status());
             putIf(v, "source", m.source());
-            putIf(v, "channel", m.channel());
+            putIf(v, CHANNEL, m.channel());
             putIf(v, "proposedAt", instant(m.proposedAt()));
             putIf(v, "confirmedAt", instant(m.confirmedAt()));
             out.put(m.milestone(), v);
@@ -192,13 +201,17 @@ final class MonitorContext {
     private Map<String, Object> assignments(String tenant, UUID tripId) {
         Map<String, Object> out = new LinkedHashMap<>();
         assignments.listByTrip(tenant, tripId).stream()
-                .filter(a -> a.validTo() == null || a.validTo().isAfter(OffsetDateTime.now()))
+                .filter(a -> a.validTo() == null || a.validTo().isAfter(OffsetDateTime.now(ZoneOffset.UTC)))
                 .sorted(Comparator.comparing(Assignment::validFrom, Comparator.nullsFirst(Comparator.naturalOrder())))
                 .forEach(a -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     putIf(m, "key", resourceKey(tenant, a));
                     putIf(m, "since", instant(a.validFrom()));
-                    out.putIfAbsent(a.resourceType(), m);
+                    if (Assignment.DRIVER.equals(a.resourceType())) {
+                        out.putIfAbsent(a.resourceType(), m);
+                    } else {
+                        out.put(a.resourceType(), m);
+                    }
                 });
         return out;
     }

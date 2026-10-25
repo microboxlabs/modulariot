@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
@@ -100,6 +101,7 @@ public class FeedReconciler {
     }
 
     /** Without trip events. */
+    @SuppressWarnings("java:S107")
     public FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
             AssignmentService assignments, LocationService locations, MilestoneService milestones,
             AuditService audit, FleetResources fleet, Transactions tx, ObjectMapper json, Clock clock) {
@@ -107,6 +109,8 @@ public class FeedReconciler {
                 json, clock);
     }
 
+    // Mirrors CDI dependencies while allowing a deterministic clock in tests.
+    @SuppressWarnings("java:S107")
     public FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
             AssignmentService assignments, LocationService locations, MilestoneService milestones,
             AuditService audit, TripEvents events, FleetResources fleet, Transactions tx, ObjectMapper json,
@@ -162,22 +166,7 @@ public class FeedReconciler {
                     .map(this::readOrNull).orElse(null);
             return plan(tenantCode, actor, profile, code, desired, previous).result(true);
         }
-        try {
-            return tx.inTransaction(() -> {
-                FeedService before = feeds.lockService(tenantCode, feedKey, code);
-                Plan plan = plan(tenantCode, actor, profile, code, desired, readOrNull(before.desired()));
-                plan.run();
-                FeedResult result = plan.result(false);
-                feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), hash(desired),
-                        plan.mandateId != null ? plan.mandateId : before.mandateId(),
-                        plan.tripId != null ? plan.tripId : before.tripId(),
-                        plan.open, plan.action, write(result), now()));
-                return result;
-            });
-        } catch (RuntimeException e) {
-            recordFailure(tenantCode, feedKey, code, desired, e);
-            throw e;
-        }
+        return applyLocked(tenantCode, actor, profile, code, desired, false);
     }
 
     /**
@@ -194,7 +183,8 @@ public class FeedReconciler {
         return tx.inTransaction(() -> {
             FeedService before = feeds.lockService(tenantCode, feedKey, code);
             // the same state, applied or already waiting; a failed apply keeps no hash, so a resend counts
-            if (hash.equals(before.desiredHash())) {
+            if (hash.equals(before.desiredHash()) && !REPORT.equals(before.lastAction())) {
+                synchronizeClosedService(before);
                 return false;
             }
             feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), hash, before.mandateId(),
@@ -203,101 +193,128 @@ public class FeedReconciler {
         });
     }
 
-    /** Applies the service's latest desired state, after {@link #accept}. */
-    public FeedResult recheck(String tenantCode, String actor, String feedKey, String externalCode) {
-        FeedService s = feeds.service(tenantCode, feedKey, externalCode)
-                .orElseThrow(() -> new NoSuchElementException("feed service " + externalCode + " not found"));
-        return reconcile(tenantCode, actor, feedKey, externalCode, read(s.desired()), false);
+    private void synchronizeClosedService(FeedService service) {
+        if (!service.open()) {
+            return;
+        }
+        TripView trip = service.tripId() == null ? null
+                : trips.detail(service.tenantCode(), UUID.fromString(service.tripId()));
+        Optional<Mandate> mandate = service.mandateId() == null ? Optional.empty()
+                : Optional.of(mandates.get(service.tenantCode(), UUID.fromString(service.mandateId())));
+        if (finished(trip, mandate)) {
+            FeedResult result = new FeedResult(service.externalCode(), SKIP, false, service.mandateId(),
+                    service.tripId(), List.of(), List.of(), List.of());
+            feeds.saveService(new FeedService(service.tenantCode(), service.feedKey(), service.externalCode(),
+                    service.desired(), service.desiredHash(), service.mandateId(), service.tripId(), false,
+                    SKIP, write(result), now()));
+        }
     }
 
-    /** The service keeps its last desired state but no hash, so the feed's next send is applied, not skipped. */
-    private void recordFailure(String tenantCode, String feedKey, String code, FeedServiceRequest desired,
-            RuntimeException e) {
-        try {
-            tx.inTransaction(() -> {
-                FeedService before = feeds.lockService(tenantCode, feedKey, code);
-                FeedResult failed = new FeedResult(code, ERROR, false, before.mandateId(), before.tripId(), List.of(),
-                        List.of(), List.of(String.valueOf(e.getMessage())));
-                feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), "",
-                        before.mandateId(), before.tripId(), true, ERROR, write(failed), now()));
-                return null;
-            });
-        } catch (RuntimeException ignored) {
-            // the original failure is what the caller must see
+    /** Applies the service's latest desired state, after {@link #accept}. */
+    public FeedResult recheck(String tenantCode, String actor, String feedKey, String externalCode) {
+        return applyLocked(tenantCode, actor, profile(tenantCode, feedKey), externalCode, null, true);
+    }
+
+    public FeedResult recheck(String tenantCode, String feedKey, String externalCode) {
+        return recheck(tenantCode, "feed:" + feedKey + ":clock", feedKey, externalCode);
+    }
+
+    private record Attempt(FeedResult result, RuntimeException failure) {
+    }
+
+    private FeedResult applyLocked(String tenantCode, String actor, FeedProfile profile, String code,
+            FeedServiceRequest requested, boolean replay) {
+        Attempt attempt = tx.inTransaction(() -> {
+            FeedService before = replay ? feeds.service(tenantCode, profile.feedKey(), code)
+                    .orElseThrow(() -> new NoSuchElementException("feed service " + code + " not found"))
+                    : feeds.lockService(tenantCode, profile.feedKey(), code);
+            FeedServiceRequest desired = replay ? read(before.desired()) : requested;
+            try {
+                return PgTx.savepoint(() -> {
+                    Plan plan = plan(tenantCode, actor, profile, code, desired, readOrNull(before.desired()));
+                    plan.run();
+                    FeedResult result = plan.result(false);
+                    feeds.saveService(new FeedService(tenantCode, profile.feedKey(), code, write(desired),
+                            hash(desired), plan.mandateId != null ? plan.mandateId : before.mandateId(),
+                            plan.tripId != null ? plan.tripId : before.tripId(), plan.isOpen(), plan.action,
+                            write(result), plan.evaluatedAt));
+                    return new Attempt(result, null);
+                });
+            } catch (RuntimeException e) {
+                // The business changes roll back to the savepoint; the service row remains locked.
+                recordFailure(before, desired, e);
+                return new Attempt(null, e);
+            }
+        });
+        if (attempt.failure() != null) {
+            throw attempt.failure();
         }
+        return attempt.result();
+    }
+
+    private void recordFailure(FeedService before, FeedServiceRequest desired, RuntimeException failure) {
+        FeedResult failed = new FeedResult(before.externalCode(), ERROR, false, before.mandateId(), before.tripId(),
+                List.of(), List.of(), List.of(String.valueOf(failure.getMessage())));
+        feeds.saveService(new FeedService(before.tenantCode(), before.feedKey(), before.externalCode(),
+                write(desired), "", before.mandateId(), before.tripId(), true, ERROR, write(failed), now()));
     }
 
     // ---------------------------------------------------------------- reading and deciding
 
     private Plan plan(String tenantCode, String actor, FeedProfile profile, String code, FeedServiceRequest d,
             FeedServiceRequest previous) {
-        Plan plan = new Plan(code);
         OffsetDateTime now = now();
+        Plan plan = new Plan(code, now);
         Optional<Mandate> mandate = mandates.list(tenantCode, null, code, 0, 1).stream()
                 .filter(m -> m.externalCode().equals(code)).findFirst();
-        TripView trip = mandate.flatMap(m -> currentTrip(tenantCode, m))
-                .map(ref -> trips.detail(tenantCode, UUID.fromString(ref.tripId()))).orElse(null);
+        TripView trip = feeds.service(tenantCode, profile.feedKey(), code).map(FeedService::tripId)
+                .map(id -> trips.detail(tenantCode, UUID.fromString(id)))
+                .orElseGet(() -> mandate.flatMap(m -> currentTrip(tenantCode, m))
+                        .map(ref -> trips.detail(tenantCode, UUID.fromString(ref.tripId()))).orElse(null));
         plan.mandateId = mandate.map(Mandate::id).orElse(null);
         plan.tripId = trip == null ? null : trip.id();
 
-        FeedServiceRequest.Resources r = d.resourcesOrEmpty();
-        Resource truck = resolve(tenantCode, TRUCK, r.truck());
-        Resource trailer = resolve(tenantCode, TRAILER, r.trailer());
-        List<Resource> drivers = r.drivers() == null ? List.of() : r.drivers().stream()
-                .filter(k -> k != null && !k.isBlank()).map(k -> resolve(tenantCode, DRIVER, k)).toList();
-        Resource mainDriver = drivers.isEmpty() ? null : drivers.get(0);
+        ResolvedResources resources = resolveResources(tenantCode, d);
+        Resource truck = resources.truck();
+        Resource trailer = resources.trailer();
+        List<Resource> drivers = resources.drivers();
         Place origin = place(tenantCode, d.origin());
         Place destination = place(tenantCode, d.destination());
 
         boolean ended = d.plannedEnd() != null && !d.plannedEnd().isAfter(now);
 
-        if (trip != null && (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status()))) {
+        PlanningContext context = new PlanningContext(tenantCode, actor, profile, d, trip == null && ended);
+        if (trip != null && finished(trip, mandate)) {
             planClosedChanges(plan, tenantCode, actor, code, trip, d, previous);
             int reported = plan.steps.size();
             planMilestones(plan, tenantCode, actor, trip, d);
             // a closed trip only records milestones; a change to it is reported, not applied
             return plan.decided(plan.steps.size() > reported ? UPDATE : SKIP, false);
         }
-        if (trip == null && mandate.isPresent()
-                && (Mandate.CLOSED.equals(mandate.get().status()) || Mandate.CANCELLED.equals(mandate.get().status()))) {
+        if (finished(trip, mandate)) {
             return plan.decided(SKIP, false);
         }
-        if (trip == null && ended) {
+        if (context.regularized()) {
             if (d.actualStart() == null || d.actualEnd() == null) {
                 plan.warnings.add("the service ended before the feed sent it; send its actual departure and"
                         + " closure to record it");
                 return plan.decided(SKIP, false);
             }
             planPlaces(plan, tenantCode, actor, origin, destination);
-            planCreate(plan, tenantCode, actor, profile, code, d, mandate.orElse(null), origin, destination, truck,
-                    trailer, drivers, true);
+            planCreate(plan, context, code, mandate.orElse(null), resources, origin, destination);
             planMilestones(plan, tenantCode, actor, null, d);
             planRegularized(plan, tenantCode, actor, profile, d);
             return plan.decided(REGULARIZE, false);
         }
-        Map<String, Resource> required = new LinkedHashMap<>();
-        required.put(TRUCK, truck);
-        required.put(TRAILER, trailer);
-        required.put(DRIVER, mainDriver);
         if (trip == null) {
-            List<String> missing = new ArrayList<>();
-            if (d.plannedStart() == null || d.plannedEnd() == null) {
-                missing.add("plannedStart and plannedEnd are required");
-            }
-            for (String type : profile.requiredResources()) {
-                Resource res = required.get(type);
-                missing.add(res == null ? type + " is required" : res.problem());
-            }
-            missing.removeIf(Objects::isNull);
+            List<String> missing = missingResources(profile, d, resources);
             if (!missing.isEmpty()) {
                 plan.errors.addAll(missing);
                 return plan.decided(REPORT, true);
             }
-            warnAbout(plan, profile.requiredResources().contains(TRAILER) ? List.of() : Arrays.asList(trailer));
-            warnAbout(plan, drivers.size() > 1 ? drivers.subList(1, drivers.size()) : List.of());
+            warnAboutOptionalResources(plan, profile, resources);
             planPlaces(plan, tenantCode, actor, origin, destination);
-            planCreate(plan, tenantCode, actor, profile, code, d, mandate.orElse(null), origin, destination, truck,
-                    trailer, drivers, false);
+            planCreate(plan, context, code, mandate.orElse(null), resources, origin, destination);
             planMilestones(plan, tenantCode, actor, null, d);
             return plan.decided(CREATE, true);
         }
@@ -307,14 +324,58 @@ public class FeedReconciler {
         warnAbout(plan, named);
         planPlaces(plan, tenantCode, actor, origin, destination);
         planRoute(plan, tenantCode, actor, trip, origin, destination);
-        planChanges(plan, tenantCode, actor, profile, d, mandate.orElseThrow(), trip, truck, trailer, drivers);
+        planChanges(plan, context, mandate.orElseThrow(), trip, resources);
         planMilestones(plan, tenantCode, actor, trip, d);
         return plan.decided(UPDATE, true);
     }
 
+    /** {@code regularized}: the service ended before the feed sent it, so its trip is recorded, not run. */
+    private record PlanningContext(String tenantCode, String actor, FeedProfile profile,
+            FeedServiceRequest desired, boolean regularized) {
+    }
+
+    private record ResolvedResources(Resource truck, Resource trailer, List<Resource> drivers, boolean clearDrivers) {
+    }
+
+    private ResolvedResources resolveResources(String tenantCode, FeedServiceRequest desired) {
+        FeedServiceRequest.Resources r = desired.resourcesOrEmpty();
+        List<Resource> drivers = r.drivers() == null ? List.of() : r.drivers().stream()
+                .filter(k -> k != null && !k.isBlank()).map(k -> resolve(tenantCode, DRIVER, k)).toList();
+        return new ResolvedResources(resolve(tenantCode, TRUCK, r.truck()),
+                resolve(tenantCode, TRAILER, r.trailer()), drivers,
+                desired.resources() != null && r.drivers() != null && r.drivers().isEmpty());
+    }
+
+    private static boolean finished(TripView trip, Optional<Mandate> mandate) {
+        if (trip != null) {
+            return Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status());
+        }
+        return mandate.filter(m -> Mandate.CLOSED.equals(m.status()) || Mandate.CANCELLED.equals(m.status()))
+                .isPresent();
+    }
+
+    private static List<String> missingResources(FeedProfile profile, FeedServiceRequest desired,
+            ResolvedResources resources) {
+        Map<String, Resource> required = new LinkedHashMap<>();
+        required.put(TRUCK, resources.truck());
+        required.put(TRAILER, resources.trailer());
+        required.put(DRIVER, resources.drivers().isEmpty() ? null : resources.drivers().get(0));
+        List<String> missing = new ArrayList<>();
+        if (desired.plannedStart() == null || desired.plannedEnd() == null) {
+            missing.add("plannedStart and plannedEnd are required");
+        }
+        for (String type : profile.requiredResources()) {
+            Resource res = required.get(type);
+            missing.add(res == null ? type + " is required" : res.problem());
+        }
+        missing.removeIf(Objects::isNull);
+        return missing;
+    }
+
     private Optional<TripRef> currentTrip(String tenantCode, Mandate m) {
         List<TripRef> refs = mandates.tripsOf(tenantCode, UUID.fromString(m.id()));
-        return refs.stream().filter(t -> !Trip.CANCELLED.equals(t.status())).findFirst()
+        return refs.stream().filter(t -> !Trip.CANCELLED.equals(t.status()) && !Trip.DONE.equals(t.status()))
+                .findFirst().or(() -> refs.stream().filter(t -> !Trip.CANCELLED.equals(t.status())).findFirst())
                 .or(() -> refs.stream().findFirst());
     }
 
@@ -339,8 +400,9 @@ public class FeedReconciler {
 
     /** Creates the places that do not exist yet and warns about those without a geofence. */
     private void planPlaces(Plan plan, String tenantCode, String actor, Place... places) {
-        for (Place p : places) {
-            if (p == null || plan.locationIds.containsKey(p.code()) || plan.creating.contains(p.code())) {
+        for (Place p : Arrays.stream(places).filter(Objects::nonNull)
+                .sorted(Comparator.comparing(Place::code)).toList()) {
+            if (plan.locationIds.containsKey(p.code()) || plan.creating.contains(p.code())) {
                 continue;
             }
             if (p.found() == null) {
@@ -377,11 +439,31 @@ public class FeedReconciler {
                 .forEach(plan.warnings::add);
     }
 
+    private static void warnAboutOptionalResources(Plan plan, FeedProfile profile, ResolvedResources resources) {
+        List<Resource> optional = new ArrayList<>();
+        if (!profile.requiredResources().contains(TRUCK)) {
+            optional.add(resources.truck());
+        }
+        if (!profile.requiredResources().contains(TRAILER)) {
+            optional.add(resources.trailer());
+        }
+        int firstOptionalDriver = profile.requiredResources().contains(DRIVER) ? 1 : 0;
+        optional.addAll(resources.drivers().stream().skip(firstOptionalDriver).toList());
+        warnAbout(plan, optional);
+    }
+
     // ---------------------------------------------------------------- the steps
 
-    private void planCreate(Plan plan, String tenantCode, String actor, FeedProfile profile, String code,
-            FeedServiceRequest d, Mandate mandate, Place origin, Place destination, Resource truck, Resource trailer,
-            List<Resource> drivers, boolean regularized) {
+    private void planCreate(Plan plan, PlanningContext context, String code, Mandate mandate,
+            ResolvedResources resources, Place origin, Place destination) {
+        String tenantCode = context.tenantCode();
+        String actor = context.actor();
+        FeedProfile profile = context.profile();
+        FeedServiceRequest d = context.desired();
+        boolean regularized = context.regularized();
+        Resource truck = resources.truck();
+        Resource trailer = resources.trailer();
+        List<Resource> drivers = resources.drivers();
         OffsetDateTime plannedStart = d.plannedStart() != null ? d.plannedStart() : d.actualStart();
         OffsetDateTime plannedEnd = d.plannedEnd() != null ? d.plannedEnd() : d.actualEnd();
         if (mandate == null) {
@@ -405,8 +487,12 @@ public class FeedReconciler {
         }
     }
 
-    private void planChanges(Plan plan, String tenantCode, String actor, FeedProfile profile, FeedServiceRequest d,
-            Mandate mandate, TripView trip, Resource truck, Resource trailer, List<Resource> drivers) {
+    private void planChanges(Plan plan, PlanningContext context, Mandate mandate, TripView trip,
+            ResolvedResources resources) {
+        String tenantCode = context.tenantCode();
+        String actor = context.actor();
+        FeedProfile profile = context.profile();
+        FeedServiceRequest d = context.desired();
         UUID tripId = UUID.fromString(trip.id());
         if (d.plannedStart() != null && differs(trip.plannedStart(), d.plannedStart())) {
             plan.step("change planned start", () -> trips.update(tenantCode, actor, tripId,
@@ -422,7 +508,7 @@ public class FeedReconciler {
             plan.step("change order reference", () -> mandates.update(tenantCode, actor,
                     UUID.fromString(mandate.id()), new MandateRequest(null, null, d.orderRef(), null, null, null)));
         }
-        planAssignments(plan, tenantCode, actor, trip, truck, trailer, drivers);
+        planAssignments(plan, tenantCode, actor, trip, resources);
     }
 
     /**
@@ -443,7 +529,7 @@ public class FeedReconciler {
                 return;
             }
             TripMilestone m = recorded.get(name);
-            if (m != null && m.confirmed() && m.confirmedAt() != null) {
+            if (m != null && m.isConfirmed() && m.confirmedAt() != null) {
                 if (differs(m.confirmedAt(), at)) {
                     plan.warnings.add(name + " was confirmed at " + m.confirmedAt() + "; the feed says " + utc(at));
                 }
@@ -550,41 +636,57 @@ public class FeedReconciler {
     }
 
     /** Ends the windows of resources the feed no longer names and opens windows for the new ones. */
-    private void planAssignments(Plan plan, String tenantCode, String actor, TripView trip, Resource truck,
-            Resource trailer, List<Resource> drivers) {
+    private void planAssignments(Plan plan, String tenantCode, String actor, TripView trip,
+            ResolvedResources resources) {
+        Resource truck = resources.truck();
+        Resource trailer = resources.trailer();
+        List<Resource> drivers = resources.drivers();
         UUID tripId = UUID.fromString(trip.id());
         List<AssignmentView> open = trip.assignments().stream().filter(a -> a.validTo() == null).toList();
         for (Resource res : new Resource[] {truck, trailer}) {
-            if (res == null || !res.usable()) {
-                continue;
-            }
-            Optional<AssignmentView> current = open.stream().filter(a -> a.resourceType().equals(res.type()))
-                    .findFirst();
-            if (current.isPresent() && current.get().resourceId().equals(res.id().toString())) {
-                continue;
-            }
-            current.ifPresent(a -> plan.step("end " + res.type() + " window", () -> assignments.end(tenantCode,
-                    actor, UUID.fromString(a.id()), null, "changed by the feed")));
-            plan.step("assign " + res.type() + " " + res.key(), () -> assignments.create(tenantCode, actor, tripId,
-                    new AssignmentRequest(res.type(), res.id().toString(), null, null)));
+            planVehicleAssignment(plan, tenantCode, actor, tripId, open, res);
         }
-        List<String> wanted = drivers.stream().filter(Resource::usable).map(res -> res.id().toString()).toList();
-        if (wanted.isEmpty()) {
+        if (trailer == null) {
+            open.stream().filter(a -> TRAILER.equals(a.resourceType())).forEach(a ->
+                    plan.step("end trailer window", () -> assignments.end(tenantCode, actor,
+                            UUID.fromString(a.id()), null, "trailer no longer in the feed")));
+        }
+        List<Resource> wanted = drivers.stream().filter(Resource::usable)
+                .collect(java.util.stream.Collectors.toMap(Resource::id, resource -> resource,
+                        (first, duplicate) -> first, LinkedHashMap::new)).values().stream().toList();
+        if (wanted.isEmpty() && !resources.clearDrivers()) {
             return;
         }
         List<AssignmentView> openDrivers = open.stream().filter(a -> DRIVER.equals(a.resourceType())).toList();
-        for (AssignmentView a : openDrivers) {
-            if (!wanted.contains(a.resourceId())) {
-                plan.step("end driver window", () -> assignments.end(tenantCode, actor, UUID.fromString(a.id()),
-                        null, "driver no longer in the feed"));
-            }
+        int retained = 0;
+        while (retained < openDrivers.size() && retained < wanted.size()
+                && openDrivers.get(retained).resourceId().equals(wanted.get(retained).id().toString())) {
+            retained++;
         }
-        for (Resource res : drivers) {
-            if (res.usable() && openDrivers.stream().noneMatch(a -> a.resourceId().equals(res.id().toString()))) {
-                plan.step("assign driver " + res.key(), () -> assignments.create(tenantCode, actor, tripId,
-                        new AssignmentRequest(DRIVER, res.id().toString(), null, null)));
-            }
+        for (AssignmentView a : openDrivers.subList(retained, openDrivers.size())) {
+            plan.step("end driver window", () -> assignments.end(tenantCode, actor, UUID.fromString(a.id()),
+                    null, "driver order changed by the feed"));
         }
+        for (Resource res : wanted.subList(retained, wanted.size())) {
+            plan.step("assign driver " + res.key(), () -> assignments.create(tenantCode, actor, tripId,
+                    new AssignmentRequest(DRIVER, res.id().toString(), null, null)));
+        }
+    }
+
+    private void planVehicleAssignment(Plan plan, String tenantCode, String actor, UUID tripId,
+            List<AssignmentView> open, Resource res) {
+        if (res == null || !res.usable()) {
+            return;
+        }
+        Optional<AssignmentView> current = open.stream().filter(a -> a.resourceType().equals(res.type()))
+                .findFirst();
+        if (current.isPresent() && current.get().resourceId().equals(res.id().toString())) {
+            return;
+        }
+        current.ifPresent(a -> plan.step("end " + res.type() + " window", () -> assignments.end(tenantCode,
+                actor, UUID.fromString(a.id()), null, "changed by the feed")));
+        plan.step("assign " + res.type() + " " + res.key(), () -> assignments.create(tenantCode, actor, tripId,
+                new AssignmentRequest(res.type(), res.id().toString(), null, null)));
     }
 
     private static List<Resource> assignable(Resource truck, Resource trailer, List<Resource> drivers) {
@@ -663,6 +765,7 @@ public class FeedReconciler {
     /** The decision for one service and its steps, which run in order inside the service's transaction. */
     private static final class Plan {
         private final String code;
+        private final OffsetDateTime evaluatedAt;
         private final List<String> notes = new ArrayList<>();
         private final List<Runnable> steps = new ArrayList<>();
         private final List<String> warnings = new ArrayList<>();
@@ -674,8 +777,9 @@ public class FeedReconciler {
         private String mandateId;
         private String tripId;
 
-        private Plan(String code) {
+        private Plan(String code, OffsetDateTime evaluatedAt) {
             this.code = code;
+            this.evaluatedAt = evaluatedAt;
         }
 
         String locationId(Place place) {
@@ -691,6 +795,10 @@ public class FeedReconciler {
             this.action = action;
             this.open = open;
             return this;
+        }
+
+        boolean isOpen() {
+            return open;
         }
 
         void run() {

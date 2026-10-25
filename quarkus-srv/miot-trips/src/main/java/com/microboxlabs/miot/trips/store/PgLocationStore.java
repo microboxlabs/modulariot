@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgLocationStore implements LocationStore {
+    private static final String SELECT = "SELECT ";
 
     private static final String COLUMNS = """
             id, tenant_code, name, type, external_code, geom_geojson::text AS geom_geojson, geofence_id,
@@ -61,7 +62,7 @@ public class PgLocationStore implements LocationStore {
 
     @Override
     public Optional<Location> byCode(String tenantCode, String externalCode) {
-        return first(query(pool.get(), "SELECT " + COLUMNS + """
+        return first(query(pool.get(), SELECT + COLUMNS + """
                  FROM miot_trips.location
                 WHERE tenant_code = $1 AND external_code = $2 AND version_of IS NULL""",
                 Tuple.of(tenantCode, externalCode)));
@@ -76,13 +77,13 @@ public class PgLocationStore implements LocationStore {
     @Override
     public Optional<Location> find(String tenantCode, UUID id) {
         return first(query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.location WHERE tenant_code = $1 AND id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.location WHERE tenant_code = $1 AND id = $2",
                 Tuple.of(tenantCode, id)));
     }
 
     @Override
     public List<Location> list(String tenantCode, String q, String type, int page, int size) {
-        StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS)
+        StringBuilder sql = new StringBuilder(SELECT).append(COLUMNS)
                 .append(" FROM miot_trips.location WHERE tenant_code = $1 AND version_of IS NULL");
         Tuple params = Tuple.of(tenantCode);
         if (q != null) {
@@ -105,13 +106,21 @@ public class PgLocationStore implements LocationStore {
     public Optional<Location> update(Location l) {
         return first(query(pool.get(), """
                 UPDATE miot_trips.location SET
-                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb, geofence_id = $7,
-                    updated_by = $8, updated_at = now()
+                    name = $3, type = $4, external_code = $5, geom_geojson = $6::text::jsonb,
+                    updated_by = $7, updated_at = now()
                 WHERE id = $1 AND tenant_code = $2
                 RETURNING\s""" + COLUMNS,
                 Tuple.tuple().addUUID(Pg.parse(l.id())).addString(l.tenantCode())
                         .addString(l.name()).addString(l.type()).addString(l.externalCode())
-                        .addString(l.geomGeojson()).addInteger(l.geofenceId()).addString(l.updatedBy())));
+                        .addString(l.geomGeojson()).addString(l.updatedBy())));
+    }
+
+    @Override
+    public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
+        return first(query(pool.get(), """
+                UPDATE miot_trips.location SET geofence_id = $3, updated_by = $4, updated_at = now()
+                WHERE tenant_code = $1 AND id = $2 RETURNING\s""" + COLUMNS,
+                Tuple.of(tenantCode, id, geofenceId, actor)));
     }
 
     private static Optional<Location> first(RowSet<Row> rows) {

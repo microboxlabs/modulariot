@@ -24,6 +24,16 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgMonitorRunStore implements MonitorRunStore {
 
+    private static final String TRIP_ID = "trip_id";
+
+    private static final String MONITOR_VERSION = "monitor_version";
+
+    private static final String TENANT_CODE = "tenant_code";
+
+    private static final String EPOCH = "epoch";
+
+    private static final String SELECT = "SELECT ";
+
     private static final String STATE_COLUMNS =
             "trip_id, tenant_code, monitor_key, monitor_version, epoch, bound_at, bound_by";
     private static final String TIMER_COLUMNS =
@@ -46,7 +56,7 @@ public class PgMonitorRunStore implements MonitorRunStore {
 
     @Override
     public Optional<MonitorRun.State> state(String tenantCode, UUID tripId) {
-        return query(pool.get(), "SELECT " + STATE_COLUMNS + " FROM miot_trips.trip_monitor_state"
+        return query(pool.get(), SELECT + STATE_COLUMNS + " FROM miot_trips.trip_monitor_state"
                 + " WHERE tenant_code = $1 AND trip_id = $2" + Pg.lock(), Tuple.of(tenantCode, tripId))
                 .stream().map(PgMonitorRunStore::state).findFirst();
     }
@@ -70,7 +80,7 @@ public class PgMonitorRunStore implements MonitorRunStore {
         return query(pool.get(), """
                 UPDATE miot_trips.trip_monitor_state SET epoch = epoch + 1, updated_at = now()
                 WHERE tenant_code = $1 AND trip_id = $2 RETURNING epoch""", Tuple.of(tenantCode, tripId))
-                .stream().map(r -> r.getInteger("epoch")).findFirst().orElseThrow();
+                .stream().map(r -> r.getInteger(EPOCH)).findFirst().orElseThrow();
     }
 
     @Override
@@ -80,11 +90,28 @@ public class PgMonitorRunStore implements MonitorRunStore {
     }
 
     @Override
-    public boolean fired(String tenantCode, UUID tripId, String ruleKey, OffsetDateTime dueAt) {
+    public boolean fired(String tenantCode, UUID tripId, String monitorKey, int monitorVersion, String ruleKey,
+            OffsetDateTime dueAt) {
+        // Transitions already retain the monitor identity, unlike legacy timer rows.
         return query(pool.get(), """
-                SELECT 1 FROM miot_trips.trip_timer WHERE tenant_code = $1 AND trip_id = $2 AND rule_key = $3
-                    AND due_at = $4::timestamptz AND fired_at IS NOT NULL""",
-                Tuple.of(tenantCode, tripId, ruleKey, dueAt)).iterator().hasNext();
+                SELECT 1 FROM miot_trips.trip_transition
+                WHERE tenant_code = $1 AND trip_id = $2 AND monitor_key = $3 AND monitor_version = $4
+                    AND event->>'on' = 'timer' AND event->>'kind' = $5 AND at = $6::timestamptz LIMIT 1""",
+                Tuple.tuple().addString(tenantCode).addUUID(tripId).addString(monitorKey)
+                        .addInteger(monitorVersion).addString(ruleKey).addOffsetDateTime(dueAt))
+                .iterator().hasNext();
+    }
+
+    @Override
+    public void retainTimer(long id, int epoch) {
+        query(pool.get(), "UPDATE miot_trips.trip_timer SET epoch = $2 WHERE id = $1 AND fired_at IS NULL",
+                Tuple.of(id, epoch));
+    }
+
+    @Override
+    public void dropObsoleteTimers(String tenantCode, UUID tripId, int epoch) {
+        query(pool.get(), "DELETE FROM miot_trips.trip_timer WHERE tenant_code = $1 AND trip_id = $2"
+                + " AND fired_at IS NULL AND epoch <> $3", Tuple.of(tenantCode, tripId, epoch));
     }
 
     @Override
@@ -99,7 +126,7 @@ public class PgMonitorRunStore implements MonitorRunStore {
 
     @Override
     public Optional<MonitorRun.Timer> timer(long id) {
-        return query(pool.get(), "SELECT " + TIMER_COLUMNS + " FROM miot_trips.trip_timer WHERE id = $1"
+        return query(pool.get(), SELECT + TIMER_COLUMNS + " FROM miot_trips.trip_timer WHERE id = $1"
                 + Pg.lock(), Tuple.of(id)).stream().map(PgMonitorRunStore::timer).findFirst();
     }
 
@@ -111,7 +138,7 @@ public class PgMonitorRunStore implements MonitorRunStore {
 
     @Override
     public List<MonitorRun.Timer> pendingTimers(String tenantCode, UUID tripId) {
-        return query(pool.get(), "SELECT " + TIMER_COLUMNS + " FROM miot_trips.trip_timer"
+        return query(pool.get(), SELECT + TIMER_COLUMNS + " FROM miot_trips.trip_timer"
                 + " WHERE tenant_code = $1 AND trip_id = $2 AND fired_at IS NULL ORDER BY due_at",
                 Tuple.of(tenantCode, tripId)).stream().map(PgMonitorRunStore::timer).toList();
     }
@@ -139,7 +166,7 @@ public class PgMonitorRunStore implements MonitorRunStore {
     }
 
     @Override
-    public void record(MonitorRun.Transition t) {
+    public void recordTransition(MonitorRun.Transition t) {
         query(pool.get(), """
                 INSERT INTO miot_trips.trip_transition (tenant_code, trip_id, monitor_key, monitor_version, event,
                     depth, matched, rule_key, from_stage, to_stage, actions, error, at)
@@ -158,8 +185,8 @@ public class PgMonitorRunStore implements MonitorRunStore {
                        from_stage, to_stage, actions, error, at, created_at
                 FROM miot_trips.trip_transition WHERE tenant_code = $1 AND trip_id = $2
                 ORDER BY id DESC LIMIT $3""", Tuple.of(tenantCode, tripId, limit)).stream()
-                .map(r -> new MonitorRun.Transition(r.getLong("id"), r.getString("tenant_code"),
-                        Pg.text(r, "trip_id"), r.getString("monitor_key"), r.getInteger("monitor_version"),
+                .map(r -> new MonitorRun.Transition(r.getLong("id"), r.getString(TENANT_CODE),
+                        Pg.text(r, TRIP_ID), r.getString("monitor_key"), r.getInteger(MONITOR_VERSION),
                         Pg.json(r, "event", MAP), r.getInteger("depth"), List.of(r.getArrayOfStrings("matched")),
                         r.getString("rule_key"), r.getString("from_stage"), r.getString("to_stage"),
                         Pg.json(r, "actions", LIST), r.getString("error"), time(r, "at"), time(r, "created_at")))
@@ -167,13 +194,13 @@ public class PgMonitorRunStore implements MonitorRunStore {
     }
 
     private static MonitorRun.State state(Row r) {
-        return new MonitorRun.State(Pg.text(r, "trip_id"), r.getString("tenant_code"), r.getString("monitor_key"),
-                r.getInteger("monitor_version"), r.getInteger("epoch"), time(r, "bound_at"), r.getString("bound_by"));
+        return new MonitorRun.State(Pg.text(r, TRIP_ID), r.getString(TENANT_CODE), r.getString("monitor_key"),
+                r.getInteger(MONITOR_VERSION), r.getInteger(EPOCH), time(r, "bound_at"), r.getString("bound_by"));
     }
 
     private static MonitorRun.Timer timer(Row r) {
-        return new MonitorRun.Timer(r.getLong("id"), r.getString("tenant_code"), Pg.text(r, "trip_id"),
-                r.getString("rule_key"), r.getInteger("monitor_version"), time(r, "due_at"), r.getInteger("epoch"),
+        return new MonitorRun.Timer(r.getLong("id"), r.getString(TENANT_CODE), Pg.text(r, TRIP_ID),
+                r.getString("rule_key"), r.getInteger(MONITOR_VERSION), time(r, "due_at"), r.getInteger(EPOCH),
                 time(r, "fired_at"));
     }
 }

@@ -131,17 +131,20 @@ class PgMonitorServiceTest {
 
     @Test
     void theStructureIsCheckedOnSave() {
-        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, "Bad Key",
-                directService("true")));
-        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, KEY,
-                new MonitorRequest("x", null, null, null, List.of(rule("t", "timer", null, null, "alert", "a")))),
+        MonitorRequest valid = directService("true");
+        MonitorRequest missingTime = new MonitorRequest("x", null, null, null,
+                List.of(rule("t", "timer", null, null, "alert", "a")));
+        MonitorRequest unknownStage = new MonitorRequest("x", null, null, null,
+                List.of(rule("s", "signal", null, null, "advance", "boarding")));
+        MonitorRequest unknownAction = new MonitorRequest("x", null, null, null,
+                List.of(rule("s", "signal", null, null, "teleport", null)));
+        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, "Bad Key", valid));
+        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, KEY, missingTime),
                 "a timer rule needs at");
-        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, KEY,
-                new MonitorRequest("x", null, null, null, List.of(rule("s", "signal", null, null, "advance",
-                        "boarding")))), "unknown stage type");
-        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, KEY,
-                new MonitorRequest("x", null, null, null, List.of(rule("s", "signal", null, null, "teleport",
-                        null)))), "unknown action");
+        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, KEY, unknownStage),
+                "unknown stage type");
+        assertThrows(IllegalArgumentException.class, () -> monitors.saveDraft(tenant, ACTOR, KEY, unknownAction),
+                "unknown action");
         MonitorViews.Monitor outOfPlan = monitors.saveDraft(tenant, ACTOR, KEY, new MonitorRequest("x", null,
                 List.of(new TripMonitor.StagePlan("transit", null)), null,
                 List.of(rule("s", "signal", null, null, "advance", "unloading"))));
@@ -156,9 +159,9 @@ class PgMonitorServiceTest {
         assertThrows(IllegalArgumentException.class, () -> monitors.saveSelector(tenant, ACTOR, one),
                 "only a draft so far");
         monitors.publish(tenant, ACTOR, KEY);
-        assertThrows(IllegalArgumentException.class, () -> monitors.saveSelector(tenant, ACTOR,
-                new MonitorViews.SelectorRequest(List.of(new MonitorViews.SelectorRequest.Entry(
-                        "stage.type == 'transit'", KEY)))));
+        MonitorViews.SelectorRequest invalid = new MonitorViews.SelectorRequest(
+                List.of(new MonitorViews.SelectorRequest.Entry("stage.type == 'transit'", KEY)));
+        assertThrows(IllegalArgumentException.class, () -> monitors.saveSelector(tenant, ACTOR, invalid));
 
         monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
                 new MonitorViews.SelectorRequest.Entry("trip.orderType == 'direct'", KEY),

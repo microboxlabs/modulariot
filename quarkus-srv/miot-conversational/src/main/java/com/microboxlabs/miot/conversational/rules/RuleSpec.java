@@ -29,8 +29,15 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
     public record Trigger(String event, String when) {
     }
 
-    /** One of: a role, a fixed address (with channel and name), or a path in {@code event.data}. */
-    public record Audience(String role, String address, String channel, String name, String path) {
+    /**
+     * One of: a role, a fixed address (with channel and name), a path in {@code event.data}, or {@code contacts}:
+     * CEL over {@code contact} and {@code event} that picks the contact book's active contacts.
+     */
+    public record Audience(String role, String address, String channel, String name, String path, String contacts) {
+
+        public Audience(String role, String address, String channel, String name, String path) {
+            this(role, address, channel, name, path, null);
+        }
     }
 
     /**
@@ -119,7 +126,7 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
 
     private static Audience audience(JsonNode a) {
         return new Audience(text(a, "role"), text(a, "address"), text(a, "channel"), text(a, "name"),
-                text(a, "path"));
+                text(a, "path"), text(a, "contacts"));
     }
 
     private static String text(JsonNode node, String field) {

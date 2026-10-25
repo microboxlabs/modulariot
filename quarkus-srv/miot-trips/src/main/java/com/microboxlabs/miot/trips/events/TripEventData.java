@@ -18,6 +18,9 @@ public record TripEventData(
         @Schema(title = "Camión", description = "The truck's plate") String truck,
         @Schema(title = "Rampla", description = "The trailer's plate") String trailer,
         @Schema(title = "Conductor", description = "The main driver's document") String driver,
+        @Schema(title = "Transportista", description = "The legal name of the truck's carrier") String carrierName,
+        @Schema(title = "RUT del transportista",
+                description = "The carrier's RUT without dots or dashes, upper case") String carrierRut,
         @Schema(title = "Monitor", description = "The monitor key and version that raised the event") String monitor,
         @Schema(title = "Alerta", description = "The alert key, for trip.alert") String alert,
         @Schema(title = "Regla", description = "The rule that raised the alert or the detection") String rule,
@@ -35,26 +38,26 @@ public record TripEventData(
     /** The trip part, with nothing about the event yet. */
     public static TripEventData trip(String tripId, String serviceCode, String orderRef, String origin,
             String destination, Instant plannedStart, Instant plannedEnd, String truck, String trailer,
-            String driver) {
+            String driver, String carrierName, String carrierRut) {
         return new TripEventData(tripId, serviceCode, orderRef, origin, destination, plannedStart, plannedEnd,
-                truck, trailer, driver, null, null, null, null, null, null, null, null, null, null, null);
+                truck, trailer, driver, carrierName, carrierRut, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public TripEventData alert(String monitor, String alert, String rule) {
         return new TripEventData(tripId, serviceCode, orderRef, origin, destination, plannedStart, plannedEnd,
-                truck, trailer, driver, monitor, alert, rule, null, null, null, null, null, null, null, null);
+                truck, trailer, driver, carrierName, carrierRut, monitor, alert, rule, null, null, null, null, null, null, null, null);
     }
 
     public TripEventData milestone(String milestone, String source, Instant proposedAt, Instant confirmedAt,
             Instant otherAt, String channel, String actor, String rule) {
         return new TripEventData(tripId, serviceCode, orderRef, origin, destination, plannedStart, plannedEnd,
-                truck, trailer, driver, monitor, null, rule, milestone, source, proposedAt, confirmedAt, otherAt,
+                truck, trailer, driver, carrierName, carrierRut, monitor, null, rule, milestone, source, proposedAt, confirmedAt, otherAt,
                 channel, actor, null);
     }
 
     public TripEventData changed(List<String> fields, String actor) {
         return new TripEventData(tripId, serviceCode, orderRef, origin, destination, plannedStart, plannedEnd,
-                truck, trailer, driver, null, null, null, null, null, null, null, null, null, actor,
+                truck, trailer, driver, carrierName, carrierRut, null, null, null, null, null, null, null, null, null, actor,
                 List.copyOf(fields));
     }
 }

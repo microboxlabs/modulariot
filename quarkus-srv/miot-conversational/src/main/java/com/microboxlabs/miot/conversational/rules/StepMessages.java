@@ -42,7 +42,7 @@ public final class StepMessages {
             return viaConnection(kind.get(), step, event, template);
         }
         Audiences.Resolved resolved = audiences.resolve(event.tenantCode(), event.contextKind(), event.contextKey(),
-                step.to() != null ? step.to() : spec.audience(), event.data());
+                step.to() != null ? step.to() : spec.audience(), event.data(), step.channel(), event.asCelEvent());
         List<String> warnings = new ArrayList<>(resolved.warnings());
         List<Planned> out = new ArrayList<>();
         if (template.isEmpty()) {

@@ -35,7 +35,7 @@ import {
   useContactBadges,
 } from "./taxonomy-store";
 
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const EMAIL = /^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
 
 interface ContactDraft {
   person: PersonDraft;

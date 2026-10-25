@@ -93,7 +93,7 @@ public class OrgFeedsResource extends OrgResourceSupport {
     @PUT
     @Path("/{feedKey}")
     @Operation(operationId = "saveFeed",
-            summary = "Creates or replaces a feed's rules: stage plan, departure and close stages, required resources")
+            summary = "Creates or replaces a feed's rules: stage plan, arrival stage, monitor, required resources")
     @PermissionsAllowed(value = TripsAccessCatalog.FEED_ADMIN, permission = OrgPermission.class, params = ORG)
     public Uni<Response> save(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,
             FeedProfileRequest body) {

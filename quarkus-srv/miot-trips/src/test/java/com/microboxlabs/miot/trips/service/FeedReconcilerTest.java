@@ -45,7 +45,7 @@ class FeedReconcilerTest {
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
             new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
                     world.tripStore, live, audit, tx),
-            fleet, tx, json, Clock.systemUTC(), (tenant, tripId) -> monitorOwnsLifecycle);
+            fleet, tx, json, Clock.systemUTC());
 
     private void monitorChange(String tenant, String actor, String action, String tripId,
             Map<String, Object> details) {
@@ -156,7 +156,7 @@ class FeedReconcilerTest {
         FeedReconciler timed = new FeedReconciler(feeds, mandates, trips, stages, assignments,
             new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
                     world.tripStore, live, audit, tx),
-                fleet, tx, json, crossingClock, (tenant, tripId) -> false);
+                fleet, tx, json, crossingClock);
         OffsetDateTime departure = OffsetDateTime.ofInstant(evaluated.plusSeconds(60), java.time.ZoneOffset.UTC);
         FeedServiceRequest request = new FeedServiceRequest("service", "test reference", departure,
                 departure.plusHours(2), new FeedServiceRequest.Resources(null, null, List.of()), null);
@@ -181,18 +181,17 @@ class FeedReconcilerTest {
     }
 
     @Test
-    void profileStoresNormalizedStagesAndRejectsANonClosingCloseStage() {
-        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+    void profileStoresNormalizedStagesAndRejectsAnAbsentArrivalStage() {
+        FeedProfileService profiles = new FeedProfileService(feeds, null, audit);
         List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
         FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
-                "preparation", "closing", 0, List.of(), true));
+                "closing", null, List.of(), true));
         assertEquals("preparation", saved.stages().get(0).stageType());
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
-        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "preparation", "preparation", 0,
-                List.of(), true);
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "transit", null, List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
-        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.departureStage(), saved.closeStage(), 0,
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.arrivalStage(), saved.monitor(),
                 java.util.Collections.singletonList(null), true);
         assertThrows(IllegalArgumentException.class,
                 () -> profiles.save("test", "test", "test-feed", nullResource));
@@ -242,7 +241,7 @@ class FeedReconcilerTest {
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
-                "transit", "closing", 120, Set.of(), true, null, "test", null, "test");
+                "closing", null, Set.of(), true, null, "test", null, "test");
         public Optional<FeedProfile> profile(String tenant, String key) { return Optional.of(profile); }
         public List<FeedProfile> profiles(String tenant) { return List.of(profile); }
         public FeedProfile saveProfile(FeedProfile value) { return value; }
@@ -260,9 +259,5 @@ class FeedReconcilerTest {
             assertTrue(tx.depth > 0, "outcomes must be saved before releasing the service lock");
             saved = value;
         }
-        public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
-            return openServices(limit);
-        }
-        public List<FeedService> openServices(int limit) { return saved == null || limit <= 0 ? List.of() : List.of(saved); }
     }
 }

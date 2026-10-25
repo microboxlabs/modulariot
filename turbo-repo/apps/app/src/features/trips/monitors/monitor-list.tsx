@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  Alert,
   Badge,
   Button,
   Modal,
@@ -11,11 +12,15 @@ import {
   ModalFooter,
   ModalHeader,
   Select,
+  Spinner,
   TextInput,
 } from "flowbite-react";
-import { HiOutlineMap, HiPlus, HiX } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
+import { HiOutlineMap, HiPlus, HiSearch, HiX } from "react-icons/hi";
+import CatalogTable from "@/features/common/components/catalog-table";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import LocationsPanel from "../locations/locations-panel";
@@ -280,9 +285,86 @@ function SelectorPanel({
   );
 }
 
+/** One-line identity of a monitor's published and draft versions. */
+function VersionBadges({
+  m,
+  d,
+}: Readonly<{ m: MonitorSummary; d: I18nRecord }>) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {m.publishedVersion !== null && (
+        <Badge color="success">v{m.publishedVersion}</Badge>
+      )}
+      {m.draftVersion !== null && (
+        <Badge color="warning">
+          {tr("draftVersion", d, { version: String(m.draftVersion) })}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+function updatedLine(m: MonitorSummary, lang: string) {
+  return [
+    m.updatedAt ? new Date(m.updatedAt).toLocaleDateString(lang) : null,
+    m.updatedBy,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** A monitor as a card, like the other settings catalogs: identity, state, then who changed it. */
+function MonitorCard({
+  m,
+  lang,
+  d,
+  onOpen,
+}: Readonly<{
+  m: MonitorSummary;
+  lang: string;
+  d: I18nRecord;
+  onOpen: () => void;
+}>) {
+  return (
+    <div className="relative flex flex-col rounded-lg border border-gray-200 bg-white transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500">
+      <div className="flex items-start gap-3 px-4 pt-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-blue-400">
+          <HiOutlineMap className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="block w-full cursor-pointer truncate text-left font-semibold text-gray-900 after:absolute after:inset-0 after:rounded-lg focus:outline-none dark:text-white"
+          >
+            {m.name}
+          </button>
+          <div className="truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+            {m.key}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 px-4">
+        <VersionBadges m={m} d={d} />
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("rulesCount", d, { count: String(m.rules) })}
+        </span>
+      </div>
+      <p className="mt-2 line-clamp-2 h-8 px-4 text-xs text-gray-600 dark:text-gray-300">
+        {m.description ?? tr("noDescription", d)}
+      </p>
+      <div className="min-h-3 flex-1" />
+      <div className="truncate border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500 dark:border-gray-700/60 dark:text-gray-400">
+        {updatedLine(m, lang)}
+      </div>
+    </div>
+  );
+}
+
 /**
- * Settings › Viajes: the organization's trip monitors, one per class of trip,
- * and the selector that picks one for a trip created without it.
+ * Settings › Viajes: the organization's trip monitors, one per class of trip, as cards or a
+ * list like the other settings catalogs; then the selector that picks one for a trip created
+ * without it, and the locations with their GPS geofence.
  */
 export default function MonitorList({
   dict,
@@ -293,115 +375,122 @@ export default function MonitorList({
   const { data, error, isLoading } = useMonitors();
   const canEdit = useCanEditMonitors();
   const [creating, setCreating] = useState(false);
+  const [q, setQ] = useState("");
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
   const monitors = data ?? [];
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? monitors.filter(
+        (m) =>
+          m.name.toLowerCase().includes(needle) ||
+          m.key.toLowerCase().includes(needle)
+      )
+    : monitors;
   const open = (key: string) =>
     router.push(
       `/${lang}/users/settings/trips/monitors/${encodeURIComponent(key)}`
     );
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={dict?.breadcrumb as I18nRecord}
-          lang={lang}
-          path={["user", "settings", "trips"]}
-          disableLinks
-        />
-      </div>
+    <SettingsPageShell
+      breadcrumbDict={dict?.breadcrumb as I18nRecord}
+      lang={lang}
+      path={["user", "settings", "trips"]}
+      icon={HiOutlineMap}
+      title={tr("title", d)}
+      description={tr("description", d)}
+      actions={
+        canEdit && (
+          <Button color="blue" size="sm" onClick={() => setCreating(true)}>
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("newMonitor", d)}
+          </Button>
+        )
+      }
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
+        {error && (
+          <Alert color="failure">
+            <span className="text-sm">{error.message}</span>
+          </Alert>
+        )}
 
-      <div className="mx-auto flex w-full max-w-screen-xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-10 dark:bg-gray-900">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <IconTile icon={HiOutlineMap} />
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", d)}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("description", d)}
-              </p>
-            </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <TextInput
+            className="w-full sm:w-72"
+            sizing="sm"
+            icon={HiSearch}
+            value={q}
+            aria-label={tr("search", d)}
+            placeholder={tr("search", d)}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <div className="ml-auto">
+            <LayoutToggle
+              layout={layout}
+              labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+              onLayout={setLayout}
+            />
           </div>
-          {canEdit && (
-            <Button color="blue" size="sm" onClick={() => setCreating(true)}>
-              <HiPlus className="mr-1.5 h-4 w-4" />
-              {tr("newMonitor", d)}
-            </Button>
-          )}
         </div>
 
         {isLoading && (
-          <p className="text-sm text-gray-500">{tr("loading", d)}</p>
+          <div className="flex justify-center py-10">
+            <Spinner aria-label={tr("loading", d)} />
+          </div>
         )}
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {error.message}
-          </p>
-        )}
-        {data && monitors.length === 0 && (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-16 text-center dark:border-gray-700">
-            <IconTile icon={HiOutlineMap} />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("empty", d)}
-            </p>
+        {data && shown.length === 0 && (
+          <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            {monitors.length === 0 ? tr("empty", d) : tr("noMatches", d)}
           </div>
         )}
 
-        {monitors.length > 0 && (
-          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-            <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                <tr>
-                  <th className="px-4 py-3">{tr("monitor", d)}</th>
-                  <th className="px-4 py-3">{tr("version", d)}</th>
-                  <th className="px-4 py-3">{tr("rules", d)}</th>
-                  <th className="px-4 py-3">{tr("updated", d)}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {monitors.map((m) => (
-                  <tr
-                    key={m.key}
-                    className="cursor-pointer border-t border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
-                  >
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/${lang}/users/settings/trips/monitors/${encodeURIComponent(m.key)}`}
-                        className="font-medium text-gray-900 hover:underline dark:text-white"
-                      >
-                        {m.name}
-                      </Link>
-                      <div className="font-mono text-xs text-gray-400">
-                        {m.key}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        {m.publishedVersion !== null && (
-                          <Badge color="success">v{m.publishedVersion}</Badge>
-                        )}
-                        {m.draftVersion !== null && (
-                          <Badge color="warning">
-                            {tr("draftVersion", d, {
-                              version: String(m.draftVersion),
-                            })}
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{m.rules}</td>
-                    <td className="px-4 py-3 text-xs text-gray-400">
-                      {m.updatedBy}
-                      {m.updatedAt
-                        ? ` · ${new Date(m.updatedAt).toLocaleString(lang)}`
-                        : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {shown.length > 0 && layout === "cards" && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {shown.map((m) => (
+              <MonitorCard
+                key={m.key}
+                m={m}
+                lang={lang}
+                d={d}
+                onOpen={() => open(m.key)}
+              />
+            ))}
           </div>
+        )}
+        {shown.length > 0 && layout === "list" && (
+          <CatalogTable
+            columns={[
+              tr("monitor", d),
+              tr("version", d),
+              tr("rules", d),
+              tr("updated", d),
+            ]}
+          >
+            {shown.map((m) => (
+              <tr
+                key={m.key}
+                className="cursor-pointer border-t border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+              >
+                <td className="px-4 py-2.5">
+                  <Link
+                    href={`/${lang}/users/settings/trips/monitors/${encodeURIComponent(m.key)}`}
+                    className="font-medium text-gray-900 hover:underline dark:text-white"
+                  >
+                    {m.name}
+                  </Link>
+                  <div className="font-mono text-gray-400">{m.key}</div>
+                </td>
+                <td className="px-4 py-2.5">
+                  <VersionBadges m={m} d={d} />
+                </td>
+                <td className="px-4 py-2.5">{m.rules}</td>
+                <td className="px-4 py-2.5 text-gray-400">
+                  {updatedLine(m, lang)}
+                </td>
+              </tr>
+            ))}
+          </CatalogTable>
         )}
 
         {data && <SelectorPanel monitors={monitors} canEdit={canEdit} d={d} />}
@@ -419,6 +508,6 @@ export default function MonitorList({
           open(key);
         }}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

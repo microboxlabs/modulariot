@@ -7,9 +7,8 @@ import java.util.List;
 public record FeedProfileRequest(
         String name,
         List<FeedProfile.StagePlan> stages,
-        String departureStage,
-        String closeStage,
-        Integer closeToleranceMinutes,
+        String arrivalStage,
+        String monitor,
         List<String> requiredResources,
         Boolean active) {
 }

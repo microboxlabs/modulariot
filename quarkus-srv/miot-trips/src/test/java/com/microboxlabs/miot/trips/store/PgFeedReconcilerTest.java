@@ -36,13 +36,15 @@ import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.FeedBatchService;
-import com.microboxlabs.miot.trips.service.FeedClock;
-import com.microboxlabs.miot.trips.service.FeedJobQueue;
 import com.microboxlabs.miot.trips.service.FeedProfileService;
 import com.microboxlabs.miot.trips.service.FeedReconciler;
 import com.microboxlabs.miot.trips.service.FeedServiceJobHandler;
 import com.microboxlabs.miot.trips.service.LocationService;
 import com.microboxlabs.miot.trips.service.MandateService;
+import com.microboxlabs.miot.trips.dto.MonitorRequest;
+import com.microboxlabs.miot.trips.domain.TripMonitor;
+import com.microboxlabs.miot.trips.service.MonitorService;
+import com.microboxlabs.miot.trips.service.MonitorEngine;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import com.microboxlabs.miot.trips.service.TripService;
@@ -60,6 +62,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -87,7 +90,8 @@ class PgFeedReconcilerTest {
     private final ObjectMapper json = JsonMapper.builder().findAndAddModules()
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS).build();
     private final Transactions tx = new PgTransactions(() -> pool);
-    private final AuditService audit = new AuditService(new PgAuditStore(() -> pool));
+    private final MonitorEngine[] engineRef = new MonitorEngine[1];
+    private final AuditService audit = new AuditService(new PgAuditStore(() -> pool), () -> engineRef[0]);
     private final MandateService mandates = new MandateService(new PgMandateStore(() -> pool), audit, tx);
     private final TripLiveProjector projector = PgTripsStoresTest.projector(() -> pool);
     private final TripService trips = new TripService(new PgTripStore(() -> pool), new PgStageStore(() -> pool),
@@ -105,8 +109,11 @@ class PgFeedReconcilerTest {
     private final LocationService locations = new LocationService(new PgLocationStore(() -> pool), geofences,
             new PgTripStore(() -> pool), projector, audit, tx);
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-            locations, fleet, tx, json, clock, (tenantCode, tripId) -> new PgMonitorRunStore(() -> pool)
-                    .state(tenantCode, tripId).isPresent());
+            locations, fleet, tx, json, clock);
+    private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
+    private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
+            new PgTripStore(() -> pool), new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool),
+            new PgLocationStore(() -> pool), stages, trips, mandates, fleet, audit, tx);
 
     private String tenant;
     private Ids fleetIds;
@@ -131,6 +138,7 @@ class PgFeedReconcilerTest {
     /** Each test: its own tenant with the feed profile and a small directory. */
     @BeforeEach
     void tenantWithAFeed() {
+        engineRef[0] = engine;
         tenant = "t-" + UUID.randomUUID().toString().substring(0, 8);
         feeds.saveProfile(profile(List.of("preparation", "transit", "closing")));
         Carrier c = resources.insertCarrier(new Carrier(null, tenant, null, "20000000001", "Transportes Prueba SAC",
@@ -144,7 +152,7 @@ class PgFeedReconcilerTest {
 
     private FeedProfile profile(List<String> stageTypes) {
         return new FeedProfile(tenant, FEED, "Servicios", stageTypes.stream()
-                .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "transit", "closing", 120,
+                .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "closing", null,
                 new LinkedHashSet<>(List.of("truck", "driver")), true, null, ACTOR, null, ACTOR);
     }
 
@@ -187,21 +195,20 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void aNewServiceIsCreatedWithItsResourcesAndFirstStageRunning() {
+    void aNewServiceIsCreatedWithItsResourcesAndItsPlanOnly() {
         FeedResult r = send("S-001", desired(2, 10, "abc 123", "DEF-456", "10000001"));
 
         assertEquals(FeedReconciler.CREATE, r.action());
         assertTrue(r.errors().isEmpty());
         TripView t = trip(r);
-        assertEquals(Trip.IN_PROGRESS, t.status());
-        assertEquals(Stage.RUNNING, status(t, "preparation"));
+        assertEquals(Trip.PLANNED, t.status(), "without a monitor nothing starts it");
+        assertEquals(Stage.PENDING, status(t, "preparation"));
         assertEquals(Stage.PENDING, status(t, "transit"));
         assertEquals(List.of(fleetIds.abc()), openWindows(t, "truck"));
         assertEquals(List.of(fleetIds.def()), openWindows(t, "trailer"));
         assertEquals(List.of(fleetIds.d1()), openWindows(t, "driver"));
         assertNotNull(t.stages().stream().filter(s -> s.stageType().equals("closing")).findFirst().orElseThrow()
-                .plannedEnd(), "the close stage carries the arrival time");
-        assertEquals(Mandate.RUNNING, mandates.get(tenant, UUID.fromString(r.mandateId())).status());
+                .plannedEnd(), "the arrival stage carries the arrival time");
         FeedService s = feeds.service(tenant, FEED, "S-001").orElseThrow();
         assertEquals(reconciler.hash(desired(2, 10, "abc 123", "DEF-456", "10000001")), s.desiredHash());
         assertTrue(s.open());
@@ -252,13 +259,30 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void aServiceWhoseDepartureTimePassedStartsInTransitWithBothDrivers() {
+    void aServiceWhoseDepartureTimePassedIsCreatedAsPlannedWithBothDrivers() {
         FeedResult r = send("S-002", desired(-1, 5, "GHI 789", "DEF-456", "10000002", "10000003"));
 
         TripView t = trip(r);
-        assertEquals(Stage.CLOSED, status(t, "preparation"));
-        assertEquals(Stage.RUNNING, status(t, "transit"));
+        assertEquals(Stage.PENDING, status(t, "preparation"), "the feed does not move stages by time");
         assertEquals(List.of(fleetIds.d2(), fleetIds.d3()).stream().sorted().toList(), openWindows(t, "driver"));
+    }
+
+    @Test
+    void theProfilesMonitorRunsTheTripsTheFeedCreates() {
+        MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+        monitors.saveDraft(tenant, ACTOR, "direct", new MonitorRequest("Direct", null, List.of(), Map.of(), List.of(
+                new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
+                        List.of(new TripMonitor.Action("start", "preparation")), 10, true))));
+        monitors.publish(tenant, ACTOR, "direct");
+        FeedProfileService profiles = new FeedProfileService(feeds, monitorStore, audit);
+        profiles.save(tenant, ACTOR, FEED, new FeedProfileRequest("Servicios", List.of(
+                new FeedProfile.StagePlan("preparation", "ADDED"), new FeedProfile.StagePlan("closing", "FINISHED")),
+                "closing", "direct", null, null));
+
+        FeedResult r = send("S-020", desired(2, 10, "ABC-123", null, "10000001"));
+
+        assertEquals("direct", engine.state(tenant, UUID.fromString(r.tripId())).orElseThrow().monitorKey());
+        assertEquals(Stage.RUNNING, status(trip(r), "preparation"), "the monitor's plan rule opened it");
     }
 
     @Test
@@ -272,7 +296,7 @@ class PgFeedReconcilerTest {
         assertEquals(List.of("truck PQR-222 is not in the fleet directory", "driver is required"),
                 incomplete.errors());
         assertTrue(mandates.list(tenant, null, "S-005", 0, 10).isEmpty(), "no mandate for a reported service");
-        assertTrue(feeds.service(tenant, FEED, "S-005").orElseThrow().open(), "the clock retries it");
+        assertTrue(feeds.service(tenant, FEED, "S-005").orElseThrow().open(), "the next send retries it");
     }
 
     @Test
@@ -285,7 +309,7 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void aServiceWhoseCloseTimeAlreadyPassedIsNotCreated() {
+    void aServiceWhoseArrivalTimeAlreadyPassedIsNotCreated() {
         FeedResult r = send("S-004", desired(-12, -5, "ABC-123", null, "10000001"));
 
         assertEquals(FeedReconciler.SKIP, r.action());
@@ -323,22 +347,23 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void theClockStartsTheDepartureStageAndLaterClosesTripAndMandate() {
+    void timePassingMovesNothingAndARealizedTripIsSkipped() {
         FeedResult created = send("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001"));
 
-        clock.advance(Duration.ofHours(3));
-        FeedResult departed = reconciler.recheck(tenant, ACTOR, FEED, "S-001");
-        assertEquals(List.of("close preparation (departure time passed)", "start transit"), departed.operations());
-        assertEquals(Stage.RUNNING, status(trip(created), "transit"));
+        clock.advance(Duration.ofHours(13));
+        FeedResult later = reconciler.recheck(tenant, ACTOR, FEED, "S-001");
+        assertEquals(FeedReconciler.UPDATE, later.action());
+        assertEquals(List.of(), later.operations(), "departure and close are the monitor's");
+        assertEquals(Trip.PLANNED, trip(created).status());
 
-        clock.advance(Duration.ofHours(10));
-        FeedResult closed = reconciler.recheck(tenant, ACTOR, FEED, "S-001");
-        assertEquals(FeedReconciler.CLOSE, closed.action());
-        assertEquals(Trip.DONE, trip(created).status());
-        assertEquals(Mandate.CLOSED, mandates.get(tenant, UUID.fromString(created.mandateId())).status());
-        assertFalse(feeds.service(tenant, FEED, "S-001").orElseThrow().open(), "a realized trip leaves the clock");
-
+        UUID tripId = UUID.fromString(created.tripId());
+        trip(created).stages().forEach(st -> {
+            stages.start(tenant, ACTOR, UUID.fromString(st.id()));
+            stages.close(tenant, ACTOR, UUID.fromString(st.id()));
+        });
+        assertEquals(Trip.DONE, trips.get(tenant, tripId).status());
         assertEquals(FeedReconciler.SKIP, reconciler.recheck(tenant, ACTOR, FEED, "S-001").action());
+        assertFalse(feeds.service(tenant, FEED, "S-001").orElseThrow().open(), "a realized trip closes the service");
     }
 
     @Test
@@ -348,8 +373,7 @@ class PgFeedReconcilerTest {
 
         assertTrue(r.dryRun());
         assertEquals(List.of("create mandate S-009", "create trip with stages [preparation, transit, closing]",
-                "assign truck ABC-123", "assign driver 10000001", "start preparation",
-                "close preparation (departure time passed)", "start transit"), r.operations());
+                "assign truck ABC-123", "assign driver 10000001"), r.operations());
         assertTrue(mandates.list(tenant, null, "S-009", 0, 10).isEmpty());
         assertTrue(feeds.service(tenant, FEED, "S-009").isEmpty());
     }
@@ -427,6 +451,34 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void unchangedBatchesCloseTerminalServicesWithoutQueuingJobs() {
+        List<AsyncJobSpec> queued = new ArrayList<>();
+        FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
+        for (boolean cancelled : List.of(false, true)) {
+            String code = cancelled ? "TEST-CANCELLED" : "TEST-COMPLETED";
+            FeedServiceRequest desired = desired(2, 10, "ABC-123", "DEF-456", "10000001");
+            FeedResult created = send(code, desired);
+            UUID tripId = UUID.fromString(created.tripId());
+            if (cancelled) {
+                trips.cancel(tenant, ACTOR, tripId, "test cancellation");
+            } else {
+                var closing = trips.detail(tenant, tripId).stages().stream()
+                        .filter(stage -> "closing".equals(stage.stageType())).findFirst().orElseThrow();
+                stages.start(tenant, ACTOR, UUID.fromString(closing.id()));
+                stages.close(tenant, ACTOR, UUID.fromString(closing.id()));
+            }
+            assertTrue(feeds.service(tenant, FEED, code).orElseThrow().open());
+            FeedBatchResult result = batches.send(tenant, ACTOR, FEED,
+                    new FeedBatchRequest("test-repeat", List.of(new FeedBatchRequest.Item(code, desired))));
+            assertEquals(List.of(code), result.unchanged());
+            assertTrue(result.refused().isEmpty());
+            assertFalse(feeds.service(tenant, FEED, code).orElseThrow().open());
+            assertEquals(FeedReconciler.SKIP, feeds.service(tenant, FEED, code).orElseThrow().lastAction());
+        }
+        assertTrue(queued.isEmpty());
+    }
+
+    @Test
     void aJobForAServiceThatCannotBeCreatedFailsWithoutRetry() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
@@ -441,48 +493,22 @@ class PgFeedReconcilerTest {
 
     @Test
     void aFeedProfileIsCheckedBeforeItIsSaved() {
-        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+        FeedProfileService profiles = new FeedProfileService(feeds, monitorStore, audit);
         List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
 
-        FeedProfileRequest missingDeparture = new FeedProfileRequest("Nuevo", plan, "transit", "closing", 60,
-                null, null);
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingDeparture),
-                "the departure stage must be in the plan");
-        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "preparation", "closing", 60, null, null);
+        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingArrival),
+                "the arrival stage must be in the plan");
+        FeedProfileRequest unknownMonitor = new FeedProfileRequest("Nuevo", plan, "closing", "unknown", null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", unknownMonitor),
+                "the monitor must have a published version");
+        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null, null);
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas", valid));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "preparation", "closing", null, List.of("truck"), null));
-        assertEquals(120, saved.closeToleranceMinutes());
+                new FeedProfileRequest("Nuevo", plan, "closing", null, List.of("truck"), null));
+        assertNull(saved.monitor(), "no monitor: the selector picks one");
         assertTrue(saved.active());
-    }
-
-    @Test
-    void theClockQueuesAServiceOnlyWhenItsDepartureOrCloseTimePasses() {
-        List<AsyncJobSpec> queued = new ArrayList<>();
-        FeedJobQueue queue = (t, f, specs) -> queued.addAll(specs.stream()
-                .filter(s -> tenant.equals(t)).toList());
-        FeedClock feedClock = new FeedClock(feeds, queue, clock, true, 5, 60, 1000);
-        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
-        FeedResult created = send("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001"));
-
-        feedClock.tick();
-        assertTrue(queued.isEmpty(), "nothing is due before the departure");
-
-        clock.advance(Duration.ofHours(3));
-        feedClock.tick();
-        assertEquals(1, queued.size());
-        handler.handle(tenant, queued.remove(0).payload());
-        assertEquals(Stage.RUNNING, status(trip(created), "transit"));
-        feedClock.tick();
-        assertTrue(queued.isEmpty(), "the departure is handled once");
-
-        clock.advance(Duration.ofHours(10));
-        feedClock.tick();
-        handler.handle(tenant, queued.remove(0).payload());
-        assertEquals(Trip.DONE, trip(created).status());
-        feedClock.tick();
-        assertTrue(queued.isEmpty(), "a closed service leaves the clock");
     }
 
     /** A clock the test moves forward. */

@@ -16,7 +16,6 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
-import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -30,7 +29,7 @@ public class PgFeedStore implements FeedStore {
 
     private static final String SELECT = "SELECT ";
     private static final String PROFILE_COLUMNS = """
-            tenant_code, feed_key, name, stages, departure_stage, close_stage, close_tolerance_minutes,
+            tenant_code, feed_key, name, stages, arrival_stage, monitor_key,
             required_resources, active, created_at, created_by, updated_at, updated_by""";
     private static final String SERVICE_COLUMNS = """
             tenant_code, feed_key, external_code, desired, desired_hash, mandate_id, trip_id, open,
@@ -67,18 +66,17 @@ public class PgFeedStore implements FeedStore {
     public FeedProfile saveProfile(FeedProfile p) {
         return query(pool.get(), """
                 INSERT INTO miot_trips.feed_profile
-                    (tenant_code, feed_key, name, stages, departure_stage, close_stage, close_tolerance_minutes,
+                    (tenant_code, feed_key, name, stages, arrival_stage, monitor_key,
                      required_resources, active, created_by, updated_by)
-                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $10, $11)
+                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $10)
                 ON CONFLICT (tenant_code, feed_key) DO UPDATE SET
-                    name = EXCLUDED.name, stages = EXCLUDED.stages, departure_stage = EXCLUDED.departure_stage,
-                    close_stage = EXCLUDED.close_stage, close_tolerance_minutes = EXCLUDED.close_tolerance_minutes,
+                    name = EXCLUDED.name, stages = EXCLUDED.stages, arrival_stage = EXCLUDED.arrival_stage,
+                    monitor_key = EXCLUDED.monitor_key,
                     required_resources = EXCLUDED.required_resources, active = EXCLUDED.active,
                     updated_by = EXCLUDED.updated_by, updated_at = now()
                 RETURNING\s""" + PROFILE_COLUMNS,
                 Tuple.tuple().addString(p.tenantCode()).addString(p.feedKey()).addString(p.name())
-                        .addString(Pg.json(p.stages())).addString(p.departureStage()).addString(p.closeStage())
-                        .addInteger(p.closeToleranceMinutes())
+                        .addString(Pg.json(p.stages())).addString(p.arrivalStage()).addString(p.monitor())
                         .addArrayOfString(p.requiredResources().toArray(String[]::new))
                         .addBoolean(p.active()).addString(p.createdBy()).addString(p.updatedBy()))
                 .stream().map(PgFeedStore::profile).findFirst().orElseThrow();
@@ -120,28 +118,9 @@ public class PgFeedStore implements FeedStore {
                         .addOffsetDateTime(s.lastReconciledAt()));
     }
 
-    @Override
-    public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
-        return query(pool.get(), """
-                SELECT s.* FROM miot_trips.feed_service s
-                JOIN miot_trips.feed_profile p ON p.tenant_code = s.tenant_code AND p.feed_key = s.feed_key
-                WHERE s.open AND p.active AND (
-                    (s.last_action IN ('report', 'error', 'pending')
-                        AND s.updated_at < $1::timestamptz - make_interval(mins => $2))
-                    OR (s.last_action NOT IN ('report', 'error', 'pending') AND (
-                           ((s.desired->>'plannedStart')::timestamptz <= $1::timestamptz
-                            AND (s.last_reconciled_at IS NULL
-                                 OR s.last_reconciled_at < (s.desired->>'plannedStart')::timestamptz))
-                        OR (s.desired->>'plannedEnd')::timestamptz
-                               + make_interval(mins => p.close_tolerance_minutes) <= $1::timestamptz)))
-                ORDER BY s.last_reconciled_at NULLS FIRST
-                LIMIT $3""", Tuple.of(now, retryMinutes, limit)).stream().map(PgFeedStore::service).toList();
-    }
-
     private static FeedProfile profile(Row r) {
         return new FeedProfile(r.getString("tenant_code"), r.getString("feed_key"), r.getString("name"),
-                Pg.json(r, "stages", STAGES), r.getString("departure_stage"), r.getString("close_stage"),
-                r.getInteger("close_tolerance_minutes"),
+                Pg.json(r, "stages", STAGES), r.getString("arrival_stage"), r.getString("monitor_key"),
                 new LinkedHashSet<>(List.of(r.getArrayOfStrings("required_resources"))), r.getBoolean("active"),
                 time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
     }

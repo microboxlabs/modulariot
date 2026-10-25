@@ -1,7 +1,12 @@
 import { CHANNEL_TYPES } from "./channel-types";
 
 /** `channel:<key>` is one of `CHANNEL_TYPES`. */
-export type CommunicationsSection = "rules" | "activity" | `channel:${string}`;
+export type CommunicationsSection =
+  | "rules"
+  | "activity"
+  | "templates"
+  | "meta"
+  | `channel:${string}`;
 
 export const DEFAULT_SECTION: CommunicationsSection = "rules";
 
@@ -14,11 +19,17 @@ export const COMMUNICATIONS_SECTIONS: readonly CommunicationsSection[] = [
   ...CHANNEL_TYPES.map((c) => channelSection(c.key)),
 ];
 
-/** In the platform scope Comunicaciones only sets up the accounts the platform offers. */
-export const PLATFORM_SECTIONS: readonly CommunicationsSection[] =
-  CHANNEL_TYPES.filter((c) => c.platformOffered).map((c) =>
+/**
+ * In the platform scope Comunicaciones edits the message templates, shows the WhatsApp templates on Meta,
+ * and sets up the accounts the platform offers.
+ */
+export const PLATFORM_SECTIONS: readonly CommunicationsSection[] = [
+  "templates",
+  "meta",
+  ...CHANNEL_TYPES.filter((c) => c.platformOffered).map((c) =>
     channelSection(c.key)
-  );
+  ),
+];
 
 export const sectionsFor = (platformScope: boolean) =>
   platformScope ? PLATFORM_SECTIONS : COMMUNICATIONS_SECTIONS;

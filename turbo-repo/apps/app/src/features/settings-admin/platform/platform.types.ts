@@ -55,8 +55,6 @@ export type PlatformSection =
   | "vehicleImages"
   | "sharing"
   | "templates"
-  | "symptomTemplates"
-  | "messageTemplates"
   | "plan"
   | "usage";
 

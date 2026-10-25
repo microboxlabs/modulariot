@@ -257,8 +257,9 @@ class PgFeedReconcilerTest {
         assertNull(new PgTripLiveStore(() -> pool).find(tenant, UUID.fromString(t.id())).orElseThrow()
                 .destinationGeofenceId());
 
+        UUID originId = UUID.fromString(origin.id());
         assertThrows(IllegalArgumentException.class,
-                () -> locations.linkGeofence(tenant, ACTOR, UUID.fromString(origin.id()), 7),
+                () -> locations.linkGeofence(tenant, ACTOR, originId, 7),
                 "a geofence of another client is refused");
     }
 
@@ -386,8 +387,8 @@ class PgFeedReconcilerTest {
     void aFailingStepUndoesTheWholeServiceAndIsRecorded() {
         feeds.saveProfile(profile(List.of("preparation", "volando", "closing")));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> send("S-010", desired(1, 6, "ABC-123", null, "10000001")));
+        FeedServiceRequest request = desired(1, 6, "ABC-123", null, "10000001");
+        assertThrows(IllegalArgumentException.class, () -> send("S-010", request));
 
         assertTrue(mandates.list(tenant, null, "S-010", 0, 10).isEmpty(), "the mandate created first is undone");
         FeedService s = feeds.service(tenant, FEED, "S-010").orElseThrow();
@@ -403,6 +404,33 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void inverseRoutesCreateLocationsInTheSameOrder() {
+        FeedServiceRequest base = desired(1, 6, "ABC-123", null, "10000001");
+        for (List<String> route : List.of(List.of("TEST-A", "TEST-B"), List.of("TEST-B", "TEST-A"))) {
+            FeedServiceRequest request = new FeedServiceRequest(base.orderType(), base.orderRef(),
+                    route.get(0), route.get(1), base.plannedStart(), base.plannedEnd(), base.resources(), null);
+            FeedResult result = reconciler.reconcile(tenant, ACTOR, FEED, "TEST-ROUTE", request, true);
+            assertEquals(List.of("create location TEST-A", "create location TEST-B"), result.operations().stream()
+                    .filter(operation -> operation.startsWith("create location ")).toList());
+        }
+    }
+
+    @Test
+    void descriptiveEditsAndGeofenceLinksDoNotOverwriteEachOther() {
+        var created = locations.resolve(tenant, ACTOR, "TEST-LOCATION");
+        PgLocationStore store = new PgLocationStore(() -> pool);
+        UUID locationId = UUID.fromString(created.id());
+        geofences.add(tenant, 42, "TEST-FENCE", "Test geofence");
+        locations.linkGeofence(tenant, ACTOR, locationId, 42);
+        var staleRename = new com.microboxlabs.miot.trips.domain.Location(created.id(), tenant, "Renamed test location",
+                created.type(), created.externalCode(), created.geomGeojson(), null,
+                created.createdAt(), created.createdBy(), null, ACTOR);
+        assertEquals(42, store.update(staleRename).orElseThrow().geofenceId());
+        assertEquals("Renamed test location", locations.linkGeofence(tenant, ACTOR, locationId, null).name());
+        assertNull(store.find(tenant, locationId).orElseThrow().geofenceId());
+    }
+
+    @Test
     void aBatchQueuesOnlyChangedServicesAndTheJobAppliesTheLatestState() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
@@ -413,7 +441,7 @@ class PgFeedReconcilerTest {
 
         FeedBatchResult r1 = batches.send(tenant, ACTOR, FEED, first);
         assertEquals(List.of("S-001"), r1.queued());
-        assertEquals(List.of(""), List.copyOf(r1.refused().keySet()), "a blank code is refused, not queued");
+        assertEquals(List.of(""), r1.refused().stream().map(FeedBatchResult.Refusal::externalCode).toList(), "a blank code is refused, not queued");
         assertEquals("trips-feed:" + FEED + ":S-001:b1", queued.get(0).dedupeKey());
         assertEquals(FeedReconciler.PENDING, feeds.service(tenant, FEED, "S-001").orElseThrow().lastAction());
 
@@ -425,6 +453,34 @@ class PgFeedReconcilerTest {
                 .subList(0, 1)));
         assertEquals(List.of("S-001"), again.unchanged());
         assertEquals(1, queued.size(), "an unchanged service queues nothing");
+    }
+
+    @Test
+    void unchangedBatchesCloseTerminalServicesWithoutQueuingJobs() {
+        List<AsyncJobSpec> queued = new ArrayList<>();
+        FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
+        for (boolean cancelled : List.of(false, true)) {
+            String code = cancelled ? "TEST-CANCELLED" : "TEST-COMPLETED";
+            FeedServiceRequest desired = desired(2, 10, "ABC-123", "DEF-456", "10000001");
+            FeedResult created = send(code, desired);
+            UUID tripId = UUID.fromString(created.tripId());
+            if (cancelled) {
+                trips.cancel(tenant, ACTOR, tripId, "test cancellation");
+            } else {
+                var closing = trips.detail(tenant, tripId).stages().stream()
+                        .filter(stage -> "closing".equals(stage.stageType())).findFirst().orElseThrow();
+                stages.start(tenant, ACTOR, UUID.fromString(closing.id()));
+                stages.close(tenant, ACTOR, UUID.fromString(closing.id()));
+            }
+            assertTrue(feeds.service(tenant, FEED, code).orElseThrow().open());
+            FeedBatchResult result = batches.send(tenant, ACTOR, FEED,
+                    new FeedBatchRequest("test-repeat", List.of(new FeedBatchRequest.Item(code, desired))));
+            assertEquals(List.of(code), result.unchanged());
+            assertTrue(result.refused().isEmpty());
+            assertFalse(feeds.service(tenant, FEED, code).orElseThrow().open());
+            assertEquals(FeedReconciler.SKIP, feeds.service(tenant, FEED, code).orElseThrow().lastAction());
+        }
+        assertTrue(queued.isEmpty());
     }
 
     @Test
@@ -446,14 +502,14 @@ class PgFeedReconcilerTest {
         List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
 
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "transit", null, null, null)),
+        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingArrival),
                 "the arrival stage must be in the plan");
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "closing", "unknown", null, null)),
+        FeedProfileRequest unknownMonitor = new FeedProfileRequest("Nuevo", plan, "closing", "unknown", null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", unknownMonitor),
                 "the monitor must have a published version");
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas",
-                new FeedProfileRequest("Nuevo", plan, "closing", null, null, null)));
+        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas", valid));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
                 new FeedProfileRequest("Nuevo", plan, "closing", null, List.of("truck"), null));
         assertNull(saved.monitor(), "no monitor: the selector picks one");
@@ -557,6 +613,26 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void invalidRegularizationDoesNotCreateAPartialTrip() {
+        FeedServiceRequest ended = desired(-12, -5, "ABC-123", null, "10000001");
+        FeedResult outOfOrder = send("S-034", withActuals(ended, at(-4), at(-7), at(-6)));
+        assertEquals(FeedReconciler.REPORT, outOfOrder.action());
+        assertTrue(outOfOrder.errors().get(0).contains("chronological order"));
+        assertNull(outOfOrder.tripId());
+        assertNull(outOfOrder.mandateId());
+
+        FeedProfile current = feeds.profile(tenant, FEED).orElseThrow();
+        feeds.saveProfile(new FeedProfile(tenant, FEED, current.name(),
+                List.of(new FeedProfile.StagePlan("preparation", "ADDED")), "preparation", null,
+                current.requiredResources(), true, null, ACTOR, null, ACTOR));
+        FeedResult noClosing = send("S-035", withActuals(ended, at(-11), null, at(-6)));
+        assertEquals(FeedReconciler.REPORT, noClosing.action());
+        assertTrue(noClosing.errors().get(0).contains("closing as its final stage"));
+        assertNull(noClosing.tripId());
+        assertNull(noClosing.mandateId());
+    }
+
+    @Test
     void aChangeToAClosedTripIsReportedNotApplied() {
         FeedResult created = send("S-032", desired(2, 10, "ABC-123", null, "10000001"));
         UUID tripId = UUID.fromString(created.tripId());
@@ -579,5 +655,31 @@ class PgFeedReconcilerTest {
                 at(11)));
         assertEquals(FeedReconciler.UPDATE, closure.action(), "a closed trip still records its milestones");
         assertEquals(TripMilestone.CONFIRMED, milestone(created.tripId(), TripMilestone.CLOSURE).status());
+    }
+
+    @Test
+    void asynchronousRecheckReportsChangesAgainstLastAppliedFeedState() throws Exception {
+        FeedServiceRequest original = desired(2, 10, "ABC-123", null, "10000001");
+        FeedResult created = send("S-033", original);
+        trip(created).stages().forEach(stage -> {
+            stages.start(tenant, ACTOR, UUID.fromString(stage.id()));
+            stages.close(tenant, ACTOR, UUID.fromString(stage.id()));
+        });
+
+        FeedServiceRequest changed = desired(3, 12, "MNO-111", null, "10000001");
+        assertTrue(reconciler.accept(tenant, FEED, "S-033", changed));
+        FeedResult result = reconciler.recheck(tenant, ACTOR, FEED, "S-033");
+
+        assertEquals(FeedReconciler.SKIP, result.action());
+        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("plannedStart, plannedEnd, resources")));
+        assertEquals(at(2).toInstant(), trips.get(tenant, UUID.fromString(created.tripId())).plannedStart().toInstant());
+        assertEquals(List.of(fleetIds.abc()), openWindows(trip(created), "truck"));
+        FeedServiceRequest applied = json.readValue(
+                feeds.service(tenant, FEED, "S-033").orElseThrow().appliedDesired(), FeedServiceRequest.class);
+        assertTrue(applied.plannedStart().isEqual(changed.plannedStart()));
+        assertTrue(applied.plannedEnd().isEqual(changed.plannedEnd()));
+        assertEquals(changed.resources(), applied.resources());
+        assertTrue(audit.list(tenant, "trip", created.tripId(), null, null, 100).stream()
+                .anyMatch(event -> FeedReconciler.CLOSED_CHANGED.equals(event.action())));
     }
 }

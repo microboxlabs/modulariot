@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +75,7 @@ public class MilestoneService {
         Map<String, TripMilestone> recorded = new LinkedHashMap<>();
         store.list(tenantCode, tripId).forEach(m -> recorded.put(m.milestone(), m));
         return TripMilestone.MILESTONES.stream()
-                .map(m -> recorded.getOrDefault(m, TripMilestone.open(tenantCode, tripId.toString(), m)))
+                .map(m -> recorded.getOrDefault(m, TripMilestone.unrecorded(tenantCode, tripId.toString(), m)))
                 .toList();
     }
 
@@ -96,7 +97,7 @@ public class MilestoneService {
         String m = milestone(milestone);
         return tx.inTransaction(() -> {
             Optional<TripMilestone> current = store.find(tenantCode, tripId, m);
-            if (current.isPresent() && current.get().confirmed()) {
+            if (current.isPresent() && current.get().isConfirmed()) {
                 return new Outcome(current.get(), Result.SKIPPED);
             }
             TripMilestone saved = store.save(new TripMilestone(tenantCode, tripId.toString(), m,
@@ -121,10 +122,10 @@ public class MilestoneService {
         return tx.inTransaction(() -> {
             existing(tenantCode, tripId);
             TripMilestone current = store.find(tenantCode, tripId, m)
-                    .orElse(TripMilestone.open(tenantCode, tripId.toString(), m));
+                    .orElse(TripMilestone.unrecorded(tenantCode, tripId.toString(), m));
             OffsetDateTime when = utc(at != null ? at : proposedOrNow(current));
-            if (current.confirmed()) {
-                if (current.confirmedAt() != null && current.confirmedAt().isEqual(when)) {
+            if (current.isConfirmed()) {
+                if (at == null || (current.confirmedAt() != null && current.confirmedAt().isEqual(when))) {
                     return new Outcome(current, Result.UNCHANGED);
                 }
                 Map<String, Object> d = details(m, when, ch, current.source());
@@ -156,8 +157,8 @@ public class MilestoneService {
         return tx.inTransaction(() -> {
             existing(tenantCode, tripId);
             TripMilestone current = store.find(tenantCode, tripId, m)
-                    .orElse(TripMilestone.open(tenantCode, tripId.toString(), m));
-            if (!current.pending()) {
+                    .orElse(TripMilestone.unrecorded(tenantCode, tripId.toString(), m));
+            if (!current.isPending()) {
                 throw new IllegalStateException("the " + m + " has no pending detection to reject");
             }
             TripMilestone saved = store.save(new TripMilestone(tenantCode, tripId.toString(), m,
@@ -200,7 +201,7 @@ public class MilestoneService {
     }
 
     private OffsetDateTime proposedOrNow(TripMilestone m) {
-        return m.pending() && m.proposedAt() != null ? m.proposedAt() : now();
+        return m.isPending() && m.proposedAt() != null ? m.proposedAt() : now();
     }
 
     private OffsetDateTime now() {
@@ -212,6 +213,6 @@ public class MilestoneService {
     }
 
     private static OffsetDateTime utc(OffsetDateTime t) {
-        return t.withOffsetSameInstant(ZoneOffset.UTC);
+        return t.withOffsetSameInstant(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
     }
 }

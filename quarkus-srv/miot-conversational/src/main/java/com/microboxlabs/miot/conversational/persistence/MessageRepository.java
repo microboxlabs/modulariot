@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /** Persistence for {@link Message} rows in a conversation timeline, on any channel. */
@@ -118,6 +119,18 @@ public class MessageRepository {
                             AND r.tenant_code = c.tenant_code)
             """ + NEWEST;
 
+    // Only real sends and receipts count. An outbound row with a connectionId and no connectionTenant is a manual
+    // send from before connectionTenant was stored, which always went through the organization's own connection.
+    private static final String SELECT_LATEST_CONNECTION_TENANT = """
+            SELECT metadata->>'connectionTenant' AS connection_tenant
+            FROM miot_conversational.wa_message
+            WHERE conversation_id = $1 AND channel = 'whatsapp'
+              AND status NOT IN ('SIMULATED', 'FAILED')
+              AND (metadata ? 'connectionTenant' OR (direction = 'OUTBOUND' AND metadata ? 'connectionId'))
+            ORDER BY created_at DESC
+            LIMIT 1
+            """;
+
     private static final String SELECT_BY_ID = SELECT + """
             FROM miot_conversational.wa_message
             WHERE id = $1
@@ -132,7 +145,7 @@ public class MessageRepository {
                 delivered_at = COALESCE($3, delivered_at),
                 read_at = COALESCE($4, read_at),
                 error_message = COALESCE($5, error_message)
-            WHERE id = $1
+            WHERE id = $1 AND status = ANY($6::varchar[])
             RETURNING\s""" + COLUMNS;
 
     private final Instance<Pool> clientInstance;
@@ -260,6 +273,20 @@ public class MessageRepository {
                 row.getString("tenant_code"), uuidString(row.getUUID("run_id")), row.getInteger("step"));
     }
 
+    /**
+     * The tenant of the WhatsApp connection the conversation's newest sent or received message went through or
+     * arrived on, or null when that message is a manual send stored before the tenant was recorded.
+     */
+    public String findLatestConnectionTenant(String conversationId) {
+        UUID id = parseUuidOrNull(conversationId);
+        if (id == null) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_LATEST_CONNECTION_TENANT).execute(Tuple.of(id))
+                .await().indefinitely().iterator();
+        return rows.hasNext() ? rows.next().getString("connection_tenant") : null;
+    }
+
     static UUID parseUuidOrNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -271,14 +298,22 @@ public class MessageRepository {
         }
     }
 
+    /**
+     * Sets the status only while the stored one is in {@code from}, in the same statement, so two status updates
+     * running at once cannot move a message backwards. Null when the message has another status.
+     */
     public Message markStatus(
             String messageId,
             MessageStatus status,
             OffsetDateTime deliveredAt,
             OffsetDateTime readAt,
-            String errorMessage) {
+            String errorMessage,
+            Set<MessageStatus> from) {
+        String[] fromNames = from.stream().map(MessageStatus::name).toArray(String[]::new);
         var rows = client().preparedQuery(MARK_STATUS)
-                .execute(Tuple.of(UUID.fromString(messageId), status.name(), deliveredAt, readAt, errorMessage))
+                .execute(Tuple.tuple().addUUID(UUID.fromString(messageId)).addString(status.name())
+                        .addOffsetDateTime(deliveredAt).addOffsetDateTime(readAt).addString(errorMessage)
+                        .addArrayOfString(fromNames))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;

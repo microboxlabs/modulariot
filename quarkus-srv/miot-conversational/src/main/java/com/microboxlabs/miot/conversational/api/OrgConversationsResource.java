@@ -14,9 +14,12 @@ import com.microboxlabs.miot.conversational.rules.RuleSimulator;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
+import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
+import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.BaseRole;
@@ -59,7 +62,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * Conversation rules, the platform's templates, the event catalog, the runs, the connection channels and the
  * WhatsApp and email accounts of an organization. Any authenticated user of the organization reads; writes need an Owner or Admin of the organization,
- * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}. Endpoints return {@link Uni} so the request stays on the event loop for the
+ * or the Control Tower maintainer's {@value #MAINTAINER_PERMISSION}; the accounts only an Owner changes. Endpoints return {@link Uni} so the request stays on the event loop for the
  * reactive org filter; the blocking work runs on the worker pool.
  */
 @Path("/api/v1/orgs/{organizationId}/conversations")
@@ -255,7 +258,7 @@ public class OrgConversationsResource {
             summary = "The platform's message templates, with the organization's rules that use each")
     public Uni<Response> listTemplates(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(templates.list(tenant)).build());
+        return work(() -> Response.ok(platform(tenant) ? templates.platformList() : templates.list(tenant)).build());
     }
 
     @GET
@@ -264,7 +267,23 @@ public class OrgConversationsResource {
             summary = "One platform template, with the organization's rules that use it")
     public Uni<Response> getTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(templates.get(tenant, key)).build());
+        return work(() -> Response.ok(platform(tenant) ? templates.platformGet(key) : templates.get(tenant, key))
+                .build());
+    }
+
+    @PUT
+    @Path("/templates/{key}")
+    @Operation(operationId = "saveConversationTemplate",
+            summary = "In the platform scope, create or replace a template; its semantic version rises by what changed")
+    public Uni<Response> saveTemplate(@PathParam(ORG) String organizationId, @PathParam(KEY) String key,
+            TemplateRequest body) {
+        String tenant = tenantCode(organizationId);
+        String who = actor.get();
+        if (!platform(tenant)) {
+            return Uni.createFrom().item(error(Response.Status.FORBIDDEN,
+                    "Message templates are the platform's; edit them in the platform scope"));
+        }
+        return owner(organizationId, () -> Response.ok(templates.save(key, body, who)).build());
     }
 
     // Channels
@@ -333,7 +352,7 @@ public class OrgConversationsResource {
             AccountModeRequest body) {
         String tenant = tenantCode(organizationId);
         String who = actor.get();
-        return admin(organizationId,
+        return owner(organizationId,
                 () -> Response.ok(accounts.set(tenant, channel, body == null ? null : body.mode(), who)).build());
     }
 
@@ -347,12 +366,44 @@ public class OrgConversationsResource {
     }
 
     @POST
+    @Path("/whatsapp-templates")
+    @Operation(operationId = "createConversationWhatsAppTemplate", summary = "Submit a new template to Meta for review")
+    public Uni<Response> createWhatsAppTemplate(@PathParam(ORG) String organizationId, WhatsAppTemplateDraft body) {
+        String tenant = tenantCode(organizationId);
+        return owner(organizationId,
+                () -> Response.status(Response.Status.CREATED).entity(whatsappTemplates.create(tenant, body)).build());
+    }
+
+    @PUT
+    @Path("/whatsapp-templates/{id}")
+    @Operation(operationId = "editConversationWhatsAppTemplate",
+            summary = "Change a template's category or components; Meta reviews it again")
+    public Uni<Response> editWhatsAppTemplate(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            WhatsAppTemplateDraft body) {
+        String tenant = tenantCode(organizationId);
+        return owner(organizationId, () -> Response.ok(whatsappTemplates.edit(tenant, id, body)).build());
+    }
+
+    @DELETE
+    @Path("/whatsapp-templates/{name}")
+    @Operation(operationId = "deleteConversationWhatsAppTemplate",
+            summary = "Delete a template by name, in every language, or only the one with the given id")
+    public Uni<Response> deleteWhatsAppTemplate(@PathParam(ORG) String organizationId,
+            @PathParam("name") String name, @QueryParam(ID) String id) {
+        String tenant = tenantCode(organizationId);
+        return owner(organizationId, () -> {
+            whatsappTemplates.delete(tenant, name, id == null || id.isBlank() ? null : id.trim());
+            return Response.noContent().build();
+        });
+    }
+
+    @POST
     @Path("/whatsapp-templates/copy")
     @Operation(operationId = "copyConversationWhatsAppTemplates",
             summary = "Submit the platform's WhatsApp templates to the organization's own WABA for Meta's review")
     public Uni<Response> copyWhatsAppTemplates(@PathParam(ORG) String organizationId, CopyTemplatesRequest body) {
         String tenant = tenantCode(organizationId);
-        return admin(organizationId, () -> Response.ok(
+        return owner(organizationId, () -> Response.ok(
                 whatsappTemplates.copyFromPlatform(tenant, body == null ? null : body.names())).build());
     }
 
@@ -398,11 +449,14 @@ public class OrgConversationsResource {
                         "Owner, Admin or Control Tower maintainer required")));
     }
 
-    /** Runs a change to the organization's accounts when the caller is an Owner or Admin; 403 otherwise. */
-    private Uni<Response> admin(String organizationId, Supplier<Response> work) {
-        return access.apply(organizationId).flatMap(a -> a != null && a.baseRole() != null
-                && a.baseRole().atLeast(BaseRole.ADMIN) ? work(work)
-                        : Uni.createFrom().item(error(Response.Status.FORBIDDEN, "Owner or Admin required")));
+    private static boolean platform(String tenant) {
+        return PlatformScope.TENANT.equals(tenant);
+    }
+
+    /** Runs a change to the organization's accounts or templates when the caller is an Owner; 403 otherwise. */
+    private Uni<Response> owner(String organizationId, Supplier<Response> work) {
+        return access.apply(organizationId).flatMap(a -> a != null && a.baseRole() == BaseRole.OWNER ? work(work)
+                : Uni.createFrom().item(error(Response.Status.FORBIDDEN, "Owner required")));
     }
 
     static boolean canWrite(Access access) {

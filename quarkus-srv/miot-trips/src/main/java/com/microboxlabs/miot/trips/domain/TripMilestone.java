@@ -43,16 +43,16 @@ public record TripMilestone(
     }
 
     /** A milestone with nothing recorded. */
-    public static TripMilestone open(String tenantCode, String tripId, String milestone) {
+    public static TripMilestone unrecorded(String tenantCode, String tripId, String milestone) {
         return new TripMilestone(tenantCode, tripId, milestone, OPEN, null, null, Map.of(), null, null, null, null,
                 null, null);
     }
 
-    public boolean confirmed() {
+    public boolean isConfirmed() {
         return CONFIRMED.equals(status);
     }
 
-    public boolean pending() {
+    public boolean isPending() {
         return PENDING.equals(status);
     }
 }

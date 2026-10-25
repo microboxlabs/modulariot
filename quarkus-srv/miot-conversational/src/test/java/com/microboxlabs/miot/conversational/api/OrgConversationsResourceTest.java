@@ -322,7 +322,7 @@ class OrgConversationsResourceTest {
         JsonNode connection = body(created);
         assertEquals(set("id", "name", "host", "status", "lastTestedAt", "lastTestResult"), keys(connection));
         assertEquals("hooks.example.com", connection.path("host").asText());
-        assertEquals("DRAFT", connection.path("status").asText());
+        assertEquals("ACTIVE", connection.path("status").asText(), "the status the store gave it");
 
         JsonNode listed = body(call(member.connectionChannel(ORG, "webhook"))).path("connections");
         assertEquals(1, listed.size());
@@ -372,6 +372,8 @@ class OrgConversationsResourceTest {
         AccountModeRequest own = new AccountModeRequest(ChannelMode.OWN);
         assertEquals(403, call(member.setAccountMode(ORG, "whatsapp", own)).getStatus());
         assertEquals(403, call(maintainer.setAccountMode(ORG, "whatsapp", own)).getStatus());
+        assertEquals(403, call(resource(access(BaseRole.ADMIN, Set.of())).setAccountMode(ORG, "whatsapp", own))
+                .getStatus());
         assertEquals(409, call(owner.setAccountMode(ORG, "whatsapp", own)).getStatus());
         assertEquals(400, call(owner.setAccountMode(ORG, "sms", own)).getStatus());
 

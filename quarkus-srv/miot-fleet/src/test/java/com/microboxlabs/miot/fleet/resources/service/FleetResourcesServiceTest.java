@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.fleet.resources.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
@@ -29,6 +30,14 @@ class FleetResourcesServiceTest {
                     }
                     throw new UnsupportedOperationException(method.getName());
                 });
+    }
+
+    @Test
+    void normalizesOnlyAsciiLettersAndDigitsBeforeUppercasing() {
+        assertEquals("ABC123", FleetResourcesService.key("abc-123").orElseThrow());
+        assertEquals("12", FleetResourcesService.key("ı-12").orElseThrow());
+        assertTrue(FleetResourcesService.key("ı - ").isEmpty());
+        assertTrue(FleetResourcesService.key(null).isEmpty());
     }
 
     @Test

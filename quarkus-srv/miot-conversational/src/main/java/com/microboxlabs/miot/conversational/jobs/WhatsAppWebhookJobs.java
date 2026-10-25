@@ -16,6 +16,7 @@ import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsResponse;
+import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobWorker;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
@@ -40,8 +41,8 @@ import java.util.function.Function;
 @ApplicationScoped
 public class WhatsAppWebhookJobs {
 
-    public static final String MESSAGE_JOB = "whatsapp.inbound.message";
-    public static final String STATUS_JOB = "whatsapp.inbound.status";
+    public static final String MESSAGE_JOB = InternalJobTypes.WHATSAPP_INBOUND_MESSAGE;
+    public static final String STATUS_JOB = InternalJobTypes.WHATSAPP_INBOUND_STATUS;
     static final String SOURCE = "whatsapp-webhook";
     static final String ENQUEUED_BY = "webhook";
     static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())

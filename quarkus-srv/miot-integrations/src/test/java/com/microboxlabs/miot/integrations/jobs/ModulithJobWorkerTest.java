@@ -64,6 +64,14 @@ class ModulithJobWorkerTest {
         assertFalse(w.hasHandledLaneJob(null));
     }
 
+    @Test
+    void rejectsWebhookJobTypesWhenTheConversationalHandlersAreAbsent() {
+        var w = worker(new RecordingService(), true);
+        assertTrue(w.isInternalOnly(InternalJobTypes.WHATSAPP_INBOUND_MESSAGE));
+        assertTrue(w.isInternalOnly(InternalJobTypes.WHATSAPP_INBOUND_STATUS));
+        assertFalse(w.isInternalOnly(CALENDAR));
+    }
+
     // --- drain dispatch ------------------------------------------------------
 
     @Test

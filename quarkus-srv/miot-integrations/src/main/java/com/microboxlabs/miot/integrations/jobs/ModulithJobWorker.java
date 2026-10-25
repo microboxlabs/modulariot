@@ -108,8 +108,11 @@ public class ModulithJobWorker {
         }
     }
 
-    /** Whether {@code jobType}'s handler says only the modulith enqueues it. */
+    /** Reject internal job types even on instances where the optional handler is not loaded. */
     public boolean isInternalOnly(String jobType) {
+        if (InternalJobTypes.contains(jobType)) {
+            return true;
+        }
         ModulithJobHandler handler = jobType == null ? null : handlers.get(jobType);
         return handler != null && handler.internalOnly();
     }

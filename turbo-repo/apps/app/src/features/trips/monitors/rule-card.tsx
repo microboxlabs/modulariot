@@ -5,6 +5,7 @@ import { HiPlus, HiTrash, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpressionField from "./expression-field";
+import { useRowKeys } from "./use-row-keys";
 import {
   ACTIONS,
   FLAG_ACTIONS,
@@ -117,6 +118,7 @@ export default function RuleCard({
   readOnly: boolean;
   d: I18nRecord;
 }>) {
+  const rowKeys = useRowKeys(rule.then.length);
   const set = (patch: Partial<Rule>) => onChange({ ...rule, ...patch });
   const setAction = (i: number, a: Action) =>
     set({ then: rule.then.map((x, j) => (j === i ? a : x)) });
@@ -234,22 +236,26 @@ export default function RuleCard({
         </span>
         {rule.then.map((a, i) => (
           <ActionRow
-            // Actions have no identity of their own; their order is the identity.
-            key={i}
+            // Preserve the remaining action inputs when one is removed.
+            key={rowKeys.keys[i]}
             action={a}
             readOnly={readOnly}
             d={d}
             onChange={(next) => setAction(i, next)}
-            onRemove={() => set({ then: rule.then.filter((_, j) => j !== i) })}
+            onRemove={() => {
+              rowKeys.remove(i);
+              set({ then: rule.then.filter((_, j) => j !== i) });
+            }}
           />
         ))}
         {!readOnly && (
           <button
             type="button"
             className="flex w-fit items-center gap-1 text-xs font-medium text-blue-700 hover:underline dark:text-blue-400"
-            onClick={() =>
-              set({ then: [...rule.then, { type: "alert", value: "" }] })
-            }
+            onClick={() => {
+              rowKeys.append();
+              set({ then: [...rule.then, { type: "alert", value: "" }] });
+            }}
           >
             <HiPlus className="h-3.5 w-3.5" />
             {tr("addAction", d)}

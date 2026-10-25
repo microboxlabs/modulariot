@@ -295,20 +295,28 @@ export default function SymptomDetail({
                 setPending({ kind: "fork", version: def.currentVersion });
               }}
               actions={
-                canWrite &&
-                detail?.draft &&
-                !viewed && (
-                  <DraftBar
-                    plan={plan}
-                    planFailed={Boolean(planError)}
-                    report={report}
-                    saving={saving}
-                    saveError={saveError}
-                    d={d}
-                    onReview={() => setPublishing(true)}
-                    onDiscard={() => void run(discard)}
-                  />
-                )
+                <>
+                  {actionError && (
+                    <span
+                      role="alert"
+                      className="max-w-56 break-words text-right text-xs text-red-600 dark:text-red-400"
+                    >
+                      {actionError}
+                    </span>
+                  )}
+                  {canWrite && !viewed && detail?.draft && (
+                    <DraftBar
+                      plan={plan}
+                      planFailed={Boolean(planError)}
+                      report={report}
+                      saving={saving}
+                      saveError={saveError}
+                      d={d}
+                      onReview={() => setPublishing(true)}
+                      onDiscard={() => void run(discard)}
+                    />
+                  )}
+                </>
               }
             />
           )}
@@ -317,11 +325,6 @@ export default function SymptomDetail({
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400">
               {tr("loadFailed", d)}
-            </p>
-          )}
-          {actionError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {actionError}
             </p>
           )}
           {external && (

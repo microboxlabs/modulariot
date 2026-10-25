@@ -334,8 +334,8 @@ export function normalizeSpec(spec: StoredSpec | null | undefined): RuleSpec {
   // A stored step without minutes waits none, as the server reads it.
   const stored = (spec?.steps ?? []).map((s) => ({
     after: 0,
-    waitForReply: 0,
     ...s,
+    waitForReply: s.waitForReply ?? 0,
   }));
   if (spec?.groups) {
     return {

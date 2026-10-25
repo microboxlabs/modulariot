@@ -23,6 +23,9 @@ import java.util.UUID;
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class LocationService {
+    private static final String LOCATION = "location";
+
+    private static final String LOCATION_NOT_FOUND = "location not found";
 
     /** The type of a location a feed creates. */
     public static final String FEED_TYPE = "zone";
@@ -65,7 +68,7 @@ public class LocationService {
                 Check.limitedOrNull(req.externalCode(), "externalCode", CODE_MAX),
                 req.geomGeojson() == null ? null : req.geomGeojson().toString(),
                 null, actor, null, actor));
-        audit.log(tenantCode, actor, "location.created", "location", created.id(), null,
+        audit.log(tenantCode, actor, "location.created", LOCATION, created.id(), null,
                 Map.of("name", created.name(), "type", type));
         return created;
     }
@@ -75,7 +78,7 @@ public class LocationService {
         return tx.inTransaction(() -> {
             LocationRequest req = body == null ? LocationRequest.empty() : body;
             Location l = store.find(tenantCode, id)
-                    .orElseThrow(() -> new NoSuchElementException("location not found"));
+                    .orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
             String type = req.type() == null ? l.type()
                     : Check.oneOf(req.type(), "type", "plant", "port", "distribution_center", "customer", "zone");
             Location updated = store.update(new Location(l.id(), tenantCode,
@@ -83,10 +86,10 @@ public class LocationService {
                     Check.orKeep(req.externalCode(), l.externalCode(), "externalCode", CODE_MAX),
                     req.geomGeojson() == null ? l.geomGeojson() : req.geomGeojson().toString(),
                     l.geofenceId(), l.createdAt(), l.createdBy(), null, actor))
-                    .orElseThrow(() -> new NoSuchElementException("location not found"));
+                    .orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
             // always: the name read above is not locked, so a concurrent rename can make it stale
             live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, id));
-            audit.log(tenantCode, actor, "location.updated", "location", updated.id(), null, Map.of());
+            audit.log(tenantCode, actor, "location.updated", LOCATION, updated.id(), null, Map.of());
             return updated;
         });
     }
@@ -98,11 +101,11 @@ public class LocationService {
         }
         return tx.inTransaction(() -> {
             Location updated = store.setGeofence(tenantCode, id, geofenceId, actor)
-                    .orElseThrow(() -> new NoSuchElementException("location not found"));
+                    .orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
             live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, id));
             Map<String, Object> details = new HashMap<>();
             details.put("geofenceId", geofenceId);
-            audit.log(tenantCode, actor, "location.geofence_linked", "location", updated.id(), null, details);
+            audit.log(tenantCode, actor, "location.geofence_linked", LOCATION, updated.id(), null, details);
             return updated;
         });
     }
@@ -117,18 +120,18 @@ public class LocationService {
 
     /** The current location with that external code as sent, without creating it. */
     public Optional<Location> byCode(String tenantCode, String code) {
-        return store.byCode(tenantCode, Check.limited(code, "location", CODE_MAX));
+        return store.byCode(tenantCode, Check.limited(code, LOCATION, CODE_MAX));
     }
 
     /** The location with that external code as sent; created as a zone named after the code when missing. */
     public Location resolve(String tenantCode, String actor, String code) {
-        String c = Check.limited(code, "location", CODE_MAX);
+        String c = Check.limited(code, LOCATION, CODE_MAX);
         if (c.isBlank()) {
             throw new IllegalArgumentException("location is required");
         }
         return store.byCode(tenantCode, c).orElseGet(() -> store.insertIfAbsent(new Location(null, tenantCode,
                 c, FEED_TYPE, c, null, null, actor, null, actor)).map(created -> {
-                    audit.log(tenantCode, actor, "location.created", "location", created.id(), null,
+                    audit.log(tenantCode, actor, "location.created", LOCATION, created.id(), null,
                             Map.of("name", created.name(), "type", FEED_TYPE));
                     return created;
                 }).or(() -> store.byCode(tenantCode, c))

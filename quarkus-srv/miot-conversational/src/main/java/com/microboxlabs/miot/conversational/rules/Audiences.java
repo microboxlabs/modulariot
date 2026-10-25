@@ -81,21 +81,25 @@ public final class Audiences {
             Map<String, Participant> out, List<String> warnings) {
         int matched = 0;
         for (ContactDirectory.Entry c : book(tenantCode)) {
-            if (!EventCondition.matchesContact(when, event, contactVars(c))) {
-                continue;
+            if (EventCondition.matchesContact(when, event, contactVars(c))) {
+                matched++;
+                addContact(c, channel, out, warnings);
             }
-            matched++;
-            String ch = contactChannel(channel, c);
-            String address = RuleSpec.EMAIL.equals(ch) ? c.email() : c.whatsapp();
-            if (address == null || address.isBlank()) {
-                warnings.add(c.name() + (RuleSpec.EMAIL.equals(ch) ? " no tiene correo" : " no tiene WhatsApp"));
-                continue;
-            }
-            Participant p = new Participant(address, ch, c.name(), c.id(), c.role());
-            out.putIfAbsent(p.channel() + ":" + p.address(), p);
         }
         if (matched == 0) {
             warnings.add("Ningún contacto de la libreta cumple la condición");
+        }
+    }
+
+    private static void addContact(ContactDirectory.Entry c, String channel, Map<String, Participant> out,
+            List<String> warnings) {
+        String ch = contactChannel(channel, c);
+        String address = RuleSpec.EMAIL.equals(ch) ? c.email() : c.whatsapp();
+        if (address == null || address.isBlank()) {
+            warnings.add(c.name() + (RuleSpec.EMAIL.equals(ch) ? " no tiene correo" : " no tiene WhatsApp"));
+        } else {
+            Participant p = new Participant(address, ch, c.name(), c.id(), c.role());
+            out.putIfAbsent(p.channel() + ":" + p.address(), p);
         }
     }
 

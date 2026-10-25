@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Value } from "react-phone-number-input";
@@ -47,6 +47,21 @@ describe("PhoneInput", () => {
       expect(onValue).toHaveBeenLastCalledWith("+56912345678");
     }
   );
+
+  it("uses the selected country for a national-number paste", async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<Controlled onValue={onValue} />);
+    await user.click(screen.getAllByRole("button")[0] as HTMLElement);
+    await user.click(
+      within(await screen.findByRole("menu")).getByRole("button", {
+        name: /Perú/,
+      })
+    );
+    await user.click(screen.getByRole("textbox"));
+    await user.paste("912345678");
+    expect(onValue).toHaveBeenLastCalledWith("+51912345678");
+  });
 
   it("lists countries with their calling code in the app's language", async () => {
     const user = userEvent.setup();

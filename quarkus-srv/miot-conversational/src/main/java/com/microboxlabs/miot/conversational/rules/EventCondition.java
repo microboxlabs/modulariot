@@ -102,6 +102,31 @@ public final class EventCondition {
         return eval(CONTACT_CEL, when, Map.of("event", normalize(event), "contact", normalize(contact)));
     }
 
+    /** Whether a contact meets an audience's condition with no event at hand. */
+    public enum Reach {
+        YES,
+        NO,
+        /** The answer needs the event, as in {@code contact.companyRut == event.data.carrierRut}. */
+        DEPENDS
+    }
+
+    /** Evaluates the condition with an empty event: a part that reads the event fails, so the answer depends on it. */
+    public static Reach reachContact(String when, Map<String, Object> contact) {
+        if (when == null || when.isBlank()) {
+            return Reach.NO;
+        }
+        CelRuntime.Program program = program(CONTACT_CEL, when);
+        if (program == null) {
+            return Reach.NO;
+        }
+        try {
+            Object result = program.eval(Map.of("event", Map.of(), "contact", normalize(contact)));
+            return Boolean.TRUE.equals(result) ? Reach.YES : Reach.NO;
+        } catch (CelEvaluationException | RuntimeException e) {
+            return Reach.DEPENDS;
+        }
+    }
+
     private static boolean eval(Cel cel, String when, Map<String, Object> vars) {
         CelRuntime.Program program = program(cel, when);
         if (program == null) {

@@ -39,6 +39,9 @@ public interface RuleStore {
     /** Creates or replaces the rule's draft. */
     RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at);
 
+    /** Deletes the rule's draft; false when it had none. */
+    boolean discardDraft(String ruleId);
+
     /**
      * A publish: the draft becomes {@code version}, bumped by {@code bump} from {@code from} (null: nothing
      * published yet).

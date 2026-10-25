@@ -1,12 +1,10 @@
 "use client";
 
-import { Button } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { PublishPlan, ValidationReport } from "./maintainer-api";
-import { BumpBadge } from "./ui/badges";
 import { MUTED } from "./ui/card";
-import { CHANGED_BAR, CHANGED_DOT } from "./ui/changed";
+import DraftActions from "./ui/draft-actions";
 
 /** Errors in the latest check of the draft, else in its publish plan. */
 export function errorCount(
@@ -17,16 +15,10 @@ export function errorCount(
   return findings.filter((f) => f.severity === "ERROR").length;
 }
 
-function draftLabel(changes: number, d: I18nRecord) {
-  if (changes === 0) return tr("draftNoChanges", d);
-  if (changes === 1) return tr("draftOneChange", d);
-  return tr("draftChanges", d, { n: String(changes) });
-}
-
 /**
- * The bar at the bottom of the symptom page while there is a draft, as in
- * the prototype: how many changes, the version they make, the errors that
- * block publishing, and the actions.
+ * The draft's part of the symptom's header: how many
+ * changes, the version they make, the errors that block publishing, and the
+ * actions.
  */
 export default function DraftBar({
   plan,
@@ -55,64 +47,28 @@ export default function DraftBar({
     !plan || errors > 0 || saving || saveError !== null || changes === 0;
 
   return (
-    <section
-      aria-label={tr("draftBarLabel", d)}
-      className={`sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center gap-3 border-t bg-white/95 px-6 py-3 text-sm shadow-lg dark:bg-gray-800/95 ${CHANGED_BAR}`}
-    >
-      <span className={`h-2 w-2 rounded-full ${CHANGED_DOT}`} />
-      <span className="text-gray-900 dark:text-white">
-        {plan ? draftLabel(changes, d) : tr("draftBarLabel", d)}
-      </span>
-      {!plan && (
-        <span
-          role={planFailed ? "alert" : "status"}
-          className={`text-xs ${planFailed ? "text-red-600 dark:text-red-400" : MUTED}`}
-        >
-          {planFailed ? tr("planFailed", d) : tr("loading", d)}
-        </span>
-      )}
-      {plan?.nextVersion && plan.bump && (
-        <>
-          <span className={`text-xs ${MUTED}`}>{tr("nextVersion", d)}</span>
-          <span className="font-mono text-gray-900 dark:text-white">
-            {plan.nextVersion}
+    <DraftActions
+      changes={plan ? changes : null}
+      nextVersion={plan?.nextVersion ?? null}
+      bump={plan?.bump ?? null}
+      errors={errors}
+      saving={saving}
+      saveError={saveError}
+      notice={
+        !plan && (
+          <span
+            role={planFailed ? "alert" : "status"}
+            className={`text-xs ${planFailed ? "text-red-600 dark:text-red-400" : MUTED}`}
+          >
+            {planFailed ? tr("planFailed", d) : tr("loading", d)}
           </span>
-          <BumpBadge bump={plan.bump} d={d} />
-        </>
-      )}
-      {errors > 0 && (
-        <span className="text-xs text-red-600 dark:text-red-400">
-          {errors === 1
-            ? tr("oneError", d)
-            : tr("errorsCount", d, { n: String(errors) })}
-        </span>
-      )}
-      <span className={`text-xs ${MUTED}`}>
-        {saving ? tr("saving", d) : tr("saved", d)}
-      </span>
-      {saveError && (
-        <span role="alert" className="text-xs text-red-600 dark:text-red-400">
-          {saveError}
-        </span>
-      )}
-      <button
-        type="button"
-        disabled={!plan}
-        className="text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
-        onClick={onReview}
-      >
-        {tr("seeChanges", d)}
-      </button>
-      <button
-        type="button"
-        className={`ml-auto hover:underline ${MUTED}`}
-        onClick={onDiscard}
-      >
-        {tr("discard", d)}
-      </button>
-      <Button size="sm" disabled={blocked} onClick={onReview}>
-        {tr("publish", d)}
-      </Button>
-    </section>
+        )
+      }
+      canReview={Boolean(plan)}
+      canPublish={!blocked}
+      d={d}
+      onReview={onReview}
+      onDiscard={onDiscard}
+    />
   );
 }

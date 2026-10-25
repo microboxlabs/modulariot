@@ -14,34 +14,27 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { BumpBadge } from "@/features/symptoms/maintainer/ui/badges";
-import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import {
-  CHANGED_BAR,
-  CHANGED_DOT,
-} from "@/features/symptoms/maintainer/ui/changed";
+import DraftActions from "@/features/symptoms/maintainer/ui/draft-actions";
 import type { RuleBump } from "./conversations-types";
 import { nextRuleVersion, RULE_BUMPS, type RuleChange } from "./rule-model";
 
-function changesLabel(n: number, d: I18nRecord) {
-  if (n === 0) return tr("draftNoChanges", d);
-  if (n === 1) return tr("draftOneChange", d);
-  return tr("draftChanges", d, { n: String(n) });
-}
-
-/** The bar at the bottom of the rule while it has a draft, like the symptom editor's. */
+/** The draft's part of the rule's header, like the symptom editor's. */
 export default function RuleDraftBar({
   changes,
   errors,
   saving,
+  discarding = false,
   saveError,
   current,
   bump,
   d,
   onReview,
+  onDiscard,
 }: Readonly<{
   changes: RuleChange[];
   errors: number;
   saving: boolean;
+  discarding?: boolean;
   saveError: string | null;
   /** The version in force; null before the first publish. */
   current: string | null;
@@ -49,58 +42,30 @@ export default function RuleDraftBar({
   bump: RuleBump | null;
   d: I18nRecord;
   onReview: () => void;
+  /** Absent before the first publish: there is no version to go back to. */
+  onDiscard?: () => void;
 }>) {
   const blocked =
-    errors > 0 || saving || saveError !== null || changes.length === 0 || !bump;
+    errors > 0 ||
+    saving ||
+    discarding ||
+    saveError !== null ||
+    changes.length === 0 ||
+    !bump;
   return (
-    <section
-      aria-label={tr("draftBarLabel", d)}
-      className={`sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center gap-3 border-t bg-white/95 px-6 py-3 text-sm shadow-lg dark:bg-gray-800/95 ${CHANGED_BAR}`}
-    >
-      <span className={`h-2 w-2 rounded-full ${CHANGED_DOT}`} />
-      <span className="text-gray-900 dark:text-white">
-        {changesLabel(changes.length, d)}
-      </span>
-      {bump && (
-        <>
-          <span className={`text-xs ${MUTED}`}>{tr("nextVersion", d)}</span>
-          <span className="font-mono text-gray-900 dark:text-white">
-            {nextRuleVersion(current, bump)}
-          </span>
-          <BumpBadge bump={bump} d={d} />
-        </>
-      )}
-      {errors > 0 && (
-        <span className="text-xs text-red-600 dark:text-red-400">
-          {errors === 1
-            ? tr("oneError", d)
-            : tr("errorsCount", d, { n: String(errors) })}
-        </span>
-      )}
-      <span className={`text-xs ${MUTED}`}>
-        {saving ? tr("saving", d) : tr("saved", d)}
-      </span>
-      {saveError && (
-        <span role="alert" className="text-xs text-red-600 dark:text-red-400">
-          {saveError}
-        </span>
-      )}
-      <button
-        type="button"
-        className="text-blue-600 hover:underline dark:text-blue-400"
-        onClick={onReview}
-      >
-        {tr("seeChanges", d)}
-      </button>
-      <Button
-        size="sm"
-        className="ml-auto"
-        disabled={blocked}
-        onClick={onReview}
-      >
-        {tr("publish", d)}
-      </Button>
-    </section>
+    <DraftActions
+      changes={changes.length}
+      nextVersion={bump ? nextRuleVersion(current, bump) : null}
+      bump={bump}
+      errors={errors}
+      saving={saving}
+      saveError={saveError}
+      canPublish={!blocked}
+      d={d}
+      onReview={onReview}
+      onDiscard={onDiscard}
+      discardDisabled={discarding}
+    />
   );
 }
 

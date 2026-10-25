@@ -196,6 +196,18 @@ public class OrgConversationsResource {
                 () -> Response.ok(service.saveDraft(tenant, id, body == null ? null : body.spec(), who)).build());
     }
 
+    @DELETE
+    @Path("/rules/{id}/draft")
+    @Operation(operationId = "discardConversationRuleDraft",
+            summary = "Discard the draft; the rule shows its version in force again. 400 before the first publish")
+    public Uni<Response> discardDraft(@PathParam(ORG) String organizationId, @PathParam(ID) String id) {
+        String tenant = tenantCode(organizationId);
+        return write(organizationId, () -> {
+            service.discardDraft(tenant, id);
+            return Response.noContent().build();
+        });
+    }
+
     @POST
     @Path("/rules/{id}/publish")
     @Operation(operationId = "publishConversationRule",

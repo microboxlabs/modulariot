@@ -174,6 +174,18 @@ public class RulesService {
     }
 
     /**
+     * Drops the draft so the rule shows its version in force again. A rule never published has nothing to go back
+     * to, so its draft stays.
+     */
+    public void discardDraft(String tenantCode, String id) {
+        Rule rule = rule(tenantCode, id);
+        if (rule.currentVersion() == null) {
+            throw new IllegalArgumentException("the rule has no published version to go back to");
+        }
+        rules.discardDraft(rule.id());
+    }
+
+    /**
      * Publishes the draft as the version its changes call for. {@code requested} may raise the bump, never lower
      * it; it does not apply to the first publish, which is always {@link RuleBump#FIRST}.
      */

@@ -8,6 +8,7 @@
 
 import useSWR, { mutate } from "swr";
 import { controlTowerRequest as request } from "@/features/symptoms/control-tower/control-tower-api";
+import type { SymptomFamily } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
   ChannelAccount,
   ChannelAccountMode,
@@ -41,6 +42,7 @@ export const templatesKey = `${CONVERSATIONS_BASE}/templates`;
 export const templateKey = (key: string) =>
   `${templatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
+export const ruleFamiliesKey = `${CONVERSATIONS_BASE}/rule-families`;
 export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 export const accountsKey = `${CONVERSATIONS_BASE}/accounts`;
@@ -102,6 +104,11 @@ export function useEventCatalog() {
   return useSWR<EventTypeInfo[]>(catalogKey, fetcher, quiet);
 }
 
+/** The organization's rule families; a 404 means it has no such list. */
+export function useRuleFamilies() {
+  return useSWR<SymptomFamily[]>(ruleFamiliesKey, fetcher, quiet);
+}
+
 export function useConversationRuns(filter: {
   rule?: string | null;
   status?: RunStatus | null;
@@ -126,6 +133,11 @@ export function saveRuleDraft(id: string, spec: RuleSpec) {
     method: "PUT",
     body: { spec },
   });
+}
+
+/** Drops the draft; only a rule with a published version can. */
+export function discardRuleDraft(id: string) {
+  return request<void>(`${ruleKey(id)}/draft`, { method: "DELETE" });
 }
 
 /** `bump` raises the computed bump; null keeps it. */

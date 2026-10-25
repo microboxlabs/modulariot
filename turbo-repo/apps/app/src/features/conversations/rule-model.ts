@@ -38,6 +38,13 @@ const EVENT_LABEL: Record<string, string> = {
   "symptom.case.level_changed": "eventSymptomCaseLevelChanged",
   "symptom.case.closed": "eventSymptomCaseClosed",
   "symptom.case.sla_expired": "eventSymptomCaseSlaExpired",
+  "trip.alert": "eventTripAlert",
+  "trip.milestone.detected": "eventTripMilestoneDetected",
+  "trip.milestone.confirmed": "eventTripMilestoneConfirmed",
+  "trip.milestone.rejected": "eventTripMilestoneRejected",
+  "trip.milestone.conflict": "eventTripMilestoneConflict",
+  "trip.feed.closed_changed": "eventTripFeedClosedChanged",
+  "conversation.reply_received": "eventConversationReplyReceived",
 };
 
 const SUMMARY_LEAD: Record<string, string> = {
@@ -46,6 +53,56 @@ const SUMMARY_LEAD: Record<string, string> = {
   "symptom.case.closed": "summaryClosed",
   "symptom.case.sla_expired": "summarySlaExpired",
 };
+
+const EVENT_GROUPS = [
+  { prefix: "symptom.", label: "eventGroupSymptoms" },
+  { prefix: "trip.", label: "eventGroupTrips" },
+  { prefix: "conversation.", label: "eventGroupConversations" },
+] as const;
+
+/** The event types under the module that publishes them, in catalog order; unknown prefixes go last. */
+export function eventGroups(
+  types: string[],
+  d: I18nRecord
+): { label: string; types: string[] }[] {
+  const groups = EVENT_GROUPS.map((g) => ({
+    label: trDynamic(g.label, d),
+    types: types.filter((t) => t.startsWith(g.prefix)),
+  }));
+  const other = types.filter(
+    (t) => !EVENT_GROUPS.some((g) => t.startsWith(g.prefix))
+  );
+  return [
+    ...groups,
+    { label: trDynamic("eventGroupOther", d), types: other },
+  ].filter((g) => g.types.length > 0);
+}
+
+/** What an event means, for the help under the event picker. */
+export function eventDescription(
+  type: string,
+  d: I18nRecord,
+  catalog?: EventTypeInfo[]
+): string {
+  const key = EVENT_LABEL[type];
+  if (key) {
+    const desc = key.replace(/^event/, "eventDesc");
+    const text = trDynamic(desc, d);
+    if (text !== desc) return text;
+  }
+  return catalog?.find((e) => e.type === type)?.description || type;
+}
+
+/** The event with its module, for lists that mix them: "Síntomas · Caso abierto". */
+export function eventFullLabel(
+  type: string,
+  d: I18nRecord,
+  catalog?: EventTypeInfo[]
+): string {
+  const group = eventGroups([type], d)[0]?.label;
+  const label = eventLabel(type, d, catalog);
+  return group ? `${group} · ${label}` : label;
+}
 
 /** An event type in words: the dictionary's, else the catalog's description, else the type. */
 export function eventLabel(
@@ -168,7 +225,7 @@ export function parseWhen(when: string | null | undefined): WhenParts {
 const TOP_LEVEL = 4;
 
 /**
- * The trigger in plain words: "Cuando se abre un caso de Botón de pánico en
+ * The trigger in plain words: "Cuando se abre una condición de Botón de pánico en
  * Código negro". `symptomName` maps a symptom key to its name.
  */
 export function triggerSummary(
@@ -248,7 +305,12 @@ export function normalizeSpec(
       when: spec?.trigger?.when ?? null,
     },
     audience: spec?.audience ?? [],
-    steps: (spec?.steps ?? []).map((s) => ({ ...emptyStep(), ...s })),
+    steps: (spec?.steps ?? []).map((s) => ({
+      ...emptyStep(),
+      ...s,
+      waitForReply: s.waitForReply ?? 0,
+    })),
+    family: spec?.family ?? null,
   };
 }
 
@@ -434,6 +496,8 @@ export function ruleChanges(
     else if (!same(a, b))
       out.push({ key: `step${i}`, text: tr("changeStep", d, params) });
   }
+  if ((draft.family ?? null) !== (published.family ?? null))
+    out.push({ key: "family", text: tr("changeFamily", d) });
   return out;
 }
 
@@ -475,7 +539,10 @@ export function ruleBump(
     stepsMovedOrRerouted(draft.steps, published.steps)
   )
     return "MINOR";
-  return same(draft.steps, published.steps) ? null : "PATCH";
+  return same(draft.steps, published.steps) &&
+    (draft.family ?? null) === (published.family ?? null)
+    ? null
+    : "PATCH";
 }
 
 /** The version a bump makes from the one in force: 0.2.1 + MINOR = 0.3.0; the first is 0.1.0. */

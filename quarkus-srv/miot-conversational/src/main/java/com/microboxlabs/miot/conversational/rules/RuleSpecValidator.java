@@ -65,6 +65,8 @@ public final class RuleSpecValidator {
     private RuleSpecValidator() {
     }
 
+    static final int MAX_FAMILY = 96;
+
     public static boolean publishable(List<Finding> findings) {
         return findings.stream().noneMatch(f -> f.severity() == Severity.ERROR);
     }
@@ -81,6 +83,10 @@ public final class RuleSpecValidator {
             List<Finding> entry = new ArrayList<>();
             audience(entry, "audience." + i, spec.audience().get(i), roles, contextKind);
             numbered(out, entry, ENTRY, i + 1);
+        }
+        if (spec.family() != null && spec.family().codePointCount(0, spec.family().length()) > MAX_FAMILY) {
+            out.add(error("family", "familyTooLong", Map.of("max", MAX_FAMILY),
+                    "La familia no puede tener más de " + MAX_FAMILY + " caracteres."));
         }
         if (spec.steps().isEmpty()) {
             out.add(error("steps.0", "noSteps", Map.of(), "La regla no tiene pasos."));

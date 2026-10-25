@@ -231,6 +231,6 @@ class FeedReconcilerTest {
         public List<FeedService> dueServices(OffsetDateTime now, int retryMinutes, int limit) {
             return openServices(limit);
         }
-        public List<FeedService> openServices(int limit) { return saved == null ? List.of() : List.of(saved); }
+        public List<FeedService> openServices(int limit) { return saved == null || limit <= 0 ? List.of() : List.of(saved); }
     }
 }

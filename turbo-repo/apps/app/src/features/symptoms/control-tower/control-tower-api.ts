@@ -308,15 +308,14 @@ export async function fetchAllContacts(
   query: TowerContactQuery
 ): Promise<TowerContact[]> {
   const all: TowerContact[] = [];
-  let cursor: string | null = null;
-  do {
+  async function fetchPage(cursor: string | null): Promise<TowerContact[]> {
     const page: TowerContactPage = await request<TowerContactPage>(
       contactPageKey(query, cursor)
     );
     all.push(...page.items);
-    cursor = page.next;
-  } while (cursor);
-  return all;
+    return page.next ? fetchPage(page.next) : all;
+  }
+  return fetchPage(null);
 }
 
 export function createContact(body: TowerContactBody & { name: string }) {

@@ -20,6 +20,10 @@ public interface FleetResources {
     record Carrier(UUID id, String legalName, String phone) {
     }
 
+    /** A resource found by its natural key; {@code active} is false when it is switched off. */
+    record Match(UUID id, boolean active) {
+    }
+
     /** Whether {@code resourceType} (truck, trailer, driver) {@code id} exists for the tenant and is not inactive. */
     boolean exists(String tenantCode, String resourceType, UUID id);
 
@@ -29,4 +33,13 @@ public interface FleetResources {
     Optional<Driver> driver(String tenantCode, UUID id);
 
     Optional<Carrier> carrier(String tenantCode, UUID id);
+
+    /**
+     * The current truck or trailer ({@code resourceType}) whose plate matches {@code plate} ignoring case, spaces and
+     * dashes; an active one first.
+     */
+    Optional<Match> byPlate(String tenantCode, String resourceType, String plate);
+
+    /** The current driver whose document (RUT, DNI) matches {@code document} ignoring dots, dashes and spaces. */
+    Optional<Match> driverByDocument(String tenantCode, String document);
 }

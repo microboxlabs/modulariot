@@ -121,7 +121,7 @@ public class OrgMandatesResource extends OrgResourceSupport {
     @POST
     @Path("/{id}/close")
     @Operation(operationId = "closeMandate",
-            summary = "Close; 409 while a linked trip is not realizado/anulado")
+            summary = "Close; 409 while a linked trip is not completed or cancelled")
     @PermissionsAllowed(value = TripsAccessCatalog.MANDATE_WRITE, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> close(@PathParam(ORG) String organizationId, @PathParam("id") String id) {

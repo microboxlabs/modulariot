@@ -115,7 +115,7 @@ public class MandateService {
         }
     }
 
-    /** Closes; every linked trip must be realizado or anulado. */
+    /** Closes; every linked trip must be completed or cancelled. */
     public Mandate close(String tenantCode, String actor, UUID id) {
         return tx.inTransaction(() -> {
             Mandate current = get(tenantCode, id);

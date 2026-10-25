@@ -118,8 +118,8 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<Stage> start(String tenantCode, UUID id, OffsetDateTime at, String actor) {
         return firstStage(query(pool.get(), """
-                UPDATE miot_trips.stage SET status = 'en_curso', actual_start = $3, updated_by = $4, updated_at = now()
-                WHERE id = $1 AND tenant_code = $2 AND status = 'pendiente'
+                UPDATE miot_trips.stage SET status = 'in_progress', actual_start = $3, updated_by = $4, updated_at = now()
+                WHERE id = $1 AND tenant_code = $2 AND status = 'pending'
                 RETURNING\s""" + COLUMNS,
                 Tuple.of(id, tenantCode, at).addString(actor)));
     }
@@ -127,8 +127,8 @@ public class PgStageStore implements StageStore {
     @Override
     public Optional<Stage> close(String tenantCode, UUID id, OffsetDateTime at, String actor) {
         return firstStage(query(pool.get(), """
-                UPDATE miot_trips.stage SET status = 'cerrada', actual_end = $3, updated_by = $4, updated_at = now()
-                WHERE id = $1 AND tenant_code = $2 AND status = 'en_curso'
+                UPDATE miot_trips.stage SET status = 'completed', actual_end = $3, updated_by = $4, updated_at = now()
+                WHERE id = $1 AND tenant_code = $2 AND status = 'in_progress'
                 RETURNING\s""" + COLUMNS,
                 Tuple.of(id, tenantCode, at).addString(actor)));
     }

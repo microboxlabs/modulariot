@@ -132,11 +132,15 @@ export const routeSchema = {
         }
       }
     }
-  } satisfies FastifySchema
+  } satisfies FastifySchema & {
+    description: string;
+    tags: string[];
+    security: Record<string, string[]>[];
+  }
 };
 
 // Export schemas for testing and validation
 export const schemas = {
   deviceDataPayload: deviceDataPayloadSchema,
   gpsDataPayload: gpsDataPayloadSchema
-}; 
+};

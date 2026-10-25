@@ -1,6 +1,6 @@
 import { FastifySchema } from 'fastify';
 
-const healthEndpointSchema: FastifySchema = {
+const healthEndpointSchema = {
   description: 'server health endpoint',
   querystring: {
     type: 'object',
@@ -20,7 +20,7 @@ const healthEndpointSchema: FastifySchema = {
       },
     },
   },
-};
+} satisfies FastifySchema & { description: string };
 
 export const routeSchema = {
   schema: healthEndpointSchema,

@@ -20,11 +20,11 @@ class FleetResourcesServiceTest {
                 false, null, null, null, null, null, null);
     }
 
-    /** A store whose carrier list returns {@code carriers} and records the query it got. */
+    /** A store whose active carrier list returns {@code carriers} and records the query it got. */
     private static ResourceStore store(List<Carrier> carriers, String[] query) {
         return (ResourceStore) Proxy.newProxyInstance(ResourceStore.class.getClassLoader(),
                 new Class<?>[] {ResourceStore.class}, (proxy, method, args) -> {
-                    if (method.getName().equals("listCarriers")) {
+                    if (method.getName().equals("listActiveCarriers")) {
                         query[0] = (String) args[1];
                         return carriers;
                     }
@@ -44,8 +44,7 @@ class FleetResourcesServiceTest {
     void searchesTheTenantsActiveCarriers() {
         String[] query = new String[1];
         FleetResourcesService service = new FleetResourcesService(store(List.of(
-                carrier(ACTIVE_ID, "Transportes Sur", Carrier.ACTIVE),
-                carrier(UUID.randomUUID().toString(), "Transportes Viejos", Carrier.INACTIVE)), query));
+                carrier(ACTIVE_ID, "Transportes Sur", Carrier.ACTIVE)), query));
 
         List<FleetResources.Carrier> found = service.carriers("t1", " trans ", 8);
 

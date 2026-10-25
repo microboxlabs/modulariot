@@ -43,7 +43,7 @@ export default function SettingsPageShell({
       {filters && <FilterStrip>{filters}</FilterStrip>}
 
       <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 flex-col gap-4 px-4 pb-6 pt-2 dark:bg-gray-900">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <Icon className="h-6 w-6 shrink-0 text-gray-500 dark:text-gray-400" />
             <div>

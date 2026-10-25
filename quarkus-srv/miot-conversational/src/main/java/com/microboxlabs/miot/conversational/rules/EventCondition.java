@@ -27,6 +27,8 @@ import java.util.Optional;
  */
 public final class EventCondition {
 
+    private static final String EVENT_VAR = "event";
+
     /** A compile error at a zero-based character offset. */
     public record Issue(int position, String message, String detail) {
     }
@@ -34,14 +36,14 @@ public final class EventCondition {
     private static final Cel CEL = CelFactory.standardCelBuilder()
             .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true).build())
             .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
-            .addVar("event", MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
             .build();
 
     /** An audience's condition: {@code contact} is one entry of the contact book, {@code event} the event. */
     private static final Cel CONTACT_CEL = CelFactory.standardCelBuilder()
             .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true).build())
             .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
-            .addVar("event", MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
             .addVar("contact", MapType.create(SimpleType.STRING, SimpleType.DYN))
             .build();
 
@@ -91,7 +93,7 @@ public final class EventCondition {
         if (when == null || when.isBlank()) {
             return true;
         }
-        return eval(CEL, when, Map.of("event", normalize(event)));
+        return eval(CEL, when, Map.of(EVENT_VAR, normalize(event)));
     }
 
     /** Whether the contact meets the audience's condition for this event; an error never does. */
@@ -99,7 +101,7 @@ public final class EventCondition {
         if (when == null || when.isBlank()) {
             return false;
         }
-        return eval(CONTACT_CEL, when, Map.of("event", normalize(event), "contact", normalize(contact)));
+        return eval(CONTACT_CEL, when, Map.of(EVENT_VAR, normalize(event), "contact", normalize(contact)));
     }
 
     /** Whether a contact meets an audience's condition with no event at hand. */

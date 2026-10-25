@@ -80,7 +80,8 @@ class PgTreatmentStoresTest {
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
         for (String file : List.of("V0.8.0__create_symptoms_catalog.sql",
                 "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
-                "V0.8.3__create_tower_settings.sql", "V0.12.1__contact_company_rut.sql")) {
+                "V0.8.3__create_tower_settings.sql", "V0.12.1__contact_company_rut.sql",
+                "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql")) {
             try (InputStream in = PgTreatmentStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -335,7 +336,8 @@ class PgTreatmentStoresTest {
 
         Contact sameId = bookContact(tenant, "Persona Dos", "111111111", ContactChannels.NONE);
         assertThrows(DuplicateNationalIdException.class, () -> contacts.insert(sameId));
-        Contact other = contacts.insert(bookContact(tenant, "Persona Dos", "222222222", ContactChannels.NONE));
+        Contact other = contacts.insert(bookContact(tenant, "Persona Dos", "222222222", ContactChannels.NONE,
+                "member-2"));
         Contact otherTenant = contacts.insert(bookContact("tenant-" + UUID.randomUUID(), "Persona Uno", "111111111",
                 ContactChannels.NONE));
         assertEquals("111111111", otherTenant.nationalId(), "the same id is fine in another tenant");
@@ -479,9 +481,14 @@ class PgTreatmentStoresTest {
     }
 
     private static Contact bookContact(String tenant, String name, String nationalId, ContactChannels channels) {
+        return bookContact(tenant, name, nationalId, channels, "member-1");
+    }
+
+    private static Contact bookContact(String tenant, String name, String nationalId, ContactChannels channels,
+            String memberUserId) {
         return new Contact(null, tenant, name, null, channels.phone(), List.of(CallMethod.PHONE), true, null, ACTOR,
                 null, null, nationalId, "RUT", "Empresa Ejemplo", "Supervisor", channels,
-                List.of("transporte", "turno noche"), "member-1", true, "761112228");
+                List.of("transporte", "turno noche"), memberUserId, true, "761112228");
     }
 
     private static AuditEvent event(String tenant, String action, String entityType, String entityId, Long symptom) {

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.conversational.rules;
 import com.microboxlabs.miot.conversational.rules.RuleSpec.Step;
 import com.microboxlabs.miot.conversational.rules.RuleSpecValidator.Finding;
 import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
+import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -49,15 +50,24 @@ public class RuleSimulator {
     private final RulesService rules;
     private final TemplateStore templates;
     private final Supplier<List<ParticipantResolver>> resolvers;
+    private final Supplier<List<ContactDirectory>> directories;
     private final Clock clock;
 
     @Inject
-    RuleSimulator(RulesService rules, TemplateStore templates, Instance<ParticipantResolver> resolvers) {
-        this(rules, templates, () -> resolvers.stream().toList(), Clock.systemUTC());
+    RuleSimulator(RulesService rules, TemplateStore templates, Instance<ParticipantResolver> resolvers,
+            Instance<ContactDirectory> directories) {
+        this(rules, templates, () -> resolvers.stream().toList(), () -> directories.stream().toList(),
+                Clock.systemUTC());
     }
 
     public RuleSimulator(RulesService rules, TemplateStore templates, Supplier<List<ParticipantResolver>> resolvers,
             Clock clock) {
+        this(rules, templates, resolvers, List::of, clock);
+    }
+
+    public RuleSimulator(RulesService rules, TemplateStore templates, Supplier<List<ParticipantResolver>> resolvers,
+            Supplier<List<ContactDirectory>> directories, Clock clock) {
+        this.directories = directories;
         this.rules = rules;
         this.templates = templates;
         this.resolvers = resolvers;
@@ -75,7 +85,7 @@ public class RuleSimulator {
         if (!RulesEngine.matches(spec, event)) {
             return new Simulation(false, List.of(), List.of(), findings);
         }
-        Audiences audiences = new Audiences(resolvers.get());
+        Audiences audiences = new Audiences(resolvers.get(), directories.get());
         Map<String, Recipient> recipients = new LinkedHashMap<>();
         List<SimulatedMessage> messages = new ArrayList<>();
         List<Step> steps = spec.steps();

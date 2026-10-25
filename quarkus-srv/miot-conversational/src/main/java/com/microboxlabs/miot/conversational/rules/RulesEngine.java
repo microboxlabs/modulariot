@@ -16,6 +16,7 @@ import com.microboxlabs.miot.conversational.service.ContextMessage;
 import com.microboxlabs.miot.conversational.service.EmailMessagingService;
 import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
 import com.microboxlabs.miot.core.event.OperationalEvent;
+import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
@@ -70,6 +71,7 @@ public class RulesEngine {
     private final TemplateStore templates;
     private final RunStore runs;
     private final Supplier<List<ParticipantResolver>> resolvers;
+    private final Supplier<List<ContactDirectory>> directories;
     private final WhatsAppMessagingService whatsapp;
     private final EmailMessagingService email;
     private final ConnectionChannels channels;
@@ -80,10 +82,11 @@ public class RulesEngine {
     @Inject
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
-            WhatsAppMessagingService whatsapp, EmailMessagingService email, ConnectionChannels channels,
-            ConnectionMessagingService connectionMessages, ObjectMapper json) {
+            Instance<ContactDirectory> directories, WhatsAppMessagingService whatsapp, EmailMessagingService email,
+            ConnectionChannels channels, ConnectionMessagingService connectionMessages, ObjectMapper json) {
         this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
-                new Senders(whatsapp, email, channels, connectionMessages), json, Clock.systemUTC());
+                () -> directories.stream().toList(), new Senders(whatsapp, email, channels, connectionMessages), json,
+                Clock.systemUTC());
     }
 
     /** Where rules, templates and runs are kept. */
@@ -97,7 +100,13 @@ public class RulesEngine {
 
     public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
             Senders senders, ObjectMapper json, Clock clock) {
+        this(enabled, stores, resolvers, List::of, senders, json, clock);
+    }
+
+    public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
+            Supplier<List<ContactDirectory>> directories, Senders senders, ObjectMapper json, Clock clock) {
         this.enabled = enabled;
+        this.directories = directories;
         this.rules = stores.rules();
         this.templates = stores.templates();
         this.runs = stores.runs();
@@ -251,7 +260,7 @@ public class RulesEngine {
     private String send(Run run, Step step, RuleSpec spec, StoredEvent event) {
         Optional<ConvTemplate> template = step.template() == null ? Optional.empty()
                 : templates.find(ConvTemplate.PLATFORM_TENANT, step.template());
-        StepMessages.Plan plan = StepMessages.plan(step, spec, event, template, new Audiences(resolvers.get()));
+        StepMessages.Plan plan = StepMessages.plan(step, spec, event, template, new Audiences(resolvers.get(), directories.get()));
         List<String> problems = new ArrayList<>(plan.warnings());
         ContextKind kind = contextKind(run.contextKind());
         for (StepMessages.Planned m : plan.messages()) {

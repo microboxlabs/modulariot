@@ -106,6 +106,11 @@ final class InMemoryRules {
         }
 
         @Override
+        public boolean discardDraft(String ruleId) {
+            return versions.removeIf(v -> v.ruleId().equals(ruleId) && v.status() == RuleVersion.Status.DRAFT);
+        }
+
+        @Override
         public Optional<RuleVersion> publish(String ruleId, JsonNode validated, Publication p) {
             String version = p.version();
             Instant at = p.at();

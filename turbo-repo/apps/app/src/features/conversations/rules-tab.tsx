@@ -12,7 +12,7 @@ import CatalogTable from "@/features/common/components/catalog-table";
 import ChannelIcon from "./channel-icon";
 import { useConversationRules, useEventCatalog } from "./conversations-api";
 import type { EventTypeInfo, RuleSummary } from "./conversations-types";
-import { channelLabel, eventLabel, triggerSummary } from "./rule-model";
+import { channelLabel, eventFullLabel, triggerSummary } from "./rule-model";
 import { useSymptomNames } from "./use-symptom-names";
 
 export const COMMUNICATIONS_PAGE = "/users/settings/communications";
@@ -42,7 +42,7 @@ export function ruleFilterDefs(
   d: I18nRecord
 ): { key: RuleFilterKey; label: string; options: string[] }[] {
   const events = rules.flatMap((r) =>
-    r.trigger?.event ? [eventLabel(r.trigger.event, d, catalog)] : []
+    r.trigger?.event ? [eventFullLabel(r.trigger.event, d, catalog)] : []
   );
   const channels = rules.flatMap((r) =>
     (r.channels ?? []).map((c) => channelLabel(c, d))
@@ -75,7 +75,7 @@ export function rulePasses(
   if (f.state && stateLabel(rule.state, d) !== f.state) return false;
   if (f.event) {
     const event = rule.trigger?.event;
-    if (!event || eventLabel(event, d, catalog) !== f.event) return false;
+    if (!event || eventFullLabel(event, d, catalog) !== f.event) return false;
   }
   if (
     f.channel &&
@@ -309,7 +309,9 @@ export default function RulesTab({
               key={r.id}
               rule={r}
               event={
-                r.trigger?.event ? eventLabel(r.trigger.event, d, catalog) : ""
+                r.trigger?.event
+                  ? eventFullLabel(r.trigger.event, d, catalog)
+                  : ""
               }
               summary={summaryOf(r)}
               href={ruleHref(lang, r.id)}

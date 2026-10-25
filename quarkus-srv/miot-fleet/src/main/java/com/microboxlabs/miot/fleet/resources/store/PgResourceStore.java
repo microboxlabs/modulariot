@@ -336,8 +336,9 @@ public class PgResourceStore implements ResourceStore {
 
     @Override
     public Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id) {
-        return first(query(pool.get(), select("id, legal_name, phone", CARRIER) + BY_ID, Tuple.of(tenantCode, id)),
-                r -> new FleetResources.Carrier(r.getUUID(ID), r.getString(LEGAL_NAME), r.getString(PHONE)));
+        return first(query(pool.get(), select("id, legal_name, phone, rut", CARRIER) + BY_ID,
+                Tuple.of(tenantCode, id)), r -> new FleetResources.Carrier(r.getUUID(ID), r.getString(LEGAL_NAME),
+                        r.getString(PHONE), r.getString(RUT)));
     }
 
     @Override

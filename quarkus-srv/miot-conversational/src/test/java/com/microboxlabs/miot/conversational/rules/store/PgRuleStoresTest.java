@@ -21,6 +21,7 @@ import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.core.json.JsonObject;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,6 +29,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -100,6 +102,60 @@ class PgRuleStoresTest {
                         ContextKind.TRIP.dbValue(), tripId)).await().atMost(WAIT).iterator().next();
         assertEquals(ContextKind.TRIP.dbValue(), created.getString("context_kind"));
         assertEquals(tripId, created.getString("context_key"));
+    }
+
+    @Test
+    void outboundProviderIdAndConversationTouchCommitTogether() throws Exception {
+        UUID conversation = UUID.randomUUID();
+        String providerId = "test-" + UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation (id, tenant_code, participant_address)
+                VALUES ($1, $2, 'recipient@example.invalid')
+                """).execute(Tuple.of(conversation, "test-" + UUID.randomUUID())).await().atMost(WAIT);
+
+        String sql = sql("INSERT_OUTBOUND_AND_TOUCH");
+        assertThrows(Exception.class, () -> pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, null, "trip-test"))
+                .await().atMost(WAIT), "an invalid context pair must roll back the message insert");
+        assertEquals(0, countProviderId(providerId));
+
+        var inserted = pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, "trip", "trip-test"))
+                .await().atMost(WAIT);
+        assertEquals(1, inserted.size());
+        assertEquals(1, countProviderId(providerId));
+        Row touched = pool.preparedQuery("""
+                SELECT context_kind, context_key, last_message_preview
+                FROM miot_conversational.wa_conversation WHERE id = $1
+                """).execute(Tuple.of(conversation)).await().atMost(WAIT).iterator().next();
+        assertEquals("trip", touched.getString("context_kind"));
+        assertEquals("trip-test", touched.getString("context_key"));
+        assertEquals("Test subject", touched.getString("last_message_preview"));
+
+        assertEquals(0, pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, "trip", "trip-test"))
+                .await().atMost(WAIT).size());
+        assertEquals(1, countProviderId(providerId));
+    }
+
+    private static int countProviderId(String providerId) {
+        return pool.preparedQuery("""
+                SELECT count(*) AS count FROM miot_conversational.wa_message
+                WHERE channel = 'email' AND provider_message_id = $1
+                """).execute(Tuple.of(providerId)).await().atMost(WAIT).iterator().next().getLong("count").intValue();
+    }
+
+    private static Tuple outboundParams(UUID conversation, String providerId, String contextKind, String contextKey) {
+        var at = T0.atOffset(ZoneOffset.UTC);
+        return Tuple.tuple()
+                .addUUID(UUID.randomUUID()).addUUID(conversation).addString("OUTBOUND").addString("SYSTEM")
+                .addString("TEXT").addString("Test body").addString(null).addString(null).addString(null)
+                .addString(null).addString(providerId).addString("SENT").addString(null).addString(null)
+                .addString(null).addString(null).addJsonObject(new JsonObject()).addOffsetDateTime(at)
+                .addOffsetDateTime(null).addOffsetDateTime(null).addOffsetDateTime(at).addString("email")
+                .addString("recipient@example.invalid").addUUID(null).addUUID(null).addInteger(1)
+                .addString(null).addString(null).addString(null).addString(null).addOffsetDateTime(at)
+                .addString("Test subject").addString(contextKind).addString(contextKey);
     }
 
     private static RuleStore.Publication pub(String from, String version, RuleBump bump, String reason,

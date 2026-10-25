@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { TextInput } from "flowbite-react";
 import { HiOutlineChatAlt2, HiOutlineTag, HiOutlineUser } from "react-icons/hi";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -17,6 +18,7 @@ import ContactChannelsSection, {
   type ChannelValues,
 } from "./contact-channels-section";
 import { normalizeRut } from "./contact-duplicates";
+import { inputValidationColor } from "./input-validation";
 import {
   channelsFromContact,
   channelsToContact,
@@ -33,11 +35,19 @@ import {
   useContactBadges,
 } from "./taxonomy-store";
 
+const EMAIL = /^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
+
 interface ContactDraft {
   person: PersonDraft;
   badgeIds: string[];
   /** The outside contact's organization (API `company`); "" for none. */
   company: string;
+  /** The organization's RUT, as typed; "" for none. */
+  companyRut: string;
+  /** Where communication rules send email; "" for none. */
+  email: string;
+  /** What the contact does, as communication rules match it. */
+  role: string;
   channels: ChannelValues;
 }
 
@@ -58,6 +68,9 @@ function draftFromContact(contact: BookContact | null): ContactDraft {
     },
     badgeIds: contact?.badgeIds ?? [],
     company: contact?.company ?? "",
+    companyRut: contact?.companyRut ?? "",
+    email: contact?.email ?? "",
+    role: contact?.role ?? "",
     channels: contact
       ? channelValuesFromContact(contact)
       : emptyChannelValues(),
@@ -171,7 +184,13 @@ export default function ContactFormModal({
     person.source === "external" &&
     person.rut.trim() !== "" &&
     !isRutValid(normalizeRut(person.rut));
-  const canSave = isPersonValid(person) && !saving;
+  const companyRutInvalid =
+    draft.companyRut.trim() !== "" &&
+    !isRutValid(normalizeRut(draft.companyRut));
+  const emailInvalid =
+    draft.email.trim() !== "" && !EMAIL.test(draft.email.trim());
+  const canSave =
+    isPersonValid(person) && !companyRutInvalid && !emailInvalid && !saving;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -187,11 +206,15 @@ export default function ContactFormModal({
         name: person.name.trim(),
         rut: external ? person.rut.trim() || undefined : editing?.rut,
         orgMemberId: external ? undefined : person.orgMemberId,
-        role: editing?.role ?? "",
+        role: draft.role.trim(),
         badgeIds,
         company: external
           ? draft.company.trim() || undefined
           : editing?.company,
+        companyRut: external
+          ? draft.companyRut.trim() || undefined
+          : editing?.companyRut,
+        email: draft.email.trim() || undefined,
         provisional: false,
         ...storedChannels(draft.channels),
       });
@@ -265,7 +288,14 @@ export default function ContactFormModal({
               membersLoading={isLoading}
               rutInvalid={rutInvalid}
               organization={draft.company}
-              onOrganizationChange={(company) => setDraft({ ...draft, company })}
+              onOrganizationChange={(company) =>
+                setDraft({ ...draft, company })
+              }
+              companyRut={draft.companyRut}
+              onCompanyRutChange={(companyRut) =>
+                setDraft({ ...draft, companyRut })
+              }
+              companyRutInvalid={companyRutInvalid}
               organizations={organizations}
               d={d}
             />
@@ -275,6 +305,16 @@ export default function ContactFormModal({
             title={tr("sectionGrouping", d)}
             subtitle={tr("sectionGroupingHint", d)}
           >
+            <label className="mb-3 flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                {tr("roleLabel", d)}
+              </span>
+              <TextInput
+                placeholder={tr("rolePlaceholder", d)}
+                value={draft.role}
+                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+              />
+            </label>
             <ContactBadgesSection
               selectedIds={draft.badgeIds}
               onChange={(badgeIds) => setDraft({ ...draft, badgeIds })}
@@ -296,6 +336,21 @@ export default function ContactFormModal({
               onChange={(channels) => setDraft({ ...draft, channels })}
               d={d}
             />
+            <label className="mt-3 flex max-w-md flex-col gap-1">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                {tr("emailLabel", d)}
+              </span>
+              <TextInput
+                type="email"
+                color={inputValidationColor(draft.email, !emailInvalid)}
+                placeholder="nombre@empresa.com"
+                value={draft.email}
+                onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {tr("emailHint", d)}
+              </span>
+            </label>
           </SectionCard>
         </div>
         <div className="flex shrink-0 justify-end gap-2 border-t border-gray-200 px-6 py-3 dark:border-gray-700">

@@ -77,11 +77,33 @@ describe("contact book mapping", () => {
       nationalId: "11.111.111-1",
       nationalIdType: "RUT",
       company: "Empresa Ejemplo",
+      companyRut: "",
       position: "Supervisor",
-      channels: { phone: "+56900000001", meet: "persona@example.com" },
+      channels: {
+        phone: "+56900000001",
+        meet: "persona@example.com",
+        email: "",
+      },
       tags: ["Transporte"],
       memberUserId: "",
       provisional: false,
+    });
+  });
+
+  it("keeps the email apart from the call channels and shows the company's RUT", () => {
+    const book = toBookContact(
+      apiContact({
+        companyRut: "761112228",
+        channels: { phone: "+56900000001", email: "despacho@example.com" },
+      }),
+      []
+    );
+    expect(book.email).toBe("despacho@example.com");
+    expect(book.channels).toEqual({ phone: "+56900000001" });
+    expect(book.companyRut).toBe("76.111.222-8");
+    expect(toContactBody(book, []).channels).toEqual({
+      phone: "+56900000001",
+      email: "despacho@example.com",
     });
   });
 
@@ -238,11 +260,25 @@ describe("useContactBook", () => {
 });
 
 describe("organizationNames", () => {
-  const contact = (company?: string): BookContact => ({ id: crypto.randomUUID(), name: "x", phone: "", role: "", methods: [], company });
+  const contact = (company?: string): BookContact => ({
+    id: crypto.randomUUID(),
+    name: "x",
+    phone: "",
+    role: "",
+    methods: [],
+    company,
+  });
 
   it("lists each organization once, ignoring case and accents, sorted", () => {
     expect(
-      organizationNames([contact("Minera Sur"), contact(" minera sur "), contact("Logística"), contact("LOGISTICA"), contact(), contact("  ")])
+      organizationNames([
+        contact("Minera Sur"),
+        contact(" minera sur "),
+        contact("Logística"),
+        contact("LOGISTICA"),
+        contact(),
+        contact("  "),
+      ])
     ).toEqual(["Logística", "Minera Sur"]);
   });
 });

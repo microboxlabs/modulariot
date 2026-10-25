@@ -64,6 +64,9 @@ public class PgRuleStore implements RuleStore {
             JOIN miot_conversational.conv_rule r ON r.id = v.rule_id
             WHERE v.rule_id = ANY($1::uuid[]) AND (v.status = 'DRAFT' OR v.version = r.current_version)
             """;
+    private static final String DISCARD_DRAFT = """
+            DELETE FROM miot_conversational.conv_rule_version WHERE rule_id = $1 AND status = 'DRAFT' RETURNING id
+            """;
     private static final String SAVE_DRAFT = """
             INSERT INTO miot_conversational.conv_rule_version (id, rule_id, version, status, spec, created_at, created_by)
             VALUES ($1, $2, NULL, 'DRAFT', $3::text::jsonb, $4, $5)
@@ -175,6 +178,11 @@ public class PgRuleStore implements RuleStore {
     public RuleVersion saveDraft(String ruleId, JsonNode spec, String actor, Instant at) {
         Tuple params = Tuple.of(UUID.randomUUID(), uuid(ruleId), Pg.write(spec), time(at), actor);
         return versions(query(pool.get(), SAVE_DRAFT, params), "").get(0);
+    }
+
+    @Override
+    public boolean discardDraft(String ruleId) {
+        return query(pool.get(), DISCARD_DRAFT, Tuple.of(uuid(ruleId))).rowCount() > 0;
     }
 
     @Override

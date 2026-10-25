@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentType, type SVGProps } from "react";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiCheck,
@@ -9,11 +9,18 @@ import {
   HiOutlinePencil,
   HiOutlineTrash,
 } from "react-icons/hi";
+import { Phone } from "flowbite-react-icons/solid";
+import { SiGooglemeet } from "react-icons/si";
+import {
+  BrandLogo,
+  type LogoKeyline,
+} from "@/features/common/components/brand-logo";
+import CatalogTable from "@/features/common/components/catalog-table";
+import { channelLogo } from "@/features/conversations/channel-icon";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   ALL_CALL_METHODS,
-  CALL_METHOD_ICONS,
   type CallMethod,
 } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
 import { formatChileanPhone } from "@/features/symptoms/components/map-view/prototype/call-center/format-chilean-phone";
@@ -22,14 +29,51 @@ import { BADGE_CLASS } from "./contact-badges-section";
 import HoverTooltip from "./hover-tooltip";
 import type { ContactBadge } from "./taxonomy-store";
 
+/** The call methods and the email the communication rules write to. */
+type ContactMethod = CallMethod | "email";
+
+/** The channel logos of Comunicaciones, and Flowbite's phone; Meet has no Flowbite mark. WhatsApp's is round. */
+const METHOD_LOGOS: Record<
+  ContactMethod,
+  {
+    icon: ComponentType<SVGProps<SVGSVGElement>>;
+    keyline: LogoKeyline;
+  }
+> = {
+  phone: { icon: Phone, keyline: "square" },
+  whatsapp: { icon: channelLogo("whatsapp"), keyline: "circle" },
+  meet: { icon: SiGooglemeet, keyline: "square" },
+  teams: { icon: channelLogo("teams"), keyline: "square" },
+  email: { icon: channelLogo("email"), keyline: "square" },
+};
+
+/** A method's logo on the credentials' keylines: every mark in the same box, a round one drawn larger. */
+function MethodLogo({
+  method,
+  label,
+  size,
+}: Readonly<{ method: ContactMethod; label: string; size: number }>) {
+  const { icon, keyline } = METHOD_LOGOS[method];
+  // The button or tooltip around it already names the method.
+  return (
+    <span aria-hidden className="inline-flex">
+      <BrandLogo icon={icon} keyline={keyline} alt={label} size={size} />
+    </span>
+  );
+}
+
+const TABLE_METHODS: ContactMethod[] = [...ALL_CALL_METHODS, "email"];
+
 export interface ContactTableLabels {
   columns: {
     name: string;
+    role: string;
+    company: string;
     badges: string;
     methods: string;
     actions: string;
   };
-  methodLabels: Record<CallMethod, string>;
+  methodLabels: Record<ContactMethod, string>;
   copied: string;
   notConnected: string;
   clickToCopy: string;
@@ -42,15 +86,16 @@ export interface ContactTableLabels {
  *  the legacy `phone` for phone/WhatsApp. */
 export function contactMethodValue(
   contact: BookContact,
-  method: CallMethod
+  method: ContactMethod
 ): string {
+  if (method === "email") return contact.email ?? "";
   const value = contact.channels?.[method];
   if (value) return value;
   if (!contact.methods.includes(method)) return "";
   return method === "phone" || method === "whatsapp" ? contact.phone : "";
 }
 
-function displayValue(method: CallMethod, value: string): string {
+function displayValue(method: ContactMethod, value: string): string {
   return method === "phone" || method === "whatsapp"
     ? formatChileanPhone(value)
     : value;
@@ -66,16 +111,19 @@ function MethodTooltipContent({
   labels,
   value,
 }: Readonly<{
-  method: CallMethod;
+  method: ContactMethod;
   labels: ContactTableLabels;
   value?: string;
 }>) {
-  const Icon = CALL_METHOD_ICONS[method];
   return (
     <div className="flex flex-col gap-1.5 py-1">
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-          <Icon className="h-4 w-4" />
+          <MethodLogo
+            method={method}
+            label={labels.methodLabels[method]}
+            size={20}
+          />
         </span>
         <div className="flex min-w-0 flex-col">
           <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -104,21 +152,22 @@ function MethodTooltipContent({
 }
 
 interface MethodIconProps {
-  readonly method: CallMethod;
+  readonly method: ContactMethod;
   readonly labels: ContactTableLabels;
 }
 
 /** A method the contact has no address for: shown muted, hover explains
  *  it isn't connected, nothing to copy. */
 function DisconnectedMethodIcon({ method, labels }: Readonly<MethodIconProps>) {
-  const Icon = CALL_METHOD_ICONS[method];
   const label = `${labels.methodLabels[method]}: ${labels.notConnected}`;
   return (
     <HoverTooltip
       content={<MethodTooltipContent method={method} labels={labels} />}
     >
       <span aria-label={label} role="img" className={DISCONNECTED_ICON_CLASS}>
-        <Icon className="h-3.5 w-3.5" />
+        <span className="opacity-50">
+          <MethodLogo method={method} label={label} size={20} />
+        </span>
       </span>
     </HoverTooltip>
   );
@@ -132,7 +181,6 @@ function ConnectedMethodIcon({
   labels,
 }: Readonly<MethodIconProps & { value: string }>) {
   const [copied, setCopied] = useState(false);
-  const Icon = CALL_METHOD_ICONS[method];
   const shown = displayValue(method, value);
 
   const handleCopy = () => {
@@ -158,7 +206,11 @@ function ConnectedMethodIcon({
         {copied ? (
           <HiCheck className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
         ) : (
-          <Icon className="h-3.5 w-3.5" />
+          <MethodLogo
+            method={method}
+            label={labels.methodLabels[method]}
+            size={20}
+          />
         )}
       </button>
     </HoverTooltip>
@@ -173,7 +225,7 @@ function ContactMethods({
 }: Readonly<{ contact: BookContact; labels: ContactTableLabels }>) {
   return (
     <div className="flex items-center gap-1.5">
-      {ALL_CALL_METHODS.map((m) => {
+      {TABLE_METHODS.map((m) => {
         const value = contactMethodValue(contact, m);
         if (value) {
           return (
@@ -259,14 +311,14 @@ function ContactTableRow({
   onRemove: (id: string) => void;
   badgesById: ReadonlyMap<string, ContactBadge>;
 }>) {
-  const description = contact.description || contact.role || contact.rut;
+  const description = contact.description || contact.rut;
   const badges = (contact.badgeIds ?? []).flatMap((id) => {
     const badge = badgesById.get(id);
     return badge ? [badge] : [];
   });
 
   return (
-    <tr className="border-b border-gray-200 bg-white last:border-b-0 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700/50">
+    <tr className="border-t border-gray-100 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50">
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <InitialIdentifier name={contact.name || "?"} size={32} />
@@ -281,6 +333,25 @@ function ContactTableRow({
             )}
           </div>
         </div>
+      </td>
+      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+        {contact.role || EMPTY_CELL}
+      </td>
+      <td className="px-4 py-3">
+        {contact.company || contact.companyRut ? (
+          <div className="min-w-0">
+            <p className="truncate text-gray-700 dark:text-gray-300">
+              {contact.company || EMPTY_CELL}
+            </p>
+            {contact.companyRut && (
+              <p className="truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+                {contact.companyRut}
+              </p>
+            )}
+          </div>
+        ) : (
+          EMPTY_CELL
+        )}
       </td>
       <td className="px-4 py-3">
         {badges.length > 0 ? (
@@ -309,63 +380,108 @@ function ContactTableRow({
   );
 }
 
-/** Settings › Libreta de contactos listing: one row per contact with its
- *  initial, name (description underneath), badges, contact methods and a
- *  row menu. */
+/** Settings › Libreta de contactos as a list, in the settings catalogs'
+ *  table: initial, name (description underneath), role, company and its
+ *  RUT, badges, contact methods with the email, and a row menu. */
 export default function ContactTable({
   contacts,
   badges,
   labels,
   onEdit,
   onRemove,
-  className = "",
-  footer,
 }: Readonly<{
   contacts: readonly BookContact[];
   badges: readonly ContactBadge[];
   labels: ContactTableLabels;
   onEdit: (contact: BookContact) => void;
   onRemove: (id: string) => void;
-  /** Extra classes for the scroll container (e.g. to fill its parent). */
-  className?: string;
-  /** Rendered after the table, inside the scroll container. */
-  footer?: ReactNode;
 }>) {
   const badgesById = new Map(badges.map((b) => [b.id, b]));
-  const headerClass =
-    "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
-
   return (
-    <div
-      className={`overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+    <CatalogTable
+      columns={[
+        labels.columns.name,
+        labels.columns.role,
+        labels.columns.company,
+        labels.columns.badges,
+        labels.columns.methods,
+        "",
+      ]}
     >
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-          <tr>
-            <th className={headerClass}>{labels.columns.name}</th>
-            <th className={headerClass}>{labels.columns.badges}</th>
-            <th className={`${headerClass} text-left w-50`}>
-              {labels.columns.methods}
-            </th>
-            <th className="w-12 px-2 py-3">
-              <span className="sr-only">{labels.columns.actions}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {contacts.map((contact) => (
-            <ContactTableRow
-              key={contact.id}
-              contact={contact}
-              labels={labels}
-              onEdit={onEdit}
-              onRemove={onRemove}
-              badgesById={badgesById}
-            />
-          ))}
-        </tbody>
-      </table>
-      {footer}
+      {contacts.map((contact) => (
+        <ContactTableRow
+          key={contact.id}
+          contact={contact}
+          labels={labels}
+          onEdit={onEdit}
+          onRemove={onRemove}
+          badgesById={badgesById}
+        />
+      ))}
+    </CatalogTable>
+  );
+}
+
+/** A contact laid out like a rule or symptom card: initial, name and role,
+ *  company, badges, and its contact methods at the foot. The card opens the
+ *  contact; the menu edits or removes it. */
+export function ContactCard({
+  contact,
+  labels,
+  onEdit,
+  onRemove,
+  badgesById,
+}: Readonly<{
+  contact: BookContact;
+  labels: ContactTableLabels;
+  onEdit: (contact: BookContact) => void;
+  onRemove: (id: string) => void;
+  badgesById: ReadonlyMap<string, ContactBadge>;
+}>) {
+  const badges = (contact.badgeIds ?? []).flatMap((id) => {
+    const badge = badgesById.get(id);
+    return badge ? [badge] : [];
+  });
+  const company = [contact.company, contact.companyRut]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <div className="flex flex-col rounded-lg border border-gray-200 bg-white text-left transition hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500">
+      <div className="flex w-full items-start gap-3 px-4 pt-4">
+        <InitialIdentifier name={contact.name || "?"} size={44} />
+        <button
+          type="button"
+          className="min-w-0 flex-1 text-left focus:outline-none"
+          onClick={() => onEdit(contact)}
+        >
+          <div className="truncate font-semibold text-gray-900 hover:underline dark:text-white">
+            {contact.name}
+          </div>
+          <div className="truncate text-xs text-gray-500 dark:text-gray-400">
+            {contact.role || contact.description || EMPTY_CELL}
+          </div>
+        </button>
+        <RowMenu
+          labels={labels}
+          onEdit={() => onEdit(contact)}
+          onRemove={() => onRemove(contact.id)}
+        />
+      </div>
+      <p className="mt-3 h-4 truncate px-4 text-xs text-gray-600 dark:text-gray-300">
+        {company}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 px-4 text-xs">
+        {badges.map((b) => (
+          <span key={b.id} className={BADGE_CLASS}>
+            {b.name}
+          </span>
+        ))}
+      </div>
+      {/* Keeps the footers of a row of cards on one line. */}
+      <div className="min-h-3 flex-1" />
+      <div className="flex w-full items-center border-t border-gray-100 px-4 py-2.5 dark:border-gray-700/60">
+        <ContactMethods contact={contact} labels={labels} />
+      </div>
     </div>
   );
 }

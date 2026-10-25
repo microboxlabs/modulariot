@@ -46,6 +46,7 @@ const api = vi.hoisted(() => ({
   useConversationRule: vi.fn(),
   useConversationTemplates: vi.fn(),
   useEventCatalog: vi.fn(),
+  useRuleFamilies: vi.fn(() => ({ data: undefined, error: undefined })),
   saveRuleDraft: vi.fn(),
   publishRule: vi.fn(),
   setRuleState: vi.fn(),
@@ -114,15 +115,10 @@ describe("RuleEditor", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "Cuando se abre un caso de Botón de pánico en Código negro"
+        "Cuando se abre una condición de Botón de pánico en Código negro"
       )
     ).toBeTruthy();
-    for (const title of [
-      "1. Cuándo",
-      "2. A quién",
-      "3. Pasos",
-      "4. Simulación",
-    ]) {
+    for (const title of ["Cuándo se envía", "A quién", "Pasos", "Simulación"]) {
       expect(screen.getByRole("heading", { name: title })).toBeTruthy();
     }
     expect(screen.getByText("{{patente}}")).toBeTruthy();

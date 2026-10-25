@@ -1,14 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Button } from "flowbite-react";
 import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import ContactFormModal from "../contact-book/contact-form-modal";
 import ContactTable, {
+  ContactCard,
   type ContactTableLabels,
 } from "../contact-book/contact-table";
 import ImportContactsModal from "../contact-book/import-contacts-modal";
@@ -17,10 +23,47 @@ import {
   useContactBook,
   type BookContact,
 } from "../contact-book/store";
-import { useContactBadges } from "../contact-book/taxonomy-store";
+import {
+  useContactBadges,
+  type ContactBadge,
+} from "../contact-book/taxonomy-store";
 import { useIncrementalCount } from "../contact-book/use-incremental-count";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 30;
+
+type ContactFilters = Record<"role" | "company" | "tag", string>;
+const NO_FILTERS: ContactFilters = { role: "", company: "", tag: "" };
+
+/** Each value once, ignoring case, sorted. */
+function distinct(values: readonly (string | undefined)[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const v of values) {
+    const text = v?.trim();
+    if (text && !byKey.has(text.toLowerCase()))
+      byKey.set(text.toLowerCase(), text);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
+}
+
+const same = (a: string | undefined, b: string) =>
+  (a ?? "").trim().toLowerCase() === b.toLowerCase();
+
+/** Whether the contact has the picked role, company and tag; an empty filter lets everyone through. */
+export function contactPasses(
+  c: BookContact,
+  f: ContactFilters,
+  badges: readonly ContactBadge[]
+): boolean {
+  if (f.role && !same(c.role, f.role)) return false;
+  if (f.company && !same(c.company, f.company)) return false;
+  if (f.tag) {
+    const names = (c.badgeIds ?? []).map(
+      (id) => badges.find((b) => b.id === id)?.name
+    );
+    if (!names.some((n) => same(n, f.tag))) return false;
+  }
+  return true;
+}
 
 interface ContactBookPageContentProps {
   readonly dict: I18nRecord;
@@ -31,6 +74,8 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
   return {
     columns: {
       name: tr("colName", d),
+      role: tr("colRole", d),
+      company: tr("colCompany", d),
       badges: tr("colBadges", d),
       methods: tr("colMethods", d),
       actions: tr("colActions", d),
@@ -40,6 +85,7 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
       whatsapp: tr("methodWhatsapp", d),
       meet: tr("methodMeet", d),
       teams: tr("methodTeams", d),
+      email: tr("methodEmail", d),
     },
     copied: tr("copied", d),
     notConnected: tr("methodNotConnected", d),
@@ -78,8 +124,13 @@ export default function ContactBookPageContent({
   const [editing, setEditing] = useState<BookContact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [filters, setFilters] = useState<ContactFilters>(NO_FILTERS);
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
+  const filteredCount = contacts.filter((c) =>
+    contactPasses(c, filters, badges)
+  ).length;
   const { visible, hasMore, sentinelRef } = useIncrementalCount(
-    contacts.length,
+    filteredCount,
     PAGE_SIZE
   );
 
@@ -115,73 +166,99 @@ export default function ContactBookPageContent({
     });
   };
 
+  const roles = distinct(contacts.map((c) => c.role));
+  const companies = distinct(contacts.map((c) => c.company));
+  const tags = distinct(badges.map((b) => b.name));
+  const filterDefs = [
+    { key: "role" as const, label: tr("filterRole", d), options: roles },
+    {
+      key: "company" as const,
+      label: tr("filterCompany", d),
+      options: companies,
+    },
+    { key: "tag" as const, label: tr("filterTag", d), options: tags },
+  ].filter((f) => f.options.length > 0);
+  const shown = contacts.filter((c) => contactPasses(c, filters, badges));
+  const labels = contactTableLabels(d);
+  const badgesById = new Map(badges.map((b) => [b.id, b]));
+  const page = shown.slice(0, visible);
+
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "contactBook"]}
-          disableLinks
-        />
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "contactBook"]}
+      icon={HiOutlineBookOpen}
+      title={tr("title", d)}
+      description={tr("description", d)}
+      actions={
+        <div className="flex shrink-0 items-center gap-2">
+          <Button size="sm" color="light" onClick={() => setImportOpen(true)}>
+            <HiOutlineUpload className="mr-1 h-4 w-4" />
+            {tr("importContacts", d)}
+          </Button>
+          <Button size="sm" color="blue" onClick={openCreate}>
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("newContact", d)}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {filterDefs.map((f) => (
+          <FilterChip
+            key={f.key}
+            label={f.label}
+            value={filters[f.key]}
+            options={f.options}
+            allLabel={tr("filterAll", d)}
+            onChange={(v) => setFilters({ ...filters, [f.key]: v })}
+          />
+        ))}
+        <div className="ml-auto">
+          <LayoutToggle
+            layout={layout}
+            labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+            onLayout={setLayout}
+          />
+        </div>
       </div>
 
-      <div className="flex w-full min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 pt-2 pb-4 dark:bg-gray-900">
-        <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
-              <HiOutlineBookOpen className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", d)}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("description", d)}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              <HiOutlineUpload className="h-4 w-4" />
-              {tr("importContacts", d)}
-            </button>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              <HiPlus className="h-4 w-4" />
-              {tr("newContact", d)}
-            </button>
-          </div>
-        </div>
-
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
         {hydrated && contacts.length === 0 && (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-y-auto rounded-lg border border-dashed border-gray-300 px-4 py-16 text-center dark:border-gray-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {error ? tr("loadError", d) : tr("empty", d)}
-            </p>
+          <p className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
+            {error ? tr("loadError", d) : tr("empty", d)}
+          </p>
+        )}
+        {hydrated && contacts.length > 0 && shown.length === 0 && (
+          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            {tr("emptyFiltered", d)}
+          </p>
+        )}
+        {page.length > 0 && layout === "cards" && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {page.map((c) => (
+              <ContactCard
+                key={c.id}
+                contact={c}
+                labels={labels}
+                onEdit={openEdit}
+                onRemove={removeContact}
+                badgesById={badgesById}
+              />
+            ))}
           </div>
         )}
-
-        {hydrated && contacts.length > 0 && (
+        {page.length > 0 && layout === "list" && (
           <ContactTable
-            contacts={contacts.slice(0, visible)}
+            contacts={page}
             badges={badges}
-            labels={contactTableLabels(d)}
+            labels={labels}
             onEdit={openEdit}
             onRemove={removeContact}
-            className="min-h-0 flex-1"
-            footer={
-              hasMore && <div ref={sentinelRef} className="h-8" aria-hidden />
-            }
           />
         )}
+        {hasMore && <div ref={sentinelRef} className="h-8" aria-hidden />}
       </div>
 
       <ContactFormModal
@@ -201,6 +278,6 @@ export default function ContactBookPageContent({
         onImport={addMany}
         dict={dict}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

@@ -27,6 +27,8 @@ export interface AudienceEntry {
   channel?: string;
   name?: string | null;
   path?: string;
+  /** CEL over `contact` and `event`: the contact book's active contacts for which it holds. */
+  contacts?: string;
 }
 
 export interface RuleStep {
@@ -47,6 +49,8 @@ export interface RuleSpec {
   trigger: RuleTrigger;
   audience: AudienceEntry[];
   steps: RuleStep[];
+  /** A communication_families value from Ajustes › Seleccionables. */
+  family?: string | null;
 }
 
 export interface ConversationRule {

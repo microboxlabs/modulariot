@@ -1,24 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import { HiChevronLeft } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import CelEditor, {
-  type CelField,
-} from "@/features/symptoms/maintainer/cel-editor";
-import { useControlTowerAccess } from "@/features/symptoms/maintainer/maintainer-api";
+import type { CelField } from "@/features/symptoms/maintainer/cel-editor";
+import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  type SymptomFamily,
+  useControlTowerAccess,
+} from "@/features/symptoms/maintainer/maintainer-api";
+import { familyOptions } from "@/features/symptoms/maintainer/sheet-header";
+import {
+  canonicalFamily,
+  familyLabel,
+} from "@/features/symptoms/maintainer/symptom-labels";
+import { PillSelect } from "@/features/symptoms/maintainer/ui/pill";
 import { Problems } from "@/features/symptoms/maintainer/rule-problems";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import { CHANGED_DOT } from "@/features/symptoms/maintainer/ui/changed";
-import {
-  FIELD,
-  FieldRow,
-  ResponseBlock,
-} from "@/features/symptoms/maintainer/ui/response-block";
-import Select from "@/features/symptoms/maintainer/ui/select";
+import NumberedSection from "@/features/symptoms/maintainer/ui/section";
+import SheetTop from "@/features/symptoms/maintainer/ui/sheet-top";
 import { StateToggle } from "@/features/symptoms/maintainer/ui/state";
 import AudienceList from "./audience-list";
 import {
@@ -27,6 +30,7 @@ import {
   simulateRule,
   useConversationTemplates,
   useEventCatalog,
+  useRuleFamilies,
 } from "./conversations-api";
 import type {
   EventTypeInfo,
@@ -37,8 +41,8 @@ import type {
 import RuleDraftBar, { PublishRuleDialog } from "./rule-draft-bar";
 import { placeFindings, ruleFindingText } from "./rule-findings";
 import {
-  eventLabel,
   eventVariables,
+  normalizeSpec,
   ruleBump,
   ruleChanges,
   sampleEvent,
@@ -46,6 +50,7 @@ import {
 } from "./rule-model";
 import { RuleReviewPanel, VariablesPanel } from "./rule-side-panel";
 import RuleSteps from "./rule-steps";
+import RuleTriggerSection from "./rule-trigger";
 import { COMMUNICATIONS_PAGE } from "./rules-tab";
 import SimulationSection from "./simulation";
 import { useRuleDraft } from "./use-rule-draft";
@@ -66,37 +71,45 @@ export function eventCelFields(info: EventTypeInfo | undefined): CelField[] {
   ];
 }
 
-function ChangedMark({ show, d }: Readonly<{ show: boolean; d: I18nRecord }>) {
-  if (!show) return null;
-  return (
-    <span className={`flex items-center gap-1.5 text-xs ${MUTED}`}>
-      <span className={`h-2 w-2 rounded-full ${CHANGED_DOT}`} />
-      {tr("changedMark", d)}
-    </span>
-  );
-}
-
 function RuleHeader({
   name,
   ruleKey,
   version,
   state,
+  family,
+  publishedFamily,
+  families,
+  familiesMissing,
   canSetState,
+  canEdit,
   backHref,
+  lang,
   d,
   onState,
+  onFamily,
+  actions,
 }: Readonly<{
   name: string;
   ruleKey: string;
   version: string | null;
   state: RuleState;
+  family: string | null;
+  publishedFamily: string | null;
+  families: SymptomFamily[] | undefined;
+  familiesMissing: boolean;
   canSetState: boolean;
+  canEdit: boolean;
   backHref: string;
+  lang: string;
   d: I18nRecord;
   onState: (state: RuleState) => void;
+  onFamily: (family: string | null) => void;
+  /** The draft's changes and actions, shown before the state. */
+  actions?: ReactNode;
 }>) {
+  const value = canonicalFamily(family, families);
   return (
-    <div className="flex flex-wrap items-start gap-3">
+    <div className="flex flex-wrap items-start gap-3 lg:flex-nowrap">
       <Link
         href={backHref}
         aria-label={tr("backToRules", d)}
@@ -106,29 +119,65 @@ function RuleHeader({
         <HiChevronLeft className="h-5 w-5" />
       </Link>
       <div className="min-w-0 flex-1">
-        <h1 className="text-2xl font-semibold break-words text-gray-900 dark:text-white">
-          {name}
-        </h1>
-        <p className={`mt-1 flex flex-wrap gap-2 text-xs ${MUTED}`}>
-          <span className="font-mono">{ruleKey}</span>
-          <span>·</span>
-          <span>{version ? `v${version}` : tr("unpublished", d)}</span>
-        </p>
-      </div>
-      <div className="flex flex-col items-end gap-1">
-        <StateToggle
-          value={state}
-          d={d}
-          disabled={!canSetState}
-          onChange={(next) => {
-            if (next !== state) onState(next);
-          }}
-        />
-        {version === null && (
-          <span className={`text-xs ${MUTED}`}>
-            {tr("publishToActivate", d)}
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold break-words text-gray-900 dark:text-white">
+            {name}
+          </h1>
+          <span className="rounded-md border border-gray-300 px-2 py-0.5 font-mono text-xs text-gray-700 dark:border-gray-600 dark:text-gray-200">
+            {version ? `v${version}` : tr("unpublished", d)}
           </span>
-        )}
+        </div>
+        <div
+          className={`mt-1 flex flex-wrap items-center gap-2 text-xs ${MUTED}`}
+        >
+          <span>{tr("familyWord", d)}</span>
+          {canEdit ? (
+            <PillSelect
+              ariaLabel={tr("familyWord", d)}
+              value={value ?? ""}
+              options={familyOptions(families, value, lang)}
+              changed={
+                value !== canonicalFamily(publishedFamily, families) &&
+                version !== null
+              }
+              className="!text-xs"
+              onChange={(next) => {
+                if ((next || null) !== value) onFamily(next || null);
+              }}
+            />
+          ) : (
+            <span className="font-medium text-gray-900 dark:text-white">
+              {familyLabel(value, families, lang) || "—"}
+            </span>
+          )}
+          <span>
+            ·{" "}
+            {familiesMissing
+              ? tr("familyListMissing", d)
+              : tr("familySource", d)}
+          </span>
+          <span>
+            · <span className="font-mono">{ruleKey}</span>
+          </span>
+        </div>
+      </div>
+      <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-3">
+        {actions}
+        <div className="flex flex-col items-end gap-1">
+          <StateToggle
+            value={state}
+            d={d}
+            disabled={!canSetState}
+            onChange={(next) => {
+              if (next !== state) onState(next);
+            }}
+          />
+          {version === null && (
+            <span className={`text-xs ${MUTED}`}>
+              {tr("publishToActivate", d)}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -141,6 +190,8 @@ export default function RuleEditor({
   lang,
 }: Readonly<{ id: string; dict: I18nRecord; lang: string }>) {
   const d = dict?.communications as I18nRecord;
+  const fieldDict = (dict?.selectables as I18nRecord | undefined)
+    ?.field as I18nRecord;
   const { canMaintain } = useControlTowerAccess();
   const {
     detail,
@@ -148,21 +199,34 @@ export default function RuleEditor({
     spec,
     findings,
     saving,
+    discarding,
     saveError,
     update,
     flush,
     publish,
+    discard,
     mutate,
   } = useRuleDraft(id);
   const { data: catalog } = useEventCatalog();
   const { data: templates } = useConversationTemplates();
+  const { data: families, error: familiesError } = useRuleFamilies();
   const symptomName = useSymptomNames();
   const [reviewing, setReviewing] = useState(false);
   const [stateError, setStateError] = useState<string | null>(null);
 
   const info = catalog?.find((e) => e.type === spec?.trigger.event);
   const fields = useMemo(() => eventCelFields(info), [info]);
-  const published = detail?.current?.spec ?? null;
+  const trigger = spec?.trigger;
+  const sample = useMemo(
+    () => sampleEvent(trigger ?? { event: "", when: null }, info),
+    [trigger, info]
+  );
+  const current = detail?.current?.spec;
+  // Compared the way the draft is read, so defaults the stored spec leaves out are no change.
+  const published = useMemo(
+    () => (current ? normalizeSpec(current) : null),
+    [current]
+  );
   const changes = useMemo(
     () => (spec ? ruleChanges(spec, published, d) : []),
     [spec, published, d]
@@ -172,7 +236,7 @@ export default function RuleEditor({
     [spec, published]
   );
   const changedKeys = new Set(changes.map((c) => c.key));
-  const readOnly = !canMaintain;
+  const readOnly = !canMaintain || discarding;
   const errors = (findings ?? []).filter((f) => f.severity === "ERROR").length;
   const backHref = `/${lang}${COMMUNICATIONS_PAGE}`;
   const rule = detail?.rule;
@@ -197,6 +261,13 @@ export default function RuleEditor({
     }
   };
 
+  const discardDraft = () => {
+    setStateError(null);
+    void discard().catch((e: unknown) =>
+      setStateError(e instanceof Error ? e.message : String(e))
+    );
+  };
+
   const simulate = async (event: SampleEvent) => {
     await flush();
     return simulateRule(id, event);
@@ -218,167 +289,162 @@ export default function RuleEditor({
           disableLinks
         />
       </div>
-      <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-10 dark:bg-gray-900">
-        {error && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {tr("loadFailed", d)}
-          </p>
-        )}
-        {!detail && !error && (
-          <p className={`text-sm ${MUTED}`}>{tr("loading", d)}</p>
-        )}
-        {rule && (
-          <RuleHeader
-            name={rule.name}
-            ruleKey={rule.key}
-            version={rule.currentVersion}
-            state={rule.state}
-            canSetState={canMaintain && rule.currentVersion !== null}
-            backHref={backHref}
-            d={d}
-            onState={(s) => void changeState(s)}
-          />
-        )}
-        {stateError && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {stateError}
-          </p>
-        )}
-        {spec && detail && (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
-              <ResponseBlock
-                title={tr("sectionWhen", d)}
-                aside={
-                  <ChangedMark
-                    show={changedKeys.has("event") || changedKeys.has("when")}
-                    d={d}
-                  />
-                }
-              >
-                <FieldRow label={tr("eventLabel", d)}>
-                  <Select
-                    aria-label={tr("eventLabel", d)}
-                    className={FIELD}
-                    wrapperClassName="min-w-56 flex-1"
-                    disabled={readOnly}
-                    value={spec.trigger.event}
-                    onChange={(e) =>
-                      set({
-                        trigger: { ...spec.trigger, event: e.target.value },
-                      })
-                    }
-                  >
-                    <option value="">{tr("pickEvent", d)}</option>
-                    {spec.trigger.event &&
-                      !catalog?.some((e) => e.type === spec.trigger.event) && (
-                        <option value={spec.trigger.event}>
-                          {spec.trigger.event}
-                        </option>
-                      )}
-                    {(catalog ?? []).map((e) => (
-                      <option key={e.type} value={e.type}>
-                        {eventLabel(e.type, d, catalog)}
-                      </option>
-                    ))}
-                  </Select>
-                </FieldRow>
-                <div className="flex min-w-0 flex-col gap-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {tr("whenLabel", d)}
-                  </span>
-                  <CelEditor
-                    readOnly={readOnly}
-                    ariaLabel={tr("whenLabel", d)}
-                    placeholder={tr("whenPlaceholder", d)}
-                    value={spec.trigger.when ?? ""}
-                    fields={fields}
-                    problems={placed.trigger.map((f) => ({
-                      position: Math.max(0, f.position),
-                      message: ruleFindingText(f, d),
-                      severity: f.severity === "ERROR" ? "error" : "warning",
-                    }))}
-                    onChange={(when) =>
-                      set({ trigger: { ...spec.trigger, when: when || null } })
-                    }
-                  />
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    {triggerSummary(spec.trigger, d, symptomName, catalog)}
-                  </p>
-                </div>
-              </ResponseBlock>
-
-              <ResponseBlock
-                title={tr("sectionAudience", d)}
-                aside={<ChangedMark show={changedKeys.has("audience")} d={d} />}
-              >
-                <p className={`text-sm ${MUTED}`}>{tr("audienceHint", d)}</p>
-                <Problems
-                  items={placed.audienceGeneral.map((message) => ({
-                    position: 0,
-                    message,
-                    severity: "error",
+      <div className="min-h-0 flex-1 overflow-y-auto dark:bg-gray-900">
+        <SheetTop>
+          {rule && (
+            <RuleHeader
+              name={rule.name}
+              ruleKey={rule.key}
+              version={rule.currentVersion}
+              state={rule.state}
+              family={spec?.family ?? null}
+              publishedFamily={published?.family ?? null}
+              families={families}
+              familiesMissing={
+                familiesError instanceof ControlTowerError &&
+                familiesError.status === 404
+              }
+              canSetState={
+                canMaintain && !discarding && rule.currentVersion !== null
+              }
+              canEdit={canMaintain && !discarding && spec !== null}
+              backHref={backHref}
+              lang={lang}
+              d={d}
+              onState={(s) => void changeState(s)}
+              onFamily={(family) => set({ family })}
+              actions={
+                <>
+                  {stateError && (
+                    <span
+                      role="alert"
+                      className="max-w-56 break-words text-right text-xs text-red-600 dark:text-red-400"
+                    >
+                      {stateError}
+                    </span>
+                  )}
+                  {showBar && (
+                    <RuleDraftBar
+                      changes={changes}
+                      errors={errors}
+                      saving={saving}
+                      discarding={discarding}
+                      saveError={saveError}
+                      current={rule?.currentVersion ?? null}
+                      bump={bump}
+                      d={d}
+                      onReview={() => setReviewing(true)}
+                      onDiscard={
+                        rule?.currentVersion ? discardDraft : undefined
+                      }
+                    />
+                  )}
+                </>
+              }
+            />
+          )}
+        </SheetTop>
+        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pt-3 pb-10">
+          {error && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {tr("loadFailed", d)}
+            </p>
+          )}
+          {!detail && !error && (
+            <p className={`text-sm ${MUTED}`}>{tr("loading", d)}</p>
+          )}
+          {spec && detail && (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
+                <RuleTriggerSection
+                  trigger={spec.trigger}
+                  info={info}
+                  catalog={catalog}
+                  sample={sample}
+                  fields={fields}
+                  problems={placed.trigger.map((f) => ({
+                    position: Math.max(0, f.position),
+                    message: ruleFindingText(f, d),
+                    severity: f.severity === "ERROR" ? "error" : "warning",
                   }))}
-                />
-                <AudienceList
-                  entries={spec.audience}
-                  fields={info?.fields ?? []}
-                  errors={placed.audience}
+                  summary={triggerSummary(
+                    spec.trigger,
+                    d,
+                    symptomName,
+                    catalog
+                  )}
+                  changed={changedKeys.has("event") || changedKeys.has("when")}
                   readOnly={readOnly}
                   d={d}
-                  label={tr("sectionAudience", d)}
-                  onChange={(audience) => set({ audience })}
+                  formDict={dict?.symptomCatalog as I18nRecord}
+                  onChange={(trigger) => set({ trigger })}
                 />
-              </ResponseBlock>
 
-              <ResponseBlock
-                title={tr("sectionSteps", d)}
-                aside={
-                  <ChangedMark
-                    show={changes.some((c) => c.key.startsWith("step"))}
-                    d={d}
+                <NumberedSection
+                  number={2}
+                  title={tr("sectionAudience", d)}
+                  subtitle={tr("sectionAudienceSub", d)}
+                  changed={changedKeys.has("audience")}
+                >
+                  <p className={`text-sm ${MUTED}`}>{tr("audienceHint", d)}</p>
+                  <Problems
+                    items={placed.audienceGeneral.map((message) => ({
+                      position: 0,
+                      message,
+                      severity: "error",
+                    }))}
                   />
-                }
-              >
-                <RuleSteps
-                  steps={spec.steps}
-                  templates={templates ?? []}
-                  fields={info?.fields ?? []}
-                  errors={placed.steps}
-                  readOnly={readOnly}
-                  d={d}
-                  onChange={(steps) => set({ steps })}
-                />
-              </ResponseBlock>
+                  <AudienceList
+                    entries={spec.audience}
+                    fields={info?.fields ?? []}
+                    errors={placed.audience}
+                    readOnly={readOnly}
+                    d={d}
+                    fieldDict={fieldDict}
+                    label={tr("sectionAudience", d)}
+                    onChange={(audience) => set({ audience })}
+                  />
+                </NumberedSection>
 
-              <ResponseBlock title={tr("sectionSimulation", d)}>
-                <SimulationSection
-                  key={`${spec.trigger.event}-${info ? "catalog" : ""}`}
-                  initial={sampleEvent(spec.trigger, info)}
-                  disabled={!canMaintain || !spec.trigger.event}
-                  d={d}
-                  onSimulate={simulate}
-                />
-              </ResponseBlock>
+                <NumberedSection
+                  number={3}
+                  title={tr("sectionSteps", d)}
+                  subtitle={tr("sectionStepsSub", d)}
+                  changed={changes.some((c) => c.key.startsWith("step"))}
+                >
+                  <RuleSteps
+                    steps={spec.steps}
+                    templates={templates ?? []}
+                    fields={info?.fields ?? []}
+                    errors={placed.steps}
+                    readOnly={readOnly}
+                    d={d}
+                    fieldDict={fieldDict}
+                    onChange={(steps) => set({ steps })}
+                  />
+                </NumberedSection>
+
+                <NumberedSection
+                  number={4}
+                  title={tr("sectionSimulation", d)}
+                  subtitle={tr("sectionSimulationSub", d)}
+                >
+                  <SimulationSection
+                    key={`${spec.trigger.event}-${info ? "catalog" : ""}`}
+                    initial={sample}
+                    disabled={!canMaintain || discarding || !spec.trigger.event}
+                    d={d}
+                    onSimulate={simulate}
+                  />
+                </NumberedSection>
+              </div>
+              <div className="flex flex-col gap-4">
+                <RuleReviewPanel findings={findings} d={d} />
+                <VariablesPanel variables={eventVariables(info)} d={d} />
+              </div>
             </div>
-            <div className="flex flex-col gap-4">
-              <RuleReviewPanel findings={findings} d={d} />
-              <VariablesPanel variables={eventVariables(info)} d={d} />
-            </div>
-          </div>
-        )}
-        {showBar && (
-          <RuleDraftBar
-            changes={changes}
-            errors={errors}
-            saving={saving}
-            saveError={saveError}
-            current={rule?.currentVersion ?? null}
-            bump={bump}
-            d={d}
-            onReview={() => setReviewing(true)}
-          />
-        )}
+          )}
+        </div>
       </div>
       <PublishRuleDialog
         open={reviewing}
@@ -387,6 +453,7 @@ export default function RuleEditor({
         bump={bump}
         canPublish={
           canMaintain &&
+          !discarding &&
           errors === 0 &&
           changes.length > 0 &&
           bump !== null &&

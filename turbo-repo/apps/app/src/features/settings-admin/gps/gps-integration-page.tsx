@@ -11,7 +11,7 @@ import {
   HiOutlineRefresh,
 } from "react-icons/hi";
 import { toast } from "sonner";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -278,43 +278,32 @@ export default function GpsIntegrationPage({
   const loading = !failed && (!access || integration.isLoading);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={dict?.breadcrumb as I18nRecord}
-          lang={lang}
-          path={["user", "settings", "gps"]}
-          disableLinks
-        />
+    <SettingsPageShell
+      breadcrumbDict={dict?.breadcrumb as I18nRecord}
+      lang={lang}
+      path={["user", "settings", "gps"]}
+      icon={HiOutlineLocationMarker}
+      title={tr("title", d)}
+      description={tr("description", d)}
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1 pb-4">
+        {loading && <Spinner className="mx-auto" />}
+        {failed && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
+        {!loading && !failed && !allowed && (
+          <Alert color="gray">{tr("notAllowed", d)}</Alert>
+        )}
+        {!loading && !failed && allowed && integration.data && (
+          <>
+            <TokenCard
+              integration={integration.data}
+              d={d}
+              canRead={can("gps:secret.read")}
+              canRotate={can("gps:secret.rotate")}
+            />
+            <KeyCard integration={integration.data} d={d} lang={lang} />
+          </>
+        )}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto dark:bg-gray-900">
-        <div className="mx-auto flex w-full max-w-screen-xl flex-col gap-5 px-4 pt-5 pb-10">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {tr("title", d)}
-            </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {tr("description", d)}
-            </p>
-          </div>
-          {loading && <Spinner className="mx-auto" />}
-          {failed && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-          {!loading && !failed && !allowed && (
-            <Alert color="gray">{tr("notAllowed", d)}</Alert>
-          )}
-          {!loading && !failed && allowed && integration.data && (
-            <>
-              <TokenCard
-                integration={integration.data}
-                d={d}
-                canRead={can("gps:secret.read")}
-                canRotate={can("gps:secret.rotate")}
-              />
-              <KeyCard integration={integration.data} d={d} lang={lang} />
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    </SettingsPageShell>
   );
 }

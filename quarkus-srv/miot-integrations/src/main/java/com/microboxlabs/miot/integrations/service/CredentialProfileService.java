@@ -154,32 +154,8 @@ public class CredentialProfileService {
             if (current == null) {
                 return null;
             }
-
-            String displayName = req.displayName() == null ? null : requireName(req.displayName());
-            List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
-            String environment = req.environment() == null ? null : resolveEnvironment(req.environment(), existing);
-            requireNameAvailable(
-                    existing,
-                    displayName != null ? displayName : current.displayName(),
-                    environment != null ? environment : current.environment(),
-                    current.id());
-
-            // A caller may send only the public half it changed; the stored half must still validate.
-            Map<String, Object> publicConfig = req.publicConfig() == null ? null : safeMap(req.publicConfig());
-            validateConfig(current.credentialType(), publicConfig != null ? publicConfig : current.publicConfig());
-
-            Map<String, Object> secretConfig = rotating ? new LinkedHashMap<>(requestedSecret) : Map.of();
-            if (rotating && current.credentialType() == CredentialType.BEARER_TOKEN) {
-                // The generic credential screen sends only the access token. Keep the webhook
-                // keys that share a WhatsApp credential unless the caller explicitly replaces them.
-                Map<String, Object> stored = decrypt(current);
-                preserveWebhookKey(secretConfig, stored, WhatsAppWebhookKeys.APP_SECRET);
-                preserveWebhookKey(secretConfig, stored, WhatsAppWebhookKeys.VERIFY_TOKEN);
-            }
-            UpdateCredentialProfileParams params = new UpdateCredentialProfileParams(
-                    tenantCode, id, displayName, environment, publicConfig,
-                    rotating ? encrypt(secretConfig, current.displayName()) : null,
-                    rotating ? maskSecret(secretConfig) : null, actor);
+            UpdateCredentialProfileParams params = prepareProfileUpdate(
+                    tenantCode, actor, id, req, current, requestedSecret);
             CredentialProfile updated = rotating
                     ? credentialProfileRepository.updateIfVersion(params, current.secretVersion())
                     : credentialProfileRepository.update(params);
@@ -191,6 +167,43 @@ public class CredentialProfileService {
             }
         }
         throw new IllegalStateException("Credential changed concurrently; retry the update");
+    }
+
+    private UpdateCredentialProfileParams prepareProfileUpdate(
+            String tenantCode, String actor, String id, UpdateCredentialProfileRequest req,
+            CredentialProfile current, Map<String, Object> requestedSecret) {
+        String displayName = req.displayName() == null ? null : requireName(req.displayName());
+        List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
+        String environment = req.environment() == null ? null : resolveEnvironment(req.environment(), existing);
+        requireNameAvailable(existing,
+                displayName != null ? displayName : current.displayName(),
+                environment != null ? environment : current.environment(), current.id());
+
+        // A caller may send only the public half it changed; the stored half must still validate.
+        Map<String, Object> publicConfig = req.publicConfig() == null ? null : safeMap(req.publicConfig());
+        validateConfig(current.credentialType(), publicConfig != null ? publicConfig : current.publicConfig());
+
+        Map<String, Object> secretConfig = secretForProfileUpdate(current, requestedSecret);
+        boolean rotating = !secretConfig.isEmpty();
+        return new UpdateCredentialProfileParams(tenantCode, id, displayName, environment, publicConfig,
+                rotating ? encrypt(secretConfig, current.displayName()) : null,
+                rotating ? maskSecret(secretConfig) : null, actor);
+    }
+
+    private Map<String, Object> secretForProfileUpdate(
+            CredentialProfile current, Map<String, Object> requestedSecret) {
+        if (requestedSecret.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> secret = new LinkedHashMap<>(requestedSecret);
+        if (current.credentialType() == CredentialType.BEARER_TOKEN) {
+            // The generic credential screen sends only the access token. Keep the webhook
+            // keys that share a WhatsApp credential unless the caller explicitly replaces them.
+            Map<String, Object> stored = decrypt(current);
+            preserveWebhookKey(secret, stored, WhatsAppWebhookKeys.APP_SECRET);
+            preserveWebhookKey(secret, stored, WhatsAppWebhookKeys.VERIFY_TOKEN);
+        }
+        return secret;
     }
 
     private static void preserveWebhookKey(Map<String, Object> updates, Map<String, Object> stored, String key) {

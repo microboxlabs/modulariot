@@ -48,7 +48,8 @@ const NO_IDS: ReadonlySet<string> = new Set();
 
 export function memberName(member: OrgMember): string {
   const full = [member.firstName, member.lastName]
-    .filter((part) => part?.trim())
+    .map((part) => part?.trim())
+    .filter(Boolean)
     .join(" ");
   return member.displayName?.trim() || full || member.email;
 }

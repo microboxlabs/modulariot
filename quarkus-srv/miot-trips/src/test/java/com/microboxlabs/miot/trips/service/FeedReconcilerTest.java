@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,6 +11,7 @@ import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.dto.FeedResult;
+import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.store.FeedStore;
 import com.microboxlabs.miot.trips.store.InMemoryFleet;
@@ -110,6 +112,55 @@ class FeedReconcilerTest {
         assertThrows(IllegalArgumentException.class, () -> send(invalid));
         assertEquals(1, tx.outerTransactions);
         assertEquals(FeedReconciler.ERROR, feeds.saved.lastAction());
+    }
+
+    @Test
+    void reportedStateCanBeSubmittedAgain() {
+        FeedServiceRequest incomplete = new FeedServiceRequest(null, null, null, null, null, null);
+        assertEquals(FeedReconciler.REPORT, send(incomplete).action());
+        assertTrue(reconciler.accept("test", "test-feed", "S-TEST", incomplete));
+    }
+
+    @Test
+    void dedupeKeysSeparateColonsAndEscapeCharacters() {
+        assertNotEquals(FeedBatchService.spec("feed", "S:1", "test", "b1").dedupeKey(),
+                FeedBatchService.spec("feed", "S", "test", "1:b1").dedupeKey());
+        assertNotEquals(FeedBatchService.spec("feed", "S:1", "test", "b1").dedupeKey(),
+                FeedBatchService.spec("feed", "S%3A1", "test", "b1").dedupeKey());
+    }
+
+    @Test
+    void profileStoresNormalizedStagesAndRejectsANonClosingCloseStage() {
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+        List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparacion ", " ADDED "),
+                new FeedProfile.StagePlan("cierre", "FINISHED"));
+        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
+                "preparacion", "cierre", 0, List.of(), true));
+        assertEquals("preparacion", saved.stages().get(0).stageType());
+        assertEquals("ADDED", saved.stages().get(0).serviceStatus());
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "preparacion", "preparacion", 0,
+                List.of(), true);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, "preparacion", "cierre", 0,
+                java.util.Collections.singletonList(null), true);
+        assertThrows(IllegalArgumentException.class,
+                () -> profiles.save("test", "test", "test-feed", nullResource));
+    }
+
+    @Test
+    void batchRetainsEveryRefusedItemEvenWithRepeatedOrIndexLikeCodes() {
+        FeedBatchService batch = new FeedBatchService(reconciler, (tenant, feed, specs) -> {
+            throw new IllegalStateException("test refusal");
+        });
+        var items = List.of("#1", "", "#1").stream()
+                .map(code -> new com.microboxlabs.miot.trips.dto.FeedBatchRequest.Item(code, desired(null, List.of())))
+                .toList();
+        var result = batch.send("test", "test", "test-feed",
+                new com.microboxlabs.miot.trips.dto.FeedBatchRequest("test-batch", items));
+        assertEquals(List.of(0, 1, 2), result.refused().stream()
+                .map(com.microboxlabs.miot.trips.dto.FeedBatchResult.Refusal::index).toList());
+        assertEquals(List.of("#1", "", "#1"), result.refused().stream()
+                .map(com.microboxlabs.miot.trips.dto.FeedBatchResult.Refusal::externalCode).toList());
     }
 
     private static class TestTransactions implements Transactions {

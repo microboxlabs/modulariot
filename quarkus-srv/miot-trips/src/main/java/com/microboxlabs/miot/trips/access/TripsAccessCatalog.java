@@ -18,7 +18,9 @@ import java.util.Set;
  *   <tr><td>{@value #VIEWER}</td><td>{@value #VIEW}</td></tr>
  *   <tr><td>{@value #OPERATOR}</td><td>+ {@value #STAGE_OPERATE}, {@value #CARGO_OPERATE},
  *       {@value #ASSIGNMENT_WRITE}</td></tr>
- *   <tr><td>{@value #MAINTAINER}</td><td>every trips permission (the feeds' service accounts use it)</td></tr>
+ *   <tr><td>{@value #MAINTAINER}</td><td>every trips permission but {@value #FEED_ADMIN} (the feeds' service
+ *       accounts use it)</td></tr>
+ *   <tr><td>Owner, Admin</td><td>+ {@value #FEED_ADMIN}: the rules of each feed</td></tr>
  * </table>
  */
 @ApplicationScoped
@@ -34,6 +36,8 @@ public class TripsAccessCatalog implements AccessCatalog {
     public static final String STAGE_OPERATE = "trips:stage.operate";
     public static final String ASSIGNMENT_WRITE = "trips:assignment.write";
     public static final String LOCATION_WRITE = "trips:location.write";
+    public static final String FEED_WRITE = "trips:feed.write";
+    public static final String FEED_ADMIN = "trips:feed.admin";
 
     public static final String VIEWER = "TRIPS_VIEWER";
     public static final String OPERATOR = "TRIPS_OPERATOR";
@@ -48,7 +52,9 @@ public class TripsAccessCatalog implements AccessCatalog {
                 PermissionDef.of(TRIP_WRITE, "Crear y vincular viajes", "Create and link trips"),
                 PermissionDef.of(STAGE_OPERATE, "Operar etapas y actividades", "Operate stages and activities"),
                 PermissionDef.of(ASSIGNMENT_WRITE, "Asignar recursos a viajes", "Assign resources to trips"),
-                PermissionDef.of(LOCATION_WRITE, "Mantener ubicaciones", "Maintain locations"));
+                PermissionDef.of(LOCATION_WRITE, "Mantener ubicaciones", "Maintain locations"),
+                PermissionDef.of(FEED_WRITE, "Enviar feeds de servicios", "Send service feeds"),
+                PermissionDef.of(FEED_ADMIN, "Configurar las reglas de los feeds", "Configure the rules of feeds"));
     }
 
     @Override
@@ -64,9 +70,9 @@ public class TripsAccessCatalog implements AccessCatalog {
                                 "Operates stages, cargo and resources of running trips."),
                 RoleDef.of(MAINTAINER, MODULE, "Mantenedor", "Maintainer",
                                 Set.of(VIEW, MANDATE_WRITE, CARGO_OPERATE, TRIP_WRITE, STAGE_OPERATE,
-                                        ASSIGNMENT_WRITE, LOCATION_WRITE))
-                        .describedAs("Además crea mandatos y viajes y mantiene recursos y ubicaciones.",
-                                "Also creates mandates and trips and maintains resources and locations."));
+                                        ASSIGNMENT_WRITE, LOCATION_WRITE, FEED_WRITE))
+                        .describedAs("Además crea mandatos y viajes, mantiene recursos y ubicaciones y envía feeds.",
+                                "Also creates mandates and trips, maintains resources and locations and sends feeds."));
     }
 
     @Override

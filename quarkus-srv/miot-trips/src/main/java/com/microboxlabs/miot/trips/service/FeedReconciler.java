@@ -58,6 +58,8 @@ public class FeedReconciler {
     public static final String SKIP = "omitir";
     public static final String REPORT = "reportar";
     public static final String ERROR = "error";
+    /** Accepted from the feed, not applied yet. */
+    public static final String PENDING = "pendiente";
 
     private static final String START_NOTE = "start ";
     private static final String CLOSE_NOTE = "close ";
@@ -132,10 +134,36 @@ public class FeedReconciler {
         return applyLocked(tenantCode, actor, profile, code, desired, false);
     }
 
-    /** Reads the latest desired state under the same lock that protects its application. */
+    /**
+     * Keeps {@code desired} as the service's latest state, to be applied by {@link #recheck}. Returns false when it
+     * is the state already applied or waiting: nothing new to apply.
+     */
+    public boolean accept(String tenantCode, String feedKey, String externalCode, FeedServiceRequest desired) {
+        String code = Check.required(externalCode, "externalCode", 128);
+        if (desired == null) {
+            throw new IllegalArgumentException("desired is required for " + code);
+        }
+        profile(tenantCode, feedKey);
+        String hash = hash(desired);
+        return tx.inTransaction(() -> {
+            FeedService before = feeds.lockService(tenantCode, feedKey, code);
+            // the same state, applied or already waiting; a failed apply keeps no hash, so a resend counts
+            if (hash.equals(before.desiredHash()) && !REPORT.equals(before.lastAction())) {
+                return false;
+            }
+            feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), hash, before.mandateId(),
+                    before.tripId(), true, PENDING, before.lastResult(), before.lastReconciledAt()));
+            return true;
+        });
+    }
+
+    /** Applies the service's latest desired state: after {@link #accept}, and for the clock's departure and close. */
+    public FeedResult recheck(String tenantCode, String actor, String feedKey, String externalCode) {
+        return applyLocked(tenantCode, actor, profile(tenantCode, feedKey), externalCode, null, true);
+    }
+
     public FeedResult recheck(String tenantCode, String feedKey, String externalCode) {
-        return applyLocked(tenantCode, "feed:" + feedKey + ":clock", profile(tenantCode, feedKey),
-                externalCode, null, true);
+        return recheck(tenantCode, "feed:" + feedKey + ":clock", feedKey, externalCode);
     }
 
     private record Attempt(FeedResult result, RuntimeException failure) {

@@ -1886,18 +1886,6 @@
               "ACCREDITATION": "Lo creó la integración de acreditación y vence con la acreditación."
             }
           }
-        },
-        "symptomTemplates": {
-          "title": "Plantillas de síntomas",
-          "menuHint": "Síntomas listos que copian las organizaciones",
-          "description": "Cada plantilla es un síntoma de la plataforma, con borrador, versiones y publicación. Las organizaciones ven la última versión publicada en «Nuevo síntoma desde plantilla».",
-          "open": "Abrir plantillas"
-        },
-        "messageTemplates": {
-          "title": "Plantillas de mensajes",
-          "menuHint": "Los mensajes que envían las reglas de comunicación",
-          "description": "Las plantillas de WhatsApp y correo que usan las reglas de comunicación de todas las organizaciones. Cada cambio sube su versión.",
-          "open": "Abrir plantillas"
         }
       },
       "organizations": {
@@ -3582,16 +3570,26 @@
         "channelHint_slack": "Las reglas publican en un canal de Slack con el webhook entrante de la organización.",
         "channelHint_teams": "Las reglas publican en un canal de Teams con un flujo de webhook entrante de la organización.",
         "channelPlatformTitle": "Cuenta de la plataforma",
-        "channelPlatformBody": "Incluida: las reglas envían desde la cuenta de la plataforma, con sus plantillas. No hay que configurar nada.",
+        "channelPlatformBody": "Las reglas envían desde la cuenta de la plataforma, con sus plantillas. No hay que configurar nada.",
         "channelPlatformNone": "La plataforma no tiene una cuenta para este canal. Para usarlo, conecta la de la organización.",
         "channelPlatformIncluded": "Incluida",
         "channelNotOffered": "No disponible",
         "channelOwnTitle": "Cuenta de la organización",
         "channelOwnBody_whatsapp": "Envía desde el número de la organización. Las plantillas se copian desde la plataforma y Meta las aprueba en esta cuenta.",
         "channelOwnBody_email": "Envía desde el dominio de la organización, con su propia cuenta de correo.",
-        "channelNotConfigured": "Sin configurar",
         "channelPlatformScopeHint": "La cuenta de la plataforma. La usan todas las organizaciones que no tienen una cuenta propia.",
         "channelOwnOwnersOnly": "Solo los dueños de la organización pueden conectar una cuenta propia.",
+        "channelSendFrom": "Envío de las reglas",
+        "channelSendFromHint": "La cuenta desde la que envían las reglas de la organización.",
+        "channelOwnConnected": "Conectada",
+        "channelOwnNotConnected": "Sin conectar",
+        "channelOwnConnectFirst": "Para enviar desde la cuenta de la organización, conéctala abajo.",
+        "channelOwnMissing": "Las reglas envían desde la cuenta de la organización, pero no hay una conectada. Los envíos fallan hasta que la conectes abajo o elijas la de la plataforma.",
+        "channelModeFailed": "No se pudo cambiar la cuenta.",
+        "channelOwnTemplatesTitle": "Plantillas en la cuenta de la organización",
+        "channelOwnTemplatesHint": "Las reglas envían plantillas aprobadas por Meta en esta cuenta. Copia las de la plataforma y Meta las revisa otra vez.",
+        "channelCopyTemplates": "Copiar de la plataforma",
+        "channelCopyResult": "{copied} enviadas a revisión, {exists} ya estaban, {failed} con error.",
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Elige la conexión que llama el paso {n}.",
@@ -3930,7 +3928,9 @@
         "findingStepNegativeMinutes": "Los minutos del paso {n} no pueden ser negativos.",
         "findingStepBadOnReply": "Al recibir respuesta, el paso {n} termina o sigue con el siguiente.",
         "findingStepBadRecipients": "Los destinatarios del paso {n} son los de la regla o una lista.",
-        "findingStepNoRecipients": "El paso {n} no tiene destinatarios."
+        "findingStepNoRecipients": "El paso {n} no tiene destinatarios.",
+        "menuTemplates": "Lo que envían las reglas de todas las organizaciones",
+        "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma"
       },
       "gps": {
         "title": "Integración GPS",

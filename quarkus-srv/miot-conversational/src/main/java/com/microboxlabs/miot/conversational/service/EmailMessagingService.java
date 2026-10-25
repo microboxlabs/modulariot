@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.service;
 
+import com.microboxlabs.miot.conversational.accounts.ChannelAccountsService;
 import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.Message;
@@ -10,7 +11,6 @@ import com.microboxlabs.miot.conversational.domain.MessageType;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
 import com.microboxlabs.miot.integrations.email.EmailMessage;
-import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
 import com.microboxlabs.miot.integrations.email.SendResult;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Sends a rule's email through the tenant's RESEND connection (else the platform's, as organization mail does)
- * and stores it on the conversation about the message's context with the recipient. A failed send is stored
+ * Sends a rule's email through the platform's RESEND connection, or the organization's own when its email mode
+ * is OWN, and stores it on the conversation about the message's context with the recipient. A failed send is stored
  * FAILED with its reason; with {@code simulate} nothing is sent and the message is stored SIMULATED. Reply-to is
  * not set yet (#2006).
  */
@@ -36,13 +36,15 @@ public class EmailMessagingService {
     private final ResendEmailSender sender;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final ChannelAccountsService accounts;
 
     @Inject
     public EmailMessagingService(ResendEmailSender sender, ConversationRepository conversationRepository,
-            MessageRepository messageRepository) {
+            MessageRepository messageRepository, ChannelAccountsService accounts) {
         this.sender = sender;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
+        this.accounts = accounts;
     }
 
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
@@ -77,12 +79,11 @@ public class EmailMessagingService {
     }
 
     private SendResult deliver(String tenantCode, ContextMessage message) {
-        String sendingTenant = sender.configured(tenantCode) ? tenantCode : null;
-        if (sendingTenant == null && sender.configured(PlatformMailService.PLATFORM_TENANT)) {
-            sendingTenant = PlatformMailService.PLATFORM_TENANT;
-        }
-        if (sendingTenant == null) {
-            return SendResult.failed(0, "No email sender: set a RESEND connection in Settings");
+        String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.EMAIL);
+        if (!sender.configured(sendingTenant)) {
+            return SendResult.failed(0, sendingTenant.equals(tenantCode)
+                    ? "The organization has no active RESEND connection; connect it or use the platform's account"
+                    : "The platform has no email account configured");
         }
         EmailMessage email;
         try {

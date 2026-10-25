@@ -12,8 +12,10 @@ import {
   TextInput,
 } from "flowbite-react";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import type { CelField } from "./cel-editor";
 import { keyFrom } from "./create-symptom-modal";
@@ -133,6 +135,7 @@ export default function SymptomDetail({
 }>) {
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
+  const { switchOrg } = useOrgScopes();
   const scope = useSymptomScope();
   const { template, isPlatformOwner, canWrite } = useSheetAccess(scope);
   const {
@@ -255,11 +258,7 @@ export default function SymptomDetail({
         <Breadcrumb
           dict={dict?.breadcrumb as I18nRecord}
           lang={lang}
-          path={
-            template
-              ? ["user", "settings", "platform", "symptomTemplates"]
-              : ["user", "settings", "symptomCatalog"]
-          }
+          path={["user", "settings", "symptomCatalog"]}
           disableLinks
         />
       </div>
@@ -497,8 +496,15 @@ export default function SymptomDetail({
           onClose={() => setSavingTemplate(false)}
           onSaved={(saved) => {
             setSavingTemplate(false);
-            router.push(
-              `/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
+            // The template lives in the platform scope: switch to it and open the template there.
+            // location.assign does not add the base path the way router.push does.
+            switchOrg(
+              PLATFORM_SCOPE_SLUG,
+              `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
+            ).catch((error: unknown) =>
+              setActionError(
+                error instanceof Error ? error.message : String(error)
+              )
             );
           }}
         />

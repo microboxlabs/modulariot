@@ -1,21 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentType, type SVGProps } from "react";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiCheck,
   HiOutlineClipboardCopy,
-  HiOutlineMail,
   HiDotsVertical,
   HiOutlinePencil,
   HiOutlineTrash,
 } from "react-icons/hi";
+import { Phone } from "flowbite-react-icons/solid";
+import { SiGooglemeet } from "react-icons/si";
+import {
+  BrandLogo,
+  type LogoKeyline,
+} from "@/features/common/components/brand-logo";
 import CatalogTable from "@/features/common/components/catalog-table";
+import { channelLogo } from "@/features/conversations/channel-icon";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   ALL_CALL_METHODS,
-  CALL_METHOD_ICONS,
   type CallMethod,
 } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
 import { formatChileanPhone } from "@/features/symptoms/components/map-view/prototype/call-center/format-chilean-phone";
@@ -27,10 +32,35 @@ import type { ContactBadge } from "./taxonomy-store";
 /** The call methods and the email the communication rules write to. */
 type ContactMethod = CallMethod | "email";
 
-const METHOD_ICONS: Record<ContactMethod, typeof HiOutlineMail> = {
-  ...CALL_METHOD_ICONS,
-  email: HiOutlineMail,
+/** The channel logos of Comunicaciones, and Flowbite's phone; Meet has no Flowbite mark. WhatsApp's is round. */
+const METHOD_LOGOS: Record<
+  ContactMethod,
+  {
+    icon: ComponentType<SVGProps<SVGSVGElement>>;
+    keyline: LogoKeyline;
+  }
+> = {
+  phone: { icon: Phone, keyline: "square" },
+  whatsapp: { icon: channelLogo("whatsapp"), keyline: "circle" },
+  meet: { icon: SiGooglemeet, keyline: "square" },
+  teams: { icon: channelLogo("teams"), keyline: "square" },
+  email: { icon: channelLogo("email"), keyline: "square" },
 };
+
+/** A method's logo on the credentials' keylines: every mark in the same box, a round one drawn larger. */
+function MethodLogo({
+  method,
+  label,
+  size,
+}: Readonly<{ method: ContactMethod; label: string; size: number }>) {
+  const { icon, keyline } = METHOD_LOGOS[method];
+  // The button or tooltip around it already names the method.
+  return (
+    <span aria-hidden className="inline-flex">
+      <BrandLogo icon={icon} keyline={keyline} alt={label} size={size} />
+    </span>
+  );
+}
 
 const TABLE_METHODS: ContactMethod[] = [...ALL_CALL_METHODS, "email"];
 
@@ -85,12 +115,15 @@ function MethodTooltipContent({
   labels: ContactTableLabels;
   value?: string;
 }>) {
-  const Icon = METHOD_ICONS[method];
   return (
     <div className="flex flex-col gap-1.5 py-1">
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-          <Icon className="h-4 w-4" />
+          <MethodLogo
+            method={method}
+            label={labels.methodLabels[method]}
+            size={20}
+          />
         </span>
         <div className="flex min-w-0 flex-col">
           <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -126,14 +159,15 @@ interface MethodIconProps {
 /** A method the contact has no address for: shown muted, hover explains
  *  it isn't connected, nothing to copy. */
 function DisconnectedMethodIcon({ method, labels }: Readonly<MethodIconProps>) {
-  const Icon = METHOD_ICONS[method];
   const label = `${labels.methodLabels[method]}: ${labels.notConnected}`;
   return (
     <HoverTooltip
       content={<MethodTooltipContent method={method} labels={labels} />}
     >
       <span aria-label={label} role="img" className={DISCONNECTED_ICON_CLASS}>
-        <Icon className="h-3.5 w-3.5" />
+        <span className="opacity-50">
+          <MethodLogo method={method} label={label} size={20} />
+        </span>
       </span>
     </HoverTooltip>
   );
@@ -147,7 +181,6 @@ function ConnectedMethodIcon({
   labels,
 }: Readonly<MethodIconProps & { value: string }>) {
   const [copied, setCopied] = useState(false);
-  const Icon = METHOD_ICONS[method];
   const shown = displayValue(method, value);
 
   const handleCopy = () => {
@@ -173,7 +206,11 @@ function ConnectedMethodIcon({
         {copied ? (
           <HiCheck className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
         ) : (
-          <Icon className="h-3.5 w-3.5" />
+          <MethodLogo
+            method={method}
+            label={labels.methodLabels[method]}
+            size={20}
+          />
         )}
       </button>
     </HoverTooltip>

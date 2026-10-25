@@ -177,7 +177,11 @@ final class MonitorContext {
                     Map<String, Object> m = new LinkedHashMap<>();
                     putIf(m, "key", resourceKey(tenant, a));
                     putIf(m, "since", instant(a.validFrom()));
-                    out.putIfAbsent(a.resourceType(), m);
+                    if (Assignment.DRIVER.equals(a.resourceType())) {
+                        out.putIfAbsent(a.resourceType(), m);
+                    } else {
+                        out.put(a.resourceType(), m);
+                    }
                 });
         return out;
     }

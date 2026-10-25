@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Alert,
   Badge,
@@ -25,6 +26,7 @@ import { tr } from "@/features/i18n/tr.service";
 import LocationsPanel from "../locations/locations-panel";
 import PendingPanel from "../milestones/pending-panel";
 import ExpressionField from "./expression-field";
+import { useRowKeys } from "./use-row-keys";
 import {
   saveDraft,
   saveSelector,
@@ -43,7 +45,8 @@ export function keyFromName(name: string) {
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/^-/, "")
+    .replace(/-$/, "")
     .slice(0, 64);
 }
 
@@ -173,6 +176,8 @@ function SelectorPanel({
     }
   }, [data, entries]);
 
+  const rowKeys = useRowKeys(entries?.length ?? 0);
+
   if (!entries) return null;
   const set = (i: number, patch: Partial<(typeof entries)[number]>) =>
     setEntries(entries.map((e, j) => (j === i ? { ...e, ...patch } : e)));
@@ -206,8 +211,8 @@ function SelectorPanel({
         </p>
       )}
       {entries.map((e, i) => (
-        // Entries are ordered rows without an identity of their own.
-        <div key={i} className="flex items-end gap-2">
+        // Keep editor identity when earlier rows are removed.
+        <div key={rowKeys.keys[i]} className="flex items-end gap-2">
           <span className="w-6 pb-2 text-right text-xs text-gray-400">
             {i + 1}
           </span>
@@ -219,14 +224,14 @@ function SelectorPanel({
               on="selector"
               expect="condition"
               params={{}}
-              readOnly={!canEdit}
+              readOnly={!canEdit || busy}
               placeholder="trip.orderType == 'reparto'"
             />
           </div>
           <Select
             sizing="sm"
             value={e.monitorKey}
-            disabled={!canEdit}
+            disabled={!canEdit || busy}
             aria-label={tr("monitor", d)}
             onChange={(ev) => set(i, { monitorKey: ev.target.value })}
           >
@@ -240,8 +245,12 @@ function SelectorPanel({
             <button
               type="button"
               className="mb-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700"
+              disabled={busy}
               aria-label={tr("removeEntry", d)}
-              onClick={() => setEntries(entries.filter((_, j) => j !== i))}
+              onClick={() => {
+                rowKeys.remove(i);
+                setEntries(entries.filter((_, j) => j !== i));
+              }}
             >
               <HiX className="h-4 w-4" />
             </button>
@@ -256,13 +265,14 @@ function SelectorPanel({
           <Button
             color="light"
             size="sm"
-            disabled={published.length === 0}
-            onClick={() =>
+            disabled={busy || published.length === 0}
+            onClick={() => {
+              rowKeys.append();
               setEntries([
                 ...entries,
                 { condition: "", monitorKey: published[0].key },
-              ])
-            }
+              ]);
+            }}
           >
             <HiPlus className="mr-1 h-4 w-4" />
             {tr("addEntry", d)}
@@ -462,12 +472,14 @@ export default function MonitorList({
               <tr
                 key={m.key}
                 className="cursor-pointer border-t border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
-                onClick={() => open(m.key)}
               >
                 <td className="px-4 py-2.5">
-                  <div className="font-medium text-gray-900 dark:text-white">
+                  <Link
+                    href={`/${lang}/users/settings/trips/monitors/${encodeURIComponent(m.key)}`}
+                    className="font-medium text-gray-900 hover:underline dark:text-white"
+                  >
                     {m.name}
-                  </div>
+                  </Link>
                   <div className="font-mono text-gray-400">{m.key}</div>
                 </td>
                 <td className="px-4 py-2.5">

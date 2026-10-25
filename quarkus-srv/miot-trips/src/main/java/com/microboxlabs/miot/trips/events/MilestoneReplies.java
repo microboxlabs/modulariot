@@ -76,7 +76,7 @@ public class MilestoneReplies {
         UUID tripId = UUID.fromString(event.context().key());
         String tenant = event.tenantCode();
         boolean pending = milestones.list(tenant, tripId).stream()
-                .anyMatch(m -> m.milestone().equals(milestone) && m.pending());
+                .anyMatch(m -> m.milestone().equals(milestone) && m.isPending());
         if (!pending) {
             return Outcome.NOT_PENDING;
         }

@@ -29,7 +29,8 @@ public record SendWhatsAppMessageRequest(
         String serviceCode,
         String processInstanceId,
         String taskId,
-        String actor) {
+        String actor,
+        String conversationId) {
 
     /**
      * Normalizes blank context/identity fields to {@code null} so they never reach persistence as
@@ -44,6 +45,7 @@ public record SendWhatsAppMessageRequest(
         serviceCode = blankToNull(serviceCode);
         processInstanceId = blankToNull(processInstanceId);
         taskId = blankToNull(taskId);
+        conversationId = blankToNull(conversationId);
     }
 
     private static String blankToNull(String value) {
@@ -68,7 +70,25 @@ public record SendWhatsAppMessageRequest(
             String processInstanceId,
             String taskId) {
         this(to, type, body, templateName, language, templateParams, role,
-                driverId, serviceCode, processInstanceId, taskId, null);
+                driverId, serviceCode, processInstanceId, taskId, null, null);
+    }
+
+    /** Backward-compatible constructor (pre-{@code conversationId}): the send picks the conversation. */
+    public SendWhatsAppMessageRequest(
+            String to,
+            String type,
+            String body,
+            String templateName,
+            String language,
+            Map<String, String> templateParams,
+            MessageRole role,
+            String driverId,
+            String serviceCode,
+            String processInstanceId,
+            String taskId,
+            String actor) {
+        this(to, type, body, templateName, language, templateParams, role,
+                driverId, serviceCode, processInstanceId, taskId, actor, null);
     }
 
     private static final String TYPE_TEMPLATE = "TEMPLATE";

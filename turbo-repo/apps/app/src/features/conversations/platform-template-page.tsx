@@ -8,7 +8,10 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ago } from "@/features/symptoms/maintainer/catalog-format";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import { usePlatformTemplate, usePlatformTemplates } from "./conversations-api";
+import {
+  useConversationTemplate,
+  useConversationTemplates,
+} from "./conversations-api";
 import {
   NEW_TEMPLATE,
   PLATFORM_TEMPLATES_PAGE,
@@ -25,11 +28,11 @@ export default function PlatformTemplatePage({
   const d = dict?.communications as I18nRecord;
   const router = useRouter();
   const isNew = templateKey === NEW_TEMPLATE;
-  const { data: template, error: templateError } = usePlatformTemplate(
+  const { data: template, error: templateError } = useConversationTemplate(
     isNew ? null : templateKey
   );
   // Saving is create-or-replace: a new template waits for the taken keys.
-  const { data: all, error: listError } = usePlatformTemplates(isNew);
+  const { data: all, error: listError } = useConversationTemplates(isNew);
   const error = isNew ? listError : templateError;
   const backHref = `/${lang}${PLATFORM_TEMPLATES_PAGE}`;
   const ready = isNew ? all !== undefined : template;

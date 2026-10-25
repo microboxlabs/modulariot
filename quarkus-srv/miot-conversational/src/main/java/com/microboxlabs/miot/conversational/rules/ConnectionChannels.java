@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationTemplate;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -113,13 +114,23 @@ public class ConnectionChannels {
      */
     public OperationInvocationResult deliver(ConnectionChannel channel, String tenantCode, String connectionId,
             Map<String, Object> body) {
-        IntegrationConnection connection = connections.getConnection(tenantCode, connectionId);
-        Optional<String> templateId = template(channel, tenantCode).map(IntegrationTemplate::id);
-        if (connection == null || templateId.isEmpty() || !templateId.get().equals(connection.templateId())) {
-            throw new OperationInvocationException(
-                    "The connection is not one of the organization's " + channel.key() + " connections");
+        IntegrationConnection connection = connection(channel, tenantCode, connectionId).orElseThrow(
+                () -> new OperationInvocationException(
+                        "The connection is not one of the organization's " + channel.key() + " connections"));
+        if (connection.status() != ConnectionStatus.ACTIVE) {
+            throw new OperationInvocationException("The connection " + connection.name() + " is "
+                    + connection.status() + "; test it so it becomes ACTIVE");
         }
         return invoker.invokeByName(tenantCode, connectionId, ConnectionChannel.OPERATION, body);
+    }
+
+    /** The organization's connection with this id, when it was made from the channel's template. */
+    public Optional<IntegrationConnection> connection(ConnectionChannel channel, String tenantCode,
+            String connectionId) {
+        IntegrationConnection connection = connections.getConnection(tenantCode, connectionId);
+        Optional<String> templateId = template(channel, tenantCode).map(IntegrationTemplate::id);
+        return connection != null && templateId.isPresent() && templateId.get().equals(connection.templateId())
+                ? Optional.of(connection) : Optional.empty();
     }
 
     private static URI baseUrl(String baseUrl) {

@@ -109,6 +109,17 @@ class ConnectionStepTest {
     }
 
     @Test
+    void aConnectionThatIsNotActiveIsNotCalled() {
+        f.integrations.createdStatus = ConnectionStatus.TEST_FAILED;
+        chatRule(Rule.State.ACTIVE);
+
+        Run run = run();
+
+        assertTrue(f.integrations.calls.isEmpty());
+        assertTrue(run.lastError().contains("TEST_FAILED"), run.lastError());
+    }
+
+    @Test
     void eachCallIsStoredAsAMessageToTheConnection() {
         String[] ids = chatRule(Rule.State.ACTIVE);
 

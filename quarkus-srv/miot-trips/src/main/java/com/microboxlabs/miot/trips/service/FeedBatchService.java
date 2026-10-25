@@ -8,7 +8,6 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,7 +39,7 @@ public class FeedBatchService {
 
     public FeedBatchResult send(String tenantCode, String actor, String feedKey, FeedBatchRequest body) {
         reconciler.profile(tenantCode, feedKey);
-        List<FeedBatchRequest.Item> items = body == null || body.services() == null ? List.of() : body.services();
+        List<FeedBatchRequest.Item> items = items(body);
         if (items.size() > MAX_SERVICES) {
             throw new IllegalArgumentException("a batch takes at most " + MAX_SERVICES + " services");
         }
@@ -48,31 +47,32 @@ public class FeedBatchService {
                 ? UUID.randomUUID().toString() : Check.limited(body.batchId().trim(), BATCH_ID, 64);
         List<String> queued = new ArrayList<>();
         List<String> unchanged = new ArrayList<>();
-        Map<String, String> refused = new LinkedHashMap<>();
-        List<AsyncJobSpec> specs = new ArrayList<>();
-        for (FeedBatchRequest.Item item : items) {
+        List<FeedBatchResult.Refusal> refused = new ArrayList<>();
+        for (int index = 0; index < items.size(); index++) {
+            FeedBatchRequest.Item item = items.get(index);
             String code = item == null || item.externalCode() == null ? "" : item.externalCode().trim();
             try {
-                if (!reconciler.accept(tenantCode, feedKey, code, item == null ? null : item.desired())) {
+                if (!queue.acceptAndQueue(tenantCode, feedKey, spec(feedKey, code, actor, batchId),
+                        () -> reconciler.accept(tenantCode, feedKey, code, item == null ? null : item.desired()))) {
                     unchanged.add(code);
                     continue;
                 }
                 queued.add(code);
-                specs.add(spec(feedKey, code, actor, batchId));
             } catch (IllegalArgumentException | IllegalStateException e) {
-                refused.put(code, e.getMessage());
+                refused.add(new FeedBatchResult.Refusal(index, code, e.getMessage()));
             }
         }
-        if (!specs.isEmpty()) {
-            queue.queue(tenantCode, feedKey, specs);
-        }
         return new FeedBatchResult(batchId, items.size(), queued, unchanged, refused);
+    }
+
+    private static List<FeedBatchRequest.Item> items(FeedBatchRequest body) {
+        return body == null || body.services() == null ? List.of() : body.services();
     }
 
     /** The job of one service: no chain (a failed job must not hold back the next state); one per batch. */
     static AsyncJobSpec spec(String feedKey, String code, String actor, String batchId) {
         return new AsyncJobSpec(JOB_TYPE, ModulithJobHandler.EXECUTOR, code, null, null,
-                "trips-feed:" + feedKey + ":" + code + ":" + batchId,
+                "trips-feed:" + feedKey + ":" + code.replace("%", "%25").replace(":", "%3A") + ":" + batchId,
                 Map.of(FEED_KEY, feedKey, EXTERNAL_CODE, code, ACTOR, actor == null ? "feed:" + feedKey : actor,
                         BATCH_ID, batchId),
                 null);

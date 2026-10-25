@@ -23,6 +23,8 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgMonitorStore implements MonitorStore {
 
+    private static final String SELECT = "SELECT ";
+
     private static final String COLUMNS = """
             tenant_code, monitor_key, version, status, name, description, plan, params, rules,
             created_at, created_by, updated_at, updated_by, published_at, published_by""";
@@ -45,22 +47,28 @@ public class PgMonitorStore implements MonitorStore {
     }
 
     @Override
+    public void lock(String tenantCode, String monitorKey) {
+        query(pool.get(), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                Tuple.of("trips-monitor:" + tenantCode.length() + ":" + tenantCode + ":" + monitorKey));
+    }
+
+    @Override
     public List<TripMonitor> all(String tenantCode) {
-        return query(pool.get(), "SELECT " + COLUMNS + " FROM miot_trips.trip_monitor WHERE tenant_code = $1"
+        return query(pool.get(), SELECT + COLUMNS + " FROM miot_trips.trip_monitor WHERE tenant_code = $1"
                 + " ORDER BY monitor_key, version DESC", Tuple.of(tenantCode))
                 .stream().map(PgMonitorStore::monitor).toList();
     }
 
     @Override
     public List<TripMonitor> versions(String tenantCode, String monitorKey) {
-        return query(pool.get(), "SELECT " + COLUMNS + " FROM miot_trips.trip_monitor"
+        return query(pool.get(), SELECT + COLUMNS + " FROM miot_trips.trip_monitor"
                 + " WHERE tenant_code = $1 AND monitor_key = $2 ORDER BY version DESC",
                 Tuple.of(tenantCode, monitorKey)).stream().map(PgMonitorStore::monitor).toList();
     }
 
     @Override
     public Optional<TripMonitor> version(String tenantCode, String monitorKey, int version) {
-        return query(pool.get(), "SELECT " + COLUMNS + " FROM miot_trips.trip_monitor"
+        return query(pool.get(), SELECT + COLUMNS + " FROM miot_trips.trip_monitor"
                 + " WHERE tenant_code = $1 AND monitor_key = $2 AND version = $3",
                 Tuple.of(tenantCode, monitorKey, version)).stream().map(PgMonitorStore::monitor).findFirst();
     }
@@ -71,7 +79,7 @@ public class PgMonitorStore implements MonitorStore {
                 INSERT INTO miot_trips.trip_monitor
                     (tenant_code, monitor_key, version, status, name, description, plan, params, rules,
                      created_by, updated_by)
-                SELECT $1, $2, COALESCE(MAX(version), 0) + 1, 'draft', $3, $4, $5::text::jsonb, $6::text::jsonb,
+                SELECT $1::varchar, $2::varchar, COALESCE(MAX(version), 0) + 1, 'draft', $3, $4, $5::text::jsonb, $6::text::jsonb,
                        $7::text::jsonb, $8, $8
                 FROM miot_trips.trip_monitor WHERE tenant_code = $1 AND monitor_key = $2
                 ON CONFLICT (tenant_code, monitor_key) WHERE status = 'draft' DO UPDATE SET

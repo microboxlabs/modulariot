@@ -2,10 +2,12 @@ package com.microboxlabs.miot.conversational.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
+import com.microboxlabs.miot.conversational.client.WhatsAppSendException;
 import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
@@ -17,8 +19,10 @@ import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /** Rule messages go out through the platform's WhatsApp account and stay the organization's. Placeholder ids. */
@@ -31,6 +35,7 @@ class WhatsAppRuleSendTest {
     private final InMemoryConversations store = new InMemoryConversations();
     private final Map<String, ResolvedConnection> connections = new HashMap<>();
     private final List<String> sentFrom = new ArrayList<>();
+    private final Set<String> failing = new HashSet<>();
     private final InMemoryChannelAccounts accounts = new InMemoryChannelAccounts();
     private final WhatsAppMessagingService service = new WhatsAppMessagingService(new FakeResolver(),
             new FakeMeta(), store.conversationRepository, store.messageRepository, accounts.service);
@@ -97,7 +102,70 @@ class WhatsAppRuleSendTest {
                 DRIVER, "TEXT", "hola", null, null, Map.of(), null, null, null, null, null), "user-1");
 
         assertEquals(List.of("ORG-PNID"), sentFrom);
-        assertNull(sent.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+        assertEquals(TENANT, sent.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+    }
+
+    @Test
+    void aReplyOnARuleConversationGoesFromTheNumberTheRuleUsed() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+        Message ruleMessage = service.sendInContext(TENANT, message(), false);
+
+        Message reply = service.send(TENANT, reply(ruleMessage.conversationId()), "user-1");
+
+        assertEquals(List.of("PLATFORM-PNID", "PLATFORM-PNID"), sentFrom);
+        assertEquals(ruleMessage.conversationId(), reply.conversationId());
+        assertEquals(PLATFORM, reply.metadata().get(WhatsAppMessagingService.CONNECTION_TENANT));
+
+        accounts.own(TENANT, "whatsapp");
+        Message own = service.sendInContext(TENANT, message(), false);
+        service.send(TENANT, reply(own.conversationId()), "user-1");
+        assertEquals("ORG-PNID", sentFrom.get(sentFrom.size() - 1));
+    }
+
+    @Test
+    void aFailedSendDoesNotChangeTheNumberRepliesGoFrom() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+        accounts.own(TENANT, "whatsapp");
+        Message own = service.sendInContext(TENANT, message(), false);
+        accounts.rows.remove(TENANT);
+        failing.add("PLATFORM-PNID");
+
+        Message failed = service.sendInContext(TENANT, message(), false);
+        service.send(TENANT, reply(own.conversationId()), "user-1");
+
+        assertEquals(MessageStatus.FAILED, failed.status());
+        assertEquals(own.conversationId(), failed.conversationId());
+        assertEquals(List.of("ORG-PNID", "ORG-PNID"), sentFrom);
+    }
+
+    @Test
+    void aManualSendStoredWithoutItsTenantCountsAsTheOrganizations() {
+        connections.put(PLATFORM, connection("conn-platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+        Message rule = service.sendInContext(TENANT, message(), false);
+        Message older = service.send(TENANT, reply(rule.conversationId()), "user-1");
+        older.metadata().remove(WhatsAppMessagingService.CONNECTION_TENANT);
+        older.metadata().put("connectionId", "conn-org");
+
+        service.send(TENANT, reply(rule.conversationId()), "user-1");
+
+        assertEquals("ORG-PNID", sentFrom.get(sentFrom.size() - 1));
+    }
+
+    @Test
+    void aReplyNamesAConversationOfTheOrganizationWithThatRecipient() {
+        connections.put(TENANT, connection("conn-org", "ORG-PNID"));
+
+        SendWhatsAppMessageRequest request = reply("00000000-0000-0000-0000-000000000099");
+        assertThrows(IllegalArgumentException.class, () -> service.send(TENANT, request, "user-1"));
+        assertTrue(sentFrom.isEmpty());
+    }
+
+    private static SendWhatsAppMessageRequest reply(String conversationId) {
+        return new SendWhatsAppMessageRequest(DRIVER, "TEXT", "voy en camino", null, null, Map.of(), null, null,
+                null, null, null, null, conversationId);
     }
 
     private static ContextMessage message() {
@@ -129,6 +197,9 @@ class WhatsAppRuleSendTest {
         @Override
         public String sendTemplate(URI baseUrl, String phoneNumberId, String token, String toE164,
                 String templateName, String languageCode, Map<String, String> namedParams) {
+            if (failing.contains(phoneNumberId)) {
+                throw new WhatsAppSendException("Meta refused the send", 400, null);
+            }
             sentFrom.add(phoneNumberId);
             return "wamid.out-" + sentFrom.size();
         }

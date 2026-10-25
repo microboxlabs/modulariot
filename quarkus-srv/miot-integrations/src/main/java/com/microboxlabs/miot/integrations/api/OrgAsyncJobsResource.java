@@ -85,6 +85,7 @@ public class OrgAsyncJobsResource {
     public Uni<Response> enqueue(@PathParam("organizationId") String organizationId, EnqueueJobsRequest request) {
         String tenant = tenantCode(organizationId);
         return onWorker(() -> {
+            rejectInternalOnly(request);
             EnqueueJobsResponse response = service.enqueue(tenant, request);
             // Fast path: wake the in-modulith worker if this batch created a
             // handled modulith-lane job, so it runs in ~ms instead of waiting for
@@ -167,6 +168,19 @@ public class OrgAsyncJobsResource {
             AsyncJob job = service.get(tenant, jobId);
             return job == null ? notFound(jobId) : Response.ok(job).build();
         });
+    }
+
+    /** A job type only the modulith enqueues (e.g. a verified webhook's events) cannot come from a caller. */
+    private void rejectInternalOnly(EnqueueJobsRequest request) {
+        if (request == null || request.jobs() == null) {
+            return;
+        }
+        request.jobs().stream()
+                .filter(spec -> spec != null && modulithJobWorker.isInternalOnly(spec.jobType()))
+                .findFirst()
+                .ifPresent(spec -> {
+                    throw new IllegalArgumentException("Job type " + spec.jobType() + " is enqueued only by the modulith");
+                });
     }
 
     /**

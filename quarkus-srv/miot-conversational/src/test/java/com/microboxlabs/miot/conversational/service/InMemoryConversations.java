@@ -183,7 +183,7 @@ public final class InMemoryConversations {
         @Override
         public Message markStatus(
                 String messageId, MessageStatus status, OffsetDateTime deliveredAt,
-                OffsetDateTime readAt, String errorMessage) {
+                OffsetDateTime readAt, String errorMessage, Set<MessageStatus> from) {
             statusMarked.add(messageId);
             return null;
         }

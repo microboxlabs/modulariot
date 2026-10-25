@@ -279,4 +279,43 @@ class PgMonitorEngineTest {
         assertEquals(List.of("transit"), stages.listByTrip(tenant, supplied).stream().map(Stage::stageType).toList());
     }
 
+    @Test
+    void allClaimedTimersOnOneTripFireInTheSameTick() {
+        publish("two-timers", List.of(
+                rule("first", "timer", "trip.plannedStart", null, 10, act("alert", "first")),
+                rule("second", "timer", "trip.plannedStart", null, 20, act("alert", "second"))));
+        UUID tripId = id(newTrip("two-timers", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)));
+        List<Long> before = engine.pendingTimers(tenant, tripId).stream().map(MonitorRun.Timer::id).sorted().toList();
+        engine.signal(tenant, ACTOR, tripId, "unrelated", null, null);
+        assertEquals(before,
+                engine.pendingTimers(tenant, tripId).stream().map(MonitorRun.Timer::id).sorted().toList());
+        MonitorClock clock = new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500);
+        clock.tick();
+        assertTrue(matched(tripId).containsAll(List.of("first", "second")));
+        assertTrue(engine.pendingTimers(tenant, tripId).isEmpty());
+    }
+
+    @Test
+    void timerHistoryIsScopedToMonitorAndVersion() {
+        List<MonitorRequest.Rule> rules = List.of(
+                rule("deadline", "timer", "trip.plannedStart", null, 10, act("alert", "deadline")));
+        publish("timer-a", rules);
+        publish("timer-b", rules);
+        UUID tripId = id(newTrip("timer-a", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)));
+        MonitorClock clock = new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500);
+        clock.tick();
+        assertEquals(1, matched(tripId).stream().filter("deadline"::equals).count());
+        engine.bind(tenant, ACTOR, tripId, "timer-b", null);
+        assertEquals(1, engine.pendingTimers(tenant, tripId).size());
+        clock.tick();
+        assertEquals(2, matched(tripId).stream().filter("deadline"::equals).count());
+        engine.bind(tenant, ACTOR, tripId, "timer-a", null);
+        assertTrue(engine.pendingTimers(tenant, tripId).isEmpty(), "same monitor version does not fire twice");
+        publish("timer-a", rules);
+        engine.bind(tenant, ACTOR, tripId, "timer-a", null);
+        assertEquals(1, engine.pendingTimers(tenant, tripId).size());
+        clock.tick();
+        assertEquals(3, matched(tripId).stream().filter("deadline"::equals).count());
+    }
+
 }

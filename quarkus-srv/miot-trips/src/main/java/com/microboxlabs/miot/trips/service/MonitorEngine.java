@@ -168,6 +168,7 @@ public class MonitorEngine implements TripChanges {
                             .filter(v -> TripMonitor.PUBLISHED.equals(v.status()))
                             .orElseThrow(() -> new IllegalArgumentException(
                                     "monitor " + key + " has no published version " + version));
+            runs.dropPendingTimers(tenantCode, tripId);
             MonitorRun.State state = runs.bind(tenantCode, tripId, key, m.version(), actor);
             audit.log(tenantCode, actor, "monitor.bound", "trip", tripId.toString(), null,
                     Map.of("monitor", key, "version", m.version()));
@@ -398,16 +399,18 @@ public class MonitorEngine implements TripChanges {
         if (state.isEmpty()) {
             return;
         }
-        runs.dropPendingTimers(tenant, tripId);
         Optional<Trip> trip = trips.find(tenant, tripId);
         if (trip.isEmpty() || finished(trip.get())) {
+            runs.dropPendingTimers(tenant, tripId);
             return;
         }
+        List<MonitorRun.Timer> pending = runs.pendingTimers(tenant, tripId);
         int epoch = runs.nextEpoch(tenant, tripId);
         TripMonitor m = monitor(tenant, state.get().monitorKey(), state.get().monitorVersion()).orElse(null);
         List<TripMonitor.Rule> timers = m == null ? List.of()
                 : m.rules().stream().filter(r -> r.active() && TIMER.equals(r.on())).toList();
         if (timers.isEmpty()) {
+            runs.dropPendingTimers(tenant, tripId);
             return;
         }
         Map<String, Object> ctx = context.of(trip.get(), new MonitorRun.Event(tenant, tripId.toString(), TIMER, null,
@@ -416,10 +419,23 @@ public class MonitorEngine implements TripChanges {
             MonitorLanguage.Result at = prepared(m, r, "at", r.at()).run(ctx);
             if (at.ok() && at.value() instanceof Instant i) {
                 OffsetDateTime due = OffsetDateTime.ofInstant(i, ZoneOffset.UTC);
-                if (!runs.fired(tenant, tripId, r.key(), due)) {
-                    runs.schedule(tenant, tripId, r.key(), m.version(), due, epoch);
+                if (!runs.fired(tenant, tripId, m.monitorKey(), m.version(), r.key(), due)) {
+                    retainOrSchedule(tenant, tripId, m, r, due, epoch, pending);
                 }
             }
+        }
+        runs.dropObsoleteTimers(tenant, tripId, epoch);
+    }
+
+    private void retainOrSchedule(String tenant, UUID tripId, TripMonitor monitor, TripMonitor.Rule rule,
+            OffsetDateTime due, int epoch, List<MonitorRun.Timer> pending) {
+        Optional<MonitorRun.Timer> existing = pending.stream()
+                .filter(t -> t.ruleKey().equals(rule.key()) && t.monitorVersion() == monitor.version()
+                        && t.dueAt().isEqual(due)).findFirst();
+        if (existing.isPresent()) {
+            runs.retainTimer(existing.get().id(), epoch);
+        } else {
+            runs.schedule(tenant, tripId, rule.key(), monitor.version(), due, epoch);
         }
     }
 

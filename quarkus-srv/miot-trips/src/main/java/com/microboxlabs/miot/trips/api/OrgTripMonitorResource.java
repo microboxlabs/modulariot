@@ -45,8 +45,11 @@ public class OrgTripMonitorResource extends OrgResourceSupport {
     private static final String ORG = "organizationId";
     private static final String ID = "id";
 
-    /** A signal for the trip: {@code kind} such as {@code left_origin}; {@code at} defaults to now. */
-    public record SignalRequest(String kind, String geofenceId, OffsetDateTime at) {
+    /**
+     * A signal for the trip: {@code kind} such as {@code left_origin}; {@code at} defaults to now; {@code source}
+     * names what produced it ({@code eta}), else it is a GPS detection.
+     */
+    public record SignalRequest(String kind, String geofenceId, OffsetDateTime at, String source) {
     }
 
     /** {@code version} null takes the newest published one. */
@@ -115,8 +118,8 @@ public class OrgTripMonitorResource extends OrgResourceSupport {
             if (body == null) {
                 throw new IllegalArgumentException("body is required");
             }
-            return Response.ok(engine.signal(tenant, actor, tripId, body.kind(), body.geofenceId(), body.at()))
-                    .build();
+            return Response.ok(engine.signal(tenant, actor, tripId, body.kind(), body.geofenceId(), body.at(),
+                    body.source())).build();
         });
     }
 

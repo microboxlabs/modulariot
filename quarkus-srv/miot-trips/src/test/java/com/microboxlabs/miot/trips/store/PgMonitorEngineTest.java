@@ -14,6 +14,10 @@ import com.microboxlabs.miot.trips.domain.MonitorRun;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
+import com.microboxlabs.miot.trips.events.TripEventCatalog;
+import com.microboxlabs.miot.trips.events.TripEventData;
+import com.microboxlabs.miot.trips.events.TripEvents;
+import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.MandateRequest;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
@@ -43,6 +47,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,12 +83,17 @@ class PgMonitorEngineTest {
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final PgMonitorRunStore runs = new PgMonitorRunStore(() -> pool);
     private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final FleetResourcesService fleet = new FleetResourcesService(
+            new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool));
+    private final List<OperationalEvent> fired = new CopyOnWriteArrayList<>();
+    private final TripEvents events = TripEvents.collecting(fired, new PgTripStore(() -> pool),
+            new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool), new PgLocationStore(() -> pool),
+            new PgMandateStore(() -> pool), fleet);
     private final MilestoneService milestones = new MilestoneService(new PgMilestoneStore(() -> pool),
-            new PgTripStore(() -> pool), audit, tx);
+            new PgTripStore(() -> pool), audit, events, tx, Clock.systemUTC());
     private final MonitorEngine engine = new MonitorEngine(runs, monitorStore, new PgTripStore(() -> pool),
             new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool), new PgLocationStore(() -> pool), stages,
-            trips, mandates, milestones, new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(
-                    () -> pool)), audit, tx, Clock.systemUTC());
+            trips, mandates, milestones, fleet, audit, events, tx, Clock.systemUTC());
 
     private String tenant;
 
@@ -322,5 +332,58 @@ class PgMonitorEngineTest {
         assertEquals(Trip.DONE, trips.get(tenant, tripId).status(), "the rule reads milestones.departure.status");
         assertThrows(IllegalArgumentException.class,
                 () -> milestones.confirm(tenant, ACTOR, tripId, "unloading", null, "ui", null));
+    }
+
+    private List<OperationalEvent> firedFor(UUID tripId, String type) {
+        return fired.stream().filter(e -> e.type().equals(type) && e.context().key().equals(tripId.toString()))
+                .toList();
+    }
+
+    @Test
+    void detectionsConfirmationsAndAlertsArePublishedAsTripEvents() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        OffsetDateTime seen = OffsetDateTime.parse("2026-10-25T08:32:00Z");
+
+        engine.signal(tenant, "eta-model", tripId, "left_origin", null, seen, "eta");
+        OperationalEvent detected = firedFor(tripId, TripEventCatalog.MILESTONE_DETECTED).get(0);
+        assertEquals(TripEventCatalog.EVENT_SOURCE, detected.source());
+        assertEquals(TripEventCatalog.CONTEXT_KIND, detected.context().kind());
+        TripEventData d = (TripEventData) detected.data();
+        assertEquals("departure", d.milestone());
+        assertEquals("eta", d.source(), "a signal can name its source");
+        assertEquals(seen.toInstant(), d.proposedAt());
+        assertNotNull(d.serviceCode(), "the event says which service it is about");
+
+        milestones.reject(tenant, ACTOR, tripId, "departure", "reply", null);
+        engine.signal(tenant, "gps", tripId, "left_origin", null, seen.plusMinutes(2));
+        milestones.reject(tenant, ACTOR, tripId, "departure", "reply", null);
+        assertEquals(2, firedFor(tripId, TripEventCatalog.MILESTONE_REJECTED).size());
+        assertEquals(1, firedFor(tripId, TripEventCatalog.ALERT).size(),
+                "the false_departure alert is published once per trip");
+        assertEquals("false_departure", ((TripEventData) firedFor(tripId, TripEventCatalog.ALERT).get(0).data())
+                .alert());
+
+        engine.signal(tenant, "gps", tripId, "left_origin", null, seen.plusMinutes(4));
+        milestones.confirm(tenant, ACTOR, tripId, "departure", null, "reply", null);
+        milestones.confirm(tenant, ACTOR, tripId, "departure", seen.plusMinutes(9), "feed", null);
+        TripEventData confirmed = (TripEventData) firedFor(tripId, TripEventCatalog.MILESTONE_CONFIRMED).get(0)
+                .data();
+        assertEquals(seen.plusMinutes(4).toInstant(), confirmed.confirmedAt());
+        assertEquals("reply", confirmed.channel());
+        TripEventData conflict = (TripEventData) firedFor(tripId, TripEventCatalog.MILESTONE_CONFLICT).get(0).data();
+        assertEquals(seen.plusMinutes(9).toInstant(), conflict.otherAt());
+    }
+
+    @Test
+    void aChangeThatRollsBackPublishesNothing() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        assertThrows(IllegalStateException.class, () -> tx.inTransaction(() -> {
+            milestones.confirm(tenant, ACTOR, tripId, "departure", null, "ui", null);
+            throw new IllegalStateException("the caller fails after the confirmation");
+        }));
+        assertEquals(List.of(), firedFor(tripId, TripEventCatalog.MILESTONE_CONFIRMED));
+        assertEquals(TripMilestone.OPEN, milestone(tripId, "departure").status());
     }
 }

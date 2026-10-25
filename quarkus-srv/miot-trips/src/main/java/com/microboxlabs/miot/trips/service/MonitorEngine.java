@@ -9,6 +9,7 @@ import com.microboxlabs.miot.trips.domain.MonitorSelector;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
+import com.microboxlabs.miot.trips.events.TripEvents;
 import com.microboxlabs.miot.trips.monitor.MonitorLanguage;
 import com.microboxlabs.miot.trips.monitor.MonitorSchema;
 import com.microboxlabs.miot.trips.store.AssignmentStore;
@@ -74,6 +75,7 @@ public class MonitorEngine implements TripChanges {
     private final MandateService mandates;
     private final MilestoneService milestones;
     private final AuditService audit;
+    private final TripEvents events;
     private final Transactions tx;
     private final Clock clock;
     private final MonitorContext context;
@@ -84,6 +86,7 @@ public class MonitorEngine implements TripChanges {
         private final Deque<Queued> queue = new ArrayDeque<>();
         private final Set<String> touched = new LinkedHashSet<>();
         private final List<MonitorRun.Transition> recorded = new ArrayList<>();
+        private final Set<String> alerts = new java.util.HashSet<>();
         private int depth;
     }
 
@@ -94,15 +97,24 @@ public class MonitorEngine implements TripChanges {
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
-            Transactions tx) {
+            TripEvents events, Transactions tx) {
         this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, milestones,
-                fleet, audit, tx, Clock.systemUTC());
+                fleet, audit, events, tx, Clock.systemUTC());
+    }
+
+    /** Without trip events. */
+    public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
+            AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
+            MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
+            Transactions tx, Clock clock) {
+        this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, milestones,
+                fleet, audit, TripEvents.NONE, tx, clock);
     }
 
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
-            Transactions tx, Clock clock) {
+            TripEvents events, Transactions tx, Clock clock) {
         this.runs = runs;
         this.monitors = monitors;
         this.trips = trips;
@@ -112,6 +124,7 @@ public class MonitorEngine implements TripChanges {
         this.mandates = mandates;
         this.milestones = milestones;
         this.audit = audit;
+        this.events = events;
         this.tx = tx;
         this.clock = clock;
         this.context = new MonitorContext(trips, stageStore, assignments, locations, mandates, milestones, fleet);
@@ -145,8 +158,17 @@ public class MonitorEngine implements TripChanges {
     /** Delivers a signal (GPS, rFMS) to the trip; returns what it did. */
     public List<MonitorRun.Transition> signal(String tenantCode, String actor, UUID tripId, String kind,
             String geofenceId, OffsetDateTime at) {
+        return signal(tenantCode, actor, tripId, kind, geofenceId, at, null);
+    }
+
+    /** A signal that names what produced it, such as {@code eta}; without it a signal is a GPS detection. */
+    public List<MonitorRun.Transition> signal(String tenantCode, String actor, UUID tripId, String kind,
+            String geofenceId, OffsetDateTime at, String source) {
         String k = Check.required(kind, "kind", 64);
         Map<String, Object> data = new LinkedHashMap<>();
+        if (source != null && !source.isBlank()) {
+            data.put("source", Check.limited(source.trim(), "source", 32));
+        }
         if (geofenceId != null && !geofenceId.isBlank()) {
             data.put("geofenceId", Check.limited(geofenceId.trim(), "geofenceId", 64));
         }
@@ -297,6 +319,9 @@ public class MonitorEngine implements TripChanges {
                     done.add(requestConfirmation(tenant, tripId, e, a, r.key(), actor, errors));
                 } else if (!STATE_ACTIONS.contains(a.type())) {
                     done.add(action(a, r.key(), "recorded"));
+                    if ("alert".equals(a.type())) {
+                        publishAlert(run, m, e, tripId, a.value(), r.key());
+                    }
                 }
             }
         }
@@ -382,6 +407,15 @@ public class MonitorEngine implements TripChanges {
             errors.add(rule + ": " + message(ex));
             return action(a, rule, "failed");
         }
+    }
+
+    /** An alert is published once per trip and key, the first time a rule raises it. */
+    private void publishAlert(Run run, TripMonitor m, MonitorRun.Event e, UUID tripId, String key, String rule) {
+        String tenant = e.tenantCode();
+        if (!run.alerts.add(tripId + "|" + key) || runs.alerted(tenant, tripId, key)) {
+            return;
+        }
+        events.alert(tenant, tripId.toString(), e.at().toInstant(), m.monitorKey() + "@v" + m.version(), key, rule);
     }
 
     private static String sourceOf(MonitorRun.Event e) {

@@ -13,6 +13,7 @@ import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.domain.TripRef;
+import com.microboxlabs.miot.trips.events.TripEvents;
 import com.microboxlabs.miot.trips.dto.AssignmentRequest;
 import com.microboxlabs.miot.trips.dto.AssignmentView;
 import com.microboxlabs.miot.trips.dto.FeedResult;
@@ -84,6 +85,7 @@ public class FeedReconciler {
     private final LocationService locations;
     private final MilestoneService milestones;
     private final AuditService audit;
+    private final TripEvents events;
     private final FleetResources fleet;
     private final Transactions tx;
     private final ObjectMapper json;
@@ -92,14 +94,23 @@ public class FeedReconciler {
     @Inject
     FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
             AssignmentService assignments, LocationService locations, MilestoneService milestones,
-            AuditService audit, FleetResources fleet, Transactions tx, ObjectMapper json) {
-        this(feeds, mandates, trips, stages, assignments, locations, milestones, audit, fleet, tx, json,
+            AuditService audit, TripEvents events, FleetResources fleet, Transactions tx, ObjectMapper json) {
+        this(feeds, mandates, trips, stages, assignments, locations, milestones, audit, events, fleet, tx, json,
                 Clock.systemUTC());
+    }
+
+    /** Without trip events. */
+    public FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
+            AssignmentService assignments, LocationService locations, MilestoneService milestones,
+            AuditService audit, FleetResources fleet, Transactions tx, ObjectMapper json, Clock clock) {
+        this(feeds, mandates, trips, stages, assignments, locations, milestones, audit, TripEvents.NONE, fleet, tx,
+                json, clock);
     }
 
     public FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
             AssignmentService assignments, LocationService locations, MilestoneService milestones,
-            AuditService audit, FleetResources fleet, Transactions tx, ObjectMapper json, Clock clock) {
+            AuditService audit, TripEvents events, FleetResources fleet, Transactions tx, ObjectMapper json,
+            Clock clock) {
         this.feeds = feeds;
         this.mandates = mandates;
         this.trips = trips;
@@ -108,6 +119,7 @@ public class FeedReconciler {
         this.locations = locations;
         this.milestones = milestones;
         this.audit = audit;
+        this.events = events;
         this.fleet = fleet;
         this.tx = tx;
         this.json = json;
@@ -496,8 +508,11 @@ public class FeedReconciler {
         }
         plan.warnings.add("the trip is " + trip.status() + "; the feed changed " + String.join(", ", changed)
                 + ", which is not applied");
-        plan.step("report the change to a closed trip", () -> audit.log(tenantCode, actor, CLOSED_CHANGED, "trip",
-                trip.id(), null, Map.of("externalCode", code, "fields", changed, "status", trip.status())));
+        plan.step("report the change to a closed trip", () -> {
+            audit.log(tenantCode, actor, CLOSED_CHANGED, "trip", trip.id(), null,
+                    Map.of("externalCode", code, "fields", changed, "status", trip.status()));
+            events.closedChanged(tenantCode, trip.id(), now().toInstant(), changed, actor);
+        });
     }
 
     /** The planned fields the feed changed since its last send; the actual times are milestones, not changes. */

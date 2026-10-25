@@ -2,6 +2,8 @@ package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
+import com.microboxlabs.miot.trips.events.TripEventCatalog;
+import com.microboxlabs.miot.trips.events.TripEvents;
 import com.microboxlabs.miot.trips.store.MilestoneStore;
 import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -41,19 +43,27 @@ public class MilestoneService {
     private final MilestoneStore store;
     private final TripStore trips;
     private final AuditService audit;
+    private final TripEvents events;
     private final Transactions tx;
     private final Clock clock;
 
     @Inject
-    public MilestoneService(MilestoneStore store, TripStore trips, AuditService audit, Transactions tx) {
-        this(store, trips, audit, tx, Clock.systemUTC());
+    public MilestoneService(MilestoneStore store, TripStore trips, AuditService audit, TripEvents events,
+            Transactions tx) {
+        this(store, trips, audit, events, tx, Clock.systemUTC());
     }
 
-    public MilestoneService(MilestoneStore store, TripStore trips, AuditService audit, Transactions tx,
-            Clock clock) {
+    /** Without trip events. */
+    public MilestoneService(MilestoneStore store, TripStore trips, AuditService audit, Transactions tx) {
+        this(store, trips, audit, TripEvents.NONE, tx, Clock.systemUTC());
+    }
+
+    public MilestoneService(MilestoneStore store, TripStore trips, AuditService audit, TripEvents events,
+            Transactions tx, Clock clock) {
         this.store = store;
         this.trips = trips;
         this.audit = audit;
+        this.events = events;
         this.tx = tx;
         this.clock = clock;
     }
@@ -83,6 +93,8 @@ public class MilestoneService {
                     TripMilestone.PENDING, source, proposedAt, evidence, null, null, null, null, null, actor));
             audit.log(tenantCode, actor, REQUESTED, "trip", tripId.toString(), tripId.toString(),
                     details(m, proposedAt, null, source));
+            events.milestone(TripEventCatalog.MILESTONE_DETECTED, tenantCode, tripId.toString(), instant(proposedAt),
+                    m, source, instant(proposedAt), null, null, null, actor, null);
             return new Outcome(saved, Result.PENDING);
         });
     }
@@ -109,6 +121,9 @@ public class MilestoneService {
                 d.put("confirmedAt", current.confirmedAt().toString());
                 d.put("confirmedBy", current.confirmedBy());
                 audit.log(tenantCode, actor, CONFLICT, "trip", tripId.toString(), null, d);
+                events.milestone(TripEventCatalog.MILESTONE_CONFLICT, tenantCode, tripId.toString(), now().toInstant(),
+                        m, current.source(), instant(current.proposedAt()), instant(current.confirmedAt()),
+                        when.toInstant(), ch, actor, null);
                 return new Outcome(current, Result.CONFLICT);
             }
             TripMilestone saved = store.save(new TripMilestone(tenantCode, tripId.toString(), m,
@@ -116,6 +131,8 @@ public class MilestoneService {
                     ch, n, null, actor));
             audit.log(tenantCode, actor, CONFIRMED, "trip", tripId.toString(), tripId.toString(),
                     details(m, when, ch, current.source()));
+            events.milestone(TripEventCatalog.MILESTONE_CONFIRMED, tenantCode, tripId.toString(), when.toInstant(), m,
+                    current.source(), instant(current.proposedAt()), when.toInstant(), null, ch, actor, null);
             return new Outcome(saved, Result.CONFIRMED);
         });
     }
@@ -138,6 +155,8 @@ public class MilestoneService {
                     ch, n, null, actor));
             audit.log(tenantCode, actor, REJECTED, "trip", tripId.toString(), tripId.toString(),
                     details(m, now(), ch, current.source()));
+            events.milestone(TripEventCatalog.MILESTONE_REJECTED, tenantCode, tripId.toString(), now().toInstant(), m,
+                    current.source(), instant(current.proposedAt()), null, null, ch, actor, null);
             return new Outcome(saved, Result.REJECTED);
         });
     }
@@ -176,6 +195,10 @@ public class MilestoneService {
 
     private OffsetDateTime now() {
         return OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
+    }
+
+    private static java.time.Instant instant(OffsetDateTime t) {
+        return t == null ? null : t.toInstant();
     }
 
     private static OffsetDateTime utc(OffsetDateTime t) {

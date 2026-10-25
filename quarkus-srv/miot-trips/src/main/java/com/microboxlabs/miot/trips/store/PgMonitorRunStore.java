@@ -130,6 +130,15 @@ public class PgMonitorRunStore implements MonitorRunStore {
     }
 
     @Override
+    public boolean alerted(String tenantCode, UUID tripId, String key) {
+        return query(pool.get(), """
+                SELECT 1 FROM miot_trips.trip_transition WHERE tenant_code = $1 AND trip_id = $2
+                    AND actions @> $3::text::jsonb LIMIT 1""",
+                Tuple.of(tenantCode, tripId, Pg.json(List.of(Map.of("type", "alert", "value", key)))))
+                .iterator().hasNext();
+    }
+
+    @Override
     public void record(MonitorRun.Transition t) {
         query(pool.get(), """
                 INSERT INTO miot_trips.trip_transition (tenant_code, trip_id, monitor_key, monitor_version, event,

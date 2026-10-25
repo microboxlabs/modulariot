@@ -72,44 +72,67 @@ public class TripService {
 
     /** Creates the leg, links the given mandates and lays down the planned stages, in that order. */
     public TripView create(String tenantCode, String actor, TripRequest body) {
+        return create(tenantCode, actor, body, false);
+    }
+
+    /** Records an already completed feed trip without binding a monitor. This is not an API request field. */
+    TripView createRegularized(String tenantCode, String actor, TripRequest body) {
+        return create(tenantCode, actor, body, true);
+    }
+
+    private TripView create(String tenantCode, String actor, TripRequest body, boolean regularized) {
         return tx.inTransaction(() -> {
             TripRequest req = body == null ? TripRequest.empty() : body;
-            // the whole request is validated before the first write
-            List<UUID> mandateIds = req.mandateIds() == null ? List.of() : req.mandateIds().stream()
-                    .map(m -> parse(Check.required(m, MANDATE_IDS, 64), MANDATE_IDS)).toList();
-            if (req.stages() != null) {
-                req.stages().forEach(s -> planned(tenantCode, actor, NO_TRIP, s));
-            }
-            // checked in id order, the order stage start locks mandates in (text order, as Postgres sorts uuids)
-            mandateIds.stream().sorted(Comparator.comparing(UUID::toString))
-                    .forEach(m -> mandates.requireOpen(tenantCode, m));
+            List<UUID> mandateIds = validateCreate(tenantCode, actor, req);
             Trip trip = trips.insert(new Trip(null, tenantCode, Trip.PLANNED,
                     Check.uuidOrNull(req.originId(), "originId"), Check.uuidOrNull(req.destinationId(), "destinationId"),
                     req.plannedStart(), null, null, null, null, actor, null, actor));
             UUID tripId = UUID.fromString(trip.id());
-            // linked in id order (the order stage start locks them in), each keeping its request position
-            List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
-            order.sort(Comparator.comparing(i -> mandateIds.get(i).toString()));
-            for (int i : order) {
-                trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
-            }
-            if (req.stages() != null) {
-                for (StageRequest s : req.stages()) {
-                    stages.insert(planned(tenantCode, actor, tripId, s));
-                }
-            }
+            linkMandates(tenantCode, actor, tripId, mandateIds);
+            addStages(tenantCode, actor, tripId, req.stages());
             live.refresh(tenantCode, tripId);
-            String monitor = Check.limitedOrNull(req.monitor(), "monitor", 64);
-            Map<String, Object> details = new LinkedHashMap<>();
-            if (monitor != null) {
-                details.put("monitor", monitor);
-            }
-            if (req.isRegularized()) {
-                details.put("regularized", true);
-            }
-            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), details);
+            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(),
+                    createDetails(req.monitor(), regularized));
             return detail(tenantCode, tripId);
         });
+    }
+
+    private List<UUID> validateCreate(String tenantCode, String actor, TripRequest req) {
+        // Validate the whole request before the first write and lock mandates in the same order as stage operations.
+        List<UUID> mandateIds = req.mandateIds() == null ? List.of() : req.mandateIds().stream()
+                .map(m -> parse(Check.required(m, MANDATE_IDS, 64), MANDATE_IDS)).toList();
+        if (req.stages() != null) {
+            req.stages().forEach(stage -> planned(tenantCode, actor, NO_TRIP, stage));
+        }
+        mandateIds.stream().sorted(Comparator.comparing(UUID::toString))
+                .forEach(id -> mandates.requireOpen(tenantCode, id));
+        return mandateIds;
+    }
+
+    private void linkMandates(String tenantCode, String actor, UUID tripId, List<UUID> mandateIds) {
+        List<Integer> order = new ArrayList<>(IntStream.range(0, mandateIds.size()).boxed().toList());
+        order.sort(Comparator.comparing(i -> mandateIds.get(i).toString()));
+        for (int i : order) {
+            trips.linkMandate(tenantCode, tripId, mandateIds.get(i), i + 1, "primary", actor);
+        }
+    }
+
+    private void addStages(String tenantCode, String actor, UUID tripId, List<StageRequest> requested) {
+        if (requested != null) {
+            requested.forEach(stage -> stages.insert(planned(tenantCode, actor, tripId, stage)));
+        }
+    }
+
+    private static Map<String, Object> createDetails(String requestedMonitor, boolean regularized) {
+        String monitor = Check.limitedOrNull(requestedMonitor, "monitor", 64);
+        Map<String, Object> details = new LinkedHashMap<>();
+        if (monitor != null) {
+            details.put("monitor", monitor);
+        }
+        if (regularized) {
+            details.put("regularized", true);
+        }
+        return details;
     }
 
     public Trip get(String tenantCode, UUID id) {

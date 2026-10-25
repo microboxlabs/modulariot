@@ -5,6 +5,7 @@ import com.microboxlabs.miot.conversational.rules.RuleSpec.Audience;
 import com.microboxlabs.miot.conversational.rules.RuleSpec.Group;
 import com.microboxlabs.miot.conversational.rules.RuleSpec.Step;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,7 @@ public record Invocation(String version, SampleEvent event, Map<String, List<Per
 
     public Invocation {
         version = version == null || version.isBlank() ? CURRENT : version.trim();
-        to = to == null ? Map.of() : Map.copyOf(to);
+        to = to == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(to));
         key = key == null || key.isBlank() ? null : key.trim();
     }
 
@@ -72,6 +73,11 @@ public record Invocation(String version, SampleEvent event, Map<String, List<Per
         }
         List<Group> groups = new ArrayList<>();
         for (Group g : spec.groups()) {
+            if (!to.containsKey(g.id())) {
+                // A draft may gain a group after this invocation started; never send to its original recipients.
+                groups.add(new Group(g.id(), g.name(), List.of()));
+                continue;
+            }
             List<Person> people = to.get(g.id());
             if (people == null) {
                 groups.add(g);
@@ -96,11 +102,17 @@ public record Invocation(String version, SampleEvent event, Map<String, List<Per
             if (spec.groups().stream().noneMatch(g -> g.id().equals(e.getKey()))) {
                 throw new IllegalArgumentException("to: la regla no tiene el grupo " + e.getKey());
             }
-            List<Person> people = e.getValue() == null ? List.of() : List.copyOf(e.getValue());
+            List<Person> people = e.getValue() == null ? List.of() : e.getValue();
             if (people.stream().anyMatch(p -> p == null || p.isEmpty())) {
                 throw new IllegalArgumentException("to." + e.getKey() + ": cada persona necesita email o phone");
             }
-            out.put(e.getKey(), people);
+            out.put(e.getKey(), List.copyOf(people));
+        }
+        if (!out.isEmpty()) {
+            // Remember all groups present at start. Null keeps the original recipients for an unoverridden group.
+            for (Group group : spec.groups()) {
+                out.putIfAbsent(group.id(), null);
+            }
         }
         return out;
     }

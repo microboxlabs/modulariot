@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -103,6 +104,38 @@ class RuleInvocationsTest {
         f.invocations.start(TENANT, id, ofDraft(Map.of("step-2", List.of(TESTER))));
         f.engine.runDue();
         assertEquals(DRIVER, f.whatsappSent.get(0).to());
+    }
+
+    @Test
+    void aGroupAddedAfterARedirectedDraftStartedCannotReceiveTheTestSend() {
+        String id = draft(PANIC_SPEC);
+        f.invocations.start(TENANT, id, ofDraft(TO_TESTER));
+        f.engine.runDue();
+        f.service.saveDraft(TENANT, id, json("""
+                {"trigger": {"event": "symptom.case.opened", "when": ""},
+                 "groups": [{"id": "rule", "entries": [{"role": "driver"}]},
+                            {"id": "late", "entries": [{"address": "other@example.com", "channel": "email"}]}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "to": ["rule"],
+                            "waitForReply": 5},
+                           {"channel": "email", "template": "panic-tower", "to": ["late"]}]}
+                """), "owner@example.com");
+
+        f.now = T0.plus(Duration.ofMinutes(5));
+        f.engine.runDue();
+
+        assertTrue(f.emailsSent.isEmpty());
+    }
+
+    @Test
+    void aNullRecipientListIsAnEmptyOverride() {
+        String id = draft(PANIC_SPEC);
+        Map<String, List<Person>> recipients = new LinkedHashMap<>();
+        recipients.put(RuleSpec.RULE_GROUP, null);
+
+        f.invocations.start(TENANT, id, ofDraft(recipients));
+        f.engine.runDue();
+
+        assertTrue(f.whatsappSent.isEmpty());
     }
 
     @Test

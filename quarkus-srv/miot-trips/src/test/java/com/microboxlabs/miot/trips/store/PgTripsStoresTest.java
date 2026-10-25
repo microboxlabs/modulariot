@@ -106,7 +106,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.12__location_geofences.sql",
             "/db/migration/trips/V0.10.13__feeds_plan_only.sql",
             "/db/migration/trips/V0.10.15__backfill_english_projections.sql",
-            "/db/migration/trips/V0.10.16__trip_milestones.sql"};
+            "/db/migration/trips/V0.10.16__trip_milestones.sql",
+            "/db/migration/trips/V0.10.17__feed_applied_desired.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -312,11 +313,11 @@ class PgTripsStoresTest {
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
 
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
-                null, null, true, null, null, null));
+                null, null, true, null, null, null, null));
         OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
         String trip = UUID.randomUUID().toString();
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
-                null, trip, true, "create", "{\"done\":[\"create trip\"]}", at));
+                null, trip, true, "create", "{\"done\":[\"create trip\"]}", at, "{\"orderRef\":\"b\"}"));
         FeedService s = feeds.service(tenant, "servicios", "S-001").orElseThrow();
         assertEquals("h2", s.desiredHash());
         assertEquals(trip, s.tripId());
@@ -338,7 +339,7 @@ class PgTripsStoresTest {
         assertEquals("creator", updated.createdBy());
         assertEquals("updater", updated.updatedBy());
         feeds.saveService(new FeedService(tenant, "test-feed", "S-TEST", "{\"value\":1}", "hash",
-                null, null, true, "test", "{\"ok\":true}", null));
+                null, null, true, "test", "{\"ok\":true}", null, null));
         var rows = pool.preparedQuery("""
                 SELECT jsonb_typeof(stages) AS kind FROM miot_trips.feed_profile WHERE tenant_code = $1
                 UNION ALL SELECT jsonb_typeof(desired) FROM miot_trips.feed_service WHERE tenant_code = $1

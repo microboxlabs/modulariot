@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
+import com.microboxlabs.miot.conversational.jobs.EmailSendJob;
+import com.microboxlabs.miot.conversational.jobs.SendJobsOnPark;
+import com.microboxlabs.miot.conversational.jobs.WhatsAppSendJob;
 import com.microboxlabs.miot.conversational.service.ConnectionMessagingService;
 import com.microboxlabs.miot.conversational.service.EmailMessagingService;
 import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
@@ -14,6 +17,12 @@ import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
+import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.integrations.domain.JobState;
+import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
+import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
+import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
+import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import com.microboxlabs.miot.integrations.email.EmailMessage;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
 import com.microboxlabs.miot.integrations.email.SendResult;
@@ -65,6 +74,8 @@ final class RulesFixture {
     final List<String> emailTenants = new ArrayList<>();
     final Map<String, Object> connectionMetadata = new LinkedHashMap<>(Map.of("phone_number_id", "PNID"));
     Instant now = T0;
+    /** Thrown by the fake Meta client instead of sending, when set. */
+    RuntimeException metaFailure;
     final Clock clock = new Clock() {
         @Override
         public ZoneOffset getZone() {
@@ -137,6 +148,9 @@ final class RulesFixture {
         @Override
         public String sendTemplate(URI baseUrl, String phoneNumberId, String token, String toE164,
                 String templateName, String languageCode, Map<String, String> namedParams) {
+            if (metaFailure != null) {
+                throw metaFailure;
+            }
             whatsappSent.add(new Sent(toE164, templateName, languageCode, namedParams));
             return "wamid.out-" + whatsappSent.size();
         }
@@ -158,11 +172,62 @@ final class RulesFixture {
 
     final InMemoryIntegrations integrations = new InMemoryIntegrations();
 
+    /** The send jobs the engine enqueued, in order, and what each run of one gave. */
+    final List<AsyncJobSpec> sendJobs = new ArrayList<>();
+    final List<Object> sendOutcomes = new ArrayList<>();
+    /** When set, enqueued send jobs wait for {@link #runSendJobs()} instead of running right away. */
+    boolean holdSends;
+    private final WhatsAppSendJob whatsappJob = new WhatsAppSendJob(whatsapp);
+    private final EmailSendJob emailJob = new EmailSendJob(email);
+    private final List<AsyncJobSpec> held = new ArrayList<>();
+    final SendQueue sendQueue = (tenant, specs) -> {
+        sendJobs.addAll(specs);
+        held.addAll(specs);
+        if (!holdSends) {
+            runSendJobs();
+        }
+    };
+
+    /**
+     * Runs the held send jobs once, as the worker would: a retryable failure stays held for the next run, one a
+     * retry cannot fix parks the job. Each outcome or thrown failure is kept.
+     */
+    void runSendJobs() {
+        List<AsyncJobSpec> due = new ArrayList<>(held);
+        held.clear();
+        for (AsyncJobSpec spec : due) {
+            ModulithJobHandler handler = InternalJobTypes.WHATSAPP_SEND.equals(spec.jobType()) ? whatsappJob
+                    : emailJob;
+            try {
+                sendOutcomes.add(handler.handle(TENANT, spec.payload()));
+            } catch (NonRetryableJobException e) {
+                sendOutcomes.add(e);
+                park(spec, e.getMessage());
+            } catch (RuntimeException e) {
+                sendOutcomes.add(e);
+                held.add(spec);
+            }
+        }
+    }
+
+    /** The ledger giving up on a send job, with its last error. */
+    void park(AsyncJobSpec spec, String lastError) {
+        parkAs(TENANT, spec, lastError);
+    }
+
+    void parkAs(String tenant, AsyncJobSpec spec, String lastError) {
+        held.remove(spec);
+        new SendJobsOnPark(store.runStore).parked(new AsyncJob(
+                UUID.randomUUID().toString(), tenant, "test", spec.executor(), spec.jobType(), spec.correlationKey(),
+                null, 0, spec.dedupeKey(), spec.payload(), JobState.FAILED, 5, 5, null, null, null, lastError,
+                List.of(), "listener", null, null, null));
+    }
+
     final RulesEngine engine = new RulesEngine(true,
             new RulesEngine.Stores(store.ruleStore, store.templateStore, store.runStore), () -> List.of(participants),
             new RulesEngine.Senders(whatsapp, email, integrations.channels,
                     new ConnectionMessagingService(store.conversations.conversationRepository,
-                            store.conversations.messageRepository)), JSON, clock);
+                            store.conversations.messageRepository), sendQueue), JSON, clock);
 
     final RulesService service = new RulesService(store.ruleStore, store.templateStore, () -> List.of(catalog),
             () -> List.of(participants), clock);

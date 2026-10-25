@@ -36,6 +36,8 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class PgRunStore implements RunStore {
 
+    private static final String TENANT_CODE = "tenant_code";
+
     private static final String EVENT_COLUMNS =
             "id, tenant_code, type, source, context_kind, context_key, data::text AS data, test, at, received_at";
     private static final String INSERT_EVENT = """
@@ -74,8 +76,38 @@ public class PgRunStore implements RunStore {
             RETURNING\s""" + RUN_COLUMNS;
     private static final String UPDATE_IF_WAITING = """
             UPDATE miot_conversational.conv_run
-            SET status = $2, step = $3, next_at = $4, last_error = $5, updated_at = $6
+            SET status = $2, step = $3, next_at = $4, last_error = COALESCE($5, last_error), updated_at = $6
             WHERE id = $1 AND status = 'WAITING'
+            """;
+    private static final String FAIL_QUEUED_MESSAGE = """
+            WITH marked AS (
+                UPDATE miot_conversational.wa_message m
+                SET status = 'FAILED', error_message = $3
+                FROM miot_conversational.wa_conversation c
+                WHERE m.id = $1 AND m.status IN ('PENDING', 'FAILED')
+                  AND c.id = m.conversation_id AND c.tenant_code = $2
+                  AND EXISTS (SELECT 1 FROM miot_conversational.conv_run r
+                              WHERE r.id = m.run_id AND r.tenant_code = $2)
+                RETURNING m.run_id, m.address
+            ), noted AS (
+                UPDATE miot_conversational.conv_run r
+                SET last_error = marked.address || ': ' || $3, updated_at = $4
+                FROM marked WHERE r.id = marked.run_id
+                RETURNING r.id
+            )
+            SELECT count(*) AS count FROM noted
+            """;
+    private static final String UNMARKED_FAILED_SENDS = """
+            SELECT j.tenant_code, j.payload->>'messageId' AS message_id, j.last_error
+            FROM miot_integrations.async_jobs j
+            JOIN miot_conversational.wa_message m ON m.id::text = j.payload->>'messageId'
+            JOIN miot_conversational.wa_conversation c ON c.id = m.conversation_id
+            WHERE j.state = 'FAILED' AND j.job_type IN ('whatsapp.send', 'email.send')
+              AND (m.status = 'PENDING' OR (m.status = 'FAILED'
+                   AND m.error_message IS DISTINCT FROM j.last_error))
+              AND c.tenant_code = j.tenant_code
+            ORDER BY j.updated_at
+            LIMIT $1
             """;
     private static final String WAITING = SELECT + RUN_COLUMNS + """
              FROM miot_conversational.conv_run
@@ -189,6 +221,29 @@ public class PgRunStore implements RunStore {
     }
 
     @Override
+    public boolean failQueuedMessage(String tenantCode, String messageId, String error, Instant at) {
+        UUID id = uuidOrNull(messageId);
+        if (id == null || tenantCode == null) {
+            return false;
+        }
+        Row row = query(pool.get(), FAIL_QUEUED_MESSAGE, Tuple.of(id, tenantCode, error, time(at)))
+                .iterator().next();
+        return row.getLong("count") > 0;
+    }
+
+    @Override
+    public int reconcileFailedSends(int limit, Instant at) {
+        int repaired = 0;
+        for (Row row : query(pool.get(), UNMARKED_FAILED_SENDS, Tuple.of(limit))) {
+            if (failQueuedMessage(row.getString(TENANT_CODE), row.getString("message_id"),
+                    row.getString("last_error"), at)) {
+                repaired++;
+            }
+        }
+        return repaired;
+    }
+
+    @Override
     public List<Run> waiting(String tenantCode, String contextKind, String contextKey) {
         return runs(query(pool.get(), WAITING, Tuple.of(tenantCode, contextKind, contextKey)));
     }
@@ -234,7 +289,7 @@ public class PgRunStore implements RunStore {
     }
 
     private static StoredEvent event(Row r) {
-        return new StoredEvent(string(r, "id"), r.getString("tenant_code"), r.getString("type"), r.getString("source"),
+        return new StoredEvent(string(r, "id"), r.getString(TENANT_CODE), r.getString("type"), r.getString("source"),
                 r.getString("context_kind"), r.getString("context_key"), Pg.map(r.getString("data")),
                 r.getBoolean("test"), instant(r, "at"), instant(r, "received_at"));
     }
@@ -246,7 +301,7 @@ public class PgRunStore implements RunStore {
     }
 
     private static Run run(Row r) {
-        return new Run(string(r, "id"), r.getString("tenant_code"), string(r, "rule_id"), r.getString("rule_version"),
+        return new Run(string(r, "id"), r.getString(TENANT_CODE), string(r, "rule_id"), r.getString("rule_version"),
                 string(r, "event_id"), r.getString("context_kind"), r.getString("context_key"), r.getBoolean("test"),
                 Run.Status.valueOf(r.getString("status")), r.getInteger("step"), instant(r, "next_at"),
                 r.getString("last_error"), instant(r, "created_at"), instant(r, "updated_at"),

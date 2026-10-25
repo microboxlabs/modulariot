@@ -45,6 +45,10 @@ public class MessageRepository {
 
     private static final String INSERT = INSERT_VALUES + "RETURNING " + COLUMNS;
 
+    private static final String INSERT_QUEUED = INSERT_VALUES + """
+            ON CONFLICT (id) DO NOTHING
+            RETURNING\s""" + COLUMNS;
+
     private static final String INSERT_IF_NEW_PROVIDER_MESSAGE_ID = INSERT_VALUES + """
             ON CONFLICT (channel, provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING
             RETURNING\s""" + COLUMNS;
@@ -178,6 +182,16 @@ public class MessageRepository {
             WHERE id = $1 AND status = ANY($6::varchar[])
             RETURNING\s""" + COLUMNS;
 
+    private static final String MARK_SENT = """
+            UPDATE miot_conversational.wa_message
+            SET status = 'SENT',
+                provider_message_id = $2,
+                metadata = COALESCE(metadata, '{}'::jsonb) || $3::text::jsonb,
+                sent_at = $4,
+                error_message = NULL
+            WHERE id = $1 AND status IN ('PENDING', 'FAILED')
+            RETURNING\s""" + COLUMNS;
+
     private final Instance<Pool> clientInstance;
 
     protected MessageRepository(Instance<Pool> clientInstance) {
@@ -189,6 +203,14 @@ public class MessageRepository {
                 .execute(toParams(message))
                 .await().indefinitely()
                 .iterator().next());
+    }
+
+    /** Insert a queued rule message once, including when its leased step is replayed. */
+    public Message appendQueued(Message message) {
+        var rows = client().preparedQuery(INSERT_QUEUED)
+                .execute(toParams(message)).await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : findById(message.id());
     }
 
     /** Inserts and touches atomically; returns null when another send already stored this provider id. */
@@ -362,6 +384,20 @@ public class MessageRepository {
                 .execute(Tuple.tuple().addUUID(UUID.fromString(messageId)).addString(status.name())
                         .addOffsetDateTime(deliveredAt).addOffsetDateTime(readAt).addString(errorMessage)
                         .addArrayOfString(fromNames))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    /**
+     * A queued message went out: SENT with its provider id, the connection it used added to its metadata. Null
+     * when it is no longer PENDING.
+     */
+    public Message markSent(String messageId, String providerMessageId, Map<String, Object> metadata,
+            OffsetDateTime sentAt) {
+        var rows = client().preparedQuery(MARK_SENT)
+                .execute(Tuple.tuple().addUUID(UUID.fromString(messageId)).addString(providerMessageId)
+                        .addString(toJson(metadata).encode()).addOffsetDateTime(sentAt))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;

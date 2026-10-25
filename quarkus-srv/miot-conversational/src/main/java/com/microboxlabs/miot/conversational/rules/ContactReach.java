@@ -94,7 +94,7 @@ public class ContactReach {
                 || (contact.whatsapp() != null && !contact.whatsapp().isBlank());
     }
 
-    /** Only contact conditions in audiences actually used by messaging steps. */
+    /** The contact conditions of the groups the rule's steps write to, with each step's channel. */
     static List<Condition> conditions(RuleSpec spec) {
         List<Condition> out = new ArrayList<>();
         for (Step s : spec.steps()) {

@@ -38,8 +38,17 @@ public interface RunStore {
      */
     List<Run> claimDue(Instant now, Duration lease, int limit);
 
-    /** Writes status, step, next_at and last_error if the run is still WAITING; false when it no longer is. */
+    /**
+     * Writes status, step, next_at and last_error if the run is still WAITING; false when it no longer is. A null
+     * last_error keeps the stored one, which a send job may have written meanwhile.
+     */
     boolean updateIfWaiting(Run run);
+
+    /** Atomically fail a queued message of this tenant and record its run's error. */
+    boolean failQueuedMessage(String tenantCode, String messageId, String error, Instant at);
+
+    /** Repair terminal send jobs whose message could not be marked failed when the park event fired. */
+    int reconcileFailedSends(int limit, Instant at);
 
     /** The WAITING runs about this context. */
     List<Run> waiting(String tenantCode, String contextKind, String contextKey);

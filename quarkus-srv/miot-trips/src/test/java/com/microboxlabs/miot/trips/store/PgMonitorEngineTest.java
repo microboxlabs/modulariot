@@ -424,6 +424,9 @@ class PgMonitorEngineTest {
         engine.signal(tenant, "gps", tripId, "left_origin", null, seen);
         assertEquals(MilestoneReplies.Outcome.UNCLEAR,
                 replies.apply(reply(tripId, detected, "departure", null, "voy saliendo", seen)));
+        assertEquals(MilestoneReplies.Outcome.UNCLEAR,
+                replies.apply(reply(tripId, detected, "departure", "other_action", "Sí", seen)),
+                "an unknown button payload must not fall back to confirming text");
         assertEquals(MilestoneReplies.Outcome.NOT_A_MILESTONE,
                 replies.apply(reply(tripId, TripEventCatalog.ALERT, "departure", "confirm", null, seen)));
         assertEquals(MilestoneReplies.Outcome.REJECTED,

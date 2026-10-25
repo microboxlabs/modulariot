@@ -82,8 +82,8 @@ public class MilestoneReplies {
         } catch (DateTimeParseException e) {
             return Outcome.NOT_A_MILESTONE;
         }
-        Optional<Boolean> confirm = decision(data.path("buttonPayload").asText(null))
-                .or(() -> decision(data.path("text").asText(null)));
+        String payload = data.path("buttonPayload").asText(null);
+        Optional<Boolean> confirm = decision(payload != null ? payload : data.path("text").asText(null));
         if (confirm.isEmpty()) {
             return Outcome.UNCLEAR;
         }

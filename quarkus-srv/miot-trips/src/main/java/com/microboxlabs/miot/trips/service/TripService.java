@@ -24,6 +24,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -99,8 +100,14 @@ public class TripService {
             }
             live.refresh(tenantCode, tripId);
             String monitor = Check.limitedOrNull(req.monitor(), "monitor", 64);
-            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(),
-                    monitor == null ? Map.of() : Map.of("monitor", monitor));
+            Map<String, Object> details = new LinkedHashMap<>();
+            if (monitor != null) {
+                details.put("monitor", monitor);
+            }
+            if (req.isRegularized()) {
+                details.put("regularized", true);
+            }
+            audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(), details);
             return detail(tenantCode, tripId);
         });
     }

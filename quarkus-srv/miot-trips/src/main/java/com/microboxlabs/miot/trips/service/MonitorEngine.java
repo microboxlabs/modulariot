@@ -458,8 +458,14 @@ public class MonitorEngine implements TripChanges {
         }
     }
 
-    /** A new trip gets the monitor it asked for, or the selector's; empty when neither gives one. */
+    /**
+     * A new trip gets the monitor it asked for, or the selector's; empty when neither gives one. A regularized trip
+     * gets none: it is recorded after it ran.
+     */
     private Optional<MonitorRun.State> bindNew(Trip trip, MonitorRun.Event e) {
+        if (Boolean.TRUE.equals(e.data().get("regularized"))) {
+            return Optional.empty();
+        }
         String tenant = trip.tenantCode();
         Object asked = e.data().get("monitor");
         String key = asked instanceof String s ? s : select(trip).orElse(null);
@@ -572,6 +578,9 @@ public class MonitorEngine implements TripChanges {
         }
         if (d.get("monitor") != null) {
             data.put("monitor", d.get("monitor"));
+        }
+        if (Boolean.TRUE.equals(d.get("regularized"))) {
+            data.put("regularized", true);
         }
         return new MonitorRun.Event(tenant, tripId, onKind[0], onKind[1], at, actor, data);
     }

@@ -11,6 +11,8 @@ import com.microboxlabs.miot.trips.domain.AuditEvent;
 import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.trips.domain.CargoUnit;
+import com.microboxlabs.miot.trips.domain.FeedProfile;
+import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateLine;
@@ -31,8 +33,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
@@ -94,7 +98,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.4__checks_in_services.sql",
             "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
             "/db/migration/trips/V0.10.6__trip_live_in_services.sql",
-            "/db/migration/trips/V0.10.7__updated_at_in_stores.sql"};
+            "/db/migration/trips/V0.10.7__updated_at_in_stores.sql",
+            "/db/migration/trips/V0.10.8__create_feeds.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -256,6 +261,68 @@ class PgTripsStoresTest {
         Truck unicode = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "ı-12", null,
                 null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
         assertEquals(UUID.fromString(unicode.id()), fleet.byPlate(tenant, "truck", "ı-12").orElseThrow().id());
+    }
+
+    @Test
+    void aFeedKeepsItsProfileAndTheLastStateOfEachService() {
+        String tenant = tenant();
+        PgFeedStore feeds = new PgFeedStore(() -> pool);
+        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios",
+                List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
+                        new FeedProfile.StagePlan("transito", "SCHEDULED"),
+                        new FeedProfile.StagePlan("cierre", "FINISHED")),
+                "transito", "cierre", 120, new LinkedHashSet<>(List.of("truck", "driver")), true,
+                null, ACTOR, null, ACTOR));
+        assertEquals("transito", saved.departureStage());
+        assertEquals(List.of("preparacion", "transito", "cierre"),
+                saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
+        assertEquals(Set.of("truck", "driver"), saved.requiredResources());
+        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
+                saved.stages(), "transito", "cierre", 90, saved.requiredResources(), true, null, ACTOR, null, ACTOR));
+        assertEquals(90, renamed.closeToleranceMinutes());
+        assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
+
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",
+                null, null, true, null, null, null));
+        OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
+        String trip = UUID.randomUUID().toString();
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
+                null, trip, true, "alta", "{\"hechos\":[\"crear viaje\"]}", at));
+        FeedService s = feeds.service(tenant, "servicios", "S-001").orElseThrow();
+        assertEquals("h2", s.desiredHash());
+        assertEquals(trip, s.tripId());
+        assertTrue(s.desired().contains("\"b\""));
+        assertTrue(feeds.openServices(1000).stream().anyMatch(o -> o.externalCode().equals("S-001")
+                && o.tenantCode().equals(tenant)));
+        feeds.saveService(new FeedService(tenant, "servicios", "S-001", s.desired(), "h2", null, trip,
+                false, "cierre", null, at));
+        assertTrue(feeds.openServices(1000).stream().noneMatch(o -> o.tenantCode().equals(tenant)),
+                "a closed service leaves the clock's list");
+    }
+
+    @Test
+    void feedAuditActorsAndJsonTypesArePreserved() {
+        String tenant = tenant();
+        PgFeedStore feeds = new PgFeedStore(() -> pool);
+        FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed",
+                List.of(new FeedProfile.StagePlan("preparacion", "ADDED")),
+                "preparacion", "preparacion", 0, Set.of(), true, null, "creator", null, null);
+        FeedProfile created = feeds.saveProfile(profile);
+        assertEquals("creator", created.createdBy());
+        FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed",
+                profile.stages(), "preparacion", "preparacion", 0, Set.of(), true,
+                null, "ignored-creator", null, "updater"));
+        assertEquals("creator", updated.createdBy());
+        assertEquals("updater", updated.updatedBy());
+        feeds.saveService(new FeedService(tenant, "test-feed", "S-TEST", "{\"value\":1}", "hash",
+                null, null, true, "test", "{\"ok\":true}", null));
+        var rows = pool.preparedQuery("""
+                SELECT jsonb_typeof(stages) AS kind FROM miot_trips.feed_profile WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(desired) FROM miot_trips.feed_service WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(last_result) FROM miot_trips.feed_service WHERE tenant_code = $1
+                """).execute(io.vertx.mutiny.sqlclient.Tuple.of(tenant)).await().atMost(WAIT);
+        assertEquals(List.of("array", "object", "object"),
+                rows.stream().map(row -> row.getString("kind")).toList());
     }
 
     @Test

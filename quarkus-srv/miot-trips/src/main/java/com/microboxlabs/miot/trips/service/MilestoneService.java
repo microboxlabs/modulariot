@@ -197,6 +197,7 @@ public class MilestoneService {
             boolean confirm, String channel, String note) {
         String m = milestone(detection.milestone());
         return tx.inTransaction(() -> {
+            existing(tenantCode, tripId);
             TripMilestone current = store.find(tenantCode, tripId, m)
                     .orElse(TripMilestone.unrecorded(tenantCode, tripId.toString(), m));
             if (!current.isPending() || current.proposedAt() == null || detection.proposedAt() == null

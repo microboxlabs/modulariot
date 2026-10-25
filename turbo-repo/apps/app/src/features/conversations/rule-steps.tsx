@@ -1,6 +1,8 @@
 "use client";
 
-import { HiArrowDown, HiArrowUp, HiPlus, HiX } from "react-icons/hi";
+import type { ReactNode } from "react";
+import { HiPlus, HiX } from "react-icons/hi";
+import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -28,48 +30,19 @@ const minutes = (value: string) =>
 
 const NO_TEXTS: I18nRecord = {};
 
-function StepActions({
-  index,
-  last,
+function RemoveStep({
   d,
-  onMove,
   onRemove,
-}: Readonly<{
-  index: number;
-  last: boolean;
-  d: I18nRecord;
-  onMove: (by: number) => void;
-  onRemove: () => void;
-}>) {
+}: Readonly<{ d: I18nRecord; onRemove: () => void }>) {
   return (
-    <span className="ml-auto flex items-center">
-      <button
-        type="button"
-        aria-label={tr("moveUp", d)}
-        disabled={index === 0}
-        onClick={() => onMove(-1)}
-        className={ICON_BUTTON}
-      >
-        <HiArrowUp className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        aria-label={tr("moveDown", d)}
-        disabled={last}
-        onClick={() => onMove(1)}
-        className={ICON_BUTTON}
-      >
-        <HiArrowDown className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        aria-label={tr("removeStep", d)}
-        onClick={onRemove}
-        className={`${ICON_BUTTON} hover:text-red-600 dark:hover:text-red-400`}
-      >
-        <HiX className="h-4 w-4" />
-      </button>
-    </span>
+    <button
+      type="button"
+      aria-label={tr("removeStep", d)}
+      onClick={onRemove}
+      className={`${ICON_BUTTON} ml-auto hover:text-red-600 dark:hover:text-red-400`}
+    >
+      <HiX className="h-4 w-4" />
+    </button>
   );
 }
 
@@ -118,7 +91,7 @@ function ConnectionSelect({
 function StepRow({
   step,
   index,
-  count,
+  handle,
   templates,
   fields,
   issues,
@@ -126,12 +99,11 @@ function StepRow({
   d,
   fieldDict = NO_TEXTS,
   onSet,
-  onMove,
   onRemove,
 }: Readonly<{
   step: RuleStep;
   index: number;
-  count: number;
+  handle: ReactNode;
   templates: ConversationTemplate[];
   fields: EventField[];
   issues: StepIssues | undefined;
@@ -139,7 +111,6 @@ function StepRow({
   d: I18nRecord;
   fieldDict?: I18nRecord;
   onSet: (patch: Partial<RuleStep>) => void;
-  onMove: (by: number) => void;
   onRemove: () => void;
 }>) {
   const replies = REPLY_CHANNELS.has(step.channel);
@@ -150,10 +121,12 @@ function StepRow({
   const templateError = issues?.template ? FIELD_ERROR : "";
   const channelError = issues?.channel ? FIELD_ERROR : "";
   return (
-    <li
-      aria-label={tr("stepN", d, { n: String(index + 1) })}
-      className="flex gap-3 px-3 py-3"
-    >
+    <>
+      {handle && (
+        <span className="flex h-6 shrink-0 items-center self-start">
+          {handle}
+        </span>
+      )}
       <span
         aria-hidden
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gray-300 text-xs font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300"
@@ -219,15 +192,7 @@ function StepRow({
               </option>
             ))}
           </Select>
-          {!readOnly && (
-            <StepActions
-              index={index}
-              last={index === count - 1}
-              d={d}
-              onMove={onMove}
-              onRemove={onRemove}
-            />
-          )}
+          {!readOnly && <RemoveStep d={d} onRemove={onRemove} />}
         </div>
         {viaConnection && (
           <ConnectionSelect
@@ -315,7 +280,7 @@ function StepRow({
           <FieldError key={e} text={e} />
         ))}
       </div>
-    </li>
+    </>
   );
 }
 
@@ -356,29 +321,37 @@ export default function RuleSteps({
           aria-label={tr("sectionSteps", d)}
           className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800"
         >
-          {steps.map((s, i) => (
-            <StepRow
-              key={rows.keys[i]}
-              step={s}
-              index={i}
-              count={steps.length}
-              templates={templates}
-              fields={fields}
-              issues={errors[i]}
-              readOnly={readOnly}
-              d={d}
-              fieldDict={fieldDict}
-              onSet={(patch) => set(i, patch)}
-              onMove={(by) => {
-                rows.move(i, by);
-                onChange(moved(steps, i, by));
-              }}
-              onRemove={() => {
-                rows.remove(i);
-                onChange(steps.filter((_, j) => j !== i));
-              }}
-            />
-          ))}
+          <SortableRows
+            items={steps}
+            keys={rows.keys}
+            readOnly={readOnly}
+            handleLabel={tr("dragStep", d)}
+            as="li"
+            rowClassName="flex gap-3 px-3 py-3"
+            rowLabel={(i) => tr("stepN", d, { n: String(i + 1) })}
+            onMove={(from, to) => {
+              rows.move(from, to - from);
+              onChange(moved(steps, from, to - from));
+            }}
+            renderRow={(s, i, handle) => (
+              <StepRow
+                step={s}
+                index={i}
+                handle={handle}
+                templates={templates}
+                fields={fields}
+                issues={errors[i]}
+                readOnly={readOnly}
+                d={d}
+                fieldDict={fieldDict}
+                onSet={(patch) => set(i, patch)}
+                onRemove={() => {
+                  rows.remove(i);
+                  onChange(steps.filter((_, j) => j !== i));
+                }}
+              />
+            )}
+          />
         </ol>
       )}
       {!readOnly && (

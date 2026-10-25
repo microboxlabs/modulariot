@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.store;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.db.PgTransactions;
@@ -12,6 +13,7 @@ import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.MandateRequest;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
@@ -20,6 +22,7 @@ import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.MonitorClock;
@@ -57,6 +60,7 @@ class PgMonitorEngineTest {
     private static final Duration WAIT = Duration.ofSeconds(10);
     private static final String ACTOR = "ops@example.com";
     private static final String DIRECT = "direct";
+    private static final String CONFIRMED = "confirmed";
 
     private static Vertx vertx;
     private static Pool pool;
@@ -74,9 +78,11 @@ class PgMonitorEngineTest {
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final PgMonitorRunStore runs = new PgMonitorRunStore(() -> pool);
     private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final MilestoneService milestones = new MilestoneService(new PgMilestoneStore(() -> pool),
+            new PgTripStore(() -> pool), audit, tx);
     private final MonitorEngine engine = new MonitorEngine(runs, monitorStore, new PgTripStore(() -> pool),
             new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool), new PgLocationStore(() -> pool), stages,
-            trips, mandates, new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(
+            trips, mandates, milestones, new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(
                     () -> pool)), audit, tx, Clock.systemUTC());
 
     private String tenant;
@@ -232,5 +238,89 @@ class PgMonitorEngineTest {
                 .filter(s -> s.stageType().equals("preparation")).findFirst().orElseThrow();
         stages.close(tenant, ACTOR, UUID.fromString(preparation.id()));
         assertTrue(matched(tripId).contains("hand-close"));
+    }
+
+    private void publishConfirmed() {
+        publish(CONFIRMED, List.of(
+                rule("open-preparation", "plan", null, "event.kind == 'created'", 10, act("start", "preparation")),
+                rule("departure-detected", "signal", null, "signal.kind == 'left_origin'", 10,
+                        act("requestConfirmation", "departure")),
+                rule("departure-confirmed", "command", null,
+                        "event.kind == 'departure_confirmed' && stage.type == 'preparation'", 10,
+                        act("advance", "transit")),
+                rule("departure-rejected", "command", null, "event.kind == 'departure_rejected'", 10,
+                        act("alert", "false_departure")),
+                rule("arrival-confirmed", "command", null,
+                        "event.kind == 'arrival_confirmed' && milestones.departure.status == 'confirmed'", 10,
+                        act("completeTrip", null))));
+    }
+
+    private TripMilestone milestone(UUID tripId, String name) {
+        return milestones.list(tenant, tripId).stream().filter(m -> m.milestone().equals(name)).findFirst()
+                .orElseThrow();
+    }
+
+    @Test
+    void aDetectionOnlyAsksAndAConfirmationMovesTheTrip() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        OffsetDateTime seen = OffsetDateTime.parse("2026-10-25T08:32:00Z");
+        assertEquals(TripMilestone.OPEN, milestone(tripId, "departure").status());
+
+        engine.signal(tenant, "gps", tripId, "left_origin", "17", seen);
+        assertEquals(Stage.RUNNING, status(tripId, "preparation"), "a GPS detection does not move the trip");
+        TripMilestone pending = milestone(tripId, "departure");
+        assertEquals(TripMilestone.PENDING, pending.status());
+        assertEquals("gps", pending.source());
+        assertTrue(seen.isEqual(pending.proposedAt()));
+        assertEquals("17", pending.evidence().get("geofenceId"));
+
+        milestones.reject(tenant, ACTOR, tripId, "departure", "reply", "the truck is still at the gate");
+        assertEquals(TripMilestone.REJECTED, milestone(tripId, "departure").status());
+        assertTrue(matched(tripId).contains("departure-rejected"));
+        assertEquals(Stage.RUNNING, status(tripId, "preparation"));
+
+        engine.signal(tenant, "gps", tripId, "left_origin", "17", seen.plusMinutes(5));
+        MilestoneService.Outcome confirmed = milestones.confirm(tenant, "+56900000000", tripId, "departure", null,
+                "reply", null);
+        assertEquals(MilestoneService.Result.CONFIRMED, confirmed.result());
+        assertTrue(seen.plusMinutes(5).isEqual(confirmed.milestone().confirmedAt()),
+                "without a time, the confirmation takes the one the detection proposed");
+        assertEquals(Stage.CLOSED, status(tripId, "preparation"));
+        assertEquals(Stage.RUNNING, status(tripId, "transit"));
+        MonitorRun.Transition moved = engine.transitions(tenant, tripId, 50).stream()
+                .filter(x -> "departure-confirmed".equals(x.ruleKey())).findFirst().orElseThrow();
+        assertEquals(seen.plusMinutes(5).toInstant().toString(),
+                OffsetDateTime.parse((String) moved.event().get("at")).toInstant().toString(),
+                "the monitor gets the confirmed time");
+
+        assertEquals(MilestoneService.Result.UNCHANGED, milestones.confirm(tenant, ACTOR, tripId, "departure",
+                seen.plusMinutes(5), "feed", null).result());
+        assertEquals(MilestoneService.Result.CONFLICT, milestones.confirm(tenant, ACTOR, tripId, "departure",
+                seen.plusMinutes(9), "feed", null).result());
+        assertTrue(seen.plusMinutes(5).isEqual(milestone(tripId, "departure").confirmedAt()),
+                "the first confirmation stays");
+        assertThrows(IllegalStateException.class,
+                () -> milestones.reject(tenant, ACTOR, tripId, "departure", "ui", null));
+
+        engine.signal(tenant, "gps", tripId, "left_origin", "17", seen.plusMinutes(30));
+        assertEquals(TripMilestone.CONFIRMED, milestone(tripId, "departure").status(),
+                "a confirmed milestone is not asked again");
+    }
+
+    @Test
+    void aMilestoneCanBeConfirmedWithoutADetection() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        OffsetDateTime left = OffsetDateTime.parse("2026-10-25T08:40:00-05:00");
+        milestones.confirm(tenant, "feed:sheet", tripId, "departure", left, "feed", null);
+        assertEquals(Stage.RUNNING, status(tripId, "transit"));
+        assertTrue(left.isEqual(milestone(tripId, "departure").confirmedAt()));
+        assertEquals("feed", milestone(tripId, "departure").channel());
+
+        milestones.confirm(tenant, "feed:sheet", tripId, "arrival", left.plusHours(6), "feed", null);
+        assertEquals(Trip.DONE, trips.get(tenant, tripId).status(), "the rule reads milestones.departure.status");
+        assertThrows(IllegalArgumentException.class,
+                () -> milestones.confirm(tenant, ACTOR, tripId, "unloading", null, "ui", null));
     }
 }

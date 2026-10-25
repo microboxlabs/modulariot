@@ -43,6 +43,7 @@ public class MonitorService {
     private static final Set<String> STAGE_ACTIONS = Set.of("advance", "start", "close");
     private static final Set<String> FLAG_ACTIONS = Set.of("completeTrip", "closeMandates");
     private static final Set<String> NAMED_ACTIONS = Set.of("cancelTrip", "alert", "invoke");
+    private static final String REQUEST_CONFIRMATION = "requestConfirmation";
 
     private final MonitorStore store;
     private final AuditService audit;
@@ -320,6 +321,8 @@ public class MonitorService {
                 Check.oneOf(value, "rule " + rule + ": " + type, MonitorSchema.STAGE_TYPES.toArray(String[]::new));
             } else if (FLAG_ACTIONS.contains(type)) {
                 value = null;
+            } else if (REQUEST_CONFIRMATION.equals(type)) {
+                Check.oneOf(value, "rule " + rule + ": " + type, MonitorSchema.MILESTONES.toArray(String[]::new));
             } else if (NAMED_ACTIONS.contains(type)) {
                 Check.required(value, "rule " + rule + ": " + type, 255);
             } else {

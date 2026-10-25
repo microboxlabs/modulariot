@@ -46,7 +46,8 @@ import org.jboss.logging.Logger;
  * action undoes only itself; alerts and processes of every matching rule are recorded. Stage changes the actions
  * cause are evaluated next, in the same transaction, up to {@value #MAX_DEPTH} levels. Then the trip's epoch rises
  * and its timers are scheduled again. A stage started or closed by hand is a {@code command} and then a
- * {@code stage} event.
+ * {@code stage} event. A milestone confirmed or rejected is the {@code command} {@code <milestone>_confirmed} or
+ * {@code <milestone>_rejected} at the confirmed time; {@code requestConfirmation} leaves a milestone pending.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -58,6 +59,8 @@ public class MonitorEngine implements TripChanges {
             Set.of("advance", "start", "close", "completeTrip", "cancelTrip", "closeMandates");
     private static final String TIMER = "timer";
     private static final String STAGE_TYPE = "stageType";
+    private static final String COMMAND = "command";
+    private static final String REQUEST_CONFIRMATION = "requestConfirmation";
 
     /** The evaluation running on this thread; changes made by its actions queue up here. */
     private static final ThreadLocal<Run> RUN = new ThreadLocal<>();
@@ -69,6 +72,7 @@ public class MonitorEngine implements TripChanges {
     private final StageService stages;
     private final TripService tripService;
     private final MandateService mandates;
+    private final MilestoneService milestones;
     private final AuditService audit;
     private final Transactions tx;
     private final Clock clock;
@@ -89,14 +93,16 @@ public class MonitorEngine implements TripChanges {
     @Inject
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
-            MandateService mandates, FleetResources fleet, AuditService audit, Transactions tx) {
-        this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, fleet, audit,
-                tx, Clock.systemUTC());
+            MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
+            Transactions tx) {
+        this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, milestones,
+                fleet, audit, tx, Clock.systemUTC());
     }
 
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
-            MandateService mandates, FleetResources fleet, AuditService audit, Transactions tx, Clock clock) {
+            MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
+            Transactions tx, Clock clock) {
         this.runs = runs;
         this.monitors = monitors;
         this.trips = trips;
@@ -104,10 +110,11 @@ public class MonitorEngine implements TripChanges {
         this.stages = stages;
         this.tripService = tripService;
         this.mandates = mandates;
+        this.milestones = milestones;
         this.audit = audit;
         this.tx = tx;
         this.clock = clock;
-        this.context = new MonitorContext(trips, stageStore, assignments, locations, mandates, fleet);
+        this.context = new MonitorContext(trips, stageStore, assignments, locations, mandates, milestones, fleet);
     }
 
     @Override
@@ -123,7 +130,7 @@ public class MonitorEngine implements TripChanges {
         }
         List<MonitorRun.Event> events = new ArrayList<>();
         if ("stage".equals(event.on())) {
-            events.add(new MonitorRun.Event(tenantCode, tripId, "command",
+            events.add(new MonitorRun.Event(tenantCode, tripId, COMMAND,
                     "started".equals(event.kind()) ? "start" : "close", event.at(), actor, event.data()));
         }
         events.add(event);
@@ -286,7 +293,9 @@ public class MonitorEngine implements TripChanges {
                 }
             }
             for (TripMonitor.Action a : r.then()) {
-                if (!STATE_ACTIONS.contains(a.type())) {
+                if (REQUEST_CONFIRMATION.equals(a.type())) {
+                    done.add(requestConfirmation(tenant, tripId, e, a, r.key(), actor, errors));
+                } else if (!STATE_ACTIONS.contains(a.type())) {
                     done.add(action(a, r.key(), "recorded"));
                 }
             }
@@ -353,6 +362,33 @@ public class MonitorEngine implements TripChanges {
             default -> throw new IllegalStateException("unknown action " + a.type());
         }
         return action(a, null, "done");
+    }
+
+    /**
+     * Leaves the action's milestone pending with the event's time as the proposed one. A signal is a GPS detection
+     * unless it names its source.
+     */
+    private Map<String, Object> requestConfirmation(String tenant, UUID tripId, MonitorRun.Event e,
+            TripMonitor.Action a, String rule, String actor, List<String> errors) {
+        String source = sourceOf(e);
+        Map<String, Object> evidence = new LinkedHashMap<>(e.data());
+        evidence.put("on", e.on());
+        evidence.put("kind", e.kind());
+        try {
+            MilestoneService.Outcome outcome = PgTx.savepoint(() -> milestones.request(tenant, actor, tripId,
+                    a.value(), source, e.at(), evidence));
+            return action(a, rule, outcome.result() == MilestoneService.Result.SKIPPED ? "skipped" : "pending");
+        } catch (RuntimeException ex) {
+            errors.add(rule + ": " + message(ex));
+            return action(a, rule, "failed");
+        }
+    }
+
+    private static String sourceOf(MonitorRun.Event e) {
+        if (e.data().get("source") instanceof String named) {
+            return named;
+        }
+        return "signal".equals(e.on()) ? "gps" : e.on();
     }
 
     /** Closes the running stage and runs the closing stage through; closing it completes the trip. */
@@ -514,6 +550,9 @@ public class MonitorEngine implements TripChanges {
             Map<String, Object> details) {
         OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC);
         Map<String, Object> d = details == null ? Map.of() : details;
+        if (MilestoneService.CONFIRMED.equals(action) || MilestoneService.REJECTED.equals(action)) {
+            return milestoneEvent(tenant, actor, action, tripId, d, at);
+        }
         String[] onKind = switch (action) {
             case "trip.created" -> new String[] {"plan", "created"};
             case "trip.updated" -> new String[] {"plan", "trip"};
@@ -535,6 +574,25 @@ public class MonitorEngine implements TripChanges {
             data.put("monitor", d.get("monitor"));
         }
         return new MonitorRun.Event(tenant, tripId, onKind[0], onKind[1], at, actor, data);
+    }
+
+    /** A milestone confirmed or rejected, at the time the person gave. */
+    private static MonitorRun.Event milestoneEvent(String tenant, String actor, String action, String tripId,
+            Map<String, Object> d, OffsetDateTime now) {
+        Object milestone = d.get("milestone");
+        if (!(milestone instanceof String m)) {
+            return null;
+        }
+        String kind = m + (MilestoneService.CONFIRMED.equals(action) ? "_confirmed" : "_rejected");
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("milestone", m);
+        for (String key : List.of("channel", "source")) {
+            if (d.get(key) != null) {
+                data.put(key, d.get(key));
+            }
+        }
+        OffsetDateTime at = d.get("at") instanceof String text ? OffsetDateTime.parse(text) : now;
+        return new MonitorRun.Event(tenant, tripId, COMMAND, kind, at, actor, data);
     }
 
     private List<Stage> trip(String tenant, UUID tripId) {

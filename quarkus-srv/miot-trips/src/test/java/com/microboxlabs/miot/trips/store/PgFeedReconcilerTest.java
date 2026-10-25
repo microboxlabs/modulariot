@@ -33,6 +33,7 @@ import com.microboxlabs.miot.trips.dto.FeedResult;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.FeedBatchService;
@@ -111,9 +112,11 @@ class PgFeedReconcilerTest {
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
             locations, fleet, tx, json, clock);
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
+    private final MilestoneService milestones = new MilestoneService(new PgMilestoneStore(() -> pool),
+            new PgTripStore(() -> pool), audit, tx);
     private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
             new PgTripStore(() -> pool), new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool),
-            new PgLocationStore(() -> pool), stages, trips, mandates, fleet, audit, tx, clock);
+            new PgLocationStore(() -> pool), stages, trips, mandates, milestones, fleet, audit, tx, clock);
 
     private String tenant;
     private Ids fleetIds;

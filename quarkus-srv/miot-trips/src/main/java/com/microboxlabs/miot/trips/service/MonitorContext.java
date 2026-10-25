@@ -8,6 +8,7 @@ import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.store.AssignmentStore;
 import com.microboxlabs.miot.trips.store.LocationStore;
 import com.microboxlabs.miot.trips.store.StageStore;
@@ -34,15 +35,17 @@ final class MonitorContext {
     private final AssignmentStore assignments;
     private final LocationStore locations;
     private final MandateService mandates;
+    private final MilestoneService milestones;
     private final FleetResources fleet;
 
     MonitorContext(TripStore trips, StageStore stages, AssignmentStore assignments, LocationStore locations,
-            MandateService mandates, FleetResources fleet) {
+            MandateService mandates, MilestoneService milestones, FleetResources fleet) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
         this.locations = locations;
         this.mandates = mandates;
+        this.milestones = milestones;
         this.fleet = fleet;
     }
 
@@ -65,6 +68,7 @@ final class MonitorContext {
         ctx.put("stages", byType);
         ctx.put("mandates", linked);
         ctx.put("assignments", assignments(tenant, tripId));
+        ctx.put("milestones", milestones(tenant, tripId));
         ctx.put("event", event(event));
         if ("signal".equals(event.on())) {
             Map<String, Object> signal = new LinkedHashMap<>();
@@ -97,6 +101,8 @@ final class MonitorContext {
         putIf(e, "on", event.on());
         putIf(e, "kind", event.kind());
         putIf(e, "stageType", event.data().get("stageType"));
+        putIf(e, "milestone", event.data().get("milestone"));
+        putIf(e, "channel", event.data().get("channel"));
         putIf(e, "at", instant(event.at()));
         putIf(e, "actor", event.actor());
         return e;
@@ -163,6 +169,21 @@ final class MonitorContext {
                 // a mandate that cannot be read keeps its code and status only
             }
             out.add(m);
+        }
+        return out;
+    }
+
+    /** Each milestone by name: its status ({@code open} when nothing is recorded), source and times. */
+    private Map<String, Object> milestones(String tenant, UUID tripId) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (TripMilestone m : milestones.list(tenant, tripId)) {
+            Map<String, Object> v = new LinkedHashMap<>();
+            putIf(v, "status", m.status());
+            putIf(v, "source", m.source());
+            putIf(v, "channel", m.channel());
+            putIf(v, "proposedAt", instant(m.proposedAt()));
+            putIf(v, "confirmedAt", instant(m.confirmedAt()));
+            out.put(m.milestone(), v);
         }
         return out;
     }

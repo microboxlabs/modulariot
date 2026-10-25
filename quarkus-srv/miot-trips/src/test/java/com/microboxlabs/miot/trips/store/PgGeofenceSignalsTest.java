@@ -22,6 +22,7 @@ import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.GeofenceSignals;
@@ -79,9 +80,11 @@ class PgGeofenceSignalsTest {
             new PgTripStore(() -> pool), fleet, projector, audit, tx);
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final MilestoneService milestones = new MilestoneService(new PgMilestoneStore(() -> pool),
+            new PgTripStore(() -> pool), audit, tx);
     private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
             new PgTripStore(() -> pool), new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool),
-            new PgLocationStore(() -> pool), stages, trips, mandates, fleet, audit, tx, Clock.systemUTC());
+            new PgLocationStore(() -> pool), stages, trips, mandates, milestones, fleet, audit, tx, Clock.systemUTC());
     private final PgLocationStore locations = new PgLocationStore(() -> pool);
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
     private final FakeGeofences geofences = new FakeGeofences()

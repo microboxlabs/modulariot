@@ -33,10 +33,14 @@ export const ACTIONS = [
   "completeTrip",
   "closeMandates",
   "cancelTrip",
+  "requestConfirmation",
   "alert",
   "invoke",
 ] as const;
 export type ActionType = (typeof ACTIONS)[number];
+
+/** Departure, arrival and closure: a detection asks a person to confirm them. */
+export const MILESTONES = ["departure", "arrival", "closure"] as const;
 
 /** Actions whose value is a stage type; the flag actions take no value. */
 export const STAGE_ACTIONS: readonly ActionType[] = [

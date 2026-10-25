@@ -48,8 +48,43 @@ class PgValuesInEnglishMigrationTest {
     }
 
     @Test
+    void backfillPreservesCustomStatusesEngineStateAndFreeText() throws IOException {
+        PgTripsStoresTest.recreateSchemas(pool,
+                PgTripsStoresTest.migrationsBefore("/db/migration/trips/V0.10.9__values_in_english.sql") + 1);
+        run("""
+                INSERT INTO miot_trips.trip (id, tenant_code, status) VALUES
+                    ('00000000-0000-0000-0000-000000000010', 'test', 'planned'),
+                    ('00000000-0000-0000-0000-000000000011', 'test', 'in_progress');
+                INSERT INTO miot_trips.stage
+                    (tenant_code, subject_type, subject_id, seq, stage_type, status, service_status)
+                    VALUES ('test', 'trip', '00000000-0000-0000-0000-000000000011', 1,
+                            'transit', 'in_progress', 'en_ruta');
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, status, current_geofence_id) VALUES
+                    ('00000000-0000-0000-0000-000000000010', 'test', 'planificado', 42),
+                    ('00000000-0000-0000-0000-000000000011', 'test', 'en_ruta', 43);
+                INSERT INTO miot_trips.feed_profile
+                    (tenant_code, feed_key, name, stages, departure_stage, close_stage, created_by)
+                    VALUES ('test', 'test-feed', 'Test', '[]', 'transit', 'closing', 'test');
+                INSERT INTO miot_trips.feed_service
+                    (tenant_code, feed_key, external_code, desired, desired_hash, last_action, last_result, open)
+                    VALUES ('test', 'test-feed', 'S-TEST', '{}', '', 'close',
+                            '{"action":"cierre","operations":["cierre"],"errors":["reportar"]}', false);
+                """);
+        String migration = "/db/migration/trips/V0.10.15__backfill_english_projections.sql";
+        PgTripsStoresTest.migrate(pool, migration);
+        PgTripsStoresTest.migrate(pool, migration);
+        assertEquals("planned:42,en_ruta:43", one("""
+                SELECT string_agg(status || ':' || current_geofence_id, ',' ORDER BY trip_id)
+                FROM miot_trips.trip_live""").getString(0));
+        assertEquals("close:cierre:reportar", one("""
+                SELECT (last_result->>'action') || ':' || (last_result->'operations'->>0)
+                    || ':' || (last_result->'errors'->>0) FROM miot_trips.feed_service""").getString(0));
+    }
+
+    @Test
     void spanishRowsComeOutInEnglishWithoutNewVersions() throws IOException {
-        PgTripsStoresTest.recreateSchemas(pool, PgTripsStoresTest.migrationCount() - 1);
+        PgTripsStoresTest.recreateSchemas(pool,
+                PgTripsStoresTest.migrationsBefore("/db/migration/trips/V0.10.9__values_in_english.sql"));
         run("""
                 INSERT INTO miot_trips.location (id, tenant_code, name, type) VALUES
                     ('00000000-0000-0000-0000-000000000001', 't', 'Planta', 'planta');

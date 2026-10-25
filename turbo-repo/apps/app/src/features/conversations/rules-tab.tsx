@@ -309,7 +309,9 @@ export default function RulesTab({
               key={r.id}
               rule={r}
               event={
-                r.trigger?.event ? eventFullLabel(r.trigger.event, d, catalog) : ""
+                r.trigger?.event
+                  ? eventFullLabel(r.trigger.event, d, catalog)
+                  : ""
               }
               summary={summaryOf(r)}
               href={ruleHref(lang, r.id)}

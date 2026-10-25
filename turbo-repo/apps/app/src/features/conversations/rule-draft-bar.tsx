@@ -38,6 +38,7 @@ export default function RuleDraftBar({
   bump,
   d,
   onReview,
+  onDiscard,
 }: Readonly<{
   changes: RuleChange[];
   errors: number;
@@ -49,6 +50,8 @@ export default function RuleDraftBar({
   bump: RuleBump | null;
   d: I18nRecord;
   onReview: () => void;
+  /** Absent before the first publish: there is no version to go back to. */
+  onDiscard?: () => void;
 }>) {
   const blocked =
     errors > 0 || saving || saveError !== null || changes.length === 0 || !bump;
@@ -92,9 +95,18 @@ export default function RuleDraftBar({
       >
         {tr("seeChanges", d)}
       </button>
+      {onDiscard && (
+        <button
+          type="button"
+          className={`ml-auto hover:underline ${MUTED}`}
+          onClick={onDiscard}
+        >
+          {tr("discard", d)}
+        </button>
+      )}
       <Button
         size="sm"
-        className="ml-auto"
+        className={onDiscard ? "" : "ml-auto"}
         disabled={blocked}
         onClick={onReview}
       >

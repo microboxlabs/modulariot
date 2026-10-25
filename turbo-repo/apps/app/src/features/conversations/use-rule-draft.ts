@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  discardRuleDraft,
   publishRule,
   refreshRules,
   saveRuleDraft,
@@ -124,6 +125,23 @@ export function useRuleDraft(id: string) {
     [flush, id]
   );
 
+  /** Drops the draft, after any save in flight, and goes back to the version in force. */
+  const discard = useCallback(async () => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    pending.current = null;
+    await chain.current;
+    await discardRuleDraft(id);
+    setSaveError(null);
+    setFindings(null);
+    setSaving(false);
+    const fresh = await mutate();
+    setSpec(normalizeSpec(fresh?.draft?.spec ?? fresh?.current?.spec));
+    await refreshRules(id);
+  }, [id, mutate]);
+
   return {
     detail,
     error,
@@ -134,6 +152,7 @@ export function useRuleDraft(id: string) {
     update,
     flush,
     publish,
+    discard,
     mutate,
   };
 }

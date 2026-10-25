@@ -3922,6 +3922,7 @@
         "eventDescTripMilestoneConflict": "Llegó una segunda confirmación de una salida, llegada o cierre ya confirmado, con otra hora. Por ejemplo, el feed trae una llegada real distinta a la que confirmó una persona. Queda la primera hora; la nueva no se aplica y alguien debe revisar cuál es la correcta.",
         "eventDescTripFeedClosedChanged": "El feed trajo datos distintos para un viaje que ya está cerrado, por ejemplo otra hora, otro camión u otro conductor. El sistema no aplica esos cambios porque el viaje está cerrado. Avisa para que alguien revise si el viaje se cerró por error. Los campos que cambiaron vienen en {{changedFields}}.",
         "eventDescConversationReplyReceived": "Alguien respondió un mensaje que envió otra regla, con texto o tocando un botón. Por ahora llegan las respuestas de WhatsApp. El evento lleva el contexto del mensaje original: si el aviso era de un viaje, la respuesta queda en ese viaje. Sirve para avisar a otras personas lo que se respondió. El texto viene en {{text}}, el botón en {{buttonPayload}} y quién respondió en {{address}}.",
+        "discard": "Descartar",
         "sectionWhen": "Cuándo se envía",
         "sectionAudience": "A quién",
         "sectionSteps": "Pasos",

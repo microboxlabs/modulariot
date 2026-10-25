@@ -158,6 +158,11 @@ export function saveRuleDraft(id: string, spec: RuleSpec) {
   });
 }
 
+/** Drops the draft; only a rule with a published version can. */
+export function discardRuleDraft(id: string) {
+  return request<void>(`${ruleKey(id)}/draft`, { method: "DELETE" });
+}
+
 /** `bump` raises the computed bump; null keeps it. */
 export function publishRule(
   id: string,

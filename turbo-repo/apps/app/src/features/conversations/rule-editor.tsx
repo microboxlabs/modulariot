@@ -194,6 +194,7 @@ export default function RuleEditor({
     update,
     flush,
     publish,
+    discard,
     mutate,
   } = useRuleDraft(id);
   const { data: catalog } = useEventCatalog();
@@ -401,6 +402,14 @@ export default function RuleEditor({
             bump={bump}
             d={d}
             onReview={() => setReviewing(true)}
+            onDiscard={
+              rule?.currentVersion
+                ? () =>
+                    void discard().catch((e: unknown) =>
+                      setStateError(e instanceof Error ? e.message : String(e))
+                    )
+                : undefined
+            }
           />
         )}
       </div>

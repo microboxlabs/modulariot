@@ -31,6 +31,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -190,6 +191,18 @@ public class OrgConversationsResource {
         String who = actor.get();
         return write(organizationId,
                 () -> Response.ok(service.saveDraft(tenant, id, body == null ? null : body.spec(), who)).build());
+    }
+
+    @DELETE
+    @Path("/rules/{id}/draft")
+    @Operation(operationId = "discardConversationRuleDraft",
+            summary = "Discard the draft; the rule shows its version in force again. 400 before the first publish")
+    public Uni<Response> discardDraft(@PathParam(ORG) String organizationId, @PathParam(ID) String id) {
+        String tenant = tenantCode(organizationId);
+        return write(organizationId, () -> {
+            service.discardDraft(tenant, id);
+            return Response.noContent().build();
+        });
     }
 
     @POST

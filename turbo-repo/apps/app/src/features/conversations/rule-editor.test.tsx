@@ -118,12 +118,7 @@ describe("RuleEditor", () => {
         "Cuando se abre una condición de Botón de pánico en Código negro"
       )
     ).toBeTruthy();
-    for (const title of [
-      "Cuándo se envía",
-      "A quién",
-      "Pasos",
-      "Simulación",
-    ]) {
+    for (const title of ["Cuándo se envía", "A quién", "Pasos", "Simulación"]) {
       expect(screen.getByRole("heading", { name: title })).toBeTruthy();
     }
     expect(screen.getByText("{{patente}}")).toBeTruthy();

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,6 +11,7 @@ import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.dto.FeedResult;
+import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.store.FeedStore;
 import com.microboxlabs.miot.trips.store.InMemoryFleet;
@@ -112,6 +114,35 @@ class FeedReconcilerTest {
         assertEquals(FeedReconciler.ERROR, feeds.saved.lastAction());
     }
 
+    @Test
+    void reportedStateCanBeSubmittedAgain() {
+        FeedServiceRequest incomplete = new FeedServiceRequest(null, null, null, null, null, null);
+        assertEquals(FeedReconciler.REPORT, send(incomplete).action());
+        assertTrue(reconciler.accept("test", "test-feed", "S-TEST", incomplete));
+    }
+
+    @Test
+    void dedupeKeysSeparateColonsAndEscapeCharacters() {
+        assertNotEquals(FeedBatchService.spec("feed", "S:1", "test", "b1").dedupeKey(),
+                FeedBatchService.spec("feed", "S", "test", "1:b1").dedupeKey());
+        assertNotEquals(FeedBatchService.spec("feed", "S:1", "test", "b1").dedupeKey(),
+                FeedBatchService.spec("feed", "S%3A1", "test", "b1").dedupeKey());
+    }
+
+    @Test
+    void profileStoresNormalizedStagesAndRejectsANonClosingCloseStage() {
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+        List<FeedProfile.StagePlan> stages = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
+                new FeedProfile.StagePlan("closing", "FINISHED"));
+        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stages,
+                "preparation", "closing", 0, List.of(), true));
+        assertEquals("preparation", saved.stages().get(0).stageType());
+        assertEquals("ADDED", saved.stages().get(0).serviceStatus());
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stages, "preparation", "preparation", 0,
+                List.of(), true);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
+    }
+
     private static class TestTransactions implements Transactions {
         private int depth;
         private int outerTransactions;
@@ -137,10 +168,10 @@ class FeedReconcilerTest {
         private FeedService saved;
         private boolean requireTransaction;
         private final FeedProfile profile = new FeedProfile("test", "test-feed", "Test feed",
-                List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
-                        new FeedProfile.StagePlan("transito", "SCHEDULED"),
-                        new FeedProfile.StagePlan("cierre", "FINISHED")),
-                "transito", "cierre", 120, Set.of(), true, null, "test", null, "test");
+                List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
+                        new FeedProfile.StagePlan("transit", "SCHEDULED"),
+                        new FeedProfile.StagePlan("closing", "FINISHED")),
+                "transit", "closing", 120, Set.of(), true, null, "test", null, "test");
         public Optional<FeedProfile> profile(String tenant, String key) { return Optional.of(profile); }
         public List<FeedProfile> profiles(String tenant) { return List.of(profile); }
         public FeedProfile saveProfile(FeedProfile value) { return value; }

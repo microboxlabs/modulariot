@@ -26,6 +26,11 @@ public class FakeGeofences implements GeofenceDirectory {
         return this;
     }
 
+    public FakeGeofences shape(int id, String geojson) {
+        shapes.put(id, geojson);
+        return this;
+    }
+
     public FakeGeofences add(String tenantCode, int id, String code, String name) {
         all.add(new Owned(tenantCode, new Geofence(id, code, name)));
         return this;

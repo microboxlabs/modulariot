@@ -123,14 +123,20 @@ public class GeofenceSignals {
     }
 
     /** Reads the watched trips, and the shapes not loaded yet (all of them every {@code shapes-every}). */
-    public void refresh() {
+    public synchronized void refresh() {
         Map<String, List<Watched>> next = new HashMap<>();
         Set<Integer> needed = new HashSet<>();
         for (TripLiveRow r : live.watched()) {
             GeofenceEdges.Watch w = new GeofenceEdges.Watch(r.originGeofenceId(), r.destinationGeofenceId(),
                     r.stopGeofenceIds(), r.currentGeofenceId(), r.originVisited(), r.destinationVisited());
             needed.addAll(w.geofences());
-            next.computeIfAbsent(asset(r.assetId()), k -> new ArrayList<>())
+            String assetKey = asset(r.assetId());
+            boolean unchanged = byAsset.getOrDefault(assetKey, List.of()).stream()
+                    .anyMatch(previous -> previous.tripId.toString().equals(r.tripId()) && previous.watch.equals(w));
+            if (!unchanged) {
+                pending.remove(UUID.fromString(r.tripId()));
+            }
+            next.computeIfAbsent(assetKey, k -> new ArrayList<>())
                     .add(new Watched(r.tenantCode(), UUID.fromString(r.tripId()), w));
         }
         Instant now = clock.instant();
@@ -140,13 +146,22 @@ public class GeofenceSignals {
             load.removeAll(shapes.keySet());
         }
         if (!load.isEmpty()) {
-            geofences.shapes(load).forEach((id, geojson) -> {
+            Map<Integer, String> loaded = geofences.shapes(load);
+            load.forEach(shapes::remove);
+            loaded.forEach((id, geojson) -> {
                 try {
                     shapes.put(id, GeoShape.parse(geojson));
                 } catch (IllegalArgumentException e) {
                     LOG.warnf("Trip geofences: geofence %d has no usable shape (%s)", id, e.getMessage());
                 }
             });
+        }
+        if (!load.isEmpty()) {
+            next.values().forEach(list -> list.forEach(w -> {
+                if (w.watch.geofences().stream().anyMatch(load::contains)) {
+                    pending.remove(w.tripId);
+                }
+            }));
         }
         if (all) {
             shapes.keySet().retainAll(needed);
@@ -175,22 +190,19 @@ public class GeofenceSignals {
     }
 
     /** Reads one GPS signal; returns how many trip signals it gave. */
-    public int accept(String json) {
-        JsonNode signal;
-        try {
-            signal = JSON.readTree(json);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("not a signal", e);
-        }
+    public synchronized int accept(String json) {
+        JsonNode signal = parseSignal(json);
         String asset = asset(signal.path("asset_id").asText(null));
         List<Watched> trips = asset == null ? null : byAsset.get(asset);
         if (trips == null) {
             return 0;
         }
         JsonNode gps = signal.path("frame").path("gps");
-        if (!gps.path("latitude").isNumber() || !gps.path("longitude").isNumber()) {
+        if (!validPosition(gps)) {
             return 0;
         }
+        double lon = gps.path("longitude").asDouble();
+        double lat = gps.path("latitude").asDouble();
         Instant at;
         try {
             at = Instant.parse(signal.path("at").asText());
@@ -198,21 +210,41 @@ public class GeofenceSignals {
             throw new IllegalArgumentException("not a signal time", e);
         }
         Instant previous = lastFrame.get(asset);
-        if (previous != null && at.isBefore(previous)) {
+        if (previous != null && !at.isAfter(previous)) {
             return 0;
         }
         lastFrame.put(asset, at);
         Set<String> clients = new HashSet<>();
         signal.path("clients").forEach(c -> clients.add(c.asText()));
-        double lon = gps.path("longitude").asDouble();
-        double lat = gps.path("latitude").asDouble();
         int given = 0;
         for (Watched w : trips) {
-            if (clients.contains(w.tenantCode)) {
+            if (clients.contains(w.tenantCode) && shapes.keySet().containsAll(w.watch.geofences())) {
                 given += track(w, GeofenceEdges.zoneOf(w.watch, shapes, lon, lat), at);
             }
         }
         return given;
+    }
+
+    private static JsonNode parseSignal(String json) {
+        JsonNode signal;
+        try {
+            signal = JSON.readTree(json);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("not a signal", e);
+        }
+        if (signal == null || !signal.isObject()) {
+            throw new IllegalArgumentException("not a signal object");
+        }
+        return signal;
+    }
+
+    private static boolean validPosition(JsonNode gps) {
+        if (!gps.path("latitude").isNumber() || !gps.path("longitude").isNumber()) {
+            return false;
+        }
+        double lon = gps.path("longitude").asDouble();
+        double lat = gps.path("latitude").asDouble();
+        return Double.isFinite(lon) && Double.isFinite(lat) && Math.abs(lon) <= 180 && Math.abs(lat) <= 90;
     }
 
     private int track(Watched w, Integer zone, Instant at) {
@@ -250,7 +282,7 @@ public class GeofenceSignals {
         if (id == null) {
             return null;
         }
-        String key = id.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        String key = id.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
         return key.isEmpty() ? null : key;
     }
 }

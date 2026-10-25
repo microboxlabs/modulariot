@@ -28,6 +28,9 @@ public final class GeoShape {
         } catch (Exception e) {
             throw new IllegalArgumentException("not GeoJSON", e);
         }
+        if (root == null || !root.isObject() || !root.path("coordinates").isArray()) {
+            throw new IllegalArgumentException("not a polygon object");
+        }
         String type = root.path("type").asText();
         JsonNode coordinates = root.path("coordinates");
         List<List<double[][]>> polygons = new ArrayList<>();
@@ -35,6 +38,9 @@ public final class GeoShape {
             case "Polygon" -> polygons.add(polygon(coordinates));
             case "MultiPolygon" -> coordinates.forEach(p -> polygons.add(polygon(p)));
             default -> throw new IllegalArgumentException("not a polygon: " + type);
+        }
+        if (polygons.isEmpty()) {
+            throw new IllegalArgumentException("a shape without polygons");
         }
         return new GeoShape(polygons);
     }
@@ -49,18 +55,37 @@ public final class GeoShape {
     }
 
     private static List<double[][]> polygon(JsonNode rings) {
-        List<double[][]> out = new ArrayList<>();
-        rings.forEach(ring -> {
-            double[][] points = new double[ring.size()][];
-            for (int i = 0; i < ring.size(); i++) {
-                points[i] = new double[] {ring.get(i).get(0).asDouble(), ring.get(i).get(1).asDouble()};
-            }
-            out.add(points);
-        });
-        if (out.isEmpty()) {
+        if (!rings.isArray() || rings.isEmpty()) {
             throw new IllegalArgumentException("a polygon without rings");
         }
+        List<double[][]> out = new ArrayList<>();
+        rings.forEach(ring -> out.add(ring(ring)));
         return out;
+    }
+
+    private static double[][] ring(JsonNode ring) {
+        if (!ring.isArray() || ring.size() < 4) {
+            throw new IllegalArgumentException("a ring needs at least four positions");
+        }
+        double[][] points = new double[ring.size()][];
+        for (int i = 0; i < ring.size(); i++) {
+            JsonNode point = ring.get(i);
+            if (!point.isArray() || point.size() < 2 || !point.get(0).isNumber() || !point.get(1).isNumber()) {
+                throw new IllegalArgumentException("a position needs numeric longitude and latitude");
+            }
+            double lon = point.get(0).asDouble();
+            double lat = point.get(1).asDouble();
+            if (!Double.isFinite(lon) || !Double.isFinite(lat) || Math.abs(lon) > 180 || Math.abs(lat) > 90) {
+                throw new IllegalArgumentException("a position is outside longitude and latitude bounds");
+            }
+            points[i] = new double[] {lon, lat};
+        }
+        double[] first = points[0];
+        double[] last = points[points.length - 1];
+        if (first[0] != last[0] || first[1] != last[1]) {
+            throw new IllegalArgumentException("a ring must be closed");
+        }
+        return points;
     }
 
     private static boolean inside(double[][] ring, double x, double y) {

@@ -16,7 +16,7 @@ vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
   forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
 
-import { DELETE, GET, PUT } from "./route";
+import { DELETE, GET, POST, PUT } from "./route";
 
 const req = (url: string, init?: RequestInit) => {
   const r = new Request(
@@ -76,5 +76,19 @@ describe("/api/trips/[...path]", () => {
         .status
     ).toBe(400);
     expect(forwardMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards a milestone confirmation under the trip path", async () => {
+    await POST(
+      req("http://x/app/api/trips/test-trip/milestones/departure/confirm", {
+        method: "POST",
+        body: JSON.stringify({ channel: "ui" }),
+      }),
+      ctx(["test-trip", "milestones", "departure", "confirm"])
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/trips/test-trip/milestones/departure/confirm",
+      { method: "POST", body: { channel: "ui" }, sessionOnly: true }
+    );
   });
 });

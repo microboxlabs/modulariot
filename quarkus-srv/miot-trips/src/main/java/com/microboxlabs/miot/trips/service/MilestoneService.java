@@ -189,6 +189,12 @@ public class MilestoneService {
     /** Applies a reply only while its original detection is still pending. The check and update share one lock. */
     public Outcome respondToDetection(String tenantCode, String actor, UUID tripId, DetectionRef detection,
             boolean confirm) {
+        return respondToDetection(tenantCode, actor, tripId, detection, confirm, "reply", null);
+    }
+
+    /** Applies a confirmation from a specific notice or pending-panel row. */
+    public Outcome respondToDetection(String tenantCode, String actor, UUID tripId, DetectionRef detection,
+            boolean confirm, String channel, String note) {
         String m = milestone(detection.milestone());
         return tx.inTransaction(() -> {
             TripMilestone current = store.find(tenantCode, tripId, m)
@@ -199,8 +205,8 @@ public class MilestoneService {
                     || !Objects.equals(current.source(), detection.source())) {
                 return new Outcome(current, Result.SKIPPED);
             }
-            return confirm ? confirm(tenantCode, actor, tripId, m, null, "reply", null)
-                    : reject(tenantCode, actor, tripId, m, "reply", null);
+            return confirm ? confirm(tenantCode, actor, tripId, m, null, channel, note)
+                    : reject(tenantCode, actor, tripId, m, channel, note);
         });
     }
 

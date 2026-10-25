@@ -8,6 +8,9 @@ import java.util.Optional;
 /** Trip monitors, one row per version, and each tenant's selector. Every call is tenant-scoped. */
 public interface MonitorStore {
 
+    /** Serializes mutations of one monitor (or the reserved _selector key) until transaction end. */
+    void lock(String tenantCode, String monitorKey);
+
     /** Every version of every monitor of the tenant, by key and newest version first. */
     List<TripMonitor> all(String tenantCode);
 

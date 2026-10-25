@@ -62,9 +62,8 @@ describe("symptom scope", () => {
       PLATFORM_TEMPLATES.defs,
       PLATFORM_TEMPLATES.sources,
     ]);
-    expect(PLATFORM_TEMPLATES.defs).toMatch(
-      /\/api\/admin\/platform\/symptom-templates$/
-    );
+    // The templates are the platform scope's symptoms, on the organization endpoints.
+    expect(PLATFORM_TEMPLATES.defs).toMatch(/\/symptom-definitions$/);
   });
 
   it("sends a draft to the scope it is given", async () => {

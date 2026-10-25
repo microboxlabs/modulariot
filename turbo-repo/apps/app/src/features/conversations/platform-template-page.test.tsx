@@ -4,8 +4,8 @@ import es from "@/lang/es.json";
 import type { ConversationTemplate } from "./conversations-types";
 
 const api = vi.hoisted(() => ({
-  usePlatformTemplate: vi.fn(),
-  usePlatformTemplates: vi.fn(),
+  useConversationTemplate: vi.fn(),
+  useConversationTemplates: vi.fn(),
 }));
 vi.mock("./conversations-api", () => api);
 vi.mock("next/navigation", () => ({
@@ -43,29 +43,29 @@ const STORED_NEW: ConversationTemplate = {
 
 describe("PlatformTemplatePage", () => {
   beforeEach(() => {
-    api.usePlatformTemplate.mockReset();
-    api.usePlatformTemplates.mockReset();
+    api.useConversationTemplate.mockReset();
+    api.useConversationTemplates.mockReset();
   });
 
   it("opens a stored template whose key is 'new' as that template", () => {
-    api.usePlatformTemplate.mockReturnValue({ data: STORED_NEW });
-    api.usePlatformTemplates.mockReturnValue({ data: undefined });
+    api.useConversationTemplate.mockReturnValue({ data: STORED_NEW });
+    api.useConversationTemplates.mockReturnValue({ data: undefined });
     render(<PlatformTemplatePage templateKey="new" dict={dict} lang="es" />);
-    expect(api.usePlatformTemplate).toHaveBeenCalledWith("new");
-    expect(api.usePlatformTemplates).toHaveBeenCalledWith(false);
+    expect(api.useConversationTemplate).toHaveBeenCalledWith("new");
+    expect(api.useConversationTemplates).toHaveBeenCalledWith(false);
     expect(screen.getByTestId("editor").textContent).toBe("new|");
   });
 
   it("creates only once the taken keys have loaded", () => {
-    api.usePlatformTemplate.mockReturnValue({ data: undefined });
-    api.usePlatformTemplates.mockReturnValue({ data: undefined });
+    api.useConversationTemplate.mockReturnValue({ data: undefined });
+    api.useConversationTemplates.mockReturnValue({ data: undefined });
     const { rerender } = render(
       <PlatformTemplatePage templateKey={NEW_TEMPLATE} dict={dict} lang="es" />
     );
-    expect(api.usePlatformTemplate).toHaveBeenCalledWith(null);
+    expect(api.useConversationTemplate).toHaveBeenCalledWith(null);
     expect(screen.queryByTestId("editor")).toBeNull();
 
-    api.usePlatformTemplates.mockReturnValue({ data: [STORED_NEW] });
+    api.useConversationTemplates.mockReturnValue({ data: [STORED_NEW] });
     rerender(
       <PlatformTemplatePage templateKey={NEW_TEMPLATE} dict={dict} lang="es" />
     );
@@ -73,8 +73,8 @@ describe("PlatformTemplatePage", () => {
   });
 
   it("does not open the creation form when the taken keys fail to load", () => {
-    api.usePlatformTemplate.mockReturnValue({ data: undefined });
-    api.usePlatformTemplates.mockReturnValue({ error: new Error("boom") });
+    api.useConversationTemplate.mockReturnValue({ data: undefined });
+    api.useConversationTemplates.mockReturnValue({ error: new Error("boom") });
     render(
       <PlatformTemplatePage templateKey={NEW_TEMPLATE} dict={dict} lang="es" />
     );

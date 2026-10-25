@@ -41,17 +41,11 @@ export const ruleKey = (id: string) => `${rulesKey}/${encodeURIComponent(id)}`;
 export const templatesKey = `${CONVERSATIONS_BASE}/templates`;
 export const templateKey = (key: string) =>
   `${templatesKey}/${encodeURIComponent(key)}`;
-/** The platform's templates, for platform owners; organizations read them through `templatesKey`. */
-export const platformTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/message-templates`;
-export const platformTemplateKey = (key: string) =>
-  `${platformTemplatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
 export const ruleFamiliesKey = `${CONVERSATIONS_BASE}/rule-families`;
 export const contactReachKey = `${CONVERSATIONS_BASE}/contact-reach`;
 export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
-/** The WhatsApp templates on Meta of the platform's connection, for platform owners. */
-export const metaTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/whatsapp-templates`;
 export const accountsKey = `${CONVERSATIONS_BASE}/accounts`;
 /** The WhatsApp templates on Meta of the organization's own connection. */
 export const orgMetaTemplatesKey = `${CONVERSATIONS_BASE}/whatsapp-templates`;
@@ -90,23 +84,6 @@ export function useConversationTemplates(enabled = true) {
   );
 }
 
-/** The platform's templates with every organization's rules that use each. */
-export function usePlatformTemplates(enabled = true) {
-  return useSWR<ConversationTemplate[]>(
-    enabled ? platformTemplatesKey : null,
-    fetcher,
-    quiet
-  );
-}
-
-export function usePlatformTemplate(key: string | null) {
-  return useSWR<ConversationTemplate>(
-    key ? platformTemplateKey(key) : null,
-    fetcher,
-    quiet
-  );
-}
-
 export function useConversationTemplate(key: string | null) {
   return useSWR<ConversationTemplate>(
     key ? templateKey(key) : null,
@@ -117,7 +94,7 @@ export function useConversationTemplate(key: string | null) {
 
 /** The templates on the WABA, read live from Meta; every 30 s while one is under review. */
 export function useMetaTemplates(enabled = true) {
-  return useSWR<MetaTemplate[]>(enabled ? metaTemplatesKey : null, fetcher, {
+  return useSWR<MetaTemplate[]>(enabled ? orgMetaTemplatesKey : null, fetcher, {
     ...quiet,
     refreshInterval: (list) =>
       list?.some((t) => t.status === "PENDING") ? 30_000 : 0,
@@ -207,16 +184,16 @@ export function simulateRule(id: string, event: SampleEvent) {
   });
 }
 
-/** Saves a platform template; only platform owners may. */
+/** Saves a template; only platform owners, in the platform scope, may. */
 export function saveTemplate(key: string, body: TemplateBody) {
-  return request<ConversationTemplate>(platformTemplateKey(key), {
+  return request<ConversationTemplate>(templateKey(key), {
     method: "PUT",
     body,
   });
 }
 
 export function createMetaTemplate(draft: MetaTemplateDraft) {
-  return request<MetaTemplate>(metaTemplatesKey, {
+  return request<MetaTemplate>(orgMetaTemplatesKey, {
     method: "POST",
     body: draft,
   });
@@ -224,7 +201,7 @@ export function createMetaTemplate(draft: MetaTemplateDraft) {
 
 export function editMetaTemplate(id: string, draft: MetaTemplateDraft) {
   return request<MetaTemplate>(
-    `${metaTemplatesKey}/${encodeURIComponent(id)}`,
+    `${orgMetaTemplatesKey}/${encodeURIComponent(id)}`,
     { method: "PUT", body: draft }
   );
 }
@@ -232,13 +209,13 @@ export function editMetaTemplate(id: string, draft: MetaTemplateDraft) {
 /** Deletes one language of the template when `id` is given, else every language. */
 export function deleteMetaTemplate(name: string, id?: string) {
   const q = id ? `?id=${encodeURIComponent(id)}` : "";
-  return request<void>(`${metaTemplatesKey}/${encodeURIComponent(name)}${q}`, {
+  return request<void>(`${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`, {
     method: "DELETE",
   });
 }
 
 export async function refreshMetaTemplates() {
-  await mutate(metaTemplatesKey);
+  await mutate(orgMetaTemplatesKey);
 }
 
 /** Refreshes the rule list and, when given, one rule. */
@@ -249,11 +226,7 @@ export async function refreshRules(id?: string) {
 
 export async function refreshTemplates(key?: string) {
   await mutate(templatesKey);
-  await mutate(platformTemplatesKey);
-  if (key) {
-    await mutate(templateKey(key));
-    await mutate(platformTemplateKey(key));
-  }
+  if (key) await mutate(templateKey(key));
 }
 
 export function useConnectionChannel(channel: string | null) {

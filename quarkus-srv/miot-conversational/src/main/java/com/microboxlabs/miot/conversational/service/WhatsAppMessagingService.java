@@ -75,10 +75,17 @@ public class WhatsAppMessagingService {
         this.accounts = accounts;
     }
 
+    /**
+     * With {@code request.conversationId()} the message goes on that conversation of the organization, from the
+     * number the conversation used last: the platform's when a rule wrote or the person answered there, else
+     * the organization's own. Without it the conversation is chosen as before and the organization's number sends.
+     */
     public Message send(String tenantCode, SendWhatsAppMessageRequest request, String sentByUserId) {
         validate(request);
 
-        ResolvedConnection connection = connectionResolver.resolve(tenantCode, ProviderType.WHATSAPP);
+        Conversation target = targetConversation(tenantCode, request);
+        String sendingTenant = target == null ? tenantCode : replyTenant(tenantCode, target.id());
+        ResolvedConnection connection = sendingConnection(sendingTenant);
         String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
         String token = connection.secretString(TOKEN);
         if (phoneNumberId == null || phoneNumberId.isBlank()) {
@@ -92,7 +99,9 @@ public class WhatsAppMessagingService {
         enforceTestMode(connection, request.to());
 
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        Conversation conversation = findOrCreateConversation(tenantCode, request, now);
+        Conversation conversation = target != null ? target : findOrCreateConversation(tenantCode, request, now);
+        Map<String, Object> metadata = metadata(connection);
+        metadata.put(CONNECTION_TENANT, sendingTenant);
 
         String metaMessageId = null;
         MessageStatus status;
@@ -123,7 +132,7 @@ public class WhatsAppMessagingService {
                 sentByUserId,
                 request.serviceCode(),
                 request.processInstanceId(),
-                metadata(connection),
+                metadata,
                 status == MessageStatus.SENT ? now : null,
                 null,
                 null,
@@ -198,6 +207,27 @@ public class WhatsAppMessagingService {
                 message.contextKind(), message.contextKey(), now,
                 truncate(message.body() != null ? message.body() : message.templateName())));
         return stored;
+    }
+
+    private Conversation targetConversation(String tenantCode, SendWhatsAppMessageRequest request) {
+        if (request.conversationId() == null) {
+            return null;
+        }
+        Conversation conversation = conversationRepository.findByTenantAndId(tenantCode, request.conversationId());
+        if (conversation == null || !digits(request.to()).equals(digits(conversation.participantAddress()))) {
+            throw new IllegalArgumentException("conversationId: no conversation of this organization with 'to'");
+        }
+        return conversation;
+    }
+
+    /** The platform's number when the conversation last used it, else the organization's own. */
+    private String replyTenant(String tenantCode, String conversationId) {
+        return PLATFORM_TENANT.equals(messageRepository.findLatestConnectionTenant(conversationId))
+                ? PLATFORM_TENANT : tenantCode;
+    }
+
+    private static String digits(String phone) {
+        return phone == null ? "" : phone.replaceAll("\\D", "");
     }
 
     private ResolvedConnection sendingConnection(String sendingTenant) {

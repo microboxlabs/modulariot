@@ -17,6 +17,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -64,6 +65,14 @@ class ModulithJobWorkerTest {
         assertFalse(w.hasHandledLaneJob(null));
     }
 
+    @Test
+    void rejectsWebhookJobTypesWhenTheConversationalHandlersAreAbsent() {
+        var w = worker(new RecordingService(), true);
+        assertTrue(w.isInternalOnly(InternalJobTypes.WHATSAPP_INBOUND_MESSAGE));
+        assertTrue(w.isInternalOnly(InternalJobTypes.WHATSAPP_INBOUND_STATUS));
+        assertFalse(w.isInternalOnly(CALENDAR));
+    }
+
     // --- drain dispatch ------------------------------------------------------
 
     @Test
@@ -77,6 +86,26 @@ class ModulithJobWorkerTest {
         ReportJobRequest report = service.reports.get(0);
         assertEquals("SUCCEEDED", report.outcome());
         assertEquals(3, report.attempts(), "echoes the claimed attempt for the lease CAS");
+    }
+
+    @Test
+    void aJobTypeIsInternalOnlyWhenItsHandlerSaysSo() {
+        var internal = new FakeHandler("webhook_event");
+        internal.internal = true;
+        var w = worker(new RecordingService(), true, new FakeHandler(CALENDAR), internal);
+
+        assertTrue(w.isInternalOnly("webhook_event"));
+        assertFalse(w.isInternalOnly(CALENDAR));
+        assertFalse(w.isInternalOnly("no_handler"));
+        assertFalse(w.isInternalOnly(null));
+    }
+
+    @Test
+    void drainClaimsOnlyTheTypesItHasHandlersFor() {
+        var service = new RecordingService();
+        worker(service, true, new FakeHandler(CALENDAR), new FakeHandler("other_type")).drain();
+
+        assertEquals(java.util.Set.of(CALENDAR, "other_type"), java.util.Set.copyOf(service.claimedTypes));
     }
 
     @Test
@@ -199,11 +228,27 @@ class ModulithJobWorkerTest {
         assertEquals(0, service.claimCalls, "no ready handler → nothing to claim for");
     }
 
+    @Test
+    void eachClaimIncludesOnlyHandlersReadyAtThatMoment() {
+        var service = new RecordingService();
+        service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of());
+        var ready = new FakeHandler(CALENDAR);
+        var later = new FakeHandler("later");
+        later.ready = false;
+        ready.onHandle = () -> later.ready = true;
+
+        worker(service, true, ready, later).drain();
+
+        assertEquals(List.of(Set.of(CALENDAR), Set.of(CALENDAR, "later")), service.claimedTypeSets);
+    }
+
     // --- fakes ---------------------------------------------------------------
 
     private static final class FakeHandler implements ModulithJobHandler {
         private final String jobType;
         boolean ready = true;
+        boolean internal;
         RuntimeException throwWith;
         /** Stands in for the HTTP calls a real handler makes. */
         Runnable onHandle;
@@ -215,6 +260,11 @@ class ModulithJobWorkerTest {
         @Override
         public String jobType() {
             return jobType;
+        }
+
+        @Override
+        public boolean internalOnly() {
+            return internal;
         }
 
         @Override
@@ -238,14 +288,20 @@ class ModulithJobWorkerTest {
         final Deque<List<AsyncJob>> claimResults = new ArrayDeque<>();
         final List<ReportJobRequest> reports = new ArrayList<>();
         int claimCalls;
+        final List<String> claimedTypes = new ArrayList<>();
+        final List<Set<String>> claimedTypeSets = new ArrayList<>();
 
         RecordingService() {
             super(new NoopRepository(), new JobEventEmitter(Optional.empty()), null, 60, 3600);
         }
 
         @Override
-        public List<AsyncJob> claimForExecutor(String executor, String workerId, int limit, int leaseSeconds) {
+        public List<AsyncJob> claimForExecutor(String executor, java.util.Collection<String> jobTypes,
+                String workerId, int limit, int leaseSeconds) {
             claimCalls++;
+            claimedTypes.clear();
+            claimedTypes.addAll(jobTypes);
+            claimedTypeSets.add(Set.copyOf(jobTypes));
             return claimResults.isEmpty() ? List.of() : claimResults.poll();
         }
 

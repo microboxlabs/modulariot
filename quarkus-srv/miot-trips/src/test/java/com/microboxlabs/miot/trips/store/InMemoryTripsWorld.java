@@ -14,6 +14,7 @@ import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripCargoLink;
 import com.microboxlabs.miot.trips.domain.TripLiveProjection;
 import com.microboxlabs.miot.trips.domain.TripLiveRow;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.domain.TripRef;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import java.time.OffsetDateTime;
@@ -46,6 +47,7 @@ public class InMemoryTripsWorld {
     private final Map<String, TripCargoLink> tripCargo = new LinkedHashMap<>();
     private final Map<String, Location> locations = new LinkedHashMap<>();
     private final Map<String, TripLiveProjection> live = new LinkedHashMap<>();
+    private final Map<String, TripMilestone> milestones = new LinkedHashMap<>();
     private final List<AuditEvent> audit = new ArrayList<>();
     private final AtomicLong auditSeq = new AtomicLong();
 
@@ -58,6 +60,7 @@ public class InMemoryTripsWorld {
     public final AuditStore auditStore = new Audits();
     public final LocationStore locationStore = new Locations();
     public final TripLiveStore tripLiveStore = new Lives();
+    public final MilestoneStore milestoneStore = new Milestones();
 
     private static OffsetDateTime now() {
         return OffsetDateTime.now(ZoneOffset.UTC);
@@ -615,6 +618,30 @@ public class InMemoryTripsWorld {
                 locations.put(location.id(), updated);
                 return updated;
             });
+        }
+    }
+
+    private class Milestones implements MilestoneStore {
+
+        private static String key(String tenantCode, String tripId, String milestone) {
+            return tenantCode + "/" + tripId + "/" + milestone;
+        }
+
+        @Override
+        public List<TripMilestone> list(String tenantCode, UUID tripId) {
+            return milestones.values().stream()
+                    .filter(m -> m.tenantCode().equals(tenantCode) && m.tripId().equals(tripId.toString())).toList();
+        }
+
+        @Override
+        public Optional<TripMilestone> find(String tenantCode, UUID tripId, String milestone) {
+            return Optional.ofNullable(milestones.get(key(tenantCode, tripId.toString(), milestone)));
+        }
+
+        @Override
+        public TripMilestone save(TripMilestone m) {
+            milestones.put(key(m.tenantCode(), m.tripId(), m.milestone()), m);
+            return m;
         }
     }
 

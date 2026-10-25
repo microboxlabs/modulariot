@@ -10,14 +10,12 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
-import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.dto.FeedResult;
 import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.store.FeedStore;
 import com.microboxlabs.miot.trips.store.InMemoryFleet;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
-import com.microboxlabs.miot.trips.store.MilestoneStore;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -43,23 +41,9 @@ class FeedReconcilerTest {
             mandates, live, audit, tx);
     private final AssignmentService assignments = new AssignmentService(world.assignmentStore, world.tripStore,
             fleet, live, audit, tx);
-    private final MilestoneService milestones = new MilestoneService(new MilestoneStore() {
-        @Override
-        public List<TripMilestone> list(String tenantCode, UUID tripId) {
-            return List.of();
-        }
-
-        @Override
-        public Optional<TripMilestone> find(String tenantCode, UUID tripId, String milestone) {
-            return Optional.empty();
-        }
-
-        @Override
-        public TripMilestone save(TripMilestone milestone) {
-            throw new UnsupportedOperationException();
-        }
-    }, world.tripStore, audit, tx);
     private final ObjectMapper json = JsonMapper.builder().findAndAddModules().build();
+    private final MilestoneService milestones = new MilestoneService(world.milestoneStore, world.tripStore, audit,
+            tx);
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
             new LocationService(world.locationStore, new com.microboxlabs.miot.trips.store.FakeGeofences(),
                     world.tripStore, live, audit, tx),

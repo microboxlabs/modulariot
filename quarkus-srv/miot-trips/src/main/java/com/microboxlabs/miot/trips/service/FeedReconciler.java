@@ -274,18 +274,18 @@ public class FeedReconciler {
 
         boolean ended = d.plannedEnd() != null && !d.plannedEnd().isAfter(now);
 
-        if (trip != null && (Trip.DONE.equals(trip.status()) || Trip.CANCELLED.equals(trip.status()))) {
+        PlanningContext context = new PlanningContext(tenantCode, actor, profile, d, trip == null && ended);
+        if (trip != null && finished(trip, mandate)) {
             planClosedChanges(plan, tenantCode, actor, code, trip, d, previous);
             int reported = plan.steps.size();
             planMilestones(plan, tenantCode, actor, trip, d);
             // a closed trip only records milestones; a change to it is reported, not applied
             return plan.decided(plan.steps.size() > reported ? UPDATE : SKIP, false);
         }
-        if (trip == null && mandate.isPresent()
-                && (Mandate.CLOSED.equals(mandate.get().status()) || Mandate.CANCELLED.equals(mandate.get().status()))) {
+        if (finished(trip, mandate)) {
             return plan.decided(SKIP, false);
         }
-        if (trip == null && ended) {
+        if (context.regularized()) {
             if (d.actualStart() == null || d.actualEnd() == null) {
                 plan.warnings.add("the service ended before the feed sent it; send its actual departure and"
                         + " closure to record it");
@@ -300,13 +300,11 @@ public class FeedReconciler {
                 return plan.decided(REPORT, true);
             }
             planPlaces(plan, tenantCode, actor, origin, destination);
-            planCreate(plan, new PlanningContext(tenantCode, actor, profile, d, true), code,
-                    mandate.orElse(null), resources, origin, destination);
+            planCreate(plan, context, code, mandate.orElse(null), resources, origin, destination);
             planMilestones(plan, tenantCode, actor, null, d);
             planRegularized(plan, tenantCode, actor, profile, d);
             return plan.decided(REGULARIZE, false);
         }
-        PlanningContext context = new PlanningContext(tenantCode, actor, profile, d, false);
         if (trip == null) {
             List<String> missing = missingResources(profile, d, resources);
             if (!missing.isEmpty()) {
@@ -330,6 +328,7 @@ public class FeedReconciler {
         return plan.decided(UPDATE, true);
     }
 
+    /** {@code regularized}: the service ended before the feed sent it, so its trip is recorded, not run. */
     private record PlanningContext(String tenantCode, String actor, FeedProfile profile,
             FeedServiceRequest desired, boolean regularized) {
     }
@@ -460,6 +459,7 @@ public class FeedReconciler {
         String actor = context.actor();
         FeedProfile profile = context.profile();
         FeedServiceRequest d = context.desired();
+        boolean regularized = context.regularized();
         Resource truck = resources.truck();
         Resource trailer = resources.trailer();
         List<Resource> drivers = resources.drivers();

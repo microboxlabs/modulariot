@@ -31,9 +31,11 @@ import java.util.Set;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class MonitorService {
 
+    private static final String SELECTOR = "selector";
+    private static final String TIMER = "timer";
     static final String ENTITY = "monitor";
     private static final String KEY_PATTERN = "[a-z0-9][a-z0-9-]*";
-    private static final String PARAM_PATTERN = "[A-Za-z][A-Za-z0-9_]*";
+    private static final String PARAM_PATTERN = "[A-Za-z]\\w*";
     private static final String NOT_FOUND = "monitor not found";
     private static final int DEFAULT_PRIORITY = 100;
     private static final int MAX_RULES = 100;
@@ -44,6 +46,7 @@ public class MonitorService {
     private static final Set<String> FLAG_ACTIONS = Set.of("completeTrip", "closeMandates");
     private static final Set<String> NAMED_ACTIONS = Set.of("cancelTrip", "alert", "invoke");
     private static final String REQUEST_CONFIRMATION = "requestConfirmation";
+    private static final String RULE = "rule ";
 
     private final MonitorStore store;
     private final AuditService audit;
@@ -99,22 +102,26 @@ public class MonitorService {
         TripMonitor draft = new TripMonitor(tenantCode, key, 0, TripMonitor.DRAFT, Check.required(body.name(),
                 "name", 255), Check.limitedOrNull(body.description(), "description", 2000), plan(body.plan()),
                 params(body.params()), rules(body.rules()), null, actor, null, actor, null, null);
-        TripMonitor saved = store.saveDraft(draft);
-        audit.log(tenantCode, actor, "monitor.draft_saved", ENTITY, key, null,
-                Map.of("version", String.valueOf(saved.version())));
-        return view(saved);
+        return tx.inTransaction(() -> {
+            store.lock(tenantCode, key);
+            TripMonitor saved = store.saveDraft(draft);
+            audit.log(tenantCode, actor, "monitor.draft_saved", ENTITY, key, null,
+                    Map.of("version", String.valueOf(saved.version())));
+            return view(saved);
+        });
     }
 
     /** Publishes the draft as a new version; refused while it has findings. */
     public MonitorViews.Monitor publish(String tenantCode, String actor, String monitorKey) {
         return tx.inTransaction(() -> {
+            store.lock(tenantCode, monitorKey);
             TripMonitor draft = store.versions(tenantCode, monitorKey).stream()
                     .filter(v -> TripMonitor.DRAFT.equals(v.status())).findFirst()
                     .orElseThrow(() -> new NoSuchElementException("the monitor has no draft"));
             List<Finding> findings = findings(draft);
             if (!findings.isEmpty()) {
                 Finding f = findings.get(0);
-                throw new IllegalArgumentException("rule " + f.ruleKey() + " (" + f.field() + "): " + f.message()
+                throw new IllegalArgumentException(RULE + f.ruleKey() + " (" + f.field() + "): " + f.message()
                         + (findings.size() > 1 ? " and " + (findings.size() - 1) + " more" : ""));
             }
             TripMonitor published = store.publish(tenantCode, monitorKey, actor).orElseThrow();
@@ -125,20 +132,24 @@ public class MonitorService {
     }
 
     public void discardDraft(String tenantCode, String actor, String monitorKey) {
-        if (!store.deleteDraft(tenantCode, monitorKey)) {
-            throw new NoSuchElementException("the monitor has no draft");
-        }
-        audit.log(tenantCode, actor, "monitor.draft_discarded", ENTITY, monitorKey, null, Map.of());
+        tx.inTransaction(() -> {
+            store.lock(tenantCode, monitorKey);
+            if (!store.deleteDraft(tenantCode, monitorKey)) {
+                throw new NoSuchElementException("the monitor has no draft");
+            }
+            audit.log(tenantCode, actor, "monitor.draft_discarded", ENTITY, monitorKey, null, Map.of());
+            return null;
+        });
     }
 
     /** What an expression of a rule triggered by {@code on} may read. */
     public List<MonitorViews.Field> schema(String on, Map<String, Object> params) {
-        MonitorSchema schema = "selector".equals(on) ? MonitorSchema.selector()
+        MonitorSchema schema = SELECTOR.equals(on) ? MonitorSchema.selector()
                 : MonitorSchema.of(trigger(on), params(params));
         List<MonitorViews.Field> fields = new ArrayList<>();
         schema.fields().forEach((path, type) -> fields.add(new MonitorViews.Field(path, type)));
         for (String dynamic : MonitorSchema.DYNAMIC) {
-            if (!"selector".equals(on)) {
+            if (!SELECTOR.equals(on)) {
                 fields.add(new MonitorViews.Field(dynamic, "any"));
             }
         }
@@ -151,7 +162,7 @@ public class MonitorService {
             throw new IllegalArgumentException("body is required");
         }
         Expect expect = "time".equals(body.expect()) ? Expect.TIME : Expect.CONDITION;
-        MonitorSchema schema = "selector".equals(body.on()) ? MonitorSchema.selector()
+        MonitorSchema schema = SELECTOR.equals(body.on()) ? MonitorSchema.selector()
                 : MonitorSchema.of(trigger(body.on()), params(body.params()));
         MonitorLanguage.Check c = MonitorLanguage.check(schema, body.expression(), expect);
         return new MonitorViews.CheckResult(c.ok(), c.resultType(), c.issues().stream()
@@ -171,31 +182,36 @@ public class MonitorService {
             throw new IllegalArgumentException("the selector holds at most " + MAX_SELECTOR + " entries");
         }
         return tx.inTransaction(() -> {
+            store.lock(tenantCode, "_selector");
             Set<String> published = new HashSet<>();
             store.all(tenantCode).stream().filter(m -> TripMonitor.PUBLISHED.equals(m.status()))
                     .forEach(m -> published.add(m.monitorKey()));
             List<MonitorSelector> rows = new ArrayList<>();
             for (MonitorViews.SelectorRequest.Entry e : entries) {
-                int seq = rows.size() + 1;
-                String monitor = Check.required(e == null ? null : e.monitorKey(), "monitorKey", 64);
-                if (!published.contains(monitor)) {
-                    throw new IllegalArgumentException("entry " + seq + ": monitor " + monitor
-                            + " has no published version");
-                }
-                String condition = Check.limited(e.condition() == null || e.condition().isBlank() ? "true"
-                        : e.condition().trim(), "condition", MAX_EXPRESSION);
-                MonitorLanguage.Check c = MonitorLanguage.check(MonitorSchema.selector(), condition,
-                        Expect.CONDITION);
-                if (!c.ok()) {
-                    throw new IllegalArgumentException("entry " + seq + ": " + c.issues().get(0).message());
-                }
-                rows.add(new MonitorSelector(seq, condition, monitor));
+                rows.add(selectorRow(e, rows.size() + 1, published));
             }
             store.saveSelector(tenantCode, rows, actor);
-            audit.log(tenantCode, actor, "monitor.selector_saved", ENTITY, "selector", null,
+            audit.log(tenantCode, actor, "monitor.selector_saved", ENTITY, SELECTOR, null,
                     Map.of("entries", String.valueOf(rows.size())));
             return new MonitorViews.Selector(rows);
         });
+    }
+
+    private static MonitorSelector selectorRow(MonitorViews.SelectorRequest.Entry e, int seq,
+            Set<String> published) {
+        String monitor = Check.required(e == null ? null : e.monitorKey(), "monitorKey", 64);
+        if (!published.contains(monitor)) {
+            throw new IllegalArgumentException("entry " + seq + ": monitor " + monitor
+                    + " has no published version");
+        }
+        String condition = Check.limited(e.condition() == null || e.condition().isBlank() ? "true"
+                : e.condition().trim(), "condition", MAX_EXPRESSION);
+        MonitorLanguage.Check c = MonitorLanguage.check(MonitorSchema.selector(), condition,
+                Expect.CONDITION);
+        if (!c.ok()) {
+            throw new IllegalArgumentException("entry " + seq + ": " + c.issues().get(0).message());
+        }
+        return new MonitorSelector(seq, condition, monitor);
     }
 
     /** The problems in the monitor's expressions, by rule. */
@@ -209,7 +225,7 @@ public class MonitorService {
                 MonitorLanguage.check(schema, r.when(), Expect.CONDITION).issues()
                         .forEach(i -> out.add(new Finding(r.key(), "when", i.position(), i.message())));
             }
-            if ("timer".equals(r.on())) {
+            if (TIMER.equals(r.on())) {
                 MonitorLanguage.check(schema, r.at(), Expect.TIME).issues()
                         .forEach(i -> out.add(new Finding(r.key(), "at", i.position(), i.message())));
             }
@@ -243,15 +259,17 @@ public class MonitorService {
             return List.of();
         }
         Set<String> types = new LinkedHashSet<>();
+        List<TripMonitor.StagePlan> normalized = new ArrayList<>();
         for (TripMonitor.StagePlan s : plan) {
             String type = Check.oneOf(Check.required(s == null ? null : s.stageType(), "stageType", 32),
                     "stageType", MonitorSchema.STAGE_TYPES.toArray(String[]::new));
             if (!types.add(type)) {
                 throw new IllegalArgumentException("stage " + type + " is listed twice in the plan");
             }
-            Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64);
+            normalized.add(new TripMonitor.StagePlan(type,
+                    Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64)));
         }
-        return List.copyOf(plan);
+        return List.copyOf(normalized);
     }
 
     /** Parameters are named like identifiers and hold a number, a yes/no or a text. */
@@ -283,50 +301,54 @@ public class MonitorService {
         Set<String> keys = new HashSet<>();
         List<TripMonitor.Rule> out = new ArrayList<>();
         for (MonitorRequest.Rule r : rules) {
-            if (r == null) {
-                throw new IllegalArgumentException("a rule is empty");
-            }
-            String key = Check.required(r.key(), "rule key", 64);
-            if (!key.matches(KEY_PATTERN)) {
-                throw new IllegalArgumentException("rule key " + key + " must be lowercase letters, digits and dashes");
-            }
-            if (!keys.add(key)) {
-                throw new IllegalArgumentException("rule " + key + " is listed twice");
-            }
-            String on = trigger(r.on());
-            String at = Check.limitedOrNull(r.at(), "at", MAX_EXPRESSION);
-            if ("timer".equals(on) && at == null) {
-                throw new IllegalArgumentException("rule " + key + ": a timer rule needs at");
-            }
-            if (!"timer".equals(on) && at != null) {
-                throw new IllegalArgumentException("rule " + key + ": only a timer rule has at");
-            }
-            out.add(new TripMonitor.Rule(key, Check.limitedOrNull(r.name(), "rule name", 255), on, at,
-                    Check.limitedOrNull(r.when(), "when", MAX_EXPRESSION), actions(key, r.then()),
-                    r.priority() == null ? DEFAULT_PRIORITY : r.priority(), r.active() == null || r.active()));
+            out.add(normalizeRule(r, keys));
         }
         out.sort(Comparator.comparingInt(TripMonitor.Rule::priority));
         return List.copyOf(out);
     }
 
+    private static TripMonitor.Rule normalizeRule(MonitorRequest.Rule r, Set<String> keys) {
+        if (r == null) {
+            throw new IllegalArgumentException("a rule is empty");
+        }
+        String key = Check.required(r.key(), "rule key", 64);
+        if (!key.matches(KEY_PATTERN)) {
+            throw new IllegalArgumentException("rule key " + key + " must be lowercase letters, digits and dashes");
+        }
+        if (!keys.add(key)) {
+            throw new IllegalArgumentException(RULE + key + " is listed twice");
+        }
+        String on = trigger(r.on());
+        String at = Check.limitedOrNull(r.at(), "at", MAX_EXPRESSION);
+        if (TIMER.equals(on) && at == null) {
+            throw new IllegalArgumentException(RULE + key + ": a timer rule needs at");
+        }
+        if (!TIMER.equals(on) && at != null) {
+            throw new IllegalArgumentException(RULE + key + ": only a timer rule has at");
+        }
+        return new TripMonitor.Rule(key, Check.limitedOrNull(r.name(), "rule name", 255), on, at,
+                Check.limitedOrNull(r.when(), "when", MAX_EXPRESSION), actions(key, r.then()),
+                r.priority() == null ? DEFAULT_PRIORITY : r.priority(), r.active() == null || r.active());
+    }
+
     private static List<TripMonitor.Action> actions(String rule, List<TripMonitor.Action> then) {
         if (then == null || then.isEmpty()) {
-            throw new IllegalArgumentException("rule " + rule + " has no actions");
+            throw new IllegalArgumentException(RULE + rule + " has no actions");
         }
         List<TripMonitor.Action> out = new ArrayList<>();
         for (TripMonitor.Action a : then) {
-            String type = a == null ? null : a.type();
+            String type = Check.required(a == null ? null : a.type(), "action type", 32);
             String value = a == null ? null : Check.blankToNull(a.value());
             if (STAGE_ACTIONS.contains(type)) {
-                Check.oneOf(value, "rule " + rule + ": " + type, MonitorSchema.STAGE_TYPES.toArray(String[]::new));
+                Check.oneOf(value, RULE + rule + ": " + type, MonitorSchema.STAGE_TYPES.toArray(String[]::new));
             } else if (FLAG_ACTIONS.contains(type)) {
                 value = null;
             } else if (REQUEST_CONFIRMATION.equals(type)) {
-                Check.oneOf(value, "rule " + rule + ": " + type, MonitorSchema.MILESTONES.toArray(String[]::new));
+                Check.oneOf(value, RULE + rule + ": " + type, MonitorSchema.MILESTONES.toArray(String[]::new));
             } else if (NAMED_ACTIONS.contains(type)) {
-                Check.required(value, "rule " + rule + ": " + type, 255);
+                Check.required(value, RULE + rule + ": " + type, 255);
             } else {
-                throw new IllegalArgumentException("rule " + rule + ": unknown action " + type);
+                throw new IllegalArgumentException(RULE + rule + ": unknown action " + type);
             }
             out.add(new TripMonitor.Action(type, value == null ? null : value.trim()));
         }

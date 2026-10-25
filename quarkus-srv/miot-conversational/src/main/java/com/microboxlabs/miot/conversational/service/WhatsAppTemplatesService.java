@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.function.Function;
@@ -29,6 +30,7 @@ import java.util.regex.Pattern;
 public class WhatsAppTemplatesService {
 
     private static final String WABA_ID = "waba_id";
+    private static final String APPROVED = "APPROVED";
     private static final String TOKEN = "token";
     private static final Pattern TEMPLATE_ID = Pattern.compile("\\d{1,30}");
     private static final Pattern NAME = Pattern.compile("[a-z0-9_]{1,512}");
@@ -117,7 +119,8 @@ public class WhatsAppTemplatesService {
     /**
      * Submits the platform's templates, or only those in {@code names}, to the WABA of the organization's own
      * WhatsApp connection, where Meta reviews them again. A template already there with the same name and
-     * language is left as it is. Only templates with a text header, or none, can be copied.
+     * language is left as it is. Only the platform's approved templates are copied, and only those with a text
+     * header or none; a named template Meta has not approved is reported as failed.
      */
     public List<CopyResult> copyFromPlatform(String tenant, List<String> names) {
         if (PlatformScope.TENANT.equals(tenant)) {
@@ -131,17 +134,28 @@ public class WhatsAppTemplatesService {
         Set<String> found = new LinkedHashSet<>();
         List<CopyResult> out = new ArrayList<>();
         for (WhatsAppTemplate t : list(PlatformScope.TENANT)) {
-            if (wanted != null && !wanted.contains(t.name())) {
-                continue;
+            if (wanted == null || wanted.contains(t.name())) {
+                found.add(t.name());
+                copyIfApproved(tenant, t, existing, wanted != null).ifPresent(out::add);
             }
-            found.add(t.name());
-            out.add(copy(tenant, t, existing.contains(t.name() + "/" + t.language())));
         }
         if (wanted != null) {
             wanted.stream().filter(n -> !found.contains(n)).forEach(n -> out.add(new CopyResult(n, null,
                     CopyStatus.FAILED, "The platform's account has no template " + n)));
         }
         return out;
+    }
+
+    /** An unapproved template is skipped, or reported as failed when it was named. */
+    private Optional<CopyResult> copyIfApproved(String tenant, WhatsAppTemplate t, Set<String> existing,
+            boolean named) {
+        if (APPROVED.equals(t.status())) {
+            return Optional.of(copy(tenant, t, existing.contains(t.name() + "/" + t.language())));
+        }
+        return named
+                ? Optional.of(new CopyResult(t.name(), t.language(), CopyStatus.FAILED,
+                        "The platform's template is " + t.status() + ", not approved"))
+                : Optional.empty();
     }
 
     private CopyResult copy(String tenant, WhatsAppTemplate t, boolean exists) {

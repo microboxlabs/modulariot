@@ -17,8 +17,11 @@ import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 
@@ -65,27 +68,46 @@ public class WhatsAppInboundService {
         this.platformRouter = new PlatformInboundRouter(conversationRepository, messageRepository);
     }
 
+    /**
+     * What storing one inbound message did. {@code reply} is the event for the rules; {@code duplicate} says
+     * the message was already stored, and {@code skipped} why nothing was stored.
+     */
+    public record Ingested(ConversationReplyReceived reply, boolean duplicate, String skipped) {
+
+        static Ingested skip(String reason) {
+            return new Ingested(null, false, reason);
+        }
+    }
+
+    /** Stores a whole webhook delivery inline; each new reply reaches the rules asynchronously. */
     public void ingest(byte[] rawBody) {
         ParsedWebhook parsed = MetaWebhookParser.parse(rawBody);
         for (InboundMessage message : parsed.messages()) {
-            ingestMessage(message);
+            Ingested ingested = ingestMessage(message);
+            if (ingested.reply() != null && !ingested.duplicate()) {
+                publishReply(ingested.reply());
+            }
         }
         for (StatusUpdate status : parsed.statuses()) {
             ingestStatus(status);
         }
     }
 
-    private void ingestMessage(InboundMessage message) {
+    /**
+     * Stores an inbound message on its organization's conversation. A message already stored comes back as a
+     * duplicate with its reply event, so a job that failed after storing it can still hand the reply on.
+     */
+    public Ingested ingestMessage(InboundMessage message) {
         if (message.wamid() == null || message.fromE164() == null) {
             LOG.warn("Skipping inbound WhatsApp message with no id or sender");
-            return;
+            return Ingested.skip("The message has no id or sender");
         }
         Optional<InboundChannelRef> channel =
                 connectionResolver.resolveByWhatsAppPhoneNumberId(message.phoneNumberId());
         if (channel.isEmpty()) {
             LOG.warnf("No active WHATSAPP connection for phone_number_id %s — dropping inbound message",
                     message.phoneNumberId());
-            return;
+            return Ingested.skip("No active WhatsApp connection for phone_number_id " + message.phoneNumberId());
         }
 
         OffsetDateTime occurredAt = message.timestamp() != null
@@ -117,7 +139,7 @@ public class WhatsAppInboundService {
                 null,
                 conversation.contextServiceCode(),
                 conversation.contextProcessInstanceId(),
-                message.buttonPayload() == null ? Map.of() : Map.of(BUTTON_PAYLOAD, message.buttonPayload()),
+                inboundMetadata(message, channel.get().tenantCode()),
                 null,
                 null,
                 null,
@@ -133,10 +155,10 @@ public class WhatsAppInboundService {
                 message.contactName()));
         if (persisted == null) {
             LOG.debugf("Duplicate inbound WhatsApp message %s — already ingested", message.wamid());
-            return;
+            return duplicate(message, occurredAt);
         }
 
-        publishReply(new ConversationReplyReceived(
+        return new Ingested(new ConversationReplyReceived(
                 tenantCode,
                 conversation.id(),
                 persisted.id(),
@@ -147,7 +169,30 @@ public class WhatsAppInboundService {
                 message.fromE164(),
                 message.body(),
                 message.buttonPayload(),
-                occurredAt));
+                occurredAt), false, null);
+    }
+
+    /** The reply of a message already stored, with the step of the message it answers, as the first time. */
+    private Ingested duplicate(InboundMessage message, OffsetDateTime occurredAt) {
+        Message stored = messageRepository.findByProviderMessageId(Channel.WHATSAPP, message.wamid());
+        Conversation conversation = stored == null ? null : conversationRepository.findById(stored.conversationId());
+        if (conversation == null) {
+            return new Ingested(null, true, null);
+        }
+        Message answered = stored.inReplyTo() == null ? null : messageRepository.findById(stored.inReplyTo());
+        return new Ingested(new ConversationReplyReceived(conversation.tenantCode(), conversation.id(), stored.id(),
+                stored.inReplyTo(), stored.runId(), answered == null ? null : answered.step(), Channel.WHATSAPP,
+                message.fromE164(), message.body(), message.buttonPayload(), occurredAt), true, null);
+    }
+
+    /** The button payload, if any, and the tenant of the connection whose number received the message. */
+    private static Map<String, Object> inboundMetadata(InboundMessage message, String connectionTenant) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (message.buttonPayload() != null) {
+            metadata.put(BUTTON_PAYLOAD, message.buttonPayload());
+        }
+        metadata.put(WhatsAppMessagingService.CONNECTION_TENANT, connectionTenant);
+        return metadata;
     }
 
     /** Observer failures are logged; the message is already stored. */
@@ -162,16 +207,17 @@ public class WhatsAppInboundService {
         }
     }
 
-    private void ingestStatus(StatusUpdate status) {
+    /** Advances the status of the message with the wamid; false when no stored message has it. */
+    public boolean ingestStatus(StatusUpdate status) {
         Message existing = messageRepository.findByProviderMessageId(Channel.WHATSAPP, status.wamid());
         if (existing == null) {
             LOG.debugf("Status %s for unknown wamid %s — ignored", status.status(), status.wamid());
-            return;
+            return false;
         }
         // Advance-only IS the idempotency: re-applying a status the message already reached is a
         // no-op, so a redelivered callback needs no separate dedup ledger.
         if (!advances(existing.status(), status.status())) {
-            return;
+            return true;
         }
         OffsetDateTime at = status.timestamp() != null ? status.timestamp() : OffsetDateTime.now(ZoneOffset.UTC);
         messageRepository.markStatus(
@@ -179,7 +225,20 @@ public class WhatsAppInboundService {
                 status.status(),
                 status.status() == MessageStatus.DELIVERED ? at : null,
                 status.status() == MessageStatus.READ ? at : null,
-                status.status() == MessageStatus.FAILED ? failureReason(status) : null);
+                status.status() == MessageStatus.FAILED ? failureReason(status) : null,
+                advancesFrom(status.status()));
+        return true;
+    }
+
+    /** The statuses {@code next} advances from; the update applies only while the stored status is one. */
+    static Set<MessageStatus> advancesFrom(MessageStatus next) {
+        Set<MessageStatus> from = EnumSet.noneOf(MessageStatus.class);
+        for (MessageStatus current : MessageStatus.values()) {
+            if (advances(current, next)) {
+                from.add(current);
+            }
+        }
+        return from;
     }
 
     /**

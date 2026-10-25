@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Conversation;
@@ -12,6 +13,7 @@ import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.integrations.email.EmailMessage;
 import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
+import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.email.SendResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +33,13 @@ class EmailMessagingServiceTest {
     private final List<EmailMessage> sent = new ArrayList<>();
     private final List<String> keys = new ArrayList<>();
 
+    private final InMemoryChannelAccounts accounts = new InMemoryChannelAccounts();
+
+    /** {@code configured}: the tenants with an active RESEND connection; the tenant's mode is OWN when it has one. */
     private EmailMessagingService service(Set<String> configured, SendResult result) {
+        if (configured.contains(TENANT)) {
+            accounts.connect(TENANT, ProviderType.RESEND).own(TENANT, "email");
+        }
         return new EmailMessagingService(new ResendEmailSender(null, null, null) {
             @Override
             public boolean configured(String tenantCode) {
@@ -45,7 +53,7 @@ class EmailMessagingServiceTest {
                 keys.add(idempotencyKey);
                 return result;
             }
-        }, store.conversationRepository, store.messageRepository);
+        }, store.conversationRepository, store.messageRepository, accounts.service);
     }
 
     private static ContextMessage email(String subject, String body) {
@@ -80,7 +88,7 @@ class EmailMessagingServiceTest {
     }
 
     @Test
-    void thePlatformSendsWhenTheTenantHasNoConnection() {
+    void thePlatformSendsWhenTheTenantUsesThePlatformsAccount() {
         service(Set.of(PlatformMailService.PLATFORM_TENANT), SendResult.accepted(200, "re-1"))
                 .sendInContext(TENANT, email("Pánico", "x"), false);
 
@@ -91,7 +99,7 @@ class EmailMessagingServiceTest {
     void withoutASenderOrWithARefusalTheMessageIsFailed() {
         Message none = service(Set.of(), SendResult.accepted(200, "x")).sendInContext(TENANT, email("a", "b"), false);
         assertEquals(MessageStatus.FAILED, none.status());
-        assertTrue(none.errorMessage().contains("No email sender"));
+        assertTrue(none.errorMessage().contains("platform has no email account"));
 
         Message refused = service(Set.of(TENANT), SendResult.failed(422, "Resend returned HTTP 422"))
                 .sendInContext(TENANT, email("a", "b"), false);

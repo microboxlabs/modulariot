@@ -3,6 +3,7 @@ package com.microboxlabs.miot.conversational.rules;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
 import com.microboxlabs.miot.conversational.service.ConnectionMessagingService;
 import com.microboxlabs.miot.conversational.service.EmailMessagingService;
@@ -121,6 +122,10 @@ final class RulesFixture {
         }
     };
 
+    /** The tenant sends email from its own RESEND connection and WhatsApp from the platform's account. */
+    final InMemoryChannelAccounts accounts = new InMemoryChannelAccounts()
+            .connect(TENANT, ProviderType.RESEND).own(TENANT, "email");
+
     final WhatsAppMessagingService whatsapp = new WhatsAppMessagingService(new IntegrationConnectionResolver(null,
             null, null) {
         @Override
@@ -135,7 +140,7 @@ final class RulesFixture {
             whatsappSent.add(new Sent(toE164, templateName, languageCode, namedParams));
             return "wamid.out-" + whatsappSent.size();
         }
-    }, store.conversations.conversationRepository, store.conversations.messageRepository);
+    }, store.conversations.conversationRepository, store.conversations.messageRepository, accounts.service);
 
     final EmailMessagingService email = new EmailMessagingService(new ResendEmailSender(null, null, null) {
         @Override
@@ -149,7 +154,7 @@ final class RulesFixture {
             emailsSent.add(message);
             return SendResult.accepted(200, "email-" + emailsSent.size());
         }
-    }, store.conversations.conversationRepository, store.conversations.messageRepository);
+    }, store.conversations.conversationRepository, store.conversations.messageRepository, accounts.service);
 
     final InMemoryIntegrations integrations = new InMemoryIntegrations();
 

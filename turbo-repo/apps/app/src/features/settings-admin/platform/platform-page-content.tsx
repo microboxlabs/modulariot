@@ -4,11 +4,9 @@ import { useState, type ReactNode } from "react";
 import { Spinner } from "flowbite-react";
 import {
   HiOutlineChartBar,
-  HiOutlineChatAlt2,
   HiOutlineChip,
   HiOutlineCreditCard,
   HiOutlineKey,
-  HiOutlineLightningBolt,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
@@ -26,8 +24,6 @@ import ModelUsageCard from "./model-usage-card";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
-import MessageTemplatesSection from "./message-templates-section";
-import SymptomTemplatesSection from "./symptom-templates-section";
 import PlatformSectionList, {
   type PlatformSectionEntry,
 } from "./platform-section-list";
@@ -67,10 +63,6 @@ export default function PlatformPageContent({
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
-  const symptomTemplatesDict =
-    (platformDict?.symptomTemplates as I18nRecord) ?? {};
-  const messageTemplatesDict =
-    (platformDict?.messageTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
@@ -116,18 +108,6 @@ export default function PlatformPageContent({
       icon: HiOutlineTemplate,
     },
     {
-      id: "symptomTemplates",
-      label: tr("title", symptomTemplatesDict),
-      description: tr("menuHint", symptomTemplatesDict),
-      icon: HiOutlineLightningBolt,
-    },
-    {
-      id: "messageTemplates",
-      label: tr("title", messageTemplatesDict),
-      description: tr("menuHint", messageTemplatesDict),
-      icon: HiOutlineChatAlt2,
-    },
-    {
       id: "plan",
       label: tr("title", planDict),
       description: tr("menuHint", planDict),
@@ -149,12 +129,6 @@ export default function PlatformPageContent({
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
-    ),
-    symptomTemplates: (
-      <SymptomTemplatesSection dict={symptomTemplatesDict} lang={lang} />
-    ),
-    messageTemplates: (
-      <MessageTemplatesSection dict={messageTemplatesDict} lang={lang} />
     ),
     plan: <HarnessPlanSection dict={planDict} />,
     usage: <ModelUsageCard dict={usageDict} lang={lang} />,

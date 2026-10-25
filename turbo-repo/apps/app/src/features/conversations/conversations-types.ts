@@ -302,6 +302,26 @@ export interface ChannelConnection {
 }
 
 /** A channel delivered through connections: the body each of them receives, and the connections. */
+export type ChannelAccountMode = "PLATFORM" | "OWN";
+
+/** Which account the rules send a channel from, from `/accounts`. */
+export interface ChannelAccount {
+  channel: "whatsapp" | "email";
+  mode: ChannelAccountMode;
+  /** The organization has an active connection for the channel. */
+  ownConnected: boolean;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+/** What copying one platform template to the organization's WABA did. */
+export interface TemplateCopyResult {
+  name: string;
+  language: string | null;
+  status: "COPIED" | "EXISTS" | "FAILED";
+  error: string | null;
+}
+
 export interface ConnectionChannel {
   operation: string;
   requestSchema: Record<string, unknown>;

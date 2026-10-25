@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.microboxlabs.miot.conversational.accounts.ChannelMode;
+import com.microboxlabs.miot.conversational.accounts.InMemoryChannelAccounts;
+import com.microboxlabs.miot.conversational.api.OrgConversationsResource.AccountModeRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateRuleRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.CreateConnectionRequest;
 import com.microboxlabs.miot.conversational.api.OrgConversationsResource.DraftRequest;
@@ -22,6 +25,7 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.integrations.domain.ProviderType;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -44,6 +48,7 @@ class OrgConversationsResourceTest {
     private static final Duration WAIT = Duration.ofSeconds(5);
 
     private final RulesFixtureAccess fixture = new RulesFixtureAccess();
+    private final InMemoryChannelAccounts accounts = new InMemoryChannelAccounts();
 
     private OrgConversationsResource resource(Access access) {
         OrganizationContext org = new OrganizationContext();
@@ -52,7 +57,8 @@ class OrgConversationsResourceTest {
         tenant.setTenantCode(RulesFixtureAccess.TENANT);
         return new OrgConversationsResource(tenant, org, o -> Uni.createFrom().item(access),
                 () -> "owner@example.com", new OrgConversationsResource.Services(fixture.service(),
-                        fixture.simulator(), fixture.templates(), fixture.runs(), fixture.channels()));
+                        fixture.simulator(), fixture.templates(), fixture.runs(), fixture.channels(),
+                        accounts.service, null));
     }
 
     private final OrgConversationsResource owner = resource(access(BaseRole.OWNER, Set.of()));
@@ -354,6 +360,26 @@ class OrgConversationsResourceTest {
                 new CreateConnectionRequest("x", "https://hooks.example.com", null))).getStatus());
         assertEquals(404, call(member.createChannelConnection(ORG, "whatsapp",
                 new CreateConnectionRequest("x", "https://hooks.example.com", null))).getStatus());
+    }
+
+    @Test
+    void anOwnerChoosesTheOrganizationsOwnAccountOnceItIsConnected() {
+        JsonNode list = body(call(member.listAccounts(ORG)));
+        assertEquals("whatsapp", list.get(0).path("channel").asText());
+        assertEquals("PLATFORM", list.get(0).path("mode").asText());
+        assertFalse(list.get(0).path("ownConnected").asBoolean());
+
+        AccountModeRequest own = new AccountModeRequest(ChannelMode.OWN);
+        assertEquals(403, call(member.setAccountMode(ORG, "whatsapp", own)).getStatus());
+        assertEquals(403, call(maintainer.setAccountMode(ORG, "whatsapp", own)).getStatus());
+        assertEquals(409, call(owner.setAccountMode(ORG, "whatsapp", own)).getStatus());
+        assertEquals(400, call(owner.setAccountMode(ORG, "sms", own)).getStatus());
+
+        accounts.connect(RulesFixtureAccess.TENANT, ProviderType.WHATSAPP);
+        JsonNode set = body(call(owner.setAccountMode(ORG, "whatsapp", own)));
+        assertEquals("OWN", set.path("mode").asText());
+        assertEquals("owner@example.com", set.path("updatedBy").asText());
+        assertEquals("OWN", body(call(member.listAccounts(ORG))).get(0).path("mode").asText());
     }
 
     @Test

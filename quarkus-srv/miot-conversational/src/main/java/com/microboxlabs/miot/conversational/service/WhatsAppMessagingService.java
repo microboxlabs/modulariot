@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.service;
 
+import com.microboxlabs.miot.conversational.accounts.ChannelAccountsService;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
 import com.microboxlabs.miot.conversational.client.WhatsAppSendException;
 import com.microboxlabs.miot.conversational.domain.Channel;
@@ -45,6 +46,7 @@ public class WhatsAppMessagingService {
     /** Message metadata: the tenant of the connection the message went through. */
     public static final String CONNECTION_TENANT = "connectionTenant";
     static final String NO_PLATFORM_WHATSAPP = "La plataforma no tiene WhatsApp configurado";
+    static final String NO_OWN_WHATSAPP = "La organización no tiene una cuenta de WhatsApp conectada";
     private static final Logger LOG = Logger.getLogger(WhatsAppMessagingService.class);
     private static final String PHONE_NUMBER_ID = "phone_number_id";
     private static final String TOKEN = "token";
@@ -57,17 +59,20 @@ public class WhatsAppMessagingService {
     private final MetaWhatsAppClient metaClient;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final ChannelAccountsService accounts;
 
     @Inject
     public WhatsAppMessagingService(
             IntegrationConnectionResolver connectionResolver,
             MetaWhatsAppClient metaClient,
             ConversationRepository conversationRepository,
-            MessageRepository messageRepository) {
+            MessageRepository messageRepository,
+            ChannelAccountsService accounts) {
         this.connectionResolver = connectionResolver;
         this.metaClient = metaClient;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
+        this.accounts = accounts;
     }
 
     public Message send(String tenantCode, SendWhatsAppMessageRequest request, String sentByUserId) {
@@ -145,10 +150,10 @@ public class WhatsAppMessagingService {
     /**
      * Sends the Meta template {@code message.templateName()} with its NAMED parameters and stores it, with the
      * run and step, on the organization's conversation about the message's context with the recipient. It goes
-     * through the platform's WhatsApp connection: the templates exist only on the platform's WABA. The stored
-     * body is {@code message.body()}. Any failure (no platform connection, a recipient the connection's test mode
-     * does not allow, Meta refusing the send) is stored as FAILED with its reason. With {@code simulate} nothing
-     * is sent and the message is stored SIMULATED.
+     * through the platform's WhatsApp connection, or the organization's own when its WhatsApp mode is OWN; the
+     * template must exist on that connection's WABA. The stored body is {@code message.body()}. Any failure (no
+     * connection, a recipient the connection's test mode does not allow, Meta refusing the send) is stored as
+     * FAILED with its reason. With {@code simulate} nothing is sent and the message is stored SIMULATED.
      */
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -162,9 +167,10 @@ public class WhatsAppMessagingService {
             status = MessageStatus.SIMULATED;
         } else {
             try {
-                ResolvedConnection connection = platformConnection();
+                String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.WHATSAPP);
+                ResolvedConnection connection = sendingConnection(sendingTenant);
                 metadata = metadata(connection);
-                metadata.put(CONNECTION_TENANT, PLATFORM_TENANT);
+                metadata.put(CONNECTION_TENANT, sendingTenant);
                 String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
                 String token = connection.secretString(TOKEN);
                 if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
@@ -194,11 +200,12 @@ public class WhatsAppMessagingService {
         return stored;
     }
 
-    private ResolvedConnection platformConnection() {
+    private ResolvedConnection sendingConnection(String sendingTenant) {
         try {
-            return connectionResolver.resolve(PLATFORM_TENANT, ProviderType.WHATSAPP);
+            return connectionResolver.resolve(sendingTenant, ProviderType.WHATSAPP);
         } catch (ConnectionNotConfiguredException e) {
-            throw new ConnectionResolutionException(NO_PLATFORM_WHATSAPP);
+            throw new ConnectionResolutionException(
+                    PLATFORM_TENANT.equals(sendingTenant) ? NO_PLATFORM_WHATSAPP : NO_OWN_WHATSAPP);
         }
     }
 

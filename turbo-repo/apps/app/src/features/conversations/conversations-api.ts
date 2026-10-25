@@ -9,6 +9,8 @@
 import useSWR, { mutate } from "swr";
 import { controlTowerRequest as request } from "@/features/symptoms/control-tower/control-tower-api";
 import type {
+  ChannelAccount,
+  ChannelAccountMode,
   ConversationRun,
   ConversationRule,
   ConversationTemplate,
@@ -28,6 +30,7 @@ import type {
   TemplateBody,
   ChannelConnection,
   ConnectionChannel,
+  TemplateCopyResult,
 } from "./conversations-types";
 
 export const CONVERSATIONS_BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/conversations`;
@@ -46,6 +49,9 @@ export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 /** The WhatsApp templates on Meta of the platform's connection, for platform owners. */
 export const metaTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/admin/platform/whatsapp-templates`;
+export const accountsKey = `${CONVERSATIONS_BASE}/accounts`;
+/** The WhatsApp templates on Meta of the organization's own connection. */
+export const orgMetaTemplatesKey = `${CONVERSATIONS_BASE}/whatsapp-templates`;
 
 export function runsKey(filter: {
   rule?: string | null;
@@ -243,4 +249,40 @@ export async function createChannelConnection(
   );
   await mutate(connectionChannelKey(channel));
   return created;
+}
+
+export function useChannelAccounts(enabled = true) {
+  return useSWR<ChannelAccount[]>(enabled ? accountsKey : null, fetcher, {
+    shouldRetryOnError: false,
+  });
+}
+
+export async function setChannelAccountMode(
+  channel: string,
+  mode: ChannelAccountMode
+) {
+  const saved = await request<ChannelAccount>(
+    `${accountsKey}/${encodeURIComponent(channel)}`,
+    { method: "PUT", body: { mode } }
+  );
+  await mutate(accountsKey);
+  return saved;
+}
+
+export function useOrgMetaTemplates(enabled = true) {
+  return useSWR<MetaTemplate[]>(
+    enabled ? orgMetaTemplatesKey : null,
+    fetcher,
+    quiet
+  );
+}
+
+/** Submits the platform's WhatsApp templates to the organization's WABA; Meta reviews each one. */
+export async function copyPlatformTemplates() {
+  const results = await request<TemplateCopyResult[]>(
+    `${orgMetaTemplatesKey}/copy`,
+    { method: "POST", body: {} }
+  );
+  await mutate(orgMetaTemplatesKey);
+  return results;
 }

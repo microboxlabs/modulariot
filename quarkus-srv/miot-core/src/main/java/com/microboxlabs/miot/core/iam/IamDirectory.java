@@ -182,9 +182,11 @@ public class IamDirectory {
     }
 
     private static Uni<IamUser> seen(IamUser user, String name, Instant now) {
-        boolean named = user.name == null && name != null && !name.isBlank() && !name.equalsIgnoreCase(user.email);
+        String trimmed = name == null ? null : name.trim();
+        boolean named = user.name == null && trimmed != null && !trimmed.isEmpty()
+                && !trimmed.equalsIgnoreCase(user.email);
         if (named) {
-            user.name = name.trim();
+            user.name = trimmed;
         }
         if (!named && user.lastSeenAt != null && !user.lastSeenAt.isBefore(now.minus(SEEN_EVERY))) {
             return Uni.createFrom().item(user);

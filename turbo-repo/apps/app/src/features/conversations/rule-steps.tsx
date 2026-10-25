@@ -1,13 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { HiPlus, HiX } from "react-icons/hi";
+import { HiPlus, HiTrash } from "react-icons/hi";
 import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { FieldError } from "@/features/symptoms/maintainer/ui/response-block";
 import { PillNumber, PillSelect } from "@/features/symptoms/maintainer/ui/pill";
-import { ICON_BUTTON } from "./audience-list";
 import ChannelIcon from "./channel-icon";
 import type {
   ConversationTemplate,
@@ -157,7 +156,6 @@ function GroupChips({
 
 function StepCard({
   step,
-  index,
   handle,
   templates,
   groups,
@@ -168,7 +166,6 @@ function StepCard({
   onRemove,
 }: Readonly<{
   step: RuleStep;
-  index: number;
   handle: ReactNode;
   templates: ConversationTemplate[];
   groups: RecipientGroup[];
@@ -185,79 +182,73 @@ function StepCard({
     ? tr("stepTemplateOptional", d)
     : tr("pickTemplate", d);
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800">
-      <span className="flex h-7 w-4 shrink-0 items-center">{handle}</span>
-      <span
-        aria-hidden
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gray-300 text-xs font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300"
-      >
-        {index + 1}
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+      {handle}
+      <ChannelIcon channel={step.channel} size={7} />
+      <PillSelect
+        ariaLabel={tr("stepChannel", d)}
+        className={issues?.channel ? ERROR_PILL : ""}
+        disabled={readOnly}
+        value={step.channel}
+        onChange={(v) => onSet({ channel: v as RuleChannel })}
+        options={STEP_CHANNELS.map((c) => ({
+          value: c.value,
+          label: trDynamic(c.label, d),
+        }))}
+      />
+      <span>{tr("stepWithTemplate", d)}</span>
+      <PillSelect
+        ariaLabel={tr("stepTemplate", d)}
+        className={issues?.template ? ERROR_PILL : ""}
+        disabled={readOnly}
+        value={step.template}
+        onChange={(template) => onSet({ template })}
+        options={[
+          { value: "", label: emptyLabel },
+          ...(knownTemplate
+            ? []
+            : [{ value: step.template, label: step.template }]),
+          ...templates.map((t) => ({ value: t.key, label: t.name })),
+        ]}
+      />
+      <span aria-hidden className="text-gray-400">
+        →
       </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-gray-700 dark:text-gray-300">
-          <ChannelIcon channel={step.channel} size={7} />
-          <PillSelect
-            ariaLabel={tr("stepChannel", d)}
-            className={issues?.channel ? ERROR_PILL : ""}
-            disabled={readOnly}
-            value={step.channel}
-            onChange={(v) => onSet({ channel: v as RuleChannel })}
-            options={STEP_CHANNELS.map((c) => ({
-              value: c.value,
-              label: trDynamic(c.label, d),
-            }))}
-          />
-          <span>{tr("stepWithTemplate", d)}</span>
-          <PillSelect
-            ariaLabel={tr("stepTemplate", d)}
-            className={issues?.template ? ERROR_PILL : ""}
-            disabled={readOnly}
-            value={step.template}
-            onChange={(template) => onSet({ template })}
-            options={[
-              { value: "", label: emptyLabel },
-              ...(knownTemplate
-                ? []
-                : [{ value: step.template, label: step.template }]),
-              ...templates.map((t) => ({ value: t.key, label: t.name })),
-            ]}
-          />
-          <span aria-hidden className="text-gray-400">
-            →
-          </span>
-          {viaConnection ? (
-            <ConnectionPill
-              channel={step.channel}
-              value={step.connection}
-              invalid={issues?.connection ?? false}
-              readOnly={readOnly}
-              d={d}
-              onChange={(connection) => onSet({ connection })}
-            />
-          ) : (
-            <GroupChips
-              to={step.to}
-              groups={groups}
-              invalid={issues?.groups ?? false}
-              readOnly={readOnly}
-              d={d}
-              onChange={(to) => onSet({ to })}
-            />
-          )}
-        </div>
-        {(issues?.messages ?? []).map((e) => (
-          <FieldError key={e} text={e} />
-        ))}
-      </div>
+      {viaConnection ? (
+        <ConnectionPill
+          channel={step.channel}
+          value={step.connection}
+          invalid={issues?.connection ?? false}
+          readOnly={readOnly}
+          d={d}
+          onChange={(connection) => onSet({ connection })}
+        />
+      ) : (
+        <GroupChips
+          to={step.to}
+          groups={groups}
+          invalid={issues?.groups ?? false}
+          readOnly={readOnly}
+          d={d}
+          onChange={(to) => onSet({ to })}
+        />
+      )}
       {!readOnly && (
         <button
           type="button"
           aria-label={tr("removeStep", d)}
           onClick={onRemove}
-          className={`${ICON_BUTTON} shrink-0 hover:text-red-600 dark:hover:text-red-400`}
+          className="ml-auto text-gray-400 hover:text-red-500"
         >
-          <HiX className="h-4 w-4" />
+          <HiTrash className="h-4 w-4" />
         </button>
+      )}
+      {(issues?.messages ?? []).length > 0 && (
+        <div className="flex w-full flex-col gap-0.5">
+          {(issues?.messages ?? []).map((e) => (
+            <FieldError key={e} text={e} />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -281,7 +272,7 @@ function Gap({
 }>) {
   const replies = REPLY_CHANNELS.has(step.channel);
   return (
-    <div className="ml-[3.1rem] flex flex-wrap items-center gap-2 border-l-2 border-dashed border-gray-300 py-2 pl-4 text-sm text-gray-600 dark:border-gray-600 dark:text-gray-400">
+    <div className="ml-4 flex flex-wrap items-center gap-2 border-l-2 border-dashed border-gray-300 py-2 pl-4 text-sm text-gray-600 dark:border-gray-600 dark:text-gray-400">
       {replies ? (
         <PillSelect
           ariaLabel={tr("gapWhen", d)}
@@ -457,7 +448,6 @@ export default function RuleSteps({
               <>
                 <StepCard
                   step={s}
-                  index={i}
                   handle={handle}
                   templates={templates}
                   groups={groups}

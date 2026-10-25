@@ -44,7 +44,7 @@ export default function ChannelIcon({
       data-channel={channel ?? ""}
       style={{ width: px, height: px }}
       className={twMerge(
-        "inline-flex shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300",
+        "inline-flex shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400",
         className
       )}
     >

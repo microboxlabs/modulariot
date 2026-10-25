@@ -146,7 +146,9 @@ export function TemplatePreview({
         ? ["email"]
         : channel === "preferred"
           ? ["whatsapp", "email"]
-          : ["base"];
+          : template.email
+            ? ["email"]
+            : ["base"];
   return (
     <div className="flex flex-col gap-3">
       {parts.map((p) => (

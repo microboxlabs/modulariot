@@ -53,6 +53,8 @@ export interface JsonString {
   isKey: boolean;
   /** For a key: the property its object sits under, "" at the top. */
   owner?: string;
+  /** Offset of the enclosing object, so sibling objects stay independent. */
+  objectStart?: number;
   /** For a key: the type of its value, once one is written. */
   type?: JsonType;
 }
@@ -95,6 +97,7 @@ interface Frame {
   expectKey: boolean;
   owner: string;
   keys: string[];
+  start: number;
 }
 
 function typeAt(c: string): JsonType | undefined {
@@ -137,7 +140,7 @@ function scan(text: string): { strings: JsonString[]; stack: Frame[] } {
         value,
         key: isKey ? null : (top?.key ?? null),
         isKey,
-        ...(isKey && top ? { owner: top.owner } : {}),
+        ...(isKey && top ? { owner: top.owner, objectStart: top.start } : {}),
       });
       if (isKey && top) {
         pendingKey = value;
@@ -155,6 +158,7 @@ function scan(text: string): { strings: JsonString[]; stack: Frame[] } {
         expectKey: c === "{",
         owner: key ?? "",
         keys: [],
+        start: i,
       });
       pendingKey = null;
     } else if (c === "}" || c === "]") {
@@ -408,7 +412,7 @@ export function completions(
       const allowed = keys?.objects[at.owner ?? ""];
       if (!allowed?.length) return null;
       const present = strings
-        .filter((s) => s.isKey && s.owner === at.owner && s !== at)
+        .filter((s) => s.isKey && s.objectStart === at.objectStart && s !== at)
         .map((s) => s.value);
       const hasValue = /^\s*:/.test(text.slice(at.to));
       return {

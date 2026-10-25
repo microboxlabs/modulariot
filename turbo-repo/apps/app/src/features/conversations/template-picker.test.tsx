@@ -66,6 +66,14 @@ describe("TemplatePreview", () => {
     expect(screen.getByText("OT-0001")).toBeTruthy();
   });
 
+  it("previews the email body that a connection sends when an email variant exists", () => {
+    render(
+      <TemplatePreview template={ALERT} channel="slack" meta={[]} d={d} />
+    );
+    expect(screen.getByText("Revisa el viaje.")).toBeTruthy();
+    expect(screen.queryByText(/Alerta en el viaje/)).toBeNull();
+  });
+
   it("says the message is not sent on a channel the template has no version for", () => {
     render(
       <TemplatePreview template={ALERT} channel="whatsapp" meta={[]} d={d} />

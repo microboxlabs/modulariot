@@ -1,5 +1,5 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { trDynamic } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { RuleFinding, RuleSpec } from "./conversations-types";
 import { channelLabel, groupLabel, roleLabel } from "./rule-model";
 
@@ -42,7 +42,10 @@ export function ruleFindingText(
   }
   const group =
     kind === "groups" && index !== null ? spec?.groups[index] : undefined;
-  if (group && index !== null) params.group = groupLabel(group, index, d);
+  if (kind === "groups" && index !== null)
+    params.group = group
+      ? groupLabel(group, index, d)
+      : tr("groupN", d, { n: String(index + 1) });
   const key = `finding${upperFirst(f.code)}`;
   const text = trDynamic(key, d, params);
   return text === key ? f.message : text;

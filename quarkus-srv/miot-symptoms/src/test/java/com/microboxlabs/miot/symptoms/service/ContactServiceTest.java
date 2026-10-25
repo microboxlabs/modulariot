@@ -183,6 +183,38 @@ class ContactServiceTest {
     }
 
     @Test
+    void aPeruvianCompanyHasARucAndAPersonADni() {
+        var service = service(false);
+        ContactRequest peru = new ContactRequest("Persona Perú", null, null, null, null, null, "12345678", "DNI",
+                "Transportes Lima", null, null, null, null, null, "20100070970", "ruc");
+        ContactView saved = service.create(TENANT, "o", peru);
+        assertEquals("12345678", saved.nationalId());
+        assertEquals("20100070970", saved.companyRut());
+        assertEquals("RUC", saved.companyTaxIdType());
+
+        ContactRequest badRuc = new ContactRequest("Mal", null, null, null, null, null, null, null, null, null, null,
+                null, null, null, "20100070971", "RUC");
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", badRuc));
+        ContactRequest badDni = new ContactRequest("Mal", null, null, null, null, null, "1234567", "DNI", null, null,
+                null, null, null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", badDni));
+        ContactRequest unknownType = new ContactRequest("Mal", null, null, null, null, null, null, null, null, null,
+                null, null, null, null, "123", "NIT");
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", unknownType));
+
+        String id = saved.id();
+        ContactView chilean = service.update(TENANT, "o", id, new ContactRequest(null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, "76.111.222-8", "RUT"));
+        assertEquals("761112228", chilean.companyRut());
+        assertEquals("RUT", chilean.companyTaxIdType());
+        ContactView other = service.update(TENANT, "o", id, new ContactRequest(null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, "ab-123", "OTRO"));
+        assertEquals("AB123", other.companyRut());
+        assertTrue(ContactService.isValidRuc("20100070970"));
+        assertFalse(ContactService.isValidRuc("30100070970"));
+    }
+
+    @Test
     void aMemberIsInTheBookOnce() {
         var service = service(false);
         service.create(TENANT, "o", member("Persona Uno", "user-1"));

@@ -29,9 +29,20 @@ public record Contact(
         List<String> tags,
         String memberUserId,
         boolean provisional,
-        String companyRut) {
+        String companyRut,
+        String companyTaxIdType) {
 
     public static final String DEFAULT_NATIONAL_ID_TYPE = "RUT";
+
+    /** A contact whose company's tax id, when there is one, is a RUT. */
+    public Contact(String id, String tenantCode, String name, String role, String phone, List<CallMethod> methods,
+            boolean active, String notes, String createdBy, OffsetDateTime createdAt, OffsetDateTime updatedAt,
+            String nationalId, String nationalIdType, String company, String position, ContactChannels channels,
+            List<String> tags, String memberUserId, boolean provisional, String companyRut) {
+        this(id, tenantCode, name, role, phone, methods, active, notes, createdBy, createdAt, updatedAt, nationalId,
+                nationalIdType, company, position, channels, tags, memberUserId, provisional, companyRut,
+                companyRut == null ? null : DEFAULT_NATIONAL_ID_TYPE);
+    }
 
     /** A contact without the company's RUT. */
     public Contact(String id, String tenantCode, String name, String role, String phone, List<CallMethod> methods,
@@ -65,6 +76,6 @@ public record Contact(
                 methods == null ? List.of() : List.copyOf(methods), active, notes, author, created, updated,
                 nationalId, nationalIdType == null ? DEFAULT_NATIONAL_ID_TYPE : nationalIdType, company, position,
                 channels == null ? ContactChannels.NONE : channels, tags == null ? List.of() : List.copyOf(tags),
-                memberUserId, provisional, companyRut);
+                memberUserId, provisional, companyRut, companyRut == null ? null : companyTaxIdType);
     }
 }

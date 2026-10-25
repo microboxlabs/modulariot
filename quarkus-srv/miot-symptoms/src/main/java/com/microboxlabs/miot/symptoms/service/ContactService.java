@@ -43,6 +43,8 @@ public class ContactService {
     /** A RUT without dots or dash: up to 8 digits, then the check digit. */
     private static final Pattern RUT = Pattern.compile("^(\\d{1,8})([\\dK])$");
     private static final Pattern ID_TYPE = Pattern.compile("^[A-Z][A-Z0-9_]{0,15}$");
+    private static final String RUC = "RUC";
+    private static final Set<String> COMPANY_ID_TYPES = Set.of(Contact.DEFAULT_NATIONAL_ID_TYPE, RUC, "OTRO");
 
     private final ContactStore contacts;
     private final TreatmentStore treatments;
@@ -152,6 +154,7 @@ public class ContactService {
     /** The current contact with every field the request sends. */
     private static Contact merge(Contact current, String name, ContactRequest req) {
         String idType = patch(req.nationalIdType(), current.nationalIdType(), ContactService::idType);
+        String companyType = patch(req.companyTaxIdType(), current.companyTaxIdType(), ContactService::companyIdType);
         ContactChannels channels = patch(req.channels(), current.channels(), ContactService::channels);
         return new Contact(
                 current.id(), current.tenantCode(), name,
@@ -167,7 +170,14 @@ public class ContactService {
                 patch(req.tags(), current.tags(), ContactService::tags),
                 patch(req.memberUserId(), current.memberUserId(), ContactService::trimOrNull),
                 patch(req.provisional(), current.provisional(), Function.identity()),
-                patch(req.companyRut(), current.companyRut(), ContactService::companyRut));
+                mergedCompanyTaxId(current, req, companyType), companyType);
+    }
+
+    private static String mergedCompanyTaxId(Contact current, ContactRequest req, String type) {
+        if (req.companyRut() == null && req.companyTaxIdType() == null) {
+            return current.companyRut();
+        }
+        return companyTaxId(patch(req.companyRut(), current.companyRut(), Function.identity()), type);
     }
 
     /** A field the request leaves out keeps its current value. */
@@ -209,7 +219,8 @@ public class ContactService {
                 req.active() == null || req.active(), trimOrNull(req.notes()), actor, null, null,
                 nationalId(req.nationalId(), idType), idType, trimOrNull(req.company()), trimOrNull(req.position()),
                 channels, tags(req.tags()), trimOrNull(req.memberUserId()), Boolean.TRUE.equals(req.provisional()),
-                companyRut(req.companyRut()));
+                companyTaxId(req.companyRut(), companyIdType(req.companyTaxIdType())),
+                companyIdType(req.companyTaxIdType()));
     }
 
     /** Checks first for a clear message; the store's unique index still catches a race. */
@@ -282,10 +293,40 @@ public class ContactService {
         if (id.length() > 32) {
             throw new IllegalArgumentException("nationalId is too long");
         }
-        if (Contact.DEFAULT_NATIONAL_ID_TYPE.equals(type) && !isValidRut(id)) {
-            throw new IllegalArgumentException("nationalId is not a valid RUT");
+        if (!isValidId(type, id)) {
+            throw new IllegalArgumentException("nationalId is not a valid " + type);
         }
         return id;
+    }
+
+    /** RUT and RUC check their digit, DNI is 8 digits, CE 8 to 12 letters or digits; other types any short code. */
+    static boolean isValidId(String type, String normalized) {
+        return switch (type == null ? Contact.DEFAULT_NATIONAL_ID_TYPE : type) {
+            case Contact.DEFAULT_NATIONAL_ID_TYPE -> isValidRut(normalized);
+            case RUC -> isValidRuc(normalized);
+            case "DNI" -> normalized.matches("\\d{8}");
+            case "CE" -> normalized.matches("[A-Z0-9]{8,12}");
+            default -> normalized.matches("[A-Z0-9]{1,32}");
+        };
+    }
+
+    /** Peru's RUC: 11 digits starting 10, 15, 17 or 20, with a mod-11 check digit. */
+    static boolean isValidRuc(String normalized) {
+        if (!normalized.matches("(10|15|17|20)\\d{9}")) {
+            return false;
+        }
+        int[] weights = {5, 4, 3, 2, 7, 6, 5, 4, 3, 2};
+        int sum = 0;
+        for (int i = 0; i < weights.length; i++) {
+            sum += (normalized.charAt(i) - '0') * weights[i];
+        }
+        int check = 11 - (sum % 11);
+        if (check == 10) {
+            check = 0;
+        } else if (check == 11) {
+            check = 1;
+        }
+        return normalized.charAt(10) - '0' == check;
     }
 
     static boolean isValidRut(String normalized) {
@@ -337,13 +378,22 @@ public class ContactService {
         return email.toLowerCase(Locale.ROOT);
     }
 
-    /** The company's RUT, normalised and checked like a person's; blank is null. */
-    static String companyRut(String raw) {
-        String rut = normalizeNationalId(raw);
-        if (rut != null && !isValidRut(rut)) {
-            throw new IllegalArgumentException("companyRut is not a valid RUT");
+    /** The company's tax id of {@code type}, normalised and checked; blank is null. */
+    static String companyTaxId(String raw, String type) {
+        String id = normalizeNationalId(raw);
+        if (id != null && !isValidId(type, id)) {
+            throw new IllegalArgumentException("companyRut is not a valid " + type);
         }
-        return rut;
+        return id;
+    }
+
+    /** RUT (Chile), RUC (Peru) or OTRO; blank is RUT. */
+    private static String companyIdType(String raw) {
+        String type = blank(raw) ? Contact.DEFAULT_NATIONAL_ID_TYPE : raw.trim().toUpperCase(Locale.ROOT);
+        if (!COMPANY_ID_TYPES.contains(type)) {
+            throw new IllegalArgumentException("companyTaxIdType must be RUT, RUC or OTRO");
+        }
+        return type;
     }
 
     private static String phoneFrom(ContactChannels channels) {

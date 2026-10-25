@@ -60,7 +60,7 @@ public class FeedProfileService {
         }
         Set<String> required = new LinkedHashSet<>(body.requiredResources() == null
                 ? List.of("truck", "driver") : body.requiredResources());
-        if (!RESOURCES.containsAll(required)) {
+        if (required.contains(null) || !RESOURCES.containsAll(required)) {
             throw new IllegalArgumentException("requiredResources must be among " + RESOURCES);
         }
         FeedProfile saved = feeds.saveProfile(new FeedProfile(tenantCode, key,

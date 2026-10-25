@@ -177,7 +177,7 @@ export default function ContactBookPageContent({
       options: companies,
     },
     { key: "tag" as const, label: tr("filterTag", d), options: tags },
-  ].filter((f) => f.options.length > 0);
+  ];
   const shown = contacts.filter((c) => contactPasses(c, filters, badges));
   const labels = contactTableLabels(d);
   const badgesById = new Map(badges.map((b) => [b.id, b]));
@@ -191,8 +191,23 @@ export default function ContactBookPageContent({
       icon={HiOutlineBookOpen}
       title={tr("title", d)}
       description={tr("description", d)}
+      filters={filterDefs.map((f) => (
+        <FilterChip
+          key={f.key}
+          label={f.label}
+          value={filters[f.key]}
+          options={f.options}
+          allLabel={tr("filterAll", d)}
+          onChange={(v) => setFilters({ ...filters, [f.key]: v })}
+        />
+      ))}
       actions={
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <LayoutToggle
+            layout={layout}
+            labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+            onLayout={setLayout}
+          />
           <Button size="sm" color="light" onClick={() => setImportOpen(true)}>
             <HiOutlineUpload className="mr-1 h-4 w-4" />
             {tr("importContacts", d)}
@@ -204,26 +219,6 @@ export default function ContactBookPageContent({
         </div>
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
-        {filterDefs.map((f) => (
-          <FilterChip
-            key={f.key}
-            label={f.label}
-            value={filters[f.key]}
-            options={f.options}
-            allLabel={tr("filterAll", d)}
-            onChange={(v) => setFilters({ ...filters, [f.key]: v })}
-          />
-        ))}
-        <div className="ml-auto">
-          <LayoutToggle
-            layout={layout}
-            labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
-            onLayout={setLayout}
-          />
-        </div>
-      </div>
-
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
         {hydrated && contacts.length === 0 && (
           <p className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">

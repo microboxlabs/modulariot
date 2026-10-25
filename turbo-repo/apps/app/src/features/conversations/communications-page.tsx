@@ -208,22 +208,48 @@ export default function CommunicationsPage({
       icon={HiChatAlt2}
       title={tr("title", d)}
       description={tr("description", d)}
-      actions={
-        (section === "rules" && canMaintain && (
-          <Button size="sm" color="blue" onClick={() => setNewRule({})}>
-            <HiPlus className="mr-1 h-4 w-4" />
-            {tr("newRule", d)}
-          </Button>
-        )) ||
-        (section === "templates" && platformScope && (
-          <Link
-            href={platformTemplateHref(lang, NEW_TEMPLATE)}
-            className="inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
-          >
-            <HiPlus className="mr-1 h-4 w-4" />
-            {tr("newTemplate", d)}
-          </Link>
+      filters={
+        bar &&
+        bar.defs.length > 0 &&
+        bar.defs.map((f) => (
+          <FilterChip
+            key={`${section}-${f.key}`}
+            label={f.label}
+            value={bar.value(f.key)}
+            options={f.options}
+            allLabel={tr("filterAll", d)}
+            onChange={(v) => bar.set(f.key, v)}
+          />
         ))
+      }
+      actions={
+        <div className="flex shrink-0 items-center gap-2">
+          {catalogLayout && (
+            <LayoutToggle
+              layout={layout}
+              labels={{
+                cards: tr("viewCards", d),
+                list: tr("viewList", d),
+              }}
+              onLayout={setLayout}
+            />
+          )}
+          {section === "rules" && canMaintain && (
+            <Button size="sm" color="blue" onClick={() => setNewRule({})}>
+              <HiPlus className="mr-1 h-4 w-4" />
+              {tr("newRule", d)}
+            </Button>
+          )}
+          {section === "templates" && platformScope && (
+            <Link
+              href={platformTemplateHref(lang, NEW_TEMPLATE)}
+              className="inline-flex items-center rounded-lg bg-blue-700 px-3 py-2 text-xs font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+            >
+              <HiPlus className="mr-1 h-4 w-4" />
+              {tr("newTemplate", d)}
+            </Link>
+          )}
+        </div>
       }
     >
       {/* Below md the menu and the detail stack and scroll together; from md only the detail scrolls. */}
@@ -235,32 +261,6 @@ export default function CommunicationsPage({
           onSelect={onSection}
         />
         <div className="flex min-h-0 flex-col gap-4 pr-1 md:overflow-y-auto">
-          {bar && (
-            <div className="flex flex-wrap items-center gap-2">
-              {bar.defs.map((f) => (
-                <FilterChip
-                  key={`${section}-${f.key}`}
-                  label={f.label}
-                  value={bar.value(f.key)}
-                  options={f.options}
-                  allLabel={tr("filterAll", d)}
-                  onChange={(v) => bar.set(f.key, v)}
-                />
-              ))}
-              {catalogLayout && (
-                <div className="ml-auto">
-                  <LayoutToggle
-                    layout={layout}
-                    labels={{
-                      cards: tr("viewCards", d),
-                      list: tr("viewList", d),
-                    }}
-                    onLayout={setLayout}
-                  />
-                </div>
-              )}
-            </div>
-          )}
           {section === "rules" && (
             <RulesTab lang={lang} filters={ruleFilters} layout={layout} d={d} />
           )}

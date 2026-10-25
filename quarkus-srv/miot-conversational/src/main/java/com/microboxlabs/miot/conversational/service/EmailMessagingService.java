@@ -85,9 +85,9 @@ public class EmailMessagingService {
         if (message.subject() != null) {
             metadata.put(SUBJECT, message.subject());
         }
-        Message stored = messageRepository.append(new Message(
-                UUID.randomUUID().toString(), conversation.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,
-                MessageType.TEXT, message.body(), message.templateName(), null, null, null, null,
+        Message stored = messageRepository.appendQueued(new Message(
+                QueuedMessageId.forStep(message, Channel.EMAIL), conversation.id(), MessageDirection.OUTBOUND,
+                MessageRole.SYSTEM, MessageType.TEXT, message.body(), message.templateName(), null, null, null, null,
                 MessageStatus.PENDING, null, null, null, null, metadata, null, null, null, now, Channel.EMAIL,
                 message.to(), null, message.runId(), message.step()));
         String preview = message.subject() != null ? message.subject() : message.body();
@@ -99,15 +99,15 @@ public class EmailMessagingService {
 
     /**
      * Sends a PENDING email of this organization through its sending account and marks it SENT. A message no
-     * longer PENDING is returned as it is. A repeated send uses the same idempotency key, so the provider does
-     * not send it twice.
+     * longer PENDING is returned as it is, except FAILED after a manual retry of its parked job. A repeated
+     * send uses the same idempotency key, so the provider does not send it twice.
      *
      * @throws SendFailure when the provider did not take it
      */
     public Message deliverQueued(String tenantCode, String messageId) {
         Message message = WhatsAppMessagingService.queued(messageRepository, conversationRepository, tenantCode,
                 messageId);
-        if (message.status() != MessageStatus.PENDING) {
+        if (message.status() != MessageStatus.PENDING && message.status() != MessageStatus.FAILED) {
             return message;
         }
         Object subject = message.metadata() == null ? null : message.metadata().get(SUBJECT);
@@ -115,17 +115,11 @@ public class EmailMessagingService {
                 message.templateName(), null, Map.of(), subject == null ? null : subject.toString(), message.body(),
                 message.runId(), message.step()));
         if (!result.accepted()) {
-            boolean retryable = SendFailure.retryable(result.status())
-                    && (result.status() != 0 || configured(tenantCode));
-            throw new SendFailure(result.error(), retryable);
+            throw new SendFailure(result.error(), result.retryable());
         }
         Message sent = messageRepository.markSent(messageId, result.messageId(), Map.of(),
                 OffsetDateTime.now(ZoneOffset.UTC));
         return sent != null ? sent : messageRepository.findById(messageId);
-    }
-
-    private boolean configured(String tenantCode) {
-        return sender.configured(accounts.sendingTenant(tenantCode, ChannelAccountsService.EMAIL));
     }
 
     private Message storeOutbound(Conversation conversation, ContextMessage message, OffsetDateTime now,
@@ -152,7 +146,7 @@ public class EmailMessagingService {
     private SendResult deliver(String tenantCode, ContextMessage message) {
         String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.EMAIL);
         if (!sender.configured(sendingTenant)) {
-            return SendResult.failed(0, sendingTenant.equals(tenantCode)
+            return SendResult.failedPermanently(sendingTenant.equals(tenantCode)
                     ? "The organization has no active RESEND connection; connect it or use the platform's account"
                     : "The platform has no email account configured");
         }
@@ -160,7 +154,7 @@ public class EmailMessagingService {
         try {
             email = new EmailMessage(null, message.to(), message.subject(), message.body(), null, null);
         } catch (IllegalArgumentException e) {
-            return SendResult.failed(0, e.getMessage());
+            return SendResult.failedPermanently(e.getMessage());
         }
         String key = message.runId() == null ? null : message.runId() + ":" + message.step() + ":" + message.to();
         return sender.send(sendingTenant, email, key);

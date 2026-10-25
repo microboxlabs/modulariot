@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** In-memory rule, template and run stores, with the same rules as the SQL. Messages live in the conversations. */
@@ -201,14 +202,36 @@ final class InMemoryRules {
             return Optional.ofNullable(runs.get(id));
         }
 
-        @Override
-        public void recordError(String runId, String error, Instant at) {
+        private void recordError(String runId, String error, Instant at) {
             Run r = runs.get(runId);
             if (r != null) {
                 runs.put(runId, new Run(r.id(), r.tenantCode(), r.ruleId(), r.ruleVersion(), r.eventId(),
                         r.contextKind(), r.contextKey(), r.test(), r.status(), r.step(), r.nextAt(), error,
                         r.createdAt(), at, r.recipients(), r.invocationKey()));
             }
+        }
+
+        @Override
+        public boolean failQueuedMessage(String tenantCode, String messageId, String error, Instant at) {
+            Message message = conversations.messageRepository.findById(messageId);
+            Conversation conversation = message == null ? null
+                    : conversations.conversationRepository.findById(message.conversationId());
+            if (message == null || conversation == null || !tenantCode.equals(conversation.tenantCode())
+                    || (message.status() != MessageStatus.PENDING && message.status() != MessageStatus.FAILED)) {
+                return false;
+            }
+            Message failed = conversations.messageRepository.markStatus(messageId, MessageStatus.FAILED,
+                    null, null, error, Set.of(MessageStatus.PENDING));
+            if (failed == null) {
+                return false;
+            }
+            recordError(failed.runId(), failed.address() + ": " + error, at);
+            return true;
+        }
+
+        @Override
+        public int reconcileFailedSends(int limit, Instant at) {
+            return 0;
         }
 
         @Override

@@ -75,9 +75,15 @@ class PgRuleStoresTest {
                 .connectingTo(PgConnectOptions.fromUri(System.getProperty(URL_PROPERTY)))
                 .using(vertx).build();
         pool.query("DROP SCHEMA IF EXISTS miot_conversational CASCADE").execute().await().atMost(WAIT);
+        pool.query("DROP SCHEMA IF EXISTS miot_integrations CASCADE").execute().await().atMost(WAIT);
         pool.query("DROP SCHEMA IF EXISTS miot_core CASCADE").execute().await().atMost(WAIT);
         pool.query("CREATE SCHEMA miot_core; CREATE TABLE miot_core.tenants (id BIGSERIAL PRIMARY KEY)")
                 .execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA miot_integrations").execute().await().atMost(WAIT);
+        try (InputStream in = PgRuleStoresTest.class.getResourceAsStream(
+                "/db/migration/integrations/V0.6.1__create_async_jobs.sql")) {
+            pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+        }
         for (String file : MIGRATIONS) {
             try (InputStream in = PgRuleStoresTest.class
                     .getResourceAsStream("/db/migration/conversational/" + file)) {
@@ -138,6 +144,47 @@ class PgRuleStoresTest {
                 .execute(outboundParams(conversation, providerId, "trip", "trip-test"))
                 .await().atMost(WAIT).size());
         assertEquals(1, countProviderId(providerId));
+    }
+
+    @Test
+    void queuedMessageIsMarkedSentOnceWithItsProviderAndConnection() throws Exception {
+        UUID conversation = UUID.randomUUID();
+        UUID message = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation (id, tenant_code, participant_address)
+                VALUES ($1, $2, '+56900000000')
+                """).execute(Tuple.of(conversation, "test-" + UUID.randomUUID())).await().atMost(WAIT);
+        String insert = sql("INSERT_QUEUED");
+        Tuple queued = Tuple.tuple().addUUID(message).addUUID(conversation)
+                .addString("OUTBOUND").addString("SYSTEM").addString("TEMPLATE")
+                .addString("Test body").addString("test-template")
+                .addString(null).addString(null).addString(null).addString(null)
+                .addString("PENDING").addString(null).addString(null).addString(null).addString(null)
+                .addJsonObject(new JsonObject(Map.of("existing", "value")))
+                .addOffsetDateTime(null).addOffsetDateTime(null).addOffsetDateTime(null)
+                .addOffsetDateTime(T0.atOffset(ZoneOffset.UTC)).addString("whatsapp")
+                .addString("+56900000000").addUUID(null).addUUID(null).addInteger(0);
+        assertEquals(1, pool.preparedQuery(insert).execute(queued).await().atMost(WAIT).size());
+        assertEquals(0, pool.preparedQuery(insert).execute(queued).await().atMost(WAIT).size(),
+                "replaying a leased step must not create another message");
+
+        String providerId = "wamid.test-" + UUID.randomUUID();
+        String sql = sql("MARK_SENT");
+        var rows = pool.preparedQuery(sql).execute(Tuple.of(message, providerId,
+                new JsonObject(Map.of("connectionTenant", "test-platform")).encode(),
+                T0.atOffset(ZoneOffset.UTC))).await().atMost(WAIT);
+        assertEquals(1, rows.size());
+        Row sent = rows.iterator().next();
+        assertEquals("SENT", sent.getString("status"));
+        assertEquals("value", sent.getJsonObject("metadata").getString("existing"));
+        assertEquals("test-platform", sent.getJsonObject("metadata").getString("connectionTenant"));
+        assertEquals(T0.atOffset(ZoneOffset.UTC), sent.getOffsetDateTime("sent_at"));
+        assertEquals(0, pool.preparedQuery(sql).execute(Tuple.of(message, "wamid.other", "{}",
+                T0.atOffset(ZoneOffset.UTC))).await().atMost(WAIT).size());
+        assertEquals(providerId, pool.preparedQuery("""
+                SELECT provider_message_id FROM miot_conversational.wa_message WHERE id = $1
+                """).execute(Tuple.of(message)).await().atMost(WAIT).iterator().next()
+                .getString("provider_message_id"));
     }
 
     private static int countProviderId(String providerId) {
@@ -288,6 +335,60 @@ class PgRuleStoresTest {
     }
 
     @Test
+    void parkingAQueuedMessageAndRecordingItsRunIsAtomicAndTenantScoped() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "send");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "test", "symptom_case", "-7", Map.of(), false, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0));
+        String conversation = conversationWithRunMessage(tenant, run.id(), "PENDING");
+        String messageId = pool.preparedQuery("""
+                SELECT id FROM miot_conversational.wa_message WHERE conversation_id = $1
+                """).execute(Tuple.of(UUID.fromString(conversation))).await().atMost(WAIT)
+                .iterator().next().getUUID("id").toString();
+
+        assertFalse(runs.failQueuedMessage("other-tenant", messageId, "refused", T0));
+        assertTrue(runs.failQueuedMessage(tenant, messageId, "refused", T0));
+        assertEquals("+56900000000: refused", runs.find(run.id()).orElseThrow().lastError());
+        Row failed = pool.preparedQuery("""
+                SELECT status, error_message FROM miot_conversational.wa_message WHERE id = $1
+                """).execute(Tuple.of(UUID.fromString(messageId))).await().atMost(WAIT).iterator().next();
+        assertEquals("FAILED", failed.getString("status"));
+        assertEquals("refused", failed.getString("error_message"));
+        assertTrue(runs.failQueuedMessage(tenant, messageId, "retry refused", T0));
+        assertEquals("retry refused", pool.preparedQuery("""
+                SELECT error_message FROM miot_conversational.wa_message WHERE id = $1
+                """).execute(Tuple.of(UUID.fromString(messageId))).await().atMost(WAIT)
+                .iterator().next().getString("error_message"));
+    }
+
+    @Test
+    void aFailedJobWithAnUnmarkedMessageIsReconciled() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "reconcile");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "test", "symptom_case", "-7", Map.of(), false, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0));
+        String conversation = conversationWithRunMessage(tenant, run.id(), "PENDING");
+        String messageId = pool.preparedQuery("""
+                SELECT id FROM miot_conversational.wa_message WHERE conversation_id = $1
+                """).execute(Tuple.of(UUID.fromString(conversation))).await().atMost(WAIT)
+                .iterator().next().getUUID("id").toString();
+        pool.preparedQuery("""
+                INSERT INTO miot_integrations.async_jobs
+                    (tenant_code, source_instance, executor, job_type, payload, state, last_error)
+                VALUES ($1, 'test', 'modulith', 'whatsapp.send', $2::text::jsonb, 'FAILED', 'refused')
+                """).execute(Tuple.of(tenant, new JsonObject(Map.of("messageId", messageId)).encode()))
+                .await().atMost(WAIT);
+
+        assertEquals(1, runs.reconcileFailedSends(100, T0));
+        assertEquals(0, runs.reconcileFailedSends(100, T0));
+        assertEquals("+56900000000: refused", runs.find(run.id()).orElseThrow().lastError());
+    }
+
+    @Test
     void anInvokedRunKeepsItsRecipientsAndItsKeyStartsItOnce() {
         String tenant = "tenant-" + UUID.randomUUID();
         Rule rule = rule(tenant, "panic");
@@ -306,8 +407,13 @@ class PgRuleStoresTest {
         assertEquals(first.id(), runs.invoked(rule.id(), "k-1").orElseThrow().id());
         assertTrue(runs.invoked(rule.id(), "k-2").isEmpty());
 
-        runs.recordError(first.id(), "tester@example.com: refused", T0);
-        runs.updateIfWaiting(first.advanced(Run.Status.WAITING, 1, T0, null, T0));
+        runs.updateIfWaiting(first.advanced(Run.Status.WAITING, 0, T0, "older error", T0));
+        Run stale = runs.find(first.id()).orElseThrow();
+        pool.preparedQuery("""
+                UPDATE miot_conversational.conv_run SET last_error = $2 WHERE id = $1
+                """).execute(Tuple.of(UUID.fromString(first.id()), "tester@example.com: refused"))
+                .await().atMost(WAIT);
+        runs.updateIfWaiting(stale.advanced(Run.Status.WAITING, 1, T0, null, T0));
         assertEquals("tester@example.com: refused", runs.find(first.id()).orElseThrow().lastError(),
                 "an update without an error keeps the one a send job wrote");
     }

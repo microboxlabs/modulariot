@@ -212,9 +212,13 @@ final class RulesFixture {
 
     /** The ledger giving up on a send job, with its last error. */
     void park(AsyncJobSpec spec, String lastError) {
+        parkAs(TENANT, spec, lastError);
+    }
+
+    void parkAs(String tenant, AsyncJobSpec spec, String lastError) {
         held.remove(spec);
-        new SendJobsOnPark(store.conversations.messageRepository, engine).parked(new AsyncJob(
-                UUID.randomUUID().toString(), TENANT, "test", spec.executor(), spec.jobType(), spec.correlationKey(),
+        new SendJobsOnPark(store.runStore).parked(new AsyncJob(
+                UUID.randomUUID().toString(), tenant, "test", spec.executor(), spec.jobType(), spec.correlationKey(),
                 null, 0, spec.dedupeKey(), spec.payload(), JobState.FAILED, 5, 5, null, null, null, lastError,
                 List.of(), "listener", null, null, null));
     }

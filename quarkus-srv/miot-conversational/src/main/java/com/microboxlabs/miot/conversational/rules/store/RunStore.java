@@ -44,8 +44,11 @@ public interface RunStore {
      */
     boolean updateIfWaiting(Run run);
 
-    /** Writes a problem found after the step went out, such as a message that could not be sent. */
-    void recordError(String runId, String error, Instant at);
+    /** Atomically fail a queued message of this tenant and record its run's error. */
+    boolean failQueuedMessage(String tenantCode, String messageId, String error, Instant at);
+
+    /** Repair terminal send jobs whose message could not be marked failed when the park event fired. */
+    int reconcileFailedSends(int limit, Instant at);
 
     /** The WAITING runs about this context. */
     List<Run> waiting(String tenantCode, String contextKind, String contextKey);

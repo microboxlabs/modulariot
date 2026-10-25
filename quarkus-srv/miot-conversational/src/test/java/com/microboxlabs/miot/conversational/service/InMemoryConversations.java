@@ -200,13 +200,20 @@ public final class InMemoryConversations {
         }
 
         @Override
+        public Message appendQueued(Message message) {
+            Message existing = findById(message.id());
+            return existing == null ? append(message) : existing;
+        }
+
+        @Override
         public Message markStatus(
                 String messageId, MessageStatus status, OffsetDateTime deliveredAt,
                 OffsetDateTime readAt, String errorMessage, Set<MessageStatus> from) {
             statusMarked.add(messageId);
             for (int i = 0; i < messages.size(); i++) {
                 Message m = messages.get(i);
-                if (m.id().equals(messageId) && m.status() == MessageStatus.PENDING && status == MessageStatus.FAILED
+                if (m.id().equals(messageId) && (m.status() == MessageStatus.PENDING
+                        || m.status() == MessageStatus.FAILED) && status == MessageStatus.FAILED
                         && from.contains(MessageStatus.PENDING)) {
                     Message failed = new Message(m.id(), m.conversationId(), m.direction(), m.role(), m.type(),
                             m.body(), m.templateName(), m.mediaRef(), m.mediaMimeType(), m.mediaFileName(),
@@ -225,7 +232,8 @@ public final class InMemoryConversations {
                 OffsetDateTime sentAt) {
             for (int i = 0; i < messages.size(); i++) {
                 Message m = messages.get(i);
-                if (m.id().equals(messageId) && m.status() == MessageStatus.PENDING) {
+                if (m.id().equals(messageId)
+                        && (m.status() == MessageStatus.PENDING || m.status() == MessageStatus.FAILED)) {
                     Map<String, Object> merged = new LinkedHashMap<>(m.metadata() == null ? Map.of() : m.metadata());
                     merged.putAll(metadata);
                     Message sent = new Message(m.id(), m.conversationId(), m.direction(), m.role(), m.type(),

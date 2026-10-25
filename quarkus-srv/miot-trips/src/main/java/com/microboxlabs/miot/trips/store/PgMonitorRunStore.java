@@ -80,11 +80,28 @@ public class PgMonitorRunStore implements MonitorRunStore {
     }
 
     @Override
-    public boolean fired(String tenantCode, UUID tripId, String ruleKey, OffsetDateTime dueAt) {
+    public boolean fired(String tenantCode, UUID tripId, String monitorKey, int monitorVersion, String ruleKey,
+            OffsetDateTime dueAt) {
+        // Transitions already retain the monitor identity, unlike legacy timer rows.
         return query(pool.get(), """
-                SELECT 1 FROM miot_trips.trip_timer WHERE tenant_code = $1 AND trip_id = $2 AND rule_key = $3
-                    AND due_at = $4::timestamptz AND fired_at IS NOT NULL""",
-                Tuple.of(tenantCode, tripId, ruleKey, dueAt)).iterator().hasNext();
+                SELECT 1 FROM miot_trips.trip_transition
+                WHERE tenant_code = $1 AND trip_id = $2 AND monitor_key = $3 AND monitor_version = $4
+                    AND event->>'on' = 'timer' AND event->>'kind' = $5 AND at = $6::timestamptz LIMIT 1""",
+                Tuple.tuple().addString(tenantCode).addUUID(tripId).addString(monitorKey)
+                        .addInteger(monitorVersion).addString(ruleKey).addOffsetDateTime(dueAt))
+                .iterator().hasNext();
+    }
+
+    @Override
+    public void retainTimer(long id, int epoch) {
+        query(pool.get(), "UPDATE miot_trips.trip_timer SET epoch = $2 WHERE id = $1 AND fired_at IS NULL",
+                Tuple.of(id, epoch));
+    }
+
+    @Override
+    public void dropObsoleteTimers(String tenantCode, UUID tripId, int epoch) {
+        query(pool.get(), "DELETE FROM miot_trips.trip_timer WHERE tenant_code = $1 AND trip_id = $2"
+                + " AND fired_at IS NULL AND epoch <> $3", Tuple.of(tenantCode, tripId, epoch));
     }
 
     @Override

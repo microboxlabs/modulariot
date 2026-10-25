@@ -374,6 +374,21 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void descriptiveEditsAndGeofenceLinksDoNotOverwriteEachOther() {
+        var created = locations.resolve(tenant, ACTOR, "TEST-LOCATION");
+        PgLocationStore store = new PgLocationStore(() -> pool);
+        UUID locationId = UUID.fromString(created.id());
+        geofences.add(tenant, 42, "TEST-FENCE", "Test geofence");
+        locations.linkGeofence(tenant, ACTOR, locationId, 42);
+        var staleRename = new com.microboxlabs.miot.trips.domain.Location(created.id(), tenant, "Renamed test location",
+                created.type(), created.externalCode(), created.geomGeojson(), null,
+                created.createdAt(), created.createdBy(), null, ACTOR);
+        assertEquals(42, store.update(staleRename).orElseThrow().geofenceId());
+        assertEquals("Renamed test location", locations.linkGeofence(tenant, ACTOR, locationId, null).name());
+        assertNull(store.find(tenant, locationId).orElseThrow().geofenceId());
+    }
+
+    @Test
     void aBatchQueuesOnlyChangedServicesAndTheJobAppliesTheLatestState() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));

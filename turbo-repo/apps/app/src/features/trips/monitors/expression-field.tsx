@@ -140,7 +140,9 @@ export default function ExpressionField({
       </div>
       <CelEditor
         value={value}
-        onChange={onChange}
+        onChange={(next) => {
+          if (next !== value) onChange(next);
+        }}
         fields={editorFields(schema)}
         problems={problems}
         singleLine

@@ -349,7 +349,7 @@ public class PgResourceStore implements ResourceStore {
             default -> throw new IllegalArgumentException("not a keyed resource table: " + table);
         };
         return first(query(pool.get(), select("id, is_active AND COALESCE(status, 'active') <> 'inactive' AS usable",
-                table) + " AND upper(regexp_replace(" + column + ", '[^A-Za-z0-9]', '', 'g')) = $2"
+                table) + " AND upper(regexp_replace(" + column + " COLLATE \"C\", '[^A-Za-z0-9]', '', 'g')) = $2"
                 + " ORDER BY usable DESC, id LIMIT 1", Tuple.of(tenantCode, key)),
                 r -> new FleetResources.Match(r.getUUID(ID), r.getBoolean("usable")));
     }

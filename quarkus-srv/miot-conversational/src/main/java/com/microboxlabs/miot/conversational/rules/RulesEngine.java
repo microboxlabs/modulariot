@@ -21,6 +21,7 @@ import com.microboxlabs.miot.core.event.ParticipantResolver;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.ObservesAsync;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -126,6 +127,13 @@ public class RulesEngine {
             accept(event);
         } catch (RuntimeException e) {
             LOG.warnf(e, "Conversation rules: event %s for %s not handled", event.type(), event.tenantCode());
+        }
+    }
+
+    /** A reply stored by an inbound message job: a failure propagates, so the job retries. */
+    void onReplyInJob(@Observes ConversationReplyReceived reply) {
+        if (enabled) {
+            replied(reply);
         }
     }
 

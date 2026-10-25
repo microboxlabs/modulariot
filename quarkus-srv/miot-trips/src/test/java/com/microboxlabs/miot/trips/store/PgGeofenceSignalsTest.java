@@ -89,9 +89,8 @@ class PgGeofenceSignalsTest {
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
     private final FakeGeofences geofences = new FakeGeofences()
             .square(ORIGIN, -70.6, -33.4, 0.01).square(DESTINATION, -70.2, -23.6, 0.01);
-    private final GeofenceSignals signals = new GeofenceSignals(live, geofences,
-            (tenant, trip, kind, geofence, at) -> engine.signal(tenant, GeofenceSignals.ACTOR, trip, kind,
-                    String.valueOf(geofence), at), tx, Clock.systemUTC(), true, 2, Duration.ofMinutes(10));
+    private final GeofenceSignals signals = new GeofenceSignals(live, geofences, engine,
+            tx, true, 2, Duration.ofMinutes(10));
 
     private String tenant;
     private Instant at = Instant.parse("2026-10-24T12:00:00Z");
@@ -167,6 +166,120 @@ class PgGeofenceSignalsTest {
 
     private TripLiveRow row(UUID tripId) {
         return live.find(tenant, tripId).orElseThrow();
+    }
+
+    @Test
+    void unusableAssetDoesNotPreventOtherTripsFromInitializing() {
+        UUID invalid = tripWithTruck("TEST-INVALID");
+        Pg.query(pool, "UPDATE miot_trips.trip_live SET asset_id = '-' WHERE trip_id = $1",
+                io.vertx.mutiny.sqlclient.Tuple.of(invalid));
+        tenantWithAMonitor();
+        UUID valid = tripWithTruck("TEST-VALID");
+        signals.refresh();
+        assertEquals(0, frame("TEST-VALID", -70.6, -33.4, tenant));
+        assertEquals(1, frame("TEST-VALID", -70.6, -33.4, tenant));
+        assertEquals(ORIGIN, row(valid).currentGeofenceId());
+    }
+
+    @Test
+    void sharedAssetWatermarksAreIsolatedByTenantAndTrip() {
+        UUID first = tripWithTruck("TEST-SHARED");
+        String firstTenant = tenant;
+        tenantWithAMonitor();
+        UUID second = tripWithTruck("TEST-SHARED");
+        GeofenceSignals checked = new GeofenceSignals(live, geofences, engine, tx, true, 1, Duration.ofMinutes(10));
+        checked.refresh();
+        assertEquals(1, checked.accept(signal("TEST-SHARED", -70.6, -33.4, firstTenant, at.plusSeconds(60))));
+        assertEquals(1, checked.accept(signal("TEST-SHARED", -70.6, -33.4, tenant, at)));
+        assertEquals(0, checked.accept(signal("TEST-SHARED", -70.5, -33.4, tenant, at)));
+        assertEquals(ORIGIN, live.find(firstTenant, first).orElseThrow().currentGeofenceId());
+        assertEquals(ORIGIN, row(second).currentGeofenceId());
+    }
+
+    @Test
+    void repeatedFramesCannotConfirmAMoveAndMissingShapesCannotMeanDeparture() {
+        UUID tripId = tripWithTruck("TEST-123");
+        GeofenceSignals checked = new GeofenceSignals(live, geofences,
+                (tenantCode, id, kind, fence, time) -> {}, tx, Clock.systemUTC(), new GeofenceSignals.Settings(true, 2, Duration.ZERO));
+        checked.refresh();
+        String first = signal("TEST-123", -70.6, -33.4, tenant, at);
+        assertEquals(0, checked.accept(first));
+        assertEquals(0, checked.accept(first));
+        assertNull(row(tripId).currentGeofenceId());
+        assertEquals(1, checked.accept(signal("TEST-123", -70.6, -33.4, tenant, at.plusSeconds(1))));
+        assertEquals(ORIGIN, row(tripId).currentGeofenceId());
+        geofences.shape(ORIGIN, "null");
+        checked.refresh();
+        assertEquals(0, checked.accept(signal("TEST-123", -70.5, -33.4, tenant, at.plusSeconds(2))));
+        assertEquals(0, checked.accept(signal("TEST-123", -70.5, -33.4, tenant, at.plusSeconds(3))));
+        assertEquals(ORIGIN, row(tripId).currentGeofenceId());
+    }
+
+    @Test
+    void replicasReadMotorStateBeforeEmittingEdges() {
+        UUID tripId = tripWithTruck("TEST-REPLICA");
+        java.util.ArrayList<String> edges = new java.util.ArrayList<>();
+        GeofenceSignals.Sink sink = (t, id, kind, fence, time) -> edges.add(kind);
+        GeofenceSignals first = new GeofenceSignals(live, geofences, sink, tx, Clock.systemUTC(),
+                new GeofenceSignals.Settings(true, 1, Duration.ofMinutes(10)));
+        GeofenceSignals second = new GeofenceSignals(live, geofences, sink, tx, Clock.systemUTC(),
+                new GeofenceSignals.Settings(true, 1, Duration.ofMinutes(10)));
+        first.refresh();
+        second.refresh();
+        assertEquals(1, first.accept(signal("TEST-REPLICA", -70.6, -33.4, tenant, at)));
+        assertEquals(0, second.accept(signal("TEST-REPLICA", -70.6, -33.4, tenant, at.plusSeconds(1))));
+        assertEquals(1, second.accept(signal("TEST-REPLICA", -70.5, -33.4, tenant, at.plusSeconds(2))));
+        assertEquals(0, first.accept(signal("TEST-REPLICA", -70.5, -33.4, tenant, at.plusSeconds(3))));
+        assertEquals(List.of("entered_origin", "left_origin"), edges);
+        assertTrue(row(tripId).originVisited());
+        assertNull(row(tripId).currentGeofenceId());
+    }
+
+    @Test
+    void failedMonitorActionRollsBackMotorStateAndCanRetry() {
+        monitors.saveDraft(tenant, ACTOR, "broken", new MonitorRequest("Test", null, List.of(), Map.of(), List.of(
+                rule("bad", "signal", "signal.kind == 'entered_origin'",
+                        new TripMonitor.Action("advance", "unloading")))));
+        monitors.publish(tenant, ACTOR, "broken");
+        UUID tripId = tripWithTruck("TEST-RETRY");
+        engine.bind(tenant, ACTOR, tripId, "broken", null);
+        GeofenceSignals checked = new GeofenceSignals(live, geofences, engine, tx, true, 1, Duration.ofMinutes(10));
+        assertEquals(0, checked.accept(signal("TEST-RETRY", -70.6, -33.4, tenant, at)));
+        assertNull(row(tripId).currentGeofenceId());
+        assertFalse(row(tripId).originVisited());
+        engine.bind(tenant, ACTOR, tripId, "direct", null);
+        assertEquals(1, checked.accept(signal("TEST-RETRY", -70.6, -33.4, tenant, at.plusSeconds(1))));
+        assertEquals(ORIGIN, row(tripId).currentGeofenceId());
+    }
+
+    @Test
+    void initializationFailureNacksAndRetriesBeforeConsuming() {
+        tripWithTruck("TEST-START");
+        java.util.concurrent.atomic.AtomicBoolean unavailable = new java.util.concurrent.atomic.AtomicBoolean(true);
+        PgTripLiveStore startupLive = new PgTripLiveStore(() -> pool) {
+            @Override
+            public List<TripLiveRow> watched() {
+                if (unavailable.get()) throw new IllegalStateException("test unavailable");
+                return super.watched();
+            }
+        };
+        GeofenceSignals checked = new GeofenceSignals(startupLive, geofences,
+                (t, id, kind, fence, time) -> {}, tx, Clock.systemUTC(),
+                new GeofenceSignals.Settings(true, 1, Duration.ofMinutes(10)));
+        java.util.concurrent.atomic.AtomicInteger acks = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger nacks = new java.util.concurrent.atomic.AtomicInteger();
+        byte[] payload = signal("TEST-START", -70.6, -33.4, tenant, at)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var message = org.eclipse.microprofile.reactive.messaging.Message.of(payload,
+                () -> { acks.incrementAndGet(); return java.util.concurrent.CompletableFuture.completedFuture(null); },
+                failure -> { nacks.incrementAndGet(); return java.util.concurrent.CompletableFuture.completedFuture(null); });
+        checked.onSignal(message).toCompletableFuture().join();
+        assertEquals(0, acks.get());
+        assertEquals(1, nacks.get());
+        unavailable.set(false);
+        checked.onSignal(message).toCompletableFuture().join();
+        assertEquals(1, acks.get());
+        assertEquals(1, nacks.get());
     }
 
     @Test

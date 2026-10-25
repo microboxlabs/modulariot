@@ -18,7 +18,7 @@ import java.util.List;
  * recognize yields no events rather than throwing, so the webhook always acks and Meta is never
  * pushed into a retry storm by a parse error. Pure + static — unit-tested directly.
  */
-final class MetaWebhookParser {
+public final class MetaWebhookParser {
 
     private static final String ID = "id";
     private static final String MIME_TYPE = "mime_type";
@@ -28,7 +28,7 @@ final class MetaWebhookParser {
     private MetaWebhookParser() {
     }
 
-    static ParsedWebhook parse(byte[] rawBody) {
+    public static ParsedWebhook parse(byte[] rawBody) {
         List<InboundMessage> messages = new ArrayList<>();
         List<StatusUpdate> statuses = new ArrayList<>();
         JsonObject root = readRoot(rawBody);

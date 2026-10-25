@@ -6,6 +6,9 @@ import { getSharedAuthToken } from "@/app/api/utils/streamhub-api-client";
 import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 import { modulithHost } from "@/lib/modulith-host";
 import { sessionAuthHeader } from "@/features/auth/services/session-auth";
+import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
+
+const PLATFORM_ORG_PATH = `/api/v1/orgs/${PLATFORM_SCOPE_SLUG}/`;
 
 /**
  * Proxy to the StreamHub-facing modulith API (GPS webhooks and future GPS
@@ -23,7 +26,9 @@ import { sessionAuthHeader } from "@/features/auth/services/session-auth";
  *   Settings UI (OrganizationRequestFilter validates Alfresco membership).
  * - {@code m2m} — StreamHub client_credentials token (HS256, audience
  *   {@code STREAMHUB_AUDIENCE}). Useful for service probes; M2M only passes
- *   org checks when JWT azp/aud matches {@code org.tenantClientId}.
+ *   org checks when JWT azp/aud matches {@code org.tenantClientId}. Requests
+ *   in the platform scope ({@code /api/v1/orgs/_platform/...}) always forward
+ *   the session.
  *
  * Base URL resolution order:
  * 1. {@code MIOT_STREAMHUB_API_URL}
@@ -56,7 +61,11 @@ export async function forwardToStreamhubModulith(
     );
   }
 
-  const headers = await buildHeaders(session, init?.sessionOnly ?? false);
+  // The modulith checks platform ownership from the token's email, which an M2M token does not carry.
+  const headers = await buildHeaders(
+    session,
+    (init?.sessionOnly ?? false) || path.startsWith(PLATFORM_ORG_PATH)
+  );
   return proxyToUpstream(baseUrl, path, headers, init, {
     upstreamErrorMessage: "Upstream StreamHub modulith request failed",
   });

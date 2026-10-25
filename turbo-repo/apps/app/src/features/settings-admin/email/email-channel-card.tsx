@@ -27,6 +27,7 @@ interface EmailChannelCardProps {
   readonly dict: I18nRecord;
   /** The Credentials dictionary, for the shared Resend credential form. */
   readonly credentialsDict: I18nRecord;
+  readonly onChanged?: () => void;
 }
 
 const NO_TEST: CredentialTestResult = { success: false, message: "" };
@@ -36,6 +37,7 @@ export default function EmailChannelCard({
   orgSlug,
   dict,
   credentialsDict,
+  onChanged,
 }: EmailChannelCardProps) {
   const emailDict = (dict?.emailChannel as I18nRecord) ?? {};
   const { credentials, refresh } = useCredentials(orgSlug);
@@ -85,6 +87,7 @@ export default function EmailChannelCard({
           onNewCredential: () => setCreatingKey(true),
           dict: emailDict,
         }}
+        onChanged={onChanged}
       />
       <ResendCredentialModal
         show={creatingKey}

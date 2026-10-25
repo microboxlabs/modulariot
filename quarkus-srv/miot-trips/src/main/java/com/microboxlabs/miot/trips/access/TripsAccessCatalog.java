@@ -18,9 +18,10 @@ import java.util.Set;
  *   <tr><td>{@value #VIEWER}</td><td>{@value #VIEW}</td></tr>
  *   <tr><td>{@value #OPERATOR}</td><td>+ {@value #STAGE_OPERATE}, {@value #CARGO_OPERATE},
  *       {@value #ASSIGNMENT_WRITE}</td></tr>
- *   <tr><td>{@value #MAINTAINER}</td><td>every trips permission but {@value #FEED_ADMIN} (the feeds' service
- *       accounts use it)</td></tr>
- *   <tr><td>Owner, Admin</td><td>+ {@value #FEED_ADMIN}: the rules of each feed</td></tr>
+ *   <tr><td>{@value #MAINTAINER}</td><td>every trips permission but {@value #FEED_ADMIN} and
+ *       {@value #MONITOR_ADMIN} (the feeds' service accounts use it)</td></tr>
+ *   <tr><td>Owner, Admin</td><td>+ {@value #FEED_ADMIN}: the rules of each feed; {@value #MONITOR_ADMIN}: the
+ *       trip monitors</td></tr>
  * </table>
  */
 @ApplicationScoped
@@ -38,6 +39,7 @@ public class TripsAccessCatalog implements AccessCatalog {
     public static final String LOCATION_WRITE = "trips:location.write";
     public static final String FEED_WRITE = "trips:feed.write";
     public static final String FEED_ADMIN = "trips:feed.admin";
+    public static final String MONITOR_ADMIN = "trips:monitor.admin";
 
     public static final String VIEWER = "TRIPS_VIEWER";
     public static final String OPERATOR = "TRIPS_OPERATOR";
@@ -54,7 +56,9 @@ public class TripsAccessCatalog implements AccessCatalog {
                 PermissionDef.of(ASSIGNMENT_WRITE, "Asignar recursos a viajes", "Assign resources to trips"),
                 PermissionDef.of(LOCATION_WRITE, "Mantener ubicaciones", "Maintain locations"),
                 PermissionDef.of(FEED_WRITE, "Enviar feeds de servicios", "Send service feeds"),
-                PermissionDef.of(FEED_ADMIN, "Configurar las reglas de los feeds", "Configure the rules of feeds"));
+                PermissionDef.of(FEED_ADMIN, "Configurar las reglas de los feeds", "Configure the rules of feeds"),
+                PermissionDef.of(MONITOR_ADMIN, "Configurar los monitores de viajes",
+                        "Configure trip monitors"));
     }
 
     @Override

@@ -38,14 +38,14 @@ public class PgContactStore implements ContactStore {
 
     private static final String COLUMNS = """
             id, tenant_code, name, role, phone, methods, active, notes, created_by, created_at, updated_at,
-            national_id, national_id_type, company, position, channels, tags, member_user_id, provisional""";
+            national_id, national_id_type, company, position, channels, tags, member_user_id, provisional, company_rut""";
 
     private static final String SELECT = "SELECT " + COLUMNS + " FROM miot_symptoms.contact WHERE tenant_code = $1 ";
 
     // A duplicate national id inserts nothing and returns no row.
     private static final String INSERT = "INSERT INTO miot_symptoms.contact (" + COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11,
-                      $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18, $19)
+                      $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18, $19, $20)
             ON CONFLICT (tenant_code, national_id) WHERE national_id IS NOT NULL DO NOTHING
             RETURNING\s""" + COLUMNS;
 
@@ -53,7 +53,7 @@ public class PgContactStore implements ContactStore {
             UPDATE miot_symptoms.contact
             SET name = $3, role = $4, phone = $5, methods = $6::jsonb, active = $7, notes = $8, updated_at = $9,
                 national_id = $10, national_id_type = $11, company = $12, position = $13, channels = $14::jsonb,
-                tags = $15::jsonb, member_user_id = $16, provisional = $17
+                tags = $15::jsonb, member_user_id = $16, provisional = $17, company_rut = $18
             WHERE tenant_code = $1 AND id = $2
             RETURNING\s""" + COLUMNS;
 
@@ -152,7 +152,7 @@ public class PgContactStore implements ContactStore {
     private static void addBookFields(Tuple params, Contact c) {
         params.addString(c.nationalId()).addString(c.nationalIdType()).addString(c.company())
                 .addString(c.position()).addString(PgJson.write(c.channels())).addString(PgJson.write(c.tags()))
-                .addString(c.memberUserId()).addBoolean(c.provisional());
+                .addString(c.memberUserId()).addBoolean(c.provisional()).addString(c.companyRut());
     }
 
     private static List<Contact> contacts(RowSet<Row> rows) {
@@ -167,6 +167,6 @@ public class PgContactStore implements ContactStore {
                 PgJson.time(r, "updated_at"), r.getString("national_id"), r.getString("national_id_type"),
                 r.getString("company"), r.getString("position"),
                 PgJson.read(r, "channels", ContactChannels.class), PgJson.read(r, "tags", TAGS),
-                r.getString("member_user_id"), r.getBoolean("provisional"));
+                r.getString("member_user_id"), r.getBoolean("provisional"), r.getString("company_rut"));
     }
 }

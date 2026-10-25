@@ -3775,6 +3775,7 @@
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Elige la conexión que llama el paso {n}.",
+        "findingStepUnknownConnection": "La conexión del paso {n} ya no existe o no es de este canal.",
         "channel_webhook": "Webhook",
         "channelMenu_webhook": "Llamadas HTTP a sistemas propios",
         "channelHint_webhook": "Las reglas envían el evento y el mensaje en JSON a una URL de la organización. El contrato es el mismo para todas sus conexiones.",
@@ -4112,6 +4113,7 @@
         "findingStepBadRecipients": "Los destinatarios del paso {n} son los de la regla o una lista.",
         "findingStepNoRecipients": "El paso {n} no tiene destinatarios.",
         "menuTemplates": "Lo que envían las reglas de todas las organizaciones",
+        "menuTemplatesOrg": "Lo que pueden enviar las reglas; las edita la plataforma",
         "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma"
       },
       "gps": {

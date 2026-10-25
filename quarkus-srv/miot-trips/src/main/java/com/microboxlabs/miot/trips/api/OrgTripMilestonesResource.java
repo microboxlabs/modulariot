@@ -69,7 +69,7 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
     }
 
     @GET
-    @Path("/trips/{id}/milestones")
+    @Path("/{id}/milestones")
     @Operation(operationId = "listTripMilestones",
             summary = "The trip's departure, arrival and closure: open, pending a confirmation, confirmed or rejected")
     @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
@@ -79,7 +79,7 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
     }
 
     @POST
-    @Path("/trips/{id}/milestones/{milestone}/confirm")
+    @Path("/{id}/milestones/{milestone}/confirm")
     @Operation(operationId = "confirmTripMilestone",
             summary = "Confirms a milestone; the trip's monitor gets <milestone>_confirmed at the confirmed time")
     @PermissionsAllowed(value = TripsAccessCatalog.MILESTONE_CONFIRM, permission = OrgPermission.class,
@@ -94,7 +94,7 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
     }
 
     @POST
-    @Path("/trips/{id}/milestones/{milestone}/reject")
+    @Path("/{id}/milestones/{milestone}/reject")
     @Operation(operationId = "rejectTripMilestone",
             summary = "Rejects the pending detection of a milestone as a false positive; the next one asks again")
     @PermissionsAllowed(value = TripsAccessCatalog.MILESTONE_CONFIRM, permission = OrgPermission.class,

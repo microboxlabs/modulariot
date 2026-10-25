@@ -33,6 +33,14 @@ public interface ModulithJobHandler {
     }
 
     /**
+     * Whether only the modulith itself enqueues jobs of this type, as for events of a signature-verified
+     * webhook: the org-scoped enqueue endpoint refuses them, whatever the caller's {@code enqueuedBy}.
+     */
+    default boolean internalOnly() {
+        return false;
+    }
+
+    /**
      * Execute the job from its self-contained payload. Return the terminal
      * outcome (SUCCEEDED/SKIPPED); throw for a retryable failure.
      *

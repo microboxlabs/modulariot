@@ -222,11 +222,38 @@ export default function CredentialsPageContent({
       icon={HiKey}
       title={tr("title", credentialsDict)}
       description={tr("description", credentialsDict)}
+      filters={
+        <CredentialsToolbar
+          filters={filters}
+          onFiltersChange={setFilters}
+          sort={sort}
+          onSortChange={setSort}
+          types={types}
+          environments={environments}
+          dict={credentialsDict}
+          rootDict={rootDict}
+        />
+      }
       actions={
-        <Button size="sm" color="blue" onClick={handleAdd} disabled={!orgSlug}>
-          <HiPlus className="mr-1 h-4 w-4" />
-          {tr("addButton", credentialsDict)}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <LayoutToggle
+            layout={layout}
+            labels={{
+              cards: tr("viewCards", credentialsDict),
+              list: tr("viewList", credentialsDict),
+            }}
+            onLayout={setLayout}
+          />
+          <Button
+            size="sm"
+            color="blue"
+            onClick={handleAdd}
+            disabled={!orgSlug}
+          >
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("addButton", credentialsDict)}
+          </Button>
+        </div>
       }
     >
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
@@ -239,29 +266,6 @@ export default function CredentialsPageContent({
             </span>
           </Alert>
         )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <CredentialsToolbar
-            filters={filters}
-            onFiltersChange={setFilters}
-            sort={sort}
-            onSortChange={setSort}
-            types={types}
-            environments={environments}
-            dict={credentialsDict}
-            rootDict={rootDict}
-          />
-          <div className="ml-auto">
-            <LayoutToggle
-              layout={layout}
-              labels={{
-                cards: tr("viewCards", credentialsDict),
-                list: tr("viewList", credentialsDict),
-              }}
-              onLayout={setLayout}
-            />
-          </div>
-        </div>
 
         <div>
           {isLoading ? (

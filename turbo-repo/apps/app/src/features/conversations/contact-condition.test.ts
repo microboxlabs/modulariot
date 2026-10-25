@@ -34,10 +34,18 @@ describe("contact condition", () => {
       { kind: "role", value: "a || b" },
     ]);
   });
+
+  it("keeps quotes, backslashes, and logical symbols inside a selected value", () => {
+    const clauses = [
+      { kind: "company" as const, value: "O'Connor && Sons\\West" },
+      { kind: "tag" as const, value: "priority" },
+    ];
+    expect(parseClauses(compileClauses(clauses))).toEqual(clauses);
+  });
 });
 
 describe("book suggestions", () => {
-  it("counts the active contacts' tags, roles and companies, most used first", () => {
+  it("counts exact values used by active contacts", () => {
     const s = bookSuggestions([
       { role: "Despachador", tags: ["transportista", "Sur"], company: "A" },
       { role: "despachador", tags: ["Transportista"], company: "B" },
@@ -45,10 +53,12 @@ describe("book suggestions", () => {
       { role: "Otro", tags: ["transportista"], active: false },
     ]);
     expect(s.tag).toEqual([
-      { value: "transportista", count: 2 },
       { value: "Sur", count: 1 },
+      { value: "transportista", count: 1 },
+      { value: "Transportista", count: 1 },
     ]);
-    expect(s.role[0]).toEqual({ value: "Despachador", count: 2 });
+    expect(s.role).toContainEqual({ value: "Despachador", count: 1 });
+    expect(s.role).toContainEqual({ value: "despachador", count: 1 });
     expect(s.company).toEqual([
       { value: "A", count: 2 },
       { value: "B", count: 1 },

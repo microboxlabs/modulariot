@@ -20,7 +20,7 @@ export const CLAUSE_KINDS: ContactClauseKind[] = [
   "companyRutIs",
 ];
 
-const QUOTED = String.raw`(?:'([^'\\]*)'|"([^"\\]*)")`;
+const QUOTED = String.raw`(?:'([^'\\]*)'|("(?:[^"\\]|\\.)*"))`;
 const PATTERNS: [ContactClauseKind, RegExp][] = [
   ["tag", new RegExp(String.raw`^${QUOTED}\s+in\s+contact\.tags$`)],
   ["role", new RegExp(String.raw`^contact\.role\s*==\s*${QUOTED}$`)],
@@ -35,7 +35,7 @@ export function newClause(kind: ContactClauseKind): ContactClause {
 }
 
 function quote(value: string) {
-  return `'${value.replace(/['\\]/g, "")}'`;
+  return /['\\]/.test(value) ? JSON.stringify(value) : `'${value}'`;
 }
 
 function compileClause(c: ContactClause): string {
@@ -60,7 +60,16 @@ function parseClause(text: string): ContactClause | null {
   if (rut) return { kind: "companyRutIs", field: rut[1] };
   for (const [kind, re] of PATTERNS) {
     const m = re.exec(text);
-    if (m) return { kind, value: m[1] ?? m[2] ?? "" } as ContactClause;
+    if (m) {
+      try {
+        return {
+          kind,
+          value: m[1] ?? JSON.parse(m[2] ?? '""'),
+        } as ContactClause;
+      } catch {
+        return null;
+      }
+    }
   }
   return null;
 }
@@ -69,9 +78,10 @@ function parseClause(text: string): ContactClause | null {
 export function parseClauses(condition: string): ContactClause[] | null {
   const text = condition.trim();
   if (!text) return [];
-  if (/\|\||[()]/.test(text.replace(QUOTED_ANY, "''"))) return null;
+  const parts = splitClauses(text);
+  if (!parts) return null;
   const out: ContactClause[] = [];
-  for (const part of text.split("&&")) {
+  for (const part of parts) {
     const clause = parseClause(part.trim());
     if (!clause) return null;
     out.push(clause);
@@ -79,7 +89,34 @@ export function parseClauses(condition: string): ContactClause[] | null {
   return out;
 }
 
-const QUOTED_ANY = /'[^']*'|"[^"]*"/g;
+function splitClauses(text: string): string[] | null {
+  const parts: string[] = [];
+  let start = 0;
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === quote) quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    } else if (
+      ch === "(" ||
+      ch === ")" ||
+      (ch === "|" && text[i + 1] === "|")
+    ) {
+      return null;
+    } else if (ch === "&" && text[i + 1] === "&") {
+      parts.push(text.slice(start, i));
+      start = ++i + 1;
+    }
+  }
+  if (quote) return null;
+  parts.push(text.slice(start));
+  return parts;
+}
 
 /** A value the book uses and how many active contacts have it. */
 export interface Suggestion {
@@ -94,7 +131,7 @@ export interface BookValues {
   active?: boolean;
 }
 
-/** The tags, roles and companies of the active contacts, most used first, ignoring case. */
+/** The tags, roles and companies of the active contacts, most used first; CEL compares exact text. */
 export function bookSuggestions(
   contacts: readonly BookValues[]
 ): Record<"tag" | "role" | "company", Suggestion[]> {
@@ -106,10 +143,9 @@ export function bookSuggestions(
   const add = (kind: keyof typeof counts, raw: string | null | undefined) => {
     const value = raw?.trim();
     if (!value) return;
-    const key = value.toLowerCase();
-    const s = counts[kind].get(key);
+    const s = counts[kind].get(value);
     if (s) s.count += 1;
-    else counts[kind].set(key, { value, count: 1 });
+    else counts[kind].set(value, { value, count: 1 });
   };
   for (const c of contacts) {
     if (c.active === false) continue;

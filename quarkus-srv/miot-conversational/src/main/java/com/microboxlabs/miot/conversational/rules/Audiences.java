@@ -100,13 +100,12 @@ public final class Audiences {
     }
 
     private List<ContactDirectory.Entry> book(String tenantCode) {
+        if (directories.isEmpty()) {
+            throw new IllegalStateException("Contact book is unavailable");
+        }
         List<ContactDirectory.Entry> out = new ArrayList<>();
         for (ContactDirectory d : directories) {
-            try {
-                out.addAll(d.active(tenantCode));
-            } catch (RuntimeException e) {
-                LOG.warnf("Contact book for %s unavailable (%s)", tenantCode, e.getClass().getSimpleName());
-            }
+            out.addAll(d.active(tenantCode));
         }
         return out;
     }
@@ -121,6 +120,7 @@ public final class Audiences {
         m.put("company", text(c.company()));
         m.put("companyRut", text(c.companyRut()));
         m.put("position", text(c.position()));
+        m.put("member", c.member());
         m.put("email", text(c.email()));
         m.put("whatsapp", text(c.whatsapp()));
         return m;

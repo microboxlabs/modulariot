@@ -31,6 +31,7 @@ import java.util.Optional;
 public final class EventCondition {
 
     private static final String EVENT_VAR = "event";
+    private static final String CONTACT_VAR = "contact";
 
     /** A compile error at a zero-based character offset. */
     public record Issue(int position, String message, String detail) {
@@ -48,7 +49,7 @@ public final class EventCondition {
                     .enableUnknownTracking(true).build())
             .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
             .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
-            .addVar("contact", MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .addVar(CONTACT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
             .build();
 
     private static final int MAX_PROGRAMS = 512;
@@ -105,7 +106,7 @@ public final class EventCondition {
         if (when == null || when.isBlank()) {
             return false;
         }
-        return eval(CONTACT_CEL, when, Map.of(EVENT_VAR, normalize(event), "contact", normalize(contact)));
+        return eval(CONTACT_CEL, when, Map.of(EVENT_VAR, normalize(event), CONTACT_VAR, normalize(contact)));
     }
 
     /** Whether a contact meets an audience's condition with no event at hand. */
@@ -126,7 +127,7 @@ public final class EventCondition {
             return Reach.NO;
         }
         try {
-            Object result = program.eval(PartialVars.of(Map.of("contact", normalize(contact)),
+            Object result = program.eval(PartialVars.of(Map.of(CONTACT_VAR, normalize(contact)),
                     CelAttributePattern.create(EVENT_VAR)));
             if (result instanceof CelUnknownSet) {
                 return Reach.DEPENDS;

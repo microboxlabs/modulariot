@@ -260,7 +260,7 @@ export default function CommunicationsPage({
           selected={section}
           onSelect={onSection}
         />
-        <div className="flex min-h-0 flex-col gap-4 pr-1 md:overflow-y-auto">
+        <div className="-m-1 flex min-h-0 flex-col gap-4 p-1 md:overflow-y-auto">
           {section === "rules" && (
             <RulesTab lang={lang} filters={ruleFilters} layout={layout} d={d} />
           )}

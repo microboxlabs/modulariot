@@ -128,7 +128,7 @@ export function TemplateCard({
   return (
     <Link
       href={platformTemplateHref(lang, t.key)}
-      className={`${CARD} transition hover:border-blue-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:border-blue-500`}
+      className={`${CARD} transition hover:border-blue-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:border-blue-500`}
     >
       {body}
     </Link>

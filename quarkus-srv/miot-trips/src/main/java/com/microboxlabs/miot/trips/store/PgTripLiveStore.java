@@ -26,6 +26,8 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgTripLiveStore implements TripLiveStore {
 
+    private static final String SELECT = "SELECT ";
+
     private static final String COLUMNS = """
             trip_id, tenant_code, mandate_codes::text AS mandate_codes, asset_id, trip_type,
             origin_geofence_id, destination_geofence_id, origin_geofence_label, destination_geofence_label,
@@ -50,7 +52,7 @@ public class PgTripLiveStore implements TripLiveStore {
     @Override
     public List<TripLiveRow> list(String tenantCode) {
         return query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.trip_live WHERE tenant_code = $1 ORDER BY updated_at DESC",
+                SELECT + COLUMNS + " FROM miot_trips.trip_live WHERE tenant_code = $1 ORDER BY updated_at DESC",
                 Tuple.of(tenantCode))
                 .stream().map(PgTripLiveStore::row).toList();
     }
@@ -58,10 +60,17 @@ public class PgTripLiveStore implements TripLiveStore {
     @Override
     public Optional<TripLiveRow> find(String tenantCode, UUID tripId) {
         RowSet<Row> rows = query(pool.get(),
-                "SELECT " + COLUMNS + " FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2",
+                SELECT + COLUMNS + " FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2",
                 Tuple.of(tenantCode, tripId));
         RowIterator<Row> it = rows.iterator();
         return it.hasNext() ? Optional.of(row(it.next())) : Optional.empty();
+    }
+
+    @Override
+    public Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId) {
+        query(pool.get(), "SELECT id FROM miot_trips.trip WHERE tenant_code = $1 AND id = $2 FOR UPDATE",
+                Tuple.of(tenantCode, tripId));
+        return find(tenantCode, tripId);
     }
 
     @Override
@@ -121,6 +130,26 @@ public class PgTripLiveStore implements TripLiveStore {
     public void delete(String tenantCode, UUID tripId) {
         query(pool.get(), "DELETE FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2",
                 Tuple.of(tenantCode, tripId));
+    }
+
+    @Override
+    public List<TripLiveRow> watched() {
+        return query(pool.get(), SELECT + COLUMNS + """
+                 FROM miot_trips.trip_live
+                WHERE asset_id IS NOT NULL
+                  AND (origin_geofence_id IS NOT NULL OR destination_geofence_id IS NOT NULL
+                       OR cardinality(stop_geofence_ids) > 0)""", Tuple.tuple())
+                .stream().map(PgTripLiveStore::row).toList();
+    }
+
+    @Override
+    public void saveMotorState(String tenantCode, UUID tripId, Integer currentGeofenceId, boolean originVisited,
+            boolean destinationVisited) {
+        query(pool.get(), """
+                UPDATE miot_trips.trip_live
+                SET current_geofence_id = $3, origin_visited = $4, destination_visited = $5, updated_at = now()
+                WHERE tenant_code = $1 AND trip_id = $2""",
+                Tuple.of(tenantCode, tripId, currentGeofenceId, originVisited, destinationVisited));
     }
 
     private static TripLiveRow row(Row r) {

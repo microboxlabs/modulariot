@@ -633,6 +633,11 @@ public class InMemoryTripsWorld {
         }
 
         @Override
+        public Optional<TripLiveRow> lockWatched(String tenantCode, UUID tripId) {
+            return find(tenantCode, tripId);
+        }
+
+        @Override
         public void upsert(TripLiveProjection projection) {
             live.put(projection.tripId(), projection);
         }
@@ -640,6 +645,19 @@ public class InMemoryTripsWorld {
         @Override
         public void delete(String tenantCode, UUID tripId) {
             live.remove(tripId.toString());
+        }
+
+        @Override
+        public List<TripLiveRow> watched() {
+            return live.values().stream().filter(p -> p.assetId() != null
+                    && (p.originGeofenceId() != null || p.destinationGeofenceId() != null))
+                    .map(InMemoryTripsWorld::row).toList();
+        }
+
+        @Override
+        public void saveMotorState(String tenantCode, UUID tripId, Integer currentGeofenceId, boolean originVisited,
+                boolean destinationVisited) {
+            // the in-memory row keeps no motor state
         }
     }
 

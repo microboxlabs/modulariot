@@ -137,8 +137,8 @@ public class CredentialProfileService {
 
     /**
      * Partial update. An absent or empty {@code secretConfig} keeps the stored secret —
-     * the form cannot show it, so it submits nothing to mean "leave it alone". Rotating a
-     * bearer token preserves any stored WhatsApp webhook keys.
+     * the form cannot show it, so it submits nothing to mean "leave it alone". A bearer
+     * credential keeps every secret key that the request leaves out.
      *
      * @return the updated credential, or {@code null} when it does not exist
      */
@@ -197,19 +197,10 @@ public class CredentialProfileService {
         }
         Map<String, Object> secret = new LinkedHashMap<>(requestedSecret);
         if (current.credentialType() == CredentialType.BEARER_TOKEN) {
-            // The generic credential screen sends only the access token. Keep the webhook
-            // keys that share a WhatsApp credential unless the caller explicitly replaces them.
-            Map<String, Object> stored = decrypt(current);
-            preserveWebhookKey(secret, stored, WhatsAppWebhookKeys.APP_SECRET);
-            preserveWebhookKey(secret, stored, WhatsAppWebhookKeys.VERIFY_TOKEN);
+            // The WhatsApp credential form sends only the keys it changed.
+            decrypt(current).forEach(secret::putIfAbsent);
         }
         return secret;
-    }
-
-    private static void preserveWebhookKey(Map<String, Object> updates, Map<String, Object> stored, String key) {
-        if (!updates.containsKey(key) && stored.containsKey(key)) {
-            updates.put(key, stored.get(key));
-        }
     }
 
     /**

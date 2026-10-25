@@ -306,6 +306,20 @@ class CredentialProfileServiceTest {
     }
 
     @Test
+    void credentialsScreenCanChangeOnlyAWebhookKey() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "access", "app_secret", "old", "verify_token", "verify")));
+
+        service().update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(
+                null, null, null, Map.of("app_secret", "new")));
+
+        assertEquals(Map.of("token", "access", "app_secret", "new", "verify_token", "verify"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
+    @Test
     void mergingSecretsRetriesAfterAConcurrentRotation() {
         CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
                 "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),

@@ -2763,7 +2763,13 @@
           "whatsappAddTitle": "New WhatsApp token",
           "whatsappEditTitle": "Edit WhatsApp token",
           "whatsappSubtitle": "The access token the WhatsApp channel calls the Meta API with.",
-          "whatsappTokenHelp": "A Meta system user token. Stored encrypted and never returned."
+          "whatsappTokenHelp": "A Meta system user token. Stored encrypted and never returned.",
+          "appSecret": "Meta App secret",
+          "appSecretPlaceholder": "App settings › Basic",
+          "verifyToken": "Webhook verify token",
+          "verifyTokenPlaceholder": "A string you choose",
+          "webhookKeyEditPlaceholder": "Leave blank to keep the current one",
+          "webhookKeysHelp": "Used to receive replies and message statuses. Enter the same verify token in Meta when you set up the webhook."
         },
         "delete": {
           "title": "Delete this credential?",

@@ -40,6 +40,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -323,6 +324,27 @@ class PgMonitorEngineTest {
         assertThrows(IllegalArgumentException.class,
                 () -> milestones.confirm(tenant, ACTOR, tripId, "unloading", null, "ui", null));
     }
+
+    @Test
+    void retryingConfirmationWithoutTimeOrWithNanosecondsKeepsTheFirstTime() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        OffsetDateTime precise = OffsetDateTime.parse("2026-10-25T08:40:00.123456789Z");
+        MilestoneService.Outcome first = milestones.confirm(tenant, ACTOR, tripId, "departure", precise,
+                "api", null);
+        OffsetDateTime stored = precise.truncatedTo(ChronoUnit.MICROS);
+        assertTrue(stored.isEqual(first.milestone().confirmedAt()));
+        assertEquals(MilestoneService.Result.UNCHANGED,
+                milestones.confirm(tenant, ACTOR, tripId, "departure", precise, "api", null).result());
+        assertEquals(MilestoneService.Result.UNCHANGED,
+                milestones.confirm(tenant, ACTOR, tripId, "departure", null, "api", null).result());
+        assertTrue(stored.isEqual(milestone(tripId, "departure").confirmedAt()));
+        MonitorRun.Transition moved = engine.transitions(tenant, tripId, 50).stream()
+                .filter(x -> "departure-confirmed".equals(x.ruleKey())).findFirst().orElseThrow();
+        assertEquals(stored.toInstant().toString(),
+                OffsetDateTime.parse((String) moved.event().get("at")).toInstant().toString());
+    }
+
     @Test
     void cancellationImmediatelyRemovesPendingTimers() {
         UUID tripId = id(newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).plusHours(1)));

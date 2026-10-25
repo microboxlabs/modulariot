@@ -105,6 +105,7 @@ public class MonitorEngine implements TripChanges {
                 fleet, audit, tx, Clock.systemUTC());
     }
 
+    @SuppressWarnings("java:S107") // The Clock overload mirrors the CDI constructor for deterministic tests.
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
@@ -136,7 +137,7 @@ public class MonitorEngine implements TripChanges {
         }
         String command = "started".equals(event.kind()) ? START : CLOSE;
         List<MonitorRun.Event> events = STAGE.equals(event.on())
-                ? List.of(new MonitorRun.Event(tenantCode, tripId, "command",
+                ? List.of(new MonitorRun.Event(tenantCode, tripId, COMMAND,
                         command, event.at(), actor, event.data()), event)
                 : List.of(event);
         try {
@@ -243,7 +244,7 @@ public class MonitorEngine implements TripChanges {
             return;
         }
         run.touched.add(tenant + "|" + tripId);
-        if (finished(trip) && !STAGE.equals(e.on()) && !"command".equals(e.on())) {
+        if (finished(trip) && !STAGE.equals(e.on()) && !COMMAND.equals(e.on())) {
             return;
         }
         if (TIMER.equals(e.on()) && !due(e, state.get())) {

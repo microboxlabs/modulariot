@@ -33,6 +33,7 @@ final class MonitorContext {
     private static final String GEOFENCE_ID = "geofenceId";
 
     private static final String STATUS = "status";
+    private static final String CHANNEL = "channel";
 
     private static final String PLANNED_START = "plannedStart";
 
@@ -110,7 +111,7 @@ final class MonitorContext {
         putIf(e, "kind", event.kind());
         putIf(e, "stageType", event.data().get("stageType"));
         putIf(e, "milestone", event.data().get("milestone"));
-        putIf(e, "channel", event.data().get("channel"));
+        putIf(e, CHANNEL, event.data().get(CHANNEL));
         putIf(e, "at", instant(event.at()));
         putIf(e, "actor", event.actor());
         return e;
@@ -186,9 +187,9 @@ final class MonitorContext {
         Map<String, Object> out = new LinkedHashMap<>();
         for (TripMilestone m : milestones.list(tenant, tripId)) {
             Map<String, Object> v = new LinkedHashMap<>();
-            putIf(v, "status", m.status());
+            putIf(v, STATUS, m.status());
             putIf(v, "source", m.source());
-            putIf(v, "channel", m.channel());
+            putIf(v, CHANNEL, m.channel());
             putIf(v, "proposedAt", instant(m.proposedAt()));
             putIf(v, "confirmedAt", instant(m.confirmedAt()));
             out.put(m.milestone(), v);

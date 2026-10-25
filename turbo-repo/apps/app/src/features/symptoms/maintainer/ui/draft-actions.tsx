@@ -35,6 +35,7 @@ export default function DraftActions({
   d,
   onReview,
   onDiscard,
+  discardDisabled = false,
 }: Readonly<{
   /** Null while the changes are not known yet. */
   changes: number | null;
@@ -51,6 +52,7 @@ export default function DraftActions({
   onReview: () => void;
   /** Absent when there is no version to go back to. */
   onDiscard?: () => void;
+  discardDisabled?: boolean;
 }>) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -99,10 +101,10 @@ export default function DraftActions({
           )}
         </button>
         {open && (
-          <div
-            role="dialog"
+          <dialog
+            open
             aria-label={tr("draftBarLabel", d)}
-            className="absolute right-0 z-40 mt-1 flex w-72 flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-lg dark:border-gray-600 dark:bg-gray-700"
+            className="absolute top-full right-0 left-auto z-40 m-0 mt-1 flex w-72 flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-lg dark:border-gray-600 dark:bg-gray-700"
           >
             {nextVersion && bump && (
               <div className="flex items-center gap-2">
@@ -143,7 +145,7 @@ export default function DraftActions({
             >
               {tr("seeChanges", d)}
             </button>
-          </div>
+          </dialog>
         )}
       </div>
       {onDiscard && (
@@ -151,6 +153,7 @@ export default function DraftActions({
           type="button"
           title={tr("discard", d)}
           aria-label={tr("discard", d)}
+          disabled={discardDisabled}
           className={`${ICON_BUTTON} border-gray-300 bg-white text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`}
           onClick={onDiscard}
         >

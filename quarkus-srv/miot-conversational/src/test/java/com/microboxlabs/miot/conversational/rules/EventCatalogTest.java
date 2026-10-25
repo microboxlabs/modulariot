@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** The event catalog's JSON, as the rule editor reads it. */
@@ -47,6 +48,14 @@ class EventCatalogTest {
                 EventCatalog.variables(EventCatalog.fields(Plain.class)).stream().map(EventCatalog.Field::name)
                         .toList());
         assertEquals(List.of(), EventCatalog.fields(String.class));
+    }
+
+    @Test
+    void collectionAndMapFieldsAreNotReportedAsScalarStrings() {
+        record Payload(List<String> changedFields, Map<String, Object> eventData, String label) {
+        }
+        assertEquals(List.of("changedFields:array", "eventData:object", "label:string"),
+                EventCatalog.fields(Payload.class).stream().map(f -> f.name() + ":" + f.type()).toList());
     }
 
     private static List<String> fields(JsonNode type) {

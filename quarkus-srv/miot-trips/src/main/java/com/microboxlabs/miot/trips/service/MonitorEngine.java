@@ -53,10 +53,15 @@ import org.jboss.logging.Logger;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class MonitorEngine implements TripChanges {
 
+    private static final String CLOSE_MANDATES = "closeMandates";
+    private static final String CLOSE = "close";
+    private static final String START = "start";
+    private static final String STAGE = "stage";
+    private static final String MONITOR = "monitor";
     static final int MAX_DEPTH = 5;
     private static final Logger LOG = Logger.getLogger(MonitorEngine.class);
     private static final Set<String> STATE_ACTIONS =
-            Set.of("advance", "start", "close", "completeTrip", "cancelTrip", "closeMandates");
+            Set.of("advance", START, CLOSE, "completeTrip", "cancelTrip", CLOSE_MANDATES);
     private static final String TIMER = "timer";
     private static final String STAGE_TYPE = "stageType";
 
@@ -91,13 +96,6 @@ public class MonitorEngine implements TripChanges {
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, FleetResources fleet, AuditService audit, Transactions tx) {
-        this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, fleet, audit,
-                tx, Clock.systemUTC());
-    }
-
-    public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
-            AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
-            MandateService mandates, FleetResources fleet, AuditService audit, Transactions tx, Clock clock) {
         this.runs = runs;
         this.monitors = monitors;
         this.trips = trips;
@@ -107,7 +105,7 @@ public class MonitorEngine implements TripChanges {
         this.mandates = mandates;
         this.audit = audit;
         this.tx = tx;
-        this.clock = clock;
+        this.clock = Clock.systemUTC();
         this.context = new MonitorContext(trips, stageStore, assignments, locations, mandates, fleet);
     }
 
@@ -122,12 +120,11 @@ public class MonitorEngine implements TripChanges {
             run.queue.add(new Queued(event, run.depth + 1));
             return;
         }
-        List<MonitorRun.Event> events = new ArrayList<>();
-        if ("stage".equals(event.on())) {
-            events.add(new MonitorRun.Event(tenantCode, tripId, "command",
-                    "started".equals(event.kind()) ? "start" : "close", event.at(), actor, event.data()));
-        }
-        events.add(event);
+        String command = "started".equals(event.kind()) ? START : CLOSE;
+        List<MonitorRun.Event> events = STAGE.equals(event.on())
+                ? List.of(new MonitorRun.Event(tenantCode, tripId, "command",
+                        command, event.at(), actor, event.data()), event)
+                : List.of(event);
         try {
             // a failure here must not undo the change that was audited
             PgTx.savepoint(() -> process(events));
@@ -171,7 +168,7 @@ public class MonitorEngine implements TripChanges {
             runs.dropPendingTimers(tenantCode, tripId);
             MonitorRun.State state = runs.bind(tenantCode, tripId, key, m.version(), actor);
             audit.log(tenantCode, actor, "monitor.bound", "trip", tripId.toString(), null,
-                    Map.of("monitor", key, "version", m.version()));
+                    Map.of(MONITOR, key, "version", m.version()));
             reschedule(tenantCode, tripId);
             return runs.state(tenantCode, tripId).orElse(state);
         });
@@ -232,7 +229,7 @@ public class MonitorEngine implements TripChanges {
             return;
         }
         run.touched.add(tenant + "|" + tripId);
-        if (finished(trip) && !"stage".equals(e.on()) && !"command".equals(e.on())) {
+        if (finished(trip) && !STAGE.equals(e.on()) && !"command".equals(e.on())) {
             return;
         }
         if (TIMER.equals(e.on()) && !due(e, state.get())) {
@@ -243,62 +240,83 @@ public class MonitorEngine implements TripChanges {
             return;
         }
         if (q.depth() > MAX_DEPTH) {
-            record(run, m, e, q.depth(), List.of(), null, running(trip), running(trip), List.of(),
-                    "more than " + MAX_DEPTH + " chained events: the rules start each other");
+            recordTransition(run, m, q, new TransitionResult(List.of(), null, running(trip), running(trip), List.of(),
+                    "more than " + MAX_DEPTH + " chained events: the rules start each other"));
             return;
         }
-        List<TripMonitor.Rule> candidates = m.rules().stream()
-                .filter(r -> r.active() && r.on().equals(e.on())
-                        && (!TIMER.equals(e.on()) || r.key().equals(e.kind())))
-                .toList();
+        evaluateRules(run, q, trip, m);
+    }
+
+    private static final class RuleEffects {
+        private final List<String> matched = new ArrayList<>();
+        private final List<String> errors = new ArrayList<>();
+        private final List<Map<String, Object>> actions = new ArrayList<>();
+        private String stateRule;
+    }
+
+    private record TransitionResult(List<String> matched, String ruleKey, String from, String to,
+            List<Map<String, Object>> actions, String error) {
+    }
+
+    private void evaluateRules(Run run, Queued q, Trip trip, TripMonitor monitor) {
+        MonitorRun.Event event = q.event();
+        List<TripMonitor.Rule> candidates = monitor.rules().stream()
+                .filter(rule -> matchesTrigger(rule, event)).toList();
         if (candidates.isEmpty()) {
             return;
         }
-        Map<String, Object> ctx = context.of(trip, e, m.params());
+        Map<String, Object> ctx = context.of(trip, event, monitor.params());
         String from = running(trip);
-        String actor = "monitor:" + m.monitorKey() + "@v" + m.version();
-        List<String> matched = new ArrayList<>();
-        List<String> errors = new ArrayList<>();
-        List<Map<String, Object>> done = new ArrayList<>();
-        TripMonitor.Rule stateRule = null;
-        for (TripMonitor.Rule r : candidates) {
-            if (!holds(m, r, ctx, errors)) {
-                continue;
-            }
-            matched.add(r.key());
-            List<TripMonitor.Action> stateActions = r.then().stream()
-                    .filter(a -> STATE_ACTIONS.contains(a.type())).toList();
-            if (!stateActions.isEmpty() && stateRule == null) {
-                stateRule = r;
-                int queued = run.queue.size();
-                try {
-                    List<Map<String, Object>> applied = new ArrayList<>();
-                    PgTx.savepoint(() -> {
-                        for (TripMonitor.Action a : stateActions) {
-                            applied.add(apply(tenant, tripId, a, actor));
-                        }
-                        return null;
-                    });
-                    done.addAll(applied);
-                } catch (RuntimeException ex) {
-                    while (run.queue.size() > queued) {
-                        run.queue.pollLast();
-                    }
-                    errors.add(r.key() + ": " + message(ex));
-                }
-            }
-            for (TripMonitor.Action a : r.then()) {
-                if (!STATE_ACTIONS.contains(a.type())) {
-                    done.add(action(a, r.key(), "recorded"));
-                }
+        String actor = "monitor:" + monitor.monitorKey() + "@v" + monitor.version();
+        RuleEffects effects = new RuleEffects();
+        for (TripMonitor.Rule rule : candidates) {
+            if (holds(monitor, rule, ctx, effects.errors)) {
+                effects.matched.add(rule.key());
+                applyRule(run, trip, rule, actor, effects);
             }
         }
-        if (matched.isEmpty() && errors.isEmpty()) {
+        if (effects.matched.isEmpty() && effects.errors.isEmpty()) {
             return;
         }
-        Trip after = trips.find(tenant, tripId).orElse(trip);
-        record(run, m, e, q.depth(), matched, stateRule == null ? null : stateRule.key(), from, running(after), done,
-                errors.isEmpty() ? null : String.join("; ", errors));
+        Trip after = trips.find(trip.tenantCode(), UUID.fromString(trip.id())).orElse(trip);
+        recordTransition(run, monitor, q, new TransitionResult(effects.matched, effects.stateRule, from,
+                running(after), effects.actions, effects.errors.isEmpty() ? null : String.join("; ", effects.errors)));
+    }
+
+    private static boolean matchesTrigger(TripMonitor.Rule rule, MonitorRun.Event event) {
+        return rule.active() && rule.on().equals(event.on())
+                && (!TIMER.equals(event.on()) || rule.key().equals(event.kind()));
+    }
+
+    private void applyRule(Run run, Trip trip, TripMonitor.Rule rule, String actor, RuleEffects effects) {
+        List<TripMonitor.Action> stateActions = rule.then().stream()
+                .filter(action -> STATE_ACTIONS.contains(action.type())).toList();
+        if (!stateActions.isEmpty() && effects.stateRule == null) {
+            effects.stateRule = rule.key();
+            applyStateActions(run, trip, stateActions, actor, effects);
+        }
+        rule.then().stream().filter(action -> !STATE_ACTIONS.contains(action.type()))
+                .forEach(action -> effects.actions.add(action(action, rule.key(), "recorded")));
+    }
+
+    private void applyStateActions(Run run, Trip trip, List<TripMonitor.Action> actions, String actor,
+            RuleEffects effects) {
+        int queued = run.queue.size();
+        try {
+            List<Map<String, Object>> applied = new ArrayList<>();
+            PgTx.savepoint(() -> {
+                for (TripMonitor.Action action : actions) {
+                    applied.add(apply(trip.tenantCode(), UUID.fromString(trip.id()), action, actor));
+                }
+                return null;
+            });
+            effects.actions.addAll(applied);
+        } catch (RuntimeException failure) {
+            while (run.queue.size() > queued) {
+                run.queue.pollLast();
+            }
+            effects.errors.add(effects.stateRule + ": " + message(failure));
+        }
     }
 
     /** A timer fires once, and only while the trip has not changed since it was scheduled. */
@@ -342,14 +360,14 @@ public class MonitorEngine implements TripChanges {
                 }
                 stages.start(tenant, actor, UUID.fromString(target.id()));
             }
-            case "start" -> stages.start(tenant, actor, UUID.fromString(pending(tenant, tripId, v)
+            case START -> stages.start(tenant, actor, UUID.fromString(pending(tenant, tripId, v)
                     .orElseThrow(() -> new IllegalStateException("no pending " + v + " stage")).id()));
-            case "close" -> stages.close(tenant, actor, UUID.fromString(running(tenant, tripId)
+            case CLOSE -> stages.close(tenant, actor, UUID.fromString(running(tenant, tripId)
                     .filter(s -> s.stageType().equals(v))
                     .orElseThrow(() -> new IllegalStateException("the " + v + " stage is not in progress")).id()));
             case "completeTrip" -> completeTrip(tenant, tripId, actor);
             case "cancelTrip" -> tripService.cancel(tenant, actor, tripId, v);
-            case "closeMandates" -> {
+            case CLOSE_MANDATES -> {
                 return closeMandates(tenant, tripId, actor);
             }
             default -> throw new IllegalStateException("unknown action " + a.type());
@@ -386,7 +404,7 @@ public class MonitorEngine implements TripChanges {
             }
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("type", "closeMandates");
+        out.put("type", CLOSE_MANDATES);
         out.put("result", "done");
         out.put("closed", closed);
         out.put("kept", kept);
@@ -442,7 +460,7 @@ public class MonitorEngine implements TripChanges {
     /** A new trip gets the monitor it asked for, or the selector's; empty when neither gives one. */
     private Optional<MonitorRun.State> bindNew(Trip trip, MonitorRun.Event e) {
         String tenant = trip.tenantCode();
-        Object asked = e.data().get("monitor");
+        Object asked = e.data().get(MONITOR);
         String key = asked instanceof String s ? s : select(trip).orElse(null);
         if (key == null) {
             return Optional.empty();
@@ -461,7 +479,7 @@ public class MonitorEngine implements TripChanges {
             }
         }
         audit.log(tenant, e.actor(), "monitor.bound", "trip", trip.id(), null,
-                Map.of("monitor", key, "version", m.get().version()));
+                Map.of(MONITOR, key, "version", m.get().version()));
         return Optional.of(state);
     }
 
@@ -504,8 +522,8 @@ public class MonitorEngine implements TripChanges {
                 k -> MonitorLanguage.prepare(MonitorSchema.of(r.on(), m.params()), expression));
     }
 
-    private void record(Run run, TripMonitor m, MonitorRun.Event e, int depth, List<String> matched,
-            String ruleKey, String from, String to, List<Map<String, Object>> actions, String error) {
+    private void recordTransition(Run run, TripMonitor m, Queued queued, TransitionResult result) {
+        MonitorRun.Event e = queued.event();
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("on", e.on());
         event.put("kind", e.kind());
@@ -515,8 +533,9 @@ public class MonitorEngine implements TripChanges {
             event.put("data", e.data());
         }
         MonitorRun.Transition t = new MonitorRun.Transition(0, e.tenantCode(), e.tripId(), m.monitorKey(),
-                m.version(), event, depth, matched, ruleKey, from, to, actions, error, e.at(), null);
-        runs.record(t);
+                m.version(), event, queued.depth(), result.matched(), result.ruleKey(), result.from(), result.to(),
+                result.actions(), result.error(), e.at(), null);
+        runs.recordTransition(t);
         run.recorded.add(t);
     }
 
@@ -544,8 +563,8 @@ public class MonitorEngine implements TripChanges {
             case "trip.mandate_linked", "trip.mandate_unlinked" -> new String[] {"plan", "mandates"};
             case "stage.added", "stage.updated" -> new String[] {"plan", "stages"};
             case "assignment.created", "assignment.ended" -> new String[] {"plan", "resources"};
-            case "stage.started" -> new String[] {"stage", "started"};
-            case "stage.closed" -> new String[] {"stage", "closed"};
+            case "stage.started" -> new String[] {STAGE, "started"};
+            case "stage.closed" -> new String[] {STAGE, "closed"};
             default -> action.startsWith("trip_cargo.") ? new String[] {"plan", "cargo"} : null;
         };
         if (onKind == null) {
@@ -555,8 +574,8 @@ public class MonitorEngine implements TripChanges {
         if (d.get(STAGE_TYPE) != null) {
             data.put(STAGE_TYPE, d.get(STAGE_TYPE));
         }
-        if (d.get("monitor") != null) {
-            data.put("monitor", d.get("monitor"));
+        if (d.get(MONITOR) != null) {
+            data.put(MONITOR, d.get(MONITOR));
         }
         return new MonitorRun.Event(tenant, tripId, onKind[0], onKind[1], at, actor, data);
     }

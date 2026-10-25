@@ -77,7 +77,7 @@ class PgMonitorEngineTest {
     private final MonitorEngine engine = new MonitorEngine(runs, monitorStore, new PgTripStore(() -> pool),
             new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool), new PgLocationStore(() -> pool), stages,
             trips, mandates, new FleetResourcesService(new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(
-                    () -> pool)), audit, tx, Clock.systemUTC());
+                    () -> pool)), audit, tx);
 
     private String tenant;
 

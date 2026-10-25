@@ -47,7 +47,7 @@ public interface MonitorRunStore {
      */
     List<MonitorRun.Timer> claimDue(OffsetDateTime now, int claimSeconds, int limit);
 
-    void record(MonitorRun.Transition transition);
+    void recordTransition(MonitorRun.Transition transition);
 
     /** The trip's transitions, newest first. */
     List<MonitorRun.Transition> transitions(String tenantCode, UUID tripId, int limit);

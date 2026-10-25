@@ -81,7 +81,7 @@ class PgGeofenceSignalsTest {
     private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
     private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
             new PgTripStore(() -> pool), new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool),
-            new PgLocationStore(() -> pool), stages, trips, mandates, fleet, audit, tx, Clock.systemUTC());
+            new PgLocationStore(() -> pool), stages, trips, mandates, fleet, audit, tx);
     private final PgLocationStore locations = new PgLocationStore(() -> pool);
     private final PgTripLiveStore live = new PgTripLiveStore(() -> pool);
     private final FakeGeofences geofences = new FakeGeofences()

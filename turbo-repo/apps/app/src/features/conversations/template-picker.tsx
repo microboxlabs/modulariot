@@ -12,11 +12,7 @@ import { HiCheck, HiChevronDown } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ChannelIcon from "./channel-icon";
-import type {
-  ConversationTemplate,
-  MetaTemplate,
-  RuleChannel,
-} from "./conversations-types";
+import type { ConversationTemplate, MetaTemplate } from "./conversations-types";
 import { findMetaTemplate } from "./meta-template-combobox";
 import MetaTemplatePreview from "./meta-template-preview";
 import { fillText } from "./rule-model";
@@ -41,7 +37,7 @@ export function matchStepTemplates(
 /** Whether the template has what the channel sends: its Meta template, its email, or its base text. */
 export function templateFits(
   t: ConversationTemplate,
-  channel: RuleChannel | string
+  channel: string
 ): boolean {
   if (channel === "whatsapp") return t.whatsapp !== null;
   if (channel === "email") return t.email !== null;
@@ -127,6 +123,18 @@ function WhatsAppPreview({
   );
 }
 
+type PreviewPart = "whatsapp" | "email" | "base";
+
+function previewParts(
+  template: ConversationTemplate,
+  channel: string
+): PreviewPart[] {
+  if (channel === "whatsapp") return ["whatsapp"];
+  if (channel === "email") return ["email"];
+  if (channel === "preferred") return ["whatsapp", "email"];
+  return template.email ? ["email"] : ["base"];
+}
+
 /** The message a step sends with the template, drawn as its channel shows it, with sample values. */
 export function TemplatePreview({
   template,
@@ -135,20 +143,11 @@ export function TemplatePreview({
   d,
 }: Readonly<{
   template: ConversationTemplate;
-  channel: RuleChannel | string;
+  channel: string;
   meta: MetaTemplate[];
   d: I18nRecord;
 }>) {
-  const parts: ("whatsapp" | "email" | "base")[] =
-    channel === "whatsapp"
-      ? ["whatsapp"]
-      : channel === "email"
-        ? ["email"]
-        : channel === "preferred"
-          ? ["whatsapp", "email"]
-          : template.email
-            ? ["email"]
-            : ["base"];
+  const parts = previewParts(template, channel);
   return (
     <div className="flex flex-col gap-3">
       {parts.map((p) => (
@@ -206,7 +205,7 @@ export default function TemplatePicker({
 }: Readonly<{
   value: string;
   templates: ConversationTemplate[];
-  channel: RuleChannel | string;
+  channel: string;
   meta: MetaTemplate[];
   /** The option without a template; "Sin plantilla" where the template is optional. */
   emptyLabel: string;

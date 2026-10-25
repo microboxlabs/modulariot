@@ -46,10 +46,23 @@ public class RuleInvocations {
         }
         RulesService.RuleDetail detail = rules.detail(tenantCode, id);
         Rule rule = detail.rule();
-        RuleVersion version;
-        boolean test;
-        if (invocation.draft()) {
-            version = detail.draft() != null ? detail.draft() : detail.current();
+        Selection selection = selectVersion(tenantCode, detail, invocation);
+        RuleVersion version = selection.version();
+        boolean test = selection.test();
+        RuleSpec spec = RuleSpec.read(version.spec());
+        Map<String, List<Invocation.Person>> to = Invocation.recipients(spec, invocation.to());
+        Run run = new Run(null, tenantCode, rule.id(), invocation.isDraft() ? Invocation.DRAFT : version.version(), null,
+                null, null, test, Run.Status.WAITING, 0, null, null, null, null, to.isEmpty() ? null : to,
+                invocation.key());
+        return engine.invoke(event(tenantCode, spec, invocation), run, spec.steps());
+    }
+
+    private record Selection(RuleVersion version, boolean test) {
+    }
+
+    private Selection selectVersion(String tenantCode, RulesService.RuleDetail detail, Invocation invocation) {
+        if (invocation.isDraft()) {
+            RuleVersion version = detail.draft() != null ? detail.draft() : detail.current();
             if (version == null) {
                 throw new IllegalArgumentException("the rule has no draft");
             }
@@ -57,31 +70,26 @@ public class RuleInvocations {
             if (!RuleSpecValidator.publishable(findings)) {
                 throw new RulesService.NotPublishable(findings);
             }
-            test = false;
-        } else if (Invocation.CURRENT.equals(invocation.version())) {
+            return new Selection(version, false);
+        }
+        if (Invocation.CURRENT.equals(invocation.version())) {
+            Rule rule = detail.rule();
             if (rule.state() == Rule.State.OFF) {
                 throw new IllegalStateException("La regla está apagada");
             }
-            version = detail.current();
+            RuleVersion version = detail.current();
             if (version == null) {
                 throw new IllegalStateException("La regla no tiene una versión publicada");
             }
-            test = rule.state() == Rule.State.TEST;
-        } else {
-            throw new IllegalArgumentException("version: current o draft");
+            return new Selection(version, rule.state() == Rule.State.TEST);
         }
-        RuleSpec spec = RuleSpec.read(version.spec());
-        Map<String, List<Invocation.Person>> to = Invocation.recipients(spec, invocation.to());
-        Run run = new Run(null, tenantCode, rule.id(), invocation.draft() ? Invocation.DRAFT : version.version(), null,
-                null, null, test, Run.Status.WAITING, 0, null, null, null, null, to.isEmpty() ? null : to,
-                invocation.key());
-        return engine.invoke(event(tenantCode, spec, invocation), run, spec.steps());
+        throw new IllegalArgumentException("version: current o draft");
     }
 
     private StoredEvent event(String tenantCode, RuleSpec spec, Invocation invocation) {
         SampleEvent sample = invocation.event();
-        String type = sample != null && sample.type() != null ? sample.type()
-                : spec.trigger() == null ? null : spec.trigger().event();
+        String defaultType = spec.trigger() == null ? null : spec.trigger().event();
+        String type = sample != null && sample.type() != null ? sample.type() : defaultType;
         if (type == null || type.isBlank()) {
             throw new IllegalArgumentException("event.type is required");
         }
@@ -89,6 +97,6 @@ public class RuleInvocations {
         SampleContext context = sample == null || sample.context() == null ? new SampleContext(null, null)
                 : sample.context();
         return new StoredEvent(null, tenantCode, type, Invocation.SOURCE, context.kind(), context.key(),
-                sample == null ? null : sample.data(), invocation.draft(), at, at);
+                sample == null ? null : sample.data(), invocation.isDraft(), at, at);
     }
 }

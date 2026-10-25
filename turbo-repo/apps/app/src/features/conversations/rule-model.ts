@@ -6,7 +6,6 @@ import type {
   EventTypeInfo,
   RecipientGroup,
   RuleBump,
-  RuleChannel,
   RuleSpec,
   RuleStep,
   RuleTrigger,
@@ -386,7 +385,7 @@ export function groupLabel(
 }
 
 /** Whether a step on this channel writes to groups; Webhook, Slack and Teams call a connection. */
-export function writesToGroups(channel: RuleChannel | string): boolean {
+export function writesToGroups(channel: string): boolean {
   return !CONNECTION_CHANNELS.has(channel);
 }
 

@@ -7,6 +7,7 @@ import {
   startCompletion,
   type Completion,
   type CompletionContext,
+  type CompletionResult,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import {
@@ -109,70 +110,88 @@ function typeAt(c: string): JsonType | undefined {
   return undefined;
 }
 
+interface ScanState {
+  strings: JsonString[];
+  stack: Frame[];
+  pendingKey: string | null;
+  awaiting: JsonString | null;
+}
+
+function readString(text: string, start: number, state: ScanState): number {
+  const top = state.stack.at(-1);
+  const end = stringEnd(text, start);
+  const closed = end - 1 > start && text[end - 1] === '"';
+  const raw = text.slice(start + 1, closed ? end - 1 : end);
+  const isKey = Boolean(top && !top.array && top.expectKey);
+  let value = raw;
+  try {
+    value = JSON.parse(`"${raw}"`) as string;
+  } catch {
+    // A string still being typed is read as written.
+  }
+  state.strings.push({
+    from: start,
+    to: end,
+    value,
+    key: isKey ? null : (top?.key ?? null),
+    isKey,
+    ...(isKey && top ? { owner: top.owner, objectStart: top.start } : {}),
+  });
+  if (isKey && top) {
+    state.pendingKey = value;
+    top.key = value;
+    top.keys.push(value);
+  }
+  return end;
+}
+
+function readPunctuation(c: string, offset: number, state: ScanState): void {
+  const top = state.stack.at(-1);
+  if (c === "{" || c === "[") {
+    const key = top?.array ? top.key : state.pendingKey;
+    state.stack.push({
+      array: c === "[",
+      key: c === "[" ? key : null,
+      expectKey: c === "{",
+      owner: key ?? "",
+      keys: [],
+      start: offset,
+    });
+    state.pendingKey = null;
+  } else if (c === "}" || c === "]") {
+    state.stack.pop();
+  } else if (c === ":" && top && !top.array) {
+    top.expectKey = false;
+    const last = state.strings.at(-1);
+    state.awaiting = last?.isKey ? last : null;
+  } else if (c === "," && top && !top.array) {
+    top.expectKey = true;
+  }
+}
+
 /** Every string of the text and the open containers at its end; a linear scan that tolerates broken JSON. */
 function scan(text: string): { strings: JsonString[]; stack: Frame[] } {
-  const out: JsonString[] = [];
-  const stack: Frame[] = [];
-  let pendingKey: string | null = null;
-  let awaiting: JsonString | null = null;
+  const state: ScanState = {
+    strings: [],
+    stack: [],
+    pendingKey: null,
+    awaiting: null,
+  };
   let i = 0;
   while (i < text.length) {
     const c = text[i];
-    const top = stack.at(-1);
-    if (awaiting && !/\s/.test(c)) {
-      awaiting.type = typeAt(c);
-      awaiting = null;
+    if (state.awaiting && !/\s/.test(c)) {
+      state.awaiting.type = typeAt(c);
+      state.awaiting = null;
     }
     if (c === '"') {
-      const end = stringEnd(text, i);
-      const closed = end - 1 > i && text[end - 1] === '"';
-      const raw = text.slice(i + 1, closed ? end - 1 : end);
-      const isKey = Boolean(top && !top.array && top.expectKey);
-      let value = raw;
-      try {
-        value = JSON.parse(`"${raw}"`) as string;
-      } catch {
-        // A string still being typed is read as written.
-      }
-      out.push({
-        from: i,
-        to: end,
-        value,
-        key: isKey ? null : (top?.key ?? null),
-        isKey,
-        ...(isKey && top ? { owner: top.owner, objectStart: top.start } : {}),
-      });
-      if (isKey && top) {
-        pendingKey = value;
-        top.key = value;
-        top.keys.push(value);
-      }
-      i = end;
+      i = readString(text, i, state);
       continue;
     }
-    if (c === "{" || c === "[") {
-      const key = top?.array ? top.key : pendingKey;
-      stack.push({
-        array: c === "[",
-        key: c === "[" ? key : null,
-        expectKey: c === "{",
-        owner: key ?? "",
-        keys: [],
-        start: i,
-      });
-      pendingKey = null;
-    } else if (c === "}" || c === "]") {
-      stack.pop();
-    } else if (c === ":" && top && !top.array) {
-      top.expectKey = false;
-      const last = out.at(-1);
-      awaiting = last?.isKey ? last : null;
-    } else if (c === "," && top && !top.array) {
-      top.expectKey = true;
-    }
+    readPunctuation(c, i, state);
     i++;
   }
-  return { strings: out, stack };
+  return { strings: state.strings, stack: state.stack };
 }
 
 /** Every string of the text with the property it belongs to. */
@@ -400,6 +419,29 @@ function valueCompletions(
   }));
 }
 
+function keyStringCompletions(
+  at: JsonString,
+  strings: JsonString[],
+  text: string,
+  keys: JsonKeys | undefined
+): CompletionResult | null {
+  const allowed = keys?.objects[at.owner ?? ""];
+  if (!allowed?.length) return null;
+  const present = new Set(
+    strings
+      .filter((s) => s.isKey && s.objectStart === at.objectStart && s !== at)
+      .map((s) => s.value)
+  );
+  const hasValue = /^\s*:/.test(text.slice(at.to));
+  return {
+    from: at.from + 1,
+    options: allowed
+      .filter((k) => !present.has(k.label))
+      .map((k) => keyCompletion(k, !hasValue, true)),
+    validFor: /^[^"]*$/,
+  };
+}
+
 export function completions(
   latest: () => { values: Record<string, JsonValues>; keys?: JsonKeys }
 ) {
@@ -408,21 +450,7 @@ export function completions(
     const text = ctx.state.doc.toString();
     const strings = jsonStrings(text);
     const at = strings.find((s) => s.from < ctx.pos && ctx.pos <= s.to);
-    if (at?.isKey) {
-      const allowed = keys?.objects[at.owner ?? ""];
-      if (!allowed?.length) return null;
-      const present = strings
-        .filter((s) => s.isKey && s.objectStart === at.objectStart && s !== at)
-        .map((s) => s.value);
-      const hasValue = /^\s*:/.test(text.slice(at.to));
-      return {
-        from: at.from + 1,
-        options: allowed
-          .filter((k) => !present.includes(k.label))
-          .map((k) => keyCompletion(k, !hasValue, true)),
-        validFor: /^[^"]*$/,
-      };
-    }
+    if (at?.isKey) return keyStringCompletions(at, strings, text, keys);
     if (at) {
       const options = at.key ? values[at.key]?.options : undefined;
       if (!options?.length) return null;
@@ -484,7 +512,7 @@ export default function JsonCodeEditor({
   /** What a parsed text becomes before it is reported; `value` coming back equal to it keeps the text. */
   normalize?: (data: unknown) => unknown;
   /** The parsed value, or null while the text has a syntax error. */
-  onChange: (value: unknown | null, text: string) => void;
+  onChange: (value: unknown, text: string) => void;
 }>) {
   const host = useRef<HTMLDivElement>(null);
   const editable = useRef(new Compartment());

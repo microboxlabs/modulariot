@@ -177,8 +177,9 @@ class RuleInvocationsTest {
         Rule test = f.rule("panic", PANIC_SPEC, Rule.State.TEST);
         assertTrue(f.invocations.start(TENANT, test.id(), new Invocation(null, sample(), null, null)).test());
         Rule off = f.rule("panic-off", PANIC_SPEC, Rule.State.OFF);
+        Invocation offRequest = new Invocation(null, sample(), null, null);
         assertThrows(IllegalStateException.class,
-                () -> f.invocations.start(TENANT, off.id(), new Invocation(null, sample(), null, null)));
+                () -> f.invocations.start(TENANT, off.id(), offRequest));
     }
 
     @Test
@@ -186,13 +187,15 @@ class RuleInvocationsTest {
         String broken = draft("""
                 {"trigger": {"event": "symptom.case.opened", "when": ""}, "groups": [], "steps": []}
                 """);
-        assertThrows(RulesService.NotPublishable.class, () -> f.invocations.start(TENANT, broken, ofDraft(null)));
+        Invocation brokenRequest = ofDraft(null);
+        assertThrows(RulesService.NotPublishable.class, () -> f.invocations.start(TENANT, broken, brokenRequest));
         String id = f.service.create(TENANT, "panic-2", "Pánico 2", json(PANIC_SPEC), "owner@example.com").rule()
                 .id();
+        Invocation unknownGroup = ofDraft(Map.of("nope", List.of(TESTER)));
         assertThrows(IllegalArgumentException.class,
-                () -> f.invocations.start(TENANT, id, ofDraft(Map.of("nope", List.of(TESTER)))));
-        assertThrows(IllegalArgumentException.class, () -> f.invocations.start(TENANT, id,
-                ofDraft(Map.of(RuleSpec.RULE_GROUP, List.of(new Person("x", " ", null))))));
+                () -> f.invocations.start(TENANT, id, unknownGroup));
+        Invocation missingAddress = ofDraft(Map.of(RuleSpec.RULE_GROUP, List.of(new Person("x", " ", null))));
+        assertThrows(IllegalArgumentException.class, () -> f.invocations.start(TENANT, id, missingAddress));
         assertTrue(f.store.runs.isEmpty());
     }
 }

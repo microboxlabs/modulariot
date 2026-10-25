@@ -48,7 +48,6 @@ public class ContactService {
     static final int PAGE_SIZE = 100;
     static final int MAX_PAGE_SIZE = 200;
     /** Full international number: plus sign, then 8 to 15 digits. */
-    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s.]+(?:\\.[^@\\s.]+)+$");
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
     /** A RUT without dots or dash: up to 8 digits, then the check digit. */
     private static final Pattern RUT = Pattern.compile("^(\\d{1,8})([\\dK])$");
@@ -419,10 +418,34 @@ public class ContactService {
         if (email == null) {
             return null;
         }
-        if (email.length() > 254 || !EMAIL.matcher(email).matches()) {
+        if (email.length() > 254 || !validEmail(email)) {
             throw new IllegalArgumentException("email is not a valid address");
         }
         return email.toLowerCase(Locale.ROOT);
+    }
+
+    /** A simple address shape, checked in linear time without backtracking. */
+    private static boolean validEmail(String email) {
+        int at = email.indexOf('@');
+        if (at < 1 || email.indexOf('@', at + 1) >= 0) {
+            return false;
+        }
+        int labelStart = at + 1;
+        boolean hasDot = false;
+        for (int i = 0; i < email.length(); i++) {
+            char c = email.charAt(i);
+            if (Character.isWhitespace(c) || Character.isSpaceChar(c)) {
+                return false;
+            }
+            if (i > at && c == '.') {
+                if (i == labelStart) {
+                    return false;
+                }
+                hasDot = true;
+                labelStart = i + 1;
+            }
+        }
+        return hasDot && labelStart < email.length();
     }
 
     /** The company's tax id of {@code type}, normalised and checked; blank is null. */

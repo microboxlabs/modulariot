@@ -156,12 +156,30 @@ public class FeedReconciler {
             FeedService before = feeds.lockService(tenantCode, feedKey, code);
             // the same state, applied or already waiting; a failed apply keeps no hash, so a resend counts
             if (hash.equals(before.desiredHash()) && !REPORT.equals(before.lastAction())) {
+                synchronizeClosedService(before);
                 return false;
             }
             feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), hash, before.mandateId(),
                     before.tripId(), true, PENDING, before.lastResult(), before.lastReconciledAt()));
             return true;
         });
+    }
+
+    private void synchronizeClosedService(FeedService service) {
+        if (!service.open()) {
+            return;
+        }
+        TripView trip = service.tripId() == null ? null
+                : trips.detail(service.tenantCode(), UUID.fromString(service.tripId()));
+        Optional<Mandate> mandate = service.mandateId() == null ? Optional.empty()
+                : Optional.of(mandates.get(service.tenantCode(), UUID.fromString(service.mandateId())));
+        if (finished(trip, mandate)) {
+            FeedResult result = new FeedResult(service.externalCode(), SKIP, false, service.mandateId(),
+                    service.tripId(), List.of(), List.of(), List.of());
+            feeds.saveService(new FeedService(service.tenantCode(), service.feedKey(), service.externalCode(),
+                    service.desired(), service.desiredHash(), service.mandateId(), service.tripId(), false,
+                    SKIP, write(result), now()));
+        }
     }
 
     /** Applies the service's latest desired state, after {@link #accept}. */

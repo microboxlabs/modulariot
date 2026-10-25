@@ -190,7 +190,9 @@ export default function RuleCondition({
             </span>
             <CelEditor
               value={value}
-              onChange={(next) => onChange(next || null)}
+              onChange={(next) => {
+                if (next !== value) onChange(next || null);
+              }}
               fields={editorFields(schema)}
               problems={problems}
               readOnly={readOnly}

@@ -450,6 +450,34 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void unchangedBatchesCloseTerminalServicesWithoutQueuingJobs() {
+        List<AsyncJobSpec> queued = new ArrayList<>();
+        FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
+        for (boolean cancelled : List.of(false, true)) {
+            String code = cancelled ? "TEST-CANCELLED" : "TEST-COMPLETED";
+            FeedServiceRequest desired = desired(2, 10, "ABC-123", "DEF-456", "10000001");
+            FeedResult created = send(code, desired);
+            UUID tripId = UUID.fromString(created.tripId());
+            if (cancelled) {
+                trips.cancel(tenant, ACTOR, tripId, "test cancellation");
+            } else {
+                var closing = trips.detail(tenant, tripId).stages().stream()
+                        .filter(stage -> "closing".equals(stage.stageType())).findFirst().orElseThrow();
+                stages.start(tenant, ACTOR, UUID.fromString(closing.id()));
+                stages.close(tenant, ACTOR, UUID.fromString(closing.id()));
+            }
+            assertTrue(feeds.service(tenant, FEED, code).orElseThrow().open());
+            FeedBatchResult result = batches.send(tenant, ACTOR, FEED,
+                    new FeedBatchRequest("test-repeat", List.of(new FeedBatchRequest.Item(code, desired))));
+            assertEquals(List.of(code), result.unchanged());
+            assertTrue(result.refused().isEmpty());
+            assertFalse(feeds.service(tenant, FEED, code).orElseThrow().open());
+            assertEquals(FeedReconciler.SKIP, feeds.service(tenant, FEED, code).orElseThrow().lastAction());
+        }
+        assertTrue(queued.isEmpty());
+    }
+
+    @Test
     void aJobForAServiceThatCannotBeCreatedFailsWithoutRetry() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));

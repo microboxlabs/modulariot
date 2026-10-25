@@ -78,7 +78,7 @@ export default function MonitorEditor({
     }
   }, [base, dirty]);
 
-  const readOnly = !canEdit;
+  const readOnly = !canEdit || busy;
   const findings = useMemo(() => detail?.draft?.findings ?? [], [detail]);
 
   const change = (patch: Partial<MonitorBody>) => {
@@ -113,8 +113,10 @@ export default function MonitorEditor({
       await work();
       setDirty(false);
       setMessage(done);
+      return true;
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -304,6 +306,7 @@ export default function MonitorEditor({
                   <Select
                     sizing="sm"
                     value={newTrigger}
+                    disabled={readOnly}
                     aria-label={tr("trigger", d)}
                     onChange={(e) => setNewTrigger(e.target.value as Trigger)}
                   >
@@ -313,7 +316,12 @@ export default function MonitorEditor({
                       </option>
                     ))}
                   </Select>
-                  <Button color="light" size="sm" onClick={addRule}>
+                  <Button
+                    color="light"
+                    size="sm"
+                    disabled={readOnly}
+                    onClick={addRule}
+                  >
                     <HiPlus className="mr-1 h-4 w-4" />
                     {tr("addRule", d)}
                   </Button>
@@ -346,9 +354,12 @@ export default function MonitorEditor({
         onConfirm={async () => {
           setConfirmDiscard(false);
           const onlyDraft = !detail?.published;
-          await run(() => discardDraft(monitorKey), tr("discarded", d));
+          const discarded = await run(
+            () => discardDraft(monitorKey),
+            tr("discarded", d)
+          );
           // A monitor that was never published is gone with its draft.
-          if (onlyDraft) router.push(listHref);
+          if (discarded && onlyDraft) router.push(listHref);
         }}
         isProcessing={busy}
         variant="warning"

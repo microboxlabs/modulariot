@@ -117,12 +117,15 @@ export function ParamsEditor({
   d: I18nRecord;
 }>) {
   const entries = Object.entries(params);
-  const replace = (i: number, name: string, value: ParamValue) =>
+  const replace = (i: number, name: string, value: ParamValue) => {
+    if (entries.some(([existing], index) => index !== i && existing === name))
+      return;
     onChange(
       Object.fromEntries(
         entries.map(([n, v], j) => (j === i ? [name, value] : [n, v]))
       )
     );
+  };
   return (
     <div className="flex flex-col gap-2">
       {entries.length === 0 && (

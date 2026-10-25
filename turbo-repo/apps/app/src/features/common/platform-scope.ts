@@ -14,6 +14,7 @@ export const isPlatformScope = (slug: string | null | undefined) =>
 export const PLATFORM_SCOPE_SETTINGS: readonly string[] = [
   "/users/settings/platform",
   "/users/settings/organizations",
+  "/users/settings/symptoms",
   "/users/settings/communications",
   "/users/settings/credentials",
   "/users/settings/connections",
@@ -21,16 +22,19 @@ export const PLATFORM_SCOPE_SETTINGS: readonly string[] = [
 
 /**
  * Where switching into the platform scope goes from `pathname` (base path and language included):
- * null keeps the page, which the platform scope has, else that language's Plataforma settings.
+ * null keeps a settings page the platform scope has. Below one (an organization's symptom or
+ * credential) it goes to that page, since the id is the organization's; anywhere else to Plataforma.
  */
 export function platformScopeLanding(pathname: string): string | null {
   const parts = pathname.split("/");
   const lang = parts.findIndex((part) => locales.includes(part));
   if (lang < 0) return null;
   const page = "/" + parts.slice(lang + 1).join("/");
-  return isPlatformScopePage(page)
-    ? null
-    : parts.slice(0, lang + 1).join("/") + PLATFORM_SCOPE_SETTINGS[0];
+  if (PLATFORM_SCOPE_SETTINGS.includes(page)) return null;
+  const parent =
+    PLATFORM_SCOPE_SETTINGS.find((setting) => page.startsWith(setting + "/")) ??
+    PLATFORM_SCOPE_SETTINGS[0];
+  return parts.slice(0, lang + 1).join("/") + parent;
 }
 
 /** Whether the page at `href` (no language) exists in the platform scope. */

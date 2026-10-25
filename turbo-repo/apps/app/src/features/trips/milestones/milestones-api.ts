@@ -2,7 +2,7 @@
 
 /**
  * Client for the trip milestones API (`/trips/milestones/pending`,
- * `/trips/trips/{id}/milestones/...`) through the `/api/trips/*` proxy.
+ * `/trips/{id}/milestones/...`) through the `/api/trips/*` proxy.
  */
 
 import useSWR, { mutate } from "swr";
@@ -42,14 +42,17 @@ export function usePendingMilestones() {
 }
 
 function milestoneUrl(m: TripMilestone, verb: "confirm" | "reject") {
-  return `${API}/trips/${encodeURIComponent(m.tripId)}/milestones/${m.milestone}/${verb}`;
+  return `${API}/${encodeURIComponent(m.tripId)}/milestones/${m.milestone}/${verb}`;
 }
 
 /** Confirms at the time the detection proposed. */
 export async function confirmMilestone(m: TripMilestone) {
   await tripsRequest(milestoneUrl(m, "confirm"), {
     method: "POST",
-    body: { channel: "ui" },
+    body: {
+      channel: "ui",
+      expectedDetection: { proposedAt: m.proposedAt, source: m.source },
+    },
   });
   await mutate(pendingKey);
 }
@@ -57,7 +60,11 @@ export async function confirmMilestone(m: TripMilestone) {
 export async function rejectMilestone(m: TripMilestone, note: string | null) {
   await tripsRequest(milestoneUrl(m, "reject"), {
     method: "POST",
-    body: { channel: "ui", note },
+    body: {
+      channel: "ui",
+      note,
+      expectedDetection: { proposedAt: m.proposedAt, source: m.source },
+    },
   });
   await mutate(pendingKey);
 }

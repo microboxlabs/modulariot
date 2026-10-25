@@ -49,6 +49,7 @@ function PendingRow({
   };
   const m = p.milestone;
   const route = [p.origin, p.destination].filter(Boolean).join(" → ");
+  const source = m.source === "gps" || m.source === "eta" ? m.source : "other";
   return (
     <tr className="border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
       <td className="px-4 py-3">
@@ -60,7 +61,7 @@ function PendingRow({
       <td className="px-4 py-3">{tr(`names.${m.milestone}`, d)}</td>
       <td className="px-4 py-3">
         <Badge color="indigo" className="w-fit">
-          {tr(`sources.${m.source ?? "other"}`, d)}
+          {tr(`sources.${source}`, d)}
         </Badge>
       </td>
       <td className="px-4 py-3 whitespace-nowrap">

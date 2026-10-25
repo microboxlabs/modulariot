@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.db.PgTransactions;
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
 import com.microboxlabs.miot.trips.domain.Mandate;
@@ -41,6 +42,7 @@ import com.microboxlabs.miot.trips.service.TripService;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.time.Clock;
@@ -50,6 +52,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
@@ -357,6 +360,7 @@ class PgMonitorEngineTest {
         assertEquals(TripEventCatalog.CONTEXT_KIND, detected.context().kind());
         TripEventData d = (TripEventData) detected.data();
         assertEquals("departure", d.milestone());
+        assertEquals("departure-detected", d.rule());
         assertEquals("eta", d.source(), "a signal can name its source");
         assertEquals(seen.toInstant(), d.proposedAt());
         assertNotNull(d.serviceCode(), "the event says which service it is about");
@@ -393,10 +397,12 @@ class PgMonitorEngineTest {
         assertEquals(TripMilestone.OPEN, milestone(tripId, "departure").status());
     }
 
-    private OperationalEvent reply(UUID tripId, String eventType, String milestone, String button, String text) {
+    private OperationalEvent reply(UUID tripId, String eventType, String milestone, String button, String text,
+            OffsetDateTime proposedAt) {
         Map<String, Object> data = new java.util.LinkedHashMap<>();
         data.put("eventType", eventType);
-        data.put("eventData", Map.of("milestone", milestone));
+        data.put("eventData", Map.of("tripId", tripId.toString(), "milestone", milestone, "source", "gps",
+                "proposedAt", proposedAt.toString()));
         data.put("channel", "whatsapp");
         data.put("address", "+56900000000");
         data.put("text", text);
@@ -414,20 +420,32 @@ class PgMonitorEngineTest {
         String detected = TripEventCatalog.MILESTONE_DETECTED;
 
         assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
-                replies.apply(reply(tripId, detected, "departure", "confirm", null)), "nothing was detected yet");
+                replies.apply(reply(tripId, detected, "departure", "confirm", null, seen)),
+                "nothing was detected yet");
 
         engine.signal(tenant, "gps", tripId, "left_origin", null, seen);
         assertEquals(MilestoneReplies.Outcome.UNCLEAR,
-                replies.apply(reply(tripId, detected, "departure", null, "voy saliendo")));
+                replies.apply(reply(tripId, detected, "departure", null, "voy saliendo", seen)));
+        assertEquals(MilestoneReplies.Outcome.UNCLEAR,
+                replies.apply(reply(tripId, detected, "departure", "other_action", "Sí", seen)),
+                "an unknown button payload must not fall back to confirming text");
         assertEquals(MilestoneReplies.Outcome.NOT_A_MILESTONE,
-                replies.apply(reply(tripId, TripEventCatalog.ALERT, "departure", "confirm", null)));
+                replies.apply(reply(tripId, TripEventCatalog.ALERT, "departure", "confirm", null, seen)));
         assertEquals(MilestoneReplies.Outcome.REJECTED,
-                replies.apply(reply(tripId, detected, "departure", null, "No corresponde")));
+                replies.apply(reply(tripId, detected, "departure", null, "No corresponde", seen)));
         assertEquals(TripMilestone.REJECTED, milestone(tripId, "departure").status());
 
         engine.signal(tenant, "gps", tripId, "left_origin", null, seen.plusMinutes(3));
+        assertEquals(MilestoneService.Result.SKIPPED,
+                milestones.respondToDetection(tenant, ACTOR, tripId,
+                        new MilestoneService.DetectionRef("departure", seen, "gps"), true, "ui", null).result(),
+                "a stale panel action must not confirm the newer detection");
+        assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
+                replies.apply(reply(tripId, detected, "departure", "confirm", null, seen)),
+                "a reply to the rejected detection must not confirm the new detection");
+        assertEquals(TripMilestone.PENDING, milestone(tripId, "departure").status());
         assertEquals(MilestoneReplies.Outcome.CONFIRMED,
-                replies.apply(reply(tripId, detected, "departure", null, "Sí")));
+                replies.apply(reply(tripId, detected, "departure", null, "Sí", seen.plusMinutes(3))));
         TripMilestone departure = milestone(tripId, "departure");
         assertEquals(TripMilestone.CONFIRMED, departure.status());
         assertEquals("reply", departure.channel());
@@ -435,7 +453,48 @@ class PgMonitorEngineTest {
         assertTrue(seen.plusMinutes(3).isEqual(departure.confirmedAt()), "confirmed at the detected time");
         assertEquals(Stage.RUNNING, status(tripId, "transit"));
         assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
-                replies.apply(reply(tripId, detected, "departure", "confirm", null)), "a late tap changes nothing");
+                replies.apply(reply(tripId, detected, "departure", "confirm", null, seen.plusMinutes(3))),
+                "a late tap changes nothing");
+    }
+
+    @Test
+    void aRolledBackSavepointDoesNotPublishItsDetectionAfterTheOuterCommit() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        tx.inTransaction(() -> {
+            assertThrows(IllegalStateException.class, () -> PgTx.savepoint(() -> {
+                milestones.request(tenant, ACTOR, tripId, "departure", "gps",
+                        OffsetDateTime.parse("2026-10-25T08:32:00Z"), Map.of());
+                throw new IllegalStateException("discard this detection");
+            }));
+            return null;
+        });
+        assertEquals(List.of(), firedFor(tripId, TripEventCatalog.MILESTONE_DETECTED));
+        assertEquals(TripMilestone.OPEN, milestone(tripId, "departure").status());
+    }
+
+    @Test
+    void eventEnrichmentDatabaseFailureDoesNotUndoTheConfirmation() {
+        UUID tripId = id(newTrip(null, null));
+        List<OperationalEvent> published = new CopyOnWriteArrayList<>();
+        PgMandateStore brokenMandates = new PgMandateStore(() -> pool) {
+            @Override
+            public Optional<Mandate> find(String tenantCode, UUID id) {
+                Pg.query(pool, "SELECT 1 / 0", Tuple.tuple());
+                return Optional.empty();
+            }
+        };
+        TripEvents failingEvents = TripEvents.collecting(published, new PgTripStore(() -> pool),
+                new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool), new PgLocationStore(() -> pool),
+                brokenMandates, fleet);
+        MilestoneService service = new MilestoneService(new PgMilestoneStore(() -> pool), new PgTripStore(() -> pool),
+                audit, failingEvents, tx, Clock.systemUTC());
+
+        assertEquals(MilestoneService.Result.CONFIRMED,
+                service.confirm(tenant, ACTOR, tripId, "departure", OffsetDateTime.parse("2026-10-25T08:32:00Z"),
+                        "api", null).result());
+        assertEquals(TripMilestone.CONFIRMED, milestone(tripId, "departure").status());
+        assertEquals(List.of(), published);
     }
 
     @Test

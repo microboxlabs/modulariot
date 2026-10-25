@@ -37,6 +37,9 @@ class MonitorContextTest {
                         Transactions.none()), fleet);
         Map<String, Object> result = context.of(trip,
                 new MonitorRun.Event("test", trip.id(), "plan", "resources", later, "test", Map.of()), Map.of());
+        assertEquals(Map.of("id", trip.id(), "status", Trip.PLANNED), result.get("trip"),
+                "absent locations stay absent so has(trip.origin) remains false");
+        assertEquals(Map.of(), context.ofNewTrip(trip).get("trip"));
         assertEquals(Map.of(
                 "truck", Map.of("key", "TEST-NEW", "since", later.toInstant()),
                 "trailer", Map.of("key", "TEST-NEW", "since", later.toInstant()),

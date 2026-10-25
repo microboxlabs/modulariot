@@ -340,14 +340,27 @@ function ContactTableRow({
   });
 
   return (
-    <tr className="border-t border-gray-100 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50">
+    <tr
+      onClick={() => onEdit(contact)}
+      className="cursor-pointer border-t border-gray-100 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+    >
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <InitialIdentifier name={contact.name || "?"} size={32} />
           <div className="min-w-0">
-            <p className="truncate font-medium text-gray-900 dark:text-white">
-              {contact.name}
-            </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(contact);
+                }}
+                className="truncate text-left font-medium text-gray-900 hover:underline focus:outline-none focus-visible:underline dark:text-white"
+              >
+                {contact.name}
+              </button>
+              <KindTag contact={contact} labels={labels} />
+            </div>
             {description && (
               <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                 {description}
@@ -388,10 +401,11 @@ function ContactTableRow({
           EMPTY_CELL
         )}
       </td>
-      <td className="px-4 py-3">
+      {/* Copying an address or opening the menu doesn't open the contact. */}
+      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
         <ContactMethods contact={contact} labels={labels} />
       </td>
-      <td className="px-2 py-3 text-right">
+      <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
         <RowMenu
           labels={labels}
           onEdit={() => onEdit(contact)}
@@ -447,6 +461,24 @@ export default function ContactTable({
 /** A contact laid out like a rule or symptom card: initial, name and role,
  *  company, badges, and its contact methods at the foot. The card opens the
  *  contact; the menu edits or removes it. */
+/** Whether the contact is a member of the organization or someone outside it. */
+function KindTag({
+  contact,
+  labels,
+}: Readonly<{ contact: BookContact; labels: ContactTableLabels }>) {
+  return (
+    <span
+      className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+        contact.orgMemberId
+          ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+          : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+      }`}
+    >
+      {contact.orgMemberId ? labels.card.member : labels.card.external}
+    </span>
+  );
+}
+
 /** One detail line of a card: an icon and its text, left out when there is no text. */
 function CardLine({
   icon: Icon,
@@ -572,15 +604,7 @@ export function ContactCard({
             <span className="truncate font-semibold text-gray-900 hover:underline dark:text-white">
               {contact.name}
             </span>
-            <span
-              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                contact.orgMemberId
-                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                  : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-              }`}
-            >
-              {contact.orgMemberId ? labels.card.member : labels.card.external}
-            </span>
+            <KindTag contact={contact} labels={labels} />
             {contact.provisional && (
               <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                 {labels.card.provisional}

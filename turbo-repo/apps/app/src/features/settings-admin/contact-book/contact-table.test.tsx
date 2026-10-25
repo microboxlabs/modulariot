@@ -140,6 +140,26 @@ describe("ContactTable", () => {
     expect(screen.getByText("Supervisor")).toBeInTheDocument();
   });
 
+  it("opens the contact from its row, but not when copying an address", async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    render(
+      <ContactTable
+        contacts={[person]}
+        badges={badges}
+        labels={labels}
+        onEdit={onEdit}
+        onRemove={vi.fn()}
+      />
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Llamada por WhatsApp/ })
+    );
+    expect(onEdit).not.toHaveBeenCalled();
+    await user.click(screen.getByText("Externo"));
+    expect(onEdit).toHaveBeenCalledWith(person);
+  });
+
   it("calls onEdit and onRemove from the row menu", async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();

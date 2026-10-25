@@ -33,8 +33,8 @@ import { useIncrementalCount } from "../contact-book/use-incremental-count";
 
 const PAGE_SIZE = 30;
 
-type ContactFilters = Record<"role" | "company" | "tag", string>;
-const NO_FILTERS: ContactFilters = { role: "", company: "", tag: "" };
+type ContactFilters = Record<"kind" | "role" | "company" | "tag", string>;
+const NO_FILTERS: ContactFilters = { kind: "", role: "", company: "", tag: "" };
 
 /** Each value once, ignoring case, sorted. */
 function distinct(values: readonly (string | undefined)[]): string[] {
@@ -54,8 +54,10 @@ const same = (a: string | undefined, b: string) =>
 export function contactPasses(
   c: BookContact,
   f: ContactFilters,
-  badges: readonly ContactBadge[]
+  badges: readonly ContactBadge[],
+  kindOf: (c: BookContact) => string = () => ""
 ): boolean {
+  if (f.kind && kindOf(c) !== f.kind) return false;
   if (f.role && !same(c.role, f.role)) return false;
   if (f.company && !same(c.company, f.company)) return false;
   if (f.tag) {
@@ -139,8 +141,11 @@ export default function ContactBookPageContent({
   const [importOpen, setImportOpen] = useState(false);
   const [filters, setFilters] = useState<ContactFilters>(NO_FILTERS);
   const [layout, setLayout] = useState<CatalogLayout>("cards");
+  const member = tr("cardMember", d);
+  const external = tr("cardExternal", d);
+  const kindOf = (c: BookContact) => (c.orgMemberId ? member : external);
   const filteredCount = contacts.filter((c) =>
-    contactPasses(c, filters, badges)
+    contactPasses(c, filters, badges, kindOf)
   ).length;
   const { visible, hasMore, sentinelRef } = useIncrementalCount(
     filteredCount,
@@ -185,6 +190,11 @@ export default function ContactBookPageContent({
   const companies = distinct(contacts.map((c) => c.company));
   const tags = distinct(badges.map((b) => b.name));
   const filterDefs = [
+    {
+      key: "kind" as const,
+      label: tr("filterKind", d),
+      options: [member, external],
+    },
     { key: "role" as const, label: tr("filterRole", d), options: roles },
     {
       key: "company" as const,
@@ -193,7 +203,9 @@ export default function ContactBookPageContent({
     },
     { key: "tag" as const, label: tr("filterTag", d), options: tags },
   ];
-  const shown = contacts.filter((c) => contactPasses(c, filters, badges));
+  const shown = contacts.filter((c) =>
+    contactPasses(c, filters, badges, kindOf)
+  );
   const labels = contactTableLabels(d);
   const badgesById = new Map(badges.map((b) => [b.id, b]));
   const page = shown.slice(0, visible);

@@ -3022,6 +3022,7 @@
         "cardDependsOnEvent": "según el evento",
         "memberInBook": "Ya en la libreta",
         "duplicateMember": "Esa persona de tu organización ya está en la libreta.",
+        "filterKind": "Tipo",
         "externalContactButton": "O ingresa un contacto fuera de la organización",
         "fullNameLabel": "Nombre completo",
         "rutLabel": "RUT",

@@ -3022,6 +3022,7 @@
         "cardDependsOnEvent": "depending on the event",
         "memberInBook": "Already in the book",
         "duplicateMember": "That person of your organization is already in the book.",
+        "filterKind": "Type",
         "externalContactButton": "Or enter a contact from outside the organization",
         "fullNameLabel": "Full name",
         "rutLabel": "RUT",

@@ -33,7 +33,7 @@ public class PgFeedStore implements FeedStore {
             required_resources, active, created_at, created_by, updated_at, updated_by""";
     private static final String SERVICE_COLUMNS = """
             tenant_code, feed_key, external_code, desired, desired_hash, mandate_id, trip_id, open,
-            last_action, last_result, last_reconciled_at""";
+            last_action, last_result, last_reconciled_at, applied_desired""";
     private static final TypeReference<List<FeedProfile.StagePlan>> STAGES = new TypeReference<>() {
     };
 
@@ -104,18 +104,20 @@ public class PgFeedStore implements FeedStore {
         query(pool.get(), """
                 INSERT INTO miot_trips.feed_service
                     (tenant_code, feed_key, external_code, desired, desired_hash, mandate_id, trip_id, open,
-                     last_action, last_result, last_reconciled_at)
-                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $10::text::jsonb, $11)
+                     last_action, last_result, last_reconciled_at, applied_desired)
+                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9, $10::text::jsonb, $11,
+                    $12::text::jsonb)
                 ON CONFLICT (tenant_code, feed_key, external_code) DO UPDATE SET
                     desired = EXCLUDED.desired, desired_hash = EXCLUDED.desired_hash,
                     mandate_id = EXCLUDED.mandate_id, trip_id = EXCLUDED.trip_id, open = EXCLUDED.open,
                     last_action = EXCLUDED.last_action, last_result = EXCLUDED.last_result,
-                    last_reconciled_at = EXCLUDED.last_reconciled_at, updated_at = now()""",
+                    last_reconciled_at = EXCLUDED.last_reconciled_at,
+                    applied_desired = EXCLUDED.applied_desired, updated_at = now()""",
                 Tuple.tuple().addString(s.tenantCode()).addString(s.feedKey()).addString(s.externalCode())
                         .addString(s.desired()).addString(s.desiredHash())
                         .addUUID(Pg.parse(s.mandateId())).addUUID(Pg.parse(s.tripId())).addBoolean(s.open())
                         .addString(s.lastAction()).addString(s.lastResult())
-                        .addOffsetDateTime(s.lastReconciledAt()));
+                        .addOffsetDateTime(s.lastReconciledAt()).addString(s.appliedDesired()));
     }
 
     private static FeedProfile profile(Row r) {
@@ -129,7 +131,7 @@ public class PgFeedStore implements FeedStore {
         return new FeedService(r.getString("tenant_code"), r.getString("feed_key"), r.getString("external_code"),
                 text(r, "desired"), r.getString("desired_hash"), text(r, "mandate_id"), text(r, "trip_id"),
                 r.getBoolean("open"), r.getString("last_action"), text(r, "last_result"),
-                time(r, "last_reconciled_at"));
+                time(r, "last_reconciled_at"), text(r, "applied_desired"));
     }
 
     private static <T> Optional<T> first(RowSet<Row> rows, Function<Row, T> map) {

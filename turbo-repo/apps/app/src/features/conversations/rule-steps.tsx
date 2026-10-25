@@ -7,7 +7,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { FieldError } from "@/features/symptoms/maintainer/ui/response-block";
 import { PillNumber, PillSelect } from "@/features/symptoms/maintainer/ui/pill";
-import ChannelIcon from "./channel-icon";
+import { channelLogo } from "./channel-icon";
 import type {
   ConversationTemplate,
   OnReply,
@@ -84,6 +84,17 @@ function ConnectionPill({
         ...(known ? [] : [{ value: value ?? "", label: value ?? "" }]),
         ...connections.map((c) => ({ value: c.id, label: c.name })),
       ]}
+    />
+  );
+}
+
+/** A channel's logo at text size, in the logos' gray. */
+function ChannelGlyph({ channel }: Readonly<{ channel: string }>) {
+  const Logo = channelLogo(channel);
+  return (
+    <Logo
+      aria-hidden
+      className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-gray-400"
     />
   );
 }
@@ -184,9 +195,9 @@ function StepCard({
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
       {handle}
-      <ChannelIcon channel={step.channel} size={7} />
       <PillSelect
         ariaLabel={tr("stepChannel", d)}
+        icon={<ChannelGlyph channel={step.channel} />}
         className={issues?.channel ? ERROR_PILL : ""}
         disabled={readOnly}
         value={step.channel}

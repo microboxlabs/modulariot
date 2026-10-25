@@ -103,7 +103,11 @@ class TripsPermissionsTest {
             Map.entry("OrgMonitorsResource.publish", MONITOR_ADMIN),
             Map.entry("OrgMonitorsResource.version", VIEW),
             Map.entry("OrgMonitorSelectorResource.get", VIEW),
-            Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN)));
+            Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN),
+            Map.entry("OrgTripMonitorResource.get", VIEW),
+            Map.entry("OrgTripMonitorResource.bind", TRIP_WRITE),
+            Map.entry("OrgTripMonitorResource.signal", STAGE_OPERATE),
+            Map.entry("OrgTripMonitorResource.transitions", VIEW)));
 
     @Test
     void everyEndpointDeclaresItsOrganizationPermission() {

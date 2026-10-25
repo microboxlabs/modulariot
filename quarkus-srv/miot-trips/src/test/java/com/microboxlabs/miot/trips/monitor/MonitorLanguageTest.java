@@ -63,6 +63,15 @@ class MonitorLanguageTest {
     }
 
     @Test
+    void aValueTheTripDoesNotHaveYetIsAMissingValue() {
+        MonitorLanguage.Result r = MonitorLanguage.evaluate(TIMER, "stage.type == 'preparation'",
+                Map.of("stage", Map.of(), "trip", Map.of()));
+        assertFalse(r.ok());
+        assertTrue(MonitorLanguage.missingValue(r.error()), r.error());
+        assertFalse(MonitorLanguage.missingValue("no such overload"));
+    }
+
+    @Test
     void unknownFieldsAndWrongTypesAreRejected() {
         MonitorLanguage.Check unknown = MonitorLanguage.check(SIGNAL, "trip.colour == 'red'", Expect.CONDITION);
         assertFalse(unknown.ok());

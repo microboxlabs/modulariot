@@ -19,6 +19,7 @@ import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -30,7 +31,8 @@ class FeedReconcilerTest {
     private final InMemoryFleet fleet = new InMemoryFleet();
     private final TestTransactions tx = new TestTransactions();
     private final TestFeeds feeds = new TestFeeds();
-    private final AuditService audit = new AuditService(world.auditStore);
+    private boolean monitorOwnsLifecycle;
+    private final AuditService audit = new AuditService(world.auditStore, () -> this::monitorChange);
     private final TripLiveProjector live = world.projector(fleet);
     private final MandateService mandates = new MandateService(world.mandateStore, audit, tx);
     private final TripService trips = new TripService(world.tripStore, world.stageStore, world.assignmentStore,
@@ -41,7 +43,33 @@ class FeedReconcilerTest {
             fleet, live, audit, tx);
     private final ObjectMapper json = JsonMapper.builder().findAndAddModules().build();
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-            fleet, tx, json, Clock.systemUTC());
+            fleet, tx, json, Clock.systemUTC(), (tenant, tripId) -> monitorOwnsLifecycle);
+
+    private void monitorChange(String tenant, String actor, String action, String tripId,
+            Map<String, Object> details) {
+        if (monitorOwnsLifecycle && "trip.created".equals(action)) {
+            stages.start(tenant, actor, UUID.fromString(stages.listByTrip(tenant, UUID.fromString(tripId)).get(0).id()));
+        }
+    }
+
+    @Test
+    void monitorOwnsLifecycleAcrossFeedCreationDepartureAndClosing() {
+        monitorOwnsLifecycle = true;
+        OffsetDateTime now = OffsetDateTime.now();
+        FeedServiceRequest request = new FeedServiceRequest("service", "test reference", now.minusHours(1),
+                now.plusHours(1), new FeedServiceRequest.Resources(null, null, List.of()), null);
+        FeedResult result = send(request);
+        assertEquals(FeedReconciler.CREATE, result.action());
+        UUID tripId = UUID.fromString(result.tripId());
+        assertEquals("preparation", stages.listByTrip("test", tripId).stream()
+                .filter(s -> "in_progress".equals(s.status())).findFirst().orElseThrow().stageType());
+        FeedServiceRequest ended = new FeedServiceRequest("service", "updated reference", now.minusHours(2),
+                now.minusHours(1), request.resources(), null);
+        assertEquals(FeedReconciler.UPDATE, send(ended).action());
+        assertEquals("in_progress", trips.get("test", tripId).status());
+        assertEquals("preparation", stages.listByTrip("test", tripId).stream()
+                .filter(s -> "in_progress".equals(s.status())).findFirst().orElseThrow().stageType());
+    }
 
     private FeedServiceRequest desired(String trailer, List<String> drivers) {
         return new FeedServiceRequest("service", "test reference", OffsetDateTime.now().plusHours(2),
@@ -124,7 +152,7 @@ class FeedReconcilerTest {
             public java.time.Instant instant() { return evaluated.plusSeconds(reads++ * 120L); }
         };
         FeedReconciler timed = new FeedReconciler(feeds, mandates, trips, stages, assignments,
-                fleet, tx, json, crossingClock);
+                fleet, tx, json, crossingClock, (tenant, tripId) -> false);
         OffsetDateTime departure = OffsetDateTime.ofInstant(evaluated.plusSeconds(60), java.time.ZoneOffset.UTC);
         FeedServiceRequest request = new FeedServiceRequest("service", "test reference", departure,
                 departure.plusHours(2), new FeedServiceRequest.Resources(null, null, List.of()), null);

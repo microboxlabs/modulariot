@@ -57,6 +57,8 @@ public record MonitorSchema(Map<String, String> fields) {
             f.put("signal.at", TIME);
         }
         f.put("event.on", TEXT);
+        f.put("event.kind", TEXT);
+        f.put("event.stageType", TEXT);
         f.put("event.at", TIME);
         f.put("event.actor", TEXT);
         if (params != null) {

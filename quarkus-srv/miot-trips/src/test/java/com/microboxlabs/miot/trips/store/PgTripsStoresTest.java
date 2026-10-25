@@ -337,6 +337,31 @@ class PgTripsStoresTest {
     }
 
     @Test
+    void feedAuditActorsAndJsonTypesArePreserved() {
+        String tenant = tenant();
+        PgFeedStore feeds = new PgFeedStore(() -> pool);
+        FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed",
+                List.of(new FeedProfile.StagePlan("preparacion", "ADDED")),
+                "preparacion", "preparacion", 0, Set.of(), true, null, "creator", null, null);
+        FeedProfile created = feeds.saveProfile(profile);
+        assertEquals("creator", created.createdBy());
+        FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed",
+                profile.stages(), "preparacion", "preparacion", 0, Set.of(), true,
+                null, "ignored-creator", null, "updater"));
+        assertEquals("creator", updated.createdBy());
+        assertEquals("updater", updated.updatedBy());
+        feeds.saveService(new FeedService(tenant, "test-feed", "S-TEST", "{\"value\":1}", "hash",
+                null, null, true, "test", "{\"ok\":true}", null));
+        var rows = pool.preparedQuery("""
+                SELECT jsonb_typeof(stages) AS kind FROM miot_trips.feed_profile WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(desired) FROM miot_trips.feed_service WHERE tenant_code = $1
+                UNION ALL SELECT jsonb_typeof(last_result) FROM miot_trips.feed_service WHERE tenant_code = $1
+                """).execute(io.vertx.mutiny.sqlclient.Tuple.of(tenant)).await().atMost(WAIT);
+        assertEquals(List.of("array", "object", "object"),
+                rows.stream().map(row -> row.getString("kind")).toList());
+    }
+
+    @Test
     void unmountIsLogicalAndRemountWorks() {
         String tenant = tenant();
         Mandate m = mandate(tenant, "OC-REMOUNT");

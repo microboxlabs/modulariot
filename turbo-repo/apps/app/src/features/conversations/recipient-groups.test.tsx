@@ -34,9 +34,7 @@ function draw(onChange = vi.fn(), errors = {}) {
 describe("RecipientGroups", () => {
   it("shows each group with its name, id and the steps that write to it", () => {
     draw();
-    const rule = screen.getByRole("region", {
-      name: "Destinatarios de la regla",
-    });
+    const rule = screen.getByRole("region", { name: "Grupo 1" });
     expect(within(rule).getByText("rule")).toBeTruthy();
     expect(within(rule).getByText("Lo usa: Paso 1")).toBeTruthy();
     expect(

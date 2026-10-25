@@ -279,11 +279,9 @@ describe("normalizeSpec", () => {
     expect(spec.steps[0].to).toEqual(["a"]);
   });
 
-  it("names a group without a name by where it came from", () => {
-    expect(groupLabel({ id: "rule", entries: [] }, 0, d)).toBe(
-      "Destinatarios de la regla"
-    );
-    expect(groupLabel({ id: "step-2", entries: [] }, 1, d)).toBe("Paso 2");
+  it("names a group without a name by its place in the list", () => {
+    expect(groupLabel({ id: "rule", entries: [] }, 0, d)).toBe("Grupo 1");
+    expect(groupLabel({ id: "step-2", entries: [] }, 1, d)).toBe("Grupo 2");
     expect(groupLabel({ id: "group-7", entries: [] }, 2, d)).toBe("Grupo 3");
     expect(groupLabel({ id: "x", name: " Torre ", entries: [] }, 0, d)).toBe(
       "Torre"

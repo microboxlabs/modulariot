@@ -375,16 +375,13 @@ export function normalizeSpec(spec: StoredSpec | null | undefined): RuleSpec {
   return { trigger, groups, steps, family };
 }
 
-/** A group's name, or its default: the rule's recipients, step N, or group N. */
+/** A group's name, or "Grupo N" by its place in the list. */
 export function groupLabel(
   group: RecipientGroup,
   index: number,
   d: I18nRecord
 ): string {
   if (group.name?.trim()) return group.name.trim();
-  if (group.id === RULE_GROUP) return tr("groupRule", d);
-  const step = new RegExp(`^${STEP_GROUP}(\\d+)$`).exec(group.id);
-  if (step) return tr("groupStep", d, { n: step[1] });
   return tr("groupN", d, { n: String(index + 1) });
 }
 

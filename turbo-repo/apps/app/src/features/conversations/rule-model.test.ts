@@ -28,7 +28,7 @@ describe("triggerSummary", () => {
         d,
         names
       )
-    ).toBe("Cuando se abre un caso de Botón de pánico en Código negro");
+    ).toBe("Cuando se abre una condición de Botón de pánico en Código negro");
   });
 
   it("says 'o más' for a lower level and an exact level as is", () => {
@@ -41,7 +41,7 @@ describe("triggerSummary", () => {
         d,
         names
       )
-    ).toBe("Cuando se abre un caso de speeding en Crítica o más");
+    ).toBe("Cuando se abre una condición de speeding en Crítica o más");
     expect(
       triggerSummary(
         {
@@ -50,7 +50,7 @@ describe("triggerSummary", () => {
         },
         d
       )
-    ).toBe("Cuando un caso cambia de nivel en Comprometida");
+    ).toBe("Cuando una condición cambia de nivel en Comprometida");
   });
 
   it("reads level > n as the next level and tells other conditions apart", () => {
@@ -63,7 +63,7 @@ describe("triggerSummary", () => {
         d
       )
     ).toBe(
-      "Cuando se abre un caso en Crítica o más, si se cumplen las demás condiciones"
+      "Cuando se abre una condición en Crítica o más, si se cumplen las demás condiciones"
     );
   });
 

@@ -47,6 +47,8 @@ export interface RuleSpec {
   trigger: RuleTrigger;
   audience: AudienceEntry[];
   steps: RuleStep[];
+  /** A communication_families value from Ajustes › Seleccionables. */
+  family?: string | null;
 }
 
 export interface ConversationRule {

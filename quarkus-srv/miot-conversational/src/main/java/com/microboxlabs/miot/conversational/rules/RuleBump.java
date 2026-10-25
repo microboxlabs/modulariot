@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * How much a publish changes a rule, and so its next semantic version. MAJOR: the event. MINOR: the condition,
  * the recipients, a step added, removed or moved, or a step's channel, recipients or connection. PATCH: only a step's
- * minutes, template or what it does on a reply. Declared from smallest to largest.
+ * minutes, template or what it does on a reply, or the family. Declared from smallest to largest.
  */
 public enum RuleBump {
     PATCH,
@@ -26,7 +26,8 @@ public enum RuleBump {
                 || stepsMovedOrRerouted(before.steps(), after.steps())) {
             return MINOR;
         }
-        return before.steps().equals(after.steps()) ? null : PATCH;
+        return before.steps().equals(after.steps()) && Objects.equals(before.family(), after.family()) ? null
+                : PATCH;
     }
 
     /** The version after {@code current} for this bump; {@link #FIRST} when nothing is published yet. */

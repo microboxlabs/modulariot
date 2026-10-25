@@ -36,6 +36,11 @@ describe("ruleBump", () => {
     expect(ruleBump(base, structuredClone(base))).toBeNull();
   });
 
+  it("is PATCH when only the family changes, like the server", () => {
+    expect(ruleBump({ ...base, family: "trips" }, base)).toBe("PATCH");
+    expect(ruleBump({ ...base, family: null }, base)).toBeNull();
+  });
+
   it("ignores property order and whitespace in the condition, like the server", () => {
     const reordered: RuleSpec = {
       ...base,

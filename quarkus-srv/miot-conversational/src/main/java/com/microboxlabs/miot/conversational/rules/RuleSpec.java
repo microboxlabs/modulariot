@@ -12,7 +12,7 @@ import java.util.Optional;
  * what the engine and the validator read. Reading never fails: a missing or mistyped value is null, and the
  * validator reports it.
  */
-public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> steps) {
+public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> steps, String family) {
 
     public static final String TO_AUDIENCE = "audience";
     public static final String WHATSAPP = "whatsapp";
@@ -73,6 +73,10 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
         steps = steps == null ? List.of() : List.copyOf(steps);
     }
 
+    public RuleSpec(Trigger trigger, List<Audience> audience, List<Step> steps) {
+        this(trigger, audience, steps, null);
+    }
+
     /** A new rule's spec: no event, no audience, no steps. */
     public static ObjectNode empty() {
         ObjectNode spec = JsonNodeFactory.instance.objectNode();
@@ -94,7 +98,7 @@ public record RuleSpec(Trigger trigger, List<Audience> audience, List<Step> step
         spec.path(TO_AUDIENCE).forEach(a -> audience.add(audience(a)));
         List<Step> steps = new ArrayList<>();
         spec.path("steps").forEach(s -> steps.add(step(s)));
-        return new RuleSpec(trigger, audience, steps);
+        return new RuleSpec(trigger, audience, steps, text(spec, "family"));
     }
 
     private static Step step(JsonNode s) {

@@ -16,7 +16,7 @@ import SampleTree, {
   useSourceSamples,
 } from "./sample-tree";
 import { SourceHelp, SourceSelect } from "./source-select";
-import { CHANGED_CARD, changedPaths, isChanged } from "./ui/changed";
+import { changedPaths, isChanged } from "./ui/changed";
 import {
   type Finding,
   type Preview,
@@ -32,9 +32,7 @@ import { Problems, problemsFor } from "./rule-problems";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
 import ModeToggle from "./ui/mode-toggle";
-
-const cardClass =
-  "rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
+import NumberedSection from "./ui/section";
 
 /** Variables a level rule adds to the source: the measure and how long it has held. */
 export function levelFields(d: I18nRecord): CelField[] {
@@ -78,46 +76,36 @@ function Section({
 }>) {
   const [open, setOpen] = useState(false);
   return (
-    <section
-      className={`${cardClass} ${changed ? CHANGED_CARD : ""}`}
-      data-changed={changed || undefined}
+    <NumberedSection
+      number={number}
+      title={title}
+      subtitle={subtitle}
+      changed={changed}
+      actions={
+        (actions || describe) && (
+          <>
+            {actions}
+            {describe && (
+              <RuleDescriptionToggle
+                open={open}
+                onToggle={() => setOpen((o) => !o)}
+                d={d}
+              />
+            )}
+          </>
+        )
+      }
     >
-      <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <span
-          aria-hidden
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400"
-        >
-          {number}
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-            {title}
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
-        </div>
-        {actions && <span className="ml-auto">{actions}</span>}
-        {describe && (
-          <span className={actions ? "" : "ml-auto"}>
-            <RuleDescriptionToggle
-              open={open}
-              onToggle={() => setOpen((o) => !o)}
-              d={d}
-            />
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-3 px-4 py-3">
-        {describe && open && (
-          <RuleDescription
-            section={describe.section}
-            rule={describe.rule}
-            sourceKey={describe.sourceKey}
-            d={d}
-          />
-        )}
-        {children}
-      </div>
-    </section>
+      {describe && open && (
+        <RuleDescription
+          section={describe.section}
+          rule={describe.rule}
+          sourceKey={describe.sourceKey}
+          d={d}
+        />
+      )}
+      {children}
+    </NumberedSection>
   );
 }
 

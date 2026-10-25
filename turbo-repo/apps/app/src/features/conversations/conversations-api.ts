@@ -8,6 +8,7 @@
 
 import useSWR, { mutate } from "swr";
 import { controlTowerRequest as request } from "@/features/symptoms/control-tower/control-tower-api";
+import type { SymptomFamily } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
   ChannelAccount,
   ChannelAccountMode,
@@ -45,6 +46,7 @@ export const platformTemplatesKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/
 export const platformTemplateKey = (key: string) =>
   `${platformTemplatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
+export const ruleFamiliesKey = `${CONVERSATIONS_BASE}/rule-families`;
 export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 /** The WhatsApp templates on Meta of the platform's connection, for platform owners. */
@@ -123,6 +125,11 @@ export function useMetaTemplates(enabled = true) {
 
 export function useEventCatalog() {
   return useSWR<EventTypeInfo[]>(catalogKey, fetcher, quiet);
+}
+
+/** The organization's rule families; a 404 means it has no such list. */
+export function useRuleFamilies() {
+  return useSWR<SymptomFamily[]>(ruleFamiliesKey, fetcher, quiet);
 }
 
 export function useConversationRuns(filter: {

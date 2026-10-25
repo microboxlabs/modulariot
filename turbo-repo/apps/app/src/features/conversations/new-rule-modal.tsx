@@ -21,6 +21,7 @@ import { MUTED } from "@/features/symptoms/maintainer/ui/card";
 import { createRule, refreshRules, useEventCatalog } from "./conversations-api";
 import type { EventTypeInfo, RuleDetail } from "./conversations-types";
 import {
+  eventGroups,
   eventLabel,
   newRuleSpec,
   SYMPTOM_OPENED,
@@ -166,10 +167,14 @@ function NewRuleForm({
           value={event}
           onChange={(e) => setEvent(e.target.value)}
         >
-          {eventOptions(catalog, event).map((type) => (
-            <option key={type} value={type}>
-              {eventLabel(type, d, catalog)}
-            </option>
+          {eventGroups(eventOptions(catalog, event), d).map((g) => (
+            <optgroup key={g.label} label={g.label}>
+              {g.types.map((type) => (
+                <option key={type} value={type}>
+                  {eventLabel(type, d, catalog)}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </Select>
         <p className={`mt-1 text-xs ${MUTED}`}>

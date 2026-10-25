@@ -87,7 +87,7 @@ describe("NewRuleModal", () => {
     );
     expect(
       screen.getByText(
-        "Cuando se abre un caso de Botón de pánico en Código negro"
+        "Cuando se abre una condición de Botón de pánico en Código negro"
       )
     ).toBeTruthy();
 

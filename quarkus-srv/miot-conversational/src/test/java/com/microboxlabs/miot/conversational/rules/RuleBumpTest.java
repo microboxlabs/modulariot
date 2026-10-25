@@ -76,6 +76,15 @@ class RuleBumpTest {
     }
 
     @Test
+    void theFamilyIsPatch() throws Exception {
+        String filed = BASE.replace("{\"trigger\"", "{\"family\": \"trips\", \"trigger\"");
+        assertEquals("trips", spec(filed).family());
+        assertEquals(RuleBump.PATCH, RuleBump.between(spec(BASE), spec(filed)));
+        assertEquals(RuleBump.PATCH, RuleBump.between(spec(filed), spec(filed.replace("trips", "symptoms"))));
+        assertNull(RuleBump.between(spec(filed), spec(filed)));
+    }
+
+    @Test
     void timingTemplateAndReplyArePatch() throws Exception {
         assertEquals(RuleBump.PATCH, bump("\"after\": 5", "\"after\": 10"));
         assertEquals(RuleBump.PATCH, bump("\"template\": \"check\"", "\"template\": \"check-v2\""));

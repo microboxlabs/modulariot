@@ -51,7 +51,7 @@ describe("RunsTable", () => {
     const row = screen
       .getByText("Botón de pánico")
       .closest("tr") as HTMLElement;
-    expect(within(row).getByText("Caso 42")).toBeTruthy();
+    expect(within(row).getByText("Condición 42")).toBeTruthy();
     expect(within(row).getByText("Esperando")).toBeTruthy();
     expect(within(row).getByText("Sigue el paso 2")).toBeTruthy();
     expect(within(row).getByText("Prueba")).toBeTruthy();
@@ -88,7 +88,7 @@ describe("RunsTable", () => {
     render(<RunsTable runs={runs} lang="es" d={d} />);
     expect(screen.getByText("Exceso de velocidad · ABCD12")).toBeTruthy();
     expect(screen.getByText("WXYZ98")).toBeTruthy();
-    expect(screen.queryByText("Caso 42")).toBeNull();
+    expect(screen.queryByText("Condición 42")).toBeNull();
   });
 });
 

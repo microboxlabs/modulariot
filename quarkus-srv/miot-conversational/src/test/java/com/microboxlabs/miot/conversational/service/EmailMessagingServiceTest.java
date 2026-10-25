@@ -129,8 +129,9 @@ class EmailMessagingServiceTest {
         EmailMessagingService unavailable = service(Set.of(TENANT),
                 SendResult.failedPermanently("Invalid sender"));
         Message queued = unavailable.queueInContext(TENANT, email("Subject", "Body"));
+        String messageId = queued.id();
         SendFailure failure = assertThrows(SendFailure.class,
-                () -> unavailable.deliverQueued(TENANT, queued.id()));
+                () -> unavailable.deliverQueued(TENANT, messageId));
         assertFalse(failure.retryable());
         store.messageRepository.markStatus(queued.id(), MessageStatus.FAILED, null, null,
                 failure.getMessage(), Set.of(MessageStatus.PENDING));

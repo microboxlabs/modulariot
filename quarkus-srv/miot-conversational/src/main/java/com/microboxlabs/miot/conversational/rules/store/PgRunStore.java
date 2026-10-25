@@ -36,6 +36,8 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class PgRunStore implements RunStore {
 
+    private static final String TENANT_CODE = "tenant_code";
+
     private static final String EVENT_COLUMNS =
             "id, tenant_code, type, source, context_kind, context_key, data::text AS data, test, at, received_at";
     private static final String INSERT_EVENT = """
@@ -233,7 +235,7 @@ public class PgRunStore implements RunStore {
     public int reconcileFailedSends(int limit, Instant at) {
         int repaired = 0;
         for (Row row : query(pool.get(), UNMARKED_FAILED_SENDS, Tuple.of(limit))) {
-            if (failQueuedMessage(row.getString("tenant_code"), row.getString("message_id"),
+            if (failQueuedMessage(row.getString(TENANT_CODE), row.getString("message_id"),
                     row.getString("last_error"), at)) {
                 repaired++;
             }
@@ -287,7 +289,7 @@ public class PgRunStore implements RunStore {
     }
 
     private static StoredEvent event(Row r) {
-        return new StoredEvent(string(r, "id"), r.getString("tenant_code"), r.getString("type"), r.getString("source"),
+        return new StoredEvent(string(r, "id"), r.getString(TENANT_CODE), r.getString("type"), r.getString("source"),
                 r.getString("context_kind"), r.getString("context_key"), Pg.map(r.getString("data")),
                 r.getBoolean("test"), instant(r, "at"), instant(r, "received_at"));
     }
@@ -299,7 +301,7 @@ public class PgRunStore implements RunStore {
     }
 
     private static Run run(Row r) {
-        return new Run(string(r, "id"), r.getString("tenant_code"), string(r, "rule_id"), r.getString("rule_version"),
+        return new Run(string(r, "id"), r.getString(TENANT_CODE), string(r, "rule_id"), r.getString("rule_version"),
                 string(r, "event_id"), r.getString("context_kind"), r.getString("context_key"), r.getBoolean("test"),
                 Run.Status.valueOf(r.getString("status")), r.getInteger("step"), instant(r, "next_at"),
                 r.getString("last_error"), instant(r, "created_at"), instant(r, "updated_at"),

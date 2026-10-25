@@ -374,6 +374,18 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void inverseRoutesCreateLocationsInTheSameOrder() {
+        FeedServiceRequest base = desired(1, 6, "ABC-123", null, "10000001");
+        for (List<String> route : List.of(List.of("TEST-A", "TEST-B"), List.of("TEST-B", "TEST-A"))) {
+            FeedServiceRequest request = new FeedServiceRequest(base.orderType(), base.orderRef(),
+                    route.get(0), route.get(1), base.plannedStart(), base.plannedEnd(), base.resources(), null);
+            FeedResult result = reconciler.reconcile(tenant, ACTOR, FEED, "TEST-ROUTE", request, true);
+            assertEquals(List.of("create location TEST-A", "create location TEST-B"), result.operations().stream()
+                    .filter(operation -> operation.startsWith("create location ")).toList());
+        }
+    }
+
+    @Test
     void descriptiveEditsAndGeofenceLinksDoNotOverwriteEachOther() {
         var created = locations.resolve(tenant, ACTOR, "TEST-LOCATION");
         PgLocationStore store = new PgLocationStore(() -> pool);

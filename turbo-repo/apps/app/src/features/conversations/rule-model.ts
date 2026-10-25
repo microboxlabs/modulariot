@@ -4,6 +4,7 @@ import type {
   AudienceEntry,
   EventField,
   EventTypeInfo,
+  RecipientGroup,
   RuleBump,
   RuleSpec,
   RuleStep,
@@ -38,6 +39,13 @@ const EVENT_LABEL: Record<string, string> = {
   "symptom.case.level_changed": "eventSymptomCaseLevelChanged",
   "symptom.case.closed": "eventSymptomCaseClosed",
   "symptom.case.sla_expired": "eventSymptomCaseSlaExpired",
+  "trip.alert": "eventTripAlert",
+  "trip.milestone.detected": "eventTripMilestoneDetected",
+  "trip.milestone.confirmed": "eventTripMilestoneConfirmed",
+  "trip.milestone.rejected": "eventTripMilestoneRejected",
+  "trip.milestone.conflict": "eventTripMilestoneConflict",
+  "trip.feed.closed_changed": "eventTripFeedClosedChanged",
+  "conversation.reply_received": "eventConversationReplyReceived",
 };
 
 const SUMMARY_LEAD: Record<string, string> = {
@@ -46,6 +54,56 @@ const SUMMARY_LEAD: Record<string, string> = {
   "symptom.case.closed": "summaryClosed",
   "symptom.case.sla_expired": "summarySlaExpired",
 };
+
+const EVENT_GROUPS = [
+  { prefix: "symptom.", label: "eventGroupSymptoms" },
+  { prefix: "trip.", label: "eventGroupTrips" },
+  { prefix: "conversation.", label: "eventGroupConversations" },
+] as const;
+
+/** The event types under the module that publishes them, in catalog order; unknown prefixes go last. */
+export function eventGroups(
+  types: string[],
+  d: I18nRecord
+): { label: string; types: string[] }[] {
+  const groups = EVENT_GROUPS.map((g) => ({
+    label: trDynamic(g.label, d),
+    types: types.filter((t) => t.startsWith(g.prefix)),
+  }));
+  const other = types.filter(
+    (t) => !EVENT_GROUPS.some((g) => t.startsWith(g.prefix))
+  );
+  return [
+    ...groups,
+    { label: trDynamic("eventGroupOther", d), types: other },
+  ].filter((g) => g.types.length > 0);
+}
+
+/** What an event means, for the help under the event picker. */
+export function eventDescription(
+  type: string,
+  d: I18nRecord,
+  catalog?: EventTypeInfo[]
+): string {
+  const key = EVENT_LABEL[type];
+  if (key) {
+    const desc = key.replace(/^event/, "eventDesc");
+    const text = trDynamic(desc, d);
+    if (text !== desc) return text;
+  }
+  return catalog?.find((e) => e.type === type)?.description || type;
+}
+
+/** The event with its module, for lists that mix them: "Síntomas · Caso abierto". */
+export function eventFullLabel(
+  type: string,
+  d: I18nRecord,
+  catalog?: EventTypeInfo[]
+): string {
+  const group = eventGroups([type], d)[0]?.label;
+  const label = eventLabel(type, d, catalog);
+  return group ? `${group} · ${label}` : label;
+}
 
 /** An event type in words: the dictionary's, else the catalog's description, else the type. */
 export function eventLabel(
@@ -168,7 +226,7 @@ export function parseWhen(when: string | null | undefined): WhenParts {
 const TOP_LEVEL = 4;
 
 /**
- * The trigger in plain words: "Cuando se abre un caso de Botón de pánico en
+ * The trigger in plain words: "Cuando se abre una condición de Botón de pánico en
  * Código negro". `symptomName` maps a symptom key to its name.
  */
 export function triggerSummary(
@@ -219,42 +277,126 @@ export function symptomLevelWhen(symptomKey: string, icu: number) {
   return `event.data.symptomKey == '${symptomKey}' && event.data.level >= ${icu}`;
 }
 
-export function emptyStep(): RuleStep {
+/** The group of a rule saved before groups that holds its recipients. */
+export const RULE_GROUP = "rule";
+const STEP_GROUP = "step-";
+
+/** A step that writes to `to`, sent on WhatsApp and waiting 5 minutes for a reply. */
+export function emptyStep(to: string[] = []): RuleStep {
   return {
     after: 0,
     channel: "whatsapp",
     template: "",
-    to: "audience",
+    to,
     waitForReply: 5,
     onReply: "stop",
   };
 }
 
+/** An id no group of `groups` has: group-1, group-2… */
+export function newGroupId(groups: RecipientGroup[]): string {
+  const taken = new Set(groups.map((g) => g.id));
+  let n = groups.length + 1;
+  while (taken.has(`group-${n}`)) n++;
+  return `group-${n}`;
+}
+
 export function newRuleSpec(event = SYMPTOM_OPENED, when = ""): RuleSpec {
   return {
     trigger: { event, when: when || null },
-    audience: [{ role: "driver" }],
-    steps: [emptyStep()],
+    groups: [{ id: "group-1", name: null, entries: [{ role: "driver" }] }],
+    steps: [emptyStep(["group-1"])],
   };
 }
 
-/** A spec from the server with every part present. */
-export function normalizeSpec(
-  spec: Partial<RuleSpec> | null | undefined
-): RuleSpec {
-  return {
-    trigger: {
-      event: spec?.trigger?.event ?? "",
-      when: spec?.trigger?.when ?? null,
-    },
-    audience: spec?.audience ?? [],
-    steps: (spec?.steps ?? []).map((s) => ({ ...emptyStep(), ...s })),
-  };
+/** A spec as stored: with groups, or saved before groups with `audience` and a step `to` of "audience" or a list. */
+interface StoredSpec {
+  trigger?: Partial<RuleTrigger>;
+  groups?: RecipientGroup[];
+  audience?: AudienceEntry[];
+  steps?: (Partial<Omit<RuleStep, "to">> & { to?: unknown })[];
+  family?: string | null;
 }
 
-export type AudienceKind = "role" | "address" | "path";
+const CONNECTION_CHANNELS = new Set(["webhook", "slack", "teams"]);
+
+/**
+ * A spec from the server with every part present. One saved before groups reads as the server reads it
+ * (RuleSpec.java): its audience is the group "rule" and a step's own list the group "step-N".
+ */
+export function normalizeSpec(spec: StoredSpec | null | undefined): RuleSpec {
+  const trigger = {
+    event: spec?.trigger?.event ?? "",
+    when: spec?.trigger?.when ?? null,
+  };
+  const family = spec?.family ?? null;
+  // A stored step without minutes waits none, as the server reads it.
+  const stored = (spec?.steps ?? []).map((s) => ({
+    after: 0,
+    ...s,
+    waitForReply: s.waitForReply ?? 0,
+  }));
+  if (spec?.groups) {
+    return {
+      trigger,
+      groups: spec.groups.map((g) => ({
+        ...g,
+        entries: Array.isArray(g.entries) ? g.entries : [],
+      })),
+      steps: stored.map((s) => ({
+        ...emptyStep(),
+        ...s,
+        to: Array.isArray(s.to)
+          ? s.to.filter((id): id is string => typeof id === "string")
+          : [],
+      })),
+      family,
+    };
+  }
+  const own: RecipientGroup[] = [];
+  let usesRule = false;
+  const steps = stored.map((s, i): RuleStep => {
+    const base = { ...emptyStep(), ...s };
+    if (CONNECTION_CHANNELS.has(String(s.channel))) return { ...base, to: [] };
+    if (Array.isArray(s.to)) {
+      const id = `${STEP_GROUP}${i + 1}`;
+      own.push({ id, name: null, entries: s.to as AudienceEntry[] });
+      return { ...base, to: [id] };
+    }
+    usesRule = true;
+    return { ...base, to: [RULE_GROUP] };
+  });
+  const audience = spec?.audience ?? [];
+  const groups =
+    audience.length > 0 || usesRule
+      ? [{ id: RULE_GROUP, name: null, entries: audience }, ...own]
+      : own;
+  return { trigger, groups, steps, family };
+}
+
+/** A group's name, or "Grupo N" by its place in the list. */
+export function groupLabel(
+  group: RecipientGroup,
+  index: number,
+  d: I18nRecord
+): string {
+  if (group.name?.trim()) return group.name.trim();
+  return tr("groupN", d, { n: String(index + 1) });
+}
+
+/** Whether a step on this channel writes to groups; Webhook, Slack and Teams call a connection. */
+export function writesToGroups(channel: string): boolean {
+  return !CONNECTION_CHANNELS.has(channel);
+}
+
+/** The groups without their names, which only change how they read. */
+const recipients = (groups: RecipientGroup[]) =>
+  groups.map((g) => ({ id: g.id, entries: g.entries }));
+
+export type AudienceKind = "role" | "address" | "path" | "contacts";
 
 export function audienceKind(e: AudienceEntry): AudienceKind {
+  if (e.contacts !== undefined) return "contacts";
   if (e.path !== undefined) return "path";
   if (e.address !== undefined) return "address";
   return "role";
@@ -264,6 +406,8 @@ export function audienceText(e: AudienceEntry, d: I18nRecord): string {
   const kind = audienceKind(e);
   if (kind === "role") return roleLabel(e.role ?? "", d);
   if (kind === "path") return `event.data.${e.path ?? ""}`;
+  if (kind === "contacts")
+    return tr("audienceContactsText", d, { condition: e.contacts ?? "" });
   return e.name || e.address || "";
 }
 
@@ -420,7 +564,7 @@ export function ruleChanges(
     out.push({ key: "event", text: tr("changeEvent", d) });
   if (squash(draft.trigger.when) !== squash(published.trigger.when))
     out.push({ key: "when", text: tr("changeWhen", d) });
-  if (!same(draft.audience, published.audience))
+  if (!same(draft.groups, published.groups))
     out.push({ key: "audience", text: tr("changeAudience", d) });
   const n = Math.max(draft.steps.length, published.steps.length);
   for (let i = 0; i < n; i++) {
@@ -434,6 +578,8 @@ export function ruleChanges(
     else if (!same(a, b))
       out.push({ key: `step${i}`, text: tr("changeStep", d, params) });
   }
+  if ((draft.family ?? null) !== (published.family ?? null))
+    out.push({ key: "family", text: tr("changeFamily", d) });
   return out;
 }
 
@@ -460,8 +606,8 @@ function stepsMovedOrRerouted(a: RuleStep[], b: RuleStep[]) {
 
 /**
  * The bump the draft calls for against the published spec, by the server's rules (RuleBump.java): MAJOR the
- * event; MINOR the condition, the recipients, or steps added, removed, moved or rerouted; PATCH the rest. The
- * first publish is MINOR; null when nothing changed.
+ * event; MINOR the condition, the groups' recipients, or steps added, removed, moved or rerouted; PATCH the rest,
+ * a group's name among them. The first publish is MINOR; null when nothing changed.
  */
 export function ruleBump(
   draft: RuleSpec,
@@ -471,11 +617,15 @@ export function ruleBump(
   if (draft.trigger.event !== published.trigger.event) return "MAJOR";
   if (
     squash(draft.trigger.when) !== squash(published.trigger.when) ||
-    !same(draft.audience, published.audience) ||
+    !same(recipients(draft.groups), recipients(published.groups)) ||
     stepsMovedOrRerouted(draft.steps, published.steps)
   )
     return "MINOR";
-  return same(draft.steps, published.steps) ? null : "PATCH";
+  return same(draft.steps, published.steps) &&
+    same(draft.groups, published.groups) &&
+    (draft.family ?? null) === (published.family ?? null)
+    ? null
+    : "PATCH";
 }
 
 /** The version a bump makes from the one in force: 0.2.1 + MINOR = 0.3.0; the first is 0.1.0. */

@@ -8,6 +8,7 @@
 
 import useSWR, { mutate } from "swr";
 import { controlTowerRequest as request } from "@/features/symptoms/control-tower/control-tower-api";
+import type { SymptomFamily } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
   ChannelAccount,
   ChannelAccountMode,
@@ -26,7 +27,6 @@ import type {
   RuleVersion,
   RunStatus,
   SampleEvent,
-  Simulation,
   TemplateBody,
   ChannelConnection,
   ConnectionChannel,
@@ -41,6 +41,8 @@ export const templatesKey = `${CONVERSATIONS_BASE}/templates`;
 export const templateKey = (key: string) =>
   `${templatesKey}/${encodeURIComponent(key)}`;
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
+export const ruleFamiliesKey = `${CONVERSATIONS_BASE}/rule-families`;
+export const contactReachKey = `${CONVERSATIONS_BASE}/contact-reach`;
 export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 export const accountsKey = `${CONVERSATIONS_BASE}/accounts`;
@@ -102,6 +104,28 @@ export function useEventCatalog() {
   return useSWR<EventTypeInfo[]>(catalogKey, fetcher, quiet);
 }
 
+/** The organization's rule families; a 404 means it has no such list. */
+export function useRuleFamilies() {
+  return useSWR<SymptomFamily[]>(ruleFamiliesKey, fetcher, quiet);
+}
+
+/** A rule in force that writes to a contact; `always` is false when it depends on the event. */
+export interface ContactReachRule {
+  ruleId: string;
+  name: string;
+  state: "TEST" | "ACTIVE";
+  always: boolean;
+}
+
+/** Contact id to the rules in force that write to it. */
+export function useContactReach() {
+  return useSWR<Record<string, ContactReachRule[]>>(
+    contactReachKey,
+    fetcher,
+    quiet
+  );
+}
+
 export function useConversationRuns(filter: {
   rule?: string | null;
   status?: RunStatus | null;
@@ -128,6 +152,11 @@ export function saveRuleDraft(id: string, spec: RuleSpec) {
   });
 }
 
+/** Drops the draft; only a rule with a published version can. */
+export function discardRuleDraft(id: string) {
+  return request<void>(`${ruleKey(id)}/draft`, { method: "DELETE" });
+}
+
 /** `bump` raises the computed bump; null keeps it. */
 export function publishRule(
   id: string,
@@ -147,11 +176,26 @@ export function setRuleState(id: string, state: RuleState) {
   });
 }
 
-export function simulateRule(id: string, event: SampleEvent) {
-  return request<Simulation>(`${ruleKey(id)}/simulate`, {
-    method: "POST",
-    body: { event },
-  });
+export type InvocationPerson = {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+/**
+ * Starts the rule without its trigger, each step at its time: the version in force, or the draft (sent for real).
+ * `to` replaces the entries of the groups it names. 409 when the rule is off or the draft has errors.
+ */
+export function invokeRule(
+  id: string,
+  body: {
+    version: "current" | "draft";
+    event: SampleEvent;
+    to?: Record<string, InvocationPerson[]>;
+    key?: string;
+  }
+) {
+  return request<unknown>(`${ruleKey(id)}/invoke`, { method: "POST", body });
 }
 
 /** Saves a template; only platform owners, in the platform scope, may. */
@@ -179,9 +223,12 @@ export function editMetaTemplate(id: string, draft: MetaTemplateDraft) {
 /** Deletes one language of the template when `id` is given, else every language. */
 export function deleteMetaTemplate(name: string, id?: string) {
   const q = id ? `?id=${encodeURIComponent(id)}` : "";
-  return request<void>(`${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`, {
-    method: "DELETE",
-  });
+  return request<void>(
+    `${orgMetaTemplatesKey}/${encodeURIComponent(name)}${q}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
 export async function refreshMetaTemplates() {
@@ -190,7 +237,7 @@ export async function refreshMetaTemplates() {
 
 /** Refreshes the rule list and, when given, one rule. */
 export async function refreshRules(id?: string) {
-  await mutate(rulesKey);
+  await Promise.all([mutate(rulesKey), mutate(contactReachKey)]);
   if (id) await mutate(ruleKey(id));
 }
 
@@ -199,11 +246,12 @@ export async function refreshTemplates(key?: string) {
   if (key) await mutate(templateKey(key));
 }
 
+/** Reloaded on focus, so a connection created in another tab shows up. */
 export function useConnectionChannel(channel: string | null) {
   return useSWR<ConnectionChannel>(
     channel ? connectionChannelKey(channel) : null,
     fetcher,
-    quiet
+    { shouldRetryOnError: false }
   );
 }
 

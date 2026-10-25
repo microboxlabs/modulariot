@@ -16,11 +16,13 @@ import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
+import com.microboxlabs.miot.conversational.rules.Invocation;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.core.json.JsonObject;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,7 +30,9 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -53,7 +57,7 @@ class PgRuleStoresTest {
             "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
             "V0.11.1__whatsapp_outbound_by_address.sql",
             // This constraint change is independent of 0.11.3, which needs the integrations schema.
-            "V0.11.4__trip_conversations.sql");
+            "V0.11.4__trip_conversations.sql", "V0.11.5__run_invocations.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -100,6 +104,60 @@ class PgRuleStoresTest {
                         ContextKind.TRIP.dbValue(), tripId)).await().atMost(WAIT).iterator().next();
         assertEquals(ContextKind.TRIP.dbValue(), created.getString("context_kind"));
         assertEquals(tripId, created.getString("context_key"));
+    }
+
+    @Test
+    void outboundProviderIdAndConversationTouchCommitTogether() throws Exception {
+        UUID conversation = UUID.randomUUID();
+        String providerId = "test-" + UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation (id, tenant_code, participant_address)
+                VALUES ($1, $2, 'recipient@example.invalid')
+                """).execute(Tuple.of(conversation, "test-" + UUID.randomUUID())).await().atMost(WAIT);
+
+        String sql = sql("INSERT_OUTBOUND_AND_TOUCH");
+        assertThrows(Exception.class, () -> pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, null, "trip-test"))
+                .await().atMost(WAIT), "an invalid context pair must roll back the message insert");
+        assertEquals(0, countProviderId(providerId));
+
+        var inserted = pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, "trip", "trip-test"))
+                .await().atMost(WAIT);
+        assertEquals(1, inserted.size());
+        assertEquals(1, countProviderId(providerId));
+        Row touched = pool.preparedQuery("""
+                SELECT context_kind, context_key, last_message_preview
+                FROM miot_conversational.wa_conversation WHERE id = $1
+                """).execute(Tuple.of(conversation)).await().atMost(WAIT).iterator().next();
+        assertEquals("trip", touched.getString("context_kind"));
+        assertEquals("trip-test", touched.getString("context_key"));
+        assertEquals("Test subject", touched.getString("last_message_preview"));
+
+        assertEquals(0, pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, "trip", "trip-test"))
+                .await().atMost(WAIT).size());
+        assertEquals(1, countProviderId(providerId));
+    }
+
+    private static int countProviderId(String providerId) {
+        return pool.preparedQuery("""
+                SELECT count(*) AS count FROM miot_conversational.wa_message
+                WHERE channel = 'email' AND provider_message_id = $1
+                """).execute(Tuple.of(providerId)).await().atMost(WAIT).iterator().next().getLong("count").intValue();
+    }
+
+    private static Tuple outboundParams(UUID conversation, String providerId, String contextKind, String contextKey) {
+        var at = T0.atOffset(ZoneOffset.UTC);
+        return Tuple.tuple()
+                .addUUID(UUID.randomUUID()).addUUID(conversation).addString("OUTBOUND").addString("SYSTEM")
+                .addString("TEXT").addString("Test body").addString(null).addString(null).addString(null)
+                .addString(null).addString(providerId).addString("SENT").addString(null).addString(null)
+                .addString(null).addString(null).addJsonObject(new JsonObject()).addOffsetDateTime(at)
+                .addOffsetDateTime(null).addOffsetDateTime(null).addOffsetDateTime(at).addString("email")
+                .addString("recipient@example.invalid").addUUID(null).addUUID(null).addInteger(1)
+                .addString(null).addString(null).addString(null).addString(null).addOffsetDateTime(at)
+                .addString("Test subject").addString(contextKind).addString(contextKey);
     }
 
     private static RuleStore.Publication pub(String from, String version, RuleBump bump, String reason,
@@ -227,6 +285,26 @@ class PgRuleStoresTest {
         assertTrue(runs.waiting(tenant, "symptom_case", "-7").isEmpty());
         assertTrue(runs.list(tenant, null, Run.Status.WAITING, 10).isEmpty());
         assertEquals(1, runs.list(tenant, null, null, 10).size());
+    }
+
+    @Test
+    void anInvokedRunKeepsItsRecipientsAndItsKeyStartsItOnce() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", Invocation.SOURCE, "symptom_case", "-7", Map.of(), true, T0, T0));
+        Map<String, List<Invocation.Person>> to = new LinkedHashMap<>();
+        to.put("rule", List.of(new Invocation.Person("Tester", "tester@example.com", null)));
+        to.put("unchanged", null);
+        Run first = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, to, "k-1"));
+        Run again = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, null, "k-1"));
+
+        assertEquals(first.id(), again.id());
+        assertEquals(to, runs.find(first.id()).orElseThrow().recipients());
+        assertEquals(first.id(), runs.invoked(rule.id(), "k-1").orElseThrow().id());
+        assertTrue(runs.invoked(rule.id(), "k-2").isEmpty());
     }
 
     @Test

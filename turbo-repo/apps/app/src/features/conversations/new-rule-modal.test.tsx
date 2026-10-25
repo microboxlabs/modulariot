@@ -87,7 +87,7 @@ describe("NewRuleModal", () => {
     );
     expect(
       screen.getByText(
-        "Cuando se abre un caso de Botón de pánico en Código negro"
+        "Cuando se abre una condición de Botón de pánico en Código negro"
       )
     ).toBeTruthy();
 
@@ -100,13 +100,13 @@ describe("NewRuleModal", () => {
       name: "Botón de pánico · Código negro",
       spec: {
         trigger: { event: "symptom.case.opened", when: WHEN },
-        audience: [{ role: "driver" }],
+        groups: [{ id: "group-1", name: null, entries: [{ role: "driver" }] }],
         steps: [
           {
             after: 0,
             channel: "whatsapp",
             template: "",
-            to: "audience",
+            to: ["group-1"],
             waitForReply: 5,
             onReply: "stop",
           },

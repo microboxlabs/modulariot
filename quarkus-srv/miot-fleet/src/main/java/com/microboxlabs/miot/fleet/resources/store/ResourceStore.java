@@ -18,6 +18,9 @@ public interface ResourceStore {
 
     List<Carrier> listCarriers(String tenantCode, String q, int page, int size);
 
+    /** Active matching carriers, limited after filtering by status. */
+    List<Carrier> listActiveCarriers(String tenantCode, String q, int limit);
+
     Optional<Carrier> updateCarrier(Carrier carrier);
 
     Truck insertTruck(Truck truck);

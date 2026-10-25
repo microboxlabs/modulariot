@@ -75,7 +75,8 @@ public class ReplyEvents {
                 reply.address(), reply.text(), reply.buttonPayload(), at);
         OperationalEvent event = new OperationalEvent(ConversationEventCatalog.REPLY_RECEIVED,
                 ConversationEventCatalog.EVENT_SOURCE, r.tenantCode(), at,
-                new EventContext(r.contextKind(), r.contextKey()), data, r.test());
+                new EventContext(r.contextKind(), r.contextKey()), data,
+                r.test() || started.map(StoredEvent::test).orElse(false));
         fire.apply(event).exceptionally(e -> {
             LOG.warnf("Reply event %s: an observer failed (%s)", reply.messageId(), e.getClass().getSimpleName());
             return null;

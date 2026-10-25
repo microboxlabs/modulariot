@@ -87,6 +87,18 @@ class ReplyEventsTest {
     }
 
     @Test
+    void aRealDraftTestReplyRemainsATestEvent() {
+        world.runStore.saveEvent(new StoredEvent("e-draft", TENANT, "trip.milestone.detected",
+                "invocation", "trip", "11111111-1111-1111-1111-111111111111", Map.of(), true, AT, AT));
+        world.runStore.createRun(new Run("r-draft", TENANT, "rule-1", Invocation.DRAFT, "e-draft", "trip",
+                "11111111-1111-1111-1111-111111111111", false, Run.Status.REPLIED, 1, null, null, AT, AT));
+
+        OperationalEvent event = replies.publish(reply("r-draft", "confirm")).orElseThrow();
+
+        assertTrue(event.test(), "real outbound delivery must not turn a draft reply into a production event");
+    }
+
+    @Test
     void manualReplyCannotBorrowAnotherWaitingRunInTheConversation() {
         world.runStore.saveEvent(new StoredEvent("e-waiting", TENANT, "trip.milestone.detected", "miot-trips",
                 "trip", "11111111-1111-1111-1111-111111111111", Map.of("milestone", "departure"), false, AT, AT));

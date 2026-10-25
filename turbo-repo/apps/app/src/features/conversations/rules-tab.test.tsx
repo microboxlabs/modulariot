@@ -49,8 +49,8 @@ describe("RulesTab", () => {
     expect(defs.map((f) => f.label)).toEqual(["Estado", "Evento", "Canal"]);
     expect(defs[0].options).toEqual(["Activa", "En prueba", "Apagada"]);
     expect(defs[1].options).toEqual([
-      "Se abre un caso de síntoma",
-      "Se cierra un caso de síntoma",
+      "Síntomas · Condición abierta",
+      "Síntomas · Condición cerrada",
     ]);
     expect(defs[2].options).toEqual(["WhatsApp", "Correo"]);
   });
@@ -107,7 +107,7 @@ describe("RulesTab", () => {
     expect(card.getAttribute("href")).toBe(
       "/es/users/settings/communications/rules/r1"
     );
-    expect(within(card).getByText("Se abre un caso de síntoma")).toBeTruthy();
+    expect(within(card).getByText("Síntomas · Condición abierta")).toBeTruthy();
     expect(within(card).getByText("Activa")).toBeTruthy();
     expect(within(card).getByText("2 pasos")).toBeTruthy();
     expect(within(card).getAllByText("WhatsApp").length).toBeGreaterThan(0);

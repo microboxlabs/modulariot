@@ -20,6 +20,8 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   updateContact: api.updateContact,
   deleteContact: api.deleteContact,
   importContacts: api.importContacts,
+  contactsKey: "contacts",
+  contactFacetsKey: "contacts/facets",
   useContacts: () => ({ data: [], error: undefined, mutate: api.mutate }),
 }));
 
@@ -128,7 +130,11 @@ describe("CallCenterMenu — new number", () => {
         name: "Ana Soto",
         phone: "+56912345678",
         methods: ["PHONE", "WHATSAPP"],
-        channels: { phone: "+56912345678", whatsapp: "+56912345678" },
+        channels: {
+          phone: "+56912345678",
+          whatsapp: "+56912345678",
+          email: "",
+        },
         provisional: true,
       })
     );

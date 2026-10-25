@@ -16,6 +16,7 @@ import com.microboxlabs.miot.conversational.service.ContextMessage;
 import com.microboxlabs.miot.conversational.service.EmailMessagingService;
 import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
 import com.microboxlabs.miot.core.event.OperationalEvent;
+import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
@@ -70,6 +71,7 @@ public class RulesEngine {
     private final TemplateStore templates;
     private final RunStore runs;
     private final Supplier<List<ParticipantResolver>> resolvers;
+    private final Supplier<List<ContactDirectory>> directories;
     private final WhatsAppMessagingService whatsapp;
     private final EmailMessagingService email;
     private final ConnectionChannels channels;
@@ -80,10 +82,11 @@ public class RulesEngine {
     @Inject
     RulesEngine(@ConfigProperty(name = "miot.conversational.rules.enabled", defaultValue = "true") boolean enabled,
             RuleStore rules, TemplateStore templates, RunStore runs, Instance<ParticipantResolver> resolvers,
-            WhatsAppMessagingService whatsapp, EmailMessagingService email, ConnectionChannels channels,
-            ConnectionMessagingService connectionMessages, ObjectMapper json) {
+            Instance<ContactDirectory> directories, WhatsAppMessagingService whatsapp, EmailMessagingService email,
+            ConnectionChannels channels, ConnectionMessagingService connectionMessages, ObjectMapper json) {
         this(enabled, new Stores(rules, templates, runs), () -> resolvers.stream().toList(),
-                new Senders(whatsapp, email, channels, connectionMessages), json, Clock.systemUTC());
+                () -> directories.stream().toList(), new Senders(whatsapp, email, channels, connectionMessages), json,
+                Clock.systemUTC());
     }
 
     /** Where rules, templates and runs are kept. */
@@ -97,7 +100,13 @@ public class RulesEngine {
 
     public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
             Senders senders, ObjectMapper json, Clock clock) {
+        this(enabled, stores, resolvers, List::of, senders, json, clock);
+    }
+
+    public RulesEngine(boolean enabled, Stores stores, Supplier<List<ParticipantResolver>> resolvers,
+            Supplier<List<ContactDirectory>> directories, Senders senders, ObjectMapper json, Clock clock) {
         this.enabled = enabled;
+        this.directories = directories;
         this.rules = stores.rules();
         this.templates = stores.templates();
         this.runs = stores.runs();
@@ -212,15 +221,53 @@ public class RulesEngine {
         return due.size();
     }
 
+    /**
+     * Starts a run of an {@link Invocation}: its event stored, and the run due at its first step's time. With a
+     * key the rule already ran, the run that key started.
+     */
+    public Run invoke(StoredEvent sample, Run run, List<Step> steps) {
+        Optional<Run> first = runs.invoked(run.ruleId(), run.invocationKey());
+        if (first.isPresent()) {
+            return first.get();
+        }
+        Instant now = clock.instant();
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), sample.tenantCode(),
+                sample.type(), Invocation.SOURCE, sample.contextKind(), sample.contextKey(), sample.data(),
+                sample.test(), sample.at() != null ? sample.at() : now, now));
+        boolean empty = steps.isEmpty();
+        return runs.createRun(new Run(UUID.randomUUID().toString(), event.tenantCode(), run.ruleId(),
+                run.ruleVersion(), event.id(), event.contextKind(), event.contextKey(), run.test(),
+                empty ? Run.Status.DONE : Run.Status.WAITING, 0,
+                empty ? null : now.plus(Duration.ofMinutes(steps.get(0).afterMinutes())), null, now, now,
+                run.recipients(), run.invocationKey()));
+    }
+
+    /** The spec a run sends: its version's, or the draft as it is now for a run of the draft. */
+    private Optional<RuleSpec> spec(Run run) {
+        Optional<RuleVersion> version = Invocation.DRAFT.equals(run.ruleVersion()) ? draftOrCurrent(run)
+                : rules.version(run.ruleId(), run.ruleVersion());
+        return version.map(v -> RuleSpec.read(v.spec()));
+    }
+
+    /** The draft; once it is published, the version in force. */
+    private Optional<RuleVersion> draftOrCurrent(Run run) {
+        List<RuleVersion> versions = rules.versions(run.ruleId());
+        RuleVersion draft = RulesService.draft(versions);
+        if (draft != null) {
+            return Optional.of(draft);
+        }
+        return rules.find(run.tenantCode(), run.ruleId()).map(r -> RulesService.current(r, versions));
+    }
+
     private void advance(Run run, Instant now) {
-        Optional<RuleVersion> version = rules.version(run.ruleId(), run.ruleVersion());
+        Optional<RuleSpec> found = spec(run);
         Optional<StoredEvent> event = runs.event(run.eventId());
-        if (version.isEmpty() || event.isEmpty()) {
+        if (found.isEmpty() || event.isEmpty()) {
             runs.updateIfWaiting(run.advanced(Run.Status.FAILED, run.step(), null,
                     "La versión de la regla o el evento ya no existe", now));
             return;
         }
-        RuleSpec spec = RuleSpec.read(version.get().spec());
+        RuleSpec spec = found.get();
         List<Step> steps = spec.steps();
         Run current = run;
         while (true) {
@@ -251,13 +298,16 @@ public class RulesEngine {
     private String send(Run run, Step step, RuleSpec spec, StoredEvent event) {
         Optional<ConvTemplate> template = step.template() == null ? Optional.empty()
                 : templates.find(ConvTemplate.PLATFORM_TENANT, step.template());
-        StepMessages.Plan plan = StepMessages.plan(step, spec, event, template, new Audiences(resolvers.get()));
+        StepMessages.Plan plan = StepMessages.plan(step, Invocation.forStep(spec, step, run.recipients()), event,
+                template, new Audiences(resolvers.get(), directories.get()));
         List<String> problems = new ArrayList<>(plan.warnings());
         ContextKind kind = contextKind(run.contextKind());
         for (StepMessages.Planned m : plan.messages()) {
             Optional<ConnectionChannel> viaConnection = ConnectionChannel.of(m.channel());
             if (viaConnection.isPresent()) {
-                deliver(viaConnection.get(), run, event, kind, m).ifPresent(problems::add);
+                // A run of the draft is a test: it writes to people only, the connection is not called.
+                boolean simulate = run.test() || Invocation.DRAFT.equals(run.ruleVersion());
+                deliver(viaConnection.get(), run, event, kind, m, simulate).ifPresent(problems::add);
                 continue;
             }
             boolean isWhatsApp = RuleSpec.WHATSAPP.equals(m.channel());
@@ -276,11 +326,12 @@ public class RulesEngine {
     }
 
     /**
-     * Calls the connection step's connection once and stores the call as a message to the connection; a test run
-     * calls nothing and stores it SIMULATED. Returns the problem when the call failed or was refused.
+     * Calls the connection step's connection once and stores the call as a message to the connection; with
+     * {@code simulate} it calls nothing and stores it SIMULATED. Returns the problem when the call failed or was
+     * refused.
      */
     private Optional<String> deliver(ConnectionChannel channel, Run run, StoredEvent event, ContextKind kind,
-            StepMessages.Planned m) {
+            StepMessages.Planned m, boolean simulate) {
         String connection = m.to().address();
         Rule rule = rules.find(run.tenantCode(), run.ruleId()).orElse(null);
         String name = channels.name(run.tenantCode(), connection).orElse(null);
@@ -289,7 +340,7 @@ public class RulesEngine {
                 m.template() == null ? null : m.template().key(), null, Map.of(), m.subject(),
                 delivery.textOrSummary(), run.id(), run.step());
         Message stored = connectionMessages.sendInContext(run.tenantCode(), Channel.fromDb(channel.key()), message,
-                run.test(), () -> channels.deliver(channel, run.tenantCode(), connection, channel.body(delivery)));
+                simulate, () -> channels.deliver(channel, run.tenantCode(), connection, channel.body(delivery)));
         return stored.status() == MessageStatus.FAILED
                 ? Optional.of(channel.key() + " " + connection + ": " + stored.errorMessage())
                 : Optional.empty();
@@ -308,11 +359,11 @@ public class RulesEngine {
             return Optional.empty();
         }
         Run r = run.get();
-        Optional<RuleVersion> version = rules.version(r.ruleId(), r.ruleVersion());
-        if (version.isEmpty()) {
+        Optional<RuleSpec> spec = spec(r);
+        if (spec.isEmpty()) {
             return Optional.empty();
         }
-        List<Step> steps = RuleSpec.read(version.get().spec()).steps();
+        List<Step> steps = spec.get().steps();
         int answered = reply.answeredStep() != null ? reply.answeredStep() : r.step() - 1;
         if (answered < 0 || answered >= r.step() || answered >= steps.size() || !steps.get(answered).stopsOnReply()) {
             return Optional.empty();

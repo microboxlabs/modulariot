@@ -2,8 +2,12 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
-import type { ConversationTemplate, RuleStep } from "./conversations-types";
-import RuleSteps from "./rule-steps";
+import type {
+  ConversationTemplate,
+  RecipientGroup,
+  RuleStep,
+} from "./conversations-types";
+import RuleSteps, { gapMinutes, withGap } from "./rule-steps";
 
 const d = es.pages.userSettings.communications;
 
@@ -12,12 +16,21 @@ const TEMPLATES = [
   { id: "t2", key: "panic-tower", name: "Aviso a la torre" },
 ] as ConversationTemplate[];
 
+const GROUPS: RecipientGroup[] = [
+  { id: "drivers", name: "Conductores", entries: [{ role: "driver" }] },
+  {
+    id: "tower",
+    name: "Torre",
+    entries: [{ address: "tower@example.com", channel: "email" }],
+  },
+];
+
 const STEPS: RuleStep[] = [
   {
     after: 0,
     channel: "whatsapp",
     template: "panic-check",
-    to: "audience",
+    to: ["drivers"],
     waitForReply: 5,
     onReply: "stop",
   },
@@ -25,7 +38,7 @@ const STEPS: RuleStep[] = [
     after: 0,
     channel: "email",
     template: "panic-tower",
-    to: [{ address: "tower@example.com", channel: "email", name: "Torre" }],
+    to: ["tower"],
     waitForReply: 10,
     onReply: "stop",
   },
@@ -34,14 +47,19 @@ const STEPS: RuleStep[] = [
 /** The steps as a controlled list, with every change recorded. */
 function Harness({
   initial,
+  groups = GROUPS,
   onChange,
-}: Readonly<{ initial: RuleStep[]; onChange: (s: RuleStep[]) => void }>) {
+}: Readonly<{
+  initial: RuleStep[];
+  groups?: RecipientGroup[];
+  onChange: (s: RuleStep[]) => void;
+}>) {
   const [steps, setSteps] = useState(initial);
   return (
     <RuleSteps
       steps={steps}
+      groups={groups}
       templates={TEMPLATES}
-      fields={[]}
       readOnly={false}
       d={d}
       onChange={(next) => {
@@ -52,29 +70,55 @@ function Harness({
   );
 }
 
+const DRAG = "Arrastra para cambiar el orden, o usa ↑ ↓.";
+
 const rows = () => screen.getAllByRole("listitem", { name: /^Paso \d$/ });
 
+const chip = (row: HTMLElement, name: string) =>
+  within(row).getByRole("button", { name });
+
+/** The pill around a control, which carries its error mark. */
+const pill = (el: HTMLElement) => el.closest(".rounded-md") as HTMLElement;
+
 describe("RuleSteps", () => {
-  it("shows one row per step with its channel, template and wait", () => {
+  it("shows each step as channel, template and groups, with the wait on the line to the next", () => {
     render(<Harness initial={STEPS} onChange={vi.fn()} />);
     const [first, second] = rows();
     expect(
       (within(first).getByLabelText("Canal") as HTMLSelectElement).value
     ).toBe("whatsapp");
     expect(
-      (within(first).getByLabelText("Plantilla") as HTMLSelectElement).value
-    ).toBe("panic-check");
+      (within(first).getByLabelText("Plantilla") as HTMLInputElement).value
+    ).toBe(TEMPLATES.find((t) => t.key === "panic-check")?.name);
+    expect(chip(first, "Conductores").getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+    expect(chip(first, "Torre").getAttribute("aria-pressed")).toBe("false");
     expect(
       (
         within(first).getByLabelText(
-          "Minutos de espera de respuesta"
+          "Cuándo sigue el siguiente paso"
+        ) as HTMLSelectElement
+      ).value
+    ).toBe("stop");
+    expect(
+      (
+        within(first).getByLabelText(
+          "Minutos hasta el siguiente paso"
         ) as HTMLInputElement
       ).value
     ).toBe("5");
-    expect(within(second).getByDisplayValue("tower@example.com")).toBeTruthy();
+    expect(chip(second, "Torre").getAttribute("aria-pressed")).toBe("true");
+    expect(
+      (
+        screen.getByLabelText(
+          "Minutos de espera de respuesta"
+        ) as HTMLInputElement
+      ).value
+    ).toBe("10");
   });
 
-  it("adds, moves and removes steps", () => {
+  it("adds a step for the first group, moves it and removes one", () => {
     const onChange = vi.fn();
     render(<Harness initial={STEPS} onChange={onChange} />);
 
@@ -82,17 +126,16 @@ describe("RuleSteps", () => {
     expect(rows()).toHaveLength(3);
     expect(onChange.mock.lastCall?.[0][2]).toMatchObject({
       channel: "whatsapp",
-      to: "audience",
+      to: ["drivers"],
       template: "",
     });
 
-    fireEvent.click(within(rows()[1]).getByRole("button", { name: "Subir" }));
+    fireEvent.keyDown(within(rows()[1]).getByRole("button", { name: DRAG }), {
+      key: "ArrowUp",
+    });
     expect(
       onChange.mock.lastCall?.[0].map((s: RuleStep) => s.template)
     ).toEqual(["panic-tower", "panic-check", ""]);
-    expect(
-      (within(rows()[0]).getByLabelText("Plantilla") as HTMLSelectElement).value
-    ).toBe("panic-tower");
 
     fireEvent.click(
       within(rows()[0]).getByRole("button", { name: "Quitar paso" })
@@ -103,78 +146,136 @@ describe("RuleSteps", () => {
     ).toEqual(["panic-check", ""]);
   });
 
-  it("first step cannot move up and the last cannot move down", () => {
-    render(<Harness initial={STEPS} onChange={vi.fn()} />);
+  it("moves a step by dropping it on another, and keeps the ends in place", () => {
+    const onChange = vi.fn();
+    render(<Harness initial={STEPS} onChange={onChange} />);
     const [first, second] = rows();
+    const handle = within(second).getByRole("button", { name: DRAG });
+    fireEvent.dragStart(handle, {
+      dataTransfer: { setData: vi.fn(), setDragImage: vi.fn() },
+    });
+    fireEvent.dragOver(first);
+    fireEvent.drop(first);
     expect(
-      (
-        within(first).getByRole("button", {
-          name: "Subir",
-        }) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
-    expect(
-      (
-        within(second).getByRole("button", {
-          name: "Bajar",
-        }) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+      onChange.mock.lastCall?.[0].map((s: RuleStep) => s.template)
+    ).toEqual(["panic-tower", "panic-check"]);
+
+    onChange.mockClear();
+    fireEvent.keyDown(within(rows()[0]).getByRole("button", { name: DRAG }), {
+      key: "ArrowUp",
+    });
+    expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("waits for a reply only on WhatsApp and email", () => {
-    const onChange = vi.fn();
-    render(<Harness initial={[STEPS[0]]} onChange={onChange} />);
-    const row = rows()[0];
-    expect(within(row).getByLabelText("Si responde")).toBeTruthy();
+  it("has no drag handle with a single step", () => {
+    render(<Harness initial={[STEPS[0]]} onChange={vi.fn()} />);
+    expect(within(rows()[0]).queryByRole("button", { name: DRAG })).toBeNull();
+  });
 
-    fireEvent.change(within(row).getByLabelText("Canal"), {
-      target: { value: "preferred" },
-    });
-    expect(onChange.mock.lastCall?.[0][0]).toMatchObject({
-      channel: "preferred",
-      waitForReply: 0,
-    });
+  it("toggles the groups a step writes to, and lets an unknown one be removed", () => {
+    const onChange = vi.fn();
+    render(
+      <Harness
+        initial={[{ ...STEPS[0], to: ["drivers", "night"] }]}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(chip(rows()[0], "Torre"));
+    expect(onChange.mock.lastCall?.[0][0].to).toEqual([
+      "drivers",
+      "night",
+      "tower",
+    ]);
+    fireEvent.click(chip(rows()[0], "night ✕"));
+    expect(onChange.mock.lastCall?.[0][0].to).toEqual(["drivers", "tower"]);
+  });
+
+  it("asks for a group when the rule has none", () => {
+    render(
+      <Harness
+        initial={[{ ...STEPS[0], to: [] }]}
+        groups={[]}
+        onChange={vi.fn()}
+      />
+    );
     expect(
-      within(rows()[0]).queryByLabelText("Minutos de espera de respuesta")
-    ).toBeNull();
-    expect(within(rows()[0]).getByText(/no espera respuesta/)).toBeTruthy();
+      within(rows()[0]).getByText("Agrega un grupo en «A quién».")
+    ).toBeTruthy();
+  });
+
+  it("starts the first step right away or some minutes after the event", () => {
+    const onChange = vi.fn();
+    render(<Harness initial={STEPS} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Cuándo sale el primer paso"), {
+      target: { value: "later" },
+    });
+    expect(onChange.mock.lastCall?.[0][0].after).toBe(5);
+    fireEvent.change(screen.getByLabelText("Minutos antes de enviar"), {
+      target: { value: "12" },
+    });
+    expect(onChange.mock.lastCall?.[0][0].after).toBe(12);
+  });
+
+  it("keeps the wait on the channel's own minutes and the gap through a channel change", () => {
+    const onChange = vi.fn();
+    render(<Harness initial={STEPS} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Minutos hasta el siguiente paso"), {
+      target: { value: "15" },
+    });
+    expect(onChange.mock.lastCall?.[0][0].waitForReply).toBe(15);
+    expect(onChange.mock.lastCall?.[0][1].after).toBe(0);
 
     fireEvent.change(within(rows()[0]).getByLabelText("Canal"), {
-      target: { value: "email" },
+      target: { value: "preferred" },
     });
+    const steps = onChange.mock.lastCall?.[0] as RuleStep[];
+    expect(steps[0].waitForReply).toBe(0);
+    expect(steps[1].after).toBe(15);
     expect(
-      within(rows()[0]).getByLabelText("Minutos de espera de respuesta")
-    ).toBeTruthy();
-    // With no wait there is nothing to do on a reply.
-    expect(within(rows()[0]).queryByLabelText("Si responde")).toBeNull();
+      (
+        screen.getByLabelText(
+          "Cuándo sigue el siguiente paso"
+        ) as HTMLSelectElement
+      ).value
+    ).toBe("after");
   });
 
-  it("sends a step to other people with their own list", () => {
+  it("sends the next step right away, replies or not, and asks for minutes again when it waits", () => {
     const onChange = vi.fn();
-    render(<Harness initial={[STEPS[0]]} onChange={onChange} />);
-    fireEvent.change(within(rows()[0]).getByLabelText("A"), {
-      target: { value: "custom" },
+    render(<Harness initial={STEPS} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Cuándo sigue el siguiente paso"), {
+      target: { value: "now" },
     });
-    expect(onChange.mock.lastCall?.[0][0].to).toEqual([{ role: "tower_lead" }]);
-    expect((screen.getByLabelText("Rol") as HTMLSelectElement).value).toBe(
-      "tower_lead"
-    );
+    let steps = onChange.mock.lastCall?.[0] as RuleStep[];
+    expect([steps[0].waitForReply, steps[0].onReply, steps[1].after]).toEqual([
+      0,
+      "continue",
+      0,
+    ]);
+    expect(
+      screen.queryByLabelText("Minutos hasta el siguiente paso")
+    ).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Cuándo sigue el siguiente paso"), {
+      target: { value: "stop" },
+    });
+    steps = onChange.mock.lastCall?.[0] as RuleStep[];
+    expect([steps[0].waitForReply, steps[0].onReply]).toEqual([5, "stop"]);
   });
 
-  it("shows a step's findings under it and marks its template", () => {
+  it("shows a step's findings under it and marks the parts they are about", () => {
     render(
       <RuleSteps
         steps={[STEPS[0]]}
+        groups={GROUPS}
         templates={TEMPLATES}
-        fields={[]}
         errors={{
           0: {
             messages: ["El paso 1 no tiene plantilla."],
             template: true,
             channel: false,
             connection: false,
-            entries: {},
+            groups: false,
           },
         }}
         readOnly={false}
@@ -184,43 +285,29 @@ describe("RuleSteps", () => {
     );
     const row = rows()[0];
     expect(within(row).getByText("El paso 1 no tiene plantilla.")).toBeTruthy();
-    expect(within(row).getByLabelText("Plantilla").className).toContain(
+    expect(pill(within(row).getByLabelText("Plantilla")).className).toContain(
       "border-red-500"
     );
-    expect(within(row).getByLabelText("Canal").className).not.toContain(
+    expect(pill(within(row).getByLabelText("Canal")).className).not.toContain(
       "border-red-500"
     );
   });
+});
 
-  it("marks the step's own recipient that has the problem, not its template", () => {
-    render(
-      <RuleSteps
-        steps={[STEPS[1]]}
-        templates={TEMPLATES}
-        fields={[]}
-        errors={{
-          0: {
-            messages: [],
-            template: false,
-            channel: false,
-            connection: false,
-            entries: { 0: ["Ningún contacto tiene el rol Jefe de torre."] },
-          },
-        }}
-        readOnly={false}
-        d={d}
-        onChange={vi.fn()}
-      />
-    );
-    const row = rows()[0];
-    expect(within(row).getByLabelText("Plantilla").className).not.toContain(
-      "border-red-500"
-    );
-    expect(within(row).getByLabelText("Número o correo").className).toContain(
-      "border-red-500"
-    );
-    expect(
-      within(row).getByText("Ningún contacto tiene el rol Jefe de torre.")
-    ).toBeTruthy();
+describe("the gap between two steps", () => {
+  it("is the first step's wait plus the next one's delay", () => {
+    expect(gapMinutes([{ ...STEPS[0] }, { ...STEPS[1], after: 3 }], 0)).toBe(8);
+  });
+
+  it("is kept as the wait on a reply channel, else as the next step's delay", () => {
+    expect(withGap(STEPS, 0, 7).map((s) => [s.waitForReply, s.after])).toEqual([
+      [7, 0],
+      [10, 0],
+    ]);
+    const slack = [{ ...STEPS[0], channel: "slack" as const }, STEPS[1]];
+    expect(withGap(slack, 0, 7).map((s) => [s.waitForReply, s.after])).toEqual([
+      [0, 0],
+      [10, 7],
+    ]);
   });
 });

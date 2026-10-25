@@ -8,13 +8,13 @@ const SPEC: RuleSpec = {
     event: "symptom.case.opened",
     when: "event.data.symptomKey == 'panic-button' && event.data.level >= 4",
   },
-  audience: [{ role: "driver" }],
+  groups: [{ id: "drivers", entries: [{ role: "driver" }] }],
   steps: [
     {
       after: 0,
       channel: "whatsapp",
       template: "panic-check",
-      to: "audience",
+      to: ["drivers"],
       waitForReply: 5,
       onReply: "stop",
     },
@@ -46,12 +46,14 @@ const api = vi.hoisted(() => ({
   useConversationRule: vi.fn(),
   useConversationTemplates: vi.fn(),
   useEventCatalog: vi.fn(),
+  useRuleFamilies: vi.fn(() => ({ data: undefined, error: undefined })),
   saveRuleDraft: vi.fn(),
   publishRule: vi.fn(),
   setRuleState: vi.fn(),
   simulateRule: vi.fn(),
   refreshRules: vi.fn(),
   useConnectionChannel: vi.fn(() => ({ data: undefined })),
+  useOrgMetaTemplates: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock("./conversations-api", () => api);
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({
@@ -114,15 +116,10 @@ describe("RuleEditor", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "Cuando se abre un caso de Botón de pánico en Código negro"
+        "Cuando se abre una condición de Botón de pánico en Código negro"
       )
     ).toBeTruthy();
-    for (const title of [
-      "1. Cuándo",
-      "2. A quién",
-      "3. Pasos",
-      "4. Simulación",
-    ]) {
+    for (const title of ["Cuándo se envía", "A quién", "Pasos"]) {
       expect(screen.getByRole("heading", { name: title })).toBeTruthy();
     }
     expect(screen.getByText("{{patente}}")).toBeTruthy();

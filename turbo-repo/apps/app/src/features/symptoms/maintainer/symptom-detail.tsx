@@ -40,6 +40,7 @@ import RuleDescription from "./rule-description";
 import PublishDialog from "./publish-dialog";
 import SaveAsTemplateModal from "./save-as-template-modal";
 import SheetHeader from "./sheet-header";
+import SheetTop from "./ui/sheet-top";
 import ResponseWorkspace, { firstResponseLevel } from "./response-workspace";
 import SymptomRuleSections, { changedLevels } from "./symptom-rule-sections";
 import {
@@ -264,189 +265,208 @@ export default function SymptomDetail({
       </div>
       <div
         id={SHEET_ID}
-        className="mx-auto flex w-full max-w-screen-2xl min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-10 dark:bg-gray-900"
+        className="min-h-0 flex-1 overflow-y-auto dark:bg-gray-900"
       >
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {tr("loadFailed", d)}
-          </p>
-        )}
-        {def && (
-          <SheetHeader
-            def={def}
-            spec={shownSpec}
-            canWrite={canWrite && !viewed}
-            families={families}
-            familiesMissing={familiesListMissing(familiesError)}
-            templates={templates}
-            forkedFrom={detail?.forkedFrom ?? null}
-            backHref={`/${lang}${scope.pages}`}
-            lang={lang}
-            d={d}
-            rootDict={rootDict}
-            stateless={template}
-            onChange={update}
-            onSaveAsTemplate={
-              !template && isPlatformOwner
-                ? () => setSavingTemplate(true)
-                : undefined
-            }
-            onHistory={() => setHistoryOpen(true)}
-            onDuplicate={() => {
-              if (!def.currentVersion) return;
-              setText(variantName(def.name, d));
-              setPending({ kind: "fork", version: def.currentVersion });
-            }}
-          />
-        )}
-        {actionError && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {actionError}
-          </p>
-        )}
-        {external && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
-          >
-            {tr("draftChangedElsewhere", d)}
-            <button
-              type="button"
-              className="font-medium underline"
-              onClick={() => void resync()}
-            >
-              {tr("draftReload", d)}
-            </button>
-          </div>
-        )}
-
-        {viewed?.version && (
-          <VersionBanner
-            id={id}
-            version={viewed.version}
-            current={def?.currentVersion ?? null}
-            canWrite={canWrite}
-            d={d}
-            onRevert={() => {
-              setText("");
-              setPending({
-                kind: "rollback",
-                version: viewed.version as string,
-              });
-            }}
-            onDuplicate={() => {
-              setText(variantName(def?.name ?? "", d));
-              setPending({ kind: "fork", version: viewed.version as string });
-            }}
-            onBack={() => setViewing(null)}
-          />
-        )}
-
-        {shownSpec && detail && (
-          <WorkspaceTabs
-            response={responseIcu !== null}
-            d={d}
-            onRule={() => setResponseIcu(null)}
-            onResponse={() =>
-              setResponseIcu(
-                (icu) =>
-                  icu ??
-                  firstResponseLevel(
-                    shownSpec,
-                    viewed ? undefined : report?.findings
-                  )
-              )
-            }
-          />
-        )}
-
-        <div
-          role="tabpanel"
-          id={WORKSPACE_PANEL_ID}
-          aria-labelledby={workspaceTabId(responseIcu !== null)}
-          className="flex flex-col gap-4"
-        >
-          {responseIcu !== null && shownSpec && detail && (
-            <ResponseWorkspace
+        <SheetTop>
+          {def && (
+            <SheetHeader
+              def={def}
               spec={shownSpec}
-              symptom={
-                template || !def ? undefined : { key: def.key, name: def.name }
-              }
-              changedLevels={
-                viewed ? new Set<number>() : changedLevels(shownSpec, published)
-              }
-              preview={viewed ? undefined : (currentPreview ?? undefined)}
-              findings={viewed ? undefined : report?.findings}
-              readOnly={!canWrite || Boolean(viewed)}
-              icu={responseIcu}
+              canWrite={canWrite && !viewed}
+              families={families}
+              familiesMissing={familiesListMissing(familiesError)}
+              templates={templates}
+              forkedFrom={detail?.forkedFrom ?? null}
+              backHref={`/${lang}${scope.pages}`}
+              lang={lang}
               d={d}
-              onIcu={setResponseIcu}
+              rootDict={rootDict}
+              stateless={template}
               onChange={update}
+              onSaveAsTemplate={
+                !template && isPlatformOwner
+                  ? () => setSavingTemplate(true)
+                  : undefined
+              }
+              onHistory={() => setHistoryOpen(true)}
+              onDuplicate={() => {
+                if (!def.currentVersion) return;
+                setText(variantName(def.name, d));
+                setPending({ kind: "fork", version: def.currentVersion });
+              }}
+              actions={
+                <>
+                  {actionError && (
+                    <span
+                      role="alert"
+                      className="max-w-56 break-words text-right text-xs text-red-600 dark:text-red-400"
+                    >
+                      {actionError}
+                    </span>
+                  )}
+                  {canWrite && !viewed && detail?.draft && (
+                    <DraftBar
+                      plan={plan}
+                      planFailed={Boolean(planError)}
+                      report={report}
+                      saving={saving}
+                      saveError={saveError}
+                      d={d}
+                      onReview={() => setPublishing(true)}
+                      onDiscard={() => void run(discard)}
+                    />
+                  )}
+                </>
+              }
             />
           )}
-
-          {responseIcu === null && overviewSpec && overview && (
-            <RuleDescription
-              section="overview"
-              rule={overview}
-              sourceKey={overviewSpec.source ?? def?.sourceKey ?? null}
-              d={d}
-            />
+        </SheetTop>
+        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pt-3 pb-10">
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {tr("loadFailed", d)}
+            </p>
           )}
-
-          {responseIcu === null && shownSpec && detail && (
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="xl:col-span-2">
-                <SymptomRuleSections
-                  spec={shownSpec}
-                  changed={changed}
-                  published={viewed ? null : published}
-                  preview={viewed ? undefined : (currentPreview ?? undefined)}
-                  fields={source?.fields ?? []}
-                  sourceFields={fields}
-                  findings={viewed ? undefined : report?.findings}
-                  readOnly={!canWrite || Boolean(viewed)}
-                  d={d}
-                  onChange={update}
-                  onConfigureResponse={setResponseIcu}
-                />
-              </div>
-              <div className="flex flex-col gap-4">
-                {!viewed && (
-                  <>
-                    <ReviewPanel report={report} d={d} />
-                    <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
-                    {!template && harnessEnabled && canWrite && def && (
-                      <HarnessPanel id={id} name={def.name} d={d} />
-                    )}
-                    {!template && (
-                      <ImpactPanel
-                        definitionId={id}
-                        spec={spec ?? shownSpec}
-                        published={published}
-                        lang={lang}
-                        d={d}
-                      />
-                    )}
-                  </>
-                )}
-                <FieldsPanel source={source} d={d} />
-              </div>
+          {external && (
+            <div
+              role="alert"
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"
+            >
+              {tr("draftChangedElsewhere", d)}
+              <button
+                type="button"
+                className="font-medium underline"
+                onClick={() => void resync()}
+              >
+                {tr("draftReload", d)}
+              </button>
             </div>
           )}
+
+          {viewed?.version && (
+            <VersionBanner
+              id={id}
+              version={viewed.version}
+              current={def?.currentVersion ?? null}
+              canWrite={canWrite}
+              d={d}
+              onRevert={() => {
+                setText("");
+                setPending({
+                  kind: "rollback",
+                  version: viewed.version as string,
+                });
+              }}
+              onDuplicate={() => {
+                setText(variantName(def?.name ?? "", d));
+                setPending({ kind: "fork", version: viewed.version as string });
+              }}
+              onBack={() => setViewing(null)}
+            />
+          )}
+
+          {shownSpec && detail && (
+            <WorkspaceTabs
+              response={responseIcu !== null}
+              d={d}
+              onRule={() => setResponseIcu(null)}
+              onResponse={() =>
+                setResponseIcu(
+                  (icu) =>
+                    icu ??
+                    firstResponseLevel(
+                      shownSpec,
+                      viewed ? undefined : report?.findings
+                    )
+                )
+              }
+            />
+          )}
+
+          <div
+            role="tabpanel"
+            id={WORKSPACE_PANEL_ID}
+            aria-labelledby={workspaceTabId(responseIcu !== null)}
+            className="flex flex-col gap-4"
+          >
+            {responseIcu !== null && shownSpec && detail && (
+              <ResponseWorkspace
+                spec={shownSpec}
+                symptom={
+                  template || !def
+                    ? undefined
+                    : { key: def.key, name: def.name }
+                }
+                changedLevels={
+                  viewed
+                    ? new Set<number>()
+                    : changedLevels(shownSpec, published)
+                }
+                preview={viewed ? undefined : (currentPreview ?? undefined)}
+                findings={viewed ? undefined : report?.findings}
+                readOnly={!canWrite || Boolean(viewed)}
+                icu={responseIcu}
+                d={d}
+                onIcu={setResponseIcu}
+                onChange={update}
+              />
+            )}
+
+            {responseIcu === null && overviewSpec && overview && (
+              <RuleDescription
+                section="overview"
+                rule={overview}
+                sourceKey={overviewSpec.source ?? def?.sourceKey ?? null}
+                d={d}
+              />
+            )}
+
+            {responseIcu === null && shownSpec && detail && (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                <div className="xl:col-span-2">
+                  <SymptomRuleSections
+                    spec={shownSpec}
+                    changed={changed}
+                    published={viewed ? null : published}
+                    preview={viewed ? undefined : (currentPreview ?? undefined)}
+                    fields={source?.fields ?? []}
+                    sourceFields={fields}
+                    findings={viewed ? undefined : report?.findings}
+                    readOnly={!canWrite || Boolean(viewed)}
+                    d={d}
+                    onChange={update}
+                    onConfigureResponse={setResponseIcu}
+                  />
+                </div>
+                <div className="flex flex-col gap-4">
+                  {!viewed && (
+                    <>
+                      <ReviewPanel report={report} d={d} />
+                      <PreviewPanel
+                        preview={preview}
+                        d={d}
+                        rootDict={rootDict}
+                      />
+                      {!template && harnessEnabled && canWrite && def && (
+                        <HarnessPanel id={id} name={def.name} d={d} />
+                      )}
+                      {!template && (
+                        <ImpactPanel
+                          definitionId={id}
+                          spec={spec ?? shownSpec}
+                          published={published}
+                          lang={lang}
+                          d={d}
+                        />
+                      )}
+                    </>
+                  )}
+                  <FieldsPanel source={source} d={d} />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        {canWrite && detail?.draft && !viewed && (
-          <DraftBar
-            plan={plan}
-            planFailed={Boolean(planError)}
-            report={report}
-            saving={saving}
-            saveError={saveError}
-            d={d}
-            onReview={() => setPublishing(true)}
-            onDiscard={() => void run(discard)}
-          />
-        )}
       </div>
 
       <VersionsDrawer

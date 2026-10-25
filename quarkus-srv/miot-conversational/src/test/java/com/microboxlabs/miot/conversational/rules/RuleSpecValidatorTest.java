@@ -71,12 +71,12 @@ class RuleSpecValidatorTest {
     }
 
     @Test
-    void anEmptyAudienceForAStepToTheAudienceIsNoAudience() {
+    void anEmptyAudienceForAStepToTheAudienceIsAnEmptyGroup() {
         Finding finding = only(validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [],
                  "steps": [{"channel": "whatsapp", "template": "panic-check", "to": "audience"}]}
-                """), "noAudience");
-        assertEquals("audience.0", finding.section());
+                """), "groupEmpty");
+        assertEquals("groups.0", finding.section());
         assertEquals(List.of(), validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [],
                  "steps": [{"channel": "email", "template": "panic-tower",
@@ -85,14 +85,24 @@ class RuleSpecValidatorTest {
     }
 
     @Test
+    void anEmptyContactConditionCannotBePublished() {
+        Finding finding = only(validate("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [{"contacts": ""}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
+                """), "audienceEmptyEntry");
+        assertEquals(Severity.ERROR, finding.severity());
+        assertFalse(RuleSpecValidator.publishable(List.of(finding)));
+    }
+
+    @Test
     void anUnknownRoleIsAWarning() {
         Finding finding = only(validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "driver"}, {"role": "carrier"}],
                  "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
                 """), "unknownRole");
-        assertEquals("audience.1", finding.section());
+        assertEquals("groups.0", finding.section());
         assertEquals(Severity.WARNING, finding.severity());
-        assertEquals(Map.of("role", "carrier", "entry", 2), finding.params());
+        assertEquals(Map.of("role", "carrier", "entry", 2, "group", 1), finding.params());
         assertEquals(List.of(), validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"role": "jefe de torre"}],
                  "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
@@ -207,10 +217,51 @@ class RuleSpecValidatorTest {
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"address": "+56900000000"}, {}],
                  "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
                 """), "audienceBadChannel");
-        assertEquals("audience.0", finding.section());
-        assertEquals("audience.1", only(validate("""
+        assertEquals(Map.of("address", "+56900000000", "entry", 1, "group", 1), finding.params());
+        assertEquals(Map.of("entry", 2, "group", 1), only(validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [{"address": "+56900000000"}, {}],
                  "steps": [{"channel": "whatsapp", "template": "panic-check"}]}
-                """), "audienceEmptyEntry").section());
+                """), "audienceEmptyEntry").params());
+    }
+
+    @Test
+    void stepsWriteToGroupsThatExist() {
+        List<Finding> findings = validate("""
+                {"trigger": {"event": "symptom.case.opened"},
+                 "groups": [{"id": "drivers", "name": "Conductores", "entries": [{"role": "driver"}]},
+                            {"id": "tower", "entries": [{"address": "tower@example.com", "channel": "email"}]}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "to": ["drivers", "night"]},
+                           {"channel": "email", "template": "panic-tower", "to": []}]}
+                """);
+        Finding unknown = only(findings, "stepUnknownGroup");
+        assertEquals("steps.0", unknown.section());
+        assertEquals(Map.of("id", "night", "step", 1), unknown.params());
+        assertEquals("steps.1", only(findings, "stepNoRecipients").section());
+        Finding unused = only(findings, "groupUnused");
+        assertEquals("groups.1", unused.section());
+        assertEquals(Severity.WARNING, unused.severity());
+    }
+
+    @Test
+    void aGroupNeedsAnIdOfItsOwnAndRecipients() {
+        List<Finding> findings = validate("""
+                {"trigger": {"event": "symptom.case.opened"},
+                 "groups": [{"id": "drivers", "entries": [{"role": "driver"}]},
+                            {"id": "drivers", "entries": [{"role": "driver"}]},
+                            {"name": "Sin id", "entries": []}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "to": ["drivers"]}]}
+                """);
+        assertEquals("groups.1", only(findings, "groupDuplicateId").section());
+        assertEquals("groups.2", only(findings, "groupNoId").section());
+        assertEquals(Map.of("group", 3), only(findings, "groupEmpty").params());
+    }
+
+    @Test
+    void aStepNamesGroupsById() {
+        assertEquals("stepBadRecipients", only(validate("""
+                {"trigger": {"event": "symptom.case.opened"},
+                 "groups": [{"id": "drivers", "entries": [{"role": "driver"}]}],
+                 "steps": [{"channel": "whatsapp", "template": "panic-check", "to": [{"role": "driver"}]}]}
+                """), "stepBadRecipients").code());
     }
 }

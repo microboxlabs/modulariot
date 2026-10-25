@@ -400,13 +400,31 @@ export default function MonitorList({
       icon={HiOutlineMap}
       title={tr("title", d)}
       description={tr("description", d)}
+      filters={
+        <TextInput
+          className="w-full sm:w-72"
+          sizing="sm"
+          icon={HiSearch}
+          value={q}
+          aria-label={tr("search", d)}
+          placeholder={tr("search", d)}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      }
       actions={
-        canEdit && (
-          <Button color="blue" size="sm" onClick={() => setCreating(true)}>
-            <HiPlus className="mr-1 h-4 w-4" />
-            {tr("newMonitor", d)}
-          </Button>
-        )
+        <div className="flex shrink-0 items-center gap-2">
+          <LayoutToggle
+            layout={layout}
+            labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+            onLayout={setLayout}
+          />
+          {canEdit && (
+            <Button color="blue" size="sm" onClick={() => setCreating(true)}>
+              <HiPlus className="mr-1 h-4 w-4" />
+              {tr("newMonitor", d)}
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
@@ -415,25 +433,6 @@ export default function MonitorList({
             <span className="text-sm">{error.message}</span>
           </Alert>
         )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <TextInput
-            className="w-full sm:w-72"
-            sizing="sm"
-            icon={HiSearch}
-            value={q}
-            aria-label={tr("search", d)}
-            placeholder={tr("search", d)}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <div className="ml-auto">
-            <LayoutToggle
-              layout={layout}
-              labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
-              onLayout={setLayout}
-            />
-          </div>
-        </div>
 
         {isLoading && (
           <div className="flex justify-center py-10">

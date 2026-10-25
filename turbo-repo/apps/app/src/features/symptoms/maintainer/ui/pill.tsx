@@ -33,6 +33,7 @@ export function PillSelect({
   disabled,
   ariaLabel,
   className,
+  icon,
 }: Readonly<{
   value: string;
   options: PillOption[];
@@ -41,15 +42,19 @@ export function PillSelect({
   disabled?: boolean;
   ariaLabel?: string;
   className?: string;
+  /** Shown before the selected text, inside the pill. */
+  icon?: ReactNode;
 }>) {
   return (
     <Pill changed={changed} className={className}>
+      {icon}
       <Select
         aria-label={ariaLabel}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className={`${BARE} pr-1`}
+        inline
+        className={BARE}
       >
         {options.map((o) => (
           <option

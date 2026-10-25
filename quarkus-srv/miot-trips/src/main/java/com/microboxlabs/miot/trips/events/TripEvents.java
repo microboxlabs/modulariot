@@ -127,11 +127,31 @@ public class TripEvents {
                 .map(OffsetDateTime::toInstant).orElse(null);
         List<Assignment> open = assignments.listByTrip(tenantCode, tripId).stream()
                 .filter(a -> a.validTo() == null).toList();
+        Optional<FleetResources.Carrier> carrier = carrier(tenantCode, open);
         return TripEventData.trip(trip.id(), first == null ? null : first.externalCode(), orderRef,
                 place(tenantCode, trip.originId()), place(tenantCode, trip.destinationId()),
                 trip.plannedStart() == null ? null : trip.plannedStart().toInstant(), plannedEnd,
                 resource(tenantCode, open, Assignment.TRUCK), resource(tenantCode, open, Assignment.TRAILER),
-                resource(tenantCode, open, Assignment.DRIVER));
+                resource(tenantCode, open, Assignment.DRIVER), carrier.map(FleetResources.Carrier::legalName)
+                        .orElse(null), carrier.map(FleetResources.Carrier::rut).map(TripEvents::rut).orElse(null));
+    }
+
+    /** The carrier of the truck assigned first. */
+    private Optional<FleetResources.Carrier> carrier(String tenantCode, List<Assignment> open) {
+        try {
+            return open.stream().filter(a -> Assignment.TRUCK.equals(a.resourceType())).findFirst()
+                    .flatMap(a -> fleet.vehicle(tenantCode, Assignment.TRUCK, UUID.fromString(a.resourceId())))
+                    .map(FleetResources.Vehicle::carrierId)
+                    .flatMap(id -> fleet.carrier(tenantCode, id));
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    /** "76.111.222-3" becomes "761112223", as contact books store a company's RUT. */
+    static String rut(String raw) {
+        String rut = raw.replaceAll("[.\\-\\s]", "").toUpperCase(java.util.Locale.ROOT);
+        return rut.isEmpty() ? null : rut;
     }
 
     private String place(String tenantCode, String id) {

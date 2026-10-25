@@ -12,6 +12,9 @@ import dev.cel.common.types.SimpleType;
 import dev.cel.parser.CelStandardMacro;
 import dev.cel.runtime.CelEvaluationException;
 import dev.cel.runtime.CelRuntime;
+import dev.cel.runtime.CelAttributePattern;
+import dev.cel.runtime.CelUnknownSet;
+import dev.cel.runtime.PartialVars;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -27,6 +30,9 @@ import java.util.Optional;
  */
 public final class EventCondition {
 
+    private static final String EVENT_VAR = "event";
+    private static final String CONTACT_VAR = "contact";
+
     /** A compile error at a zero-based character offset. */
     public record Issue(int position, String message, String detail) {
     }
@@ -34,7 +40,16 @@ public final class EventCondition {
     private static final Cel CEL = CelFactory.standardCelBuilder()
             .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true).build())
             .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
-            .addVar("event", MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .build();
+
+    /** An audience's condition: {@code contact} is one entry of the contact book, {@code event} the event. */
+    private static final Cel CONTACT_CEL = CelFactory.standardCelBuilder()
+            .setOptions(CelOptions.current().enableHeterogeneousNumericComparisons(true)
+                    .enableUnknownTracking(true).build())
+            .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
+            .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .addVar(CONTACT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
             .build();
 
     private static final int MAX_PROGRAMS = 512;
@@ -51,10 +66,19 @@ public final class EventCondition {
 
     /** The first compile error, or empty when the condition compiles to a yes/no (or is blank). */
     public static Optional<Issue> check(String when) {
+        return check(CEL, when);
+    }
+
+    /** {@link #check} for a condition on {@code contact} and {@code event}. */
+    public static Optional<Issue> checkContact(String when) {
+        return check(CONTACT_CEL, when);
+    }
+
+    private static Optional<Issue> check(Cel cel, String when) {
         if (when == null || when.isBlank()) {
             return Optional.empty();
         }
-        CelValidationResult result = CEL.compile(when);
+        CelValidationResult result = cel.compile(when);
         if (result.hasError()) {
             CelIssue issue = result.getAllIssues().stream()
                     .filter(i -> i.getSeverity() == CelIssue.Severity.ERROR)
@@ -74,32 +98,74 @@ public final class EventCondition {
         if (when == null || when.isBlank()) {
             return true;
         }
-        CelRuntime.Program program = program(when);
+        return eval(CEL, when, Map.of(EVENT_VAR, normalize(event)));
+    }
+
+    /** Whether the contact meets the audience's condition for this event; an error never does. */
+    public static boolean matchesContact(String when, Map<String, Object> event, Map<String, Object> contact) {
+        if (when == null || when.isBlank()) {
+            return false;
+        }
+        return eval(CONTACT_CEL, when, Map.of(EVENT_VAR, normalize(event), CONTACT_VAR, normalize(contact)));
+    }
+
+    /** Whether a contact meets an audience's condition with no event at hand. */
+    public enum Reach {
+        YES,
+        NO,
+        /** The answer needs the event, as in {@code contact.companyRut == event.data.carrierRut}. */
+        DEPENDS
+    }
+
+    /** Evaluate with the event unknown, preserving contact-only short circuits. */
+    public static Reach reachContact(String when, Map<String, Object> contact) {
+        if (when == null || when.isBlank()) {
+            return Reach.NO;
+        }
+        CelRuntime.Program program = program(CONTACT_CEL, when);
+        if (program == null) {
+            return Reach.NO;
+        }
+        try {
+            Object result = program.eval(PartialVars.of(Map.of(CONTACT_VAR, normalize(contact)),
+                    CelAttributePattern.create(EVENT_VAR)));
+            if (result instanceof CelUnknownSet) {
+                return Reach.DEPENDS;
+            }
+            return Boolean.TRUE.equals(result) ? Reach.YES : Reach.NO;
+        } catch (CelEvaluationException | RuntimeException e) {
+            return Reach.DEPENDS;
+        }
+    }
+
+    private static boolean eval(Cel cel, String when, Map<String, Object> vars) {
+        CelRuntime.Program program = program(cel, when);
         if (program == null) {
             return false;
         }
         try {
-            return Boolean.TRUE.equals(program.eval(Map.of("event", normalize(event))));
+            return Boolean.TRUE.equals(program.eval(vars));
         } catch (CelEvaluationException | RuntimeException e) {
             return false;
         }
     }
 
-    private static CelRuntime.Program program(String when) {
+    private static CelRuntime.Program program(Cel cel, String when) {
+        String key = (cel == CEL ? "e:" : "c:") + when;
         synchronized (PROGRAMS) {
-            CelRuntime.Program cached = PROGRAMS.get(when);
+            CelRuntime.Program cached = PROGRAMS.get(key);
             if (cached != null) {
                 return cached;
             }
         }
-        CelValidationResult result = CEL.compile(when);
+        CelValidationResult result = cel.compile(when);
         if (result.hasError()) {
             return null;
         }
         try {
-            CelRuntime.Program program = CEL.createProgram(result.getAst());
+            CelRuntime.Program program = cel.createProgram(result.getAst());
             synchronized (PROGRAMS) {
-                PROGRAMS.put(when, program);
+                PROGRAMS.put(key, program);
             }
             return program;
         } catch (CelEvaluationException | CelValidationException e) {

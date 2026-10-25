@@ -11,14 +11,31 @@ vi.mock("@/features/notifications/notification", () => ({
   ShowNotification: vi.fn(),
 }));
 
-vi.mock("@/features/layout/components/secured-navbar/org-switcher/use-org-scopes", () => ({
-  useOrgScopes: () => ({ activeOrg: { slug: "norte", displayName: "Norte" } }),
-}));
+vi.mock(
+  "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
+  () => ({
+    useOrgScopes: () => ({
+      activeOrg: { slug: "norte", displayName: "Norte" },
+    }),
+  })
+);
 vi.mock("../hooks/use-org-members", () => ({
   useOrgMembers: () => ({
     members: [
-      { id: "m1", email: "ana@example.com", firstName: "Ana", lastName: "Soto", displayName: "Ana Soto" },
-      { id: "m2", email: "persona@example.com", firstName: "Persona", lastName: "Ejemplo", displayName: "Persona Ejemplo" },
+      {
+        id: "m1",
+        email: "ana@example.com",
+        firstName: "Ana",
+        lastName: "Soto",
+        displayName: "Ana Soto",
+      },
+      {
+        id: "m2",
+        email: "persona@example.com",
+        firstName: "Persona",
+        lastName: "Ejemplo",
+        displayName: "Persona Ejemplo",
+      },
     ],
     isLoading: false,
     error: null,
@@ -30,14 +47,24 @@ const BADGES_KEY = "miot.prototype.contact-badges.v1";
 
 function renderForm(editing: BookContact | null = null) {
   const onSave = vi.fn();
-  render(<ContactFormModal show onClose={vi.fn()} editing={editing} onSave={onSave} dict={dict} />);
+  render(
+    <ContactFormModal
+      show
+      onClose={vi.fn()}
+      editing={editing}
+      onSave={onSave}
+      dict={dict}
+    />
+  );
   return onSave;
 }
 
 /** Digits shown in a phone field (formatting varies; jsdom skips some of it). */
-const digitsOf = (el: HTMLElement) => (el as HTMLInputElement).value.replace(/\D/g, "");
+const digitsOf = (el: HTMLElement) =>
+  (el as HTMLInputElement).value.replace(/\D/g, "");
 
-const saved = (onSave: ReturnType<typeof vi.fn>) => onSave.mock.calls[0]?.[0] as BookContact;
+const saved = (onSave: ReturnType<typeof vi.fn>) =>
+  onSave.mock.calls[0]?.[0] as BookContact;
 
 describe("ContactFormModal — persona", () => {
   beforeEach(() => window.localStorage.clear());
@@ -45,29 +72,95 @@ describe("ContactFormModal — persona", () => {
   it("lists the organization's people, filters them and saves the picked one", async () => {
     const user = userEvent.setup();
     const onSave = renderForm();
-    expect(screen.getByRole("button", { name: /Ana Soto/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Ana Soto/ })
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
 
-    await user.type(screen.getByPlaceholderText("Buscar por nombre o correo…"), "perso");
+    await user.type(
+      screen.getByPlaceholderText("Buscar por nombre o correo…"),
+      "perso"
+    );
     expect(screen.queryByRole("button", { name: /Ana Soto/ })).toBeNull();
     await user.click(screen.getByRole("button", { name: /Persona Ejemplo/ }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(saved(onSave)).toMatchObject({ name: "Persona Ejemplo", orgMemberId: "m2" });
+    expect(saved(onSave)).toMatchObject({
+      name: "Persona Ejemplo",
+      orgMemberId: "m2",
+    });
+  });
+
+  it("doesn't offer a member who is already in the book", () => {
+    render(
+      <ContactFormModal
+        show
+        onClose={vi.fn()}
+        editing={null}
+        onSave={vi.fn()}
+        takenMemberIds={new Set(["m1"])}
+        dict={dict}
+      />
+    );
+    const taken = screen.getByRole("button", { name: /Ana Soto/ });
+    expect(taken).toBeDisabled();
+    expect(taken).toHaveTextContent("Ya en la libreta");
+    expect(
+      screen.getByRole("button", { name: /Persona Ejemplo/ })
+    ).toBeEnabled();
+  });
+
+  it("takes a Peruvian DNI and a company's RUC", async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm();
+    await user.click(
+      screen.getByRole("button", {
+        name: "O ingresa un contacto fuera de la organización",
+      })
+    );
+    await user.type(screen.getByLabelText("Nombre completo"), "Persona Perú");
+    await user.selectOptions(screen.getByLabelText("Documento · tipo"), "DNI");
+    await user.type(screen.getByLabelText("Documento"), "1234-5678");
+    await user.selectOptions(
+      screen.getByLabelText("RUT o RUC de la empresa · tipo"),
+      "RUC"
+    );
+    await user.type(
+      screen.getByLabelText("RUT o RUC de la empresa"),
+      "20100070970"
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({
+      rut: "12345678",
+      rutType: "DNI",
+      companyRut: "20100070970",
+      companyRutType: "RUC",
+    });
   });
 
   it("switches to an outside contact with full name and RUT", async () => {
     const user = userEvent.setup();
     const onSave = renderForm();
-    await user.click(screen.getByRole("button", { name: "O ingresa un contacto fuera de la organización" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "O ingresa un contacto fuera de la organización",
+      })
+    );
     await user.type(screen.getByLabelText("Nombre completo"), "Pedro Externo");
-    await user.type(screen.getByLabelText("RUT"), "12.345.678-0");
-    expect(screen.getByText("El RUT no es válido.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Documento"), "12.345.678-0");
+    expect(
+      screen.getByText("El número no es válido para ese tipo.")
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
 
-    await user.clear(screen.getByLabelText("RUT"));
-    await user.type(screen.getByLabelText("RUT"), "12.345.678-5");
+    await user.clear(screen.getByLabelText("Documento"));
+    await user.type(screen.getByLabelText("Documento"), "123456785");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(saved(onSave)).toMatchObject({ name: "Pedro Externo", rut: "12.345.678-5", orgMemberId: undefined });
+    expect(saved(onSave)).toMatchObject({
+      name: "Pedro Externo",
+      rut: "12.345.678-5",
+      rutType: "RUT",
+      orgMemberId: undefined,
+    });
   });
 });
 
@@ -77,7 +170,10 @@ describe("ContactFormModal — saving", () => {
   it("closes once saved, completes a provisional contact and stays open when the save fails", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const onSave = vi.fn().mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce(undefined);
+    const onSave = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("409"))
+      .mockResolvedValueOnce(undefined);
     const provisional: BookContact = {
       id: "p",
       name: "Rápido",
@@ -87,13 +183,24 @@ describe("ContactFormModal — saving", () => {
       channels: { phone: "+56900000001" },
       provisional: true,
     };
-    render(<ContactFormModal show onClose={onClose} editing={provisional} onSave={onSave} dict={dict} />);
+    render(
+      <ContactFormModal
+        show
+        onClose={onClose}
+        editing={provisional}
+        onSave={onSave}
+        dict={dict}
+      />
+    );
 
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(onClose).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onSave.mock.calls[1]?.[0]).toMatchObject({ id: "p", provisional: false });
+    expect(onSave.mock.calls[1]?.[0]).toMatchObject({
+      id: "p",
+      provisional: false,
+    });
   });
 
   it("tells the caller when a badge in use is renamed or deleted", async () => {
@@ -120,7 +227,9 @@ describe("ContactFormModal — saving", () => {
     );
     const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
     await user.type(input, "santiago");
-    await user.click(await screen.findByRole("button", { name: "Renombrar santiago" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Renombrar santiago" })
+    );
     const editor = screen.getByLabelText("Renombrar");
     await user.clear(editor);
     await user.type(editor, "Santiago Centro{Enter}");
@@ -130,9 +239,9 @@ describe("ContactFormModal — saving", () => {
 
     expect(onRenameTag).toHaveBeenCalledWith("santiago", "Santiago Centro");
     expect(onDeleteTag).toHaveBeenCalledWith("valpo");
-    expect(JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]")).toEqual([
-      { id: "b1", name: "Santiago Centro" },
-    ]);
+    expect(JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]")).toEqual(
+      [{ id: "b1", name: "Santiago Centro" }]
+    );
   });
 
   it("undoes the badge change and says so when contacts were not updated", async () => {
@@ -159,7 +268,9 @@ describe("ContactFormModal — saving", () => {
     );
     const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
     await user.type(input, "santiago");
-    await user.click(await screen.findByRole("button", { name: "Renombrar santiago" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Renombrar santiago" })
+    );
     const editor = screen.getByLabelText("Renombrar");
     await user.clear(editor);
     await user.type(editor, "Santiago Centro{Enter}");
@@ -167,7 +278,8 @@ describe("ContactFormModal — saving", () => {
     await user.type(input, "valpo");
     await user.click(screen.getByRole("button", { name: "Eliminar valpo" }));
 
-    const stored = () => JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]");
+    const stored = () =>
+      JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]");
     await waitFor(() =>
       expect(stored()).toEqual([
         { id: "b1", name: "santiago" },
@@ -177,7 +289,8 @@ describe("ContactFormModal — saving", () => {
     );
     expect(ShowNotification).toHaveBeenCalledWith({
       type: "error",
-      message: "No se pudo actualizar la etiqueta en 2 contactos. Se deshizo el cambio.",
+      message:
+        "No se pudo actualizar la etiqueta en 2 contactos. Se deshizo el cambio.",
     });
   });
 });
@@ -191,7 +304,10 @@ describe("ContactFormModal — badges", () => {
 
   it("creates badges, reuses existing ones and saves them as descriptors", async () => {
     const user = userEvent.setup();
-    window.localStorage.setItem(BADGES_KEY, JSON.stringify([{ id: "b1", name: "Norte" }]));
+    window.localStorage.setItem(
+      BADGES_KEY,
+      JSON.stringify([{ id: "b1", name: "Norte" }])
+    );
     const onSave = renderForm();
     await pickAna(user);
     const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
@@ -200,21 +316,31 @@ describe("ContactFormModal — badges", () => {
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     const badges = JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]");
-    expect(badges.map((b: { name: string }) => b.name)).toEqual(["Norte", "transportista"]);
+    expect(badges.map((b: { name: string }) => b.name)).toEqual([
+      "Norte",
+      "transportista",
+    ]);
     expect(saved(onSave).badgeIds).toEqual([badges[1].id, "b1"]);
   });
 
   it("shows matches only while typing and offers to create a new one", async () => {
     const user = userEvent.setup();
-    window.localStorage.setItem(BADGES_KEY, JSON.stringify([{ id: "b1", name: "santiago" }]));
+    window.localStorage.setItem(
+      BADGES_KEY,
+      JSON.stringify([{ id: "b1", name: "santiago" }])
+    );
     renderForm();
     expect(screen.queryByText("Todas las etiquetas")).toBeNull();
     expect(screen.queryByRole("button", { name: "santiago" })).toBeNull();
 
     const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
     await user.type(input, "sant");
-    expect(await screen.findByRole("button", { name: "santiago" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: 'Crear "sant"' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "santiago" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: 'Crear "sant"' })
+    ).toBeInTheDocument();
 
     await user.clear(input);
     await user.type(input, "Santiago");
@@ -223,12 +349,22 @@ describe("ContactFormModal — badges", () => {
 
   it("adds an existing badge from the matches", async () => {
     const user = userEvent.setup();
-    window.localStorage.setItem(BADGES_KEY, JSON.stringify([{ id: "b1", name: "santiago" }]));
+    window.localStorage.setItem(
+      BADGES_KEY,
+      JSON.stringify([{ id: "b1", name: "santiago" }])
+    );
     const onSave = renderForm();
     await pickAna(user);
-    await user.type(screen.getByPlaceholderText(/Busca o crea una etiqueta/), "sant");
-    await user.click(await screen.findByRole("button", { name: "santiago", pressed: false }));
-    expect(screen.getByRole("button", { name: "Quitar santiago" })).toBeInTheDocument();
+    await user.type(
+      screen.getByPlaceholderText(/Busca o crea una etiqueta/),
+      "sant"
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "santiago", pressed: false })
+    );
+    expect(
+      screen.getByRole("button", { name: "Quitar santiago" })
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(saved(onSave).badgeIds).toEqual(["b1"]);
   });
@@ -237,11 +373,18 @@ describe("ContactFormModal — badges", () => {
     const user = userEvent.setup();
     const onSave = renderForm();
     await pickAna(user);
-    await user.type(screen.getByPlaceholderText(/Busca o crea una etiqueta/), "transportista");
-    await user.click(screen.getByRole("button", { name: 'Crear "transportista"' }));
+    await user.type(
+      screen.getByPlaceholderText(/Busca o crea una etiqueta/),
+      "transportista"
+    );
+    await user.click(
+      screen.getByRole("button", { name: 'Crear "transportista"' })
+    );
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     const badges = JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]");
-    expect(badges.map((b: { name: string }) => b.name)).toEqual(["transportista"]);
+    expect(badges.map((b: { name: string }) => b.name)).toEqual([
+      "transportista",
+    ]);
     expect(saved(onSave).badgeIds).toEqual([badges[0].id]);
   });
 
@@ -257,7 +400,9 @@ describe("ContactFormModal — badges", () => {
     renderForm();
     const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
     await user.type(input, "santiago");
-    await user.click(await screen.findByRole("button", { name: "Renombrar santiago" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Renombrar santiago" })
+    );
     const editor = screen.getByLabelText("Renombrar");
     await user.clear(editor);
     await user.type(editor, "Santiago Centro{Enter}");
@@ -265,9 +410,9 @@ describe("ContactFormModal — badges", () => {
     await user.clear(input);
     await user.type(input, "valpo");
     await user.click(screen.getByRole("button", { name: "Eliminar valpo" }));
-    expect(JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]")).toEqual([
-      { id: "b1", name: "Santiago Centro" },
-    ]);
+    expect(JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]")).toEqual(
+      [{ id: "b1", name: "Santiago Centro" }]
+    );
   });
 });
 
@@ -284,17 +429,26 @@ describe("ContactFormModal — contact channels", () => {
     expect(screen.getAllByText("Sin configurar")).toHaveLength(4);
     expect(screen.queryByText("Incompleto")).toBeNull();
 
-    await user.type(screen.getByLabelText("Llamada por Google Meet"), "@gmail.com");
+    await user.type(
+      screen.getByLabelText("Llamada por Google Meet"),
+      "@gmail.com"
+    );
     expect(screen.getByText("Activado")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(saved(onSave)).toMatchObject({ methods: ["meet"], channels: { meet: "ana@gmail.com" } });
+    expect(saved(onSave)).toMatchObject({
+      methods: ["meet"],
+      channels: { meet: "ana@gmail.com" },
+    });
   });
 
   it("saves without a channel that isn't valid", async () => {
     const user = userEvent.setup();
     const onSave = renderForm();
     await user.click(screen.getByRole("button", { name: /Ana Soto/ }));
-    await user.type(screen.getByLabelText("Llamada por Microsoft Teams"), "ana");
+    await user.type(
+      screen.getByLabelText("Llamada por Microsoft Teams"),
+      "ana"
+    );
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(saved(onSave)).toMatchObject({ methods: [], channels: {} });
   });
@@ -330,7 +484,9 @@ describe("ContactFormModal — contact channels", () => {
     };
     const onSave = renderForm(imported);
     expect(screen.getByLabelText("Nombre completo")).toHaveValue("Importado");
-    expect(digitsOf(screen.getByLabelText("Llamada telefónica"))).toBe("56912345678");
+    expect(digitsOf(screen.getByLabelText("Llamada telefónica"))).toBe(
+      "56912345678"
+    );
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(saved(onSave)).toMatchObject({
       id: "i",
@@ -340,6 +496,41 @@ describe("ContactFormModal — contact channels", () => {
       role: "Supervisor",
       methods: ["phone"],
     });
+  });
+});
+
+describe("ContactFormModal — role", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("offers the book's roles and creates a new one", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <ContactFormModal
+        show
+        onClose={vi.fn()}
+        editing={null}
+        onSave={onSave}
+        roles={["Jefe de operaciones", "Supervisor de transporte"]}
+        dict={dict}
+      />
+    );
+    await user.click(screen.getByRole("button", { name: /Ana Soto/ }));
+    await user.type(screen.getByLabelText("Rol"), "super");
+    expect(
+      screen.queryByRole("button", { name: "Jefe de operaciones" })
+    ).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Supervisor de transporte" })
+    );
+    expect(
+      screen.getByRole("button", { name: "Quitar rol" })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Quitar rol" }));
+    await user.type(screen.getByLabelText("Rol"), "Despachador{Enter}");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({ role: "Despachador" });
   });
 });
 
@@ -354,7 +545,16 @@ describe("ContactFormModal — organization", () => {
         onClose={vi.fn()}
         editing={editing}
         onSave={onSave}
-        organizations={["Transportes Norte", "Minera Sur"]}
+        organizations={[
+          { name: "Transportes Norte", rut: "761112228", source: "book" },
+          { name: "Minera Sur", source: "book" },
+          {
+            name: "Empresa Especial",
+            rut: "761112228",
+            taxIdType: "OTRO",
+            source: "book",
+          },
+        ]}
         dict={dict}
       />
     );
@@ -362,7 +562,11 @@ describe("ContactFormModal — organization", () => {
   }
 
   async function startOutsideContact(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(screen.getByRole("button", { name: "O ingresa un contacto fuera de la organización" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "O ingresa un contacto fuera de la organización",
+      })
+    );
     await user.type(screen.getByLabelText("Nombre completo"), "Pedro Externo");
   }
 
@@ -371,24 +575,119 @@ describe("ContactFormModal — organization", () => {
     const onSave = renderWithOrganizations();
     await startOutsideContact(user);
     await user.click(screen.getByLabelText("Empresa"));
-    expect(screen.getByRole("button", { name: "Transportes Norte" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Minera Sur" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Transportes Norte 76.111.222-8/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Minera Sur" })
+    ).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Empresa"), "miner");
-    expect(screen.queryByRole("button", { name: "Transportes Norte" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Transportes Norte/ })
+    ).toBeNull();
     await user.click(screen.getByRole("button", { name: "Minera Sur" }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(saved(onSave)).toMatchObject({ company: "Minera Sur" });
   });
 
-  it("creates an organization that isn't in the list", async () => {
+  it("fills the company's RUT when the picked company has one", async () => {
     const user = userEvent.setup();
     const onSave = renderWithOrganizations();
     await startOutsideContact(user);
-    await user.type(screen.getByLabelText("Empresa"), "Logística Centro");
-    await user.click(screen.getByRole("button", { name: 'Crear empresa "Logística Centro"' }));
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: /Transportes Norte/ }));
+    expect(screen.getByDisplayValue("76.111.222-8")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(saved(onSave)).toMatchObject({ company: "Logística Centro" });
+    expect(saved(onSave)).toMatchObject({
+      company: "Transportes Norte",
+      companyRut: "76.111.222-8",
+    });
+  });
+
+  it("clears the old company ID when selecting one without it", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: /Transportes Norte/ }));
+    await user.click(screen.getByRole("button", { name: "Quitar empresa" }));
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: "Minera Sur" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({
+      company: "Minera Sur",
+      companyRut: undefined,
+    });
+  });
+
+  it("keeps a company's stored tax ID type", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: /Empresa Especial/ }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({ companyRutType: "OTRO" });
+  });
+
+  it("searches the carriers before offering to create the company", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    let answer: (r: Response) => void = () => {};
+    const fetchMock = vi.fn(
+      () => new Promise<Response>((resolve) => (answer = resolve))
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await user.type(screen.getByLabelText("Empresa"), "Logística Centro");
+      expect(
+        screen.getByText("Buscando en tus transportistas…")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Crear empresa/ })
+      ).toBeNull();
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      answer(new Response("[]", { status: 200 }));
+      await user.click(
+        await screen.findByRole("button", {
+          name: 'Crear empresa "Logística Centro"',
+        })
+      );
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      expect(saved(onSave)).toMatchObject({ company: "Logística Centro" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fills a book company's missing tax ID from its carrier entry", async () => {
+    const user = userEvent.setup();
+    renderWithOrganizations();
+    await startOutsideContact(user);
+    let answer: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>((resolve) => (answer = resolve)))
+    );
+    try {
+      await user.type(screen.getByLabelText("Empresa"), "Minera Sur");
+      await waitFor(() => expect(fetch).toHaveBeenCalled());
+      answer(
+        new Response(
+          JSON.stringify([{ name: "Minera Sur", rut: "761112228" }]),
+          { status: 200 }
+        )
+      );
+      await user.click(
+        await screen.findByRole("button", { name: /Minera Sur 76.111.222-8/ })
+      );
+      expect(screen.getByDisplayValue("76.111.222-8")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("clears the contact's organization", async () => {

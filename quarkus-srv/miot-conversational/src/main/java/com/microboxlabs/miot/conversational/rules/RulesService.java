@@ -50,9 +50,9 @@ public class RulesService {
     public record PublishPlan(RuleBump bump, String nextVersion) {
     }
 
-    /** {@code plan} is null without a draft. */
+    /** {@code plan} and {@code findings} are null without a draft. */
     public record RuleDetail(Rule rule, RuleVersion current, RuleVersion draft, List<RuleVersion> versions,
-            PublishPlan plan) {
+            PublishPlan plan, List<Finding> findings) {
     }
 
     public record DraftResult(RuleVersion draft, List<Finding> findings) {
@@ -151,7 +151,8 @@ public class RulesService {
         RuleVersion draft = draft(versions);
         return new RuleDetail(rule, current, draft,
                 versions.stream().filter(v -> v.status() == RuleVersion.Status.PUBLISHED).toList(),
-                draft == null ? null : plan(rule, current, draft));
+                draft == null ? null : plan(rule, current, draft),
+                draft == null ? null : validate(tenantCode, RuleSpec.read(draft.spec())));
     }
 
     /** The first publish is MINOR, to {@link RuleBump#FIRST}; later ones bump by what changed. */
@@ -171,6 +172,18 @@ public class RulesService {
         Rule rule = rule(tenantCode, id);
         RuleVersion draft = rules.saveDraft(rule.id(), spec, actor, clock.instant());
         return new DraftResult(draft, validate(tenantCode, RuleSpec.read(spec)));
+    }
+
+    /**
+     * Drops the draft so the rule shows its version in force again. A rule never published has nothing to go back
+     * to, so its draft stays.
+     */
+    public void discardDraft(String tenantCode, String id) {
+        Rule rule = rule(tenantCode, id);
+        if (rule.currentVersion() == null) {
+            throw new IllegalArgumentException("the rule has no published version to go back to");
+        }
+        rules.discardDraft(rule.id());
     }
 
     /**

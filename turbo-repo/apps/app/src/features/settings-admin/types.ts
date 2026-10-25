@@ -17,9 +17,9 @@ export interface ActiveOrg extends OrgSummary {
 export interface OrgMember {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
 }
 
 export interface OrganizationRole {

@@ -217,17 +217,38 @@ export function IntegrationConfigPageContent({
       icon={HiOutlineLink}
       title={tr("page.title", dict)}
       description={tr("page.subtitle", dict)}
+      filters={
+        <ConnectionsToolbar
+          filters={filters}
+          onFiltersChange={setFilters}
+          sort={sort}
+          onSortChange={setSort}
+          types={types}
+          dict={dict}
+          rootDict={rootDict}
+        />
+      }
       actions={
-        <Button
-          size="sm"
-          color="blue"
-          className="shrink-0 whitespace-nowrap"
-          onClick={handleAddConnection}
-          disabled={!orgSlug}
-        >
-          <HiPlus className="mr-1 h-4 w-4" />
-          {tr("connections.new", dict)}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <LayoutToggle
+            layout={layout}
+            labels={{
+              cards: tr("viewCards", dict),
+              list: tr("viewList", dict),
+            }}
+            onLayout={setLayout}
+          />
+          <Button
+            size="sm"
+            color="blue"
+            className="shrink-0 whitespace-nowrap"
+            onClick={handleAddConnection}
+            disabled={!orgSlug}
+          >
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("connections.new", dict)}
+          </Button>
+        </div>
       }
     >
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
@@ -240,28 +261,6 @@ export function IntegrationConfigPageContent({
             </span>
           </Alert>
         )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <ConnectionsToolbar
-            filters={filters}
-            onFiltersChange={setFilters}
-            sort={sort}
-            onSortChange={setSort}
-            types={types}
-            dict={dict}
-            rootDict={rootDict}
-          />
-          <div className="ml-auto">
-            <LayoutToggle
-              layout={layout}
-              labels={{
-                cards: tr("viewCards", dict),
-                list: tr("viewList", dict),
-              }}
-              onLayout={setLayout}
-            />
-          </div>
-        </div>
 
         {isLoading ? (
           <div className="flex justify-center py-10">

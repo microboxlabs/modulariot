@@ -41,7 +41,7 @@ describe("ruleFindingText", () => {
       ruleFindingText(finding("steps.0", "stepNoTemplate", { step: 4 }), d)
     ).toBe("El paso 4 no tiene plantilla.");
     expect(
-      ruleFindingText(finding("audience.0", "stepNoTemplate", { entry: 2 }), d)
+      ruleFindingText(finding("groups.0", "stepNoTemplate", { entry: 2 }), d)
     ).toBe("El paso 2 no tiene plantilla.");
     expect(
       ruleFindingText(finding("steps.1", "stepNoTemplate", { step: null }), d)
@@ -51,7 +51,7 @@ describe("ruleFindingText", () => {
   it("names the role by its label", () => {
     expect(
       ruleFindingText(
-        finding("audience.0", "unknownRole", { role: "tower_lead" }, "WARNING"),
+        finding("groups.0", "unknownRole", { role: "tower_lead" }, "WARNING"),
         d
       )
     ).toBe(
@@ -70,22 +70,31 @@ describe("ruleFindingText", () => {
       "mensaje del servidor"
     );
   });
+
+  it("names a group by its ordinal when the sidebar has no spec", () => {
+    expect(
+      ruleFindingText(finding("groups.1", "groupEmpty", { group: 2 }), d)
+    ).toBe("«Grupo 2» no tiene destinatarios.");
+  });
 });
 
 describe("placeFindings", () => {
   const spec: RuleSpec = {
     trigger: { event: "symptom.case.opened", when: null },
-    audience: [{ role: "driver" }, { role: "tower_lead" }],
-    steps: [
-      { ...emptyStep(), template: "" },
+    groups: [
+      { id: "drivers", entries: [{ role: "driver" }] },
       {
-        ...emptyStep(),
-        template: "panic-tower",
-        to: [
+        id: "tower",
+        name: "Torre",
+        entries: [
           { address: "tower@example.com", channel: "email", name: "Torre" },
           { role: "tower_lead" },
         ],
       },
+    ],
+    steps: [
+      { ...emptyStep(["drivers"]), template: "" },
+      { ...emptyStep(["tower"]), template: "panic-tower" },
     ],
   };
 
@@ -93,16 +102,28 @@ describe("placeFindings", () => {
     const placed = placeFindings(
       [
         finding("trigger", "whenInvalid", { detail: "x" }),
-        finding("audience.1", "unknownRole", { role: "tower_lead" }),
+        finding("groups.1", "unknownRole", {
+          role: "tower_lead",
+          group: 2,
+          entry: 2,
+        }),
+        finding("groups.0", "groupUnused", { id: "drivers", group: 1 }),
         finding("steps.0", "stepNoTemplate"),
-        finding("steps.1", "unknownRole", { role: "TOWER_LEAD" }),
+        finding("steps.1", "stepUnknownGroup", { id: "night", step: 2 }),
         finding("steps.1", "stepWaitNeedsReplies", { channel: "preferred" }),
       ],
       spec,
       d
     );
     expect(placed.trigger).toHaveLength(1);
-    expect(Object.keys(placed.audience)).toEqual(["1"]);
+    expect(placed.groups[1].entries).toEqual({
+      1: [
+        "Ningún contacto tiene el rol Jefe de torre: este destinatario no recibirá mensajes.",
+      ],
+    });
+    expect(placed.groups[0].messages).toEqual([
+      "Ningún paso escribe a «Grupo 1».",
+    ]);
     expect(placed.steps[0]).toMatchObject({
       template: true,
       channel: false,
@@ -110,19 +131,17 @@ describe("placeFindings", () => {
     });
     expect(placed.steps[1].template).toBe(false);
     expect(placed.steps[1].channel).toBe(true);
-    expect(placed.steps[1].entries).toEqual({
-      1: [
-        "Ningún contacto tiene el rol Jefe de torre: este destinatario no recibirá mensajes.",
-      ],
-    });
+    expect(placed.steps[1].groups).toBe(true);
   });
 
-  it("keeps an audience finding with no row apart", () => {
+  it("names a group by its name in a finding about it", () => {
     const placed = placeFindings(
-      [finding("audience.0", "noAudience")],
-      { ...spec, audience: [] },
+      [finding("groups.1", "groupEmpty", { group: 2 })],
+      spec,
       d
     );
-    expect(placed.audienceGeneral).toEqual(["Falta decir a quién se escribe."]);
+    expect(placed.groups[1].messages).toEqual([
+      "«Torre» no tiene destinatarios.",
+    ]);
   });
 });

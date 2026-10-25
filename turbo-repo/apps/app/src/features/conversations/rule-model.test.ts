@@ -4,8 +4,10 @@ import type { RuleSpec } from "./conversations-types";
 import {
   conditionValues,
   fillText,
+  groupLabel,
   minutesAfter,
   newRuleSpec,
+  normalizeSpec,
   parseWhen,
   ruleChanges,
   ruleTargets,
@@ -16,6 +18,17 @@ import {
 
 const d = es.pages.userSettings.communications;
 const names = (key: string) => ({ "panic-button": "Botón de pánico" })[key];
+
+describe("normalizeSpec", () => {
+  it("uses the server's zero-minute default for a persisted step", () => {
+    const saved = newRuleSpec();
+    const step = { ...saved.steps[0] };
+    delete (step as Partial<typeof step>).waitForReply;
+    saved.steps = [step];
+    expect(normalizeSpec(saved).steps[0].waitForReply).toBe(0);
+    expect(newRuleSpec().steps[0].waitForReply).toBe(5);
+  });
+});
 
 describe("triggerSummary", () => {
   it("names the symptom and the top level", () => {
@@ -28,7 +41,7 @@ describe("triggerSummary", () => {
         d,
         names
       )
-    ).toBe("Cuando se abre un caso de Botón de pánico en Código negro");
+    ).toBe("Cuando se abre una condición de Botón de pánico en Código negro");
   });
 
   it("says 'o más' for a lower level and an exact level as is", () => {
@@ -41,7 +54,7 @@ describe("triggerSummary", () => {
         d,
         names
       )
-    ).toBe("Cuando se abre un caso de speeding en Crítica o más");
+    ).toBe("Cuando se abre una condición de speeding en Crítica o más");
     expect(
       triggerSummary(
         {
@@ -50,7 +63,7 @@ describe("triggerSummary", () => {
         },
         d
       )
-    ).toBe("Cuando un caso cambia de nivel en Comprometida");
+    ).toBe("Cuando una condición cambia de nivel en Comprometida");
   });
 
   it("reads level > n as the next level and tells other conditions apart", () => {
@@ -63,7 +76,7 @@ describe("triggerSummary", () => {
         d
       )
     ).toBe(
-      "Cuando se abre un caso en Crítica o más, si se cumplen las demás condiciones"
+      "Cuando se abre una condición en Crítica o más, si se cumplen las demás condiciones"
     );
   });
 
@@ -210,7 +223,7 @@ describe("ruleChanges", () => {
   it("lists each part that changed, ignoring spacing in the condition", () => {
     const draft: RuleSpec = {
       trigger: { event: "symptom.case.opened", when: "  true " },
-      audience: [{ role: "tower_lead" }],
+      groups: [{ id: "group-1", entries: [{ role: "tower_lead" }] }],
       steps: [
         { ...published.steps[0], waitForReply: 10 },
         { ...published.steps[0], channel: "email" },
@@ -238,6 +251,52 @@ describe("ruleChanges", () => {
     );
     expect(ruleChanges(after, before, d).map((c) => c.key)).toEqual(["when"]);
     expect(ruleChanges(respaced, before, d)).toEqual([]);
+  });
+});
+
+describe("normalizeSpec", () => {
+  it("reads a rule saved before groups as the server does", () => {
+    const spec = normalizeSpec({
+      trigger: { event: "symptom.case.opened" },
+      audience: [{ role: "driver" }],
+      steps: [
+        { channel: "whatsapp", template: "a", to: "audience", waitForReply: 5 },
+        {
+          channel: "email",
+          template: "b",
+          to: [{ address: "tower@example.com", channel: "email" }],
+        },
+        { channel: "slack", connection: "c-1" },
+      ],
+    });
+    expect(spec.groups).toEqual([
+      { id: "rule", name: null, entries: [{ role: "driver" }] },
+      {
+        id: "step-2",
+        name: null,
+        entries: [{ address: "tower@example.com", channel: "email" }],
+      },
+    ]);
+    expect(spec.steps.map((s) => s.to)).toEqual([["rule"], ["step-2"], []]);
+    expect(spec.steps.map((s) => s.waitForReply)).toEqual([5, 0, 0]);
+  });
+
+  it("keeps a rule with groups as it is, with only group ids in a step", () => {
+    const spec = normalizeSpec({
+      groups: [{ id: "a", name: "A", entries: [{ role: "driver" }] }],
+      steps: [{ channel: "whatsapp", template: "x", to: ["a", 3] }],
+    });
+    expect(spec.groups[0].name).toBe("A");
+    expect(spec.steps[0].to).toEqual(["a"]);
+  });
+
+  it("names a group without a name by its place in the list", () => {
+    expect(groupLabel({ id: "rule", entries: [] }, 0, d)).toBe("Grupo 1");
+    expect(groupLabel({ id: "step-2", entries: [] }, 1, d)).toBe("Grupo 2");
+    expect(groupLabel({ id: "group-7", entries: [] }, 2, d)).toBe("Grupo 3");
+    expect(groupLabel({ id: "x", name: " Torre ", entries: [] }, 0, d)).toBe(
+      "Torre"
+    );
   });
 });
 

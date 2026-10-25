@@ -96,7 +96,7 @@ public class MeResource {
             if (user != null && !"ACTIVE".equals(user.status)) {
                 return Uni.createFrom().item(List.of());
             }
-            return directory.signedIn(email)
+            return directory.signedIn(email, resolveName())
                     .onFailure().recoverWithItem(e -> {
                         LOG.warnf("Could not record sign-in of %s: %s", email, e.getMessage());
                         return null;
@@ -164,7 +164,7 @@ public class MeResource {
         if (org.parent != null) {
             return Uni.createFrom().voidItem();
         }
-        return directory.signedIn(email)
+        return directory.signedIn(email, resolveName())
                 .onFailure().recoverWithItem(e -> {
                     LOG.warnf("Could not record sign-in of %s in %s: %s", email, org.slug, e.getMessage());
                     return null;
@@ -201,6 +201,13 @@ public class MeResource {
 
     private static List<String> ownTaxId(Organization org) {
         return org.taxId != null ? List.of(org.taxId) : List.of();
+    }
+
+    /** The {@code name} claim, when the token carries one. */
+    private String resolveName() {
+        return securityIdentity != null && securityIdentity.getPrincipal() instanceof JsonWebToken jwt
+                ? jwt.getClaim("name")
+                : null;
     }
 
     private String resolveEmail(HttpHeaders headers) {

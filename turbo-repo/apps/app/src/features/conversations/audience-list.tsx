@@ -9,6 +9,7 @@ import {
   FieldError,
 } from "@/features/symptoms/maintainer/ui/response-block";
 import Select from "@/features/symptoms/maintainer/ui/select";
+import ContactsAudience from "./contacts-audience";
 import type { AudienceEntry, EventField } from "./conversations-types";
 import { audienceKind, ROLES, type AudienceKind } from "./rule-model";
 import { useRowKeys } from "./row-keys";
@@ -20,11 +21,15 @@ const KINDS: { value: AudienceKind; label: string }[] = [
   { value: "role", label: "audienceRole" },
   { value: "address", label: "audienceAddress" },
   { value: "path", label: "audiencePath" },
+  { value: "contacts", label: "audienceContacts" },
 ];
+
+const NO_TEXTS: I18nRecord = {};
 
 function entryOf(kind: AudienceKind): AudienceEntry {
   if (kind === "address") return { address: "", channel: "whatsapp", name: "" };
   if (kind === "path") return { path: "" };
+  if (kind === "contacts") return { contacts: "" };
   return { role: "driver" };
 }
 
@@ -34,6 +39,7 @@ function EntryFields({
   error,
   readOnly,
   d,
+  fieldDict = NO_TEXTS,
   onChange,
 }: Readonly<{
   entry: AudienceEntry;
@@ -41,10 +47,23 @@ function EntryFields({
   fields: EventField[];
   readOnly: boolean;
   d: I18nRecord;
+  fieldDict?: I18nRecord;
   onChange: (entry: AudienceEntry) => void;
 }>) {
   const kind = audienceKind(entry);
   const field = error ? `${FIELD} ${FIELD_ERROR}` : FIELD;
+  if (kind === "contacts") {
+    return (
+      <ContactsAudience
+        condition={entry.contacts ?? ""}
+        fields={fields}
+        readOnly={readOnly}
+        d={d}
+        fieldDict={fieldDict}
+        onChange={(contacts) => onChange({ contacts })}
+      />
+    );
+  }
   if (kind === "role") {
     const known = ROLES.some((r) => r.value === entry.role);
     return (
@@ -122,13 +141,14 @@ function EntryFields({
   );
 }
 
-/** Who a rule writes to: roles of the event's context, fixed addresses, or fields of the event. */
+/** Who a rule writes to: roles of the event's context, fixed addresses, fields of the event, or contact book entries. */
 export default function AudienceList({
   entries,
   fields,
   errors = {},
   readOnly,
   d,
+  fieldDict = NO_TEXTS,
   label,
   onChange,
 }: Readonly<{
@@ -138,6 +158,8 @@ export default function AudienceList({
   errors?: Record<number, string[]>;
   readOnly: boolean;
   d: I18nRecord;
+  /** The selectables field texts, for the contact book conditions. */
+  fieldDict?: I18nRecord;
   /** Names the list for assistive tech. */
   label: string;
   onChange: (entries: AudienceEntry[]) => void;
@@ -155,41 +177,51 @@ export default function AudienceList({
       {entries.length > 0 && (
         <ul
           aria-label={label}
-          className="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700"
+          className="divide-y divide-gray-200 dark:divide-gray-700"
         >
           {entries.map((e, i) => (
             <li
               key={rows.keys[i]}
-              className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm"
+              className="flex items-start gap-2 py-2 text-sm first:pt-0 last:pb-0"
             >
-              <Select
-                aria-label={tr("audienceKind", d)}
-                className={FIELD}
-                disabled={readOnly}
-                value={audienceKind(e)}
-                onChange={(ev) =>
-                  set(i, entryOf(ev.target.value as AudienceKind))
-                }
-              >
-                {KINDS.map((k) => (
-                  <option key={k.value} value={k.value}>
-                    {trDynamic(k.label, d)}
-                  </option>
-                ))}
-              </Select>
-              <EntryFields
-                entry={e}
-                fields={fields}
-                error={(errors[i] ?? []).length > 0}
-                readOnly={readOnly}
-                d={d}
-                onChange={(next) => set(i, next)}
-              />
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <Select
+                  aria-label={tr("audienceKind", d)}
+                  className={FIELD}
+                  disabled={readOnly}
+                  value={audienceKind(e)}
+                  onChange={(ev) =>
+                    set(i, entryOf(ev.target.value as AudienceKind))
+                  }
+                >
+                  {KINDS.map((k) => (
+                    <option key={k.value} value={k.value}>
+                      {trDynamic(k.label, d)}
+                    </option>
+                  ))}
+                </Select>
+                <EntryFields
+                  entry={e}
+                  fields={fields}
+                  error={(errors[i] ?? []).length > 0}
+                  readOnly={readOnly}
+                  d={d}
+                  fieldDict={fieldDict}
+                  onChange={(next) => set(i, next)}
+                />
+                {(errors[i] ?? []).length > 0 && (
+                  <div className="flex w-full flex-col gap-0.5">
+                    {(errors[i] ?? []).map((text) => (
+                      <FieldError key={text} text={text} />
+                    ))}
+                  </div>
+                )}
+              </div>
               {!readOnly && (
                 <button
                   type="button"
                   aria-label={tr("removeAudience", d)}
-                  className={`ml-auto ${ICON_BUTTON} hover:text-red-600 dark:hover:text-red-400`}
+                  className={`mt-1.5 ${ICON_BUTTON} hover:text-red-600 dark:hover:text-red-400`}
                   onClick={() => {
                     rows.remove(i);
                     onChange(entries.filter((_, j) => j !== i));
@@ -197,13 +229,6 @@ export default function AudienceList({
                 >
                   <HiX className="h-4 w-4" />
                 </button>
-              )}
-              {(errors[i] ?? []).length > 0 && (
-                <div className="flex w-full flex-col gap-0.5">
-                  {(errors[i] ?? []).map((text) => (
-                    <FieldError key={text} text={text} />
-                  ))}
-                </div>
               )}
             </li>
           ))}

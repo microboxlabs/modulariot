@@ -3056,6 +3056,18 @@
         "title": "Trip monitors",
         "description": "Rules that move the stages of each class of trip: which event, under which condition, with which effect.",
         "newMonitor": "New monitor",
+        "milestoneStatus": {
+          "open": "Open",
+          "pending": "To confirm",
+          "confirmed": "Confirmed",
+          "rejected": "Rejected"
+        },
+        "milestone": "Milestone",
+        "milestones": {
+          "departure": "Departure",
+          "arrival": "Arrival",
+          "closure": "Closure"
+        },
         "fieldsTitle": "Trip fields",
         "insertField": "Insert {path} into the expression",
         "formCannotShow": "This condition uses logic the form cannot show: times, lists, parameters, calculations or nested parentheses.",
@@ -3156,6 +3168,7 @@
           "completeTrip": "Complete trip",
           "closeMandates": "Close mandates",
           "cancelTrip": "Cancel trip",
+          "requestConfirmation": "Ask for confirmation",
           "alert": "Alert",
           "invoke": "Run process"
         },

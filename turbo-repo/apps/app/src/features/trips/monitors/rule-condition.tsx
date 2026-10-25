@@ -18,6 +18,7 @@ import {
   useExpressionCheck,
 } from "./expression-field";
 import {
+  MILESTONES,
   STAGE_TYPES,
   TRIGGERS,
   useMonitorSchema,
@@ -36,6 +37,8 @@ export const SIGNAL_KINDS = [
 ] as const;
 
 const STAGE_TYPE_PATH = /^(?:stage|stages\.\w+)\.type$|^event\.stageType$/;
+const MILESTONE_STATUS_PATH = /^milestones\.\w+\.status$/;
+const MILESTONE_STATUSES = ["open", "pending", "confirmed", "rejected"];
 const FORM_TYPES = new Set(["text", "number", "bool"]);
 
 function valuesOf(
@@ -48,6 +51,16 @@ function valuesOf(
     return SIGNAL_KINDS.map((k) => ({
       value: k,
       label: tr(`signalKinds.${k}`, d),
+    }));
+  if (MILESTONE_STATUS_PATH.test(path))
+    return MILESTONE_STATUSES.map((s) => ({
+      value: s,
+      label: tr(`milestoneStatus.${s}`, d),
+    }));
+  if (path === "event.milestone")
+    return MILESTONES.map((m) => ({
+      value: m,
+      label: tr(`milestones.${m}`, d),
     }));
   if (STAGE_TYPE_PATH.test(path))
     return STAGE_TYPES.map((s) => ({ value: s, label: tr(`stages.${s}`, d) }));

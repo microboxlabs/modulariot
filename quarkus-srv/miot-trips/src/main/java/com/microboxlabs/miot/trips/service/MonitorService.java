@@ -45,6 +45,8 @@ public class MonitorService {
     private static final Set<String> STAGE_ACTIONS = Set.of("advance", "start", "close");
     private static final Set<String> FLAG_ACTIONS = Set.of("completeTrip", "closeMandates");
     private static final Set<String> NAMED_ACTIONS = Set.of("cancelTrip", "alert", "invoke");
+    private static final String REQUEST_CONFIRMATION = "requestConfirmation";
+    private static final String RULE = "rule ";
 
     private final MonitorStore store;
     private final AuditService audit;
@@ -119,7 +121,7 @@ public class MonitorService {
             List<Finding> findings = findings(draft);
             if (!findings.isEmpty()) {
                 Finding f = findings.get(0);
-                throw new IllegalArgumentException("rule " + f.ruleKey() + " (" + f.field() + "): " + f.message()
+                throw new IllegalArgumentException(RULE + f.ruleKey() + " (" + f.field() + "): " + f.message()
                         + (findings.size() > 1 ? " and " + (findings.size() - 1) + " more" : ""));
             }
             TripMonitor published = store.publish(tenantCode, monitorKey, actor).orElseThrow();
@@ -314,15 +316,15 @@ public class MonitorService {
             throw new IllegalArgumentException("rule key " + key + " must be lowercase letters, digits and dashes");
         }
         if (!keys.add(key)) {
-            throw new IllegalArgumentException("rule " + key + " is listed twice");
+            throw new IllegalArgumentException(RULE + key + " is listed twice");
         }
         String on = trigger(r.on());
         String at = Check.limitedOrNull(r.at(), "at", MAX_EXPRESSION);
         if (TIMER.equals(on) && at == null) {
-            throw new IllegalArgumentException("rule " + key + ": a timer rule needs at");
+            throw new IllegalArgumentException(RULE + key + ": a timer rule needs at");
         }
         if (!TIMER.equals(on) && at != null) {
-            throw new IllegalArgumentException("rule " + key + ": only a timer rule has at");
+            throw new IllegalArgumentException(RULE + key + ": only a timer rule has at");
         }
         return new TripMonitor.Rule(key, Check.limitedOrNull(r.name(), "rule name", 255), on, at,
                 Check.limitedOrNull(r.when(), "when", MAX_EXPRESSION), actions(key, r.then()),
@@ -331,20 +333,22 @@ public class MonitorService {
 
     private static List<TripMonitor.Action> actions(String rule, List<TripMonitor.Action> then) {
         if (then == null || then.isEmpty()) {
-            throw new IllegalArgumentException("rule " + rule + " has no actions");
+            throw new IllegalArgumentException(RULE + rule + " has no actions");
         }
         List<TripMonitor.Action> out = new ArrayList<>();
         for (TripMonitor.Action a : then) {
             String type = Check.required(a == null ? null : a.type(), "action type", 32);
             String value = a == null ? null : Check.blankToNull(a.value());
             if (STAGE_ACTIONS.contains(type)) {
-                Check.oneOf(value, "rule " + rule + ": " + type, MonitorSchema.STAGE_TYPES.toArray(String[]::new));
+                Check.oneOf(value, RULE + rule + ": " + type, MonitorSchema.STAGE_TYPES.toArray(String[]::new));
             } else if (FLAG_ACTIONS.contains(type)) {
                 value = null;
+            } else if (REQUEST_CONFIRMATION.equals(type)) {
+                Check.oneOf(value, RULE + rule + ": " + type, MonitorSchema.MILESTONES.toArray(String[]::new));
             } else if (NAMED_ACTIONS.contains(type)) {
-                Check.required(value, "rule " + rule + ": " + type, 255);
+                Check.required(value, RULE + rule + ": " + type, 255);
             } else {
-                throw new IllegalArgumentException("rule " + rule + ": unknown action " + type);
+                throw new IllegalArgumentException(RULE + rule + ": unknown action " + type);
             }
             out.add(new TripMonitor.Action(type, value == null ? null : value.trim()));
         }

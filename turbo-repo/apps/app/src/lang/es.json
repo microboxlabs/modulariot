@@ -3056,6 +3056,18 @@
         "title": "Monitores de viajes",
         "description": "Reglas que mueven las etapas de cada clase de viaje: qué evento, bajo qué condición, con qué efecto.",
         "newMonitor": "Nuevo monitor",
+        "milestoneStatus": {
+          "open": "Abierto",
+          "pending": "Por confirmar",
+          "confirmed": "Confirmado",
+          "rejected": "Rechazado"
+        },
+        "milestone": "Hito",
+        "milestones": {
+          "departure": "Salida",
+          "arrival": "Llegada",
+          "closure": "Cierre"
+        },
         "fieldsTitle": "Campos del viaje",
         "insertField": "Insertar {path} en la expresión",
         "formCannotShow": "Esta condición usa lógica que el formulario no puede mostrar: horas, listas, parámetros, cálculos o paréntesis anidados.",
@@ -3156,6 +3168,7 @@
           "completeTrip": "Completar viaje",
           "closeMandates": "Cerrar mandatos",
           "cancelTrip": "Anular viaje",
+          "requestConfirmation": "Pedir confirmación",
           "alert": "Alerta",
           "invoke": "Ejecutar proceso"
         },

@@ -13,6 +13,7 @@ import { useRowKeys } from "./use-row-keys";
 import {
   ACTIONS,
   FLAG_ACTIONS,
+  MILESTONES,
   STAGE_ACTIONS,
   STAGE_TYPES,
   TRIGGERS,
@@ -27,6 +28,7 @@ import {
 /** The value an action starts with when its type changes. */
 function startValue(type: ActionType): string | null {
   if (STAGE_ACTIONS.includes(type)) return "transit";
+  if (type === "requestConfirmation") return "departure";
   if (FLAG_ACTIONS.includes(type)) return null;
   return "";
 }
@@ -45,6 +47,7 @@ function ActionRow({
   d: I18nRecord;
 }>) {
   const stage = STAGE_ACTIONS.includes(action.type);
+  const milestone = action.type === "requestConfirmation";
   const flag = FLAG_ACTIONS.includes(action.type);
   return (
     <div className="flex items-center gap-2">
@@ -79,7 +82,22 @@ function ActionRow({
           ))}
         </Select>
       )}
-      {!stage && !flag && (
+      {milestone && (
+        <Select
+          sizing="sm"
+          value={action.value ?? ""}
+          disabled={readOnly}
+          aria-label={tr("milestone", d)}
+          onChange={(e) => onChange({ ...action, value: e.target.value })}
+        >
+          {MILESTONES.map((m) => (
+            <option key={m} value={m}>
+              {tr(`milestones.${m}`, d)}
+            </option>
+          ))}
+        </Select>
+      )}
+      {!stage && !milestone && !flag && (
         <TextInput
           sizing="sm"
           className="flex-1"

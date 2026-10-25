@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.monitor;
 
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ public record MonitorSchema(Map<String, String> fields) {
     public static final List<String> STAGE_TYPES =
             List.of("preparation", "loading", "transit", "stop", "unloading", "closing");
     public static final List<String> RESOURCES = List.of("truck", "trailer", "driver");
+    public static final List<String> MILESTONES = TripMilestone.MILESTONES;
 
     public MonitorSchema {
         fields = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(fields));
@@ -61,6 +63,16 @@ public record MonitorSchema(Map<String, String> fields) {
         f.put("event.stageType", TEXT);
         f.put("event.at", TIME);
         f.put("event.actor", TEXT);
+        f.put("event.milestone", TEXT);
+        f.put("event.channel", TEXT);
+        for (String m : MILESTONES) {
+            String root = "milestones." + m;
+            f.put(root + ".status", TEXT);
+            f.put(root + ".source", TEXT);
+            f.put(root + ".channel", TEXT);
+            f.put(root + ".proposedAt", TIME);
+            f.put(root + ".confirmedAt", TIME);
+        }
         if (params != null) {
             params.forEach((name, value) -> f.put("params." + name, switch (value) {
                 case Number n -> NUMBER;

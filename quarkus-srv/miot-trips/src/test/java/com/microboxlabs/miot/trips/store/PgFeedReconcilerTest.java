@@ -613,6 +613,26 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void invalidRegularizationDoesNotCreateAPartialTrip() {
+        FeedServiceRequest ended = desired(-12, -5, "ABC-123", null, "10000001");
+        FeedResult outOfOrder = send("S-034", withActuals(ended, at(-4), at(-7), at(-6)));
+        assertEquals(FeedReconciler.REPORT, outOfOrder.action());
+        assertTrue(outOfOrder.errors().get(0).contains("chronological order"));
+        assertNull(outOfOrder.tripId());
+        assertNull(outOfOrder.mandateId());
+
+        FeedProfile current = feeds.profile(tenant, FEED).orElseThrow();
+        feeds.saveProfile(new FeedProfile(tenant, FEED, current.name(),
+                List.of(new FeedProfile.StagePlan("preparation", "ADDED")), "preparation", null,
+                current.requiredResources(), true, null, ACTOR, null, ACTOR));
+        FeedResult noClosing = send("S-035", withActuals(ended, at(-11), null, at(-6)));
+        assertEquals(FeedReconciler.REPORT, noClosing.action());
+        assertTrue(noClosing.errors().get(0).contains("closing as its final stage"));
+        assertNull(noClosing.tripId());
+        assertNull(noClosing.mandateId());
+    }
+
+    @Test
     void aChangeToAClosedTripIsReportedNotApplied() {
         FeedResult created = send("S-032", desired(2, 10, "ABC-123", null, "10000001"));
         UUID tripId = UUID.fromString(created.tripId());
@@ -635,5 +655,31 @@ class PgFeedReconcilerTest {
                 at(11)));
         assertEquals(FeedReconciler.UPDATE, closure.action(), "a closed trip still records its milestones");
         assertEquals(TripMilestone.CONFIRMED, milestone(created.tripId(), TripMilestone.CLOSURE).status());
+    }
+
+    @Test
+    void asynchronousRecheckReportsChangesAgainstLastAppliedFeedState() throws Exception {
+        FeedServiceRequest original = desired(2, 10, "ABC-123", null, "10000001");
+        FeedResult created = send("S-033", original);
+        trip(created).stages().forEach(stage -> {
+            stages.start(tenant, ACTOR, UUID.fromString(stage.id()));
+            stages.close(tenant, ACTOR, UUID.fromString(stage.id()));
+        });
+
+        FeedServiceRequest changed = desired(3, 12, "MNO-111", null, "10000001");
+        assertTrue(reconciler.accept(tenant, FEED, "S-033", changed));
+        FeedResult result = reconciler.recheck(tenant, ACTOR, FEED, "S-033");
+
+        assertEquals(FeedReconciler.SKIP, result.action());
+        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("plannedStart, plannedEnd, resources")));
+        assertEquals(at(2).toInstant(), trips.get(tenant, UUID.fromString(created.tripId())).plannedStart().toInstant());
+        assertEquals(List.of(fleetIds.abc()), openWindows(trip(created), "truck"));
+        FeedServiceRequest applied = json.readValue(
+                feeds.service(tenant, FEED, "S-033").orElseThrow().appliedDesired(), FeedServiceRequest.class);
+        assertTrue(applied.plannedStart().isEqual(changed.plannedStart()));
+        assertTrue(applied.plannedEnd().isEqual(changed.plannedEnd()));
+        assertEquals(changed.resources(), applied.resources());
+        assertTrue(audit.list(tenant, "trip", created.tripId(), null, null, 100).stream()
+                .anyMatch(event -> FeedReconciler.CLOSED_CHANGED.equals(event.action())));
     }
 }

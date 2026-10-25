@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
 import com.microboxlabs.miot.conversational.rules.ConvTemplate;
@@ -50,7 +51,9 @@ class PgRuleStoresTest {
             "V0.7.1__fork_conversation_per_service.sql", "V0.9.6__conversation_by_context_and_participant.sql",
             "V0.9.8__conversation_rules.sql", "V0.10.1__rule_semantic_versions.sql",
             "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
-            "V0.11.1__whatsapp_outbound_by_address.sql");
+            "V0.11.1__whatsapp_outbound_by_address.sql",
+            // This constraint change is independent of 0.11.3, which needs the integrations schema.
+            "V0.11.4__trip_conversations.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -83,6 +86,20 @@ class PgRuleStoresTest {
     static void close() {
         pool.close().await().atMost(WAIT);
         vertx.close().await().atMost(WAIT);
+    }
+
+    @Test
+    void tripConversationsAreAcceptedByTheMigratedConstraint() {
+        String tripId = UUID.randomUUID().toString();
+        Row created = pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation
+                    (id, tenant_code, participant_address, context_kind, context_key)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING context_kind, context_key
+                """).execute(Tuple.of(UUID.randomUUID(), "test-" + UUID.randomUUID(), "+56900000000",
+                        ContextKind.TRIP.dbValue(), tripId)).await().atMost(WAIT).iterator().next();
+        assertEquals(ContextKind.TRIP.dbValue(), created.getString("context_kind"));
+        assertEquals(tripId, created.getString("context_key"));
     }
 
     private static RuleStore.Publication pub(String from, String version, RuleBump bump, String reason,

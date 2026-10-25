@@ -3020,6 +3020,8 @@
         "cardReaches": "Receives",
         "cardReachesNone": "No rule in use writes to this contact",
         "cardDependsOnEvent": "depending on the event",
+        "memberInBook": "Already in the book",
+        "duplicateMember": "That person of your organization is already in the book.",
         "externalContactButton": "Or enter a contact from outside the organization",
         "fullNameLabel": "Full name",
         "rutLabel": "RUT",

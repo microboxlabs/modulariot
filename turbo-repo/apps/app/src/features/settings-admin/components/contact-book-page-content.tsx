@@ -160,11 +160,13 @@ export default function ContactBookPageContent({
     try {
       await save(contact);
     } catch (e) {
-      const duplicate = e instanceof ControlTowerError && e.status === 409;
-      ShowNotification({
-        type: "error",
-        message: duplicate ? tr("duplicateRut", d) : tr("saveError", d),
-      });
+      const conflict = e instanceof ControlTowerError && e.status === 409;
+      let message = tr("saveError", d);
+      if (conflict)
+        message = e.message.includes("member")
+          ? tr("duplicateMember", d)
+          : tr("duplicateRut", d);
+      ShowNotification({ type: "error", message });
       throw e;
     }
   };
@@ -279,6 +281,13 @@ export default function ContactBookPageContent({
         onRenameTag={renameTag}
         onDeleteTag={deleteTag}
         organizations={organizations}
+        takenMemberIds={
+          new Set(
+            contacts.flatMap((c) =>
+              c.orgMemberId && c.id !== editing?.id ? [c.orgMemberId] : []
+            )
+          )
+        }
         dict={dict}
       />
       <ImportContactsModal

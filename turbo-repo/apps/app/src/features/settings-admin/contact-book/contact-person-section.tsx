@@ -37,6 +37,8 @@ export interface PersonDraft {
 }
 
 /** The member's name; the email when the directory has none. */
+const NO_IDS: ReadonlySet<string> = new Set();
+
 export function memberName(member: OrgMember): string {
   const full = [member.firstName, member.lastName]
     .filter((part) => part?.trim())
@@ -47,16 +49,24 @@ export function memberName(member: OrgMember): string {
 function MemberRow({
   member,
   selected,
+  takenLabel,
   onPick,
-}: Readonly<{ member: OrgMember; selected: boolean; onPick: () => void }>) {
-  const tone = selected
-    ? "bg-blue-50 dark:bg-blue-500/10"
-    : "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+}: Readonly<{
+  member: OrgMember;
+  selected: boolean;
+  /** Set when another contact of the book is this member: the row can't be picked. */
+  takenLabel?: string;
+  onPick: () => void;
+}>) {
+  let tone = "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+  if (selected) tone = "bg-blue-50 dark:bg-blue-500/10";
+  else if (takenLabel) tone = "cursor-not-allowed opacity-60";
   return (
     <li>
       <button
         type="button"
         aria-pressed={selected}
+        disabled={Boolean(takenLabel)}
         onClick={onPick}
         className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors ${tone}`}
       >
@@ -69,6 +79,11 @@ function MemberRow({
             {member.email}
           </span>
         </span>
+        {takenLabel && (
+          <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+            {takenLabel}
+          </span>
+        )}
         {selected && (
           <HiCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
         )}
@@ -81,12 +96,14 @@ function OrgMemberList({
   members,
   isLoading,
   selectedId,
+  takenIds,
   onPick,
   d,
 }: Readonly<{
   members: readonly OrgMember[];
   isLoading: boolean;
   selectedId?: string;
+  takenIds: ReadonlySet<string>;
   onPick: (m: OrgMember) => void;
   d: I18nRecord;
 }>) {
@@ -123,6 +140,9 @@ function OrgMemberList({
               key={m.id}
               member={m}
               selected={selectedId === m.id}
+              takenLabel={
+                takenIds.has(m.id) ? tr("memberInBook", d) : undefined
+              }
               onPick={() => onPick(m)}
             />
           ))}
@@ -149,6 +169,7 @@ export default function ContactPersonSection({
   onCompanyRutChange,
   companyRutInvalid,
   organizations,
+  takenMemberIds = NO_IDS,
   d,
 }: Readonly<{
   value: PersonDraft;
@@ -165,6 +186,8 @@ export default function ContactPersonSection({
   companyRutInvalid: boolean;
   /** The organizations already used in the book, offered to pick from. */
   organizations: readonly string[];
+  /** Members other contacts of the book were created from. */
+  takenMemberIds?: ReadonlySet<string>;
   d: I18nRecord;
 }>) {
   if (value.source === "org") {
@@ -174,6 +197,7 @@ export default function ContactPersonSection({
           members={members}
           isLoading={membersLoading}
           selectedId={value.orgMemberId}
+          takenIds={takenMemberIds}
           onPick={(m) =>
             onChange({ ...value, orgMemberId: m.id, name: memberName(m) })
           }

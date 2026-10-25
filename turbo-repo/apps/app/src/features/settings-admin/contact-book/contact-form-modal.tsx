@@ -149,6 +149,7 @@ export default function ContactFormModal({
   onRenameTag,
   onDeleteTag,
   organizations = [],
+  takenMemberIds,
   dict,
 }: Readonly<{
   show: boolean;
@@ -161,6 +162,8 @@ export default function ContactFormModal({
   onDeleteTag?: (name: string) => Promise<void>;
   /** The organizations already used in the book, offered in Organización. */
   organizations?: readonly string[];
+  /** Members other contacts of the book were created from; they can't be picked again. */
+  takenMemberIds?: ReadonlySet<string>;
   /** `pages.userSettings` dictionary. */
   dict: I18nRecord;
 }>) {
@@ -297,6 +300,7 @@ export default function ContactFormModal({
               }
               companyRutInvalid={companyRutInvalid}
               organizations={organizations}
+              takenMemberIds={takenMemberIds}
               d={d}
             />
           </SectionCard>

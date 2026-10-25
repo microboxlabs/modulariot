@@ -15,10 +15,13 @@ import com.microboxlabs.miot.trips.domain.MonitorRun;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
+import com.microboxlabs.miot.trips.events.MilestoneReplies;
 import com.microboxlabs.miot.trips.events.TripEventCatalog;
 import com.microboxlabs.miot.trips.events.TripEventData;
 import com.microboxlabs.miot.trips.events.TripEvents;
+import com.microboxlabs.miot.core.event.EventContext;
 import com.microboxlabs.miot.core.event.OperationalEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.MandateRequest;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
@@ -390,6 +393,62 @@ class PgMonitorEngineTest {
         }));
         assertEquals(List.of(), firedFor(tripId, TripEventCatalog.MILESTONE_CONFIRMED));
         assertEquals(TripMilestone.OPEN, milestone(tripId, "departure").status());
+    }
+
+    private OperationalEvent reply(UUID tripId, String eventType, String milestone, String button, String text,
+            OffsetDateTime proposedAt) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("eventType", eventType);
+        data.put("eventData", Map.of("tripId", tripId.toString(), "milestone", milestone, "source", "gps",
+                "proposedAt", proposedAt.toString()));
+        data.put("channel", "whatsapp");
+        data.put("address", "+56900000000");
+        data.put("text", text);
+        data.put("buttonPayload", button);
+        return new OperationalEvent(MilestoneReplies.REPLY_RECEIVED, "miot-conversational", tenant,
+                java.time.Instant.now(), new EventContext("trip", tripId.toString()), data, false);
+    }
+
+    @Test
+    void aReplyToTheNoticeConfirmsOrRejectsThePendingMilestone() {
+        publishConfirmed();
+        MilestoneReplies replies = new MilestoneReplies(milestones, new ObjectMapper());
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        OffsetDateTime seen = OffsetDateTime.parse("2026-10-25T08:32:00Z");
+        String detected = TripEventCatalog.MILESTONE_DETECTED;
+
+        assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
+                replies.apply(reply(tripId, detected, "departure", "confirm", null, seen)),
+                "nothing was detected yet");
+
+        engine.signal(tenant, "gps", tripId, "left_origin", null, seen);
+        assertEquals(MilestoneReplies.Outcome.UNCLEAR,
+                replies.apply(reply(tripId, detected, "departure", null, "voy saliendo", seen)));
+        assertEquals(MilestoneReplies.Outcome.UNCLEAR,
+                replies.apply(reply(tripId, detected, "departure", "other_action", "Sí", seen)),
+                "an unknown button payload must not fall back to confirming text");
+        assertEquals(MilestoneReplies.Outcome.NOT_A_MILESTONE,
+                replies.apply(reply(tripId, TripEventCatalog.ALERT, "departure", "confirm", null, seen)));
+        assertEquals(MilestoneReplies.Outcome.REJECTED,
+                replies.apply(reply(tripId, detected, "departure", null, "No corresponde", seen)));
+        assertEquals(TripMilestone.REJECTED, milestone(tripId, "departure").status());
+
+        engine.signal(tenant, "gps", tripId, "left_origin", null, seen.plusMinutes(3));
+        assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
+                replies.apply(reply(tripId, detected, "departure", "confirm", null, seen)),
+                "a reply to the rejected detection must not confirm the new detection");
+        assertEquals(TripMilestone.PENDING, milestone(tripId, "departure").status());
+        assertEquals(MilestoneReplies.Outcome.CONFIRMED,
+                replies.apply(reply(tripId, detected, "departure", null, "Sí", seen.plusMinutes(3))));
+        TripMilestone departure = milestone(tripId, "departure");
+        assertEquals(TripMilestone.CONFIRMED, departure.status());
+        assertEquals("reply", departure.channel());
+        assertEquals("whatsapp:+56900000000", departure.confirmedBy());
+        assertTrue(seen.plusMinutes(3).isEqual(departure.confirmedAt()), "confirmed at the detected time");
+        assertEquals(Stage.RUNNING, status(tripId, "transit"));
+        assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
+                replies.apply(reply(tripId, detected, "departure", "confirm", null, seen.plusMinutes(3))),
+                "a late tap changes nothing");
     }
 
     @Test

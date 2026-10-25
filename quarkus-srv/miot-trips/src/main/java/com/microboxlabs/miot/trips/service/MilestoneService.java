@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,6 +40,10 @@ public class MilestoneService {
     public enum Result { CONFIRMED, UNCHANGED, CONFLICT, REJECTED, PENDING, SKIPPED }
 
     public record Outcome(TripMilestone milestone, Result result) {
+    }
+
+    /** Identifies the exact detection that a notice described. */
+    public record DetectionRef(String milestone, OffsetDateTime proposedAt, String source) {
     }
 
     private final MilestoneStore store;
@@ -168,6 +173,25 @@ public class MilestoneService {
                     new TripEvents.MilestoneNotice(m, current.source(), instant(current.proposedAt()), null, null,
                             ch, actor, null));
             return new Outcome(saved, Result.REJECTED);
+        });
+    }
+
+    /** Applies a reply only while its original detection is still pending. The check and update share one lock. */
+    public Outcome respondToDetection(String tenantCode, String actor, UUID tripId, DetectionRef detection,
+            boolean confirm) {
+        String m = milestone(detection.milestone());
+        return tx.inTransaction(() -> {
+            existing(tenantCode, tripId);
+            TripMilestone current = store.find(tenantCode, tripId, m)
+                    .orElse(TripMilestone.unrecorded(tenantCode, tripId.toString(), m));
+            if (!current.isPending() || current.proposedAt() == null || detection.proposedAt() == null
+                    || !current.proposedAt().toInstant().truncatedTo(ChronoUnit.MICROS).equals(
+                            detection.proposedAt().toInstant().truncatedTo(ChronoUnit.MICROS))
+                    || !Objects.equals(current.source(), detection.source())) {
+                return new Outcome(current, Result.SKIPPED);
+            }
+            return confirm ? confirm(tenantCode, actor, tripId, m, null, "reply", null)
+                    : reject(tenantCode, actor, tripId, m, "reply", null);
         });
     }
 

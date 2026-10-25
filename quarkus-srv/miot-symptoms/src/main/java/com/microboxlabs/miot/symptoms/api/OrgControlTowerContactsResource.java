@@ -88,7 +88,9 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             @QueryParam("limit") Integer limit) {
         String tenant = tenantCode(organizationId);
         return work(() -> {
-            ContactFilter filter = new ContactFilter(value(q), member(kind), value(role), value(company),
+            String requestedKind = value(kind);
+            Boolean member = requestedKind == null ? null : isMember(requestedKind);
+            ContactFilter filter = new ContactFilter(value(q), member, value(role), value(company),
                     value(tag), active);
             return Response.ok(contacts.page(tenant, filter, cursor, limit)).build();
         });
@@ -109,12 +111,8 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
         return raw == null || raw.isBlank() ? null : raw.trim();
     }
 
-    private static Boolean member(String kind) {
-        String k = value(kind);
-        if (k == null) {
-            return null;
-        }
-        return switch (k) {
+    private static boolean isMember(String kind) {
+        return switch (kind) {
             case "member" -> true;
             case "external" -> false;
             default -> throw new IllegalArgumentException("kind must be member or external");

@@ -1,8 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Button, Spinner } from "flowbite-react";
-import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Spinner, TextInput } from "flowbite-react";
+import {
+  HiOutlineBookOpen,
+  HiOutlineSearch,
+  HiOutlineUpload,
+  HiPlus,
+} from "react-icons/hi";
 import LayoutToggle, {
   type CatalogLayout,
 } from "@/features/common/components/layout-toggle";
@@ -36,6 +41,7 @@ import { useLoadMore } from "../contact-book/use-load-more";
 type ContactFilters = Record<"kind" | "role" | "company" | "tag", string>;
 const NO_FILTERS: ContactFilters = { kind: "", role: "", company: "", tag: "" };
 const NO_VALUES: string[] = [];
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface ContactBookPageContentProps {
   readonly dict: I18nRecord;
@@ -92,6 +98,15 @@ export default function ContactBookPageContent({
   const d = dict?.contactBook as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const [filters, setFilters] = useState<ContactFilters>(NO_FILTERS);
+  const [search, setSearch] = useState("");
+  const [searched, setSearched] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setSearched(search.trim()),
+      SEARCH_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [search]);
   const member = tr("cardMember", d);
   const external = tr("cardExternal", d);
   const query = useMemo<TowerContactQuery>(() => {
@@ -99,12 +114,13 @@ export default function ContactBookPageContent({
     if (filters.kind === member) kind = "member";
     else if (filters.kind === external) kind = "external";
     return {
+      q: searched,
       kind,
       role: filters.role,
       company: filters.company,
       tag: filters.tag,
     };
-  }, [filters, member, external]);
+  }, [searched, filters, member, external]);
   const {
     contacts,
     facets,
@@ -193,16 +209,30 @@ export default function ContactBookPageContent({
       icon={HiOutlineBookOpen}
       title={tr("title", d)}
       description={tr("description", d)}
-      filters={filterDefs.map((f) => (
-        <FilterChip
-          key={f.key}
-          label={f.label}
-          value={filters[f.key]}
-          options={f.options}
-          allLabel={tr("filterAll", d)}
-          onChange={(v) => setFilters({ ...filters, [f.key]: v })}
-        />
-      ))}
+      filters={
+        <>
+          <TextInput
+            type="search"
+            sizing="sm"
+            icon={HiOutlineSearch}
+            className="w-full sm:w-72"
+            aria-label={tr("searchLabel", d)}
+            placeholder={tr("searchPlaceholder", d)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {filterDefs.map((f) => (
+            <FilterChip
+              key={f.key}
+              label={f.label}
+              value={filters[f.key]}
+              options={f.options}
+              allLabel={tr("filterAll", d)}
+              onChange={(v) => setFilters({ ...filters, [f.key]: v })}
+            />
+          ))}
+        </>
+      }
       actions={
         <div className="flex shrink-0 items-center gap-2">
           <LayoutToggle

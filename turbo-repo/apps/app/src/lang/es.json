@@ -3013,6 +3013,8 @@
         "viewList": "Lista",
         "emptyFiltered": "Ningún contacto cumple los filtros.",
         "loadingMore": "Cargando más contactos…",
+        "searchLabel": "Buscar contactos",
+        "searchPlaceholder": "Nombre, rol, empresa, correo o documento",
         "cardMember": "Miembro",
         "cardExternal": "Externo",
         "cardProvisional": "Por completar",

@@ -61,7 +61,7 @@ class WhatsAppWebhookJobsTest {
 
     @Test
     void eachEventIsAJobOfTheOrganizationItBelongsTo() {
-        assertEquals(4, jobs.enqueue(DELIVERY));
+        assertEquals(4, jobs.enqueue(DELIVERY, PlatformScope.TENANT));
 
         List<AsyncJobSpec> org = enqueued.get(ORG);
         assertEquals(List.of(WhatsAppWebhookJobs.MESSAGE_JOB, WhatsAppWebhookJobs.STATUS_JOB),
@@ -81,8 +81,18 @@ class WhatsAppWebhookJobsTest {
     }
 
     @Test
+    void anOrganizationsConnectionCarriesOnlyItsOwnEvents() {
+        assertEquals(2, jobs.enqueue(DELIVERY, ORG));
+        assertEquals(List.of(ORG), List.copyOf(enqueued.keySet()));
+
+        enqueued.clear();
+        assertEquals(0, jobs.enqueue(DELIVERY, "tenant-b"));
+        assertTrue(enqueued.isEmpty());
+    }
+
+    @Test
     void aMessageJobRoundTripsItsPayloadAndHandsTheReplyOn() {
-        jobs.enqueue(DELIVERY);
+        jobs.enqueue(DELIVERY, PlatformScope.TENANT);
         Map<String, Object> payload = enqueued.get(ORG).get(0).payload();
         List<InboundMessage> stored = new ArrayList<>();
         List<ConversationReplyReceived> handed = new ArrayList<>();
@@ -130,7 +140,7 @@ class WhatsAppWebhookJobsTest {
 
     @Test
     void anOrganizationsJobCannotCarryAnotherTenantsEvent() {
-        jobs.enqueue(DELIVERY);
+        jobs.enqueue(DELIVERY, PlatformScope.TENANT);
         List<InboundMessage> stored = new ArrayList<>();
         WhatsAppInboundMessageJob messages = new WhatsAppInboundMessageJob(m -> {
             stored.add(m);
@@ -161,7 +171,7 @@ class WhatsAppWebhookJobsTest {
 
     @Test
     void aStatusBeforeItsMessageRetries() {
-        jobs.enqueue(DELIVERY);
+        jobs.enqueue(DELIVERY, PlatformScope.TENANT);
         List<StatusUpdate> applied = new ArrayList<>();
         WhatsAppInboundStatusJob handler = new WhatsAppInboundStatusJob(s -> {
             applied.add(s);

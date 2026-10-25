@@ -242,6 +242,21 @@ public class CredentialProfileService {
                 tenantCode, id, encrypt(secretConfig, id), maskSecret(secretConfig));
     }
 
+    /**
+     * Sets these keys on a credential's secret and keeps its other keys.
+     *
+     * @return the updated credential, or {@code null} when it does not exist
+     */
+    public CredentialProfile mergeSecret(String tenantCode, String id, Map<String, Object> updates) {
+        CredentialProfile profile = credentialProfileRepository.findByTenantAndId(tenantCode, id);
+        if (profile == null) {
+            return null;
+        }
+        Map<String, Object> secret = new LinkedHashMap<>(secretCipher.decrypt(profile.encryptedSecretJson()));
+        secret.putAll(updates);
+        return rotateSecret(tenantCode, id, secret);
+    }
+
     private CredentialTestResponse runTest(
             CredentialType type, Map<String, Object> publicConfig, Map<String, Object> secretConfig) {
         try {

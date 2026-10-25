@@ -279,6 +279,18 @@ class CredentialProfileServiceTest {
         assertEquals("tokenUrl must not point to an internal address", response.message());
     }
 
+    @Test
+    void mergingASecretKeepsTheOtherKeys() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(), Map.of("token", "access")));
+
+        service().mergeSecret(TENANT, created.id(), Map.of("app_secret", "signing"));
+
+        Map<String, Object> secret = new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                .decrypt(credentials.storedSecret);
+        assertEquals(Map.of("token", "access", "app_secret", "signing"), secret);
+    }
+
     private CredentialProfileService service() {
         return new CredentialProfileService(
                 credentials,
@@ -324,6 +336,7 @@ class CredentialProfileServiceTest {
 
         final List<CredentialProfile> rows = new ArrayList<>();
         UpdateCredentialProfileParams lastUpdate;
+        String storedSecret;
         OffsetDateTime recordedTestedAt;
         Boolean recordedTestResult;
         boolean deleted;
@@ -352,6 +365,13 @@ class CredentialProfileServiceTest {
         public CredentialProfile update(UpdateCredentialProfileParams params) {
             lastUpdate = params;
             return findByTenantAndId(params.tenantCode(), params.id());
+        }
+
+        @Override
+        public CredentialProfile updateSecret(
+                String tenantCode, String id, String encryptedSecretJson, String secretPreview) {
+            storedSecret = encryptedSecretJson;
+            return findByTenantAndId(tenantCode, id);
         }
 
         @Override

@@ -1920,6 +1920,11 @@
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
           "loadError": "Couldn't load the WhatsApp connection.",
           "phoneLabel": "Phone number ID",
+          "webhookLabel": "Webhook",
+          "webhookCopy": "Copy webhook path",
+          "webhookCopied": "Path copied",
+          "webhookCopyFailed": "Could not copy",
+          "webhookHelp": "In Meta, set the Callback URL to this environment's public API URL followed by this path, and use this connection's verify token.",
           "configureButton": "Configure",
           "testButton": "Test",
           "editButton": "Edit",
@@ -1932,7 +1937,7 @@
           "modal": {
             "addTitle": "Configure WhatsApp channel",
             "subtitle": "Stores the access token securely and creates the connection.",
-            "editSubtitle": "Update the connection details. Leave the token blank to keep the current one.",
+            "editSubtitle": "Update the connection details. Leave the token and secrets blank to keep the current ones.",
             "defaultName": "WhatsApp Channel",
             "name": "Connection name",
             "phoneNumberId": "Phone number ID",
@@ -1953,7 +1958,13 @@
             "testModeHelp": "When on, messages are only delivered to the recipients listed below — everyone else is blocked. Use this to demo safely without notifying real drivers.",
             "testRecipientsLabel": "Allowed test recipients",
             "testRecipientsPlaceholder": "+56 9 1234 5678\n+56 9 8765 4321",
-            "testRecipientsHelp": "One phone number per line (or comma-separated). Spaces and symbols are ignored when matching."
+            "testRecipientsHelp": "One phone number per line (or comma-separated). Spaces and symbols are ignored when matching.",
+            "appSecret": "Meta App secret",
+            "appSecretPlaceholder": "App settings › Basic",
+            "verifyToken": "Webhook verify token",
+            "verifyTokenPlaceholder": "A string you choose",
+            "keepPlaceholder": "Leave blank to keep the current one",
+            "webhookHelp": "Used to receive replies and message statuses. Enter the same verify token in Meta when you set up the webhook."
           },
           "toast": {
             "created": "WhatsApp channel configured",

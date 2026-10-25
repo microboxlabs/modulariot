@@ -126,7 +126,7 @@ public class IntegrationConnectionService {
         if (existing == null) {
             return null;
         }
-        rotateTokenIfPresent(tenantCode, existing, req.token());
+        updateSecrets(tenantCode, existing, req.token(), req.secrets());
         String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
         return connectionRepository.update(
                 tenantCode, connectionId, req.name(), baseUrl, req.credentialProfileId(), req.metadata());
@@ -148,21 +148,32 @@ public class IntegrationConnectionService {
     }
 
     /**
-     * Rotates the linked credential's secret when a non-blank token is supplied.
-     * Fails (does not silently drop the token) when there is no resolvable credential,
-     * so the rotation is part of the update's success contract.
+     * Sets the non-blank token and secrets on the linked credential and keeps its other keys.
+     * Fails (does not silently drop them) when there is no resolvable credential, so the
+     * change is part of the update's success contract.
      */
-    private void rotateTokenIfPresent(String tenantCode, IntegrationConnection existing, String token) {
-        if (token == null || token.isBlank()) {
+    private void updateSecrets(
+            String tenantCode, IntegrationConnection existing, String token, Map<String, String> secrets) {
+        Map<String, Object> updates = new LinkedHashMap<>();
+        if (secrets != null) {
+            secrets.forEach((key, value) -> {
+                if (key != null && value != null && !value.isBlank()) {
+                    updates.put(key, value);
+                }
+            });
+        }
+        if (token != null && !token.isBlank()) {
+            updates.put("token", token);
+        }
+        if (updates.isEmpty()) {
             return;
         }
-        CredentialProfile rotated = existing.credentialProfileId() == null
+        CredentialProfile updated = existing.credentialProfileId() == null
                 ? null
-                : credentialProfileService.rotateSecret(
-                        tenantCode, existing.credentialProfileId(), Map.of("token", token));
-        if (rotated == null) {
+                : credentialProfileService.mergeSecret(tenantCode, existing.credentialProfileId(), updates);
+        if (updated == null) {
             throw new IllegalStateException(
-                    "Cannot rotate the access token: the connection has no resolvable credential profile");
+                    "Cannot store the secret: the connection has no resolvable credential profile");
         }
     }
 

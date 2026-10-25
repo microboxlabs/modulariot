@@ -34,6 +34,8 @@ export interface ChannelCreate {
   name: string;
   baseUrl: string;
   token?: string;
+  /** More keys for the new credential's secret, next to the token. */
+  secrets?: Record<string, string>;
   credentialName?: string;
   /** Non-secret config for the new credential, e.g. a provider tag. */
   credentialPublicConfig?: Record<string, unknown>;
@@ -47,6 +49,8 @@ export interface ChannelUpdate {
   baseUrl: string;
   /** Rotates the key of the credential linked now. */
   token?: string;
+  /** Sets these keys on the linked credential's secret; the others are kept. */
+  secrets?: Record<string, string>;
   /** Links another stored credential. */
   credentialProfileId?: string;
   metadata: Record<string, unknown>;

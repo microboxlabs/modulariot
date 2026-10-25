@@ -150,6 +150,9 @@ export function GroupsSection({
           value={spec.groups}
           values={values}
           keys={keys}
+          itemLabel={(i) =>
+            groupLabel(spec.groups[i] ?? { id: "", entries: [] }, i, d)
+          }
           messages={messages}
           readOnly={readOnly}
           label={tr("sectionAudience", d)}
@@ -261,6 +264,7 @@ export function StepsSection({
           value={spec.steps}
           values={values}
           keys={keys}
+          itemLabel={(i) => tr("stepN", d, { n: String(i + 1) })}
           messages={flat(errors)}
           readOnly={readOnly}
           label={tr("sectionSteps", d)}

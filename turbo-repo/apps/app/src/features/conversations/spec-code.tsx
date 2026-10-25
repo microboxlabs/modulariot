@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import JsonCodeEditor, {
+  jsonIssues,
+  jsonItemAt,
   type JsonKeys,
   type JsonValues,
 } from "@/features/common/components/json-code-editor";
@@ -52,6 +54,7 @@ export default function SpecCode<T>({
   value,
   values,
   keys,
+  itemLabel,
   normalize,
   messages,
   readOnly,
@@ -63,6 +66,8 @@ export default function SpecCode<T>({
   value: T[];
   values: Record<string, JsonValues>;
   keys: JsonKeys;
+  /** How a problem names the item it is in: "Paso 2". */
+  itemLabel: (index: number) => string;
   /** The list with every part present, as the rule keeps it. */
   normalize: (list: Record<string, unknown>[]) => T[];
   /** The validator's findings for this section. */
@@ -74,6 +79,17 @@ export default function SpecCode<T>({
   onBroken: (broken: boolean) => void;
 }>) {
   const [shapeError, setShapeError] = useState<string | null>(null);
+  const [text, setText] = useState(() => JSON.stringify(value, null, 2));
+  const issues = useMemo(
+    () => [
+      ...new Set(
+        jsonIssues(text, values, keys).map(
+          (i) => `${itemLabel(jsonItemAt(text, i.from))}: ${i.message}`
+        )
+      ),
+    ],
+    [text, values, keys, itemLabel]
+  );
   return (
     <div className="flex flex-col gap-1.5">
       <JsonCodeEditor
@@ -84,7 +100,8 @@ export default function SpecCode<T>({
         ariaLabel={label}
         parseError={tr("jsonInvalid", d)}
         normalize={(data) => (isObjectList(data) ? normalize(data) : data)}
-        onChange={(data) => {
+        onChange={(data, edited) => {
+          setText(edited);
           if (data === null) {
             onBroken(true);
             setShapeError(null);
@@ -104,6 +121,9 @@ export default function SpecCode<T>({
         {tr("jsonHint", d)}
       </p>
       <FieldError text={shapeError ?? undefined} />
+      {issues.map((m) => (
+        <FieldError key={m} text={m} />
+      ))}
       {messages.map((m) => (
         <FieldError key={m} text={m} />
       ))}

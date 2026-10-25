@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { jsonSlot, jsonStrings, parseJson } from "./json-code-editor";
+import {
+  jsonIssues,
+  jsonItemAt,
+  jsonSlot,
+  jsonStrings,
+  parseJson,
+} from "./json-code-editor";
 
 describe("jsonStrings", () => {
   it("names the property of each value, and the array's for its items", () => {
@@ -62,6 +68,32 @@ describe("jsonSlot", () => {
     });
     expect(jsonSlot(`[{"to": ["a", `)).toEqual({ kind: "value", key: "to" });
     expect(jsonSlot(`[{"after": 0`)).toBeNull();
+  });
+});
+
+describe("jsonIssues", () => {
+  it("lists unknown properties and wrong types with the item they are in", () => {
+    const text = `[{"after": 0}, {"channel": ["email"], "wa": 0}]`;
+    const keys = {
+      objects: {
+        "": [
+          { label: "after", type: "number" as const },
+          { label: "channel", type: "string" as const },
+        ],
+      },
+      unknown: (k: string) => `unknown ${k}`,
+      wrongType: (k: string) => `type ${k}`,
+    };
+    expect(
+      jsonIssues(text, {}, keys).map((i) => [
+        jsonItemAt(text, i.from),
+        i.message,
+      ])
+    ).toEqual([
+      [1, "type channel"],
+      [1, "unknown wa"],
+    ]);
+    expect(jsonIssues("[{", {}, keys)).toEqual([]);
   });
 });
 

@@ -110,6 +110,8 @@ export interface RuleDetail {
   versions: RuleVersion[];
   /** Null without a draft. */
   plan?: PublishPlan | null;
+  /** The draft's findings; null without a draft. */
+  findings?: RuleFinding[] | null;
 }
 
 export interface RuleFinding {

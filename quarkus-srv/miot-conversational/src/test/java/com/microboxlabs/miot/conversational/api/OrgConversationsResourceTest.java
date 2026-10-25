@@ -120,7 +120,8 @@ class OrgConversationsResourceTest {
     void ruleDetailShapeAndDraftFindings() {
         String id = createPanicRule();
         JsonNode detail = body(call(member.getRule(ORG, id)));
-        assertEquals(set("rule", "current", "draft", "versions", "plan"), keys(detail));
+        assertEquals(set("rule", "current", "draft", "versions", "plan", "findings"), keys(detail));
+        assertEquals(0, detail.path("findings").size(), "the new rule's draft has no findings");
         assertEquals("MINOR", detail.path("plan").path("bump").asText());
         assertEquals("0.1.0", detail.path("plan").path("nextVersion").asText());
         assertEquals(set("id", "key", "name", "state", "currentVersion", "createdAt", "updatedAt"),
@@ -146,6 +147,8 @@ class OrgConversationsResourceTest {
         List<String> codes = new ArrayList<>();
         draft.path("findings").forEach(x -> codes.add(x.path("code").asText()));
         assertEquals(List.of("whenInvalid", "noSteps"), codes);
+        assertEquals(2, body(call(member.getRule(ORG, id))).path("findings").size(),
+                "the detail carries the saved draft's findings");
 
         Response refused = call(owner.publish(ORG, id, new PublishRequest("broken", null)));
         assertEquals(409, refused.getStatus());
@@ -179,6 +182,7 @@ class OrgConversationsResourceTest {
         assertEquals("0.1.0", detail.path("current").path("version").asText());
         assertTrue(detail.path("draft").isNull());
         assertTrue(detail.path("plan").isNull(), "no draft, no plan");
+        assertTrue(detail.path("findings").isNull(), "no draft, no findings");
         assertEquals(1, detail.path("versions").size());
     }
 

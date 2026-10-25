@@ -283,6 +283,41 @@ function diagnosticsFor(
   return out;
 }
 
+/** The marks on a text that parses: unknown properties and values, and wrong types. */
+export function jsonIssues(
+  text: string,
+  values: Record<string, JsonValues>,
+  keys?: JsonKeys
+): { from: number; message: string }[] {
+  if (!parseJson(text).ok) return [];
+  return diagnosticsFor(text, values, keys, "").map((m) => ({
+    from: m.from,
+    message: m.message,
+  }));
+}
+
+/** The index of the item of the top list that holds `pos`; -1 outside them. */
+export function jsonItemAt(text: string, pos: number): number {
+  let depth = 0;
+  let item = -1;
+  let i = 0;
+  while (i < pos && i < text.length) {
+    const c = text[i];
+    if (c === '"') {
+      i = stringEnd(text, i);
+      continue;
+    }
+    if (c === "{" || c === "[") {
+      if (depth === 1) item++;
+      depth++;
+    } else if (c === "}" || c === "]") {
+      depth--;
+    }
+    i++;
+  }
+  return item;
+}
+
 const EMPTY: Record<JsonType, string> = {
   string: '""',
   number: "0",

@@ -33,7 +33,7 @@ class ReplyEventsTest {
 
     private Run run(String id, String contextKind, String contextKey) {
         world.runStore.saveEvent(new StoredEvent("e-" + id, TENANT, "trip.milestone.detected", "miot-trips",
-                contextKind, contextKey, Map.of("milestone", "departure", "serviceCode", "SCL-ANF-001"), false, AT,
+                contextKind, contextKey, Map.of("milestone", "departure", "serviceCode", "SAMPLE-001"), false, AT,
                 AT));
         return world.runStore.createRun(new Run(id, TENANT, "rule-1", "1", "e-" + id, contextKind, contextKey, false,
                 Run.Status.REPLIED, 1, null, null, AT, AT));

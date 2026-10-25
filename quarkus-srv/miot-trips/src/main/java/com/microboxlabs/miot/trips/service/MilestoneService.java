@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.trips.domain.PendingMilestone;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.events.TripEventCatalog;
 import com.microboxlabs.miot.trips.events.TripEvents;
@@ -75,6 +76,15 @@ public class MilestoneService {
         return TripMilestone.MILESTONES.stream()
                 .map(m -> recorded.getOrDefault(m, TripMilestone.open(tenantCode, tripId.toString(), m)))
                 .toList();
+    }
+
+    /** The organization's milestones waiting for a person, oldest detection first. */
+    public List<PendingMilestone> pending(String tenantCode, Integer limit) {
+        int n = limit == null ? 100 : limit;
+        if (n < 1 || n > 500) {
+            throw new IllegalArgumentException("limit must be between 1 and 500");
+        }
+        return store.pending(tenantCode, n);
     }
 
     /**

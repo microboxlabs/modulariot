@@ -23,6 +23,7 @@ import SettingsPageShell from "@/features/common/components/settings-page-shell"
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import LocationsPanel from "../locations/locations-panel";
+import PendingPanel from "../milestones/pending-panel";
 import ExpressionField from "./expression-field";
 import {
   saveDraft,
@@ -482,6 +483,8 @@ export default function MonitorList({
         )}
 
         {data && <SelectorPanel monitors={monitors} canEdit={canEdit} d={d} />}
+
+        <PendingPanel d={dict?.tripMilestones as I18nRecord} lang={lang} />
 
         <LocationsPanel d={dict?.tripLocations as I18nRecord} />
       </div>

@@ -20,6 +20,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.OffsetDateTime;
@@ -66,6 +67,16 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
         super(tenantContext, organizationContext, roleService, identity);
         this.milestones = milestones;
         this.trips = trips;
+    }
+
+    @GET
+    @Path("/milestones/pending")
+    @Operation(operationId = "listPendingMilestones",
+            summary = "The organization's departures, arrivals and closures waiting for a person, oldest first")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> pending(@PathParam(ORG) String organizationId, @QueryParam("limit") Integer limit) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(milestones.pending(tenant, limit)).build());
     }
 
     @GET

@@ -3024,6 +3024,29 @@
         "removeFailed": "The contact couldn't be deleted.",
         "tagUpdateError": "The tag couldn't be updated on {count} contacts. The change was undone."
       },
+      "tripMilestones": {
+        "title": "To confirm",
+        "description": "Departures, arrivals and closures detected by GPS or ETA. Confirm them at the detected time or reject them when they are wrong.",
+        "count": "{count} to confirm",
+        "empty": "No detection is waiting for a confirmation.",
+        "loading": "Loading…",
+        "service": "Service",
+        "milestone": "Milestone",
+        "source": "Detected by",
+        "detectedAt": "Detected at",
+        "confirm": "Confirm",
+        "reject": "Not right",
+        "names": {
+          "departure": "Departure",
+          "arrival": "Arrival",
+          "closure": "Closure"
+        },
+        "sources": {
+          "gps": "GPS",
+          "eta": "ETA",
+          "other": "Other"
+        }
+      },
       "tripLocations": {
         "title": "Locations",
         "description": "The places trips name. Give each its GPS geofence so signal rules fire on entering and leaving.",

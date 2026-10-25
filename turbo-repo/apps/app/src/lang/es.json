@@ -3024,6 +3024,29 @@
         "removeFailed": "No se pudo eliminar el contacto.",
         "tagUpdateError": "No se pudo actualizar la etiqueta en {count} contactos. Se deshizo el cambio."
       },
+      "tripMilestones": {
+        "title": "Por confirmar",
+        "description": "Salidas, llegadas y cierres que el GPS o la ETA detectaron. Confírmalos a la hora detectada o recházalos si no corresponden.",
+        "count": "{count} por confirmar",
+        "empty": "No hay detecciones esperando confirmación.",
+        "loading": "Cargando…",
+        "service": "Servicio",
+        "milestone": "Hito",
+        "source": "Detectado por",
+        "detectedAt": "Hora detectada",
+        "confirm": "Confirmar",
+        "reject": "No corresponde",
+        "names": {
+          "departure": "Salida",
+          "arrival": "Llegada",
+          "closure": "Cierre"
+        },
+        "sources": {
+          "gps": "GPS",
+          "eta": "ETA",
+          "other": "Otro"
+        }
+      },
       "tripLocations": {
         "title": "Ubicaciones",
         "description": "Los lugares que nombran los viajes. Asigna a cada uno su geocerca GPS para que las reglas de señal se disparen al entrar y salir.",

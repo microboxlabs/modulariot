@@ -282,6 +282,8 @@ class PgMonitorEngineTest {
 
         engine.signal(tenant, "gps", tripId, "left_origin", "17", seen);
         assertEquals(Stage.RUNNING, status(tripId, "preparation"), "a GPS detection does not move the trip");
+        assertTrue(milestones.pending(tenant, null).stream().anyMatch(p -> p.milestone().tripId()
+                .equals(tripId.toString()) && p.serviceCode() != null), "it is listed as waiting for a person");
         TripMilestone pending = milestone(tripId, "departure");
         assertEquals(TripMilestone.PENDING, pending.status());
         assertEquals("gps", pending.source());

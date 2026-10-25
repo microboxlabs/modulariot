@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.rules.store;
 
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
+import com.microboxlabs.miot.conversational.rules.TestSend;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -51,4 +52,9 @@ public interface RunStore {
 
     /** The messages of these runs, oldest first. */
     List<RunMessage> messages(Collection<String> runIds);
+
+    /** Keeps the draft and the person of a test send, beside its run. */
+    void saveTestSend(TestSend testSend);
+
+    Optional<TestSend> testSend(String runId);
 }

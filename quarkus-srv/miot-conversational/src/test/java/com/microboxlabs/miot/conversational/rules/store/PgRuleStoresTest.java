@@ -16,6 +16,7 @@ import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.RuleVersion;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
+import com.microboxlabs.miot.conversational.rules.TestSend;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -55,7 +56,7 @@ class PgRuleStoresTest {
             "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
             "V0.11.1__whatsapp_outbound_by_address.sql",
             // This constraint change is independent of 0.11.3, which needs the integrations schema.
-            "V0.11.4__trip_conversations.sql");
+            "V0.11.4__trip_conversations.sql", "V0.11.5__rule_test_sends.sql");
     private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -283,6 +284,23 @@ class PgRuleStoresTest {
         assertTrue(runs.waiting(tenant, "symptom_case", "-7").isEmpty());
         assertTrue(runs.list(tenant, null, Run.Status.WAITING, 10).isEmpty());
         assertEquals(1, runs.list(tenant, null, null, 10).size());
+    }
+
+    @Test
+    void aTestSendKeepsItsDraftAndPersonBesideItsRun() throws Exception {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", TestSend.VERSION, "symptom_case", "-7", Map.of(), true, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), TestSend.VERSION,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, null, null, T0, T0));
+        runs.saveTestSend(new TestSend(run.id(), JSON.readTree("{\"steps\": [{\"channel\": \"email\"}]}"),
+                new TestSend.To("tester@example.com", null, "Tester")));
+
+        TestSend read = runs.testSend(run.id()).orElseThrow();
+        assertEquals("email", read.spec().path("steps").get(0).path("channel").asText());
+        assertEquals(new TestSend.To("tester@example.com", null, "Tester"), read.to());
+        assertTrue(runs.testSend(UUID.randomUUID().toString()).isEmpty());
     }
 
     @Test

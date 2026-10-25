@@ -28,6 +28,7 @@ final class InMemoryRules {
     final Map<String, ConvTemplate> templates = new LinkedHashMap<>();
     final Map<String, StoredEvent> events = new LinkedHashMap<>();
     final Map<String, Run> runs = new LinkedHashMap<>();
+    final Map<String, TestSend> testSends = new LinkedHashMap<>();
     final Rules ruleStore = new Rules();
     final Templates templateStore = new Templates();
     final Runs runStore = new Runs();
@@ -195,6 +196,16 @@ final class InMemoryRules {
         @Override
         public Optional<Run> find(String id) {
             return Optional.ofNullable(runs.get(id));
+        }
+
+        @Override
+        public void saveTestSend(TestSend testSend) {
+            testSends.put(testSend.runId(), testSend);
+        }
+
+        @Override
+        public Optional<TestSend> testSend(String runId) {
+            return Optional.ofNullable(testSends.get(runId));
         }
 
         @Override

@@ -10,6 +10,7 @@ import static com.microboxlabs.miot.conversational.rules.store.Pg.uuidOrNull;
 
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.StoredEvent;
+import com.microboxlabs.miot.conversational.rules.TestSend;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -49,6 +50,12 @@ public class PgRunStore implements RunStore {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING\s""" + RUN_COLUMNS;
     private static final String RUN = SELECT + RUN_COLUMNS + " FROM miot_conversational.conv_run WHERE id = $1";
+    private static final String INSERT_TEST_SEND = """
+            INSERT INTO miot_conversational.conv_run_test_send (run_id, spec, email, phone, name)
+            VALUES ($1, $2::text::jsonb, $3, $4, $5)""";
+    private static final String TEST_SEND = SELECT + """
+            run_id, spec::text AS spec, email, phone, name
+             FROM miot_conversational.conv_run_test_send WHERE run_id = $1""";
     // SKIP LOCKED leaves runs another pod is claiming; the lease keeps them off later scans while they are worked.
     private static final String CLAIM = """
             UPDATE miot_conversational.conv_run SET next_at = $2, updated_at = $1
@@ -137,6 +144,27 @@ public class PgRunStore implements RunStore {
                 .addOffsetDateTime(time(r.nextAt())).addString(r.lastError()).addOffsetDateTime(time(r.createdAt()))
                 .addOffsetDateTime(time(r.updatedAt()));
         return runs(query(pool.get(), INSERT_RUN, params)).get(0);
+    }
+
+    @Override
+    public void saveTestSend(TestSend t) {
+        query(pool.get(), INSERT_TEST_SEND, Tuple.tuple().addUUID(uuid(t.runId())).addString(t.spec().toString())
+                .addString(t.to().email()).addString(t.to().phone()).addString(t.to().name()));
+    }
+
+    @Override
+    public Optional<TestSend> testSend(String runId) {
+        UUID id = uuidOrNull(runId);
+        if (id == null) {
+            return Optional.empty();
+        }
+        var rows = query(pool.get(), TEST_SEND, Tuple.of(id)).iterator();
+        if (!rows.hasNext()) {
+            return Optional.empty();
+        }
+        Row r = rows.next();
+        return Optional.of(new TestSend(string(r, "run_id"), Pg.node(r.getString("spec")),
+                new TestSend.To(r.getString("email"), r.getString("phone"), r.getString("name"))));
     }
 
     @Override

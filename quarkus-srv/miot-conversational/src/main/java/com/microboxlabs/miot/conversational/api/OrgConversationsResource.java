@@ -11,6 +11,8 @@ import com.microboxlabs.miot.conversational.rules.RuleBump;
 import com.microboxlabs.miot.conversational.rules.Run;
 import com.microboxlabs.miot.conversational.rules.RulesService;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator;
+import com.microboxlabs.miot.conversational.rules.TestSend;
+import com.microboxlabs.miot.conversational.rules.RuleTestSends;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
@@ -98,6 +100,10 @@ public class OrgConversationsResource {
     public record SimulateRequest(SampleEvent event) {
     }
 
+    /** {@code event} is optional: without it the trigger's event type with no data. */
+    public record TestSendRequest(SampleEvent event, TestSend.To to) {
+    }
+
     public record CreateConnectionRequest(String name, String baseUrl, String credentialProfileId) {
     }
 
@@ -114,6 +120,7 @@ public class OrgConversationsResource {
     private final Supplier<String> actor;
     private final RulesService service;
     private final RuleSimulator simulator;
+    private final RuleTestSends testSends;
     private final TemplatesService templates;
     private final RunsService runs;
     private final ConnectionChannels channels;
@@ -123,18 +130,25 @@ public class OrgConversationsResource {
     /** The services behind the endpoints. */
     public record Services(RulesService rules, RuleSimulator simulator, TemplatesService templates,
             RunsService runs, ConnectionChannels channels, ChannelAccountsService accounts,
-            WhatsAppTemplatesService whatsappTemplates) {
+            WhatsAppTemplatesService whatsappTemplates, RuleTestSends testSends) {
+
+        public Services(RulesService rules, RuleSimulator simulator, TemplatesService templates, RunsService runs,
+                ConnectionChannels channels, ChannelAccountsService accounts,
+                WhatsAppTemplatesService whatsappTemplates) {
+            this(rules, simulator, templates, runs, channels, accounts, whatsappTemplates, null);
+        }
     }
 
     @Inject
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
             OrganizationRoleService roleService, SecurityIdentity identity, RulesService rules,
             RuleSimulator simulator, TemplatesService templates, RunsService runs, ConnectionChannels channels,
-            ChannelAccountsService accounts, WhatsAppTemplatesService whatsappTemplates) {
+            ChannelAccountsService accounts, WhatsAppTemplatesService whatsappTemplates, RuleTestSends testSends) {
         this(tenantContext, organizationContext,
                 org -> roleService.access(org, caller(identity, organizationContext, tenantContext)),
                 () -> actor(identity, organizationContext),
-                new Services(rules, simulator, templates, runs, channels, accounts, whatsappTemplates));
+                new Services(rules, simulator, templates, runs, channels, accounts, whatsappTemplates,
+                        testSends));
     }
 
     public OrgConversationsResource(TenantContext tenantContext, OrganizationContext organizationContext,
@@ -145,6 +159,7 @@ public class OrgConversationsResource {
         this.actor = actor;
         this.service = services.rules();
         this.simulator = services.simulator();
+        this.testSends = services.testSends();
         this.templates = services.templates();
         this.runs = services.runs();
         this.channels = services.channels();
@@ -221,13 +236,34 @@ public class OrgConversationsResource {
                 return Response.ok(service.publish(tenant, id, body == null ? null : body.reason(),
                         body == null ? null : body.bump(), who)).build();
             } catch (RulesService.NotPublishable e) {
-                Map<String, Object> entity = new LinkedHashMap<>();
-                entity.put(ERROR, e.getMessage());
-                entity.put("findings", e.findings());
-                return Response.status(Response.Status.CONFLICT).type(MediaType.APPLICATION_JSON).entity(entity)
-                        .build();
+                return notPublishable(e);
             }
         });
+    }
+
+    @POST
+    @Path("/rules/{id}/test-send")
+    @Operation(operationId = "testSendConversationRule",
+            summary = "Send the draft for real to one person: its steps at their times, on a sample event; "
+                    + "409 with the findings when the draft has errors")
+    public Uni<Response> testSend(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            TestSendRequest body) {
+        String tenant = tenantCode(organizationId);
+        return write(organizationId, () -> {
+            try {
+                return Response.ok(testSends.start(tenant, id, body == null ? null : body.event(),
+                        body == null ? null : body.to())).build();
+            } catch (RulesService.NotPublishable e) {
+                return notPublishable(e);
+            }
+        });
+    }
+
+    private static Response notPublishable(RulesService.NotPublishable e) {
+        Map<String, Object> entity = new LinkedHashMap<>();
+        entity.put(ERROR, e.getMessage());
+        entity.put("findings", e.findings());
+        return Response.status(Response.Status.CONFLICT).type(MediaType.APPLICATION_JSON).entity(entity).build();
     }
 
     @PUT

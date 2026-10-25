@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.conversational.rules;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.ContextKind;
@@ -221,15 +222,49 @@ public class RulesEngine {
         return due.size();
     }
 
+    /**
+     * Starts a test send of a rule's draft: an event of the sample stored as a test, and a run that sends the
+     * draft's steps at their times to the chosen person, real messages, and stops on a reply as the rule says.
+     */
+    public Run startTestSend(String ruleId, JsonNode draft, StoredEvent sample, TestSend.To to) {
+        Instant now = clock.instant();
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), sample.tenantCode(),
+                sample.type(), TestSend.VERSION, sample.contextKind(), sample.contextKey(), sample.data(), true,
+                now, now));
+        List<Step> steps = RuleSpec.read(draft).steps();
+        // Created without a time, so no scan claims it before its test send is stored.
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), event.tenantCode(), ruleId,
+                TestSend.VERSION, event.id(), event.contextKind(), event.contextKey(), false, Run.Status.WAITING, 0,
+                null, null, now, now));
+        runs.saveTestSend(new TestSend(run.id(), draft, to));
+        if (steps.isEmpty()) {
+            Run done = run.advanced(Run.Status.DONE, 0, null, null, now);
+            runs.updateIfWaiting(done);
+            return done;
+        }
+        Run due = run.advanced(Run.Status.WAITING, 0, now.plus(Duration.ofMinutes(steps.get(0).afterMinutes())),
+                null, now);
+        runs.updateIfWaiting(due);
+        return due;
+    }
+
+    /** The spec a run sends: its version's, or for a test send the draft it copied, written to the chosen person. */
+    private Optional<RuleSpec> spec(Run run) {
+        if (TestSend.VERSION.equals(run.ruleVersion())) {
+            return runs.testSend(run.id()).map(TestSend::rule);
+        }
+        return rules.version(run.ruleId(), run.ruleVersion()).map(v -> RuleSpec.read(v.spec()));
+    }
+
     private void advance(Run run, Instant now) {
-        Optional<RuleVersion> version = rules.version(run.ruleId(), run.ruleVersion());
+        Optional<RuleSpec> found = spec(run);
         Optional<StoredEvent> event = runs.event(run.eventId());
-        if (version.isEmpty() || event.isEmpty()) {
+        if (found.isEmpty() || event.isEmpty()) {
             runs.updateIfWaiting(run.advanced(Run.Status.FAILED, run.step(), null,
                     "La versión de la regla o el evento ya no existe", now));
             return;
         }
-        RuleSpec spec = RuleSpec.read(version.get().spec());
+        RuleSpec spec = found.get();
         List<Step> steps = spec.steps();
         Run current = run;
         while (true) {
@@ -266,7 +301,9 @@ public class RulesEngine {
         for (StepMessages.Planned m : plan.messages()) {
             Optional<ConnectionChannel> viaConnection = ConnectionChannel.of(m.channel());
             if (viaConnection.isPresent()) {
-                deliver(viaConnection.get(), run, event, kind, m).ifPresent(problems::add);
+                // A test send writes to its person only: the connection is not called.
+                boolean simulate = run.test() || TestSend.VERSION.equals(run.ruleVersion());
+                deliver(viaConnection.get(), run, event, kind, m, simulate).ifPresent(problems::add);
                 continue;
             }
             boolean isWhatsApp = RuleSpec.WHATSAPP.equals(m.channel());
@@ -285,11 +322,12 @@ public class RulesEngine {
     }
 
     /**
-     * Calls the connection step's connection once and stores the call as a message to the connection; a test run
-     * calls nothing and stores it SIMULATED. Returns the problem when the call failed or was refused.
+     * Calls the connection step's connection once and stores the call as a message to the connection; with
+     * {@code simulate} it calls nothing and stores it SIMULATED. Returns the problem when the call failed or was
+     * refused.
      */
     private Optional<String> deliver(ConnectionChannel channel, Run run, StoredEvent event, ContextKind kind,
-            StepMessages.Planned m) {
+            StepMessages.Planned m, boolean simulate) {
         String connection = m.to().address();
         Rule rule = rules.find(run.tenantCode(), run.ruleId()).orElse(null);
         String name = channels.name(run.tenantCode(), connection).orElse(null);
@@ -298,7 +336,7 @@ public class RulesEngine {
                 m.template() == null ? null : m.template().key(), null, Map.of(), m.subject(),
                 delivery.textOrSummary(), run.id(), run.step());
         Message stored = connectionMessages.sendInContext(run.tenantCode(), Channel.fromDb(channel.key()), message,
-                run.test(), () -> channels.deliver(channel, run.tenantCode(), connection, channel.body(delivery)));
+                simulate, () -> channels.deliver(channel, run.tenantCode(), connection, channel.body(delivery)));
         return stored.status() == MessageStatus.FAILED
                 ? Optional.of(channel.key() + " " + connection + ": " + stored.errorMessage())
                 : Optional.empty();
@@ -317,11 +355,11 @@ public class RulesEngine {
             return Optional.empty();
         }
         Run r = run.get();
-        Optional<RuleVersion> version = rules.version(r.ruleId(), r.ruleVersion());
-        if (version.isEmpty()) {
+        Optional<RuleSpec> spec = spec(r);
+        if (spec.isEmpty()) {
             return Optional.empty();
         }
-        List<Step> steps = RuleSpec.read(version.get().spec()).steps();
+        List<Step> steps = spec.get().steps();
         int answered = reply.answeredStep() != null ? reply.answeredStep() : r.step() - 1;
         if (answered < 0 || answered >= r.step() || answered >= steps.size() || !steps.get(answered).stopsOnReply()) {
             return Optional.empty();

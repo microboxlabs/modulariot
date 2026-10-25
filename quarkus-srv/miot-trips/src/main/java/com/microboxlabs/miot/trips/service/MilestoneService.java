@@ -94,6 +94,13 @@ public class MilestoneService {
      */
     public Outcome request(String tenantCode, String actor, UUID tripId, String milestone, String source,
             OffsetDateTime proposedAt, Map<String, Object> evidence) {
+        return request(tenantCode, actor, tripId, milestone, source, proposedAt, evidence, null);
+    }
+
+    /** Records which monitor rule detected the milestone when a rule made this request. */
+    @SuppressWarnings("java:S107") // Extends the existing request with optional rule provenance.
+    public Outcome request(String tenantCode, String actor, UUID tripId, String milestone, String source,
+            OffsetDateTime proposedAt, Map<String, Object> evidence, String rule) {
         String m = milestone(milestone);
         return tx.inTransaction(() -> {
             Optional<TripMilestone> current = store.find(tenantCode, tripId, m);
@@ -105,7 +112,7 @@ public class MilestoneService {
             audit.log(tenantCode, actor, REQUESTED, "trip", tripId.toString(), tripId.toString(),
                     details(m, proposedAt, null, source));
             events.milestone(TripEventCatalog.MILESTONE_DETECTED, tenantCode, tripId.toString(), instant(proposedAt),
-                    m, source, instant(proposedAt), null, null, null, actor, null);
+                    new TripEvents.MilestoneNotice(m, source, instant(proposedAt), null, null, null, actor, rule));
             return new Outcome(saved, Result.PENDING);
         });
     }
@@ -133,8 +140,8 @@ public class MilestoneService {
                 d.put("confirmedBy", current.confirmedBy());
                 audit.log(tenantCode, actor, CONFLICT, "trip", tripId.toString(), null, d);
                 events.milestone(TripEventCatalog.MILESTONE_CONFLICT, tenantCode, tripId.toString(), now().toInstant(),
-                        m, current.source(), instant(current.proposedAt()), instant(current.confirmedAt()),
-                        when.toInstant(), ch, actor, null);
+                        new TripEvents.MilestoneNotice(m, current.source(), instant(current.proposedAt()),
+                                instant(current.confirmedAt()), when.toInstant(), ch, actor, null));
                 return new Outcome(current, Result.CONFLICT);
             }
             TripMilestone saved = store.save(new TripMilestone(tenantCode, tripId.toString(), m,
@@ -142,8 +149,9 @@ public class MilestoneService {
                     ch, n, null, actor));
             audit.log(tenantCode, actor, CONFIRMED, "trip", tripId.toString(), tripId.toString(),
                     details(m, when, ch, current.source()));
-            events.milestone(TripEventCatalog.MILESTONE_CONFIRMED, tenantCode, tripId.toString(), when.toInstant(), m,
-                    current.source(), instant(current.proposedAt()), when.toInstant(), null, ch, actor, null);
+            events.milestone(TripEventCatalog.MILESTONE_CONFIRMED, tenantCode, tripId.toString(), when.toInstant(),
+                    new TripEvents.MilestoneNotice(m, current.source(), instant(current.proposedAt()),
+                            when.toInstant(), null, ch, actor, null));
             return new Outcome(saved, Result.CONFIRMED);
         });
     }
@@ -166,8 +174,9 @@ public class MilestoneService {
                     ch, n, null, actor));
             audit.log(tenantCode, actor, REJECTED, "trip", tripId.toString(), tripId.toString(),
                     details(m, now(), ch, current.source()));
-            events.milestone(TripEventCatalog.MILESTONE_REJECTED, tenantCode, tripId.toString(), now().toInstant(), m,
-                    current.source(), instant(current.proposedAt()), null, null, ch, actor, null);
+            events.milestone(TripEventCatalog.MILESTONE_REJECTED, tenantCode, tripId.toString(), now().toInstant(),
+                    new TripEvents.MilestoneNotice(m, current.source(), instant(current.proposedAt()), null, null,
+                            ch, actor, null));
             return new Outcome(saved, Result.REJECTED);
         });
     }

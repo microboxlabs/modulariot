@@ -36,7 +36,7 @@ on:
     paths:
       - 'quarkus-srv/**'
       - '.github/workflows/quarkus.yml'
-    branches: [trunk, main, 'feat/trips-*']
+    branches: [trunk, main]
   workflow_dispatch:
 
 env:

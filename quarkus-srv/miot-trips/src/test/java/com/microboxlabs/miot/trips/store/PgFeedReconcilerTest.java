@@ -367,11 +367,12 @@ class PgFeedReconcilerTest {
         List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
                 new FeedProfile.StagePlan("cierre", "FINISHED"));
 
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "transito", "cierre", 60, null, null)),
+        FeedProfileRequest missingDeparture = new FeedProfileRequest("Nuevo", plan, "transito", "cierre", 60,
+                null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingDeparture),
                 "the departure stage must be in the plan");
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas",
-                new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", 60, null, null)));
+        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", 60, null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas", valid));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
                 new FeedProfileRequest("Nuevo", plan, "preparacion", "cierre", null, List.of("truck"), null));
         assertEquals(120, saved.closeToleranceMinutes());

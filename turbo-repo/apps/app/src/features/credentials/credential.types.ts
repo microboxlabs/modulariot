@@ -504,6 +504,9 @@ export const BearerTokenCredentialSchema = z.object({
     .min(1, "validation.environmentRequired")
     .max(40, "validation.environmentTooLong"),
   token: z.string().trim().min(1, "validation.tokenRequired"),
+  /** WhatsApp only: the Meta App secret and the webhook verify token. Blank keeps the stored one. */
+  appSecret: z.string().optional(),
+  verifyToken: z.string().optional(),
 });
 
 /** On edit the token may be left blank to keep the stored one. */

@@ -2763,7 +2763,13 @@
           "whatsappAddTitle": "Nuevo token de WhatsApp",
           "whatsappEditTitle": "Editar token de WhatsApp",
           "whatsappSubtitle": "El token de acceso con el que el canal de WhatsApp llama a la API de Meta.",
-          "whatsappTokenHelp": "Un token de usuario del sistema de Meta. Se guarda cifrado y nunca se devuelve."
+          "whatsappTokenHelp": "Un token de usuario del sistema de Meta. Se guarda cifrado y nunca se devuelve.",
+          "appSecret": "App secret de Meta",
+          "appSecretPlaceholder": "Configuración de la app › Básica",
+          "verifyToken": "Verify token del webhook",
+          "verifyTokenPlaceholder": "Un texto que tú eliges",
+          "webhookKeyEditPlaceholder": "Déjalo en blanco para mantener el actual",
+          "webhookKeysHelp": "Sirven para recibir respuestas y estados de mensajes. Pon el mismo verify token en Meta al configurar el webhook."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",

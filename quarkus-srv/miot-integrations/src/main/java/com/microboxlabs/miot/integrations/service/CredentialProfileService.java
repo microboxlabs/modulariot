@@ -137,8 +137,8 @@ public class CredentialProfileService {
 
     /**
      * Partial update. An absent or empty {@code secretConfig} keeps the stored secret —
-     * the form cannot show it, so it submits nothing to mean "leave it alone". Rotating a
-     * bearer token preserves any stored WhatsApp webhook keys.
+     * the form cannot show it, so it submits nothing to mean "leave it alone". A bearer
+     * credential's secret keys that the request leaves out are kept.
      *
      * @return the updated credential, or {@code null} when it does not exist
      */
@@ -170,11 +170,9 @@ public class CredentialProfileService {
 
             Map<String, Object> secretConfig = rotating ? new LinkedHashMap<>(requestedSecret) : Map.of();
             if (rotating && current.credentialType() == CredentialType.BEARER_TOKEN) {
-                // The generic credential screen sends only the access token. Keep the webhook
-                // keys that share a WhatsApp credential unless the caller explicitly replaces them.
-                Map<String, Object> stored = decrypt(current);
-                preserveWebhookKey(secretConfig, stored, WhatsAppWebhookKeys.APP_SECRET);
-                preserveWebhookKey(secretConfig, stored, WhatsAppWebhookKeys.VERIFY_TOKEN);
+                // A WhatsApp credential holds the token and the webhook keys; the form sends only
+                // the ones it changed, so the stored keys it left out are kept.
+                decrypt(current).forEach(secretConfig::putIfAbsent);
             }
             UpdateCredentialProfileParams params = new UpdateCredentialProfileParams(
                     tenantCode, id, displayName, environment, publicConfig,
@@ -193,11 +191,6 @@ public class CredentialProfileService {
         throw new IllegalStateException("Credential changed concurrently; retry the update");
     }
 
-    private static void preserveWebhookKey(Map<String, Object> updates, Map<String, Object> stored, String key) {
-        if (!updates.containsKey(key) && stored.containsKey(key)) {
-            updates.put(key, stored.get(key));
-        }
-    }
 
     /**
      * Soft-deletes a credential.

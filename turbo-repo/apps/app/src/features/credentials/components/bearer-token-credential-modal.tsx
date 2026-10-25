@@ -1,6 +1,8 @@
 "use client";
 
 import { TextInput } from "flowbite-react";
+import type { UseFormRegister } from "react-hook-form";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
 import {
@@ -56,6 +58,8 @@ interface TokenVariant {
   readonly provider?: string;
   readonly schema: typeof BearerTokenCredentialSchema;
   readonly editSchema: typeof BearerTokenCredentialEditSchema;
+  /** Also edits the Meta App secret and the webhook verify token. */
+  readonly webhookKeys?: boolean;
   readonly helpKey:
     | "modal.tokenHelp"
     | "modal.resendTokenHelp"
@@ -82,6 +86,7 @@ const WHATSAPP: TokenVariant = {
   provider: WHATSAPP_PROVIDER,
   schema: WhatsAppCredentialSchema,
   editSchema: WhatsAppCredentialEditSchema,
+  webhookKeys: true,
   helpKey: "modal.whatsappTokenHelp",
 };
 
@@ -116,6 +121,8 @@ function TokenCredentialModal(
     name: "",
     environment: "DEVELOPMENT",
     token: "",
+    appSecret: "",
+    verifyToken: "",
     ...(variant.provider ? { provider: variant.provider } : {}),
   };
   const state = useCredentialForm<BearerTokenFormData>({
@@ -159,6 +166,62 @@ function TokenCredentialModal(
           {trDynamic(variant.helpKey, dict)}
         </p>
       </SettingsFormField>
+      {variant.webhookKeys && (
+        <WebhookKeyFields
+          idPrefix={variant.chrome.idPrefix}
+          isEdit={state.isEdit}
+          register={register}
+          dict={dict}
+        />
+      )}
     </CredentialFormShell>
+  );
+}
+
+/** The WhatsApp credential's Meta App secret and webhook verify token, both write-only. */
+function WebhookKeyFields({
+  idPrefix,
+  isEdit,
+  register,
+  dict,
+}: Readonly<{
+  idPrefix: string;
+  isEdit: boolean;
+  register: UseFormRegister<BearerTokenFormData>;
+  dict: I18nRecord;
+}>) {
+  const keep = tr("modal.webhookKeyEditPlaceholder", dict);
+  return (
+    <>
+      <SettingsFormField
+        id={`${idPrefix}-app-secret`}
+        label={tr("modal.appSecret", dict)}
+      >
+        <TextInput
+          id={`${idPrefix}-app-secret`}
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={isEdit ? keep : tr("modal.appSecretPlaceholder", dict)}
+          {...register("appSecret")}
+        />
+      </SettingsFormField>
+      <SettingsFormField
+        id={`${idPrefix}-verify-token`}
+        label={tr("modal.verifyToken", dict)}
+      >
+        <TextInput
+          id={`${idPrefix}-verify-token`}
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={isEdit ? keep : tr("modal.verifyTokenPlaceholder", dict)}
+          {...register("verifyToken")}
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {tr("modal.webhookKeysHelp", dict)}
+        </p>
+      </SettingsFormField>
+    </>
   );
 }

@@ -42,8 +42,8 @@ class AsyncJobsFeedQueueTest {
 
     @Test
     void duplicateJobRollsBackAcceptanceBeforeWakingWorker() {
-        assertThrows(IllegalStateException.class, () -> queue.acceptAndQueue("test", "test-feed",
-                FeedBatchService.spec("test-feed", "TEST", "test", "batch"), () -> {
+        var job = FeedBatchService.spec("test-feed", "TEST", "test", "batch");
+        assertThrows(IllegalStateException.class, () -> queue.acceptAndQueue("test", "test-feed", job, () -> {
                     assertTrue(transaction);
                     accepted = true;
                     return true;

@@ -53,6 +53,34 @@ export function withGap(
   });
 }
 
+/** How the next step follows step `i`: right away, if nobody replies within N, after N either way, or after N. */
+export type GapMode = "now" | "stop" | "continue" | "after";
+
+/** Minutes a gap gets when it stops being immediate. */
+const DEFAULT_GAP = 5;
+
+export function gapMode(steps: RuleStep[], i: number): GapMode {
+  const replies = REPLY_CHANNELS.has(steps[i].channel);
+  const total = gapMinutes(steps, i);
+  if (total === 0 && (!replies || steps[i].onReply === "continue"))
+    return "now";
+  return replies ? steps[i].onReply : "after";
+}
+
+/** The steps with the gap after step `i` set to `mode`; "now" is 0 minutes whether or not someone replies. */
+export function withGapMode(
+  steps: RuleStep[],
+  i: number,
+  mode: GapMode
+): RuleStep[] {
+  const total = gapMinutes(steps, i);
+  const minutes = mode === "now" ? 0 : total || DEFAULT_GAP;
+  const onReply: OnReply = mode === "stop" ? "stop" : "continue";
+  return withGap(steps, i, minutes).map((s, j) =>
+    j === i && REPLY_CHANNELS.has(s.channel) ? { ...s, onReply } : s
+  );
+}
+
 /** The connection a step on a connection channel calls, from that channel's connections. */
 function ConnectionPill({
   channel,
@@ -268,44 +296,51 @@ function StepCard({
 /** The wait between a step and the next, on the line that joins them. */
 function Gap({
   step,
+  mode,
   total,
   readOnly,
   d,
   onGap,
-  onReply,
+  onMode,
 }: Readonly<{
   step: RuleStep;
+  mode: GapMode;
   total: number;
   readOnly: boolean;
   d: I18nRecord;
   onGap: (minutes: number) => void;
-  onReply: (onReply: OnReply) => void;
+  onMode: (mode: GapMode) => void;
 }>) {
   const replies = REPLY_CHANNELS.has(step.channel);
+  const options = replies
+    ? [
+        { value: "now", label: tr("gapNow", d) },
+        { value: "stop", label: tr("gapNoReply", d) },
+        { value: "continue", label: tr("gapAnyway", d) },
+      ]
+    : [
+        { value: "now", label: tr("gapNow", d) },
+        { value: "after", label: tr("gapAfter", d) },
+      ];
   return (
     <div className="ml-4 flex flex-wrap items-center gap-2 border-l-2 border-dashed border-gray-300 py-2 pl-4 text-sm text-gray-600 dark:border-gray-600 dark:text-gray-400">
-      {replies ? (
-        <PillSelect
-          ariaLabel={tr("gapWhen", d)}
-          disabled={readOnly}
-          value={step.onReply}
-          onChange={(v) => onReply(v as OnReply)}
-          options={[
-            { value: "stop", label: tr("gapNoReply", d) },
-            { value: "continue", label: tr("gapAnyway", d) },
-          ]}
-        />
-      ) : (
-        <span>{tr("gapAfter", d)}</span>
-      )}
-      <PillNumber
-        ariaLabel={tr("gapMinutes", d)}
+      <PillSelect
+        ariaLabel={tr("gapWhen", d)}
         disabled={readOnly}
-        value={total}
-        unit="min"
-        onChange={(v) => onGap(minutes(v))}
+        value={mode}
+        onChange={(v) => onMode(v as GapMode)}
+        options={options}
       />
-      {replies && step.onReply === "stop" && (
+      {mode !== "now" && (
+        <PillNumber
+          ariaLabel={tr("gapMinutes", d)}
+          disabled={readOnly}
+          value={total}
+          unit="min"
+          onChange={(v) => onGap(minutes(v))}
+        />
+      )}
+      {mode === "stop" && (
         <span className="text-xs text-gray-500 dark:text-gray-400">
           {tr("gapStopHint", d)}
         </span>
@@ -474,11 +509,12 @@ export default function RuleSteps({
                 {i < steps.length - 1 && (
                   <Gap
                     step={s}
+                    mode={gapMode(steps, i)}
                     total={gapMinutes(steps, i)}
                     readOnly={readOnly}
                     d={d}
                     onGap={(m) => onChange(withGap(steps, i, m))}
-                    onReply={(onReply) => set(i, { onReply })}
+                    onMode={(mode) => onChange(withGapMode(steps, i, mode))}
                   />
                 )}
               </>

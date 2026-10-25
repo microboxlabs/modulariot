@@ -4030,6 +4030,7 @@
         "startNow": "right away",
         "startLater": "after",
         "gapWhen": "When the next step goes",
+        "gapNow": "Right away",
         "gapNoReply": "If nobody replies within",
         "gapAnyway": "Replies or not, after",
         "gapAfter": "After",

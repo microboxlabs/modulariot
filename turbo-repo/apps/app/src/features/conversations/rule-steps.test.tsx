@@ -231,10 +231,36 @@ describe("RuleSteps", () => {
     const steps = onChange.mock.lastCall?.[0] as RuleStep[];
     expect(steps[0].waitForReply).toBe(0);
     expect(steps[1].after).toBe(15);
-    expect(screen.getByText("Después de")).toBeTruthy();
     expect(
-      screen.queryByLabelText("Cuándo sigue el siguiente paso")
+      (
+        screen.getByLabelText(
+          "Cuándo sigue el siguiente paso"
+        ) as HTMLSelectElement
+      ).value
+    ).toBe("after");
+  });
+
+  it("sends the next step right away, replies or not, and asks for minutes again when it waits", () => {
+    const onChange = vi.fn();
+    render(<Harness initial={STEPS} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Cuándo sigue el siguiente paso"), {
+      target: { value: "now" },
+    });
+    let steps = onChange.mock.lastCall?.[0] as RuleStep[];
+    expect([steps[0].waitForReply, steps[0].onReply, steps[1].after]).toEqual([
+      0,
+      "continue",
+      0,
+    ]);
+    expect(
+      screen.queryByLabelText("Minutos hasta el siguiente paso")
     ).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Cuándo sigue el siguiente paso"), {
+      target: { value: "stop" },
+    });
+    steps = onChange.mock.lastCall?.[0] as RuleStep[];
+    expect([steps[0].waitForReply, steps[0].onReply]).toEqual([5, "stop"]);
   });
 
   it("shows a step's findings under it and marks the parts they are about", () => {

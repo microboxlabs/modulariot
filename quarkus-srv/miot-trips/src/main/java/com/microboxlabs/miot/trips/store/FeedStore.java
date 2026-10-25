@@ -2,7 +2,6 @@ package com.microboxlabs.miot.trips.store;
 
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 

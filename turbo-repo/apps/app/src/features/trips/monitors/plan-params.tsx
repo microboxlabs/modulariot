@@ -6,6 +6,8 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { STAGE_TYPES, type ParamValue, type StagePlan } from "./monitors-api";
 
+import { useRowKeys } from "./use-row-keys";
+
 const REMOVE =
   "rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700";
 const ADD =
@@ -117,12 +119,16 @@ export function ParamsEditor({
   d: I18nRecord;
 }>) {
   const entries = Object.entries(params);
-  const replace = (i: number, name: string, value: ParamValue) =>
+  const rowKeys = useRowKeys(entries.length);
+  const replace = (i: number, name: string, value: ParamValue) => {
+    if (entries.some(([existing], index) => index !== i && existing === name))
+      return;
     onChange(
       Object.fromEntries(
         entries.map(([n, v], j) => (j === i ? [name, value] : [n, v]))
       )
     );
+  };
   return (
     <div className="flex flex-col gap-2">
       {entries.length === 0 && (
@@ -131,8 +137,8 @@ export function ParamsEditor({
         </p>
       )}
       {entries.map(([name, value], i) => (
-        // The position is the identity: the name changes while it is typed.
-        <div key={i} className="flex items-center gap-2">
+        // Names can change without replacing the input.
+        <div key={rowKeys.keys[i]} className="flex items-center gap-2">
           <TextInput
             sizing="sm"
             className="w-56 font-mono"
@@ -189,9 +195,10 @@ export function ParamsEditor({
               type="button"
               className={REMOVE}
               aria-label={tr("removeParam", d)}
-              onClick={() =>
-                onChange(Object.fromEntries(entries.filter((_, j) => j !== i)))
-              }
+              onClick={() => {
+                rowKeys.remove(i);
+                onChange(Object.fromEntries(entries.filter((_, j) => j !== i)));
+              }}
             >
               <HiX className="h-4 w-4" />
             </button>
@@ -205,6 +212,7 @@ export function ParamsEditor({
           onClick={() => {
             let n = entries.length + 1;
             while (`param${n}` in params) n++;
+            rowKeys.append();
             onChange({ ...params, [`param${n}`]: 0 });
           }}
         >

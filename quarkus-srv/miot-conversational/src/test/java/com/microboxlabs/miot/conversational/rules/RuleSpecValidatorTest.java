@@ -152,6 +152,24 @@ class RuleSpecValidatorTest {
     }
 
     @Test
+    void aConnectionStepNamesOneOfTheOrganizationsConnectionsOfItsChannel() {
+        RulesService checked = new RulesService(f.store.ruleStore, f.store.templateStore, () -> List.of(f.catalog),
+                () -> List.of(f.participants), f.clock,
+                (tenant, channel, id) -> TENANT.equals(tenant) && "slack".equals(channel) && "conn-1".equals(id));
+
+        assertEquals(List.of(), checked.validate(TENANT, RuleSpec.read(json("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "slack", "connection": "conn-1"}]}
+                """))));
+        Finding finding = only(checked.validate(TENANT, RuleSpec.read(json("""
+                {"trigger": {"event": "symptom.case.opened"}, "audience": [],
+                 "steps": [{"channel": "teams", "connection": "conn-1"}]}
+                """))), "stepUnknownConnection");
+        assertEquals("steps.0", finding.section());
+        assertEquals(Severity.ERROR, finding.severity());
+    }
+
+    @Test
     void slackAndTeamsStepsFollowTheWebhookRules() {
         assertEquals(List.of(), validate("""
                 {"trigger": {"event": "symptom.case.opened"}, "audience": [],

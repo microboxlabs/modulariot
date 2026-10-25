@@ -50,6 +50,15 @@ class GeofenceEdgesTest {
     }
 
     @Test
+    void malformedShapesAreRejectedAsValidationErrors() {
+        for (String input : List.of("", "null", "[]",
+                "{\"type\":\"MultiPolygon\",\"coordinates\":[]}",
+                "{\"type\":\"Polygon\",\"coordinates\":[[[0],[1,1],[2,2],[0]]]}")) {
+            assertThrows(IllegalArgumentException.class, () -> GeoShape.parse(input));
+        }
+    }
+
+    @Test
     void aTripLeavesItsOriginAndEntersItsDestination() {
         Map<Integer, GeoShape> shapes = Map.of(10, square(0, 0), 20, square(10, 10));
         GeofenceEdges.Watch w = new GeofenceEdges.Watch(10, 20, null, null, false, false);
@@ -75,7 +84,6 @@ class GeofenceEdgesTest {
 
     @Test
     void aRoundTripArrivesWhenItComesBack() {
-        Map<Integer, GeoShape> shapes = Map.of(10, square(0, 0));
         GeofenceEdges.Watch start = new GeofenceEdges.Watch(10, 10, null, null, false, false);
         assertEquals("entered_origin", GeofenceEdges.move(start, 10).edges().get(0).kind());
         GeofenceEdges.Watch out = new GeofenceEdges.Watch(10, 10, null, 10, true, false);

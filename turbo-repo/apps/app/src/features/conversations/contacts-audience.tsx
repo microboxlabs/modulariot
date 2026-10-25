@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -8,6 +8,8 @@ import CelEditor, {
   type CelField,
 } from "@/features/symptoms/maintainer/cel-editor";
 import type { EditMode } from "@/features/symptoms/maintainer/level-row";
+import SelectableField from "@/features/settings-admin/selectables/field/selectable-field";
+import type { Selectable } from "@/features/settings-admin/selectables/types";
 import { useContacts } from "@/features/symptoms/control-tower/control-tower-api";
 import ModeToggle from "@/features/symptoms/maintainer/ui/mode-toggle";
 import { FIELD } from "@/features/symptoms/maintainer/ui/response-block";
@@ -45,12 +47,49 @@ export function contactCelFields(fields: EventField[]): CelField[] {
   ];
 }
 
+/**
+ * The book's values for a clause as a static selectable that takes typed values too, so the value field is the
+ * same combobox as the selectables'.
+ */
+function suggestionList(
+  kind: ContactClauseKind,
+  suggestions: Suggestion[],
+  d: I18nRecord
+): Selectable {
+  const placeholder = trDynamic(`contactClausePlaceholder.${kind}`, d);
+  return {
+    key: `contact-${kind}`,
+    name: { es: kind },
+    description: {},
+    mode: "SINGLE",
+    settings: {
+      searchable: true,
+      creatable: true,
+      placeholder: { es: placeholder, en: placeholder },
+    },
+    groups: [],
+    source: { kind: "STATIC" },
+    options: suggestions.map((s) => {
+      const count =
+        s.count === 1
+          ? tr("contactWithValue", d)
+          : tr("contactsWithValue", d, { count: String(s.count) });
+      return {
+        value: s.value,
+        label: { es: s.value, en: s.value },
+        description: { es: count, en: count },
+      };
+    }),
+  };
+}
+
 function ClauseRow({
   clause,
   fields,
   suggestions,
   readOnly,
   d,
+  fieldDict,
   onChange,
   onRemove,
 }: Readonly<{
@@ -60,10 +99,11 @@ function ClauseRow({
   suggestions: Suggestion[];
   readOnly: boolean;
   d: I18nRecord;
+  /** The selectables field texts (pages.userSettings.selectables.field). */
+  fieldDict: I18nRecord;
   onChange: (clause: ContactClause) => void;
   onRemove: () => void;
 }>) {
-  const listId = useId();
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
@@ -100,31 +140,16 @@ function ClauseRow({
           ))}
         </Select>
       ) : (
-        <input
-          aria-label={tr("contactClauseValue", d)}
-          className={`${FIELD} min-w-40 flex-1`}
-          disabled={readOnly}
-          placeholder={trDynamic(`contactClausePlaceholder.${clause.kind}`, d)}
-          list={listId}
-          autoComplete="off"
-          value={clause.value}
-          onChange={(e) => onChange({ ...clause, value: e.target.value })}
-        />
-      )}
-      {clause.kind !== "companyRutIs" && (
-        <datalist id={listId}>
-          {suggestions.map((s) => (
-            <option
-              key={s.value}
-              value={s.value}
-              label={
-                s.count === 1
-                  ? tr("contactWithValue", d)
-                  : tr("contactsWithValue", d, { count: String(s.count) })
-              }
-            />
-          ))}
-        </datalist>
+        <div className="min-w-56 flex-1">
+          <SelectableField
+            list={suggestionList(clause.kind, suggestions, d)}
+            value={clause.value ? [clause.value] : []}
+            onChange={(next) => onChange({ ...clause, value: next[0] ?? "" })}
+            lang="es"
+            dict={fieldDict}
+            disabled={readOnly}
+          />
+        </div>
       )}
       {!readOnly && (
         <button
@@ -149,12 +174,14 @@ export default function ContactsAudience({
   fields,
   readOnly,
   d,
+  fieldDict,
   onChange,
 }: Readonly<{
   condition: string;
   fields: EventField[];
   readOnly: boolean;
   d: I18nRecord;
+  fieldDict: I18nRecord;
   onChange: (condition: string) => void;
 }>) {
   const clauses = parseClauses(condition);
@@ -181,6 +208,7 @@ export default function ContactsAudience({
               suggestions={c.kind === "companyRutIs" ? [] : book[c.kind]}
               readOnly={readOnly}
               d={d}
+              fieldDict={fieldDict}
               onChange={(next) =>
                 setClauses(clauses.map((x, j) => (j === i ? next : x)))
               }

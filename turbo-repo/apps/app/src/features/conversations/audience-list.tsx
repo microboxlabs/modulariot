@@ -24,6 +24,8 @@ const KINDS: { value: AudienceKind; label: string }[] = [
   { value: "contacts", label: "audienceContacts" },
 ];
 
+const NO_TEXTS: I18nRecord = {};
+
 function entryOf(kind: AudienceKind): AudienceEntry {
   if (kind === "address") return { address: "", channel: "whatsapp", name: "" };
   if (kind === "path") return { path: "" };
@@ -37,6 +39,7 @@ function EntryFields({
   error,
   readOnly,
   d,
+  fieldDict = NO_TEXTS,
   onChange,
 }: Readonly<{
   entry: AudienceEntry;
@@ -44,6 +47,7 @@ function EntryFields({
   fields: EventField[];
   readOnly: boolean;
   d: I18nRecord;
+  fieldDict?: I18nRecord;
   onChange: (entry: AudienceEntry) => void;
 }>) {
   const kind = audienceKind(entry);
@@ -55,6 +59,7 @@ function EntryFields({
         fields={fields}
         readOnly={readOnly}
         d={d}
+        fieldDict={fieldDict}
         onChange={(contacts) => onChange({ contacts })}
       />
     );
@@ -143,6 +148,7 @@ export default function AudienceList({
   errors = {},
   readOnly,
   d,
+  fieldDict = NO_TEXTS,
   label,
   onChange,
 }: Readonly<{
@@ -152,6 +158,8 @@ export default function AudienceList({
   errors?: Record<number, string[]>;
   readOnly: boolean;
   d: I18nRecord;
+  /** The selectables field texts, for the contact book conditions. */
+  fieldDict?: I18nRecord;
   /** Names the list for assistive tech. */
   label: string;
   onChange: (entries: AudienceEntry[]) => void;
@@ -197,6 +205,7 @@ export default function AudienceList({
                 error={(errors[i] ?? []).length > 0}
                 readOnly={readOnly}
                 d={d}
+                fieldDict={fieldDict}
                 onChange={(next) => set(i, next)}
               />
               {!readOnly && (

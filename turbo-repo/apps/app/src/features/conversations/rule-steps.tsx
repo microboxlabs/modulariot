@@ -26,6 +26,8 @@ import { moved, useRowKeys } from "./row-keys";
 const minutes = (value: string) =>
   value ? Math.max(0, Math.round(Number(value))) : 0;
 
+const NO_TEXTS: I18nRecord = {};
+
 function StepActions({
   index,
   last,
@@ -122,6 +124,7 @@ function StepRow({
   issues,
   readOnly,
   d,
+  fieldDict = NO_TEXTS,
   onSet,
   onMove,
   onRemove,
@@ -134,6 +137,7 @@ function StepRow({
   issues: StepIssues | undefined;
   readOnly: boolean;
   d: I18nRecord;
+  fieldDict?: I18nRecord;
   onSet: (patch: Partial<RuleStep>) => void;
   onMove: (by: number) => void;
   onRemove: () => void;
@@ -266,6 +270,7 @@ function StepRow({
             errors={issues?.entries}
             readOnly={readOnly}
             d={d}
+            fieldDict={fieldDict}
             label={tr("stepToLabel", d)}
             onChange={(to) => onSet({ to })}
           />
@@ -322,6 +327,7 @@ export default function RuleSteps({
   errors = {},
   readOnly,
   d,
+  fieldDict = NO_TEXTS,
   onChange,
 }: Readonly<{
   steps: RuleStep[];
@@ -331,6 +337,8 @@ export default function RuleSteps({
   errors?: Record<number, StepIssues>;
   readOnly: boolean;
   d: I18nRecord;
+  /** The selectables field texts, for the contact book conditions. */
+  fieldDict?: I18nRecord;
   onChange: (steps: RuleStep[]) => void;
 }>) {
   const rows = useRowKeys(steps.length);
@@ -359,6 +367,7 @@ export default function RuleSteps({
               issues={errors[i]}
               readOnly={readOnly}
               d={d}
+              fieldDict={fieldDict}
               onSet={(patch) => set(i, patch)}
               onMove={(by) => {
                 rows.move(i, by);

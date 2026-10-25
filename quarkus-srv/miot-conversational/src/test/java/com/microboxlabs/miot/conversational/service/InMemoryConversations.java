@@ -190,6 +190,26 @@ public final class InMemoryConversations {
 
         /** The newest stored message wins, as {@code created_at DESC} on the SQL side. */
         @Override
+        public String findLatestConnectionTenant(String conversationId) {
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                Message m = messages.get(i);
+                if (!m.conversationId().equals(conversationId) || m.channel() != Channel.WHATSAPP
+                        || m.metadata() == null || m.status() == MessageStatus.SIMULATED
+                        || m.status() == MessageStatus.FAILED) {
+                    continue;
+                }
+                Object tenant = m.metadata().get("connectionTenant");
+                if (tenant != null) {
+                    return String.valueOf(tenant);
+                }
+                if (m.direction() == MessageDirection.OUTBOUND && m.metadata().get("connectionId") != null) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        @Override
         public OutboundRef findLatestOutboundVia(String address, String connectionTenant, boolean waitingRun) {
             for (int i = messages.size() - 1; i >= 0; i--) {
                 Message m = messages.get(i);

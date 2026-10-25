@@ -17,6 +17,7 @@ import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -117,7 +118,7 @@ public class WhatsAppInboundService {
                 null,
                 conversation.contextServiceCode(),
                 conversation.contextProcessInstanceId(),
-                message.buttonPayload() == null ? Map.of() : Map.of(BUTTON_PAYLOAD, message.buttonPayload()),
+                inboundMetadata(message, channel.get().tenantCode()),
                 null,
                 null,
                 null,
@@ -148,6 +149,16 @@ public class WhatsAppInboundService {
                 message.body(),
                 message.buttonPayload(),
                 occurredAt));
+    }
+
+    /** The button payload, if any, and the tenant of the connection whose number received the message. */
+    private static Map<String, Object> inboundMetadata(InboundMessage message, String connectionTenant) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (message.buttonPayload() != null) {
+            metadata.put(BUTTON_PAYLOAD, message.buttonPayload());
+        }
+        metadata.put(WhatsAppMessagingService.CONNECTION_TENANT, connectionTenant);
+        return metadata;
     }
 
     /** Observer failures are logged; the message is already stored. */

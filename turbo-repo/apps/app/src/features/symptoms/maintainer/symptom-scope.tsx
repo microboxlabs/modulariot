@@ -43,6 +43,8 @@ export function ActiveSymptomScope({
   children,
 }: Readonly<{ children: ReactNode }>) {
   const { activeOrg } = useOrgScopes();
+  // Until the scope is known (still loading, or the read failed), render nothing rather than the organization's screen.
+  if (!activeOrg) return null;
   return (
     <ScopeContext.Provider
       value={

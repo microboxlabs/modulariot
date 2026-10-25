@@ -29,6 +29,8 @@ final class InMemoryIntegrations {
     String failure = "connection refused";
     /** Thrown as is by the next calls when set, like the invoker's URL guard. */
     RuntimeException thrown;
+    /** The status new connections get; tested connections are ACTIVE. */
+    ConnectionStatus createdStatus = ConnectionStatus.ACTIVE;
 
     final IntegrationTemplateService templateService = new IntegrationTemplateService(null, null) {
         @Override
@@ -62,7 +64,7 @@ final class InMemoryIntegrations {
         @Override
         public IntegrationConnection createConnection(String tenantCode, CreateIntegrationConnectionRequest req) {
             IntegrationConnection c = new IntegrationConnection(UUID.randomUUID().toString(), tenantCode, req.name(),
-                    req.providerType(), req.baseUrl(), req.credentialProfileId(), ConnectionStatus.DRAFT, null, null,
+                    req.providerType(), req.baseUrl(), req.credentialProfileId(), createdStatus, null, null,
                     req.metadata(), req.templateId());
             connections.add(c);
             return c;

@@ -195,6 +195,8 @@ export default function CommunicationsPage({
   };
   const bar = filterBar();
   const catalogLayout = section === "rules" || section === "templates";
+  // Until the scope is known (still loading, or the read failed), render nothing rather than the organization's sections.
+  if (!activeOrg) return null;
 
   return (
     <SettingsPageShell

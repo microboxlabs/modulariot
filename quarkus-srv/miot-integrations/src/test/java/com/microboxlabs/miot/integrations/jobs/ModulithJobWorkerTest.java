@@ -17,6 +17,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -227,6 +228,21 @@ class ModulithJobWorkerTest {
         assertEquals(0, service.claimCalls, "no ready handler → nothing to claim for");
     }
 
+    @Test
+    void eachClaimIncludesOnlyHandlersReadyAtThatMoment() {
+        var service = new RecordingService();
+        service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of());
+        var ready = new FakeHandler(CALENDAR);
+        var later = new FakeHandler("later");
+        later.ready = false;
+        ready.onHandle = () -> later.ready = true;
+
+        worker(service, true, ready, later).drain();
+
+        assertEquals(List.of(Set.of(CALENDAR), Set.of(CALENDAR, "later")), service.claimedTypeSets);
+    }
+
     // --- fakes ---------------------------------------------------------------
 
     private static final class FakeHandler implements ModulithJobHandler {
@@ -273,6 +289,7 @@ class ModulithJobWorkerTest {
         final List<ReportJobRequest> reports = new ArrayList<>();
         int claimCalls;
         final List<String> claimedTypes = new ArrayList<>();
+        final List<Set<String>> claimedTypeSets = new ArrayList<>();
 
         RecordingService() {
             super(new NoopRepository(), new JobEventEmitter(Optional.empty()), null, 60, 3600);
@@ -284,6 +301,7 @@ class ModulithJobWorkerTest {
             claimCalls++;
             claimedTypes.clear();
             claimedTypes.addAll(jobTypes);
+            claimedTypeSets.add(Set.copyOf(jobTypes));
             return claimResults.isEmpty() ? List.of() : claimResults.poll();
         }
 

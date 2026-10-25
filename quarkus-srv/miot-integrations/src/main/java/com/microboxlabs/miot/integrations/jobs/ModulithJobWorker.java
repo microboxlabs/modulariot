@@ -12,7 +12,9 @@ import jakarta.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -136,9 +138,13 @@ public class ModulithJobWorker {
         }
         int remaining = Math.max(claimLimit, 1);
         while (remaining-- > 0) {
+            Set<String> readyTypes = readyJobTypes();
+            if (readyTypes.isEmpty()) {
+                return;
+            }
             List<AsyncJob> batch;
             try {
-                batch = jobService.claimForExecutor(ModulithJobHandler.EXECUTOR, handlers.keySet(), workerId, 1,
+                batch = jobService.claimForExecutor(ModulithJobHandler.EXECUTOR, readyTypes, workerId, 1,
                         leaseSeconds);
             } catch (Exception e) {
                 LOG.error("modulith-worker claim failed — reconciler will retry", e);
@@ -157,6 +163,13 @@ public class ModulithJobWorker {
             LOG.warn("modulith-worker enabled but no handler is ready (downstream config missing) — skipping");
         }
         return ready;
+    }
+
+    private Set<String> readyJobTypes() {
+        return handlers.entrySet().stream()
+                .filter(entry -> entry.getValue().isReady())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
     }
 
     private void executeAndReport(AsyncJob job) {

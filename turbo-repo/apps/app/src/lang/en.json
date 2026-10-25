@@ -4100,6 +4100,7 @@
         "findingStepBadRecipients": "The recipients of step {n} are the rule's or a list.",
         "findingStepNoRecipients": "Step {n} has no recipients.",
         "menuTemplates": "What every organization's rules send",
+        "menuTemplatesOrg": "What rules can send; the platform edits them",
         "menuMeta": "The approved templates of the platform's account"
       },
       "gps": {

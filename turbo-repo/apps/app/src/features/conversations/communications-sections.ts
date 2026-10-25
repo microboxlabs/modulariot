@@ -16,6 +16,7 @@ export const channelSection = (key: string): CommunicationsSection =>
 export const COMMUNICATIONS_SECTIONS: readonly CommunicationsSection[] = [
   "rules",
   "activity",
+  "templates",
   ...CHANNEL_TYPES.map((c) => channelSection(c.key)),
 ];
 

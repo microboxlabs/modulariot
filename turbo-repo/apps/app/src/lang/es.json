@@ -4100,6 +4100,7 @@
         "findingStepBadRecipients": "Los destinatarios del paso {n} son los de la regla o una lista.",
         "findingStepNoRecipients": "El paso {n} no tiene destinatarios.",
         "menuTemplates": "Lo que envían las reglas de todas las organizaciones",
+        "menuTemplatesOrg": "Lo que pueden enviar las reglas; las edita la plataforma",
         "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma"
       },
       "gps": {

@@ -253,6 +253,9 @@ class PgTripsStoresTest {
         assertTrue(fleet.byPlate(tenant(), "truck", "ABC-123").isEmpty(), "another tenant does not see it");
         assertTrue(fleet.byPlate(tenant, "truck", " - ").isEmpty(), "a blank plate finds nothing");
         assertEquals(UUID.fromString(driver.id()), fleet.driverByDocument(tenant, "111111111").orElseThrow().id());
+        Truck unicode = resources.insertTruck(new Truck(null, tenant, carrier.id(), null, "ı-12", null,
+                null, null, null, Carrier.ACTIVE, false, null, null, null, ACTOR, null, ACTOR));
+        assertEquals(UUID.fromString(unicode.id()), fleet.byPlate(tenant, "truck", "ı-12").orElseThrow().id());
     }
 
     @Test

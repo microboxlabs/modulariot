@@ -137,7 +137,7 @@ describe("filterSettings", () => {
     ).not.toContain("/harness/learning");
   });
 
-  it("keeps only Settings, with the platform's entries, in the platform scope", () => {
+  it("keeps only the job console and Settings, with the platform's entries, in the platform scope", () => {
     const filtered = filterSettings(pages, {
       harness: true,
       platformOwner: true,
@@ -146,7 +146,10 @@ describe("filterSettings", () => {
       fleet: true,
       platformScope: true,
     });
-    expect(filtered.map((page) => page.label)).toEqual(["settings"]);
+    expect(filtered.map((page) => page.label)).toEqual([
+      "integrations",
+      "settings",
+    ]);
     expect(settingsHrefs(filtered)).toEqual([
       "/users/settings/platform",
       "/users/settings/organizations",

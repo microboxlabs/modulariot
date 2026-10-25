@@ -6,6 +6,7 @@ describe("platformScopeLanding", () => {
     expect(
       platformScopeLanding("/app/es/users/settings/communications")
     ).toBeNull();
+    expect(platformScopeLanding("/app/es/integrations/jobs")).toBeNull();
   });
 
   it("leaves an organization's record for the page that lists them", () => {

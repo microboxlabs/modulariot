@@ -74,8 +74,8 @@
   },
   "dependencies": {
     "@microboxlabs/miot-dashboard-contract": "^0.6.0",
-    "zod": "^3.23.8",
-    "handlebars": "^4.7.9",
+    "zod": "^4.6.6",
+    "handlebars": "^4.7.10",
     "react-grid-layout": "2.2.3"
   },
   "devDependencies": {

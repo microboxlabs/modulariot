@@ -45,6 +45,6 @@
   },
   "packageManager": "npm@10.2.4",
   "dependencies": {
-    "handlebars": "^4.7.9"
+    "handlebars": "^4.7.10"
   }
 }

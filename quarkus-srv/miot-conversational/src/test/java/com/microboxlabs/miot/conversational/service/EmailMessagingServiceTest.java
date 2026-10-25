@@ -121,4 +121,14 @@ class EmailMessagingServiceTest {
         assertEquals(MessageStatus.SIMULATED, m.status());
         assertTrue(sent.isEmpty());
     }
+
+    @Test
+    void aRetriedStepGetsTheEmailAlreadySentInsteadOfStoringItTwice() {
+        EmailMessagingService service = service(Set.of(TENANT), SendResult.accepted(200, "re-1"));
+        Message first = service.sendInContext(TENANT, email("Pánico", "Sin respuesta"), false);
+        Message retried = service.sendInContext(TENANT, email("Pánico", "Sin respuesta"), false);
+
+        assertEquals(first.id(), retried.id());
+        assertEquals(List.of(RUN + ":1:" + TOWER, RUN + ":1:" + TOWER), keys);
+    }
 }

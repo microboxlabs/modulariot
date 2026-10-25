@@ -65,6 +65,13 @@ public class EmailMessagingService {
             status = result.accepted() ? MessageStatus.SENT : MessageStatus.FAILED;
             providerMessageId = result.messageId();
             errorMessage = result.error();
+            // A retried step resends with the same idempotency key: the provider answers with the email it
+            // already sent, which is stored, so the retry goes on to the next recipient.
+            Message already = providerMessageId == null ? null
+                    : messageRepository.findByProviderMessageId(Channel.EMAIL, providerMessageId);
+            if (already != null) {
+                return already;
+            }
         }
         Message stored = messageRepository.append(new Message(
                 UUID.randomUUID().toString(), conversation.id(), MessageDirection.OUTBOUND, MessageRole.SYSTEM,

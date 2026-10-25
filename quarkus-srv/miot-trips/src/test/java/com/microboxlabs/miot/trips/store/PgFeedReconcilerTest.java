@@ -571,6 +571,13 @@ class PgFeedReconcilerTest {
         FeedResult same = send("S-030", withActuals(d, at(-0.5), null, null));
         assertEquals(List.of(), same.operations(), "the same actual time confirms nothing again");
 
+        FeedResult secondsLater = send("S-030", withActuals(d, at(-0.5).plusSeconds(30), null, null));
+        assertTrue(secondsLater.warnings().stream().anyMatch(w -> w.startsWith("departure was confirmed at")),
+                "a different confirmed time must be reported even within one minute");
+        assertTrue(audit.list(tenant, "trip", created.tripId(), null, null, 100).stream()
+                .anyMatch(event -> MilestoneService.CONFLICT.equals(event.action())),
+                "the feed conflict reaches the milestone service and its event publisher");
+
         FeedResult other = send("S-030", withActuals(d, at(-0.25), null, null));
         assertTrue(other.operations().stream().noneMatch(o -> o.startsWith("confirm")));
         assertTrue(other.warnings().stream().anyMatch(w -> w.startsWith("departure was confirmed at")),
@@ -603,6 +610,8 @@ class PgFeedReconcilerTest {
         assertEquals(Trip.DONE, t.status());
         assertTrue(at(-11.5).isEqual(t.actualStart()), "the trip keeps its actual departure");
         assertTrue(at(-5.5).isEqual(t.actualEnd()), "and its actual closure");
+        assertTrue(trip(r).assignments().stream().allMatch(a -> at(-11.5).isEqual(a.validFrom())),
+                "historical assignments begin at the actual departure");
         assertTrue(engine.state(tenant, tripId).isEmpty(), "a regularized trip gets no monitor, not even the selector's");
         assertEquals(List.of(), engine.transitions(tenant, tripId, 50));
         for (String m : TripMilestone.MILESTONES) {
@@ -610,6 +619,21 @@ class PgFeedReconcilerTest {
         }
         assertEquals(Mandate.CLOSED, mandates.get(tenant, UUID.fromString(r.mandateId())).status());
         assertFalse(feeds.service(tenant, FEED, "S-031").orElseThrow().open());
+    }
+
+    @Test
+    void actualClosureTakesPrecedenceOverMissingOrFuturePlannedEnd() {
+        FeedServiceRequest futurePlan = desired(-12, 5, "ABC-123", null, "10000001");
+        FeedResult future = send("S-036", withActuals(futurePlan, at(-11), at(-6), at(-5)));
+        assertEquals(FeedReconciler.REGULARIZE, future.action());
+        assertEquals(Trip.DONE, trips.get(tenant, UUID.fromString(future.tripId())).status());
+
+        FeedServiceRequest noPlannedEnd = new FeedServiceRequest(futurePlan.orderType(), futurePlan.orderRef(),
+                futurePlan.origin(), futurePlan.destination(), futurePlan.plannedStart(), null, at(-11), at(-6),
+                at(-5), futurePlan.resources(), null);
+        FeedResult missing = send("S-037", noPlannedEnd);
+        assertEquals(FeedReconciler.REGULARIZE, missing.action());
+        assertEquals(Trip.DONE, trips.get(tenant, UUID.fromString(missing.tripId())).status());
     }
 
     @Test

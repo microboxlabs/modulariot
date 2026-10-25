@@ -23,6 +23,7 @@ export default function RuleDraftBar({
   changes,
   errors,
   saving,
+  discarding = false,
   saveError,
   current,
   bump,
@@ -33,6 +34,7 @@ export default function RuleDraftBar({
   changes: RuleChange[];
   errors: number;
   saving: boolean;
+  discarding?: boolean;
   saveError: string | null;
   /** The version in force; null before the first publish. */
   current: string | null;
@@ -44,7 +46,12 @@ export default function RuleDraftBar({
   onDiscard?: () => void;
 }>) {
   const blocked =
-    errors > 0 || saving || saveError !== null || changes.length === 0 || !bump;
+    errors > 0 ||
+    saving ||
+    discarding ||
+    saveError !== null ||
+    changes.length === 0 ||
+    !bump;
   return (
     <DraftActions
       changes={changes.length}
@@ -57,6 +64,7 @@ export default function RuleDraftBar({
       d={d}
       onReview={onReview}
       onDiscard={onDiscard}
+      discardDisabled={discarding}
     />
   );
 }

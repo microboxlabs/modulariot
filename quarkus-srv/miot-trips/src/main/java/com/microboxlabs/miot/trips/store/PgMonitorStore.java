@@ -45,6 +45,12 @@ public class PgMonitorStore implements MonitorStore {
     }
 
     @Override
+    public void lock(String tenantCode, String monitorKey) {
+        query(pool.get(), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                Tuple.of("trips-monitor:" + tenantCode.length() + ":" + tenantCode + ":" + monitorKey));
+    }
+
+    @Override
     public List<TripMonitor> all(String tenantCode) {
         return query(pool.get(), "SELECT " + COLUMNS + " FROM miot_trips.trip_monitor WHERE tenant_code = $1"
                 + " ORDER BY monitor_key, version DESC", Tuple.of(tenantCode))

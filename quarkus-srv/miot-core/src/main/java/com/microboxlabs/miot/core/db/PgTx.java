@@ -5,7 +5,10 @@ import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.pgclient.PgException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
+import org.jboss.logging.Logger;
 
 /**
  * Blocking transactions over the reactive Postgres client. {@link #inTransaction} binds one
@@ -16,6 +19,7 @@ import java.util.function.Supplier;
 public final class PgTx {
 
     public static final Duration TIMEOUT = Duration.ofSeconds(10);
+    private static final Logger LOG = Logger.getLogger(PgTx.class);
     /** Shorter than {@link #TIMEOUT}, so a lock wait fails in Postgres (55P03) before the client gives up. */
     private static final Duration LOCK_TIMEOUT = Duration.ofSeconds(5);
 
@@ -23,6 +27,7 @@ public final class PgTx {
 
     private static final class Tx {
         private final SqlConnection conn;
+        private final List<Runnable> afterCommit = new ArrayList<>();
         private int savepoints;
         private boolean failed;
 
@@ -45,6 +50,27 @@ public final class PgTx {
         Tx tx = TX.get();
         if (tx != null && tx.savepoints == 0) {
             tx.failed = true;
+        }
+    }
+
+    /**
+     * Runs {@code action} once the open transaction commits, and drops it when the transaction or the savepoint it
+     * was queued in rolls back. Outside a transaction it runs now. A failing action is logged and the others run.
+     */
+    public static void afterCommit(Runnable action) {
+        Tx tx = TX.get();
+        if (tx == null) {
+            runQuietly(action);
+        } else {
+            tx.afterCommit.add(action);
+        }
+    }
+
+    private static void runQuietly(Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException e) {
+            LOG.warnf(e, "An after-commit action failed");
         }
     }
 
@@ -75,6 +101,7 @@ public final class PgTx {
             }
             simple(conn, "COMMIT");
             committed = true;
+            tx.afterCommit.forEach(PgTx::runQuietly);
             return result;
         } finally {
             TX.remove();
@@ -97,12 +124,14 @@ public final class PgTx {
         String name = "miot_sp" + tx.savepoints;
         simple(tx.conn, "SAVEPOINT " + name);
         tx.savepoints++;
+        int queued = tx.afterCommit.size();
         T result;
         try {
             result = work.get();
         } catch (RuntimeException e) {
             tx.savepoints--;
             simple(tx.conn, "ROLLBACK TO SAVEPOINT " + name);
+            tx.afterCommit.subList(queued, tx.afterCommit.size()).clear();
             throw e;
         }
         tx.savepoints--;

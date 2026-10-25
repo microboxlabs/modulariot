@@ -49,6 +49,9 @@ public interface MonitorRunStore {
 
     void recordTransition(MonitorRun.Transition transition);
 
+    /** True when an earlier transition of the trip recorded the alert {@code key}. */
+    boolean alerted(String tenantCode, UUID tripId, String key);
+
     /** The trip's transitions, newest first. */
     List<MonitorRun.Transition> transitions(String tenantCode, UUID tripId, int limit);
 }

@@ -9,6 +9,7 @@ import com.microboxlabs.miot.trips.domain.MonitorSelector;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
+import com.microboxlabs.miot.trips.events.TripEvents;
 import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.monitor.MonitorLanguage;
 import com.microboxlabs.miot.trips.monitor.MonitorSchema;
@@ -67,6 +68,7 @@ public class MonitorEngine implements TripChanges {
     private static final String STAGE_TYPE = "stageType";
     private static final String COMMAND = "command";
     private static final String REGULARIZED = "regularized";
+    private static final String SOURCE = "source";
     private static final String REQUEST_CONFIRMATION = "requestConfirmation";
 
     /** The evaluation running on this thread; changes made by its actions queue up here. */
@@ -81,6 +83,7 @@ public class MonitorEngine implements TripChanges {
     private final MandateService mandates;
     private final MilestoneService milestones;
     private final AuditService audit;
+    private final TripEvents events;
     private final Transactions tx;
     private final Clock clock;
     private final MonitorContext context;
@@ -91,6 +94,7 @@ public class MonitorEngine implements TripChanges {
         private final Deque<Queued> queue = new ArrayDeque<>();
         private final Set<String> touched = new LinkedHashSet<>();
         private final List<MonitorRun.Transition> recorded = new ArrayList<>();
+        private final Set<String> alerts = new java.util.HashSet<>();
         private int depth;
     }
 
@@ -98,19 +102,30 @@ public class MonitorEngine implements TripChanges {
     }
 
     @Inject
+    @SuppressWarnings("java:S107") // CDI wiring requires the monitor's existing service dependencies.
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
-            Transactions tx) {
+            TripEvents events, Transactions tx) {
         this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, milestones,
-                fleet, audit, tx, Clock.systemUTC());
+                fleet, audit, events, tx, Clock.systemUTC());
+    }
+
+    /** Without trip events. */
+    @SuppressWarnings("java:S107") // Preserves the constructor used by existing in-memory monitor tests.
+    public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
+            AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
+            MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
+            Transactions tx, Clock clock) {
+        this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, milestones,
+                fleet, audit, TripEvents.NONE, tx, clock);
     }
 
     @SuppressWarnings("java:S107") // The Clock overload mirrors the CDI constructor for deterministic tests.
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
-            Transactions tx, Clock clock) {
+            TripEvents events, Transactions tx, Clock clock) {
         this.runs = runs;
         this.monitors = monitors;
         this.trips = trips;
@@ -120,6 +135,7 @@ public class MonitorEngine implements TripChanges {
         this.mandates = mandates;
         this.milestones = milestones;
         this.audit = audit;
+        this.events = events;
         this.tx = tx;
         this.clock = clock;
         this.context = new MonitorContext(trips, stageStore, assignments, locations, mandates, milestones, fleet);
@@ -137,13 +153,13 @@ public class MonitorEngine implements TripChanges {
             return;
         }
         String command = "started".equals(event.kind()) ? START : CLOSE;
-        List<MonitorRun.Event> events = STAGE.equals(event.on())
+        List<MonitorRun.Event> queuedEvents = STAGE.equals(event.on())
                 ? List.of(new MonitorRun.Event(tenantCode, tripId, COMMAND,
                         command, event.at(), actor, event.data()), event)
                 : List.of(event);
         try {
             // a failure here must not undo the change that was audited
-            PgTx.savepoint(() -> process(events));
+            PgTx.savepoint(() -> process(queuedEvents));
         } catch (RuntimeException e) {
             LOG.errorf(e, "Monitor evaluation failed: tenant=%s trip=%s action=%s", tenantCode, tripId, action);
         }
@@ -152,8 +168,17 @@ public class MonitorEngine implements TripChanges {
     /** Delivers a signal (GPS, rFMS) to the trip; returns what it did. */
     public List<MonitorRun.Transition> signal(String tenantCode, String actor, UUID tripId, String kind,
             String geofenceId, OffsetDateTime at) {
+        return signal(tenantCode, actor, tripId, kind, geofenceId, at, null);
+    }
+
+    /** A signal that names what produced it, such as {@code eta}; without it a signal is a GPS detection. */
+    public List<MonitorRun.Transition> signal(String tenantCode, String actor, UUID tripId, String kind,
+            String geofenceId, OffsetDateTime at, String source) {
         String k = Check.required(kind, "kind", 64);
         Map<String, Object> data = new LinkedHashMap<>();
+        if (source != null && !source.isBlank()) {
+            data.put(SOURCE, Check.limited(source.trim(), SOURCE, 32));
+        }
         if (geofenceId != null && !geofenceId.isBlank()) {
             data.put("geofenceId", Check.limited(geofenceId.trim(), "geofenceId", 64));
         }
@@ -206,9 +231,9 @@ public class MonitorEngine implements TripChanges {
         return runs.transitions(tenantCode, tripId, n);
     }
 
-    private List<MonitorRun.Transition> process(List<MonitorRun.Event> events) {
+    private List<MonitorRun.Transition> process(List<MonitorRun.Event> queuedEvents) {
         Run run = new Run();
-        events.forEach(e -> run.queue.add(new Queued(e, 0)));
+        queuedEvents.forEach(e -> run.queue.add(new Queued(e, 0)));
         RUN.set(run);
         try {
             return tx.inTransaction(() -> {
@@ -288,7 +313,7 @@ public class MonitorEngine implements TripChanges {
         for (TripMonitor.Rule rule : candidates) {
             if (holds(monitor, rule, ctx, effects.errors)) {
                 effects.matched.add(rule.key());
-                applyRule(run, trip, event, rule, actor, effects);
+                applyRule(run, monitor, trip, event, rule, actor, effects);
             }
         }
         if (effects.matched.isEmpty() && effects.errors.isEmpty()) {
@@ -304,8 +329,8 @@ public class MonitorEngine implements TripChanges {
                 && (!TIMER.equals(event.on()) || rule.key().equals(event.kind()));
     }
 
-    private void applyRule(Run run, Trip trip, MonitorRun.Event event, TripMonitor.Rule rule, String actor,
-            RuleEffects effects) {
+    private void applyRule(Run run, TripMonitor monitor, Trip trip, MonitorRun.Event event, TripMonitor.Rule rule,
+            String actor, RuleEffects effects) {
         List<TripMonitor.Action> stateActions = rule.then().stream()
                 .filter(action -> STATE_ACTIONS.contains(action.type())).toList();
         if (!stateActions.isEmpty() && effects.stateRule == null) {
@@ -318,6 +343,9 @@ public class MonitorEngine implements TripChanges {
                         action, rule.key(), actor, effects.errors));
             } else if (!STATE_ACTIONS.contains(action.type())) {
                 effects.actions.add(action(action, rule.key(), "recorded"));
+                if ("alert".equals(action.type())) {
+                    publishAlert(run, monitor, event, UUID.fromString(trip.id()), action.value(), rule.key());
+                }
             }
         }
     }
@@ -410,7 +438,7 @@ public class MonitorEngine implements TripChanges {
         evidence.put("kind", e.kind());
         try {
             MilestoneService.Outcome outcome = PgTx.savepoint(() -> milestones.request(tenant, actor, tripId,
-                    a.value(), source, e.at(), evidence));
+                    a.value(), source, e.at(), evidence, rule));
             return action(a, rule, outcome.result() == MilestoneService.Result.SKIPPED ? "skipped" : "pending");
         } catch (RuntimeException ex) {
             errors.add(rule + ": " + message(ex));
@@ -418,8 +446,17 @@ public class MonitorEngine implements TripChanges {
         }
     }
 
+    /** An alert is published once per trip and key, the first time a rule raises it. */
+    private void publishAlert(Run run, TripMonitor m, MonitorRun.Event e, UUID tripId, String key, String rule) {
+        String tenant = e.tenantCode();
+        if (!run.alerts.add(tripId + "|" + key) || runs.alerted(tenant, tripId, key)) {
+            return;
+        }
+        events.alert(tenant, tripId.toString(), e.at().toInstant(), m.monitorKey() + "@v" + m.version(), key, rule);
+    }
+
     private static String sourceOf(MonitorRun.Event e) {
-        if (e.data().get("source") instanceof String named) {
+        if (e.data().get(SOURCE) instanceof String named) {
             return named;
         }
         return "signal".equals(e.on()) ? "gps" : e.on();
@@ -652,7 +689,7 @@ public class MonitorEngine implements TripChanges {
         String kind = m + (MilestoneService.CONFIRMED.equals(action) ? "_confirmed" : "_rejected");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("milestone", m);
-        for (String key : List.of("channel", "source")) {
+        for (String key : List.of("channel", SOURCE)) {
             if (d.get(key) != null) {
                 data.put(key, d.get(key));
             }

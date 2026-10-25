@@ -151,16 +151,16 @@ class FeedReconcilerTest {
     @Test
     void profileStoresNormalizedStagesAndRejectsANonClosingCloseStage() {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
-        List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparacion ", " ADDED "),
-                new FeedProfile.StagePlan("cierre", "FINISHED"));
+        List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
+                new FeedProfile.StagePlan("closing", "FINISHED"));
         FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
-                "preparacion", "cierre", 0, List.of(), true));
-        assertEquals("preparacion", saved.stages().get(0).stageType());
+                "preparation", "closing", 0, List.of(), true));
+        assertEquals("preparation", saved.stages().get(0).stageType());
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
-        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "preparacion", "preparacion", 0,
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "preparation", "preparation", 0,
                 List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
-        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, "preparacion", "cierre", 0,
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.departureStage(), saved.closeStage(), 0,
                 java.util.Collections.singletonList(null), true);
         assertThrows(IllegalArgumentException.class,
                 () -> profiles.save("test", "test", "test-feed", nullResource));
@@ -207,10 +207,10 @@ class FeedReconcilerTest {
         private FeedService saved;
         private boolean requireTransaction;
         private final FeedProfile profile = new FeedProfile("test", "test-feed", "Test feed",
-                List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
-                        new FeedProfile.StagePlan("transito", "SCHEDULED"),
-                        new FeedProfile.StagePlan("cierre", "FINISHED")),
-                "transito", "cierre", 120, Set.of(), true, null, "test", null, "test");
+                List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
+                        new FeedProfile.StagePlan("transit", "SCHEDULED"),
+                        new FeedProfile.StagePlan("closing", "FINISHED")),
+                "transit", "closing", 120, Set.of(), true, null, "test", null, "test");
         public Optional<FeedProfile> profile(String tenant, String key) { return Optional.of(profile); }
         public List<FeedProfile> profiles(String tenant) { return List.of(profile); }
         public FeedProfile saveProfile(FeedProfile value) { return value; }

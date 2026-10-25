@@ -20,8 +20,8 @@ public record Mandate(
         OffsetDateTime updatedAt,
         String updatedBy) {
 
-    public static final String ACTIVE = "activo";
-    public static final String RUNNING = "en_ejecucion";
-    public static final String CLOSED = "cerrado";
-    public static final String CANCELLED = "anulado";
+    public static final String ACTIVE = "active";
+    public static final String RUNNING = "in_progress";
+    public static final String CLOSED = "closed";
+    public static final String CANCELLED = "cancelled";
 }

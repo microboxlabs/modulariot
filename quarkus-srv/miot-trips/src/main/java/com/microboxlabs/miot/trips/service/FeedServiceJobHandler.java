@@ -14,7 +14,7 @@ import java.util.NoSuchElementException;
 
 /**
  * {@code trips_feed_service}: applies one service's latest desired state. A service that cannot be created
- * (reportar) or a step the trips rules refuse fails the job at once (parked, visible in the console, notified by the
+ * (report) or a step the trips rules refuse fails the job at once (parked, visible in the console, notified by the
  * park rules); anything else is thrown so the ledger retries with backoff.
  */
 @ApplicationScoped

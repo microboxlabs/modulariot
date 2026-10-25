@@ -100,17 +100,41 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.5__side_effects_in_services.sql",
             "/db/migration/trips/V0.10.6__trip_live_in_services.sql",
             "/db/migration/trips/V0.10.7__updated_at_in_stores.sql",
-            "/db/migration/trips/V0.10.8__create_feeds.sql"};
+            "/db/migration/trips/V0.10.8__create_feeds.sql",
+            "/db/migration/trips/V0.10.9__values_in_english.sql",
+            "/db/migration/trips/V0.10.15__backfill_english_projections.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
+        recreateSchemas(pool, MIGRATIONS.length);
+    }
+
+    /** Drops the schemas and applies the first {@code count} migrations. */
+    static void recreateSchemas(Pool pool, int count) throws IOException {
         pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
         pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
-        for (String sql : MIGRATIONS) {
-            try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(sql)) {
-                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
-            }
+        for (int i = 0; i < count; i++) {
+            migrate(pool, MIGRATIONS[i]);
         }
+    }
+
+    static void migrate(Pool pool, String resource) throws IOException {
+        try (InputStream in = PgTripsStoresTest.class.getResourceAsStream(resource)) {
+            pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+        }
+    }
+
+    static int migrationCount() {
+        return MIGRATIONS.length;
+    }
+
+    /** The number of migrations that come before {@code resource}. */
+    static int migrationsBefore(String resource) {
+        int i = java.util.Arrays.asList(MIGRATIONS).indexOf(resource);
+        if (i < 0) {
+            throw new IllegalArgumentException(resource + " is not a migration");
+        }
+        return i;
     }
 
     @AfterAll
@@ -180,9 +204,9 @@ class PgTripsStoresTest {
                 null, CargoUnit.READY, null, null, null, null, ACTOR, null, ACTOR));
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
-        Stage load = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+        Stage load = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "loading", null,
                 Stage.PENDING, null, null, null, null, null, null, null, ACTOR, null, ACTOR));
-        Stage unload = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "descarga", null,
+        Stage unload = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "unloading", null,
                 Stage.PENDING, null, null, null, null, null, null, null, ACTOR, null, ACTOR));
         assertEquals(1, load.seq());
         assertEquals(2, unload.seq());
@@ -269,17 +293,17 @@ class PgTripsStoresTest {
         String tenant = tenant();
         PgFeedStore feeds = new PgFeedStore(() -> pool);
         FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios",
-                List.of(new FeedProfile.StagePlan("preparacion", "ADDED"),
-                        new FeedProfile.StagePlan("transito", "SCHEDULED"),
-                        new FeedProfile.StagePlan("cierre", "FINISHED")),
-                "transito", "cierre", 120, new LinkedHashSet<>(List.of("truck", "driver")), true,
+                List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
+                        new FeedProfile.StagePlan("transit", "SCHEDULED"),
+                        new FeedProfile.StagePlan("closing", "FINISHED")),
+                "transit", "closing", 120, new LinkedHashSet<>(List.of("truck", "driver")), true,
                 null, ACTOR, null, ACTOR));
-        assertEquals("transito", saved.departureStage());
-        assertEquals(List.of("preparacion", "transito", "cierre"),
+        assertEquals("transit", saved.departureStage());
+        assertEquals(List.of("preparation", "transit", "closing"),
                 saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
         FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
-                saved.stages(), "transito", "cierre", 90, saved.requiredResources(), true, null, ACTOR, null, ACTOR));
+                saved.stages(), "transit", "closing", 90, saved.requiredResources(), true, null, ACTOR, null, ACTOR));
         assertEquals(90, renamed.closeToleranceMinutes());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
 
@@ -288,7 +312,7 @@ class PgTripsStoresTest {
         OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
         String trip = UUID.randomUUID().toString();
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"b\"}", "h2",
-                null, trip, true, "alta", "{\"hechos\":[\"crear viaje\"]}", at));
+                null, trip, true, "create", "{\"done\":[\"create trip\"]}", at));
         FeedService s = feeds.service(tenant, "servicios", "S-001").orElseThrow();
         assertEquals("h2", s.desiredHash());
         assertEquals(trip, s.tripId());
@@ -299,15 +323,15 @@ class PgTripsStoresTest {
                 .anyMatch(o -> o.externalCode().equals("S-001") && o.tenantCode().equals(tenant));
         String times = "{\"plannedStart\":\"" + at.plusHours(2) + "\",\"plannedEnd\":\"" + at.plusHours(10) + "\"}";
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, true,
-                "alta", null, at));
+                "create", null, at));
         assertFalse(due.test(at.plusHours(1)), "before the departure");
         assertTrue(due.test(at.plusHours(3)), "the departure passed after the last reconcile");
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, true,
-                "cambios", null, at.plusHours(3)));
+                "update", null, at.plusHours(3)));
         assertFalse(due.test(at.plusHours(4)), "the departure was already handled");
         assertTrue(due.test(at.plusHours(10).plusMinutes(91)), "arrival + the 90 minutes of tolerance passed");
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", times, "h3", null, trip, false,
-                "cierre", null, at.plusHours(12)));
+                "closing", null, at.plusHours(12)));
         assertFalse(due.test(at.plusHours(13)), "a closed service leaves the clock's list");
     }
 
@@ -372,15 +396,15 @@ class PgTripsStoresTest {
         trips.update(new Trip(trip.id(), tenant, Trip.DONE, null, null, null, null,
                 OffsetDateTime.now(ZoneOffset.UTC), null, trip.createdAt(), trip.createdBy(), null, ACTOR));
         projector.refresh(tenant, tripId);
-        assertTrue(live.find(tenant, tripId).isEmpty(), "realizado kills the hot row");
+        assertTrue(live.find(tenant, tripId).isEmpty(), "completed kills the hot row");
     }
 
     @Test
     void locationsAndAuditKeepTheirTenantAndOrder() {
         String tenant = tenant();
-        Location planta = locations.insert(new Location(null, tenant, "Planta Talca", "planta", "PL-01",
+        Location planta = locations.insert(new Location(null, tenant, "Planta Talca", "plant", "PL-01",
                 null, null, ACTOR, null, ACTOR));
-        locations.update(new Location(planta.id(), tenant, "Planta Talca", "planta", "PL-01-B", null,
+        locations.update(new Location(planta.id(), tenant, "Planta Talca", "plant", "PL-01-B", null,
                 planta.createdAt(), planta.createdBy(), null, ACTOR)).orElseThrow();
         assertEquals("PL-01-B", locations.list(tenant, "Talca", null, 0, 10).get(0).externalCode());
         assertTrue(locations.list("other-tenant", null, null, 0, 10).isEmpty());
@@ -400,7 +424,7 @@ class PgTripsStoresTest {
     @Test
     void aRefreshAfterARenameShowsTheNewName() {
         String tenant = tenant();
-        Location origin = locations.insert(new Location(null, tenant, "Bodega Norte", "cd", "CD-N",
+        Location origin = locations.insert(new Location(null, tenant, "Bodega Norte", "distribution_center", "CD-N",
                 null, null, ACTOR, null, ACTOR));
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, origin.id(), null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
@@ -408,7 +432,7 @@ class PgTripsStoresTest {
         projector.refresh(tenant, tripId);
         assertEquals("Bodega Norte", live.find(tenant, tripId).orElseThrow().originGeofenceLabel());
 
-        locations.update(new Location(origin.id(), tenant, "Bodega Norte 2", "cd", "CD-N", null,
+        locations.update(new Location(origin.id(), tenant, "Bodega Norte 2", "distribution_center", "CD-N", null,
                 origin.createdAt(), origin.createdBy(), null, ACTOR)).orElseThrow();
         assertEquals(List.of(tripId), trips.openTripsAt(tenant, UUID.fromString(origin.id())));
         projector.refreshAll(tenant, trips.openTripsAt(tenant, UUID.fromString(origin.id())));
@@ -425,7 +449,7 @@ class PgTripsStoresTest {
                 .orElseThrow();
         assertTrue(moved.updatedAt().isAfter(trip.updatedAt()), "the store stamps updated_at on UPDATE");
         assertEquals(trip.createdAt(), moved.createdAt());
-        Stage stage = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+        Stage stage = stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "loading", null,
                 Stage.PENDING, null, null, null, null, null, null, null, ACTOR, null, ACTOR));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Stage started = stages.start(tenant, UUID.fromString(stage.id()), now, ACTOR).orElseThrow();
@@ -460,11 +484,11 @@ class PgTripsStoresTest {
     void aMandateStatusAndTheMandateOfACargoAreReadBack() {
         String tenant = tenant();
         Mandate m = mandate(tenant, "OC-CANCEL");
-        mandates.update(new Mandate(m.id(), tenant, m.externalCode(), m.orderType(), m.orderRef(), "anulado",
+        mandates.update(new Mandate(m.id(), tenant, m.externalCode(), m.orderType(), m.orderRef(), "cancelled",
                 null, null, null, OffsetDateTime.now(ZoneOffset.UTC), "cliente anula", m.createdAt(), ACTOR,
                 null, ACTOR)).orElseThrow();
         UUID mandateId = UUID.fromString(m.id());
-        assertEquals("anulado", mandates.statusForLink(tenant, mandateId).orElseThrow());
+        assertEquals("cancelled", mandates.statusForLink(tenant, mandateId).orElseThrow());
         assertTrue(mandates.statusForLink(tenant(), mandateId).isEmpty(), "another tenant does not see it");
 
         MandateLine line = mandates.lineOf(tenant, mandateId).orElseThrow();
@@ -486,9 +510,9 @@ class PgTripsStoresTest {
                 Map.of("k", "v"), null));
         Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
                 null, ACTOR, null, ACTOR));
-        stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "carga", null,
+        stages.insert(new Stage(null, tenant, Stage.SUBJECT_TRIP, trip.id(), 0, "loading", null,
                 Stage.PENDING, null, null, null, null, null, "{\"items\":[\"sello\"]}", null, ACTOR, null, ACTOR));
-        locations.insert(new Location(null, tenant, "Puerto", "puerto", "PU-01",
+        locations.insert(new Location(null, tenant, "Puerto", "port", "PU-01",
                 "{\"type\":\"Point\",\"coordinates\":[-71.6,-33.0]}", null, ACTOR, null, ACTOR));
 
         List<String> types = pool.preparedQuery("""

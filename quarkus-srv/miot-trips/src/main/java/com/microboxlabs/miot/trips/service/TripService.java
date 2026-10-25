@@ -226,7 +226,7 @@ public class TripService {
 
     private static Stage planned(String tenantCode, String actor, UUID tripId, StageRequest s) {
         String type = Check.oneOf(Check.required(s.stageType(), "stageType", 32), "stageType",
-                "preparacion", "carga", "transito", "parada", "descarga", "cierre");
+                "preparation", "loading", "transit", "stop", "unloading", "closing");
         return new Stage(null, tenantCode, Stage.SUBJECT_TRIP, tripId.toString(), 0, type,
                 Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64), Stage.PENDING,
                 Check.uuidOrNull(s.locationId(), "locationId"), s.plannedStart(), s.plannedEnd(), null, null,

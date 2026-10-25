@@ -51,8 +51,8 @@ public class FeedProfileService {
                 .collect(java.util.stream.Collectors.toSet());
         String departure = Check.required(body.departureStage(), "departureStage", 32);
         String close = Check.required(body.closeStage(), "closeStage", 32);
-        if (!types.contains(departure) || !types.contains(close) || !"cierre".equals(close)) {
-            throw new IllegalArgumentException("departureStage must be in the plan and closeStage must be cierre");
+        if (!types.contains(departure) || !types.contains(close) || !"closing".equals(close)) {
+            throw new IllegalArgumentException("departureStage must be in the plan and closeStage must be closing");
         }
         int tolerance = body.closeToleranceMinutes() == null ? 120 : body.closeToleranceMinutes();
         if (tolerance < 0) {
@@ -75,7 +75,7 @@ public class FeedProfileService {
         Set<String> types = new LinkedHashSet<>();
         for (FeedProfile.StagePlan s : stages) {
             String type = Check.oneOf(Check.required(s == null ? null : s.stageType(), "stageType", 32), "stageType",
-                    "preparacion", "carga", "transito", "parada", "descarga", "cierre");
+                    "preparation", "loading", "transit", "stop", "unloading", "closing");
             if (!types.add(type)) {
                 throw new IllegalArgumentException("stage " + type + " is listed twice");
             }

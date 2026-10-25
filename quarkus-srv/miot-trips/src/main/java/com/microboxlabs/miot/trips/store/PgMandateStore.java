@@ -172,7 +172,7 @@ public class PgMandateStore implements MandateStore {
         RowSet<Row> rows = query(pool.get(), """
                 SELECT count(*) AS n
                 FROM miot_trips.trip_mandate tm JOIN miot_trips.trip t ON t.id = tm.trip_id
-                WHERE tm.tenant_code = $1 AND tm.mandate_id = $2 AND t.status NOT IN ('realizado','anulado')
+                WHERE tm.tenant_code = $1 AND tm.mandate_id = $2 AND t.status NOT IN ('completed','cancelled')
                   AND tm.version_of IS NULL AND tm.is_active""",
                 Tuple.of(tenantCode, mandateId));
         return rows.iterator().next().getInteger("n");

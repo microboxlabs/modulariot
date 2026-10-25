@@ -120,8 +120,8 @@ class PgTransactionsTest {
         String tenant = tenant();
         // the second stage passes validation but fails in the database (no such location)
         TripRequest request = new TripRequest(null, null, null, null, List.of(
-                new StageRequest("carga", null, null, null, null, null),
-                new StageRequest("descarga", null, UUID.randomUUID().toString(), null, null, null)));
+                new StageRequest("loading", null, null, null, null, null),
+                new StageRequest("unloading", null, UUID.randomUUID().toString(), null, null, null)));
         assertThrows(IllegalArgumentException.class, () -> trips.create(tenant, ACTOR, request));
 
         assertTrue(trips.list(tenant, TripService.filter(null, null, null, null, null), 0, 50).isEmpty(),
@@ -158,7 +158,7 @@ class PgTransactionsTest {
     void aReadInsideATransactionHoldsTheRowUntilItEnds() throws Exception {
         String tenant = tenant();
         UUID tripId = UUID.fromString(trips.create(tenant, ACTOR, new TripRequest(null, null, null, null,
-                List.of(new StageRequest("carga", null, null, null, null, null)))).id());
+                List.of(new StageRequest("loading", null, null, null, null, null)))).id());
         UUID stageId = UUID.fromString(stages.listByTrip(tenant, tripId).get(0).id());
         CountDownLatch read = new CountDownLatch(1);
         ExecutorService other = Executors.newSingleThreadExecutor();
@@ -177,15 +177,15 @@ class PgTransactionsTest {
         patch.get(30, TimeUnit.SECONDS);
         other.shutdown();
 
-        assertEquals(Trip.EN_ROUTE, trips.get(tenant, tripId).status(),
-                "the start waited for the patch, so the patch could not write planificado back");
+        assertEquals(Trip.IN_PROGRESS, trips.get(tenant, tripId).status(),
+                "the start waited for the patch, so the patch could not write planned back");
     }
 
     @Test
     void aRefusedCompletionRollsBackTheAssignmentItCreated() {
         String tenant = tenant();
         UUID tripId = UUID.fromString(trips.create(tenant, ACTOR, new TripRequest(null, null, null, null,
-                List.of(new StageRequest("preparacion", null, null, null, null, null)))).id());
+                List.of(new StageRequest("preparation", null, null, null, null, null)))).id());
         Stage stage = stages.listByTrip(tenant, tripId).get(0);
         StageActivity activity = stages.addActivity(tenant, ACTOR, UUID.fromString(stage.id()),
                 new ActivityRequest("asignar_conductor", null, null, null));

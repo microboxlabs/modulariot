@@ -286,6 +286,8 @@ class PgMonitorEngineTest {
 
         engine.signal(tenant, "gps", tripId, "left_origin", "17", seen);
         assertEquals(Stage.RUNNING, status(tripId, "preparation"), "a GPS detection does not move the trip");
+        assertTrue(milestones.pending(tenant, null).stream().anyMatch(p -> p.milestone().tripId()
+                .equals(tripId.toString()) && p.serviceCode() != null), "it is listed as waiting for a person");
         TripMilestone pending = milestone(tripId, "departure");
         assertEquals(TripMilestone.PENDING, pending.status());
         assertEquals("gps", pending.source());
@@ -434,6 +436,10 @@ class PgMonitorEngineTest {
         assertEquals(TripMilestone.REJECTED, milestone(tripId, "departure").status());
 
         engine.signal(tenant, "gps", tripId, "left_origin", null, seen.plusMinutes(3));
+        assertEquals(MilestoneService.Result.SKIPPED,
+                milestones.respondToDetection(tenant, ACTOR, tripId,
+                        new MilestoneService.DetectionRef("departure", seen, "gps"), true, "ui", null).result(),
+                "a stale panel action must not confirm the newer detection");
         assertEquals(MilestoneReplies.Outcome.NOT_PENDING,
                 replies.apply(reply(tripId, detected, "departure", "confirm", null, seen)),
                 "a reply to the rejected detection must not confirm the new detection");

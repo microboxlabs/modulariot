@@ -4,6 +4,7 @@ import static com.microboxlabs.miot.trips.store.Pg.query;
 import static com.microboxlabs.miot.trips.store.Pg.time;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.microboxlabs.miot.trips.domain.PendingMilestone;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -52,6 +53,27 @@ public class PgMilestoneStore implements MilestoneStore {
                 + " WHERE tenant_code = $1 AND trip_id = $2 AND milestone = $3" + Pg.lock(),
                 Tuple.of(tenantCode, tripId, milestone))
                 .stream().map(PgMilestoneStore::milestone).findFirst();
+    }
+
+    @Override
+    public List<PendingMilestone> pending(String tenantCode, int limit) {
+        return query(pool.get(), """
+                SELECT ms.trip_id, ms.milestone, ms.tenant_code, ms.status, ms.source, ms.proposed_at, ms.evidence,
+                    ms.confirmed_at, ms.confirmed_by, ms.channel, ms.note, ms.updated_at, ms.updated_by,
+                    (SELECT m.external_code FROM miot_trips.trip_mandate tm
+                        JOIN miot_trips.mandate m ON m.id = tm.mandate_id
+                        WHERE tm.trip_id = ms.trip_id AND tm.version_of IS NULL AND tm.is_active
+                        ORDER BY tm.seq LIMIT 1) AS service_code,
+                    o.name AS origin, d.name AS destination, t.planned_start
+                FROM miot_trips.trip_milestone ms
+                JOIN miot_trips.trip t ON t.id = ms.trip_id
+                LEFT JOIN miot_trips.location o ON o.id = t.origin_id
+                LEFT JOIN miot_trips.location d ON d.id = t.destination_id
+                WHERE ms.tenant_code = $1 AND ms.status = 'pending'
+                ORDER BY ms.proposed_at NULLS LAST, ms.updated_at LIMIT $2""", Tuple.of(tenantCode, limit))
+                .stream().map(r -> new PendingMilestone(milestone(r), r.getString("service_code"),
+                        r.getString("origin"), r.getString("destination"), time(r, "planned_start")))
+                .toList();
     }
 
     @Override

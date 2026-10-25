@@ -7,6 +7,7 @@ import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.trips.access.TripsAccessCatalog;
 import com.microboxlabs.miot.trips.service.MilestoneService;
+import com.microboxlabs.miot.trips.service.MilestoneService.DetectionRef;
 import com.microboxlabs.miot.trips.service.TripService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -20,6 +21,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.OffsetDateTime;
@@ -46,10 +48,13 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
      * {@code at} defaults to the time the pending detection proposed, else now. {@code channel} is {@code ui} or
      * {@code api} (the default).
      */
-    public record ConfirmRequest(OffsetDateTime at, String channel, String note) {
+    public record DetectionRequest(OffsetDateTime proposedAt, String source) {
     }
 
-    public record RejectRequest(String channel, String note) {
+    public record ConfirmRequest(OffsetDateTime at, String channel, String note, DetectionRequest expectedDetection) {
+    }
+
+    public record RejectRequest(String channel, String note, DetectionRequest expectedDetection) {
     }
 
     private final MilestoneService milestones;
@@ -66,6 +71,16 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
         super(tenantContext, organizationContext, roleService, identity);
         this.milestones = milestones;
         this.trips = trips;
+    }
+
+    @GET
+    @Path("/milestones/pending")
+    @Operation(operationId = "listPendingMilestones",
+            summary = "The organization's departures, arrivals and closures waiting for a person, oldest first")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> pending(@PathParam(ORG) String organizationId, @QueryParam("limit") Integer limit) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(milestones.pending(tenant, limit)).build());
     }
 
     @GET
@@ -88,9 +103,21 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             @PathParam(MILESTONE) String milestone, ConfirmRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(milestones.confirm(tenant, actor, trip(tenant, id), milestone,
-                body == null ? null : body.at(), channel(body == null ? null : body.channel()),
-                body == null ? null : body.note())).build());
+        return work(() -> {
+            UUID tripId = trip(tenant, id);
+            String ch = channel(body == null ? null : body.channel());
+            if (body != null && body.expectedDetection() != null) {
+                if (body.at() != null) {
+                    throw new IllegalArgumentException("at cannot be combined with expectedDetection");
+                }
+                DetectionRequest expected = body.expectedDetection();
+                return Response.ok(milestones.respondToDetection(tenant, actor, tripId,
+                        new DetectionRef(milestone, expected.proposedAt(), expected.source()), true, ch,
+                        body.note())).build();
+            }
+            return Response.ok(milestones.confirm(tenant, actor, tripId, milestone,
+                    body == null ? null : body.at(), ch, body == null ? null : body.note())).build();
+        });
     }
 
     @POST
@@ -103,8 +130,18 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             @PathParam(MILESTONE) String milestone, RejectRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(milestones.reject(tenant, actor, trip(tenant, id), milestone,
-                channel(body == null ? null : body.channel()), body == null ? null : body.note())).build());
+        return work(() -> {
+            UUID tripId = trip(tenant, id);
+            String ch = channel(body == null ? null : body.channel());
+            if (body != null && body.expectedDetection() != null) {
+                DetectionRequest expected = body.expectedDetection();
+                return Response.ok(milestones.respondToDetection(tenant, actor, tripId,
+                        new DetectionRef(milestone, expected.proposedAt(), expected.source()), false, ch,
+                        body.note())).build();
+            }
+            return Response.ok(milestones.reject(tenant, actor, tripId, milestone,
+                    ch, body == null ? null : body.note())).build();
+        });
     }
 
     /** People confirm through the UI or the API; the feed and notice replies have their own paths. */

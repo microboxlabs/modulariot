@@ -1,12 +1,14 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
+import { isPlatformScope } from "@/features/common/platform-scope";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { CONTROL_TOWER_BASE } from "../control-tower/control-tower-api";
 
 /**
- * Whose symptoms the editor works on: the active organization's, or the
- * platform's templates (symptoms of the reserved `platform` tenant). Every
- * request and SWR key of the editor starts from `defs` or `sources`.
+ * Whose symptoms the editor works on: the active organization's, or, in the
+ * platform scope, the platform's templates. Every request and SWR key of the
+ * editor starts from `defs` or `sources`.
  */
 export interface SymptomScope {
   kind: "org" | "platform";
@@ -29,19 +31,24 @@ export const PLATFORM_TEMPLATES: SymptomScope = {
   kind: "platform",
   defs: TEMPLATES_BASE,
   sources: `${TEMPLATES_BASE}/data-sources`,
-  pages: "/users/settings/platform/symptom-templates",
+  pages: "/users/settings/symptoms",
 };
 
 const ScopeContext = createContext<SymptomScope>(ORG_SYMPTOMS);
 
 export const SymptomScopeProvider = ScopeContext.Provider;
 
-/** The symptom editor working on the platform's templates; for server pages. */
-export function PlatformTemplatesScope({
+/** Settings › Síntomas edits the platform's templates when the platform scope is active. */
+export function ActiveSymptomScope({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  const { activeOrg } = useOrgScopes();
   return (
-    <ScopeContext.Provider value={PLATFORM_TEMPLATES}>
+    <ScopeContext.Provider
+      value={
+        isPlatformScope(activeOrg?.slug) ? PLATFORM_TEMPLATES : ORG_SYMPTOMS
+      }
+    >
       {children}
     </ScopeContext.Provider>
   );

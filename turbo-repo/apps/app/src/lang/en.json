@@ -1886,18 +1886,6 @@
               "ACCREDITATION": "Created by the accreditation integration; it ends with the accreditation."
             }
           }
-        },
-        "symptomTemplates": {
-          "title": "Symptom templates",
-          "menuHint": "Ready symptoms that organizations copy",
-          "description": "Each template is a platform symptom, with a draft, versions and publishing. Organizations see the latest published version in \"New symptom from template\".",
-          "open": "Open templates"
-        },
-        "messageTemplates": {
-          "title": "Message templates",
-          "menuHint": "The messages communication rules send",
-          "description": "The WhatsApp and email templates every organization's communication rules use. Each change raises its version.",
-          "open": "Open templates"
         }
       },
       "organizations": {
@@ -3732,16 +3720,26 @@
         "channelHint_slack": "Rules post to a Slack channel through the organization's incoming webhook.",
         "channelHint_teams": "Rules post to a Teams channel through the organization's incoming webhook workflow.",
         "channelPlatformTitle": "Platform account",
-        "channelPlatformBody": "Included: rules send from the platform's account, with its templates. Nothing to set up.",
+        "channelPlatformBody": "Rules send from the platform's account, with its templates. Nothing to set up.",
         "channelPlatformNone": "The platform has no account for this channel. To use it, connect the organization's own.",
         "channelPlatformIncluded": "Included",
         "channelNotOffered": "Not available",
         "channelOwnTitle": "Organization account",
         "channelOwnBody_whatsapp": "Send from the organization's number. Templates are copied from the platform and Meta approves them on this account.",
         "channelOwnBody_email": "Send from the organization's domain, with its own email account.",
-        "channelNotConfigured": "Not set up",
         "channelPlatformScopeHint": "The platform's account. Every organization without its own account uses it.",
         "channelOwnOwnersOnly": "Only the organization's owners can connect its own account.",
+        "channelSendFrom": "Rule sending",
+        "channelSendFromHint": "The account the organization's rules send from.",
+        "channelOwnConnected": "Connected",
+        "channelOwnNotConnected": "Not connected",
+        "channelOwnConnectFirst": "To send from the organization's account, connect it below.",
+        "channelOwnMissing": "Rules send from the organization's account, but none is connected. Sends fail until you connect it below or choose the platform's.",
+        "channelModeFailed": "The account could not be changed.",
+        "channelOwnTemplatesTitle": "Templates on the organization's account",
+        "channelOwnTemplatesHint": "Rules send templates approved by Meta on this account. Copy the platform's and Meta reviews them again.",
+        "channelCopyTemplates": "Copy from the platform",
+        "channelCopyResult": "{copied} sent for review, {exists} already there, {failed} failed.",
         "channelSlack": "Slack",
         "channelTeams": "Teams",
         "findingStepNoConnection": "Pick the connection step {n} calls.",
@@ -4080,7 +4078,9 @@
         "findingStepNegativeMinutes": "The minutes of step {n} cannot be negative.",
         "findingStepBadOnReply": "On a reply, step {n} stops or goes on with the next one.",
         "findingStepBadRecipients": "The recipients of step {n} are the rule's or a list.",
-        "findingStepNoRecipients": "Step {n} has no recipients."
+        "findingStepNoRecipients": "Step {n} has no recipients.",
+        "menuTemplates": "What every organization's rules send",
+        "menuMeta": "The approved templates of the platform's account"
       },
       "gps": {
         "title": "GPS integration",

@@ -6,9 +6,15 @@ describe("platformScopeLanding", () => {
     expect(
       platformScopeLanding("/app/es/users/settings/communications")
     ).toBeNull();
+  });
+
+  it("leaves an organization's record for the page that lists them", () => {
     expect(
-      platformScopeLanding("/app/en/users/settings/credentials/abc")
-    ).toBeNull();
+      platformScopeLanding("/app/es/users/settings/symptoms/0000-org-id")
+    ).toBe("/app/es/users/settings/symptoms");
+    expect(platformScopeLanding("/app/en/users/settings/credentials/abc")).toBe(
+      "/app/en/users/settings/credentials"
+    );
   });
 
   it("sends an organization-only page to Plataforma in the same language", () => {

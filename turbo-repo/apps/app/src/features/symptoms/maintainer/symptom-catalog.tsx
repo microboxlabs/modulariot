@@ -188,11 +188,7 @@ export default function SymptomCatalog({
         <Breadcrumb
           dict={dict?.breadcrumb as I18nRecord}
           lang={lang}
-          path={
-            template
-              ? ["user", "settings", "platform", "symptomTemplates"]
-              : ["user", "settings", "symptomCatalog"]
-          }
+          path={["user", "settings", "symptomCatalog"]}
           disableLinks
         />
       </div>

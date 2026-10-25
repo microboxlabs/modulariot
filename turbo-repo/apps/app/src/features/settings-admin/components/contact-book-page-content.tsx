@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Spinner, TextInput } from "flowbite-react";
-import {
-  HiOutlineBookOpen,
-  HiOutlineSearch,
-  HiOutlineUpload,
-  HiPlus,
-} from "react-icons/hi";
+import { Button, Spinner } from "flowbite-react";
+import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
+import FilterSearch from "@/features/common/components/filter-search";
 import LayoutToggle, {
   type CatalogLayout,
 } from "@/features/common/components/layout-toggle";
@@ -211,15 +207,11 @@ export default function ContactBookPageContent({
       description={tr("description", d)}
       filters={
         <>
-          <TextInput
-            type="search"
-            sizing="sm"
-            icon={HiOutlineSearch}
-            className="w-full sm:w-72"
-            aria-label={tr("searchLabel", d)}
-            placeholder={tr("searchPlaceholder", d)}
+          <FilterSearch
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            label={tr("searchLabel", d)}
+            placeholder={tr("searchPlaceholder", d)}
           />
           {filterDefs.map((f) => (
             <FilterChip

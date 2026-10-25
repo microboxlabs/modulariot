@@ -61,6 +61,12 @@ export function testEvent(sample: SampleEvent): SampleEvent {
   return { ...sample, data };
 }
 
+function noAddress(channel: RuleStep["channel"], d: I18nRecord): string {
+  if (channel === "email") return tr("testSendNoEmail", d);
+  if (channel === "whatsapp") return tr("testSendNoPhone", d);
+  return tr("testSendNoAddress", d);
+}
+
 function personOf(c: TowerContact): TestPerson {
   return {
     name: c.name,
@@ -271,7 +277,7 @@ export default function TestSendDialog({
                       <span className={`text-xs ${MUTED}`}>
                         {dest.kind === "connection"
                           ? tr("testSendNoCall", d)
-                          : tr("testSendNoAddress", d)}
+                          : noAddress(s.channel, d)}
                       </span>
                     )}
                   </li>

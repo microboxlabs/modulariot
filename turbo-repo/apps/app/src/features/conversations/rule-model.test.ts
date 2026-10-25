@@ -6,6 +6,7 @@ import {
   fillText,
   minutesAfter,
   newRuleSpec,
+  normalizeSpec,
   parseWhen,
   ruleChanges,
   ruleTargets,
@@ -16,6 +17,17 @@ import {
 
 const d = es.pages.userSettings.communications;
 const names = (key: string) => ({ "panic-button": "Botón de pánico" })[key];
+
+describe("normalizeSpec", () => {
+  it("uses the server's zero-minute default for a persisted step", () => {
+    const saved = newRuleSpec();
+    const step = { ...saved.steps[0] };
+    delete (step as Partial<typeof step>).waitForReply;
+    saved.steps = [step];
+    expect(normalizeSpec(saved).steps[0].waitForReply).toBe(0);
+    expect(newRuleSpec().steps[0].waitForReply).toBe(5);
+  });
+});
 
 describe("triggerSummary", () => {
   it("names the symptom and the top level", () => {

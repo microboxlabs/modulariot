@@ -4,6 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.domain.Channel;
+import com.microboxlabs.miot.conversational.domain.Message;
+import com.microboxlabs.miot.conversational.domain.MessageDirection;
+import com.microboxlabs.miot.conversational.domain.MessageRole;
+import com.microboxlabs.miot.conversational.domain.MessageStatus;
+import com.microboxlabs.miot.conversational.domain.MessageType;
 import com.microboxlabs.miot.conversational.events.ConversationEventCatalog;
 import com.microboxlabs.miot.conversational.events.ConversationReplyData;
 import com.microboxlabs.miot.conversational.events.ConversationReplyReceived;
@@ -33,7 +38,7 @@ class ReplyEventsTest {
 
     private Run run(String id, String contextKind, String contextKey) {
         world.runStore.saveEvent(new StoredEvent("e-" + id, TENANT, "trip.milestone.detected", "miot-trips",
-                contextKind, contextKey, Map.of("milestone", "departure", "serviceCode", "SCL-ANF-001"), false, AT,
+                contextKind, contextKey, Map.of("milestone", "departure", "serviceCode", "SAMPLE-001"), false, AT,
                 AT));
         return world.runStore.createRun(new Run(id, TENANT, "rule-1", "1", "e-" + id, contextKind, contextKey, false,
                 Run.Status.REPLIED, 1, null, null, AT, AT));
@@ -68,6 +73,31 @@ class ReplyEventsTest {
         assertTrue(replies.publish(reply("r-2", "confirm")).isEmpty());
         assertTrue(replies.publish(reply("missing", "confirm")).isEmpty());
         assertTrue(replies.publish(reply(null, null)).isEmpty());
+        assertEquals(List.of(), fired);
+    }
+
+    @Test
+    void synchronousWebhookDispatchPublishesTheReply() {
+        run("r-3", "trip", "11111111-1111-1111-1111-111111111111");
+
+        replies.onReplyInJob(reply("r-3", "confirm"));
+
+        assertEquals(1, fired.size());
+        assertEquals(ConversationEventCatalog.REPLY_RECEIVED, fired.getFirst().type());
+    }
+
+    @Test
+    void manualReplyCannotBorrowAnotherWaitingRunInTheConversation() {
+        world.runStore.saveEvent(new StoredEvent("e-waiting", TENANT, "trip.milestone.detected", "miot-trips",
+                "trip", "11111111-1111-1111-1111-111111111111", Map.of("milestone", "departure"), false, AT, AT));
+        world.runStore.createRun(new Run("r-waiting", TENANT, "rule-1", "1", "e-waiting", "trip",
+                "11111111-1111-1111-1111-111111111111", false, Run.Status.WAITING, 1, null, null, AT, AT));
+        world.conversations.messages.add(new Message("m-rule", "c-1", MessageDirection.OUTBOUND,
+                MessageRole.AGENT, MessageType.TEXT, "Confirmar", null, null, null, null, "provider-1",
+                MessageStatus.SENT, null, null, null, null, Map.of(), null, null, null, null,
+                Channel.WHATSAPP, "+56900000000", null, "r-waiting", 1));
+
+        assertTrue(replies.publish(reply(null, "confirm")).isEmpty());
         assertEquals(List.of(), fired);
     }
 }

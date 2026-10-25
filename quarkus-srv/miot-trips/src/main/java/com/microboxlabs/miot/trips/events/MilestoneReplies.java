@@ -5,11 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.service.MilestoneService;
+import com.microboxlabs.miot.trips.service.MilestoneService.DetectionRef;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
 import java.text.Normalizer;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -68,25 +71,33 @@ public class MilestoneReplies {
         if (milestone == null || !TripMilestone.MILESTONES.contains(milestone)) {
             return Outcome.NOT_A_MILESTONE;
         }
-        Optional<Boolean> confirm = decision(data.path("buttonPayload").asText(null))
-                .or(() -> decision(data.path("text").asText(null)));
+        JsonNode detected = data.path("eventData");
+        if (!event.context().key().equals(detected.path("tripId").asText(null))
+                || !detected.path("proposedAt").isTextual()) {
+            return Outcome.NOT_A_MILESTONE;
+        }
+        OffsetDateTime proposedAt;
+        try {
+            proposedAt = OffsetDateTime.parse(detected.path("proposedAt").asText());
+        } catch (DateTimeParseException e) {
+            return Outcome.NOT_A_MILESTONE;
+        }
+        String payload = data.path("buttonPayload").asText(null);
+        Optional<Boolean> confirm = decision(payload != null ? payload : data.path("text").asText(null));
         if (confirm.isEmpty()) {
             return Outcome.UNCLEAR;
         }
         UUID tripId = UUID.fromString(event.context().key());
         String tenant = event.tenantCode();
-        boolean pending = milestones.list(tenant, tripId).stream()
-                .anyMatch(m -> m.milestone().equals(milestone) && m.isPending());
-        if (!pending) {
-            return Outcome.NOT_PENDING;
-        }
         String actor = data.path("channel").asText("reply") + ":" + data.path("address").asText("unknown");
-        if (Boolean.TRUE.equals(confirm.get())) {
-            milestones.confirm(tenant, actor, tripId, milestone, null, "reply", null);
-            return Outcome.CONFIRMED;
-        }
-        milestones.reject(tenant, actor, tripId, milestone, "reply", null);
-        return Outcome.REJECTED;
+        DetectionRef detection = new DetectionRef(milestone, proposedAt, detected.path("source").asText(null));
+        MilestoneService.Result result = milestones.respondToDetection(tenant, actor, tripId, detection, confirm.get())
+                .result();
+        return switch (result) {
+            case CONFIRMED -> Outcome.CONFIRMED;
+            case REJECTED -> Outcome.REJECTED;
+            default -> Outcome.NOT_PENDING;
+        };
     }
 
     /** True to confirm, false to reject, empty when the words say neither. */

@@ -13,7 +13,8 @@ import InitialIdentifier from "@/features/common/components/user-related/initial
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { OrgMember } from "../types";
-import { maskRut } from "./contact-duplicates";
+import { displayRut, maskRut } from "./contact-duplicates";
+import type { CompanyOption } from "./store";
 import ContactOrganizationSection from "./contact-organization-section";
 import { inputValidationColor } from "./input-validation";
 import { normalizeLabel } from "./taxonomy-store";
@@ -185,8 +186,8 @@ export default function ContactPersonSection({
   companyRut: string;
   onCompanyRutChange: (next: string) => void;
   companyRutInvalid: boolean;
-  /** The organizations already used in the book, offered to pick from. */
-  organizations: readonly string[];
+  /** The companies already used in the book, offered to pick from. */
+  organizations: readonly CompanyOption[];
   /** Members other contacts of the book were created from. */
   takenMemberIds?: ReadonlySet<string>;
   d: I18nRecord;
@@ -245,7 +246,10 @@ export default function ContactPersonSection({
         <span className={LABEL_CLASS}>{tr("companyLabel", d)}</span>
         <ContactOrganizationSection
           value={organization}
-          onChange={onOrganizationChange}
+          onChange={(company, rut) => {
+            onOrganizationChange(company);
+            if (rut) onCompanyRutChange(displayRut(rut));
+          }}
           organizations={organizations}
           d={d}
         />

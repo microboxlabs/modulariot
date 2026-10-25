@@ -4,7 +4,7 @@ import type { TowerContact } from "@/features/symptoms/control-tower/control-tow
 import {
   TagUpdateError,
   makeContactId,
-  organizationNames,
+  bookCompanies,
   toBookContact,
   toContactBody,
   useContactBook,
@@ -259,26 +259,30 @@ describe("useContactBook", () => {
   });
 });
 
-describe("organizationNames", () => {
-  const contact = (company?: string): BookContact => ({
+describe("bookCompanies", () => {
+  const contact = (company?: string, companyRut?: string): BookContact => ({
     id: crypto.randomUUID(),
     name: "x",
     phone: "",
     role: "",
     methods: [],
     company,
+    companyRut,
   });
 
-  it("lists each organization once, ignoring case and accents, sorted", () => {
+  it("lists each company once, ignoring case and accents, sorted, with the first RUT given", () => {
     expect(
-      organizationNames([
+      bookCompanies([
         contact("Minera Sur"),
-        contact(" minera sur "),
+        contact(" minera sur ", "761112228"),
         contact("Logística"),
         contact("LOGISTICA"),
         contact(),
         contact("  "),
       ])
-    ).toEqual(["Logística", "Minera Sur"]);
+    ).toEqual([
+      { name: "Logística", rut: undefined, source: "book" },
+      { name: "Minera Sur", rut: "761112228", source: "book" },
+    ]);
   });
 });

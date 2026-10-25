@@ -27,7 +27,12 @@ import {
 import ContactPersonSection, {
   type PersonDraft,
 } from "./contact-person-section";
-import { makeContactId, TagUpdateError, type BookContact } from "./store";
+import {
+  makeContactId,
+  TagUpdateError,
+  type BookContact,
+  type CompanyOption,
+} from "./store";
 import {
   ensureBadge,
   renameBadge,
@@ -161,7 +166,7 @@ export default function ContactFormModal({
   onRenameTag?: (from: string, to: string) => Promise<void>;
   onDeleteTag?: (name: string) => Promise<void>;
   /** The organizations already used in the book, offered in Organización. */
-  organizations?: readonly string[];
+  organizations?: readonly CompanyOption[];
   /** Members other contacts of the book were created from; they can't be picked again. */
   takenMemberIds?: ReadonlySet<string>;
   /** `pages.userSettings` dictionary. */
@@ -292,11 +297,11 @@ export default function ContactFormModal({
               rutInvalid={rutInvalid}
               organization={draft.company}
               onOrganizationChange={(company) =>
-                setDraft({ ...draft, company })
+                setDraft((prev) => ({ ...prev, company }))
               }
               companyRut={draft.companyRut}
               onCompanyRutChange={(companyRut) =>
-                setDraft({ ...draft, companyRut })
+                setDraft((prev) => ({ ...prev, companyRut }))
               }
               companyRutInvalid={companyRutInvalid}
               organizations={organizations}

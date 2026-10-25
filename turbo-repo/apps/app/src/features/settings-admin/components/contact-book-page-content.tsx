@@ -21,7 +21,7 @@ import ContactTable, {
 } from "../contact-book/contact-table";
 import ImportContactsModal from "../contact-book/import-contacts-modal";
 import {
-  organizationNames,
+  bookCompanies,
   useContactBook,
   type BookContact,
 } from "../contact-book/store";
@@ -135,7 +135,7 @@ export default function ContactBookPageContent({
   } = useContactBook();
   const { badges } = useContactBadges();
   const { data: reach } = useContactReach();
-  const organizations = useMemo(() => organizationNames(contacts), [contacts]);
+  const organizations = useMemo(() => bookCompanies(contacts), [contacts]);
   const [editing, setEditing] = useState<BookContact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);

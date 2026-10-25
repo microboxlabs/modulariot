@@ -133,16 +133,29 @@ export function toContactBody(
   };
 }
 
-/** The organizations used in the book (each contact's `company`), once
- *  each (case/accent-insensitive, first spelling wins), sorted by name. */
-export function organizationNames(contacts: readonly BookContact[]): string[] {
-  const byKey = new Map<string, string>();
+/** A company a contact can belong to: from the book or one of the organization's carriers. */
+export interface CompanyOption {
+  name: string;
+  /** Normalized RUT, when known. */
+  rut?: string;
+  source: "book" | "carrier";
+}
+
+/** The companies used in the book, each with the first RUT given for it. */
+export function bookCompanies(
+  contacts: readonly BookContact[]
+): CompanyOption[] {
+  const byKey = new Map<string, CompanyOption>();
   for (const c of contacts) {
     const name = c.company?.trim();
-    if (name && !byKey.has(normalizeLabel(name)))
-      byKey.set(normalizeLabel(name), name);
+    if (!name) continue;
+    const key = normalizeLabel(name);
+    const known = byKey.get(key);
+    if (!known)
+      byKey.set(key, { name, rut: c.companyRut || undefined, source: "book" });
+    else if (!known.rut && c.companyRut) known.rut = c.companyRut;
   }
-  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
+  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
 /** A tag rename or delete that some contacts did not get. */

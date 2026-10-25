@@ -23,7 +23,7 @@ vi.mock("../contact-book/taxonomy-store", () => ({
   useContactBadges: () => ({ badges: [] }),
 }));
 vi.mock("../contact-book/store", () => ({
-  organizationNames: () => [],
+  bookCompanies: () => [],
   useContactBook: () => ({
     contacts: [
       { id: "c1", name: "Persona Ejemplo", phone: "", role: "", methods: [] },

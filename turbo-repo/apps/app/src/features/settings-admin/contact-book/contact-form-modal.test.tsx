@@ -479,7 +479,10 @@ describe("ContactFormModal — organization", () => {
         onClose={vi.fn()}
         editing={editing}
         onSave={onSave}
-        organizations={["Transportes Norte", "Minera Sur"]}
+        organizations={[
+          { name: "Transportes Norte", rut: "761112228", source: "book" },
+          { name: "Minera Sur", source: "book" },
+        ]}
         dict={dict}
       />
     );
@@ -501,7 +504,7 @@ describe("ContactFormModal — organization", () => {
     await startOutsideContact(user);
     await user.click(screen.getByLabelText("Empresa"));
     expect(
-      screen.getByRole("button", { name: "Transportes Norte" })
+      screen.getByRole("button", { name: /Transportes Norte 76.111.222-8/ })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Minera Sur" })
@@ -509,11 +512,25 @@ describe("ContactFormModal — organization", () => {
 
     await user.type(screen.getByLabelText("Empresa"), "miner");
     expect(
-      screen.queryByRole("button", { name: "Transportes Norte" })
+      screen.queryByRole("button", { name: /Transportes Norte/ })
     ).toBeNull();
     await user.click(screen.getByRole("button", { name: "Minera Sur" }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(saved(onSave)).toMatchObject({ company: "Minera Sur" });
+  });
+
+  it("fills the company's RUT when the picked company has one", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    await user.click(screen.getByLabelText("Empresa"));
+    await user.click(screen.getByRole("button", { name: /Transportes Norte/ }));
+    expect(screen.getByDisplayValue("76.111.222-8")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({
+      company: "Transportes Norte",
+      companyRut: "76.111.222-8",
+    });
   });
 
   it("creates an organization that isn't in the list", async () => {

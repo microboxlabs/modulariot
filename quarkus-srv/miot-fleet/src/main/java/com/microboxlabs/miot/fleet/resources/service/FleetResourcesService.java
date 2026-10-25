@@ -50,8 +50,7 @@ public class FleetResourcesService implements FleetResources {
     @Override
     public List<Carrier> carriers(String tenantCode, String query, int limit) {
         String q = query == null || query.isBlank() ? null : query.trim();
-        return store.listCarriers(tenantCode, q, 0, limit).stream()
-                .filter(c -> !com.microboxlabs.miot.fleet.resources.domain.Carrier.INACTIVE.equals(c.status()))
+        return store.listActiveCarriers(tenantCode, q, limit).stream()
                 .map(c -> new Carrier(UUID.fromString(c.id()), c.legalName(), c.phone(), c.rut()))
                 .toList();
     }

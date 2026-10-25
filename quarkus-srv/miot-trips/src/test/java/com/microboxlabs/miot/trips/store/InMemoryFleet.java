@@ -23,12 +23,13 @@ public class InMemoryFleet implements FleetResources {
         if (active) {
             known.add(id);
         }
-        byKey.put(resourceType + ":" + key(naturalKey), new Match(id, active));
+        byKey.merge(resourceType + ":" + key(naturalKey), new Match(id, active),
+                (existing, added) -> existing.active() ? existing : added);
         return id;
     }
 
     private static String key(String raw) {
-        return raw.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        return raw.replaceAll("[^A-Za-z0-9]", "").toUpperCase(java.util.Locale.ROOT);
     }
 
     @Override

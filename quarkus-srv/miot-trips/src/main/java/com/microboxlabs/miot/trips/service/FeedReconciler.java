@@ -153,7 +153,7 @@ public class FeedReconciler {
         return tx.inTransaction(() -> {
             FeedService before = feeds.lockService(tenantCode, feedKey, code);
             // the same state, applied or already waiting; a failed apply keeps no hash, so a resend counts
-            if (hash.equals(before.desiredHash())) {
+            if (hash.equals(before.desiredHash()) && !REPORT.equals(before.lastAction())) {
                 return false;
             }
             feeds.saveService(new FeedService(tenantCode, feedKey, code, write(desired), hash, before.mandateId(),

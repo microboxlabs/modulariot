@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,6 +11,7 @@ import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.dto.FeedResult;
+import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.store.FeedStore;
 import com.microboxlabs.miot.trips.store.InMemoryFleet;
@@ -111,6 +113,34 @@ class FeedReconcilerTest {
         assertThrows(IllegalArgumentException.class, () -> send(invalid));
         assertEquals(1, tx.outerTransactions);
         assertEquals(FeedReconciler.ERROR, feeds.saved.lastAction());
+    }
+
+    @Test
+    void reportedStateCanBeSubmittedAgain() {
+        FeedServiceRequest incomplete = new FeedServiceRequest(null, null, null, null, null, null);
+        assertEquals(FeedReconciler.REPORT, send(incomplete).action());
+        assertTrue(reconciler.accept("test", "test-feed", "S-TEST", incomplete));
+    }
+
+    @Test
+    void dedupeKeysSeparateColonsAndEscapeCharacters() {
+        assertNotEquals(FeedBatchService.spec("feed", "S:1", "test", "b1").dedupeKey(),
+                FeedBatchService.spec("feed", "S", "test", "1:b1").dedupeKey());
+        assertNotEquals(FeedBatchService.spec("feed", "S:1", "test", "b1").dedupeKey(),
+                FeedBatchService.spec("feed", "S%3A1", "test", "b1").dedupeKey());
+    }
+
+    @Test
+    void profileStoresNormalizedStagesAndRejectsAnAbsentArrivalStage() {
+        FeedProfileService profiles = new FeedProfileService(feeds, null, audit);
+        List<FeedProfile.StagePlan> stages = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
+                new FeedProfile.StagePlan("closing", "FINISHED"));
+        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stages,
+                "closing", null, List.of(), true));
+        assertEquals("preparation", saved.stages().get(0).stageType());
+        assertEquals("ADDED", saved.stages().get(0).serviceStatus());
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stages, "transit", null, List.of(), true);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
     }
 
     private static class TestTransactions implements Transactions {

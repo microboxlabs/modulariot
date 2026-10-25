@@ -9,6 +9,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,19 +47,12 @@ public class FeedProfileService {
         if (body == null) {
             throw new IllegalArgumentException("body is required");
         }
-        List<FeedProfile.StagePlan> stages = body.stages() == null ? List.of() : body.stages();
+        List<FeedProfile.StagePlan> stages = normalizedStages(body.stages());
         if (stages.isEmpty()) {
             throw new IllegalArgumentException("stages must list at least one stage");
         }
-        Set<String> types = new LinkedHashSet<>();
-        for (FeedProfile.StagePlan s : stages) {
-            String type = Check.oneOf(Check.required(s == null ? null : s.stageType(), "stageType", 32), "stageType",
-                    "preparation", "loading", "transit", "stop", "unloading", "closing");
-            if (!types.add(type)) {
-                throw new IllegalArgumentException("stage " + type + " is listed twice");
-            }
-            Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64);
-        }
+        Set<String> types = stages.stream().map(FeedProfile.StagePlan::stageType)
+                .collect(java.util.stream.Collectors.toSet());
         String arrival = Check.required(body.arrivalStage(), "arrivalStage", 32);
         if (!types.contains(arrival)) {
             throw new IllegalArgumentException("arrivalStage must be a stage of the plan");
@@ -79,4 +73,19 @@ public class FeedProfileService {
         audit.log(tenantCode, actor, "feed.profile_saved", "feed", key, null, Map.of(STAGES, types.toString()));
         return saved;
     }
+    private static List<FeedProfile.StagePlan> normalizedStages(List<FeedProfile.StagePlan> requested) {
+        List<FeedProfile.StagePlan> stages = requested == null ? List.of() : requested;
+        List<FeedProfile.StagePlan> normalized = new ArrayList<>();
+        Set<String> types = new LinkedHashSet<>();
+        for (FeedProfile.StagePlan s : stages) {
+            String type = Check.oneOf(Check.required(s == null ? null : s.stageType(), "stageType", 32), "stageType",
+                    "preparation", "loading", "transit", "stop", "unloading", "closing");
+            if (!types.add(type)) {
+                throw new IllegalArgumentException("stage " + type + " is listed twice");
+            }
+            normalized.add(new FeedProfile.StagePlan(type, Check.limitedOrNull(s.serviceStatus(), "serviceStatus", 64)));
+        }
+        return List.copyOf(normalized);
+    }
+
 }

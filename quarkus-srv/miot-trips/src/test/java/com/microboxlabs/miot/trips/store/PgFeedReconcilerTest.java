@@ -441,14 +441,14 @@ class PgFeedReconcilerTest {
         List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
 
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "transit", null, null, null)),
+        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingArrival),
                 "the arrival stage must be in the plan");
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "closing", "unknown", null, null)),
+        FeedProfileRequest unknownMonitor = new FeedProfileRequest("Nuevo", plan, "closing", "unknown", null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", unknownMonitor),
                 "the monitor must have a published version");
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas",
-                new FeedProfileRequest("Nuevo", plan, "closing", null, null, null)));
+        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas", valid));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
                 new FeedProfileRequest("Nuevo", plan, "closing", null, List.of("truck"), null));
         assertNull(saved.monitor(), "no monitor: the selector picks one");

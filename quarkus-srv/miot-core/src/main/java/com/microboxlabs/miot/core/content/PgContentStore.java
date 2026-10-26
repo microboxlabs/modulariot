@@ -57,13 +57,16 @@ public class PgContentStore implements ContentStore {
     }
 
     @Override
-    public List<Content> deleteUnowned(OffsetDateTime before, int limit) {
-        return query("""
-                DELETE FROM miot_core.content WHERE id IN (
-                    SELECT id FROM miot_core.content WHERE owner IS NULL AND created_at < $1
-                    ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED)
-                RETURNING\s""" + COLUMNS, Tuple.of(before, limit))
+    public List<Content> unowned(OffsetDateTime before, int limit) {
+        return query("SELECT " + COLUMNS + " FROM miot_core.content WHERE owner IS NULL AND created_at < $1"
+                        + " ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED", Tuple.of(before, limit))
                 .stream().map(PgContentStore::content).toList();
+    }
+
+    @Override
+    public boolean deleteUnowned(String tenantCode, UUID id, OffsetDateTime before) {
+        return query("DELETE FROM miot_core.content WHERE tenant_code = $1 AND id = $2"
+                        + " AND owner IS NULL AND created_at < $3", Tuple.of(tenantCode, id, before)).rowCount() > 0;
     }
 
     private RowSet<Row> query(String sql, Tuple params) {

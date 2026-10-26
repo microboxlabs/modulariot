@@ -48,6 +48,8 @@ public class DeliveryService implements DeliveryReach {
     public static final String STEP_REQUESTED = "delivery.step_requested";
     public static final String STEP_CONFIRMED = "delivery.step_confirmed";
     public static final String STEP_REJECTED = "delivery.step_rejected";
+    private static final String REFERENCE = "reference";
+    private static final String CHANNEL = "channel";
     private static final String TRIP = "trip";
     private static final String DELIVERY = "delivery";
     private static final String STEP = "step";
@@ -109,7 +111,7 @@ public class DeliveryService implements DeliveryReach {
     /** A delivery with a reference the trip already has is returned as it is. */
     public DeliveryViews.Delivery create(String tenantCode, String actor, UUID tripId, NewDelivery body) {
         NewDelivery b = body == null ? new NewDelivery(null, null, null, null, null, null) : body;
-        String reference = Check.limitedOrNull(Check.blankToNull(b.reference()), "reference", 128);
+        String reference = Check.limitedOrNull(Check.blankToNull(b.reference()), REFERENCE, 128);
         String customer = Check.limitedOrNull(Check.blankToNull(b.customer()), "customer", 255);
         String note = Check.limitedOrNull(b.note(), "note", 1000);
         String source = source(b.source());
@@ -134,7 +136,7 @@ public class DeliveryService implements DeliveryReach {
                     reference, customer, source, evidence, note, mandates, null, actor, null, actor));
             Map<String, Object> d = new LinkedHashMap<>();
             d.put(DELIVERY, saved.id());
-            putIf(d, "reference", reference);
+            putIf(d, REFERENCE, reference);
             d.put("mandates", mandates.size());
             audit.log(tenantCode, actor, CREATED, TRIP, tripId.toString(), tripId.toString(), d);
             return saved.id();
@@ -171,11 +173,7 @@ public class DeliveryService implements DeliveryReach {
             String mimetype = null;
             String name = Check.limitedOrNull(Check.blankToNull(body.name()), "name", 255);
             if (contentId != null) {
-                Content c = contents.find(tenantCode, contentId)
-                        .orElseThrow(() -> new IllegalArgumentException("content not found"));
-                if (c.owner() != null) {
-                    throw new IllegalStateException("the content already belongs to another record");
-                }
+                Content c = unownedContent(tenantCode, contentId);
                 mimetype = c.mimetype();
                 name = name == null ? c.name() : name;
             }
@@ -194,6 +192,15 @@ public class DeliveryService implements DeliveryReach {
             return d.id();
         });
         return view(tenantCode, tripId, id);
+    }
+
+    private Content unownedContent(String tenantCode, UUID id) {
+        Content content = contents.find(tenantCode, id)
+                .orElseThrow(() -> new IllegalArgumentException("content not found"));
+        if (content.owner() != null) {
+            throw new IllegalStateException("the content already belongs to another record");
+        }
+        return content;
     }
 
     /**
@@ -239,7 +246,7 @@ public class DeliveryService implements DeliveryReach {
     @SuppressWarnings("java:S107") // Mirrors the milestone confirmation.
     public DeliveryViews.Delivery confirm(String tenantCode, String actor, UUID tripId, UUID deliveryId, String step,
             OffsetDateTime at, String channel, String note, Map<String, Object> evidence) {
-        String ch = Check.oneOf(channel == null ? "api" : channel, "channel",
+        String ch = Check.oneOf(channel == null ? "api" : channel, CHANNEL,
                 TripMilestone.CHANNELS.toArray(String[]::new));
         String n = Check.limitedOrNull(note, "note", 1000);
         Map<String, Object> e = MilestoneService.evidence(evidence);
@@ -247,7 +254,7 @@ public class DeliveryService implements DeliveryReach {
             Delivery d = delivery(tenantCode, tripId, deliveryId);
             DeliveryCycle cycle = cycle(tenantCode, tripId);
             String s = step(cycle, step);
-            confirmStep(tenantCode, actor, tripId, d, cycle, s, at, ch, n, e);
+            confirmStep(tenantCode, actor, tripId, d, cycle, s, new Confirmation(at, ch, n, e));
             return d.id();
         });
         return view(tenantCode, tripId, id);
@@ -256,7 +263,7 @@ public class DeliveryService implements DeliveryReach {
     /** Marks a pending step as not done; a new proof or request asks again. */
     public DeliveryViews.Delivery reject(String tenantCode, String actor, UUID tripId, UUID deliveryId, String step,
             String channel, String note) {
-        String ch = Check.oneOf(channel == null ? "api" : channel, "channel",
+        String ch = Check.oneOf(channel == null ? "api" : channel, CHANNEL,
                 TripMilestone.CHANNELS.toArray(String[]::new));
         String n = Check.limitedOrNull(note, "note", 1000);
         String id = tx.inTransaction(() -> {
@@ -294,11 +301,25 @@ public class DeliveryService implements DeliveryReach {
      */
     @Override
     public boolean reached(String tenantCode, UUID tripId, String step) {
-        List<Delivery> deliveries = store.list(tenantCode, tripId);
-        Set<String> confirmed = new HashSet<>();
-        store.steps(tenantCode, tripId).stream().filter(s -> s.step().equals(step) && s.isConfirmed())
-                .forEach(s -> confirmed.add(s.deliveryId()));
+        return reached(store.list(tenantCode, tripId), store.steps(tenantCode, tripId),
+                trips.mandatesOf(tenantCode, tripId), step);
+    }
+
+    @Override
+    public Map<String, Boolean> snapshot(String tenantCode, UUID tripId) {
+        List<Delivery> current = store.list(tenantCode, tripId);
+        List<Delivery.Step> steps = store.steps(tenantCode, tripId);
         List<MandateRef> mandates = trips.mandatesOf(tenantCode, tripId);
+        Map<String, Boolean> result = new LinkedHashMap<>();
+        DeliveryCycle.ALL_STEPS.forEach(step -> result.put(step, reached(current, steps, mandates, step)));
+        return Map.copyOf(result);
+    }
+
+    private static boolean reached(List<Delivery> deliveries, List<Delivery.Step> steps,
+            List<MandateRef> mandates, String step) {
+        Set<String> confirmed = new HashSet<>();
+        steps.stream().filter(s -> s.step().equals(step) && s.isConfirmed())
+                .forEach(s -> confirmed.add(s.deliveryId()));
         if (mandates.isEmpty()) {
             return !deliveries.isEmpty() && deliveries.stream().allMatch(d -> confirmed.contains(d.id()));
         }
@@ -307,8 +328,15 @@ public class DeliveryService implements DeliveryReach {
         return mandates.stream().allMatch(m -> done.contains(m.mandateId()));
     }
 
+    private record Confirmation(OffsetDateTime at, String channel, String note, Map<String, Object> evidence) {
+    }
+
     private void confirmStep(String tenantCode, String actor, UUID tripId, Delivery d, DeliveryCycle cycle, String s,
-            OffsetDateTime at, String ch, String n, Map<String, Object> e) {
+            Confirmation confirmation) {
+        OffsetDateTime at = confirmation.at();
+        String ch = confirmation.channel();
+        String n = confirmation.note();
+        Map<String, Object> e = confirmation.evidence();
         UUID id = UUID.fromString(d.id());
         Delivery.Step current = store.step(tenantCode, id, s).orElse(Delivery.Step.unrecorded(tenantCode, d.id(), s));
         if (current.isConfirmed()) {
@@ -327,8 +355,9 @@ public class DeliveryService implements DeliveryReach {
                 && store.proofs(tenantCode, tripId).stream().noneMatch(p -> p.deliveryId().equals(d.id()))) {
             throw new IllegalStateException("the delivery has no proof");
         }
-        OffsetDateTime when = utc(at != null ? at
-                : current.isPending() && current.proposedAt() != null ? current.proposedAt() : now());
+        OffsetDateTime proposed = current.isPending() ? current.proposedAt() : null;
+        OffsetDateTime when = at == null ? proposed : at;
+        when = utc(when == null ? now() : when);
         store.save(new Delivery.Step(d.id(), s, tenantCode, TripMilestone.CONFIRMED, current.source(),
                 current.proposedAt(), merge(current.evidence(), e), when, actor, ch, n, null, actor));
         audit.log(tenantCode, actor, STEP_CONFIRMED, TRIP, tripId.toString(), tripId.toString(),
@@ -345,7 +374,7 @@ public class DeliveryService implements DeliveryReach {
             return;
         }
         if (cycle.confirmOnProof()) {
-            confirmStep(tenantCode, actor, tripId, d, cycle, first, null, "api", null, Map.of());
+            confirmStep(tenantCode, actor, tripId, d, cycle, first, new Confirmation(null, "api", null, Map.of()));
             return;
         }
         if (current.isPending()) {
@@ -462,8 +491,8 @@ public class DeliveryService implements DeliveryReach {
         out.put(DELIVERY, d.id());
         out.put(STEP, step);
         out.put("at", at.toString());
-        putIf(out, "channel", channel);
-        putIf(out, "reference", d.reference());
+        putIf(out, CHANNEL, channel);
+        putIf(out, REFERENCE, d.reference());
         return out;
     }
 
@@ -473,7 +502,7 @@ public class DeliveryService implements DeliveryReach {
         }
         Map<String, Object> out = new LinkedHashMap<>(current);
         out.putAll(added);
-        return out;
+        return MilestoneService.evidence(out);
     }
 
     private static void putIf(Map<String, Object> m, String key, Object value) {

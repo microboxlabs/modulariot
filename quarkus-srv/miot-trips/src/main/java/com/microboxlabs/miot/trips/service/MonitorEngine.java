@@ -57,6 +57,8 @@ import org.jboss.logging.Logger;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class MonitorEngine implements TripChanges {
 
+    private static final String COMPLETE_TRIP = "completeTrip";
+    private static final String RESULT = "result";
     private static final String CLOSE_MANDATES = "closeMandates";
     private static final String CLOSE = "close";
     private static final String START = "start";
@@ -65,7 +67,7 @@ public class MonitorEngine implements TripChanges {
     static final int MAX_DEPTH = 5;
     private static final Logger LOG = Logger.getLogger(MonitorEngine.class);
     private static final Set<String> STATE_ACTIONS =
-            Set.of("advance", START, CLOSE, "completeTrip", "cancelTrip", CLOSE_MANDATES);
+            Set.of("advance", START, CLOSE, COMPLETE_TRIP, "cancelTrip", CLOSE_MANDATES);
     private static final String TIMER = "timer";
     private static final String STAGE_TYPE = "stageType";
     private static final String COMMAND = "command";
@@ -315,8 +317,7 @@ public class MonitorEngine implements TripChanges {
      */
     private void completeByDeliveries(Run run, Queued q, TripMonitor m) {
         MonitorRun.Event e = q.event();
-        if (!COMMAND.equals(e.on()) || e.kind() == null || !(CLOSURE_CONFIRMED.equals(e.kind())
-                || e.kind().startsWith(DELIVERY_PREFIX) && e.kind().endsWith(CONFIRMED_SUFFIX))) {
+        if (!changesDeliveryCompletion(e)) {
             return;
         }
         String step;
@@ -337,22 +338,34 @@ public class MonitorEngine implements TripChanges {
         String actor = "monitor:" + m.monitorKey() + "@v" + m.version();
         String from = running(trip.get());
         Map<String, Object> action = new LinkedHashMap<>();
-        action.put("type", "completeTrip");
+        action.put("type", COMPLETE_TRIP);
         action.put("rule", DELIVERY_RULE);
         String error = null;
+        int queued = run.queue.size();
         try {
             PgTx.savepoint(() -> {
                 completeTrip(tenant, tripId, actor);
                 return null;
             });
-            action.put("result", "done");
+            action.put(RESULT, "done");
         } catch (RuntimeException ex) {
-            action.put("result", "failed");
+            while (run.queue.size() > queued) {
+                run.queue.pollLast();
+            }
+            action.put(RESULT, "failed");
             error = DELIVERY_RULE + ": " + message(ex);
         }
         Trip after = trips.find(tenant, tripId).orElse(trip.get());
         recordTransition(run, m, q, new TransitionResult(List.of(DELIVERY_RULE), DELIVERY_RULE, from,
                 running(after), List.of(action), error));
+    }
+
+    private static boolean changesDeliveryCompletion(MonitorRun.Event event) {
+        if ("plan".equals(event.on()) && "mandates".equals(event.kind())) {
+            return true;
+        }
+        return COMMAND.equals(event.on()) && event.kind() != null && (CLOSURE_CONFIRMED.equals(event.kind())
+                || event.kind().startsWith(DELIVERY_PREFIX) && event.kind().endsWith(CONFIRMED_SUFFIX));
     }
 
     private static final class RuleEffects {
@@ -483,7 +496,7 @@ public class MonitorEngine implements TripChanges {
             case CLOSE -> stages.close(tenant, actor, UUID.fromString(running(tenant, tripId)
                     .filter(s -> s.stageType().equals(v))
                     .orElseThrow(() -> new IllegalStateException("the " + v + " stage is not in progress")).id()));
-            case "completeTrip" -> completeTrip(tenant, tripId, actor);
+            case COMPLETE_TRIP -> completeTrip(tenant, tripId, actor);
             case "cancelTrip" -> tripService.cancel(tenant, actor, tripId, v);
             case CLOSE_MANDATES -> {
                 return closeMandates(tenant, tripId, actor);
@@ -559,7 +572,7 @@ public class MonitorEngine implements TripChanges {
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("type", CLOSE_MANDATES);
-        out.put("result", "done");
+        out.put(RESULT, "done");
         out.put("closed", closed);
         out.put("kept", kept);
         return out;
@@ -708,7 +721,7 @@ public class MonitorEngine implements TripChanges {
         if (rule != null) {
             out.put("rule", rule);
         }
-        out.put("result", result);
+        out.put(RESULT, result);
         return out;
     }
 
@@ -756,7 +769,7 @@ public class MonitorEngine implements TripChanges {
         if (!(milestone instanceof String m)) {
             return null;
         }
-        String kind = m + (MilestoneService.CONFIRMED.equals(action) ? "_confirmed" : "_rejected");
+        String kind = m + (MilestoneService.CONFIRMED.equals(action) ? CONFIRMED_SUFFIX : "_rejected");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("milestone", m);
         for (String key : List.of("channel", SOURCE)) {
@@ -778,7 +791,7 @@ public class MonitorEngine implements TripChanges {
                 + (DeliveryService.STEP_CONFIRMED.equals(action) ? CONFIRMED_SUFFIX : "_rejected");
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("step", step);
-        for (String key : List.of("delivery", "channel")) {
+        for (String key : List.of(DELIVERY_RULE, "channel")) {
             if (d.get(key) != null) {
                 data.put(key, d.get(key));
             }

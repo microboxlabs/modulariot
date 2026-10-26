@@ -110,7 +110,13 @@ function Feed({
   ];
   const source = Object.entries(feed.source)
     .filter(([, v]) => v !== null && v !== "")
-    .map(([k, v]) => [k, String(v)] as [string, string]);
+    .map(
+      ([k, v]) =>
+        [k, typeof v === "object" ? JSON.stringify(v) : String(v)] as [
+          string,
+          string,
+        ]
+    );
   return (
     <CustomTable
       header={[tr("sheet.table.field", d), tr("sheet.table.value", d)]}

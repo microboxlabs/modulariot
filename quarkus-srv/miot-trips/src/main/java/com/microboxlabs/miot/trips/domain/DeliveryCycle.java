@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * The steps a delivery goes through, read from the trip monitor's parameters:
  * <ul>
- * <li>{@code deliverySteps}: the steps in order, separated by commas, from {@link #STEPS}. Default: all of them.</li>
+ * <li>{@code deliverySteps}: the steps in order, separated by commas, from {@link #ALL_STEPS}. Default: all of them.</li>
  * <li>{@code deliveryCompletesTrip}: the step that, once every load reached it and the monitoring closure is
  * confirmed, completes the trip. Without it nothing completes the trip on its own.</li>
  * <li>{@code deliveryProofRequired}: the first step needs a proof. Default true.</li>
@@ -21,8 +21,8 @@ public record DeliveryCycle(List<String> steps, String completesTrip, boolean pr
     public static final String DELIVERED = "delivered";
     public static final String ACCEPTED = "accepted";
     public static final String SETTLED = "settled";
-    public static final List<String> STEPS = List.of(DELIVERED, ACCEPTED, SETTLED);
-    public static final DeliveryCycle DEFAULT = new DeliveryCycle(STEPS, null, true, false);
+    public static final List<String> ALL_STEPS = List.of(DELIVERED, ACCEPTED, SETTLED);
+    public static final DeliveryCycle DEFAULT = new DeliveryCycle(ALL_STEPS, null, true, false);
 
     public static final String STEPS_PARAM = "deliverySteps";
     public static final String COMPLETES_TRIP_PARAM = "deliveryCompletesTrip";
@@ -38,21 +38,7 @@ public record DeliveryCycle(List<String> steps, String completesTrip, boolean pr
         if (params == null) {
             return DEFAULT;
         }
-        List<String> steps = STEPS;
-        if (params.get(STEPS_PARAM) instanceof String text && !text.isBlank()) {
-            steps = Arrays.stream(text.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
-            int last = -1;
-            for (String s : steps) {
-                int i = STEPS.indexOf(s);
-                if (i <= last) {
-                    throw new IllegalArgumentException(STEPS_PARAM + " lists steps of " + String.join(", ", STEPS)
-                            + ", in that order and once each");
-                }
-                last = i;
-            }
-        } else if (params.containsKey(STEPS_PARAM)) {
-            throw new IllegalArgumentException(STEPS_PARAM + " must list at least one step");
-        }
+        List<String> steps = parseSteps(params);
         String completes = null;
         Object c = params.get(COMPLETES_TRIP_PARAM);
         if (c instanceof String text && !text.isBlank()) {
@@ -65,6 +51,28 @@ public record DeliveryCycle(List<String> steps, String completesTrip, boolean pr
         }
         return new DeliveryCycle(steps, completes, bool(params, PROOF_REQUIRED_PARAM, true),
                 bool(params, CONFIRM_ON_PROOF_PARAM, false));
+    }
+
+    private static List<String> parseSteps(Map<String, Object> params) {
+        List<String> steps = ALL_STEPS;
+        if (params.get(STEPS_PARAM) instanceof String text && !text.isBlank()) {
+            steps = Arrays.stream(text.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+            if (steps.isEmpty()) {
+                throw new IllegalArgumentException(STEPS_PARAM + " must list at least one step");
+            }
+            int last = -1;
+            for (String s : steps) {
+                int i = ALL_STEPS.indexOf(s);
+                if (i <= last) {
+                    throw new IllegalArgumentException(STEPS_PARAM + " lists steps of " + String.join(", ", ALL_STEPS)
+                            + ", in that order and once each");
+                }
+                last = i;
+            }
+        } else if (params.containsKey(STEPS_PARAM)) {
+            throw new IllegalArgumentException(STEPS_PARAM + " must list at least one step");
+        }
+        return steps;
     }
 
     public String first() {

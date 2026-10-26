@@ -4,6 +4,7 @@ import type { TripMilestone } from "../milestones/milestones-api";
 import type { TripSheet } from "./sheet-api";
 import { nextMilestone } from "./milestone-checklist";
 import {
+  CheckList,
   checkValue,
   groupChecks,
   serviceChecks,
@@ -156,6 +157,21 @@ describe("trip bento", () => {
     expect(onOpen).toHaveBeenCalledWith("arrival");
   });
 
+  it("preserves nested feed values in the source table", () => {
+    const data = sheet([]);
+    data.feed = {
+      feedKey: "sample",
+      externalCode: "SAMPLE-1",
+      source: { checks: { passed: true } },
+      lastAction: null,
+      lastResult: null,
+      lastReconciledAt: null,
+    };
+    render(<SheetTables sheet={data} d={{}} lang="en" onMilestone={vi.fn()} />);
+    fireEvent.click(screen.getByRole("tab", { name: "sheet.tabs.feed" }));
+    expect(screen.getByText('{"passed":true}')).toBeInTheDocument();
+  });
+
   it("reads a check as true, false or not reported", () => {
     expect(checkValue(true)).toBe(true);
     expect(checkValue(false)).toBe(false);
@@ -164,6 +180,43 @@ describe("trip bento", () => {
     expect(checkValue(null)).toBeUndefined();
     expect(checkValue(undefined)).toBeUndefined();
     expect(checkValue("ACCREDITED")).toBeUndefined();
+  });
+
+  it("names every validation state for assistive technology", () => {
+    render(
+      <CheckList
+        d={{}}
+        checks={[
+          { key: "yes", label: "One", value: true },
+          { key: "no", label: "Two", value: false },
+          { key: "unknown", label: "Three", value: undefined },
+        ]}
+      />
+    );
+    for (const status of ["passed", "failed", "notReported"]) {
+      expect(
+        screen.getByRole("img", { name: `sheet.checkStatus.${status}` })
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("does not fill missing current driver slots with historical card names", () => {
+    const base = sheet([]);
+    base.card.secondDriver = "Former driver";
+    base.details = {
+      orders: [],
+      drivers: [
+        { name: "Current driver", rut: null, phone: null, validations: [] },
+      ],
+      carrier: null,
+      originType: null,
+      destinationType: null,
+      load: EMPTY_LOAD,
+      leadTime: NO_LEAD,
+    };
+    const [first, second] = sheetDrivers(base.card, base.details);
+    expect(first.name).toBe("Current driver");
+    expect(second.name).toBeNull();
   });
 
   it("takes the service's checks from the milestones before departure, grouped by key prefix", () => {

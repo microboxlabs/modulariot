@@ -10,6 +10,10 @@ import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.stream.Stream;
 
 class DeliveryCycleTest {
 
@@ -37,17 +41,23 @@ class DeliveryCycleTest {
         assertTrue(c.confirmOnProof());
     }
 
-    @Test
-    void refusesUnknownStepsStepsOutOfOrderAndACompletingStepOutsideTheCycle() {
-        assertThrows(IllegalArgumentException.class, () -> DeliveryCycle.of(Map.of("deliverySteps", "invoiced")));
-        assertThrows(IllegalArgumentException.class,
-                () -> DeliveryCycle.of(Map.of("deliverySteps", "settled,delivered")));
-        assertThrows(IllegalArgumentException.class,
-                () -> DeliveryCycle.of(Map.of("deliverySteps", "delivered,delivered")));
-        assertThrows(IllegalArgumentException.class, () -> DeliveryCycle.of(Map.of("deliverySteps", " ")));
-        assertThrows(IllegalArgumentException.class,
-                () -> DeliveryCycle.of(Map.of("deliverySteps", "delivered", "deliveryCompletesTrip", "settled")));
-        assertThrows(IllegalArgumentException.class,
-                () -> DeliveryCycle.of(Map.of("deliveryProofRequired", "yes")));
+    @ParameterizedTest
+    @ValueSource(strings = {",", ", ,", " , , "})
+    void refusesAListWithNoSteps(String steps) {
+        Map<String, Object> params = Map.of("deliverySteps", steps);
+        assertThrows(IllegalArgumentException.class, () -> DeliveryCycle.of(params));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidCycles")
+    void refusesUnknownStepsStepsOutOfOrderAndACompletingStepOutsideTheCycle(Map<String, Object> params) {
+        assertThrows(IllegalArgumentException.class, () -> DeliveryCycle.of(params));
+    }
+
+    private static Stream<Map<String, Object>> invalidCycles() {
+        return Stream.of(Map.of("deliverySteps", "invoiced"), Map.of("deliverySteps", "settled,delivered"),
+                Map.of("deliverySteps", "delivered,delivered"), Map.of("deliverySteps", " "),
+                Map.of("deliverySteps", "delivered", "deliveryCompletesTrip", "settled"),
+                Map.of("deliveryProofRequired", "yes"));
     }
 }

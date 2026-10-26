@@ -559,10 +559,10 @@ public class FeedReconciler {
         if (mandate != null && d.slaMinutes() != null && !d.slaMinutes().equals(mandate.slaMinutes())) {
             planSla(plan, tenantCode, actor, mandate, d.slaMinutes());
         }
-        planCargo(plan, tenantCode, actor,
+        planCargo(plan, context,
                 mandate == null || cargo == null ? List.of()
                         : cargo.listByMandate(tenantCode, UUID.fromString(mandate.id())),
-                d.cargo());
+                d.cargo(), Set.of());
     }
 
     private void planSla(Plan plan, String tenantCode, String actor, Mandate mandate, Integer minutes) {
@@ -574,8 +574,8 @@ public class FeedReconciler {
      * Matches the feed's cargo to the mandate's units by position: a changed unit is updated, a new one is
      * announced and mounted on the trip. Units the feed no longer sends are kept and reported.
      */
-    private void planCargo(Plan plan, String tenantCode, String actor, List<CargoUnit> current,
-            List<FeedServiceRequest.CargoItem> wanted) {
+    private void planCargo(Plan plan, PlanningContext context, List<CargoUnit> current,
+            List<FeedServiceRequest.CargoItem> wanted, Set<String> mounted) {
         if (wanted.isEmpty()) {
             return;
         }
@@ -584,24 +584,7 @@ public class FeedReconciler {
             return;
         }
         for (int i = 0; i < wanted.size(); i++) {
-            FeedServiceRequest.CargoItem item = wanted.get(i);
-            CargoRequest request = new CargoRequest(item.description(), item.qty(), item.qtyUnit(),
-                    item.weightKg(), item.volumeM3(), null);
-            int n = i + 1;
-            if (i < current.size()) {
-                CargoUnit unit = current.get(i);
-                if (!sameCargo(unit, item)) {
-                    plan.step("update cargo " + n, () -> cargo.update(tenantCode, actor, UUID.fromString(unit.id()),
-                            request));
-                }
-            } else {
-                plan.step("announce and mount cargo " + n, () -> {
-                    CargoUnit announced = cargo.announce(tenantCode, actor, UUID.fromString(plan.mandateId),
-                            request);
-                    mounts.mount(tenantCode, actor, UUID.fromString(plan.tripId),
-                            new TripCargoRequest(announced.id(), null, null));
-                });
-            }
+            planCargoUnit(plan, context, i + 1, i < current.size() ? current.get(i) : null, wanted.get(i), mounted);
         }
         if (current.size() > wanted.size()) {
             plan.warnings.add("cargo " + (wanted.size() + 1) + ".." + current.size()
@@ -609,10 +592,38 @@ public class FeedReconciler {
         }
     }
 
+    private void planCargoUnit(Plan plan, PlanningContext context, int position, CargoUnit unit,
+            FeedServiceRequest.CargoItem item, Set<String> mounted) {
+        String tenant = context.tenantCode();
+        String actor = context.actor();
+        CargoRequest request = new CargoRequest(item.description(), item.qty(), item.qtyUnit(),
+                item.weightKg(), item.volumeM3(), null);
+        if (unit == null) {
+            plan.step("announce and mount cargo " + position, () -> {
+                CargoUnit announced = cargo.announce(tenant, actor, UUID.fromString(plan.mandateId), request);
+                mounts.mount(tenant, actor, UUID.fromString(plan.tripId),
+                        new TripCargoRequest(announced.id(), null, null));
+            });
+            return;
+        }
+        if (!sameCargo(unit, item)) {
+            plan.step("update cargo " + position, () -> cargo.update(tenant, actor, UUID.fromString(unit.id()),
+                    request));
+        }
+        if (!mounted.contains(unit.id())) {
+            plan.step("mount cargo " + position, () -> mounts.mount(tenant, actor, UUID.fromString(plan.tripId),
+                    new TripCargoRequest(unit.id(), null, null)));
+        }
+    }
+
     private static boolean sameCargo(CargoUnit unit, FeedServiceRequest.CargoItem item) {
-        return Objects.equals(unit.description(), item.description()) && sameNumber(unit.qty(), item.qty())
-                && Objects.equals(unit.qtyUnit(), item.qtyUnit()) && sameNumber(unit.weightKg(), item.weightKg())
-                && sameNumber(unit.volumeM3(), item.volumeM3());
+        String description = item.description() == null || item.description().isBlank() ? unit.description()
+                : Check.required(item.description(), "description", 500);
+        return Objects.equals(unit.description(), description)
+                && (item.qty() == null || sameNumber(unit.qty(), item.qty()))
+                && Objects.equals(unit.qtyUnit(), Check.orKeep(item.qtyUnit(), unit.qtyUnit(), "qtyUnit", 32))
+                && (item.weightKg() == null || sameNumber(unit.weightKg(), item.weightKg()))
+                && (item.volumeM3() == null || sameNumber(unit.volumeM3(), item.volumeM3()));
     }
 
     private static boolean sameNumber(java.math.BigDecimal a, java.math.BigDecimal b) {
@@ -644,9 +655,13 @@ public class FeedReconciler {
             planSla(plan, tenantCode, actor, mandate, d.slaMinutes());
         }
         planAssignments(plan, tenantCode, actor, trip, resources);
-        planCargo(plan, tenantCode, actor,
+        Set<String> mounted = new HashSet<>();
+        if (trip.cargo() != null) {
+            trip.cargo().forEach(unit -> mounted.add(unit.cargoId()));
+        }
+        planCargo(plan, context,
                 cargo == null ? List.of() : cargo.listByMandate(tenantCode, UUID.fromString(mandate.id())),
-                d.cargo());
+                d.cargo(), mounted);
     }
 
     /**
@@ -841,6 +856,12 @@ public class FeedReconciler {
         }
         if (!Objects.equals(before.resourcesOrEmpty(), after.resourcesOrEmpty())) {
             out.add("resources");
+        }
+        if (after.slaMinutes() != null && !Objects.equals(before.slaMinutes(), after.slaMinutes())) {
+            out.add("slaMinutes");
+        }
+        if (!after.cargo().isEmpty() && !Objects.equals(before.cargo(), after.cargo())) {
+            out.add("cargo");
         }
         return out;
     }

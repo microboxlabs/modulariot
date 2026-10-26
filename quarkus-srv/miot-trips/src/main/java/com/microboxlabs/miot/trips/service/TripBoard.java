@@ -79,7 +79,7 @@ public final class TripBoard {
         if (level == 0) {
             return row.deliveries().pending() ? DELIVERY_PENDING : TO_DELIVER;
         }
-        return DeliveryCycle.STEPS.get(level - 1);
+        return DeliveryCycle.ALL_STEPS.get(level - 1);
     }
 
     public static String lane(BoardRow row, OffsetDateTime now) {

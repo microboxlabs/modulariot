@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,7 +13,10 @@ import com.microboxlabs.miot.core.content.PgContentStore;
 import com.microboxlabs.miot.core.db.PgTransactions;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.domain.Delivery;
 import com.microboxlabs.miot.trips.domain.Mandate;
+import com.microboxlabs.miot.trips.domain.MandateRef;
+import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.BoardView;
@@ -51,6 +55,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -156,7 +161,7 @@ class PgDeliveriesTest {
     }
 
     @Test
-    void aPodAndTheCycleStepsCompleteTheTripOnceEveryLoadIsSettled() throws IOException {
+    void aDeliveryKeepsItsLoadsAndReferenceAndRequiresProofAndOrderedSteps() {
         TripView t = newTrip(2);
         UUID tripId = UUID.fromString(t.id());
         String codeA = t.mandates().get(0).externalCode();
@@ -166,16 +171,27 @@ class PgDeliveriesTest {
                 new DeliveryService.NewDelivery("R-1", "Customer A", List.of(codeA), Map.of("dock", "3"), null,
                         null));
         assertEquals(List.of(codeA), a.mandates().stream().map(DeliveryViews.Mandate::code).toList());
-        assertEquals(List.of("delivered", "settled"), a.steps().stream().map(s -> s.step()).toList());
+        assertEquals(List.of("delivered", "settled"), a.steps().stream().map(Delivery.Step::step).toList());
         assertEquals(a.id(), deliveries.create(tenant, ACTOR, tripId,
                 new DeliveryService.NewDelivery("R-1", null, null, null, null, null)).id(), "same reference");
         assertEquals(TripBoard.TO_DELIVER, lane(tripId), "a trip with a delivery is in the delivery view");
         assertEquals(1, board.counts(tenant).get(TripBoard.DELIVERY));
 
-        assertThrows(IllegalStateException.class, () -> confirm(tripId, a.id(), "delivered"), "no proof yet");
-        assertThrows(IllegalStateException.class, () -> confirm(tripId, a.id(), "settled"), "not delivered");
-        assertThrows(IllegalArgumentException.class, () -> confirm(tripId, a.id(), "accepted"), "not in cycle");
+        String deliveryId = a.id();
+        assertThrows(IllegalStateException.class, () -> confirm(tripId, deliveryId, "delivered"), "no proof yet");
+        assertThrows(IllegalStateException.class, () -> confirm(tripId, deliveryId, "settled"), "not delivered");
+        assertThrows(IllegalArgumentException.class, () -> confirm(tripId, deliveryId, "accepted"), "not in cycle");
+    }
 
+    @Test
+    void aPodAndTheCycleStepsCompleteTheTripOnceEveryLoadIsSettled() throws IOException {
+        TripView t = newTrip(2);
+        UUID tripId = UUID.fromString(t.id());
+        String codeA = t.mandates().get(0).externalCode();
+
+        DeliveryViews.Delivery a = deliveries.create(tenant, ACTOR, tripId,
+                new DeliveryService.NewDelivery("R-1", "Customer A", List.of(codeA), Map.of("dock", "3"), null,
+                        null));
         DeliveryViews.Delivery withPod = deliveries.upload(tenant, ACTOR, tripId, UUID.fromString(a.id()),
                 "signature", "manifest.pdf", "application/pdf", new ByteArrayInputStream(PDF), Map.of(), "app");
         assertEquals("pending", withPod.steps().get(0).status(), "a POD asks for the delivery");
@@ -187,19 +203,22 @@ class PgDeliveriesTest {
         }
         assertEquals("trips:delivery_proof:" + proofId, contents.find(tenant,
                 UUID.fromString(withPod.proofs().get(0).contentId())).orElseThrow().owner());
+        UUID aId = UUID.fromString(a.id());
+        ByteArrayInputStream invalidType = new ByteArrayInputStream(PDF);
         assertThrows(IllegalArgumentException.class, () -> deliveries.upload(tenant, ACTOR, tripId,
-                UUID.fromString(a.id()), "photo", "x.html", "text/html", new ByteArrayInputStream(PDF), null, null));
+                aId, "photo", "x.html", "text/html", invalidType, null, null));
 
         confirm(tripId, a.id(), "delivered");
         DeliveryViews.Delivery b = deliveries.create(tenant, ACTOR, tripId,
                 new DeliveryService.NewDelivery(null, "Customer B", null, null, null, null));
         assertEquals(List.of(t.mandates().get(1).externalCode()),
                 b.mandates().stream().map(DeliveryViews.Mandate::code).toList(), "the loads left");
-        assertThrows(IllegalStateException.class, () -> deliveries.create(tenant, ACTOR, tripId,
-                new DeliveryService.NewDelivery(null, null, null, null, null, null)));
+        assertThrows(IllegalStateException.class, () -> deliveries.create(tenant, ACTOR, tripId, null));
+        UUID bId = UUID.fromString(b.id());
+        DeliveryService.NewProof invalidProof = new DeliveryService.NewProof("photo", null, "file:///etc/passwd",
+                null, null, null);
         assertThrows(IllegalArgumentException.class, () -> deliveries.addProof(tenant, ACTOR, tripId,
-                UUID.fromString(b.id()), new DeliveryService.NewProof("photo", null, "file:///etc/passwd", null,
-                        null, null)));
+                bId, invalidProof));
         deliveries.addProof(tenant, ACTOR, tripId, UUID.fromString(b.id()),
                 new DeliveryService.NewProof("photo", null, "https://example.com/pod/b.jpg", null, null, null));
         confirm(tripId, b.id(), "delivered");
@@ -246,4 +265,112 @@ class PgDeliveriesTest {
         assertEquals("pending", again.steps().get(0).status());
         assertEquals("whatsapp", again.steps().get(0).source());
     }
+    @Test
+    void removingTheLastOutstandingLoadReevaluatesCompletion() {
+        TripView t = newTrip(2);
+        UUID tripId = UUID.fromString(t.id());
+        DeliveryViews.Delivery d = deliveries.create(tenant, ACTOR, tripId,
+                new DeliveryService.NewDelivery(null, null, List.of(t.mandates().get(0).mandateId()),
+                        null, null, null));
+        deliveries.addProof(tenant, ACTOR, tripId, UUID.fromString(d.id()),
+                new DeliveryService.NewProof("photo", null, "https://example.com/pod.jpg", null, null, null));
+        confirm(tripId, d.id(), "delivered");
+        confirm(tripId, d.id(), "settled");
+        milestones.confirm(tenant, ACTOR, tripId, "closure", null, "ui", null);
+        assertEquals(Trip.IN_PROGRESS, trips.get(tenant, tripId).status());
+
+        trips.unlinkMandate(tenant, ACTOR, tripId, UUID.fromString(t.mandates().get(1).mandateId()));
+
+        assertEquals(Trip.DONE, trips.get(tenant, tripId).status());
+    }
+
+    @Test
+    void failedCompletionDoesNotEvaluateStageEventsFromItsRolledBackAction() {
+        monitors.saveDraft(tenant, ACTOR, "broken-pod", new MonitorRequest("Incomplete plan", null, List.of(),
+                Map.of("deliverySteps", "delivered", "deliveryCompletesTrip", "delivered",
+                        "deliveryProofRequired", false),
+                List.of(new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
+                                List.of(new TripMonitor.Action("start", "preparation")), 10, true),
+                        new MonitorRequest.Rule("ghost-closure", null, "stage", null, "event.kind == 'closed'",
+                                List.of(new TripMonitor.Action("alert", "ghost")), 10, true))));
+        monitors.publish(tenant, ACTOR, "broken-pod");
+        TripView t = trips.create(tenant, ACTOR, new TripRequest(null, null, null, List.of(),
+                List.of(new StageRequest("preparation", null, null, null, null, null)), "broken-pod"));
+        UUID tripId = UUID.fromString(t.id());
+        DeliveryViews.Delivery d = deliveries.create(tenant, ACTOR, tripId, null);
+        confirm(tripId, d.id(), "delivered");
+
+        milestones.confirm(tenant, ACTOR, tripId, "closure", null, "ui", null);
+
+        assertEquals(Trip.IN_PROGRESS, trips.get(tenant, tripId).status());
+        assertEquals(Stage.RUNNING, stages.listByTrip(tenant, tripId).get(0).status());
+        var transitions = engine.transitions(tenant, tripId, 50);
+        assertTrue(transitions.stream().anyMatch(x -> "delivery".equals(x.ruleKey())
+                && x.error() != null && x.error().contains("no closing stage")));
+        assertFalse(transitions.stream().anyMatch(x -> x.matched().contains("ghost-closure")));
+    }
+
+    @Test
+    void oneSnapshotReadsTheDeliveryDataOnceForEveryStepFlag() {
+        TripView t = newTrip(1);
+        UUID tripId = UUID.fromString(t.id());
+        DeliveryViews.Delivery d = deliveries.create(tenant, ACTOR, tripId, null);
+        deliveries.addProof(tenant, ACTOR, tripId, UUID.fromString(d.id()),
+                new DeliveryService.NewProof("photo", null, "https://example.com/pod.jpg", null, null, null));
+        confirm(tripId, d.id(), "delivered");
+        AtomicInteger reads = new AtomicInteger();
+        PgDeliveryStore countedDeliveries = new PgDeliveryStore(() -> pool) {
+            @Override
+            public List<Delivery> list(String tenantCode, UUID id) {
+                reads.incrementAndGet();
+                return super.list(tenantCode, id);
+            }
+
+            @Override
+            public List<Delivery.Step> steps(String tenantCode, UUID id) {
+                reads.incrementAndGet();
+                return super.steps(tenantCode, id);
+            }
+        };
+        PgTripStore countedTrips = new PgTripStore(() -> pool) {
+            @Override
+            public List<MandateRef> mandatesOf(String tenantCode, UUID id) {
+                reads.incrementAndGet();
+                return super.mandatesOf(tenantCode, id);
+            }
+        };
+        DeliveryService counted = new DeliveryService(countedDeliveries, countedTrips, runs, monitorStore,
+                contents, audit, tx);
+        assertEquals(Map.of("delivered", true, "accepted", false, "settled", false),
+                counted.snapshot(tenant, tripId));
+        assertEquals(3, reads.get());
+    }
+
+    @Test
+    void repeatedConfirmationValidatesTheAccumulatedEvidence() {
+        TripView t = newTrip(1);
+        UUID tripId = UUID.fromString(t.id());
+        DeliveryViews.Delivery d = deliveries.create(tenant, ACTOR, tripId, null);
+        UUID id = UUID.fromString(d.id());
+        deliveries.addProof(tenant, ACTOR, tripId, id,
+                new DeliveryService.NewProof("photo", null, "https://example.com/pod.jpg", null, null, null));
+        Map<String, Object> evidence = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < 50; i++) {
+            evidence.put("key" + i, "a");
+        }
+        deliveries.confirm(tenant, ACTOR, tripId, id, "delivered", null, "ui", null, evidence);
+        Map<String, Object> extra = Map.of("oneMore", "a");
+        assertThrows(IllegalArgumentException.class,
+                () -> deliveries.confirm(tenant, ACTOR, tripId, id, "delivered", null, "ui", null, extra));
+        deliveries.confirm(tenant, ACTOR, tripId, id, "delivered", null, "ui", null,
+                Map.of("key0", "a".repeat(9000)));
+        Map<String, Object> tooLarge = Map.of("key1", "b".repeat(9000));
+        assertThrows(IllegalArgumentException.class,
+                () -> deliveries.confirm(tenant, ACTOR, tripId, id, "delivered", null, "ui", null, tooLarge));
+        Delivery.Step stored = new PgDeliveryStore(() -> pool).step(tenant, id, "delivered").orElseThrow();
+        assertEquals(50, stored.evidence().size());
+        assertEquals("a", stored.evidence().get("key1"));
+        assertTrue(stored.isConfirmed());
+    }
+
 }

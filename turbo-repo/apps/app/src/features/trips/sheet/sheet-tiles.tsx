@@ -2,7 +2,6 @@
 
 import {
   FaCalendarAlt,
-  FaCheck,
   FaClipboardList,
   FaCog,
   FaIdCard,
@@ -13,7 +12,6 @@ import {
 } from "react-icons/fa";
 import { FaShield } from "react-icons/fa6";
 import {
-  HiExclamation,
   HiExclamationCircle,
   HiOutlineHome,
   HiOutlineRefresh,
@@ -26,12 +24,8 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { BoardCard } from "../board/board-api";
 import { shortTime, statusLabel } from "../board/trip-card";
-import type {
-  DriverValidation,
-  SheetDriver,
-  TripDetails,
-  TripSheet,
-} from "./sheet-api";
+import { checkValue, CheckList, type Check } from "./checks";
+import type { SheetDriver, TripDetails, TripSheet } from "./sheet-api";
 
 /** A bento cell: white, bordered, no shadow. */
 export function Tile({
@@ -250,42 +244,24 @@ export function Progress({
   );
 }
 
+/** A driver's fleet attributes as checks: true, false or not reported. */
+export function driverChecks(driver: SheetDriver, lang: string): Check[] {
+  return driver.validations.map((v) => ({
+    key: `${v.type}:${v.key}`,
+    label: v.key,
+    value: checkValue(v.value),
+    title: [v.value, v.source, shortTime(v.validUntil, lang)]
+      .filter(Boolean)
+      .join(" · "),
+  }));
+}
+
 const NO_DRIVER: SheetDriver = {
   name: null,
   rut: null,
   phone: null,
   validations: [],
 };
-
-const PASSED = new Set(["PASSED", "OK", "VALID", "ACCREDITED", "APPROVED"]);
-
-/** A check that passed shows a gray tick; any other value, a yellow mark. */
-export function validationPassed(v: DriverValidation) {
-  return PASSED.has((v.value ?? "").toUpperCase());
-}
-
-function ValidationRow({
-  v,
-  lang,
-}: Readonly<{ v: DriverValidation; lang: string }>) {
-  const passed = validationPassed(v);
-  const until = shortTime(v.validUntil, lang);
-  const title = [v.value, v.source, until].filter(Boolean).join(" · ");
-  return (
-    <li className="flex items-center gap-2" title={title}>
-      <span
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white ${passed ? "bg-gray-400" : "bg-yellow-400"}`}
-      >
-        {passed ? (
-          <FaCheck className="h-3 w-3" />
-        ) : (
-          <HiExclamation className="h-3.5 w-3.5" />
-        )}
-      </span>
-      <span className="text-sm text-gray-800 dark:text-gray-200">{v.key}</span>
-    </li>
-  );
-}
 
 /** One driver; a missing value shows as "-" so both slots keep the same height. */
 function DriverData({
@@ -327,11 +303,7 @@ function DriverData({
           <h3 className="mt-3 mb-2 text-sm font-normal text-gray-500 dark:text-gray-400">
             {tr("sheet.validations", d)}
           </h3>
-          <ul className="flex flex-col gap-1.5">
-            {driver.validations.map((v) => (
-              <ValidationRow key={`${v.type}:${v.key}`} v={v} lang={lang} />
-            ))}
-          </ul>
+          <CheckList checks={driverChecks(driver, lang)} />
         </>
       )}
     </div>

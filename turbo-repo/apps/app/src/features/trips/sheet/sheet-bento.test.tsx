@@ -2,7 +2,14 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TripMilestone } from "../milestones/milestones-api";
 import type { TripSheet } from "./sheet-api";
-import { MilestoneChecklist, nextMilestone } from "./milestone-checklist";
+import { nextMilestone } from "./milestone-checklist";
+import {
+  checkValue,
+  groupChecks,
+  serviceChecks,
+  ServiceValidations,
+} from "./checks";
+import { SheetTables } from "./sheet-tables";
 import { elapsed } from "./sheet-head";
 import {
   alertText,
@@ -124,18 +131,53 @@ describe("trip bento", () => {
     expect(alertText("custom", {})).toBe("custom");
   });
 
-  it("opens a milestone from the checklist", () => {
+  it("opens a milestone from the milestones tab", () => {
     const onOpen = vi.fn();
     render(
-      <MilestoneChecklist
+      <SheetTables
         sheet={sheet(milestones({ departure: "confirmed" }))}
         d={{}}
         lang="en"
-        onOpen={onOpen}
+        onMilestone={onOpen}
       />
     );
     fireEvent.click(screen.getByText("milestone.arrival"));
     expect(onOpen).toHaveBeenCalledWith("arrival");
+  });
+
+  it("reads a check as true, false or not reported", () => {
+    expect(checkValue(true)).toBe(true);
+    expect(checkValue(false)).toBe(false);
+    expect(checkValue("TRUE")).toBe(true);
+    expect(checkValue("false")).toBe(false);
+    expect(checkValue(null)).toBeUndefined();
+    expect(checkValue(undefined)).toBeUndefined();
+    expect(checkValue("ACCREDITED")).toBeUndefined();
+  });
+
+  it("takes the service's checks from the milestones before departure, grouped by key prefix", () => {
+    const ms = milestones({});
+    ms[0] = { ...ms[0], evidence: { "equipment.gps": true, operator: "x" } };
+    ms[1] = {
+      ...ms[1],
+      evidence: { "cargo.consolidation": false, "cargo.documents": null },
+    };
+    ms[2] = { ...ms[2], evidence: { "cargo.ignored": true } };
+    const checks = serviceChecks(sheet(ms));
+    expect(checks.map((c) => [c.key, c.value])).toEqual([
+      ["equipment.gps", true],
+      ["cargo.consolidation", false],
+      ["cargo.documents", undefined],
+    ]);
+    expect(groupChecks(checks).map(([g, cs]) => [g, cs.length])).toEqual([
+      ["equipment", 1],
+      ["cargo", 2],
+    ]);
+  });
+
+  it("says so when the source sent no validations", () => {
+    render(<ServiceValidations sheet={sheet(milestones({}))} d={{}} />);
+    expect(screen.getByText("sheet.noValidations")).toBeInTheDocument();
   });
 
   it("shows milestones, stages and delivered loads as progress", () => {

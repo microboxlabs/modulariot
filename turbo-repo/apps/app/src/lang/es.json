@@ -5212,6 +5212,7 @@
         "nextConfirm": "Confirmar {milestone}",
         "nextRecord": "Registrar {milestone}",
         "tabs": {
+          "milestones": "Hitos",
           "movements": "Movimientos del monitor",
           "stages": "Etapas",
           "feed": "Fila del feed"
@@ -5227,7 +5228,8 @@
           "start": "Inicio",
           "end": "Fin",
           "field": "Campo",
-          "value": "Valor"
+          "value": "Valor",
+          "milestone": "Hito"
         },
         "serviceType": "Tipo de servicio",
         "carrierRut": "RUT transportista",
@@ -5237,7 +5239,8 @@
           "pickup": "Retiro en cliente",
           "unknown": "Origen sin tipo"
         },
-        "validations": "Validaciones"
+        "validations": "Validaciones",
+        "noValidations": "Sin validaciones recibidas."
       },
       "live": {
         "on": "En vivo",

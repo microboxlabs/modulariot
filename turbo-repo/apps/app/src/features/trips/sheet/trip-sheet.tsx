@@ -13,7 +13,8 @@ import { DeliveriesPanel } from "../deliveries/deliveries-panel";
 import { LiveBadge } from "../board/live-badge";
 import { useBoardEvents } from "../board/use-board-events";
 import { SheetHead } from "./sheet-head";
-import { MilestoneChecklist, MilestoneModal } from "./milestone-checklist";
+import { MilestoneModal } from "./milestone-checklist";
+import { ServiceValidations } from "./checks";
 import { Alerts, Drivers, Progress, Tile, TripInfo } from "./sheet-tiles";
 import { SheetTables } from "./sheet-tables";
 import { TripMap } from "./trip-map";
@@ -60,12 +61,7 @@ function Bento({
           />
         </Tile>
         <Tile className="col-span-1">
-          <MilestoneChecklist
-            sheet={sheet}
-            d={d}
-            lang={lang}
-            onOpen={setOpen}
-          />
+          <ServiceValidations sheet={sheet} d={d} />
         </Tile>
 
         <div className="col-span-1 flex gap-2 lg:col-span-5 lg:h-[560px]">
@@ -97,11 +93,10 @@ function Bento({
         <div className="col-span-1 grid grid-cols-1 gap-2 lg:col-span-5 lg:grid-cols-6">
           <div className="col-span-1 min-h-[300px] overflow-hidden rounded-lg bg-white lg:col-span-4 lg:max-h-[520px] dark:bg-gray-800">
             <SheetTables
-              transitions={sheet.transitions}
-              stages={sheet.stages}
-              feed={sheet.feed}
+              sheet={sheet}
               d={d}
               lang={lang}
+              onMilestone={setOpen}
             />
           </div>
           <Tile className="col-span-1 overflow-hidden lg:col-span-2">

@@ -1,13 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { HiOutlineDocumentText, HiOutlineViewBoards } from "react-icons/hi";
+import {
+  HiOutlineCheckCircle,
+  HiOutlineDocumentText,
+  HiOutlineViewBoards,
+} from "react-icons/hi";
 import { MdOutlineTimeline } from "react-icons/md";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { shortTime } from "../board/trip-card";
+import type { Milestone } from "../monitors/monitors-api";
 import type { SheetFeed, SheetStage, SheetTransition } from "./sheet-api";
+import type { TripSheet } from "./sheet-api";
+import { plannedAt } from "./milestone-checklist";
 
 const STAGE_ACTIONS = new Set(["advance", "start", "close"]);
 
@@ -110,27 +117,68 @@ function Feed({
   );
 }
 
+function Milestones({
+  sheet,
+  d,
+  lang,
+  onOpen,
+}: Readonly<{
+  sheet: TripSheet;
+  d: I18nRecord;
+  lang: string;
+  onOpen: (m: Milestone) => void;
+}>) {
+  const rows = sheet.milestones.map((m) => [
+    <button
+      key="name"
+      type="button"
+      onClick={() => onOpen(m.milestone)}
+      className="font-medium text-primary-700 hover:underline dark:text-primary-400"
+    >
+      {trDynamic(`milestone.${m.milestone}`, d)}
+    </button>,
+    trDynamic(`milestoneStatus.${m.status}`, d),
+    shortTime(plannedAt(sheet, m.milestone), lang) ?? "-",
+    m.proposedAt
+      ? `${shortTime(m.proposedAt, lang)} · ${m.source ?? "-"}`
+      : "-",
+    shortTime(m.confirmedAt, lang) ?? "-",
+  ]);
+  return (
+    <CustomTable
+      header={[
+        tr("sheet.table.milestone", d),
+        tr("sheet.table.status", d),
+        tr("sheet.planned", d),
+        tr("sheet.detected", d),
+        tr("sheet.confirmed", d),
+      ]}
+      content={rows}
+    />
+  );
+}
+
 const TABS = [
+  { key: "milestones", icon: HiOutlineCheckCircle },
   { key: "movements", icon: MdOutlineTimeline },
   { key: "stages", icon: HiOutlineViewBoards },
   { key: "feed", icon: HiOutlineDocumentText },
 ] as const;
 
-/** What the monitor did, the trip's stages and the feed row, one tab each. */
+/** The milestones, what the monitor did, the trip's stages and the feed row, one tab each. */
 export function SheetTables({
-  transitions,
-  stages,
-  feed,
+  sheet,
   d,
   lang,
+  onMilestone,
 }: Readonly<{
-  transitions: SheetTransition[];
-  stages: SheetStage[];
-  feed: SheetFeed | null;
+  sheet: TripSheet;
   d: I18nRecord;
   lang: string;
+  onMilestone: (m: Milestone) => void;
 }>) {
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("movements");
+  const { transitions, stages, feed } = sheet;
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("milestones");
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div role="tablist" className="flex w-full flex-row">
@@ -155,6 +203,9 @@ export function SheetTables({
         ))}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-b-lg border-x border-b border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-800">
+        {tab === "milestones" && (
+          <Milestones sheet={sheet} d={d} lang={lang} onOpen={onMilestone} />
+        )}
         {tab === "movements" && (
           <Movements transitions={transitions} d={d} lang={lang} />
         )}

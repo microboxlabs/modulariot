@@ -256,9 +256,11 @@ export default function TemplatePicker({
           <HiChevronDown className="h-4 w-4" />
         </ComboboxButton>
       </div>
+      {/* A fixed height: a panel sized by the hovered preview moves under the pointer, which hovers another
+          option, and the panel shakes. */}
       <ComboboxOptions
         anchor={{ to: "bottom start", gap: 4, padding: 16 }}
-        className="z-[60] flex w-[44rem] max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white text-sm shadow-lg [--anchor-max-height:min(26rem,60vh)] dark:border-gray-600 dark:bg-gray-800"
+        className="z-[60] flex h-[min(26rem,60vh)] w-[44rem] max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white text-sm shadow-lg [--anchor-max-height:min(26rem,60vh)] dark:border-gray-600 dark:bg-gray-800"
       >
         <div className="w-64 shrink-0 overflow-y-auto border-r border-gray-200 py-1 dark:border-gray-700">
           <ComboboxOption

@@ -5037,7 +5037,8 @@
         "planning": "Planificación",
         "dispatch": "Despachos",
         "delivery": "Entregas",
-        "finished": "Finalizados"
+        "finished": "Finalizados",
+        "trip": "Viaje"
       },
       "lanes": {
         "unassigned": "Sin recursos",
@@ -5093,6 +5094,63 @@
         "in_progress": "En curso",
         "completed": "Realizado",
         "cancelled": "Anulado"
+      },
+      "sheet": {
+        "service": "Servicio",
+        "resources": "Recursos",
+        "truck": "Camión",
+        "trailer": "Rampla",
+        "drivers": "Conductores",
+        "carrier": "Transportista",
+        "milestones": "Hitos",
+        "planned": "Plan",
+        "detected": "Detectado",
+        "confirmed": "Confirmado",
+        "confirm": "Confirmar",
+        "reject": "No corresponde",
+        "record": "Registrar",
+        "recordAt": "Hora del hito",
+        "plan": "Etapas",
+        "plannedEnd": "fin planificado",
+        "history": "Historia",
+        "noHistory": "El monitor aún no registra eventos.",
+        "feed": "Fila del feed",
+        "noFeed": "Viaje creado sin feed.",
+        "feedKey": "Feed",
+        "lastAction": "Última acción",
+        "lastReconciled": "Último proceso",
+        "cancelReason": "Motivo de anulación",
+        "channels": {
+          "feed": "feed",
+          "reply": "respuesta",
+          "ui": "pantalla",
+          "api": "API"
+        },
+        "stages": {
+          "preparation": "Preparación",
+          "loading": "Carga",
+          "transit": "Tránsito",
+          "stop": "Parada",
+          "unloading": "Descarga",
+          "closing": "Cierre"
+        },
+        "stageStatus": {
+          "pending": "Pendiente",
+          "in_progress": "En curso",
+          "completed": "Cerrada"
+        },
+        "actions": {
+          "advance": "Avanzar a",
+          "start": "Iniciar",
+          "close": "Cerrar",
+          "completeTrip": "Completar viaje",
+          "closeMandates": "Cerrar mandatos",
+          "cancelTrip": "Anular viaje",
+          "requestConfirmation": "Pedir confirmación",
+          "alert": "Alerta",
+          "invoke": "Ejecutar proceso",
+          "other": "Acción"
+        }
       }
     }
   },

@@ -5037,7 +5037,8 @@
         "planning": "Planning",
         "dispatch": "Shipping",
         "delivery": "Deliveries",
-        "finished": "Finished"
+        "finished": "Finished",
+        "trip": "Trip"
       },
       "lanes": {
         "unassigned": "No resources",
@@ -5093,6 +5094,63 @@
         "in_progress": "In progress",
         "completed": "Completed",
         "cancelled": "Cancelled"
+      },
+      "sheet": {
+        "service": "Service",
+        "resources": "Resources",
+        "truck": "Truck",
+        "trailer": "Trailer",
+        "drivers": "Drivers",
+        "carrier": "Carrier",
+        "milestones": "Milestones",
+        "planned": "Plan",
+        "detected": "Detected",
+        "confirmed": "Confirmed",
+        "confirm": "Confirm",
+        "reject": "Not right",
+        "record": "Record",
+        "recordAt": "Milestone time",
+        "plan": "Stages",
+        "plannedEnd": "planned end",
+        "history": "History",
+        "noHistory": "The monitor has not recorded events yet.",
+        "feed": "Feed row",
+        "noFeed": "Trip created without a feed.",
+        "feedKey": "Feed",
+        "lastAction": "Last action",
+        "lastReconciled": "Last processed",
+        "cancelReason": "Cancel reason",
+        "channels": {
+          "feed": "feed",
+          "reply": "reply",
+          "ui": "screen",
+          "api": "API"
+        },
+        "stages": {
+          "preparation": "Preparation",
+          "loading": "Loading",
+          "transit": "Transit",
+          "stop": "Stop",
+          "unloading": "Unloading",
+          "closing": "Closing"
+        },
+        "stageStatus": {
+          "pending": "Pending",
+          "in_progress": "In progress",
+          "completed": "Closed"
+        },
+        "actions": {
+          "advance": "Advance to",
+          "start": "Start",
+          "close": "Close",
+          "completeTrip": "Complete trip",
+          "closeMandates": "Close mandates",
+          "cancelTrip": "Cancel trip",
+          "requestConfirmation": "Ask for confirmation",
+          "alert": "Alert",
+          "invoke": "Run process",
+          "other": "Action"
+        }
       }
     }
   },

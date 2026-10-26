@@ -94,3 +94,17 @@ export function useTripsBoard(view: BoardViewKey, search: URLSearchParams) {
     { refreshInterval: 30_000, keepPreviousData: true }
   );
 }
+
+/** The board page that shows a lane. */
+export const LANE_VIEW: Record<string, BoardViewKey> = {
+  unassigned: "planning",
+  scheduled: "planning",
+  departure_pending: "planning",
+  in_transit: "dispatch",
+  arrival_pending: "dispatch",
+  unloading: "delivery",
+  closure_pending: "delivery",
+  completed: "finished",
+  regularized: "finished",
+  cancelled: "finished",
+};

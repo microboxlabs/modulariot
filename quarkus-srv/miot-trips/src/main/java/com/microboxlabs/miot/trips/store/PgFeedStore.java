@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 public class PgFeedStore implements FeedStore {
 
     private static final String SELECT = "SELECT ";
+    private static final String FEED_KEY = "feed_key";
     private static final String PROFILE_COLUMNS = """
             tenant_code, feed_key, name, stages, arrival_stage,
             required_resources, active, created_at, created_by, updated_at, updated_by""";
@@ -76,7 +77,7 @@ public class PgFeedStore implements FeedStore {
         Map<String, Integer> out = new HashMap<>();
         query(pool.get(), "SELECT feed_key, count(*)::int AS open FROM miot_trips.feed_service"
                 + " WHERE tenant_code = $1 AND open GROUP BY feed_key", Tuple.of(tenantCode))
-                .forEach(r -> out.put(r.getString("feed_key"), r.getInteger("open")));
+                .forEach(r -> out.put(r.getString(FEED_KEY), r.getInteger("open")));
         return out;
     }
 
@@ -161,14 +162,14 @@ public class PgFeedStore implements FeedStore {
     }
 
     private static FeedProfile profile(Row r) {
-        return new FeedProfile(r.getString("tenant_code"), r.getString("feed_key"), r.getString("name"),
+        return new FeedProfile(r.getString("tenant_code"), r.getString(FEED_KEY), r.getString("name"),
                 Pg.json(r, "stages", STAGES), r.getString("arrival_stage"),
                 new LinkedHashSet<>(List.of(r.getArrayOfStrings("required_resources"))), r.getBoolean("active"),
                 time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
     }
 
     private static FeedService service(Row r) {
-        return new FeedService(r.getString("tenant_code"), r.getString("feed_key"), r.getString("external_code"),
+        return new FeedService(r.getString("tenant_code"), r.getString(FEED_KEY), r.getString("external_code"),
                 text(r, "desired"), r.getString("desired_hash"), text(r, "mandate_id"), text(r, "trip_id"),
                 r.getBoolean("open"), r.getString("last_action"), text(r, "last_result"),
                 time(r, "last_reconciled_at"), text(r, "applied_desired"));

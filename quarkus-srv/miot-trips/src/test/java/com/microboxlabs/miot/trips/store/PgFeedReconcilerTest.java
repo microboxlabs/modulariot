@@ -448,13 +448,14 @@ class PgFeedReconcilerTest {
 
     @Test
     void anUnknownFeedIsNotFoundAndASwitchedOffOneIsAConflict() {
+        FeedServiceRequest request = desired(1, 2, "ABC-123", null, "10000001");
         assertThrows(java.util.NoSuchElementException.class, () -> reconciler.reconcile(tenant, ACTOR, "otro",
-                "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+                "S-1", request, true));
         FeedProfile on = feeds.profile(tenant, FEED).orElseThrow();
         feeds.saveProfile(new FeedProfile(tenant, FEED, on.name(), on.stages(), on.arrivalStage(),
                 on.requiredResources(), false, null, ACTOR, null, ACTOR));
         IllegalStateException off = assertThrows(IllegalStateException.class, () -> reconciler.reconcile(tenant,
-                ACTOR, FEED, "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+                ACTOR, FEED, "S-1", request, true));
         assertEquals("feed " + FEED + " is inactive", off.getMessage());
     }
 

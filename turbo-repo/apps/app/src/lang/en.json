@@ -7091,6 +7091,7 @@
       "delete_error": "Failed to delete file",
       "delete_modal_title": "Delete file",
       "delete_modal_desc": "This will move the file to the trashcan. It can be recovered from there if needed.",
+      "delete_modal_desc_permanent": "The file is removed from the record and cannot be recovered.",
       "move_modal_title": "Move to service",
       "move_modal_desc": "Search and select the destination service",
       "move_search_placeholder": "Search by service ID or name…",

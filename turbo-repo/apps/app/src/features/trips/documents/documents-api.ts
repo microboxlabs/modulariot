@@ -192,6 +192,7 @@ export function createTripsSource(tripId: string, lang: string): MediaSource {
   };
   return {
     ready: true,
+    recoverableDelete: false,
     useFiles() {
       const {
         data,

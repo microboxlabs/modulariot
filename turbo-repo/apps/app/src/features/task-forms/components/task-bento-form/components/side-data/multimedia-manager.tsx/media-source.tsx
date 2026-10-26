@@ -43,6 +43,8 @@ export type MediaHistory = {
 export interface MediaSource {
   /** False while the source has nowhere to read from (a task without a package). */
   ready: boolean;
+  /** Whether a deleted file can be recovered (Alfresco's trash). */
+  recoverableDelete: boolean;
   /** The files, or null until they load. */
   useFiles(): {
     files: AlfrescoFileEntry[] | null;
@@ -103,6 +105,7 @@ export function createAlfrescoSource(
 ): MediaSource {
   return {
     ready: Boolean(packageId),
+    recoverableDelete: true,
     useFiles() {
       const { data, isLoading, mutate } = useOptimisticFileUpload(packageId);
       const entries: AlfrescoFileEntry[] = useMemo(

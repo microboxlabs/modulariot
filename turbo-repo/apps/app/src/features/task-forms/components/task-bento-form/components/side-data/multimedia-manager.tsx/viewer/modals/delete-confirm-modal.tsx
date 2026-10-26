@@ -4,6 +4,7 @@ import { Button, Modal, ModalHeader, ModalBody } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { MODAL_THEME } from "../../modal-theme";
+import { useMediaSource } from "../../media-source";
 
 export function DeleteConfirmModal({
   show,
@@ -18,6 +19,7 @@ export function DeleteConfirmModal({
   fileName: string;
   dictionary: I18nRecord;
 }>) {
+  const recoverable = useMediaSource().recoverableDelete;
   return (
     <Modal
       dismissible
@@ -30,7 +32,9 @@ export function DeleteConfirmModal({
         <div className="flex flex-col">
           <span className="text-base font-semibold">{tr("bento.multimedia.delete_modal_title", dictionary)}</span>
           <span className="text-sm text-gray-500 mt-1 font-normal">
-            {tr("bento.multimedia.delete_modal_desc", dictionary)}
+            {recoverable
+              ? tr("bento.multimedia.delete_modal_desc", dictionary)
+              : tr("bento.multimedia.delete_modal_desc_permanent", dictionary)}
           </span>
         </div>
       </ModalHeader>

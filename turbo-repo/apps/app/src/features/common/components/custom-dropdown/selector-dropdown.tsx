@@ -47,11 +47,14 @@ export default function SelectorDropdown({
     };
   }, []);
 
+  // Categories that load after the first render (a fetched list) must still select the base one.
+  const categoryValues = categories.map((category) => category.value).join("\n");
   useEffect(() => {
     setSelectedCategory(
       categories.find((category) => category.value === baseCategory) || null
     );
-  }, [baseCategory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- categoryValues stands for categories
+  }, [baseCategory, categoryValues]);
 
   return (
     <div ref={dropdownRef} className={fitWidth ? "w-fit" : undefined}>

@@ -7091,6 +7091,7 @@
       "delete_error": "Error al eliminar el archivo",
       "delete_modal_title": "Eliminar archivo",
       "delete_modal_desc": "Esto moverá el archivo a la papelera. Se puede recuperar desde allí si es necesario.",
+      "delete_modal_desc_permanent": "El archivo se elimina del expediente y no se puede recuperar.",
       "move_modal_title": "Mover a servicio",
       "move_modal_desc": "Busca y selecciona el servicio de destino",
       "move_search_placeholder": "Buscar por ID o nombre de servicio…",

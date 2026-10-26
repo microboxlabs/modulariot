@@ -6,20 +6,21 @@ import {
 } from "@/features/symptoms/model/treatment-link";
 
 /**
- * The positions of the trip, or, for one of the evaluator's cases without a
- * trip, the vehicle's positions around the case. Empty when there is neither.
+ * For one of the evaluator's cases, the vehicle's positions around the case:
+ * its trip is a trips-module trip, which the GPS database does not know.
+ * Otherwise the positions of the trip; empty without one.
  */
 export function positionsUrl(
   tripId: string | null | undefined,
   assetId: string | null | undefined,
   symptomId?: string | null
 ): string | null {
+  if (isEngineCaseId(symptomId)) {
+    return `/app/api/map/trip?symptomId=${encodeURIComponent(String(symptomId).trim())}`;
+  }
   const trip = tripIdOf(tripId);
   if (trip && assetId) {
     return `/app/api/map/trip?tripId=${encodeURIComponent(trip)}&assetId=${encodeURIComponent(assetId)}`;
-  }
-  if (!trip && isEngineCaseId(symptomId)) {
-    return `/app/api/map/trip?symptomId=${encodeURIComponent(String(symptomId).trim())}`;
   }
   return null;
 }

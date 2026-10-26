@@ -334,7 +334,7 @@ export function useSymptomsTable({
   symptom_name?: string;
   date_range?: {
     from: string;
-    to: string;
+    to?: string;
   };
 }) {
   const { data, error, isLoading, isValidating, mutate } = useSWR<

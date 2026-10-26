@@ -2,16 +2,17 @@ package com.microboxlabs.miot.symptoms.events;
 
 import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
-import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactChannels;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,8 +25,8 @@ import java.util.OptionalLong;
 import org.jboss.logging.Logger;
 
 /**
- * The participants of a symptom case. {@code driver} is the driver of the case's trip, with the phone the GPS
- * database has for the trip ({@code live_trip.driver_contact_phone}). Any other role is the tenant's active
+ * The participants of a symptom case. {@code driver} is the driver of the case's trip, with the phone the trip
+ * has for them ({@code trip_live.driver_contact_phone}). Any other role is the tenant's active
  * contacts whose role text matches, ignoring case, on WhatsApp (their WhatsApp number, else their phone).
  */
 @ApplicationScoped
@@ -35,17 +36,18 @@ public class SymptomParticipants implements ParticipantResolver {
     public static final String DRIVER = "driver";
     private static final String WHATSAPP = "whatsapp";
     private static final String TRIP = """
-            SELECT driver_name, driver_contact_phone FROM live_trip WHERE trip_id = $1 AND asset_id = $2
+            SELECT driver_name, driver_contact_phone FROM miot_trips.trip_live
+             WHERE tenant_code = $1 AND trip_id::text = $2 AND asset_id = $3
             """;
     private static final Logger LOG = Logger.getLogger(SymptomParticipants.class);
 
-    /** The driver of a trip, from the GPS database. */
+    /** The driver of a trip. */
     public record Driver(String name, String phone) {
     }
 
     @FunctionalInterface
     public interface Drivers {
-        Optional<Driver> find(String tripId, String assetId);
+        Optional<Driver> find(String tenantCode, String tripId, String assetId);
     }
 
     private final Drivers drivers;
@@ -53,9 +55,8 @@ public class SymptomParticipants implements ParticipantResolver {
     private final EngineCaseStore cases;
 
     @Inject
-    SymptomParticipants(GpsDatabase gps, ContactStore contacts, EngineCaseStore cases) {
-        this(gps.configured() ? (trip, asset) -> readDriver(gps, trip, asset) : (trip, asset) -> Optional.empty(),
-                contacts, cases);
+    SymptomParticipants(Instance<Pool> pool, ContactStore contacts, EngineCaseStore cases) {
+        this((tenant, trip, asset) -> readDriver(pool.get(), tenant, trip, asset), contacts, cases);
     }
 
     public SymptomParticipants(Drivers drivers, ContactStore contacts, EngineCaseStore cases) {
@@ -107,8 +108,7 @@ public class SymptomParticipants implements ParticipantResolver {
 
     /**
      * The driver of the trip of the tenant's case. The trip and asset come from the case, never from the event
-     * data: a simulated event carries data an organization member typed, and the GPS database is shared by
-     * every tenant.
+     * data: a simulated event carries data an organization member typed.
      */
     private List<Participant> driver(String tenantCode, String contextKey) {
         Optional<EngineCase> c = engineCase(tenantCode, contextKey);
@@ -118,7 +118,7 @@ public class SymptomParticipants implements ParticipantResolver {
             return List.of();
         }
         try {
-            return drivers.find(tripId, assetId)
+            return drivers.find(tenantCode, tripId, assetId)
                     .filter(d -> e164(d.phone()) != null)
                     .map(d -> List.of(new Participant(e164(d.phone()), WHATSAPP, d.name(), null, DRIVER)))
                     .orElse(List.of());
@@ -137,8 +137,8 @@ public class SymptomParticipants implements ParticipantResolver {
         }
     }
 
-    private static Optional<Driver> readDriver(GpsDatabase gps, String tripId, String assetId) {
-        var rows = gps.readPool().preparedQuery(TRIP).execute(Tuple.of(tripId, assetId))
+    private static Optional<Driver> readDriver(Pool pool, String tenantCode, String tripId, String assetId) {
+        var rows = pool.preparedQuery(TRIP).execute(Tuple.of(tenantCode, tripId, assetId))
                 .await().atMost(Duration.ofSeconds(10)).iterator();
         if (!rows.hasNext()) {
             return Optional.empty();

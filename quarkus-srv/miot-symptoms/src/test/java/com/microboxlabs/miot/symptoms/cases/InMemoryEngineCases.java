@@ -34,6 +34,21 @@ public class InMemoryEngineCases implements EngineCaseStore {
     }
 
     @Override
+    public List<EngineCase> list(String tenantCode, CaseFilter f) {
+        return cases.stream()
+                .filter(c -> f.openOnly() ? c.closedAt() == null
+                        : (f.from() == null || !c.openedAt().isBefore(f.from()))
+                                && (f.to() == null || c.openedAt().isBefore(f.to())))
+                .filter(c -> f.tripId() == null || f.tripId().equals(c.tripId()))
+                .filter(c -> f.assetId() == null
+                        || c.assetId().toLowerCase().contains(f.assetId().toLowerCase()))
+                .filter(c -> f.symptomName() == null || f.symptomName().equalsIgnoreCase(c.name()))
+                .filter(c -> f.level() == null || f.level() == c.level())
+                .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
+                .limit(PAGE).toList();
+    }
+
+    @Override
     public List<OpenCount> openCounts(String tenantCode) {
         if (down) {
             throw new IllegalStateException("database down");

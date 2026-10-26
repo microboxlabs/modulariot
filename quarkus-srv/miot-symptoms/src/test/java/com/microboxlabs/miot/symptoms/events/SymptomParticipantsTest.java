@@ -25,8 +25,8 @@ class SymptomParticipantsTest {
     private final InMemoryContactStore contacts = new InMemoryContactStore();
     private final InMemoryEngineCases cases = new InMemoryEngineCases();
     private final List<String> lookups = new ArrayList<>();
-    private final SymptomParticipants participants = new SymptomParticipants((trip, asset) -> {
-        lookups.add(trip + "/" + asset);
+    private final SymptomParticipants participants = new SymptomParticipants((tenant, trip, asset) -> {
+        lookups.add(tenant + "/" + trip + "/" + asset);
         return "T-1".equals(trip) ? Optional.of(new SymptomParticipants.Driver("Ana", "+56 9 0000 0001"))
                 : Optional.empty();
     }, contacts, cases);
@@ -46,7 +46,7 @@ class SymptomParticipantsTest {
                 Map.of("tripId", "T-9", "assetId", "A-9"));
 
         assertEquals(List.of(new Participant("+56900000001", "whatsapp", "Ana", null, "driver")), found);
-        assertEquals(List.of("T-1/A-1"), lookups, "the case's trip, not the one in the data");
+        assertEquals(List.of("tenant-1/T-1/A-1"), lookups, "the case's trip, not the one in the data");
     }
 
     @Test

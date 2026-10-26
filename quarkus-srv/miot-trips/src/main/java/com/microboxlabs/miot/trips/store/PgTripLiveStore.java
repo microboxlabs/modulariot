@@ -84,7 +84,7 @@ public class PgTripLiveStore implements TripLiveStore {
                     carrier_id, carrier_name, carrier_contact_phone, rampla_plate,
                     start_time, end_time, estimated_arrival_time, type_load,
                     origin_geofence_id, destination_geofence_id, stop_geofence_ids)
-                VALUES ($1, $2, $3::jsonb, $4, 'v', $5, $6, $7, $8, $9, $10, $11::text IS NOT NULL, $11, $12, $13,
+                VALUES ($1, $2, $3::text::jsonb, $4, 'v', $5, $6, $7, $8, $9, $10, $11::text IS NOT NULL, $11, $12, $13,
                     $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
                 ON CONFLICT (trip_id) DO UPDATE SET
                     mandate_codes = EXCLUDED.mandate_codes,
@@ -124,12 +124,14 @@ public class PgTripLiveStore implements TripLiveStore {
                         .addInteger(p.destinationGeofenceId())
                         .addArrayOfInteger(p.stopGeofenceIds() == null ? null
                                 : p.stopGeofenceIds().toArray(Integer[]::new)));
+        TripLiveChannel.changed(pool.get(), p.tenantCode(), p.tripId());
     }
 
     @Override
     public void delete(String tenantCode, UUID tripId) {
         query(pool.get(), "DELETE FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id = $2",
                 Tuple.of(tenantCode, tripId));
+        TripLiveChannel.changed(pool.get(), tenantCode, tripId.toString());
     }
 
     @Override
@@ -150,6 +152,7 @@ public class PgTripLiveStore implements TripLiveStore {
                 SET current_geofence_id = $3, origin_visited = $4, destination_visited = $5, updated_at = now()
                 WHERE tenant_code = $1 AND trip_id = $2""",
                 Tuple.of(tenantCode, tripId, currentGeofenceId, originVisited, destinationVisited));
+        TripLiveChannel.changed(pool.get(), tenantCode, tripId.toString());
     }
 
     private static TripLiveRow row(Row r) {

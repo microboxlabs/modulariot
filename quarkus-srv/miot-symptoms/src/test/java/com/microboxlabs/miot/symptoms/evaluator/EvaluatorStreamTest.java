@@ -256,10 +256,26 @@ class EvaluatorStreamTest {
     private static String moving(String at, double speed, String client) {
         return """
                 {"schema":"miot.gps.signal@1","asset_id":"DEMO01","at":"%s","clients":["%s"],
-                 "trip":{"id":"T-9","active":true,"double_driver":false,"driver":{"id":"D-7","registered":true}},
+                 "trips":{"%s":{"id":"T-9","active":true,"double_driver":false,
+                                "driver":{"id":"D-7","registered":true}}},
                  "local_hour":9,"derived":{"moving":true},
                  "frame":{"asset_id":"DEMO01","gps":{"speed":%s,"latitude":-33.4,"longitude":-70.6},"sensors":{}}}
-                """.formatted(at, client, speed);
+                """.formatted(at, client, client, speed);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void eachOrganizationReadsOnlyItsOwnTrip() {
+        Map<String, Object> signal = Map.of("asset_id", "DEMO01", "clients", List.of(DEMO, OTHER),
+                "trips", Map.of(DEMO, Map.of("id", "T-1", "active", true)));
+
+        Map<String, Object> demo = EvaluatorStream.forTenant(signal, DEMO);
+        Map<String, Object> other = EvaluatorStream.forTenant(signal, OTHER);
+
+        assertEquals("T-1", ((Map<String, Object>) demo.get("trip")).get("id"));
+        assertEquals(Map.of("active", false, "double_driver", false), other.get("trip"));
+        assertFalse(demo.containsKey("trips"));
+        assertFalse(other.containsKey("trips"));
     }
 
     private static org.eclipse.microprofile.reactive.messaging.Message<byte[]> message(String body,

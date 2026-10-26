@@ -13,9 +13,10 @@ import { useBoardEvents } from "../board/use-board-events";
 import { SheetHead } from "./sheet-head";
 import { MilestoneModal } from "./milestone-checklist";
 import { ServiceValidations } from "./checks";
-import { Alerts, Drivers, Progress, Tile, TripInfo } from "./sheet-tiles";
+import { Drivers, Progress, Tile, TripInfo } from "./sheet-tiles";
 import { SheetTables } from "./sheet-tables";
 import { TripMediaSection } from "./trip-media-section";
+import { TripSymptoms } from "./trip-symptoms";
 
 function Bento({
   sheet,
@@ -79,7 +80,12 @@ function Bento({
             />
           </div>
           <Tile className="col-span-1 overflow-hidden lg:col-span-2">
-            <Alerts card={sheet.card} d={d} />
+            <TripSymptoms
+              card={sheet.card}
+              d={d}
+              general={general}
+              lang={lang}
+            />
           </Tile>
         </div>
       </div>

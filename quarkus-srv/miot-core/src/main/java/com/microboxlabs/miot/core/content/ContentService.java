@@ -6,12 +6,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.io.BufferedInputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -97,6 +97,7 @@ public class ContentService {
      * Stores {@code in} without an owner. Refuses a type outside the list, bytes that do not match it, and content
      * larger than the limit.
      */
+    @SuppressWarnings("java:S1075") // Logical driver keys use URI separators on every operating system.
     public Content write(String tenantCode, String actor, String name, String mimetype, InputStream in) {
         String type = mimetype == null ? "" : mimetype.trim().toLowerCase(Locale.ROOT);
         if (!types.contains(type)) {
@@ -114,19 +115,23 @@ public class ContentService {
                 throw new IllegalArgumentException("the file is not a " + type);
             }
             String url = driver.write(path, measured, type);
-            try {
-                Content content = store.insert(new Content(id.toString(), tenantCode, url, name(name), type,
-                        measured.count, measured.sha256(), null, null, actor));
-                PgTx.afterRollback(() -> deleteAfterRollback(driver, url));
-                return content;
-            } catch (RuntimeException e) {
-                driver.delete(url);
-                throw e;
-            }
+            return insert(new Content(id.toString(), tenantCode, url, name(name), type,
+                    measured.count, measured.sha256(), null, null, actor), driver);
         } catch (TooLarge e) {
             throw new IllegalArgumentException("the file is larger than " + maxBytes / (1024 * 1024) + " MB");
         } catch (IOException e) {
             throw new UncheckedIOException("could not store the content", e);
+        }
+    }
+
+    private Content insert(Content content, ContentDriver driver) throws IOException {
+        try {
+            Content saved = store.insert(content);
+            PgTx.afterRollback(() -> deleteAfterRollback(driver, content.contentUrl()));
+            return saved;
+        } catch (RuntimeException e) {
+            driver.delete(content.contentUrl());
+            throw e;
         }
     }
 
@@ -259,35 +264,35 @@ public class ContentService {
     }
 
     /** Counts and digests what is read; more than {@code max} bytes fails the read. */
-    private static final class Measured extends FilterInputStream {
+    private static final class Measured extends DigestInputStream {
         private final long max;
-        private final MessageDigest digest;
         private long count;
         private long markCount;
 
         private Measured(InputStream in, long max) {
-            super(in);
+            super(in, newDigest());
             this.max = max;
+        }
+
+        private static MessageDigest newDigest() {
             try {
-                this.digest = MessageDigest.getInstance("SHA-256");
+                return MessageDigest.getInstance("SHA-256");
             } catch (NoSuchAlgorithmException e) {
                 throw new IllegalStateException(e);
             }
         }
 
-        private boolean marked;
-
         @Override
         public synchronized void mark(int limit) {
             super.mark(limit);
-            marked = true;
+            on(false);
             markCount = count;
         }
 
         @Override
         public synchronized void reset() throws IOException {
             super.reset();
-            marked = false;
+            on(true);
             count = markCount;
         }
 
@@ -295,7 +300,7 @@ public class ContentService {
         public int read() throws IOException {
             int b = super.read();
             if (b >= 0) {
-                seen(new byte[] {(byte) b}, 0, 1);
+                seen(1);
             }
             return b;
         }
@@ -304,23 +309,20 @@ public class ContentService {
         public int read(byte[] buf, int off, int len) throws IOException {
             int n = super.read(buf, off, len);
             if (n > 0) {
-                seen(buf, off, n);
+                seen(n);
             }
             return n;
         }
 
-        private void seen(byte[] buf, int off, int n) throws TooLarge {
+        private void seen(int n) throws TooLarge {
             count += n;
-            if (!marked) {
-                digest.update(buf, off, n);
-            }
             if (count > max) {
                 throw new TooLarge();
             }
         }
 
         private String sha256() {
-            return HexFormat.of().formatHex(digest.digest());
+            return HexFormat.of().formatHex(getMessageDigest().digest());
         }
     }
 }

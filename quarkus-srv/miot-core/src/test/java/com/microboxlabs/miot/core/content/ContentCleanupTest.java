@@ -21,6 +21,11 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -105,6 +110,40 @@ class ContentCleanupTest {
         });
         assertTrue(files.exists(kept.contentUrl()));
         assertTrue(store.find(tenant, UUID.fromString(kept.id())).isPresent());
+        assertEquals(1, service(store, files, now.plus(Duration.ofHours(25))).deleteUnowned(10));
+    }
+
+    @Test
+    void anOwnerCheckLocksTheContentUntilItsAssignmentCommits() throws Exception {
+        Instant now = Instant.now();
+        String tenant = "content-test-" + UUID.randomUUID();
+        FileContentDriver files = new FileContentDriver(root);
+        PgContentStore store = new PgContentStore(() -> pool);
+        ContentService contents = service(store, files, now);
+        Content content = upload(contents, tenant);
+        UUID id = UUID.fromString(content.id());
+        PgTransactions tx = new PgTransactions(() -> pool);
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            Future<Content> other = tx.inTransaction(() -> {
+                assertTrue(store.find(tenant, id).isPresent());
+                CountDownLatch started = new CountDownLatch(1);
+                Future<Content> waiting = executor.submit(() -> {
+                    started.countDown();
+                    return tx.inTransaction(() -> store.find(tenant, id).orElseThrow());
+                });
+                try {
+                    assertTrue(started.await(5, TimeUnit.SECONDS));
+                    assertThrows(TimeoutException.class, () -> waiting.get(200, TimeUnit.MILLISECONDS));
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                }
+                contents.owner(tenant, id, "test:first-record");
+                return waiting;
+            });
+            assertEquals("test:first-record", other.get(5, TimeUnit.SECONDS).owner());
+        }
+        contents.owner(tenant, id, null);
         assertEquals(1, service(store, files, now.plus(Duration.ofHours(25))).deleteUnowned(10));
     }
 

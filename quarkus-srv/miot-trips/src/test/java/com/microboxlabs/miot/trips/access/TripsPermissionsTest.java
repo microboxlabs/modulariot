@@ -103,6 +103,7 @@ class TripsPermissionsTest {
             Map.entry("OrgTripsBoardResource.view", VIEW),
             Map.entry("OrgFeedsResource.list", VIEW),
             Map.entry("OrgFeedsResource.save", FEED_ADMIN),
+            Map.entry("OrgFeedsResource.create", FEED_ADMIN),
             Map.entry("OrgFeedsResource.batch", FEED_WRITE),
             Map.entry("OrgFeedsResource.reconcile", FEED_WRITE),
             Map.entry("OrgFeedsResource.get", VIEW),

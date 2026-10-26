@@ -48,8 +48,19 @@ public class FeedProfileService {
         return FeedProfileView.of(saved, feeds.openServices(tenantCode).getOrDefault(saved.feedKey(), 0));
     }
 
+    /** Creates a profile without replacing existing rules, even when another creator wins a race. */
+    public FeedProfileView createView(String tenantCode, String actor, String feedKey, FeedProfileRequest body) {
+        FeedProfile saved = save(tenantCode, actor, feedKey, body, true);
+        return FeedProfileView.of(saved, 0);
+    }
+
     /** Creates or replaces the feed's rules. */
     public FeedProfile save(String tenantCode, String actor, String feedKey, FeedProfileRequest body) {
+        return save(tenantCode, actor, feedKey, body, false);
+    }
+
+    private FeedProfile save(String tenantCode, String actor, String feedKey, FeedProfileRequest body,
+            boolean createOnly) {
         String key = Check.required(feedKey, FEED_KEY, 64);
         if (!key.matches("[a-z0-9][a-z0-9-]*")) {
             throw new IllegalArgumentException("feedKey must be lowercase letters, digits and dashes");
@@ -72,9 +83,12 @@ public class FeedProfileService {
         if (required.contains(null) || !RESOURCES.containsAll(required)) {
             throw new IllegalArgumentException("requiredResources must be among " + RESOURCES);
         }
-        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenantCode, key,
+        FeedProfile profile = new FeedProfile(tenantCode, key,
                 Check.required(body.name(), "name", 255), stages, arrival, required,
-                body.active() == null || body.active(), null, actor, null, actor));
+                body.active() == null || body.active(), null, actor, null, actor);
+        FeedProfile saved = createOnly ? feeds.createProfile(profile)
+                .orElseThrow(() -> new IllegalStateException("feed " + key + " already exists"))
+                : feeds.saveProfile(profile);
         audit.log(tenantCode, actor, "feed.profile_saved", "feed", key, null, Map.of(STAGES, types.toString()));
         return saved;
     }

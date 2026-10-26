@@ -20,6 +20,9 @@ public interface FeedStore {
     /** Inserts or replaces the profile (tenant, feedKey). */
     FeedProfile saveProfile(FeedProfile profile);
 
+    /** Inserts only when the tenant/key does not exist; never replaces another profile. */
+    Optional<FeedProfile> createProfile(FeedProfile profile);
+
     /** The service; inside a transaction its row stays locked until the transaction ends. */
     Optional<FeedService> service(String tenantCode, String feedKey, String externalCode);
 

@@ -55,6 +55,8 @@ function FeedModal({
   open,
   feed,
   taken,
+  listReady,
+  listError,
   onClose,
   d,
   md,
@@ -62,6 +64,8 @@ function FeedModal({
   open: boolean;
   feed: Feed | null;
   taken: string[];
+  listReady: boolean;
+  listError?: string;
   onClose: () => void;
   d: I18nRecord;
   md: I18nRecord;
@@ -87,7 +91,11 @@ function FeedModal({
     : "";
   const keyProblem = creating && (!KEY.test(key) || taken.includes(key));
   const invalid =
-    !body.name.trim() || keyProblem || body.stages.length === 0 || !arrival;
+    !body.name.trim() ||
+    keyProblem ||
+    body.stages.length === 0 ||
+    !arrival ||
+    (creating && !listReady);
 
   const change = (patch: Partial<FeedBody>) => setBody({ ...body, ...patch });
   const toggleResource = (r: FeedResource, on: boolean) =>
@@ -101,11 +109,11 @@ function FeedModal({
     setBusy(true);
     setError(null);
     try {
-      await saveFeed(key, {
-        ...body,
-        name: body.name.trim(),
-        arrivalStage: arrival,
-      });
+      await saveFeed(
+        key,
+        { ...body, name: body.name.trim(), arrivalStage: arrival },
+        creating
+      );
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -127,6 +135,7 @@ function FeedModal({
               <TextInput
                 id="feed-name"
                 sizing="sm"
+                disabled={busy}
                 value={body.name}
                 onChange={(e) => {
                   change({ name: e.target.value });
@@ -142,7 +151,7 @@ function FeedModal({
                 sizing="sm"
                 className="font-mono"
                 value={key}
-                disabled={!creating}
+                disabled={!creating || busy}
                 onChange={(e) => {
                   setKey(e.target.value);
                   setKeyEdited(true);
@@ -177,6 +186,7 @@ function FeedModal({
             <Select
               id="feed-arrival"
               sizing="sm"
+              disabled={busy}
               value={arrival}
               onChange={(e) => change({ arrivalStage: e.target.value })}
             >
@@ -203,6 +213,7 @@ function FeedModal({
                 <div key={r} className="flex items-center gap-2">
                   <Checkbox
                     id={`feed-resource-${r}`}
+                    disabled={busy}
                     checked={body.requiredResources.includes(r)}
                     onChange={(e) => toggleResource(r, e.target.checked)}
                   />
@@ -215,6 +226,7 @@ function FeedModal({
           </fieldset>
 
           <ToggleSwitch
+            disabled={busy}
             checked={body.active}
             label={tr("activeLabel", d)}
             onChange={(active) => change({ active })}
@@ -227,6 +239,11 @@ function FeedModal({
 
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          )}
+          {creating && !listReady && (
+            <p className="text-sm text-gray-500">
+              {listError ?? tr("loading", d)}
+            </p>
           )}
         </div>
       </ModalBody>
@@ -370,6 +387,8 @@ export default function FeedsPanel({
         open={creating || editing !== null}
         feed={editing}
         taken={feeds.map((f) => f.feedKey)}
+        listReady={data !== undefined && !isLoading && !error}
+        listError={error?.message}
         onClose={() => {
           setEditing(null);
           onCreatingDone();

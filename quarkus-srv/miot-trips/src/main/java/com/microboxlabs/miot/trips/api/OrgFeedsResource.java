@@ -102,6 +102,18 @@ public class OrgFeedsResource extends OrgResourceSupport {
     }
 
     @POST
+    @Path("/{feedKey}")
+    @Operation(operationId = "createFeed", summary = "Creates a feed; 409 when its key already exists")
+    @PermissionsAllowed(value = TripsAccessCatalog.FEED_ADMIN, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> create(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,
+            FeedProfileRequest body) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> Response.status(Response.Status.CREATED)
+                .entity(profiles.createView(tenant, actor, feedKey, body)).build());
+    }
+
+    @POST
     @Path("/{feedKey}/batches")
     @Operation(operationId = "sendFeedBatch",
             summary = "Queues one async job per service whose desired state changed (202); unchanged ones are skipped")

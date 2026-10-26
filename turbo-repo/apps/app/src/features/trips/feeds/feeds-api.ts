@@ -6,7 +6,11 @@
  */
 
 import useSWR, { mutate } from "swr";
-import { tripsRequest, type StagePlan } from "../monitors/monitors-api";
+import {
+  scopeValuesKey,
+  tripsRequest,
+  type StagePlan,
+} from "../monitors/monitors-api";
 
 export const FEED_ADMIN = "trips:feed.admin";
 
@@ -39,11 +43,15 @@ export function useFeeds() {
 }
 
 /** Creates or replaces the feed's rules. */
-export async function saveFeed(feedKey: string, body: FeedBody) {
+export async function saveFeed(
+  feedKey: string,
+  body: FeedBody,
+  createOnly = false
+) {
   const saved = await tripsRequest<Feed>(
     `${feedsKey}/${encodeURIComponent(feedKey)}`,
-    { method: "PUT", body }
+    { method: createOnly ? "POST" : "PUT", body }
   );
-  await mutate(feedsKey);
+  await Promise.all([mutate(feedsKey), mutate(scopeValuesKey)]);
   return saved;
 }

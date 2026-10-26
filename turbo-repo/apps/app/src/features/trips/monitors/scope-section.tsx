@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "flowbite-react";
 import { HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -42,7 +42,7 @@ function labelOf(options: Option[], value: string) {
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
-/** "Feed: Exacta · Destino: ANF", "Todos los viajes" or "Sin alcance". */
+/** "Feed: Fuente A · Destino: Lugar A", "Todos los viajes" or "Sin alcance". */
 export function scopeSummary(
   scope: MonitorScope | null,
   values: ScopeValues | undefined,
@@ -51,10 +51,13 @@ export function scopeSummary(
   if (!scope) return tr("scope.none", d);
   const options = scopeOptions(values);
   const parts = SCOPE_DIMENSIONS.filter((dim) => scope[dim].length > 0).map(
-    (dim) =>
-      `${tr(`scope.${dim}`, d)}: ${scope[dim]
+    (dim) => {
+      const label = tr(`scope.${dim}`, d);
+      const valueLabels = scope[dim]
         .map((v) => labelOf(options[dim], v))
-        .join(", ")}`
+        .join(", ");
+      return `${label}: ${valueLabels}`;
+    }
   );
   return parts.length === 0 ? tr("scope.allTrips", d) : parts.join(" · ");
 }
@@ -76,6 +79,7 @@ function ValuesPicker({
 }>) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const needle = q.trim().toLowerCase();
   const suggestions = options
     .filter(
@@ -90,6 +94,7 @@ function ValuesPicker({
   const add = (value: string) => {
     onChange([...selected, value]);
     setQ("");
+    input.current?.focus();
   };
 
   return (
@@ -97,7 +102,12 @@ function ValuesPicker({
       <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
         {label}
       </span>
-      <div className="relative">
+      <div
+        className="relative"
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+        }}
+      >
         <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
           {selected.map((v) => (
             <span
@@ -127,6 +137,7 @@ function ValuesPicker({
             )
           ) : (
             <input
+              ref={input}
               value={q}
               aria-label={label}
               placeholder={selected.length === 0 ? tr("scope.any", d) : ""}
@@ -135,7 +146,6 @@ function ValuesPicker({
                 setOpen(true);
               }}
               onFocus={() => setOpen(true)}
-              onBlur={() => setOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && suggestions.length > 0) {
                   e.preventDefault();

@@ -20,6 +20,7 @@ import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -41,7 +42,8 @@ class PgMonitorServiceTest {
     private static Pool pool;
 
     private final Transactions tx = new PgTransactions(() -> pool);
-    private final MonitorService monitors = new MonitorService(new PgMonitorStore(() -> pool), null, null,
+    private final MonitorService monitors = new MonitorService(new PgMonitorStore(() -> pool),
+            new PgFeedStore(() -> pool), new PgLocationStore(() -> pool),
             new AuditService(new PgAuditStore(() -> pool)), tx);
 
     private String tenant;
@@ -162,10 +164,10 @@ class PgMonitorServiceTest {
 
         monitors.saveDraft(tenant, ACTOR, KEY, withScope(d, MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, KEY);
-        MonitorScope toAnf = new MonitorScope(List.of(), List.of(), List.of(), List.of(PLACE_A));
-        monitors.saveDraft(tenant, ACTOR, "to-a", withScope(d, toAnf));
+        MonitorScope toA = new MonitorScope(List.of(), List.of(), List.of(), List.of(PLACE_A));
+        monitors.saveDraft(tenant, ACTOR, "to-a", withScope(d, toA));
         assertEquals(List.of(new MonitorViews.Overlap(KEY, d.name(), MonitorScope.Relation.NARROWER)),
-                check("to-a", toAnf), "the narrower scope takes the trips of both");
+                check("to-a", toA), "the narrower scope takes the trips of both");
         monitors.publish(tenant, ACTOR, "to-a");
 
         MonitorScope direct = new MonitorScope(List.of(), List.of("direct"), List.of(), List.of());
@@ -186,6 +188,33 @@ class PgMonitorServiceTest {
 
     private static final String PLACE_A = "00000000-0000-0000-0000-00000000000a";
     private static final String PLACE_B = "00000000-0000-0000-0000-00000000000b";
+
+    @Test
+    void locationIdsAreCanonicalForMatchingAndDuplicateChecks() {
+        MonitorRequest request = directService("true");
+        MonitorScope canonical = new MonitorScope(List.of(), List.of(), List.of(PLACE_A), List.of(PLACE_B));
+        monitors.saveDraft(tenant, ACTOR, "canonical", withScope(request, canonical));
+        monitors.publish(tenant, ACTOR, "canonical");
+        MonitorScope uppercase = new MonitorScope(List.of(), List.of(), List.of(PLACE_A.toUpperCase(Locale.ROOT)),
+                List.of(PLACE_B.toUpperCase(Locale.ROOT)));
+        MonitorViews.Monitor saved = monitors.saveDraft(tenant, ACTOR, "uppercase", withScope(request, uppercase));
+        assertEquals(canonical, saved.scope());
+        assertTrue(saved.scope().accepts(new MonitorScope.Trip(null, null, PLACE_A, PLACE_B)));
+        assertEquals(MonitorScope.Relation.DUPLICATE, check("uppercase", uppercase).get(0).relation());
+        assertThrows(IllegalArgumentException.class, () -> monitors.publish(tenant, ACTOR, "uppercase"));
+    }
+
+    @Test
+    void scopeValuesIncludeLocationsBeyondTheFirstPage() {
+        pool.preparedQuery("""
+                INSERT INTO miot_trips.location (tenant_code, name, type)
+                SELECT $1, 'Place ' || lpad(n::text, 4, '0'), 'plant' FROM generate_series(1, 1001) n
+                """).execute(io.vertx.mutiny.sqlclient.Tuple.of(tenant)).await().atMost(WAIT);
+        var places = monitors.scopeValues(tenant).locations();
+        assertEquals(1001, places.size());
+        assertEquals("Place 1001", places.get(1000).name());
+        assertEquals(1001, places.stream().map(MonitorViews.ScopeValues.Place::id).distinct().count());
+    }
 
     private static MonitorRequest withScope(MonitorRequest r, MonitorScope scope) {
         return new MonitorRequest(r.name(), r.description(), r.plan(), r.params(), r.rules(), scope);

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { MonitorScope, ScopeOverlap, ScopeValues } from "./monitors-api";
 import ScopeEditor, { scopeSummary } from "./scope-section";
@@ -50,6 +51,30 @@ describe("scopeSummary", () => {
 });
 
 describe("ScopeEditor", () => {
+  it("keeps suggestions reachable by Tab and selects a later option with Enter", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <ScopeEditor
+        monitorKey="m"
+        scope={scope({})}
+        values={values}
+        readOnly={false}
+        onChange={onChange}
+        d={{}}
+      />
+    );
+    const input = screen.getByLabelText("scope.destinations");
+    await user.click(input);
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Plant (PLT)" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Port" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenCalledWith(scope({ destinations: ["loc-2"] }));
+    expect(input).toHaveFocus();
+  });
+
   it("offers to apply an unset scope to every trip", () => {
     const onChange = vi.fn();
     render(

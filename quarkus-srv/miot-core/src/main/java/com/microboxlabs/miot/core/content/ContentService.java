@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.core.content;
 
+import com.microboxlabs.miot.core.db.PgTx;
+import com.microboxlabs.miot.core.db.Transactions;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -8,6 +10,8 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -43,7 +47,9 @@ public class ContentService {
             List.of("image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf");
     private static final Logger LOG = Logger.getLogger(ContentService.class);
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy/MM/dd");
-    private static final int SNIFF = 16;
+    private static final int SNIFF = 256;
+    // HEVC still-image brands: https://mp4ra.org/registered-types/brands
+    private static final Set<String> HEIC_BRANDS = Set.of("heic", "heix", "heim", "heis");
 
     /** What {@link #open} returns; the caller closes {@code stream}. */
     public record Opened(Content content, InputStream stream) {
@@ -56,20 +62,27 @@ public class ContentService {
     private final Set<String> types;
     private final Duration grace;
     private final Clock clock;
+    private final Transactions tx;
 
     @Inject
-    ContentService(ContentStore store, Instance<ContentDriver> drivers,
+    ContentService(ContentStore store, Instance<ContentDriver> drivers, Transactions tx,
             @ConfigProperty(name = "miot.content.store", defaultValue = "fs") String scheme,
             @ConfigProperty(name = "miot.content.max-bytes", defaultValue = "20971520") long maxBytes,
             @ConfigProperty(name = "miot.content.types",
                     defaultValue = "image/jpeg,image/png,image/webp,image/heic,application/pdf") List<String> types,
             @ConfigProperty(name = "miot.content.unowned-grace", defaultValue = "PT24H") Duration grace) {
-        this(store, drivers.stream().toList(), scheme, maxBytes, types, grace, Clock.systemUTC());
+        this(store, drivers.stream().toList(), scheme, maxBytes, types, grace, Clock.systemUTC(), tx);
     }
 
     @SuppressWarnings("java:S107") // The configuration above, plus the clock, for tests.
     public ContentService(ContentStore store, List<ContentDriver> drivers, String scheme, long maxBytes,
             List<String> types, Duration grace, Clock clock) {
+        this(store, drivers, scheme, maxBytes, types, grace, clock, Transactions.none());
+    }
+
+    @SuppressWarnings("java:S107") // The storage configuration and its transaction boundary.
+    public ContentService(ContentStore store, List<ContentDriver> drivers, String scheme, long maxBytes,
+            List<String> types, Duration grace, Clock clock, Transactions tx) {
         this.store = store;
         this.drivers = drivers.stream().collect(Collectors.toMap(ContentDriver::scheme, Function.identity()));
         this.scheme = scheme;
@@ -77,6 +90,7 @@ public class ContentService {
         this.types = types.stream().map(t -> t.trim().toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
         this.grace = grace;
         this.clock = clock;
+        this.tx = tx;
     }
 
     /**
@@ -101,8 +115,10 @@ public class ContentService {
             }
             String url = driver.write(path, measured, type);
             try {
-                return store.insert(new Content(id.toString(), tenantCode, url, name(name), type, measured.count,
-                        measured.sha256(), null, null, actor));
+                Content content = store.insert(new Content(id.toString(), tenantCode, url, name(name), type,
+                        measured.count, measured.sha256(), null, null, actor));
+                PgTx.afterRollback(() -> deleteAfterRollback(driver, url));
+                return content;
             } catch (RuntimeException e) {
                 driver.delete(url);
                 throw e;
@@ -111,6 +127,14 @@ public class ContentService {
             throw new IllegalArgumentException("the file is larger than " + maxBytes / (1024 * 1024) + " MB");
         } catch (IOException e) {
             throw new UncheckedIOException("could not store the content", e);
+        }
+    }
+
+    private static void deleteAfterRollback(ContentDriver driver, String url) {
+        try {
+            driver.delete(url);
+        } catch (IOException e) {
+            throw new UncheckedIOException("could not remove rolled-back content", e);
         }
     }
 
@@ -136,15 +160,22 @@ public class ContentService {
 
     /** Deletes content without an owner older than the grace period, at most {@code limit}; returns how many. */
     public int deleteUnowned(int limit) {
-        List<Content> deleted = store.deleteUnowned(OffsetDateTime.now(clock).minus(grace), limit);
-        for (Content c : deleted) {
-            try {
-                driver(schemeOf(c.contentUrl())).delete(c.contentUrl());
-            } catch (IOException | RuntimeException e) {
-                LOG.warnf("Could not delete content %s: %s", c.id(), e.getMessage());
+        OffsetDateTime before = OffsetDateTime.now(clock).minus(grace);
+        return tx.inTransaction(() -> {
+            int deleted = 0;
+            for (Content c : store.unowned(before, limit)) {
+                try {
+                    driver(schemeOf(c.contentUrl())).delete(c.contentUrl());
+                } catch (IOException | RuntimeException e) {
+                    LOG.warnf("Could not delete content %s: %s", c.id(), e.getMessage());
+                    continue;
+                }
+                if (store.deleteUnowned(c.tenantCode(), UUID.fromString(c.id()), before)) {
+                    deleted++;
+                }
             }
-        }
-        return deleted.size();
+            return deleted;
+        });
     }
 
     private ContentDriver driver(String s) {
@@ -179,10 +210,34 @@ public class ContentService {
             case "application/pdf" -> starts(head, '%', 'P', 'D', 'F');
             case "image/webp" -> starts(head, 'R', 'I', 'F', 'F') && head.length >= 12
                     && Arrays.equals(Arrays.copyOfRange(head, 8, 12), new byte[] {'W', 'E', 'B', 'P'});
-            case "image/heic" -> head.length >= 8
-                    && Arrays.equals(Arrays.copyOfRange(head, 4, 8), new byte[] {'f', 't', 'y', 'p'});
+            case "image/heic" -> heic(head);
             default -> true;
         };
+    }
+
+    private static boolean heic(byte[] head) {
+        if (head.length < 16 || !Arrays.equals(Arrays.copyOfRange(head, 4, 8),
+                new byte[] {'f', 't', 'y', 'p'})) {
+            return false;
+        }
+        long boxSize = Integer.toUnsignedLong(ByteBuffer.wrap(head).getInt());
+        int end = boxSize == 0 ? head.length : (int) Math.min(boxSize, head.length);
+        if (end < 16) {
+            return false;
+        }
+        if (heicBrand(head, 8)) {
+            return true;
+        }
+        for (int offset = 16; offset + 4 <= end; offset += 4) {
+            if (heicBrand(head, offset)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean heicBrand(byte[] head, int offset) {
+        return HEIC_BRANDS.contains(new String(head, offset, 4, StandardCharsets.US_ASCII));
     }
 
     private static boolean starts(byte[] head, int... signature) {

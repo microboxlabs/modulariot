@@ -126,6 +126,10 @@ Modules keep files (photos, signed documents) through `ContentService` in `miot-
 
 A file that no record took within 24 hours (`miot.content.unowned-grace`) is deleted every hour.
 
+The cleanup locks each selected row until its bytes have been deleted, and keeps failed deletions for a later run. Uploads inside a `PgTx` transaction register file removal on transaction or savepoint rollback.
+
+The filesystem root is a trusted service directory. New `fs://.content-...` URLs name direct files under that root; URL components are never used as parent directories. Older hierarchical URLs require `SecureDirectoryStream` support (available on the Linux default provider), and fail closed on providers without it. File reads do not follow symbolic links.
+
 ## API Documentation
 
 When running in dev mode, Swagger UI is available at:

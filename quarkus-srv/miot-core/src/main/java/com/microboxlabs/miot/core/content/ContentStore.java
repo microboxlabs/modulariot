@@ -15,6 +15,9 @@ public interface ContentStore {
     /** Sets or clears ({@code owner} null) the record that uses the content; false when there is no such row. */
     boolean owner(String tenantCode, UUID id, String owner);
 
-    /** Deletes at most {@code limit} rows without an owner created before {@code before}; returns them. */
-    List<Content> deleteUnowned(OffsetDateTime before, int limit);
+    /** Locks at most {@code limit} unowned rows until the caller's transaction ends. */
+    List<Content> unowned(OffsetDateTime before, int limit);
+
+    /** Removes a locked candidate only while it remains unowned and older than {@code before}. */
+    boolean deleteUnowned(String tenantCode, UUID id, OffsetDateTime before);
 }

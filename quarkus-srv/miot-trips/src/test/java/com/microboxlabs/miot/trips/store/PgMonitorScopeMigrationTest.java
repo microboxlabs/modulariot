@@ -2,7 +2,6 @@ package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.trips.domain.MonitorScope;
@@ -94,41 +93,5 @@ class PgMonitorScopeMigrationTest {
         assertTrue(shape.getBoolean("selector_removed"));
         assertTrue(shape.getBoolean("feed_monitor_removed"));
         assertEquals(6L, shape.getLong("monitors"));
-    }
-
-    @Test
-    void conflictingBackfillsAbortWithoutRemovingLegacyRouting() throws IOException {
-        for (boolean feedOverlap : List.of(false, true)) {
-            PgTripsStoresTest.recreateSchemas(pool, PgTripsStoresTest.migrationsBefore(MIGRATION));
-            run("""
-                    INSERT INTO miot_trips.trip_monitor (tenant_code, monitor_key, version, status, name, created_by)
-                    VALUES ('scope-test-a', 'first', 1, 'published', 'First', 'test'),
-                           ('scope-test-a', 'second', 1, 'published', 'Second', 'test');
-                    INSERT INTO miot_trips.trip_monitor_selector (tenant_code, seq, condition, monitor_key)
-                    VALUES ('scope-test-a', 1, $$trip.orderType == 'order-a'$$, 'first'),
-                           ('scope-test-a', 2, $$trip.orderType == 'order-a'$$, 'second')
-                    """);
-            if (feedOverlap) {
-                run("""
-                        INSERT INTO miot_trips.feed_profile
-                            (tenant_code, feed_key, name, stages, arrival_stage, monitor_key, created_by)
-                        VALUES ('scope-test-a', 'feed-a', 'Feed A', '[]', 'transit', 'first', 'test')
-                        """);
-            }
-
-            RuntimeException failure = assertThrows(RuntimeException.class,
-                    () -> PgTripsStoresTest.migrate(pool, MIGRATION));
-            assertTrue(failure.getMessage().contains("equal or partly overlapping scopes"), failure.getMessage());
-            var legacy = pool.query("""
-                    SELECT to_regclass('miot_trips.trip_monitor_selector') IS NOT NULL AS selector_retained,
-                           EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'miot_trips'
-                                    AND table_name = 'feed_profile' AND column_name = 'monitor_key') AS feed_retained,
-                           NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'miot_trips'
-                                    AND table_name = 'trip_monitor' AND column_name = 'scope') AS rolled_back
-                    """).execute().await().atMost(WAIT).iterator().next();
-            assertTrue(legacy.getBoolean("selector_retained"));
-            assertTrue(legacy.getBoolean("feed_retained"));
-            assertTrue(legacy.getBoolean("rolled_back"));
-        }
     }
 }

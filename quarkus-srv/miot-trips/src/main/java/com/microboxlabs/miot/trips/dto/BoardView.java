@@ -24,9 +24,9 @@ public record BoardView(String view, List<Lane> lanes, OffsetDateTime at) {
                 return null;
             }
             Map<String, Integer> reached = new java.util.LinkedHashMap<>();
-            for (int i = 0; i < DeliveryCycle.STEPS.size(); i++) {
+            for (int i = 0; i < DeliveryCycle.ALL_STEPS.size(); i++) {
                 int level = i + 1;
-                reached.put(DeliveryCycle.STEPS.get(i), (int) d.levels().stream().filter(l -> l >= level).count());
+                reached.put(DeliveryCycle.ALL_STEPS.get(i), (int) d.levels().stream().filter(l -> l >= level).count());
             }
             return new Delivery(d.levels().size(), reached, d.pending());
         }

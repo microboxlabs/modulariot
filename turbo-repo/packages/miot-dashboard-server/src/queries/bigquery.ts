@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { readJsonBody } from "../http/read-json";
 import type {
   DashboardOperationExecutor,

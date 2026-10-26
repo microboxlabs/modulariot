@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { dashboardQueryValueSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 import type { DashboardQueryValue } from "@microboxlabs/miot-dashboard-contract/document";
 import { upstreamError } from "./result";

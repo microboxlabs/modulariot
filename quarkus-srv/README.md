@@ -6,6 +6,7 @@ Single Quarkus monorepo that produces one container image containing all Modular
 
 ```
 miot-core/            Shared foundation (config, models, auth, messaging, persistence)
+miot-content-gcs/     Content store driver for Google Cloud Storage (gcs://)
 miot-fleet/           Fleet component (fleet directory)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
 miot-symptoms/        Symptoms dispatcher (CDC → RouteTable → process_symptoms_* / webhook)
@@ -110,6 +111,24 @@ These migrations sit outside their component's range. They are applied, so they 
 | Conversational | `V0.9.6`, `V0.9.8`, `V0.10.1`, `V0.10.2` |
 
 Conversational continues at `V0.11.x` and Symptoms at `V0.12.x`, for the same reason. Conversational's schema changed in `V0.9.6`, and a new database applies migrations in version order, so a `V0.7.x` migration that touches what `V0.9.6` created fails there. A migration must sort after every migration it depends on, whatever its component's range.
+
+## Content store
+
+Modules keep files (photos, signed documents) through `ContentService` in `miot-core`. Each file has a row in `miot_core.content`; modules store its id. The bytes go to the driver set by `miot.content.store`. A file is read by the driver of its URL scheme, so files written before a store change stay readable.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MIOT_CONTENT_STORE` | `fs` | Driver for new files: `fs` or `gcs` |
+| `MIOT_CONTENT_FS_ROOT` | `data/content` | Directory of the `fs` driver (a volume in Kubernetes) |
+| `MIOT_CONTENT_GCS_BUCKET` | — | Bucket of the `gcs` driver. Credentials come from workload identity or `GOOGLE_APPLICATION_CREDENTIALS` |
+| `MIOT_CONTENT_MAX_BYTES` | `20971520` | Largest accepted file |
+| `MIOT_CONTENT_TYPES` | `image/jpeg,image/png,image/webp,image/heic,application/pdf` | Accepted types. The first bytes must match the declared type |
+
+A file that no record took within 24 hours (`miot.content.unowned-grace`) is deleted every hour.
+
+The cleanup locks each selected row until its bytes have been deleted, and keeps failed deletions for a later run. Uploads inside a `PgTx` transaction register file removal on transaction or savepoint rollback.
+
+The filesystem root is a trusted service directory. New `fs://.content-...` URLs name direct files under that root; URL components are never used as parent directories. Older hierarchical URLs require `SecureDirectoryStream` support (available on the Linux default provider), and fail closed on providers without it. File reads do not follow symbolic links.
 
 ## API Documentation
 

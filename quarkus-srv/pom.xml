@@ -15,6 +15,7 @@
     <modules>
         <module>miot-gps-model</module>
         <module>miot-core</module>
+        <module>miot-content-gcs</module>
         <module>miot-integrations</module>
         <module>miot-conversational</module>
         <module>miot-fleet</module>
@@ -137,6 +138,11 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-content-gcs</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

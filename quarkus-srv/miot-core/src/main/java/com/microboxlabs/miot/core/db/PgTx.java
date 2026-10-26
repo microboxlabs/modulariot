@@ -28,6 +28,7 @@ public final class PgTx {
     private static final class Tx {
         private final SqlConnection conn;
         private final List<Runnable> afterCommit = new ArrayList<>();
+        private final List<Runnable> afterRollback = new ArrayList<>();
         private int savepoints;
         private boolean failed;
 
@@ -66,11 +67,19 @@ public final class PgTx {
         }
     }
 
+    /** Compensates external work if this transaction or its current savepoint rolls back. */
+    public static void afterRollback(Runnable action) {
+        Tx tx = TX.get();
+        if (tx != null) {
+            tx.afterRollback.add(action);
+        }
+    }
+
     private static void runQuietly(Runnable action) {
         try {
             action.run();
         } catch (RuntimeException e) {
-            LOG.warnf(e, "An after-commit action failed");
+            LOG.warnf(e, "A transaction completion action failed");
         }
     }
 
@@ -89,10 +98,11 @@ public final class PgTx {
         }
         SqlConnection conn = pool.getConnection().await().atMost(TIMEOUT);
         boolean committed = false;
+        Tx tx = null;
         try {
             simple(conn, "BEGIN");
             simple(conn, "SET LOCAL lock_timeout = '" + LOCK_TIMEOUT.toMillis() + "ms'");
-            Tx tx = new Tx(conn);
+            tx = new Tx(conn);
             TX.set(tx);
             T result = work.get();
             TX.remove();
@@ -107,6 +117,9 @@ public final class PgTx {
             TX.remove();
             if (!committed) {
                 rollbackQuietly(conn);
+                if (tx != null) {
+                    compensate(tx, 0);
+                }
             }
             conn.close().await().atMost(TIMEOUT);
         }
@@ -125,6 +138,7 @@ public final class PgTx {
         simple(tx.conn, "SAVEPOINT " + name);
         tx.savepoints++;
         int queued = tx.afterCommit.size();
+        int compensations = tx.afterRollback.size();
         T result;
         try {
             result = work.get();
@@ -132,11 +146,20 @@ public final class PgTx {
             tx.savepoints--;
             simple(tx.conn, "ROLLBACK TO SAVEPOINT " + name);
             tx.afterCommit.subList(queued, tx.afterCommit.size()).clear();
+            compensate(tx, compensations);
             throw e;
         }
         tx.savepoints--;
         simple(tx.conn, "RELEASE SAVEPOINT " + name);
         return result;
+    }
+
+    private static void compensate(Tx tx, int from) {
+        List<Runnable> actions = new ArrayList<>(tx.afterRollback.subList(from, tx.afterRollback.size()));
+        tx.afterRollback.subList(from, tx.afterRollback.size()).clear();
+        for (int i = actions.size() - 1; i >= 0; i--) {
+            runQuietly(actions.get(i));
+        }
     }
 
     private static void simple(SqlConnection conn, String sql) {

@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -132,10 +133,21 @@ public class EvaluatorStream {
         int recorded = 0;
         for (Object client : clients) {
             if (client instanceof String tenant) {
-                recorded += evaluate(tenant, assetId, instant, signal);
+                recorded += evaluate(tenant, assetId, instant, forTenant(signal, tenant));
             }
         }
         return recorded;
+    }
+
+    private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
+
+    /** The signal as the organization's rules read it: its own trip as {@code trip}, none of the others. */
+    static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
+        Map<String, Object> out = new LinkedHashMap<>(signal);
+        Object trips = out.remove("trips");
+        Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
+        out.put("trip", trip != null ? trip : NO_TRIP);
+        return out;
     }
 
     private int evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {

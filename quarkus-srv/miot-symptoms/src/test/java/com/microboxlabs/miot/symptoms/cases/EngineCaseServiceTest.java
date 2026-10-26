@@ -312,7 +312,7 @@ class EngineCaseServiceTest {
         store.add(panic(12, "DEMO01"));
         EngineCaseService gpsDown = new EngineCaseService(store, (tenant, asset, definition) -> {
         }, t -> {
-            throw new IllegalStateException("GPS database down");
+            throw new IllegalStateException("database down");
         }, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
 
         JsonNode header = gpsDown.header(TENANT, -12);

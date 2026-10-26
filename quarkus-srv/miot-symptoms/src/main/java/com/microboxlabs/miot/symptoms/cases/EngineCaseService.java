@@ -4,13 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -47,10 +48,14 @@ public class EngineCaseService {
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
     private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
+    /** The case's trip while it runs; a finished trip has no row. */
     private static final String TRIP = """
-            SELECT trip_id, asset_id, carrier_name, origin_geofence_label, destination_geofence_label, driver_name,
-                   second_driver_name, type_load, driver_contact_phone
-              FROM live_trip WHERE trip_id = $1 AND asset_id = $2
+            SELECT trip_id, asset_id,
+                   (CASE jsonb_typeof(mandate_codes) WHEN 'string' THEN (mandate_codes #>> '{}')::jsonb
+                         ELSE mandate_codes END) -> 0 ->> 'code' AS code,
+                   carrier_name, origin_geofence_label, destination_geofence_label, driver_name, second_driver_name,
+                   type_load, driver_contact_phone
+              FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id::text = $2 AND asset_id = $3
             """;
     /** How far before the case the map shows the vehicle's signals, unless an earlier case of it is nearer. */
     static final Duration SIGNALS_BEFORE = Duration.ofHours(1);
@@ -71,14 +76,12 @@ public class EngineCaseService {
     private final SymptomEvents events;
 
     @Inject
-    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, GpsDatabase gps, SymptomEvents events) {
-        this(store, evaluator::forget, gps.configured() ? t -> readTrip(gps, t) : t -> null, Clock.systemUTC(),
-                events);
+    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events) {
+        this(store, evaluator::forget, t -> readTrip(pool.get(), t), Clock.systemUTC(), events);
     }
 
-    private static Row readTrip(GpsDatabase gps, Tuple key) {
-        var rows = gps.readPool().preparedQuery(TRIP).execute(key).await().atMost(Duration.ofSeconds(10))
-                .iterator();
+    private static Row readTrip(Pool pool, Tuple key) {
+        var rows = pool.preparedQuery(TRIP).execute(key).await().atMost(Duration.ofSeconds(10)).iterator();
         return rows.hasNext() ? rows.next() : null;
     }
 
@@ -209,8 +212,9 @@ public class EngineCaseService {
         ObjectNode trip = out.putObject("trip_info");
         trip.put("asset_id", c.assetId());
         trip.put("trip_id", c.tripId());
-        Row t = c.tripId() == null ? null : trip(c);
+        Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
+            trip.put("trip_code", t.getString("code"));
             trip.put("carrier", t.getString("carrier_name"));
             trip.put("origin", t.getString("origin_geofence_label"));
             trip.put("destination", t.getString("destination_geofence_label"));
@@ -281,10 +285,10 @@ public class EngineCaseService {
         }
     }
 
-    /** The trip's details are optional: the header still answers when the GPS database cannot be read. */
-    private Row trip(EngineCase c) {
+    /** The trip's details are optional: the header still answers without them. */
+    private Row trip(String tenantCode, EngineCase c) {
         try {
-            return trips.apply(Tuple.of(c.tripId(), c.assetId()));
+            return trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
         } catch (RuntimeException e) {
             LOG.debugf("Engine case %d: trip details unavailable (%s)", c.id(), e.getClass().getSimpleName());
             return null;

@@ -14,12 +14,12 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class SignalBuilderTest {
 
     private static final Instant AT = Instant.parse("2026-10-21T12:00:00Z");
+    private static final String SENDER = "sender-1";
 
     private static String frame(String asset, double speed, boolean panic) {
         return """
@@ -30,8 +30,8 @@ class SignalBuilderTest {
                 """.formatted(asset, speed, panic);
     }
 
-    private static Trip trip(String id, String type, String status, Instant start, Instant end) {
-        return new Trip(id, "ABCD12", type, status, start, end, false);
+    private static Trip trip(String id, String type, Instant start, Instant end) {
+        return new Trip(id, SENDER, "ABCD12", type, "in_transit", start, end, false);
     }
 
     private static ReferenceCache refs(List<Trip> trips, List<Share> shares) {
@@ -45,6 +45,10 @@ class SignalBuilderTest {
                 .orElseThrow();
     }
 
+    private static GpsSignal.Trip senderTrip(GpsSignal s) {
+        return s.trips() == null ? null : s.trips().get(SENDER);
+    }
+
     @Test
     void carriesTheFrameAndWhatTheBuilderAdds() {
         GpsSignal s = build(refs(List.of(), List.of()), frame("ABCD12", 42.5, true));
@@ -52,13 +56,14 @@ class SignalBuilderTest {
         assertEquals(GpsSignal.SCHEMA_ID, s.schema());
         assertEquals("ABCD12", s.assetId());
         assertEquals(AT, s.at());
-        assertEquals(List.of("sender-1"), s.clients(), "the M2M suffix is dropped");
+        assertEquals(List.of(SENDER), s.clients(), "the M2M suffix is dropped");
         assertEquals(42.5, s.frame().getGps().getSpeed());
         assertTrue(s.frame().getSensors().getEngineStatus());
         assertTrue(s.derived().moving());
         assertEquals(9, s.localHour(), "12:00 UTC is 09:00 in Santiago in October");
         assertTrue(s.frame().getSensors().isPanicButton());
-        assertFalse(s.trip().active());
+        assertNull(s.trips(), "no client has a trip");
+        assertNull(s.trip(), "the evaluator gives each organization its trip");
         assertNull(s.road());
     }
 
@@ -69,20 +74,37 @@ class SignalBuilderTest {
     }
 
     @Test
-    void picksTheTripInProgressLikeTheGpsDatabase() {
+    void picksTheTripInProgress() {
         Instant hourAgo = AT.minusSeconds(3600);
         ReferenceCache refs = refs(List.of(
-                trip("OTE", "ote", "SCHEDULED", AT.minusSeconds(60), null),
-                trip("V-OLD", "v", "SCHEDULED", hourAgo.minusSeconds(3600), null),
-                trip("V-NEW", "v", "SCHEDULED", hourAgo, null),
-                trip("V-ENDED", "v", "SCHEDULED", AT.minusSeconds(30), AT.minusSeconds(10)),
-                trip("V-ADDED", "v", "ADDED", AT.minusSeconds(30), null),
-                trip("V-LATER", "v", "SCHEDULED", AT.plusSeconds(60), null)), List.of());
+                trip("OTE", "ote", AT.minusSeconds(60), null),
+                trip("V-OLD", "v", hourAgo.minusSeconds(3600), null),
+                trip("V-NEW", "v", hourAgo, null),
+                trip("V-ENDED", "v", AT.minusSeconds(30), AT.minusSeconds(10)),
+                trip("V-NOT-DEPARTED", "v", null, null),
+                trip("V-LATER", "v", AT.plusSeconds(60), null)), List.of());
+
+        GpsSignal.Trip t = senderTrip(build(refs, frame("ABCD12", 0, false)));
+
+        assertTrue(t.active());
+        assertEquals("V-NEW", t.id(), "v trips before ote/otr, then the latest start");
+    }
+
+    @Test
+    void eachClientGetsItsOwnTripAndNoOther() {
+        Instant start = AT.minusSeconds(600);
+        ReferenceCache refs = refs(List.of(
+                new Trip("T-SENDER", SENDER, "ABCD12", "v", "in_transit", start, null, false),
+                new Trip("T-SHARED", "client-a", "ABCD12", "v", "in_transit", start, null, true),
+                new Trip("T-STRANGER", "client-z", "ABCD12", "v", "in_transit", start, null, false)),
+                List.of(new Share("ABCD12", "client-a", true, null, null)));
 
         GpsSignal s = build(refs, frame("ABCD12", 0, false));
 
-        assertTrue(s.trip().active());
-        assertEquals("V-NEW", s.trip().id(), "v trips before ote/otr, then the latest start");
+        assertEquals(List.of(SENDER, "client-a"), List.copyOf(s.trips().keySet()));
+        assertEquals("T-SENDER", s.trips().get(SENDER).id());
+        assertEquals("T-SHARED", s.trips().get("client-a").id());
+        assertTrue(s.trips().get("client-a").doubleDriver());
     }
 
     @Test
@@ -90,97 +112,76 @@ class SignalBuilderTest {
         ReferenceCache refs = refs(List.of(), List.of(
                 new Share("ABCD12", "client-b", true, AT.minusSeconds(60), AT.plusSeconds(60)),
                 new Share("ABCD12", "client-a", true, null, null),
-                new Share("ABCD12", "sender-1", true, null, null),
+                new Share("ABCD12", SENDER, true, null, null),
                 new Share("ABCD12", "expired", true, AT.minusSeconds(120), AT.minusSeconds(60)),
                 new Share("ABCD12", "inactive", false, null, null),
                 new Share("OTHER1", "client-c", true, null, null)));
 
-        assertEquals(List.of("sender-1", "client-a", "client-b"), build(refs, frame("ABCD12", 0, false)).clients());
+        assertEquals(List.of(SENDER, "client-a", "client-b"), build(refs, frame("ABCD12", 0, false)).clients());
     }
 
     @Test
-    void debeziumChangesUpdateTheCache() {
+    void tripNoticesAndShareChangesUpdateTheCache() {
         ReferenceCache refs = refs(List.of(), List.of());
-        refs.applyTrip(new JsonObject("""
-                {"op":"c","before":null,"after":{"trip_id":"T-1","asset_id":"ABCD12","trip_type":"v",
-                 "status":"SCHEDULED","start_time":"2026-10-21T11:00:00Z","end_time":null,"double_driver":true}}
-                """));
-        GpsSignal on = build(refs, frame("ABCD12", 0, false));
-        assertEquals("T-1", on.trip().id());
-        assertTrue(on.trip().doubleDriver());
+        refs.applyTrip("T-1", ReferenceCache.trip(new JsonObject("""
+                {"trip_id":"T-1","tenant_code":"sender-1","asset_id":"ABCD12","trip_type":"v",
+                 "status":"in_transit","start_time":"2026-10-21T11:00:00+00:00","end_time":null,
+                 "double_driver":true}
+                """)));
+        GpsSignal.Trip on = senderTrip(build(refs, frame("ABCD12", 0, false)));
+        assertEquals("T-1", on.id());
+        assertTrue(on.doubleDriver());
 
-        refs.applyTrip(new JsonObject("""
-                {"op":"u","before":null,"after":{"trip_id":"T-1","asset_id":"ABCD12","trip_type":"v",
-                 "status":"SCHEDULED","start_time":"2026-10-21T11:00:00Z","end_time":"2026-10-21T11:30:00Z"}}
-                """));
-        assertFalse(build(refs, frame("ABCD12", 0, false)).trip().active(), "ended");
+        refs.applyTrip("T-1", new Trip("T-1", SENDER, "ABCD12", "v", "in_transit", AT.minusSeconds(3600),
+                AT.minusSeconds(1800), false));
+        assertNull(build(refs, frame("ABCD12", 0, false)).trips(), "ended");
 
-        refs.applyTrip(new JsonObject("""
-                {"op":"d","before":{"trip_id":"T-1","asset_id":"ABCD12"},"after":null}
-                """));
-        assertEquals(0, refs.tripCount());
+        refs.applyTrip("T-1", null);
+        assertEquals(0, refs.tripCount(), "a trip without a row is dropped");
 
         refs.applyShare(new JsonObject("""
                 {"op":"c","after":{"asset_id":"ABCD12","shared_client_id":"client-a","active":true,
                  "valid_from":"2026-01-01T00:00:00Z","valid_to":"2027-01-01T00:00:00Z"}}
                 """));
-        assertEquals(List.of("sender-1", "client-a"), build(refs, frame("ABCD12", 0, false)).clients());
+        assertEquals(List.of(SENDER, "client-a"), build(refs, frame("ABCD12", 0, false)).clients());
         refs.applyShare(new JsonObject("""
                 {"op":"d","before":{"asset_id":"ABCD12","shared_client_id":"client-a"}}
                 """));
-        assertEquals(List.of("sender-1"), build(refs, frame("ABCD12", 0, false)).clients());
+        assertEquals(List.of(SENDER), build(refs, frame("ABCD12", 0, false)).clients());
     }
 
     @Test
     void aReloadReplacesTheRows() {
         Instant start = AT.minusSeconds(600);
-        ReferenceCache refs = refs(List.of(trip("T-1", "v", "SCHEDULED", start, null)),
+        ReferenceCache refs = refs(List.of(trip("T-1", "v", start, null)),
                 List.of(new Share("ABCD12", "client-a", true, null, null)));
 
-        refs.load(List.of(trip("T-2", "v", "SCHEDULED", start, null)),
+        refs.load(List.of(trip("T-2", "v", start, null)),
                 List.of(new Share("ABCD12", "client-b", true, null, null)));
 
         GpsSignal signal = build(refs, frame("ABCD12", 0, false));
         assertEquals(1, refs.tripCount());
-        assertEquals("T-2", signal.trip().id());
-        assertEquals(List.of("sender-1", "client-b"), signal.clients());
-    }
-
-    @Test
-    void tripsAreKeptPerVehicle() {
-        Instant start = AT.minusSeconds(600);
-        ReferenceCache refs = refs(List.of(trip("T-1", "v", "SCHEDULED", start, null),
-                new Trip("T-1", "OTHER1", "v", "SCHEDULED", start, null, false)), List.of());
-        assertEquals(2, refs.tripCount());
-
-        refs.applyTrip(new JsonObject("""
-                {"op":"d","before":{"trip_id":"T-1","asset_id":"OTHER1"},"after":null}
-                """));
-
-        assertEquals("T-1", build(refs, frame("ABCD12", 0, false)).trip().id());
-        assertFalse(build(refs, frame("OTHER1", 0, false)).trip().active());
+        assertEquals("T-2", senderTrip(signal).id());
+        assertEquals(List.of(SENDER, "client-b"), signal.clients());
     }
 
     @Test
     void aReloadKeepsChangesReceivedWhileItsQueriesRan() {
         Instant start = AT.minusSeconds(600);
-        ReferenceCache refs = refs(List.of(trip("T-1", "v", "SCHEDULED", start, null)),
+        ReferenceCache refs = refs(List.of(trip("T-1", "v", start, null)),
                 List.of(new Share("ABCD12", "client-a", true, null, null)));
 
         refs.beginReload();
-        refs.applyTrip(new JsonObject("""
-                {"op":"u","after":{"trip_id":"T-1","asset_id":"ABCD12","trip_type":"v",
-                 "status":"SCHEDULED","start_time":"2026-10-21T11:00:00Z","end_time":"2026-10-21T11:30:00Z"}}
-                """));
+        refs.applyTrip("T-1", trip("T-1", "v", start, AT.minusSeconds(60)));
         refs.applyShare(new JsonObject("""
                 {"op":"d","before":{"asset_id":"ABCD12","shared_client_id":"client-a"}}
                 """));
-        refs.load(List.of(trip("T-1", "v", "SCHEDULED", start, null)),
+        refs.load(List.of(trip("T-1", "v", start, null)),
                 List.of(new Share("ABCD12", "client-a", true, null, null)));
 
         GpsSignal signal = build(refs, frame("ABCD12", 0, false));
-        assertFalse(signal.trip().active(), "the trip ended while the reload ran");
-        assertEquals(List.of("sender-1"), signal.clients());
+        assertNull(signal.trips(), "the trip ended while the reload ran");
+        assertEquals(List.of(SENDER), signal.clients());
     }
 
     @Test
@@ -195,45 +196,45 @@ class SignalBuilderTest {
 
     @Test
     void serializesUnderTheRuleEditorPaths() throws Exception {
-        GpsSignal s = build(refs(List.of(), List.of()), frame("ABCD12", 42.5, true));
+        GpsSignal s = build(refs(List.of(trip("T-1", "v", AT.minusSeconds(60), null)), List.of()),
+                frame("ABCD12", 42.5, true));
         Map<String, Object> json = SignalStream.JSON.readValue(SignalStream.JSON.writeValueAsString(s),
                 new TypeReference<>() {
                 });
 
         assertEquals("2026-10-21T12:00:00Z", json.get("at"));
         assertEquals(Boolean.TRUE, ((Map<?, ?>) ((Map<?, ?>) json.get("frame")).get("sensors")).get("panic_button"));
-        assertEquals(Boolean.FALSE, ((Map<?, ?>) json.get("trip")).get("active"));
+        assertEquals("T-1", ((Map<?, ?>) ((Map<?, ?>) json.get("trips")).get(SENDER)).get("id"));
         assertFalse(json.containsKey("road"), "unknown parts are left out");
         assertFalse(((Map<?, ?>) ((Map<?, ?>) json.get("frame")).get("sensors")).containsKey("odometer"),
                 "values the device did not send are left out");
     }
 
-    /** A live_trip row as Debezium and the reload send it, names and phones included. */
+    /** A row of the trip query, as the reload and a notice read it. */
     private static final String ROW = """
-            {"trip_id":"TRIP-9001","asset_id":"ABCD12","trip_type":"v","status":"SCHEDULED",
-             "start_time":"2026-10-21T10:30:00Z","end_time":null,"double_driver":false,
-             "estimated_arrival_time":"2026-10-21T11:45:00Z","origin_geofence_id":32,
+            {"trip_id":"5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a01","tenant_code":"sender-1","asset_id":"ABCD12",
+             "trip_type":"v","status":"in_transit","code":"SVC-9001",
+             "start_time":"2026-10-21T10:30:00+00:00","end_time":null,"double_driver":false,
+             "estimated_arrival_time":"2026-10-21T11:45:00+00:00","origin_geofence_id":32,
              "origin_geofence_label":"ANF","origin_visited":true,"origin_is_internal":true,
              "destination_geofence_id":17,"destination_geofence_label":"SPC","destination_visited":false,
-             "current_geofence_id":0,"carrier_id":"11111111-1","carrier_name":"TRANSPORTES SUR",
-             "type_load":"rampla","rampla_plate":"DEMO33","driver_id":"12345678-5",
-             "driver_name":"Nombre Apellido","driver_contact_phone":"+56900000000",
-             "created_by_client_id":"tenant-client"}
+             "current_geofence_id":0,"carrier_tax_id":"11111111-1","carrier_name":"TRANSPORTES SUR",
+             "type_load":"rampla","rampla_plate":"DEMO33","driver_assigned":true,
+             "driver_fleet_id":"9b2e6d1c-0000-4000-8000-000000000001","driver_status":"suspended",
+             "driver_license_expires":"2026-10-01T00:00:00+00:00"}
             """;
 
     @Test
-    void carriesTheTripRowAndTheRegisteredDriver() throws Exception {
+    void carriesTheTripRowWithTheFleetsCarrierAndDriver() throws Exception {
         ReferenceCache refs = refs(List.of(ReferenceCache.trip(new JsonObject(ROW))), List.of());
-        refs.loadDrivers(List.of(
-                new ReferenceCache.Driver("d-other", "other-client", "12.345.678-5", "ACTIVE", null),
-                new ReferenceCache.Driver("d-1", "tenant-client", "12345678-5", "SUSPENDED",
-                        Instant.parse("2026-10-01T00:00:00Z"))));
 
         GpsSignal s = build(refs, frame("ABCD12", 70, false));
 
-        GpsSignal.Trip t = s.trip();
-        assertEquals("TRIP-9001", t.id());
+        GpsSignal.Trip t = senderTrip(s);
+        assertEquals("5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a01", t.id());
+        assertEquals("SVC-9001", t.code());
         assertEquals("v", t.type());
+        assertEquals("in_transit", t.status());
         assertEquals(90.0, t.ageMin());
         assertEquals(15.0, t.lateMin(), "15 min past the estimated arrival");
         assertEquals(new GpsSignal.Origin(32, "ANF", true, true), t.origin());
@@ -242,36 +243,28 @@ class SignalBuilderTest {
         assertEquals(new GpsSignal.Carrier("11111111-1", "TRANSPORTES SUR"), t.carrier());
         assertEquals("rampla", t.loadType());
         assertEquals("DEMO33", t.trailerPlate());
-        assertEquals(new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.SUSPENDED, true), t.driver(),
-                "the trip creator's driver first");
-        String json = SignalStream.JSON.writeValueAsString(s);
-        assertFalse(json.contains("12345678"), "no national id");
-        assertFalse(json.contains("Nombre") || json.contains("+569"), "no name or phone");
+        assertEquals(new GpsSignal.Driver("9b2e6d1c-0000-4000-8000-000000000001", true,
+                GpsSignal.DriverStatus.SUSPENDED, true), t.driver());
     }
 
     @Test
-    void anUnknownDriverIsUnregisteredOnlyOnceTheRegistryIsLoaded() {
-        ReferenceCache refs = refs(List.of(ReferenceCache.trip(new JsonObject(ROW))), List.of());
+    void aDriverTheFleetDoesNotHaveIsNotRegistered() {
+        Trip row = ReferenceCache.trip(new JsonObject(ROW).put("driver_fleet_id", null).put("driver_status", null)
+                .put("driver_license_expires", null));
+        Trip noDriver = ReferenceCache.trip(new JsonObject(ROW).put("driver_assigned", false)
+                .put("driver_fleet_id", null));
 
-        assertNull(build(refs, frame("ABCD12", 70, false)).trip().driver(), "registry not loaded: unknown");
-        refs.loadDrivers(List.of());
         assertEquals(new GpsSignal.Driver(null, false, null, null),
-                build(refs, frame("ABCD12", 70, false)).trip().driver());
+                senderTrip(build(refs(List.of(row), List.of()), frame("ABCD12", 70, false))).driver());
+        assertNull(senderTrip(build(refs(List.of(noDriver), List.of()), frame("ABCD12", 70, false))).driver(),
+                "a trip without a driver says nothing about one");
     }
 
     @Test
-    void aRegistryPublishedDuringTheLookupIsNotAnUnregisteredDriver() {
-        // The first registry lands after the lookup read the unloaded one: the driver is unknown, not unregistered.
-        ReferenceCache refs = new ReferenceCache() {
-            @Override
-            public Optional<Driver> driver(String nationalId, String clientId) {
-                Optional<Driver> stale = super.driver(nationalId, clientId);
-                loadDrivers(List.of(new Driver("d-1", "tenant-client", "12345678-5", "ACTIVE", null)));
-                return stale;
-            }
-        };
-        refs.load(List.of(ReferenceCache.trip(new JsonObject(ROW))), List.of());
+    void anInactiveFleetDriverIsDeactivated() {
+        Trip row = ReferenceCache.trip(new JsonObject(ROW).put("driver_status", "inactive"));
 
-        assertNull(build(refs, frame("ABCD12", 70, false)).trip().driver());
+        assertEquals(GpsSignal.DriverStatus.DEACTIVATED,
+                senderTrip(build(refs(List.of(row), List.of()), frame("ABCD12", 70, false))).driver().status());
     }
 }

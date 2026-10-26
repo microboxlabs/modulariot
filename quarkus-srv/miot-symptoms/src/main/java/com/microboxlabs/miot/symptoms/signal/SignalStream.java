@@ -6,28 +6,39 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.core.gps.GpsDatabase;
-import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Driver;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Share;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Trip;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.pulsar.PulsarOutgoingMessageMetadata;
 import io.vertx.core.json.JsonObject;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.pgclient.PgConnection;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
+import io.vertx.mutiny.sqlclient.SqlConnection;
+import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.inject.Instance;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
@@ -35,14 +46,15 @@ import org.eclipse.microprofile.reactive.messaging.Outgoing;
 import org.jboss.logging.Logger;
 
 /**
- * The signal builder: reads GPS frames ({@code gps-frames}), joins the trip and
- * the vehicle's clients, and publishes {@code miot.gps.signal@1} keyed by
- * vehicle id ({@code gps-signals}). The reference rows are loaded from the GPS
- * database at start and every {@code reload-every}; trips and shares are kept
- * current between loads from their Debezium topics ({@code signal-live-trip},
- * {@code signal-asset-client-map}). Off unless
- * {@code miot.symptoms.signal-builder.enabled}; the channels are disabled with
- * it. Frames are never logged, only counted.
+ * The signal builder: reads GPS frames ({@code gps-frames}), joins each client's
+ * trip and the vehicle's clients, and publishes {@code miot.gps.signal@1} keyed
+ * by vehicle id ({@code gps-signals}). Trips are the modulith's
+ * {@code miot_trips.trip_live} rows, kept current from the
+ * {@code miot_trips_live} notices; shares are the GPS database's
+ * {@code asset_client_map}, kept current from its Debezium topic
+ * ({@code signal-asset-client-map}). Both are loaded in full at start and every
+ * {@code reload-every}. Off unless {@code miot.symptoms.signal-builder.enabled};
+ * the channels are disabled with it. Frames are never logged, only counted.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -55,37 +67,58 @@ public class SignalStream {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
-    /** As JSON, so a loaded row reads like a Debezium one; names and phones are not selected. */
+    static final String TRIPS_CHANNEL = "miot_trips_live";
+    private static final String UNDEFINED_TABLE = "42P01";
+    private static final long RETRY_MS = 5_000;
+
+    /**
+     * As JSON, so a loaded row and a notified one read alike. Names and phones are not selected: the carrier's
+     * tax id and the driver's fleet id, status and license come from the fleet.
+     */
     private static final String TRIPS = """
             SELECT row_to_json(t)::text AS trip FROM (
-                SELECT trip_id, asset_id, trip_type, status, start_time, end_time, double_driver,
-                       estimated_arrival_time, origin_geofence_id, origin_geofence_label, origin_visited,
-                       origin_is_internal, destination_geofence_id, destination_geofence_label, destination_visited,
-                       current_geofence_id, carrier_id, carrier_name, type_load, rampla_plate, driver_id,
-                       created_by_client_id
-                FROM live_trip) t
+                SELECT tl.trip_id, tl.tenant_code, tl.asset_id, tl.trip_type, tl.status, tl.start_time, tl.end_time,
+                       tl.double_driver, tl.estimated_arrival_time,
+                       (CASE jsonb_typeof(tl.mandate_codes) WHEN 'string' THEN (tl.mandate_codes #>> '{}')::jsonb
+                             ELSE tl.mandate_codes END) -> 0 ->> 'code' AS code,
+                       tl.origin_geofence_id, tl.origin_geofence_label, tl.origin_visited, tl.origin_is_internal,
+                       tl.destination_geofence_id, tl.destination_geofence_label, tl.destination_visited,
+                       tl.current_geofence_id, c.rut AS carrier_tax_id, tl.carrier_name, tl.type_load,
+                       tl.rampla_plate, tl.driver_id IS NOT NULL AS driver_assigned, d.id AS driver_fleet_id,
+                       d.status AS driver_status, d.license_expires AS driver_license_expires
+                  FROM miot_trips.trip_live tl
+                  LEFT JOIN miot_fleet.carrier c ON c.tenant_code = tl.tenant_code AND c.id::text = tl.carrier_id
+                  LEFT JOIN LATERAL (
+                       SELECT id, status, license_expires FROM miot_fleet.driver
+                        WHERE tenant_code = tl.tenant_code AND rut = tl.driver_id
+                        ORDER BY status = 'active' DESC LIMIT 1) d ON true
+                 WHERE tl.asset_id IS NOT NULL %s) t
             """;
-    private static final String DRIVERS = """
-            SELECT id::text AS id, client_id, rut, status, license_expires::timestamptz AS license_expires
-            FROM ams.rd_drivers WHERE rut IS NOT NULL
-            """;
+    private static final String ALL_TRIPS = TRIPS.formatted("");
+    private static final String ONE_TRIP = TRIPS.formatted("AND tl.trip_id = $1");
     private static final String SHARES = """
             SELECT asset_id, shared_client_id, active, valid_from, valid_to FROM asset_client_map WHERE active
             """;
 
     private final boolean enabled;
     private final GpsDatabase gps;
+    private final Supplier<Pool> pool;
+    private final Vertx vertx;
     private final ReferenceCache refs = new ReferenceCache();
     private final SignalBuilder builder;
     private final Counter built;
     private final Counter skipped;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
+    private final AtomicReference<SqlConnection> listening = new AtomicReference<>();
+    private volatile boolean stopped;
 
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
-            GpsDatabase gps, MeterRegistry meters) {
+            GpsDatabase gps, Instance<Pool> pool, Vertx vertx, MeterRegistry meters) {
         this.enabled = enabled;
         this.gps = gps;
+        this.pool = pool::get;
+        this.vertx = vertx;
         this.builder = new SignalBuilder(refs, ZoneId.of(zone));
         this.built = meters.counter("miot.symptoms.signal.built");
         this.skipped = meters.counter("miot.symptoms.signal.skipped");
@@ -93,26 +126,33 @@ public class SignalStream {
 
     /**
      * Frames wait for the first reference load, so a vehicle's first frames are not published without its trip
-     * and shared clients. The first load is retried until the GPS database answers.
+     * and shared clients. The first load is retried until the databases answer.
      */
     void onStart(@Observes StartupEvent ignored) {
         if (!enabled) {
             return;
         }
         if (!gps.configured()) {
-            LOG.warn("Signal builder: the GPS database is not configured; signals have no trip and no shared clients");
-            ready.complete(null);
-            return;
+            LOG.warn("Signal builder: the GPS database is not configured; signals have no shared clients");
         }
+        listen();
         reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed; frames wait"))
                 .onFailure().retry().withBackOff(Duration.ofSeconds(1), Duration.ofMinutes(1)).indefinitely()
                 .subscribe().with(x -> ready.complete(null));
     }
 
+    void onStop(@Observes ShutdownEvent ignored) {
+        stopped = true;
+        SqlConnection connection = listening.getAndSet(null);
+        if (connection != null) {
+            connection.closeAndForget();
+        }
+    }
+
     @Scheduled(every = "${miot.symptoms.signal-builder.reload-every:10m}", delayed = "10m",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     Uni<Void> scheduledReload() {
-        if (!enabled || !gps.configured() || !ready.isDone()) {
+        if (!enabled || !ready.isDone()) {
             return Uni.createFrom().voidItem();
         }
         return reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed"))
@@ -122,31 +162,95 @@ public class SignalStream {
     private Uni<Void> reload() {
         return Uni.createFrom().deferred(() -> {
             refs.beginReload();
-            return gps.readPool().query(TRIPS).execute();
-        }).chain(trips -> gps.readPool().query(SHARES).execute().map(shares -> {
-            List<Trip> t = new ArrayList<>();
-            trips.forEach(r -> t.add(ReferenceCache.trip(new JsonObject(r.getString("trip")))));
-            List<Share> s = new ArrayList<>();
-            shares.forEach(r -> s.add(new Share(r.getString("asset_id"), r.getString("shared_client_id"),
-                    Boolean.TRUE.equals(r.getBoolean("active")), instant(r, "valid_from"),
-                    instant(r, "valid_to"))));
+            return loadTrips();
+        }).chain(t -> loadShares().map(s -> {
             refs.load(t, s);
             LOG.infof("Signal builder: loaded %d trips, %d shares", t.size(), s.size());
             return t.size();
-        })).chain(this::reloadDrivers).replaceWithVoid();
+        })).replaceWithVoid();
     }
 
-    /** A failed driver load keeps the drivers already loaded; trips and shares do not wait for it. */
-    private Uni<Void> reloadDrivers(int ignored) {
-        return gps.readPool().query(DRIVERS).execute().map(rows -> {
-            List<Driver> d = new ArrayList<>();
-            rows.forEach(r -> d.add(new Driver(r.getString("id"), r.getString("client_id"), r.getString("rut"),
-                    r.getString("status"), instant(r, "license_expires"))));
-            refs.loadDrivers(d);
-            LOG.infof("Signal builder: loaded %d drivers", d.size());
-            return d.size();
-        }).onFailure().invoke(e -> LOG.warnf("Signal builder: driver load failed (%s)", e.getClass().getSimpleName()))
-                .onFailure().recoverWithItem(0).replaceWithVoid();
+    /** No trips when the modulith has no trips module. */
+    private Uni<List<Trip>> loadTrips() {
+        return pool.get().query(ALL_TRIPS).execute().map(SignalStream::trips)
+                .onFailure(SignalStream::undefinedTable).recoverWithItem(e -> {
+                    LOG.warn("Signal builder: the modulith has no trips; signals have no trip");
+                    return List.of();
+                });
+    }
+
+    private Uni<List<Share>> loadShares() {
+        if (!gps.configured()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return gps.readPool().query(SHARES).execute().map(rows -> {
+            List<Share> s = new ArrayList<>();
+            rows.forEach(r -> s.add(new Share(r.getString("asset_id"), r.getString("shared_client_id"),
+                    Boolean.TRUE.equals(r.getBoolean("active")), instant(r, "valid_from"), instant(r, "valid_to"))));
+            return s;
+        });
+    }
+
+    private static List<Trip> trips(RowSet<Row> rows) {
+        List<Trip> t = new ArrayList<>();
+        rows.forEach(r -> t.add(ReferenceCache.trip(new JsonObject(r.getString("trip")))));
+        return t;
+    }
+
+    private static boolean undefinedTable(Throwable e) {
+        return e instanceof PgException pg && UNDEFINED_TABLE.equals(pg.getSqlState());
+    }
+
+    /** A notice names a trip whose row changed: it is read again, or dropped when it no longer has one. */
+    void onTripNotice(String payload) {
+        String tripId;
+        try {
+            tripId = UUID.fromString(new JsonObject(payload).getString("tripId")).toString();
+        } catch (RuntimeException e) {
+            LOG.debugf("Signal builder: trip notice ignored (%s)", e.getClass().getSimpleName());
+            return;
+        }
+        pool.get().preparedQuery(ONE_TRIP).execute(Tuple.of(UUID.fromString(tripId))).map(SignalStream::trips)
+                .subscribe().with(rows -> refs.applyTrip(tripId, rows.isEmpty() ? null : rows.get(0)),
+                        e -> LOG.warnf("Signal builder: trip %s not read again (%s)", tripId,
+                                e.getClass().getSimpleName()));
+    }
+
+    /** One connection listens for trip changes; notices missed while it reconnects wait for the next reload. */
+    private void listen() {
+        if (stopped) {
+            return;
+        }
+        pool.get().getConnection().subscribe().with(connection -> {
+            listening.set(connection);
+            if (stopped) {
+                if (listening.compareAndSet(connection, null)) {
+                    connection.closeAndForget();
+                }
+                return;
+            }
+            PgConnection pg = PgConnection.cast(connection);
+            pg.notificationHandler(notice -> onTripNotice(notice.getPayload()));
+            pg.closeHandler(() -> retry(connection));
+            pg.query("LISTEN " + TRIPS_CHANNEL).execute().subscribe().with(
+                    rows -> LOG.debug("Signal builder: listening for trip changes"),
+                    failure -> {
+                        LOG.warnf("Signal builder: trip LISTEN failed (%s)", failure.getClass().getSimpleName());
+                        connection.closeAndForget();
+                    });
+        }, failure -> {
+            LOG.warnf("Signal builder: no connection to listen for trips (%s)", failure.getClass().getSimpleName());
+            retry(null);
+        });
+    }
+
+    private void retry(SqlConnection connection) {
+        if (connection != null) {
+            listening.compareAndSet(connection, null);
+        }
+        if (!stopped) {
+            vertx.setTimer(RETRY_MS, id -> listen());
+        }
     }
 
     @Incoming("gps-frames")
@@ -184,32 +288,16 @@ public class SignalStream {
                 .addMetadata(PulsarOutgoingMessageMetadata.builder().withKey(signal.assetId()).build()));
     }
 
-    @Incoming("signal-live-trip")
-    public Uni<Void> onTrip(Message<byte[]> in) {
-        apply(in, true);
-        return Uni.createFrom().completionStage(in::ack);
-    }
-
     @Incoming("signal-asset-client-map")
     public Uni<Void> onShare(Message<byte[]> in) {
-        apply(in, false);
-        return Uni.createFrom().completionStage(in::ack);
-    }
-
-    private void apply(Message<byte[]> in, boolean trip) {
-        if (in.getPayload() == null || in.getPayload().length == 0) {
-            return; // Debezium's tombstone after a delete
-        }
-        try {
-            JsonObject change = new JsonObject(new String(in.getPayload(), StandardCharsets.UTF_8));
-            if (trip) {
-                refs.applyTrip(change);
-            } else {
-                refs.applyShare(change);
+        if (in.getPayload() != null && in.getPayload().length > 0) { // empty: Debezium's tombstone after a delete
+            try {
+                refs.applyShare(new JsonObject(new String(in.getPayload(), StandardCharsets.UTF_8)));
+            } catch (RuntimeException e) {
+                LOG.warnf("Signal builder: change event skipped (%s)", e.getClass().getSimpleName());
             }
-        } catch (RuntimeException e) {
-            LOG.warnf("Signal builder: change event skipped (%s)", e.getClass().getSimpleName());
         }
+        return Uni.createFrom().completionStage(in::ack);
     }
 
     /** The innermost exception's type and the first frame in our code: never the frame's content. */

@@ -52,7 +52,7 @@ An ACTIVE OPENED row of `signal_transitions` is a Control Tower case until a CLO
 | Endpoint | What changes |
 |---|---|
 | `GET …/control-tower/map/symptoms` | With paging only (no filters), page 1 lists the open cases first, in the GPS function's row shape, with their count in `open_cases`; the paging totals stay the GPS function's. They still show when the GPS database cannot be read |
-| `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and `live_trip`, and the signal's point as an EWKB feature |
+| `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and the trip's `trip_live` row while it runs, and the signal's point as an EWKB feature |
 | `POST …/treatments/{id}/close` | Closing the treatment of a case closes the case (CLOSED row with `closed_by`) and drops its Redis episode, so the next signal that meets the condition opens a new case |
 
 A case's symptom id is the OPENED row's id negated, so it never meets a GPS database symptom id in `treatment` and `audit_event`. The row keeps the signal's trip, position and speed (V0.8.5).

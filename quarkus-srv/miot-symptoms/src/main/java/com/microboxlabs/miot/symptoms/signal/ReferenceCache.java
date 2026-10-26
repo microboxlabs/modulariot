@@ -7,37 +7,34 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * The GPS database rows the signal builder joins to each frame: trips from
- * {@code live_trip}, the clients a vehicle is shared with from
- * {@code asset_client_map} and the driver registry ({@code ams.rd_drivers}).
- * Loaded in full; trips and shares are then kept current from their Debezium
- * change events, drivers by the next load.
+ * The rows the signal builder joins to each frame: the trips from
+ * {@code miot_trips.trip_live}, with their carrier and driver from the fleet,
+ * and the clients a vehicle is shared with from the GPS database's
+ * {@code asset_client_map}. Loaded in full; trips are then kept current from
+ * the {@code miot_trips_live} notices, shares from their Debezium change events.
  */
 public class ReferenceCache {
 
-    /** A {@code live_trip} row, as far as the signal needs it. */
-    public record Trip(String tripId, String assetId, String tripType, String status, Instant startTime,
-            Instant endTime, boolean doubleDriver, TripDetails details) {
+    /** A {@code trip_live} row, as far as the signal needs it. */
+    public record Trip(String tripId, String tenant, String assetId, String tripType, String status,
+            Instant startTime, Instant endTime, boolean doubleDriver, TripDetails details) {
 
-        public Trip(String tripId, String assetId, String tripType, String status, Instant startTime,
+        public Trip(String tripId, String tenant, String assetId, String tripType, String status, Instant startTime,
                 Instant endTime, boolean doubleDriver) {
-            this(tripId, assetId, tripType, status, startTime, endTime, doubleDriver, TripDetails.NONE);
+            this(tripId, tenant, assetId, tripType, status, startTime, endTime, doubleDriver, TripDetails.NONE);
         }
 
-        /** In progress at {@code at}, as the GPS database's signal function decides it. */
+        /** Departed at or before {@code at} and not ended. */
         boolean inProgressAt(Instant at) {
-            return "SCHEDULED".equals(status) && startTime != null && !startTime.isAfter(at) && endTime == null;
+            return startTime != null && !startTime.isAfter(at) && endTime == null;
         }
 
         /** Trips of type {@code v} first; {@code ote} and {@code otr} only when no {@code v} trip is open. */
@@ -47,20 +44,16 @@ public class ReferenceCache {
     }
 
     /**
-     * The rest of a {@code live_trip} row. The driver's national id stays here, to find them in the registry; the
-     * signal carries the registry id instead.
+     * The rest of a {@code trip_live} row. {@code driverAssigned} says the trip names a driver; the other driver
+     * values are the fleet's, null when the fleet does not have that driver.
      */
-    public record TripDetails(Instant eta, Integer originId, String originLabel, Boolean originVisited,
+    public record TripDetails(Instant eta, String code, Integer originId, String originLabel, Boolean originVisited,
             Boolean originInternal, Integer destinationId, String destinationLabel, Boolean destinationVisited,
-            Integer currentGeofenceId, String carrierId, String carrierName, String loadType, String trailerPlate,
-            String driverNationalId, String createdBy) {
+            Integer currentGeofenceId, String carrierTaxId, String carrierName, String loadType, String trailerPlate,
+            boolean driverAssigned, String driverId, String driverStatus, Instant driverLicenseExpires) {
 
         static final TripDetails NONE = new TripDetails(null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null);
-    }
-
-    /** An {@code ams.rd_drivers} row. */
-    public record Driver(String id, String clientId, String nationalId, String status, Instant licenseExpires) {
+                null, null, null, null, false, null, null, null);
     }
 
     /** An {@code asset_client_map} row. */
@@ -71,19 +64,16 @@ public class ReferenceCache {
         }
     }
 
-    private static final String TRIP_ID = "trip_id";
     private static final String ASSET_ID = "asset_id";
     private static final String SHARED_CLIENT_ID = "shared_client_id";
 
     private static final Comparator<Trip> FIRST = Comparator.comparingInt(Trip::priority)
             .thenComparing(Trip::startTime, Comparator.reverseOrder());
 
-    /** By trip id and vehicle, the table's key. */
+    /** By trip id, the table's key. */
     private final Map<String, Trip> trips = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Share>> shares = new ConcurrentHashMap<>();
-    /** By national id without dots, upper case; null until the registry is first loaded. */
-    private final AtomicReference<Map<String, List<Driver>>> drivers = new AtomicReference<>();
-    /** Rows changed by a change event since the current reload began; the reload's older copy does not replace them. */
+    /** Rows changed since the current reload began; the reload's older copy does not replace them. */
     private final Set<String> changedTrips = ConcurrentHashMap.newKeySet();
     private final Set<String> changedShares = ConcurrentHashMap.newKeySet();
     private volatile boolean reloading;
@@ -98,11 +88,11 @@ public class ReferenceCache {
 
     /**
      * Replaces the rows without emptying the maps first, so frames built during a reload still find them,
-     * and keeps the rows change events updated while the reload's queries ran.
+     * and keeps the rows changed while the reload's queries ran.
      */
     public void load(List<Trip> allTrips, List<Share> allShares) {
         Map<String, Trip> nextTrips = new HashMap<>();
-        allTrips.forEach(t -> nextTrips.put(key(t.tripId(), t.assetId()), t));
+        allTrips.forEach(t -> nextTrips.put(t.tripId(), t));
         nextTrips.forEach((k, t) -> {
             if (!changedTrips.contains(k)) {
                 trips.put(k, t);
@@ -130,42 +120,18 @@ public class ReferenceCache {
         return loaded;
     }
 
-    /** Whether the driver registry has been loaded, so a driver not found in it is known to be unregistered. */
-    public boolean driversLoaded() {
-        return drivers.get() != null;
-    }
-
-    /** Replaces the driver registry. */
-    public void loadDrivers(List<Driver> all) {
-        Map<String, List<Driver>> next = new HashMap<>();
-        all.stream().filter(d -> d.nationalId() != null)
-                .forEach(d -> next.computeIfAbsent(nationalId(d.nationalId()), k -> new ArrayList<>()).add(d));
-        drivers.set(next);
-    }
-
     /**
-     * The registered driver with this national id: the one of the client that created the trip first, then an
-     * active one.
+     * Each client's trip in progress on the vehicle at {@code at}, in the order of {@code clients}: a vehicle
+     * shared between organizations may be on a trip of each.
      */
-    public Optional<Driver> driver(String nationalId, String clientId) {
-        Map<String, List<Driver>> registry = drivers.get();
-        if (nationalId == null || registry == null) {
-            return Optional.empty();
+    public Map<String, Trip> tripsAt(String assetId, Instant at, List<String> clients) {
+        Map<String, Trip> out = new LinkedHashMap<>();
+        for (String client : clients) {
+            trips.values().stream()
+                    .filter(t -> client.equals(t.tenant()) && assetId.equals(t.assetId()) && t.inProgressAt(at))
+                    .min(FIRST).ifPresent(t -> out.put(client, t));
         }
-        return registry.getOrDefault(nationalId(nationalId), List.of()).stream()
-                .min(Comparator.comparing((Driver d) -> !Objects.equals(d.clientId(), clientId))
-                        .thenComparing(d -> !"ACTIVE".equals(d.status())));
-    }
-
-    private static String nationalId(String id) {
-        return id.replace(".", "").trim().toUpperCase(Locale.ROOT);
-    }
-
-    /** The vehicle's trip in progress at {@code at}, the way the GPS database's signal function picks it. */
-    public Optional<Trip> tripAt(String assetId, Instant at) {
-        return trips.values().stream()
-                .filter(t -> assetId.equals(t.assetId()) && t.inProgressAt(at))
-                .min(FIRST);
+        return out;
     }
 
     /** The client that sent the frame, then the clients the vehicle is shared with at {@code at}. */
@@ -182,16 +148,13 @@ public class ReferenceCache {
         return new ArrayList<>(out);
     }
 
-    /** Applies a {@code live_trip} Debezium change event. */
-    public void applyTrip(JsonObject change) {
-        JsonObject after = change.getJsonObject("after");
-        if ("d".equals(change.getString("op"))) {
-            JsonObject before = change.getJsonObject("before");
-            if (before != null && before.getString(TRIP_ID) != null) {
-                trips.remove(changed(changedTrips, key(before.getString(TRIP_ID), before.getString(ASSET_ID))));
-            }
-        } else if (after != null && after.getString(TRIP_ID) != null) {
-            trips.put(changed(changedTrips, key(after.getString(TRIP_ID), after.getString(ASSET_ID))), trip(after));
+    /** The trip's row as read after a notice; null when the trip no longer has one. */
+    public void applyTrip(String tripId, Trip row) {
+        changed(changedTrips, tripId);
+        if (row == null) {
+            trips.remove(tripId);
+        } else {
+            trips.put(tripId, row);
         }
     }
 
@@ -221,11 +184,10 @@ public class ReferenceCache {
         return trips.size();
     }
 
-    private String changed(Set<String> changes, String k) {
+    private void changed(Set<String> changes, String k) {
         if (reloading) {
             changes.add(k);
         }
-        return k;
     }
 
     private static String key(String first, String second) {
@@ -236,19 +198,20 @@ public class ReferenceCache {
         shares.computeIfAbsent(s.assetId(), k -> new ConcurrentHashMap<>()).put(s.clientId(), s);
     }
 
-    /** A trip from a Debezium row or a row the reload reads as JSON: the same column names and ISO times. */
+    /** A trip from a row of {@link SignalStream}'s trip query, read as JSON. */
     static Trip trip(JsonObject row) {
-        return new Trip(row.getString(TRIP_ID), row.getString(ASSET_ID), row.getString("trip_type"),
-                row.getString("status"), instant(row.getString("start_time")), instant(row.getString("end_time")),
-                Boolean.TRUE.equals(row.getBoolean("double_driver")),
-                new TripDetails(instant(row.getString("estimated_arrival_time")),
+        return new Trip(row.getString("trip_id"), row.getString("tenant_code"), row.getString(ASSET_ID),
+                row.getString("trip_type"), row.getString("status"), instant(row.getString("start_time")),
+                instant(row.getString("end_time")), Boolean.TRUE.equals(row.getBoolean("double_driver")),
+                new TripDetails(instant(row.getString("estimated_arrival_time")), row.getString("code"),
                         row.getInteger("origin_geofence_id"), row.getString("origin_geofence_label"),
                         row.getBoolean("origin_visited"), row.getBoolean("origin_is_internal"),
                         row.getInteger("destination_geofence_id"), row.getString("destination_geofence_label"),
                         row.getBoolean("destination_visited"), row.getInteger("current_geofence_id"),
-                        row.getString("carrier_id"), row.getString("carrier_name"), row.getString("type_load"),
-                        row.getString("rampla_plate"), row.getString("driver_id"),
-                        row.getString("created_by_client_id")));
+                        row.getString("carrier_tax_id"), row.getString("carrier_name"), row.getString("type_load"),
+                        row.getString("rampla_plate"), Boolean.TRUE.equals(row.getBoolean("driver_assigned")),
+                        row.getString("driver_fleet_id"), row.getString("driver_status"),
+                        instant(row.getString("driver_license_expires"))));
     }
 
     static Instant instant(String iso) {

@@ -2,7 +2,9 @@ package com.microboxlabs.miot.trips.store;
 
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** Feed profiles and the per-service state of each feed. Every call is tenant-scoped. */
@@ -23,6 +25,9 @@ public interface FeedStore {
      * reconciles of one service run one after the other.
      */
     FeedService lockService(String tenantCode, String feedKey, String externalCode);
+
+    /** The digests of the services of {@code externalCodes} that exist, by code, in one read and without locks. */
+    Map<String, FeedService.Digest> digests(String tenantCode, String feedKey, Collection<String> externalCodes);
 
     /** Inserts or replaces the service row. */
     void saveService(FeedService service);

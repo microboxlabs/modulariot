@@ -76,9 +76,9 @@ function Detail({
               <div key={key} className="contents">
                 <dt className="text-gray-500 dark:text-gray-400">{key}</dt>
                 <dd className="break-all font-medium text-gray-900 dark:text-gray-100">
-                  {typeof value === "object"
-                    ? JSON.stringify(value)
-                    : String(value)}
+                  {typeof value === "string"
+                    ? value
+                    : (JSON.stringify(value) ?? "—")}
                 </dd>
               </div>
             ))}

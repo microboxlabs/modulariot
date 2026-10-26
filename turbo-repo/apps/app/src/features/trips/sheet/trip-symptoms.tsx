@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { HiChevronRight } from "react-icons/hi";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
@@ -13,18 +12,17 @@ import { treatmentHref } from "@/features/symptoms/model/treatment-link";
 import type { BoardCard } from "../board/board-api";
 import { shortTime } from "../board/trip-card";
 
-const DAY_MS = 86_400_000;
 const PAGE_SIZE = 50;
 
 /**
- * From the trip's start until it ended, or until a day after `now` while it
- * runs, so the list holds its closed symptoms too. Without a start, no range:
+ * From the trip's start until it ended; no upper bound while it runs, so the
+ * list keeps receiving new symptoms on long-lived pages. Without a start, no range:
  * the open symptoms only.
  */
-export function symptomRange(card: BoardCard, now: number) {
+export function symptomRange(card: BoardCard) {
   const from = card.departedAt ?? card.plannedStart;
   if (!from) return undefined;
-  return { from, to: card.actualEnd ?? new Date(now + DAY_MS).toISOString() };
+  return { from, to: card.actualEnd ?? undefined };
 }
 
 /** Open symptoms first, then the latest. */
@@ -48,11 +46,10 @@ export function TripSymptoms({
   general: I18nRecord;
   lang: string;
 }>) {
-  const [now] = useState(() => Date.now());
   const { tableData, loading, error } = useSymptomsTable({
     trip_id: card.tripId,
     pageSize: PAGE_SIZE,
-    date_range: symptomRange(card, now),
+    date_range: symptomRange(card),
   });
   const rows = orderSymptoms(tableData?.data ?? []);
   const note = (text: string) => (

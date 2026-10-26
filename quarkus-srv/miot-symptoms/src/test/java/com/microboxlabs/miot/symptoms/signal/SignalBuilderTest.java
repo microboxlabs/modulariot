@@ -225,7 +225,7 @@ class SignalBuilderTest {
             """;
 
     @Test
-    void carriesTheTripRowWithTheFleetsCarrierAndDriver() throws Exception {
+    void carriesTheTripRowWithTheFleetsCarrierAndDriver() {
         ReferenceCache refs = refs(List.of(ReferenceCache.trip(new JsonObject(ROW))), List.of());
 
         GpsSignal s = build(refs, frame("ABCD12", 70, false));

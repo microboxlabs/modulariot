@@ -214,6 +214,21 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void engineNamesJoinTheLegacySelectorWithoutDuplicates() throws Exception {
+        store.add(panic(12, "DEMO01"));
+        JsonNode gps = new com.fasterxml.jackson.databind.ObjectMapper().readTree("{\"page\":1,\"data\":[],\"symptom_name_list\":[\"Legacy\",\"Botón de pánico\"]}");
+        JsonNode combined = service.withCases(TENANT, Map.of(), gps);
+        assertEquals(List.of("Legacy", "Botón de pánico"), names(combined));
+        assertEquals(List.of("Botón de pánico"), names(service.withCases(TENANT, Map.of(), null)));
+    }
+
+    private static List<String> names(JsonNode page) {
+        List<String> out = new ArrayList<>();
+        page.path("symptom_name_list").forEach(n -> out.add(n.asText()));
+        return out;
+    }
+
+    @Test
     void readsTheListFiltersAsACaseFilter() {
         EngineCaseStore.CaseFilter f = EngineCaseService.filter(Map.of("p_trip_id", " T-1 ", "p_asset_id", "DEMO",
                 "p_icu_code", "4", "p_start_date_historic", "2026-10-22T03:00:00",
@@ -223,9 +238,10 @@ class EngineCaseServiceTest {
                 Instant.parse("2026-10-23T00:00:00Z")), f);
         assertFalse(f.openOnly());
         assertTrue(EngineCaseService.filter(Map.of()).openOnly());
-        assertThrows(IllegalArgumentException.class, () -> EngineCaseService.filter(Map.of("p_icu_code", "x")));
-        assertThrows(IllegalArgumentException.class,
-                () -> EngineCaseService.filter(Map.of("p_start_date_historic", "ayer")));
+        Map<String, String> badLevel = Map.of("p_icu_code", "x");
+        Map<String, String> badDate = Map.of("p_start_date_historic", "ayer");
+        assertThrows(IllegalArgumentException.class, () -> EngineCaseService.filter(badLevel));
+        assertThrows(IllegalArgumentException.class, () -> EngineCaseService.filter(badDate));
     }
 
     @Test

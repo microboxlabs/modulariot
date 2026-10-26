@@ -505,12 +505,18 @@ class PgTripsStoresTest {
     @Test
     void eachChangeOfAHotRowIsAnnounced() throws InterruptedException {
         String tenant = tenant();
-        UUID tripId = UUID.randomUUID();
+        Trip trip = trips.insert(new Trip(null, tenant, Trip.PLANNED, null, null, null, null, null, null,
+                null, ACTOR, null, ACTOR));
+        UUID tripId = UUID.fromString(trip.id());
         List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+        var received = new java.util.concurrent.CountDownLatch(4);
         io.vertx.mutiny.sqlclient.SqlConnection listener = pool.getConnection().await().atMost(WAIT);
         try {
             io.vertx.mutiny.pgclient.PgConnection.cast(listener)
-                    .notificationHandler(n -> notices.add(n.getPayload()));
+                    .notificationHandler(n -> {
+                        notices.add(n.getPayload());
+                        received.countDown();
+                    });
             listener.query("LISTEN " + TripLiveChannel.CHANNEL).execute().await().atMost(WAIT);
 
             live.upsert(new com.microboxlabs.miot.trips.domain.TripLiveProjection(tripId.toString(), tenant,
@@ -518,14 +524,16 @@ class PgTripsStoresTest {
                     "in_transit", null, null, null, null, null, null, null, null, null, null, null, null, null,
                     null));
             live.saveMotorState(tenant, tripId, 7, true, false);
+            new PgMilestoneStore(() -> pool).save(new com.microboxlabs.miot.trips.domain.TripMilestone(
+                    tenant, trip.id(), "departure", "confirmed", null, null, Map.of(),
+                    OffsetDateTime.now(ZoneOffset.UTC), ACTOR, "ui", null, null, ACTOR));
             live.delete(tenant, tripId);
-            for (int i = 0; i < 50 && notices.size() < 3; i++) {
-                Thread.sleep(20);
-            }
+            assertTrue(received.await(WAIT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS),
+                    "all four notices should arrive");
         } finally {
             listener.closeAndForget();
         }
-        assertEquals(3, notices.size(), "upsert, motor state and delete");
+        assertEquals(4, notices.size(), "upsert, motor state, departure and delete");
         assertTrue(notices.stream().allMatch(n -> n.contains(tripId.toString()) && n.contains(tenant)), notices
                 .toString());
     }

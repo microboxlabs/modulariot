@@ -77,7 +77,14 @@ public class SignalStream {
      */
     private static final String TRIPS = """
             SELECT row_to_json(t)::text AS trip FROM (
-                SELECT tl.trip_id, tl.tenant_code, tl.asset_id, tl.trip_type, tl.status, tl.start_time, tl.end_time,
+                SELECT tl.trip_id, tl.tenant_code, tl.asset_id, tl.trip_type, tl.status,
+                       coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
+                                  WHERE m.tenant_code = tl.tenant_code AND m.trip_id = tl.trip_id
+                                    AND m.milestone = 'departure' AND m.status = 'confirmed'),
+                                (SELECT min(s.actual_start) FROM miot_trips.stage s
+                                  WHERE s.tenant_code = tl.tenant_code AND s.subject_type = 'trip'
+                                    AND s.subject_id = tl.trip_id AND s.stage_type IN ('transit', 'stop')
+                                    AND s.version_of IS NULL AND s.is_active)) AS start_time, tl.end_time,
                        tl.double_driver, tl.estimated_arrival_time,
                        (CASE jsonb_typeof(tl.mandate_codes) WHEN 'string' THEN (tl.mandate_codes #>> '{}')::jsonb
                              ELSE tl.mandate_codes END) -> 0 ->> 'code' AS code,
@@ -91,6 +98,7 @@ public class SignalStream {
                   LEFT JOIN LATERAL (
                        SELECT id, status, license_expires FROM miot_fleet.driver
                         WHERE tenant_code = tl.tenant_code AND rut = tl.driver_id
+                          AND version_of IS NULL AND is_active
                         ORDER BY status = 'active' DESC LIMIT 1) d ON true
                  WHERE tl.asset_id IS NOT NULL %s) t
             """;
@@ -106,6 +114,7 @@ public class SignalStream {
     private final Vertx vertx;
     private final ReferenceCache refs = new ReferenceCache();
     private final SignalBuilder builder;
+    private final TripNoticeReader tripReader;
     private final Counter built;
     private final Counter skipped;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
@@ -119,6 +128,8 @@ public class SignalStream {
         this.gps = gps;
         this.pool = pool::get;
         this.vertx = vertx;
+        this.tripReader = new TripNoticeReader(refs, id -> this.pool.get().preparedQuery(ONE_TRIP)
+                .execute(Tuple.of(id)).map(SignalStream::trips));
         this.builder = new SignalBuilder(refs, ZoneId.of(zone));
         this.built = meters.counter("miot.symptoms.signal.built");
         this.skipped = meters.counter("miot.symptoms.signal.skipped");
@@ -161,6 +172,7 @@ public class SignalStream {
 
     private Uni<Void> reload() {
         return Uni.createFrom().deferred(() -> {
+            tripReader.invalidate();
             refs.beginReload();
             return loadTrips();
         }).chain(t -> loadShares().map(s -> {
@@ -203,17 +215,14 @@ public class SignalStream {
 
     /** A notice names a trip whose row changed: it is read again, or dropped when it no longer has one. */
     void onTripNotice(String payload) {
-        String tripId;
+        UUID tripId;
         try {
-            tripId = UUID.fromString(new JsonObject(payload).getString("tripId")).toString();
+            tripId = UUID.fromString(new JsonObject(payload).getString("tripId"));
         } catch (RuntimeException e) {
             LOG.debugf("Signal builder: trip notice ignored (%s)", e.getClass().getSimpleName());
             return;
         }
-        pool.get().preparedQuery(ONE_TRIP).execute(Tuple.of(UUID.fromString(tripId))).map(SignalStream::trips)
-                .subscribe().with(rows -> refs.applyTrip(tripId, rows.isEmpty() ? null : rows.get(0)),
-                        e -> LOG.warnf("Signal builder: trip %s not read again (%s)", tripId,
-                                e.getClass().getSimpleName()));
+        tripReader.read(tripId);
     }
 
     /** One connection listens for trip changes; notices missed while it reconnects wait for the next reload. */

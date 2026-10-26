@@ -17,7 +17,6 @@ vi.mock("@/features/symptoms/components/condition-icon", () => ({
 }));
 
 const TRIP = "5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a01";
-const NOW = Date.parse("2026-10-26T12:00:00Z");
 
 function card(over: Partial<BoardCard> = {}): BoardCard {
   return {
@@ -52,21 +51,20 @@ function row(id: string, date: string, endDate?: string): TableItemType {
 describe("trip symptoms", () => {
   beforeEach(() => table.mockReset());
 
-  it("reads from the trip's start until it ends, or until a day ahead while it runs", () => {
-    expect(symptomRange(card(), NOW)).toEqual({
+  it("reads from the trip's start until it ends, or without an upper cutoff while it runs", () => {
+    expect(symptomRange(card())).toEqual({
       from: "2026-10-26T07:00:00Z",
-      to: "2026-10-27T12:00:00.000Z",
+      to: undefined,
     });
     expect(
       symptomRange(
         card({
           departedAt: "2026-10-26T08:00:00Z",
           actualEnd: "2026-10-26T11:00:00Z",
-        }),
-        NOW
+        })
       )
     ).toEqual({ from: "2026-10-26T08:00:00Z", to: "2026-10-26T11:00:00Z" });
-    expect(symptomRange(card({ plannedStart: null }), NOW)).toBeUndefined();
+    expect(symptomRange(card({ plannedStart: null }))).toBeUndefined();
   });
 
   it("puts the open symptoms first, then the latest", () => {

@@ -25,6 +25,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -51,6 +52,7 @@ public class EngineCaseService {
     /** The list filters the cases answer; any other one leaves them out. */
     private static final Set<String> CASE_FILTERS = Set.of(TRIP_ID, ASSET_ID, NAME, LEVEL, FROM, TO);
     private static final String SYMPTOM_NAME = "symptom_name";
+    private static final String SYMPTOM_NAMES = "symptom_name_list";
     private static final String ICU_CODE = "icu_code";
     private static final String ICU_CONDITION = "icu_condition";
     private static final Map<Integer, String> CONDITIONS = Map.of(1, "UNDER OBSERVATION", 2,
@@ -190,8 +192,14 @@ public class EngineCaseService {
             out.put("page_size", rows.size());
             out.put("total_rows", rows.size());
             out.put("total_pages", 1);
-            out.set("symptom_name_list", JSON.arrayNode());
+            out.set(SYMPTOM_NAMES, JSON.arrayNode());
         }
+        Set<String> names = new LinkedHashSet<>();
+        out.path(SYMPTOM_NAMES).forEach(name -> names.add(name.asText()));
+        found.forEach(c -> names.add(c.name()));
+        ArrayNode choices = JSON.arrayNode();
+        names.forEach(choices::add);
+        out.set(SYMPTOM_NAMES, choices);
         return out;
     }
 

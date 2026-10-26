@@ -121,23 +121,27 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             @PathParam(MILESTONE) String milestone, ConfirmRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return callerTeams(organizationId).flatMap(mine -> work(() -> {
-            UUID tripId = trip(tenant, id);
-            confirmers.require(tenant, tripId, milestone, mine);
-            String ch = channel(body == null ? null : body.channel());
-            if (body != null && body.expectedDetection() != null) {
-                if (body.at() != null) {
-                    throw new IllegalArgumentException("at cannot be combined with expectedDetection");
-                }
-                DetectionRequest expected = body.expectedDetection();
-                return Response.ok(milestones.respondToDetection(tenant, actor, tripId,
-                        new DetectionRef(milestone, expected.proposedAt(), expected.source()), true, ch,
-                        body.note())).build();
+        return callerTeams(organizationId)
+                .flatMap(mine -> work(() -> confirmForCaller(tenant, actor, id, milestone, body, mine)));
+    }
+
+    private Response confirmForCaller(String tenant, String actor, String id, String milestone,
+            ConfirmRequest body, Set<UUID> mine) {
+        UUID tripId = trip(tenant, id);
+        confirmers.require(tenant, tripId, milestone, mine);
+        String ch = channel(body == null ? null : body.channel());
+        if (body != null && body.expectedDetection() != null) {
+            if (body.at() != null) {
+                throw new IllegalArgumentException("at cannot be combined with expectedDetection");
             }
-            return Response.ok(milestones.confirm(tenant, actor, tripId, milestone,
-                    body == null ? null : body.at(), ch, body == null ? null : body.note(),
-                    body == null ? null : body.evidence())).build();
-        }));
+            DetectionRequest expected = body.expectedDetection();
+            return Response.ok(milestones.respondToDetection(tenant, actor, tripId,
+                    new DetectionRef(milestone, expected.proposedAt(), expected.source()), true, ch,
+                    body.note())).build();
+        }
+        return Response.ok(milestones.confirm(tenant, actor, tripId, milestone,
+                body == null ? null : body.at(), ch, body == null ? null : body.note(),
+                body == null ? null : body.evidence())).build();
     }
 
     @POST

@@ -79,7 +79,7 @@ export function ConfirmersPanel({
                 id={`confirmer-${m}`}
                 sizing="sm"
                 value={value[m] ?? ""}
-                disabled={busy}
+                disabled={busy || saved === undefined}
                 onChange={(e) => pick(m, e.target.value)}
               >
                 <option value="">{tr("confirmers.anyone", d)}</option>
@@ -102,7 +102,7 @@ export function ConfirmersPanel({
           <Button
             size="sm"
             color="blue"
-            disabled={busy || !dirty}
+            disabled={busy || !dirty || saved === undefined}
             onClick={save}
           >
             {tr("confirmers.save", d)}

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.store;
 
 import static com.microboxlabs.miot.trips.store.Pg.query;
 
+import com.microboxlabs.miot.core.iam.TeamDeletionGuard;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -12,6 +13,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -50,6 +52,15 @@ public class PgConfirmerStore implements ConfirmerStore {
 
     @Override
     public void replace(String tenantCode, String monitorKey, Map<String, UUID> teams, String actor) {
+        PgMonitorStore.lockMonitor(pool.get(), tenantCode, monitorKey);
+        for (UUID teamId : new TreeSet<>(teams.values())) {
+            query(pool.get(), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                    Tuple.of(TeamDeletionGuard.lockKey(teamId)));
+            if (!query(pool.get(), "SELECT 1 FROM miot_iam.iam_team WHERE id = $1", Tuple.of(teamId))
+                    .iterator().hasNext()) {
+                throw new IllegalArgumentException("team " + teamId + " no longer exists");
+            }
+        }
         query(pool.get(), "DELETE FROM miot_trips.milestone_confirmer WHERE tenant_code = $1 AND monitor_key = $2",
                 Tuple.of(tenantCode, monitorKey));
         teams.forEach((milestone, team) -> query(pool.get(), """

@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.db.Transactions;
-import com.microboxlabs.miot.trips.domain.MonitorSelector;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
@@ -27,7 +27,7 @@ class MonitorServiceTest {
             finally { transaction = false; locked = false; }
         }
     };
-    private final MonitorService service = new MonitorService(store,
+    private final MonitorService service = new MonitorService(store, null, null,
             new AuditService(new InMemoryTripsWorld().auditStore), tx);
 
     @Test
@@ -35,7 +35,7 @@ class MonitorServiceTest {
         MonitorRequest request = new MonitorRequest("Test monitor", null,
                 List.of(new TripMonitor.StagePlan(" transit ", " READY ")), Map.of(),
                 List.of(new MonitorRequest.Rule("advance", null, "plan", null, null,
-                        List.of(new TripMonitor.Action("advance", "transit")), null, null)));
+                        List.of(new TripMonitor.Action("advance", "transit")), null, null)), MonitorScope.ANY);
         var saved = service.saveDraft("test", "test", "test-monitor", request);
         assertEquals("transit", saved.plan().get(0).stageType());
         assertEquals("READY", saved.plan().get(0).serviceStatus());
@@ -47,7 +47,7 @@ class MonitorServiceTest {
     void missingActionTypeIsAValidationError() {
         MonitorRequest request = new MonitorRequest("Test monitor", null, List.of(), Map.of(),
                 List.of(new MonitorRequest.Rule("invalid", null, "plan", null, null,
-                        List.of(new TripMonitor.Action(null, null)), null, null)));
+                        List.of(new TripMonitor.Action(null, null)), null, null)), MonitorScope.ANY);
         assertThrows(IllegalArgumentException.class,
                 () -> service.saveDraft("test", "test", "test-monitor", request));
     }
@@ -67,7 +67,6 @@ class MonitorServiceTest {
             return Optional.of(draft);
         }
         public boolean deleteDraft(String tenant, String key) { assertTrue(locked); draft = null; return true; }
-        public List<MonitorSelector> selector(String tenant) { return List.of(); }
-        public void saveSelector(String tenant, List<MonitorSelector> entries, String actor) { assertTrue(locked); }
+        public List<String> orderTypes(String tenant) { return List.of(); }
     }
 }

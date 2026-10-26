@@ -8,7 +8,6 @@ public record FeedProfileRequest(
         String name,
         List<FeedProfile.StagePlan> stages,
         String arrivalStage,
-        String monitor,
         List<String> requiredResources,
         Boolean active) {
 }

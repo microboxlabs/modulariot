@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * Create/patch body for a trip; on create it may carry mandates to link, planned stages and the key of the monitor
- * that moves it (without one, the tenant's selector picks it).
+ * that moves it (without one, the monitor whose scope takes the trip).
  */
 public record TripRequest(
         String originId,

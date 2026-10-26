@@ -6,6 +6,7 @@ import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
@@ -100,18 +101,12 @@ final class MonitorContext {
         return ctx;
     }
 
-    /** What a selector condition reads: the trip just created. */
-    Map<String, Object> ofNewTrip(Trip trip) {
-        String tenant = trip.tenantCode();
-        UUID tripId = UUID.fromString(trip.id());
-        Map<String, Map<String, Object>> places = new HashMap<>();
-        List<Map<String, Object>> linked = mandates(tenant, tripId);
-        Map<String, Object> t = new LinkedHashMap<>();
-        putIf(t, ORDER_TYPE, linked.isEmpty() ? null : linked.get(0).get(ORDER_TYPE));
-        putIf(t, PLANNED_START, instant(trip.plannedStart()));
-        location(tenant, trip.originId(), places).ifPresent(value -> t.put("origin", value));
-        location(tenant, trip.destinationId(), places).ifPresent(value -> t.put("destination", value));
-        return Map.of("trip", t, "mandates", linked);
+    /** What a monitor's scope is matched on: the trip just created and the feed that created it, if any. */
+    MonitorScope.Trip scopeOf(Trip trip, String feed) {
+        List<Map<String, Object>> linked = mandates(trip.tenantCode(), UUID.fromString(trip.id()));
+        Object orderType = linked.isEmpty() ? null : linked.get(0).get(ORDER_TYPE);
+        return new MonitorScope.Trip(feed, orderType instanceof String s ? s : null, trip.originId(),
+                trip.destinationId());
     }
 
     static Map<String, Object> event(MonitorRun.Event event) {

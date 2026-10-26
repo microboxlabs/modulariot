@@ -11,6 +11,7 @@ import com.microboxlabs.miot.core.db.PgTransactions;
 import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
 import com.microboxlabs.miot.trips.domain.Stage;
@@ -74,7 +75,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 /**
  * Monitors running on real trips: the plan rule that opens a trip, GPS signals that move it, a chained stage rule,
- * a timer fired by the clock once, the selector, a hand command, and a failing action that undoes only itself.
+ * a timer fired by the clock once, the monitor scopes, a hand command, and a failing action that undoes only itself.
  * Skipped unless {@code -Dmiot.trips.test.pg-url=…} is set.
  */
 @EnabledIfSystemProperty(named = PgTripsStoresTest.URL_PROPERTY, matches = ".+")
@@ -100,7 +101,7 @@ class PgMonitorEngineTest {
             new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final PgMonitorRunStore runs = new PgMonitorRunStore(() -> pool);
-    private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
     private final FleetResourcesService fleet = new FleetResourcesService(
             new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool));
     private final List<OperationalEvent> fired = new CopyOnWriteArrayList<>();
@@ -147,10 +148,19 @@ class PgMonitorEngineTest {
                 rule("hand-close", "command", null, "event.kind == 'close'", 10, act("alert", "closed_by_hand"))));
     }
 
+    /** Publishes a monitor whose scope takes no test trip, so trips get it only by asking. */
     private void publish(String key, List<MonitorRequest.Rule> rules) {
+        publish(key, rules, scope("unused-" + key));
+    }
+
+    private void publish(String key, List<MonitorRequest.Rule> rules, MonitorScope scope) {
         monitors.saveDraft(tenant, ACTOR, key, new MonitorRequest("Direct", null, List.of(),
-                Map.of("lateDepartureMinutes", 30), rules));
+                Map.of("lateDepartureMinutes", 30), rules, scope));
         monitors.publish(tenant, ACTOR, key);
+    }
+
+    private static MonitorScope scope(String orderType) {
+        return new MonitorScope(List.of(), List.of(orderType), List.of(), List.of());
     }
 
     private static TripMonitor.Action act(String type, String value) {
@@ -227,16 +237,21 @@ class PgMonitorEngineTest {
     }
 
     @Test
-    void theSelectorPicksTheMonitorAndATripWithoutOneStaysStill() {
+    void theNarrowestScopeTakesTheTripAndATripOutsideEveryScopeStaysStill() {
         UUID none = id(newTrip(null, null));
         assertTrue(engine.state(tenant, none).isEmpty());
         assertEquals(Stage.PENDING, status(none, "preparation"));
         assertEquals(List.of(), engine.signal(tenant, "gps", none, "left_origin", null, null));
 
-        monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
-                new MonitorViews.SelectorRequest.Entry("trip.orderType == 'direct'", DIRECT))));
+        List<MonitorRequest.Rule> open = List.of(
+                rule("open-preparation", "plan", null, "event.kind == 'created'", 10, act("start", "preparation")));
+        publish("general", open, MonitorScope.ANY);
+        assertEquals("general", engine.state(tenant, id(newTrip(null, null))).orElseThrow().monitorKey());
+
+        publish("direct-orders", open, scope("direct"));
         UUID picked = id(newTrip(null, null));
-        assertEquals(DIRECT, engine.state(tenant, picked).orElseThrow().monitorKey());
+        assertEquals("direct-orders", engine.state(tenant, picked).orElseThrow().monitorKey(),
+                "the narrower scope wins over the general one");
         assertEquals(Stage.RUNNING, status(picked, "preparation"));
     }
 
@@ -626,17 +641,15 @@ class PgMonitorEngineTest {
     }
 
     @Test
-    void emptyTripGetsMonitorPlanForExplicitAndSelectorBindings() {
+    void emptyTripGetsMonitorPlanForExplicitAndScopeBindings() {
         monitors.saveDraft(tenant, ACTOR, "default-plan", new MonitorRequest("Default plan", null,
                 List.of(new TripMonitor.StagePlan("preparation", "ready")), Map.of(),
                 List.of(rule("start", "plan", null, "event.kind == 'created'", 10,
-                        act("start", "preparation")))));
+                        act("start", "preparation"))), MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, "default-plan");
         UUID explicit = id(trips.create(tenant, ACTOR,
                 new TripRequest(null, null, null, List.of(), List.of(), "default-plan")));
         assertEquals(Stage.RUNNING, status(explicit, "preparation"));
-        monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
-                new MonitorViews.SelectorRequest.Entry("true", "default-plan"))));
         UUID selected = id(trips.create(tenant, ACTOR,
                 new TripRequest(null, null, null, List.of(), List.of(), null)));
         assertEquals(Stage.RUNNING, status(selected, "preparation"));

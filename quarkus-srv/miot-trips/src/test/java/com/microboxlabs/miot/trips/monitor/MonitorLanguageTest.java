@@ -78,11 +78,4 @@ class MonitorLanguageTest {
         assertFalse(MonitorLanguage.check(SIGNAL, "stages.boarding.status == 'x'", Expect.CONDITION).ok());
     }
 
-    @Test
-    void theSelectorReadsTheNewTrip() {
-        String when = "trip.orderType == 'reparto' || mandates.exists(m, m.orderRef.startsWith('R'))";
-        assertTrue(MonitorLanguage.check(MonitorSchema.selector(), when, Expect.CONDITION).ok());
-        assertFalse(MonitorLanguage.check(MonitorSchema.selector(), "stage.type == 'transit'", Expect.CONDITION)
-                .ok());
-    }
 }

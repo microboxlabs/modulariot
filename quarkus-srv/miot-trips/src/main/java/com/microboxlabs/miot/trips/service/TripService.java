@@ -72,15 +72,21 @@ public class TripService {
 
     /** Creates the leg, links the given mandates and lays down the planned stages, in that order. */
     public TripView create(String tenantCode, String actor, TripRequest body) {
-        return create(tenantCode, actor, body, false);
+        return create(tenantCode, actor, body, null, false);
+    }
+
+    /** A trip the feed creates; monitor scopes can name the feed. This is not an API request field. */
+    TripView createFromFeed(String tenantCode, String actor, TripRequest body, String feedKey) {
+        return create(tenantCode, actor, body, feedKey, false);
     }
 
     /** Records an already completed feed trip without binding a monitor. This is not an API request field. */
     TripView createRegularized(String tenantCode, String actor, TripRequest body) {
-        return create(tenantCode, actor, body, true);
+        return create(tenantCode, actor, body, null, true);
     }
 
-    private TripView create(String tenantCode, String actor, TripRequest body, boolean regularized) {
+    private TripView create(String tenantCode, String actor, TripRequest body, String feedKey,
+            boolean regularized) {
         return tx.inTransaction(() -> {
             TripRequest req = body == null ? TripRequest.empty() : body;
             List<UUID> mandateIds = validateCreate(tenantCode, actor, req);
@@ -92,7 +98,7 @@ public class TripService {
             addStages(tenantCode, actor, tripId, req.stages());
             live.refresh(tenantCode, tripId);
             audit.log(tenantCode, actor, "trip.created", ENTITY, trip.id(), trip.id(),
-                    createDetails(req.monitor(), regularized));
+                    createDetails(req.monitor(), feedKey, regularized));
             return detail(tenantCode, tripId);
         });
     }
@@ -123,11 +129,14 @@ public class TripService {
         }
     }
 
-    private static Map<String, Object> createDetails(String requestedMonitor, boolean regularized) {
+    private static Map<String, Object> createDetails(String requestedMonitor, String feedKey, boolean regularized) {
         String monitor = Check.limitedOrNull(requestedMonitor, "monitor", 64);
         Map<String, Object> details = new LinkedHashMap<>();
         if (monitor != null) {
             details.put("monitor", monitor);
+        }
+        if (feedKey != null) {
+            details.put("feed", feedKey);
         }
         if (regularized) {
             details.put("regularized", true);

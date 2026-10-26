@@ -2,7 +2,7 @@ package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.DeliveryCycle;
-import com.microboxlabs.miot.trips.domain.MonitorSelector;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
 import com.microboxlabs.miot.trips.dto.MonitorViews;
@@ -10,6 +10,8 @@ import com.microboxlabs.miot.trips.dto.MonitorViews.Finding;
 import com.microboxlabs.miot.trips.monitor.MonitorLanguage;
 import com.microboxlabs.miot.trips.monitor.MonitorLanguage.Expect;
 import com.microboxlabs.miot.trips.monitor.MonitorSchema;
+import com.microboxlabs.miot.trips.store.FeedStore;
+import com.microboxlabs.miot.trips.store.LocationStore;
 import com.microboxlabs.miot.trips.store.MonitorStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,16 +25,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * Trip monitors: drafts, versions and the tenant's selector. A draft saves when its structure is valid; problems in
- * its expressions are returned as findings and block publishing. Running the rules on trips is not done here.
+ * Trip monitors: drafts and versions. A draft saves when its structure is valid; problems in its expressions, a
+ * missing scope and a scope that duplicates another monitor's block publishing. Running the rules on trips is not
+ * done here.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class MonitorService {
 
-    private static final String SELECTOR = "selector";
+    private static final String SCOPE_LOCK = "_scope";
     private static final String TIMER = "timer";
     static final String ENTITY = "monitor";
     private static final String KEY_PATTERN = "[a-z0-9][a-z0-9-]*";
@@ -40,7 +44,8 @@ public class MonitorService {
     private static final String NOT_FOUND = "monitor not found";
     private static final int DEFAULT_PRIORITY = 100;
     private static final int MAX_RULES = 100;
-    private static final int MAX_SELECTOR = 50;
+    private static final int MAX_SCOPE_VALUES = 200;
+    private static final int MAX_LOCATIONS = 1000;
     private static final int MAX_EXPRESSION = 4000;
 
     private static final Set<String> STAGE_ACTIONS = Set.of("advance", "start", "close");
@@ -50,12 +55,17 @@ public class MonitorService {
     private static final String RULE = "rule ";
 
     private final MonitorStore store;
+    private final FeedStore feeds;
+    private final LocationStore locations;
     private final AuditService audit;
     private final Transactions tx;
 
     @Inject
-    public MonitorService(MonitorStore store, AuditService audit, Transactions tx) {
+    public MonitorService(MonitorStore store, FeedStore feeds, LocationStore locations, AuditService audit,
+            Transactions tx) {
         this.store = store;
+        this.feeds = feeds;
+        this.locations = locations;
         this.audit = audit;
         this.tx = tx;
     }
@@ -71,7 +81,7 @@ public class MonitorService {
                     .map(TripMonitor::version).findFirst().orElse(null);
             Integer draft = TripMonitor.DRAFT.equals(newest.status()) ? newest.version() : null;
             return new MonitorViews.Summary(newest.monitorKey(), newest.name(), newest.description(), published,
-                    draft, newest.rules().size(), newest.updatedAt(), newest.updatedBy());
+                    draft, newest.rules().size(), newest.scope(), newest.updatedAt(), newest.updatedBy());
         }).toList();
     }
 
@@ -102,7 +112,8 @@ public class MonitorService {
         }
         TripMonitor draft = new TripMonitor(tenantCode, key, 0, TripMonitor.DRAFT, Check.required(body.name(),
                 "name", 255), Check.limitedOrNull(body.description(), "description", 2000), plan(body.plan()),
-                params(body.params()), rules(body.rules()), null, actor, null, actor, null, null);
+                params(body.params()), rules(body.rules()), scope(body.scope()), null, actor, null, actor, null,
+                null);
         return tx.inTransaction(() -> {
             store.lock(tenantCode, key);
             TripMonitor saved = store.saveDraft(draft);
@@ -112,9 +123,10 @@ public class MonitorService {
         });
     }
 
-    /** Publishes the draft as a new version; refused while it has findings. */
+    /** Publishes the draft as a new version; refused while it has findings or its scope duplicates another's. */
     public MonitorViews.Monitor publish(String tenantCode, String actor, String monitorKey) {
         return tx.inTransaction(() -> {
+            store.lock(tenantCode, SCOPE_LOCK);
             store.lock(tenantCode, monitorKey);
             TripMonitor draft = store.versions(tenantCode, monitorKey).stream()
                     .filter(v -> TripMonitor.DRAFT.equals(v.status())).findFirst()
@@ -122,8 +134,15 @@ public class MonitorService {
             List<Finding> findings = findings(draft);
             if (!findings.isEmpty()) {
                 Finding f = findings.get(0);
-                throw new IllegalArgumentException(RULE + f.ruleKey() + " (" + f.field() + "): " + f.message()
+                String where = f.ruleKey() == null ? f.field() : RULE + f.ruleKey() + " (" + f.field() + ")";
+                throw new IllegalArgumentException(where + ": " + f.message()
                         + (findings.size() > 1 ? " and " + (findings.size() - 1) + " more" : ""));
+            }
+            List<String> duplicates = overlaps(tenantCode, monitorKey, draft.scope()).stream()
+                    .filter(o -> o.relation() == MonitorScope.Relation.DUPLICATE)
+                    .map(MonitorViews.Overlap::name).toList();
+            if (!duplicates.isEmpty()) {
+                throw new IllegalArgumentException("scope: duplicates the trips of " + duplicates);
             }
             TripMonitor published = store.publish(tenantCode, monitorKey, actor).orElseThrow();
             audit.log(tenantCode, actor, "monitor.published", ENTITY, monitorKey, null,
@@ -145,14 +164,11 @@ public class MonitorService {
 
     /** What an expression of a rule triggered by {@code on} may read. */
     public List<MonitorViews.Field> schema(String on, Map<String, Object> params) {
-        MonitorSchema schema = SELECTOR.equals(on) ? MonitorSchema.selector()
-                : MonitorSchema.of(trigger(on), params(params));
+        MonitorSchema schema = MonitorSchema.of(trigger(on), params(params));
         List<MonitorViews.Field> fields = new ArrayList<>();
         schema.fields().forEach((path, type) -> fields.add(new MonitorViews.Field(path, type)));
         for (String dynamic : MonitorSchema.DYNAMIC) {
-            if (!SELECTOR.equals(on)) {
-                fields.add(new MonitorViews.Field(dynamic, "any"));
-            }
+            fields.add(new MonitorViews.Field(dynamic, "any"));
         }
         return fields;
     }
@@ -163,61 +179,59 @@ public class MonitorService {
             throw new IllegalArgumentException("body is required");
         }
         Expect expect = "time".equals(body.expect()) ? Expect.TIME : Expect.CONDITION;
-        MonitorSchema schema = SELECTOR.equals(body.on()) ? MonitorSchema.selector()
-                : MonitorSchema.of(trigger(body.on()), params(body.params()));
+        MonitorSchema schema = MonitorSchema.of(trigger(body.on()), params(body.params()));
         MonitorLanguage.Check c = MonitorLanguage.check(schema, body.expression(), expect);
         return new MonitorViews.CheckResult(c.ok(), c.resultType(), c.issues().stream()
                 .map(i -> new Finding(null, expect == Expect.TIME ? "at" : "when", i.position(), i.message()))
                 .toList());
     }
 
-    public MonitorViews.Selector selector(String tenantCode) {
-        return new MonitorViews.Selector(store.selector(tenantCode));
+    /** How the scope stands to the published scope of every other monitor it meets. */
+    public MonitorViews.ScopeCheck checkScope(String tenantCode, String monitorKey,
+            MonitorViews.ScopeCheckRequest body) {
+        MonitorScope scope = scope(body == null ? null : body.scope());
+        return new MonitorViews.ScopeCheck(scope == null ? List.of() : overlaps(tenantCode, monitorKey, scope));
     }
 
-    /** Replaces the selector. Each condition must compile and each monitor must have a published version. */
-    public MonitorViews.Selector saveSelector(String tenantCode, String actor, MonitorViews.SelectorRequest body) {
-        List<MonitorViews.SelectorRequest.Entry> entries = body == null || body.entries() == null ? List.of()
-                : body.entries();
-        if (entries.size() > MAX_SELECTOR) {
-            throw new IllegalArgumentException("the selector holds at most " + MAX_SELECTOR + " entries");
-        }
-        return tx.inTransaction(() -> {
-            store.lock(tenantCode, "_selector");
-            Set<String> published = new HashSet<>();
-            store.all(tenantCode).stream().filter(m -> TripMonitor.PUBLISHED.equals(m.status()))
-                    .forEach(m -> published.add(m.monitorKey()));
-            List<MonitorSelector> rows = new ArrayList<>();
-            for (MonitorViews.SelectorRequest.Entry e : entries) {
-                rows.add(selectorRow(e, rows.size() + 1, published));
+    /** The feeds, order types and locations a scope can name. */
+    public MonitorViews.ScopeValues scopeValues(String tenantCode) {
+        return new MonitorViews.ScopeValues(
+                feeds.profiles(tenantCode).stream()
+                        .map(p -> new MonitorViews.ScopeValues.Feed(p.feedKey(), p.name())).toList(),
+                store.orderTypes(tenantCode),
+                locations.list(tenantCode, null, null, 0, MAX_LOCATIONS).stream()
+                        .map(l -> new MonitorViews.ScopeValues.Place(l.id(), l.name(), l.externalCode(), l.type()))
+                        .toList());
+    }
+
+    /** Of {@code all} versions, the newest published one of every monitor that has a scope, but {@code except}. */
+    static List<TripMonitor> scoped(List<TripMonitor> all, String except) {
+        Map<String, TripMonitor> newest = new LinkedHashMap<>();
+        for (TripMonitor m : all) {
+            if (TripMonitor.PUBLISHED.equals(m.status()) && !m.monitorKey().equals(except)) {
+                newest.putIfAbsent(m.monitorKey(), m);
             }
-            store.saveSelector(tenantCode, rows, actor);
-            audit.log(tenantCode, actor, "monitor.selector_saved", ENTITY, SELECTOR, null,
-                    Map.of("entries", String.valueOf(rows.size())));
-            return new MonitorViews.Selector(rows);
-        });
+        }
+        return newest.values().stream().filter(m -> m.scope() != null).toList();
     }
 
-    private static MonitorSelector selectorRow(MonitorViews.SelectorRequest.Entry e, int seq,
-            Set<String> published) {
-        String monitor = Check.required(e == null ? null : e.monitorKey(), "monitorKey", 64);
-        if (!published.contains(monitor)) {
-            throw new IllegalArgumentException("entry " + seq + ": monitor " + monitor
-                    + " has no published version");
+    private List<MonitorViews.Overlap> overlaps(String tenantCode, String monitorKey, MonitorScope scope) {
+        List<MonitorViews.Overlap> out = new ArrayList<>();
+        for (TripMonitor other : scoped(store.all(tenantCode), monitorKey)) {
+            MonitorScope.Relation r = scope.relationTo(other.scope());
+            if (r != MonitorScope.Relation.DISJOINT) {
+                out.add(new MonitorViews.Overlap(other.monitorKey(), other.name(), r));
+            }
         }
-        String condition = Check.limited(e.condition() == null || e.condition().isBlank() ? "true"
-                : e.condition().trim(), "condition", MAX_EXPRESSION);
-        MonitorLanguage.Check c = MonitorLanguage.check(MonitorSchema.selector(), condition,
-                Expect.CONDITION);
-        if (!c.ok()) {
-            throw new IllegalArgumentException("entry " + seq + ": " + c.issues().get(0).message());
-        }
-        return new MonitorSelector(seq, condition, monitor);
+        return out;
     }
 
     /** The problems in the monitor's expressions, by rule. */
     static List<Finding> findings(TripMonitor m) {
         List<Finding> out = new ArrayList<>();
+        if (m.scope() == null) {
+            out.add(new Finding(null, "scope", 0, "choose the trips the monitor takes"));
+        }
         Set<String> planned = new HashSet<>();
         m.plan().forEach(p -> planned.add(p.stageType()));
         for (TripMonitor.Rule r : m.rules()) {
@@ -249,6 +263,35 @@ public class MonitorService {
             throw new IllegalArgumentException("monitorKey must be lowercase letters, digits and dashes");
         }
         return key;
+    }
+
+    /** Null stays null: the monitor takes no trips yet. */
+    private static MonitorScope scope(MonitorScope scope) {
+        if (scope == null) {
+            return null;
+        }
+        limitScope("feeds", scope.feeds(), 64);
+        limitScope("orderTypes", scope.orderTypes(), 32);
+        limitScope("origins", scope.origins(), 36);
+        limitScope("destinations", scope.destinations(), 36);
+        List<String> places = new ArrayList<>(scope.origins());
+        places.addAll(scope.destinations());
+        for (String id : places) {
+            try {
+                UUID.fromString(id);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("scope: " + id + " is not a location id");
+            }
+        }
+        return scope;
+    }
+
+    private static void limitScope(String dimension, List<String> values, int length) {
+        if (values.size() > MAX_SCOPE_VALUES) {
+            throw new IllegalArgumentException("scope: " + dimension + " holds at most " + MAX_SCOPE_VALUES
+                    + " values");
+        }
+        values.forEach(v -> Check.limited(v, "scope " + dimension, length));
     }
 
     private static String trigger(String on) {

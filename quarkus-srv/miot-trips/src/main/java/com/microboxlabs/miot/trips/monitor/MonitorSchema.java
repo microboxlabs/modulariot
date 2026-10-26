@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * What a monitor's expressions may read for one trigger: field paths and their types. Types are {@code text},
- * {@code number}, {@code bool} and {@code time}. A segment ending in {@code []} is a list of objects
+ * {@code number}, {@code bool}, {@code time} and {@code any}. A segment ending in {@code []} is a list of objects
  * ({@code mandates[].status}); {@link #DYNAMIC} roots are read without a type check ({@code plan}).
  *
  * @param fields full path to type, in display order
@@ -18,6 +18,8 @@ public record MonitorSchema(Map<String, String> fields) {
     public static final String NUMBER = "number";
     public static final String BOOL = "bool";
     public static final String TIME = "time";
+    /** Read without a type check: what a source sent ({@code milestones.validation.evidence}). */
+    public static final String ANY = "any";
 
     /** Roots whose content each source decides. */
     public static final List<String> DYNAMIC = List.of("plan");
@@ -72,6 +74,7 @@ public record MonitorSchema(Map<String, String> fields) {
             f.put(root + ".channel", TEXT);
             f.put(root + ".proposedAt", TIME);
             f.put(root + ".confirmedAt", TIME);
+            f.put(root + ".evidence", ANY);
         }
         if (params != null) {
             params.forEach((name, value) -> f.put("params." + name, switch (value) {

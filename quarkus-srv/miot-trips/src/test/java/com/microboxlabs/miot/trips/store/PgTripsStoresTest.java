@@ -108,7 +108,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.14__trip_milestones.sql",
             "/db/migration/trips/V0.10.15__backfill_english_projections.sql",
             "/db/migration/trips/V0.10.17__feed_applied_desired.sql",
-            "/db/migration/trips/V0.10.18__milestone_confirmers.sql"};
+            "/db/migration/trips/V0.10.18__milestone_confirmers.sql",
+            "/db/migration/trips/V0.10.19__presentation_validation_milestones.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
     static void recreateSchemas(Pool pool) throws IOException {

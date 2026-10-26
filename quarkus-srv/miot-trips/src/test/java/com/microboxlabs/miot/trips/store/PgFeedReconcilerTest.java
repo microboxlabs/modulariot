@@ -557,6 +557,33 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void aRowReportsMilestonesWithTheirMetadata() {
+        FeedServiceRequest d = desired(1, 5, "ABC-123", null, "10000001");
+        FeedServiceRequest reported = new FeedServiceRequest(d.orderType(), d.orderRef(), d.origin(),
+                d.destination(), d.plannedStart(), d.plannedEnd(), null, null, null, d.resources(), null, Map.of(
+                        "presentation", new FeedServiceRequest.MilestoneReport(at(-0.2), Map.of("gate", "G3")),
+                        "validation", new FeedServiceRequest.MilestoneReport(null, Map.of("documents", "ok"))));
+        FeedResult r = send("S-040", reported);
+        assertEquals(List.of(), r.errors());
+
+        TripMilestone presentation = milestone(r.tripId(), TripMilestone.PRESENTATION);
+        assertEquals(TripMilestone.CONFIRMED, presentation.status());
+        assertEquals(Map.of("gate", "G3"), presentation.evidence());
+        TripMilestone validation = milestone(r.tripId(), TripMilestone.VALIDATION);
+        assertEquals(TripMilestone.PENDING, validation.status(), "without a time the milestone waits");
+        assertEquals("feed", validation.source());
+        assertEquals(Map.of("documents", "ok"), validation.evidence());
+
+        assertEquals(List.of(), send("S-040", reported).operations(), "the same row applies nothing again");
+        assertEquals(reconciler.hash(d), reconciler.hash(new FeedServiceRequest(d.orderType(), d.orderRef(),
+                d.origin(), d.destination(), d.plannedStart(), d.plannedEnd(), null, null, null, d.resources(), null,
+                Map.of())), "a row without reports keeps the hash it had");
+        assertThrows(IllegalArgumentException.class, () -> send("S-041", new FeedServiceRequest(d.orderType(),
+                d.orderRef(), null, null, d.plannedStart(), d.plannedEnd(), null, null, null, d.resources(), null,
+                Map.of("unloading", new FeedServiceRequest.MilestoneReport(null, Map.of())))));
+    }
+
+    @Test
     void anActualTimeConfirmsItsMilestoneOnce() {
         FeedServiceRequest d = desired(-1, 5, "ABC-123", null, "10000001");
         FeedResult created = send("S-030", withActuals(d, at(-0.5), null, null));
@@ -615,7 +642,7 @@ class PgFeedReconcilerTest {
                 "historical assignments begin at the actual departure");
         assertTrue(engine.state(tenant, tripId).isEmpty(), "a regularized trip gets no monitor, not even the selector's");
         assertEquals(List.of(), engine.transitions(tenant, tripId, 50));
-        for (String m : TripMilestone.MILESTONES) {
+        for (String m : List.of(TripMilestone.DEPARTURE, TripMilestone.ARRIVAL, TripMilestone.CLOSURE)) {
             assertEquals(TripMilestone.CONFIRMED, milestone(r.tripId(), m).status(), m);
         }
         assertEquals(Mandate.CLOSED, mandates.get(tenant, UUID.fromString(r.mandateId())).status());

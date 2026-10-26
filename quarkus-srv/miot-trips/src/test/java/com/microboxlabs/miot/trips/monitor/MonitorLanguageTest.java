@@ -28,7 +28,16 @@ class MonitorLanguageTest {
                 "signal", Map.of("kind", "left_origin", "at", START.plusSeconds(600)),
                 "event", Map.of("on", "signal", "at", START.plusSeconds(600)),
                 "params", PARAMS,
-                "plan", Map.of("source", Map.of("ESTADO", "Programado")));
+                "plan", Map.of("source", Map.of("ESTADO", "Programado")),
+                "milestones", Map.of("validation", Map.of("status", "pending",
+                        "evidence", Map.of("documents", "ok", "seal", 4411))));
+    }
+
+    @Test
+    void aRuleReadsTheMetadataASourceSentWithAMilestone() {
+        String when = "milestones.validation.evidence.documents == 'ok' && milestones.validation.evidence.seal > 4000";
+        assertTrue(MonitorLanguage.check(SIGNAL, when, Expect.CONDITION).ok());
+        assertEquals(true, MonitorLanguage.evaluate(SIGNAL, when, context()).value());
     }
 
     @Test

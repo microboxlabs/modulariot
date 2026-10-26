@@ -351,6 +351,37 @@ class PgMonitorEngineTest {
                 () -> milestones.confirm(tenant, ACTOR, tripId, "unloading", null, "ui", null));
     }
 
+    @Test
+    void theDepartureWaitsForAReportedValidationAndEachSourceAddsItsMetadata() {
+        publishConfirmed();
+        UUID tripId = id(newTrip(CONFIRMED, null));
+        milestones.detect(tenant, "sa:gate", tripId, "presentation", "gate", null, Map.of("lane", "G3"));
+        assertEquals("gate", milestone(tripId, "presentation").source());
+        milestones.detect(tenant, "sa:wms", tripId, "validation", "wms", null, Map.of("documents", "ok"));
+        assertEquals(TripMilestone.PENDING, milestone(tripId, "validation").status());
+
+        assertThrows(IllegalStateException.class,
+                () -> milestones.confirm(tenant, ACTOR, tripId, "departure", null, "ui", null),
+                "the validation waits for a confirmation");
+        milestones.confirm(tenant, ACTOR, tripId, "validation", null, "ui", null, Map.of("seal", "4411"));
+        assertEquals(Map.of("documents", "ok", "seal", "4411"), milestone(tripId, "validation").evidence());
+        milestones.confirm(tenant, ACTOR, tripId, "validation", null, "api", null, Map.of("seal", "4412"));
+        assertEquals("4412", milestone(tripId, "validation").evidence().get("seal"),
+                "a repeated confirmation adds its metadata");
+
+        milestones.confirm(tenant, ACTOR, tripId, "departure", null, "ui", null);
+        assertEquals(TripMilestone.CONFIRMED, milestone(tripId, "departure").status());
+
+        UUID other = id(newTrip(CONFIRMED, null));
+        milestones.detect(tenant, "sa:wms", other, "validation", null, null, Map.of("documents", "missing"));
+        assertEquals("api", milestone(other, "validation").source());
+        milestones.confirm(tenant, "feed:sheet", other, "departure", null, "feed", null);
+        assertEquals(TripMilestone.CONFIRMED, milestone(other, "departure").status(),
+                "the feed reports a departure that already happened");
+        assertThrows(IllegalArgumentException.class, () -> milestones.detect(tenant, ACTOR, other, "validation",
+                null, null, Map.of("x".repeat(65), "too long a key")));
+    }
+
     private List<OperationalEvent> firedFor(UUID tripId, String type) {
         return fired.stream().filter(e -> e.type().equals(type) && e.context().key().equals(tripId.toString()))
                 .toList();
@@ -634,11 +665,11 @@ class PgMonitorEngineTest {
 
         assertEquals(List.of(trip), cards(board, TripBoard.PLANNING, TripBoard.UNASSIGNED, null));
         new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500).tick();
-        assertEquals(List.of(trip), cards(board, TripBoard.PLANNING, TripBoard.DEPARTURE_PENDING, null),
+        assertEquals(List.of(trip), cards(board, TripBoard.DISPATCH, TripBoard.DEPARTURE_PENDING, null),
                 "the monitor's overdue alert");
 
         engine.signal(tenant, "gps", id(t), "left_origin", "17", null);
-        assertEquals(List.of(), cards(board, TripBoard.PLANNING, TripBoard.DEPARTURE_PENDING, null));
+        assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.DEPARTURE_PENDING, null));
         assertEquals(List.of(trip), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, code));
         assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, "no-such-code"));
         assertEquals(Map.of("planning", 0, "dispatch", 1, "delivery", 0, "finished", 0), board.counts(tenant));

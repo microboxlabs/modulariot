@@ -143,7 +143,7 @@ public class FeedReconciler {
         FeedServiceRequest compared = new FeedServiceRequest(desired.orderType(), desired.orderRef(),
                 desired.origin(), desired.destination(), utc(desired.plannedStart()), utc(desired.plannedEnd()),
                 utc(desired.actualStart()), utc(desired.actualArrival()), utc(desired.actualEnd()),
-                desired.resourcesOrEmpty(), null);
+                desired.resourcesOrEmpty(), null, reports(desired.milestones()));
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
                     json.writeValueAsString(compared).getBytes(StandardCharsets.UTF_8)));
@@ -574,6 +574,52 @@ public class FeedReconciler {
             plan.step("confirm " + name + " at " + utc(at), () -> milestones.confirm(tenantCode, actor,
                     UUID.fromString(plan.tripId), name, at, "feed", null));
         });
+        new java.util.TreeMap<>(d.milestones()).forEach((name, report) -> {
+            if (!TripMilestone.MILESTONES.contains(name)) {
+                throw new IllegalArgumentException("milestones: " + name + " is not one of "
+                        + TripMilestone.MILESTONES);
+            }
+            Map<String, Object> evidence = report == null || report.evidence() == null ? Map.of()
+                    : report.evidence();
+            OffsetDateTime at = report == null ? null : report.at();
+            TripMilestone m = recorded.get(name);
+            boolean known = m != null && m.evidence().entrySet().containsAll(evidence.entrySet());
+            if (at != null) {
+                if (known && m.isConfirmed() && m.confirmedAt() != null && m.confirmedAt().toInstant()
+                        .truncatedTo(ChronoUnit.MICROS).equals(at.toInstant().truncatedTo(ChronoUnit.MICROS))) {
+                    return;
+                }
+                plan.step("confirm " + name + " at " + utc(at) + " with " + evidence.size() + " metadata",
+                        () -> milestones.confirm(tenantCode, actor, UUID.fromString(plan.tripId), name, at, "feed",
+                                null, evidence));
+            } else if (!evidence.isEmpty() && !known && (m == null || !m.isConfirmed())) {
+                plan.step("report " + name + " with " + evidence.size() + " metadata",
+                        () -> milestones.detect(tenantCode, actor, UUID.fromString(plan.tripId), name, "feed", null,
+                                evidence));
+            }
+        });
+    }
+
+    /** The reports with their times in UTC, for the hash. */
+    private static Map<String, FeedServiceRequest.MilestoneReport> reports(
+            Map<String, FeedServiceRequest.MilestoneReport> in) {
+        Map<String, FeedServiceRequest.MilestoneReport> out = new java.util.TreeMap<>();
+        in.forEach((k, v) -> out.put(k, v == null ? null
+                : new FeedServiceRequest.MilestoneReport(utc(v.at()), sorted(v.evidence()))));
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T sorted(T value) {
+        if (value instanceof Map<?, ?> m) {
+            Map<String, Object> out = new java.util.TreeMap<>();
+            m.forEach((k, v) -> out.put(String.valueOf(k), sorted(v)));
+            return (T) out;
+        }
+        if (value instanceof List<?> l) {
+            return (T) l.stream().map(FeedReconciler::sorted).toList();
+        }
+        return value;
     }
 
     /**

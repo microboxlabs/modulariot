@@ -24,6 +24,10 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgDeliveryStore implements DeliveryStore {
 
+    private static final String SELECT = "SELECT ";
+    private static final String TENANT_CODE = "tenant_code";
+    private static final String SOURCE = "source";
+
     private static final String COLUMNS = "d.id, d.tenant_code, d.trip_id, d.reference, d.customer, d.source,"
             + " d.evidence, d.note, d.created_at, d.created_by, d.updated_at, d.updated_by,"
             + " ARRAY(SELECT dm.mandate_id::text FROM miot_trips.delivery_mandate dm WHERE dm.delivery_id = d.id"
@@ -49,21 +53,21 @@ public class PgDeliveryStore implements DeliveryStore {
 
     @Override
     public List<Delivery> list(String tenantCode, UUID tripId) {
-        return query(pool.get(), "SELECT " + COLUMNS + " FROM miot_trips.delivery d"
+        return query(pool.get(), SELECT + COLUMNS + " FROM miot_trips.delivery d"
                 + " WHERE d.tenant_code = $1 AND d.trip_id = $2 ORDER BY d.created_at, d.id",
                 Tuple.of(tenantCode, tripId)).stream().map(PgDeliveryStore::delivery).toList();
     }
 
     @Override
     public Optional<Delivery> find(String tenantCode, UUID tripId, UUID deliveryId) {
-        return query(pool.get(), "SELECT " + COLUMNS + " FROM miot_trips.delivery d"
+        return query(pool.get(), SELECT + COLUMNS + " FROM miot_trips.delivery d"
                 + " WHERE d.tenant_code = $1 AND d.trip_id = $2 AND d.id = $3" + Pg.lock(),
                 Tuple.of(tenantCode, tripId, deliveryId)).stream().map(PgDeliveryStore::delivery).findFirst();
     }
 
     @Override
     public Optional<Delivery> findByReference(String tenantCode, UUID tripId, String reference) {
-        return query(pool.get(), "SELECT " + COLUMNS + " FROM miot_trips.delivery d"
+        return query(pool.get(), SELECT + COLUMNS + " FROM miot_trips.delivery d"
                 + " WHERE d.tenant_code = $1 AND d.trip_id = $2 AND d.reference = $3" + Pg.lock(),
                 Tuple.of(tenantCode, tripId, reference)).stream().map(PgDeliveryStore::delivery).findFirst();
     }
@@ -101,7 +105,7 @@ public class PgDeliveryStore implements DeliveryStore {
 
     @Override
     public List<Delivery.Step> steps(String tenantCode, UUID tripId) {
-        return query(pool.get(), "SELECT " + STEP_COLUMNS + " FROM miot_trips.delivery_step s"
+        return query(pool.get(), SELECT + STEP_COLUMNS + " FROM miot_trips.delivery_step s"
                 + " JOIN miot_trips.delivery d ON d.id = s.delivery_id"
                 + " WHERE d.tenant_code = $1 AND d.trip_id = $2", Tuple.of(tenantCode, tripId))
                 .stream().map(PgDeliveryStore::step).toList();
@@ -109,7 +113,7 @@ public class PgDeliveryStore implements DeliveryStore {
 
     @Override
     public Optional<Delivery.Step> step(String tenantCode, UUID deliveryId, String step) {
-        return query(pool.get(), "SELECT " + STEP_COLUMNS + " FROM miot_trips.delivery_step s"
+        return query(pool.get(), SELECT + STEP_COLUMNS + " FROM miot_trips.delivery_step s"
                 + " WHERE s.tenant_code = $1 AND s.delivery_id = $2 AND s.step = $3" + Pg.lock(),
                 Tuple.of(tenantCode, deliveryId, step)).stream().map(PgDeliveryStore::step).findFirst();
     }
@@ -136,7 +140,7 @@ public class PgDeliveryStore implements DeliveryStore {
 
     @Override
     public List<Delivery.Proof> proofs(String tenantCode, UUID tripId) {
-        return query(pool.get(), "SELECT " + PROOF_COLUMNS + " FROM miot_trips.delivery_proof p"
+        return query(pool.get(), SELECT + PROOF_COLUMNS + " FROM miot_trips.delivery_proof p"
                 + " JOIN miot_trips.delivery d ON d.id = p.delivery_id"
                 + " WHERE d.tenant_code = $1 AND d.trip_id = $2 ORDER BY p.received_at, p.id",
                 Tuple.of(tenantCode, tripId)).stream().map(PgDeliveryStore::proof).toList();
@@ -158,24 +162,24 @@ public class PgDeliveryStore implements DeliveryStore {
 
     private static Delivery delivery(Row r) {
         String[] mandates = r.getArrayOfStrings("mandate_ids");
-        return new Delivery(Pg.text(r, "id"), r.getString("tenant_code"), Pg.text(r, "trip_id"),
-                r.getString("reference"), r.getString("customer"), r.getString("source"),
+        return new Delivery(Pg.text(r, "id"), r.getString(TENANT_CODE), Pg.text(r, "trip_id"),
+                r.getString("reference"), r.getString("customer"), r.getString(SOURCE),
                 Pg.json(r, "evidence", MAP), r.getString("note"),
                 mandates == null ? List.of() : Arrays.asList(mandates), time(r, "created_at"),
                 r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"));
     }
 
     private static Delivery.Step step(Row r) {
-        return new Delivery.Step(Pg.text(r, "delivery_id"), r.getString("step"), r.getString("tenant_code"),
-                r.getString("status"), r.getString("source"), time(r, "proposed_at"), Pg.json(r, "evidence", MAP),
+        return new Delivery.Step(Pg.text(r, "delivery_id"), r.getString("step"), r.getString(TENANT_CODE),
+                r.getString("status"), r.getString(SOURCE), time(r, "proposed_at"), Pg.json(r, "evidence", MAP),
                 time(r, "confirmed_at"), r.getString("confirmed_by"), r.getString("channel"), r.getString("note"),
                 time(r, "updated_at"), r.getString("updated_by"));
     }
 
     private static Delivery.Proof proof(Row r) {
-        return new Delivery.Proof(Pg.text(r, "id"), Pg.text(r, "delivery_id"), r.getString("tenant_code"),
+        return new Delivery.Proof(Pg.text(r, "id"), Pg.text(r, "delivery_id"), r.getString(TENANT_CODE),
                 r.getString("kind"), Pg.text(r, "content_id"), r.getString("url"), r.getString("name"),
-                r.getString("mimetype"), Pg.json(r, "metadata", MAP), r.getString("source"),
+                r.getString("mimetype"), Pg.json(r, "metadata", MAP), r.getString(SOURCE),
                 time(r, "received_at"), r.getString("received_by"));
     }
 }

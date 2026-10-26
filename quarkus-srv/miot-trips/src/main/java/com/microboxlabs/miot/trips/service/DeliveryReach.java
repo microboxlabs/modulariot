@@ -16,7 +16,7 @@ public interface DeliveryReach {
     /** All step flags from one snapshot; stores may override to share their reads. */
     default Map<String, Boolean> snapshot(String tenantCode, UUID tripId) {
         Map<String, Boolean> result = new LinkedHashMap<>();
-        DeliveryCycle.STEPS.forEach(step -> result.put(step, reached(tenantCode, tripId, step)));
+        DeliveryCycle.ALL_STEPS.forEach(step -> result.put(step, reached(tenantCode, tripId, step)));
         return Map.copyOf(result);
     }
 }

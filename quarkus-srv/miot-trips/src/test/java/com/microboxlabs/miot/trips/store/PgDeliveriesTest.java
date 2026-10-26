@@ -161,7 +161,7 @@ class PgDeliveriesTest {
     }
 
     @Test
-    void aPodAndTheCycleStepsCompleteTheTripOnceEveryLoadIsSettled() throws IOException {
+    void aDeliveryKeepsItsLoadsAndReferenceAndRequiresProofAndOrderedSteps() {
         TripView t = newTrip(2);
         UUID tripId = UUID.fromString(t.id());
         String codeA = t.mandates().get(0).externalCode();
@@ -171,16 +171,27 @@ class PgDeliveriesTest {
                 new DeliveryService.NewDelivery("R-1", "Customer A", List.of(codeA), Map.of("dock", "3"), null,
                         null));
         assertEquals(List.of(codeA), a.mandates().stream().map(DeliveryViews.Mandate::code).toList());
-        assertEquals(List.of("delivered", "settled"), a.steps().stream().map(s -> s.step()).toList());
+        assertEquals(List.of("delivered", "settled"), a.steps().stream().map(Delivery.Step::step).toList());
         assertEquals(a.id(), deliveries.create(tenant, ACTOR, tripId,
                 new DeliveryService.NewDelivery("R-1", null, null, null, null, null)).id(), "same reference");
         assertEquals(TripBoard.TO_DELIVER, lane(tripId), "a trip with a delivery is in the delivery view");
         assertEquals(1, board.counts(tenant).get(TripBoard.DELIVERY));
 
-        assertThrows(IllegalStateException.class, () -> confirm(tripId, a.id(), "delivered"), "no proof yet");
-        assertThrows(IllegalStateException.class, () -> confirm(tripId, a.id(), "settled"), "not delivered");
-        assertThrows(IllegalArgumentException.class, () -> confirm(tripId, a.id(), "accepted"), "not in cycle");
+        String deliveryId = a.id();
+        assertThrows(IllegalStateException.class, () -> confirm(tripId, deliveryId, "delivered"), "no proof yet");
+        assertThrows(IllegalStateException.class, () -> confirm(tripId, deliveryId, "settled"), "not delivered");
+        assertThrows(IllegalArgumentException.class, () -> confirm(tripId, deliveryId, "accepted"), "not in cycle");
+    }
 
+    @Test
+    void aPodAndTheCycleStepsCompleteTheTripOnceEveryLoadIsSettled() throws IOException {
+        TripView t = newTrip(2);
+        UUID tripId = UUID.fromString(t.id());
+        String codeA = t.mandates().get(0).externalCode();
+
+        DeliveryViews.Delivery a = deliveries.create(tenant, ACTOR, tripId,
+                new DeliveryService.NewDelivery("R-1", "Customer A", List.of(codeA), Map.of("dock", "3"), null,
+                        null));
         DeliveryViews.Delivery withPod = deliveries.upload(tenant, ACTOR, tripId, UUID.fromString(a.id()),
                 "signature", "manifest.pdf", "application/pdf", new ByteArrayInputStream(PDF), Map.of(), "app");
         assertEquals("pending", withPod.steps().get(0).status(), "a POD asks for the delivery");
@@ -192,19 +203,22 @@ class PgDeliveriesTest {
         }
         assertEquals("trips:delivery_proof:" + proofId, contents.find(tenant,
                 UUID.fromString(withPod.proofs().get(0).contentId())).orElseThrow().owner());
+        UUID aId = UUID.fromString(a.id());
+        ByteArrayInputStream invalidType = new ByteArrayInputStream(PDF);
         assertThrows(IllegalArgumentException.class, () -> deliveries.upload(tenant, ACTOR, tripId,
-                UUID.fromString(a.id()), "photo", "x.html", "text/html", new ByteArrayInputStream(PDF), null, null));
+                aId, "photo", "x.html", "text/html", invalidType, null, null));
 
         confirm(tripId, a.id(), "delivered");
         DeliveryViews.Delivery b = deliveries.create(tenant, ACTOR, tripId,
                 new DeliveryService.NewDelivery(null, "Customer B", null, null, null, null));
         assertEquals(List.of(t.mandates().get(1).externalCode()),
                 b.mandates().stream().map(DeliveryViews.Mandate::code).toList(), "the loads left");
-        assertThrows(IllegalStateException.class, () -> deliveries.create(tenant, ACTOR, tripId,
-                new DeliveryService.NewDelivery(null, null, null, null, null, null)));
+        assertThrows(IllegalStateException.class, () -> deliveries.create(tenant, ACTOR, tripId, null));
+        UUID bId = UUID.fromString(b.id());
+        DeliveryService.NewProof invalidProof = new DeliveryService.NewProof("photo", null, "file:///etc/passwd",
+                null, null, null);
         assertThrows(IllegalArgumentException.class, () -> deliveries.addProof(tenant, ACTOR, tripId,
-                UUID.fromString(b.id()), new DeliveryService.NewProof("photo", null, "file:///etc/passwd", null,
-                        null, null)));
+                bId, invalidProof));
         deliveries.addProof(tenant, ACTOR, tripId, UUID.fromString(b.id()),
                 new DeliveryService.NewProof("photo", null, "https://example.com/pod/b.jpg", null, null, null));
         confirm(tripId, b.id(), "delivered");

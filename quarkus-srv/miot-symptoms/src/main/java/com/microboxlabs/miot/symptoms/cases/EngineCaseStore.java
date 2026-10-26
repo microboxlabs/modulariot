@@ -11,6 +11,9 @@ public interface EngineCaseStore {
     /** The most recent open cases, at most a page of them. */
     List<EngineCase> open(String tenantCode);
 
+    /** The most recent cases that match, at most a page of them. */
+    List<EngineCase> list(String tenantCode, CaseFilter filter);
+
     /** All the open cases, counted by level and by whether they have an open treatment. */
     List<OpenCount> openCounts(String tenantCode);
 
@@ -38,6 +41,20 @@ public interface EngineCaseStore {
     boolean close(String tenantCode, long caseId, String actor, Instant at);
 
     record OpenCount(int level, boolean underTreatment, long count) {
+    }
+
+    /**
+     * Each value null for any. Without {@code from} and {@code to}, only open cases; with them, the cases opened
+     * from {@code from} until before {@code to}, open or closed. {@code assetId} matches part of the vehicle id,
+     * {@code symptomName} the whole name ignoring case, {@code level} the case's current level.
+     */
+    record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to) {
+
+        public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
+
+        public boolean openOnly() {
+            return from == null && to == null;
+        }
     }
 
     record LevelCount(UUID definitionId, int level, long count) {

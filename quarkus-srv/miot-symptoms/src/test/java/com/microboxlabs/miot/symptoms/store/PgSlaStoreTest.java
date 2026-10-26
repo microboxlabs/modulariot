@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.SlaStore;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
@@ -148,6 +149,36 @@ class PgSlaStoreTest {
         assertEquals(1L, PgIds.query(pool, """
                 SELECT count(*) AS n FROM miot_symptoms.signal_transitions WHERE tenant_code = $1 AND kind = 'CLOSED'
                 """, Tuple.of(tenant)).iterator().next().getLong("n"));
+    }
+
+    @Test
+    void casesAreFoundByTripVehicleNameLevelAndOpeningTime() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place trip = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
+        long first = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)), trip).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        cases.close(tenant, first, "ops@example.com", t0.plusSeconds(60));
+        long second = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0.plusSeconds(120), 1, 0)), trip)
+                .get(0).caseId();
+
+        assertEquals(List.of(second), ids(cases.list(tenant, new EngineCaseStore.CaseFilter("T-1", null, null,
+                null, null, null))), "without dates, the open one");
+        Instant to = t0.plusSeconds(3600);
+        assertEquals(List.of(second, first), ids(cases.list(tenant, new EngineCaseStore.CaseFilter("T-1", "demo",
+                "exceso de VELOCIDAD", null, t0, to))));
+        assertEquals(List.of(first), ids(cases.list(tenant, new EngineCaseStore.CaseFilter(null, null, null, 3, t0,
+                to))), "by current level");
+        assertEquals(t0.plusSeconds(60), cases.list(tenant, new EngineCaseStore.CaseFilter(null, null, null, 3, t0,
+                to)).get(0).closedAt());
+        assertTrue(cases.list(tenant, new EngineCaseStore.CaseFilter("T-2", null, null, null, t0, to)).isEmpty());
+        assertTrue(cases.list(tenant, new EngineCaseStore.CaseFilter(null, null, null, null, t0.plusSeconds(121),
+                to)).isEmpty(), "opened before the range");
+    }
+
+    private static List<Long> ids(List<com.microboxlabs.miot.symptoms.cases.EngineCase> found) {
+        return found.stream().map(com.microboxlabs.miot.symptoms.cases.EngineCase::id).toList();
     }
 
     @Test

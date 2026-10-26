@@ -4,21 +4,28 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -35,9 +42,17 @@ import org.jboss.logging.Logger;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class EngineCaseService {
 
-    /** The list filters that still show the open cases: paging only. */
     private static final Set<String> PAGING = Set.of("p_page", "p_page_size");
+    private static final String TRIP_ID = "p_trip_id";
+    private static final String ASSET_ID = "p_asset_id";
+    private static final String NAME = "p_symptom_name";
+    private static final String LEVEL = "p_icu_code";
+    private static final String FROM = "p_start_date_historic";
+    private static final String TO = "p_end_date_historic";
+    /** The list filters the cases answer; any other one leaves them out. */
+    private static final Set<String> CASE_FILTERS = Set.of(TRIP_ID, ASSET_ID, NAME, LEVEL, FROM, TO);
     private static final String SYMPTOM_NAME = "symptom_name";
+    private static final String SYMPTOM_NAMES = "symptom_name_list";
     private static final String ICU_CODE = "icu_code";
     private static final String ICU_CONDITION = "icu_condition";
     private static final Map<Integer, String> CONDITIONS = Map.of(1, "UNDER OBSERVATION", 2,
@@ -47,10 +62,14 @@ public class EngineCaseService {
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
     private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
+    /** The case's trip while it runs; a finished trip has no row. */
     private static final String TRIP = """
-            SELECT trip_id, asset_id, carrier_name, origin_geofence_label, destination_geofence_label, driver_name,
-                   second_driver_name, type_load, driver_contact_phone
-              FROM live_trip WHERE trip_id = $1 AND asset_id = $2
+            SELECT trip_id, asset_id,
+                   (CASE jsonb_typeof(mandate_codes) WHEN 'string' THEN (mandate_codes #>> '{}')::jsonb
+                         ELSE mandate_codes END) -> 0 ->> 'code' AS code,
+                   carrier_name, origin_geofence_label, destination_geofence_label, driver_name, second_driver_name,
+                   type_load, driver_contact_phone
+              FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id::text = $2 AND asset_id = $3
             """;
     /** How far before the case the map shows the vehicle's signals, unless an earlier case of it is nearer. */
     static final Duration SIGNALS_BEFORE = Duration.ofHours(1);
@@ -71,14 +90,12 @@ public class EngineCaseService {
     private final SymptomEvents events;
 
     @Inject
-    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, GpsDatabase gps, SymptomEvents events) {
-        this(store, evaluator::forget, gps.configured() ? t -> readTrip(gps, t) : t -> null, Clock.systemUTC(),
-                events);
+    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events) {
+        this(store, evaluator::forget, t -> readTrip(pool.get(), t), Clock.systemUTC(), events);
     }
 
-    private static Row readTrip(GpsDatabase gps, Tuple key) {
-        var rows = gps.readPool().preparedQuery(TRIP).execute(key).await().atMost(Duration.ofSeconds(10))
-                .iterator();
+    private static Row readTrip(Pool pool, Tuple key) {
+        var rows = pool.preparedQuery(TRIP).execute(key).await().atMost(Duration.ofSeconds(10)).iterator();
         return rows.hasNext() ? rows.next() : null;
     }
 
@@ -99,34 +116,90 @@ public class EngineCaseService {
         this.events = events;
     }
 
-    /** Whether the list request only pages, so the open cases go first on its first page. */
-    public static boolean showsOpenCases(Map<String, String> filters) {
-        if (filters.keySet().stream().anyMatch(k -> !PAGING.contains(k) && notBlank(filters.get(k)))) {
+    /**
+     * Whether the list request's first page shows the cases: it is the first page, and it filters by nothing the
+     * cases cannot answer (driver, carrier, origin, destination).
+     */
+    public static boolean showsCases(Map<String, String> filters) {
+        if (filters.keySet().stream().anyMatch(k -> !PAGING.contains(k) && !CASE_FILTERS.contains(k)
+                && notBlank(filters.get(k)))) {
             return false;
         }
         String page = filters.get("p_page");
         return page == null || page.isBlank() || page.trim().equals("1") || page.trim().equals("0");
     }
 
-    /** The page with the open cases first; {@code page} null when the GPS database could not be read. */
-    public JsonNode withOpenCases(String tenantCode, JsonNode page) {
-        List<EngineCase> open = store.open(tenantCode);
+    /**
+     * The list filters as a case filter. Without dates, the open cases; with them, those opened in the range.
+     * A date without an offset is UTC.
+     *
+     * @throws IllegalArgumentException when the level is not a number or a date is not ISO-8601
+     */
+    public static EngineCaseStore.CaseFilter filter(Map<String, String> filters) {
+        String level = text(filters, LEVEL);
+        try {
+            return new EngineCaseStore.CaseFilter(text(filters, TRIP_ID), text(filters, ASSET_ID),
+                    text(filters, NAME), level == null ? null : Integer.valueOf(level), instant(text(filters, FROM)),
+                    instant(text(filters, TO)));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(LEVEL + " must be a whole number");
+        }
+    }
+
+    private static String text(Map<String, String> filters, String name) {
+        String v = filters.get(name);
+        return v == null || v.isBlank() ? null : v.trim();
+    }
+
+    private static Instant instant(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(value).toInstant();
+        } catch (DateTimeParseException e) {
+            // Without an offset.
+        }
+        try {
+            return LocalDateTime.parse(value).toInstant(ZoneOffset.UTC);
+        } catch (DateTimeParseException e) {
+            // A date alone.
+        }
+        try {
+            return LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant();
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Dates must be ISO-8601: " + value);
+        }
+    }
+
+    /**
+     * The page with the matching cases first; {@code page} null when the GPS database could not be read. A
+     * filtered page holds a trip's or a vehicle's few cases, so they come whole on page 1.
+     */
+    public JsonNode withCases(String tenantCode, Map<String, String> filters, JsonNode page) {
+        List<EngineCase> found = store.list(tenantCode, filter(filters));
         ObjectNode out = page != null && page.isObject() ? ((ObjectNode) page).deepCopy() : JSON.objectNode();
         ArrayNode rows = JSON.arrayNode();
-        open.forEach(c -> rows.add(row(c)));
+        found.forEach(c -> rows.add(row(c)));
         if (out.path("data").isArray()) {
             rows.addAll((ArrayNode) out.get("data"));
         }
         out.set("data", rows);
         // Pinned on top of page 1: the totals stay the GPS function's, so they page as before.
-        out.put("open_cases", open.size());
+        out.put("engine_cases", found.size());
         if (!out.has("page")) {
             out.put("page", 1);
             out.put("page_size", rows.size());
             out.put("total_rows", rows.size());
             out.put("total_pages", 1);
-            out.set("symptom_name_list", JSON.arrayNode());
+            out.set(SYMPTOM_NAMES, JSON.arrayNode());
         }
+        Set<String> names = new LinkedHashSet<>();
+        out.path(SYMPTOM_NAMES).forEach(name -> names.add(name.asText()));
+        found.forEach(c -> names.add(c.name()));
+        ArrayNode choices = JSON.arrayNode();
+        names.forEach(choices::add);
+        out.set(SYMPTOM_NAMES, choices);
         return out;
     }
 
@@ -168,7 +241,11 @@ public class EngineCaseService {
         r.put("asset_id", c.assetId());
         r.put("trip_id", c.tripId());
         r.put("start_time", c.openedAt().toString());
-        r.put("duration_sec", Duration.between(c.openedAt(), clock.instant()).toSeconds());
+        if (c.closedAt() != null) {
+            r.put("end_time", c.closedAt().toString());
+        }
+        Instant until = c.closedAt() != null ? c.closedAt() : clock.instant();
+        r.put("duration_sec", Duration.between(c.openedAt(), until).toSeconds());
         r.put("treatment_count", c.treatments());
         r.put("sla_minutes", c.slaMinutes());
         r.put("recurrence_events", c.recurrence());
@@ -209,8 +286,9 @@ public class EngineCaseService {
         ObjectNode trip = out.putObject("trip_info");
         trip.put("asset_id", c.assetId());
         trip.put("trip_id", c.tripId());
-        Row t = c.tripId() == null ? null : trip(c);
+        Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
+            trip.put("trip_code", t.getString("code"));
             trip.put("carrier", t.getString("carrier_name"));
             trip.put("origin", t.getString("origin_geofence_label"));
             trip.put("destination", t.getString("destination_geofence_label"));
@@ -281,10 +359,10 @@ public class EngineCaseService {
         }
     }
 
-    /** The trip's details are optional: the header still answers when the GPS database cannot be read. */
-    private Row trip(EngineCase c) {
+    /** The trip's details are optional: the header still answers without them. */
+    private Row trip(String tenantCode, EngineCase c) {
         try {
-            return trips.apply(Tuple.of(c.tripId(), c.assetId()));
+            return trips.apply(Tuple.of(tenantCode, c.tripId(), c.assetId()));
         } catch (RuntimeException e) {
             LOG.debugf("Engine case %d: trip details unavailable (%s)", c.id(), e.getClass().getSimpleName());
             return null;

@@ -78,7 +78,7 @@ public class PgMilestoneStore implements MilestoneStore {
 
     @Override
     public TripMilestone save(TripMilestone m) {
-        return query(pool.get(), """
+        TripMilestone saved = query(pool.get(), """
                 INSERT INTO miot_trips.trip_milestone (trip_id, milestone, tenant_code, status, source, proposed_at,
                     evidence, confirmed_at, confirmed_by, channel, note, updated_by)
                 VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::text::jsonb, $8::timestamptz, $9, $10, $11, $12)
@@ -94,6 +94,10 @@ public class PgMilestoneStore implements MilestoneStore {
                         .addOffsetDateTime(m.confirmedAt()).addString(m.confirmedBy()).addString(m.channel())
                         .addString(m.note()).addString(m.updatedBy()))
                 .stream().map(PgMilestoneStore::milestone).findFirst().orElseThrow();
+        if ("departure".equals(m.milestone())) {
+            TripLiveChannel.changed(pool.get(), m.tenantCode(), m.tripId());
+        }
+        return saved;
     }
 
     private static TripMilestone milestone(Row r) {

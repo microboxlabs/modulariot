@@ -5,8 +5,10 @@
       "trip": {
         "active": true,
         "double_driver": false,
-        "id": "TRIP-1001",
+        "id": "5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a01",
+        "code": "SVC-1001",
         "type": "v",
+        "status": "EN TRANSITO",
         "age_min": 95.0,
         "late_min": -20.0,
         "origin": {
@@ -74,8 +76,10 @@
       "trip": {
         "active": true,
         "double_driver": false,
-        "id": "TRIP-1002",
+        "id": "5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a02",
+        "code": "SVC-1002",
         "type": "v",
+        "status": "EN TRANSITO",
         "age_min": 240.0,
         "late_min": 35.0,
         "origin": {
@@ -144,8 +148,10 @@
       "trip": {
         "active": true,
         "double_driver": false,
-        "id": "TRIP-1003",
+        "id": "5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a03",
+        "code": "SVC-1003",
         "type": "ote",
+        "status": "EN TRANSITO",
         "age_min": 30.0,
         "origin": {
           "id": 40,
@@ -209,8 +215,10 @@
       "trip": {
         "active": true,
         "double_driver": true,
-        "id": "TRIP-1004",
+        "id": "5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a04",
+        "code": "SVC-1004",
         "type": "v",
+        "status": "EN TRANSITO",
         "age_min": 610.0,
         "late_min": 150.0,
         "origin": {

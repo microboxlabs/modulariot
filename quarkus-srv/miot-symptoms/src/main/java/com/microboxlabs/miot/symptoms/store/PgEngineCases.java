@@ -4,6 +4,7 @@ import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -76,6 +77,15 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)
             + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200") + " ORDER BY y.at DESC";
+    /** {@link CaseFilter}: $2 trip, $3 part of the vehicle id, $4 symptom name, $5 from, $6 to, $7 level. */
+    private static final String MATCHING = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
+               AND ($2::text IS NULL OR o.trip_id = $2)
+               AND ($3::text IS NULL OR o.asset_id ILIKE '%' || $3 || '%')
+               AND ($4::text IS NULL OR lower(d.name) = lower($4))
+               AND ($5::timestamptz IS NULL OR o.at >= $5)
+               AND ($6::timestamptz IS NULL OR o.at < $6)
+            """) + " WHERE ($5::timestamptz IS NOT NULL OR $6::timestamptz IS NOT NULL OR x.closed_id IS NULL)")
+            + ") z WHERE ($7::int IS NULL OR z.current_level = $7) ORDER BY z.at DESC LIMIT 200";
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));
@@ -143,6 +153,17 @@ public class PgEngineCases implements EngineCaseStore {
     public List<EngineCase> open(String tenantCode) {
         List<EngineCase> out = new ArrayList<>();
         PgIds.query(pool.get(), OPEN, Tuple.of(tenantCode)).forEach(r -> out.add(engineCase(r)));
+        return out;
+    }
+
+    @Override
+    public List<EngineCase> list(String tenantCode, CaseFilter f) {
+        List<EngineCase> out = new ArrayList<>();
+        PgIds.query(pool.get(), MATCHING, Tuple.tuple().addString(tenantCode).addString(f.tripId())
+                .addString(f.assetId()).addString(f.symptomName())
+                .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
+                .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level()))
+                .forEach(r -> out.add(engineCase(r)));
         return out;
     }
 

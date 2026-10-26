@@ -3,11 +3,13 @@ package com.microboxlabs.miot.trips.service;
 import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.core.fleet.FleetResources;
+import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
 import com.microboxlabs.miot.trips.domain.MonitorSelector;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.events.TripEvents;
 import com.microboxlabs.miot.trips.dto.StageRequest;
@@ -70,6 +72,10 @@ public class MonitorEngine implements TripChanges {
     private static final String REGULARIZED = "regularized";
     private static final String SOURCE = "source";
     private static final String REQUEST_CONFIRMATION = "requestConfirmation";
+    private static final String DELIVERY_RULE = "delivery";
+    private static final String DELIVERY_PREFIX = "delivery_";
+    private static final String CONFIRMED_SUFFIX = "_confirmed";
+    private static final String CLOSURE_CONFIRMED = TripMilestone.CLOSURE + CONFIRMED_SUFFIX;
 
     /** The evaluation running on this thread; changes made by its actions queue up here. */
     private static final ThreadLocal<Run> RUN = new ThreadLocal<>();
@@ -87,6 +93,7 @@ public class MonitorEngine implements TripChanges {
     private final Transactions tx;
     private final Clock clock;
     private final MonitorContext context;
+    private final DeliveryReach deliveries;
     private final Map<String, TripMonitor> published = new ConcurrentHashMap<>();
     private final Map<String, MonitorLanguage.Prepared> prepared = new ConcurrentHashMap<>();
 
@@ -106,9 +113,9 @@ public class MonitorEngine implements TripChanges {
     public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
-            TripEvents events, Transactions tx) {
+            TripEvents events, Transactions tx, DeliveryService deliveries) {
         this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, milestones,
-                fleet, audit, events, tx, Clock.systemUTC());
+                fleet, audit, events, tx, Clock.systemUTC(), deliveries);
     }
 
     /** Without trip events. */
@@ -126,6 +133,16 @@ public class MonitorEngine implements TripChanges {
             AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
             MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
             TripEvents events, Transactions tx, Clock clock) {
+        this(runs, monitors, trips, stageStore, assignments, locations, stages, tripService, mandates, milestones,
+                fleet, audit, events, tx, clock, DeliveryReach.NONE);
+    }
+
+    /** {@code deliveries} tells whether the loads reached the step that completes the trip. */
+    @SuppressWarnings("java:S107") // The constructor above with the trip's deliveries.
+    public MonitorEngine(MonitorRunStore runs, MonitorStore monitors, TripStore trips, StageStore stageStore,
+            AssignmentStore assignments, LocationStore locations, StageService stages, TripService tripService,
+            MandateService mandates, MilestoneService milestones, FleetResources fleet, AuditService audit,
+            TripEvents events, Transactions tx, Clock clock, DeliveryReach deliveries) {
         this.runs = runs;
         this.monitors = monitors;
         this.trips = trips;
@@ -138,7 +155,9 @@ public class MonitorEngine implements TripChanges {
         this.events = events;
         this.tx = tx;
         this.clock = clock;
-        this.context = new MonitorContext(trips, stageStore, assignments, locations, mandates, milestones, fleet);
+        this.deliveries = deliveries;
+        this.context = new MonitorContext(trips, stageStore, assignments, locations, mandates, milestones, fleet,
+                deliveries);
     }
 
     @Override
@@ -286,6 +305,54 @@ public class MonitorEngine implements TripChanges {
             return;
         }
         evaluateRules(run, q, trip, m);
+        completeByDeliveries(run, q, m);
+    }
+
+    /**
+     * When the monitor names the delivery step that completes the trip ({@code deliveryCompletesTrip}), a confirmed
+     * monitoring closure or delivery step completes the trip once the closure is confirmed and every load reached
+     * that step. Recorded as the transition of the rule {@value #DELIVERY_RULE}.
+     */
+    private void completeByDeliveries(Run run, Queued q, TripMonitor m) {
+        MonitorRun.Event e = q.event();
+        if (!COMMAND.equals(e.on()) || e.kind() == null || !(CLOSURE_CONFIRMED.equals(e.kind())
+                || e.kind().startsWith(DELIVERY_PREFIX) && e.kind().endsWith(CONFIRMED_SUFFIX))) {
+            return;
+        }
+        String step;
+        try {
+            step = DeliveryCycle.of(m.params()).completesTrip();
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+        String tenant = e.tenantCode();
+        UUID tripId = UUID.fromString(e.tripId());
+        Optional<Trip> trip = trips.find(tenant, tripId);
+        if (step == null || trip.isEmpty() || finished(trip.get())
+                || milestones.list(tenant, tripId).stream().noneMatch(
+                        x -> TripMilestone.CLOSURE.equals(x.milestone()) && x.isConfirmed())
+                || !deliveries.reached(tenant, tripId, step)) {
+            return;
+        }
+        String actor = "monitor:" + m.monitorKey() + "@v" + m.version();
+        String from = running(trip.get());
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "completeTrip");
+        action.put("rule", DELIVERY_RULE);
+        String error = null;
+        try {
+            PgTx.savepoint(() -> {
+                completeTrip(tenant, tripId, actor);
+                return null;
+            });
+            action.put("result", "done");
+        } catch (RuntimeException ex) {
+            action.put("result", "failed");
+            error = DELIVERY_RULE + ": " + message(ex);
+        }
+        Trip after = trips.find(tenant, tripId).orElse(trip.get());
+        recordTransition(run, m, q, new TransitionResult(List.of(DELIVERY_RULE), DELIVERY_RULE, from,
+                running(after), List.of(action), error));
     }
 
     private static final class RuleEffects {
@@ -653,6 +720,9 @@ public class MonitorEngine implements TripChanges {
         if (MilestoneService.CONFIRMED.equals(action) || MilestoneService.REJECTED.equals(action)) {
             return milestoneEvent(tenant, actor, action, tripId, d, at);
         }
+        if (DeliveryService.STEP_CONFIRMED.equals(action) || DeliveryService.STEP_REJECTED.equals(action)) {
+            return deliveryEvent(tenant, actor, action, tripId, d, at);
+        }
         String[] onKind = switch (action) {
             case "trip.created" -> new String[] {"plan", "created"};
             case "trip.updated", "trip.cancelled" -> new String[] {"plan", "trip"};
@@ -690,6 +760,25 @@ public class MonitorEngine implements TripChanges {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("milestone", m);
         for (String key : List.of("channel", SOURCE)) {
+            if (d.get(key) != null) {
+                data.put(key, d.get(key));
+            }
+        }
+        OffsetDateTime at = d.get("at") instanceof String text ? OffsetDateTime.parse(text) : now;
+        return new MonitorRun.Event(tenant, tripId, COMMAND, kind, at, actor, data);
+    }
+
+    /** A delivery step confirmed or rejected: {@code delivery_<step>_confirmed} or {@code _rejected}. */
+    private static MonitorRun.Event deliveryEvent(String tenant, String actor, String action, String tripId,
+            Map<String, Object> d, OffsetDateTime now) {
+        if (!(d.get("step") instanceof String step)) {
+            return null;
+        }
+        String kind = DELIVERY_PREFIX + step
+                + (DeliveryService.STEP_CONFIRMED.equals(action) ? CONFIRMED_SUFFIX : "_rejected");
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("step", step);
+        for (String key : List.of("delivery", "channel")) {
             if (d.get(key) != null) {
                 data.put(key, d.get(key));
             }

@@ -23,6 +23,11 @@ class TripBoardTest {
                 null, false, null, NOW);
     }
 
+    private static BoardRow delivering(String status, Map<String, String> milestones, BoardRow.Deliveries d) {
+        return new BoardRow("t1", status, PAST, PAST, null, null, null, null, "closing", milestones, null, null,
+                null, null, null, null, null, null, null, null, null, false, null, NOW, d);
+    }
+
     private static String lane(BoardRow row) {
         return TripBoard.lane(row, NOW);
     }
@@ -114,5 +119,28 @@ class TripBoardTest {
         assertEquals(2, TripBoard.lanesForView("planning").size());
         assertEquals(6, TripBoard.lanesForView("dispatch").size());
         assertThrows(IllegalArgumentException.class, () -> TripBoard.lanesForView("kanban"));
+    }
+
+    @Test
+    void theDeliveryViewShowsTheStepEveryLoadReached() {
+        Map<String, String> closed = Map.of("closure", "confirmed");
+        assertEquals(null, TripBoard.deliveryLane(delivering("in_progress", Map.of(), BoardRow.Deliveries.NONE)),
+                "no delivery and the monitoring runs");
+        assertEquals(TripBoard.TO_DELIVER, TripBoard.deliveryLane(delivering("in_progress", closed,
+                new BoardRow.Deliveries(java.util.List.of(0, 0), false, false))));
+        assertEquals(TripBoard.DELIVERY_PENDING, TripBoard.deliveryLane(delivering("in_progress", Map.of(),
+                new BoardRow.Deliveries(java.util.List.of(0, 0), true, true))), "a POD waits, monitoring still open");
+        assertEquals(TripBoard.TO_DELIVER, TripBoard.deliveryLane(delivering("in_progress", closed,
+                new BoardRow.Deliveries(java.util.List.of(1, 0), true, false))), "one load is not delivered");
+        assertEquals("delivered", TripBoard.deliveryLane(delivering("in_progress", closed,
+                new BoardRow.Deliveries(java.util.List.of(3, 1), true, true))));
+        assertEquals("settled", TripBoard.deliveryLane(delivering("in_progress", closed,
+                new BoardRow.Deliveries(java.util.List.of(3, 3), true, false))));
+        assertEquals(null, TripBoard.deliveryLane(delivering("completed", closed,
+                new BoardRow.Deliveries(java.util.List.of(3), true, false))));
+        BoardRow both = delivering("in_progress", Map.of(), new BoardRow.Deliveries(java.util.List.of(1), true,
+                false));
+        assertEquals(TripBoard.CLOSURE_PENDING, TripBoard.lane(both, TripBoard.DISPATCH, NOW));
+        assertEquals("delivered", TripBoard.lane(both, TripBoard.DELIVERY, NOW));
     }
 }

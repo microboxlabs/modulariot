@@ -109,9 +109,10 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.15__backfill_english_projections.sql",
             "/db/migration/trips/V0.10.17__feed_applied_desired.sql",
             "/db/migration/trips/V0.10.18__milestone_confirmers.sql",
-            "/db/migration/trips/V0.10.19__presentation_validation_milestones.sql"};
+            "/db/migration/trips/V0.10.19__presentation_validation_milestones.sql",
+            "/db/migration/trips/V0.10.20__create_deliveries.sql"};
 
-    /** Drops and re-creates the miot_fleet and miot_trips schemas. Every Pg test class starts here. */
+    /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
         recreateSchemas(pool, MIGRATIONS.length);
     }
@@ -120,6 +121,9 @@ class PgTripsStoresTest {
     static void recreateSchemas(Pool pool, int count) throws IOException {
         pool.query("DROP SCHEMA IF EXISTS miot_trips CASCADE").execute().await().atMost(WAIT);
         pool.query("DROP SCHEMA IF EXISTS miot_fleet CASCADE").execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA IF NOT EXISTS miot_core").execute().await().atMost(WAIT);
+        pool.query("DROP TABLE IF EXISTS miot_core.content").execute().await().atMost(WAIT);
+        migrate(pool, "/db/migration/core/V0.1.20__create_content.sql");
         for (int i = 0; i < count; i++) {
             migrate(pool, MIGRATIONS[i]);
         }

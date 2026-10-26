@@ -61,7 +61,27 @@ public class PgBoardStore implements BoardStore {
             ARRAY(SELECT m.external_code FROM miot_trips.trip_mandate tm
                     JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
                    WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active
-                   ORDER BY tm.seq) AS codes""";
+                   ORDER BY tm.seq) AS codes,
+            CASE WHEN EXISTS (SELECT 1 FROM miot_trips.trip_mandate tm
+                               WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              THEN ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_mandate dm
+                                            JOIN miot_trips.delivery_step ds
+                                              ON ds.delivery_id = dm.delivery_id AND ds.status = 'confirmed'
+                                           WHERE dm.trip_id = t.id AND dm.mandate_id = tm.mandate_id), 0)
+                           FROM miot_trips.trip_mandate tm
+                          WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              ELSE ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_step ds
+                                           WHERE ds.delivery_id = dl.id AND ds.status = 'confirmed'), 0)
+                           FROM miot_trips.delivery dl WHERE dl.trip_id = t.id)
+            END AS delivery_levels,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl WHERE dl.trip_id = t.id) AS has_delivery,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl
+                      JOIN miot_trips.delivery_step ds ON ds.delivery_id = dl.id AND ds.status = 'pending'
+                     WHERE dl.trip_id = t.id) AS delivery_pending""";
 
     private static final String OPEN = "SELECT " + TRIP_STATE + """
             ,
@@ -258,6 +278,13 @@ public class PgBoardStore implements BoardStore {
                 r.getString("destination"), r.getString("truck"), r.getString("trailer"), r.getString("driver"),
                 r.getString("second_driver"), r.getString("carrier"), r.getString("monitor_key"),
                 Boolean.TRUE.equals(r.getBoolean("regularized")), r.getString("cancel_reason"),
-                time(r, "updated_at"));
+                time(r, "updated_at"), deliveries(r));
+    }
+
+    private static BoardRow.Deliveries deliveries(Row r) {
+        Integer[] levels = r.getArrayOfIntegers("delivery_levels");
+        return new BoardRow.Deliveries(levels == null ? List.of() : Arrays.asList(levels),
+                Boolean.TRUE.equals(r.getBoolean("has_delivery")),
+                Boolean.TRUE.equals(r.getBoolean("delivery_pending")));
     }
 }

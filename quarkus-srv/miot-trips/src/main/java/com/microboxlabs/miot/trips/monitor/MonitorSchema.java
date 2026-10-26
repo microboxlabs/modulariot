@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.monitor;
 
+import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,6 +76,9 @@ public record MonitorSchema(Map<String, String> fields) {
             f.put(root + ".proposedAt", TIME);
             f.put(root + ".confirmedAt", TIME);
             f.put(root + ".evidence", ANY);
+        }
+        for (String step : DeliveryCycle.STEPS) {
+            f.put("deliveries." + step, BOOL);
         }
         if (params != null) {
             params.forEach((name, value) -> f.put("params." + name, switch (value) {

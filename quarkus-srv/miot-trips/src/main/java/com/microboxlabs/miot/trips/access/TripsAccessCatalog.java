@@ -17,7 +17,7 @@ import java.util.Set;
  *   <tr><th>Role</th><th>Permissions</th></tr>
  *   <tr><td>{@value #VIEWER}</td><td>{@value #VIEW}</td></tr>
  *   <tr><td>{@value #OPERATOR}</td><td>+ {@value #STAGE_OPERATE}, {@value #MILESTONE_CONFIRM},
- *       {@value #CARGO_OPERATE}, {@value #ASSIGNMENT_WRITE}</td></tr>
+ *       {@value #DELIVERY_OPERATE}, {@value #CARGO_OPERATE}, {@value #ASSIGNMENT_WRITE}</td></tr>
  *   <tr><td>{@value #MAINTAINER}</td><td>every trips permission but {@value #FEED_ADMIN} and
  *       {@value #MONITOR_ADMIN} (the feeds' service accounts use it)</td></tr>
  *   <tr><td>Owner, Admin</td><td>+ {@value #FEED_ADMIN}: the rules of each feed; {@value #MONITOR_ADMIN}: the
@@ -36,6 +36,7 @@ public class TripsAccessCatalog implements AccessCatalog {
     public static final String TRIP_WRITE = "trips:trip.write";
     public static final String STAGE_OPERATE = "trips:stage.operate";
     public static final String MILESTONE_CONFIRM = "trips:milestone.confirm";
+    public static final String DELIVERY_OPERATE = "trips:delivery.operate";
     public static final String ASSIGNMENT_WRITE = "trips:assignment.write";
     public static final String LOCATION_WRITE = "trips:location.write";
     public static final String FEED_WRITE = "trips:feed.write";
@@ -56,6 +57,8 @@ public class TripsAccessCatalog implements AccessCatalog {
                 PermissionDef.of(STAGE_OPERATE, "Operar etapas y actividades", "Operate stages and activities"),
                 PermissionDef.of(MILESTONE_CONFIRM, "Confirmar salidas, llegadas y cierres",
                         "Confirm departures, arrivals and closures"),
+                PermissionDef.of(DELIVERY_OPERATE, "Registrar entregas, sus pruebas (POD) y sus pasos",
+                        "Record deliveries, their proofs (POD) and their steps"),
                 PermissionDef.of(ASSIGNMENT_WRITE, "Asignar recursos a viajes", "Assign resources to trips"),
                 PermissionDef.of(LOCATION_WRITE, "Mantener ubicaciones", "Maintain locations"),
                 PermissionDef.of(FEED_WRITE, "Enviar feeds de servicios", "Send service feeds"),
@@ -71,13 +74,15 @@ public class TripsAccessCatalog implements AccessCatalog {
                         .describedAs("Ve mandatos, viajes y su historia sin cambiar nada.",
                                 "Sees mandates, trips and their history without changing anything."),
                 RoleDef.of(OPERATOR, MODULE, "Operador", "Operator",
-                                Set.of(VIEW, STAGE_OPERATE, MILESTONE_CONFIRM, CARGO_OPERATE, ASSIGNMENT_WRITE))
+                                Set.of(VIEW, STAGE_OPERATE, MILESTONE_CONFIRM, DELIVERY_OPERATE, CARGO_OPERATE,
+                                        ASSIGNMENT_WRITE))
                         .asLegacyDefault()
                         .describedAs("Opera las etapas, las cargas y los recursos de los viajes en curso.",
                                 "Operates stages, cargo and resources of running trips."),
                 RoleDef.of(MAINTAINER, MODULE, "Mantenedor", "Maintainer",
                                 Set.of(VIEW, MANDATE_WRITE, CARGO_OPERATE, TRIP_WRITE, STAGE_OPERATE,
-                                        MILESTONE_CONFIRM, ASSIGNMENT_WRITE, LOCATION_WRITE, FEED_WRITE))
+                                        MILESTONE_CONFIRM, DELIVERY_OPERATE, ASSIGNMENT_WRITE, LOCATION_WRITE,
+                                        FEED_WRITE))
                         .describedAs("Además crea mandatos y viajes, mantiene recursos y ubicaciones y envía feeds.",
                                 "Also creates mandates and trips, maintains resources and locations and sends feeds."));
     }

@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.content.ContentService;
+import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.trips.access.TripsAccessCatalog;
@@ -31,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -58,7 +60,7 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
     }
 
     /** {@code verdict} is APPROVED, REJECTED or PENDING (sent back for another look). */
-    public record ReviewRequest(String verdict, List<String> reasons, String comment) {
+    public record ReviewRequest(OffsetDateTime expectedUpdatedAt, String verdict, List<String> reasons, String comment) {
     }
 
     private final TripDocumentService documents;
@@ -101,16 +103,17 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
             @RestForm("file") FileUpload file, @RestForm String docType, @RestForm String deliveryId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> {
-            FileUpload f = required(file);
+        return access(organizationId).flatMap(access -> work(() -> {
             UUID delivery = deliveryId == null || deliveryId.isBlank() ? null : uuid(deliveryId, "deliveryId");
+            requireDeliveryAccess(access, delivery != null);
+            FileUpload f = required(file);
             try (InputStream in = Files.newInputStream(f.uploadedFile())) {
                 return Response.ok(documents.upload(tenant, actor, uuid(id, ID), docType, delivery, f.fileName(),
                         f.contentType(), in)).build();
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-        });
+        }));
     }
 
     @PUT
@@ -156,6 +159,7 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
                             + name.replaceAll("[\"\\\\]", "_") + "\"")
                     .header("Content-Length", opened.content().size())
                     .header("X-Content-Type-Options", "nosniff")
+                    .header("Content-Security-Policy", "sandbox")
                     .header("Cache-Control", "private, max-age=300")
                     .build();
         });
@@ -182,10 +186,13 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
             @PathParam(DOCUMENT) String documentId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> {
-            documents.delete(tenant, actor, uuid(id, ID), uuid(documentId, DOCUMENT));
+        return access(organizationId).flatMap(access -> work(() -> {
+            UUID trip = uuid(id, ID);
+            UUID document = uuid(documentId, DOCUMENT);
+            requireDeliveryAccess(access, documents.document(tenant, trip, document).deliveryId() != null);
+            documents.delete(tenant, actor, trip, document);
             return Response.noContent().build();
-        });
+        }));
     }
 
     @GET
@@ -208,8 +215,14 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> Response.ok(documents.review(tenant, actor, uuid(id, ID), uuid(documentId, DOCUMENT),
-                body == null ? null : body.verdict(), body == null ? null : body.reasons(),
-                body == null ? null : body.comment())).build());
+                body == null ? null : new TripDocumentService.ReviewDecision(body.expectedUpdatedAt(),
+                        body.verdict(), body.reasons(), body.comment()))).build());
+    }
+
+    private static void requireDeliveryAccess(Access access, boolean linked) {
+        if (linked && !access.can(TripsAccessCatalog.DELIVERY_OPERATE)) {
+            throw new SecurityException("delivery operation permission is required for linked documents");
+        }
     }
 
     private static FileUpload required(FileUpload file) {

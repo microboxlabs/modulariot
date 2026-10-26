@@ -153,8 +153,10 @@ public class TripDocumentService {
                 status = null;
                 reviewedAt = null;
                 reviewedBy = null;
-            } else if (!d.reviewable()) {
+            } else if (!d.reviewable() || (type != null && !type.value().equals(d.docType()))) {
                 status = TripDocument.PENDING;
+                reviewedAt = null;
+                reviewedBy = null;
             }
             TripDocument changed = store.update(new TripDocument(d.id(), tenantCode, d.tripId(), d.contentId(),
                     newName == null ? d.name() : newName, type == null ? d.docType() : type.value(), d.version(),
@@ -171,6 +173,8 @@ public class TripDocumentService {
     /** Deletes the document and releases its files; refused when it proves a delivery with a confirmed step. */
     public void delete(String tenantCode, String actor, UUID tripId, UUID documentId) {
         tx.inTransaction(() -> {
+            // Serialize proof removal with delivery confirmation; acquire the trip before the document.
+            trip(tenantCode, tripId);
             TripDocument d = document(tenantCode, tripId, documentId);
             deliveries.unlinkDocument(tenantCode, tripId, d.id());
             for (UUID content : store.delete(tenantCode, documentId)) {
@@ -195,23 +199,33 @@ public class TripDocumentService {
      * Records a review round on the current version: APPROVED, REJECTED or PENDING (sent back for another look),
      * with its reasons and comment. The document takes the verdict as its status.
      */
-    public TripDocument.Review review(String tenantCode, String actor, UUID tripId, UUID documentId, String verdict,
-            List<String> reasons, String comment) {
-        String v = verdict == null ? "" : verdict.toUpperCase(Locale.ROOT);
+    public record ReviewDecision(OffsetDateTime expectedUpdatedAt, String verdict, List<String> reasons, String comment) {
+    }
+
+    public TripDocument.Review review(String tenantCode, String actor, UUID tripId, UUID documentId,
+            ReviewDecision decision) {
+        if (decision == null || decision.expectedUpdatedAt() == null) {
+            throw new IllegalArgumentException("expectedUpdatedAt is required");
+        }
+        String v = decision.verdict() == null ? "" : decision.verdict().toUpperCase(Locale.ROOT);
         if (!TripDocument.Review.VERDICTS.contains(v)) {
             throw new IllegalArgumentException("verdict must be one of " + TripDocument.Review.VERDICTS);
         }
-        List<String> codes = reasons == null ? List.of()
-                : reasons.stream().map(r -> Check.required(r, "reason", 64)).distinct().toList();
+        List<String> codes = decision.reasons() == null ? List.of()
+                : decision.reasons().stream().map(r -> Check.required(r, "reason", 64)).distinct().toList();
         if (codes.size() > MAX_REASONS) {
             throw new IllegalArgumentException("at most " + MAX_REASONS + " reasons");
         }
-        String note = Check.limitedOrNull(Check.blankToNull(comment), "comment", 4000);
+        String note = Check.limitedOrNull(Check.blankToNull(decision.comment()), "comment", 4000);
         return tx.inTransaction(() -> {
             TripDocument d = document(tenantCode, tripId, documentId);
+            if (!decision.expectedUpdatedAt().isEqual(d.updatedAt())) {
+                throw new IllegalStateException("the document changed; reload it before reviewing");
+            }
             if (!d.reviewable()) {
                 throw new IllegalStateException("documents of type " + d.docType() + " need no review");
             }
+            validateReasons(tenantCode, d.docType(), codes);
             TripDocument.Review round = store.insert(new TripDocument.Review(d.id(), 0, d.version(), v, codes, note,
                     actor, null));
             store.update(new TripDocument(d.id(), tenantCode, d.tripId(), d.contentId(), d.name(), d.docType(),
@@ -226,6 +240,18 @@ public class TripDocumentService {
         });
     }
 
+    private void validateReasons(String tenantCode, String docType, List<String> codes) {
+        if (codes.isEmpty()) {
+            return;
+        }
+        List<String> allowed = lists.reasons(tenantCode).stream()
+                .filter(o -> !o.disabled() && (o.parent() == null || o.parent().equals(docType)))
+                .map(SelectableOption::value).toList();
+        if (!allowed.containsAll(codes)) {
+            throw new IllegalArgumentException("review reasons must be active and applicable to the document type");
+        }
+    }
+
     private void log(String tenantCode, String actor, String action, UUID tripId, TripDocument d,
             Map<String, Object> extra) {
         Map<String, Object> details = new LinkedHashMap<>();
@@ -238,7 +264,7 @@ public class TripDocumentService {
         trips.find(tenantCode, tripId).orElseThrow(() -> new NoSuchElementException("trip not found"));
     }
 
-    private TripDocument document(String tenantCode, UUID tripId, UUID documentId) {
+    public TripDocument document(String tenantCode, UUID tripId, UUID documentId) {
         return store.find(tenantCode, tripId, documentId)
                 .orElseThrow(() -> new NoSuchElementException("document not found"));
     }

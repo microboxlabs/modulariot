@@ -16,9 +16,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.ServiceUnavailableException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -45,7 +47,7 @@ public class BoardEvents {
     private final Vertx vertx;
     private final boolean enabled;
     private final Map<String, BroadcastProcessor<Change>> tenants = new ConcurrentHashMap<>();
-    private volatile SqlConnection listening;
+    private final AtomicReference<SqlConnection> listening = new AtomicReference<>();
     private volatile boolean stopped;
 
     @Inject
@@ -76,7 +78,7 @@ public class BoardEvents {
 
     public void stop() {
         stopped = true;
-        SqlConnection connection = listening;
+        SqlConnection connection = listening.getAndSet(null);
         if (connection != null) {
             connection.closeAndForget();
         }
@@ -84,6 +86,9 @@ public class BoardEvents {
 
     /** The tenant's trip changes, with a ping every 25 seconds. */
     public Multi<Change> stream(String tenantCode) {
+        if (!enabled) {
+            throw new ServiceUnavailableException("Trip board live events are disabled");
+        }
         Multi<Change> changes = tenants.computeIfAbsent(tenantCode, t -> BroadcastProcessor.create());
         Multi<Change> pings = Multi.createFrom().ticks().every(PING).map(tick -> new Change("ping", null));
         return Multi.createBy().merging().streams(changes, pings);
@@ -102,11 +107,20 @@ public class BoardEvents {
     }
 
     private void listen() {
+        if (stopped) {
+            return;
+        }
         pool.get().getConnection().subscribe().with(connection -> {
-            listening = connection;
+            listening.set(connection);
+            if (stopped) {
+                if (listening.compareAndSet(connection, null)) {
+                    connection.closeAndForget();
+                }
+                return;
+            }
             PgConnection pg = PgConnection.cast(connection);
             pg.notificationHandler(notice -> dispatch(notice.getPayload()));
-            pg.closeHandler(this::retry);
+            pg.closeHandler(() -> retry(connection));
             pg.query("LISTEN " + BoardChannel.CHANNEL).execute().subscribe().with(
                     rows -> LOG.debug("Listening for trip board changes"),
                     failure -> {
@@ -115,12 +129,14 @@ public class BoardEvents {
                     });
         }, failure -> {
             LOG.warnf("Trip board listener has no connection: %s", failure.getMessage());
-            retry();
+            retry(null);
         });
     }
 
-    private void retry() {
-        listening = null;
+    private void retry(SqlConnection connection) {
+        if (connection != null) {
+            listening.compareAndSet(connection, null);
+        }
         if (!stopped) {
             vertx.setTimer(RETRY_MS, id -> listen());
         }

@@ -656,4 +656,27 @@ class PgMonitorEngineTest {
         assertThrows(java.util.NoSuchElementException.class, () -> board.sheet(tenant, UUID.randomUUID()));
     }
 
+    @Test
+    void finishedBoardCountsEveryTripButReturnsOneCardPerLane() {
+        TripView cancelled = newTrip(null, null);
+        trips.cancel(tenant, ACTOR, id(cancelled), "test cancellation");
+        for (int i = 0; i < 4; i++) {
+            TripView trip = newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
+            engine.signal(tenant, "gps", id(trip), "left_origin", "17", null);
+            engine.signal(tenant, "gps", id(trip), "entered_destination", "42", null);
+        }
+
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
+                milestones, runs);
+        BoardView view = board.view(tenant, TripBoard.FINISHED, null, null, null, 1);
+        BoardView.Lane completed = view.lanes().stream()
+                .filter(lane -> TripBoard.COMPLETED.equals(lane.key())).findFirst().orElseThrow();
+        BoardView.Lane cancelledLane = view.lanes().stream()
+                .filter(lane -> TripBoard.CANCELLED.equals(lane.key())).findFirst().orElseThrow();
+        assertEquals(4, completed.count());
+        assertEquals(1, completed.cards().size());
+        assertEquals(1, cancelledLane.count());
+        assertEquals(List.of(cancelled.id()), cancelledLane.cards().stream().map(BoardView.Card::tripId).toList());
+    }
+
 }

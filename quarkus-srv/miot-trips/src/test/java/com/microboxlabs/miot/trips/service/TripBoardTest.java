@@ -86,7 +86,7 @@ class TripBoardTest {
 
     @Test
     void anUnknownViewIsRefused() {
-        assertEquals(3, TripBoard.lanes("planning").size());
-        assertThrows(IllegalArgumentException.class, () -> TripBoard.lanes("kanban"));
+        assertEquals(3, TripBoard.lanesForView("planning").size());
+        assertThrows(IllegalArgumentException.class, () -> TripBoard.lanesForView("kanban"));
     }
 }

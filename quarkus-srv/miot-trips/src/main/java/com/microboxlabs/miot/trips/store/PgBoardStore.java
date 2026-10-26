@@ -18,6 +18,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -112,12 +113,22 @@ public class PgBoardStore implements BoardStore {
                        AND e.action = 'trip.created' AND e.details->>'regularized' = 'true') AS regularized,
             t.updated_at
             FROM done t
+            ), matched AS (
+                SELECT rows.*,
+                       CASE WHEN status = 'cancelled' THEN 'cancelled'
+                            WHEN regularized THEN 'regularized' ELSE 'completed' END AS board_lane
+                FROM rows
+                WHERE $2::text IS NULL OR concat_ws(' ', array_to_string(codes, ' '), origin, destination)
+                      ILIKE '%' || $2 || '%'
+            ), ranked AS (
+                SELECT matched.*,
+                       count(*) OVER (PARTITION BY board_lane) AS lane_count,
+                       row_number() OVER (PARTITION BY board_lane
+                                          ORDER BY coalesce(actual_end, updated_at) DESC NULLS LAST, trip_id)
+                           AS lane_rank
+                FROM matched
             )
-            SELECT * FROM rows
-            WHERE $2::text IS NULL OR concat_ws(' ', array_to_string(codes, ' '), origin, destination)
-                  ILIKE '%' || $2 || '%'
-            ORDER BY coalesce(actual_end, updated_at) DESC
-            LIMIT $5""";
+            SELECT * FROM ranked WHERE lane_rank <= $5 ORDER BY board_lane, lane_rank""";
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -138,14 +149,14 @@ public class PgBoardStore implements BoardStore {
     }
 
     @Override
-    public List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit) {
-        return finished(tenantCode, q, from, to, limit, null);
+    public FinishedPage finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int perLane) {
+        return finished(tenantCode, q, from, to, perLane, null);
     }
 
     @Override
     public Optional<BoardRow> trip(String tenantCode, UUID tripId) {
         return open(tenantCode, null, tripId).stream().findFirst()
-                .or(() -> finished(tenantCode, null, null, null, 1, tripId).stream().findFirst());
+                .or(() -> finished(tenantCode, null, null, null, 1, tripId).rows().stream().findFirst());
     }
 
     @Override
@@ -183,11 +194,16 @@ public class PgBoardStore implements BoardStore {
         return query(pool.get(), OPEN, Tuple.of(tenantCode, q, tripId)).stream().map(PgBoardStore::row).toList();
     }
 
-    private List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit,
+    private FinishedPage finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int perLane,
             UUID tripId) {
-        return query(pool.get(), FINISHED, Tuple.tuple().addString(tenantCode).addString(q)
-                .addOffsetDateTime(from).addOffsetDateTime(to).addInteger(limit).addUUID(tripId))
-                .stream().map(PgBoardStore::row).toList();
+        Map<String, Integer> counts = new HashMap<>();
+        List<BoardRow> rows = query(pool.get(), FINISHED, Tuple.tuple().addString(tenantCode).addString(q)
+                .addOffsetDateTime(from).addOffsetDateTime(to).addInteger(perLane).addUUID(tripId))
+                .stream().map(r -> {
+                    counts.put(r.getString("board_lane"), Math.toIntExact(r.getLong("lane_count")));
+                    return row(r);
+                }).toList();
+        return new FinishedPage(rows, counts);
     }
 
     private static BoardRow row(Row r) {

@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.BiFunction;
 
 /**
  * The time range of a trips-module trip on one of its trucks, for its map: from the departure until the trip ended, or
@@ -28,7 +27,14 @@ public class TripWindows {
 
     /** The truck was assigned to the trip at some time. */
     static final String TRIP = """
-            SELECT t.actual_start, t.actual_end
+            SELECT coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
+                              WHERE m.tenant_code = t.tenant_code AND m.trip_id = t.id
+                                AND m.milestone = 'departure' AND m.status = 'confirmed'),
+                            (SELECT min(s.actual_start) FROM miot_trips.stage s
+                              WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip'
+                                AND s.subject_id = t.id AND s.stage_type IN ('transit', 'stop')
+                                AND s.version_of IS NULL AND s.is_active)) AS actual_start,
+                   t.actual_end
               FROM miot_trips.trip t
              WHERE t.tenant_code = $1 AND t.id = $2 AND t.version_of IS NULL AND t.is_active
                AND EXISTS (SELECT 1 FROM miot_trips.trip_resource_assignment a

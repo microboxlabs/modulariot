@@ -108,6 +108,7 @@ function Milestones({
   const { access } = useMyAccess();
   const mine = new Set((access?.teams ?? []).map((t) => t.id));
   const planned: Record<string, string | null> = {
+    presentation: sheet.card.plannedStart,
     departure: sheet.card.plannedStart,
     arrival: sheet.card.plannedArrival,
     closure: null,

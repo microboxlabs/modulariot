@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class MonitorLanguageTest {
 
@@ -28,12 +30,20 @@ class MonitorLanguageTest {
                 "signal", Map.of("kind", "left_origin", "at", START.plusSeconds(600)),
                 "event", Map.of("on", "signal", "at", START.plusSeconds(600)),
                 "params", PARAMS,
-                "plan", Map.of("source", Map.of("ESTADO", "Programado")));
+                "plan", Map.of("source", Map.of("ESTADO", "Programado")),
+                "milestones", Map.of("validation", Map.of("status", "pending",
+                        "evidence", Map.of("documents", "ok", "seal", 4411))));
     }
 
-    @Test
-    void aSignalRuleReadsTheStageAndTheSignal() {
-        String when = "stage.type == 'preparation' && signal.kind == 'left_origin'";
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "milestones.validation.evidence.documents == 'ok' && milestones.validation.evidence.seal > 4000",
+            "stage.type == 'preparation' && signal.kind == 'left_origin'",
+            "mandates.exists(m, m.externalCode == 'S-1') && stages.preparation.status == 'in_progress'"
+                    + " && plan.source.ESTADO == 'Programado' && params.closeOnArrival",
+            "!has(trip.actualStart)"
+    })
+    void signalConditionsReadTheTypedContext(String when) {
         assertTrue(MonitorLanguage.check(SIGNAL, when, Expect.CONDITION).ok());
         assertEquals(true, MonitorLanguage.evaluate(SIGNAL, when, context()).value());
     }
@@ -45,21 +55,6 @@ class MonitorLanguageTest {
         assertEquals(START.plusSeconds(1800), MonitorLanguage.evaluate(TIMER, at, context()).value());
         assertTrue(MonitorLanguage.check(TIMER, "event.at > trip.plannedStart + hours(1.5)", Expect.CONDITION)
                 .ok());
-    }
-
-    @Test
-    void listsMapsAndFreeFormFieldsWork() {
-        String when = "mandates.exists(m, m.externalCode == 'S-1') && stages.preparation.status == 'in_progress'"
-                + " && plan.source.ESTADO == 'Programado' && params.closeOnArrival";
-        assertTrue(MonitorLanguage.check(SIGNAL, when, Expect.CONDITION).ok());
-        assertEquals(true, MonitorLanguage.evaluate(SIGNAL, when, context()).value());
-    }
-
-    @Test
-    void anAbsentFieldIsTestedWithHas() {
-        String when = "!has(trip.actualStart)";
-        assertTrue(MonitorLanguage.check(SIGNAL, when, Expect.CONDITION).ok());
-        assertEquals(true, MonitorLanguage.evaluate(SIGNAL, when, context()).value());
     }
 
     @Test

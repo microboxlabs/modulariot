@@ -119,6 +119,27 @@ describe("a trip milestone", () => {
     expect(screen.getByText("sheet.teamOnly")).toBeInTheDocument();
   });
 
+  it("lists the metadata the sources sent", () => {
+    row(
+      milestone({
+        milestone: "validation",
+        source: "wms",
+        evidence: {
+          documents: "ok",
+          seal: { number: 4411 },
+          scanned: true,
+          weight: 1200,
+        },
+      })
+    );
+    expect(screen.getByText("sheet.evidence")).toBeInTheDocument();
+    expect(screen.getByText("documents")).toBeInTheDocument();
+    expect(screen.getByText('{"number":4411}')).toBeInTheDocument();
+    expect(screen.getByText("ok")).toBeInTheDocument();
+    expect(screen.getByText("true")).toBeInTheDocument();
+    expect(screen.getByText("1200")).toBeInTheDocument();
+  });
+
   it("shows the API's refusal", async () => {
     confirm.mockRejectedValueOnce(new Error("departure is not confirmed"));
     row(milestone({ milestone: "arrival", status: "open" }));

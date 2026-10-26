@@ -9,7 +9,10 @@ vi.mock("@/features/i18n/tr.service", () => ({
   tr: (key: string, _d: unknown, vars?: Record<string, string>) =>
     vars ? `${key} ${Object.values(vars).join("/")}` : key,
 }));
-vi.mock("../monitors/monitors-api", () => ({ tripsRequest: vi.fn() }));
+vi.mock("../monitors/monitors-api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../monitors/monitors-api")>()),
+  tripsRequest: vi.fn(),
+}));
 
 const card: BoardCard = {
   tripId: "11111111-1111-1111-1111-111111111111",
@@ -85,6 +88,32 @@ describe("trips board", () => {
       "title",
       "milestone.departure: milestoneStatus.pending"
     );
+    expect(screen.queryByText("milestone.presentation")).toBeNull();
+  });
+
+  it("shows presentation and validation once a source reported them", () => {
+    render(
+      <TripLane
+        lane={lane({
+          cards: [
+            {
+              ...card,
+              milestones: { presentation: "confirmed", validation: "pending" },
+            },
+          ],
+        })}
+        d={{}}
+        lang="en"
+        compact={false}
+        laneState={DEFAULT_LANE_STATE}
+        onLaneUpdate={() => undefined}
+      />
+    );
+    expect(screen.getByText("milestone.validation")).toHaveAttribute(
+      "title",
+      "milestone.validation: milestoneStatus.pending"
+    );
+    expect(screen.getByText("milestone.presentation")).toBeInTheDocument();
   });
 
   it("says when a lane shows only its first cards, and when it is empty", () => {

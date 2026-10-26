@@ -28,6 +28,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -39,7 +40,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Path("/api/v1/orgs/{organizationId}/trips")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Trips — Milestones", description = "Departures, arrivals and closures confirmed by people")
+@Tag(name = "Trips — Milestones",
+        description = "Presentation, validation, departure, arrival and closure, detected by systems and confirmed")
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -49,14 +51,19 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
     private static final String ID = "id";
     private static final String MILESTONE = "milestone";
 
-    /**
-     * {@code at} defaults to the time the pending detection proposed, else now. {@code channel} is {@code ui} or
-     * {@code api} (the default).
-     */
     public record DetectionRequest(OffsetDateTime proposedAt, String source) {
     }
 
-    public record ConfirmRequest(OffsetDateTime at, String channel, String note, DetectionRequest expectedDetection) {
+    /**
+     * {@code at} defaults to the time the pending detection proposed, else now. {@code channel} is {@code ui} or
+     * {@code api} (the default). {@code evidence} is metadata kept with the milestone.
+     */
+    public record ConfirmRequest(OffsetDateTime at, String channel, String note, DetectionRequest expectedDetection,
+            Map<String, Object> evidence) {
+    }
+
+    /** A system saw the milestone: {@code source} names it ({@code gate}, {@code wms}…), {@code at} defaults to now. */
+    public record DetectRequest(OffsetDateTime at, String source, Map<String, Object> evidence) {
     }
 
     public record RejectRequest(String channel, String note, DetectionRequest expectedDetection) {
@@ -130,10 +137,29 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             DetectionRequest expected = body.expectedDetection();
             return Response.ok(milestones.respondToDetection(tenant, actor, tripId,
                     new DetectionRef(milestone, expected.proposedAt(), expected.source()), true, ch,
-                    body.note())).build();
+                    body.note(), body.evidence())).build();
         }
         return Response.ok(milestones.confirm(tenant, actor, tripId, milestone,
-                body == null ? null : body.at(), ch, body == null ? null : body.note())).build();
+                body == null ? null : body.at(), ch, body == null ? null : body.note(),
+                body == null ? null : body.evidence())).build();
+    }
+
+    @POST
+    @Path("/{id}/milestones/{milestone}/detect")
+    @Operation(operationId = "detectTripMilestone",
+            summary = "A system reports a milestone with its metadata; it waits for a confirmation")
+    @PermissionsAllowed(value = TripsAccessCatalog.MILESTONE_CONFIRM, permission = OrgPermission.class,
+            params = ORG)
+    public Uni<Response> detect(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            @PathParam(MILESTONE) String milestone, DetectRequest body) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> {
+            UUID tripId = trip(tenant, id);
+            return Response.ok(body == null ? milestones.detect(tenant, actor, tripId, milestone, null, null, null)
+                    : milestones.detect(tenant, actor, tripId, milestone, body.source(), body.at(),
+                            body.evidence())).build();
+        });
     }
 
     @POST

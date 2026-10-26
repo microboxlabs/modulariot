@@ -40,6 +40,29 @@ class TripBoardTest {
     }
 
     @Test
+    void presentationThenValidationThenTheDepartureAuthorization() {
+        assertEquals(TripBoard.PRESENTATION, lane(row("in_progress", "preparation", null,
+                Map.of("presentation", "pending"), null, LATER, null, true)), "a gate or the GPS saw the truck");
+        assertEquals(TripBoard.PRESENTATION, lane(row("in_progress", "preparation", null, null,
+                Set.of("presentation_overdue"), PAST, null, true)));
+        assertEquals(TripBoard.VALIDATION, lane(row("in_progress", "loading", "preparation",
+                Map.of("presentation", "confirmed"), null, LATER, null, true)));
+        assertEquals(TripBoard.VALIDATION, lane(row("in_progress", "loading", "preparation",
+                Map.of("presentation", "confirmed", "validation", "rejected"), null, LATER, null, true)));
+        assertEquals(TripBoard.VALIDATION, lane(row("in_progress", "preparation", null,
+                Map.of("validation", "pending"), null, LATER, null, true)), "checks came before the presentation");
+        assertEquals(TripBoard.DEPARTURE_PENDING, lane(row("in_progress", "loading", "preparation",
+                Map.of("presentation", "confirmed", "validation", "confirmed"), null, LATER, null, true)));
+    }
+
+    @Test
+    void aConfirmedClosureEndsTheMonitoringAndTheTripWaitsForItsDelivery() {
+        assertEquals(TripBoard.TO_DELIVER, lane(row("in_progress", null, "closing",
+                Map.of("departure", "confirmed", "arrival", "confirmed", "closure", "confirmed"), null, PAST, PAST,
+                true)));
+    }
+
+    @Test
     void anOverdueAlertCountsOnlyWhileThePlannedTimeIsPast() {
         assertEquals(TripBoard.SCHEDULED, lane(row("in_progress", "preparation", null, null,
                 Set.of("departure_overdue"), LATER, null, true)), "the feed moved the departure later");
@@ -57,8 +80,8 @@ class TripBoardTest {
                 Map.of("departure", "confirmed", "arrival", "pending"), null, PAST, LATER, true)));
         assertEquals(TripBoard.ARRIVAL_PENDING, lane(row("in_progress", "transit", null, null,
                 Set.of("arrival_overdue"), PAST, PAST, true)));
-        assertEquals(TripBoard.UNLOADING, lane(row("in_progress", "unloading", "transit", null, null, PAST, PAST,
-                true)));
+        assertEquals(TripBoard.CLOSURE_PENDING, lane(row("in_progress", "unloading", "transit", null, null, PAST,
+                PAST, true)));
         assertEquals(TripBoard.CLOSURE_PENDING, lane(row("in_progress", "unloading", "transit", null,
                 Set.of("closure_overdue"), PAST, PAST, true)));
     }
@@ -73,7 +96,7 @@ class TripBoardTest {
                 true)), "a closed intermediate stop is still en route");
         assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", "preparation", null,
                 Map.of("departure", "confirmed"), null, PAST, LATER, true)), "no rule advanced the stage");
-        assertEquals(TripBoard.UNLOADING, lane(row("in_progress", "transit", null,
+        assertEquals(TripBoard.CLOSURE_PENDING, lane(row("in_progress", "transit", null,
                 Map.of("departure", "confirmed", "arrival", "confirmed"), null, PAST, LATER, true)));
     }
 
@@ -88,7 +111,8 @@ class TripBoardTest {
 
     @Test
     void anUnknownViewIsRefused() {
-        assertEquals(3, TripBoard.lanesForView("planning").size());
+        assertEquals(2, TripBoard.lanesForView("planning").size());
+        assertEquals(6, TripBoard.lanesForView("dispatch").size());
         assertThrows(IllegalArgumentException.class, () -> TripBoard.lanesForView("kanban"));
     }
 }

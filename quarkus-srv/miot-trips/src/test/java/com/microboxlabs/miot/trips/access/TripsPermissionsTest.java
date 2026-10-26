@@ -115,6 +115,7 @@ class TripsPermissionsTest {
             Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN),
             Map.entry("OrgTripMonitorResource.get", VIEW),
             Map.entry("OrgTripMilestonesResource.confirm", MILESTONE_CONFIRM),
+            Map.entry("OrgTripMilestonesResource.detect", MILESTONE_CONFIRM),
             Map.entry("OrgTripMilestonesResource.list", VIEW),
             Map.entry("OrgTripMilestonesResource.pending", VIEW),
             Map.entry("OrgTripMilestonesResource.reject", MILESTONE_CONFIRM),

@@ -268,6 +268,7 @@ public final class MonitorLanguage {
             case MonitorSchema.NUMBER -> SimpleType.DOUBLE;
             case MonitorSchema.BOOL -> SimpleType.BOOL;
             case MonitorSchema.TIME -> SimpleType.TIMESTAMP;
+            case MonitorSchema.ANY -> SimpleType.DYN;
             default -> SimpleType.STRING;
         };
     }

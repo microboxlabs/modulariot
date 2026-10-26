@@ -11,7 +11,9 @@ import java.util.Set;
 /**
  * The board's views and lanes. A trip's lane comes from the stage that runs (or closed last) and from its milestones,
  * never from the tenant's service status. A milestone is to confirm when a detection waits for a person, or when the
- * monitor raised its overdue alert and the planned time is still past.
+ * monitor raised its overdue alert and the planned time is still past. Before departure a trip moves to dispatch once
+ * something reports its presentation or validation, or its departure is to confirm. A confirmed closure ends the
+ * monitoring: the trip waits for its delivery.
  */
 public final class TripBoard {
 
@@ -22,19 +24,22 @@ public final class TripBoard {
 
     public static final String UNASSIGNED = "unassigned";
     public static final String SCHEDULED = "scheduled";
+    public static final String PRESENTATION = "presentation";
+    public static final String VALIDATION = "validation";
     public static final String DEPARTURE_PENDING = "departure_pending";
     public static final String IN_TRANSIT = "in_transit";
     public static final String ARRIVAL_PENDING = "arrival_pending";
-    public static final String UNLOADING = "unloading";
     public static final String CLOSURE_PENDING = "closure_pending";
+    public static final String TO_DELIVER = "to_deliver";
     public static final String COMPLETED = "completed";
     public static final String REGULARIZED = "regularized";
     public static final String CANCELLED = "cancelled";
 
     public static final Map<String, List<String>> LANES = Map.of(
-            PLANNING, List.of(UNASSIGNED, SCHEDULED, DEPARTURE_PENDING),
-            DISPATCH, List.of(IN_TRANSIT, ARRIVAL_PENDING),
-            DELIVERY, List.of(UNLOADING, CLOSURE_PENDING),
+            PLANNING, List.of(UNASSIGNED, SCHEDULED),
+            DISPATCH, List.of(PRESENTATION, VALIDATION, DEPARTURE_PENDING, IN_TRANSIT, ARRIVAL_PENDING,
+                    CLOSURE_PENDING),
+            DELIVERY, List.of(TO_DELIVER),
             FINISHED, List.of(COMPLETED, REGULARIZED, CANCELLED));
 
     private static final Set<String> BEFORE_DEPARTURE = Set.of("preparation", "loading");
@@ -59,18 +64,38 @@ public final class TripBoard {
         if (Trip.DONE.equals(row.status())) {
             return row.regularized() ? REGULARIZED : COMPLETED;
         }
+        if (confirmed(row, TripMilestone.CLOSURE)) {
+            return TO_DELIVER;
+        }
         return switch (phase(row)) {
-            case PLANNING -> {
-                if (toConfirm(row, TripMilestone.DEPARTURE, "departure_overdue", row.plannedStart(), now)) {
-                    yield DEPARTURE_PENDING;
-                }
-                yield row.truck() == null || row.driver() == null ? UNASSIGNED : SCHEDULED;
-            }
+            case PLANNING -> beforeDeparture(row, now);
             case DISPATCH -> toConfirm(row, TripMilestone.ARRIVAL, "arrival_overdue", row.plannedArrival(), now)
                     ? ARRIVAL_PENDING : IN_TRANSIT;
-            default -> toConfirm(row, TripMilestone.CLOSURE, "closure_overdue", row.plannedArrival(), now)
-                    ? CLOSURE_PENDING : UNLOADING;
+            default -> CLOSURE_PENDING;
         };
+    }
+
+    /** The first step still missing: departure authorization, validation, presentation, else not started. */
+    private static String beforeDeparture(BoardRow row, OffsetDateTime now) {
+        if (toConfirm(row, TripMilestone.DEPARTURE, "departure_overdue", row.plannedStart(), now)
+                || confirmed(row, TripMilestone.VALIDATION)) {
+            return DEPARTURE_PENDING;
+        }
+        if (reported(row, TripMilestone.VALIDATION) || confirmed(row, TripMilestone.PRESENTATION)) {
+            return VALIDATION;
+        }
+        if (toConfirm(row, TripMilestone.PRESENTATION, "presentation_overdue", row.plannedStart(), now)) {
+            return PRESENTATION;
+        }
+        return row.truck() == null || row.driver() == null ? UNASSIGNED : SCHEDULED;
+    }
+
+    private static boolean confirmed(BoardRow row, String milestone) {
+        return TripMilestone.CONFIRMED.equals(row.milestone(milestone));
+    }
+
+    private static boolean reported(BoardRow row, String milestone) {
+        return !TripMilestone.OPEN.equals(row.milestone(milestone));
     }
 
     /**

@@ -39,8 +39,15 @@ export const ACTIONS = [
 ] as const;
 export type ActionType = (typeof ACTIONS)[number];
 
-/** Departure, arrival and closure: a detection asks a person to confirm them. */
-export const MILESTONES = ["departure", "arrival", "closure"] as const;
+/** The trip's milestones in order: a detection asks a person or a system to confirm them. */
+export const MILESTONES = [
+  "presentation",
+  "validation",
+  "departure",
+  "arrival",
+  "closure",
+] as const;
+export type Milestone = (typeof MILESTONES)[number];
 
 /** Actions whose value is a stage type; the flag actions take no value. */
 export const STAGE_ACTIONS: readonly ActionType[] = [

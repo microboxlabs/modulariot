@@ -6,10 +6,12 @@ import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.events.TripEventCatalog;
 import com.microboxlabs.miot.trips.events.TripEvents;
 import com.microboxlabs.miot.trips.store.MilestoneStore;
+import com.microboxlabs.miot.trips.store.Pg;
 import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -23,10 +25,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Departure, arrival and closure of trips. A detection only asks: it leaves the milestone pending. A confirmation is
+ * The milestones of trips. A detection only asks: it leaves the milestone pending. A confirmation is
  * audited as {@code milestone.confirmed}, which the monitor engine delivers to the trip's monitor as the command
  * {@code <milestone>_confirmed} at the confirmed time; a rejection likewise as {@code <milestone>_rejected}. The first
  * confirmation stays: a later one with another time is audited as {@code milestone.conflict} and changes nothing.
+ * Each source may add metadata to the milestone's evidence. A person or the API cannot authorize the departure while
+ * the validation waits or was rejected; the feed reports what already happened and is not checked.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -36,6 +40,8 @@ public class MilestoneService {
     public static final String REJECTED = "milestone.rejected";
     public static final String CONFLICT = "milestone.conflict";
     public static final String REQUESTED = "milestone.requested";
+    private static final int MAX_EVIDENCE_KEYS = 50;
+    private static final int MAX_EVIDENCE_BYTES = 16 * 1024;
 
     /** What a confirm or reject did. */
     public enum Result { CONFIRMED, UNCHANGED, CONFLICT, REJECTED, PENDING, SKIPPED }
@@ -75,7 +81,7 @@ public class MilestoneService {
         this.clock = clock;
     }
 
-    /** Every milestone of the trip, open ones included, in the order departure, arrival, closure. */
+    /** Every milestone of the trip, open ones included, in the order of {@link TripMilestone#MILESTONES}. */
     public List<TripMilestone> list(String tenantCode, UUID tripId) {
         Map<String, TripMilestone> recorded = new LinkedHashMap<>();
         store.list(tenantCode, tripId).forEach(m -> recorded.put(m.milestone(), m));
@@ -107,13 +113,16 @@ public class MilestoneService {
     public Outcome request(String tenantCode, String actor, UUID tripId, String milestone, String source,
             OffsetDateTime proposedAt, Map<String, Object> evidence, String rule) {
         String m = milestone(milestone);
+        Map<String, Object> e = evidence(evidence);
         return tx.inTransaction(() -> {
+            existing(tenantCode, tripId);
             Optional<TripMilestone> current = store.find(tenantCode, tripId, m);
             if (current.isPresent() && current.get().isConfirmed()) {
                 return new Outcome(current.get(), Result.SKIPPED);
             }
+            Map<String, Object> merged = merge(current.map(TripMilestone::evidence).orElse(Map.of()), e);
             TripMilestone saved = store.save(new TripMilestone(tenantCode, tripId.toString(), m,
-                    TripMilestone.PENDING, source, proposedAt, evidence, null, null, null, null, null, actor));
+                    TripMilestone.PENDING, source, proposedAt, merged, null, null, null, null, null, actor));
             audit.log(tenantCode, actor, REQUESTED, "trip", tripId.toString(), tripId.toString(),
                     details(m, proposedAt, null, source));
             events.milestone(TripEventCatalog.MILESTONE_DETECTED, tenantCode, tripId.toString(), instant(proposedAt),
@@ -122,23 +131,41 @@ public class MilestoneService {
         });
     }
 
+    /** A system outside MIOT reports the milestone: {@code source} defaults to {@code api}, {@code at} to now. */
+    public Outcome detect(String tenantCode, String actor, UUID tripId, String milestone, String source,
+            OffsetDateTime at, Map<String, Object> evidence) {
+        String s = source == null || source.isBlank() ? "api" : Check.limited(source.trim(), "source", 32);
+        return request(tenantCode, actor, tripId, milestone, s, at == null ? now() : utc(at), evidence);
+    }
+
     /**
      * Confirms the milestone at {@code at}; without it, at the time the pending detection proposed, else now. A
      * milestone already confirmed at the same time is unchanged; at another time it is a conflict.
      */
     public Outcome confirm(String tenantCode, String actor, UUID tripId, String milestone, OffsetDateTime at,
             String channel, String note) {
+        return confirm(tenantCode, actor, tripId, milestone, at, channel, note, null);
+    }
+
+    /** Adds {@code evidence} to what the milestone already keeps; a key sent again replaces the old value. */
+    @SuppressWarnings("java:S107") // The confirm above with the source's metadata.
+    public Outcome confirm(String tenantCode, String actor, UUID tripId, String milestone, OffsetDateTime at,
+            String channel, String note, Map<String, Object> evidence) {
         String m = milestone(milestone);
         String ch = channel(channel);
         String n = Check.limitedOrNull(note, "note", 1000);
+        Map<String, Object> e = evidence(evidence);
         return tx.inTransaction(() -> {
             existing(tenantCode, tripId);
             TripMilestone current = store.find(tenantCode, tripId, m)
                     .orElse(TripMilestone.unrecorded(tenantCode, tripId.toString(), m));
+            if (TripMilestone.DEPARTURE.equals(m) && !"feed".equals(ch) && !current.isConfirmed()) {
+                validated(tenantCode, tripId);
+            }
             OffsetDateTime when = utc(at != null ? at : proposedOrNow(current));
             if (current.isConfirmed()) {
                 if (at == null || (current.confirmedAt() != null && current.confirmedAt().isEqual(when))) {
-                    return new Outcome(current, Result.UNCHANGED);
+                    return new Outcome(mergeConfirmedEvidence(current, e, actor), Result.UNCHANGED);
                 }
                 Map<String, Object> d = details(m, when, ch, current.source());
                 d.put("confirmedAt", current.confirmedAt().toString());
@@ -150,8 +177,8 @@ public class MilestoneService {
                 return new Outcome(current, Result.CONFLICT);
             }
             TripMilestone saved = store.save(new TripMilestone(tenantCode, tripId.toString(), m,
-                    TripMilestone.CONFIRMED, current.source(), current.proposedAt(), current.evidence(), when, actor,
-                    ch, n, null, actor));
+                    TripMilestone.CONFIRMED, current.source(), current.proposedAt(), merge(current.evidence(), e),
+                    when, actor, ch, n, null, actor));
             audit.log(tenantCode, actor, CONFIRMED, "trip", tripId.toString(), tripId.toString(),
                     details(m, when, ch, current.source()));
             events.milestone(TripEventCatalog.MILESTONE_CONFIRMED, tenantCode, tripId.toString(), when.toInstant(),
@@ -159,6 +186,16 @@ public class MilestoneService {
                             when.toInstant(), null, ch, actor, null));
             return new Outcome(saved, Result.CONFIRMED);
         });
+    }
+
+    private TripMilestone mergeConfirmedEvidence(TripMilestone current, Map<String, Object> added, String actor) {
+        Map<String, Object> merged = merge(current.evidence(), added);
+        if (merged.equals(current.evidence())) {
+            return current;
+        }
+        return store.save(new TripMilestone(current.tenantCode(), current.tripId(), current.milestone(),
+                current.status(), current.source(), current.proposedAt(), merged, current.confirmedAt(),
+                current.confirmedBy(), current.channel(), current.note(), null, actor));
     }
 
     /** Marks a pending detection as a false positive; the next detection asks again. */
@@ -195,6 +232,13 @@ public class MilestoneService {
     /** Applies a confirmation from a specific notice or pending-panel row. */
     public Outcome respondToDetection(String tenantCode, String actor, UUID tripId, DetectionRef detection,
             boolean confirm, String channel, String note) {
+        return respondToDetection(tenantCode, actor, tripId, detection, confirm, channel, note, null);
+    }
+
+    /** Adds the confirmation's metadata while checking that its detection is still current. */
+    @SuppressWarnings("java:S107") // The specific-detection response with optional metadata.
+    public Outcome respondToDetection(String tenantCode, String actor, UUID tripId, DetectionRef detection,
+            boolean confirm, String channel, String note, Map<String, Object> evidence) {
         String m = milestone(detection.milestone());
         return tx.inTransaction(() -> {
             existing(tenantCode, tripId);
@@ -206,9 +250,45 @@ public class MilestoneService {
                     || !Objects.equals(current.source(), detection.source())) {
                 return new Outcome(current, Result.SKIPPED);
             }
-            return confirm ? confirm(tenantCode, actor, tripId, m, null, channel, note)
+            return confirm ? confirm(tenantCode, actor, tripId, m, null, channel, note, evidence)
                     : reject(tenantCode, actor, tripId, m, channel, note);
         });
+    }
+
+    /** The departure waits for a validation that was reported and is not confirmed yet. */
+    private void validated(String tenantCode, UUID tripId) {
+        store.find(tenantCode, tripId, TripMilestone.VALIDATION)
+                .filter(v -> !v.isConfirmed())
+                .ifPresent(v -> {
+                    throw new IllegalStateException("the validation is not confirmed");
+                });
+    }
+
+    private static Map<String, Object> merge(Map<String, Object> current, Map<String, Object> added) {
+        if (added.isEmpty()) {
+            return current;
+        }
+        Map<String, Object> out = new LinkedHashMap<>(current);
+        out.putAll(added);
+        return evidence(out);
+    }
+
+    /** At most 50 keys and 16 KB of JSON. */
+    static Map<String, Object> evidence(Map<String, Object> evidence) {
+        if (evidence == null || evidence.isEmpty()) {
+            return Map.of();
+        }
+        if (evidence.size() > MAX_EVIDENCE_KEYS) {
+            throw new IllegalArgumentException("evidence has more than " + MAX_EVIDENCE_KEYS + " keys");
+        }
+        evidence.keySet().forEach(k -> Check.limited(k, "evidence key", 64));
+        if (evidence.values().stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("evidence values cannot be null");
+        }
+        if (Pg.json(evidence).getBytes(StandardCharsets.UTF_8).length > MAX_EVIDENCE_BYTES) {
+            throw new IllegalArgumentException("evidence is larger than 16 KB");
+        }
+        return evidence;
     }
 
     private void existing(String tenantCode, UUID tripId) {

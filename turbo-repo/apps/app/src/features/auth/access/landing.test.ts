@@ -37,4 +37,12 @@ describe("firstAllowedPage", () => {
       "/trips/dispatch"
     );
   });
+
+  it("does not land on Where is my load or Collaborators with the trips model", () => {
+    const legacy = ["coordination:loads.search", "collaborators:manage"];
+    expect(firstAllowedPage(legacy, "/home", "trips")).toBeNull();
+    expect(firstAllowedPage(legacy, "/home", "kanban")).toBe(
+      "/where-is-my-load"
+    );
+  });
 });

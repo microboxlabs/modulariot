@@ -74,6 +74,21 @@ describe("a trip milestone", () => {
     );
   });
 
+  it("prefills the local hour across a daylight saving transition", () => {
+    try {
+      vi.stubEnv("TZ", "America/New_York");
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-01T06:30:00Z"));
+      row(milestone({ status: "open", source: null, proposedAt: null }));
+      expect(screen.getByLabelText("sheet.recordAt")).toHaveValue(
+        "2026-11-01T01:30"
+      );
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("shows no actions without the permission or once confirmed", () => {
     const { unmount } = row(milestone(), false);
     expect(screen.queryByText("sheet.confirm")).not.toBeInTheDocument();

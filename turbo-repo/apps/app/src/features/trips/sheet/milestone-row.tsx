@@ -20,8 +20,8 @@ const STATUS_STYLE: Record<TripMilestone["status"], string> = {
 /** `datetime-local` value for now, in the browser's time zone. */
 function localNow() {
   const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  return now.toISOString().slice(0, 16);
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }
 
 function Detail({
@@ -35,6 +35,7 @@ function Detail({
   d: I18nRecord;
   lang: string;
 }>) {
+  const confirmedChannel = trDynamic(`sheet.channels.${m.channel ?? "api"}`, d);
   const rows: [string, string | null][] = [
     ["sheet.planned", shortTime(planned, lang)],
     [
@@ -46,7 +47,7 @@ function Detail({
     [
       "sheet.confirmed",
       m.confirmedAt
-        ? `${shortTime(m.confirmedAt, lang)} · ${trDynamic(`sheet.channels.${m.channel ?? "api"}`, d)}`
+        ? `${shortTime(m.confirmedAt, lang)} · ${confirmedChannel}`
         : null,
     ],
   ];

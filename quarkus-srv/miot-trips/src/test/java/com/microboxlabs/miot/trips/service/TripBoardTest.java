@@ -90,8 +90,10 @@ class TripBoardTest {
     void betweenStagesTheLastClosedStageAndConfirmedMilestonesMoveTheTripOn() {
         assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", null, "preparation", null, null, PAST, LATER,
                 true)));
-        assertEquals(TripBoard.CLOSURE_PENDING, lane(row("in_progress", null, "transit", null, null, PAST, LATER,
+        assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", null, "transit", null, null, PAST, LATER,
                 true)));
+        assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", null, "stop", null, null, PAST, LATER,
+                true)), "a closed intermediate stop is still en route");
         assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", "preparation", null,
                 Map.of("departure", "confirmed"), null, PAST, LATER, true)), "no rule advanced the stage");
         assertEquals(TripBoard.CLOSURE_PENDING, lane(row("in_progress", "transit", null,
@@ -109,7 +111,8 @@ class TripBoardTest {
 
     @Test
     void anUnknownViewIsRefused() {
-        assertEquals(6, TripBoard.lanes("dispatch").size());
-        assertThrows(IllegalArgumentException.class, () -> TripBoard.lanes("kanban"));
+        assertEquals(2, TripBoard.lanesForView("planning").size());
+        assertEquals(6, TripBoard.lanesForView("dispatch").size());
+        assertThrows(IllegalArgumentException.class, () -> TripBoard.lanesForView("kanban"));
     }
 }

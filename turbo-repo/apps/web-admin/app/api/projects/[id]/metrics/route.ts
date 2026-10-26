@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const metricsQuerySchema = z.object({
   window: z.enum(["15m", "60m", "24h"]).default("60m"),

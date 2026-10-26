@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import dayjs from "dayjs";
 import type { BookingResponse } from "@microboxlabs/miot-calendar-client";
 import type { PlannedService } from "@microboxlabs/miot-calendar-ui";

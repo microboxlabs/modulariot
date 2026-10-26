@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { PickingInfo } from "@deck.gl/core";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useOptionalDashboard } from "../../context/dashboard-context";

@@ -11,6 +11,11 @@ import TemplatePicker, {
 
 const d = es.pages.userSettings.communications;
 
+const list = vi.hoisted(() => ({ error: undefined as Error | undefined }));
+vi.mock("./conversations-api", () => ({
+  useConversationTemplates: () => ({ data: undefined, error: list.error }),
+}));
+
 const template = (
   key: string,
   name: string,
@@ -114,5 +119,31 @@ describe("TemplatePicker", () => {
       screen.getByRole("option", { name: /Pánico · chequeo/ })
     );
     expect(onChange).toHaveBeenCalledWith("panic-check");
+  });
+
+  it("says the templates did not load instead of saying none fits the channel", async () => {
+    list.error = new Error("HTTP 502");
+    render(
+      <TemplatePicker
+        value=""
+        templates={[]}
+        channel="email"
+        meta={[]}
+        emptyLabel="Elegir plantilla"
+        invalid={false}
+        readOnly={false}
+        d={d}
+        onChange={() => undefined}
+      />
+    );
+    await userEvent.click(screen.getByLabelText("Plantilla"));
+    expect(
+      screen.getAllByText(
+        "No se pudieron cargar las plantillas. Recarga la página en un momento."
+      )
+    ).toHaveLength(2);
+    expect(screen.queryByText("Ninguna plantilla coincide.")).toBeNull();
+    expect(screen.queryByText(/Ninguna plantilla tiene versión/)).toBeNull();
+    list.error = undefined;
   });
 });

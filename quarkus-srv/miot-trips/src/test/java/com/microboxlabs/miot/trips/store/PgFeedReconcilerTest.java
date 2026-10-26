@@ -71,6 +71,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -170,6 +174,39 @@ class PgFeedReconcilerTest {
         return new FeedProfile(tenant, FEED, "Servicios", stageTypes.stream()
                 .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "closing",
                 new LinkedHashSet<>(List.of("truck", "driver")), true, null, ACTOR, null, ACTOR);
+    }
+
+    @Test
+    void creatingAFeedCannotOverwriteAnExistingProfile() {
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+        FeedProfileRequest original = new FeedProfileRequest("Original", List.of(
+                new FeedProfile.StagePlan("preparation", "READY")), "preparation", List.of("truck"), true);
+        profiles.createView(tenant, ACTOR, "create-key", original);
+        FeedProfile before = feeds.profile(tenant, "create-key").orElseThrow();
+        FeedProfileRequest replacement = new FeedProfileRequest("Replacement", List.of(
+                new FeedProfile.StagePlan("closing", "CLOSED")), "closing", List.of(), false);
+
+        assertThrows(IllegalStateException.class,
+                () -> profiles.createView(tenant, ACTOR, "create-key", replacement));
+
+        assertEquals(before, feeds.profile(tenant, "create-key").orElseThrow(),
+                "a stale creation attempt must preserve every existing rule and audit field");
+    }
+
+    @Test
+    void onlyOneConcurrentCreatorCanClaimAFeedKey() throws Exception {
+        FeedProfile first = new FeedProfile(tenant, "racing-feed", "First", List.of(
+                new FeedProfile.StagePlan("preparation", null)), "preparation", Set.of(), true,
+                null, ACTOR, null, ACTOR);
+        FeedProfile second = new FeedProfile(tenant, first.feedKey(), "Second", first.stages(), first.arrivalStage(),
+                first.requiredResources(), true, null, ACTOR, null, ACTOR);
+        var a = CompletableFuture.supplyAsync(() -> feeds.createProfile(first));
+        var b = CompletableFuture.supplyAsync(() -> feeds.createProfile(second));
+        List<Optional<FeedProfile>> outcomes = List.of(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS));
+
+        assertEquals(1L, outcomes.stream().filter(Optional::isPresent).count());
+        String winner = outcomes.stream().flatMap(Optional::stream).findFirst().orElseThrow().name();
+        assertEquals(winner, feeds.profile(tenant, first.feedKey()).orElseThrow().name());
     }
 
     private String truck(Carrier c, String plate, String status) {
@@ -410,9 +447,24 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void anUnknownOrSwitchedOffFeedIsNotFound() {
+    void anUnknownFeedIsNotFoundAndASwitchedOffOneIsAConflict() {
+        FeedServiceRequest request = desired(1, 2, "ABC-123", null, "10000001");
         assertThrows(java.util.NoSuchElementException.class, () -> reconciler.reconcile(tenant, ACTOR, "otro",
-                "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+                "S-1", request, true));
+        FeedProfile on = feeds.profile(tenant, FEED).orElseThrow();
+        feeds.saveProfile(new FeedProfile(tenant, FEED, on.name(), on.stages(), on.arrivalStage(),
+                on.requiredResources(), false, null, ACTOR, null, ACTOR));
+        IllegalStateException off = assertThrows(IllegalStateException.class, () -> reconciler.reconcile(tenant,
+                ACTOR, FEED, "S-1", request, true));
+        assertEquals("feed " + FEED + " is inactive", off.getMessage());
+    }
+
+    @Test
+    void eachFeedCountsItsOpenServices() {
+        assertEquals(Map.of(), feeds.openServices(tenant));
+        send("S-040", desired(1, 6, "ABC-123", null, "10000001"));
+        send("S-041", desired(2, 7, "ABC-123", null, "10000001"));
+        assertEquals(Map.of(FEED, 2), feeds.openServices(tenant));
     }
 
     @Test

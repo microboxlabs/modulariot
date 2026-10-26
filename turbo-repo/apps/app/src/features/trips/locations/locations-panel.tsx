@@ -9,7 +9,6 @@ import {
   ModalFooter,
   ModalHeader,
   TextInput,
-  ToggleSwitch,
 } from "flowbite-react";
 import { HiOutlineLocationMarker, HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -127,9 +126,12 @@ function GeofenceModal({
 }
 
 /** The organization's trip locations and the GPS geofence each one points at. */
-export default function LocationsPanel({ d }: Readonly<{ d: I18nRecord }>) {
-  const [q, setQ] = useState("");
-  const [onlyMissing, setOnlyMissing] = useState(false);
+/** The locations matching `q`, only those without a geofence when `onlyMissing`; the page holds both filters. */
+export default function LocationsPanel({
+  q = "",
+  onlyMissing = false,
+  d,
+}: Readonly<{ q?: string; onlyMissing?: boolean; d: I18nRecord }>) {
   const { data, error, isLoading } = useLocations(q);
   const known: Geofence[] = useGeofences("").data ?? [];
   const canEdit = useTripsPermission(LOCATION_WRITE);
@@ -155,21 +157,6 @@ export default function LocationsPanel({ d }: Readonly<{ d: I18nRecord }>) {
             {tr("missingCount", d, { count: String(missing) })}
           </Badge>
         )}
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <TextInput
-          className="sm:w-80"
-          icon={HiSearch}
-          placeholder={tr("search", d)}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <ToggleSwitch
-          checked={onlyMissing}
-          label={tr("onlyMissing", d)}
-          onChange={setOnlyMissing}
-        />
       </div>
 
       {isLoading && <p className="text-sm text-gray-500">{tr("loading", d)}</p>}

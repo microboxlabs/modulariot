@@ -3108,11 +3108,46 @@
           "other": "Other"
         }
       },
+      "tripFeeds": {
+        "title": "Feeds",
+        "description": "The external sources that send the organization's trips through the API. A send to a feed that does not exist answers 404; to an inactive one, 409.",
+        "newFeed": "New feed",
+        "editFeed": "Edit «{name}»",
+        "feed": "Feed",
+        "name": "Name",
+        "key": "Key",
+        "keyHint": "It goes in the send URL: …/trips/feeds/<key>/services. It cannot be changed later.",
+        "keyTaken": "A feed with that key already exists.",
+        "stages": "Stages",
+        "stagesEmpty": "Add at least one stage.",
+        "stagesHint": "The stages each trip is created with, in order, with the service status of each one.",
+        "arrivalStage": "Arrival stage",
+        "arrivalHint": "Its planned end is the trip's arrival time.",
+        "chooseStage": "Choose a stage",
+        "requiredResources": "Required resources",
+        "resources": {
+          "truck": "Truck",
+          "trailer": "Trailer",
+          "driver": "Driver"
+        },
+        "noResources": "None",
+        "openServices": "Open services",
+        "state": "State",
+        "active": "Active",
+        "inactive": "Inactive",
+        "activeLabel": "Takes sends",
+        "inactiveHint": "An inactive feed refuses sends with 409. Its trips already created stay as they are.",
+        "edit": "Edit",
+        "create": "Create",
+        "save": "Save",
+        "cancel": "Cancel",
+        "loading": "Loading…",
+        "empty": "No feeds yet. Create one so an external source can send trips."
+      },
       "tripLocations": {
         "title": "Locations",
         "description": "The places trips name. Give each its GPS geofence so signal rules fire on entering and leaving.",
         "search": "Search by name or code",
-        "onlyMissing": "Only without a geofence",
         "missingCount": "{count} without a geofence",
         "empty": "No locations yet. The feed creates one when it names a new place.",
         "loading": "Loading…",
@@ -3137,6 +3172,32 @@
         }
       },
       "tripMonitors": {
+        "filterState": "State",
+        "filterAll": "All",
+        "filterPublished": "Published",
+        "filterDraft": "With draft",
+        "filterNoScope": "No scope",
+        "pageTitle": "Trips",
+        "pageDescription": "How the organization's trips come in and move forward.",
+        "menuTitle": "Sections",
+        "sections": {
+          "monitors": {
+            "label": "Monitors",
+            "description": "Rules that move the stages of each class of trip"
+          },
+          "pending": {
+            "label": "To confirm",
+            "description": "Detected milestones waiting for confirmation"
+          },
+          "locations": {
+            "label": "Locations",
+            "description": "The trips' places and their GPS geofence"
+          },
+          "feeds": {
+            "label": "Feeds",
+            "description": "External sources that send the trips"
+          }
+        },
         "title": "Trip monitors",
         "description": "Rules that move the stages of each class of trip: which event, under which condition, with which effect.",
         "newMonitor": "New monitor",
@@ -4143,6 +4204,7 @@
         "templateNoMatch": "No template matches.",
         "templateNoWhatsapp": "Not sent by WhatsApp: the template has no WhatsApp version.",
         "templateNoEmail": "Not sent by email: the template has no email version.",
+        "templatesLoadFailed": "The templates could not be loaded. Reload the page in a moment.",
         "templateNoneForChannel": "No template has a version for this channel. Add one in Communications › Templates.",
         "templatePreviewLabel": "Template preview",
         "templateMetaNotFound": "The Meta template {name} is not in the WhatsApp account; the base text is shown.",

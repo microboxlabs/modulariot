@@ -12,7 +12,6 @@ import com.microboxlabs.miot.trips.access.TripsAccessCatalog;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.dto.FeedBatchRequest;
 import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
-import com.microboxlabs.miot.trips.dto.FeedProfileView;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceView;
 import com.microboxlabs.miot.trips.service.FeedBatchService;
@@ -87,19 +86,31 @@ public class OrgFeedsResource extends OrgResourceSupport {
     @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
     public Uni<Response> list(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(profiles.list(tenant).stream().map(FeedProfileView::of).toList()).build());
+        return work(() -> Response.ok(profiles.views(tenant)).build());
     }
 
     @PUT
     @Path("/{feedKey}")
     @Operation(operationId = "saveFeed",
-            summary = "Creates or replaces a feed's rules: stage plan, arrival stage, monitor, required resources")
+            summary = "Creates or replaces a feed's rules: name, stage plan, arrival stage, required resources, active")
     @PermissionsAllowed(value = TripsAccessCatalog.FEED_ADMIN, permission = OrgPermission.class, params = ORG)
     public Uni<Response> save(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,
             FeedProfileRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(FeedProfileView.of(profiles.save(tenant, actor, feedKey, body))).build());
+        return work(() -> Response.ok(profiles.saveView(tenant, actor, feedKey, body)).build());
+    }
+
+    @POST
+    @Path("/{feedKey}")
+    @Operation(operationId = "createFeed", summary = "Creates a feed; 409 when its key already exists")
+    @PermissionsAllowed(value = TripsAccessCatalog.FEED_ADMIN, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> create(@PathParam(ORG) String organizationId, @PathParam(FEED) String feedKey,
+            FeedProfileRequest body) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> Response.status(Response.Status.CREATED)
+                .entity(profiles.createView(tenant, actor, feedKey, body)).build());
     }
 
     @POST

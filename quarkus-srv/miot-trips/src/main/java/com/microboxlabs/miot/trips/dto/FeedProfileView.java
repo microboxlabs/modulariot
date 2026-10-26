@@ -11,11 +11,12 @@ public record FeedProfileView(
         String arrivalStage,
         List<String> requiredResources,
         boolean active,
+        int openServices,
         OffsetDateTime updatedAt,
         String updatedBy) {
 
-    public static FeedProfileView of(FeedProfile p) {
+    public static FeedProfileView of(FeedProfile p, int openServices) {
         return new FeedProfileView(p.feedKey(), p.name(), p.stages(), p.arrivalStage(),
-                List.copyOf(p.requiredResources()), p.active(), p.updatedAt(), p.updatedBy());
+                List.copyOf(p.requiredResources()), p.active(), openServices, p.updatedAt(), p.updatedBy());
     }
 }

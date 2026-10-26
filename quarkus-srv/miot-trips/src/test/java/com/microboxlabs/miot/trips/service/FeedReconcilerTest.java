@@ -277,6 +277,11 @@ class FeedReconcilerTest {
     }
 
     private class TestFeeds implements FeedStore {
+        @Override
+        public Map<String, Integer> openServices(String tenantCode) {
+            return Map.of();
+        }
+
         private FeedService saved;
         private boolean requireTransaction;
         private final FeedProfile profile = new FeedProfile("test", "test-feed", "Test feed",
@@ -287,6 +292,9 @@ class FeedReconcilerTest {
         public Optional<FeedProfile> profile(String tenant, String key) { return Optional.of(profile); }
         public List<FeedProfile> profiles(String tenant) { return List.of(profile); }
         public FeedProfile saveProfile(FeedProfile value) { return value; }
+        public Optional<FeedProfile> createProfile(FeedProfile value) {
+            throw new UnsupportedOperationException("not used by reconciler tests");
+        }
         public Optional<FeedService> service(String tenant, String key, String code) {
             if (requireTransaction) { assertTrue(tx.depth > 0, "stored payload must be read under the lock"); }
             return Optional.ofNullable(saved);

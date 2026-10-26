@@ -14,8 +14,14 @@ public interface FeedStore {
 
     List<FeedProfile> profiles(String tenantCode);
 
+    /** How many open services each feed of the tenant has; a feed with none is absent. */
+    Map<String, Integer> openServices(String tenantCode);
+
     /** Inserts or replaces the profile (tenant, feedKey). */
     FeedProfile saveProfile(FeedProfile profile);
+
+    /** Inserts only when the tenant/key does not exist; never replaces another profile. */
+    Optional<FeedProfile> createProfile(FeedProfile profile);
 
     /** The service; inside a transaction its row stays locked until the transaction ends. */
     Optional<FeedService> service(String tenantCode, String feedKey, String externalCode);

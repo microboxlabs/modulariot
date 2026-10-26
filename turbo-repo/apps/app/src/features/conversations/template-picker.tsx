@@ -12,6 +12,7 @@ import { HiCheck, HiChevronDown } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ChannelIcon from "./channel-icon";
+import { useConversationTemplates } from "./conversations-api";
 import type { ConversationTemplate, MetaTemplate } from "./conversations-types";
 import { findMetaTemplate } from "./meta-template-combobox";
 import MetaTemplatePreview from "./meta-template-preview";
@@ -216,12 +217,22 @@ export default function TemplatePicker({
 }>) {
   const [query, setQuery] = useState("");
   const [hovered, setHovered] = useState<string | null>(null);
+  // The same request the editor made: a failed list is not a list without templates for the channel.
+  const { error: loadError } = useConversationTemplates();
   const current = templates.find((t) => t.key === value);
   // Only templates the channel can send; the chosen one stays listed so it can be seen and replaced.
   const usable = templates.filter(
     (t) => templateFits(t, channel) || t.key === value
   );
   const matches = matchStepTemplates(usable, query);
+  const noMatchMessage =
+    usable.length === 0
+      ? tr("templateNoneForChannel", d)
+      : tr("templateNoMatch", d);
+  const emptyMessage =
+    loadError && templates.length === 0
+      ? tr("templatesLoadFailed", d)
+      : noMatchMessage;
   const shown =
     templates.find((t) => t.key === hovered) ?? current ?? matches[0] ?? null;
   return (
@@ -273,9 +284,7 @@ export default function TemplatePicker({
           </ComboboxOption>
           {matches.length === 0 && (
             <p className="px-3 py-2 text-gray-500 dark:text-gray-400">
-              {usable.length === 0
-                ? tr("templateNoneForChannel", d)
-                : tr("templateNoMatch", d)}
+              {emptyMessage}
             </p>
           )}
           {matches.map((t) => (
@@ -311,9 +320,7 @@ export default function TemplatePicker({
               d={d}
             />
           ) : (
-            <p className="text-gray-500 dark:text-gray-400">
-              {tr("templateNoMatch", d)}
-            </p>
+            <p className="text-gray-500 dark:text-gray-400">{emptyMessage}</p>
           )}
         </div>
       </ComboboxOptions>

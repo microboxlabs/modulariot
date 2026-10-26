@@ -19,11 +19,14 @@ export function PlanEditor({
   onChange,
   readOnly,
   d,
+  emptyText,
 }: Readonly<{
   plan: StagePlan[];
   onChange: (plan: StagePlan[]) => void;
   readOnly: boolean;
   d: I18nRecord;
+  /** Shown with no stages; the monitors' "trips bring their stages" by default. */
+  emptyText?: string;
 }>) {
   const unused = STAGE_TYPES.filter(
     (s) => !plan.some((p) => p.stageType === s)
@@ -34,7 +37,7 @@ export function PlanEditor({
     <div className="flex flex-col gap-2">
       {plan.length === 0 && (
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {tr("planEmpty", d)}
+          {emptyText ?? tr("planEmpty", d)}
         </p>
       )}
       {plan.map((p, i) => (

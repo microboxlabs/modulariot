@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { editorFields } from "./expression-field";
-import { keyFromName } from "./monitor-list";
+import { keyFromName } from "../key-from-name";
 import { newRule } from "./monitors-api";
 
 describe("trip monitor helpers", () => {

@@ -188,7 +188,9 @@ export function SidebarNavigationProvider({
   const { can } = useMyAccess();
   const canViewGps = can("gps:view");
   const canViewFleet = can("fleet:assets.view");
-  const { data: tripCounts } = useTripsBoardCounts(can("trips:view"));
+  const { data: tripCounts } = useTripsBoardCounts(
+    can("trips:view") && pages.some((p) => p.label === "trips")
+  );
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {

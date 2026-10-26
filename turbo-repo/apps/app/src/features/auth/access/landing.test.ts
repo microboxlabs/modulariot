@@ -26,4 +26,15 @@ describe("firstAllowedPage", () => {
   it("never lands on a page that needs no permission", () => {
     expect(firstAllowedPage([], "/fleet")).toBeNull();
   });
+
+  it("skips the pages of the board BOARD_MODULE turns off", () => {
+    const both = ["coordination:kanban.view", "trips:view"];
+    expect(firstAllowedPage(both, "/shipping", "trips")).toBe(
+      "/trips/dispatch"
+    );
+    expect(firstAllowedPage(both, "/shipping", "kanban")).toBe("/shipping");
+    expect(firstAllowedPage(["trips:view"], "/shipping", "")).toBe(
+      "/trips/dispatch"
+    );
+  });
 });

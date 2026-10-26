@@ -43,4 +43,6 @@ export interface RuntimeConfig {
    * modal instead of the inline forms.
    */
   SYMPTOMS_PAST_FORMS: string;
+  /** "kanban" or "trips" keeps only that work board; empty shows both. */
+  BOARD_MODULE: string;
 }

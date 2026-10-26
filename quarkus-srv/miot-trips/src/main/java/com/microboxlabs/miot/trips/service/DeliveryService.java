@@ -258,11 +258,25 @@ public class DeliveryService implements DeliveryReach {
      */
     @Override
     public boolean reached(String tenantCode, UUID tripId, String step) {
-        List<Delivery> deliveries = store.list(tenantCode, tripId);
-        Set<String> confirmed = new HashSet<>();
-        store.steps(tenantCode, tripId).stream().filter(s -> s.step().equals(step) && s.isConfirmed())
-                .forEach(s -> confirmed.add(s.deliveryId()));
+        return reached(store.list(tenantCode, tripId), store.steps(tenantCode, tripId),
+                trips.mandatesOf(tenantCode, tripId), step);
+    }
+
+    @Override
+    public Map<String, Boolean> snapshot(String tenantCode, UUID tripId) {
+        List<Delivery> current = store.list(tenantCode, tripId);
+        List<Delivery.Step> steps = store.steps(tenantCode, tripId);
         List<MandateRef> mandates = trips.mandatesOf(tenantCode, tripId);
+        Map<String, Boolean> result = new LinkedHashMap<>();
+        DeliveryCycle.STEPS.forEach(step -> result.put(step, reached(current, steps, mandates, step)));
+        return Map.copyOf(result);
+    }
+
+    private static boolean reached(List<Delivery> deliveries, List<Delivery.Step> steps,
+            List<MandateRef> mandates, String step) {
+        Set<String> confirmed = new HashSet<>();
+        steps.stream().filter(s -> s.step().equals(step) && s.isConfirmed())
+                .forEach(s -> confirmed.add(s.deliveryId()));
         if (mandates.isEmpty()) {
             return !deliveries.isEmpty() && deliveries.stream().allMatch(d -> confirmed.contains(d.id()));
         }
@@ -437,7 +451,7 @@ public class DeliveryService implements DeliveryReach {
         }
         Map<String, Object> out = new LinkedHashMap<>(current);
         out.putAll(added);
-        return out;
+        return MilestoneService.evidence(out);
     }
 
     private static void putIf(Map<String, Object> m, String key, Object value) {

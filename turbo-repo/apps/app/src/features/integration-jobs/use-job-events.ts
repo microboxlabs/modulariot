@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
-import { useIntegrationJobsOverview, useRevalidateJobs } from "./use-integration-jobs";
+import {
+  useIntegrationJobsOverview,
+  useRevalidateJobs,
+} from "./use-integration-jobs";
 import {
   connectJobEvents,
   getJobEventsServerSnapshot,
@@ -11,12 +13,13 @@ import {
   subscribeJobEvents,
   type JobEventsSnapshot,
 } from "./job-events-store";
+import { jobEventsUrl } from "./integration-jobs-data-service";
 
 /**
  * Live `integrations.job` feed for an org.
  *
- * Fetches the console overview (which carries the SSE subscription context —
- * tenantId + eventType), keeps the shared tenant stream connected, and
+ * Fetches the console overview (which says whether the modulith streams job
+ * events), keeps the org's shared stream connected, and
  * debounce-revalidates the jobs SWR keys whenever a frame arrives so the
  * console table, tiles and bell stay current without polling.
  */
@@ -24,7 +27,6 @@ export function useJobEvents(orgSlug: string | null): JobEventsSnapshot & {
   liveConfigured: boolean;
   markAllSeen: () => void;
 } {
-  const runtimeConfig = useRuntimeConfig();
   const { overview } = useIntegrationJobsOverview(orgSlug);
   const revalidate = useRevalidateJobs(orgSlug);
   const debounceRef = useRef<number | null>(null);
@@ -32,15 +34,13 @@ export function useJobEvents(orgSlug: string | null): JobEventsSnapshot & {
   const snapshot = useSyncExternalStore(
     subscribeJobEvents,
     getJobEventsSnapshot,
-    getJobEventsServerSnapshot,
+    getJobEventsServerSnapshot
   );
 
   useEffect(() => {
-    if (!runtimeConfig?.ECM_PUBLIC_URL || !overview?.liveEventsConfigured || !overview.tenantId) {
-      return;
-    }
-    connectJobEvents(runtimeConfig.ECM_PUBLIC_URL, overview.tenantId, overview.eventType);
-  }, [runtimeConfig, overview]);
+    if (!orgSlug || !overview?.liveEventsConfigured) return;
+    connectJobEvents(jobEventsUrl(orgSlug));
+  }, [orgSlug, overview]);
 
   const eventCount = snapshot.events.length;
   const latestId = snapshot.events[0]?.id;

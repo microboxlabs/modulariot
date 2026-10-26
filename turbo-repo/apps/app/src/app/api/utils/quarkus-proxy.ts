@@ -51,6 +51,45 @@ export async function forwardToQuarkus(
 }
 
 /**
+ * Relays a server-sent events stream of a Quarkus endpoint with the caller's
+ * credentials; the stream ends when the browser leaves ({@code signal}).
+ */
+export async function streamFromQuarkus(
+  path: string,
+  signal: AbortSignal
+): Promise<Response> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const baseUrl = modulithHost();
+  if (!baseUrl) {
+    return NextResponse.json(
+      { error: "MIOT_MODULITH_URL is not configured" },
+      { status: 500 }
+    );
+  }
+  const upstream = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
+    headers: { ...buildAuthHeaders(session), Accept: "text/event-stream" },
+    cache: "no-store",
+    signal,
+  });
+  if (!upstream.ok || !upstream.body) {
+    return NextResponse.json(
+      { error: `Upstream stream failed: HTTP ${upstream.status}` },
+      { status: upstream.status === 200 ? 502 : upstream.status }
+    );
+  }
+  return new Response(upstream.body, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
+}
+
+/**
  * The caller's credentials for an upstream call, or null when there is no
  * session. Exported for the routes that stream bytes rather than JSON and so
  * cannot go through {@link forwardToQuarkus}.

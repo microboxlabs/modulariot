@@ -5,10 +5,9 @@ import type { JobEventPayload } from "./integration-job.types";
 /**
  * Module-level store for live `integrations.job` events.
  *
- * One shared EventSource per tenant stream (same singleton pattern as
- * `sse-listener.tsx`), subscribed to the type-filtered endpoint
- * `{ECM_PUBLIC_URL}/api/v1/events/tenant/{tenantId}/stream/integrations.job`
- * served by quarkus-sse. Consumers (job console page, notification bell)
+ * One shared EventSource per organization (same singleton pattern as
+ * `sse-listener.tsx`), on the app's relay of the modulith's job stream
+ * (`/api/admin/orgs/{org}/integrations/jobs/events`). Consumers (job console page, notification bell)
  * read a bounded in-memory feed via useSyncExternalStore-compatible
  * subscribe/getSnapshot functions.
  */
@@ -27,10 +26,16 @@ export interface JobEventsSnapshot {
 
 const MAX_EVENTS = 50;
 /** Transitions worth surfacing in the bell (claims are too chatty). */
-const NOTIFY_TRANSITIONS = new Set(["enqueued", "succeeded", "retry_scheduled", "failed", "retried"]);
+const NOTIFY_TRANSITIONS = new Set([
+  "enqueued",
+  "succeeded",
+  "retry_scheduled",
+  "failed",
+  "retried",
+]);
 
 let eventSource: EventSource | null = null;
-let connectedTenant: string | null = null;
+let connectedUrl: string | null = null;
 let sequence = 0;
 
 let snapshot: JobEventsSnapshot = { connected: false, events: [], unseen: 0 };
@@ -51,7 +56,11 @@ export function getJobEventsSnapshot(): JobEventsSnapshot {
 }
 
 /** Server snapshot (SSR): nothing connected, empty feed. */
-const SERVER_SNAPSHOT: JobEventsSnapshot = { connected: false, events: [], unseen: 0 };
+const SERVER_SNAPSHOT: JobEventsSnapshot = {
+  connected: false,
+  events: [],
+  unseen: 0,
+};
 export function getJobEventsServerSnapshot(): JobEventsSnapshot {
   return SERVER_SNAPSHOT;
 }
@@ -63,18 +72,16 @@ export function markJobEventsSeen(): void {
 }
 
 /**
- * Ensures the shared stream is connected for the tenant. Safe to call from
- * every consumer render; reconnects only when the tenant changes.
+ * Ensures the shared stream at {@code streamUrl} is connected. Safe to call from
+ * every consumer render; reconnects only when the organization's stream changes.
  */
-export function connectJobEvents(ecmPublicUrl: string, tenantId: string, eventType: string): void {
+export function connectJobEvents(streamUrl: string): void {
   if (globalThis.window === undefined) return;
-  if (eventSource && connectedTenant === tenantId) return;
+  if (eventSource && connectedUrl === streamUrl) return;
 
   eventSource?.close();
-  connectedTenant = tenantId;
-  eventSource = new EventSource(
-    `${ecmPublicUrl}/api/v1/events/tenant/${encodeURIComponent(tenantId)}/stream/${encodeURIComponent(eventType)}`,
-  );
+  connectedUrl = streamUrl;
+  eventSource = new EventSource(streamUrl);
 
   eventSource.onopen = () => publish({ connected: true });
   eventSource.onerror = () => publish({ connected: false }); // EventSource auto-reconnects
@@ -82,7 +89,10 @@ export function connectJobEvents(ecmPublicUrl: string, tenantId: string, eventTy
   eventSource.onmessage = (message) => {
     let payload: JobEventPayload | null = null;
     try {
-      const frame = JSON.parse(message.data) as { eventType?: string; payload?: JobEventPayload };
+      const frame = JSON.parse(message.data) as {
+        eventType?: string;
+        payload?: JobEventPayload;
+      };
       payload = frame.payload ?? null;
     } catch {
       return; // ignore malformed frames
@@ -95,7 +105,9 @@ export function connectJobEvents(ecmPublicUrl: string, tenantId: string, eventTy
       payload,
     };
     const events = [entry, ...snapshot.events].slice(0, MAX_EVENTS);
-    const unseen = NOTIFY_TRANSITIONS.has(payload.transition) ? snapshot.unseen + 1 : snapshot.unseen;
+    const unseen = NOTIFY_TRANSITIONS.has(payload.transition)
+      ? snapshot.unseen + 1
+      : snapshot.unseen;
     publish({ connected: true, events, unseen });
   };
 }
@@ -104,7 +116,7 @@ export function connectJobEvents(ecmPublicUrl: string, tenantId: string, eventTy
 export function resetJobEventsStoreForTests(): void {
   eventSource?.close();
   eventSource = null;
-  connectedTenant = null;
+  connectedUrl = null;
   sequence = 0;
   snapshot = { connected: false, events: [], unseen: 0 };
   listeners.clear();
@@ -112,8 +124,14 @@ export function resetJobEventsStoreForTests(): void {
 
 /** Test-only: inject an event as if it arrived on the stream. */
 export function pushJobEventForTests(payload: JobEventPayload): void {
-  const entry: JobActivityEntry = { id: `jev-${++sequence}`, receivedAt: Date.now(), payload };
+  const entry: JobActivityEntry = {
+    id: `jev-${++sequence}`,
+    receivedAt: Date.now(),
+    payload,
+  };
   const events = [entry, ...snapshot.events].slice(0, MAX_EVENTS);
-  const unseen = NOTIFY_TRANSITIONS.has(payload.transition) ? snapshot.unseen + 1 : snapshot.unseen;
+  const unseen = NOTIFY_TRANSITIONS.has(payload.transition)
+    ? snapshot.unseen + 1
+    : snapshot.unseen;
   publish({ connected: true, events, unseen });
 }

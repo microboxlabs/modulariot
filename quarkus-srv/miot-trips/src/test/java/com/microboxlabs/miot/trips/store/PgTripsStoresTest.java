@@ -503,6 +503,48 @@ class PgTripsStoresTest {
     }
 
     @Test
+    void eachChangeOfAHotRowIsAnnounced() throws InterruptedException {
+        String tenant = tenant();
+        UUID tripId = UUID.randomUUID();
+        List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+        io.vertx.mutiny.sqlclient.SqlConnection listener = pool.getConnection().await().atMost(WAIT);
+        try {
+            io.vertx.mutiny.pgclient.PgConnection.cast(listener)
+                    .notificationHandler(n -> notices.add(n.getPayload()));
+            listener.query("LISTEN " + TripLiveChannel.CHANNEL).execute().await().atMost(WAIT);
+
+            live.upsert(new com.microboxlabs.miot.trips.domain.TripLiveProjection(tripId.toString(), tenant,
+                    "[{\"mandate_id\":\"m-1\",\"code\":\"SVC-1\"}]", "AB1234", null, null, null, null, null,
+                    "in_transit", null, null, null, null, null, null, null, null, null, null, null, null, null,
+                    null));
+            live.saveMotorState(tenant, tripId, 7, true, false);
+            live.delete(tenant, tripId);
+            for (int i = 0; i < 50 && notices.size() < 3; i++) {
+                Thread.sleep(20);
+            }
+        } finally {
+            listener.closeAndForget();
+        }
+        assertEquals(3, notices.size(), "upsert, motor state and delete");
+        assertTrue(notices.stream().allMatch(n -> n.contains(tripId.toString()) && n.contains(tenant)), notices
+                .toString());
+    }
+
+    @Test
+    void theHotRowsMandateCodesAreAnArray() {
+        String tenant = tenant();
+        UUID tripId = UUID.randomUUID();
+        live.upsert(new com.microboxlabs.miot.trips.domain.TripLiveProjection(tripId.toString(), tenant,
+                "[{\"mandate_id\":\"m-1\",\"code\":\"SVC-1\"}]", "AB1234", null, null, null, null, null,
+                "in_transit", null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+
+        String type = pool.preparedQuery("SELECT jsonb_typeof(mandate_codes) FROM miot_trips.trip_live"
+                + " WHERE trip_id = $1").execute(io.vertx.mutiny.sqlclient.Tuple.of(tripId)).await().atMost(WAIT)
+                .iterator().next().getString(0);
+        assertEquals("array", type);
+    }
+
+    @Test
     void jsonColumnsHoldObjectsNotStrings() {
         String tenant = tenant();
         audit.append(new AuditEvent(null, tenant, ACTOR, "mandate.created", "mandate", "j", null,

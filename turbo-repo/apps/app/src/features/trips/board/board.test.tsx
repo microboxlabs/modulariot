@@ -47,7 +47,7 @@ describe("trips board", () => {
     const search = new URLSearchParams({
       q: "SAMPLE",
       date_range_from: "2026-10-01 00:00:00",
-      date_range_to: "2026-10-07 23:59:59",
+      date_range_to: "2026-10-07 23:59",
     });
     expect(boardQuery("planning", search)).toBe("?q=SAMPLE");
     const finished = new URLSearchParams(
@@ -55,7 +55,9 @@ describe("trips board", () => {
     );
     expect(finished.get("q")).toBe("SAMPLE");
     expect(finished.get("from")).toMatch(/^2026-(09-30|10-01)T/);
-    expect(finished.get("to")).toMatch(/^2026-10-0[78]T/);
+    expect(finished.get("to")).toBe(
+      new Date("2026-10-08T00:00:00").toISOString()
+    );
     expect(boardQuery("dispatch", new URLSearchParams())).toBe("");
   });
 

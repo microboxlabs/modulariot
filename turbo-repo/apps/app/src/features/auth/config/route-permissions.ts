@@ -22,6 +22,7 @@ export const ROUTE_PERMISSIONS: Record<string, AccessRule> = {
   "/live-streams": ACCESS_RULES.liveStreams,
   "/collaborators-management": ACCESS_RULES.collaborators,
   "/whatsapp/conversations": ACCESS_RULES.conversations,
+  "/trips": ACCESS_RULES.trips,
   "/admin/console": ACCESS_RULES.adminConsole,
 
   "/users/settings": OPEN,

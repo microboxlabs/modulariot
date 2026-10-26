@@ -58,7 +58,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",

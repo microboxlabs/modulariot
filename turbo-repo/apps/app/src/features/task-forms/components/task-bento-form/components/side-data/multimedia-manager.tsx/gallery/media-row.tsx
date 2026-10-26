@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Checkbox } from "flowbite-react";
-import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
+import { useMediaSource } from "../media-source";
 import { useEffect, useState } from "react";
 import { IoImagesOutline } from "react-icons/io5";
 import { FaRegFilePdf } from "react-icons/fa";
@@ -51,7 +51,7 @@ export default function MediaRow({
   dictionary: I18nRecord;
 }>) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const { data } = useGetNodeThumbnail(file.entry.id);
+  const { data } = useMediaSource().useThumbnail(file.entry.id);
 
   useEffect(() => {
     if (!data) return;

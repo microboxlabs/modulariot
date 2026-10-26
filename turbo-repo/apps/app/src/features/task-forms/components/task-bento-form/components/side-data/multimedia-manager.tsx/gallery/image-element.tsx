@@ -1,4 +1,4 @@
-import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
+import { useMediaSource } from "../media-source";
 import { ImageComponent } from "@/features/geographic-view/components/image-viewer/image-selector";
 import { useEffect, useState } from "react";
 import { getCategories } from "../clasification-form";
@@ -21,7 +21,8 @@ export default function ImageElement({
   const [_thumbnailError, setThumbnailError] = useState<boolean>(false);
   const [_thumbnailIsLoading, setThumbnailIsLoading] = useState<boolean>(true);
 
-  const { data, error } = useGetNodeThumbnail(file.entry.id);
+  const source = useMediaSource();
+  const { data, error } = source.useThumbnail(file.entry.id);
 
   useEffect(() => {
     if (data) {
@@ -51,7 +52,7 @@ export default function ImageElement({
           ] as keyof typeof categories
         ]?.label
       }
-      downloadUrl={`/app/api/document/download?documentId=${file.entry.id}`}
+      downloadUrl={source.downloadUrl(file.entry.id)}
       dictionary={dictionary}
       onEdit={onEdit}
     />

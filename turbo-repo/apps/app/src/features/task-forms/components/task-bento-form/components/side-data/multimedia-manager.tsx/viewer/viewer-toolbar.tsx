@@ -54,7 +54,7 @@ export default function ViewerToolbar({
   onNext: () => void;
   onDownload: () => void;
   onEdit?: () => void;
-  onMove: () => void;
+  onMove?: () => void;
   onDelete?: () => void;
   onDecision: (decision: ReviewStatus) => void;
   onClose: () => void;
@@ -88,13 +88,15 @@ export default function ViewerToolbar({
         </div>
       )}
 
-      <div className="inline-flex lg:hidden xl:inline-flex">
-        <Tooltip content={tr("bento.multimedia.viewer_move", dictionary)} placement="bottom">
-          <Button color="light" size="sm" onClick={onMove} className="p-2!">
-            <HiArrowsRightLeft className="w-4 h-4" />
-          </Button>
-        </Tooltip>
-      </div>
+      {onMove && (
+        <div className="inline-flex lg:hidden xl:inline-flex">
+          <Tooltip content={tr("bento.multimedia.viewer_move", dictionary)} placement="bottom">
+            <Button color="light" size="sm" onClick={onMove} className="p-2!">
+              <HiArrowsRightLeft className="w-4 h-4" />
+            </Button>
+          </Tooltip>
+        </div>
+      )}
 
       {onDelete && (
         <Tooltip content={tr("bento.multimedia.viewer_delete", dictionary)} placement="bottom">

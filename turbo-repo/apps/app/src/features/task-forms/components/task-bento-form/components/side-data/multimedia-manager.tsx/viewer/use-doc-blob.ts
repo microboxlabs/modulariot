@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import type { MediaViewerItem } from "./media-inline-viewer";
+import { useMediaSource } from "../media-source";
 
 export function useDocBlob(current: MediaViewerItem | undefined, id: string | undefined) {
+  const source = useMediaSource();
   const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({});
   const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
 
@@ -12,7 +14,7 @@ export function useDocBlob(current: MediaViewerItem | undefined, id: string | un
     if (docBlobUrls[id] || loadingDocs.has(id)) return;
 
     setLoadingDocs((prev) => new Set(prev).add(id));
-    fetch(`/app/api/bento/content?nodeId=${id}`)
+    fetch(source.contentUrl(id))
       .then((res) => res.blob())
       .then((blob) => {
         const url = URL.createObjectURL(blob);
@@ -26,7 +28,7 @@ export function useDocBlob(current: MediaViewerItem | undefined, id: string | un
           return next;
         });
       });
-  }, [current, id, docBlobUrls, loadingDocs]);
+  }, [current, id, docBlobUrls, loadingDocs, source]);
 
   useEffect(() => {
     return () => {

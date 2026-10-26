@@ -2,6 +2,7 @@ import ImageViewer from "@/features/geographic-view/components/image-viewer/imag
 import { useMemo } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ImageItem } from "../image.types";
+import { useMediaSource } from "../media-source";
 
 export default function ImageViewerConnector({
   images,
@@ -18,6 +19,7 @@ export default function ImageViewerConnector({
   onReplaceImage?: (file: File, index: number) => void;
   refreshKey?: number;
 }>) {
+  const source = useMediaSource();
   const data = useMemo(() => {
     return images.map((image) => {
       return {
@@ -35,9 +37,9 @@ export default function ImageViewerConnector({
       const cacheKey = image.file.entry.modifiedAt
         ? `&t=${new Date(image.file.entry.modifiedAt).getTime()}`
         : "";
-      return `/app/api/bento/content?nodeId=${image.file.entry.id}${cacheKey}&r=${refreshKey}`;
+      return `${source.contentUrl(image.file.entry.id)}${cacheKey}&r=${refreshKey}`;
     });
-  }, [images, refreshKey]);
+  }, [images, refreshKey, source]);
 
   return (
     <ImageViewer

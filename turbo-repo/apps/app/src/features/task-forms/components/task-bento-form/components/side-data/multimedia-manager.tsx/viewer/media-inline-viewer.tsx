@@ -3,12 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { getCategories } from "../clasification-form";
+import { useMediaSource } from "../media-source";
 import { AlfrescoFileEntry } from "../image.types";
 import { isReviewableEntry } from "../reviewable";
 import { ReviewStatus } from "../gallery/media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
-import { updateBentoCategory, renameBentoFile } from "@/features/common/providers/client-api.provider";
 import { toast } from "sonner";
 
 import { findNextUndecided } from "./viewer-utils";
@@ -71,6 +70,8 @@ export default function MediaInlineViewer({
   onRemoveReply?: (fileId: string, obsId: string, replyId: string) => void;
   dictionary: I18nRecord;
 }>) {
+  const source = useMediaSource();
+  const categories = source.useCategories(dictionary);
   const [currentIndex, setCurrentIndex] = useState(
     Math.max(0, Math.min(initialIndex, items.length - 1))
   );
@@ -121,7 +122,7 @@ export default function MediaInlineViewer({
     if (!id) return;
     const prev = currentCategory;
     setCurrentCategory(newCategory);
-    const promise = updateBentoCategory(id, newCategory).then((res) => {
+    const promise = source.setCategory(id, newCategory).then((res) => {
       onCategoryChanged?.();
       return res;
     });
@@ -139,7 +140,6 @@ export default function MediaInlineViewer({
 
   if (!current) return null;
 
-  const categories = getCategories(dictionary);
   const categoryLabel = categories[currentCategory as keyof typeof categories]?.label;
   const status: ReviewStatus = id ? (reviewStatuses?.get(id) ?? "pending") : "pending";
   // Non-reviewable content (no mintral:reviewableAspect) exposes no review controls.
@@ -170,7 +170,7 @@ export default function MediaInlineViewer({
     }
   };
 
-  const fileUrl = id ? `/app/api/bento/content?nodeId=${id}` : "";
+  const fileUrl = id ? source.contentUrl(id) : "";
 
   const handleDownload = () => {
     if (!id) return;
@@ -179,9 +179,14 @@ export default function MediaInlineViewer({
 
   const refreshSuffix = current.refreshKey ? `&r=${current.refreshKey}` : "";
   const imageUrl =
-    current.type === "image" ? `/app/api/bento/content?nodeId=${id}${refreshSuffix}` : null;
+    current.type === "image" && id ? `${source.contentUrl(id)}${refreshSuffix}` : null;
   const handleEditClick = onEdit ? () => onEdit(currentIndex) : undefined;
   const handleDeleteClick = onDelete ? () => setIsDeleteConfirmOpen(true) : undefined;
+  const handleMoveClick = source.move ? () => setIsMoveModalOpen(true) : undefined;
+  const rename = async (newName: string) => {
+    if (id) await source.rename(id, newName);
+    onRename?.();
+  };
 
   return (
     <div className="flex flex-col w-full h-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
@@ -201,14 +206,11 @@ export default function MediaInlineViewer({
           onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
           onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
           onDownload={handleDownload}
-          onMove={() => setIsMoveModalOpen(true)}
+          onMove={handleMoveClick}
           onDelete={handleDeleteClick}
           onDecision={handleDecision}
           onClose={handleClose}
-          onRename={async (newName) => {
-            if (id) await renameBentoFile(id, newName);
-            onRename?.();
-          }}
+          onRename={rename}
           dictionary={dictionary}
         />
 
@@ -236,7 +238,7 @@ export default function MediaInlineViewer({
           onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
           onDownload={handleDownload}
           onEdit={handleEditClick}
-          onMove={() => setIsMoveModalOpen(true)}
+          onMove={handleMoveClick}
           onDelete={handleDeleteClick}
           onDecision={handleDecision}
           onClose={handleClose}
@@ -280,22 +282,24 @@ export default function MediaInlineViewer({
           onRemoveCommittedObservation={onRemoveCommittedObservation}
           onAddReply={onAddReply}
           onRemoveReply={onRemoveReply}
-          onRename={id ? async (newName) => { await renameBentoFile(id, newName); onRename?.(); } : undefined}
+          onRename={id ? rename : undefined}
           pendingReplyRef={pendingReplyRef}
           dictionary={dictionary}
         />
       </div>
 
       {/* Move to task modal */}
-      <MoveToTaskModal
-        show={isMoveModalOpen}
-        onClose={() => setIsMoveModalOpen(false)}
-        fileName={current.file.entry.name}
-        nodeId={id}
-        currentTaskServiceCode={currentTaskServiceCode}
-        onMoved={handleFileMoved}
-        dictionary={dictionary}
-      />
+      {source.move && (
+        <MoveToTaskModal
+          show={isMoveModalOpen}
+          onClose={() => setIsMoveModalOpen(false)}
+          fileName={current.file.entry.name}
+          nodeId={id}
+          currentTaskServiceCode={currentTaskServiceCode ?? source.move.serviceCode}
+          onMoved={handleFileMoved}
+          dictionary={dictionary}
+        />
+      )}
 
       {/* Delete confirmation modal */}
       <DeleteConfirmModal

@@ -165,12 +165,7 @@ public class MilestoneService {
             OffsetDateTime when = utc(at != null ? at : proposedOrNow(current));
             if (current.isConfirmed()) {
                 if (at == null || (current.confirmedAt() != null && current.confirmedAt().isEqual(when))) {
-                    Map<String, Object> merged = merge(current.evidence(), e);
-                    return new Outcome(merged.equals(current.evidence()) ? current
-                            : store.save(new TripMilestone(tenantCode, tripId.toString(), m, current.status(),
-                                    current.source(), current.proposedAt(), merged, current.confirmedAt(),
-                                    current.confirmedBy(), current.channel(), current.note(), null, actor)),
-                            Result.UNCHANGED);
+                    return new Outcome(mergeConfirmedEvidence(current, e, actor), Result.UNCHANGED);
                 }
                 Map<String, Object> d = details(m, when, ch, current.source());
                 d.put("confirmedAt", current.confirmedAt().toString());
@@ -191,6 +186,16 @@ public class MilestoneService {
                             when.toInstant(), null, ch, actor, null));
             return new Outcome(saved, Result.CONFIRMED);
         });
+    }
+
+    private TripMilestone mergeConfirmedEvidence(TripMilestone current, Map<String, Object> added, String actor) {
+        Map<String, Object> merged = merge(current.evidence(), added);
+        if (merged.equals(current.evidence())) {
+            return current;
+        }
+        return store.save(new TripMilestone(current.tenantCode(), current.tripId(), current.milestone(),
+                current.status(), current.source(), current.proposedAt(), merged, current.confirmedAt(),
+                current.confirmedBy(), current.channel(), current.note(), null, actor));
     }
 
     /** Marks a pending detection as a false positive; the next detection asks again. */
@@ -277,6 +282,9 @@ public class MilestoneService {
             throw new IllegalArgumentException("evidence has more than " + MAX_EVIDENCE_KEYS + " keys");
         }
         evidence.keySet().forEach(k -> Check.limited(k, "evidence key", 64));
+        if (evidence.values().stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("evidence values cannot be null");
+        }
         if (Pg.json(evidence).getBytes(StandardCharsets.UTF_8).length > MAX_EVIDENCE_BYTES) {
             throw new IllegalArgumentException("evidence is larger than 16 KB");
         }

@@ -36,7 +36,7 @@ export function editorFields(schema: SchemaField[] | undefined): CelField[] {
 /** The server's check of an expression while it is typed: its problems and the type it returns. */
 export function useExpressionCheck(
   value: string,
-  on: Trigger | "selector",
+  on: Trigger,
   expect: "condition" | "time",
   params: Record<string, ParamValue>,
   readOnly = false
@@ -111,7 +111,7 @@ export default function ExpressionField({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  on: Trigger | "selector";
+  on: Trigger;
   expect: "condition" | "time";
   params: Record<string, ParamValue>;
   readOnly?: boolean;

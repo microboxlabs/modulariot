@@ -37,10 +37,13 @@ vi.mock("./plan-params", () => ({
 }));
 vi.mock("./rule-card", () => ({ default: () => null }));
 vi.mock("./confirmers-panel", () => ({ ConfirmersPanel: () => null }));
+vi.mock("./scope-section", () => ({ default: () => null }));
 vi.mock("./monitors-api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./monitors-api")>()),
   useCanEditMonitors: () => true,
   useMonitor: () => ({ data: detail, isLoading: false }),
+  useScopeValues: () => ({ data: undefined }),
+  useScopeCheck: () => ({ data: undefined }),
   saveDraft: (key: string, body: MonitorBody) => api.save(key, body),
   discardDraft: (...args: string[]) => api.discard(...args),
 }));

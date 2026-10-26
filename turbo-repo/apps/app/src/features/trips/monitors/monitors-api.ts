@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * Client for the trip monitors API (`/trips/monitors`, `/trips/monitor-selector`
- * and `/trips/access`) through the app's `/api/trips/*` proxy. Types mirror the
- * modulith's JSON.
+ * Client for the trip monitors API (`/trips/monitors` and `/trips/access`)
+ * through the app's `/api/trips/*` proxy. Types mirror the modulith's JSON.
  */
 
 import useSWR, { mutate } from "swr";
@@ -83,12 +82,56 @@ export interface Rule {
   active: boolean;
 }
 
-/** A problem in an expression; `field` is `when`, `at` or `then`. */
+/** A problem in the draft; `field` is `when`, `at`, `then` or `scope` (with no rule). */
 export interface Finding {
   ruleKey: string | null;
   field: string;
   position: number;
   message: string;
+}
+
+/**
+ * The trips a monitor takes: each list holds the accepted values, and an empty
+ * list accepts any. Origins and destinations are location ids.
+ */
+export interface MonitorScope {
+  feeds: string[];
+  orderTypes: string[];
+  origins: string[];
+  destinations: string[];
+}
+
+export const SCOPE_DIMENSIONS = [
+  "feeds",
+  "orderTypes",
+  "origins",
+  "destinations",
+] as const;
+export type ScopeDimension = (typeof SCOPE_DIMENSIONS)[number];
+
+export const ANY_TRIP: MonitorScope = {
+  feeds: [],
+  orderTypes: [],
+  origins: [],
+  destinations: [],
+};
+
+/**
+ * How a scope stands to another published monitor's: NARROWER takes the trips
+ * of both, BROADER leaves them to the other one, DUPLICATE blocks publishing.
+ */
+export type ScopeRelation = "NARROWER" | "BROADER" | "DUPLICATE";
+
+export interface ScopeOverlap {
+  key: string;
+  name: string;
+  relation: ScopeRelation;
+}
+
+export interface ScopeValues {
+  feeds: { key: string; name: string }[];
+  orderTypes: string[];
+  locations: { id: string; name: string; code: string | null; type: string }[];
 }
 
 export interface Monitor {
@@ -100,6 +143,7 @@ export interface Monitor {
   plan: StagePlan[];
   params: Record<string, ParamValue>;
   rules: Rule[];
+  scope: MonitorScope | null;
   updatedAt: string | null;
   updatedBy: string | null;
   publishedAt: string | null;
@@ -114,6 +158,7 @@ export interface MonitorSummary {
   publishedVersion: number | null;
   draftVersion: number | null;
   rules: number;
+  scope: MonitorScope | null;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -145,16 +190,10 @@ export interface CheckResult {
   findings: Finding[];
 }
 
-export interface SelectorEntry {
-  seq: number;
-  condition: string;
-  monitorKey: string;
-}
-
 /** The body of a draft: what the editor changes. */
 export type MonitorBody = Pick<
   Monitor,
-  "name" | "description" | "plan" | "params" | "rules"
+  "name" | "description" | "plan" | "params" | "rules" | "scope"
 >;
 
 export class TripsApiError extends Error {
@@ -174,7 +213,7 @@ export const MONITOR_ADMIN = "trips:monitor.admin";
 export const monitorsKey = `${BASE}/monitors`;
 export const monitorKey = (key: string) =>
   `${BASE}/monitors/${encodeURIComponent(key)}`;
-export const selectorKey = `${BASE}/monitor-selector`;
+const scopeValuesKey = `${BASE}/monitors/scope-values`;
 const accessKey = `${BASE}/access`;
 
 function parseJson(text: string) {
@@ -234,7 +273,7 @@ export function useCanEditMonitors() {
 
 /** The fields an expression of `on` may read, with the monitor's parameters. */
 export function useMonitorSchema(
-  on: Trigger | "selector",
+  on: Trigger,
   params: Record<string, ParamValue>
 ) {
   return useSWR<SchemaField[]>(
@@ -249,7 +288,7 @@ export function useMonitorSchema(
 }
 
 export function checkExpression(body: {
-  on: Trigger | "selector";
+  on: Trigger;
   expression: string;
   expect: "condition" | "time";
   params: Record<string, ParamValue>;
@@ -286,19 +325,24 @@ export function getVersion(key: string, version: number) {
   return tripsRequest<Monitor>(`${monitorKey(key)}/versions/${version}`);
 }
 
-export function useSelector() {
-  return useSWR<{ entries: SelectorEntry[] }>(selectorKey, fetcher);
+/** The feeds, order types and locations a scope can name. */
+export function useScopeValues() {
+  return useSWR<ScopeValues>(scopeValuesKey, fetcher, {
+    revalidateOnFocus: false,
+  });
 }
 
-export async function saveSelector(
-  entries: { condition: string; monitorKey: string }[]
-) {
-  const saved = await tripsRequest<{ entries: SelectorEntry[] }>(selectorKey, {
-    method: "PUT",
-    body: { entries },
-  });
-  await mutate(selectorKey, saved, { revalidate: false });
-  return saved;
+/** How `scope` stands to the other published monitors; disjoint ones are left out. */
+export function useScopeCheck(key: string, scope: MonitorScope | null) {
+  return useSWR<{ overlaps: ScopeOverlap[] }>(
+    scope ? [`${monitorKey(key)}/scope-check`, JSON.stringify(scope)] : null,
+    ([url]: [string]) =>
+      tripsRequest<{ overlaps: ScopeOverlap[] }>(url, {
+        method: "POST",
+        body: { scope },
+      }),
+    { revalidateOnFocus: false, keepPreviousData: true }
+  );
 }
 
 /** A new rule of `on`, with a key not yet used in the monitor. */
@@ -325,5 +369,6 @@ export function bodyOf(m: Monitor): MonitorBody {
     plan: m.plan,
     params: m.params,
     rules: m.rules,
+    scope: m.scope,
   };
 }

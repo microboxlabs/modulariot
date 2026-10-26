@@ -11,11 +11,10 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   Spinner,
   TextInput,
 } from "flowbite-react";
-import { HiOutlineMap, HiPlus, HiSearch, HiX } from "react-icons/hi";
+import { HiOutlineMap, HiPlus, HiSearch } from "react-icons/hi";
 import CatalogTable from "@/features/common/components/catalog-table";
 import LayoutToggle, {
   type CatalogLayout,
@@ -25,15 +24,14 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import LocationsPanel from "../locations/locations-panel";
 import PendingPanel from "../milestones/pending-panel";
-import ExpressionField from "./expression-field";
-import { useRowKeys } from "./use-row-keys";
+import { scopeSummary } from "./scope-section";
 import {
   saveDraft,
-  saveSelector,
   useCanEditMonitors,
   useMonitors,
-  useSelector,
+  useScopeValues,
   type MonitorSummary,
+  type ScopeValues,
 } from "./monitors-api";
 
 const KEY = /^[a-z0-9][a-z0-9-]*$/;
@@ -90,6 +88,7 @@ function CreateMonitorModal({
         plan: [],
         params: {},
         rules: [],
+        scope: null,
       });
       onCreated(key);
     } catch (e) {
@@ -152,140 +151,6 @@ function CreateMonitorModal({
   );
 }
 
-function SelectorPanel({
-  monitors,
-  canEdit,
-  d,
-}: Readonly<{ monitors: MonitorSummary[]; canEdit: boolean; d: I18nRecord }>) {
-  const { data } = useSelector();
-  const published = monitors.filter((m) => m.publishedVersion !== null);
-  const [entries, setEntries] = useState<
-    { condition: string; monitorKey: string }[] | null
-  >(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (data && entries === null) {
-      setEntries(
-        data.entries.map((e) => ({
-          condition: e.condition,
-          monitorKey: e.monitorKey,
-        }))
-      );
-    }
-  }, [data, entries]);
-
-  const rowKeys = useRowKeys(entries?.length ?? 0);
-
-  if (!entries) return null;
-  const set = (i: number, patch: Partial<(typeof entries)[number]>) =>
-    setEntries(entries.map((e, j) => (j === i ? { ...e, ...patch } : e)));
-
-  const save = async () => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      await saveSelector(entries);
-      setMessage(tr("selectorSaved", d));
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-          {tr("selector", d)}
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {tr("selectorHint", d)}
-        </p>
-      </div>
-      {entries.length === 0 && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {tr("selectorEmpty", d)}
-        </p>
-      )}
-      {entries.map((e, i) => (
-        // Keep editor identity when earlier rows are removed.
-        <div key={rowKeys.keys[i]} className="flex items-end gap-2">
-          <span className="w-6 pb-2 text-right text-xs text-gray-400">
-            {i + 1}
-          </span>
-          <div className="flex-1">
-            <ExpressionField
-              label={tr("selectorCondition", d)}
-              value={e.condition}
-              onChange={(condition) => set(i, { condition })}
-              on="selector"
-              expect="condition"
-              params={{}}
-              readOnly={!canEdit || busy}
-              placeholder="trip.orderType == 'reparto'"
-            />
-          </div>
-          <Select
-            sizing="sm"
-            value={e.monitorKey}
-            disabled={!canEdit || busy}
-            aria-label={tr("monitor", d)}
-            onChange={(ev) => set(i, { monitorKey: ev.target.value })}
-          >
-            {published.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-          {canEdit && (
-            <button
-              type="button"
-              className="mb-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700"
-              disabled={busy}
-              aria-label={tr("removeEntry", d)}
-              onClick={() => {
-                rowKeys.remove(i);
-                setEntries(entries.filter((_, j) => j !== i));
-              }}
-            >
-              <HiX className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      ))}
-      {message && (
-        <p className="text-sm text-gray-700 dark:text-gray-200">{message}</p>
-      )}
-      {canEdit && (
-        <div className="flex items-center gap-2">
-          <Button
-            color="light"
-            size="sm"
-            disabled={busy || published.length === 0}
-            onClick={() => {
-              rowKeys.append();
-              setEntries([
-                ...entries,
-                { condition: "", monitorKey: published[0].key },
-              ]);
-            }}
-          >
-            <HiPlus className="mr-1 h-4 w-4" />
-            {tr("addEntry", d)}
-          </Button>
-          <Button color="blue" size="sm" disabled={busy} onClick={save}>
-            {tr("saveSelector", d)}
-          </Button>
-        </div>
-      )}
-    </section>
-  );
-}
-
 /** One-line identity of a monitor's published and draft versions. */
 function VersionBadges({
   m,
@@ -318,11 +183,13 @@ function updatedLine(m: MonitorSummary, lang: string) {
 function MonitorCard({
   m,
   lang,
+  values,
   d,
   onOpen,
 }: Readonly<{
   m: MonitorSummary;
   lang: string;
+  values: ScopeValues | undefined;
   d: I18nRecord;
   onOpen: () => void;
 }>) {
@@ -351,7 +218,13 @@ function MonitorCard({
           {tr("rulesCount", d, { count: String(m.rules) })}
         </span>
       </div>
-      <p className="mt-2 line-clamp-2 h-8 px-4 text-xs text-gray-600 dark:text-gray-300">
+      <p className="mt-2 truncate px-4 text-xs text-gray-700 dark:text-gray-200">
+        <span className="text-gray-500 dark:text-gray-400">
+          {tr("scope.title", d)}:{" "}
+        </span>
+        {scopeSummary(m.scope, values, d)}
+      </p>
+      <p className="mt-1 line-clamp-2 h-8 px-4 text-xs text-gray-600 dark:text-gray-300">
         {m.description ?? tr("noDescription", d)}
       </p>
       <div className="min-h-3 flex-1" />
@@ -363,9 +236,9 @@ function MonitorCard({
 }
 
 /**
- * Settings › Viajes: the organization's trip monitors, one per class of trip, as cards or a
- * list like the other settings catalogs; then the selector that picks one for a trip created
- * without it, and the locations with their GPS geofence.
+ * Settings › Viajes: the organization's trip monitors, one per class of trip, each with the
+ * trips it takes, as cards or a list like the other settings catalogs; then the milestones
+ * waiting for confirmation and the locations with their GPS geofence.
  */
 export default function MonitorList({
   dict,
@@ -375,6 +248,7 @@ export default function MonitorList({
   const router = useRouter();
   const { data, error, isLoading } = useMonitors();
   const canEdit = useCanEditMonitors();
+  const { data: scopeValues } = useScopeValues();
   const [creating, setCreating] = useState(false);
   const [q, setQ] = useState("");
   const [layout, setLayout] = useState<CatalogLayout>("cards");
@@ -452,6 +326,7 @@ export default function MonitorList({
                 key={m.key}
                 m={m}
                 lang={lang}
+                values={scopeValues}
                 d={d}
                 onOpen={() => open(m.key)}
               />
@@ -462,6 +337,7 @@ export default function MonitorList({
           <CatalogTable
             columns={[
               tr("monitor", d),
+              tr("scope.title", d),
               tr("version", d),
               tr("rules", d),
               tr("updated", d),
@@ -482,6 +358,9 @@ export default function MonitorList({
                   <div className="font-mono text-gray-400">{m.key}</div>
                 </td>
                 <td className="px-4 py-2.5">
+                  {scopeSummary(m.scope, scopeValues, d)}
+                </td>
+                <td className="px-4 py-2.5">
                   <VersionBadges m={m} d={d} />
                 </td>
                 <td className="px-4 py-2.5">{m.rules}</td>
@@ -492,8 +371,6 @@ export default function MonitorList({
             ))}
           </CatalogTable>
         )}
-
-        {data && <SelectorPanel monitors={monitors} canEdit={canEdit} d={d} />}
 
         <PendingPanel d={dict?.tripMilestones as I18nRecord} lang={lang} />
 

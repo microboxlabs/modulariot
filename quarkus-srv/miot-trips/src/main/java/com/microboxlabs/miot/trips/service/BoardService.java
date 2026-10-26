@@ -82,6 +82,23 @@ public class BoardService {
                 board.feedSource(tenantCode, tripId).orElse(null));
     }
 
+    /** How many trips each view shows without a filter: the open trips in its lanes, the last seven days' finished. */
+    public Map<String, Integer> counts(String tenantCode) {
+        OffsetDateTime now = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        List.of(TripBoard.PLANNING, TripBoard.DISPATCH, TripBoard.DELIVERY).forEach(v -> counts.put(v, 0));
+        for (BoardRow row : board.open(tenantCode, null)) {
+            String lane = TripBoard.lane(row, now);
+            TripBoard.LANES.forEach((view, lanes) -> {
+                if (counts.containsKey(view) && lanes.contains(lane)) {
+                    counts.merge(view, 1, Integer::sum);
+                }
+            });
+        }
+        counts.put(TripBoard.FINISHED, board.finishedCount(tenantCode, now.minus(FINISHED_DEFAULT), now));
+        return counts;
+    }
+
     /** {@code from} and {@code to} only apply to the finished view; the default is the last seven days. */
     public BoardView view(String tenantCode, String view, String q, OffsetDateTime from, OffsetDateTime to,
             Integer limit) {

@@ -641,6 +641,7 @@ class PgMonitorEngineTest {
         assertEquals(List.of(), cards(board, TripBoard.PLANNING, TripBoard.DEPARTURE_PENDING, null));
         assertEquals(List.of(trip), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, code));
         assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, "no-such-code"));
+        assertEquals(Map.of("planning", 0, "dispatch", 1, "delivery", 0, "finished", 0), board.counts(tenant));
 
         engine.signal(tenant, "gps", id(t), "entered_destination", "42", null);
         assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, null));
@@ -649,6 +650,7 @@ class PgMonitorEngineTest {
                 .cards().get(0);
         assertEquals(List.of(code), done.codes());
         assertTrue(done.alerts().contains("departure_overdue"));
+        assertEquals(Map.of("planning", 0, "dispatch", 0, "delivery", 0, "finished", 1), board.counts(tenant));
         assertNotNull(done.departedAt(), "the transit stage's start");
 
         TripSheet sheet = board.sheet(tenant, id(t));

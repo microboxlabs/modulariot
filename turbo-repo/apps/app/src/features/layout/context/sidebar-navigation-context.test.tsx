@@ -51,6 +51,14 @@ vi.mock("@/features/task-forms/services/form.service", () => ({
 
 vi.mock("@/features/task-forms/services/form.service.types", () => ({}));
 
+const tripCounts = vi.hoisted(() => ({
+  data: undefined as Record<string, number> | undefined,
+}));
+vi.mock("@/features/trips/board/board-api", () => ({
+  BOARD_VIEWS: ["planning", "dispatch", "delivery", "finished"],
+  useTripsBoardCounts: () => ({ data: tripCounts.data }),
+}));
+
 import {
   useMyTasksCount,
   useHistoricInstancesCount,
@@ -330,6 +338,18 @@ describe("SidebarNavigationProvider", () => {
       setDefaultMocks({ taskTotals: { shippingTask: 4, deliveryTask: 6 } });
       const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
       expect(result.current.totals.pending_tasks).toBe(10);
+    });
+
+    it("counts the trips board links by their own view, not the task kanban", () => {
+      setDefaultMocks({ taskTotals: { shippingTask: 7 } });
+      tripCounts.data = { planning: 3, dispatch: 2, delivery: 0, finished: 9 };
+      const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
+      const trips = result.current.items.find((p) => p.label === "trips");
+      expect(trips?.items?.map((i) => i.totals?.[i.label])).toEqual([
+        3, 2, 0, 9,
+      ]);
+      expect(result.current.totals.shipping).toBe(7);
+      tripCounts.data = undefined;
     });
 
     it("skips shipping/delivery/planning totals when there is an error", () => {

@@ -19,6 +19,9 @@ public interface BoardStore {
      */
     List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit);
 
+    /** How many trips were completed or cancelled between {@code from} and {@code to}. */
+    int finishedCount(String tenantCode, OffsetDateTime from, OffsetDateTime to);
+
     /** One trip, open or finished. */
     Optional<BoardRow> trip(String tenantCode, UUID tripId);
 

@@ -55,6 +55,16 @@ public class OrgTripsBoardResource extends OrgResourceSupport {
     }
 
     @GET
+    @Path("/counts")
+    @Operation(operationId = "getTripsBoardCounts",
+            summary = "How many trips each board view shows: open trips by view, finished in the last seven days")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> counts(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(board.counts(tenant)).build());
+    }
+
+    @GET
     @Path("/{view}")
     @Operation(operationId = "getTripsBoard",
             summary = "One board view (planning, dispatch, delivery, finished): its lanes with counts and cards")

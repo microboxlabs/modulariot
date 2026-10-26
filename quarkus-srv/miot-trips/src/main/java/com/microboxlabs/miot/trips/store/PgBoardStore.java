@@ -143,6 +143,16 @@ public class PgBoardStore implements BoardStore {
     }
 
     @Override
+    public int finishedCount(String tenantCode, OffsetDateTime from, OffsetDateTime to) {
+        return query(pool.get(), """
+                SELECT count(*)::int AS n FROM miot_trips.trip t
+                WHERE t.tenant_code = $1 AND t.version_of IS NULL AND t.is_active
+                  AND t.status IN ('completed', 'cancelled')
+                  AND coalesce(t.actual_end, t.updated_at) >= $2 AND coalesce(t.actual_end, t.updated_at) < $3""",
+                Tuple.of(tenantCode, from, to)).iterator().next().getInteger("n");
+    }
+
+    @Override
     public Optional<BoardRow> trip(String tenantCode, UUID tripId) {
         return open(tenantCode, null, tripId).stream().findFirst()
                 .or(() -> finished(tenantCode, null, null, null, 1, tripId).stream().findFirst());

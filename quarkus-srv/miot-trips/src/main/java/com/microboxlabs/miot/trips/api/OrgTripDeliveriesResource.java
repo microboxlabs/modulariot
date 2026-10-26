@@ -171,6 +171,7 @@ public class OrgTripDeliveriesResource extends OrgResourceSupport {
                     .header("Content-Disposition", "inline; filename=\"" + name.replaceAll("[\"\\\\]", "_") + "\"")
                     .header("Content-Length", opened.content().size())
                     .header("X-Content-Type-Options", "nosniff")
+                    .header("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self' data:")
                     .header("Cache-Control", "private, max-age=300")
                     .build();
         });

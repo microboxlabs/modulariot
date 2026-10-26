@@ -45,6 +45,8 @@ export interface MediaSource {
   ready: boolean;
   /** Whether a deleted file can be recovered (Alfresco's trash). */
   recoverableDelete: boolean;
+  /** The API resets this status when content or its classification changes. */
+  reviewStatusIsCurrent?: boolean;
   /** The files, or null until they load. */
   useFiles(): {
     files: AlfrescoFileEntry[] | null;
@@ -76,7 +78,8 @@ export interface MediaSource {
     id: string,
     verdict: Verdict,
     reasons: string[],
-    comment?: string
+    comment?: string,
+    expectedModifiedAt?: string
   ): Promise<unknown>;
   /** Alfresco's per-file forum, for content decided before review rounds existed. */
   forum?: {

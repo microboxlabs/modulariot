@@ -228,6 +228,7 @@ export function createTripsSource(tripId: string, lang: string): MediaSource {
   return {
     ready: true,
     recoverableDelete: false,
+    reviewStatusIsCurrent: true,
     useFiles() {
       const {
         data,
@@ -304,10 +305,10 @@ export function createTripsSource(tripId: string, lang: string): MediaSource {
         forum: null,
       };
     },
-    recordRound: async (id, verdict, reasons, comment) => {
+    recordRound: async (id, verdict, reasons, comment, expectedUpdatedAt) => {
       await tripsRequest(`${documentKey(tripId, id)}/reviews`, {
         method: "POST",
-        body: { verdict, reasons, comment },
+        body: { expectedUpdatedAt, verdict, reasons, comment },
       });
       await mutate(list);
     },

@@ -1,7 +1,17 @@
+import { tripsRequest } from "../monitors/monitors-api";
+vi.mock("../monitors/monitors-api", async (original) => ({
+  ...(await original<typeof import("../monitors/monitors-api")>()),
+  tripsRequest: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("swr", async (original) => ({
+  ...(await original<typeof import("swr")>()),
+  mutate: vi.fn().mockResolvedValue(undefined),
+}));
 import { describe, expect, it } from "vitest";
 import { isReviewableEntry } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/reviewable";
 import { versionOf } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/observations/review-version";
 import {
+  createTripsSource,
   documentContentUrl,
   toEntry,
   toRound,
@@ -64,6 +74,25 @@ describe("trip documents in the multimedia component", () => {
       decidedAt: "2026-10-26T10:00:00Z",
     });
     expect(round.version).toBe(versionOf(toEntry(doc()).entry));
+  });
+
+  it("reviews the exact displayed snapshot without truncating timestamp precision", async () => {
+    const source = createTripsSource(TRIP, "en");
+    const modifiedAt = "2026-10-26T10:00:00.123456Z";
+    await source.recordRound(doc().id, "APPROVED", [], undefined, modifiedAt);
+    expect(tripsRequest).toHaveBeenCalledWith(
+      `/api/trips/${TRIP}/documents/${doc().id}/reviews`,
+      {
+        method: "POST",
+        body: {
+          expectedUpdatedAt: modifiedAt,
+          verdict: "APPROVED",
+          reasons: [],
+          comment: undefined,
+        },
+      }
+    );
+    expect(source.reviewStatusIsCurrent).toBe(true);
   });
 
   it("serves the file inline or as a download", () => {

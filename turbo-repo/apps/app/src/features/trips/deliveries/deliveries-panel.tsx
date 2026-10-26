@@ -17,7 +17,7 @@ import {
   type Delivery,
   type TripDeliveries,
 } from "./deliveries-api";
-import { uploadDocument } from "../documents/documents-api";
+import { DOCUMENT_MANAGE, uploadDocument } from "../documents/documents-api";
 
 /** The document type a POD is filed under in the trip's multimedia. */
 const POD_TYPE = "PROOF_OF_DELIVERY";
@@ -205,6 +205,7 @@ function DeliveryCard({
   tripId,
   delivery,
   canOperate,
+  canUpload,
   proofRequired,
   d,
   lang,
@@ -212,6 +213,7 @@ function DeliveryCard({
   tripId: string;
   delivery: Delivery;
   canOperate: boolean;
+  canUpload: boolean;
   proofRequired: boolean;
   d: I18nRecord;
   lang: string;
@@ -315,7 +317,7 @@ function DeliveryCard({
         </div>
       )}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-      {canOperate && <Upload tripId={tripId} delivery={delivery} d={d} />}
+      {canUpload && <Upload tripId={tripId} delivery={delivery} d={d} />}
     </li>
   );
 }
@@ -333,6 +335,7 @@ export function DeliveriesPanel({
   lang: string;
 }>) {
   const canOperate = useTripsPermission(DELIVERY_OPERATE);
+  const canManageDocuments = useTripsPermission(DOCUMENT_MANAGE);
   const cycle = data.cycle.steps
     .map((s) => trDynamic(`lanes.${s}`, d))
     .join(" → ");
@@ -364,6 +367,7 @@ export function DeliveriesPanel({
             tripId={tripId}
             delivery={delivery}
             canOperate={canOperate}
+            canUpload={canOperate && canManageDocuments}
             proofRequired={data.cycle.proofRequired}
             d={d}
             lang={lang}

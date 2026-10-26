@@ -558,6 +558,14 @@ export default function FileImages({
     return map;
   }, [images, documents]);
 
+  const modifiedAtById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of [...images, ...documents] as { file: AlfrescoFileEntry }[]) {
+      map.set(item.file.entry.id, item.file.entry.modifiedAt);
+    }
+    return map;
+  }, [images, documents]);
+
   /**
    * Nodes with a decision in flight. The reviewer's click is the most recent fact until the
    * round comes back, and the rounds held in `committedTimeline` still predate it — so the
@@ -582,13 +590,14 @@ export default function FileImages({
    */
   const effectiveStatuses = useMemo(() => {
     const map = new Map(reviewStatuses);
+    if (src.reviewStatusIsCurrent) return map;
     for (const id of reviewableIds) {
       if (decidingRef.current.has(id)) continue;
       const derived = statusForCurrentVersion(committedTimeline.get(id) ?? [], versionsById.get(id) ?? null);
       if (derived) map.set(id, derived);
     }
     return map;
-  }, [reviewStatuses, reviewableIds, committedTimeline, versionsById]);
+  }, [reviewStatuses, reviewableIds, committedTimeline, versionsById, src.reviewStatusIsCurrent]);
 
   const reviewSummary = useMemo(() => {
     // Only reviewable items contribute to review counts; non-reviewable content has no
@@ -753,7 +762,13 @@ export default function FileImages({
     setCommittedTimeline((prev) => { snapTimeline = prev; return prev; });
 
     try {
-      await src.recordRound(id, VERDICT_BY_STATUS[status], reasons, comment || undefined);
+      await src.recordRound(
+        id,
+        VERDICT_BY_STATUS[status],
+        reasons,
+        comment || undefined,
+        modifiedAtById.get(id)
+      );
     } catch {
       decidingRef.current.delete(id);
       toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
@@ -778,7 +793,7 @@ export default function FileImages({
       next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, staged, versionsById.get(id) ?? null));
       return next;
     });
-  }, [currentUserName, dictionary, draftObservations, versionsById, src]);
+  }, [currentUserName, dictionary, draftObservations, versionsById, modifiedAtById, src]);
 
   /**
    * Stages an observation against a file. Nothing is written until the reviewer decides:

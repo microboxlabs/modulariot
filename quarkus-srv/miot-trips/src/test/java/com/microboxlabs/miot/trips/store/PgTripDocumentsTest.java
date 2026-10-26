@@ -28,6 +28,7 @@ import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.MonitorService;
 import com.microboxlabs.miot.trips.service.TripDocumentLists;
 import com.microboxlabs.miot.trips.service.TripDocumentService;
+import com.microboxlabs.miot.trips.service.TripDocumentService.ReviewDecision;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import com.microboxlabs.miot.trips.service.TripService;
 import io.vertx.mutiny.core.Vertx;
@@ -48,6 +49,11 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -135,19 +141,25 @@ class PgTripDocumentsTest {
                 .getString("owner");
     }
 
+    private static ReviewDecision decision(TripDocument d, String verdict, List<String> reasons) {
+        return new ReviewDecision(d.updatedAt(), verdict, reasons, null);
+    }
+
     @Test
     void aTypeThatNeedsReviewIsDecidedPerVersionAndReplacingSendsItBack() throws IOException {
         UUID tripId = newTrip();
         TripDocument manifest = upload(tripId, "CARGO_MANIFEST", null, "manifest.pdf", "application/pdf", PDF);
         assertNull(manifest.reviewStatus(), "a cargo manifest needs no review");
         assertEquals("application/pdf", manifest.mimetype());
-        assertThrows(IllegalStateException.class, () -> documents.review(tenant, ACTOR, tripId,
-                UUID.fromString(manifest.id()), "APPROVED", List.of(), null));
+        UUID manifestId = UUID.fromString(manifest.id());
+        ReviewDecision manifestDecision = decision(manifest, "APPROVED", List.of());
+        assertThrows(IllegalStateException.class,
+                () -> documents.review(tenant, ACTOR, tripId, manifestId, manifestDecision));
 
         TripDocument photo = upload(tripId, "PICKUP_FRONT_IMAGE", null, "front.jpg", "image/jpeg", JPEG);
         UUID photoId = UUID.fromString(photo.id());
         assertEquals(TripDocument.PENDING, photo.reviewStatus());
-        documents.review(tenant, ACTOR, tripId, photoId, "rejected", List.of("illegible_text"), "Blurry");
+        documents.review(tenant, ACTOR, tripId, photoId, decision(photo, "rejected", List.of("illegible_text")));
 
         TripDocument replaced = documents.replace(tenant, ACTOR, tripId, photoId, "front-2.jpg", "image/jpeg",
                 new ByteArrayInputStream(JPEG));
@@ -155,7 +167,7 @@ class PgTripDocumentsTest {
         assertEquals(TripDocument.PENDING, replaced.reviewStatus(), "a new file goes back to review");
         assertEquals("trips:document:" + photo.id() + ":v1", owner(photo.contentId()), "the old version stays");
 
-        documents.review(tenant, ACTOR, tripId, photoId, "APPROVED", null, null);
+        documents.review(tenant, ACTOR, tripId, photoId, decision(replaced, "APPROVED", List.of()));
         List<TripDocument.Review> rounds = documents.reviews(tenant, tripId, photoId);
         assertEquals(List.of("REJECTED", "APPROVED"), rounds.stream().map(TripDocument.Review::verdict).toList());
         assertEquals(List.of(1, 2), rounds.stream().map(TripDocument.Review::version).toList());
@@ -178,6 +190,103 @@ class PgTripDocumentsTest {
     }
 
     @Test
+    void reviewingAnOldSnapshotCannotDecideAReplacementOrReclassifiedDocument() {
+        UUID tripId = newTrip();
+        TripDocument photo = upload(tripId, "PICKUP_FRONT_IMAGE", null, "front.jpg", "image/jpeg", JPEG);
+        UUID id = UUID.fromString(photo.id());
+        ReviewDecision stale = decision(photo, "APPROVED", List.of());
+        TripDocument replaced = documents.replace(tenant, ACTOR, tripId, id, "new.jpg", "image/jpeg",
+                new ByteArrayInputStream(JPEG));
+        assertThrows(IllegalStateException.class, () -> documents.review(tenant, ACTOR, tripId, id, stale));
+        assertTrue(documents.reviews(tenant, tripId, id).isEmpty());
+        documents.review(tenant, ACTOR, tripId, id, decision(replaced, "APPROVED", List.of()));
+        TripDocument approved = documents.document(tenant, tripId, id);
+        ReviewDecision beforeReclassification = decision(approved, "APPROVED", List.of());
+        TripDocument changed = documents.change(tenant, ACTOR, tripId, id, "PROOF_OF_PICKUP", null);
+        assertEquals(TripDocument.PENDING, changed.reviewStatus());
+        assertNull(changed.reviewedAt());
+        assertNull(changed.reviewedBy());
+        assertThrows(IllegalStateException.class,
+                () -> documents.review(tenant, ACTOR, tripId, id, beforeReclassification));
+        assertEquals(1, documents.reviews(tenant, tripId, id).size());
+    }
+
+    @Test
+    void reviewRejectsUnknownDisabledAndWrongTypeReasons() {
+        UUID tripId = newTrip();
+        TripDocument photo = upload(tripId, "PICKUP_FRONT_IMAGE", null, "front.jpg", "image/jpeg", JPEG);
+        UUID id = UUID.fromString(photo.id());
+        TripDocumentLists customLists = new TripDocumentLists((t, key) -> {
+            if (TripDocumentLists.REASONS.equals(key)) {
+                return List.of(
+                        com.microboxlabs.miot.core.selectable.SelectableOption.of("disabled", "Disabled", "Disabled").asDisabled(),
+                        com.microboxlabs.miot.core.selectable.SelectableOption.of("pickup", "Pickup", "Pickup").withParent("PROOF_OF_PICKUP"));
+            }
+            return LISTS.stream().filter(l -> l.key().equals(key)).findFirst().orElseThrow().options();
+        });
+        TripDocumentService service = new TripDocumentService(new PgTripDocumentStore(() -> pool),
+                new PgTripStore(() -> pool), contents, customLists, deliveries, audit, tx);
+        for (String reason : List.of("unknown", "disabled", "pickup")) {
+            ReviewDecision invalid = decision(photo, "REJECTED", List.of(reason));
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.review(tenant, ACTOR, tripId, id, invalid));
+        }
+        assertTrue(documents.reviews(tenant, tripId, id).isEmpty());
+        assertEquals(TripDocument.PENDING, documents.document(tenant, tripId, id).reviewStatus());
+    }
+
+    @Test
+    void deletingAProofWaitsForConcurrentDeliveryConfirmation() throws Exception {
+        UUID tripId = newTrip();
+        DeliveryViews.Delivery delivery = deliveries.create(tenant, ACTOR, tripId,
+                new DeliveryService.NewDelivery("R-1", "Recipient", null, null, null, null));
+        UUID deliveryId = UUID.fromString(delivery.id());
+        TripDocument pod = upload(tripId, "PROOF_OF_DELIVERY", deliveryId, "pod.pdf", "application/pdf", PDF);
+        UUID documentId = UUID.fromString(pod.id());
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch deleting = new CountDownLatch(1);
+        try (var workers = Executors.newFixedThreadPool(2)) {
+            var confirm = workers.submit(() -> tx.inTransaction(() -> {
+                new PgTripStore(() -> pool).find(tenant, tripId).orElseThrow();
+                locked.countDown();
+                await(release);
+                return deliveries.confirm(tenant, ACTOR, tripId, deliveryId, "delivered", null, "ui", null, null);
+            }));
+            assertTrue(locked.await(10, TimeUnit.SECONDS));
+            var delete = workers.submit(() -> {
+                deleting.countDown();
+                documents.delete(tenant, ACTOR, tripId, documentId);
+            });
+            try {
+                assertTrue(deleting.await(10, TimeUnit.SECONDS));
+                assertThrows(TimeoutException.class, () -> delete.get(200, TimeUnit.MILLISECONDS));
+            } finally {
+                release.countDown();
+            }
+            confirm.get(10, TimeUnit.SECONDS);
+            ExecutionException refused = assertThrows(ExecutionException.class,
+                    () -> delete.get(10, TimeUnit.SECONDS));
+            assertTrue(refused.getCause() instanceof IllegalStateException);
+        } finally {
+            release.countDown();
+        }
+        assertEquals(1, deliveries.list(tenant, tripId).deliveries().get(0).proofs().size());
+        assertEquals(documentId.toString(), documents.document(tenant, tripId, documentId).id());
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("confirmation latch timed out");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
     void aProofOfDeliveryAsksForTheStepAndCannotBeDeletedOnceConfirmed() {
         UUID tripId = newTrip();
         DeliveryViews.Delivery d = deliveries.create(tenant, ACTOR, tripId,
@@ -192,8 +301,9 @@ class PgTripDocumentsTest {
         assertEquals("trips:document:" + pod.id(), owner(pod.contentId()), "the document keeps its file");
 
         deliveries.confirm(tenant, ACTOR, tripId, deliveryId, "delivered", null, "ui", null, null);
+        UUID podId = UUID.fromString(pod.id());
         assertThrows(IllegalStateException.class,
-                () -> documents.delete(tenant, ACTOR, tripId, UUID.fromString(pod.id())));
+                () -> documents.delete(tenant, ACTOR, tripId, podId));
         assertTrue(documents.list(tenant, tripId).stream().anyMatch(x -> x.id().equals(pod.id())));
     }
 }

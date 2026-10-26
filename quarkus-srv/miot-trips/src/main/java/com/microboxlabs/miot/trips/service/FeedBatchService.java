@@ -58,6 +58,7 @@ public class FeedBatchService {
             FeedBatchRequest.Item item = items.get(index);
             String code = externalCode(item);
             try {
+                rejectNul(rawExternalCode(item));
                 FeedServiceRequest desired = item == null ? null : item.desired();
                 boolean settled = firstSettled(seen, digests, code, desired);
                 boolean enqueued = !settled && queue.acceptAndQueue(tenantCode, feedKey,
@@ -81,14 +82,26 @@ public class FeedBatchService {
     }
 
     private static String externalCode(FeedBatchRequest.Item item) {
-        return item == null || item.externalCode() == null ? "" : item.externalCode().trim();
+        String raw = rawExternalCode(item);
+        return raw == null ? "" : raw.trim();
+    }
+
+    private static String rawExternalCode(FeedBatchRequest.Item item) {
+        return item == null ? null : item.externalCode();
+    }
+
+    private static void rejectNul(String code) {
+        if (code != null && code.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException("externalCode must not contain NUL");
+        }
     }
 
     private static Set<String> codes(List<FeedBatchRequest.Item> items) {
         Set<String> codes = new HashSet<>();
         for (FeedBatchRequest.Item item : items) {
-            if (item != null && item.externalCode() != null && !item.externalCode().isBlank()) {
-                codes.add(item.externalCode().trim());
+            String raw = rawExternalCode(item);
+            if (raw != null && !raw.isBlank() && raw.indexOf('\0') < 0) {
+                codes.add(raw.trim());
             }
         }
         return codes;

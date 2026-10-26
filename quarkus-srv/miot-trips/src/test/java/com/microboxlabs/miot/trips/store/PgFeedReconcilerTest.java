@@ -437,11 +437,15 @@ class PgFeedReconcilerTest {
         FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
         FeedBatchRequest first = new FeedBatchRequest("b1", List.of(
                 new FeedBatchRequest.Item("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001")),
-                new FeedBatchRequest.Item(" ", desired(2, 10, "ABC-123", null, "10000001"))));
+                new FeedBatchRequest.Item(" ", desired(2, 10, "ABC-123", null, "10000001")),
+                new FeedBatchRequest.Item("S-\0BAD", desired(2, 10, "ABC-123", null, "10000001")),
+                new FeedBatchRequest.Item("\0S-TAIL", desired(2, 10, "ABC-123", null, "10000001"))));
 
         FeedBatchResult r1 = batches.send(tenant, ACTOR, FEED, first);
         assertEquals(List.of("S-001"), r1.queued());
-        assertEquals(List.of(""), r1.refused().stream().map(FeedBatchResult.Refusal::externalCode).toList(), "a blank code is refused, not queued");
+        assertEquals(List.of("", "S-\0BAD", "S-TAIL"), r1.refused().stream()
+                .map(FeedBatchResult.Refusal::externalCode).toList(),
+                "invalid codes are refused without failing the batch");
         assertEquals("trips-feed:" + FEED + ":S-001:b1", queued.get(0).dedupeKey());
         assertEquals(FeedReconciler.PENDING, feeds.service(tenant, FEED, "S-001").orElseThrow().lastAction());
 

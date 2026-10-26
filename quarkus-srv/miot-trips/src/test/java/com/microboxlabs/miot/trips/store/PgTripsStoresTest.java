@@ -113,7 +113,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.20__create_deliveries.sql",
             "/db/migration/trips/V0.10.21__create_trip_documents.sql",
             "/db/migration/trips/V0.10.22__monitor_scope.sql",
-            "/db/migration/trips/V0.10.23__validate_monitor_scopes.sql"};
+            "/db/migration/trips/V0.10.23__validate_monitor_scopes.sql",
+            "/db/migration/trips/V0.10.24__feed_registers_resources.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -313,14 +314,14 @@ class PgTripsStoresTest {
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
-                "closing", new LinkedHashSet<>(List.of("truck", "driver")), true,
+                "closing", new LinkedHashSet<>(List.of("truck", "driver")), true, true,
                 null, ACTOR, null, ACTOR));
         assertEquals("closing", saved.arrivalStage());
         assertEquals(List.of("preparation", "transit", "closing"),
                 saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
         FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
-                saved.stages(), "closing", saved.requiredResources(), true, null, ACTOR, null, ACTOR));
+                saved.stages(), "closing", saved.requiredResources(), true, true, null, ACTOR, null, ACTOR));
         assertEquals("Servicios v2", renamed.name());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
 
@@ -342,11 +343,11 @@ class PgTripsStoresTest {
         PgFeedStore feeds = new PgFeedStore(() -> pool);
         FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed",
                 List.of(new FeedProfile.StagePlan("preparacion", "ADDED")),
-                "preparacion", Set.of(), true, null, "creator", null, null);
+                "preparacion", Set.of(), true, true, null, "creator", null, null);
         FeedProfile created = feeds.saveProfile(profile);
         assertEquals("creator", created.createdBy());
         FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed",
-                profile.stages(), "preparacion", Set.of(), true,
+                profile.stages(), "preparacion", Set.of(), true, true,
                 null, "ignored-creator", null, "updater"));
         assertEquals("creator", updated.createdBy());
         assertEquals("updater", updated.updatedBy());

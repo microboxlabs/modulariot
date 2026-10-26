@@ -85,6 +85,7 @@ public class FeedProfileService {
         }
         FeedProfile profile = new FeedProfile(tenantCode, key,
                 Check.required(body.name(), "name", 255), stages, arrival, required,
+                body.registersResources() == null || body.registersResources(),
                 body.active() == null || body.active(), null, actor, null, actor);
         FeedProfile saved = createOnly ? feeds.createProfile(profile)
                 .orElseThrow(() -> new IllegalStateException("feed " + key + " already exists"))

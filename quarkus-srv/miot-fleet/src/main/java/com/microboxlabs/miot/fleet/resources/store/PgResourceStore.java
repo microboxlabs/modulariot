@@ -358,7 +358,7 @@ public class PgResourceStore implements ResourceStore {
     public Optional<FleetResources.Match> findByKey(String tenantCode, String table, String key) {
         String column = switch (table) {
             case TRUCK, TRAILER -> LICENSE_PLATE;
-            case DRIVER -> RUT;
+            case DRIVER, CARRIER -> RUT;
             default -> throw new IllegalArgumentException("not a keyed resource table: " + table);
         };
         return first(query(pool.get(), select("id, is_active AND COALESCE(status, 'active') <> 'inactive' AS usable",

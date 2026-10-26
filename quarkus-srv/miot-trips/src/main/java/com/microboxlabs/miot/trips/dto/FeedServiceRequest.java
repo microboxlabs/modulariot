@@ -80,8 +80,36 @@ public record FeedServiceRequest(
     public record MilestoneReport(OffsetDateTime at, Map<String, Object> evidence) {
     }
 
-    /** Truck and trailer by plate, drivers by document; the first driver is the main one. */
-    public record Resources(String truck, String trailer, List<String> drivers) {
+    /**
+     * Truck and trailer by plate, drivers by document; the first driver is the main one. {@code carrier} and
+     * {@code driverDetails} are what a feed that registers resources needs to add the ones fleet does not have: the
+     * vehicles' carrier, and each driver's name and mobile phone by document.
+     */
+    public record Resources(String truck, String trailer, List<String> drivers, Carrier carrier,
+            List<Person> driverDetails) {
+
+        public Resources(String truck, String trailer, List<String> drivers) {
+            this(truck, trailer, drivers, null, null);
+        }
+
+        /** The details sent for {@code document}, compared ignoring dots, dashes, spaces and case. */
+        public Person detailsOf(String document) {
+            String key = key(document);
+            return driverDetails == null || key.isEmpty() ? null : driverDetails.stream()
+                    .filter(p -> p != null && key.equals(key(p.document()))).findFirst().orElse(null);
+        }
+
+        private static String key(String value) {
+            return value == null ? "" : value.replaceAll("[^A-Za-z0-9]", "").toUpperCase(java.util.Locale.ROOT);
+        }
+    }
+
+    /** A carrier by its tax id (RUT, RUC) and legal name. */
+    public record Carrier(String taxId, String name) {
+    }
+
+    /** A driver's document, full name and mobile phone. */
+    public record Person(String document, String name, String phone) {
     }
 
     public Resources resourcesOrEmpty() {

@@ -329,7 +329,7 @@ public class FeedReconciler {
         plan.mandateId = mandate.map(Mandate::id).orElse(null);
         plan.tripId = trip == null ? null : trip.id();
 
-        ResolvedResources resources = resolveResources(tenantCode, d);
+        ResolvedResources resources = resolveResources(tenantCode, d, profile);
         Resource truck = resources.truck();
         Resource trailer = resources.trailer();
         List<Resource> drivers = resources.drivers();
@@ -360,6 +360,7 @@ public class FeedReconciler {
                 return plan.decided(REPORT, true);
             }
             warnAboutOptionalResources(plan, profile, resources);
+            planRegistrations(plan, tenantCode, actor, resources);
             planPlaces(plan, tenantCode, actor, origin, destination);
             planCreate(plan, context, code, mandate.orElse(null), resources, origin, destination);
             planMilestones(plan, tenantCode, actor, null, d);
@@ -369,6 +370,7 @@ public class FeedReconciler {
         named.add(0, trailer);
         named.add(0, truck);
         warnAbout(plan, named);
+        planRegistrations(plan, tenantCode, actor, resources);
         planPlaces(plan, tenantCode, actor, origin, destination);
         planRoute(plan, tenantCode, actor, trip, origin, destination);
         planChanges(plan, context, mandate.orElseThrow(), trip, resources);
@@ -395,6 +397,7 @@ public class FeedReconciler {
         }
         String tenantCode = context.tenantCode();
         String actor = context.actor();
+        planRegistrations(plan, tenantCode, actor, resources);
         planPlaces(plan, tenantCode, actor, origin, destination);
         planCreate(plan, context, code, mandate, resources, origin, destination);
         planMilestones(plan, tenantCode, actor, null, desired);
@@ -407,16 +410,77 @@ public class FeedReconciler {
             FeedServiceRequest desired, boolean regularized) {
     }
 
-    private record ResolvedResources(Resource truck, Resource trailer, List<Resource> drivers, boolean clearDrivers) {
+    /** {@code carrier} is the vehicles' carrier when the feed sent one; registrations use it. */
+    private record ResolvedResources(Resource truck, Resource trailer, List<Resource> drivers, boolean clearDrivers,
+            FeedServiceRequest.Carrier carrier) {
+
+        List<Resource> named() {
+            List<Resource> out = new ArrayList<>();
+            out.add(truck);
+            out.add(trailer);
+            out.addAll(drivers);
+            out.removeIf(Objects::isNull);
+            return out;
+        }
     }
 
-    private ResolvedResources resolveResources(String tenantCode, FeedServiceRequest desired) {
+    private ResolvedResources resolveResources(String tenantCode, FeedServiceRequest desired, FeedProfile profile) {
         FeedServiceRequest.Resources r = desired.resourcesOrEmpty();
+        FeedServiceRequest.Carrier carrier = r.carrier() == null || r.carrier().taxId() == null
+                || r.carrier().taxId().isBlank() ? null : r.carrier();
+        boolean registers = profile.registersResources();
         List<Resource> drivers = r.drivers() == null ? List.of() : r.drivers().stream()
                 .filter(k -> k != null && !k.isBlank()).map(k -> resolve(tenantCode, DRIVER, k)).toList();
-        return new ResolvedResources(resolve(tenantCode, TRUCK, r.truck()),
-                resolve(tenantCode, TRAILER, r.trailer()), drivers,
-                desired.resources() != null && r.drivers() != null && r.drivers().isEmpty());
+        Resource truck = resolve(tenantCode, TRUCK, r.truck());
+        Resource trailer = resolve(tenantCode, TRAILER, r.trailer());
+        for (Resource vehicle : new Resource[] {truck, trailer}) {
+            if (vehicle != null && vehicle.id == null && registers) {
+                vehicle.registration = carrier == null ? Registration.NEEDS_CARRIER : Registration.READY;
+            }
+        }
+        for (Resource driver : drivers) {
+            if (driver.id == null && registers) {
+                driver.registration = Registration.READY;
+                driver.details = r.detailsOf(driver.key());
+            }
+        }
+        return new ResolvedResources(truck, trailer, drivers,
+                desired.resources() != null && r.drivers() != null && r.drivers().isEmpty(), carrier);
+    }
+
+    /**
+     * Steps that add to fleet the resources it lacks, before anything uses them: the carrier (found by tax id or
+     * registered) when a vehicle needs it, then the vehicles, then the drivers, linked to that carrier when there is
+     * one. Each step sets the resource's id, which the later steps read.
+     */
+    private void planRegistrations(Plan plan, String tenantCode, String actor, ResolvedResources resources) {
+        List<Resource> pending = resources.named().stream().filter(Resource::pending).toList();
+        if (pending.isEmpty()) {
+            return;
+        }
+        FeedServiceRequest.Carrier carrier = resources.carrier();
+        UUID[] carrierId = new UUID[1];
+        if (carrier != null) {
+            String label = carrier.name() == null || carrier.name().isBlank() ? carrier.taxId() : carrier.name();
+            plan.step("find or register carrier " + label, () -> carrierId[0] = fleet.carrierByTaxId(tenantCode, carrier.taxId())
+                    .map(FleetResources.Match::id)
+                    .orElseGet(() -> fleet.registerCarrier(tenantCode, actor, carrier.taxId(), carrier.name())));
+        }
+        for (Resource res : pending) {
+            if (DRIVER.equals(res.type())) {
+                FeedServiceRequest.Person who = res.details;
+                plan.step("register driver " + res.key(), () -> res.id = fleet.registerDriver(tenantCode, actor,
+                        res.key(), who == null ? null : blankToNull(who.name()),
+                        who == null ? null : blankToNull(who.phone()), carrierId[0]));
+            } else {
+                plan.step("register " + res.type() + " " + res.key(), () -> res.id = fleet.registerVehicle(
+                        tenantCode, actor, res.type(), res.key(), carrierId[0]));
+            }
+        }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private static boolean finished(TripView trip, Optional<Mandate> mandate) {
@@ -462,6 +526,9 @@ public class FeedReconciler {
         return new Resource(type, key.trim(), found.map(FleetResources.Match::id).orElse(null),
                 found.map(FleetResources.Match::active).orElse(false));
     }
+
+    /** How a resource fleet lacks gets there: it cannot, it can now, or it could with a carrier. */
+    private enum Registration { NONE, READY, NEEDS_CARRIER }
 
     /** A place the feed names; {@code found} null when no location has that external code yet. */
     private Place place(String tenantCode, String name) {
@@ -893,7 +960,7 @@ public class FeedReconciler {
                             UUID.fromString(a.id()), null, "trailer no longer in the feed")));
         }
         List<Resource> wanted = drivers.stream().filter(Resource::usable)
-                .collect(java.util.stream.Collectors.toMap(Resource::id, resource -> resource,
+                .collect(java.util.stream.Collectors.toMap(Resource::identity, resource -> resource,
                         (first, duplicate) -> first, LinkedHashMap::new)).values().stream().toList();
         if (wanted.isEmpty() && !resources.clearDrivers()) {
             return;
@@ -901,7 +968,7 @@ public class FeedReconciler {
         List<AssignmentView> openDrivers = open.stream().filter(a -> DRIVER.equals(a.resourceType())).toList();
         int retained = 0;
         while (retained < openDrivers.size() && retained < wanted.size()
-                && openDrivers.get(retained).resourceId().equals(wanted.get(retained).id().toString())) {
+                && openDrivers.get(retained).resourceId().equals(wanted.get(retained).identity())) {
             retained++;
         }
         for (AssignmentView a : openDrivers.subList(retained, openDrivers.size())) {
@@ -921,7 +988,7 @@ public class FeedReconciler {
         }
         Optional<AssignmentView> current = open.stream().filter(a -> a.resourceType().equals(res.type()))
                 .findFirst();
-        if (current.isPresent() && current.get().resourceId().equals(res.id().toString())) {
+        if (current.isPresent() && current.get().resourceId().equals(res.identity())) {
             return;
         }
         current.ifPresent(a -> plan.step("end " + res.type() + " window", () -> assignments.end(tenantCode,
@@ -984,16 +1051,59 @@ public class FeedReconciler {
         }
     }
 
-    /** A resource the feed names, resolved in fleet; {@code id} null when the directory does not have it. */
-    private record Resource(String type, String key, UUID id, boolean active) {
+    /**
+     * A resource the feed names, resolved in fleet; {@code id} null when the directory does not have it. A resource
+     * the feed registers gets its id from its registration step, which runs before the steps that use it.
+     */
+    private static final class Resource {
+        private final String type;
+        private final String key;
+        private final boolean active;
+        private UUID id;
+        private Registration registration = Registration.NONE;
+        private FeedServiceRequest.Person details;
+
+        Resource(String type, String key, UUID id, boolean active) {
+            this.type = type;
+            this.key = key;
+            this.id = id;
+            this.active = active;
+        }
+
+        String type() {
+            return type;
+        }
+
+        String key() {
+            return key;
+        }
+
+        UUID id() {
+            return id;
+        }
+
+        /** Not in fleet yet, and registered by this service. */
+        boolean pending() {
+            return id == null && registration == Registration.READY;
+        }
 
         boolean usable() {
-            return id != null && active;
+            return (id != null && active) || pending();
+        }
+
+        /** Tells apart two resources: by id, or by key while it waits for its registration. */
+        String identity() {
+            return id != null ? id.toString() : type + ":" + key;
         }
 
         String problem() {
             if (id == null) {
-                return type + " " + key + " is not in the fleet directory";
+                return switch (registration) {
+                    case READY -> null;
+                    case NEEDS_CARRIER -> type + " " + key + " is not in the fleet directory; send its carrier's"
+                            + " tax id to register it";
+                    case NONE -> type + " " + key + " is not in the fleet directory";
+                };
             }
             return active ? null : type + " " + key + " is inactive";
         }

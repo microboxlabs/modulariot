@@ -6,6 +6,7 @@ import type { RuleStep } from "./conversations-types";
 const api = vi.hoisted(() => ({
   useConnectionChannel: vi.fn(),
   useOrgMetaTemplates: vi.fn(() => ({ data: undefined })),
+  useConversationTemplates: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock("./conversations-api", () => api);
 

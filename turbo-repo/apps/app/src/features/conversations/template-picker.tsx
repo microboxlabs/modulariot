@@ -12,6 +12,7 @@ import { HiCheck, HiChevronDown } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ChannelIcon from "./channel-icon";
+import { useConversationTemplates } from "./conversations-api";
 import type { ConversationTemplate, MetaTemplate } from "./conversations-types";
 import { findMetaTemplate } from "./meta-template-combobox";
 import MetaTemplatePreview from "./meta-template-preview";
@@ -216,6 +217,8 @@ export default function TemplatePicker({
 }>) {
   const [query, setQuery] = useState("");
   const [hovered, setHovered] = useState<string | null>(null);
+  // The same request the editor made: a failed list is not a list without templates for the channel.
+  const { error: loadError } = useConversationTemplates();
   const current = templates.find((t) => t.key === value);
   // Only templates the channel can send; the chosen one stays listed so it can be seen and replaced.
   const usable = templates.filter(
@@ -273,9 +276,11 @@ export default function TemplatePicker({
           </ComboboxOption>
           {matches.length === 0 && (
             <p className="px-3 py-2 text-gray-500 dark:text-gray-400">
-              {usable.length === 0
-                ? tr("templateNoneForChannel", d)
-                : tr("templateNoMatch", d)}
+              {loadError && templates.length === 0
+                ? tr("templatesLoadFailed", d)
+                : usable.length === 0
+                  ? tr("templateNoneForChannel", d)
+                  : tr("templateNoMatch", d)}
             </p>
           )}
           {matches.map((t) => (

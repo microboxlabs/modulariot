@@ -4204,6 +4204,7 @@
         "templateNoMatch": "Ninguna plantilla coincide.",
         "templateNoWhatsapp": "No se envía por WhatsApp: la plantilla no tiene versión de WhatsApp.",
         "templateNoEmail": "No se envía por correo: la plantilla no tiene versión de correo.",
+        "templatesLoadFailed": "No se pudieron cargar las plantillas. Recarga la página en un momento.",
         "templateNoneForChannel": "Ninguna plantilla tiene versión para este canal. Agrégala en Comunicaciones › Plantillas.",
         "templatePreviewLabel": "Vista previa de la plantilla",
         "templateMetaNotFound": "La plantilla de Meta {name} no está en la cuenta de WhatsApp; se muestra el texto base.",

@@ -20,8 +20,8 @@ const STATUS_STYLE: Record<TripMilestone["status"], string> = {
 /** `datetime-local` value for now, in the browser's time zone. */
 function localNow() {
   const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  return now.toISOString().slice(0, 16);
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }
 
 function Detail({

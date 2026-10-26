@@ -16,8 +16,11 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -87,6 +90,22 @@ public class PgFeedStore implements FeedStore {
         return first(query(pool.get(), SELECT + SERVICE_COLUMNS + " FROM miot_trips.feed_service"
                 + " WHERE tenant_code = $1 AND feed_key = $2 AND external_code = $3" + Pg.lock(),
                 Tuple.of(tenantCode, feedKey, externalCode)), PgFeedStore::service);
+    }
+
+    @Override
+    public Map<String, FeedService.Digest> digests(String tenantCode, String feedKey,
+            Collection<String> externalCodes) {
+        if (externalCodes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, FeedService.Digest> digests = new HashMap<>();
+        query(pool.get(), SELECT + "external_code, desired_hash, last_action, open FROM miot_trips.feed_service"
+                + " WHERE tenant_code = $1 AND feed_key = $2 AND external_code = ANY($3)",
+                Tuple.tuple().addString(tenantCode).addString(feedKey)
+                        .addArrayOfString(externalCodes.toArray(String[]::new)))
+                .forEach(r -> digests.put(r.getString("external_code"), new FeedService.Digest(
+                        r.getString("desired_hash"), r.getString("last_action"), r.getBoolean("open"))));
+        return digests;
     }
 
     @Override

@@ -201,7 +201,8 @@ function actionText(a: SheetTransition["actions"][number], d: I18nRecord) {
   const name = trDynamic(`sheet.actions.${a.type ?? "other"}`, d);
   if (!a.value) return name;
   const stage = STAGE_ACTIONS.has(a.type ?? "");
-  return `${name} ${stage ? trDynamic(`sheet.stages.${a.value}`, d) : a.value}`;
+  const value = stage ? trDynamic(`sheet.stages.${a.value}`, d) : a.value;
+  return `${name} ${value}`;
 }
 
 function History({
@@ -223,7 +224,7 @@ function History({
             </div>
             <div className="font-medium text-gray-900 dark:text-gray-100">
               {t.ruleKey ?? t.matched.join(", ")}
-              {t.toStage && ` → ${trDynamic(`sheet.stages.${t.toStage}`, d)}`}
+              {t.toStage && <> → {trDynamic(`sheet.stages.${t.toStage}`, d)}</>}
             </div>
             {t.actions.length > 0 && (
               <div className="text-gray-600 dark:text-gray-400">
@@ -308,7 +309,7 @@ export default function TripSheet({
             <LiveBadge connected={live} d={d} />
             {view && (
               <Link
-                href={`/trips/${view}`}
+                href={`/${lang}/trips/${view}`}
                 className="text-sm text-primary-700 hover:underline dark:text-primary-400"
               >
                 {trDynamic(`breadcrumb.${view}`, d)}

@@ -38,6 +38,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.HexFormat;
@@ -169,6 +170,21 @@ public class FeedReconciler {
             return plan(tenantCode, actor, profile, code, desired, previous).result(true);
         }
         return applyLocked(tenantCode, actor, profile, code, desired, false);
+    }
+
+    /** The digests of the services of {@code externalCodes} that exist, by code, in one read. */
+    public Map<String, FeedService.Digest> digests(String tenantCode, String feedKey,
+            Collection<String> externalCodes) {
+        return feeds.digests(tenantCode, feedKey, externalCodes);
+    }
+
+    /**
+     * Whether a batch can skip {@code desired} without a transaction: the service is closed and {@code desired} is
+     * the state already applied. An open service still goes through {@link #accept}, which checks its trip.
+     */
+    public boolean settled(FeedService.Digest digest, FeedServiceRequest desired) {
+        return digest != null && desired != null && !digest.open() && !REPORT.equals(digest.lastAction())
+                && hash(desired).equals(digest.desiredHash());
     }
 
     /**

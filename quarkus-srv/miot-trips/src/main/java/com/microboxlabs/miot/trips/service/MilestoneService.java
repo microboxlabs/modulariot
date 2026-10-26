@@ -11,6 +11,7 @@ import com.microboxlabs.miot.trips.store.TripStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -114,6 +115,7 @@ public class MilestoneService {
         String m = milestone(milestone);
         Map<String, Object> e = evidence(evidence);
         return tx.inTransaction(() -> {
+            existing(tenantCode, tripId);
             Optional<TripMilestone> current = store.find(tenantCode, tripId, m);
             if (current.isPresent() && current.get().isConfirmed()) {
                 return new Outcome(current.get(), Result.SKIPPED);
@@ -133,7 +135,6 @@ public class MilestoneService {
     public Outcome detect(String tenantCode, String actor, UUID tripId, String milestone, String source,
             OffsetDateTime at, Map<String, Object> evidence) {
         String s = source == null || source.isBlank() ? "api" : Check.limited(source.trim(), "source", 32);
-        existing(tenantCode, tripId);
         return request(tenantCode, actor, tripId, milestone, s, at == null ? now() : utc(at), evidence);
     }
 
@@ -226,6 +227,13 @@ public class MilestoneService {
     /** Applies a confirmation from a specific notice or pending-panel row. */
     public Outcome respondToDetection(String tenantCode, String actor, UUID tripId, DetectionRef detection,
             boolean confirm, String channel, String note) {
+        return respondToDetection(tenantCode, actor, tripId, detection, confirm, channel, note, null);
+    }
+
+    /** Adds the confirmation's metadata while checking that its detection is still current. */
+    @SuppressWarnings("java:S107") // The specific-detection response with optional metadata.
+    public Outcome respondToDetection(String tenantCode, String actor, UUID tripId, DetectionRef detection,
+            boolean confirm, String channel, String note, Map<String, Object> evidence) {
         String m = milestone(detection.milestone());
         return tx.inTransaction(() -> {
             existing(tenantCode, tripId);
@@ -237,7 +245,7 @@ public class MilestoneService {
                     || !Objects.equals(current.source(), detection.source())) {
                 return new Outcome(current, Result.SKIPPED);
             }
-            return confirm ? confirm(tenantCode, actor, tripId, m, null, channel, note)
+            return confirm ? confirm(tenantCode, actor, tripId, m, null, channel, note, evidence)
                     : reject(tenantCode, actor, tripId, m, channel, note);
         });
     }
@@ -257,7 +265,7 @@ public class MilestoneService {
         }
         Map<String, Object> out = new LinkedHashMap<>(current);
         out.putAll(added);
-        return out;
+        return evidence(out);
     }
 
     /** At most 50 keys and 16 KB of JSON. */
@@ -269,7 +277,7 @@ public class MilestoneService {
             throw new IllegalArgumentException("evidence has more than " + MAX_EVIDENCE_KEYS + " keys");
         }
         evidence.keySet().forEach(k -> Check.limited(k, "evidence key", 64));
-        if (Pg.json(evidence).length() > MAX_EVIDENCE_BYTES) {
+        if (Pg.json(evidence).getBytes(StandardCharsets.UTF_8).length > MAX_EVIDENCE_BYTES) {
             throw new IllegalArgumentException("evidence is larger than 16 KB");
         }
         return evidence;

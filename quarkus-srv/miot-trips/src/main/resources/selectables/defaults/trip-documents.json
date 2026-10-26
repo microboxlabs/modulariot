@@ -1,0 +1,35 @@
+[
+  {"key": "trip_document_types", "name": {"es": "Tipos de documento del viaje", "en": "Trip document types"}, "description": {"es": "Tipos de los archivos de Multimedia de un viaje. Los del grupo «Requiere revisión» pasan por aprobación.", "en": "Types of a trip's multimedia files. Those in the \"Needs review\" group go through approval."}, "mode": "SINGLE",
+    "groups": [
+      {"key": "review", "label": {"es": "Requiere revisión", "en": "Needs review"}},
+      {"key": "plain", "label": {"es": "Sin revisión", "en": "No review"}}
+    ],
+    "options": [
+      {"value": "PROOF_OF_DELIVERY", "label": {"es": "Prueba de entrega", "en": "Proof of delivery"}, "group": "review"},
+      {"value": "PROOF_OF_PICKUP", "label": {"es": "Prueba de retiro", "en": "Proof of pickup"}, "group": "review"},
+      {"value": "PROOF_OF_LOAD_FLOOR", "label": {"es": "Prueba carga piso", "en": "Proof of load floor"}, "group": "review"},
+      {"value": "PROOF_OF_LOAD_RECEIPT", "label": {"es": "Prueba de recepción de carga", "en": "Proof of load receipt"}, "group": "review"},
+      {"value": "PICKUP_FRONT_IMAGE", "label": {"es": "Imagen delantera del retiro", "en": "Pickup front image"}, "group": "review"},
+      {"value": "PICKUP_RIGHT_IMAGE", "label": {"es": "Imagen lateral derecha del retiro", "en": "Pickup right image"}, "group": "review"},
+      {"value": "PICKUP_LEFT_IMAGE", "label": {"es": "Imagen lateral izquierda del retiro", "en": "Pickup left image"}, "group": "review"},
+      {"value": "PICKUP_REAR_IMAGE", "label": {"es": "Imagen trasera del retiro", "en": "Pickup rear image"}, "group": "review"},
+      {"value": "PICKUP_GUIDE_IMAGE", "label": {"es": "Imagen de la guía del retiro", "en": "Pickup guide image"}, "group": "review"},
+      {"value": "CARGO_MANIFEST", "label": {"es": "Carta de porte", "en": "Cargo manifest"}, "group": "plain"},
+      {"value": "OTHER", "label": {"es": "Otro", "en": "Other"}, "group": "plain"}
+    ]},
+  {"key": "trip_document_reasons", "name": {"es": "Motivos de observación de documentos", "en": "Document observation reasons"}, "description": {"es": "Motivos que se eligen al revisar un documento del viaje. Un motivo con padre se ofrece solo para ese tipo de documento.", "en": "Reasons chosen when reviewing a trip document. A reason with a parent is offered only for that document type."}, "mode": "MULTIPLE",
+    "options": [
+      {"value": "value_not_visible", "label": {"es": "Valor no visible", "en": "Value not visible"}},
+      {"value": "bad_lighting", "label": {"es": "Iluminación deficiente", "en": "Bad lighting"}},
+      {"value": "poor_image_quality", "label": {"es": "Calidad de imagen deficiente", "en": "Poor image quality"}},
+      {"value": "wrong_document", "label": {"es": "Documento incorrecto", "en": "Wrong document"}},
+      {"value": "incorrect_data", "label": {"es": "Datos incorrectos", "en": "Incorrect data"}},
+      {"value": "document_incomplete", "label": {"es": "Documento incompleto", "en": "Document incomplete"}},
+      {"value": "document_expired", "label": {"es": "Documento vencido", "en": "Document expired"}},
+      {"value": "missing_signature", "label": {"es": "Firma faltante", "en": "Missing signature"}},
+      {"value": "illegible_text", "label": {"es": "Texto ilegible", "en": "Illegible text"}},
+      {"value": "document_damaged", "label": {"es": "Documento dañado", "en": "Document damaged"}},
+      {"value": "wrong_format", "label": {"es": "Formato incorrecto", "en": "Wrong format"}},
+      {"value": "other", "label": {"es": "Otro", "en": "Other"}}
+    ]}
+]

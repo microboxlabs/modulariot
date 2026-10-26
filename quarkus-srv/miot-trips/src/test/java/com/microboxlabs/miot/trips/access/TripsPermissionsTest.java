@@ -44,6 +44,8 @@ class TripsPermissionsTest {
     private static final String TRIP_WRITE = TripsAccessCatalog.TRIP_WRITE;
     private static final String MILESTONE_CONFIRM = TripsAccessCatalog.MILESTONE_CONFIRM;
     private static final String DELIVERY_OPERATE = TripsAccessCatalog.DELIVERY_OPERATE;
+    private static final String DOCUMENT_MANAGE = TripsAccessCatalog.DOCUMENT_MANAGE;
+    private static final String DOCUMENT_REVIEW = TripsAccessCatalog.DOCUMENT_REVIEW;
     private static final String STAGE_OPERATE = TripsAccessCatalog.STAGE_OPERATE;
     private static final String ASSIGNMENT_WRITE = TripsAccessCatalog.ASSIGNMENT_WRITE;
     private static final String LOCATION_WRITE = TripsAccessCatalog.LOCATION_WRITE;
@@ -122,6 +124,15 @@ class TripsPermissionsTest {
             Map.entry("OrgTripDeliveriesResource.upload", DELIVERY_OPERATE),
             Map.entry("OrgTripDeliveriesResource.confirm", DELIVERY_OPERATE),
             Map.entry("OrgTripDeliveriesResource.reject", DELIVERY_OPERATE),
+            Map.entry("OrgTripDocumentsResource.list", VIEW),
+            Map.entry("OrgTripDocumentsResource.catalog", VIEW),
+            Map.entry("OrgTripDocumentsResource.content", VIEW),
+            Map.entry("OrgTripDocumentsResource.reviews", VIEW),
+            Map.entry("OrgTripDocumentsResource.upload", DOCUMENT_MANAGE),
+            Map.entry("OrgTripDocumentsResource.replace", DOCUMENT_MANAGE),
+            Map.entry("OrgTripDocumentsResource.change", DOCUMENT_MANAGE),
+            Map.entry("OrgTripDocumentsResource.delete", DOCUMENT_MANAGE),
+            Map.entry("OrgTripDocumentsResource.review", DOCUMENT_REVIEW),
             Map.entry("OrgTripMilestonesResource.confirm", MILESTONE_CONFIRM),
             Map.entry("OrgTripMilestonesResource.detect", MILESTONE_CONFIRM),
             Map.entry("OrgTripMilestonesResource.list", VIEW),
@@ -162,10 +173,10 @@ class TripsPermissionsTest {
 
         assertTrue(viewer.contains(VIEW) && !viewer.contains(STAGE_OPERATE));
         assertTrue(operator.containsAll(Set.of(VIEW, STAGE_OPERATE, CARGO_OPERATE, ASSIGNMENT_WRITE,
-                DELIVERY_OPERATE)));
+                DELIVERY_OPERATE, DOCUMENT_MANAGE, DOCUMENT_REVIEW)));
         assertTrue(!operator.contains(MANDATE_WRITE) && !operator.contains(TRIP_WRITE));
         assertTrue(maintainer.containsAll(Set.of(VIEW, MANDATE_WRITE, CARGO_OPERATE, TRIP_WRITE, STAGE_OPERATE,
-                ASSIGNMENT_WRITE, LOCATION_WRITE, FEED_WRITE, DELIVERY_OPERATE)));
+                ASSIGNMENT_WRITE, LOCATION_WRITE, FEED_WRITE, DELIVERY_OPERATE, DOCUMENT_MANAGE, DOCUMENT_REVIEW)));
         assertTrue(!maintainer.contains(FEED_ADMIN), "a feed's service account cannot change the feed's rules");
         assertTrue(!maintainer.contains(MONITOR_ADMIN), "a feed's service account cannot change the monitors");
     }

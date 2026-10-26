@@ -34,4 +34,6 @@ public interface DeliveryStore {
     List<Delivery.Proof> proofs(String tenantCode, UUID tripId);
 
     Delivery.Proof insert(Delivery.Proof proof);
+
+    void deleteProof(String tenantCode, UUID proofId);
 }

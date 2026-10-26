@@ -10,6 +10,8 @@ import { useCompactViewPreference } from "@/features/shipping/hooks/use-compact-
 import { useLaneViewState } from "@/features/shipping/hooks/use-lane-view-state";
 import { useTripsBoard, type BoardViewKey } from "./board-api";
 import { TripLane } from "./trip-lane";
+import { LiveBadge } from "./live-badge";
+import { useBoardEvents } from "./use-board-events";
 
 /** One page of the trips board: the lanes of `view`, refreshed every 30 seconds. */
 export default function TripsBoard({
@@ -25,6 +27,7 @@ export default function TripsBoard({
 }>) {
   const searchParams = useSearchParams();
   const { data, error, isLoading } = useTripsBoard(view, searchParams);
+  const live = useBoardEvents();
   const [compact, setCompact] = useCompactViewPreference(false);
   const { getLaneState, updateLaneState } = useLaneViewState();
   const total = data?.lanes.reduce((sum, lane) => sum + lane.count, 0) ?? 0;
@@ -38,7 +41,8 @@ export default function TripsBoard({
         filterDict={general}
         lang={lang}
         rightContent={
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <LiveBadge connected={live} d={d} />
             {data && (
               <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2.5 py-[3px] text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                 {tr("count", d, { count: String(total) })}

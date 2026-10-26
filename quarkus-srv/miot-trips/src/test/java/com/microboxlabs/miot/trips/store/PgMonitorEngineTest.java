@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +33,7 @@ import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.dto.BoardView;
 import com.microboxlabs.miot.trips.dto.TripSheet;
+import com.microboxlabs.miot.trips.service.BoardEvents;
 import com.microboxlabs.miot.trips.service.BoardService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.TripBoard;
@@ -654,6 +656,43 @@ class PgMonitorEngineTest {
         assertTrue(sheet.transitions().stream().anyMatch(x -> "left".equals(x.ruleKey())));
         assertNull(sheet.feed(), "a trip made by hand has no feed row");
         assertThrows(java.util.NoSuchElementException.class, () -> board.sheet(tenant, UUID.randomUUID()));
+    }
+
+
+    private static void until(java.util.function.BooleanSupplier done, Runnable each) throws InterruptedException {
+        for (int i = 0; i < 100 && !done.getAsBoolean(); i++) {
+            each.run();
+            Thread.sleep(100);
+        }
+        assertTrue(done.getAsBoolean(), "timed out");
+    }
+
+    @Test
+    void aCommittedChangeReachesItsTenantsStreamAndARolledBackOneDoesNot() throws InterruptedException {
+        BoardEvents events = new BoardEvents(() -> pool, vertx, true);
+        events.start();
+        List<String> got = new CopyOnWriteArrayList<>();
+        var subscription = events.stream(tenant).filter(c -> "trip".equals(c.type()))
+                .subscribe().with(c -> got.add(c.tripId()));
+        try {
+            until(() -> got.contains("probe"), () -> BoardChannel.touched(pool, tenant, "probe"));
+
+            String trip = newTrip(null, null).id();
+            until(() -> got.contains(trip), () -> { });
+
+            assertThrows(IllegalStateException.class, () -> tx.inTransaction(() -> {
+                BoardChannel.touched(pool, tenant, "rolled-back");
+                throw new IllegalStateException("rollback");
+            }));
+            BoardChannel.touched(pool, "other-tenant", "elsewhere");
+            BoardChannel.touched(pool, tenant, "after");
+            until(() -> got.contains("after"), () -> { });
+            assertFalse(got.contains("rolled-back"), "a rolled-back change sends no notice");
+            assertFalse(got.contains("elsewhere"), "another tenant's change stays there");
+        } finally {
+            subscription.cancel();
+            events.stop();
+        }
     }
 
 }

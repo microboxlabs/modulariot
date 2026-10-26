@@ -92,3 +92,46 @@ async function buildHeaders(
   }
   return headers;
 }
+
+/**
+ * Relays a server-sent events stream from the StreamHub modulith with the
+ * user's session. The upstream body is passed through as it arrives; the
+ * upstream request ends when the browser disconnects (`signal`).
+ */
+export async function streamFromStreamhubModulith(
+  path: string,
+  signal: AbortSignal
+): Promise<Response> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const baseUrl =
+    process.env.MIOT_STREAMHUB_API_URL?.replace(/\/$/, "") ||
+    modulithHost().replace(/\/$/, "");
+  if (!baseUrl) {
+    return NextResponse.json(
+      { error: "MIOT_STREAMHUB_API_URL is not configured" },
+      { status: 500 }
+    );
+  }
+  const headers = await buildHeaders(session, true);
+  const upstream = await fetch(`${baseUrl}${path}`, {
+    headers: { ...headers, Accept: "text/event-stream" },
+    cache: "no-store",
+    signal,
+  });
+  if (!upstream.ok || !upstream.body) {
+    return NextResponse.json(
+      { error: `Upstream stream failed: HTTP ${upstream.status}` },
+      { status: upstream.status === 200 ? 502 : upstream.status }
+    );
+  }
+  return new Response(upstream.body, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
+}

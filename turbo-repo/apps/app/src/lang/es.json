@@ -5151,6 +5151,10 @@
           "invoke": "Ejecutar proceso",
           "other": "Acción"
         }
+      },
+      "live": {
+        "on": "En vivo",
+        "off": "Actualiza cada 30 s"
       }
     }
   },

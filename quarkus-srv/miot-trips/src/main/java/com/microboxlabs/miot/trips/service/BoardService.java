@@ -90,7 +90,7 @@ public class BoardService {
         OffsetDateTime now = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
         Map<String, Integer> counts = new LinkedHashMap<>();
         List.of(TripBoard.PLANNING, TripBoard.DISPATCH, TripBoard.DELIVERY).forEach(v -> counts.put(v, 0));
-        for (BoardRow row : board.open(tenantCode, null)) {
+        for (BoardRow row : board.openForCounts(tenantCode)) {
             String lane = TripBoard.lane(row, now);
             TripBoard.LANES.forEach((view, lanes) -> {
                 if (counts.containsKey(view) && lanes.contains(lane)) {

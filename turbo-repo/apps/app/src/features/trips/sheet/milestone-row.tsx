@@ -35,6 +35,7 @@ function Detail({
   d: I18nRecord;
   lang: string;
 }>) {
+  const confirmedChannel = trDynamic(`sheet.channels.${m.channel ?? "api"}`, d);
   const rows: [string, string | null][] = [
     ["sheet.planned", shortTime(planned, lang)],
     [
@@ -46,7 +47,7 @@ function Detail({
     [
       "sheet.confirmed",
       m.confirmedAt
-        ? `${shortTime(m.confirmedAt, lang)} · ${trDynamic(`sheet.channels.${m.channel ?? "api"}`, d)}`
+        ? `${shortTime(m.confirmedAt, lang)} · ${confirmedChannel}`
         : null,
     ],
   ];

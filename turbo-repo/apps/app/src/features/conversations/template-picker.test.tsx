@@ -138,10 +138,11 @@ describe("TemplatePicker", () => {
     );
     await userEvent.click(screen.getByLabelText("Plantilla"));
     expect(
-      screen.getByText(
+      screen.getAllByText(
         "No se pudieron cargar las plantillas. Recarga la página en un momento."
       )
-    ).toBeInTheDocument();
+    ).toHaveLength(2);
+    expect(screen.queryByText("Ninguna plantilla coincide.")).toBeNull();
     expect(screen.queryByText(/Ninguna plantilla tiene versión/)).toBeNull();
     list.error = undefined;
   });

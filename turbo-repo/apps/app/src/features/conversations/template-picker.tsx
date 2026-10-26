@@ -320,9 +320,7 @@ export default function TemplatePicker({
               d={d}
             />
           ) : (
-            <p className="text-gray-500 dark:text-gray-400">
-              {tr("templateNoMatch", d)}
-            </p>
+            <p className="text-gray-500 dark:text-gray-400">{emptyMessage}</p>
           )}
         </div>
       </ComboboxOptions>

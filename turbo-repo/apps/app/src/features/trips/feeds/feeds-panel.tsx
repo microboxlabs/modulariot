@@ -19,7 +19,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useTripsPermission } from "../monitors/monitors-api";
 import { PlanEditor } from "../monitors/plan-params";
-import { keyFromName } from "../monitors/monitor-list";
+import { keyFromName } from "../key-from-name";
 import {
   FEED_ADMIN,
   FEED_RESOURCES,

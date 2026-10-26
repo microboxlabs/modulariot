@@ -37,6 +37,7 @@ import LocationsPanel from "../locations/locations-panel";
 import PendingPanel from "../milestones/pending-panel";
 import FeedsPanel from "../feeds/feeds-panel";
 import { FEED_ADMIN } from "../feeds/feeds-api";
+import { keyFromName } from "../key-from-name";
 import { scopeSummary } from "./scope-section";
 import {
   saveDraft,
@@ -49,18 +50,6 @@ import {
 } from "./monitors-api";
 
 const KEY = /^[a-z0-9][a-z0-9-]*$/;
-
-/** Lowercase letters, digits and dashes from a name: "Servicio directo" → "servicio-directo". */
-export function keyFromName(name: string) {
-  return name
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-/, "")
-    .replace(/-$/, "")
-    .slice(0, 64);
-}
 
 function CreateMonitorModal({
   show,

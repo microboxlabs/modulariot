@@ -22,6 +22,7 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgTripDocumentStore implements TripDocumentStore {
 
+    private static final String SELECT = "SELECT ";
     private static final String COLUMNS = """
             d.id, d.tenant_code, d.trip_id, d.content_id, d.name, d.doc_type, d.version, d.reviewable,
             d.review_status, d.reviewed_at, d.reviewed_by, d.delivery_id, c.mimetype, c.size, d.created_at,
@@ -45,7 +46,7 @@ public class PgTripDocumentStore implements TripDocumentStore {
 
     @Override
     public List<TripDocument> list(String tenantCode, UUID tripId) {
-        return query(pool.get(), "SELECT " + COLUMNS + " " + FROM
+        return query(pool.get(), SELECT + COLUMNS + " " + FROM
                 + " WHERE d.tenant_code = $1 AND d.trip_id = $2 ORDER BY d.created_at, d.id",
                 Tuple.of(tenantCode, tripId)).stream().map(PgTripDocumentStore::document).toList();
     }
@@ -55,7 +56,7 @@ public class PgTripDocumentStore implements TripDocumentStore {
         // FOR UPDATE cannot lock the nullable side of an outer join, so the row is locked first
         query(pool.get(), "SELECT 1 FROM miot_trips.trip_document WHERE tenant_code = $1 AND trip_id = $2 AND id = $3"
                 + Pg.lock(), Tuple.of(tenantCode, tripId, documentId));
-        return query(pool.get(), "SELECT " + COLUMNS + " " + FROM
+        return query(pool.get(), SELECT + COLUMNS + " " + FROM
                 + " WHERE d.tenant_code = $1 AND d.trip_id = $2 AND d.id = $3",
                 Tuple.of(tenantCode, tripId, documentId)).stream().map(PgTripDocumentStore::document).findFirst();
     }
@@ -107,7 +108,7 @@ public class PgTripDocumentStore implements TripDocumentStore {
 
     @Override
     public List<TripDocument.Review> reviews(String tenantCode, UUID documentId) {
-        return query(pool.get(), "SELECT " + REVIEW_COLUMNS + " " + """
+        return query(pool.get(), SELECT + REVIEW_COLUMNS + " " + """
                  FROM miot_trips.trip_document_review r
                  WHERE r.document_id = $2
                    AND EXISTS (SELECT 1 FROM miot_trips.trip_document d WHERE d.id = r.document_id
@@ -138,7 +139,7 @@ public class PgTripDocumentStore implements TripDocumentStore {
     }
 
     private TripDocument reread(String tenantCode, UUID id) {
-        return query(pool.get(), "SELECT " + COLUMNS + " " + FROM + " WHERE d.tenant_code = $1 AND d.id = $2",
+        return query(pool.get(), SELECT + COLUMNS + " " + FROM + " WHERE d.tenant_code = $1 AND d.id = $2",
                 Tuple.of(tenantCode, id)).stream().map(PgTripDocumentStore::document).findFirst().orElseThrow();
     }
 

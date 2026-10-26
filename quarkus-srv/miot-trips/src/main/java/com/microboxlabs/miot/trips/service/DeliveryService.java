@@ -7,6 +7,7 @@ import com.microboxlabs.miot.trips.domain.Delivery;
 import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripDocument;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.dto.DeliveryViews;
 import com.microboxlabs.miot.trips.store.DeliveryStore;
@@ -207,17 +208,17 @@ public class DeliveryService implements DeliveryReach {
      * Records a trip document as a proof of the delivery. The document keeps its content; the proof names it in its
      * metadata ({@value #DOCUMENT}). Runs inside the caller's transaction.
      */
-    public void linkDocument(String tenantCode, String actor, UUID tripId, UUID deliveryId, String documentId,
-            String contentId, String name, String mimetype) {
+    public void linkDocument(String tenantCode, String actor, UUID tripId, UUID deliveryId, TripDocument document) {
         Delivery d = delivery(tenantCode, tripId, deliveryId);
-        String kind = mimetype != null && mimetype.startsWith("image/") ? "photo" : "document";
+        String kind = document.mimetype() != null && document.mimetype().startsWith("image/") ? "photo" : DOCUMENT;
         Delivery.Proof proof = store.insert(new Delivery.Proof(UUID.randomUUID().toString(), d.id(), tenantCode,
-                kind, contentId, null, name, mimetype, Map.of(DOCUMENT, documentId), "ui", null, actor));
+                kind, document.contentId(), null, document.name(), document.mimetype(), Map.of(DOCUMENT, document.id()),
+                "ui", null, actor));
         Map<String, Object> details = new LinkedHashMap<>();
         details.put(DELIVERY, d.id());
         details.put("proof", proof.id());
         details.put("kind", kind);
-        details.put(DOCUMENT, documentId);
+        details.put(DOCUMENT, document.id());
         audit.log(tenantCode, actor, PROOF_ADDED, TRIP, tripId.toString(), tripId.toString(), details);
         onProof(tenantCode, actor, tripId, d, "ui");
     }

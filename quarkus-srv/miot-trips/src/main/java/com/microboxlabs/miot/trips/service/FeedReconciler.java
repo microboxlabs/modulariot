@@ -541,11 +541,9 @@ public class FeedReconciler {
         }
         List<FeedProfile.StagePlan> planned = profile.stages();
         plan.step("create trip with stages " + planned.stream().map(FeedProfile.StagePlan::stageType).toList(), () -> {
-            List<StageRequest> stageRequests = planned.stream().map(s -> new StageRequest(s.stageType(),
-                    s.serviceStatus(), null, null, s.stageType().equals(profile.arrivalStage()) ? plannedEnd : null,
-                    null)).toList();
+            List<StageRequest> stages = stageRequests(profile, plannedEnd);
             TripRequest request = new TripRequest(plan.locationId(origin),
-                    plan.locationId(destination), plannedStart, List.of(plan.mandateId), stageRequests,
+                    plan.locationId(destination), plannedStart, List.of(plan.mandateId), stages,
                     context.regularized() ? null : profile.monitor());
             TripView created = context.regularized() ? trips.createRegularized(tenantCode, actor, request)
                     : trips.create(tenantCode, actor, request);
@@ -563,6 +561,11 @@ public class FeedReconciler {
                 mandate == null || cargo == null ? List.of()
                         : cargo.listByMandate(tenantCode, UUID.fromString(mandate.id())),
                 d.cargo(), Set.of());
+    }
+
+    private static List<StageRequest> stageRequests(FeedProfile profile, OffsetDateTime plannedEnd) {
+        return profile.stages().stream().map(s -> new StageRequest(s.stageType(), s.serviceStatus(), null, null,
+                s.stageType().equals(profile.arrivalStage()) ? plannedEnd : null, null)).toList();
     }
 
     private void planSla(Plan plan, String tenantCode, String actor, Mandate mandate, Integer minutes) {

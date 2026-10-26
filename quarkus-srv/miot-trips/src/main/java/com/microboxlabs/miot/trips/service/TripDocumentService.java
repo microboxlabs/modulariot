@@ -109,8 +109,7 @@ public class TripDocumentService {
                     actor));
             contents.owner(tenantCode, UUID.fromString(c.id()), owner(id));
             if (deliveryId != null) {
-                deliveries.linkDocument(tenantCode, actor, tripId, deliveryId, id, c.id(), created.name(),
-                        created.mimetype());
+                deliveries.linkDocument(tenantCode, actor, tripId, deliveryId, created);
             }
             log(tenantCode, actor, ADDED, tripId, created, Map.of("type", created.docType()));
             return created;

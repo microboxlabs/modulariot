@@ -13,7 +13,7 @@ import java.util.NoSuchElementException;
 import java.util.function.BiFunction;
 
 /**
- * The organization's {@value #TYPES} and {@value #REASONS} lists in Ajustes › Seleccionables. A type in the
+ * The organization's {@value #TYPE_LIST} and {@value #REASON_LIST} lists in Ajustes › Seleccionables. A type in the
  * {@value #REVIEW_GROUP} group needs review. A reason with a parent is offered only for that type. {@value #RESOURCE}
  * only seeds the lists.
  */
@@ -21,8 +21,8 @@ import java.util.function.BiFunction;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class TripDocumentLists implements SelectableDefaults {
 
-    public static final String TYPES = "trip_document_types";
-    public static final String REASONS = "trip_document_reasons";
+    public static final String TYPE_LIST = "trip_document_types";
+    public static final String REASON_LIST = "trip_document_reasons";
     public static final String REVIEW_GROUP = "review";
     static final String RESOURCE = "/selectables/defaults/trip-documents.json";
     static final int MAX_OPTIONS = 200;
@@ -47,11 +47,11 @@ public class TripDocumentLists implements SelectableDefaults {
 
     /** The organization's document types. {@link NoSuchElementException} when it has no such list. */
     public List<SelectableOption> types(String tenantCode) {
-        return options(tenantCode, TYPES);
+        return options(tenantCode, TYPE_LIST);
     }
 
     public List<SelectableOption> reasons(String tenantCode) {
-        return options(tenantCode, REASONS);
+        return options(tenantCode, REASON_LIST);
     }
 
     /** The type as the organization lists it; {@link IllegalArgumentException} for one it does not list. */

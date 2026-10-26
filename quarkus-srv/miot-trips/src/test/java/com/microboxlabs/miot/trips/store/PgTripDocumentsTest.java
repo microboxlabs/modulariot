@@ -94,7 +94,7 @@ class PgTripDocumentsTest {
     private final DeliveryService deliveries = new DeliveryService(new PgDeliveryStore(() -> pool),
             new PgTripStore(() -> pool), new PgMonitorRunStore(() -> pool), monitorStore, contents, audit, tx);
     private final TripDocumentService documents = new TripDocumentService(new PgTripDocumentStore(() -> pool),
-            new PgTripStore(() -> pool), contents, new TripDocumentLists((tenant, key) -> LISTS.stream()
+            new PgTripStore(() -> pool), contents, new TripDocumentLists((code, key) -> LISTS.stream()
                     .filter(l -> l.key().equals(key)).findFirst().orElseThrow().options()),
             deliveries, audit, tx);
 
@@ -217,7 +217,7 @@ class PgTripDocumentsTest {
         TripDocument photo = upload(tripId, "PICKUP_FRONT_IMAGE", null, "front.jpg", "image/jpeg", JPEG);
         UUID id = UUID.fromString(photo.id());
         TripDocumentLists customLists = new TripDocumentLists((t, key) -> {
-            if (TripDocumentLists.REASONS.equals(key)) {
+            if (TripDocumentLists.REASON_LIST.equals(key)) {
                 return List.of(
                         com.microboxlabs.miot.core.selectable.SelectableOption.of("disabled", "Disabled", "Disabled").asDisabled(),
                         com.microboxlabs.miot.core.selectable.SelectableOption.of("pickup", "Pickup", "Pickup").withParent("PROOF_OF_PICKUP"));

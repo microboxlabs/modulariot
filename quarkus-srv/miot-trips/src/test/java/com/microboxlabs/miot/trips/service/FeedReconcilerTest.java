@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -215,6 +216,27 @@ class FeedReconcilerTest {
                 .map(com.microboxlabs.miot.trips.dto.FeedBatchResult.Refusal::externalCode).toList());
     }
 
+    @Test
+    void aBatchSkipsAClosedUnchangedServiceWithoutATransaction() {
+        FeedServiceRequest request = desired(null, List.of());
+        feeds.saved = new FeedService("test", "test-feed", "S-1", "{}", reconciler.hash(request), null, null, false,
+                FeedReconciler.SKIP, null, null, null);
+        FeedBatchService batch = new FeedBatchService(reconciler, (tenant, feed, specs) -> {
+            throw new AssertionError("nothing to queue");
+        });
+        int before = tx.outerTransactions;
+
+        var result = batch.send("test", "test", "test-feed", new com.microboxlabs.miot.trips.dto.FeedBatchRequest(
+                "test-batch", List.of(new com.microboxlabs.miot.trips.dto.FeedBatchRequest.Item("S-1", request))));
+
+        assertEquals(List.of("S-1"), result.unchanged());
+        assertEquals(before, tx.outerTransactions, "a settled service opens no transaction");
+        assertFalse(reconciler.settled(new FeedService.Digest(reconciler.hash(request), FeedReconciler.SKIP, true),
+                request), "an open service still goes through accept, which checks its trip");
+        assertFalse(reconciler.settled(new FeedService.Digest(reconciler.hash(request), FeedReconciler.REPORT, false),
+                request), "a reported service is resent");
+    }
+
     private static class TestTransactions implements Transactions {
         private int depth;
         private int outerTransactions;
@@ -256,6 +278,11 @@ class FeedReconcilerTest {
                 saved = new FeedService(tenant, key, code, "{}", "", null, null, true, null, null, null, null);
             }
             return saved;
+        }
+        public Map<String, FeedService.Digest> digests(String tenant, String key,
+                java.util.Collection<String> codes) {
+            return saved == null || !codes.contains(saved.externalCode()) ? Map.of() : Map.of(saved.externalCode(),
+                    new FeedService.Digest(saved.desiredHash(), saved.lastAction(), saved.open()));
         }
         public void saveService(FeedService value) {
             assertTrue(tx.depth > 0, "outcomes must be saved before releasing the service lock");

@@ -479,6 +479,14 @@ class PgFeedReconcilerTest {
             assertTrue(result.refused().isEmpty());
             assertFalse(feeds.service(tenant, FEED, code).orElseThrow().open());
             assertEquals(FeedReconciler.SKIP, feeds.service(tenant, FEED, code).orElseThrow().lastAction());
+
+            var digests = feeds.digests(tenant, FEED, List.of(code, "TEST-MISSING"));
+            assertEquals(new FeedService.Digest(feeds.service(tenant, FEED, code).orElseThrow().desiredHash(),
+                    FeedReconciler.SKIP, false), digests.get(code));
+            assertFalse(digests.containsKey("TEST-MISSING"));
+            FeedBatchResult settled = batches.send(tenant, ACTOR, FEED,
+                    new FeedBatchRequest("test-settled", List.of(new FeedBatchRequest.Item(code, desired))));
+            assertEquals(List.of(code), settled.unchanged(), "a closed, unchanged service is skipped from the digest");
         }
         assertTrue(queued.isEmpty());
     }

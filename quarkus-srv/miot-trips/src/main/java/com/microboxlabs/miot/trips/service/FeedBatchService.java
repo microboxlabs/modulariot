@@ -2,20 +2,23 @@ package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
+import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.dto.FeedBatchRequest;
 import com.microboxlabs.miot.trips.dto.FeedBatchResult;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * A feed's batch: each service whose desired state changed is kept as its latest state and queued as one async job
  * ({@code trips_feed_service}); the job applies the latest state, so jobs of one service never apply an older one.
- * Unchanged services are skipped. Errors land on the job (console, retry, park notifications), not on the batch.
+ * Unchanged services are skipped; closed ones without a transaction, from one read of the batch's hashes. Errors land on the job (console, retry, park notifications), not on the batch.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -45,6 +48,7 @@ public class FeedBatchService {
         }
         String batchId = body == null || body.batchId() == null || body.batchId().isBlank()
                 ? UUID.randomUUID().toString() : Check.limited(body.batchId().trim(), BATCH_ID, 64);
+        Map<String, FeedService.Digest> digests = reconciler.digests(tenantCode, feedKey, codes(items));
         List<String> queued = new ArrayList<>();
         List<String> unchanged = new ArrayList<>();
         List<FeedBatchResult.Refusal> refused = new ArrayList<>();
@@ -52,6 +56,10 @@ public class FeedBatchService {
             FeedBatchRequest.Item item = items.get(index);
             String code = item == null || item.externalCode() == null ? "" : item.externalCode().trim();
             try {
+                if (reconciler.settled(digests.get(code), item == null ? null : item.desired())) {
+                    unchanged.add(code);
+                    continue;
+                }
                 if (!queue.acceptAndQueue(tenantCode, feedKey, spec(feedKey, code, actor, batchId),
                         () -> reconciler.accept(tenantCode, feedKey, code, item == null ? null : item.desired()))) {
                     unchanged.add(code);
@@ -63,6 +71,16 @@ public class FeedBatchService {
             }
         }
         return new FeedBatchResult(batchId, items.size(), queued, unchanged, refused);
+    }
+
+    private static Set<String> codes(List<FeedBatchRequest.Item> items) {
+        Set<String> codes = new HashSet<>();
+        for (FeedBatchRequest.Item item : items) {
+            if (item != null && item.externalCode() != null && !item.externalCode().isBlank()) {
+                codes.add(item.externalCode().trim());
+            }
+        }
+        return codes;
     }
 
     private static List<FeedBatchRequest.Item> items(FeedBatchRequest body) {

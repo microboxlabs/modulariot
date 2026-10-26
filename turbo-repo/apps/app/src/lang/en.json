@@ -5062,6 +5062,10 @@
         "arrival_pending": "Arrival to confirm",
         "closure_pending": "Monitoring closure",
         "to_deliver": "To deliver",
+        "delivery_pending": "POD to confirm",
+        "delivered": "Delivered",
+        "accepted": "Accepted",
+        "settled": "Settled",
         "completed": "Completed",
         "regularized": "Regularized",
         "cancelled": "Cancelled"
@@ -5074,7 +5078,8 @@
         "noTruck": "No truck",
         "noDriver": "No driver",
         "overdue": "Milestone overdue",
-        "arrived": "Arrived"
+        "arrived": "Arrived",
+        "delivered": "{done}/{loads} delivered"
       },
       "milestone": {
         "presentation": "Presentation",
@@ -5168,7 +5173,31 @@
           "other": "Action"
         },
         "teamOnly": "Only the assigned team confirms this milestone.",
-        "evidence": "Data received"
+        "evidence": "Data received",
+        "deliveries": {
+          "title": "Deliveries",
+          "none": "No deliveries yet.",
+          "new": "New delivery",
+          "create": "Create delivery",
+          "cancel": "Cancel",
+          "customer": "Customer",
+          "reference": "Reference",
+          "loads": "Loads",
+          "noCustomer": "No customer",
+          "wholeTrip": "Whole trip",
+          "confirm": "Confirm",
+          "upload": "Upload POD",
+          "kind": "Proof type",
+          "file": "File",
+          "completes": "{step} completes the trip",
+          "pendingLoads": "Loads without a delivery: {codes}",
+          "kinds": {
+            "signature": "Signature",
+            "photo": "Photo",
+            "document": "Document",
+            "other": "Other"
+          }
+        }
       },
       "live": {
         "on": "Live",

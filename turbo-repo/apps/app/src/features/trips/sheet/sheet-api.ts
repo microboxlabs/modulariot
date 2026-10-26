@@ -6,6 +6,7 @@ import useSWR, { mutate } from "swr";
 import { tripsRequest } from "../monitors/monitors-api";
 import type { BoardCard } from "../board/board-api";
 import type { TripMilestone } from "../milestones/milestones-api";
+import type { TripDeliveries } from "../deliveries/deliveries-api";
 
 export interface SheetStage {
   id: string;
@@ -50,6 +51,7 @@ export interface TripSheet {
   confirmers: Partial<Record<TripMilestone["milestone"], string>>;
   transitions: SheetTransition[];
   feed: SheetFeed | null;
+  deliveries: TripDeliveries | null;
 }
 
 const API = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/trips`;

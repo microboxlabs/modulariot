@@ -135,3 +135,48 @@ export async function streamFromStreamhubModulith(
     },
   });
 }
+
+const RELAYED_HEADERS = [
+  "content-type",
+  "content-length",
+  "content-disposition",
+  "cache-control",
+  "x-content-type-options",
+];
+
+/**
+ * Sends a request whose body is not JSON (a multipart upload) or whose answer
+ * is a file, with the user's session, and passes the answer through as it is.
+ */
+export async function relayToStreamhubModulith(
+  path: string,
+  init: { method: string; body?: BodyInit }
+): Promise<Response> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const baseUrl =
+    process.env.MIOT_STREAMHUB_API_URL?.replace(/\/$/, "") ||
+    modulithHost().replace(/\/$/, "");
+  if (!baseUrl) {
+    return NextResponse.json(
+      { error: "MIOT_STREAMHUB_API_URL is not configured" },
+      { status: 500 }
+    );
+  }
+  const headers = await buildHeaders(session, true);
+  delete headers.Accept;
+  const upstream = await fetch(`${baseUrl}${path}`, {
+    method: init.method,
+    headers,
+    body: init.body,
+    cache: "no-store",
+  });
+  const out = new Headers();
+  for (const name of RELAYED_HEADERS) {
+    const value = upstream.headers.get(name);
+    if (value) out.set(name, value);
+  }
+  return new Response(upstream.body, { status: upstream.status, headers: out });
+}

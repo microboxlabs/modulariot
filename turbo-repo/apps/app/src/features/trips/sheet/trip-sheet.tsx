@@ -18,6 +18,7 @@ import {
   type TripSheet as Sheet,
 } from "./sheet-api";
 import { MilestoneRow } from "./milestone-row";
+import { DeliveriesPanel } from "../deliveries/deliveries-panel";
 import { LiveBadge } from "../board/live-badge";
 import { useBoardEvents } from "../board/use-board-events";
 
@@ -334,6 +335,14 @@ export default function TripSheet({
             <Head card={data.card} d={d} />
             <Milestones sheet={data} d={d} lang={lang} />
             <Resources card={data.card} d={d} />
+            {data.deliveries && (
+              <DeliveriesPanel
+                tripId={tripId}
+                data={data.deliveries}
+                d={d}
+                lang={lang}
+              />
+            )}
             <Plan stages={data.stages} d={d} lang={lang} />
             <History transitions={data.transitions} d={d} lang={lang} />
             <FeedRow feed={data.feed} d={d} lang={lang} />

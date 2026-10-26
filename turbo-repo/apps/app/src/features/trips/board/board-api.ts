@@ -40,6 +40,12 @@ export interface BoardCard {
   regularized: boolean;
   cancelReason: string | null;
   updatedAt: string | null;
+  /** How many loads reached each delivery step; null for a trip without deliveries. */
+  delivery: {
+    loads: number;
+    reached: Record<"delivered" | "accepted" | "settled", number>;
+    pending: boolean;
+  } | null;
 }
 
 export interface BoardLane {
@@ -122,6 +128,10 @@ export const LANE_VIEW: Record<string, BoardViewKey> = {
   arrival_pending: "dispatch",
   closure_pending: "dispatch",
   to_deliver: "delivery",
+  delivery_pending: "delivery",
+  delivered: "delivery",
+  accepted: "delivery",
+  settled: "delivery",
   completed: "finished",
   regularized: "finished",
   cancelled: "finished",

@@ -5062,6 +5062,10 @@
         "arrival_pending": "Llegada por confirmar",
         "closure_pending": "Cierre de monitoreo",
         "to_deliver": "Por entregar",
+        "delivery_pending": "POD por confirmar",
+        "delivered": "Entregado",
+        "accepted": "Aceptado",
+        "settled": "Liquidado",
         "completed": "Realizado",
         "regularized": "Regularizado",
         "cancelled": "Anulado"
@@ -5074,7 +5078,8 @@
         "noTruck": "Sin camión",
         "noDriver": "Sin conductor",
         "overdue": "Hito vencido",
-        "arrived": "Llegó"
+        "arrived": "Llegó",
+        "delivered": "{done}/{loads} entregadas"
       },
       "milestone": {
         "presentation": "Presentación",
@@ -5168,7 +5173,31 @@
           "other": "Acción"
         },
         "teamOnly": "Solo el equipo asignado confirma este hito.",
-        "evidence": "Datos recibidos"
+        "evidence": "Datos recibidos",
+        "deliveries": {
+          "title": "Entregas",
+          "none": "Sin entregas registradas.",
+          "new": "Nueva entrega",
+          "create": "Crear entrega",
+          "cancel": "Cancelar",
+          "customer": "Cliente",
+          "reference": "Referencia",
+          "loads": "Cargas",
+          "noCustomer": "Sin cliente",
+          "wholeTrip": "Todo el viaje",
+          "confirm": "Confirmar",
+          "upload": "Subir POD",
+          "kind": "Tipo de prueba",
+          "file": "Archivo",
+          "completes": "{step} completa el viaje",
+          "pendingLoads": "Cargas sin entrega: {codes}",
+          "kinds": {
+            "signature": "Firma",
+            "photo": "Foto",
+            "document": "Documento",
+            "other": "Otro"
+          }
+        }
       },
       "live": {
         "on": "En vivo",

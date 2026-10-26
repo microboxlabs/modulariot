@@ -662,7 +662,6 @@ class PgMonitorEngineTest {
         assertThrows(java.util.NoSuchElementException.class, () -> board.sheet(tenant, UUID.randomUUID()));
     }
 
-
     private static void until(java.util.function.BooleanSupplier done, Runnable each) throws InterruptedException {
         for (int i = 0; i < 100 && !done.getAsBoolean(); i++) {
             each.run();
@@ -699,7 +698,6 @@ class PgMonitorEngineTest {
         }
     }
 
-
     @Test
     void onlyTheMilestonesTeamConfirmsItAndOnlyPeopleAreChecked() {
         ConfirmerService confirmers = new ConfirmerService(new PgConfirmerStore(() -> pool), monitors, audit, tx);
@@ -724,6 +722,91 @@ class PgMonitorEngineTest {
         confirmers.save(tenant, ACTOR, DIRECT, Map.of(), Set.of(ops));
         confirmers.require(tenant, trip, "departure", Set.of(other));
         assertEquals(Map.of(), confirmers.ofTrip(tenant, trip));
+    }
+
+    @Test
+    void finishedBoardCountsEveryTripButReturnsOneCardPerLane() {
+        TripView cancelled = newTrip(null, null);
+        trips.cancel(tenant, ACTOR, id(cancelled), "test cancellation");
+        for (int i = 0; i < 4; i++) {
+            TripView trip = newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
+            engine.signal(tenant, "gps", id(trip), "left_origin", "17", null);
+            engine.signal(tenant, "gps", id(trip), "entered_destination", "42", null);
+        }
+
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
+                milestones, runs, new PgConfirmerStore(() -> pool));
+        BoardView view = board.view(tenant, TripBoard.FINISHED, null, null, null, 1);
+        BoardView.Lane completed = view.lanes().stream()
+                .filter(lane -> TripBoard.COMPLETED.equals(lane.key())).findFirst().orElseThrow();
+        BoardView.Lane cancelledLane = view.lanes().stream()
+                .filter(lane -> TripBoard.CANCELLED.equals(lane.key())).findFirst().orElseThrow();
+        assertEquals(4, completed.count());
+        assertEquals(1, completed.cards().size());
+        assertEquals(1, cancelledLane.count());
+        assertEquals(List.of(cancelled.id()), cancelledLane.cards().stream().map(BoardView.Card::tripId).toList());
+    }
+
+    @Test
+    void cancelledBoardKeepsTheRunningLabelAndSearchesItsFinalResources() {
+        TripView trip = newTrip(DIRECT, null);
+        UUID tripId = id(trip);
+        engine.signal(tenant, "gps", tripId, "left_origin", null, null);
+        Pg.query(pool, """
+                UPDATE miot_trips.stage SET service_status = 'En route'
+                WHERE tenant_code = $1 AND subject_type = 'trip' AND subject_id = $2
+                  AND stage_type = 'transit' AND version_of IS NULL
+                """, Tuple.of(tenant, tripId));
+
+        UUID carrierId = UUID.randomUUID();
+        UUID truckId = UUID.randomUUID();
+        UUID trailerId = UUID.randomUUID();
+        UUID oldDriverId = UUID.randomUUID();
+        UUID driverId = UUID.randomUUID();
+        UUID secondDriverId = UUID.randomUUID();
+        Pg.query(pool, "INSERT INTO miot_fleet.carrier (id, tenant_code, legal_name) VALUES ($1, $2, $3)",
+                Tuple.of(carrierId, tenant, "Sample Carrier"));
+        Pg.query(pool, """
+                INSERT INTO miot_fleet.truck (id, tenant_code, carrier_id, license_plate)
+                VALUES ($1, $2, $3, $4)
+                """, Tuple.of(truckId, tenant, carrierId, "ZZ-321"));
+        Pg.query(pool, """
+                INSERT INTO miot_fleet.trailer (id, tenant_code, carrier_id, license_plate)
+                VALUES ($1, $2, $3, $4)
+                """, Tuple.of(trailerId, tenant, carrierId, "TR-987"));
+        Pg.query(pool, """
+                INSERT INTO miot_fleet.driver (id, tenant_code, rut, full_name)
+                VALUES ($1, $2, $3, $4), ($5, $2, $6, $7), ($8, $2, $9, $10)
+                """, Tuple.tuple().addUUID(oldDriverId).addString(tenant).addString("TEST-OLD")
+                        .addString("First Driver").addUUID(driverId).addString("TEST-NEW")
+                        .addString("Final Driver").addUUID(secondDriverId).addString("TEST-SECOND")
+                        .addString("Second Driver"));
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Pg.query(pool, """
+                INSERT INTO miot_trips.trip_resource_assignment
+                    (tenant_code, trip_id, resource_type, resource_id, valid_from, valid_to)
+                VALUES ($1, $2, 'driver', $3, $4, $5), ($1, $2, 'driver', $6, $7, NULL),
+                       ($1, $2, 'driver', $8, $9, NULL),
+                       ($1, $2, 'truck', $10, $7, NULL), ($1, $2, 'trailer', $11, $7, NULL)
+                """, Tuple.tuple().addString(tenant).addUUID(tripId).addUUID(oldDriverId)
+                        .addOffsetDateTime(now.minusHours(2)).addOffsetDateTime(now.minusHours(1))
+                        .addUUID(driverId).addOffsetDateTime(now.minusMinutes(50)).addUUID(secondDriverId)
+                        .addOffsetDateTime(now.minusMinutes(30)).addUUID(truckId).addUUID(trailerId));
+        trips.cancel(tenant, ACTOR, tripId, "test cancellation");
+
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
+                milestones, runs, new PgConfirmerStore(() -> pool));
+        for (String q : List.of("ZZ-321", "TR-987", "Final Driver", "Second Driver", "Sample Carrier")) {
+            assertEquals(List.of(trip.id()), cards(board, TripBoard.FINISHED, TripBoard.CANCELLED, q), q);
+        }
+        assertEquals(List.of(), cards(board, TripBoard.FINISHED, TripBoard.CANCELLED, "First Driver"));
+        BoardView.Card card = board.sheet(tenant, tripId).card();
+        assertEquals("En route", card.label());
+        assertEquals("Final Driver", card.driver());
+        assertEquals("Second Driver", card.secondDriver());
+        assertEquals("ZZ-321", card.truck());
+        assertEquals("TR-987", card.trailer());
+        assertEquals("Sample Carrier", card.carrier());
     }
 
 }

@@ -20,4 +20,8 @@ public record FeedService(
         String lastResult,
         OffsetDateTime lastReconciledAt,
         String appliedDesired) {
+
+    /** What a batch needs to tell whether a service changed, without its stored payloads. */
+    public record Digest(String desiredHash, String lastAction, boolean open) {
+    }
 }

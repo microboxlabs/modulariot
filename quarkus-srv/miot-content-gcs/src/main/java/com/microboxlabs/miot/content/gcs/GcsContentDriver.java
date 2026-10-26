@@ -34,7 +34,7 @@ public class GcsContentDriver implements ContentDriver {
 
     private final Supplier<Storage> storage;
     private final Optional<String> bucket;
-    private volatile Storage client;
+    private Storage client;
 
     @Inject
     GcsContentDriver(@ConfigProperty(name = "miot.content.gcs.bucket") Optional<String> bucket) {
@@ -113,17 +113,10 @@ public class GcsContentDriver implements ContentDriver {
     }
 
     /** Built on first use, so a deployment that never uses GCS needs no credentials. */
-    private Storage client() {
-        Storage c = client;
-        if (c == null) {
-            synchronized (this) {
-                c = client;
-                if (c == null) {
-                    c = storage.get();
-                    client = c;
-                }
-            }
+    private synchronized Storage client() {
+        if (client == null) {
+            client = storage.get();
         }
-        return c;
+        return client;
     }
 }

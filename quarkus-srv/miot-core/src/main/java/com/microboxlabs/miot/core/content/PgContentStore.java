@@ -46,7 +46,7 @@ public class PgContentStore implements ContentStore {
 
     @Override
     public Optional<Content> find(String tenantCode, UUID id) {
-        return query("SELECT " + COLUMNS + " FROM miot_core.content WHERE tenant_code = $1 AND id = $2",
+        return query("SELECT " + COLUMNS + " FROM miot_core.content WHERE tenant_code = $1 AND id = $2" + PgTx.lock(),
                 Tuple.of(tenantCode, id)).stream().map(PgContentStore::content).findFirst();
     }
 

@@ -167,6 +167,7 @@ function FeedModal({
               plan={body.stages}
               readOnly={busy}
               d={md}
+              emptyText={tr("stagesEmpty", d)}
               onChange={(stages) => change({ stages })}
             />
           </div>

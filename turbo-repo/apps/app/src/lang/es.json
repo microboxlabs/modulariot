@@ -3119,6 +3119,7 @@
         "keyHint": "Va en la URL de envío: …/trips/feeds/<clave>/services. No se puede cambiar después.",
         "keyTaken": "Ya existe un feed con esa clave.",
         "stages": "Etapas",
+        "stagesEmpty": "Agrega al menos una etapa.",
         "stagesHint": "Las etapas con que se crea cada viaje, en orden, con el estado del servicio que corresponde a cada una.",
         "arrivalStage": "Etapa de llegada",
         "arrivalHint": "Su fin planificado es la hora de llegada del viaje.",

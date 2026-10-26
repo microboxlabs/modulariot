@@ -3119,6 +3119,7 @@
         "keyHint": "It goes in the send URL: …/trips/feeds/<key>/services. It cannot be changed later.",
         "keyTaken": "A feed with that key already exists.",
         "stages": "Stages",
+        "stagesEmpty": "Add at least one stage.",
         "stagesHint": "The stages each trip is created with, in order, with the service status of each one.",
         "arrivalStage": "Arrival stage",
         "arrivalHint": "Its planned end is the trip's arrival time.",

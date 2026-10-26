@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.PendingMilestone;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
@@ -64,7 +65,7 @@ class MonitorContextTest {
                 new MonitorRun.Event("test", trip.id(), "plan", "resources", later, "test", Map.of()), Map.of());
         assertEquals(Map.of("id", trip.id(), "status", Trip.PLANNED), result.get("trip"),
                 "absent locations stay absent so has(trip.origin) remains false");
-        assertEquals(Map.of(), context.ofNewTrip(trip).get("trip"));
+        assertEquals(new MonitorScope.Trip(null, null, null, null), context.scopeOf(trip, null));
         assertEquals(Map.of(
                 "truck", Map.of("key", "TEST-NEW", "since", later.toInstant()),
                 "trailer", Map.of("key", "TEST-NEW", "since", later.toInstant()),

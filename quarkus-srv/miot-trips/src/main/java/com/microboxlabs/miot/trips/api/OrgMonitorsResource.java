@@ -99,6 +99,28 @@ public class OrgMonitorsResource extends OrgResourceSupport {
     }
 
     @GET
+    @Path("/scope/values")
+    @Operation(operationId = "monitorScopeValues",
+            summary = "The feeds, order types and locations a monitor's scope can name")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> scopeValues(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(monitors.scopeValues(tenant)).build());
+    }
+
+    @POST
+    @Path("/{monitorKey}/scope-check")
+    @Operation(operationId = "checkMonitorScope",
+            summary = "How a scope stands to the other published monitors: disjoint ones are left out; a duplicate"
+                    + " blocks publishing; of two nested scopes, the narrower one takes the trips in both")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> checkScope(@PathParam(ORG) String organizationId, @PathParam(KEY) String monitorKey,
+            MonitorViews.ScopeCheckRequest body) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(monitors.checkScope(tenant, monitorKey, body)).build());
+    }
+
+    @GET
     @Path("/{monitorKey}")
     @Operation(operationId = "getMonitor", summary = "A monitor's draft, newest published version and history")
     @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)

@@ -18,6 +18,8 @@ import {
   TRIGGERS,
   useCanEditMonitors,
   useMonitor,
+  useScopeCheck,
+  useScopeValues,
   type MonitorBody,
   type Rule,
   type Trigger,
@@ -25,6 +27,7 @@ import {
 import { ParamsEditor, PlanEditor } from "./plan-params";
 import RuleCard from "./rule-card";
 import { ConfirmersPanel } from "./confirmers-panel";
+import ScopeEditor from "./scope-section";
 
 function versionAttribution(
   version: {
@@ -97,6 +100,19 @@ export default function MonitorEditor({
 
   const readOnly = !canEdit || busy;
   const findings = useMemo(() => detail?.draft?.findings ?? [], [detail]);
+  const { data: scopeValues } = useScopeValues();
+  const {
+    data: savedCheck,
+    error: scopeCheckError,
+    isLoading: scopeChecking,
+  } = useScopeCheck(monitorKey, detail?.draft?.scope ?? null);
+  // Publishing waits for the check: a scope not yet checked could be a duplicate.
+  const unchecked =
+    !!detail?.draft?.scope &&
+    (!savedCheck || scopeChecking || !!scopeCheckError);
+  const duplicated =
+    savedCheck?.overlaps.some((o) => o.relation === "DUPLICATE") ?? false;
+  const publishBlocked = findings.length > 0 || duplicated || unchecked;
 
   const change = (patch: Partial<MonitorBody>) => {
     setBody((b) => (b ? { ...b, ...patch } : b));
@@ -221,12 +237,8 @@ export default function MonitorEditor({
                   <Button
                     color="blue"
                     size="sm"
-                    disabled={
-                      busy || dirty || !detail.draft || findings.length > 0
-                    }
-                    title={
-                      findings.length > 0 ? tr("publishBlocked", d) : undefined
-                    }
+                    disabled={busy || dirty || !detail.draft || publishBlocked}
+                    title={publishBlocked ? tr("publishBlocked", d) : undefined}
                     onClick={() =>
                       run(() => publishMonitor(monitorKey), tr("published", d))
                     }
@@ -277,6 +289,17 @@ export default function MonitorEditor({
                   />
                 </div>
               </div>
+            </Section>
+
+            <Section title={tr("scope.title", d)} hint={tr("scope.hint", d)}>
+              <ScopeEditor
+                monitorKey={monitorKey}
+                scope={body.scope}
+                values={scopeValues}
+                readOnly={readOnly}
+                onChange={(scope) => change({ scope })}
+                d={d}
+              />
             </Section>
 
             <div className="grid gap-4 lg:grid-cols-2">

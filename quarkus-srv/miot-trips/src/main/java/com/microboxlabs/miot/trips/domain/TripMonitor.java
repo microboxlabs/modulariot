@@ -6,7 +6,8 @@ import java.util.Map;
 
 /**
  * One version of a trip monitor: the rules that move the stages of one class of trip of a tenant, the stage plan a
- * trip gets when it is created without stages, and the parameters its rules read as {@code params.*}.
+ * trip gets when it is created without stages, the parameters its rules read as {@code params.*}, and the trips it
+ * takes ({@code scope}; when null, the monitor takes no trips).
  */
 public record TripMonitor(
         String tenantCode,
@@ -18,6 +19,7 @@ public record TripMonitor(
         List<StagePlan> plan,
         Map<String, Object> params,
         List<Rule> rules,
+        MonitorScope scope,
         OffsetDateTime createdAt,
         String createdBy,
         OffsetDateTime updatedAt,

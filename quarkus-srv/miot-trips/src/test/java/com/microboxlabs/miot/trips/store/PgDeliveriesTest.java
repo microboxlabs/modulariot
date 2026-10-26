@@ -13,6 +13,7 @@ import com.microboxlabs.miot.core.content.PgContentStore;
 import com.microboxlabs.miot.core.db.PgTransactions;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.Delivery;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateRef;
@@ -90,7 +91,7 @@ class PgDeliveriesTest {
             new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final PgMonitorRunStore runs = new PgMonitorRunStore(() -> pool);
-    private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
     private final FleetResourcesService fleet = new FleetResourcesService(
             new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool));
     private final MilestoneService milestones = new MilestoneService(new PgMilestoneStore(() -> pool),
@@ -132,7 +133,7 @@ class PgDeliveriesTest {
         monitors.saveDraft(tenant, ACTOR, "pod", new MonitorRequest("POD", null, List.of(),
                 Map.of("deliverySteps", "delivered,settled", "deliveryCompletesTrip", "settled"),
                 List.of(new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
-                        List.of(new TripMonitor.Action("start", "preparation")), 10, true))));
+                        List.of(new TripMonitor.Action("start", "preparation")), 10, true)), MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, "pod");
     }
 
@@ -292,7 +293,7 @@ class PgDeliveriesTest {
                 List.of(new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
                                 List.of(new TripMonitor.Action("start", "preparation")), 10, true),
                         new MonitorRequest.Rule("ghost-closure", null, "stage", null, "event.kind == 'closed'",
-                                List.of(new TripMonitor.Action("alert", "ghost")), 10, true))));
+                                List.of(new TripMonitor.Action("alert", "ghost")), 10, true)), new MonitorScope(List.of(), List.of("other"), List.of(), List.of())));
         monitors.publish(tenant, ACTOR, "broken-pod");
         TripView t = trips.create(tenant, ACTOR, new TripRequest(null, null, null, List.of(),
                 List.of(new StageRequest("preparation", null, null, null, null, null)), "broken-pod"));

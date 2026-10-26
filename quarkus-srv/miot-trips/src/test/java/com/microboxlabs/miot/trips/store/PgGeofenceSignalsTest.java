@@ -11,6 +11,7 @@ import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Truck;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
 import com.microboxlabs.miot.fleet.resources.store.PgResourceStore;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
@@ -79,7 +80,7 @@ class PgGeofenceSignalsTest {
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
             new PgTripStore(() -> pool), fleet, projector, audit, tx);
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
-    private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
     private final MilestoneService milestones = new MilestoneService(new PgMilestoneStore(() -> pool),
             new PgTripStore(() -> pool), audit, tx);
     private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
@@ -120,7 +121,7 @@ class PgGeofenceSignalsTest {
                                 + " && signal.geofenceId == trip.origin.geofenceId",
                         new TripMonitor.Action("advance", "transit")),
                 rule("arrival", "signal", "stage.type == 'transit' && signal.kind == 'entered_destination'",
-                        new TripMonitor.Action("completeTrip", null)))));
+                        new TripMonitor.Action("completeTrip", null))), MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, "direct");
     }
 
@@ -239,7 +240,7 @@ class PgGeofenceSignalsTest {
     void failedMonitorActionRollsBackMotorStateAndCanRetry() {
         monitors.saveDraft(tenant, ACTOR, "broken", new MonitorRequest("Test", null, List.of(), Map.of(), List.of(
                 rule("bad", "signal", "signal.kind == 'entered_origin'",
-                        new TripMonitor.Action("advance", "unloading")))));
+                        new TripMonitor.Action("advance", "unloading"))), new MonitorScope(List.of(), List.of("other"), List.of(), List.of())));
         monitors.publish(tenant, ACTOR, "broken");
         UUID tripId = tripWithTruck("TEST-RETRY");
         engine.bind(tenant, ACTOR, tripId, "broken", null);

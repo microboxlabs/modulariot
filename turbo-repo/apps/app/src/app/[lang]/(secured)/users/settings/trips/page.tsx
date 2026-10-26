@@ -4,7 +4,7 @@ import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import MonitorList from "@/features/trips/monitors/monitor-list";
 
-/** Settings › Viajes: the organization's trip monitors and their selector. */
+/** Settings › Viajes: the organization's trip monitors, each with the trips it takes. */
 export default async function TripsSettingsPage({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);

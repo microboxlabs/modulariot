@@ -90,19 +90,6 @@ public record MonitorSchema(Map<String, String> fields) {
         return new MonitorSchema(f);
     }
 
-    /** The context of a selector condition: the trip being created, before it has stages or a monitor. */
-    public static MonitorSchema selector() {
-        Map<String, String> f = new LinkedHashMap<>();
-        f.put("trip.orderType", TEXT);
-        f.put("trip.plannedStart", TIME);
-        location(f, "trip.origin");
-        location(f, "trip.destination");
-        f.put("mandates[].externalCode", TEXT);
-        f.put("mandates[].orderType", TEXT);
-        f.put("mandates[].orderRef", TEXT);
-        return new MonitorSchema(f);
-    }
-
     private static void stage(Map<String, String> f, String root) {
         f.put(root + ".type", TEXT);
         f.put(root + ".status", TEXT);

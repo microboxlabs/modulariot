@@ -185,16 +185,16 @@ class FeedReconcilerTest {
 
     @Test
     void profileStoresNormalizedStagesAndRejectsAnAbsentArrivalStage() {
-        FeedProfileService profiles = new FeedProfileService(feeds, null, audit);
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
         List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
         FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
-                "closing", null, List.of(), true));
+                "closing", List.of(), true));
         assertEquals("preparation", saved.stages().get(0).stageType());
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
-        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "transit", null, List.of(), true);
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "transit", List.of(), true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
-        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.arrivalStage(), saved.monitor(),
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.arrivalStage(),
                 java.util.Collections.singletonList(null), true);
         assertThrows(IllegalArgumentException.class,
                 () -> profiles.save("test", "test", "test-feed", nullResource));
@@ -283,7 +283,7 @@ class FeedReconcilerTest {
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
-                "closing", null, Set.of(), true, null, "test", null, "test");
+                "closing", Set.of(), true, null, "test", null, "test");
         public Optional<FeedProfile> profile(String tenant, String key) { return Optional.of(profile); }
         public List<FeedProfile> profiles(String tenant) { return List.of(profile); }
         public FeedProfile saveProfile(FeedProfile value) { return value; }

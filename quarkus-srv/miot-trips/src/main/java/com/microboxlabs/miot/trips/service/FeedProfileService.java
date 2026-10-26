@@ -1,10 +1,8 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.trips.domain.FeedProfile;
-import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
 import com.microboxlabs.miot.trips.store.FeedStore;
-import com.microboxlabs.miot.trips.store.MonitorStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -24,13 +22,11 @@ public class FeedProfileService {
     private static final Set<String> RESOURCES = Set.of("truck", "trailer", "driver");
 
     private final FeedStore feeds;
-    private final MonitorStore monitors;
     private final AuditService audit;
 
     @Inject
-    public FeedProfileService(FeedStore feeds, MonitorStore monitors, AuditService audit) {
+    public FeedProfileService(FeedStore feeds, AuditService audit) {
         this.feeds = feeds;
-        this.monitors = monitors;
         this.audit = audit;
     }
 
@@ -57,18 +53,13 @@ public class FeedProfileService {
         if (!types.contains(arrival)) {
             throw new IllegalArgumentException("arrivalStage must be a stage of the plan");
         }
-        String monitor = Check.limitedOrNull(body.monitor(), "monitor", 64);
-        if (monitor != null && monitors.versions(tenantCode, monitor).stream()
-                .noneMatch(m -> TripMonitor.PUBLISHED.equals(m.status()))) {
-            throw new IllegalArgumentException("monitor " + monitor + " has no published version");
-        }
         Set<String> required = new LinkedHashSet<>(body.requiredResources() == null
                 ? List.of("truck", "driver") : body.requiredResources());
         if (required.contains(null) || !RESOURCES.containsAll(required)) {
             throw new IllegalArgumentException("requiredResources must be among " + RESOURCES);
         }
         FeedProfile saved = feeds.saveProfile(new FeedProfile(tenantCode, key,
-                Check.required(body.name(), "name", 255), stages, arrival, monitor, required,
+                Check.required(body.name(), "name", 255), stages, arrival, required,
                 body.active() == null || body.active(), null, actor, null, actor));
         audit.log(tenantCode, actor, "feed.profile_saved", "feed", key, null, Map.of(STAGES, types.toString()));
         return saved;

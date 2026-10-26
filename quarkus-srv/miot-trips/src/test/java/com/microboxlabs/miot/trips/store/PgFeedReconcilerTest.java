@@ -20,6 +20,7 @@ import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.BoardRow;
 import com.microboxlabs.miot.trips.domain.FeedService;
@@ -167,7 +168,7 @@ class PgFeedReconcilerTest {
 
     private FeedProfile profile(List<String> stageTypes) {
         return new FeedProfile(tenant, FEED, "Servicios", stageTypes.stream()
-                .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "closing", null,
+                .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "closing",
                 new LinkedHashSet<>(List.of("truck", "driver")), true, null, ACTOR, null, ACTOR);
     }
 
@@ -283,16 +284,17 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void theProfilesMonitorRunsTheTripsTheFeedCreates() {
-        MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    void aFeedScopedMonitorRunsTheTripsTheFeedCreates() {
+        MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
         monitors.saveDraft(tenant, ACTOR, "direct", new MonitorRequest("Direct", null, List.of(), Map.of(), List.of(
                 new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
-                        List.of(new TripMonitor.Action("start", "preparation")), 10, true))));
+                        List.of(new TripMonitor.Action("start", "preparation")), 10, true)),
+                new MonitorScope(List.of(FEED), List.of(), List.of(), List.of())));
         monitors.publish(tenant, ACTOR, "direct");
-        FeedProfileService profiles = new FeedProfileService(feeds, monitorStore, audit);
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
         profiles.save(tenant, ACTOR, FEED, new FeedProfileRequest("Servicios", List.of(
                 new FeedProfile.StagePlan("preparation", "ADDED"), new FeedProfile.StagePlan("closing", "FINISHED")),
-                "closing", "direct", null, null));
+                "closing", null, null));
 
         FeedResult r = send("S-020", desired(2, 10, "ABC-123", null, "10000001"));
 
@@ -520,21 +522,17 @@ class PgFeedReconcilerTest {
 
     @Test
     void aFeedProfileIsCheckedBeforeItIsSaved() {
-        FeedProfileService profiles = new FeedProfileService(feeds, monitorStore, audit);
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
         List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
 
-        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null, null);
+        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null);
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingArrival),
                 "the arrival stage must be in the plan");
-        FeedProfileRequest unknownMonitor = new FeedProfileRequest("Nuevo", plan, "closing", "unknown", null, null);
-        assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", unknownMonitor),
-                "the monitor must have a published version");
-        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null, null);
+        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null);
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas", valid));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "closing", null, List.of("truck"), null));
-        assertNull(saved.monitor(), "no monitor: the selector picks one");
+                new FeedProfileRequest("Nuevo", plan, "closing", List.of("truck"), null));
         assertTrue(saved.active());
     }
 
@@ -613,18 +611,18 @@ class PgFeedReconcilerTest {
 
     @Test
     void reportedMilestonesRunInTripOrderAndRulesReadTheirEvidence() {
-        MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+        MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
         monitors.saveDraft(tenant, ACTOR, "reports", new MonitorRequest("Reports", null, List.of(), Map.of(), List.of(
                 new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
                         List.of(new TripMonitor.Action("start", "preparation")), 10, true),
                 new MonitorRequest.Rule("arrival-after-departure", null, "command", null,
                         "event.kind == 'arrival_confirmed' && milestones.departure.status == 'confirmed'"
                                 + " && milestones.departure.evidence.gate == 'G3'",
-                        List.of(new TripMonitor.Action("alert", "ordered")), 10, true))));
+                        List.of(new TripMonitor.Action("alert", "ordered")), 10, true)), MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, "reports");
-        new FeedProfileService(feeds, monitorStore, audit).save(tenant, ACTOR, FEED,
+        new FeedProfileService(feeds, audit).save(tenant, ACTOR, FEED,
                 new FeedProfileRequest("Reports", List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
-                        new FeedProfile.StagePlan("closing", "FINISHED")), "closing", "reports", null, null));
+                        new FeedProfile.StagePlan("closing", "FINISHED")), "closing", null, null));
         FeedServiceRequest row = withReports(desired(1, 5, "ABC-123", null, "10000001"), Map.of(
                 "arrival", new FeedServiceRequest.MilestoneReport(at(0), Map.of()),
                 "departure", new FeedServiceRequest.MilestoneReport(at(-0.2), Map.of("gate", "G3"))));
@@ -696,13 +694,11 @@ class PgFeedReconcilerTest {
 
     @Test
     void anEndedServiceWithItsActualTimesIsRecordedAsARegularizedTrip() {
-        MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+        MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
         monitors.saveDraft(tenant, ACTOR, "direct", new MonitorRequest("Direct", null, List.of(), Map.of(), List.of(
                 new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
-                        List.of(new TripMonitor.Action("alert", "created")), 10, true))));
+                        List.of(new TripMonitor.Action("alert", "created")), 10, true)), MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, "direct");
-        monitors.saveSelector(tenant, ACTOR, new MonitorViews.SelectorRequest(List.of(
-                new MonitorViews.SelectorRequest.Entry("trip.orderType == 'directo'", "direct"))));
 
         FeedResult skipped = send("S-031", desired(-12, -5, "ABC-123", null, "10000001"));
         assertEquals(FeedReconciler.SKIP, skipped.action());
@@ -720,7 +716,7 @@ class PgFeedReconcilerTest {
         assertTrue(at(-5.5).isEqual(t.actualEnd()), "and its actual closure");
         assertTrue(trip(r).assignments().stream().allMatch(a -> at(-11.5).isEqual(a.validFrom())),
                 "historical assignments begin at the actual departure");
-        assertTrue(engine.state(tenant, tripId).isEmpty(), "a regularized trip gets no monitor, not even the selector's");
+        assertTrue(engine.state(tenant, tripId).isEmpty(), "a regularized trip gets no monitor, not even one whose scope takes it");
         assertEquals(List.of(), engine.transitions(tenant, tripId, 50));
         for (String m : List.of(TripMilestone.DEPARTURE, TripMilestone.ARRIVAL, TripMilestone.CLOSURE)) {
             assertEquals(TripMilestone.CONFIRMED, milestone(r.tripId(), m).status(), m);
@@ -755,7 +751,7 @@ class PgFeedReconcilerTest {
 
         FeedProfile current = feeds.profile(tenant, FEED).orElseThrow();
         feeds.saveProfile(new FeedProfile(tenant, FEED, current.name(),
-                List.of(new FeedProfile.StagePlan("preparation", "ADDED")), "preparation", null,
+                List.of(new FeedProfile.StagePlan("preparation", "ADDED")), "preparation",
                 current.requiredResources(), true, null, ACTOR, null, ACTOR));
         FeedResult noClosing = send("S-035", withActuals(ended, at(-11), null, at(-6)));
         assertEquals(FeedReconciler.REPORT, noClosing.action());

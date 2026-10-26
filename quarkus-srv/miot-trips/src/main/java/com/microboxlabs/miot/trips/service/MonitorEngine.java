@@ -6,7 +6,7 @@ import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.MonitorRun;
-import com.microboxlabs.miot.trips.domain.MonitorSelector;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
@@ -64,6 +64,7 @@ public class MonitorEngine implements TripChanges {
     private static final String START = "start";
     private static final String STAGE = "stage";
     private static final String MONITOR = "monitor";
+    private static final String FEED = "feed";
     static final int MAX_DEPTH = 5;
     private static final Logger LOG = Logger.getLogger(MonitorEngine.class);
     private static final Set<String> STATE_ACTIONS =
@@ -625,8 +626,8 @@ public class MonitorEngine implements TripChanges {
     }
 
     /**
-     * A new trip gets the monitor it asked for, or the selector's; empty when neither gives one. A regularized trip
-     * gets none: it is recorded after it ran.
+     * A new trip gets the monitor it asked for, or the one with the narrowest scope that takes it; empty when neither
+     * gives one. A regularized trip gets none: it is recorded after it ran.
      */
     private Optional<MonitorRun.State> bindNew(Trip trip, MonitorRun.Event e) {
         if (Boolean.TRUE.equals(e.data().get(REGULARIZED))) {
@@ -634,15 +635,15 @@ public class MonitorEngine implements TripChanges {
         }
         String tenant = trip.tenantCode();
         Object asked = e.data().get(MONITOR);
-        String key = asked instanceof String s ? s : select(trip).orElse(null);
-        if (key == null) {
-            return Optional.empty();
-        }
-        Optional<TripMonitor> m = newest(tenant, key);
+        Optional<TripMonitor> m = asked instanceof String key ? newest(tenant, key)
+                : select(trip, e.data().get(FEED));
         if (m.isEmpty()) {
-            LOG.warnf("Trip %s asked for monitor %s, which has no published version", trip.id(), key);
+            if (asked instanceof String key) {
+                LOG.warnf("Trip %s asked for monitor %s, which has no published version", trip.id(), key);
+            }
             return Optional.empty();
         }
+        String key = m.get().monitorKey();
         UUID tripId = UUID.fromString(trip.id());
         MonitorRun.State state = runs.bind(tenant, tripId, key, m.get().version(), e.actor());
         if (stageStore.listBySubject(tenant, Stage.SUBJECT_TRIP, tripId).isEmpty()) {
@@ -656,19 +657,19 @@ public class MonitorEngine implements TripChanges {
         return Optional.of(state);
     }
 
-    private Optional<String> select(Trip trip) {
-        List<MonitorSelector> entries = monitors.selector(trip.tenantCode());
-        if (entries.isEmpty()) {
+    private Optional<TripMonitor> select(Trip trip, Object feed) {
+        List<TripMonitor> scoped = MonitorService.scoped(monitors.all(trip.tenantCode()), null);
+        if (scoped.isEmpty()) {
             return Optional.empty();
         }
-        Map<String, Object> ctx = context.ofNewTrip(trip);
-        for (MonitorSelector s : entries) {
-            MonitorLanguage.Result r = MonitorLanguage.evaluate(MonitorSchema.selector(), s.condition(), ctx);
-            if (r.ok() && Boolean.TRUE.equals(r.value())) {
-                return Optional.of(s.monitorKey());
-            }
+        MonitorScope.Trip facts = context.scopeOf(trip, feed instanceof String f ? f : null);
+        List<TripMonitor> taking = scoped.stream().filter(m -> m.scope().accepts(facts)).toList();
+        Optional<TripMonitor> narrowest = MonitorScope.narrowest(taking, TripMonitor::scope, facts);
+        if (narrowest.isEmpty() && taking.size() > 1) {
+            LOG.warnf("Trip %s is in the scope of %s with no narrower one; it gets no monitor", trip.id(),
+                    taking.stream().map(TripMonitor::monitorKey).toList());
         }
-        return Optional.empty();
+        return narrowest;
     }
 
     private Optional<TripMonitor> newest(String tenant, String key) {
@@ -755,6 +756,9 @@ public class MonitorEngine implements TripChanges {
         }
         if (d.get(MONITOR) != null) {
             data.put(MONITOR, d.get(MONITOR));
+        }
+        if (d.get(FEED) != null) {
+            data.put(FEED, d.get(FEED));
         }
         if (Boolean.TRUE.equals(d.get(REGULARIZED))) {
             data.put(REGULARIZED, true);

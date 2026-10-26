@@ -1,6 +1,6 @@
 package com.microboxlabs.miot.trips.dto;
 
-import com.microboxlabs.miot.trips.domain.MonitorSelector;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -15,8 +15,8 @@ public final class MonitorViews {
     /**
      * A problem in an expression of a rule; a draft with findings saves but does not publish.
      *
-     * @param ruleKey  the rule, or null for the selector
-     * @param field    {@code when} or {@code at}
+     * @param ruleKey  the rule, or null for the monitor's scope
+     * @param field    {@code when}, {@code at}, {@code then} or {@code scope}
      * @param position zero-based offset in the expression
      */
     public record Finding(String ruleKey, String field, int position, String message) {
@@ -31,6 +31,7 @@ public final class MonitorViews {
             List<TripMonitor.StagePlan> plan,
             Map<String, Object> params,
             List<TripMonitor.Rule> rules,
+            MonitorScope scope,
             OffsetDateTime updatedAt,
             String updatedBy,
             OffsetDateTime publishedAt,
@@ -39,12 +40,12 @@ public final class MonitorViews {
 
         public static Monitor of(TripMonitor m, List<Finding> findings) {
             return new Monitor(m.monitorKey(), m.version(), m.status(), m.name(), m.description(), m.plan(),
-                    m.params(), m.rules(), m.updatedAt(), m.updatedBy(), m.publishedAt(), m.publishedBy(),
+                    m.params(), m.rules(), m.scope(), m.updatedAt(), m.updatedBy(), m.publishedAt(), m.publishedBy(),
                     findings);
         }
     }
 
-    /** One row of the list: the newest name, the published and draft versions. */
+    /** One row of the list: the newest name and scope, the published and draft versions. */
     public record Summary(
             String key,
             String name,
@@ -52,6 +53,7 @@ public final class MonitorViews {
             Integer publishedVersion,
             Integer draftVersion,
             int rules,
+            MonitorScope scope,
             OffsetDateTime updatedAt,
             String updatedBy) {
     }
@@ -79,12 +81,24 @@ public final class MonitorViews {
     public record CheckResult(boolean ok, String resultType, List<Finding> findings) {
     }
 
-    public record SelectorRequest(List<Entry> entries) {
-
-        public record Entry(String condition, String monitorKey) {
-        }
+    /** How a scope stands to the published scope of another monitor. */
+    public record Overlap(String key, String name, MonitorScope.Relation relation) {
     }
 
-    public record Selector(List<MonitorSelector> entries) {
+    public record ScopeCheckRequest(MonitorScope scope) {
+    }
+
+    /** The other monitors the scope meets; a {@code DUPLICATE} blocks publishing. */
+    public record ScopeCheck(List<Overlap> overlaps) {
+    }
+
+    /** The values a scope can name. */
+    public record ScopeValues(List<Feed> feeds, List<String> orderTypes, List<Place> locations) {
+
+        public record Feed(String key, String name) {
+        }
+
+        public record Place(String id, String name, String code, String type) {
+        }
     }
 }

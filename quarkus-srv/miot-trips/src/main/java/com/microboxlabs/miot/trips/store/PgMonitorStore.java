@@ -4,7 +4,7 @@ import static com.microboxlabs.miot.trips.store.Pg.query;
 import static com.microboxlabs.miot.trips.store.Pg.time;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.microboxlabs.miot.trips.domain.MonitorSelector;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -26,13 +26,15 @@ public class PgMonitorStore implements MonitorStore {
     private static final String SELECT = "SELECT ";
 
     private static final String COLUMNS = """
-            tenant_code, monitor_key, version, status, name, description, plan, params, rules,
+            tenant_code, monitor_key, version, status, name, description, plan, params, rules, scope,
             created_at, created_by, updated_at, updated_by, published_at, published_by""";
     private static final TypeReference<List<TripMonitor.StagePlan>> PLAN = new TypeReference<>() {
     };
     private static final TypeReference<Map<String, Object>> PARAMS = new TypeReference<>() {
     };
     private static final TypeReference<List<TripMonitor.Rule>> RULES = new TypeReference<>() {
+    };
+    private static final TypeReference<MonitorScope> SCOPE = new TypeReference<>() {
     };
 
     private final Supplier<Pool> pool;
@@ -81,19 +83,20 @@ public class PgMonitorStore implements MonitorStore {
     public TripMonitor saveDraft(TripMonitor d) {
         return query(pool.get(), """
                 INSERT INTO miot_trips.trip_monitor
-                    (tenant_code, monitor_key, version, status, name, description, plan, params, rules,
+                    (tenant_code, monitor_key, version, status, name, description, plan, params, rules, scope,
                      created_by, updated_by)
                 SELECT $1::varchar, $2::varchar, COALESCE(MAX(version), 0) + 1, 'draft', $3, $4, $5::text::jsonb, $6::text::jsonb,
-                       $7::text::jsonb, $8, $8
+                       $7::text::jsonb, $9::text::jsonb, $8, $8
                 FROM miot_trips.trip_monitor WHERE tenant_code = $1 AND monitor_key = $2
                 ON CONFLICT (tenant_code, monitor_key) WHERE status = 'draft' DO UPDATE SET
                     name = EXCLUDED.name, description = EXCLUDED.description, plan = EXCLUDED.plan,
-                    params = EXCLUDED.params, rules = EXCLUDED.rules, updated_by = EXCLUDED.updated_by,
-                    updated_at = now()
+                    params = EXCLUDED.params, rules = EXCLUDED.rules, scope = EXCLUDED.scope,
+                    updated_by = EXCLUDED.updated_by, updated_at = now()
                 RETURNING\s""" + COLUMNS,
                 Tuple.tuple().addString(d.tenantCode()).addString(d.monitorKey()).addString(d.name())
                         .addString(d.description()).addString(Pg.json(d.plan())).addString(Pg.json(d.params()))
-                        .addString(Pg.json(d.rules())).addString(d.updatedBy()))
+                        .addString(Pg.json(d.rules())).addString(d.updatedBy())
+                        .addString(d.scope() == null ? null : Pg.json(d.scope())))
                 .stream().map(PgMonitorStore::monitor).findFirst().orElseThrow();
     }
 
@@ -115,30 +118,17 @@ public class PgMonitorStore implements MonitorStore {
     }
 
     @Override
-    public List<MonitorSelector> selector(String tenantCode) {
-        return query(pool.get(), "SELECT seq, condition, monitor_key FROM miot_trips.trip_monitor_selector"
-                + " WHERE tenant_code = $1 ORDER BY seq", Tuple.of(tenantCode)).stream()
-                .map(r -> new MonitorSelector(r.getInteger("seq"), r.getString("condition"),
-                        r.getString("monitor_key")))
-                .toList();
-    }
-
-    @Override
-    public void saveSelector(String tenantCode, List<MonitorSelector> entries, String actor) {
-        query(pool.get(), "DELETE FROM miot_trips.trip_monitor_selector WHERE tenant_code = $1",
-                Tuple.of(tenantCode));
-        for (MonitorSelector e : entries) {
-            query(pool.get(), """
-                    INSERT INTO miot_trips.trip_monitor_selector (tenant_code, seq, condition, monitor_key, updated_by)
-                    VALUES ($1, $2, $3, $4, $5)""",
-                    Tuple.of(tenantCode, e.seq(), e.condition(), e.monitorKey(), actor));
-        }
+    public List<String> orderTypes(String tenantCode) {
+        return query(pool.get(), "SELECT DISTINCT order_type FROM miot_trips.mandate"
+                + " WHERE tenant_code = $1 AND order_type IS NOT NULL ORDER BY order_type", Tuple.of(tenantCode))
+                .stream().map(r -> r.getString("order_type")).toList();
     }
 
     private static TripMonitor monitor(Row r) {
         return new TripMonitor(r.getString("tenant_code"), r.getString("monitor_key"), r.getInteger("version"),
                 r.getString("status"), r.getString("name"), r.getString("description"), Pg.json(r, "plan", PLAN),
-                Pg.json(r, "params", PARAMS), Pg.json(r, "rules", RULES), time(r, "created_at"),
+                Pg.json(r, "params", PARAMS), Pg.json(r, "rules", RULES),
+                Pg.json(r, "scope", SCOPE), time(r, "created_at"),
                 r.getString("created_by"), time(r, "updated_at"), r.getString("updated_by"),
                 time(r, "published_at"), r.getString("published_by"));
     }

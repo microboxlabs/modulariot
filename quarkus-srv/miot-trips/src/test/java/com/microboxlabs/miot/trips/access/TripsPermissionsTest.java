@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.access;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,6 +14,7 @@ import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.trips.api.OrgTripsAccessResource;
 import com.microboxlabs.miot.trips.api.OrgTripsResource;
+import com.microboxlabs.miot.trips.api.OrgMonitorsResource;
 import io.quarkus.security.PermissionsAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -114,8 +116,8 @@ class TripsPermissionsTest {
             Map.entry("OrgMonitorsResource.discard", MONITOR_ADMIN),
             Map.entry("OrgMonitorsResource.publish", MONITOR_ADMIN),
             Map.entry("OrgMonitorsResource.version", VIEW),
-            Map.entry("OrgMonitorSelectorResource.get", VIEW),
-            Map.entry("OrgMonitorSelectorResource.save", MONITOR_ADMIN),
+            Map.entry("OrgMonitorsResource.scopeValues", VIEW),
+            Map.entry("OrgMonitorsResource.checkScope", VIEW),
             Map.entry("OrgTripMonitorResource.get", VIEW),
             Map.entry("OrgTripDeliveriesResource.list", VIEW),
             Map.entry("OrgTripDeliveriesResource.content", VIEW),
@@ -179,6 +181,14 @@ class TripsPermissionsTest {
                 ASSIGNMENT_WRITE, LOCATION_WRITE, FEED_WRITE, DELIVERY_OPERATE, DOCUMENT_MANAGE, DOCUMENT_REVIEW)));
         assertTrue(!maintainer.contains(FEED_ADMIN), "a feed's service account cannot change the feed's rules");
         assertTrue(!maintainer.contains(MONITOR_ADMIN), "a feed's service account cannot change the monitors");
+    }
+
+    @Test
+    void theScopeCatalogCannotShadowAValidMonitorKey() throws ReflectiveOperationException {
+        String path = OrgMonitorsResource.class.getMethod("scopeValues", String.class)
+                .getAnnotation(jakarta.ws.rs.Path.class).value();
+        assertFalse(path.substring(1).matches("[a-z0-9][a-z0-9-]*"),
+                "the catalog must use a path that cannot also identify a monitor");
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.microboxlabs.miot.core.db.PgTransactions;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.core.selectable.Selectable;
 import com.microboxlabs.miot.core.selectable.SelectableDefaultsFile;
+import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.TripDocument;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
@@ -87,7 +88,7 @@ class PgTripDocumentsTest {
             new PgAssignmentStore(() -> pool), new PgTripCargoStore(() -> pool), new PgCargoStore(() -> pool),
             mandates, projector, audit, tx);
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
-    private final MonitorService monitors = new MonitorService(monitorStore, audit, tx);
+    private final MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
     private final ContentService contents = new ContentService(new PgContentStore(() -> pool),
             List.of(new FileContentDriver(files)), "fs", 1024 * 1024, ContentService.DEFAULT_TYPES,
             Duration.ofHours(24), Clock.systemUTC());
@@ -119,7 +120,7 @@ class PgTripDocumentsTest {
     void tenantWithAMonitor() {
         tenant = "t-" + UUID.randomUUID().toString().substring(0, 8);
         monitors.saveDraft(tenant, ACTOR, "pod", new MonitorRequest("POD", null, List.of(),
-                Map.of("deliverySteps", "delivered"), List.of()));
+                Map.of("deliverySteps", "delivered"), List.of(), MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, "pod");
     }
 

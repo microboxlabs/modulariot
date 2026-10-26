@@ -5,20 +5,19 @@ import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-posi
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { BoardCard } from "../board/board-api";
 
-/** The truck's positions for the trip's service code, as the GPS records them. */
+/** The truck's positions from the trip's departure until it ends. */
 export function TripMap({
   card,
   general,
 }: Readonly<{ card: BoardCard; general: I18nRecord }>) {
-  const code = card.codes[0] ?? "";
   const { positions, error, isLoading } = useTripPositions(
-    code,
+    card.tripId,
     card.truck ?? ""
   );
   return (
     <div className="h-full w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
       <MapVisualizationTrip
-        tripId={code}
+        tripId={card.codes[0] ?? ""}
         positions={positions}
         error={error}
         isLoading={isLoading}

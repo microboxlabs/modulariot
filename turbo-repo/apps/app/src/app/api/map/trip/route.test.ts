@@ -102,6 +102,19 @@ describe("GET /api/map/trip", () => {
     expect((await res.text()).split("\n\n").filter(Boolean)).toHaveLength(2);
   });
 
+  it("reads a trips-module trip from the modulith, even with the AVL API", async () => {
+    vi.stubEnv("STREAMHUB_IOT_URL", "http://avl");
+    const trip = "62920df5-094f-4ec5-ba3f-b382fe7375a7";
+    const res = await GET(
+      new NextRequest(`http://x/t?tripId=${trip}&assetId=AB12`)
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      `/api/v1/orgs/acme/control-tower/map/trips/${trip}/positions?assetId=AB12`,
+      { method: "GET", sessionOnly: true }
+    );
+    expect(res.headers.get("Content-Type")).toBe("text/event-stream");
+  });
+
   it("refuses the string null as a trip of a symptom on the GPS database", async () => {
     vi.stubEnv("STREAMHUB_IOT_URL", "");
     const res = await GET(

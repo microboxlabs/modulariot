@@ -124,12 +124,20 @@ describe("a trip milestone", () => {
       milestone({
         milestone: "validation",
         source: "wms",
-        evidence: { documents: "ok", seal: { number: 4411 } },
+        evidence: {
+          documents: "ok",
+          seal: { number: 4411 },
+          scanned: true,
+          weight: 1200,
+        },
       })
     );
     expect(screen.getByText("sheet.evidence")).toBeInTheDocument();
     expect(screen.getByText("documents")).toBeInTheDocument();
     expect(screen.getByText('{"number":4411}')).toBeInTheDocument();
+    expect(screen.getByText("ok")).toBeInTheDocument();
+    expect(screen.getByText("true")).toBeInTheDocument();
+    expect(screen.getByText("1200")).toBeInTheDocument();
   });
 
   it("shows the API's refusal", async () => {

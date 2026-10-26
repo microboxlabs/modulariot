@@ -124,6 +124,9 @@ class PgTripsStoresTest {
         pool.query("CREATE SCHEMA IF NOT EXISTS miot_core").execute().await().atMost(WAIT);
         pool.query("DROP TABLE IF EXISTS miot_core.content").execute().await().atMost(WAIT);
         migrate(pool, "/db/migration/core/V0.1.20__create_content.sql");
+        pool.query("DROP SCHEMA IF EXISTS miot_iam CASCADE").execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA miot_iam").execute().await().atMost(WAIT);
+        pool.query("CREATE TABLE miot_iam.iam_team (id UUID PRIMARY KEY)").execute().await().atMost(WAIT);
         for (int i = 0; i < count; i++) {
             migrate(pool, MIGRATIONS[i]);
         }

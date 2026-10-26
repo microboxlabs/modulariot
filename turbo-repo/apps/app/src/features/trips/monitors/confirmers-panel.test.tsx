@@ -4,13 +4,14 @@ import { ConfirmersPanel } from "./confirmers-panel";
 
 const request = vi.fn();
 const saved = { departure: "team-ops" };
+let assignmentsLoading = false;
 
 vi.mock("@/features/i18n/tr.service", () => ({
   tr: (key: string) => key,
   trDynamic: (key: string) => key,
 }));
 vi.mock("swr", () => ({
-  default: () => ({ data: saved }),
+  default: () => ({ data: assignmentsLoading ? undefined : saved }),
   mutate: vi.fn(),
 }));
 vi.mock("@/features/settings-admin/team/team-api", () => ({
@@ -28,7 +29,19 @@ vi.mock("./monitors-api", () => ({
 }));
 
 describe("who confirms a monitor's milestones", () => {
-  beforeEach(() => request.mockReset().mockResolvedValue(undefined));
+  beforeEach(() => {
+    assignmentsLoading = false;
+    request.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("cannot replace assignments before the saved assignments load", () => {
+    assignmentsLoading = true;
+    render(<ConfirmersPanel monitor="direct" canEdit d={{}} />);
+    expect(screen.getByLabelText("milestones.departure")).toBeDisabled();
+    expect(screen.getByLabelText("milestones.arrival")).toBeDisabled();
+    expect(screen.getByText("confirmers.save")).toBeDisabled();
+    expect(request).not.toHaveBeenCalled();
+  });
 
   it("saves the team chosen for each milestone and drops 'anyone'", async () => {
     render(<ConfirmersPanel monitor="direct" canEdit d={{}} />);

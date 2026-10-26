@@ -48,7 +48,11 @@ public class PgMonitorStore implements MonitorStore {
 
     @Override
     public void lock(String tenantCode, String monitorKey) {
-        query(pool.get(), "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        lockMonitor(pool.get(), tenantCode, monitorKey);
+    }
+
+    static void lockMonitor(Pool pool, String tenantCode, String monitorKey) {
+        query(pool, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
                 Tuple.of("trips-monitor:" + tenantCode.length() + ":" + tenantCode + ":" + monitorKey));
     }
 

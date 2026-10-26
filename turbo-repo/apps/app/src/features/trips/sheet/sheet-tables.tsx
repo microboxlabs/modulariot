@@ -8,8 +8,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { shortTime } from "../board/trip-card";
 import type { Milestone } from "../monitors/monitors-api";
-import type { SheetFeed, SheetTransition } from "./sheet-api";
-import type { TripSheet } from "./sheet-api";
+import type { SheetFeed, SheetTransition, TripSheet } from "./sheet-api";
 import { plannedAt } from "./milestone-checklist";
 
 const STAGE_ACTIONS = new Set(["advance", "start", "close"]);
@@ -53,6 +52,11 @@ function Movements({
   );
 }
 
+function feedValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  return JSON.stringify(value) ?? "-";
+}
+
 function Feed({
   feed,
   d,
@@ -75,13 +79,7 @@ function Feed({
   ];
   const source = Object.entries(feed.source)
     .filter(([, v]) => v !== null && v !== "")
-    .map(
-      ([k, v]) =>
-        [k, typeof v === "object" ? JSON.stringify(v) : String(v)] as [
-          string,
-          string,
-        ]
-    );
+    .map(([k, v]) => [k, feedValue(v)] as [string, string]);
   return (
     <CustomTable
       header={[tr("sheet.table.field", d), tr("sheet.table.value", d)]}

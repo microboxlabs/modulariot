@@ -2,7 +2,6 @@ package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
-import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.MandateRef;
@@ -87,9 +86,7 @@ final class MonitorContext {
         ctx.put("mandates", linked);
         ctx.put("assignments", assignments(tenant, tripId));
         ctx.put("milestones", milestones(tenant, tripId));
-        Map<String, Object> delivered = new LinkedHashMap<>();
-        DeliveryCycle.STEPS.forEach(step -> delivered.put(step, deliveries.reached(tenant, tripId, step)));
-        ctx.put("deliveries", delivered);
+        ctx.put("deliveries", deliveries.snapshot(tenant, tripId));
         ctx.put("event", event(event));
         if ("signal".equals(event.on())) {
             Map<String, Object> signal = new LinkedHashMap<>();

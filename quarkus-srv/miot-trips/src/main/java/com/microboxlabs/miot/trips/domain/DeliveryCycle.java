@@ -41,6 +41,9 @@ public record DeliveryCycle(List<String> steps, String completesTrip, boolean pr
         List<String> steps = STEPS;
         if (params.get(STEPS_PARAM) instanceof String text && !text.isBlank()) {
             steps = Arrays.stream(text.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+            if (steps.isEmpty()) {
+                throw new IllegalArgumentException(STEPS_PARAM + " must list at least one step");
+            }
             int last = -1;
             for (String s : steps) {
                 int i = STEPS.indexOf(s);

@@ -10,6 +10,8 @@ import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class DeliveryCycleTest {
 
@@ -35,6 +37,13 @@ class DeliveryCycleTest {
         assertEquals("settled", c.completesTrip());
         assertFalse(c.proofRequired());
         assertTrue(c.confirmOnProof());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {",", ", ,", " , , "})
+    void refusesAListWithNoSteps(String steps) {
+        Map<String, Object> params = Map.of("deliverySteps", steps);
+        assertThrows(IllegalArgumentException.class, () -> DeliveryCycle.of(params));
     }
 
     @Test

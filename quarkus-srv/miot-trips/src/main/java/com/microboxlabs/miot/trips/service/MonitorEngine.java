@@ -315,8 +315,7 @@ public class MonitorEngine implements TripChanges {
      */
     private void completeByDeliveries(Run run, Queued q, TripMonitor m) {
         MonitorRun.Event e = q.event();
-        if (!COMMAND.equals(e.on()) || e.kind() == null || !(CLOSURE_CONFIRMED.equals(e.kind())
-                || e.kind().startsWith(DELIVERY_PREFIX) && e.kind().endsWith(CONFIRMED_SUFFIX))) {
+        if (!changesDeliveryCompletion(e)) {
             return;
         }
         String step;
@@ -340,6 +339,7 @@ public class MonitorEngine implements TripChanges {
         action.put("type", "completeTrip");
         action.put("rule", DELIVERY_RULE);
         String error = null;
+        int queued = run.queue.size();
         try {
             PgTx.savepoint(() -> {
                 completeTrip(tenant, tripId, actor);
@@ -347,12 +347,23 @@ public class MonitorEngine implements TripChanges {
             });
             action.put("result", "done");
         } catch (RuntimeException ex) {
+            while (run.queue.size() > queued) {
+                run.queue.pollLast();
+            }
             action.put("result", "failed");
             error = DELIVERY_RULE + ": " + message(ex);
         }
         Trip after = trips.find(tenant, tripId).orElse(trip.get());
         recordTransition(run, m, q, new TransitionResult(List.of(DELIVERY_RULE), DELIVERY_RULE, from,
                 running(after), List.of(action), error));
+    }
+
+    private static boolean changesDeliveryCompletion(MonitorRun.Event event) {
+        if ("plan".equals(event.on()) && "mandates".equals(event.kind())) {
+            return true;
+        }
+        return COMMAND.equals(event.on()) && event.kind() != null && (CLOSURE_CONFIRMED.equals(event.kind())
+                || event.kind().startsWith(DELIVERY_PREFIX) && event.kind().endsWith(CONFIRMED_SUFFIX));
     }
 
     private static final class RuleEffects {

@@ -617,9 +617,13 @@ public class FeedReconciler {
     }
 
     private static boolean sameCargo(CargoUnit unit, FeedServiceRequest.CargoItem item) {
-        return Objects.equals(unit.description(), item.description()) && sameNumber(unit.qty(), item.qty())
-                && Objects.equals(unit.qtyUnit(), item.qtyUnit()) && sameNumber(unit.weightKg(), item.weightKg())
-                && sameNumber(unit.volumeM3(), item.volumeM3());
+        String description = item.description() == null || item.description().isBlank() ? unit.description()
+                : Check.required(item.description(), "description", 500);
+        return Objects.equals(unit.description(), description)
+                && (item.qty() == null || sameNumber(unit.qty(), item.qty()))
+                && Objects.equals(unit.qtyUnit(), Check.orKeep(item.qtyUnit(), unit.qtyUnit(), "qtyUnit", 32))
+                && (item.weightKg() == null || sameNumber(unit.weightKg(), item.weightKg()))
+                && (item.volumeM3() == null || sameNumber(unit.volumeM3(), item.volumeM3()));
     }
 
     private static boolean sameNumber(java.math.BigDecimal a, java.math.BigDecimal b) {

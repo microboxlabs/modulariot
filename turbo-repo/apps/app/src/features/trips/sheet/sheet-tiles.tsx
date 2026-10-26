@@ -397,7 +397,7 @@ function DriverData({
           <h3 className="mt-3 mb-2 text-sm font-normal text-gray-500 dark:text-gray-400">
             {tr("sheet.validations", d)}
           </h3>
-          <CheckList checks={driverChecks(driver, lang)} />
+          <CheckList checks={driverChecks(driver, lang)} d={d} />
         </>
       )}
     </div>
@@ -406,10 +406,10 @@ function DriverData({
 
 /** Both driver slots, from the fleet when known, else the names on the card. */
 export function sheetDrivers(card: BoardCard, details: TripDetails | null) {
-  const known = details?.drivers ?? [];
+  if (details) return [0, 1].map((i) => details.drivers[i] ?? NO_DRIVER);
   const names = [card.driver, card.secondDriver];
-  return [0, 1].map(
-    (i) => known[i] ?? (names[i] ? { ...NO_DRIVER, name: names[i] } : NO_DRIVER)
+  return [0, 1].map((i) =>
+    names[i] ? { ...NO_DRIVER, name: names[i] } : NO_DRIVER
   );
 }
 

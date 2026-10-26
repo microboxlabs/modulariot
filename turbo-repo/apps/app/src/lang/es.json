@@ -5239,6 +5239,11 @@
         },
         "validations": "Validaciones",
         "noValidations": "Sin validaciones recibidas.",
+        "checkStatus": {
+          "passed": "Aprobada",
+          "failed": "Fallida",
+          "notReported": "Sin informar"
+        },
         "leadTime": "Lead Time",
         "withSla": "{count} con SLA",
         "occupancy": "Ocupación",

@@ -237,7 +237,8 @@ public class PgBoardStore implements BoardStore {
                          JOIN miot_fleet.driver dr
                            ON dr.id = a.resource_id AND dr.tenant_code = a.tenant_code AND dr.version_of IS NULL
                         WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'driver'
-                          AND a.version_of IS NULL AND a.is_active) x
+                          AND a.version_of IS NULL AND a.is_active
+                          AND (t.status IN ('completed', 'cancelled') OR a.valid_to IS NULL)) x
                 WHERE x.n <= 2) AS drivers,
               o.type AS origin_type, d.type AS destination_type,
               c.legal_name AS carrier_name, c.rut AS carrier_rut, c.external_id AS carrier_code,

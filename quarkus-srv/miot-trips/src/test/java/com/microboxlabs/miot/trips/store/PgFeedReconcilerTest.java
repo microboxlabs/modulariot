@@ -923,6 +923,39 @@ class PgFeedReconcilerTest {
     }
 
     @Test
+    void omittedCargoValuesAndNormalizedStringsDoNotKeepUpdatingTheSameUnit() {
+        FeedResult first = withCargo.reconcile(tenant, ACTOR, FEED, "S-034",
+                loaded(600, unit("Pallet A", "1000", "2.5")), false);
+        var sparse = new FeedServiceRequest.CargoItem(" Pallet A ", null, " pallet ", null, null);
+        for (int i = 0; i < 2; i++) {
+            assertEquals(List.of(), withCargo.reconcile(tenant, ACTOR, FEED, "S-034", loaded(600, sparse), false)
+                    .operations());
+        }
+        var clearUnit = new FeedServiceRequest.CargoItem(null, null, " ", null, null);
+        withCargo.reconcile(tenant, ACTOR, FEED, "S-034", loaded(600, clearUnit), false);
+        assertEquals(List.of(), withCargo.reconcile(tenant, ACTOR, FEED, "S-034", loaded(600, clearUnit), false)
+                .operations());
+        var stored = cargoUnits.listByMandate(tenant, UUID.fromString(first.mandateId())).get(0);
+        assertNull(stored.qtyUnit());
+        assertEquals("Pallet A", stored.description());
+        assertEquals(0, new java.math.BigDecimal("1000").compareTo(stored.weightKg()));
+    }
+
+    @Test
+    void ongoingTripsShowOnlyCurrentDriversAndClosedTripsKeepTheirHistory() {
+        FeedResult first = send("S-035", desired(2, 10, "ABC-123", null, "10000001", "10000002"));
+        UUID tripId = UUID.fromString(first.tripId());
+        AssignmentView former = trips.detail(tenant, tripId).assignments().stream()
+                .filter(a -> a.resourceId().equals(fleetIds.d2())).findFirst().orElseThrow();
+        assignments.end(tenant, ACTOR, UUID.fromString(former.id()), null, "test replacement");
+        PgBoardStore board = new PgBoardStore(() -> pool);
+        assertEquals(List.of("10000001"), board.details(tenant, tripId).orElseThrow().drivers().stream()
+                .map(BoardStore.Driver::rut).toList());
+        trips.cancel(tenant, ACTOR, tripId, "test closure");
+        assertEquals(2, board.details(tenant, tripId).orElseThrow().drivers().size());
+    }
+
+    @Test
     void aRowWithoutCargoOrSlaKeepsItsHash() {
         FeedServiceRequest d = desired(2, 10, "ABC-123", null, "10000001");
         assertEquals(reconciler.hash(d), reconciler.hash(new FeedServiceRequest(d.orderType(), d.orderRef(), null,

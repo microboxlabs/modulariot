@@ -4,7 +4,7 @@ import { FaCheck } from "react-icons/fa";
 import { HiExclamation } from "react-icons/hi";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { TripSheet } from "./sheet-api";
 
 /** A check from an external system: true, false, or not reported. */
@@ -66,34 +66,53 @@ export function groupChecks(checks: Check[]) {
 const OUTER = "flex h-5 w-5 shrink-0 items-center justify-center rounded-full";
 
 /** Gray tick for true, yellow mark for false, an empty circle when not reported. */
-export function CheckIcon({ value }: Readonly<{ value: CheckValue }>) {
+export function CheckIcon({
+  value,
+  d,
+}: Readonly<{ value: CheckValue; d: I18nRecord }>) {
+  const status =
+    value === undefined ? "notReported" : value ? "passed" : "failed";
+  const label = trDynamic(`sheet.checkStatus.${status}`, d);
   if (value === true) {
     return (
-      <span className={`${OUTER} bg-gray-400 p-1 text-white`}>
-        <FaCheck className="h-3 w-3" />
+      <span
+        role="img"
+        aria-label={label}
+        className={`${OUTER} bg-gray-400 p-1 text-white`}
+      >
+        <FaCheck aria-hidden="true" className="h-3 w-3" />
       </span>
     );
   }
   if (value === false) {
     return (
-      <span className={`${OUTER} bg-yellow-400 text-white`}>
-        <HiExclamation className="h-3.5 w-3.5" />
+      <span
+        role="img"
+        aria-label={label}
+        className={`${OUTER} bg-yellow-400 text-white`}
+      >
+        <HiExclamation aria-hidden="true" className="h-3.5 w-3.5" />
       </span>
     );
   }
   return (
     <span
+      role="img"
+      aria-label={label}
       className={`${OUTER} border-2 border-gray-400 bg-white dark:bg-gray-800`}
     />
   );
 }
 
-export function CheckList({ checks }: Readonly<{ checks: Check[] }>) {
+export function CheckList({
+  checks,
+  d,
+}: Readonly<{ checks: Check[]; d: I18nRecord }>) {
   return (
     <ul className="flex flex-col gap-1.5">
       {checks.map((c) => (
         <li key={c.key} className="flex items-center gap-2" title={c.title}>
-          <CheckIcon value={c.value} />
+          <CheckIcon value={c.value} d={d} />
           <span className="text-sm text-gray-800 dark:text-gray-200">
             {c.label}
           </span>
@@ -124,7 +143,7 @@ export function ServiceValidations({
                   {group}
                 </h3>
               )}
-              <CheckList checks={checks} />
+              <CheckList checks={checks} d={d} />
             </div>
           ))}
         </div>

@@ -5151,6 +5151,10 @@
           "invoke": "Run process",
           "other": "Action"
         }
+      },
+      "live": {
+        "on": "Live",
+        "off": "Refreshes every 30 s"
       }
     }
   },

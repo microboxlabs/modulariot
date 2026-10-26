@@ -55,7 +55,11 @@ public class PgAuditStore implements AuditStore {
                 .addString(e.entityType()).addString(e.entityId()).addUUID(Pg.parse(e.tripId()))
                 .addString(Pg.json(e.details() == null ? Map.of() : e.details()));
         // a failed insert must not abort the operation's transaction: the savepoint confines it
-        return PgTx.savepoint(() -> event(query(pool.get(), INSERT, params).iterator().next()));
+        return PgTx.savepoint(() -> {
+            AuditEvent stored = event(query(pool.get(), INSERT, params).iterator().next());
+            BoardChannel.touched(pool.get(), e.tenantCode(), e.tripId());
+            return stored;
+        });
     }
 
     @Override

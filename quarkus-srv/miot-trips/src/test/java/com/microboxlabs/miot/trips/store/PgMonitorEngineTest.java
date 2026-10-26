@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +33,7 @@ import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.dto.BoardView;
 import com.microboxlabs.miot.trips.dto.TripSheet;
+import com.microboxlabs.miot.trips.service.BoardEvents;
 import com.microboxlabs.miot.trips.service.BoardService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.TripBoard;
@@ -59,6 +61,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -654,6 +658,48 @@ class PgMonitorEngineTest {
         assertTrue(sheet.transitions().stream().anyMatch(x -> "left".equals(x.ruleKey())));
         assertNull(sheet.feed(), "a trip made by hand has no feed row");
         assertThrows(java.util.NoSuchElementException.class, () -> board.sheet(tenant, UUID.randomUUID()));
+    }
+
+    private static void until(java.util.function.BooleanSupplier done, Runnable each, Semaphore notices)
+            throws InterruptedException {
+        notices.drainPermits();
+        for (int i = 0; i < 100 && !done.getAsBoolean(); i++) {
+            each.run();
+            notices.tryAcquire(100, TimeUnit.MILLISECONDS);
+        }
+        assertTrue(done.getAsBoolean(), "timed out");
+    }
+
+    @Test
+    void aCommittedChangeReachesItsTenantsStreamAndARolledBackOneDoesNot() throws InterruptedException {
+        BoardEvents boardEvents = new BoardEvents(() -> pool, vertx, true);
+        boardEvents.start();
+        List<String> got = new CopyOnWriteArrayList<>();
+        Semaphore notices = new Semaphore(0);
+        var subscription = boardEvents.stream(tenant).filter(c -> "trip".equals(c.type()))
+                .subscribe().with(c -> {
+                    got.add(c.tripId());
+                    notices.release();
+                });
+        try {
+            until(() -> got.contains("probe"), () -> BoardChannel.touched(pool, tenant, "probe"), notices);
+
+            String trip = newTrip(null, null).id();
+            until(() -> got.contains(trip), () -> { }, notices);
+
+            assertThrows(IllegalStateException.class, () -> tx.inTransaction(() -> {
+                BoardChannel.touched(pool, tenant, "rolled-back");
+                throw new IllegalStateException("rollback");
+            }));
+            BoardChannel.touched(pool, "other-tenant", "elsewhere");
+            BoardChannel.touched(pool, tenant, "after");
+            until(() -> got.contains("after"), () -> { }, notices);
+            assertFalse(got.contains("rolled-back"), "a rolled-back change sends no notice");
+            assertFalse(got.contains("elsewhere"), "another tenant's change stays there");
+        } finally {
+            subscription.cancel();
+            boardEvents.stop();
+        }
     }
 
     @Test

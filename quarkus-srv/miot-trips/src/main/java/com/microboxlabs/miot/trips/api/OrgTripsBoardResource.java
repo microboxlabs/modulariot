@@ -6,11 +6,13 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.trips.access.TripsAccessCatalog;
+import com.microboxlabs.miot.trips.service.BoardEvents;
 import com.microboxlabs.miot.trips.service.BoardService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.PermissionsAllowed;
 import io.quarkus.security.identity.SecurityIdentity;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -23,6 +25,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.resteasy.reactive.RestStreamElementType;
 
 /** The trips board: planning, dispatch, delivery and finished, each with its lanes. */
 @Path("/api/v1/orgs/{organizationId}/trips/board")
@@ -36,6 +39,7 @@ public class OrgTripsBoardResource extends OrgResourceSupport {
     private static final String ORG = "organizationId";
 
     private final BoardService board;
+    private final BoardEvents events;
 
     @Inject
     public OrgTripsBoardResource(
@@ -43,9 +47,11 @@ public class OrgTripsBoardResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            BoardService board) {
+            BoardService board,
+            BoardEvents events) {
         super(tenantContext, organizationContext, roleService, identity);
         this.board = board;
+        this.events = events;
     }
 
     @GET
@@ -60,6 +66,17 @@ public class OrgTripsBoardResource extends OrgResourceSupport {
         return work(() -> Response.ok(board.view(tenant, view, q, OrgTripsResource.timestamp(from, "from"),
                 OrgTripsResource.timestamp(to, "to"),
                 integer(limit, "limit"))).build());
+    }
+
+    @GET
+    @Path("/events")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @RestStreamElementType(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "streamTripsBoard",
+            summary = "Server-sent events: the id of each trip that changed, and a ping every 25 seconds")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Multi<BoardEvents.Change> events(@PathParam(ORG) String organizationId) {
+        return events.stream(tenantCode(organizationId));
     }
 
     @GET

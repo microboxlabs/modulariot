@@ -17,6 +17,8 @@ import {
   type TripSheet as Sheet,
 } from "./sheet-api";
 import { MilestoneRow } from "./milestone-row";
+import { LiveBadge } from "../board/live-badge";
+import { useBoardEvents } from "../board/use-board-events";
 
 function Panel({
   title,
@@ -270,6 +272,7 @@ export default function TripSheet({
   general: I18nRecord;
 }>) {
   const { data, error, isLoading } = useTripSheet(tripId);
+  const live = useBoardEvents();
   const view = data ? LANE_VIEW[data.card.lane] : undefined;
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -280,14 +283,17 @@ export default function TripSheet({
         filterDict={general}
         lang={lang}
         rightContent={
-          view && (
-            <Link
-              href={`/${lang}/trips/${view}`}
-              className="text-sm text-primary-700 hover:underline dark:text-primary-400"
-            >
-              {trDynamic(`breadcrumb.${view}`, d)}
-            </Link>
-          )
+          <div className="flex items-center gap-3">
+            <LiveBadge connected={live} d={d} />
+            {view && (
+              <Link
+                href={`/${lang}/trips/${view}`}
+                className="text-sm text-primary-700 hover:underline dark:text-primary-400"
+              >
+                {trDynamic(`breadcrumb.${view}`, d)}
+              </Link>
+            )}
+          </div>
         }
       />
       <div className="h-screen w-full overflow-auto bg-gray-50 p-4 dark:bg-gray-900">

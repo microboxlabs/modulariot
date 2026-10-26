@@ -176,6 +176,7 @@ public class PgMonitorRunStore implements MonitorRunStore {
                         .addInteger(t.depth()).addArrayOfString(t.matched().toArray(String[]::new))
                         .addString(t.ruleKey()).addString(t.fromStage()).addString(t.toStage())
                         .addString(Pg.json(t.actions())).addString(t.error()).addOffsetDateTime(t.at()));
+        BoardChannel.touched(pool.get(), t.tenantCode(), t.tripId());
     }
 
     @Override

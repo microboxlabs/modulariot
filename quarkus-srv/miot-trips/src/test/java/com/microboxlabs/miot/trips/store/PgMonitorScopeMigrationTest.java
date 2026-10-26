@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.trips.domain.MonitorScope;
@@ -58,7 +59,7 @@ class PgMonitorScopeMigrationTest {
                 VALUES ('scope-test-a', 'from-feed', 1, 'published', 'Feed monitor', 'test'),
                        ('scope-test-a', 'from-feed', 2, 'draft', 'Feed draft', 'test'),
                        ('scope-test-b', 'from-feed', 1, 'published', 'Other tenant', 'test'),
-                       ('scope-test-a', 'from-orders', 1, 'published', 'Orders', 'test'),
+                       ('scope-test-orders', 'from-orders', 1, 'published', 'Orders', 'test'),
                        ('scope-test-a', 'general', 1, 'published', 'General', 'test'),
                        ('scope-test-a', 'unsupported', 1, 'published', 'Unsupported', 'test');
                 INSERT INTO miot_trips.feed_profile
@@ -67,8 +68,8 @@ class PgMonitorScopeMigrationTest {
                        ('scope-test-b', 'feed-b', 'Feed B', '[]', 'transit', 'from-feed', 'test');
                 INSERT INTO miot_trips.trip_monitor_selector (tenant_code, seq, condition, monitor_key)
                 VALUES ('scope-test-a', 1, $$trip.orderType == 'order-a'$$, 'from-feed'),
-                       ('scope-test-a', 2, $$trip.orderType == 'order-b'$$, 'from-orders'),
-                       ('scope-test-a', 3, $$trip.orderType == 'order-a'$$, 'from-orders'),
+                       ('scope-test-orders', 2, $$trip.orderType == 'order-b'$$, 'from-orders'),
+                       ('scope-test-orders', 3, $$trip.orderType == 'order-a'$$, 'from-orders'),
                        ('scope-test-a', 4, $$ true $$, 'general'),
                        ('scope-test-a', 5, $$trip.origin.type == 'port'$$, 'unsupported')
                 """);
@@ -80,7 +81,7 @@ class PgMonitorScopeMigrationTest {
         assertEquals(feedA, scope(TENANT_A, "from-feed", 2), "draft and published versions are backfilled");
         assertEquals(new MonitorScope(List.of("feed-b"), null, null, null), scope(TENANT_B, "from-feed", 1));
         assertEquals(new MonitorScope(null, List.of("order-a", "order-b"), null, null),
-                scope(TENANT_A, "from-orders", 1));
+                scope("scope-test-orders", "from-orders", 1));
         assertEquals(MonitorScope.ANY, scope(TENANT_A, "general", 1));
         assertNull(scope(TENANT_A, "unsupported", 1), "unsupported conditions must not become a catch-all");
         var shape = pool.query("""
@@ -93,5 +94,41 @@ class PgMonitorScopeMigrationTest {
         assertTrue(shape.getBoolean("selector_removed"));
         assertTrue(shape.getBoolean("feed_monitor_removed"));
         assertEquals(6L, shape.getLong("monitors"));
+    }
+
+    @Test
+    void conflictingBackfillsAbortWithoutRemovingLegacyRouting() throws IOException {
+        for (boolean feedOverlap : List.of(false, true)) {
+            PgTripsStoresTest.recreateSchemas(pool, PgTripsStoresTest.migrationsBefore(MIGRATION));
+            run("""
+                    INSERT INTO miot_trips.trip_monitor (tenant_code, monitor_key, version, status, name, created_by)
+                    VALUES ('scope-test-a', 'first', 1, 'published', 'First', 'test'),
+                           ('scope-test-a', 'second', 1, 'published', 'Second', 'test');
+                    INSERT INTO miot_trips.trip_monitor_selector (tenant_code, seq, condition, monitor_key)
+                    VALUES ('scope-test-a', 1, $$trip.orderType == 'order-a'$$, 'first'),
+                           ('scope-test-a', 2, $$trip.orderType == 'order-a'$$, 'second')
+                    """);
+            if (feedOverlap) {
+                run("""
+                        INSERT INTO miot_trips.feed_profile
+                            (tenant_code, feed_key, name, stages, arrival_stage, monitor_key, created_by)
+                        VALUES ('scope-test-a', 'feed-a', 'Feed A', '[]', 'transit', 'first', 'test')
+                        """);
+            }
+
+            RuntimeException failure = assertThrows(RuntimeException.class,
+                    () -> PgTripsStoresTest.migrate(pool, MIGRATION));
+            assertTrue(failure.getMessage().contains("equal or partly overlapping scopes"), failure.getMessage());
+            var legacy = pool.query("""
+                    SELECT to_regclass('miot_trips.trip_monitor_selector') IS NOT NULL AS selector_retained,
+                           EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'miot_trips'
+                                    AND table_name = 'feed_profile' AND column_name = 'monitor_key') AS feed_retained,
+                           NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'miot_trips'
+                                    AND table_name = 'trip_monitor' AND column_name = 'scope') AS rolled_back
+                    """).execute().await().atMost(WAIT).iterator().next();
+            assertTrue(legacy.getBoolean("selector_retained"));
+            assertTrue(legacy.getBoolean("feed_retained"));
+            assertTrue(legacy.getBoolean("rolled_back"));
+        }
     }
 }

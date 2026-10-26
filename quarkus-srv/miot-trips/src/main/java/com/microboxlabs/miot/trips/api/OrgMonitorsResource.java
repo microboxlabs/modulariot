@@ -99,7 +99,7 @@ public class OrgMonitorsResource extends OrgResourceSupport {
     }
 
     @GET
-    @Path("/scope-values")
+    @Path("/scope/values")
     @Operation(operationId = "monitorScopeValues",
             summary = "The feeds, order types and locations a monitor's scope can name")
     @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)

@@ -213,7 +213,7 @@ export const MONITOR_ADMIN = "trips:monitor.admin";
 export const monitorsKey = `${BASE}/monitors`;
 export const monitorKey = (key: string) =>
   `${BASE}/monitors/${encodeURIComponent(key)}`;
-const scopeValuesKey = `${BASE}/monitors/scope-values`;
+const scopeValuesKey = `${BASE}/monitors/scope/values`;
 const accessKey = `${BASE}/access`;
 
 function parseJson(text: string) {

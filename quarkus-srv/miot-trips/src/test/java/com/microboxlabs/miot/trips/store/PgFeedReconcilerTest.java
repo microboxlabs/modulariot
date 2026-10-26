@@ -284,11 +284,12 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void theProfilesMonitorRunsTheTripsTheFeedCreates() {
+    void aFeedScopedMonitorRunsTheTripsTheFeedCreates() {
         MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
         monitors.saveDraft(tenant, ACTOR, "direct", new MonitorRequest("Direct", null, List.of(), Map.of(), List.of(
                 new MonitorRequest.Rule("open", null, "plan", null, "event.kind == 'created'",
-                        List.of(new TripMonitor.Action("start", "preparation")), 10, true)), MonitorScope.ANY));
+                        List.of(new TripMonitor.Action("start", "preparation")), 10, true)),
+                new MonitorScope(List.of(FEED), List.of(), List.of(), List.of())));
         monitors.publish(tenant, ACTOR, "direct");
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
         profiles.save(tenant, ACTOR, FEED, new FeedProfileRequest("Servicios", List.of(

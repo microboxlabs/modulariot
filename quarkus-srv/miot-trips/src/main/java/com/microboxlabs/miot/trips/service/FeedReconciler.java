@@ -573,47 +573,70 @@ public class FeedReconciler {
         if (trip != null) {
             milestones.list(tenantCode, UUID.fromString(trip.id())).forEach(m -> recorded.put(m.milestone(), m));
         }
-        actual.forEach((name, at) -> {
-            if (at == null) {
-                return;
-            }
-            TripMilestone m = recorded.get(name);
-            if (m != null && m.isConfirmed() && m.confirmedAt() != null) {
-                if (!m.confirmedAt().toInstant().truncatedTo(ChronoUnit.MICROS)
-                        .equals(at.toInstant().truncatedTo(ChronoUnit.MICROS))) {
-                    plan.warnings.add(name + " was confirmed at " + m.confirmedAt() + "; the feed says " + utc(at));
-                    plan.step("report conflicting " + name + " at " + utc(at), () -> milestones.confirm(tenantCode,
-                            actor, UUID.fromString(plan.tripId), name, at, "feed", null));
-                }
-                return;
-            }
-            plan.step("confirm " + name + " at " + utc(at), () -> milestones.confirm(tenantCode, actor,
-                    UUID.fromString(plan.tripId), name, at, "feed", null));
-        });
-        new java.util.TreeMap<>(d.milestones()).forEach((name, report) -> {
+        d.milestones().keySet().forEach(name -> {
             if (!TripMilestone.MILESTONES.contains(name)) {
                 throw new IllegalArgumentException("milestones: " + name + " is not one of "
                         + TripMilestone.MILESTONES);
             }
-            Map<String, Object> evidence = report == null || report.evidence() == null ? Map.of()
-                    : report.evidence();
-            OffsetDateTime at = report == null ? null : report.at();
-            TripMilestone m = recorded.get(name);
-            boolean known = m != null && m.evidence().entrySet().containsAll(evidence.entrySet());
-            if (at != null) {
-                if (known && m.isConfirmed() && m.confirmedAt() != null && m.confirmedAt().toInstant()
-                        .truncatedTo(ChronoUnit.MICROS).equals(at.toInstant().truncatedTo(ChronoUnit.MICROS))) {
-                    return;
-                }
-                plan.step("confirm " + name + " at " + utc(at) + " with " + evidence.size() + " metadata",
-                        () -> milestones.confirm(tenantCode, actor, UUID.fromString(plan.tripId), name, at, "feed",
-                                null, evidence));
-            } else if (!evidence.isEmpty() && !known && (m == null || !m.isConfirmed())) {
-                plan.step("report " + name + " with " + evidence.size() + " metadata",
-                        () -> milestones.detect(tenantCode, actor, UUID.fromString(plan.tripId), name, "feed", null,
-                                evidence));
-            }
         });
+        for (String name : TripMilestone.MILESTONES) {
+            FeedServiceRequest.MilestoneReport report = d.milestones().get(name);
+            Map<String, Object> metadata = reportEvidence(report);
+            OffsetDateTime at = actual.get(name);
+            if (at != null) {
+                planMilestone(plan, tenantCode, actor, name, at, metadata, recorded.get(name));
+            }
+            if (d.milestones().containsKey(name) && separateReport(at, report)) {
+                planMilestone(plan, tenantCode, actor, name, report == null ? null : report.at(), metadata,
+                        recorded.get(name));
+            }
+        }
+    }
+
+    private void planMilestone(Plan plan, String tenantCode, String actor, String name, OffsetDateTime at,
+            Map<String, Object> metadata, TripMilestone current) {
+        if (at != null || current != null && current.isConfirmed()) {
+            planMilestoneConfirmation(plan, tenantCode, actor, name, at, metadata, current);
+            return;
+        }
+        if (current == null || TripMilestone.OPEN.equals(current.status()) || !knownEvidence(current, metadata)) {
+            plan.step("report " + name + " with " + metadata.size() + " metadata",
+                    () -> milestones.detect(tenantCode, actor, UUID.fromString(plan.tripId), name, "feed", null,
+                            metadata));
+        }
+    }
+
+    private void planMilestoneConfirmation(Plan plan, String tenantCode, String actor, String name,
+            OffsetDateTime at, Map<String, Object> metadata, TripMilestone current) {
+        String operation = at == null ? "merge " + name + " metadata" : "confirm " + name + " at " + utc(at);
+        if (current != null && current.isConfirmed()) {
+            if ((at == null || sameMilestoneTime(current.confirmedAt(), at)) && knownEvidence(current, metadata)) {
+                return;
+            }
+            if (at != null && !sameMilestoneTime(current.confirmedAt(), at)) {
+                plan.warnings.add(name + " was confirmed at " + current.confirmedAt() + "; the feed says " + utc(at));
+                operation = "report conflicting " + name + " at " + utc(at);
+            }
+        }
+        plan.step(operation, () -> milestones.confirm(tenantCode, actor, UUID.fromString(plan.tripId), name, at,
+                "feed", null, metadata));
+    }
+
+    private static Map<String, Object> reportEvidence(FeedServiceRequest.MilestoneReport report) {
+        return report == null || report.evidence() == null ? Map.of() : report.evidence();
+    }
+
+    private static boolean separateReport(OffsetDateTime actual, FeedServiceRequest.MilestoneReport report) {
+        return actual == null || report != null && report.at() != null && !sameMilestoneTime(actual, report.at());
+    }
+
+    private static boolean knownEvidence(TripMilestone current, Map<String, Object> metadata) {
+        return current != null && current.evidence().entrySet().containsAll(metadata.entrySet());
+    }
+
+    private static boolean sameMilestoneTime(OffsetDateTime first, OffsetDateTime second) {
+        return first != null && second != null && first.toInstant().truncatedTo(ChronoUnit.MICROS)
+                .equals(second.toInstant().truncatedTo(ChronoUnit.MICROS));
     }
 
     /** The reports with their times in UTC, for the hash. */

@@ -361,12 +361,15 @@ class PgMonitorEngineTest {
         milestones.detect(tenant, "sa:gate", tripId, "presentation", "gate", null, Map.of("lane", "G3"));
         assertEquals("gate", milestone(tripId, "presentation").source());
         milestones.detect(tenant, "sa:wms", tripId, "validation", "wms", null, Map.of("documents", "ok"));
-        assertEquals(TripMilestone.PENDING, milestone(tripId, "validation").status());
+        TripMilestone validation = milestone(tripId, "validation");
+        assertEquals(TripMilestone.PENDING, validation.status());
 
         assertThrows(IllegalStateException.class,
                 () -> milestones.confirm(tenant, ACTOR, tripId, "departure", null, "ui", null),
                 "the validation waits for a confirmation");
-        milestones.confirm(tenant, ACTOR, tripId, "validation", null, "ui", null, Map.of("seal", "4411"));
+        milestones.respondToDetection(tenant, ACTOR, tripId,
+                new MilestoneService.DetectionRef("validation", validation.proposedAt(), "wms"), true, "ui",
+                null, Map.of("seal", "4411"));
         assertEquals(Map.of("documents", "ok", "seal", "4411"), milestone(tripId, "validation").evidence());
         milestones.confirm(tenant, ACTOR, tripId, "validation", null, "api", null, Map.of("seal", "4412"));
         assertEquals("4412", milestone(tripId, "validation").evidence().get("seal"),
@@ -381,8 +384,35 @@ class PgMonitorEngineTest {
         milestones.confirm(tenant, "feed:sheet", other, "departure", null, "feed", null);
         assertEquals(TripMilestone.CONFIRMED, milestone(other, "departure").status(),
                 "the feed reports a departure that already happened");
+        Map<String, Object> longKey = Map.of("x".repeat(65), "too long a key");
         assertThrows(IllegalArgumentException.class, () -> milestones.detect(tenant, ACTOR, other, "validation",
-                null, null, Map.of("x".repeat(65), "too long a key")));
+                null, null, longKey));
+    }
+
+    @Test
+    void milestoneMetadataLimitsApplyAfterMergingSources() {
+        UUID tripId = id(newTrip(null, null));
+        Map<String, Object> initial = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < 50; i++) {
+            initial.put("key" + i, "ok");
+        }
+        milestones.detect(tenant, ACTOR, tripId, "presentation", "test", null, initial);
+        Map<String, Object> extra = Map.of("extra", "value");
+        assertThrows(IllegalArgumentException.class,
+                () -> milestones.detect(tenant, ACTOR, tripId, "presentation", "test", null, extra));
+        assertEquals(initial, milestone(tripId, "presentation").evidence());
+        milestones.confirm(tenant, ACTOR, tripId, "presentation", null, "api", null);
+        assertThrows(IllegalArgumentException.class,
+                () -> milestones.confirm(tenant, ACTOR, tripId, "presentation", null, "api", null, extra));
+        assertEquals(initial, milestone(tripId, "presentation").evidence());
+    }
+
+    @Test
+    void milestoneMetadataSizeCountsUtf8Bytes() {
+        UUID tripId = id(newTrip(null, null));
+        Map<String, Object> evidence = Map.of("documents", "é".repeat(9000));
+        assertThrows(IllegalArgumentException.class,
+                () -> milestones.detect(tenant, ACTOR, tripId, "validation", "test", null, evidence));
     }
 
     private List<OperationalEvent> firedFor(UUID tripId, String type) {

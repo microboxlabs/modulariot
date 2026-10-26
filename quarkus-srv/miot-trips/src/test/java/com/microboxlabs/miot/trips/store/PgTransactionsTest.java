@@ -35,6 +35,7 @@ import com.microboxlabs.miot.trips.service.CargoService;
 import com.microboxlabs.miot.fleet.resources.service.FleetResourcesService;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
 import com.microboxlabs.miot.trips.service.MandateService;
+import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.StageService;
 import com.microboxlabs.miot.trips.service.TripService;
 import io.vertx.mutiny.core.Vertx;
@@ -152,6 +153,33 @@ class PgTransactionsTest {
         pool8.shutdown();
 
         assertEquals(Set.of(1, 2, 3, 4, 5, 6, 7, 8), partials, "every announcement got its own number, no 409");
+    }
+
+    @Test
+    void concurrentMilestoneReportsKeepEverySourcesEvidence() throws Exception {
+        String tenant = tenant();
+        UUID tripId = UUID.fromString(trips.create(tenant, ACTOR,
+                new TripRequest(null, null, null, null, List.of())).id());
+        PgMilestoneStore milestoneStore = new PgMilestoneStore(() -> pool);
+        MilestoneService milestones = new MilestoneService(milestoneStore, tripStore, audit, tx);
+        Map<String, Object> expected = new java.util.HashMap<>();
+        CountDownLatch go = new CountDownLatch(1);
+        try (ExecutorService workers = Executors.newFixedThreadPool(8)) {
+            List<Future<?>> reports = new ArrayList<>();
+            for (int i = 0; i < 8; i++) {
+                Map<String, Object> evidence = Map.of("source" + i, "ok");
+                expected.putAll(evidence);
+                reports.add(workers.submit(() -> {
+                    go.await();
+                    return milestones.detect(tenant, ACTOR, tripId, "presentation", "test", null, evidence);
+                }));
+            }
+            go.countDown();
+            for (Future<?> report : reports) {
+                report.get(30, TimeUnit.SECONDS);
+            }
+        }
+        assertEquals(expected, milestoneStore.find(tenant, tripId, "presentation").orElseThrow().evidence());
     }
 
     @Test

@@ -113,7 +113,7 @@ public class DeliveryService implements DeliveryReach {
         String note = Check.limitedOrNull(b.note(), "note", 1000);
         String source = source(b.source());
         Map<String, Object> evidence = MilestoneService.evidence(b.evidence());
-        return tx.inTransaction(() -> {
+        String id = tx.inTransaction(() -> {
             Trip trip = trip(tenantCode, tripId);
             if (Trip.CANCELLED.equals(trip.status())) {
                 throw new IllegalStateException("the trip is cancelled");
@@ -121,7 +121,7 @@ public class DeliveryService implements DeliveryReach {
             if (reference != null) {
                 Optional<Delivery> existing = store.findByReference(tenantCode, tripId, reference);
                 if (existing.isPresent()) {
-                    return view(tenantCode, tripId, existing.get().id());
+                    return existing.get().id();
                 }
             }
             List<Delivery> current = store.list(tenantCode, tripId);
@@ -136,8 +136,9 @@ public class DeliveryService implements DeliveryReach {
             putIf(d, "reference", reference);
             d.put("mandates", mandates.size());
             audit.log(tenantCode, actor, CREATED, TRIP, tripId.toString(), tripId.toString(), d);
-            return view(tenantCode, tripId, saved.id());
+            return saved.id();
         });
+        return view(tenantCode, tripId, id);
     }
 
     /** Stores the file and adds it as a proof; a failed save leaves the file to the content cleanup. */
@@ -164,7 +165,7 @@ public class DeliveryService implements DeliveryReach {
         }
         String source = source(body.source());
         Map<String, Object> metadata = MilestoneService.evidence(body.metadata());
-        return tx.inTransaction(() -> {
+        String id = tx.inTransaction(() -> {
             Delivery d = delivery(tenantCode, tripId, deliveryId);
             String mimetype = null;
             String name = Check.limitedOrNull(Check.blankToNull(body.name()), "name", 255);
@@ -189,8 +190,9 @@ public class DeliveryService implements DeliveryReach {
             details.put("kind", kind);
             audit.log(tenantCode, actor, PROOF_ADDED, TRIP, tripId.toString(), tripId.toString(), details);
             onProof(tenantCode, actor, tripId, d, source);
-            return view(tenantCode, tripId, d.id());
+            return d.id();
         });
+        return view(tenantCode, tripId, id);
     }
 
     /**
@@ -205,13 +207,14 @@ public class DeliveryService implements DeliveryReach {
                 TripMilestone.CHANNELS.toArray(String[]::new));
         String n = Check.limitedOrNull(note, "note", 1000);
         Map<String, Object> e = MilestoneService.evidence(evidence);
-        return tx.inTransaction(() -> {
+        String id = tx.inTransaction(() -> {
             Delivery d = delivery(tenantCode, tripId, deliveryId);
             DeliveryCycle cycle = cycle(tenantCode, tripId);
             String s = step(cycle, step);
             confirmStep(tenantCode, actor, tripId, d, cycle, s, at, ch, n, e);
-            return view(tenantCode, tripId, d.id());
+            return d.id();
         });
+        return view(tenantCode, tripId, id);
     }
 
     /** Marks a pending step as not done; a new proof or request asks again. */
@@ -220,7 +223,7 @@ public class DeliveryService implements DeliveryReach {
         String ch = Check.oneOf(channel == null ? "api" : channel, "channel",
                 TripMilestone.CHANNELS.toArray(String[]::new));
         String n = Check.limitedOrNull(note, "note", 1000);
-        return tx.inTransaction(() -> {
+        String id = tx.inTransaction(() -> {
             Delivery d = delivery(tenantCode, tripId, deliveryId);
             String s = step(cycle(tenantCode, tripId), step);
             Delivery.Step current = store.step(tenantCode, UUID.fromString(d.id()), s)
@@ -232,8 +235,9 @@ public class DeliveryService implements DeliveryReach {
                     current.proposedAt(), current.evidence(), null, actor, ch, n, null, actor));
             audit.log(tenantCode, actor, STEP_REJECTED, TRIP, tripId.toString(), tripId.toString(),
                     details(d, s, now(), ch));
-            return view(tenantCode, tripId, d.id());
+            return d.id();
         });
+        return view(tenantCode, tripId, id);
     }
 
     /** A proof's file, when the proof is in the content store. */

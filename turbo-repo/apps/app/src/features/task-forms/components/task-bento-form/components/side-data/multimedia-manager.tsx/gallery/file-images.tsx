@@ -20,7 +20,7 @@ import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewe
 import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
 import { isRoundObservation, observationReasonLabels } from "../viewer/observations/observation-utils";
-import { statusForCurrentVersion, versionOf } from "../viewer/observations/review-version";
+import { mergeLoadedStatuses, statusForCurrentVersion, versionOf } from "../viewer/observations/review-version";
 import { useBentoReview } from "../../../../bento-review-context";
 import { createAlfrescoSource, MediaSourceProvider, type MediaSource } from "../media-source";
 
@@ -915,31 +915,20 @@ export default function FileImages({
       setImages(newImages);
       setDocuments(newDocuments);
       setReviewStatusTimestamps((prev) => {
+        if (src.reviewStatusIsCurrent) return loadedTimestamps;
         const next = new Map(prev);
         loadedTimestamps.forEach((date, id) => { if (!prev.has(id)) next.set(id, date); });
         return next;
       });
       setReviewStatusUsers((prev) => {
+        if (src.reviewStatusIsCurrent) return loadedUsers;
         const next = new Map(prev);
         loadedUsers.forEach((user, id) => { if (!prev.has(id)) next.set(id, user); });
         return next;
       });
-      setReviewStatuses((prev) => {
-        const next = new Map(prev);
-        // Remove stale entries for nodes no longer in the list.
-        const liveIds = new Set([...newImages, ...newDocuments].map((item: { file: AlfrescoFileEntry }) => item.file.entry.id));
-        next.forEach((_, id) => { if (!liveIds.has(id)) next.delete(id); });
-        // Only "approved"/"rejected" from Alfresco override in-memory committed state.
-        // A "pending" from Alfresco (absent property) only applies when there is no
-        // in-memory decision — this preserves same-session commits while the backend
-        // Absence means the property is not yet set; treat as "review" (the default state).
-        loadedStatuses.forEach((status, id) => {
-          if (status !== "pending" || !prev.has(id)) next.set(id, status);
-        });
-        return next;
-      });
+      setReviewStatuses((prev) => mergeLoadedStatuses(prev, loadedStatuses, Boolean(src.reviewStatusIsCurrent)));
     }
-  }, [files]);
+  }, [files, src.reviewStatusIsCurrent]);
 
   // Hydrate committedTimeline: review rounds where a node has them, its forum discussion
   // otherwise. Rounds win — the forum kept observations and state changes as unrelated
@@ -1044,8 +1033,8 @@ export default function FileImages({
       try {
         await updatePromise;
         await refresh();
+        await invalidateThumbnail(nodeId);
         if (item.type === "image") {
-          await invalidateThumbnail(nodeId);
           setImageRefreshKey((prev) => prev + 1);
         }
       } finally {

@@ -1,7 +1,6 @@
 import { useMediaSource } from "../media-source";
 import { ImageComponent } from "@/features/geographic-view/components/image-viewer/image-selector";
 import { useEffect, useState } from "react";
-import { getCategories } from "../clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function ImageElement({
@@ -34,7 +33,7 @@ export default function ImageElement({
     }
   }, [data, error]);
 
-  const categories = getCategories(dictionary);
+  const categories = source.useCategories(dictionary);
   const thumbnailUrl = thumbnail ? URL.createObjectURL(thumbnail) : null;
 
   return (

@@ -26,6 +26,20 @@ describe("visiblePages", () => {
     expect(boards(null)).toEqual([]);
   });
 
+  it("shows My tasks, Where is my load and Collaborators only with the kanban model", () => {
+    const legacy = (module: string | null) =>
+      visiblePages(false, false, false, module)
+        .map((p) => p.label)
+        .filter((l) =>
+          ["tasks", "whereIsMyLoad", "collaboratorsManagement"].includes(l)
+        );
+    const all = ["tasks", "collaboratorsManagement", "whereIsMyLoad"];
+    expect(legacy("")).toEqual(all);
+    expect(legacy("kanban")).toEqual(all);
+    expect(legacy("trips")).toEqual([]);
+    expect(legacy(null)).toEqual([]);
+  });
+
   it("hides the Dev section unless dev tools are on", () => {
     expect(
       visiblePages(false, false, false).some((p) => p.label === DEV_PAGE_LABEL)

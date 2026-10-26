@@ -7,6 +7,13 @@ export function tripIdOf(value: string | number | null | undefined): string {
   return id === "null" || id === "undefined" ? "" : id;
 }
 
+/** A trips-module trip id is a UUID; the GPS database's trips have numeric ids. */
+export function isTripsModuleTripId(tripId: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    tripId
+  );
+}
+
 /** The evaluator's cases have negative symptom ids, as the modulith reads them. */
 export function isEngineCaseId(
   symptomId: string | number | null | undefined

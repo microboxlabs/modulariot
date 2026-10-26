@@ -19,6 +19,7 @@ import {
 } from "@/app/api/utils/control-tower-map";
 import {
   isEngineCaseId,
+  isTripsModuleTripId,
   tripIdOf,
 } from "@/features/symptoms/model/treatment-link";
 
@@ -56,8 +57,9 @@ export async function GET(req: NextRequest) {
   if (!assetId)
     return NextResponse.json({ error: "Missing assetId" }, { status: 400 });
 
-  // Without the AVL API, the modulith reads the trip as the active organization.
-  if (!process.env.STREAMHUB_IOT_URL) {
+  // The AVL API knows only the GPS database's trips; the modulith reads a
+  // trips-module trip, and any trip when there is no AVL API.
+  if (!process.env.STREAMHUB_IOT_URL || isTripsModuleTripId(tripId)) {
     return positionsAsEvents(
       await forwardControlTowerMap(
         `trips/${encodeURIComponent(tripId)}/positions`,

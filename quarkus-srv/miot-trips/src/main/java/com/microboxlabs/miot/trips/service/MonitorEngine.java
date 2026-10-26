@@ -757,6 +757,9 @@ public class MonitorEngine implements TripChanges {
         if (d.get(MONITOR) != null) {
             data.put(MONITOR, d.get(MONITOR));
         }
+        if (d.get(FEED) != null) {
+            data.put(FEED, d.get(FEED));
+        }
         if (Boolean.TRUE.equals(d.get(REGULARIZED))) {
             data.put(REGULARIZED, true);
         }

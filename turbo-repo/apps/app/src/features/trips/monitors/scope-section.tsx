@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "flowbite-react";
 import { HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -76,6 +76,7 @@ function ValuesPicker({
 }>) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const needle = q.trim().toLowerCase();
   const suggestions = options
     .filter(
@@ -90,6 +91,7 @@ function ValuesPicker({
   const add = (value: string) => {
     onChange([...selected, value]);
     setQ("");
+    input.current?.focus();
   };
 
   return (
@@ -97,7 +99,12 @@ function ValuesPicker({
       <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
         {label}
       </span>
-      <div className="relative">
+      <div
+        className="relative"
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+        }}
+      >
         <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-lg border border-gray-300 bg-gray-50 px-2 py-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
           {selected.map((v) => (
             <span
@@ -127,6 +134,7 @@ function ValuesPicker({
             )
           ) : (
             <input
+              ref={input}
               value={q}
               aria-label={label}
               placeholder={selected.length === 0 ? tr("scope.any", d) : ""}
@@ -135,7 +143,6 @@ function ValuesPicker({
                 setOpen(true);
               }}
               onFocus={() => setOpen(true)}
-              onBlur={() => setOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && suggestions.length > 0) {
                   e.preventDefault();

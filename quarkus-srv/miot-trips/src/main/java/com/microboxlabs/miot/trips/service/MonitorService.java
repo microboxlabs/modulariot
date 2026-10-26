@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.trips.domain.DeliveryCycle;
+import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.MonitorScope;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
@@ -195,13 +196,18 @@ public class MonitorService {
 
     /** The feeds, order types and locations a scope can name. */
     public MonitorViews.ScopeValues scopeValues(String tenantCode) {
+        List<MonitorViews.ScopeValues.Place> places = new ArrayList<>();
+        int page = 0;
+        List<Location> batch;
+        do {
+            batch = locations.list(tenantCode, null, null, page++, MAX_LOCATIONS);
+            batch.stream().map(l -> new MonitorViews.ScopeValues.Place(l.id(), l.name(), l.externalCode(),
+                    l.type())).forEach(places::add);
+        } while (batch.size() == MAX_LOCATIONS);
         return new MonitorViews.ScopeValues(
                 feeds.profiles(tenantCode).stream()
                         .map(p -> new MonitorViews.ScopeValues.Feed(p.feedKey(), p.name())).toList(),
-                store.orderTypes(tenantCode),
-                locations.list(tenantCode, null, null, 0, MAX_LOCATIONS).stream()
-                        .map(l -> new MonitorViews.ScopeValues.Place(l.id(), l.name(), l.externalCode(), l.type()))
-                        .toList());
+                store.orderTypes(tenantCode), places);
     }
 
     /** Of {@code all} versions, the newest published one of every monitor that has a scope, but {@code except}. */
@@ -274,16 +280,20 @@ public class MonitorService {
         limitScope("orderTypes", scope.orderTypes(), 32);
         limitScope("origins", scope.origins(), 36);
         limitScope("destinations", scope.destinations(), 36);
-        List<String> places = new ArrayList<>(scope.origins());
-        places.addAll(scope.destinations());
+        return new MonitorScope(scope.feeds(), scope.orderTypes(), canonicalLocations(scope.origins()),
+                canonicalLocations(scope.destinations()));
+    }
+
+    private static List<String> canonicalLocations(List<String> places) {
+        List<String> normalized = new ArrayList<>();
         for (String id : places) {
             try {
-                UUID.fromString(id);
+                normalized.add(UUID.fromString(id).toString());
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("scope: " + id + " is not a location id");
             }
         }
-        return scope;
+        return normalized;
     }
 
     private static void limitScope(String dimension, List<String> values, int length) {

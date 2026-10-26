@@ -31,6 +31,29 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgBoardStore implements BoardStore {
 
+    /** The delivery lane state is shared by card and badge projections. */
+    private static final String DELIVERY_STATE = """
+            CASE WHEN EXISTS (SELECT 1 FROM miot_trips.trip_mandate tm
+                               WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              THEN ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_mandate dm
+                                            JOIN miot_trips.delivery_step ds
+                                              ON ds.delivery_id = dm.delivery_id AND ds.status = 'confirmed'
+                                           WHERE dm.trip_id = t.id AND dm.mandate_id = tm.mandate_id), 0)
+                           FROM miot_trips.trip_mandate tm
+                          WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              ELSE ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_step ds
+                                           WHERE ds.delivery_id = dl.id AND ds.status = 'confirmed'), 0)
+                           FROM miot_trips.delivery dl WHERE dl.trip_id = t.id)
+            END AS delivery_levels,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl WHERE dl.trip_id = t.id) AS has_delivery,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl
+                      JOIN miot_trips.delivery_step ds ON ds.delivery_id = dl.id AND ds.status = 'pending'
+                     WHERE dl.trip_id = t.id) AS delivery_pending""";
+
     private static final String TRIP_STATE = """
             t.id AS trip_id, t.status, t.planned_start, t.actual_start, t.actual_end, t.cancel_reason,
             (SELECT s.stage_type FROM miot_trips.stage s
@@ -62,26 +85,7 @@ public class PgBoardStore implements BoardStore {
                     JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
                    WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active
                    ORDER BY tm.seq) AS codes,
-            CASE WHEN EXISTS (SELECT 1 FROM miot_trips.trip_mandate tm
-                               WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
-              THEN ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
-                                                                    ds.step::text))
-                                            FROM miot_trips.delivery_mandate dm
-                                            JOIN miot_trips.delivery_step ds
-                                              ON ds.delivery_id = dm.delivery_id AND ds.status = 'confirmed'
-                                           WHERE dm.trip_id = t.id AND dm.mandate_id = tm.mandate_id), 0)
-                           FROM miot_trips.trip_mandate tm
-                          WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
-              ELSE ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
-                                                                    ds.step::text))
-                                            FROM miot_trips.delivery_step ds
-                                           WHERE ds.delivery_id = dl.id AND ds.status = 'confirmed'), 0)
-                           FROM miot_trips.delivery dl WHERE dl.trip_id = t.id)
-            END AS delivery_levels,
-            EXISTS (SELECT 1 FROM miot_trips.delivery dl WHERE dl.trip_id = t.id) AS has_delivery,
-            EXISTS (SELECT 1 FROM miot_trips.delivery dl
-                      JOIN miot_trips.delivery_step ds ON ds.delivery_id = dl.id AND ds.status = 'pending'
-                     WHERE dl.trip_id = t.id) AS delivery_pending""";
+            """ + DELIVERY_STATE;
 
     private static final String OPEN = "SELECT " + TRIP_STATE + """
             ,
@@ -95,6 +99,30 @@ public class PgBoardStore implements BoardStore {
               AND ($2::text IS NULL OR concat_ws(' ', l.mandate_codes::text, l.asset_id, l.rampla_plate,
                     l.driver_name, l.second_driver_name, l.carrier_name, l.origin_geofence_label,
                     l.destination_geofence_label) ILIKE '%' || $2 || '%')""";
+
+    /** The badge poll reads lane inputs only, without the card's resources, codes and timestamps. */
+    private static final String COUNT_OPEN = """
+            SELECT t.status, t.planned_start, l.estimated_arrival_time AS planned_arrival,
+                   l.asset_id AS truck, l.driver_name AS driver,
+                   (SELECT s.stage_type FROM miot_trips.stage s
+                     WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
+                       AND s.status = 'in_progress' AND s.version_of IS NULL AND s.is_active
+                     LIMIT 1) AS current_stage,
+                   (SELECT s.stage_type FROM miot_trips.stage s
+                     WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
+                       AND s.status = 'completed' AND s.version_of IS NULL AND s.is_active
+                     ORDER BY s.seq DESC LIMIT 1) AS last_stage,
+                   (SELECT jsonb_object_agg(m.milestone, m.status)::text FROM miot_trips.trip_milestone m
+                     WHERE m.trip_id = t.id) AS milestones,
+                   ARRAY(SELECT DISTINCT a->>'value' FROM miot_trips.trip_transition x,
+                         jsonb_array_elements(x.actions) a
+                         WHERE x.trip_id = t.id AND a->>'type' = 'alert'
+                           AND a->>'value' IN ('presentation_overdue', 'departure_overdue',
+                                              'arrival_overdue', 'closure_overdue')) AS alerts,
+            """ + DELIVERY_STATE + "\n" + """
+            FROM miot_trips.trip_live l
+            JOIN miot_trips.trip t ON t.id = l.trip_id AND t.tenant_code = l.tenant_code
+            WHERE l.tenant_code = $1""";
 
     private static final String FINISHED = """
             WITH done AS (
@@ -198,6 +226,11 @@ public class PgBoardStore implements BoardStore {
     }
 
     @Override
+    public List<BoardRow> openForCounts(String tenantCode) {
+        return query(pool.get(), COUNT_OPEN, Tuple.of(tenantCode)).stream().map(PgBoardStore::countRow).toList();
+    }
+
+    @Override
     public FinishedPage finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int perLane) {
         return finished(tenantCode, q, from, to, perLane, null);
     }
@@ -286,5 +319,15 @@ public class PgBoardStore implements BoardStore {
         return new BoardRow.Deliveries(levels == null ? List.of() : Arrays.asList(levels),
                 Boolean.TRUE.equals(r.getBoolean("has_delivery")),
                 Boolean.TRUE.equals(r.getBoolean("delivery_pending")));
+    }
+
+    private static BoardRow countRow(Row r) {
+        Map<String, String> milestones = Pg.json(r, "milestones", new TypeReference<Map<String, String>>() {
+        });
+        String[] alerts = r.getArrayOfStrings("alerts");
+        return new BoardRow(null, r.getString("status"), time(r, "planned_start"), time(r, "planned_arrival"),
+                null, null, null, r.getString("current_stage"), r.getString("last_stage"), milestones,
+                alerts == null ? null : new HashSet<>(Arrays.asList(alerts)), null, null, null, null,
+                r.getString("truck"), null, r.getString("driver"), null, null, null, false, null, null, deliveries(r));
     }
 }

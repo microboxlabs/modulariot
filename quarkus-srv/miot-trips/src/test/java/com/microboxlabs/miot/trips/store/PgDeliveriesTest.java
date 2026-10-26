@@ -170,6 +170,7 @@ class PgDeliveriesTest {
         assertEquals(a.id(), deliveries.create(tenant, ACTOR, tripId,
                 new DeliveryService.NewDelivery("R-1", null, null, null, null, null)).id(), "same reference");
         assertEquals(TripBoard.TO_DELIVER, lane(tripId), "a trip with a delivery is in the delivery view");
+        assertEquals(1, board.counts(tenant).get(TripBoard.DELIVERY));
 
         assertThrows(IllegalStateException.class, () -> confirm(tripId, a.id(), "delivered"), "no proof yet");
         assertThrows(IllegalStateException.class, () -> confirm(tripId, a.id(), "settled"), "not delivered");
@@ -179,6 +180,7 @@ class PgDeliveriesTest {
                 "signature", "manifest.pdf", "application/pdf", new ByteArrayInputStream(PDF), Map.of(), "app");
         assertEquals("pending", withPod.steps().get(0).status(), "a POD asks for the delivery");
         assertEquals(TripBoard.DELIVERY_PENDING, lane(tripId));
+        assertEquals(1, board.counts(tenant).get(TripBoard.DELIVERY));
         String proofId = withPod.proofs().get(0).id();
         try (InputStream in = deliveries.proofContent(tenant, tripId, UUID.fromString(proofId)).stream()) {
             assertArrayEquals(PDF, in.readAllBytes());
@@ -202,6 +204,7 @@ class PgDeliveriesTest {
                 new DeliveryService.NewProof("photo", null, "https://example.com/pod/b.jpg", null, null, null));
         confirm(tripId, b.id(), "delivered");
         assertEquals("delivered", lane(tripId));
+        assertEquals(1, board.counts(tenant).get(TripBoard.DELIVERY));
         BoardView.Card card = board.view(tenant, TripBoard.DELIVERY, null, null, null, null).lanes().stream()
                 .flatMap(l -> l.cards().stream()).findFirst().orElseThrow();
         assertEquals(2, card.delivery().loads());
@@ -215,6 +218,7 @@ class PgDeliveriesTest {
         assertEquals(Trip.DONE, trips.get(tenant, tripId).status());
         assertTrue(engine.transitions(tenant, tripId, 50).stream().anyMatch(x -> "delivery".equals(x.ruleKey())));
         assertEquals(null, lane(tripId), "a finished trip leaves the delivery view");
+        assertEquals(0, board.counts(tenant).get(TripBoard.DELIVERY));
 
         TripSheet sheet = board.sheet(tenant, tripId);
         assertNotNull(sheet.deliveries());

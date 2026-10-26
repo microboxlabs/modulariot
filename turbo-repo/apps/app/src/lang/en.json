@@ -3147,7 +3147,6 @@
         "title": "Locations",
         "description": "The places trips name. Give each its GPS geofence so signal rules fire on entering and leaving.",
         "search": "Search by name or code",
-        "onlyMissing": "Only without a geofence",
         "missingCount": "{count} without a geofence",
         "empty": "No locations yet. The feed creates one when it names a new place.",
         "loading": "Loading…",
@@ -3172,6 +3171,11 @@
         }
       },
       "tripMonitors": {
+        "filterState": "State",
+        "filterAll": "All",
+        "filterPublished": "Published",
+        "filterDraft": "With draft",
+        "filterNoScope": "No scope",
         "pageTitle": "Trips",
         "pageDescription": "How the organization's trips come in and move forward.",
         "menuTitle": "Sections",

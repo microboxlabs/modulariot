@@ -3147,7 +3147,6 @@
         "title": "Ubicaciones",
         "description": "Los lugares que nombran los viajes. Asigna a cada uno su geocerca GPS para que las reglas de señal se disparen al entrar y salir.",
         "search": "Buscar por nombre o código",
-        "onlyMissing": "Solo sin geocerca",
         "missingCount": "{count} sin geocerca",
         "empty": "No hay ubicaciones. El feed las crea al nombrar un lugar nuevo.",
         "loading": "Cargando…",
@@ -3172,6 +3171,11 @@
         }
       },
       "tripMonitors": {
+        "filterState": "Estado",
+        "filterAll": "Todos",
+        "filterPublished": "Publicado",
+        "filterDraft": "Con borrador",
+        "filterNoScope": "Sin alcance",
         "pageTitle": "Viajes",
         "pageDescription": "Cómo entran y avanzan los viajes de la organización.",
         "menuTitle": "Secciones",

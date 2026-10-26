@@ -20,13 +20,14 @@ import {
   HiOutlineLocationMarker,
   HiOutlineMap,
   HiPlus,
-  HiSearch,
 } from "react-icons/hi";
 import CatalogTable from "@/features/common/components/catalog-table";
 import LayoutToggle, {
   type CatalogLayout,
 } from "@/features/common/components/layout-toggle";
+import FilterSearch from "@/features/common/components/filter-search";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
 import SectionMenu, {
   type SectionMenuEntry,
 } from "@/features/common/components/section-menu";
@@ -388,16 +389,26 @@ export default function MonitorList({
   const [creating, setCreating] = useState(false);
   const [creatingFeed, setCreatingFeed] = useState(false);
   const [q, setQ] = useState("");
+  const [state, setState] = useState("");
+  const [placeQ, setPlaceQ] = useState("");
+  const [geofence, setGeofence] = useState("");
   const [layout, setLayout] = useState<CatalogLayout>("cards");
   const monitors = data ?? [];
   const needle = q.trim().toLowerCase();
-  const shown = needle
-    ? monitors.filter(
-        (m) =>
-          m.name.toLowerCase().includes(needle) ||
-          m.key.toLowerCase().includes(needle)
-      )
-    : monitors;
+  const states = {
+    [tr("filterPublished", d)]: (m: MonitorSummary) =>
+      m.publishedVersion !== null,
+    [tr("filterDraft", d)]: (m: MonitorSummary) => m.draftVersion !== null,
+    [tr("filterNoScope", d)]: (m: MonitorSummary) => m.scope === null,
+  };
+  const shown = monitors.filter(
+    (m) =>
+      (!needle ||
+        m.name.toLowerCase().includes(needle) ||
+        m.key.toLowerCase().includes(needle)) &&
+      (!state || states[state]?.(m))
+  );
+  const ld = dict?.tripLocations as I18nRecord;
   const open = (key: string) =>
     router.push(
       `/${lang}/users/settings/trips/monitors/${encodeURIComponent(key)}`
@@ -426,17 +437,40 @@ export default function MonitorList({
       title={tr("pageTitle", d)}
       description={tr("pageDescription", d)}
       filters={
-        section === "monitors" && (
-          <TextInput
-            className="w-full sm:w-72"
-            sizing="sm"
-            icon={HiSearch}
-            value={q}
-            aria-label={tr("search", d)}
-            placeholder={tr("search", d)}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        )
+        (section === "monitors" && (
+          <>
+            <FilterSearch
+              value={q}
+              onChange={setQ}
+              label={tr("search", d)}
+              placeholder={tr("search", d)}
+            />
+            <FilterChip
+              label={tr("filterState", d)}
+              value={state}
+              options={Object.keys(states)}
+              allLabel={tr("filterAll", d)}
+              onChange={setState}
+            />
+          </>
+        )) ||
+        (section === "locations" && (
+          <>
+            <FilterSearch
+              value={placeQ}
+              onChange={setPlaceQ}
+              label={tr("search", ld)}
+              placeholder={tr("search", ld)}
+            />
+            <FilterChip
+              label={tr("geofence", ld)}
+              value={geofence}
+              options={[tr("noGeofence", ld)]}
+              allLabel={tr("filterAll", d)}
+              onChange={setGeofence}
+            />
+          </>
+        ))
       }
       actions={
         <div className="flex shrink-0 items-center gap-2">
@@ -493,7 +527,7 @@ export default function MonitorList({
             <PendingPanel d={dict?.tripMilestones as I18nRecord} lang={lang} />
           )}
           {section === "locations" && (
-            <LocationsPanel d={dict?.tripLocations as I18nRecord} />
+            <LocationsPanel q={placeQ} onlyMissing={geofence !== ""} d={ld} />
           )}
           {section === "feeds" && (
             <FeedsPanel

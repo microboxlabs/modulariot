@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.microboxlabs.miot.core.db.PgNotificationListener;
 import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Share;
 import com.microboxlabs.miot.symptoms.signal.ReferenceCache.Trip;
@@ -19,11 +20,9 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.pulsar.PulsarOutgoingMessageMetadata;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.Vertx;
-import io.vertx.mutiny.pgclient.PgConnection;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
-import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -37,7 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
@@ -69,7 +67,6 @@ public class SignalStream {
 
     static final String TRIPS_CHANNEL = "miot_trips_live";
     private static final String UNDEFINED_TABLE = "42P01";
-    private static final long RETRY_MS = 5_000;
 
     /**
      * As JSON, so a loaded row and a notified one read alike. Names and phones are not selected: the carrier's
@@ -111,15 +108,13 @@ public class SignalStream {
     private final boolean enabled;
     private final GpsDatabase gps;
     private final Supplier<Pool> pool;
-    private final Vertx vertx;
     private final ReferenceCache refs = new ReferenceCache();
     private final SignalBuilder builder;
     private final TripNoticeReader tripReader;
     private final Counter built;
     private final Counter skipped;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
-    private final AtomicReference<SqlConnection> listening = new AtomicReference<>();
-    private volatile boolean stopped;
+    private final PgNotificationListener listener;
 
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
@@ -127,7 +122,7 @@ public class SignalStream {
         this.enabled = enabled;
         this.gps = gps;
         this.pool = pool::get;
-        this.vertx = vertx;
+        this.listener = new PgNotificationListener(this.pool, vertx, TRIPS_CHANNEL, this::onTripNotice);
         this.tripReader = new TripNoticeReader(refs, id -> this.pool.get().preparedQuery(ONE_TRIP)
                 .execute(Tuple.of(id)).map(SignalStream::trips));
         this.builder = new SignalBuilder(refs, ZoneId.of(zone));
@@ -146,18 +141,14 @@ public class SignalStream {
         if (!gps.configured()) {
             LOG.warn("Signal builder: the GPS database is not configured; signals have no shared clients");
         }
-        listen();
+        listener.start();
         reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed; frames wait"))
                 .onFailure().retry().withBackOff(Duration.ofSeconds(1), Duration.ofMinutes(1)).indefinitely()
                 .subscribe().with(x -> ready.complete(null));
     }
 
     void onStop(@Observes ShutdownEvent ignored) {
-        stopped = true;
-        SqlConnection connection = listening.getAndSet(null);
-        if (connection != null) {
-            connection.closeAndForget();
-        }
+        listener.close();
     }
 
     @Scheduled(every = "${miot.symptoms.signal-builder.reload-every:10m}", delayed = "10m",
@@ -223,43 +214,6 @@ public class SignalStream {
             return;
         }
         tripReader.read(tripId);
-    }
-
-    /** One connection listens for trip changes; notices missed while it reconnects wait for the next reload. */
-    private void listen() {
-        if (stopped) {
-            return;
-        }
-        pool.get().getConnection().subscribe().with(connection -> {
-            listening.set(connection);
-            if (stopped) {
-                if (listening.compareAndSet(connection, null)) {
-                    connection.closeAndForget();
-                }
-                return;
-            }
-            PgConnection pg = PgConnection.cast(connection);
-            pg.notificationHandler(notice -> onTripNotice(notice.getPayload()));
-            pg.closeHandler(() -> retry(connection));
-            pg.query("LISTEN " + TRIPS_CHANNEL).execute().subscribe().with(
-                    rows -> LOG.debug("Signal builder: listening for trip changes"),
-                    failure -> {
-                        LOG.warnf("Signal builder: trip LISTEN failed (%s)", failure.getClass().getSimpleName());
-                        connection.closeAndForget();
-                    });
-        }, failure -> {
-            LOG.warnf("Signal builder: no connection to listen for trips (%s)", failure.getClass().getSimpleName());
-            retry(null);
-        });
-    }
-
-    private void retry(SqlConnection connection) {
-        if (connection != null) {
-            listening.compareAndSet(connection, null);
-        }
-        if (!stopped) {
-            vertx.setTimer(RETRY_MS, id -> listen());
-        }
     }
 
     @Incoming("gps-frames")

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.smallrye.mutiny.helpers.test.AssertSubscriber;
 import io.vertx.core.json.JsonObject;
 import jakarta.ws.rs.ServiceUnavailableException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -50,7 +51,30 @@ class JobEventBusTest {
         JsonObject payload = new JsonObject(big).getJsonObject("payload");
         assertNull(payload.getString("lastError"));
         assertEquals("job-2", payload.getString("jobId"));
-        assertTrue(big.length() <= JobEventBus.MAX_FRAME);
+        assertTrue(big.getBytes(StandardCharsets.UTF_8).length <= JobEventBus.MAX_FRAME);
+    }
+
+    @Test
+    void multibyteErrorsRespectTheByteBudgetWithoutChangingTheOriginalFrame() {
+        String error = "界".repeat(3000);
+        JsonObject original = frame("tenant-a", "job-utf8", error);
+        String fitted = JobEventBus.fit(original);
+        assertNull(new JsonObject(fitted).getJsonObject("payload").getString("lastError"));
+        assertTrue(fitted.getBytes(StandardCharsets.UTF_8).length <= JobEventBus.MAX_FRAME);
+        assertEquals(error, original.getJsonObject("payload").getString("lastError"));
+    }
+
+    @Test
+    void anUnboundedPayloadOperationCannotOverflowTheNotificationAfterDroppingItsError() {
+        JsonObject original = frame("tenant-a", "job-op", "short");
+        String operation = "界".repeat(3000);
+        original.getJsonObject("payload").put("jobOp", operation);
+        String fitted = JobEventBus.fit(original);
+        JsonObject payload = new JsonObject(fitted).getJsonObject("payload");
+        assertNull(payload.getString("jobOp"));
+        assertEquals("job-op", payload.getString("jobId"));
+        assertTrue(fitted.getBytes(StandardCharsets.UTF_8).length <= JobEventBus.MAX_FRAME);
+        assertEquals(operation, original.getJsonObject("payload").getString("jobOp"));
     }
 
     @Test

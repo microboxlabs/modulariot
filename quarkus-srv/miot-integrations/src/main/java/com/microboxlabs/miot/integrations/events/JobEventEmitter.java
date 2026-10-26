@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.events;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.core.db.PgTx;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -90,6 +91,10 @@ public class JobEventEmitter {
         if (job == null) {
             return;
         }
+        PgTx.afterCommit(() -> emitCommitted(job, transition));
+    }
+
+    private void emitCommitted(AsyncJob job, String transition) {
         if (bus != null) {
             bus.publish(eventData(job, transition));
         }

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.core.db.PgNotificationListener;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.trips.store.BoardChannel;
@@ -9,9 +10,7 @@ import io.quarkus.runtime.StartupEvent;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.operators.multi.processors.BroadcastProcessor;
 import io.vertx.mutiny.core.Vertx;
-import io.vertx.mutiny.pgclient.PgConnection;
 import io.vertx.mutiny.sqlclient.Pool;
-import io.vertx.mutiny.sqlclient.SqlConnection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
@@ -20,7 +19,6 @@ import jakarta.ws.rs.ServiceUnavailableException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -40,15 +38,11 @@ public class BoardEvents {
 
     private static final Logger LOG = Logger.getLogger(BoardEvents.class);
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final long RETRY_MS = 5_000;
     private static final Duration PING = Duration.ofSeconds(25);
 
-    private final Supplier<Pool> pool;
-    private final Vertx vertx;
     private final boolean enabled;
     private final Map<String, BroadcastProcessor<Change>> tenants = new ConcurrentHashMap<>();
-    private final AtomicReference<SqlConnection> listening = new AtomicReference<>();
-    private volatile boolean stopped;
+    private final PgNotificationListener listener;
 
     @Inject
     BoardEvents(Instance<Pool> pool, Vertx vertx,
@@ -57,8 +51,7 @@ public class BoardEvents {
     }
 
     public BoardEvents(Supplier<Pool> pool, Vertx vertx, boolean enabled) {
-        this.pool = pool;
-        this.vertx = vertx;
+        this.listener = new PgNotificationListener(pool, vertx, BoardChannel.CHANNEL, this::dispatch);
         this.enabled = enabled;
     }
 
@@ -72,16 +65,12 @@ public class BoardEvents {
 
     public void start() {
         if (enabled) {
-            listen();
+            listener.start();
         }
     }
 
     public void stop() {
-        stopped = true;
-        SqlConnection connection = listening.getAndSet(null);
-        if (connection != null) {
-            connection.closeAndForget();
-        }
+        listener.close();
     }
 
     /** The tenant's trip changes, with a ping every 25 seconds. */
@@ -106,39 +95,4 @@ public class BoardEvents {
         }
     }
 
-    private void listen() {
-        if (stopped) {
-            return;
-        }
-        pool.get().getConnection().subscribe().with(connection -> {
-            listening.set(connection);
-            if (stopped) {
-                if (listening.compareAndSet(connection, null)) {
-                    connection.closeAndForget();
-                }
-                return;
-            }
-            PgConnection pg = PgConnection.cast(connection);
-            pg.notificationHandler(notice -> dispatch(notice.getPayload()));
-            pg.closeHandler(() -> retry(connection));
-            pg.query("LISTEN " + BoardChannel.CHANNEL).execute().subscribe().with(
-                    rows -> LOG.debug("Listening for trip board changes"),
-                    failure -> {
-                        LOG.warnf("Trip board LISTEN failed: %s", failure.getMessage());
-                        connection.closeAndForget();
-                    });
-        }, failure -> {
-            LOG.warnf("Trip board listener has no connection: %s", failure.getMessage());
-            retry(null);
-        });
-    }
-
-    private void retry(SqlConnection connection) {
-        if (connection != null) {
-            listening.compareAndSet(connection, null);
-        }
-        if (!stopped) {
-            vertx.setTimer(RETRY_MS, id -> listen());
-        }
-    }
 }

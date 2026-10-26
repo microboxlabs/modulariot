@@ -36,6 +36,7 @@ const NOTIFY_TRANSITIONS = new Set([
 
 let eventSource: EventSource | null = null;
 let connectedUrl: string | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let sequence = 0;
 
 let snapshot: JobEventsSnapshot = { connected: false, events: [], unseen: 0 };
@@ -51,7 +52,15 @@ export function subscribeJobEvents(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export function getJobEventsSnapshot(): JobEventsSnapshot {
+export function getJobEventsSnapshot(
+  streamUrl?: string | null
+): JobEventsSnapshot {
+  if (
+    streamUrl === null ||
+    (streamUrl !== undefined && streamUrl !== connectedUrl)
+  ) {
+    return SERVER_SNAPSHOT;
+  }
   return snapshot;
 }
 
@@ -79,14 +88,36 @@ export function connectJobEvents(streamUrl: string): void {
   if (globalThis.window === undefined) return;
   if (eventSource && connectedUrl === streamUrl) return;
 
-  eventSource?.close();
+  clearReconnectTimer();
+  const previous = eventSource;
+  eventSource = null;
+  previous?.close();
+  const changedOrg = connectedUrl !== streamUrl;
   connectedUrl = streamUrl;
-  eventSource = new EventSource(streamUrl);
+  const source = new EventSource(streamUrl);
+  eventSource = source;
+  if (changedOrg) publish({ connected: false, events: [], unseen: 0 });
 
-  eventSource.onopen = () => publish({ connected: true });
-  eventSource.onerror = () => publish({ connected: false }); // EventSource auto-reconnects
+  source.onopen = () => {
+    if (eventSource === source) publish({ connected: true });
+  };
+  source.onerror = () => {
+    if (eventSource !== source) return;
+    publish({ connected: false });
+    // CONNECTING retries natively. Fatal HTTP refusals enter CLOSED and need a fresh source.
+    if (source.readyState !== EventSource.CLOSED || reconnectTimer !== null)
+      return;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      if (eventSource !== source || connectedUrl !== streamUrl) return;
+      eventSource = null;
+      source.close();
+      connectJobEvents(streamUrl);
+    }, 5000);
+  };
 
-  eventSource.onmessage = (message) => {
+  source.onmessage = (message) => {
+    if (eventSource !== source) return;
     let payload: JobEventPayload | null = null;
     try {
       const frame = JSON.parse(message.data) as {
@@ -112,11 +143,20 @@ export function connectJobEvents(streamUrl: string): void {
   };
 }
 
+function clearReconnectTimer(): void {
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
 /** Test-only: reset module state between tests. */
 export function resetJobEventsStoreForTests(): void {
-  eventSource?.close();
+  clearReconnectTimer();
+  const previous = eventSource;
   eventSource = null;
   connectedUrl = null;
+  previous?.close();
   sequence = 0;
   snapshot = { connected: false, events: [], unseen: 0 };
   listeners.clear();

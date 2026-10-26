@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import {
   useIntegrationJobsOverview,
   useRevalidateJobs,
@@ -30,10 +30,15 @@ export function useJobEvents(orgSlug: string | null): JobEventsSnapshot & {
   const { overview } = useIntegrationJobsOverview(orgSlug);
   const revalidate = useRevalidateJobs(orgSlug);
   const debounceRef = useRef<number | null>(null);
+  const streamUrl = orgSlug ? jobEventsUrl(orgSlug) : null;
+  const readSnapshot = useCallback(
+    () => getJobEventsSnapshot(streamUrl),
+    [streamUrl]
+  );
 
   const snapshot = useSyncExternalStore(
     subscribeJobEvents,
-    getJobEventsSnapshot,
+    readSnapshot,
     getJobEventsServerSnapshot
   );
 
@@ -45,7 +50,8 @@ export function useJobEvents(orgSlug: string | null): JobEventsSnapshot & {
   const eventCount = snapshot.events.length;
   const latestId = snapshot.events[0]?.id;
   useEffect(() => {
-    if (!eventCount || !latestId) return;
+    // Re-read the ledger after reconnect too: transitions can be missed while the stream is down.
+    if (!snapshot.connected) return;
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null;
@@ -57,7 +63,7 @@ export function useJobEvents(orgSlug: string | null): JobEventsSnapshot & {
         debounceRef.current = null;
       }
     };
-  }, [eventCount, latestId, revalidate]);
+  }, [snapshot.connected, eventCount, latestId, revalidate]);
 
   return {
     ...snapshot,

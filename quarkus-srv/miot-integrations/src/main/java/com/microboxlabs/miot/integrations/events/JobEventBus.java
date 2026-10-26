@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.events;
 
+import com.microboxlabs.miot.core.db.PgNotificationListener;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
@@ -7,19 +8,19 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.operators.multi.processors.BroadcastProcessor;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.Vertx;
-import io.vertx.mutiny.pgclient.PgConnection;
 import io.vertx.mutiny.sqlclient.Pool;
-import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.ServiceUnavailableException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -35,20 +36,17 @@ import org.jboss.logging.Logger;
 public class JobEventBus {
 
     public static final String CHANNEL = "miot_integration_jobs";
-    /** Frames over this many characters go without their error text; {@code pg_notify} takes at most 8000 bytes. */
+    /** UTF-8 byte budget below PostgreSQL's 8000-byte notification limit. */
     static final int MAX_FRAME = 7000;
 
     private static final Logger LOG = Logger.getLogger(JobEventBus.class);
-    private static final long RETRY_MS = 5_000;
     private static final Duration PING = Duration.ofSeconds(25);
     private static final JsonObject PING_FRAME = new JsonObject().put("eventType", "ping");
 
     private final Supplier<Pool> pool;
-    private final Vertx vertx;
     private final boolean enabled;
     private final Map<String, BroadcastProcessor<JsonObject>> tenants = new ConcurrentHashMap<>();
-    private final AtomicReference<SqlConnection> listening = new AtomicReference<>();
-    private volatile boolean stopped;
+    private final PgNotificationListener listener;
 
     @Inject
     JobEventBus(Instance<Pool> pool, Vertx vertx,
@@ -59,7 +57,7 @@ public class JobEventBus {
 
     public JobEventBus(Supplier<Pool> pool, Vertx vertx, boolean enabled) {
         this.pool = pool;
-        this.vertx = vertx;
+        this.listener = new PgNotificationListener(pool, vertx, CHANNEL, this::dispatch);
         this.enabled = enabled;
     }
 
@@ -68,9 +66,11 @@ public class JobEventBus {
     }
 
     void start(@Observes StartupEvent event) {
-        if (enabled) {
-            listen();
-        }
+        start();
+    }
+
+    public CompletionStage<Void> start() {
+        return enabled ? listener.start() : CompletableFuture.completedFuture(null);
     }
 
     void stop(@Observes ShutdownEvent event) {
@@ -78,11 +78,7 @@ public class JobEventBus {
     }
 
     public void stop() {
-        stopped = true;
-        SqlConnection connection = listening.getAndSet(null);
-        if (connection != null) {
-            connection.closeAndForget();
-        }
+        listener.close();
     }
 
     /** Publishes the frame to every pod. Never throws; a failure is logged at DEBUG. */
@@ -124,50 +120,19 @@ public class JobEventBus {
     /** The frame as text, without the job's error when it would not fit in a notification. */
     static String fit(JsonObject frame) {
         String text = frame.encode();
-        if (text.length() <= MAX_FRAME) {
+        if (text.getBytes(StandardCharsets.UTF_8).length <= MAX_FRAME) {
             return text;
         }
         JsonObject copy = frame.copy();
         JsonObject payload = copy.getJsonObject("payload");
         if (payload != null) {
             payload.put("lastError", null);
+            if (copy.encode().getBytes(StandardCharsets.UTF_8).length > MAX_FRAME) {
+                // Unlike the ledger's bounded columns, this operation comes from arbitrary job payload JSON.
+                payload.put("jobOp", null);
+            }
         }
         return copy.encode();
     }
 
-    private void listen() {
-        if (stopped) {
-            return;
-        }
-        pool.get().getConnection().subscribe().with(connection -> {
-            listening.set(connection);
-            if (stopped) {
-                if (listening.compareAndSet(connection, null)) {
-                    connection.closeAndForget();
-                }
-                return;
-            }
-            PgConnection pg = PgConnection.cast(connection);
-            pg.notificationHandler(notice -> dispatch(notice.getPayload()));
-            pg.closeHandler(() -> retry(connection));
-            pg.query("LISTEN " + CHANNEL).execute().subscribe().with(
-                    rows -> LOG.debug("Listening for job events"),
-                    failure -> {
-                        LOG.warnf("Job events LISTEN failed: %s", failure.getMessage());
-                        connection.closeAndForget();
-                    });
-        }, failure -> {
-            LOG.warnf("Job events listener has no connection: %s", failure.getMessage());
-            retry(null);
-        });
-    }
-
-    private void retry(SqlConnection connection) {
-        if (connection != null) {
-            listening.compareAndSet(connection, null);
-        }
-        if (!stopped) {
-            vertx.setTimer(RETRY_MS, id -> listen());
-        }
-    }
 }

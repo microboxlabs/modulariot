@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Alert,
@@ -14,22 +14,35 @@ import {
   Spinner,
   TextInput,
 } from "flowbite-react";
-import { HiOutlineMap, HiPlus, HiSearch } from "react-icons/hi";
+import {
+  HiOutlineClipboardCheck,
+  HiOutlineInboxIn,
+  HiOutlineLocationMarker,
+  HiOutlineMap,
+  HiPlus,
+  HiSearch,
+} from "react-icons/hi";
 import CatalogTable from "@/features/common/components/catalog-table";
 import LayoutToggle, {
   type CatalogLayout,
 } from "@/features/common/components/layout-toggle";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import SectionMenu, {
+  type SectionMenuEntry,
+} from "@/features/common/components/section-menu";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import LocationsPanel from "../locations/locations-panel";
 import PendingPanel from "../milestones/pending-panel";
+import FeedsPanel from "../feeds/feeds-panel";
+import { FEED_ADMIN } from "../feeds/feeds-api";
 import { scopeSummary } from "./scope-section";
 import {
   saveDraft,
   useCanEditMonitors,
   useMonitors,
   useScopeValues,
+  useTripsPermission,
   type MonitorSummary,
   type ScopeValues,
 } from "./monitors-api";
@@ -235,10 +248,129 @@ function MonitorCard({
   );
 }
 
+type TripsSection = "monitors" | "pending" | "locations" | "feeds";
+const SECTIONS: readonly TripsSection[] = [
+  "monitors",
+  "pending",
+  "locations",
+  "feeds",
+];
+
+/** The section in `?section=`; Monitores when absent or unknown. */
+export function tripsSectionOf(params: URLSearchParams): TripsSection {
+  const value = params.get("section");
+  return SECTIONS.find((s) => s === value) ?? "monitors";
+}
+
+const SECTION_ICONS: Record<
+  TripsSection,
+  SectionMenuEntry<TripsSection>["icon"]
+> = {
+  monitors: HiOutlineMap,
+  pending: HiOutlineClipboardCheck,
+  locations: HiOutlineLocationMarker,
+  feeds: HiOutlineInboxIn,
+};
+
+function MonitorsSection({
+  monitors,
+  shown,
+  loaded,
+  error,
+  isLoading,
+  layout,
+  scopeValues,
+  lang,
+  d,
+  onOpen,
+}: Readonly<{
+  monitors: MonitorSummary[];
+  shown: MonitorSummary[];
+  loaded: boolean;
+  error: Error | undefined;
+  isLoading: boolean;
+  layout: CatalogLayout;
+  scopeValues: ScopeValues | undefined;
+  lang: string;
+  d: I18nRecord;
+  onOpen: (key: string) => void;
+}>) {
+  return (
+    <>
+      {error && (
+        <Alert color="failure">
+          <span className="text-sm">{error.message}</span>
+        </Alert>
+      )}
+      {isLoading && (
+        <div className="flex justify-center py-10">
+          <Spinner aria-label={tr("loading", d)} />
+        </div>
+      )}
+      {loaded && shown.length === 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          {monitors.length === 0 ? tr("empty", d) : tr("noMatches", d)}
+        </div>
+      )}
+      {shown.length > 0 && layout === "cards" && (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+          {shown.map((m) => (
+            <MonitorCard
+              key={m.key}
+              m={m}
+              lang={lang}
+              values={scopeValues}
+              d={d}
+              onOpen={() => onOpen(m.key)}
+            />
+          ))}
+        </div>
+      )}
+      {shown.length > 0 && layout === "list" && (
+        <CatalogTable
+          columns={[
+            tr("monitor", d),
+            tr("scope.title", d),
+            tr("version", d),
+            tr("rules", d),
+            tr("updated", d),
+          ]}
+        >
+          {shown.map((m) => (
+            <tr
+              key={m.key}
+              className="cursor-pointer border-t border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+            >
+              <td className="px-4 py-2.5">
+                <Link
+                  href={`/${lang}/users/settings/trips/monitors/${encodeURIComponent(m.key)}`}
+                  className="font-medium text-gray-900 hover:underline dark:text-white"
+                >
+                  {m.name}
+                </Link>
+                <div className="font-mono text-gray-400">{m.key}</div>
+              </td>
+              <td className="px-4 py-2.5">
+                {scopeSummary(m.scope, scopeValues, d)}
+              </td>
+              <td className="px-4 py-2.5">
+                <VersionBadges m={m} d={d} />
+              </td>
+              <td className="px-4 py-2.5">{m.rules}</td>
+              <td className="px-4 py-2.5 text-gray-400">
+                {updatedLine(m, lang)}
+              </td>
+            </tr>
+          ))}
+        </CatalogTable>
+      )}
+    </>
+  );
+}
+
 /**
- * Settings › Viajes: the organization's trip monitors, one per class of trip, each with the
- * trips it takes, as cards or a list like the other settings catalogs; then the milestones
- * waiting for confirmation and the locations with their GPS geofence.
+ * Settings › Viajes, laid out like Comunicaciones: a menu of sections beside the chosen one.
+ * Monitores (each with the trips it takes), Por confirmar, Ubicaciones and Feeds.
  */
 export default function MonitorList({
   dict,
@@ -246,10 +378,15 @@ export default function MonitorList({
 }: Readonly<{ dict: I18nRecord; lang: string }>) {
   const d = dict?.tripMonitors as I18nRecord;
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const section = tripsSectionOf(params);
   const { data, error, isLoading } = useMonitors();
   const canEdit = useCanEditMonitors();
+  const canEditFeeds = useTripsPermission(FEED_ADMIN);
   const { data: scopeValues } = useScopeValues();
   const [creating, setCreating] = useState(false);
+  const [creatingFeed, setCreatingFeed] = useState(false);
   const [q, setQ] = useState("");
   const [layout, setLayout] = useState<CatalogLayout>("cards");
   const monitors = data ?? [];
@@ -265,6 +402,20 @@ export default function MonitorList({
     router.push(
       `/${lang}/users/settings/trips/monitors/${encodeURIComponent(key)}`
     );
+  const onSection = (next: TripsSection) => {
+    const query = new URLSearchParams(params.toString());
+    if (next === "monitors") query.delete("section");
+    else query.set("section", next);
+    const qs = query.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const sections: SectionMenuEntry<TripsSection>[] = SECTIONS.map((id) => ({
+    id,
+    label: tr(`sections.${id}.label`, d),
+    description: tr(`sections.${id}.description`, d),
+    icon: SECTION_ICONS[id],
+  }));
 
   return (
     <SettingsPageShell
@@ -272,109 +423,87 @@ export default function MonitorList({
       lang={lang}
       path={["user", "settings", "trips"]}
       icon={HiOutlineMap}
-      title={tr("title", d)}
-      description={tr("description", d)}
+      title={tr("pageTitle", d)}
+      description={tr("pageDescription", d)}
       filters={
-        <TextInput
-          className="w-full sm:w-72"
-          sizing="sm"
-          icon={HiSearch}
-          value={q}
-          aria-label={tr("search", d)}
-          placeholder={tr("search", d)}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        section === "monitors" && (
+          <TextInput
+            className="w-full sm:w-72"
+            sizing="sm"
+            icon={HiSearch}
+            value={q}
+            aria-label={tr("search", d)}
+            placeholder={tr("search", d)}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        )
       }
       actions={
         <div className="flex shrink-0 items-center gap-2">
-          <LayoutToggle
-            layout={layout}
-            labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
-            onLayout={setLayout}
-          />
-          {canEdit && (
+          {section === "monitors" && (
+            <LayoutToggle
+              layout={layout}
+              labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+              onLayout={setLayout}
+            />
+          )}
+          {section === "monitors" && canEdit && (
             <Button color="blue" size="sm" onClick={() => setCreating(true)}>
               <HiPlus className="mr-1 h-4 w-4" />
               {tr("newMonitor", d)}
             </Button>
           )}
+          {section === "feeds" && canEditFeeds && (
+            <Button
+              color="blue"
+              size="sm"
+              onClick={() => setCreatingFeed(true)}
+            >
+              <HiPlus className="mr-1 h-4 w-4" />
+              {tr("newFeed", dict?.tripFeeds as I18nRecord)}
+            </Button>
+          )}
         </div>
       }
     >
-      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
-        {error && (
-          <Alert color="failure">
-            <span className="text-sm">{error.message}</span>
-          </Alert>
-        )}
-
-        {isLoading && (
-          <div className="flex justify-center py-10">
-            <Spinner aria-label={tr("loading", d)} />
-          </div>
-        )}
-        {data && shown.length === 0 && (
-          <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-            {monitors.length === 0 ? tr("empty", d) : tr("noMatches", d)}
-          </div>
-        )}
-
-        {shown.length > 0 && layout === "cards" && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-            {shown.map((m) => (
-              <MonitorCard
-                key={m.key}
-                m={m}
-                lang={lang}
-                values={scopeValues}
-                d={d}
-                onOpen={() => open(m.key)}
-              />
-            ))}
-          </div>
-        )}
-        {shown.length > 0 && layout === "list" && (
-          <CatalogTable
-            columns={[
-              tr("monitor", d),
-              tr("scope.title", d),
-              tr("version", d),
-              tr("rules", d),
-              tr("updated", d),
-            ]}
-          >
-            {shown.map((m) => (
-              <tr
-                key={m.key}
-                className="cursor-pointer border-t border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
-              >
-                <td className="px-4 py-2.5">
-                  <Link
-                    href={`/${lang}/users/settings/trips/monitors/${encodeURIComponent(m.key)}`}
-                    className="font-medium text-gray-900 hover:underline dark:text-white"
-                  >
-                    {m.name}
-                  </Link>
-                  <div className="font-mono text-gray-400">{m.key}</div>
-                </td>
-                <td className="px-4 py-2.5">
-                  {scopeSummary(m.scope, scopeValues, d)}
-                </td>
-                <td className="px-4 py-2.5">
-                  <VersionBadges m={m} d={d} />
-                </td>
-                <td className="px-4 py-2.5">{m.rules}</td>
-                <td className="px-4 py-2.5 text-gray-400">
-                  {updatedLine(m, lang)}
-                </td>
-              </tr>
-            ))}
-          </CatalogTable>
-        )}
-
-        <PendingPanel d={dict?.tripMilestones as I18nRecord} lang={lang} />
-
-        <LocationsPanel d={dict?.tripLocations as I18nRecord} />
+      {/* Below md the menu and the detail stack and scroll together; from md only the detail scrolls. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 max-md:overflow-y-auto md:grid-cols-[320px_1fr]">
+        <SectionMenu
+          title={tr("menuTitle", d)}
+          sections={sections}
+          selected={section}
+          onSelect={onSection}
+        />
+        <div className="-m-1 flex min-h-0 flex-col gap-4 p-1 md:overflow-y-auto">
+          {section === "monitors" && (
+            <MonitorsSection
+              monitors={monitors}
+              shown={shown}
+              loaded={!!data}
+              error={error}
+              isLoading={isLoading}
+              layout={layout}
+              scopeValues={scopeValues}
+              lang={lang}
+              d={d}
+              onOpen={open}
+            />
+          )}
+          {section === "pending" && (
+            <PendingPanel d={dict?.tripMilestones as I18nRecord} lang={lang} />
+          )}
+          {section === "locations" && (
+            <LocationsPanel d={dict?.tripLocations as I18nRecord} />
+          )}
+          {section === "feeds" && (
+            <FeedsPanel
+              creating={creatingFeed}
+              onCreatingDone={() => setCreatingFeed(false)}
+              d={dict?.tripFeeds as I18nRecord}
+              md={d}
+            />
+          )}
+        </div>
       </div>
 
       <CreateMonitorModal

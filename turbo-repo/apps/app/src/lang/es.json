@@ -3108,6 +3108,40 @@
           "other": "Otro"
         }
       },
+      "tripFeeds": {
+        "title": "Feeds",
+        "description": "Las fuentes externas que envían los viajes de la organización por la API. Un envío a un feed que no existe responde 404, y a uno inactivo, 409.",
+        "newFeed": "Nuevo feed",
+        "editFeed": "Editar «{name}»",
+        "feed": "Feed",
+        "name": "Nombre",
+        "key": "Clave",
+        "keyHint": "Va en la URL de envío: …/trips/feeds/<clave>/services. No se puede cambiar después.",
+        "keyTaken": "Ya existe un feed con esa clave.",
+        "stages": "Etapas",
+        "stagesHint": "Las etapas con que se crea cada viaje, en orden, con el estado del servicio que corresponde a cada una.",
+        "arrivalStage": "Etapa de llegada",
+        "arrivalHint": "Su fin planificado es la hora de llegada del viaje.",
+        "chooseStage": "Elige una etapa",
+        "requiredResources": "Recursos requeridos",
+        "resources": {
+          "truck": "Camión",
+          "trailer": "Remolque",
+          "driver": "Conductor"
+        },
+        "openServices": "Servicios abiertos",
+        "state": "Estado",
+        "active": "Activo",
+        "inactive": "Inactivo",
+        "activeLabel": "Acepta envíos",
+        "inactiveHint": "Un feed inactivo rechaza los envíos con 409. Sus viajes ya creados siguen igual.",
+        "edit": "Editar",
+        "create": "Crear",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "loading": "Cargando…",
+        "empty": "Aún no hay feeds. Crea uno para que una fuente externa pueda enviar viajes."
+      },
       "tripLocations": {
         "title": "Ubicaciones",
         "description": "Los lugares que nombran los viajes. Asigna a cada uno su geocerca GPS para que las reglas de señal se disparen al entrar y salir.",
@@ -3137,6 +3171,27 @@
         }
       },
       "tripMonitors": {
+        "pageTitle": "Viajes",
+        "pageDescription": "Cómo entran y avanzan los viajes de la organización.",
+        "menuTitle": "Secciones",
+        "sections": {
+          "monitors": {
+            "label": "Monitores",
+            "description": "Reglas que mueven las etapas de cada clase de viaje"
+          },
+          "pending": {
+            "label": "Por confirmar",
+            "description": "Hitos detectados que esperan confirmación"
+          },
+          "locations": {
+            "label": "Ubicaciones",
+            "description": "Lugares de los viajes y su geocerca GPS"
+          },
+          "feeds": {
+            "label": "Feeds",
+            "description": "Fuentes externas que envían los viajes"
+          }
+        },
         "title": "Monitores de viajes",
         "description": "Reglas que mueven las etapas de cada clase de viaje: qué evento, bajo qué condición, con qué efecto.",
         "newMonitor": "Nuevo monitor",

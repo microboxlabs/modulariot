@@ -30,7 +30,10 @@ import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.trips.dto.BoardView;
+import com.microboxlabs.miot.trips.service.BoardService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
+import com.microboxlabs.miot.trips.service.TripBoard;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.MonitorClock;
@@ -600,6 +603,46 @@ class PgMonitorEngineTest {
         assertEquals(1, engine.pendingTimers(tenant, tripId).size());
         clock.tick();
         assertEquals(3, matched(tripId).stream().filter("deadline"::equals).count());
+    }
+
+    private List<String> cards(BoardService board, String view, String lane, String q) {
+        return board.view(tenant, view, q, null, null, null).lanes().stream()
+                .filter(l -> l.key().equals(lane)).flatMap(l -> l.cards().stream())
+                .map(BoardView.Card::tripId).toList();
+    }
+
+    @Test
+    void theBoardPlacesATripByItsStageMilestonesAndAlerts() {
+        publish("overdue", List.of(
+                rule("open", "plan", null, "event.kind == 'created'", 10, act("start", "preparation")),
+                rule("late", "timer", "trip.plannedStart", "stage.type == 'preparation'", 10,
+                        act("alert", "departure_overdue")),
+                rule("left", "signal", null, "stage.type == 'preparation' && signal.kind == 'left_origin'", 10,
+                        act("advance", "transit")),
+                rule("arrived", "signal", null, "stage.type == 'transit' && signal.kind == 'entered_destination'",
+                        10, act("completeTrip", null))));
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet);
+        TripView t = newTrip("overdue", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
+        String trip = t.id();
+        String code = t.mandates().get(0).externalCode();
+
+        assertEquals(List.of(trip), cards(board, TripBoard.PLANNING, TripBoard.UNASSIGNED, null));
+        new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500).tick();
+        assertEquals(List.of(trip), cards(board, TripBoard.PLANNING, TripBoard.DEPARTURE_PENDING, null),
+                "the monitor's overdue alert");
+
+        engine.signal(tenant, "gps", id(t), "left_origin", "17", null);
+        assertEquals(List.of(), cards(board, TripBoard.PLANNING, TripBoard.DEPARTURE_PENDING, null));
+        assertEquals(List.of(trip), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, code));
+        assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, "no-such-code"));
+
+        engine.signal(tenant, "gps", id(t), "entered_destination", "42", null);
+        assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, null));
+        assertEquals(List.of(trip), cards(board, TripBoard.FINISHED, TripBoard.COMPLETED, code));
+        BoardView.Card done = board.view(tenant, TripBoard.FINISHED, null, null, null, null).lanes().get(0)
+                .cards().get(0);
+        assertEquals(List.of(code), done.codes());
+        assertTrue(done.alerts().contains("departure_overdue"));
     }
 
 }

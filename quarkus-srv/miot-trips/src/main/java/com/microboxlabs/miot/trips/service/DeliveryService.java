@@ -7,6 +7,7 @@ import com.microboxlabs.miot.trips.domain.Delivery;
 import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.MandateRef;
 import com.microboxlabs.miot.trips.domain.Trip;
+import com.microboxlabs.miot.trips.domain.TripDocument;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.dto.DeliveryViews;
 import com.microboxlabs.miot.trips.store.DeliveryStore;
@@ -53,6 +54,7 @@ public class DeliveryService implements DeliveryReach {
     private static final String TRIP = "trip";
     private static final String DELIVERY = "delivery";
     private static final String STEP = "step";
+    static final String DOCUMENT = "document";
     private static final int MAX_DELIVERIES = 200;
 
     private final DeliveryStore store;
@@ -200,6 +202,41 @@ public class DeliveryService implements DeliveryReach {
             throw new IllegalStateException("the content already belongs to another record");
         }
         return content;
+    }
+
+    /**
+     * Records a trip document as a proof of the delivery. The document keeps its content; the proof names it in its
+     * metadata ({@value #DOCUMENT}). Runs inside the caller's transaction.
+     */
+    public void linkDocument(String tenantCode, String actor, UUID tripId, UUID deliveryId, TripDocument document) {
+        Delivery d = delivery(tenantCode, tripId, deliveryId);
+        String kind = document.mimetype() != null && document.mimetype().startsWith("image/") ? "photo" : DOCUMENT;
+        Delivery.Proof proof = store.insert(new Delivery.Proof(UUID.randomUUID().toString(), d.id(), tenantCode,
+                kind, document.contentId(), null, document.name(), document.mimetype(), Map.of(DOCUMENT, document.id()),
+                "ui", null, actor));
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put(DELIVERY, d.id());
+        details.put("proof", proof.id());
+        details.put("kind", kind);
+        details.put(DOCUMENT, document.id());
+        audit.log(tenantCode, actor, PROOF_ADDED, TRIP, tripId.toString(), tripId.toString(), details);
+        onProof(tenantCode, actor, tripId, d, "ui");
+    }
+
+    /**
+     * Drops the proofs a trip document recorded. Refused when the document proves a delivery with a confirmed step.
+     * Runs inside the caller's transaction.
+     */
+    public void unlinkDocument(String tenantCode, UUID tripId, String documentId) {
+        List<Delivery.Proof> linked = store.proofs(tenantCode, tripId).stream()
+                .filter(p -> documentId.equals(p.metadata().get(DOCUMENT))).toList();
+        Set<String> confirmed = new HashSet<>();
+        store.steps(tenantCode, tripId).stream().filter(Delivery.Step::isConfirmed)
+                .forEach(s -> confirmed.add(s.deliveryId()));
+        if (linked.stream().anyMatch(p -> confirmed.contains(p.deliveryId()))) {
+            throw new IllegalStateException("the document proves a delivery with a confirmed step");
+        }
+        linked.forEach(p -> store.deleteProof(tenantCode, UUID.fromString(p.id())));
     }
 
     /**

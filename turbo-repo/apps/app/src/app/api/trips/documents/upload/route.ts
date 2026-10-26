@@ -8,7 +8,7 @@ const ID = /^[0-9a-f-]{36}$/i;
 // Matches the upstream HTTP request limit; ContentService also checks the file's own limit.
 const MAX_REQUEST_BYTES = 40 * 1024 * 1024;
 
-async function proofForm(request: Request): Promise<FormData | Response> {
+async function uploadForm(request: Request): Promise<FormData | Response> {
   const tooLarge = () =>
     NextResponse.json({ error: "Upload is too large" }, { status: 413 });
   if (Number(request.headers.get("content-length")) > MAX_REQUEST_BYTES)
@@ -35,24 +35,28 @@ async function proofForm(request: Request): Promise<FormData | Response> {
   }
 }
 
-/** Uploads a delivery's proof (multipart: `file`, `kind`) for `?trip=…&delivery=…` of the active organization. */
+/**
+ * Uploads a trip document (multipart: `file`, `docType`, optional `deliveryId`) for `?trip=…` of the active
+ * organization. With `&doc=…` it replaces that document's file with a new version.
+ */
 export async function POST(request: Request) {
   const query = new URL(request.url).searchParams;
   const trip = query.get("trip") ?? "";
-  const delivery = query.get("delivery") ?? "";
-  if (!ID.test(trip) || !ID.test(delivery)) {
+  const doc = query.get("doc");
+  if (!ID.test(trip) || (doc !== null && !ID.test(doc))) {
     return NextResponse.json(
-      { error: "Invalid trip or delivery" },
+      { error: "Invalid trip or document" },
       { status: 400 }
     );
   }
   const scope = await resolveTenantScope();
   if (!scope.resolved) return scope.response;
-  const form = await proofForm(request);
+  const form = await uploadForm(request);
   if (form instanceof Response) return form;
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
-  return relayToStreamhubModulith(
-    `/api/v1/orgs/${org}/trips/${trip}/deliveries/${delivery}/proofs`,
-    { method: "POST", body: form }
-  );
+  const base = `/api/v1/orgs/${org}/trips/${trip}/documents`;
+  return relayToStreamhubModulith(doc ? `${base}/${doc}/content` : base, {
+    method: doc ? "PUT" : "POST",
+    body: form,
+  });
 }

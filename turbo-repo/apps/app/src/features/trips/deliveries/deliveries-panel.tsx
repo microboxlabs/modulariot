@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Button,
-  Checkbox,
-  FileInput,
-  Label,
-  Select,
-  TextInput,
-} from "flowbite-react";
+import { Button, Checkbox, FileInput, Label, TextInput } from "flowbite-react";
 import { HiOutlinePaperClip } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -17,16 +10,17 @@ import { shortTime } from "../board/trip-card";
 import type { MilestoneStatus } from "../board/board-api";
 import {
   DELIVERY_OPERATE,
-  PROOF_KINDS,
   createDelivery,
   nextStep,
   proofHref,
   stepAction,
-  uploadProof,
   type Delivery,
-  type ProofKind,
   type TripDeliveries,
 } from "./deliveries-api";
+import { DOCUMENT_MANAGE, uploadDocument } from "../documents/documents-api";
+
+/** The document type a POD is filed under in the trip's multimedia. */
+const POD_TYPE = "PROOF_OF_DELIVERY";
 
 const STATUS_STYLE: Record<MilestoneStatus, string> = {
   open: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
@@ -155,18 +149,20 @@ function NewDelivery({
   );
 }
 
+/** The POD goes to the trip's multimedia as a proof of delivery that names this delivery. */
 function Upload({
   tripId,
   delivery,
   d,
 }: Readonly<{ tripId: string; delivery: Delivery; d: I18nRecord }>) {
   const [file, setFile] = useState<File | null>(null);
-  const [kind, setKind] = useState<ProofKind>("signature");
   const [key, setKey] = useState(0);
   const { busy, error, run } = useAction();
   const send = async () => {
     if (!file) return;
-    const done = await run(() => uploadProof(tripId, delivery.id, file, kind));
+    const done = await run(async () => {
+      await uploadDocument(tripId, file, POD_TYPE, { deliveryId: delivery.id });
+    });
     if (done) {
       setFile(null);
       setKey((k) => k + 1);
@@ -175,18 +171,6 @@ function Upload({
   return (
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Select
-          sizing="sm"
-          value={kind}
-          aria-label={tr("sheet.deliveries.kind", d)}
-          onChange={(e) => setKind(e.target.value as ProofKind)}
-        >
-          {PROOF_KINDS.map((k) => (
-            <option key={k} value={k}>
-              {trDynamic(`sheet.deliveries.kinds.${k}`, d)}
-            </option>
-          ))}
-        </Select>
         <FileInput
           key={key}
           sizing="sm"
@@ -221,6 +205,7 @@ function DeliveryCard({
   tripId,
   delivery,
   canOperate,
+  canUpload,
   proofRequired,
   d,
   lang,
@@ -228,6 +213,7 @@ function DeliveryCard({
   tripId: string;
   delivery: Delivery;
   canOperate: boolean;
+  canUpload: boolean;
   proofRequired: boolean;
   d: I18nRecord;
   lang: string;
@@ -331,7 +317,7 @@ function DeliveryCard({
         </div>
       )}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-      {canOperate && <Upload tripId={tripId} delivery={delivery} d={d} />}
+      {canUpload && <Upload tripId={tripId} delivery={delivery} d={d} />}
     </li>
   );
 }
@@ -349,18 +335,19 @@ export function DeliveriesPanel({
   lang: string;
 }>) {
   const canOperate = useTripsPermission(DELIVERY_OPERATE);
+  const canManageDocuments = useTripsPermission(DOCUMENT_MANAGE);
   const cycle = data.cycle.steps
     .map((s) => trDynamic(`lanes.${s}`, d))
     .join(" → ");
   const canCreate =
     canOperate && (data.uncovered.length > 0 || data.deliveries.length === 0);
   return (
-    <section className="rounded-lg bg-white p-4 shadow lg:col-span-3 dark:bg-gray-800">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <section className="flex flex-col gap-2 p-2">
+      <div>
+        <h2 className="text-md font-normal text-gray-700 dark:text-gray-300">
           {tr("sheet.deliveries.title", d)}
         </h2>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
           {cycle}
           {data.cycle.completesTrip &&
             ` · ${tr("sheet.deliveries.completes", d, {
@@ -380,6 +367,7 @@ export function DeliveriesPanel({
             tripId={tripId}
             delivery={delivery}
             canOperate={canOperate}
+            canUpload={canOperate && canManageDocuments}
             proofRequired={data.cycle.proofRequired}
             d={d}
             lang={lang}

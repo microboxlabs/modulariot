@@ -37,4 +37,60 @@ public interface BoardStore {
     record FeedSource(String feedKey, String externalCode, Map<String, Object> source, String lastAction,
             String lastResult, OffsetDateTime lastReconciledAt) {
     }
+
+    /**
+     * The trip's orders, its first two drivers, the carrier of its last truck, the types of its origin and
+     * destination, and the cargo units mounted on it.
+     */
+    Optional<TripDetails> details(String tenantCode, UUID tripId);
+
+    record TripDetails(List<Order> orders, List<Driver> drivers, Carrier carrier, String originType,
+            String destinationType, Load load, LeadTime leadTime, List<Cargo> cargo) {
+        public TripDetails {
+            cargo = cargo == null ? List.of() : List.copyOf(cargo);
+        }
+    }
+
+    /** A cargo unit mounted on the trip, with the mandate it belongs to. */
+    record Cargo(String id, String mandate, String orderRef, int line, int partial, String description,
+            java.math.BigDecimal qty, String qtyUnit, java.math.BigDecimal weightKg, java.math.BigDecimal volumeM3,
+            String status) {
+    }
+
+    /**
+     * The cargo mounted on the trip and what it can carry: the trailer's weight capacity, else the truck's, and the
+     * truck's volume. A total is null when no unit reports it.
+     */
+    record Load(int units, java.math.BigDecimal weightKg, java.math.BigDecimal volumeM3,
+            java.math.BigDecimal weightCapacityKg, java.math.BigDecimal volumeCapacityM3) {
+    }
+
+    /**
+     * The trip's mandates against their SLA, counted from the departure (confirmed, else actual, else planned):
+     * delivered in time, delivered late, not delivered yet, and without an SLA.
+     */
+    record LeadTime(int onTime, int late, int open, int withoutSla) {
+    }
+
+    /**
+     * {@code phone} is the mobile phone, else the other one. {@code validations} are the driver's fleet attributes
+     * in force, as external systems report them.
+     */
+    record Driver(String name, String rut, String phone, List<Validation> validations) {
+        public Driver {
+            validations = validations == null ? List.of() : List.copyOf(validations);
+        }
+    }
+
+    /** {@code validUntil} is an ISO instant, null when it does not expire. */
+    record Validation(String type, String key, String value, String source, String validUntil) {
+    }
+
+    /** A mandate the trip serves: its code, service type and reference. */
+    record Order(String code, String orderType, String orderRef) {
+    }
+
+    /** {@code code} is the carrier's id in the source system. */
+    record Carrier(String name, String rut, String code) {
+    }
 }

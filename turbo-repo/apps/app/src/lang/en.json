@@ -5049,8 +5049,7 @@
         "planning": "Planning",
         "dispatch": "Shipping",
         "delivery": "Deliveries",
-        "finished": "Finished",
-        "trip": "Trip"
+        "finished": "Finished"
       },
       "lanes": {
         "unassigned": "No resources",
@@ -5117,8 +5116,6 @@
         "cancelled": "Cancelled"
       },
       "sheet": {
-        "service": "Service",
-        "resources": "Resources",
         "truck": "Truck",
         "trailer": "Trailer",
         "drivers": "Drivers",
@@ -5131,15 +5128,8 @@
         "reject": "Not right",
         "record": "Record",
         "recordAt": "Milestone time",
-        "plan": "Stages",
-        "plannedEnd": "planned end",
-        "history": "History",
         "noHistory": "The monitor has not recorded events yet.",
         "feed": "Feed row",
-        "noFeed": "Trip created without a feed.",
-        "feedKey": "Feed",
-        "lastAction": "Last action",
-        "lastReconciled": "Last processed",
         "cancelReason": "Cancel reason",
         "channels": {
           "feed": "feed",
@@ -5154,11 +5144,6 @@
           "stop": "Stop",
           "unloading": "Unloading",
           "closing": "Closing"
-        },
-        "stageStatus": {
-          "pending": "Pending",
-          "in_progress": "In progress",
-          "completed": "Closed"
         },
         "actions": {
           "advance": "Advance to",
@@ -5187,7 +5172,6 @@
           "wholeTrip": "Whole trip",
           "confirm": "Confirm",
           "upload": "Upload POD",
-          "kind": "Proof type",
           "file": "File",
           "completes": "{step} completes the trip",
           "pendingLoads": "Loads without a delivery: {codes}",
@@ -5198,6 +5182,67 @@
             "other": "Other"
           },
           "needsProof": "Upload a POD to confirm the delivery."
+        },
+        "tripInfo": "Trip information",
+        "status": "Status",
+        "monitor": "Monitor",
+        "route": "Route",
+        "departure": "Departure",
+        "arrival": "Arrival",
+        "driver1": "Driver 1",
+        "driver2": "Driver 2",
+        "dispatch": "Dispatch",
+        "alerts": "Trip alerts",
+        "noAlerts": "No alerts.",
+        "processState": "Process state",
+        "duration": "Trip duration",
+        "nextConfirm": "Confirm {milestone}",
+        "nextRecord": "Record {milestone}",
+        "tabs": {
+          "milestones": "Milestones",
+          "movements": "Monitor movements",
+          "cargo": "Loads"
+        },
+        "table": {
+          "at": "Date",
+          "event": "Event",
+          "rule": "Rule",
+          "stage": "Stage",
+          "actions": "Actions",
+          "status": "Status",
+          "milestone": "Milestone",
+          "order": "Order",
+          "description": "Description",
+          "qty": "Quantity"
+        },
+        "serviceType": "Service type",
+        "carrierRut": "Carrier tax ID",
+        "carrierCode": "Carrier code",
+        "tripType": {
+          "own": "Own site",
+          "pickup": "Customer pickup",
+          "unknown": "Origin without type"
+        },
+        "validations": "Validations",
+        "noValidations": "No validations received.",
+        "checkStatus": {
+          "passed": "Passed",
+          "failed": "Failed",
+          "notReported": "Not reported"
+        },
+        "leadTime": "Lead Time",
+        "withSla": "{count} with SLA",
+        "occupancy": "Occupancy",
+        "weight": "Weight",
+        "volume": "Volume",
+        "noCargo": "No loads on this trip.",
+        "cargoStatus": {
+          "announced": "Announced",
+          "ready": "Ready",
+          "picked_up": "Picked up",
+          "delivered": "Delivered",
+          "received": "Received",
+          "rejected": "Rejected"
         }
       },
       "live": {
@@ -7046,6 +7091,7 @@
       "delete_error": "Failed to delete file",
       "delete_modal_title": "Delete file",
       "delete_modal_desc": "This will move the file to the trashcan. It can be recovered from there if needed.",
+      "delete_modal_desc_permanent": "The file is removed from the record and cannot be recovered.",
       "move_modal_title": "Move to service",
       "move_modal_desc": "Search and select the destination service",
       "move_search_placeholder": "Search by service ID or name…",

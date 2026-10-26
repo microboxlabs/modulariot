@@ -160,6 +160,12 @@ public class PgDeliveryStore implements DeliveryStore {
                 .stream().map(PgDeliveryStore::proof).findFirst().orElseThrow();
     }
 
+    @Override
+    public void deleteProof(String tenantCode, UUID proofId) {
+        query(pool.get(), "DELETE FROM miot_trips.delivery_proof WHERE tenant_code = $1 AND id = $2",
+                Tuple.of(tenantCode, proofId));
+    }
+
     private static Delivery delivery(Row r) {
         String[] mandates = r.getArrayOfStrings("mandate_ids");
         return new Delivery(Pg.text(r, "id"), r.getString(TENANT_CODE), Pg.text(r, "trip_id"),

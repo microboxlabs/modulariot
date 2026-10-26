@@ -43,6 +43,56 @@ export interface SheetFeed {
   lastReconciledAt: string | null;
 }
 
+/** A check of the driver that an external system reported, in force today. */
+export interface DriverValidation {
+  type: string;
+  key: string;
+  value: string | null;
+  source: string | null;
+  validUntil: string | null;
+}
+
+export interface SheetDriver {
+  name: string | null;
+  rut: string | null;
+  phone: string | null;
+  validations: DriverValidation[];
+}
+
+/** The trip's orders, first two drivers, carrier and the types of its origin and destination. */
+export interface SheetCargo {
+  id: string;
+  mandate: string;
+  orderRef: string | null;
+  line: number;
+  partial: number;
+  description: string;
+  qty: number | null;
+  qtyUnit: string | null;
+  weightKg: number | null;
+  volumeM3: number | null;
+  status: string;
+}
+
+export interface TripDetails {
+  orders: { code: string; orderType: string | null; orderRef: string | null }[];
+  drivers: SheetDriver[];
+  carrier: { name: string; rut: string | null; code: string | null } | null;
+  originType: string | null;
+  destinationType: string | null;
+  /** The cargo mounted on the trip, and the trailer's (else the truck's) weight and the truck's volume capacity. */
+  load: {
+    units: number;
+    weightKg: number | null;
+    volumeM3: number | null;
+    weightCapacityKg: number | null;
+    volumeCapacityM3: number | null;
+  };
+  /** The trip's mandates against their SLA, counted from the departure. */
+  leadTime: { onTime: number; late: number; open: number; withoutSla: number };
+  cargo: SheetCargo[];
+}
+
 export interface TripSheet {
   card: BoardCard;
   stages: SheetStage[];
@@ -52,6 +102,7 @@ export interface TripSheet {
   transitions: SheetTransition[];
   feed: SheetFeed | null;
   deliveries: TripDeliveries | null;
+  details: TripDetails | null;
 }
 
 const API = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/trips`;

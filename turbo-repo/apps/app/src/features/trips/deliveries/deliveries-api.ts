@@ -3,7 +3,7 @@
 /** Client for a trip's deliveries (`/trips/{id}/deliveries`): proofs (POD) and steps, through `/api/trips/*`. */
 
 import { mutate } from "swr";
-import { TripsApiError, tripsRequest } from "../monitors/monitors-api";
+import { tripsRequest } from "../monitors/monitors-api";
 import { sheetKey } from "../sheet/sheet-api";
 import type { MilestoneStatus } from "../board/board-api";
 
@@ -79,31 +79,6 @@ export async function createDelivery(
 }
 
 /** Uploads a POD file (image or PDF). */
-export async function uploadProof(
-  tripId: string,
-  deliveryId: string,
-  file: File,
-  kind: ProofKind
-) {
-  const form = new FormData();
-  form.set("file", file, file.name);
-  form.set("kind", kind);
-  form.set("source", "ui");
-  const query = new URLSearchParams({ trip: tripId, delivery: deliveryId });
-  const response = await fetch(`${API}/proofs/upload?${query}`, {
-    method: "POST",
-    body: form,
-  });
-  if (!response.ok) {
-    const json = await response.json().catch(() => undefined);
-    throw new TripsApiError(
-      json?.error ?? json?.message ?? `HTTP ${response.status}`,
-      response.status
-    );
-  }
-  await mutate(sheetKey(tripId));
-}
-
 export async function stepAction(
   tripId: string,
   deliveryId: string,

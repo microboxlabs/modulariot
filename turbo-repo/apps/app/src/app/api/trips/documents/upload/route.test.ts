@@ -13,9 +13,9 @@ vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
 import { POST } from "./route";
 
 const URL =
-  "http://localhost/api/trips/proofs/upload?trip=11111111-1111-1111-1111-111111111111&delivery=22222222-2222-2222-2222-222222222222";
+  "http://localhost/api/trips/documents/upload?trip=11111111-1111-1111-1111-111111111111";
 
-describe("proof uploads", () => {
+describe("trip document uploads", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("TransformStream", TransformStream);
@@ -29,7 +29,7 @@ describe("proof uploads", () => {
 
   it("relays the multipart file after resolving the organization", async () => {
     const body =
-      '--sample\r\nContent-Disposition: form-data; name="file"; filename="sample.pdf"\r\nContent-Type: application/pdf\r\n\r\n%PDF-test\r\n--sample\r\nContent-Disposition: form-data; name="kind"\r\n\r\nsignature\r\n--sample--\r\n';
+      '--sample\r\nContent-Disposition: form-data; name="file"; filename="sample.pdf"\r\nContent-Type: application/pdf\r\n\r\n%PDF-test\r\n--sample\r\nContent-Disposition: form-data; name="docType"\r\n\r\nCARGO_MANIFEST\r\n--sample--\r\n';
     const request = new Request(URL, {
       method: "POST",
       body,
@@ -38,7 +38,7 @@ describe("proof uploads", () => {
     expect((await POST(request)).status).toBe(200);
     const [path, init] = relay.mock.calls[0]!;
     expect(path).toContain("/api/v1/orgs/sample/trips/");
-    expect(init.body.get("kind")).toBe("signature");
+    expect(init.body.get("docType")).toBe("CARGO_MANIFEST");
     expect(init.body.get("file").name).toBe("sample.pdf");
   });
 

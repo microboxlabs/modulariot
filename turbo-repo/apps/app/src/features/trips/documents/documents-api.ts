@@ -178,6 +178,41 @@ async function blob(url: string) {
   return response.ok ? response.blob() : null;
 }
 
+const PDF_WORKER_URL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/pdf.worker.min.mjs`;
+const THUMBNAIL_WIDTH = 160;
+
+/** The first page of a PDF as a PNG, for its row in the list. */
+async function pdfThumbnail(pdf: Blob) {
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;
+  const doc = await pdfjs.getDocument({ data: await pdf.arrayBuffer() })
+    .promise;
+  try {
+    const page = await doc.getPage(1);
+    const unscaled = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({
+      scale: THUMBNAIL_WIDTH / unscaled.width,
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const canvasContext = canvas.getContext("2d");
+    if (!canvasContext) return null;
+    await page.render({ canvasContext, viewport }).promise;
+    return await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+  } finally {
+    await doc.destroy();
+  }
+}
+
+async function thumbnail(url: string) {
+  const file = await blob(url);
+  if (!file?.type.startsWith("application/pdf")) return file;
+  return pdfThumbnail(file).catch(() => null);
+}
+
 /** The multimedia component's source for one trip. */
 export function createTripsSource(tripId: string, lang: string): MediaSource {
   const list = documentsKey(tripId);
@@ -212,7 +247,7 @@ export function createTripsSource(tripId: string, lang: string): MediaSource {
     },
     useThumbnail(id) {
       const { data, error } = useSWR(thumbnailKey(id), () =>
-        blob(documentContentUrl(tripId, id))
+        thumbnail(documentContentUrl(tripId, id))
       );
       return { data, error };
     },

@@ -102,7 +102,7 @@ class EngineCaseServiceTest {
                 {"data":[{"id":991,"asset_id":"GPS01"}],"page":1,"page_size":10,"total_rows":1,"total_pages":1}
                 """);
 
-        JsonNode out = service.withOpenCases(TENANT, page);
+        JsonNode out = service.withCases(TENANT, Map.of(), page);
 
         assertEquals(2, out.path("data").size());
         JsonNode row = out.path("data").get(0);
@@ -115,14 +115,14 @@ class EngineCaseServiceTest {
         assertEquals(1, row.path("recurrence_events").asInt());
         assertEquals(991, out.path("data").get(1).path("id").asLong());
         assertEquals(1, out.path("total_rows").asInt(), "the GPS totals still page");
-        assertEquals(1, out.path("open_cases").asInt());
+        assertEquals(1, out.path("engine_cases").asInt());
     }
 
     @Test
     void aCaseWithAnOpenTreatmentIsUnderTreatment() {
         store.add(engineCase(12, "DEMO01", 4, 1));
 
-        JsonNode row = service.withOpenCases(TENANT, null).path("data").get(0);
+        JsonNode row = service.withCases(TENANT, Map.of(), null).path("data").get(0);
 
         assertEquals("UNDER TREATMENT", row.path("icu_condition").asText());
         assertEquals("4", row.path("icu_code").asText());
@@ -193,18 +193,66 @@ class EngineCaseServiceTest {
     void showsTheCasesWithoutTheGpsPage() {
         store.add(panic(12, "DEMO01"));
 
-        JsonNode out = service.withOpenCases(TENANT, null);
+        JsonNode out = service.withCases(TENANT, Map.of(), null);
 
         assertEquals(1, out.path("data").size());
         assertEquals(1, out.path("page").asInt());
     }
 
     @Test
-    void onlyPagingRequestsShowTheOpenCases() {
-        assertTrue(EngineCaseService.showsOpenCases(Map.of()));
-        assertTrue(EngineCaseService.showsOpenCases(Map.of("p_page", "1", "p_page_size", "20")));
-        assertFalse(EngineCaseService.showsOpenCases(Map.of("p_page", "2")));
-        assertFalse(EngineCaseService.showsOpenCases(Map.of("p_asset_id", "DEMO01")));
+    void theFirstPageShowsTheCasesUnlessAFilterTheyCannotAnswerIsSet() {
+        assertTrue(EngineCaseService.showsCases(Map.of()));
+        assertTrue(EngineCaseService.showsCases(Map.of("p_page", "1", "p_page_size", "20")));
+        assertTrue(EngineCaseService.showsCases(Map.of("p_asset_id", "DEMO01", "p_trip_id", "T-1",
+                "p_symptom_name", "Botón de pánico", "p_icu_code", "4",
+                "p_start_date_historic", "2026-10-22T00:00:00Z", "p_end_date_historic", "2026-10-23T00:00:00Z")));
+        assertTrue(EngineCaseService.showsCases(Map.of("p_driver_id", " ")), "a blank filter is no filter");
+        assertFalse(EngineCaseService.showsCases(Map.of("p_page", "2")));
+        for (String other : List.of("p_driver_id", "p_carrier_id", "p_origin", "p_destination")) {
+            assertFalse(EngineCaseService.showsCases(Map.of(other, "x")), other);
+        }
+    }
+
+    @Test
+    void readsTheListFiltersAsACaseFilter() {
+        EngineCaseStore.CaseFilter f = EngineCaseService.filter(Map.of("p_trip_id", " T-1 ", "p_asset_id", "DEMO",
+                "p_icu_code", "4", "p_start_date_historic", "2026-10-22T03:00:00",
+                "p_end_date_historic", "2026-10-23"));
+
+        assertEquals(new EngineCaseStore.CaseFilter("T-1", "DEMO", null, 4, OPENED,
+                Instant.parse("2026-10-23T00:00:00Z")), f);
+        assertFalse(f.openOnly());
+        assertTrue(EngineCaseService.filter(Map.of()).openOnly());
+        assertThrows(IllegalArgumentException.class, () -> EngineCaseService.filter(Map.of("p_icu_code", "x")));
+        assertThrows(IllegalArgumentException.class,
+                () -> EngineCaseService.filter(Map.of("p_start_date_historic", "ayer")));
+    }
+
+    @Test
+    void aTripsCasesOpenAndClosedComeWithADateRange() {
+        store.add(engineCase(12, "DEMO01", 4, 0));
+        store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",
+                OPENED.plusSeconds(30), 2, "T-1", null, null, null, OPENED.plusSeconds(60), 0, null, 0L));
+        store.add(new EngineCase(14, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO02", OPENED, 4,
+                "T-2", null, null, null, null, 0, null, 0L));
+
+        JsonNode open = service.withCases(TENANT, Map.of("p_trip_id", "T-1"), null);
+        JsonNode all = service.withCases(TENANT, Map.of("p_trip_id", "T-1",
+                "p_start_date_historic", "2026-10-22T00:00:00Z", "p_end_date_historic", "2026-10-23T00:00:00Z"),
+                null);
+
+        assertEquals(List.of(-12L), ids(open), "without dates, the open ones");
+        assertEquals(List.of(-13L, -12L), ids(all), "the latest first");
+        JsonNode closed = all.path("data").get(0);
+        assertEquals(OPENED.plusSeconds(60).toString(), closed.path("end_time").asText());
+        assertEquals(30, closed.path("duration_sec").asLong(), "until it closed");
+        assertFalse(all.path("data").get(1).has("end_time"));
+    }
+
+    private static List<Long> ids(JsonNode page) {
+        List<Long> out = new ArrayList<>();
+        page.path("data").forEach(r -> out.add(r.path("id").asLong()));
+        return out;
     }
 
     @Test

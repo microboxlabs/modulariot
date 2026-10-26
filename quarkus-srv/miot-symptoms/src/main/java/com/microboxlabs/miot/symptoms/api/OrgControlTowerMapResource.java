@@ -137,14 +137,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         String tenant = tenantCode(organizationId);
         return answer(() -> {
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
-            if (!EngineCaseService.showsOpenCases(filters)) {
+            if (!EngineCaseService.showsCases(filters)) {
                 return gps;
             }
-            // The evaluator's open cases go first; they still show when the GPS database cannot be read.
+            // The evaluator's cases go first; they still show when the GPS database cannot be read.
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
                     .emitOn(Infrastructure.getDefaultWorkerPool())
                     .map(page -> {
-                        JsonNode out = cases.withOpenCases(tenant, page);
+                        JsonNode out = cases.withCases(tenant, filters, page);
                         if (page == null && out.path("data").isEmpty()) {
                             throw new ControlTowerMapService.UnavailableException("GPS data is not available");
                         }

@@ -47,7 +47,7 @@ public record BoardRow(
         return milestones.getOrDefault(milestone, TripMilestone.OPEN);
     }
 
-    public BoardRow withResources(String truck, String driver, String carrier) {
+    public BoardRow withResources(String truck, String trailer, String driver, String secondDriver, String carrier) {
         return new BoardRow(tripId, status, plannedStart, plannedArrival, departedAt, arrivedAt, actualEnd,
                 currentStage, lastStage, milestones, alerts, codes, label, origin, destination, truck, trailer, driver,
                 secondDriver, carrier, monitorKey, regularized, cancelReason, updatedAt);

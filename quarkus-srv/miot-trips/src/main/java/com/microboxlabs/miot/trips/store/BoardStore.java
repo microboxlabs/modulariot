@@ -14,10 +14,13 @@ public interface BoardStore {
     List<BoardRow> open(String tenantCode, String q);
 
     /**
-     * Trips completed or cancelled between {@code from} and {@code to}, newest first, at most {@code limit}. Truck and
-     * driver hold the resource ids of their last assignments.
+     * Trips completed or cancelled between {@code from} and {@code to}: total counts and the newest
+     * {@code perLane} rows of each finished lane. Truck and driver hold the ids of their last assignments.
      */
-    List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit);
+    FinishedPage finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int perLane);
+
+    record FinishedPage(List<BoardRow> rows, Map<String, Integer> counts) {
+    }
 
     /** One trip, open or finished. */
     Optional<BoardRow> trip(String tenantCode, UUID tripId);

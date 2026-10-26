@@ -31,6 +31,29 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgBoardStore implements BoardStore {
 
+    /** The delivery lane state is shared by card and badge projections. */
+    private static final String DELIVERY_STATE = """
+            CASE WHEN EXISTS (SELECT 1 FROM miot_trips.trip_mandate tm
+                               WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              THEN ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_mandate dm
+                                            JOIN miot_trips.delivery_step ds
+                                              ON ds.delivery_id = dm.delivery_id AND ds.status = 'confirmed'
+                                           WHERE dm.trip_id = t.id AND dm.mandate_id = tm.mandate_id), 0)
+                           FROM miot_trips.trip_mandate tm
+                          WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              ELSE ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_step ds
+                                           WHERE ds.delivery_id = dl.id AND ds.status = 'confirmed'), 0)
+                           FROM miot_trips.delivery dl WHERE dl.trip_id = t.id)
+            END AS delivery_levels,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl WHERE dl.trip_id = t.id) AS has_delivery,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl
+                      JOIN miot_trips.delivery_step ds ON ds.delivery_id = dl.id AND ds.status = 'pending'
+                     WHERE dl.trip_id = t.id) AS delivery_pending""";
+
     private static final String TRIP_STATE = """
             t.id AS trip_id, t.status, t.planned_start, t.actual_start, t.actual_end, t.cancel_reason,
             (SELECT s.stage_type FROM miot_trips.stage s
@@ -61,7 +84,8 @@ public class PgBoardStore implements BoardStore {
             ARRAY(SELECT m.external_code FROM miot_trips.trip_mandate tm
                     JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
                    WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active
-                   ORDER BY tm.seq) AS codes""";
+                   ORDER BY tm.seq) AS codes,
+            """ + DELIVERY_STATE;
 
     private static final String OPEN = "SELECT " + TRIP_STATE + """
             ,
@@ -94,7 +118,8 @@ public class PgBoardStore implements BoardStore {
                          jsonb_array_elements(x.actions) a
                          WHERE x.trip_id = t.id AND a->>'type' = 'alert'
                            AND a->>'value' IN ('presentation_overdue', 'departure_overdue',
-                                              'arrival_overdue', 'closure_overdue')) AS alerts
+                                              'arrival_overdue', 'closure_overdue')) AS alerts,
+            """ + DELIVERY_STATE + "\n" + """
             FROM miot_trips.trip_live l
             JOIN miot_trips.trip t ON t.id = l.trip_id AND t.tenant_code = l.tenant_code
             WHERE l.tenant_code = $1""";
@@ -286,7 +311,14 @@ public class PgBoardStore implements BoardStore {
                 r.getString("destination"), r.getString("truck"), r.getString("trailer"), r.getString("driver"),
                 r.getString("second_driver"), r.getString("carrier"), r.getString("monitor_key"),
                 Boolean.TRUE.equals(r.getBoolean("regularized")), r.getString("cancel_reason"),
-                time(r, "updated_at"));
+                time(r, "updated_at"), deliveries(r));
+    }
+
+    private static BoardRow.Deliveries deliveries(Row r) {
+        Integer[] levels = r.getArrayOfIntegers("delivery_levels");
+        return new BoardRow.Deliveries(levels == null ? List.of() : Arrays.asList(levels),
+                Boolean.TRUE.equals(r.getBoolean("has_delivery")),
+                Boolean.TRUE.equals(r.getBoolean("delivery_pending")));
     }
 
     private static BoardRow countRow(Row r) {
@@ -296,6 +328,6 @@ public class PgBoardStore implements BoardStore {
         return new BoardRow(null, r.getString("status"), time(r, "planned_start"), time(r, "planned_arrival"),
                 null, null, null, r.getString("current_stage"), r.getString("last_stage"), milestones,
                 alerts == null ? null : new HashSet<>(Arrays.asList(alerts)), null, null, null, null,
-                r.getString("truck"), null, r.getString("driver"), null, null, null, false, null, null);
+                r.getString("truck"), null, r.getString("driver"), null, null, null, false, null, null, deliveries(r));
     }
 }

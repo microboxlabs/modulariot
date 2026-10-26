@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.MonitorSelector;
 import com.microboxlabs.miot.trips.domain.TripMonitor;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
@@ -288,6 +289,7 @@ public class MonitorService {
             }
             out.put(name, value);
         });
+        DeliveryCycle.of(out);
         return out;
     }
 

@@ -6,6 +6,7 @@ import { getSharedAuthToken } from "@/app/api/utils/streamhub-api-client";
 import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 import { modulithHost } from "@/lib/modulith-host";
 import { sessionAuthHeader } from "@/features/auth/services/session-auth";
+import { logger } from "@/lib/logger";
 import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
 
 const PLATFORM_ORG_PATH = `/api/v1/orgs/${PLATFORM_SCOPE_SLUG}/`;
@@ -67,7 +68,8 @@ export async function forwardToStreamhubModulith(
     (init?.sessionOnly ?? false) || path.startsWith(PLATFORM_ORG_PATH)
   );
   return proxyToUpstream(baseUrl, path, headers, init, {
-    upstreamErrorMessage: "Upstream StreamHub modulith request failed",
+    upstreamErrorMessage:
+      "Content service is temporarily unavailable. Please try again.",
   });
 }
 
@@ -134,4 +136,61 @@ export async function streamFromStreamhubModulith(
       Connection: "keep-alive",
     },
   });
+}
+
+const RELAYED_HEADERS = [
+  "content-type",
+  "content-length",
+  "content-disposition",
+  "cache-control",
+  "x-content-type-options",
+  "content-security-policy",
+];
+
+/**
+ * Sends a request whose body is not JSON (a multipart upload) or whose answer
+ * is a file, with the user's session, and passes the answer through as it is.
+ */
+export async function relayToStreamhubModulith(
+  path: string,
+  init: { method: string; body?: BodyInit }
+): Promise<Response> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const baseUrl =
+    process.env.MIOT_STREAMHUB_API_URL?.replace(/\/$/, "") ||
+    modulithHost().replace(/\/$/, "");
+  if (!baseUrl) {
+    return NextResponse.json(
+      { error: "MIOT_STREAMHUB_API_URL is not configured" },
+      { status: 500 }
+    );
+  }
+  const headers = await buildHeaders(session, true);
+  delete headers.Accept;
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${baseUrl}${path}`, {
+      method: init.method,
+      headers,
+      body: init.body,
+      cache: "no-store",
+    });
+  } catch (err) {
+    logger.error({ err }, "StreamHub modulith content relay failed");
+    return NextResponse.json(
+      {
+        error: "Content service is temporarily unavailable. Please try again.",
+      },
+      { status: 502 }
+    );
+  }
+  const out = new Headers();
+  for (const name of RELAYED_HEADERS) {
+    const value = upstream.headers.get(name);
+    if (value) out.set(name, value);
+  }
+  return new Response(upstream.body, { status: upstream.status, headers: out });
 }

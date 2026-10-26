@@ -50,16 +50,30 @@ public class BoardService {
     private final MilestoneService milestones;
     private final MonitorRunStore runs;
     private final ConfirmerStore confirmers;
+    private final DeliveryService deliveries;
     private final Clock clock;
 
     @Inject
     public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
+            MonitorRunStore runs, ConfirmerStore confirmers, DeliveryService deliveries) {
+        this(board, fleet, stages, milestones, runs, confirmers, deliveries, Clock.systemUTC());
+    }
+
+    /** Without deliveries: the trip page leaves them out. */
+    public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
             MonitorRunStore runs, ConfirmerStore confirmers) {
-        this(board, fleet, stages, milestones, runs, confirmers, Clock.systemUTC());
+        this(board, fleet, stages, milestones, runs, confirmers, null, Clock.systemUTC());
     }
 
     public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
             MonitorRunStore runs, ConfirmerStore confirmers, Clock clock) {
+        this(board, fleet, stages, milestones, runs, confirmers, null, clock);
+    }
+
+    @SuppressWarnings("java:S107") // The CDI constructor plus the clock, for tests.
+    public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
+            MonitorRunStore runs, ConfirmerStore confirmers, DeliveryService deliveries, Clock clock) {
+        this.deliveries = deliveries;
         this.board = board;
         this.fleet = fleet;
         this.stages = stages;
@@ -69,7 +83,7 @@ public class BoardService {
         this.clock = clock;
     }
 
-    /** One trip's page: its card in its lane, plan, milestones, the last 50 transitions and the feed's row. */
+    /** One trip's page: its card, plan, milestones, the last 50 transitions, the feed's row and the deliveries. */
     public TripSheet sheet(String tenantCode, UUID tripId) {
         BoardRow row = board.trip(tenantCode, tripId)
                 .orElseThrow(() -> new NoSuchElementException("trip not found"));
@@ -82,7 +96,8 @@ public class BoardService {
                         .sorted(Comparator.comparingInt(Stage::seq)).map(StageView::of).toList(),
                 milestones.list(tenantCode, tripId), confirmers.ofTrip(tenantCode, tripId),
                 runs.transitions(tenantCode, tripId, 50),
-                board.feedSource(tenantCode, tripId).orElse(null));
+                board.feedSource(tenantCode, tripId).orElse(null),
+                deliveries == null ? null : deliveries.list(tenantCode, tripId));
     }
 
     /** How many trips each view shows without a filter: the open trips in its lanes, the last seven days' finished. */
@@ -91,12 +106,12 @@ public class BoardService {
         Map<String, Integer> counts = new LinkedHashMap<>();
         List.of(TripBoard.PLANNING, TripBoard.DISPATCH, TripBoard.DELIVERY).forEach(v -> counts.put(v, 0));
         for (BoardRow row : board.openForCounts(tenantCode)) {
-            String lane = TripBoard.lane(row, now);
-            TripBoard.LANES.forEach((view, lanes) -> {
-                if (counts.containsKey(view) && lanes.contains(lane)) {
+            for (String view : List.copyOf(counts.keySet())) {
+                String lane = TripBoard.lane(row, view, now);
+                if (lane != null && TripBoard.LANES.get(view).contains(lane)) {
                     counts.merge(view, 1, Integer::sum);
                 }
-            });
+            }
         }
         counts.put(TripBoard.FINISHED, board.finishedCount(tenantCode, now.minus(FINISHED_DEFAULT), now));
         return counts;
@@ -113,7 +128,8 @@ public class BoardService {
         Map<String, List<BoardRow>> byLane = new LinkedHashMap<>();
         lanes.forEach(lane -> byLane.put(lane, new ArrayList<>()));
         for (BoardRow row : selected.rows()) {
-            List<BoardRow> lane = byLane.get(TripBoard.lane(row, now));
+            String key = TripBoard.lane(row, view, now);
+            List<BoardRow> lane = key == null ? null : byLane.get(key);
             if (lane != null) {
                 lane.add(row);
             }

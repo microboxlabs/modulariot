@@ -39,6 +39,7 @@ const card: BoardCard = {
   regularized: false,
   cancelReason: null,
   updatedAt: null,
+  delivery: null,
 };
 
 function lane(patch: Partial<BoardLane> = {}): BoardLane {

@@ -14,6 +14,8 @@ import { elapsed } from "./sheet-head";
 import {
   alertText,
   Drivers,
+  leadTimeRate,
+  occupancy,
   Progress,
   sheetDrivers,
   tripType,
@@ -98,6 +100,15 @@ function sheet(ms: TripMilestone[]): TripSheet {
     details: null,
   };
 }
+
+const EMPTY_LOAD = {
+  units: 0,
+  weightKg: null,
+  volumeM3: null,
+  weightCapacityKg: null,
+  volumeCapacityM3: null,
+};
+const NO_LEAD = { onTime: 0, late: 0, open: 0, withoutSla: 0 };
 
 describe("trip bento", () => {
   it("acts next on a pending milestone, else the first open after the last confirmed", () => {
@@ -223,6 +234,8 @@ describe("trip bento", () => {
           carrier: null,
           originType: null,
           destinationType: null,
+          load: EMPTY_LOAD,
+          leadTime: NO_LEAD,
           drivers: [
             {
               name: "Driver",
@@ -246,5 +259,32 @@ describe("trip bento", () => {
     );
     expect(screen.getAllByText("sheet.validations")).toHaveLength(1);
     expect(screen.getByText("ALCOHOL")).toBeInTheDocument();
+  });
+
+  it("rates the lead time over the mandates delivered, none before any", () => {
+    expect(leadTimeRate(NO_LEAD)).toBeNull();
+    expect(leadTimeRate({ ...NO_LEAD, onTime: 3, late: 1, open: 2 })).toBe(75);
+  });
+
+  it("takes the fuller of weight and volume as the occupancy", () => {
+    expect(occupancy(EMPTY_LOAD)).toBeNull();
+    expect(
+      occupancy({ ...EMPTY_LOAD, units: 2, weightKg: 1500, volumeM3: 4 })
+    ).toBeNull();
+    const occ = occupancy({
+      units: 2,
+      weightKg: 14000,
+      volumeM3: 60,
+      weightCapacityKg: 28000,
+      volumeCapacityM3: 80,
+    });
+    expect(occ).toMatchObject({ key: "volume", pct: 75 });
+  });
+
+  it("shows lead time and occupancy without data as dashes", () => {
+    render(<Progress sheet={sheet(milestones({}))} d={{}} />);
+    expect(screen.getByText("sheet.leadTime")).toBeInTheDocument();
+    expect(screen.getByText("sheet.occupancy")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(2);
   });
 });

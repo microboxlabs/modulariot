@@ -12,7 +12,9 @@ import {
 } from "react-icons/fa";
 import { FaShield } from "react-icons/fa6";
 import {
+  HiCheck,
   HiExclamationCircle,
+  HiX,
   HiOutlineHome,
   HiOutlineRefresh,
 } from "react-icons/hi";
@@ -179,34 +181,144 @@ export function TripInfo({
   );
 }
 
+/** One KPI row: label, bar, percentage ("—" without data) and detail; yellow when it needs attention. */
+function KpiRow({
+  label,
+  hint,
+  pct,
+  warn = false,
+  meta,
+}: Readonly<{
+  label: string;
+  hint?: string;
+  pct: number | null;
+  warn?: boolean;
+  meta: React.ReactNode;
+}>) {
+  const color = warn ? "bg-yellow-400 dark:bg-yellow-300" : "bg-gray-400";
+  const text = warn
+    ? "text-yellow-500 dark:text-yellow-400"
+    : "text-gray-700 dark:text-gray-300";
+  return (
+    <>
+      <span className="flex items-center gap-1.5">
+        <span className="text-sm font-light text-gray-500 dark:text-gray-400">
+          {label}
+        </span>
+        {hint && <span className="text-xs text-gray-400">({hint})</span>}
+      </span>
+      <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+        <div
+          className={`h-full rounded-full transition-all ${color}`}
+          style={{ width: `${Math.min(100, pct ?? 0)}%` }}
+        />
+      </div>
+      <span className={`text-right text-xs font-medium ${text}`}>
+        {pct === null ? "—" : `${pct}%`}
+      </span>
+      <span className="text-xs text-gray-500 dark:text-gray-400">{meta}</span>
+    </>
+  );
+}
+
 function Bar({
   label,
   done,
   total,
 }: Readonly<{ label: string; done: number; total: number }>) {
   const pct = total > 0 ? Math.round((100 * done) / total) : 0;
+  return <KpiRow label={label} pct={pct} meta={`(${done} / ${total})`} />;
+}
+
+/** The share of mandates with an SLA delivered in time; null when none was delivered yet. */
+export function leadTimeRate(lead: TripDetails["leadTime"]) {
+  const evaluated = lead.onTime + lead.late;
+  return evaluated > 0 ? Math.round((100 * lead.onTime) / evaluated) : null;
+}
+
+type Occupancy = {
+  pct: number;
+  key: "weight" | "volume";
+  value: number;
+  capacity: number;
+  unit: string;
+};
+
+/** The fuller of weight and volume over the capacity; null without cargo or capacity. */
+export function occupancy(load: TripDetails["load"]): Occupancy | null {
+  const options: Occupancy[] = [];
+  if (load.weightKg !== null && load.weightCapacityKg) {
+    options.push({
+      pct: Math.round((100 * load.weightKg) / load.weightCapacityKg),
+      key: "weight",
+      value: load.weightKg,
+      capacity: load.weightCapacityKg,
+      unit: "kg",
+    });
+  }
+  if (load.volumeM3 !== null && load.volumeCapacityM3) {
+    options.push({
+      pct: Math.round((100 * load.volumeM3) / load.volumeCapacityM3),
+      key: "volume",
+      value: load.volumeM3,
+      capacity: load.volumeCapacityM3,
+      unit: "m³",
+    });
+  }
+  return options.reduce<Occupancy | null>(
+    (max, o) => (max && max.pct >= o.pct ? max : o),
+    null
+  );
+}
+
+function number(value: number) {
+  return Number(value.toFixed(2)).toString();
+}
+
+function LoadKpis({
+  details,
+  d,
+}: Readonly<{ details: TripDetails | null; d: I18nRecord }>) {
+  const lead = details?.leadTime ?? {
+    onTime: 0,
+    late: 0,
+    open: 0,
+    withoutSla: 0,
+  };
+  const occ = details ? occupancy(details.load) : null;
   return (
     <>
-      <span className="text-sm font-light text-gray-500 dark:text-gray-400">
-        {label}
-      </span>
-      <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-        <div
-          className="h-full rounded-full bg-gray-400 transition-all"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="text-right text-xs font-medium text-gray-700 dark:text-gray-300">
-        {pct}%
-      </span>
-      <span className="text-xs text-gray-500 dark:text-gray-400">
-        ({done} / {total})
-      </span>
+      <KpiRow
+        label={tr("sheet.leadTime", d)}
+        hint={tr("sheet.withSla", d, {
+          count: String(lead.onTime + lead.late + lead.open),
+        })}
+        pct={leadTimeRate(lead)}
+        warn={lead.late > 0}
+        meta={
+          <>
+            (<HiCheck className="inline h-3 w-3" />
+            {lead.onTime} /{" "}
+            <HiX className="inline h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+            {lead.late})
+          </>
+        }
+      />
+      <KpiRow
+        label={tr("sheet.occupancy", d)}
+        pct={occ?.pct ?? null}
+        warn={(occ?.pct ?? 0) >= 100}
+        meta={
+          occ
+            ? `(${trDynamic(`sheet.${occ.key}`, d)}: ${number(occ.value)} / ${number(occ.capacity)} ${occ.unit})`
+            : "-"
+        }
+      />
     </>
   );
 }
 
-/** How far the trip is: milestones confirmed, stages closed and loads delivered. */
+/** The load's KPIs (lead time, occupancy) and how far the trip is: milestones, stages and loads delivered. */
 export function Progress({
   sheet,
   d,
@@ -218,6 +330,7 @@ export function Progress({
   const delivery = sheet.card.delivery;
   return (
     <div className="grid grid-cols-[1fr_5rem_2.5rem_auto] items-center gap-x-2 gap-y-2 p-3">
+      <LoadKpis details={sheet.details} d={d} />
       <Bar
         label={tr("sheet.milestones", d)}
         done={confirmed}

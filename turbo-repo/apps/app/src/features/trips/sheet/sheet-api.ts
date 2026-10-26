@@ -66,6 +66,16 @@ export interface TripDetails {
   carrier: { name: string; rut: string | null; code: string | null } | null;
   originType: string | null;
   destinationType: string | null;
+  /** The cargo mounted on the trip, and the trailer's (else the truck's) weight and the truck's volume capacity. */
+  load: {
+    units: number;
+    weightKg: number | null;
+    volumeM3: number | null;
+    weightCapacityKg: number | null;
+    volumeCapacityM3: number | null;
+  };
+  /** The trip's mandates against their SLA, counted from the departure. */
+  leadTime: { onTime: number; late: number; open: number; withoutSla: number };
 }
 
 export interface TripSheet {

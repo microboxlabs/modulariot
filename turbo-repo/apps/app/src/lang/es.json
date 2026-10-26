@@ -5239,7 +5239,12 @@
           "unknown": "Origen sin tipo"
         },
         "validations": "Validaciones",
-        "noValidations": "Sin validaciones recibidas."
+        "noValidations": "Sin validaciones recibidas.",
+        "leadTime": "Lead Time",
+        "withSla": "{count} con SLA",
+        "occupancy": "Ocupación",
+        "weight": "Peso",
+        "volume": "Volumen"
       },
       "live": {
         "on": "En vivo",

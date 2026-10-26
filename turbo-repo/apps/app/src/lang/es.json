@@ -3284,7 +3284,15 @@
         "addEntry": "Agregar condición",
         "removeEntry": "Quitar condición",
         "saveSelector": "Guardar selector",
-        "selectorSaved": "Selector guardado."
+        "selectorSaved": "Selector guardado.",
+        "confirmers": {
+          "title": "Quién confirma",
+          "hint": "El equipo que confirma o rechaza cada hito de los viajes de este monitor. Se guarda aparte del borrador y aplica de inmediato a los viajes abiertos. Sin equipo, confirma cualquiera con el permiso.",
+          "anyone": "Cualquiera con el permiso",
+          "assigned": "Equipo asignado",
+          "save": "Guardar equipos",
+          "saved": "Equipos guardados"
+        }
       },
       "symptomCatalog": {
         "title": "Síntomas",
@@ -5150,7 +5158,8 @@
           "alert": "Alerta",
           "invoke": "Ejecutar proceso",
           "other": "Acción"
-        }
+        },
+        "teamOnly": "Solo el equipo asignado confirma este hito."
       },
       "live": {
         "on": "En vivo",

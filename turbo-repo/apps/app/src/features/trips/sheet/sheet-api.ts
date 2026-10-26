@@ -46,6 +46,8 @@ export interface TripSheet {
   card: BoardCard;
   stages: SheetStage[];
   milestones: TripMilestone[];
+  /** Milestone → id of the team that confirms it; a milestone without one is open to the permission. */
+  confirmers: Partial<Record<TripMilestone["milestone"], string>>;
   transitions: SheetTransition[];
   feed: SheetFeed | null;
 }

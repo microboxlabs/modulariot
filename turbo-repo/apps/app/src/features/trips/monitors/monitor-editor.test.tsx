@@ -36,6 +36,7 @@ vi.mock("./plan-params", () => ({
   ParamsEditor: () => null,
 }));
 vi.mock("./rule-card", () => ({ default: () => null }));
+vi.mock("./confirmers-panel", () => ({ ConfirmersPanel: () => null }));
 vi.mock("./monitors-api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./monitors-api")>()),
   useCanEditMonitors: () => true,

@@ -1,7 +1,10 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
+import com.microboxlabs.miot.core.iam.TeamsService;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
@@ -27,19 +30,22 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Authenticated
 public class OrgAccessResource {
 
-    /** {@code baseRole} is null when the caller is not a member. */
-    public record AccessDto(String organization, String baseRole, Set<String> roles, Set<String> permissions) {
+    /** {@code baseRole} is null when the caller is not a member; {@code teams} are the org's teams it belongs to. */
+    public record AccessDto(String organization, String baseRole, Set<String> roles, Set<String> permissions,
+            List<TeamsService.TeamRef> teams) {
     }
 
     private final AccessEvaluator evaluator;
+    private final TeamsService teams;
     private final SecurityIdentity identity;
     private final List<String> clientIdClaims;
 
     @Inject
-    public OrgAccessResource(AccessEvaluator evaluator, SecurityIdentity identity,
+    public OrgAccessResource(AccessEvaluator evaluator, TeamsService teams, SecurityIdentity identity,
             @ConfigProperty(name = "miot.auth.client-id-claims", defaultValue = "aud,azp")
             List<String> clientIdClaims) {
         this.evaluator = evaluator;
+        this.teams = teams;
         this.identity = identity;
         this.clientIdClaims = clientIdClaims;
     }
@@ -49,8 +55,13 @@ public class OrgAccessResource {
             summary = "The caller's base role, module roles and permissions in the organization")
     public Uni<AccessDto> me(@PathParam("organizationId") String organizationId,
             @HeaderParam("X-Dev-User-Email") String devEmail) {
-        return evaluator.evaluate(organizationId, IamIdentityAugmentor.callerOf(identity, devEmail, clientIdClaims))
-                .map(access -> new AccessDto(organizationId,
-                        access.member() ? access.baseRole().name() : null, access.roles(), access.permissions()));
+        Caller caller = IamIdentityAugmentor.callerOf(identity, devEmail, clientIdClaims);
+        return evaluator.evaluate(organizationId, caller)
+                .flatMap(access -> (access.member() && !PlatformScope.isPlatform(organizationId)
+                        ? teams.teamsOf(organizationId, caller)
+                        : Uni.createFrom().item(List.<TeamsService.TeamRef>of()))
+                        .map(mine -> new AccessDto(organizationId,
+                                access.member() ? access.baseRole().name() : null, access.roles(),
+                                access.permissions(), mine)));
     }
 }

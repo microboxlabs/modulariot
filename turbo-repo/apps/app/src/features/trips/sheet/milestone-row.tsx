@@ -72,12 +72,15 @@ export function MilestoneRow({
   m,
   planned,
   canConfirm,
+  teamOnly = false,
   d,
   lang,
 }: Readonly<{
   m: TripMilestone;
   planned: string | null;
   canConfirm: boolean;
+  /** The milestone has a team the user is not in. */
+  teamOnly?: boolean;
   d: I18nRecord;
   lang: string;
 }>) {
@@ -142,6 +145,11 @@ export function MilestoneRow({
             {tr("sheet.record", d)}
           </Button>
         </div>
+      )}
+      {teamOnly && m.status !== "confirmed" && (
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          {tr("sheet.teamOnly", d)}
+        </p>
       )}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>

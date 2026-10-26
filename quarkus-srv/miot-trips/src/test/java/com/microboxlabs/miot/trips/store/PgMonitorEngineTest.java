@@ -35,8 +35,10 @@ import com.microboxlabs.miot.trips.dto.BoardView;
 import com.microboxlabs.miot.trips.dto.TripSheet;
 import com.microboxlabs.miot.trips.service.BoardEvents;
 import com.microboxlabs.miot.trips.service.BoardService;
+import com.microboxlabs.miot.trips.service.ConfirmerService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.TripBoard;
+import com.microboxlabs.miot.trips.service.TripsTeamDeletionGuard;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.MonitorClock;
@@ -59,6 +61,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
@@ -627,7 +630,7 @@ class PgMonitorEngineTest {
                 rule("arrived", "signal", null, "stage.type == 'transit' && signal.kind == 'entered_destination'",
                         10, act("completeTrip", null))));
         BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
-                milestones, runs);
+                milestones, runs, new PgConfirmerStore(() -> pool));
         TripView t = newTrip("overdue", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
         String trip = t.id();
         String code = t.mandates().get(0).externalCode();
@@ -703,6 +706,43 @@ class PgMonitorEngineTest {
     }
 
     @Test
+    void onlyTheMilestonesTeamConfirmsItAndOnlyPeopleAreChecked() {
+        ConfirmerService confirmers = new ConfirmerService(new PgConfirmerStore(() -> pool), monitors, audit, tx);
+        UUID ops = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        Pg.query(pool, "INSERT INTO miot_iam.iam_team (id) VALUES ($1), ($2)", Tuple.of(ops, other));
+        Set<UUID> orgTeams = Set.of(ops);
+        Set<UUID> otherTeam = Set.of(other);
+        Map<String, UUID> foreignAssignment = Map.of("departure", other);
+        Map<String, UUID> unknownMilestone = Map.of("unloading", ops);
+        Map<String, UUID> departureAssignment = Map.of("departure", ops);
+        assertThrows(IllegalArgumentException.class, () -> confirmers.save(tenant, ACTOR, DIRECT,
+                foreignAssignment, orgTeams), "a team of another organization");
+        assertThrows(IllegalArgumentException.class, () -> confirmers.save(tenant, ACTOR, DIRECT,
+                unknownMilestone, orgTeams));
+        assertThrows(java.util.NoSuchElementException.class, () -> confirmers.save(tenant, ACTOR, "no-such",
+                departureAssignment, orgTeams));
+        confirmers.save(tenant, ACTOR, DIRECT, departureAssignment, Set.of(ops, other));
+        assertEquals(departureAssignment, confirmers.ofMonitor(tenant, DIRECT));
+
+        TripsTeamDeletionGuard deletionGuard = new TripsTeamDeletionGuard(() -> pool);
+        var deletionCheck = deletionGuard.requireUnused(ops).await();
+        assertThrows(IllegalStateException.class, deletionCheck::indefinitely);
+
+        UUID trip = id(newTrip(DIRECT, null));
+        assertThrows(SecurityException.class, () -> confirmers.require(tenant, trip, "departure", otherTeam));
+        confirmers.require(tenant, trip, "departure", Set.of(ops, other));
+        confirmers.require(tenant, trip, "departure", null);
+        confirmers.require(tenant, trip, "arrival", Set.of());
+        confirmers.require(tenant, id(newTrip(null, null)), "departure", Set.of());
+
+        confirmers.save(tenant, ACTOR, DIRECT, Map.of(), orgTeams);
+        deletionGuard.requireUnused(ops).await().indefinitely();
+        confirmers.require(tenant, trip, "departure", Set.of(other));
+        assertEquals(Map.of(), confirmers.ofTrip(tenant, trip));
+    }
+
+    @Test
     void finishedBoardCountsEveryTripButReturnsOneCardPerLane() {
         TripView cancelled = newTrip(null, null);
         trips.cancel(tenant, ACTOR, id(cancelled), "test cancellation");
@@ -713,7 +753,7 @@ class PgMonitorEngineTest {
         }
 
         BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
-                milestones, runs);
+                milestones, runs, new PgConfirmerStore(() -> pool));
         BoardView view = board.view(tenant, TripBoard.FINISHED, null, null, null, 1);
         BoardView.Lane completed = view.lanes().stream()
                 .filter(lane -> TripBoard.COMPLETED.equals(lane.key())).findFirst().orElseThrow();
@@ -773,7 +813,7 @@ class PgMonitorEngineTest {
         trips.cancel(tenant, ACTOR, tripId, "test cancellation");
 
         BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
-                milestones, runs);
+                milestones, runs, new PgConfirmerStore(() -> pool));
         for (String q : List.of("ZZ-321", "TR-987", "Final Driver", "Second Driver", "Sample Carrier")) {
             assertEquals(List.of(trip.id()), cards(board, TripBoard.FINISHED, TripBoard.CANCELLED, q), q);
         }

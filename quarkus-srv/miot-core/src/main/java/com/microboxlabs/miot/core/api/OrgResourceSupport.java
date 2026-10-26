@@ -59,7 +59,7 @@ public abstract class OrgResourceSupport {
     }
 
     /** The caller as {@code @PermissionsAllowed} sees it: API key account, user, else the token's client id. */
-    private Caller caller() {
+    protected Caller caller() {
         Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(identity);
         if (serviceAccount != null) {
             return serviceAccount;
@@ -117,6 +117,8 @@ public abstract class OrgResourceSupport {
             return error(Response.Status.NOT_FOUND, e.getMessage());
         } catch (IllegalStateException e) {
             return error(Response.Status.CONFLICT, e.getMessage());
+        } catch (SecurityException e) {
+            return error(Response.Status.FORBIDDEN, e.getMessage());
         } catch (RuntimeException e) {
             return unmapped(e);
         }

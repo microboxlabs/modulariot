@@ -5,10 +5,12 @@ import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamServiceAccount;
 import com.microboxlabs.miot.core.iam.model.IamTeam;
 import com.microboxlabs.miot.core.iam.model.IamTeamMember;
+import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -54,14 +56,37 @@ public class TeamsService {
 
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
+    private final Instance<TeamDeletionGuard> deletionGuards;
 
     @Inject
-    public TeamsService(AccessEvaluator evaluator, IamDirectory directory) {
+    public TeamsService(AccessEvaluator evaluator, IamDirectory directory,
+            Instance<TeamDeletionGuard> deletionGuards) {
         this.evaluator = evaluator;
         this.directory = directory;
+        this.deletionGuards = deletionGuards;
     }
 
     // --- teams ---
+
+    /** A team the caller belongs to. */
+    public record TeamRef(UUID id, String name) {
+    }
+
+    /** The organization's teams that have the caller as a member; none for a caller that is not a person. */
+    public Uni<List<TeamRef>> teamsOf(String slug, Caller caller) {
+        if (caller == null || !caller.isUser()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return Panache.withSession(() -> root(slug).flatMap(root -> IamUser.findByEmail(caller.email())
+                .flatMap(user -> user == null ? Uni.createFrom().item(List.<TeamRef>of())
+                        : IamTeamMember.findByUser(user.id).flatMap(memberships -> {
+                            Set<UUID> mine = new HashSet<>();
+                            memberships.forEach(m -> mine.add(m.id.teamId));
+                            return IamTeam.findByOrganization(root.id).map(teams -> teams.stream()
+                                    .filter(t -> mine.contains(t.id))
+                                    .map(t -> new TeamRef(t.id, t.name)).toList());
+                        }))));
+    }
 
     public Uni<List<TeamView>> teams(String slug) {
         return Panache.withSession(() -> root(slug).flatMap(root -> IamTeam.findByOrganization(root.id)
@@ -96,13 +121,29 @@ public class TeamsService {
 
     public Uni<Void> delete(String slug, Caller actor, UUID teamId) {
         return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId)
-                .flatMap(team -> ProjectionQueue.teamMembers(team.id).flatMap(members -> IamRoleBinding.delete(
+                .flatMap(team -> lockTeam(team.id).flatMap(lockResult -> requireUnused(team.id))
+                        .flatMap(guardResult -> ProjectionQueue.teamMembers(team.id).flatMap(members -> IamRoleBinding.delete(
                                 "organizationId = ?1 and principalKind = ?2 and principalId = ?3", root.id,
                                 IamRoleBinding.TEAM, team.id.toString())
-                        .flatMap(ignored -> team.delete())
-                        .flatMap(ignored -> directory.rolesChanged(root.id, members, null))
-                        .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.deleted", team.name,
-                                Map.of()))))));
+                        .flatMap(roleResult -> team.delete())
+                        .flatMap(deleteResult -> directory.rolesChanged(root.id, members, null))
+                        .flatMap(projectionResult -> directory.audit(root.id, actor.name(), "team.deleted", team.name,
+                                Map.of())))))));
+    }
+
+    private static Uni<Void> lockTeam(UUID teamId) {
+        return Panache.getSession()
+                .flatMap(session -> session.createNativeQuery("select pg_advisory_xact_lock(hashtextextended(?1, 0))")
+                        .setParameter(1, TeamDeletionGuard.lockKey(teamId)).executeUpdate())
+                .replaceWithVoid();
+    }
+
+    private Uni<Void> requireUnused(UUID teamId) {
+        Uni<Void> checks = Uni.createFrom().voidItem();
+        for (TeamDeletionGuard guard : deletionGuards) {
+            checks = checks.flatMap(ignored -> guard.requireUnused(teamId));
+        }
+        return checks;
     }
 
     /** Replaces the team's members. Every one must be a member of the organization. */

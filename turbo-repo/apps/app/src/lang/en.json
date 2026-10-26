@@ -3284,7 +3284,15 @@
         "addEntry": "Add condition",
         "removeEntry": "Remove condition",
         "saveSelector": "Save selector",
-        "selectorSaved": "Selector saved."
+        "selectorSaved": "Selector saved.",
+        "confirmers": {
+          "title": "Who confirms",
+          "hint": "The team that confirms or rejects each milestone of this monitor's trips. Saved apart from the draft and applies to open trips at once. Without a team, anyone with the permission confirms.",
+          "anyone": "Anyone with the permission",
+          "assigned": "Assigned team",
+          "save": "Save teams",
+          "saved": "Teams saved"
+        }
       },
       "symptomCatalog": {
         "title": "Symptoms",
@@ -5150,7 +5158,8 @@
           "alert": "Alert",
           "invoke": "Run process",
           "other": "Action"
-        }
+        },
+        "teamOnly": "Only the assigned team confirms this milestone."
       },
       "live": {
         "on": "Live",

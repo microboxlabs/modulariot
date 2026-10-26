@@ -4,10 +4,12 @@ import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.core.iam.TeamsService;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.trips.access.TripsAccessCatalog;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
 import com.microboxlabs.miot.trips.dto.MonitorViews;
+import com.microboxlabs.miot.trips.service.ConfirmerService;
 import com.microboxlabs.miot.trips.service.MonitorService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -25,6 +27,9 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -46,6 +51,8 @@ public class OrgMonitorsResource extends OrgResourceSupport {
     private static final String KEY = "monitorKey";
 
     private final MonitorService monitors;
+    private final ConfirmerService confirmers;
+    private final TeamsService teams;
 
     @Inject
     public OrgMonitorsResource(
@@ -53,9 +60,13 @@ public class OrgMonitorsResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            MonitorService monitors) {
+            MonitorService monitors,
+            ConfirmerService confirmers,
+            TeamsService teams) {
         super(tenantContext, organizationContext, roleService, identity);
         this.monitors = monitors;
+        this.confirmers = confirmers;
+        this.teams = teams;
     }
 
     @GET
@@ -119,6 +130,32 @@ public class OrgMonitorsResource extends OrgResourceSupport {
             monitors.discardDraft(tenant, actor, monitorKey);
             return Response.noContent().build();
         });
+    }
+
+    @GET
+    @Path("/{monitorKey}/confirmers")
+    @Operation(operationId = "getMonitorConfirmers",
+            summary = "The team that confirms each milestone of the monitor's trips: milestone → team id")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> confirmers(@PathParam(ORG) String organizationId, @PathParam(KEY) String monitorKey) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(confirmers.ofMonitor(tenant, monitorKey)).build());
+    }
+
+    @PUT
+    @Path("/{monitorKey}/confirmers")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "saveMonitorConfirmers",
+            summary = "Replaces the teams of the monitor's milestones; a milestone left out is open to the permission")
+    @PermissionsAllowed(value = TripsAccessCatalog.MONITOR_ADMIN, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> saveConfirmers(@PathParam(ORG) String organizationId, @PathParam(KEY) String monitorKey,
+            Map<String, UUID> body) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return teams.teams(organizationId)
+                .map(all -> all.stream().map(TeamsService.TeamView::id).collect(Collectors.toSet()))
+                .flatMap(orgTeams -> work(() -> Response.ok(
+                        confirmers.save(tenant, actor, monitorKey, body, orgTeams)).build()));
     }
 
     @POST

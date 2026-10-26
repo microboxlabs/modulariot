@@ -43,10 +43,14 @@ export function useFeeds() {
 }
 
 /** Creates or replaces the feed's rules. */
-export async function saveFeed(feedKey: string, body: FeedBody) {
+export async function saveFeed(
+  feedKey: string,
+  body: FeedBody,
+  createOnly = false
+) {
   const saved = await tripsRequest<Feed>(
     `${feedsKey}/${encodeURIComponent(feedKey)}`,
-    { method: "PUT", body }
+    { method: createOnly ? "POST" : "PUT", body }
   );
   await Promise.all([mutate(feedsKey), mutate(scopeValuesKey)]);
   return saved;

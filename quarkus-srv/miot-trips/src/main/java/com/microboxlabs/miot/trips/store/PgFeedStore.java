@@ -34,6 +34,12 @@ public class PgFeedStore implements FeedStore {
     private static final String PROFILE_COLUMNS = """
             tenant_code, feed_key, name, stages, arrival_stage,
             required_resources, active, created_at, created_by, updated_at, updated_by""";
+    private static final String INSERT_PROFILE = """
+            INSERT INTO miot_trips.feed_profile
+                (tenant_code, feed_key, name, stages, arrival_stage,
+                 required_resources, active, created_by, updated_by)
+            VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9)
+            """;
     private static final String SERVICE_COLUMNS = """
             tenant_code, feed_key, external_code, desired, desired_hash, mandate_id, trip_id, open,
             last_action, last_result, last_reconciled_at, applied_desired""";
@@ -76,21 +82,28 @@ public class PgFeedStore implements FeedStore {
 
     @Override
     public FeedProfile saveProfile(FeedProfile p) {
-        return query(pool.get(), """
-                INSERT INTO miot_trips.feed_profile
-                    (tenant_code, feed_key, name, stages, arrival_stage,
-                     required_resources, active, created_by, updated_by)
-                VALUES ($1, $2, $3, $4::text::jsonb, $5, $6, $7, $8, $9)
+        return query(pool.get(), INSERT_PROFILE + """
                 ON CONFLICT (tenant_code, feed_key) DO UPDATE SET
                     name = EXCLUDED.name, stages = EXCLUDED.stages, arrival_stage = EXCLUDED.arrival_stage,
                     required_resources = EXCLUDED.required_resources, active = EXCLUDED.active,
                     updated_by = EXCLUDED.updated_by, updated_at = now()
                 RETURNING\s""" + PROFILE_COLUMNS,
-                Tuple.tuple().addString(p.tenantCode()).addString(p.feedKey()).addString(p.name())
-                        .addString(Pg.json(p.stages())).addString(p.arrivalStage())
-                        .addArrayOfString(p.requiredResources().toArray(String[]::new))
-                        .addBoolean(p.active()).addString(p.createdBy()).addString(p.updatedBy()))
+                profileParams(p))
                 .stream().map(PgFeedStore::profile).findFirst().orElseThrow();
+    }
+
+    @Override
+    public Optional<FeedProfile> createProfile(FeedProfile p) {
+        return first(query(pool.get(), INSERT_PROFILE
+                + " ON CONFLICT (tenant_code, feed_key) DO NOTHING RETURNING " + PROFILE_COLUMNS,
+                profileParams(p)), PgFeedStore::profile);
+    }
+
+    private static Tuple profileParams(FeedProfile p) {
+        return Tuple.tuple().addString(p.tenantCode()).addString(p.feedKey()).addString(p.name())
+                .addString(Pg.json(p.stages())).addString(p.arrivalStage())
+                .addArrayOfString(p.requiredResources().toArray(String[]::new))
+                .addBoolean(p.active()).addString(p.createdBy()).addString(p.updatedBy());
     }
 
     @Override

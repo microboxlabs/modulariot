@@ -63,6 +63,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -693,26 +695,32 @@ class PgMonitorEngineTest {
         assertThrows(java.util.NoSuchElementException.class, () -> board.sheet(tenant, UUID.randomUUID()));
     }
 
-    private static void until(java.util.function.BooleanSupplier done, Runnable each) throws InterruptedException {
+    private static void until(java.util.function.BooleanSupplier done, Runnable each, Semaphore notices)
+            throws InterruptedException {
+        notices.drainPermits();
         for (int i = 0; i < 100 && !done.getAsBoolean(); i++) {
             each.run();
-            Thread.sleep(100);
+            notices.tryAcquire(100, TimeUnit.MILLISECONDS);
         }
         assertTrue(done.getAsBoolean(), "timed out");
     }
 
     @Test
     void aCommittedChangeReachesItsTenantsStreamAndARolledBackOneDoesNot() throws InterruptedException {
-        BoardEvents events = new BoardEvents(() -> pool, vertx, true);
-        events.start();
+        BoardEvents boardEvents = new BoardEvents(() -> pool, vertx, true);
+        boardEvents.start();
         List<String> got = new CopyOnWriteArrayList<>();
-        var subscription = events.stream(tenant).filter(c -> "trip".equals(c.type()))
-                .subscribe().with(c -> got.add(c.tripId()));
+        Semaphore notices = new Semaphore(0);
+        var subscription = boardEvents.stream(tenant).filter(c -> "trip".equals(c.type()))
+                .subscribe().with(c -> {
+                    got.add(c.tripId());
+                    notices.release();
+                });
         try {
-            until(() -> got.contains("probe"), () -> BoardChannel.touched(pool, tenant, "probe"));
+            until(() -> got.contains("probe"), () -> BoardChannel.touched(pool, tenant, "probe"), notices);
 
             String trip = newTrip(null, null).id();
-            until(() -> got.contains(trip), () -> { });
+            until(() -> got.contains(trip), () -> { }, notices);
 
             assertThrows(IllegalStateException.class, () -> tx.inTransaction(() -> {
                 BoardChannel.touched(pool, tenant, "rolled-back");
@@ -720,12 +728,12 @@ class PgMonitorEngineTest {
             }));
             BoardChannel.touched(pool, "other-tenant", "elsewhere");
             BoardChannel.touched(pool, tenant, "after");
-            until(() -> got.contains("after"), () -> { });
+            until(() -> got.contains("after"), () -> { }, notices);
             assertFalse(got.contains("rolled-back"), "a rolled-back change sends no notice");
             assertFalse(got.contains("elsewhere"), "another tenant's change stays there");
         } finally {
             subscription.cancel();
-            events.stop();
+            boardEvents.stop();
         }
     }
 

@@ -17,7 +17,11 @@ export default async function NoAccessPage({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [dict] = await getDictionary(lang);
   const session = await auth();
-  const home = firstAllowedPage(await currentPermissions(), homePath());
+  const home = firstAllowedPage(
+    await currentPermissions(),
+    homePath(),
+    process.env.BOARD_MODULE
+  );
   const title = home
     ? dict("pages.noAccess.page.title")
     : dict("pages.noAccess.account.title");

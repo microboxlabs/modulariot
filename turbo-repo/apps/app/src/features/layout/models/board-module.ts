@@ -5,7 +5,12 @@
  */
 export type BoardModule = "kanban" | "trips";
 
-const KANBAN_PATHS = ["/planning", "/shipping", "/delivery", "/finished"];
+const KANBAN_PATHS = new Set([
+  "/planning",
+  "/shipping",
+  "/delivery",
+  "/finished",
+]);
 
 export function boardEnabled(
   module: BoardModule,
@@ -18,5 +23,5 @@ export function boardEnabled(
 /** The board a path belongs to, or null when it is not a board page. */
 export function boardOfPath(path: string): BoardModule | null {
   if (path === "/trips" || path.startsWith("/trips/")) return "trips";
-  return KANBAN_PATHS.includes(path) ? "kanban" : null;
+  return KANBAN_PATHS.has(path) ? "kanban" : null;
 }

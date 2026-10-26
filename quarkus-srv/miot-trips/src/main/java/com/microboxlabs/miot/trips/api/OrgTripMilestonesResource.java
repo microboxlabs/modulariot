@@ -137,7 +137,7 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             DetectionRequest expected = body.expectedDetection();
             return Response.ok(milestones.respondToDetection(tenant, actor, tripId,
                     new DetectionRef(milestone, expected.proposedAt(), expected.source()), true, ch,
-                    body.note())).build();
+                    body.note(), body.evidence())).build();
         }
         return Response.ok(milestones.confirm(tenant, actor, tripId, milestone,
                 body == null ? null : body.at(), ch, body == null ? null : body.note(),

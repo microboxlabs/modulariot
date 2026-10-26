@@ -126,15 +126,18 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
             @PathParam(DOCUMENT) String documentId, @RestForm("file") FileUpload file) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> {
+        return access(organizationId).flatMap(access -> work(() -> {
+            UUID trip = uuid(id, ID);
+            UUID document = uuid(documentId, DOCUMENT);
+            requireDocumentAccess(access, tenant, trip, document);
             FileUpload f = required(file);
             try (InputStream in = Files.newInputStream(f.uploadedFile())) {
-                return Response.ok(documents.replace(tenant, actor, uuid(id, ID), uuid(documentId, DOCUMENT),
+                return Response.ok(documents.replace(tenant, actor, trip, document,
                         f.fileName(), f.contentType(), in)).build();
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-        });
+        }));
     }
 
     @GET
@@ -160,7 +163,7 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
                     .header("Content-Length", opened.content().size())
                     .header("X-Content-Type-Options", "nosniff")
                     .header("Content-Security-Policy", "sandbox")
-                    .header("Cache-Control", "private, max-age=300")
+                    .header("Cache-Control", "private, no-cache")
                     .build();
         });
     }
@@ -173,8 +176,13 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
             @PathParam(DOCUMENT) String documentId, ChangeRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(documents.change(tenant, actor, uuid(id, ID), uuid(documentId, DOCUMENT),
-                body == null ? null : body.docType(), body == null ? null : body.name())).build());
+        return access(organizationId).flatMap(access -> work(() -> {
+            UUID trip = uuid(id, ID);
+            UUID document = uuid(documentId, DOCUMENT);
+            requireDocumentAccess(access, tenant, trip, document);
+            return Response.ok(documents.change(tenant, actor, trip, document,
+                    body == null ? null : body.docType(), body == null ? null : body.name())).build();
+        }));
     }
 
     @DELETE
@@ -189,7 +197,7 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
         return access(organizationId).flatMap(access -> work(() -> {
             UUID trip = uuid(id, ID);
             UUID document = uuid(documentId, DOCUMENT);
-            requireDeliveryAccess(access, documents.document(tenant, trip, document).deliveryId() != null);
+            requireDocumentAccess(access, tenant, trip, document);
             documents.delete(tenant, actor, trip, document);
             return Response.noContent().build();
         }));
@@ -217,6 +225,10 @@ public class OrgTripDocumentsResource extends OrgResourceSupport {
         return work(() -> Response.ok(documents.review(tenant, actor, uuid(id, ID), uuid(documentId, DOCUMENT),
                 body == null ? null : new TripDocumentService.ReviewDecision(body.expectedUpdatedAt(),
                         body.verdict(), body.reasons(), body.comment()))).build());
+    }
+
+    private void requireDocumentAccess(Access access, String tenant, UUID trip, UUID document) {
+        requireDeliveryAccess(access, documents.document(tenant, trip, document).deliveryId() != null);
     }
 
     private static void requireDeliveryAccess(Access access, boolean linked) {

@@ -162,10 +162,10 @@ class PgMonitorServiceTest {
 
         monitors.saveDraft(tenant, ACTOR, KEY, withScope(d, MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, KEY);
-        MonitorScope toAnf = new MonitorScope(List.of(), List.of(), List.of(), List.of(PLACE_A));
-        monitors.saveDraft(tenant, ACTOR, "to-a", withScope(d, toAnf));
+        MonitorScope toA = new MonitorScope(List.of(), List.of(), List.of(), List.of(PLACE_A));
+        monitors.saveDraft(tenant, ACTOR, "to-a", withScope(d, toA));
         assertEquals(List.of(new MonitorViews.Overlap(KEY, d.name(), MonitorScope.Relation.NARROWER)),
-                check("to-a", toAnf), "the narrower scope takes the trips of both");
+                check("to-a", toA), "the narrower scope takes the trips of both");
         monitors.publish(tenant, ACTOR, "to-a");
 
         MonitorScope direct = new MonitorScope(List.of(), List.of("direct"), List.of(), List.of());

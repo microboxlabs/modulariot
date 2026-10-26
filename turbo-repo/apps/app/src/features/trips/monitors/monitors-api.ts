@@ -341,7 +341,7 @@ export function useScopeCheck(key: string, scope: MonitorScope | null) {
         method: "POST",
         body: { scope },
       }),
-    { revalidateOnFocus: false, keepPreviousData: true }
+    { revalidateOnFocus: false }
   );
 }
 

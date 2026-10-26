@@ -320,6 +320,7 @@ class PgTripsStoresTest {
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
         FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
                 saved.stages(), "closing", saved.requiredResources(), true, null, ACTOR, null, ACTOR));
+        assertEquals("Servicios v2", renamed.name());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
 
         feeds.saveService(new FeedService(tenant, "servicios", "S-001", "{\"orderRef\":\"a\"}", "h1",

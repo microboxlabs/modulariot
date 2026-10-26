@@ -635,15 +635,15 @@ public class MonitorEngine implements TripChanges {
         }
         String tenant = trip.tenantCode();
         Object asked = e.data().get(MONITOR);
-        String key = asked instanceof String s ? s : select(trip, e.data().get(FEED)).orElse(null);
-        if (key == null) {
-            return Optional.empty();
-        }
-        Optional<TripMonitor> m = newest(tenant, key);
+        Optional<TripMonitor> m = asked instanceof String key ? newest(tenant, key)
+                : select(trip, e.data().get(FEED));
         if (m.isEmpty()) {
-            LOG.warnf("Trip %s asked for monitor %s, which has no published version", trip.id(), key);
+            if (asked instanceof String key) {
+                LOG.warnf("Trip %s asked for monitor %s, which has no published version", trip.id(), key);
+            }
             return Optional.empty();
         }
+        String key = m.get().monitorKey();
         UUID tripId = UUID.fromString(trip.id());
         MonitorRun.State state = runs.bind(tenant, tripId, key, m.get().version(), e.actor());
         if (stageStore.listBySubject(tenant, Stage.SUBJECT_TRIP, tripId).isEmpty()) {
@@ -657,7 +657,7 @@ public class MonitorEngine implements TripChanges {
         return Optional.of(state);
     }
 
-    private Optional<String> select(Trip trip, Object feed) {
+    private Optional<TripMonitor> select(Trip trip, Object feed) {
         List<TripMonitor> scoped = MonitorService.scoped(monitors.all(trip.tenantCode()), null);
         if (scoped.isEmpty()) {
             return Optional.empty();
@@ -669,7 +669,7 @@ public class MonitorEngine implements TripChanges {
             LOG.warnf("Trip %s is in the scope of %s with no narrower one; it gets no monitor", trip.id(),
                     taking.stream().map(TripMonitor::monitorKey).toList());
         }
-        return narrowest.map(TripMonitor::monitorKey);
+        return narrowest;
     }
 
     private Optional<TripMonitor> newest(String tenant, String key) {

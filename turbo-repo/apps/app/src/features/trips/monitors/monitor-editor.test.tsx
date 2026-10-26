@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   save: vi.fn(),
   discard: vi.fn(),
   push: vi.fn(),
+  check: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: api.push }) }));
 vi.mock("@/features/i18n/tr.service", () => ({ tr: (key: string) => key }));
@@ -43,7 +44,7 @@ vi.mock("./monitors-api", async (importOriginal) => ({
   useCanEditMonitors: () => true,
   useMonitor: () => ({ data: detail, isLoading: false }),
   useScopeValues: () => ({ data: undefined }),
-  useScopeCheck: () => ({ data: undefined }),
+  useScopeCheck: () => api.check(),
   saveDraft: (key: string, body: MonitorBody) => api.save(key, body),
   discardDraft: (...args: string[]) => api.discard(...args),
 }));
@@ -57,6 +58,7 @@ const draft = {
   params: {},
   rules: [],
   findings: [],
+  scope: { feeds: [], orderTypes: [], origins: [], destinations: [] },
   updatedAt: null,
   updatedBy: null,
   publishedAt: null,
@@ -65,7 +67,32 @@ const draft = {
 const detail = { draft, published: null, versions: [] };
 
 describe("monitor editor mutations", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.check.mockReturnValue({ data: undefined, isLoading: false });
+  });
+
+  it.each([
+    { name: "has not returned", state: { data: undefined, isLoading: true } },
+    {
+      name: "fails after a successful check",
+      state: { data: { overlaps: [] }, error: new Error("Check failed") },
+    },
+    {
+      name: "still has the previous scope's result",
+      state: { data: { overlaps: [] }, isLoading: true },
+    },
+  ])("blocks publishing when the scope check $name", async ({ state }) => {
+    api.check.mockReturnValue({ data: { overlaps: [] }, isLoading: false });
+    const { rerender } = render(
+      <MonitorEditor monitorKey="test" dict={{}} lang="en" />
+    );
+    const publish = await screen.findByRole("button", { name: "publish" });
+    expect(publish).toBeEnabled();
+    api.check.mockReturnValue(state);
+    rerender(<MonitorEditor monitorKey="test" dict={{}} lang="en" />);
+    expect(publish).toBeDisabled();
+  });
 
   it("locks editing while a save is pending", async () => {
     let finish: () => void = () => {};

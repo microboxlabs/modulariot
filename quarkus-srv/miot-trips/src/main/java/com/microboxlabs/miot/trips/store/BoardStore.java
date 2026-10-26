@@ -45,7 +45,22 @@ public interface BoardStore {
     Optional<TripDetails> details(String tenantCode, UUID tripId);
 
     record TripDetails(List<Order> orders, List<Driver> drivers, Carrier carrier, String originType,
-            String destinationType) {
+            String destinationType, Load load, LeadTime leadTime) {
+    }
+
+    /**
+     * The cargo mounted on the trip and what it can carry: the trailer's weight capacity, else the truck's, and the
+     * truck's volume. A total is null when no unit reports it.
+     */
+    record Load(int units, java.math.BigDecimal weightKg, java.math.BigDecimal volumeM3,
+            java.math.BigDecimal weightCapacityKg, java.math.BigDecimal volumeCapacityM3) {
+    }
+
+    /**
+     * The trip's mandates against their SLA, counted from the departure (confirmed, else actual, else planned):
+     * delivered in time, delivered late, not delivered yet, and without an SLA.
+     */
+    record LeadTime(int onTime, int late, int open, int withoutSla) {
     }
 
     /**

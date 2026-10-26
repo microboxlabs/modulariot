@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
+import com.microboxlabs.miot.trips.domain.CargoUnit;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.domain.Location;
@@ -17,11 +18,13 @@ import com.microboxlabs.miot.trips.domain.TripRef;
 import com.microboxlabs.miot.trips.events.TripEvents;
 import com.microboxlabs.miot.trips.dto.AssignmentRequest;
 import com.microboxlabs.miot.trips.dto.AssignmentView;
+import com.microboxlabs.miot.trips.dto.CargoRequest;
 import com.microboxlabs.miot.trips.dto.FeedResult;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.dto.MandateRequest;
 import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.dto.StageView;
+import com.microboxlabs.miot.trips.dto.TripCargoRequest;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.store.FeedStore;
@@ -94,13 +97,31 @@ public class FeedReconciler {
     private final Transactions tx;
     private final ObjectMapper json;
     private final Clock clock;
+    /** Null where the feed's cargo is not applied (tests without cargo). */
+    private CargoService cargo;
+    private TripCargoService mounts;
 
     @Inject
+    @SuppressWarnings("java:S107")
     FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
             AssignmentService assignments, LocationService locations, MilestoneService milestones,
-            AuditService audit, TripEvents events, FleetResources fleet, Transactions tx, ObjectMapper json) {
+            AuditService audit, TripEvents events, FleetResources fleet, Transactions tx, ObjectMapper json,
+            CargoService cargo, TripCargoService mounts) {
         this(feeds, mandates, trips, stages, assignments, locations, milestones, audit, events, fleet, tx, json,
                 Clock.systemUTC());
+        this.cargo = cargo;
+        this.mounts = mounts;
+    }
+
+    /** With the services that announce the feed's cargo and mount it on the trip. */
+    @SuppressWarnings("java:S107")
+    public FeedReconciler(FeedStore feeds, MandateService mandates, TripService trips, StageService stages,
+            AssignmentService assignments, LocationService locations, MilestoneService milestones,
+            AuditService audit, FleetResources fleet, Transactions tx, ObjectMapper json, Clock clock,
+            CargoService cargo, TripCargoService mounts) {
+        this(feeds, mandates, trips, stages, assignments, locations, milestones, audit, fleet, tx, json, clock);
+        this.cargo = cargo;
+        this.mounts = mounts;
     }
 
     /** Without trip events. */
@@ -144,7 +165,8 @@ public class FeedReconciler {
         FeedServiceRequest compared = new FeedServiceRequest(desired.orderType(), desired.orderRef(),
                 desired.origin(), desired.destination(), utc(desired.plannedStart()), utc(desired.plannedEnd()),
                 utc(desired.actualStart()), utc(desired.actualArrival()), utc(desired.actualEnd()),
-                desired.resourcesOrEmpty(), null, reports(desired.milestones()));
+                desired.resourcesOrEmpty(), null, reports(desired.milestones()), desired.slaMinutes(),
+                desired.cargo());
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
                     json.writeValueAsString(compared).getBytes(StandardCharsets.UTF_8)));
@@ -515,7 +537,7 @@ public class FeedReconciler {
         if (mandate == null) {
             plan.step("create mandate " + code, () -> plan.mandateId = mandates.createOrGet(tenantCode, actor,
                     new MandateRequest(code, d.orderType(), d.orderRef(), plan.locationId(origin),
-                            plan.locationId(destination), null)).mandate().id());
+                            plan.locationId(destination), d.slaMinutes())).mandate().id());
         }
         List<FeedProfile.StagePlan> planned = profile.stages();
         plan.step("create trip with stages " + planned.stream().map(FeedProfile.StagePlan::stageType).toList(), () -> {
@@ -534,6 +556,67 @@ public class FeedReconciler {
                     UUID.fromString(plan.tripId), new AssignmentRequest(res.type(), res.id().toString(),
                             context.regularized() ? d.actualStart() : null, null)));
         }
+        if (mandate != null && d.slaMinutes() != null && !d.slaMinutes().equals(mandate.slaMinutes())) {
+            planSla(plan, tenantCode, actor, mandate, d.slaMinutes());
+        }
+        planCargo(plan, tenantCode, actor,
+                mandate == null || cargo == null ? List.of()
+                        : cargo.listByMandate(tenantCode, UUID.fromString(mandate.id())),
+                d.cargo());
+    }
+
+    private void planSla(Plan plan, String tenantCode, String actor, Mandate mandate, Integer minutes) {
+        plan.step("change SLA to " + minutes + " minutes", () -> mandates.update(tenantCode, actor,
+                UUID.fromString(mandate.id()), new MandateRequest(null, null, null, null, null, minutes)));
+    }
+
+    /**
+     * Matches the feed's cargo to the mandate's units by position: a changed unit is updated, a new one is
+     * announced and mounted on the trip. Units the feed no longer sends are kept and reported.
+     */
+    private void planCargo(Plan plan, String tenantCode, String actor, List<CargoUnit> current,
+            List<FeedServiceRequest.CargoItem> wanted) {
+        if (wanted.isEmpty()) {
+            return;
+        }
+        if (cargo == null || mounts == null) {
+            plan.warnings.add("cargo is not applied here");
+            return;
+        }
+        for (int i = 0; i < wanted.size(); i++) {
+            FeedServiceRequest.CargoItem item = wanted.get(i);
+            CargoRequest request = new CargoRequest(item.description(), item.qty(), item.qtyUnit(),
+                    item.weightKg(), item.volumeM3(), null);
+            int n = i + 1;
+            if (i < current.size()) {
+                CargoUnit unit = current.get(i);
+                if (!sameCargo(unit, item)) {
+                    plan.step("update cargo " + n, () -> cargo.update(tenantCode, actor, UUID.fromString(unit.id()),
+                            request));
+                }
+            } else {
+                plan.step("announce and mount cargo " + n, () -> {
+                    CargoUnit announced = cargo.announce(tenantCode, actor, UUID.fromString(plan.mandateId),
+                            request);
+                    mounts.mount(tenantCode, actor, UUID.fromString(plan.tripId),
+                            new TripCargoRequest(announced.id(), null, null));
+                });
+            }
+        }
+        if (current.size() > wanted.size()) {
+            plan.warnings.add("cargo " + (wanted.size() + 1) + ".." + current.size()
+                    + " no longer sent; kept");
+        }
+    }
+
+    private static boolean sameCargo(CargoUnit unit, FeedServiceRequest.CargoItem item) {
+        return Objects.equals(unit.description(), item.description()) && sameNumber(unit.qty(), item.qty())
+                && Objects.equals(unit.qtyUnit(), item.qtyUnit()) && sameNumber(unit.weightKg(), item.weightKg())
+                && sameNumber(unit.volumeM3(), item.volumeM3());
+    }
+
+    private static boolean sameNumber(java.math.BigDecimal a, java.math.BigDecimal b) {
+        return a == null ? b == null : b != null && a.compareTo(b) == 0;
     }
 
     private void planChanges(Plan plan, PlanningContext context, Mandate mandate, TripView trip,
@@ -557,7 +640,13 @@ public class FeedReconciler {
             plan.step("change order reference", () -> mandates.update(tenantCode, actor,
                     UUID.fromString(mandate.id()), new MandateRequest(null, null, d.orderRef(), null, null, null)));
         }
+        if (d.slaMinutes() != null && !d.slaMinutes().equals(mandate.slaMinutes())) {
+            planSla(plan, tenantCode, actor, mandate, d.slaMinutes());
+        }
         planAssignments(plan, tenantCode, actor, trip, resources);
+        planCargo(plan, tenantCode, actor,
+                cargo == null ? List.of() : cargo.listByMandate(tenantCode, UUID.fromString(mandate.id())),
+                d.cargo());
     }
 
     /**

@@ -240,7 +240,10 @@ public class PgBoardStore implements BoardStore {
                           AND a.version_of IS NULL AND a.is_active) x
                 WHERE x.n <= 2) AS drivers,
               o.type AS origin_type, d.type AS destination_type,
-              c.legal_name AS carrier_name, c.rut AS carrier_rut, c.external_id AS carrier_code
+              c.legal_name AS carrier_name, c.rut AS carrier_rut, c.external_id AS carrier_code,
+              ld.units AS load_units, ld.weight AS load_weight, ld.volume AS load_volume,
+              coalesce(tr.max_weight, v.max_weight) AS weight_capacity, v.volume AS volume_capacity,
+              lt.on_time, lt.late, lt.lead_open, lt.without_sla
             FROM miot_trips.trip t
             LEFT JOIN miot_trips.location o
                    ON o.id = t.origin_id AND o.tenant_code = t.tenant_code AND o.version_of IS NULL
@@ -256,6 +259,38 @@ public class PgBoardStore implements BoardStore {
                    ON v.id = ta.resource_id AND v.tenant_code = t.tenant_code AND v.version_of IS NULL
             LEFT JOIN miot_fleet.carrier c
                    ON c.id = v.carrier_id AND c.tenant_code = v.tenant_code AND c.version_of IS NULL
+            LEFT JOIN LATERAL (
+                SELECT a.resource_id FROM miot_trips.trip_resource_assignment a
+                 WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'trailer'
+                   AND a.version_of IS NULL AND a.is_active
+                 ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+                 LIMIT 1) tra ON true
+            LEFT JOIN miot_fleet.trailer tr
+                   ON tr.id = tra.resource_id AND tr.tenant_code = t.tenant_code AND tr.version_of IS NULL
+            CROSS JOIN LATERAL (
+                SELECT count(*)::int AS units, sum(cu.weight_kg) AS weight, sum(cu.volume_m3) AS volume
+                  FROM miot_trips.trip_cargo tc
+                  JOIN miot_trips.cargo_unit cu
+                    ON cu.id = tc.cargo_id AND cu.version_of IS NULL AND cu.is_active
+                 WHERE tc.trip_id = t.id AND tc.version_of IS NULL AND tc.is_active) ld
+            CROSS JOIN LATERAL (
+                SELECT count(*) FILTER (WHERE x.delivered_at <= x.due)::int AS on_time,
+                       count(*) FILTER (WHERE x.delivered_at > x.due)::int AS late,
+                       count(*) FILTER (WHERE x.due IS NOT NULL AND x.delivered_at IS NULL)::int AS lead_open,
+                       count(*) FILTER (WHERE x.due IS NULL)::int AS without_sla
+                  FROM (SELECT coalesce((SELECT ms.confirmed_at FROM miot_trips.trip_milestone ms
+                                          WHERE ms.trip_id = t.id AND ms.milestone = 'departure'
+                                            AND ms.status = 'confirmed'),
+                                        t.actual_start, t.planned_start)
+                               + make_interval(mins => m.sla_minutes) AS due,
+                               (SELECT min(ds.confirmed_at) FROM miot_trips.delivery_mandate dm
+                                  JOIN miot_trips.delivery_step ds
+                                    ON ds.delivery_id = dm.delivery_id AND ds.step = 'delivered'
+                                   AND ds.status = 'confirmed'
+                                 WHERE dm.trip_id = t.id AND dm.mandate_id = m.id) AS delivered_at
+                          FROM miot_trips.trip_mandate tm
+                          JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
+                         WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active) x) lt
             WHERE t.tenant_code = $1 AND t.id = $2 AND t.version_of IS NULL""";
 
     private final Supplier<Pool> pool;
@@ -322,7 +357,12 @@ public class PgBoardStore implements BoardStore {
                         r.getString("carrier_name") == null ? null
                                 : new Carrier(r.getString("carrier_name"), r.getString("carrier_rut"),
                                         r.getString("carrier_code")),
-                        r.getString("origin_type"), r.getString("destination_type")));
+                        r.getString("origin_type"), r.getString("destination_type"),
+                        new Load(r.getInteger("load_units"), r.getBigDecimal("load_weight"),
+                                r.getBigDecimal("load_volume"), r.getBigDecimal("weight_capacity"),
+                                r.getBigDecimal("volume_capacity")),
+                        new LeadTime(r.getInteger("on_time"), r.getInteger("late"), r.getInteger("lead_open"),
+                                r.getInteger("without_sla"))));
     }
 
     private static <T> List<T> list(String json, TypeReference<List<T>> type) {

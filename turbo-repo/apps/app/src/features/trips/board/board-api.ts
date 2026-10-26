@@ -65,6 +65,15 @@ function instant(bound: string | null): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** The date picker gives an inclusive last day; the board API uses an exclusive upper bound. */
+function afterLastDay(bound: string | null): string | null {
+  if (!bound) return null;
+  const date = new Date(bound.replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(24, 0, 0, 0);
+  return date.toISOString();
+}
+
 /** The board's query string from the page's: `q`, and the finished view's date range. */
 export function boardQuery(
   view: BoardViewKey,
@@ -75,7 +84,7 @@ export function boardQuery(
   if (q) query.set("q", q);
   if (view === "finished") {
     const from = instant(search.get("date_range_from"));
-    const to = instant(search.get("date_range_to"));
+    const to = afterLastDay(search.get("date_range_to"));
     if (from) query.set("from", from);
     if (to) query.set("to", to);
   }

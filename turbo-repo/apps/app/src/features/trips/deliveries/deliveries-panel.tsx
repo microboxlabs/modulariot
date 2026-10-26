@@ -355,12 +355,12 @@ export function DeliveriesPanel({
   const canCreate =
     canOperate && (data.uncovered.length > 0 || data.deliveries.length === 0);
   return (
-    <section className="rounded-lg bg-white p-4 shadow lg:col-span-3 dark:bg-gray-800">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <section className="flex flex-col gap-2 p-2">
+      <div>
+        <h2 className="text-md font-normal text-gray-700 dark:text-gray-300">
           {tr("sheet.deliveries.title", d)}
         </h2>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
           {cycle}
           {data.cycle.completesTrip &&
             ` · ${tr("sheet.deliveries.completes", d, {

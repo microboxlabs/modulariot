@@ -5117,8 +5117,6 @@
         "cancelled": "Anulado"
       },
       "sheet": {
-        "service": "Servicio",
-        "resources": "Recursos",
         "truck": "Camión",
         "trailer": "Rampla",
         "drivers": "Conductores",
@@ -5133,7 +5131,6 @@
         "recordAt": "Hora del hito",
         "plan": "Etapas",
         "plannedEnd": "fin planificado",
-        "history": "Historia",
         "noHistory": "El monitor aún no registra eventos.",
         "feed": "Fila del feed",
         "noFeed": "Viaje creado sin feed.",
@@ -5198,6 +5195,41 @@
             "other": "Otro"
           },
           "needsProof": "Sube un POD para confirmar la entrega."
+        },
+        "tripInfo": "Información del viaje",
+        "trip": "Viaje",
+        "serviceCode": "Código servicio",
+        "status": "Estado",
+        "monitor": "Monitor",
+        "route": "Ruta",
+        "departure": "Salida",
+        "arrival": "Llegada",
+        "driver1": "Conductor 1",
+        "driver2": "Conductor 2",
+        "dispatch": "Despacho",
+        "alerts": "Alertas del viaje",
+        "noAlerts": "Sin alertas.",
+        "processState": "Estado de proceso",
+        "duration": "Duración del viaje",
+        "nextConfirm": "Confirmar {milestone}",
+        "nextRecord": "Registrar {milestone}",
+        "tabs": {
+          "movements": "Movimientos del monitor",
+          "stages": "Etapas",
+          "feed": "Fila del feed"
+        },
+        "table": {
+          "at": "Fecha",
+          "event": "Evento",
+          "rule": "Regla",
+          "stage": "Etapa",
+          "actions": "Acciones",
+          "serviceStatus": "Estado del servicio",
+          "status": "Estado",
+          "start": "Inicio",
+          "end": "Fin",
+          "field": "Campo",
+          "value": "Valor"
         }
       },
       "live": {

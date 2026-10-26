@@ -541,9 +541,9 @@ public class FeedReconciler {
         }
         List<FeedProfile.StagePlan> planned = profile.stages();
         plan.step("create trip with stages " + planned.stream().map(FeedProfile.StagePlan::stageType).toList(), () -> {
-            List<StageRequest> stages = stageRequests(profile, plannedEnd);
+            List<StageRequest> initialStages = stageRequests(profile, plannedEnd);
             TripRequest request = new TripRequest(plan.locationId(origin),
-                    plan.locationId(destination), plannedStart, List.of(plan.mandateId), stages,
+                    plan.locationId(destination), plannedStart, List.of(plan.mandateId), initialStages,
                     context.regularized() ? null : profile.monitor());
             TripView created = context.regularized() ? trips.createRegularized(tenantCode, actor, request)
                     : trips.create(tenantCode, actor, request);

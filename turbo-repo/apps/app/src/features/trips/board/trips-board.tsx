@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { HiTruck } from "react-icons/hi";
+import { HiOutlineMap } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
@@ -36,7 +36,7 @@ export default function TripsBoard({
     <div className="flex h-full w-full flex-col overflow-hidden">
       <SectionHeader
         path={["breadcrumb.trips", `breadcrumb.${view}`]}
-        rootIcon={<HiTruck className="mr-2 h-4 w-4" />}
+        rootIcon={<HiOutlineMap className="mr-2 h-4 w-4" />}
         breadcrumbDict={d}
         filterDict={general}
         lang={lang}

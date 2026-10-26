@@ -5128,13 +5128,8 @@
         "reject": "No corresponde",
         "record": "Registrar",
         "recordAt": "Hora del hito",
-        "plannedEnd": "fin planificado",
         "noHistory": "El monitor aún no registra eventos.",
         "feed": "Fila del feed",
-        "noFeed": "Viaje creado sin feed.",
-        "feedKey": "Feed",
-        "lastAction": "Última acción",
-        "lastReconciled": "Último proceso",
         "cancelReason": "Motivo de anulación",
         "channels": {
           "feed": "feed",
@@ -5149,11 +5144,6 @@
           "stop": "Parada",
           "unloading": "Descarga",
           "closing": "Cierre"
-        },
-        "stageStatus": {
-          "pending": "Pendiente",
-          "in_progress": "En curso",
-          "completed": "Cerrada"
         },
         "actions": {
           "advance": "Avanzar a",
@@ -5210,10 +5200,8 @@
         "nextRecord": "Registrar {milestone}",
         "tabs": {
           "milestones": "Hitos",
-          "deliveries": "Entregas",
           "movements": "Movimientos del monitor",
-          "stages": "Etapas",
-          "feed": "Fila del feed"
+          "cargo": "Cargas"
         },
         "table": {
           "at": "Fecha",
@@ -5221,13 +5209,11 @@
           "rule": "Regla",
           "stage": "Etapa",
           "actions": "Acciones",
-          "serviceStatus": "Estado del servicio",
           "status": "Estado",
-          "start": "Inicio",
-          "end": "Fin",
-          "field": "Campo",
-          "value": "Valor",
-          "milestone": "Hito"
+          "milestone": "Hito",
+          "order": "Orden",
+          "description": "Descripción",
+          "qty": "Cantidad"
         },
         "serviceType": "Tipo de servicio",
         "carrierRut": "RUT transportista",
@@ -5248,7 +5234,16 @@
         "withSla": "{count} con SLA",
         "occupancy": "Ocupación",
         "weight": "Peso",
-        "volume": "Volumen"
+        "volume": "Volumen",
+        "noCargo": "Sin cargas asociadas al viaje.",
+        "cargoStatus": {
+          "announced": "Anunciada",
+          "ready": "Lista",
+          "picked_up": "Retirada",
+          "delivered": "Entregada",
+          "received": "Recibida",
+          "rejected": "Rechazada"
+        }
       },
       "live": {
         "on": "En vivo",

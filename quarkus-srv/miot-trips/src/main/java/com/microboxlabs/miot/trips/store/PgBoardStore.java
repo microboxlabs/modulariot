@@ -240,6 +240,16 @@ public class PgBoardStore implements BoardStore {
                           AND a.version_of IS NULL AND a.is_active
                           AND (t.status IN ('completed', 'cancelled') OR a.valid_to IS NULL)) x
                 WHERE x.n <= 2) AS drivers,
+              (SELECT jsonb_agg(jsonb_build_object('id', cu.id, 'mandate', m.external_code,
+                                'orderRef', m.order_ref, 'line', ml.seq, 'partial', cu.partial_no,
+                                'description', cu.description, 'qty', cu.qty, 'qtyUnit', cu.qty_unit,
+                                'weightKg', cu.weight_kg, 'volumeM3', cu.volume_m3, 'status', cu.status)
+                                ORDER BY m.external_code, ml.seq, cu.partial_no)::text
+                 FROM miot_trips.trip_cargo tc
+                 JOIN miot_trips.cargo_unit cu ON cu.id = tc.cargo_id AND cu.version_of IS NULL AND cu.is_active
+                 JOIN miot_trips.mandate_line ml ON ml.id = cu.line_id
+                 JOIN miot_trips.mandate m ON m.id = ml.mandate_id AND m.version_of IS NULL
+                WHERE tc.trip_id = t.id AND tc.version_of IS NULL AND tc.is_active) AS cargo,
               o.type AS origin_type, d.type AS destination_type,
               c.legal_name AS carrier_name, c.rut AS carrier_rut, c.external_id AS carrier_code,
               ld.units AS load_units, ld.weight AS load_weight, ld.volume AS load_volume,
@@ -363,7 +373,9 @@ public class PgBoardStore implements BoardStore {
                                 r.getBigDecimal("load_volume"), r.getBigDecimal("weight_capacity"),
                                 r.getBigDecimal("volume_capacity")),
                         new LeadTime(r.getInteger("on_time"), r.getInteger("late"), r.getInteger("lead_open"),
-                                r.getInteger("without_sla"))));
+                                r.getInteger("without_sla")),
+                        list(r.getString("cargo"), new TypeReference<List<Cargo>>() {
+                        })));
     }
 
     private static <T> List<T> list(String json, TypeReference<List<T>> type) {

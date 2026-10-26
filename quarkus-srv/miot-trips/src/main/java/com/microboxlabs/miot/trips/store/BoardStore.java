@@ -39,13 +39,22 @@ public interface BoardStore {
     }
 
     /**
-     * The trip's orders, its first two drivers, the carrier of its last truck, and the types of its origin and
-     * destination.
+     * The trip's orders, its first two drivers, the carrier of its last truck, the types of its origin and
+     * destination, and the cargo units mounted on it.
      */
     Optional<TripDetails> details(String tenantCode, UUID tripId);
 
     record TripDetails(List<Order> orders, List<Driver> drivers, Carrier carrier, String originType,
-            String destinationType, Load load, LeadTime leadTime) {
+            String destinationType, Load load, LeadTime leadTime, List<Cargo> cargo) {
+        public TripDetails {
+            cargo = cargo == null ? List.of() : List.copyOf(cargo);
+        }
+    }
+
+    /** A cargo unit mounted on the trip, with the mandate it belongs to. */
+    record Cargo(String id, String mandate, String orderRef, int line, int partial, String description,
+            java.math.BigDecimal qty, String qtyUnit, java.math.BigDecimal weightKg, java.math.BigDecimal volumeM3,
+            String status) {
     }
 
     /**

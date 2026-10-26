@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { HiOutlineCheckCircle, HiOutlineDocumentText } from "react-icons/hi";
+import { HiOutlineCheckCircle, HiOutlineCube } from "react-icons/hi";
 import { MdOutlineTimeline } from "react-icons/md";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { shortTime } from "../board/trip-card";
 import type { Milestone } from "../monitors/monitors-api";
-import type { SheetFeed, SheetTransition, TripSheet } from "./sheet-api";
+import type { SheetCargo, SheetTransition, TripSheet } from "./sheet-api";
 import { plannedAt } from "./milestone-checklist";
 
 const STAGE_ACTIONS = new Set(["advance", "start", "close"]);
@@ -52,38 +52,40 @@ function Movements({
   );
 }
 
-function feedValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  return JSON.stringify(value) ?? "-";
+const AMOUNT = { maximumFractionDigits: 2 };
+
+function amount(value: number | null, lang: string, unit?: string | null) {
+  if (value == null) return "-";
+  const text = value.toLocaleString(lang, AMOUNT);
+  return unit ? `${text} ${unit}` : text;
 }
 
-function Feed({
-  feed,
+/** The cargo units mounted on the trip, by order. */
+function Cargo({
+  cargo,
   d,
   lang,
-}: Readonly<{ feed: SheetFeed | null; d: I18nRecord; lang: string }>) {
-  if (!feed) {
-    return (
-      <p className="p-4 text-sm text-gray-500 dark:text-gray-400">
-        {tr("sheet.noFeed", d)}
-      </p>
-    );
-  }
-  const head: [string, string][] = [
-    [tr("sheet.feedKey", d), feed.feedKey],
-    [tr("sheet.lastAction", d), feed.lastAction ?? "-"],
-    [
-      tr("sheet.lastReconciled", d),
-      shortTime(feed.lastReconciledAt, lang) ?? "-",
-    ],
-  ];
-  const source = Object.entries(feed.source)
-    .filter(([, v]) => v !== null && v !== "")
-    .map(([k, v]) => [k, feedValue(v)] as [string, string]);
+}: Readonly<{ cargo: SheetCargo[]; d: I18nRecord; lang: string }>) {
+  const rows = cargo.map((c) => [
+    c.orderRef ? `${c.mandate} · ${c.orderRef}` : c.mandate,
+    c.description,
+    amount(c.qty, lang, c.qtyUnit),
+    amount(c.weightKg, lang),
+    amount(c.volumeM3, lang),
+    trDynamic(`sheet.cargoStatus.${c.status}`, d),
+  ]);
   return (
     <CustomTable
-      header={[tr("sheet.table.field", d), tr("sheet.table.value", d)]}
-      content={[...head, ...source]}
+      header={[
+        tr("sheet.table.order", d),
+        tr("sheet.table.description", d),
+        tr("sheet.table.qty", d),
+        tr("sheet.weight", d),
+        tr("sheet.volume", d),
+        tr("sheet.table.status", d),
+      ]}
+      content={rows}
+      no_data_message={tr("sheet.noCargo", d)}
     />
   );
 }
@@ -132,10 +134,10 @@ function Milestones({
 const TABS = [
   { key: "milestones", icon: HiOutlineCheckCircle },
   { key: "movements", icon: MdOutlineTimeline },
-  { key: "feed", icon: HiOutlineDocumentText },
+  { key: "cargo", icon: HiOutlineCube },
 ] as const;
 
-/** The milestones, what the monitor did and the feed row, one tab each. */
+/** The milestones, what the monitor did and the trip's cargo, one tab each. */
 export function SheetTables({
   sheet,
   d,
@@ -147,7 +149,7 @@ export function SheetTables({
   lang: string;
   onMilestone: (m: Milestone) => void;
 }>) {
-  const { transitions, feed } = sheet;
+  const { transitions } = sheet;
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("milestones");
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -179,7 +181,9 @@ export function SheetTables({
         {tab === "movements" && (
           <Movements transitions={transitions} d={d} lang={lang} />
         )}
-        {tab === "feed" && <Feed feed={feed} d={d} lang={lang} />}
+        {tab === "cargo" && (
+          <Cargo cargo={sheet.details?.cargo ?? []} d={d} lang={lang} />
+        )}
       </div>
     </div>
   );

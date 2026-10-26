@@ -157,19 +157,38 @@ describe("trip bento", () => {
     expect(onOpen).toHaveBeenCalledWith("arrival");
   });
 
-  it("preserves nested feed values in the source table", () => {
+  it("lists the trip's cargo units with their order and status", () => {
     const data = sheet([]);
-    data.feed = {
-      feedKey: "sample",
-      externalCode: "SAMPLE-1",
-      source: { checks: { passed: true } },
-      lastAction: null,
-      lastResult: null,
-      lastReconciledAt: null,
+    data.details = {
+      orders: [],
+      drivers: [],
+      carrier: null,
+      originType: null,
+      destinationType: null,
+      load: EMPTY_LOAD,
+      leadTime: NO_LEAD,
+      cargo: [
+        {
+          id: "c1",
+          mandate: "S-1",
+          orderRef: "REF-9",
+          line: 1,
+          partial: 1,
+          description: "Pallet A",
+          qty: 2,
+          qtyUnit: "pallet",
+          weightKg: 1000,
+          volumeM3: null,
+          status: "picked_up",
+        },
+      ],
     };
     render(<SheetTables sheet={data} d={{}} lang="en" onMilestone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("tab", { name: "sheet.tabs.feed" }));
-    expect(screen.getByText('{"passed":true}')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "sheet.tabs.cargo" }));
+    expect(screen.getByText("S-1 · REF-9")).toBeInTheDocument();
+    expect(screen.getByText("Pallet A")).toBeInTheDocument();
+    expect(screen.getByText("2 pallet")).toBeInTheDocument();
+    expect(screen.getByText("sheet.cargoStatus.picked_up")).toBeInTheDocument();
   });
 
   it("reads a check as true, false or not reported", () => {
@@ -213,6 +232,7 @@ describe("trip bento", () => {
       destinationType: null,
       load: EMPTY_LOAD,
       leadTime: NO_LEAD,
+      cargo: [],
     };
     const [first, second] = sheetDrivers(base.card, base.details);
     expect(first.name).toBe("Current driver");
@@ -290,6 +310,7 @@ describe("trip bento", () => {
           destinationType: null,
           load: EMPTY_LOAD,
           leadTime: NO_LEAD,
+          cargo: [],
           drivers: [
             {
               name: "Driver",

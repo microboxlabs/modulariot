@@ -60,6 +60,20 @@ export interface SheetDriver {
 }
 
 /** The trip's orders, first two drivers, carrier and the types of its origin and destination. */
+export interface SheetCargo {
+  id: string;
+  mandate: string;
+  orderRef: string | null;
+  line: number;
+  partial: number;
+  description: string;
+  qty: number | null;
+  qtyUnit: string | null;
+  weightKg: number | null;
+  volumeM3: number | null;
+  status: string;
+}
+
 export interface TripDetails {
   orders: { code: string; orderType: string | null; orderRef: string | null }[];
   drivers: SheetDriver[];
@@ -76,6 +90,7 @@ export interface TripDetails {
   };
   /** The trip's mandates against their SLA, counted from the departure. */
   leadTime: { onTime: number; late: number; open: number; withoutSla: number };
+  cargo: SheetCargo[];
 }
 
 export interface TripSheet {

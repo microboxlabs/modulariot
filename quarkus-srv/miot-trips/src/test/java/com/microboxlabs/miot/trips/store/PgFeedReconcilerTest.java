@@ -875,6 +875,9 @@ class PgFeedReconcilerTest {
         assertEquals(0, new java.math.BigDecimal("1500").compareTo(details.load().weightKg()));
         assertEquals(0, new java.math.BigDecimal("4.0").compareTo(details.load().volumeM3()));
         assertEquals(new BoardStore.LeadTime(0, 0, 1, 0), details.leadTime(), "an SLA not delivered yet is open");
+        assertEquals(List.of("Pallet A", "Pallet B"),
+                details.cargo().stream().map(BoardStore.Cargo::description).toList());
+        assertEquals("pallet", details.cargo().getFirst().qtyUnit());
         assertEquals(600, mandates.get(tenant, UUID.fromString(r.mandateId())).slaMinutes());
 
         FeedResult changed = withCargo.reconcile(tenant, ACTOR, FEED, "S-030",

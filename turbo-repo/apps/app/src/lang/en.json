@@ -5128,13 +5128,8 @@
         "reject": "Not right",
         "record": "Record",
         "recordAt": "Milestone time",
-        "plannedEnd": "planned end",
         "noHistory": "The monitor has not recorded events yet.",
         "feed": "Feed row",
-        "noFeed": "Trip created without a feed.",
-        "feedKey": "Feed",
-        "lastAction": "Last action",
-        "lastReconciled": "Last processed",
         "cancelReason": "Cancel reason",
         "channels": {
           "feed": "feed",
@@ -5149,11 +5144,6 @@
           "stop": "Stop",
           "unloading": "Unloading",
           "closing": "Closing"
-        },
-        "stageStatus": {
-          "pending": "Pending",
-          "in_progress": "In progress",
-          "completed": "Closed"
         },
         "actions": {
           "advance": "Advance to",
@@ -5210,10 +5200,8 @@
         "nextRecord": "Record {milestone}",
         "tabs": {
           "milestones": "Milestones",
-          "deliveries": "Deliveries",
           "movements": "Monitor movements",
-          "stages": "Stages",
-          "feed": "Feed row"
+          "cargo": "Loads"
         },
         "table": {
           "at": "Date",
@@ -5221,13 +5209,11 @@
           "rule": "Rule",
           "stage": "Stage",
           "actions": "Actions",
-          "serviceStatus": "Service status",
           "status": "Status",
-          "start": "Start",
-          "end": "End",
-          "field": "Field",
-          "value": "Value",
-          "milestone": "Milestone"
+          "milestone": "Milestone",
+          "order": "Order",
+          "description": "Description",
+          "qty": "Quantity"
         },
         "serviceType": "Service type",
         "carrierRut": "Carrier tax ID",
@@ -5248,7 +5234,16 @@
         "withSla": "{count} with SLA",
         "occupancy": "Occupancy",
         "weight": "Weight",
-        "volume": "Volume"
+        "volume": "Volume",
+        "noCargo": "No loads on this trip.",
+        "cargoStatus": {
+          "announced": "Announced",
+          "ready": "Ready",
+          "picked_up": "Picked up",
+          "delivered": "Delivered",
+          "received": "Received",
+          "rejected": "Rejected"
+        }
       },
       "live": {
         "on": "Live",

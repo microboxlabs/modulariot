@@ -96,7 +96,7 @@ export function TripCard({
   const overdue = card.alerts.some((a) => a.endsWith("_overdue"));
   return (
     <Link
-      href={`/trips/${card.tripId}`}
+      href={`/${lang}/trips/${card.tripId}`}
       className={`block rounded-lg bg-white shadow hover:shadow-lg dark:bg-gray-700 ${
         compact ? "px-2 py-1.5" : "space-y-3 p-4"
       }`}

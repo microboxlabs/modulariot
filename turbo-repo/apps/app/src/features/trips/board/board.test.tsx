@@ -78,7 +78,7 @@ describe("trips board", () => {
     expect(screen.getByText("card.noDriver")).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute(
       "href",
-      `/trips/${card.tripId}`
+      `/en/trips/${card.tripId}`
     );
     expect(screen.getByTitle("card.overdue")).toBeInTheDocument();
     expect(screen.getByText("milestone.departure")).toHaveAttribute(

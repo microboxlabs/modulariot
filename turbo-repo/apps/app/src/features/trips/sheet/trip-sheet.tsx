@@ -286,7 +286,7 @@ export default function TripSheet({
             <LiveBadge connected={live} d={d} />
             {view && (
               <Link
-                href={`/trips/${view}`}
+                href={`/${lang}/trips/${view}`}
                 className="text-sm text-primary-700 hover:underline dark:text-primary-400"
               >
                 {trDynamic(`breadcrumb.${view}`, d)}

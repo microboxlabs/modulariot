@@ -277,6 +277,11 @@ class FeedReconcilerTest {
     }
 
     private class TestFeeds implements FeedStore {
+        @Override
+        public Map<String, Integer> openServices(String tenantCode) {
+            return Map.of();
+        }
+
         private FeedService saved;
         private boolean requireTransaction;
         private final FeedProfile profile = new FeedProfile("test", "test-feed", "Test feed",

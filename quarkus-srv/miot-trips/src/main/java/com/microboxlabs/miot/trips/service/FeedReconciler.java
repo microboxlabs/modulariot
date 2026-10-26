@@ -154,10 +154,14 @@ public class FeedReconciler {
         this.clock = clock;
     }
 
-    /** The feed's profile; 404 when the tenant has no such feed or it is switched off. */
+    /** The feed's profile; 404 when the tenant has no such feed, 409 when it is switched off. */
     public FeedProfile profile(String tenantCode, String feedKey) {
-        return feeds.profile(tenantCode, feedKey).filter(FeedProfile::active)
+        FeedProfile profile = feeds.profile(tenantCode, feedKey)
                 .orElseThrow(() -> new NoSuchElementException("feed " + feedKey + " not found"));
+        if (!profile.active()) {
+            throw new IllegalStateException("feed " + feedKey + " is inactive");
+        }
+        return profile;
     }
 
     /** The hash of the desired state, without {@code source}: the same hash means nothing to apply. */

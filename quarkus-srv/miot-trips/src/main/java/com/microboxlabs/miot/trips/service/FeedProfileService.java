@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.dto.FeedProfileRequest;
+import com.microboxlabs.miot.trips.dto.FeedProfileView;
 import com.microboxlabs.miot.trips.store.FeedStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -32,6 +33,19 @@ public class FeedProfileService {
 
     public List<FeedProfile> list(String tenantCode) {
         return feeds.profiles(tenantCode);
+    }
+
+    /** Every feed with how many of its services are open. */
+    public List<FeedProfileView> views(String tenantCode) {
+        Map<String, Integer> open = feeds.openServices(tenantCode);
+        return feeds.profiles(tenantCode).stream()
+                .map(p -> FeedProfileView.of(p, open.getOrDefault(p.feedKey(), 0))).toList();
+    }
+
+    /** The saved profile with how many of its services are open. */
+    public FeedProfileView saveView(String tenantCode, String actor, String feedKey, FeedProfileRequest body) {
+        FeedProfile saved = save(tenantCode, actor, feedKey, body);
+        return FeedProfileView.of(saved, feeds.openServices(tenantCode).getOrDefault(saved.feedKey(), 0));
     }
 
     /** Creates or replaces the feed's rules. */

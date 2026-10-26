@@ -409,9 +409,23 @@ class PgFeedReconcilerTest {
     }
 
     @Test
-    void anUnknownOrSwitchedOffFeedIsNotFound() {
+    void anUnknownFeedIsNotFoundAndASwitchedOffOneIsAConflict() {
         assertThrows(java.util.NoSuchElementException.class, () -> reconciler.reconcile(tenant, ACTOR, "otro",
                 "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+        FeedProfile on = feeds.profile(tenant, FEED).orElseThrow();
+        feeds.saveProfile(new FeedProfile(tenant, FEED, on.name(), on.stages(), on.arrivalStage(),
+                on.requiredResources(), false, null, ACTOR, null, ACTOR));
+        IllegalStateException off = assertThrows(IllegalStateException.class, () -> reconciler.reconcile(tenant,
+                ACTOR, FEED, "S-1", desired(1, 2, "ABC-123", null, "10000001"), true));
+        assertEquals("feed " + FEED + " is inactive", off.getMessage());
+    }
+
+    @Test
+    void eachFeedCountsItsOpenServices() {
+        assertEquals(Map.of(), feeds.openServices(tenant));
+        send("S-040", desired(1, 6, "ABC-123", null, "10000001"));
+        send("S-041", desired(2, 7, "ABC-123", null, "10000001"));
+        assertEquals(Map.of(FEED, 2), feeds.openServices(tenant));
     }
 
     @Test

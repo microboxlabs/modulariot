@@ -66,6 +66,15 @@ public class PgFeedStore implements FeedStore {
     }
 
     @Override
+    public Map<String, Integer> openServices(String tenantCode) {
+        Map<String, Integer> out = new HashMap<>();
+        query(pool.get(), "SELECT feed_key, count(*)::int AS open FROM miot_trips.feed_service"
+                + " WHERE tenant_code = $1 AND open GROUP BY feed_key", Tuple.of(tenantCode))
+                .forEach(r -> out.put(r.getString("feed_key"), r.getInteger("open")));
+        return out;
+    }
+
+    @Override
     public FeedProfile saveProfile(FeedProfile p) {
         return query(pool.get(), """
                 INSERT INTO miot_trips.feed_profile

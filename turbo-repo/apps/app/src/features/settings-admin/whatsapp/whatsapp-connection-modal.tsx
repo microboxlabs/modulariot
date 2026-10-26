@@ -18,6 +18,7 @@ import {
   WhatsAppConnectionSchema,
   WhatsAppEditSchema,
   type WhatsAppFormData,
+  type WhatsAppEditFormData,
 } from "./whatsapp.types";
 
 interface WhatsAppConnectionModalProps {
@@ -62,7 +63,7 @@ export function WhatsAppConnectionModal({
     control,
     watch,
     formState: { errors },
-  } = useForm<WhatsAppFormData>({
+  } = useForm<WhatsAppEditFormData>({
     resolver: zodResolver(
       isEdit ? WhatsAppEditSchema : WhatsAppConnectionSchema
     ),
@@ -72,7 +73,7 @@ export function WhatsAppConnectionModal({
   const testModeEnabled = watch("testModeEnabled");
 
   // Initialize only when the modal opens (false → true). See useSettingsModalFormOpenReset.
-  useSettingsModalFormOpenReset({
+  useSettingsModalFormOpenReset<WhatsAppEditFormData>({
     show,
     isEdit,
     initial,
@@ -93,7 +94,9 @@ export function WhatsAppConnectionModal({
       submitLabel={submitLabel}
       isProcessing={loading}
       error={error}
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit((data) =>
+        onSubmit({ ...data, token: data.token ?? "" })
+      )}
       size="2xl"
       showCancelButton
       cancelLabel={chrome.cancelLabel}

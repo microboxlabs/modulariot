@@ -4,7 +4,7 @@ import type {
   LogoKeyline,
 } from "@/features/common/components/brand-logo";
 import { Whatsapp } from "flowbite-react-icons/solid";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /**
  * Credentials — reusable identities/secrets that are configured once in Settings

@@ -42,7 +42,7 @@
     "@deck.gl/mapbox": "9.3.11",
     "@formatjs/intl-localematcher": "^0.5.4",
     "@headlessui/react": "^2.2.10",
-    "@hookform/resolvers": "^3.9.0",
+    "@hookform/resolvers": "^5.9.2",
     "@lezer/highlight": "1.2.5",
     "@lordicon/react": "^1.10.0",
     "@luma.gl/webgl": "9.3.6",
@@ -116,7 +116,7 @@
     "use-debounce": "^10.0.4",
     "wkx": "^0.5.0",
     "xlsx": "file:../../vendor/xlsx-0.20.3.tgz",
-    "zod": "^3.23.8"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",

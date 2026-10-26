@@ -3,7 +3,8 @@
 import { Button, Label, Select, TextInput, Textarea } from "flowbite-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateDataSourceSchema, UpdateDataSourceSchema } from "../types";
+import type { z } from "zod/v3";
+import { CreateDataSourceSchema, EditDataSourceFormSchema } from "../types";
 import type {
   DataSourceListItem,
   DataSourceFormData,
@@ -33,8 +34,8 @@ export function DataSourceModal({
   loading,
   dict,
 }: DataSourceModalProps) {
-  const schema = useMemo(
-    () => (editingSource ? UpdateDataSourceSchema : CreateDataSourceSchema),
+  const schema = useMemo<z.ZodType<DataSourceFormData>>(
+    () => (editingSource ? EditDataSourceFormSchema : CreateDataSourceSchema),
     [editingSource]
   );
 

@@ -14,7 +14,7 @@ import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 

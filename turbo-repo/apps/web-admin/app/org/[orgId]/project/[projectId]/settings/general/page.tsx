@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { Button, TextInput, Card, Select, Modal, ModalHeader, ModalBody, ModalFooter, HelperText } from "flowbite-react";
 import { Play, Globe, Truck, BarChart3, CreditCard } from "lucide-react";
 import { toast } from "sonner";

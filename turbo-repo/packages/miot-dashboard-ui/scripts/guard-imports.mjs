@@ -9,6 +9,7 @@ const ALLOWED = new Set([
   "@microboxlabs/miot-dashboard-contract/schema",
   "@microboxlabs/miot-dashboard-contract/roles",
   "zod",
+  "zod/v3",
 ]);
 
 function hasRuntimeEchartsImport(source, file) {

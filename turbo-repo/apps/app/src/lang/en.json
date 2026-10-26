@@ -5030,6 +5030,70 @@
         "imageMissing": "Add the make and model to see the vehicle's image.",
         "imageNone": "No image for this model."
       }
+    },
+    "tripsBoard": {
+      "breadcrumb": {
+        "trips": "Trips",
+        "planning": "Planning",
+        "dispatch": "Shipping",
+        "delivery": "Deliveries",
+        "finished": "Finished"
+      },
+      "lanes": {
+        "unassigned": "No resources",
+        "scheduled": "Scheduled",
+        "departure_pending": "Departure to confirm",
+        "in_transit": "In transit",
+        "arrival_pending": "Arrival to confirm",
+        "unloading": "Unloading",
+        "closure_pending": "Closure to confirm",
+        "completed": "Completed",
+        "regularized": "Regularized",
+        "cancelled": "Cancelled"
+      },
+      "card": {
+        "departure": "Planned departure",
+        "departed": "Departed",
+        "arrival": "Committed arrival",
+        "ended": "Ended",
+        "noTruck": "No truck",
+        "noDriver": "No driver",
+        "overdue": "Milestone overdue",
+        "arrived": "Arrived"
+      },
+      "milestone": {
+        "departure": "Departure",
+        "arrival": "Arrival",
+        "closure": "Closure"
+      },
+      "milestoneStatus": {
+        "open": "not recorded",
+        "pending": "to confirm",
+        "confirmed": "confirmed",
+        "rejected": "rejected"
+      },
+      "kanban": {
+        "expand": "Expand cards",
+        "compact": "Compact cards",
+        "lane": {
+          "expand": "Expand lane",
+          "collapse": "Collapse lane"
+        }
+      },
+      "taskCounter": {
+        "activeCount": "{count} trips"
+      },
+      "count": "{count} trips",
+      "empty": "No trips",
+      "more": "{shown} of {count}",
+      "loading": "Loading…",
+      "error": "The board could not be loaded",
+      "tripStatus": {
+        "planned": "Planned",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      }
     }
   },
   "layout": {
@@ -7167,7 +7231,8 @@
     "type": "Type",
     "artifactType": "Document type",
     "creator": "Creator",
-    "createdAt": "Creation date"
+    "createdAt": "Creation date",
+    "q": "Service, plate, driver, place"
   },
   "comments": {
     "title": "Comments",

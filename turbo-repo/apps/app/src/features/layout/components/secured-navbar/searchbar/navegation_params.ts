@@ -158,6 +158,11 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
     // Synthetic key — see `resolveSection` in section-filter-bar-controller.
     // Not a path segment, so `/calendar` (the landing page) stays bar-less.
     "calendar-planning": getParamsFixed(calendar, dict),
+    "trips-board": getParamsFixed([setParam("q", "text")], dict),
+    "trips-finished": getParamsFixed(
+      [setParam("q", "text"), setParam("date_range", "date_range")],
+      dict
+    ),
     "where-is-my-load": getParamsFixed(
       where_is_my_load_params,
       dict,
@@ -197,8 +202,7 @@ function getParamsFixed(
       },
       unique,
       options: typeof param === "string" ? undefined : param.options,
-      defaultValue:
-        typeof param === "string" ? undefined : param.defaultValue,
+      defaultValue: typeof param === "string" ? undefined : param.defaultValue,
     };
   });
 }

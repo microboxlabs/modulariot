@@ -5030,6 +5030,70 @@
         "imageMissing": "Agrega marca y modelo para ver la imagen del vehículo.",
         "imageNone": "Sin imagen para este modelo."
       }
+    },
+    "tripsBoard": {
+      "breadcrumb": {
+        "trips": "Viajes",
+        "planning": "Planificación",
+        "dispatch": "Despachos",
+        "delivery": "Entregas",
+        "finished": "Finalizados"
+      },
+      "lanes": {
+        "unassigned": "Sin recursos",
+        "scheduled": "Programado",
+        "departure_pending": "Salida por confirmar",
+        "in_transit": "En tránsito",
+        "arrival_pending": "Llegada por confirmar",
+        "unloading": "En descarga",
+        "closure_pending": "Cierre por confirmar",
+        "completed": "Realizado",
+        "regularized": "Regularizado",
+        "cancelled": "Anulado"
+      },
+      "card": {
+        "departure": "Salida programada",
+        "departed": "Salió",
+        "arrival": "Llegada comprometida",
+        "ended": "Terminó",
+        "noTruck": "Sin camión",
+        "noDriver": "Sin conductor",
+        "overdue": "Hito vencido",
+        "arrived": "Llegó"
+      },
+      "milestone": {
+        "departure": "Salida",
+        "arrival": "Llegada",
+        "closure": "Cierre"
+      },
+      "milestoneStatus": {
+        "open": "sin registro",
+        "pending": "por confirmar",
+        "confirmed": "confirmada",
+        "rejected": "rechazada"
+      },
+      "kanban": {
+        "expand": "Expandir tarjetas",
+        "compact": "Compactar tarjetas",
+        "lane": {
+          "expand": "Expandir columna",
+          "collapse": "Contraer columna"
+        }
+      },
+      "taskCounter": {
+        "activeCount": "{count} viajes"
+      },
+      "count": "{count} viajes",
+      "empty": "Sin viajes",
+      "more": "{shown} de {count}",
+      "loading": "Cargando…",
+      "error": "No se pudo cargar el tablero",
+      "tripStatus": {
+        "planned": "Planificado",
+        "in_progress": "En curso",
+        "completed": "Realizado",
+        "cancelled": "Anulado"
+      }
     }
   },
   "layout": {
@@ -7167,7 +7231,8 @@
     "type": "Tipo",
     "artifactType": "Tipo de documento",
     "creator": "Creador",
-    "createdAt": "Fecha de creación"
+    "createdAt": "Fecha de creación",
+    "q": "Servicio, patente, conductor, lugar"
   },
   "comments": {
     "title": "Comentarios",

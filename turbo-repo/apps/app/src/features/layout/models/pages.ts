@@ -6,7 +6,12 @@ import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaDev, FaTruckLoading } from "react-icons/fa";
-import { HiCog, HiLightningBolt, HiOutlineTruck } from "react-icons/hi";
+import {
+  HiCog,
+  HiLightningBolt,
+  HiOutlineMap,
+  HiOutlineTruck,
+} from "react-icons/hi";
 import { HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
@@ -22,6 +27,7 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   calendar: CalendarIcon,
   kanban: ClipboardIcon,
   tasks: FaBookIcon,
+  trips: HiOutlineMap as FC<ComponentProps<"svg">>,
   controlTower: LuTowerControl as FC<ComponentProps<"svg">>,
   liveStreams: VideoCameraIcon,
   collaboratorsManagement: PeopleIcon,

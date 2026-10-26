@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -132,7 +133,9 @@ class PgNotificationListenerTest {
         listeners.add(stopped);
         stopped.start();
         stopped.close();
-        TimeUnit.MILLISECONDS.sleep(80);
+        CompletableFuture<Void> retryWindowPassed = new CompletableFuture<>();
+        vertx.setTimer(80, ignored -> retryWindowPassed.complete(null));
+        retryWindowPassed.get(5, TimeUnit.SECONDS);
         assertEquals(1, stoppedAttempts.get(), "shutdown cancels the scheduled reconnect");
     }
 }

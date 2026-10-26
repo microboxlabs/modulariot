@@ -156,6 +156,21 @@ describe("trip bento", () => {
     expect(onOpen).toHaveBeenCalledWith("arrival");
   });
 
+  it("preserves nested feed values in the source table", () => {
+    const data = sheet([]);
+    data.feed = {
+      feedKey: "sample",
+      externalCode: "SAMPLE-1",
+      source: { checks: { passed: true } },
+      lastAction: null,
+      lastResult: null,
+      lastReconciledAt: null,
+    };
+    render(<SheetTables sheet={data} d={{}} lang="en" onMilestone={vi.fn()} />);
+    fireEvent.click(screen.getByRole("tab", { name: "sheet.tabs.feed" }));
+    expect(screen.getByText('{"passed":true}')).toBeInTheDocument();
+  });
+
   it("reads a check as true, false or not reported", () => {
     expect(checkValue(true)).toBe(true);
     expect(checkValue(false)).toBe(false);

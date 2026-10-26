@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 const identifier = z.string().min(1).max(128).refine((value) => !!value.trim());
 const label = z.string().min(1).max(256).refine((value) => !!value.trim());
 const operation = z.object({ id: identifier, label, schema: z.array(identifier).max(100).optional() });

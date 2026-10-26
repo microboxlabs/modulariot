@@ -1,5 +1,5 @@
 "use client";
-import { z } from "zod";
+import { z } from "zod/v3";
 import useSWR, { SWRConfiguration } from "swr";
 import { useEffect, useMemo, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";

@@ -1,5 +1,5 @@
 import type { DefaultSession } from "next-auth";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export type SignInCredentials = {
   email: string;

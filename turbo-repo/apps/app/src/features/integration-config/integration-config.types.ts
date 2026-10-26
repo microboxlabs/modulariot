@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /**
  * Integration configuration — the operator-facing layer over miot-integrations.

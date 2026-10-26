@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { WHATSAPP_PROVIDER as WHATSAPP_CREDENTIAL } from "@/features/credentials/credential.types";
 import type { ChannelCreate, ChannelUpdate } from "../channels/channel.types";
 
@@ -99,6 +99,9 @@ export const WhatsAppEditSchema = z
     token: z.string().optional(),
   })
   .superRefine(requireRecipientsWhenTestMode);
+
+/** Form input in edit mode may omit a stored token. */
+export type WhatsAppEditFormData = z.input<typeof WhatsAppEditSchema>;
 
 /** Non-secret metadata from the form, shared by create and update. */
 function whatsAppMetadata(form: WhatsAppFormData): Record<string, unknown> {

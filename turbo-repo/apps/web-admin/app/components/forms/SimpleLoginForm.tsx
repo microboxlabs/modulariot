@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { z } from 'zod/v3'
 import { TextInput, Alert, HelperText } from 'flowbite-react'
 import { Mail, Lock } from 'lucide-react'
 import { CTAButton } from '@modulariot/ui/cta-button'

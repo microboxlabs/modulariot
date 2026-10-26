@@ -28,7 +28,8 @@ public record BoardView(String view, List<Lane> lanes, OffsetDateTime at) {
             String carrier,
             OffsetDateTime plannedStart,
             OffsetDateTime plannedArrival,
-            OffsetDateTime actualStart,
+            OffsetDateTime departedAt,
+            OffsetDateTime arrivedAt,
             OffsetDateTime actualEnd,
             String currentStage,
             Map<String, String> milestones,
@@ -41,8 +42,8 @@ public record BoardView(String view, List<Lane> lanes, OffsetDateTime at) {
         public static Card of(BoardRow r, String lane) {
             return new Card(r.tripId(), lane, r.status(), r.label(), r.codes(), r.origin(), r.destination(),
                     r.truck(), r.trailer(), r.driver(), r.secondDriver(), r.carrier(), r.plannedStart(),
-                    r.plannedArrival(), r.actualStart(), r.actualEnd(), r.currentStage(), r.milestones(), r.alerts(),
-                    r.monitorKey(), r.regularized(), r.cancelReason(), r.updatedAt());
+                    r.plannedArrival(), r.departedAt(), r.arrivedAt(), r.actualEnd(), r.currentStage(),
+                    r.milestones(), r.alerts(), r.monitorKey(), r.regularized(), r.cancelReason(), r.updatedAt());
         }
     }
 }

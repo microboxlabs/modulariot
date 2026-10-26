@@ -4,7 +4,10 @@ import static com.microboxlabs.miot.trips.store.Pg.query;
 import static com.microboxlabs.miot.trips.store.Pg.text;
 import static com.microboxlabs.miot.trips.store.Pg.time;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.trips.domain.BoardRow;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -18,6 +21,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /** {@link BoardStore} on the modulith database, schema {@code miot_trips}. */
@@ -40,6 +45,18 @@ public class PgBoardStore implements BoardStore {
             ARRAY(SELECT DISTINCT a->>'value' FROM miot_trips.trip_transition x, jsonb_array_elements(x.actions) a
                    WHERE x.trip_id = t.id AND a->>'type' = 'alert') AS alerts,
             (SELECT ms.monitor_key FROM miot_trips.trip_monitor_state ms WHERE ms.trip_id = t.id) AS monitor_key,
+            coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
+                       WHERE m.trip_id = t.id AND m.milestone = 'departure' AND m.status = 'confirmed'),
+                     (SELECT min(s.actual_start) FROM miot_trips.stage s
+                       WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
+                         AND s.stage_type IN ('transit', 'stop') AND s.version_of IS NULL AND s.is_active))
+                AS departed_at,
+            coalesce((SELECT m.confirmed_at FROM miot_trips.trip_milestone m
+                       WHERE m.trip_id = t.id AND m.milestone = 'arrival' AND m.status = 'confirmed'),
+                     (SELECT min(s.actual_start) FROM miot_trips.stage s
+                       WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
+                         AND s.stage_type IN ('unloading', 'closing') AND s.version_of IS NULL AND s.is_active))
+                AS arrived_at,
             ARRAY(SELECT m.external_code FROM miot_trips.trip_mandate tm
                     JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
                    WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active
@@ -53,7 +70,7 @@ public class PgBoardStore implements BoardStore {
             l.estimated_arrival_time AS planned_arrival, false AS regularized, l.updated_at
             FROM miot_trips.trip_live l
             JOIN miot_trips.trip t ON t.id = l.trip_id AND t.tenant_code = l.tenant_code
-            WHERE l.tenant_code = $1
+            WHERE l.tenant_code = $1 AND ($3::uuid IS NULL OR l.trip_id = $3)
               AND ($2::text IS NULL OR concat_ws(' ', l.mandate_codes::text, l.asset_id, l.rampla_plate,
                     l.driver_name, l.second_driver_name, l.carrier_name, l.origin_geofence_label,
                     l.destination_geofence_label) ILIKE '%' || $2 || '%')""";
@@ -68,7 +85,9 @@ public class PgBoardStore implements BoardStore {
                        ON d.id = t.destination_id AND d.tenant_code = t.tenant_code AND d.version_of IS NULL
                 WHERE t.tenant_code = $1 AND t.version_of IS NULL AND t.is_active
                   AND t.status IN ('completed', 'cancelled')
-                  AND coalesce(t.actual_end, t.updated_at) >= $3 AND coalesce(t.actual_end, t.updated_at) < $4
+                  AND ($3::timestamptz IS NULL OR coalesce(t.actual_end, t.updated_at) >= $3)
+                  AND ($4::timestamptz IS NULL OR coalesce(t.actual_end, t.updated_at) < $4)
+                  AND ($6::uuid IS NULL OR t.id = $6)
             ), rows AS (
             SELECT""" + " " + TRIP_STATE + """
             ,
@@ -100,6 +119,8 @@ public class PgBoardStore implements BoardStore {
             ORDER BY coalesce(actual_end, updated_at) DESC
             LIMIT $5""";
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -113,13 +134,59 @@ public class PgBoardStore implements BoardStore {
 
     @Override
     public List<BoardRow> open(String tenantCode, String q) {
-        return query(pool.get(), OPEN, Tuple.of(tenantCode, q)).stream().map(PgBoardStore::row).toList();
+        return open(tenantCode, q, null);
     }
 
     @Override
     public List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit) {
+        return finished(tenantCode, q, from, to, limit, null);
+    }
+
+    @Override
+    public Optional<BoardRow> trip(String tenantCode, UUID tripId) {
+        return open(tenantCode, null, tripId).stream().findFirst()
+                .or(() -> finished(tenantCode, null, null, null, 1, tripId).stream().findFirst());
+    }
+
+    @Override
+    public Optional<FeedSource> feedSource(String tenantCode, UUID tripId) {
+        return query(pool.get(), """
+                SELECT feed_key, external_code, desired::text AS desired, last_action,
+                       last_result::text AS last_result,
+                       last_reconciled_at
+                FROM miot_trips.feed_service WHERE tenant_code = $1 AND trip_id = $2
+                ORDER BY last_reconciled_at DESC NULLS LAST LIMIT 1""", Tuple.of(tenantCode, tripId))
+                .stream().findFirst().map(r -> new FeedSource(r.getString("feed_key"), r.getString("external_code"),
+                        source(r.getString("desired")), r.getString("last_action"), r.getString("last_result"),
+                        time(r, "last_reconciled_at")));
+    }
+
+    /** The row the source sent, as the feed kept it in the desired state. */
+    private static Map<String, Object> source(String desired) {
+        if (desired == null) {
+            return Map.of();
+        }
+        try {
+            JsonNode node = JSON.readTree(desired);
+            if (node.isTextual()) {
+                node = JSON.readTree(node.asText());
+            }
+            JsonNode src = node.path("source");
+            return src.isObject() ? JSON.convertValue(src, new TypeReference<Map<String, Object>>() {
+            }) : Map.of();
+        } catch (JsonProcessingException e) {
+            return Map.of();
+        }
+    }
+
+    private List<BoardRow> open(String tenantCode, String q, UUID tripId) {
+        return query(pool.get(), OPEN, Tuple.of(tenantCode, q, tripId)).stream().map(PgBoardStore::row).toList();
+    }
+
+    private List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit,
+            UUID tripId) {
         return query(pool.get(), FINISHED, Tuple.tuple().addString(tenantCode).addString(q)
-                .addOffsetDateTime(from).addOffsetDateTime(to).addInteger(limit))
+                .addOffsetDateTime(from).addOffsetDateTime(to).addInteger(limit).addUUID(tripId))
                 .stream().map(PgBoardStore::row).toList();
     }
 
@@ -129,7 +196,7 @@ public class PgBoardStore implements BoardStore {
         String[] alerts = r.getArrayOfStrings("alerts");
         String[] codes = r.getArrayOfStrings("codes");
         return new BoardRow(text(r.getUUID("trip_id")), r.getString("status"), time(r, "planned_start"),
-                time(r, "planned_arrival"), time(r, "actual_start"), time(r, "actual_end"),
+                time(r, "planned_arrival"), time(r, "departed_at"), time(r, "arrived_at"), time(r, "actual_end"),
                 r.getString("current_stage"), r.getString("last_stage"), milestones,
                 alerts == null ? null : new HashSet<>(Arrays.asList(alerts)),
                 codes == null ? null : Arrays.asList(codes), r.getString("label"), r.getString("origin"),

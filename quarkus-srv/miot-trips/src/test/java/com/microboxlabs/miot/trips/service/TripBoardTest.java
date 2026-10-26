@@ -18,9 +18,9 @@ class TripBoardTest {
 
     private static BoardRow row(String status, String current, String last, Map<String, String> milestones,
             Set<String> alerts, OffsetDateTime plannedStart, OffsetDateTime arrival, boolean resources) {
-        return new BoardRow("t1", status, plannedStart, arrival, null, null, current, last, milestones, alerts, null,
-                null, null, null, resources ? "AB-123" : null, null, resources ? "Driver" : null, null, null, null,
-                false, null, NOW);
+        return new BoardRow("t1", status, plannedStart, arrival, null, null, null, current, last, milestones, alerts,
+                null, null, null, null, resources ? "AB-123" : null, null, resources ? "Driver" : null, null, null,
+                null, false, null, NOW);
     }
 
     private static String lane(BoardRow row) {
@@ -79,8 +79,8 @@ class TripBoardTest {
     void finishedTripsAreCompletedRegularizedOrCancelled() {
         assertEquals(TripBoard.COMPLETED, lane(row("completed", null, "closing", null, null, PAST, PAST, true)));
         assertEquals(TripBoard.CANCELLED, lane(row("cancelled", null, null, null, null, PAST, PAST, true)));
-        BoardRow regularized = new BoardRow("t1", "completed", PAST, PAST, PAST, PAST, null, "closing", null, null,
-                null, null, null, null, null, null, null, null, null, null, true, null, NOW);
+        BoardRow regularized = new BoardRow("t1", "completed", PAST, PAST, PAST, PAST, PAST, null, "closing", null,
+                null, null, null, null, null, null, null, null, null, null, null, true, null, NOW);
         assertEquals(TripBoard.REGULARIZED, lane(regularized));
     }
 

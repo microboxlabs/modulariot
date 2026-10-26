@@ -3,8 +3,14 @@ package com.microboxlabs.miot.trips.service;
 import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.domain.Assignment;
 import com.microboxlabs.miot.trips.domain.BoardRow;
+import com.microboxlabs.miot.trips.domain.Stage;
+import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.dto.BoardView;
+import com.microboxlabs.miot.trips.dto.StageView;
+import com.microboxlabs.miot.trips.dto.TripSheet;
 import com.microboxlabs.miot.trips.store.BoardStore;
+import com.microboxlabs.miot.trips.store.MonitorRunStore;
+import com.microboxlabs.miot.trips.store.StageStore;
 import com.microboxlabs.miot.trips.store.Pg;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -19,6 +25,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -35,17 +42,40 @@ public class BoardService {
 
     private final BoardStore board;
     private final FleetResources fleet;
+    private final StageStore stages;
+    private final MilestoneService milestones;
+    private final MonitorRunStore runs;
     private final Clock clock;
 
     @Inject
-    public BoardService(BoardStore board, FleetResources fleet) {
-        this(board, fleet, Clock.systemUTC());
+    public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
+            MonitorRunStore runs) {
+        this(board, fleet, stages, milestones, runs, Clock.systemUTC());
     }
 
-    public BoardService(BoardStore board, FleetResources fleet, Clock clock) {
+    public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
+            MonitorRunStore runs, Clock clock) {
         this.board = board;
         this.fleet = fleet;
+        this.stages = stages;
+        this.milestones = milestones;
+        this.runs = runs;
         this.clock = clock;
+    }
+
+    /** One trip's page: its card in its lane, plan, milestones, the last 50 transitions and the feed's row. */
+    public TripSheet sheet(String tenantCode, UUID tripId) {
+        BoardRow row = board.trip(tenantCode, tripId)
+                .orElseThrow(() -> new NoSuchElementException("trip not found"));
+        if (Trip.DONE.equals(row.status()) || Trip.CANCELLED.equals(row.status())) {
+            row = resolveResources(tenantCode, List.of(row)).get(0);
+        }
+        OffsetDateTime now = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
+        return new TripSheet(BoardView.Card.of(row, TripBoard.lane(row, now)),
+                stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId).stream()
+                        .sorted(Comparator.comparingInt(Stage::seq)).map(StageView::of).toList(),
+                milestones.list(tenantCode, tripId), runs.transitions(tenantCode, tripId, 50),
+                board.feedSource(tenantCode, tripId).orElse(null));
     }
 
     /** {@code from} and {@code to} only apply to the finished view; the default is the last seven days. */

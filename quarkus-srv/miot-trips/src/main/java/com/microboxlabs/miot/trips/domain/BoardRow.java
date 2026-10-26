@@ -7,15 +7,17 @@ import java.util.Set;
 
 /**
  * A trip as the board reads it: its state, the stage that runs or last closed, its milestones, the alerts its monitor
- * raised, and what a card shows. {@code label} is the tenant's service status. A finished trip has no hot row, so its
- * truck and driver are the resource ids of its last assignments and the card resolves them.
+ * raised, and what a card shows. {@code departedAt} and {@code arrivedAt} are the confirmed milestones, else the
+ * start of the first stage en route and at destination. {@code label} is the tenant's service status. A finished trip
+ * has no hot row, so its truck and driver are the resource ids of its last assignments and the card resolves them.
  */
 public record BoardRow(
         String tripId,
         String status,
         OffsetDateTime plannedStart,
         OffsetDateTime plannedArrival,
-        OffsetDateTime actualStart,
+        OffsetDateTime departedAt,
+        OffsetDateTime arrivedAt,
         OffsetDateTime actualEnd,
         String currentStage,
         String lastStage,
@@ -46,8 +48,8 @@ public record BoardRow(
     }
 
     public BoardRow withResources(String truck, String driver, String carrier) {
-        return new BoardRow(tripId, status, plannedStart, plannedArrival, actualStart, actualEnd, currentStage,
-                lastStage, milestones, alerts, codes, label, origin, destination, truck, trailer, driver,
+        return new BoardRow(tripId, status, plannedStart, plannedArrival, departedAt, arrivedAt, actualEnd,
+                currentStage, lastStage, milestones, alerts, codes, label, origin, destination, truck, trailer, driver,
                 secondDriver, carrier, monitorKey, regularized, cancelReason, updatedAt);
     }
 }

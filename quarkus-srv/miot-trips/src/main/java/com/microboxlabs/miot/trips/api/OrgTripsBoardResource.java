@@ -61,4 +61,14 @@ public class OrgTripsBoardResource extends OrgResourceSupport {
                 OrgTripsResource.timestamp(to, "to"),
                 integer(limit, "limit"))).build());
     }
+
+    @GET
+    @Path("/sheet/{tripId}")
+    @Operation(operationId = "getTripSheet",
+            summary = "One trip's page: its card, plan, milestones, monitor transitions and the feed's source row")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> sheet(@PathParam(ORG) String organizationId, @PathParam("tripId") String tripId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(board.sheet(tenant, uuid(tripId, "tripId"))).build());
+    }
 }

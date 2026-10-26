@@ -31,6 +31,7 @@ import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.dto.BoardView;
+import com.microboxlabs.miot.trips.dto.TripSheet;
 import com.microboxlabs.miot.trips.service.BoardService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.TripBoard;
@@ -621,7 +622,8 @@ class PgMonitorEngineTest {
                         act("advance", "transit")),
                 rule("arrived", "signal", null, "stage.type == 'transit' && signal.kind == 'entered_destination'",
                         10, act("completeTrip", null))));
-        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet);
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
+                milestones, runs);
         TripView t = newTrip("overdue", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
         String trip = t.id();
         String code = t.mandates().get(0).externalCode();
@@ -643,6 +645,15 @@ class PgMonitorEngineTest {
                 .cards().get(0);
         assertEquals(List.of(code), done.codes());
         assertTrue(done.alerts().contains("departure_overdue"));
+        assertNotNull(done.departedAt(), "the transit stage's start");
+
+        TripSheet sheet = board.sheet(tenant, id(t));
+        assertEquals(TripBoard.COMPLETED, sheet.card().lane());
+        assertEquals(List.of("preparation", "transit", "closing"),
+                sheet.stages().stream().map(StageView::stageType).toList());
+        assertTrue(sheet.transitions().stream().anyMatch(x -> "left".equals(x.ruleKey())));
+        assertNull(sheet.feed(), "a trip made by hand has no feed row");
+        assertThrows(java.util.NoSuchElementException.class, () -> board.sheet(tenant, UUID.randomUUID()));
     }
 
 }

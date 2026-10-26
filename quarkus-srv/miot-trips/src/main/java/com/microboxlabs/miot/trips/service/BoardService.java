@@ -97,7 +97,8 @@ public class BoardService {
                 milestones.list(tenantCode, tripId), confirmers.ofTrip(tenantCode, tripId),
                 runs.transitions(tenantCode, tripId, 50),
                 board.feedSource(tenantCode, tripId).orElse(null),
-                deliveries == null ? null : deliveries.list(tenantCode, tripId));
+                deliveries == null ? null : deliveries.list(tenantCode, tripId),
+                board.details(tenantCode, tripId).orElse(null));
     }
 
     /** How many trips each view shows without a filter: the open trips in its lanes, the last seven days' finished. */

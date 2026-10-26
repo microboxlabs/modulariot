@@ -55,6 +55,7 @@ import com.microboxlabs.miot.trips.service.TripService;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.time.Clock;
@@ -764,6 +765,22 @@ class PgFeedReconcilerTest {
         assertEquals(FEED, feed.feedKey());
         assertEquals("S-020", feed.externalCode());
         assertEquals("sample note", feed.source().get("Observaciones"));
+        String attribute = """
+                INSERT INTO miot_fleet.resource_attribute (tenant_code, resource_type, resource_id, attribute_type,
+                    attribute_key, attribute_value, valid_until, source_system)
+                VALUES ($1, 'driver', $2::uuid, 'TEST', $3, $4, $5, 'checks')""";
+        pool.preparedQuery(attribute).executeAndAwait(Tuple.of(tenant, fleetIds.d1(), "ALCOHOL", "PASSED",
+                OffsetDateTime.parse("2099-01-01T00:00:00Z")));
+        pool.preparedQuery(attribute).executeAndAwait(Tuple.of(tenant, fleetIds.d1(), "DRUGS", "PASSED",
+                OffsetDateTime.parse("2020-01-01T00:00:00Z")));
+        BoardStore.TripDetails details = board.details(tenant, tripId).orElseThrow();
+        assertEquals(List.of(new BoardStore.Order("S-020", "directo", "Cliente Prueba · Carga general")),
+                details.orders());
+        assertEquals(List.of(new BoardStore.Driver("Conductor", "10000001", null, List.of(
+                new BoardStore.Validation("TEST", "ALCOHOL", "PASSED", "checks", "2099-01-01T00:00:00Z")))),
+                details.drivers(), "an expired validation is left out");
+        assertEquals(new BoardStore.Carrier("Transportes Prueba SAC", "20000000001", null), details.carrier());
+        assertEquals("zone", details.originType(), "a place the feed creates is a zone");
         assertTrue(board.open(tenant, "s-020").stream().anyMatch(b -> b.tripId().equals(r.tripId())),
                 "the search ignores case");
     }

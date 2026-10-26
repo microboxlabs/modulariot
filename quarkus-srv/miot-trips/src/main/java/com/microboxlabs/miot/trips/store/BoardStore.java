@@ -37,4 +37,36 @@ public interface BoardStore {
     record FeedSource(String feedKey, String externalCode, Map<String, Object> source, String lastAction,
             String lastResult, OffsetDateTime lastReconciledAt) {
     }
+
+    /**
+     * The trip's orders, its first two drivers, the carrier of its last truck, and the types of its origin and
+     * destination.
+     */
+    Optional<TripDetails> details(String tenantCode, UUID tripId);
+
+    record TripDetails(List<Order> orders, List<Driver> drivers, Carrier carrier, String originType,
+            String destinationType) {
+    }
+
+    /**
+     * {@code phone} is the mobile phone, else the other one. {@code validations} are the driver's fleet attributes
+     * in force, as external systems report them.
+     */
+    record Driver(String name, String rut, String phone, List<Validation> validations) {
+        public Driver {
+            validations = validations == null ? List.of() : List.copyOf(validations);
+        }
+    }
+
+    /** {@code validUntil} is an ISO instant, null when it does not expire. */
+    record Validation(String type, String key, String value, String source, String validUntil) {
+    }
+
+    /** A mandate the trip serves: its code, service type and reference. */
+    record Order(String code, String orderType, String orderRef) {
+    }
+
+    /** {@code code} is the carrier's id in the source system. */
+    record Carrier(String name, String rut, String code) {
+    }
 }

@@ -209,6 +209,55 @@ public class PgBoardStore implements BoardStore {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
+    private static final String DETAILS = """
+            SELECT
+              (SELECT jsonb_agg(jsonb_build_object('code', m.external_code, 'orderType', m.order_type,
+                                                   'orderRef', m.order_ref) ORDER BY tm.seq)::text
+                 FROM miot_trips.trip_mandate tm
+                 JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
+                WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active) AS orders,
+              (SELECT jsonb_agg(jsonb_build_object('name', x.full_name, 'rut', x.rut, 'phone', x.phone,
+                                'validations', (
+                       SELECT coalesce(jsonb_agg(jsonb_build_object('type', ra.attribute_type,
+                                  'key', ra.attribute_key, 'value', ra.attribute_value,
+                                  'source', ra.source_system,
+                                  'validUntil', to_char(ra.valid_until AT TIME ZONE 'UTC',
+                                                        'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+                                  ORDER BY ra.attribute_type, ra.attribute_key), '[]'::jsonb)
+                         FROM miot_fleet.resource_attribute ra
+                        WHERE ra.tenant_code = t.tenant_code AND ra.resource_type = 'driver'
+                          AND ra.resource_id = x.id AND ra.version_of IS NULL AND ra.is_active
+                          AND (ra.valid_from IS NULL OR ra.valid_from <= now())
+                          AND (ra.valid_until IS NULL OR ra.valid_until >= now())))
+                                ORDER BY x.n)::text
+                 FROM (SELECT dr.id, dr.full_name, dr.rut, coalesce(dr.mobile_phone, dr.phone) AS phone,
+                              row_number() OVER (ORDER BY (a.valid_to IS NULL) DESC, a.valid_from,
+                                                          a.created_at) AS n
+                         FROM miot_trips.trip_resource_assignment a
+                         JOIN miot_fleet.driver dr
+                           ON dr.id = a.resource_id AND dr.tenant_code = a.tenant_code AND dr.version_of IS NULL
+                        WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'driver'
+                          AND a.version_of IS NULL AND a.is_active) x
+                WHERE x.n <= 2) AS drivers,
+              o.type AS origin_type, d.type AS destination_type,
+              c.legal_name AS carrier_name, c.rut AS carrier_rut, c.external_id AS carrier_code
+            FROM miot_trips.trip t
+            LEFT JOIN miot_trips.location o
+                   ON o.id = t.origin_id AND o.tenant_code = t.tenant_code AND o.version_of IS NULL
+            LEFT JOIN miot_trips.location d
+                   ON d.id = t.destination_id AND d.tenant_code = t.tenant_code AND d.version_of IS NULL
+            LEFT JOIN LATERAL (
+                SELECT a.resource_id FROM miot_trips.trip_resource_assignment a
+                 WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'truck'
+                   AND a.version_of IS NULL AND a.is_active
+                 ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+                 LIMIT 1) ta ON true
+            LEFT JOIN miot_fleet.truck v
+                   ON v.id = ta.resource_id AND v.tenant_code = t.tenant_code AND v.version_of IS NULL
+            LEFT JOIN miot_fleet.carrier c
+                   ON c.id = v.carrier_id AND c.tenant_code = v.tenant_code AND c.version_of IS NULL
+            WHERE t.tenant_code = $1 AND t.id = $2 AND t.version_of IS NULL""";
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -262,6 +311,26 @@ public class PgBoardStore implements BoardStore {
                 .stream().findFirst().map(r -> new FeedSource(r.getString("feed_key"), r.getString("external_code"),
                         source(r.getString("desired")), r.getString("last_action"), r.getString("last_result"),
                         time(r, "last_reconciled_at")));
+    }
+
+    @Override
+    public Optional<TripDetails> details(String tenantCode, UUID tripId) {
+        return query(pool.get(), DETAILS, Tuple.of(tenantCode, tripId)).stream().findFirst()
+                .map(r -> new TripDetails(list(r.getString("orders"), new TypeReference<List<Order>>() {
+                }), list(r.getString("drivers"), new TypeReference<List<Driver>>() {
+                }),
+                        r.getString("carrier_name") == null ? null
+                                : new Carrier(r.getString("carrier_name"), r.getString("carrier_rut"),
+                                        r.getString("carrier_code")),
+                        r.getString("origin_type"), r.getString("destination_type")));
+    }
+
+    private static <T> List<T> list(String json, TypeReference<List<T>> type) {
+        try {
+            return json == null ? List.of() : JSON.readValue(json, type);
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
     }
 
     /** The row the source sent, as the feed kept it in the desired state. */

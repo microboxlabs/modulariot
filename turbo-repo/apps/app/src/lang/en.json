@@ -5049,8 +5049,7 @@
         "planning": "Planning",
         "dispatch": "Shipping",
         "delivery": "Deliveries",
-        "finished": "Finished",
-        "trip": "Trip"
+        "finished": "Finished"
       },
       "lanes": {
         "unassigned": "No resources",

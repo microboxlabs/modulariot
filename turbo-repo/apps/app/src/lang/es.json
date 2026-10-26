@@ -5049,8 +5049,7 @@
         "planning": "Planificación",
         "dispatch": "Despachos",
         "delivery": "Entregas",
-        "finished": "Finalizados",
-        "trip": "Viaje"
+        "finished": "Finalizados"
       },
       "lanes": {
         "unassigned": "Sin recursos",

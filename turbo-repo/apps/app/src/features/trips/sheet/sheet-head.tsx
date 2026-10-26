@@ -53,10 +53,13 @@ export function SheetHead({
   sheet,
   d,
   onMilestone,
+  aside,
 }: Readonly<{
   sheet: TripSheet;
   d: I18nRecord;
   onMilestone: (m: Milestone) => void;
+  /** Shown before the duration: the live badge and the way back to the board. */
+  aside?: React.ReactNode;
 }>) {
   const { card } = sheet;
   const can = useCanConfirm(sheet);
@@ -87,7 +90,8 @@ export function SheetHead({
           )}
         </h2>
       </div>
-      <div className="flex flex-row gap-1">
+      <div className="flex flex-row items-center gap-1">
+        {aside}
         <Duration card={card} d={d} />
         {action && (
           <Button color="blue" onClick={() => onMilestone(action.milestone)}>

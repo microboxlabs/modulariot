@@ -56,10 +56,10 @@ public class FeedBatchService {
         Set<String> seen = new HashSet<>();
         for (int index = 0; index < items.size(); index++) {
             FeedBatchRequest.Item item = items.get(index);
-            String code = item == null || item.externalCode() == null ? "" : item.externalCode().trim();
+            String code = externalCode(item);
             try {
                 FeedServiceRequest desired = item == null ? null : item.desired();
-                boolean settled = seen.add(code) && reconciler.settled(digests.get(code), desired);
+                boolean settled = firstSettled(seen, digests, code, desired);
                 boolean enqueued = !settled && queue.acceptAndQueue(tenantCode, feedKey,
                         spec(feedKey, code, actor, batchId),
                         () -> reconciler.accept(tenantCode, feedKey, code, desired));
@@ -73,6 +73,15 @@ public class FeedBatchService {
             }
         }
         return new FeedBatchResult(batchId, items.size(), queued, unchanged, refused);
+    }
+
+    private boolean firstSettled(Set<String> seen, Map<String, FeedService.Digest> digests, String code,
+            FeedServiceRequest desired) {
+        return seen.add(code) && reconciler.settled(digests.get(code), desired);
+    }
+
+    private static String externalCode(FeedBatchRequest.Item item) {
+        return item == null || item.externalCode() == null ? "" : item.externalCode().trim();
     }
 
     private static Set<String> codes(List<FeedBatchRequest.Item> items) {

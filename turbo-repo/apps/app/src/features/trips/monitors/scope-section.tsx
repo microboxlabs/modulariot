@@ -51,10 +51,11 @@ export function scopeSummary(
   if (!scope) return tr("scope.none", d);
   const options = scopeOptions(values);
   const parts = SCOPE_DIMENSIONS.filter((dim) => scope[dim].length > 0).map(
-    (dim) =>
-      `${tr(`scope.${dim}`, d)}: ${scope[dim]
-        .map((v) => labelOf(options[dim], v))
-        .join(", ")}`
+    (dim) => {
+      const label = tr(`scope.${dim}`, d);
+      const valueLabels = scope[dim].map((v) => labelOf(options[dim], v)).join(", ");
+      return `${label}: ${valueLabels}`;
+    }
   );
   return parts.length === 0 ? tr("scope.allTrips", d) : parts.join(" · ");
 }

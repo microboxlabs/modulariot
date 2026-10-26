@@ -15,6 +15,17 @@ function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
 }
 
 describe("visiblePages", () => {
+  it("shows only the work board BOARD_MODULE names, and neither before the config loads", () => {
+    const boards = (module: string | null) =>
+      visiblePages(false, false, false, module)
+        .map((p) => p.label)
+        .filter((l) => l === "kanban" || l === "trips");
+    expect(boards("")).toEqual(["kanban", "trips"]);
+    expect(boards("trips")).toEqual(["trips"]);
+    expect(boards("kanban")).toEqual(["kanban"]);
+    expect(boards(null)).toEqual([]);
+  });
+
   it("hides the Dev section unless dev tools are on", () => {
     expect(
       visiblePages(false, false, false).some((p) => p.label === DEV_PAGE_LABEL)

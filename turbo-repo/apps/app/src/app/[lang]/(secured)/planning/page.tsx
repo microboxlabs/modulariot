@@ -6,8 +6,10 @@ import PageContent from "@/features/shipping/components/content";
 import { getStaticPlanningData } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import { guardPage } from "@/features/auth/access/server-access";
+import { requireBoard } from "@/features/layout/services/board-guard";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function PlanningPage({ params }: ParamsWithLang) {
+  requireBoard("kanban");
   await guardPage(ACCESS_RULES.kanban, "/planning");
   const { lang } = await params;
   try {

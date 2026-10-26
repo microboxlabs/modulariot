@@ -20,6 +20,7 @@ import {
   PLATFORM_SCOPE_PAGES,
   PLATFORM_SCOPE_SETTINGS,
 } from "@/features/common/platform-scope";
+import { boardEnabled } from "./board-module";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
@@ -87,9 +88,13 @@ export const pages: SidebarItem[] = pagesConfig.map((p) => ({
 export function visiblePages(
   devToolsEnabled: boolean,
   storytellingEnabled: boolean,
-  dashboardServerEnabled: boolean
+  dashboardServerEnabled: boolean,
+  boardModule: string | null = ""
 ): SidebarItem[] {
   return pages.filter((p) => {
+    if (p.label === "kanban" || p.label === "trips") {
+      return boardModule !== null && boardEnabled(p.label, boardModule);
+    }
     if (p.label === DEV_PAGE_LABEL) return devToolsEnabled;
     if (p.label === STORYTELLING_PAGE_LABEL) return storytellingEnabled;
     if (p.label === DASHBOARD_SERVER_PAGE_LABEL) return dashboardServerEnabled;

@@ -22,6 +22,12 @@ public interface BoardStore {
     record FinishedPage(List<BoardRow> rows, Map<String, Integer> counts) {
     }
 
+    /** Open trips with only the state needed to classify their board view. */
+    List<BoardRow> openForCounts(String tenantCode);
+
+    /** How many trips were completed or cancelled between {@code from} and {@code to}. */
+    int finishedCount(String tenantCode, OffsetDateTime from, OffsetDateTime to);
+
     /** One trip, open or finished. */
     Optional<BoardRow> trip(String tenantCode, UUID tripId);
 

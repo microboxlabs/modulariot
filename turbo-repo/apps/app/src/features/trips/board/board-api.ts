@@ -104,6 +104,15 @@ export function useTripsBoard(view: BoardViewKey, search: URLSearchParams) {
   );
 }
 
+/** How many trips each view shows without a filter; the finished view counts the last seven days. */
+export function useTripsBoardCounts(enabled: boolean) {
+  return useSWR<Record<BoardViewKey, number>>(
+    enabled ? `${API}/board/counts` : null,
+    (url: string) => tripsRequest<Record<BoardViewKey, number>>(url),
+    { refreshInterval: 30_000 }
+  );
+}
+
 /** The board page that shows a lane. */
 export const LANE_VIEW: Record<string, BoardViewKey> = {
   unassigned: "planning",

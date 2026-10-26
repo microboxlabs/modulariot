@@ -76,6 +76,29 @@ public class PgBoardStore implements BoardStore {
                     l.driver_name, l.second_driver_name, l.carrier_name, l.origin_geofence_label,
                     l.destination_geofence_label) ILIKE '%' || $2 || '%')""";
 
+    /** The badge poll reads lane inputs only, without the card's resources, codes and timestamps. */
+    private static final String COUNT_OPEN = """
+            SELECT t.status, t.planned_start, l.estimated_arrival_time AS planned_arrival,
+                   l.asset_id AS truck, l.driver_name AS driver,
+                   (SELECT s.stage_type FROM miot_trips.stage s
+                     WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
+                       AND s.status = 'in_progress' AND s.version_of IS NULL AND s.is_active
+                     LIMIT 1) AS current_stage,
+                   (SELECT s.stage_type FROM miot_trips.stage s
+                     WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
+                       AND s.status = 'completed' AND s.version_of IS NULL AND s.is_active
+                     ORDER BY s.seq DESC LIMIT 1) AS last_stage,
+                   (SELECT jsonb_object_agg(m.milestone, m.status)::text FROM miot_trips.trip_milestone m
+                     WHERE m.trip_id = t.id) AS milestones,
+                   ARRAY(SELECT DISTINCT a->>'value' FROM miot_trips.trip_transition x,
+                         jsonb_array_elements(x.actions) a
+                         WHERE x.trip_id = t.id AND a->>'type' = 'alert'
+                           AND a->>'value' IN ('presentation_overdue', 'departure_overdue',
+                                              'arrival_overdue', 'closure_overdue')) AS alerts
+            FROM miot_trips.trip_live l
+            JOIN miot_trips.trip t ON t.id = l.trip_id AND t.tenant_code = l.tenant_code
+            WHERE l.tenant_code = $1""";
+
     private static final String FINISHED = """
             WITH done AS (
                 SELECT t.*, o.name AS origin, d.name AS destination
@@ -178,8 +201,23 @@ public class PgBoardStore implements BoardStore {
     }
 
     @Override
+    public List<BoardRow> openForCounts(String tenantCode) {
+        return query(pool.get(), COUNT_OPEN, Tuple.of(tenantCode)).stream().map(PgBoardStore::countRow).toList();
+    }
+
+    @Override
     public FinishedPage finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int perLane) {
         return finished(tenantCode, q, from, to, perLane, null);
+    }
+
+    @Override
+    public int finishedCount(String tenantCode, OffsetDateTime from, OffsetDateTime to) {
+        return query(pool.get(), """
+                SELECT count(*)::int AS n FROM miot_trips.trip t
+                WHERE t.tenant_code = $1 AND t.version_of IS NULL AND t.is_active
+                  AND t.status IN ('completed', 'cancelled')
+                  AND coalesce(t.actual_end, t.updated_at) >= $2 AND coalesce(t.actual_end, t.updated_at) < $3""",
+                Tuple.of(tenantCode, from, to)).iterator().next().getInteger("n");
     }
 
     @Override
@@ -249,5 +287,15 @@ public class PgBoardStore implements BoardStore {
                 r.getString("second_driver"), r.getString("carrier"), r.getString("monitor_key"),
                 Boolean.TRUE.equals(r.getBoolean("regularized")), r.getString("cancel_reason"),
                 time(r, "updated_at"));
+    }
+
+    private static BoardRow countRow(Row r) {
+        Map<String, String> milestones = Pg.json(r, "milestones", new TypeReference<Map<String, String>>() {
+        });
+        String[] alerts = r.getArrayOfStrings("alerts");
+        return new BoardRow(null, r.getString("status"), time(r, "planned_start"), time(r, "planned_arrival"),
+                null, null, null, r.getString("current_stage"), r.getString("last_stage"), milestones,
+                alerts == null ? null : new HashSet<>(Arrays.asList(alerts)), null, null, null, null,
+                r.getString("truck"), null, r.getString("driver"), null, null, null, false, null, null);
     }
 }

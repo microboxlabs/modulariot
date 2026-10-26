@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { HiArrowRight, HiExclamation } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -79,7 +78,7 @@ export function statusLabel(
   return TRIP_STATUSES.has(label) ? trDynamic(`tripStatus.${label}`, d) : label;
 }
 
-/** A trip on the board: its service, route, resources, times and milestones. Opens the trip. */
+/** A trip on the board: its service, route, resources, times and milestones. */
 export function TripCard({
   card,
   d,
@@ -95,9 +94,8 @@ export function TripCard({
   const route = [card.origin, card.destination];
   const overdue = card.alerts.some((a) => a.endsWith("_overdue"));
   return (
-    <Link
-      href={`/trips/${card.tripId}`}
-      className={`block rounded-lg bg-white shadow hover:shadow-lg dark:bg-gray-700 ${
+    <div
+      className={`block rounded-lg bg-white shadow dark:bg-gray-700 ${
         compact ? "px-2 py-1.5" : "space-y-3 p-4"
       }`}
     >
@@ -179,6 +177,6 @@ export function TripCard({
           )}
         </>
       )}
-    </Link>
+    </div>
   );
 }

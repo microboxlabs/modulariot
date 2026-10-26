@@ -10,6 +10,7 @@ public interface ContentStore {
 
     Content insert(Content content);
 
+    /** Locks the row inside a transaction, so checking and assigning its owner is atomic. */
     Optional<Content> find(String tenantCode, UUID id);
 
     /** Sets or clears ({@code owner} null) the record that uses the content; false when there is no such row. */

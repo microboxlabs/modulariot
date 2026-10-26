@@ -5,6 +5,7 @@ import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.dto.FeedBatchRequest;
 import com.microboxlabs.miot.trips.dto.FeedBatchResult;
+import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -52,20 +53,21 @@ public class FeedBatchService {
         List<String> queued = new ArrayList<>();
         List<String> unchanged = new ArrayList<>();
         List<FeedBatchResult.Refusal> refused = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
         for (int index = 0; index < items.size(); index++) {
             FeedBatchRequest.Item item = items.get(index);
             String code = item == null || item.externalCode() == null ? "" : item.externalCode().trim();
             try {
-                if (reconciler.settled(digests.get(code), item == null ? null : item.desired())) {
+                FeedServiceRequest desired = item == null ? null : item.desired();
+                boolean settled = seen.add(code) && reconciler.settled(digests.get(code), desired);
+                boolean enqueued = !settled && queue.acceptAndQueue(tenantCode, feedKey,
+                        spec(feedKey, code, actor, batchId),
+                        () -> reconciler.accept(tenantCode, feedKey, code, desired));
+                if (enqueued) {
+                    queued.add(code);
+                } else {
                     unchanged.add(code);
-                    continue;
                 }
-                if (!queue.acceptAndQueue(tenantCode, feedKey, spec(feedKey, code, actor, batchId),
-                        () -> reconciler.accept(tenantCode, feedKey, code, item == null ? null : item.desired()))) {
-                    unchanged.add(code);
-                    continue;
-                }
-                queued.add(code);
             } catch (IllegalArgumentException | IllegalStateException e) {
                 refused.add(new FeedBatchResult.Refusal(index, code, e.getMessage()));
             }

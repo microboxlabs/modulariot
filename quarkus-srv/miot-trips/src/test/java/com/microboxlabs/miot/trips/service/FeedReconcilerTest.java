@@ -237,6 +237,24 @@ class FeedReconcilerTest {
                 request), "a reported service is resent");
     }
 
+    @Test
+    void aBatchAppliesTheLastStateWhenAnExternalCodeAppearsTwice() {
+        FeedServiceRequest first = desired(null, List.of());
+        FeedServiceRequest changed = new FeedServiceRequest(first.orderType(), "changed", first.plannedStart(),
+                first.plannedEnd(), first.resources(), first.source());
+        feeds.saved = new FeedService("test", "test-feed", "S-1", "{}", reconciler.hash(first), null, null, false,
+                FeedReconciler.SKIP, null, null, null);
+        FeedBatchService batch = new FeedBatchService(reconciler, (tenant, feed, specs) -> {});
+
+        var result = batch.send("test", "test", "test-feed", new com.microboxlabs.miot.trips.dto.FeedBatchRequest(
+                "test-batch", List.of(new com.microboxlabs.miot.trips.dto.FeedBatchRequest.Item("S-1", changed),
+                        new com.microboxlabs.miot.trips.dto.FeedBatchRequest.Item("S-1", first))));
+
+        assertEquals(List.of("S-1", "S-1"), result.queued());
+        assertTrue(result.unchanged().isEmpty());
+        assertEquals(reconciler.hash(first), feeds.saved.desiredHash());
+    }
+
     private static class TestTransactions implements Transactions {
         private int depth;
         private int outerTransactions;

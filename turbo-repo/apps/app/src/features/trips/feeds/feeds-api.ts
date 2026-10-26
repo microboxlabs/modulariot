@@ -23,6 +23,8 @@ export interface Feed {
   stages: StagePlan[];
   arrivalStage: string;
   requiredResources: FeedResource[];
+  /** Adds to fleet the carriers, vehicles and drivers it does not have yet. */
+  registersResources: boolean;
   active: boolean;
   openServices: number;
   updatedAt: string | null;
@@ -32,7 +34,12 @@ export interface Feed {
 /** What the form sends; the key goes in the path. */
 export type FeedBody = Pick<
   Feed,
-  "name" | "stages" | "arrivalStage" | "requiredResources" | "active"
+  | "name"
+  | "stages"
+  | "arrivalStage"
+  | "requiredResources"
+  | "registersResources"
+  | "active"
 >;
 
 const API = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/trips`;

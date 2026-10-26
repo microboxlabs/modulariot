@@ -17,6 +17,7 @@ import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
 import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
 import com.microboxlabs.miot.symptoms.map.GpsRpcApi;
 import com.microboxlabs.miot.symptoms.map.TreatmentReads;
+import com.microboxlabs.miot.symptoms.map.TripWindows;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -86,8 +87,19 @@ class OrgControlTowerMapResourceTest {
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
         return new OrgControlTowerMapResource(tenant, org, new Roles(), null, map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
-                        (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()));
+                        (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
+                new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
+                        Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)));
     }
+
+    private static final Instant NOW = Instant.parse("2026-10-26T12:00:00Z");
+    private static final UUID DEPARTED = UUID.fromString("5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a01");
+    private static final UUID PLANNED = UUID.fromString("5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a02");
+    /** Trips-module trips by "trip/truck": their departure and end. */
+    private final Map<String, Optional<Instant[]>> moduleTrips = Map.of(
+            DEPARTED + "/AB12", Optional.of(new Instant[] {Instant.parse("2026-10-26T09:00:00Z"), null}),
+            PLANNED + "/AB12", Optional.of(new Instant[] {null, null}));
+    private final List<String> ranges = new ArrayList<>();
 
     private final InMemoryEngineCases engineCases = new InMemoryEngineCases();
     private final List<String> treatmentClients = new ArrayList<>();
@@ -119,6 +131,7 @@ class OrgControlTowerMapResourceTest {
 
         @Override
         public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit) {
+            ranges.add(assetId + " " + from + " " + to);
             return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
         }
     };
@@ -344,6 +357,32 @@ class OrgControlTowerMapResourceTest {
     void aBadSymptomIdOrAMissingAssetIs400() {
         assertEquals(400, call(resource.symptom(ORG, "abc")).getStatus());
         assertEquals(400, call(resource.tripPositions(ORG, "T1", null)).getStatus());
+    }
+
+    @Test
+    void aTripsModuleTripReadsItsTrucksPositionsFromItsDepartureUntilNow() {
+        Response positions = call(resource.tripPositions(ORG, DEPARTED.toString(), "AB12"));
+
+        assertEquals(200, positions.getStatus());
+        assertEquals("AB12", ((JsonNode) positions.getEntity()).get(0).path("assetid").asText());
+        assertEquals(List.of("AB12 2026-10-26T09:00:00Z 2026-10-26T12:00:00Z"), ranges);
+        assertEquals(List.of(), treatmentClients);
+    }
+
+    @Test
+    void aTripsModuleTripBeforeItsDepartureHasNoPositions() {
+        Response positions = call(resource.tripPositions(ORG, PLANNED.toString(), "AB12"));
+
+        assertEquals(200, positions.getStatus());
+        assertEquals(0, ((JsonNode) positions.getEntity()).size());
+        assertEquals(List.of(), ranges);
+    }
+
+    @Test
+    void aTripsModuleTripOnAnotherTruckOrOfAnotherOrganizationIs404() {
+        assertEquals(404, call(resource.tripPositions(ORG, DEPARTED.toString(), "ZZ99")).getStatus());
+        assertEquals(404, call(resource.tripPositions(ORG, UUID.randomUUID().toString(), "AB12")).getStatus());
+        assertEquals(400, call(resource.tripPositions(ORG, DEPARTED.toString(), null)).getStatus());
     }
 
     @Test

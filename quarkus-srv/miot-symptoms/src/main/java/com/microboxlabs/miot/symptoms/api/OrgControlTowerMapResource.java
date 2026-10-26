@@ -4,6 +4,7 @@ import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -11,6 +12,7 @@ import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
 import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
+import com.microboxlabs.miot.symptoms.map.TripWindows;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.PermissionsAllowed;
@@ -51,6 +53,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final ControlTowerMapService map;
     private final ControlTowerTreatmentService treatments;
     private final EngineCaseService cases;
+    private final TripWindows tripWindows;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -60,12 +63,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             SecurityIdentity identity,
             ControlTowerMapService map,
             ControlTowerTreatmentService treatments,
-            EngineCaseService cases) {
+            EngineCaseService cases,
+            TripWindows tripWindows) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
         this.treatments = treatments;
         this.cases = cases;
+        this.tripWindows = tripWindows;
     }
 
     @GET
@@ -209,14 +214,25 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @GET
     @Path("/trips/{tripId}/positions")
     @Operation(operationId = "listMapTripPositions", summary = "The asset's positions during a trip, oldest first",
-            description = "At most 20000, sampled evenly over the trip. 404 when the trip does not exist for the "
-                    + "asset or the asset was not the organization's when the trip started.")
+            description = "At most 20000, sampled evenly over the trip. A UUID is a trips-module trip: the truck's "
+                    + "positions from its departure until it ended or now, at most 7 days, none before it departs. "
+                    + "Any other id is a GPS database trip. 404 when the trip does not exist for the asset or the "
+                    + "asset was not the organization's when the trip started.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> tripPositions(@PathParam("organizationId") String organizationId,
             @PathParam("tripId") String tripId, @QueryParam("assetId") String assetId) {
-        tenantCode(organizationId);
-        return answer(() -> treatments.tripPositions(clientIds(), tripId, assetId));
+        String tenant = tenantCode(organizationId);
+        var moduleTrip = TripWindows.tripsModuleId(tripId);
+        if (moduleTrip.isEmpty()) {
+            return answer(() -> treatments.tripPositions(clientIds(), tripId, assetId));
+        }
+        return answer(() -> Uni.createFrom().item(() -> tripWindows.find(tenant, moduleTrip.get(), assetId)
+                        .orElseThrow(() -> new NoSuchElementException("Trip not found")))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .flatMap(w -> w.from() == null
+                        ? Uni.createFrom().item((JsonNode) JsonNodeFactory.instance.arrayNode())
+                        : treatments.assetPositions(clientIds(), assetId.trim(), w.from(), w.to())));
     }
 
     @GET

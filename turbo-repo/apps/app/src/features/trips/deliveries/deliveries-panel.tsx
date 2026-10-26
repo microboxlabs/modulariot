@@ -190,6 +190,7 @@ function Upload({
         <FileInput
           key={key}
           sizing="sm"
+          className="max-w-sm"
           accept={ACCEPT}
           aria-label={tr("sheet.deliveries.file", d)}
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -203,21 +204,37 @@ function Upload({
   );
 }
 
+/** The first step waits for a proof when the cycle asks for one and none came yet. */
+function needsProofFirst(
+  delivery: Delivery,
+  next: ReturnType<typeof nextStep>,
+  proofRequired: boolean
+) {
+  return (
+    proofRequired &&
+    delivery.proofs.length === 0 &&
+    next?.step === delivery.steps[0]?.step
+  );
+}
+
 function DeliveryCard({
   tripId,
   delivery,
   canOperate,
+  proofRequired,
   d,
   lang,
 }: Readonly<{
   tripId: string;
   delivery: Delivery;
   canOperate: boolean;
+  proofRequired: boolean;
   d: I18nRecord;
   lang: string;
 }>) {
   const { busy, error, run } = useAction();
   const next = nextStep(delivery);
+  const needsProof = needsProofFirst(delivery, next, proofRequired);
   const loads = delivery.mandates.map((m) => m.code ?? m.id.slice(0, 8));
   return (
     <li className="rounded border border-gray-200 p-3 dark:border-gray-700">
@@ -281,7 +298,12 @@ function DeliveryCard({
           })}
         </ul>
       )}
-      {canOperate && next && (
+      {canOperate && needsProof && (
+        <p className="mt-2 text-xs text-gray-500">
+          {tr("sheet.deliveries.needsProof", d)}
+        </p>
+      )}
+      {canOperate && next && !needsProof && (
         <div className="mt-2 flex gap-2">
           <Button
             size="xs"
@@ -358,6 +380,7 @@ export function DeliveriesPanel({
             tripId={tripId}
             delivery={delivery}
             canOperate={canOperate}
+            proofRequired={data.cycle.proofRequired}
             d={d}
             lang={lang}
           />

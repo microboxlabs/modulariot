@@ -116,4 +116,29 @@ describe("trip deliveries", () => {
     expect(screen.getByText("sheet.reject")).toBeInTheDocument();
     expect(screen.getByText("sheet.deliveries.new")).toBeInTheDocument();
   });
+
+  it("asks for a POD before the first step can be confirmed", () => {
+    const data: TripDeliveries = {
+      cycle: {
+        steps: ["delivered", "settled"],
+        completesTrip: null,
+        proofRequired: true,
+        confirmOnProof: false,
+      },
+      deliveries: [
+        {
+          ...delivery,
+          proofs: [],
+          steps: [step("delivered", "open"), step("settled", "open")],
+        },
+      ],
+      uncovered: [],
+    };
+    render(<DeliveriesPanel tripId={TRIP} data={data} d={{}} lang="en" />);
+
+    expect(screen.getByText("sheet.deliveries.needsProof")).toBeInTheDocument();
+    expect(
+      screen.queryByText("sheet.deliveries.confirm", { exact: false })
+    ).toBeNull();
+  });
 });

@@ -5196,7 +5196,8 @@
             "photo": "Photo",
             "document": "Document",
             "other": "Other"
-          }
+          },
+          "needsProof": "Upload a POD to confirm the delivery."
         }
       },
       "live": {

@@ -5196,7 +5196,6 @@
           "needsProof": "Upload a POD to confirm the delivery."
         },
         "tripInfo": "Trip information",
-        "trip": "Trip",
         "serviceCode": "Service code",
         "status": "Status",
         "monitor": "Monitor",
@@ -5229,7 +5228,16 @@
           "end": "End",
           "field": "Field",
           "value": "Value"
-        }
+        },
+        "serviceType": "Service type",
+        "carrierRut": "Carrier tax ID",
+        "carrierCode": "Carrier code",
+        "tripType": {
+          "own": "Own site",
+          "pickup": "Customer pickup",
+          "unknown": "Origin without type"
+        },
+        "validations": "Validations"
       },
       "live": {
         "on": "Live",

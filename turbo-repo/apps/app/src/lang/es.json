@@ -5196,7 +5196,6 @@
           "needsProof": "Sube un POD para confirmar la entrega."
         },
         "tripInfo": "Información del viaje",
-        "trip": "Viaje",
         "serviceCode": "Código servicio",
         "status": "Estado",
         "monitor": "Monitor",
@@ -5229,7 +5228,16 @@
           "end": "Fin",
           "field": "Campo",
           "value": "Valor"
-        }
+        },
+        "serviceType": "Tipo de servicio",
+        "carrierRut": "RUT transportista",
+        "carrierCode": "Código transportista",
+        "tripType": {
+          "own": "Sede propia",
+          "pickup": "Retiro en cliente",
+          "unknown": "Origen sin tipo"
+        },
+        "validations": "Validaciones"
       },
       "live": {
         "on": "En vivo",

@@ -4,7 +4,13 @@ import type { TripMilestone } from "../milestones/milestones-api";
 import type { TripSheet } from "./sheet-api";
 import { MilestoneChecklist, nextMilestone } from "./milestone-checklist";
 import { elapsed } from "./sheet-head";
-import { alertText, Progress } from "./sheet-tiles";
+import {
+  alertText,
+  Drivers,
+  Progress,
+  sheetDrivers,
+  tripType,
+} from "./sheet-tiles";
 
 vi.mock("@/features/i18n/tr.service", () => ({
   tr: (key: string) => key,
@@ -82,6 +88,7 @@ function sheet(ms: TripMilestone[]): TripSheet {
     transitions: [],
     feed: null,
     deliveries: null,
+    details: null,
   };
 }
 
@@ -138,5 +145,64 @@ describe("trip bento", () => {
     expect(screen.getByText("(1 / 5)")).toBeInTheDocument();
     expect(screen.getByText("(1 / 2)")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument();
+  });
+
+  it("tells a trip from an own site from a customer pickup", () => {
+    expect(tripType("plant")).toBe("own");
+    expect(tripType("distribution_center")).toBe("own");
+    expect(tripType("customer")).toBe("pickup");
+    expect(tripType("zone")).toBe("unknown");
+    expect(tripType(null)).toBe("unknown");
+  });
+
+  it("keeps both driver slots, filling what the fleet does not know with dashes", () => {
+    const card = sheet([]).card;
+    const [first, second] = sheetDrivers(card, null);
+    expect(first.name).toBe("Driver");
+    expect(second).toEqual({
+      name: null,
+      rut: null,
+      phone: null,
+      validations: [],
+    });
+    render(<Drivers card={card} details={null} d={{}} lang="en" />);
+    expect(screen.getByText("sheet.driver2")).toBeInTheDocument();
+    expect(screen.getAllByText("-")).toHaveLength(5);
+    expect(screen.queryByText("sheet.validations")).toBeNull();
+  });
+
+  it("shows a driver's validations only when an external system sent some", () => {
+    const base = sheet([]);
+    render(
+      <Drivers
+        card={base.card}
+        details={{
+          orders: [],
+          carrier: null,
+          originType: null,
+          destinationType: null,
+          drivers: [
+            {
+              name: "Driver",
+              rut: "1-9",
+              phone: null,
+              validations: [
+                {
+                  type: "TEST",
+                  key: "ALCOHOL",
+                  value: "PASSED",
+                  source: "checks",
+                  validUntil: null,
+                },
+              ],
+            },
+          ],
+        }}
+        d={{}}
+        lang="en"
+      />
+    );
+    expect(screen.getAllByText("sheet.validations")).toHaveLength(1);
+    expect(screen.getByText("ALCOHOL")).toBeInTheDocument();
   });
 });

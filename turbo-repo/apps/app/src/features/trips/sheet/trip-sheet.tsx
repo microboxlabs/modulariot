@@ -34,25 +34,30 @@ function Bento({
   aside: React.ReactNode;
 }>) {
   const [open, setOpen] = useState<Milestone | null>(null);
-  const twoDrivers = Boolean(sheet.card.secondDriver);
   return (
     <>
       <SheetHead sheet={sheet} d={d} onMilestone={setOpen} aside={aside} />
       <div className="grid h-fit grid-cols-1 gap-2 bg-gray-50 p-2 lg:grid-cols-5 dark:bg-gray-900">
-        <div
-          className={`col-span-1 flex flex-col gap-2 ${twoDrivers ? "lg:col-span-2" : "lg:col-span-3"}`}
-        >
+        <div className="col-span-1 flex flex-col gap-2 lg:col-span-3">
           <Tile className="flex-1">
-            <TripInfo card={sheet.card} d={d} lang={lang} />
+            <TripInfo
+              card={sheet.card}
+              details={sheet.details}
+              d={d}
+              lang={lang}
+            />
           </Tile>
           <Tile>
             <Progress sheet={sheet} d={d} />
           </Tile>
         </div>
-        <Tile
-          className={`col-span-1 ${twoDrivers ? "lg:col-span-2" : "lg:col-span-1"}`}
-        >
-          <Drivers card={sheet.card} d={d} />
+        <Tile className="col-span-1">
+          <Drivers
+            card={sheet.card}
+            details={sheet.details}
+            d={d}
+            lang={lang}
+          />
         </Tile>
         <Tile className="col-span-1">
           <MilestoneChecklist

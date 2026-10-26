@@ -286,6 +286,7 @@ function LoadKpis({
     withoutSla: 0,
   };
   const occ = details ? occupancy(details.load) : null;
+  const occupancyLabel = occ ? trDynamic(`sheet.${occ.key}`, d) : "";
   return (
     <>
       <KpiRow
@@ -310,7 +311,7 @@ function LoadKpis({
         warn={(occ?.pct ?? 0) >= 100}
         meta={
           occ
-            ? `(${trDynamic(`sheet.${occ.key}`, d)}: ${number(occ.value)} / ${number(occ.capacity)} ${occ.unit})`
+            ? `(${occupancyLabel}: ${number(occ.value)} / ${number(occ.capacity)} ${occ.unit})`
             : "-"
         }
       />
@@ -448,9 +449,9 @@ export function Drivers({
 /** `<milestone>_overdue` reads as the milestone's name; other alerts as they come. */
 export function alertText(alert: string, d: I18nRecord) {
   const overdue = /^(.+)_overdue$/.exec(alert);
-  return overdue
-    ? `${trDynamic(`milestone.${overdue[1]}`, d)} · ${tr("card.overdue", d)}`
-    : alert;
+  if (!overdue) return alert;
+  const milestone = trDynamic(`milestone.${overdue[1]}`, d);
+  return `${milestone} · ${tr("card.overdue", d)}`;
 }
 
 export function Alerts({

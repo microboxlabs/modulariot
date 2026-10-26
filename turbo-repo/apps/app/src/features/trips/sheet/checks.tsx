@@ -70,37 +70,31 @@ export function CheckIcon({
   value,
   d,
 }: Readonly<{ value: CheckValue; d: I18nRecord }>) {
-  const status =
-    value === undefined ? "notReported" : value ? "passed" : "failed";
+  let status = "notReported";
+  if (value !== undefined) status = value ? "passed" : "failed";
   const label = trDynamic(`sheet.checkStatus.${status}`, d);
   if (value === true) {
     return (
-      <span
-        role="img"
-        aria-label={label}
-        className={`${OUTER} bg-gray-400 p-1 text-white`}
-      >
+      <span className={`${OUTER} bg-gray-400 p-1 text-white`}>
         <FaCheck aria-hidden="true" className="h-3 w-3" />
+        <span className="sr-only">{label}</span>
       </span>
     );
   }
   if (value === false) {
     return (
-      <span
-        role="img"
-        aria-label={label}
-        className={`${OUTER} bg-yellow-400 text-white`}
-      >
+      <span className={`${OUTER} bg-yellow-400 text-white`}>
         <HiExclamation aria-hidden="true" className="h-3.5 w-3.5" />
+        <span className="sr-only">{label}</span>
       </span>
     );
   }
   return (
     <span
-      role="img"
-      aria-label={label}
       className={`${OUTER} border-2 border-gray-400 bg-white dark:bg-gray-800`}
-    />
+    >
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }
 

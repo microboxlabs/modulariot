@@ -195,7 +195,7 @@ describe("trip bento", () => {
     );
     for (const status of ["passed", "failed", "notReported"]) {
       expect(
-        screen.getByRole("img", { name: `sheet.checkStatus.${status}` })
+        screen.getByText(`sheet.checkStatus.${status}`)
       ).toBeInTheDocument();
     }
   });

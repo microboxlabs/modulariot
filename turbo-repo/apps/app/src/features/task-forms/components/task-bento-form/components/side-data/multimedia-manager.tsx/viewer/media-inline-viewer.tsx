@@ -170,7 +170,7 @@ export default function MediaInlineViewer({
     }
   };
 
-  const fileUrl = id ? source.contentUrl(id) : "";
+  const fileUrl = source.contentUrl(current.file.entry.id);
 
   const handleDownload = () => {
     if (!id) return;
@@ -179,7 +179,7 @@ export default function MediaInlineViewer({
 
   const refreshSuffix = current.refreshKey ? `&r=${current.refreshKey}` : "";
   const imageUrl =
-    current.type === "image" && id ? `${source.contentUrl(id)}${refreshSuffix}` : null;
+    current.type === "image" ? `${fileUrl}${refreshSuffix}` : null;
   const handleEditClick = onEdit ? () => onEdit(currentIndex) : undefined;
   const handleDeleteClick = onDelete ? () => setIsDeleteConfirmOpen(true) : undefined;
   const handleMoveClick = source.move ? () => setIsMoveModalOpen(true) : undefined;

@@ -5182,7 +5182,6 @@
           "wholeTrip": "Whole trip",
           "confirm": "Confirm",
           "upload": "Upload POD",
-          "kind": "Proof type",
           "file": "File",
           "completes": "{step} completes the trip",
           "pendingLoads": "Loads without a delivery: {codes}",
@@ -5211,6 +5210,7 @@
         "nextRecord": "Record {milestone}",
         "tabs": {
           "milestones": "Milestones",
+          "deliveries": "Deliveries",
           "movements": "Monitor movements",
           "stages": "Stages",
           "feed": "Feed row"

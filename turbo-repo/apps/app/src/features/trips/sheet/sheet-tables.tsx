@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   HiOutlineCheckCircle,
   HiOutlineDocumentText,
+  HiOutlineTruck,
   HiOutlineViewBoards,
 } from "react-icons/hi";
 import { MdOutlineTimeline } from "react-icons/md";
@@ -15,6 +16,7 @@ import type { Milestone } from "../monitors/monitors-api";
 import type { SheetFeed, SheetStage, SheetTransition } from "./sheet-api";
 import type { TripSheet } from "./sheet-api";
 import { plannedAt } from "./milestone-checklist";
+import { DeliveriesPanel } from "../deliveries/deliveries-panel";
 
 const STAGE_ACTIONS = new Set(["advance", "start", "close"]);
 
@@ -160,6 +162,7 @@ function Milestones({
 
 const TABS = [
   { key: "milestones", icon: HiOutlineCheckCircle },
+  { key: "deliveries", icon: HiOutlineTruck },
   { key: "movements", icon: MdOutlineTimeline },
   { key: "stages", icon: HiOutlineViewBoards },
   { key: "feed", icon: HiOutlineDocumentText },
@@ -205,6 +208,22 @@ export function SheetTables({
       <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-b-lg border-x border-b border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-800">
         {tab === "milestones" && (
           <Milestones sheet={sheet} d={d} lang={lang} onOpen={onMilestone} />
+        )}
+        {tab === "deliveries" && (
+          <div className="bg-white dark:bg-gray-800">
+            {sheet.deliveries ? (
+              <DeliveriesPanel
+                tripId={sheet.card.tripId}
+                data={sheet.deliveries}
+                d={d}
+                lang={lang}
+              />
+            ) : (
+              <p className="p-4 text-sm text-gray-500">
+                {tr("sheet.deliveries.none", d)}
+              </p>
+            )}
+          </div>
         )}
         {tab === "movements" && (
           <Movements transitions={transitions} d={d} lang={lang} />

@@ -5,11 +5,9 @@ import Link from "next/link";
 import { HiArrowLeft } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import { ErrorBoundary } from "@/features/common/components/error-boundary/error-boundary";
 import type { Milestone } from "../monitors/monitors-api";
 import { LANE_VIEW } from "../board/board-api";
 import { useTripSheet, type TripSheet as Sheet } from "./sheet-api";
-import { DeliveriesPanel } from "../deliveries/deliveries-panel";
 import { LiveBadge } from "../board/live-badge";
 import { useBoardEvents } from "../board/use-board-events";
 import { SheetHead } from "./sheet-head";
@@ -17,18 +15,16 @@ import { MilestoneModal } from "./milestone-checklist";
 import { ServiceValidations } from "./checks";
 import { Alerts, Drivers, Progress, Tile, TripInfo } from "./sheet-tiles";
 import { SheetTables } from "./sheet-tables";
-import { TripMap } from "./trip-map";
+import { TripMediaSection } from "./trip-media-section";
 
 function Bento({
   sheet,
-  tripId,
   d,
   general,
   lang,
   aside,
 }: Readonly<{
   sheet: Sheet;
-  tripId: string;
   d: I18nRecord;
   general: I18nRecord;
   lang: string;
@@ -64,30 +60,13 @@ function Bento({
           <ServiceValidations sheet={sheet} d={d} />
         </Tile>
 
-        <div className="col-span-1 flex gap-2 lg:col-span-5 lg:h-[560px]">
-          <Tile className="hidden w-2/3 overflow-hidden lg:flex">
-            <ErrorBoundary
-              fallback={
-                <p className="p-4 text-sm text-gray-500">{tr("error", d)}</p>
-              }
-            >
-              <TripMap card={sheet.card} general={general} />
-            </ErrorBoundary>
-          </Tile>
-          <Tile className="min-w-0 flex-1 overflow-auto">
-            {sheet.deliveries ? (
-              <DeliveriesPanel
-                tripId={tripId}
-                data={sheet.deliveries}
-                d={d}
-                lang={lang}
-              />
-            ) : (
-              <p className="p-2 text-sm text-gray-500">
-                {tr("sheet.deliveries.none", d)}
-              </p>
-            )}
-          </Tile>
+        <div className="col-span-1 lg:col-span-5">
+          <TripMediaSection
+            card={sheet.card}
+            general={general}
+            d={d}
+            lang={lang}
+          />
         </div>
 
         <div className="col-span-1 grid grid-cols-1 gap-2 lg:col-span-5 lg:grid-cols-6">
@@ -159,7 +138,6 @@ export default function TripSheet({
         {data && (
           <Bento
             sheet={data}
-            tripId={tripId}
             d={d}
             general={general}
             lang={lang}

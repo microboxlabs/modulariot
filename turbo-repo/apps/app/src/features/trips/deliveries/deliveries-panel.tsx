@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Button,
-  Checkbox,
-  FileInput,
-  Label,
-  Select,
-  TextInput,
-} from "flowbite-react";
+import { Button, Checkbox, FileInput, Label, TextInput } from "flowbite-react";
 import { HiOutlinePaperClip } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -17,16 +10,17 @@ import { shortTime } from "../board/trip-card";
 import type { MilestoneStatus } from "../board/board-api";
 import {
   DELIVERY_OPERATE,
-  PROOF_KINDS,
   createDelivery,
   nextStep,
   proofHref,
   stepAction,
-  uploadProof,
   type Delivery,
-  type ProofKind,
   type TripDeliveries,
 } from "./deliveries-api";
+import { uploadDocument } from "../documents/documents-api";
+
+/** The document type a POD is filed under in the trip's multimedia. */
+const POD_TYPE = "PROOF_OF_DELIVERY";
 
 const STATUS_STYLE: Record<MilestoneStatus, string> = {
   open: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
@@ -155,18 +149,20 @@ function NewDelivery({
   );
 }
 
+/** The POD goes to the trip's multimedia as a proof of delivery that names this delivery. */
 function Upload({
   tripId,
   delivery,
   d,
 }: Readonly<{ tripId: string; delivery: Delivery; d: I18nRecord }>) {
   const [file, setFile] = useState<File | null>(null);
-  const [kind, setKind] = useState<ProofKind>("signature");
   const [key, setKey] = useState(0);
   const { busy, error, run } = useAction();
   const send = async () => {
     if (!file) return;
-    const done = await run(() => uploadProof(tripId, delivery.id, file, kind));
+    const done = await run(async () => {
+      await uploadDocument(tripId, file, POD_TYPE, { deliveryId: delivery.id });
+    });
     if (done) {
       setFile(null);
       setKey((k) => k + 1);
@@ -175,18 +171,6 @@ function Upload({
   return (
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Select
-          sizing="sm"
-          value={kind}
-          aria-label={tr("sheet.deliveries.kind", d)}
-          onChange={(e) => setKind(e.target.value as ProofKind)}
-        >
-          {PROOF_KINDS.map((k) => (
-            <option key={k} value={k}>
-              {trDynamic(`sheet.deliveries.kinds.${k}`, d)}
-            </option>
-          ))}
-        </Select>
         <FileInput
           key={key}
           sizing="sm"

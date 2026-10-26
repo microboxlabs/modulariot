@@ -225,6 +225,14 @@ export default function TemplatePicker({
     (t) => templateFits(t, channel) || t.key === value
   );
   const matches = matchStepTemplates(usable, query);
+  const noMatchMessage =
+    usable.length === 0
+      ? tr("templateNoneForChannel", d)
+      : tr("templateNoMatch", d);
+  const emptyMessage =
+    loadError && templates.length === 0
+      ? tr("templatesLoadFailed", d)
+      : noMatchMessage;
   const shown =
     templates.find((t) => t.key === hovered) ?? current ?? matches[0] ?? null;
   return (
@@ -276,11 +284,7 @@ export default function TemplatePicker({
           </ComboboxOption>
           {matches.length === 0 && (
             <p className="px-3 py-2 text-gray-500 dark:text-gray-400">
-              {loadError && templates.length === 0
-                ? tr("templatesLoadFailed", d)
-                : usable.length === 0
-                  ? tr("templateNoneForChannel", d)
-                  : tr("templateNoMatch", d)}
+              {emptyMessage}
             </p>
           )}
           {matches.map((t) => (
@@ -316,9 +320,7 @@ export default function TemplatePicker({
               d={d}
             />
           ) : (
-            <p className="text-gray-500 dark:text-gray-400">
-              {tr("templateNoMatch", d)}
-            </p>
+            <p className="text-gray-500 dark:text-gray-400">{emptyMessage}</p>
           )}
         </div>
       </ComboboxOptions>

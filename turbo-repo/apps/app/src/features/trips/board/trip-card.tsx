@@ -154,13 +154,15 @@ export function TripCard({
           <div className="flex flex-wrap gap-1">
             {MILESTONES.map((m) => {
               const status = card.milestones[m] ?? "open";
+              const milestoneName = tr(`milestone.${m}`, d);
+              const statusName = tr(`milestoneStatus.${status}`, d);
               return (
                 <span
                   key={m}
                   className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${MILESTONE_STYLE[status]}`}
-                  title={`${tr(`milestone.${m}`, d)}: ${tr(`milestoneStatus.${status}`, d)}`}
+                  title={`${milestoneName}: ${statusName}`}
                 >
-                  {tr(`milestone.${m}`, d)}
+                  {milestoneName}
                 </span>
               );
             })}

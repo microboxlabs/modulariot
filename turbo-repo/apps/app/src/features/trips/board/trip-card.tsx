@@ -79,7 +79,7 @@ export function statusLabel(
   return TRIP_STATUSES.has(label) ? trDynamic(`tripStatus.${label}`, d) : label;
 }
 
-/** A trip on the board: its service, route, resources, times and milestones. Opens the trip. */
+/** A trip on the board: its service, route, resources, times and milestones. Opens the trip sheet. */
 export function TripCard({
   card,
   d,

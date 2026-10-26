@@ -64,6 +64,7 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       trip: item?.trip_id,
       driver: item?.driver,
       date: item?.start_time,
+      endDate: item?.end_time ?? null,
       service: item?.asset_id,
       alertType: item?.type_of_incidence,
       status: item?.treatment_count === 0 ? "" : "Tratado",

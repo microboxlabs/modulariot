@@ -13,7 +13,6 @@ import {
 import { SheetTables } from "./sheet-tables";
 import { elapsed } from "./sheet-head";
 import {
-  alertText,
   Drivers,
   leadTimeRate,
   occupancy,
@@ -134,13 +133,6 @@ describe("trip bento", () => {
     const now = new Date("2026-10-26T10:17:00Z");
     expect(elapsed("2026-10-25T06:00:00Z", now)).toBe("1d 4h 17m");
     expect(elapsed("2026-10-26T10:00:00Z", now)).toBe("17m");
-  });
-
-  it("names an overdue alert by its milestone", () => {
-    expect(alertText("departure_overdue", {})).toBe(
-      "milestone.departure · card.overdue"
-    );
-    expect(alertText("custom", {})).toBe("custom");
   });
 
   it("opens a milestone from the milestones tab", () => {

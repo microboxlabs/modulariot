@@ -21,13 +21,16 @@ describe("positionsUrl", () => {
     );
   });
 
-  it("reads a case without a trip by its symptom", () => {
+  it("reads one of the evaluator's cases by its symptom, with a trip or not", () => {
     expect(positionsUrl("null", "DEMO008", "-9")).toBe(
       "/app/api/map/trip?symptomId=-9"
     );
     expect(positionsUrl("", "DEMO008", "-9")).toBe(
       "/app/api/map/trip?symptomId=-9"
     );
+    expect(
+      positionsUrl("5c1f0a52-3a8e-4bb1-9c55-0d7d1e0e6a01", "DEMO008", "-9")
+    ).toBe("/app/api/map/trip?symptomId=-9");
   });
 
   it("reads nothing for a GPS database symptom without a trip", () => {

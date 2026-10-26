@@ -160,7 +160,7 @@ public class OrgTripsResource extends OrgResourceSupport {
                 .build());
     }
 
-    private static OffsetDateTime timestamp(String raw, String field) {
+    static OffsetDateTime timestamp(String raw, String field) {
         if (raw == null || raw.isBlank()) {
             return null;
         }

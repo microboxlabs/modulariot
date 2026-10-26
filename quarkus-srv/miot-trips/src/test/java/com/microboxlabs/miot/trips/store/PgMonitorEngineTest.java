@@ -30,7 +30,11 @@ import com.microboxlabs.miot.trips.dto.StageRequest;
 import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
+import com.microboxlabs.miot.trips.dto.BoardView;
+import com.microboxlabs.miot.trips.dto.TripSheet;
+import com.microboxlabs.miot.trips.service.BoardService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
+import com.microboxlabs.miot.trips.service.TripBoard;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.MonitorClock;
@@ -600,6 +604,141 @@ class PgMonitorEngineTest {
         assertEquals(1, engine.pendingTimers(tenant, tripId).size());
         clock.tick();
         assertEquals(3, matched(tripId).stream().filter("deadline"::equals).count());
+    }
+
+    private List<String> cards(BoardService board, String view, String lane, String q) {
+        return board.view(tenant, view, q, null, null, null).lanes().stream()
+                .filter(l -> l.key().equals(lane)).flatMap(l -> l.cards().stream())
+                .map(BoardView.Card::tripId).toList();
+    }
+
+    @Test
+    void theBoardPlacesATripByItsStageMilestonesAndAlerts() {
+        publish("overdue", List.of(
+                rule("open", "plan", null, "event.kind == 'created'", 10, act("start", "preparation")),
+                rule("late", "timer", "trip.plannedStart", "stage.type == 'preparation'", 10,
+                        act("alert", "departure_overdue")),
+                rule("left", "signal", null, "stage.type == 'preparation' && signal.kind == 'left_origin'", 10,
+                        act("advance", "transit")),
+                rule("arrived", "signal", null, "stage.type == 'transit' && signal.kind == 'entered_destination'",
+                        10, act("completeTrip", null))));
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
+                milestones, runs);
+        TripView t = newTrip("overdue", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
+        String trip = t.id();
+        String code = t.mandates().get(0).externalCode();
+
+        assertEquals(List.of(trip), cards(board, TripBoard.PLANNING, TripBoard.UNASSIGNED, null));
+        new MonitorClock(runs, engine, Clock.systemUTC(), true, 120, 500).tick();
+        assertEquals(List.of(trip), cards(board, TripBoard.PLANNING, TripBoard.DEPARTURE_PENDING, null),
+                "the monitor's overdue alert");
+
+        engine.signal(tenant, "gps", id(t), "left_origin", "17", null);
+        assertEquals(List.of(), cards(board, TripBoard.PLANNING, TripBoard.DEPARTURE_PENDING, null));
+        assertEquals(List.of(trip), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, code));
+        assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, "no-such-code"));
+
+        engine.signal(tenant, "gps", id(t), "entered_destination", "42", null);
+        assertEquals(List.of(), cards(board, TripBoard.DISPATCH, TripBoard.IN_TRANSIT, null));
+        assertEquals(List.of(trip), cards(board, TripBoard.FINISHED, TripBoard.COMPLETED, code));
+        BoardView.Card done = board.view(tenant, TripBoard.FINISHED, null, null, null, null).lanes().get(0)
+                .cards().get(0);
+        assertEquals(List.of(code), done.codes());
+        assertTrue(done.alerts().contains("departure_overdue"));
+        assertNotNull(done.departedAt(), "the transit stage's start");
+
+        TripSheet sheet = board.sheet(tenant, id(t));
+        assertEquals(TripBoard.COMPLETED, sheet.card().lane());
+        assertEquals(List.of("preparation", "transit", "closing"),
+                sheet.stages().stream().map(StageView::stageType).toList());
+        assertTrue(sheet.transitions().stream().anyMatch(x -> "left".equals(x.ruleKey())));
+        assertNull(sheet.feed(), "a trip made by hand has no feed row");
+        assertThrows(java.util.NoSuchElementException.class, () -> board.sheet(tenant, UUID.randomUUID()));
+    }
+
+    @Test
+    void finishedBoardCountsEveryTripButReturnsOneCardPerLane() {
+        TripView cancelled = newTrip(null, null);
+        trips.cancel(tenant, ACTOR, id(cancelled), "test cancellation");
+        for (int i = 0; i < 4; i++) {
+            TripView trip = newTrip(DIRECT, OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
+            engine.signal(tenant, "gps", id(trip), "left_origin", "17", null);
+            engine.signal(tenant, "gps", id(trip), "entered_destination", "42", null);
+        }
+
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
+                milestones, runs);
+        BoardView view = board.view(tenant, TripBoard.FINISHED, null, null, null, 1);
+        BoardView.Lane completed = view.lanes().stream()
+                .filter(lane -> TripBoard.COMPLETED.equals(lane.key())).findFirst().orElseThrow();
+        BoardView.Lane cancelledLane = view.lanes().stream()
+                .filter(lane -> TripBoard.CANCELLED.equals(lane.key())).findFirst().orElseThrow();
+        assertEquals(4, completed.count());
+        assertEquals(1, completed.cards().size());
+        assertEquals(1, cancelledLane.count());
+        assertEquals(List.of(cancelled.id()), cancelledLane.cards().stream().map(BoardView.Card::tripId).toList());
+    }
+
+    @Test
+    void cancelledBoardKeepsTheRunningLabelAndSearchesItsFinalResources() {
+        TripView trip = newTrip(DIRECT, null);
+        UUID tripId = id(trip);
+        engine.signal(tenant, "gps", tripId, "left_origin", null, null);
+        Pg.query(pool, """
+                UPDATE miot_trips.stage SET service_status = 'En route'
+                WHERE tenant_code = $1 AND subject_type = 'trip' AND subject_id = $2
+                  AND stage_type = 'transit' AND version_of IS NULL
+                """, Tuple.of(tenant, tripId));
+
+        UUID carrierId = UUID.randomUUID();
+        UUID truckId = UUID.randomUUID();
+        UUID trailerId = UUID.randomUUID();
+        UUID oldDriverId = UUID.randomUUID();
+        UUID driverId = UUID.randomUUID();
+        UUID secondDriverId = UUID.randomUUID();
+        Pg.query(pool, "INSERT INTO miot_fleet.carrier (id, tenant_code, legal_name) VALUES ($1, $2, $3)",
+                Tuple.of(carrierId, tenant, "Sample Carrier"));
+        Pg.query(pool, """
+                INSERT INTO miot_fleet.truck (id, tenant_code, carrier_id, license_plate)
+                VALUES ($1, $2, $3, $4)
+                """, Tuple.of(truckId, tenant, carrierId, "ZZ-321"));
+        Pg.query(pool, """
+                INSERT INTO miot_fleet.trailer (id, tenant_code, carrier_id, license_plate)
+                VALUES ($1, $2, $3, $4)
+                """, Tuple.of(trailerId, tenant, carrierId, "TR-987"));
+        Pg.query(pool, """
+                INSERT INTO miot_fleet.driver (id, tenant_code, rut, full_name)
+                VALUES ($1, $2, $3, $4), ($5, $2, $6, $7), ($8, $2, $9, $10)
+                """, Tuple.tuple().addUUID(oldDriverId).addString(tenant).addString("TEST-OLD")
+                        .addString("First Driver").addUUID(driverId).addString("TEST-NEW")
+                        .addString("Final Driver").addUUID(secondDriverId).addString("TEST-SECOND")
+                        .addString("Second Driver"));
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Pg.query(pool, """
+                INSERT INTO miot_trips.trip_resource_assignment
+                    (tenant_code, trip_id, resource_type, resource_id, valid_from, valid_to)
+                VALUES ($1, $2, 'driver', $3, $4, $5), ($1, $2, 'driver', $6, $7, NULL),
+                       ($1, $2, 'driver', $8, $9, NULL),
+                       ($1, $2, 'truck', $10, $7, NULL), ($1, $2, 'trailer', $11, $7, NULL)
+                """, Tuple.tuple().addString(tenant).addUUID(tripId).addUUID(oldDriverId)
+                        .addOffsetDateTime(now.minusHours(2)).addOffsetDateTime(now.minusHours(1))
+                        .addUUID(driverId).addOffsetDateTime(now.minusMinutes(50)).addUUID(secondDriverId)
+                        .addOffsetDateTime(now.minusMinutes(30)).addUUID(truckId).addUUID(trailerId));
+        trips.cancel(tenant, ACTOR, tripId, "test cancellation");
+
+        BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
+                milestones, runs);
+        for (String q : List.of("ZZ-321", "TR-987", "Final Driver", "Second Driver", "Sample Carrier")) {
+            assertEquals(List.of(trip.id()), cards(board, TripBoard.FINISHED, TripBoard.CANCELLED, q), q);
+        }
+        assertEquals(List.of(), cards(board, TripBoard.FINISHED, TripBoard.CANCELLED, "First Driver"));
+        BoardView.Card card = board.sheet(tenant, tripId).card();
+        assertEquals("En route", card.label());
+        assertEquals("Final Driver", card.driver());
+        assertEquals("Second Driver", card.secondDriver());
+        assertEquals("ZZ-321", card.truck());
+        assertEquals("TR-987", card.trailer());
+        assertEquals("Sample Carrier", card.carrier());
     }
 
 }

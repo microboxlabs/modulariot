@@ -21,6 +21,7 @@ import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import com.microboxlabs.miot.trips.domain.FeedProfile;
+import com.microboxlabs.miot.trips.domain.BoardRow;
 import com.microboxlabs.miot.trips.domain.FeedService;
 import com.microboxlabs.miot.trips.domain.Mandate;
 import com.microboxlabs.miot.trips.domain.Stage;
@@ -717,5 +718,26 @@ class PgFeedReconcilerTest {
         assertEquals(changed.resources(), applied.resources());
         assertTrue(audit.list(tenant, "trip", created.tripId(), null, null, 100).stream()
                 .anyMatch(event -> FeedReconciler.CLOSED_CHANGED.equals(event.action())));
+    }
+
+    @Test
+    void theBoardShowsTheTripWithTheRowItsSourceSent() {
+        FeedServiceRequest d = desired(2, 10, "ABC-123", null, "10000001");
+        FeedResult r = send("S-020", new FeedServiceRequest(d.orderType(), d.orderRef(), "Origin A", "Destination B",
+                d.plannedStart(), d.plannedEnd(), d.resources(),
+                new ObjectMapper().valueToTree(Map.of("Observaciones", "sample note"))));
+        PgBoardStore board = new PgBoardStore(() -> pool);
+        UUID tripId = UUID.fromString(r.tripId());
+
+        BoardRow row = board.trip(tenant, tripId).orElseThrow();
+        assertEquals(List.of("S-020"), row.codes());
+        assertEquals("ABC-123", row.truck());
+        assertEquals("Origin A", row.origin());
+        BoardStore.FeedSource feed = board.feedSource(tenant, tripId).orElseThrow();
+        assertEquals(FEED, feed.feedKey());
+        assertEquals("S-020", feed.externalCode());
+        assertEquals("sample note", feed.source().get("Observaciones"));
+        assertTrue(board.open(tenant, "s-020").stream().anyMatch(b -> b.tripId().equals(r.tripId())),
+                "the search ignores case");
     }
 }

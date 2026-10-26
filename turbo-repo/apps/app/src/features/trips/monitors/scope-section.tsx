@@ -53,7 +53,9 @@ export function scopeSummary(
   const parts = SCOPE_DIMENSIONS.filter((dim) => scope[dim].length > 0).map(
     (dim) => {
       const label = tr(`scope.${dim}`, d);
-      const valueLabels = scope[dim].map((v) => labelOf(options[dim], v)).join(", ");
+      const valueLabels = scope[dim]
+        .map((v) => labelOf(options[dim], v))
+        .join(", ");
       return `${label}: ${valueLabels}`;
     }
   );

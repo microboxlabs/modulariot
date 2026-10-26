@@ -35,6 +35,7 @@ import com.microboxlabs.miot.trips.dto.BoardView;
 import com.microboxlabs.miot.trips.dto.TripSheet;
 import com.microboxlabs.miot.trips.service.BoardEvents;
 import com.microboxlabs.miot.trips.service.BoardService;
+import com.microboxlabs.miot.trips.service.ConfirmerService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.TripBoard;
 import com.microboxlabs.miot.trips.service.AuditService;
@@ -59,6 +60,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterAll;
@@ -625,7 +627,7 @@ class PgMonitorEngineTest {
                 rule("arrived", "signal", null, "stage.type == 'transit' && signal.kind == 'entered_destination'",
                         10, act("completeTrip", null))));
         BoardService board = new BoardService(new PgBoardStore(() -> pool), fleet, new PgStageStore(() -> pool),
-                milestones, runs);
+                milestones, runs, new PgConfirmerStore(() -> pool));
         TripView t = newTrip("overdue", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
         String trip = t.id();
         String code = t.mandates().get(0).externalCode();
@@ -693,6 +695,33 @@ class PgMonitorEngineTest {
             subscription.cancel();
             events.stop();
         }
+    }
+
+
+    @Test
+    void onlyTheMilestonesTeamConfirmsItAndOnlyPeopleAreChecked() {
+        ConfirmerService confirmers = new ConfirmerService(new PgConfirmerStore(() -> pool), monitors, audit, tx);
+        UUID ops = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        assertThrows(IllegalArgumentException.class, () -> confirmers.save(tenant, ACTOR, DIRECT,
+                Map.of("departure", other), Set.of(ops)), "a team of another organization");
+        assertThrows(IllegalArgumentException.class, () -> confirmers.save(tenant, ACTOR, DIRECT,
+                Map.of("unloading", ops), Set.of(ops)));
+        assertThrows(java.util.NoSuchElementException.class, () -> confirmers.save(tenant, ACTOR, "no-such",
+                Map.of("departure", ops), Set.of(ops)));
+        confirmers.save(tenant, ACTOR, DIRECT, Map.of("departure", ops), Set.of(ops, other));
+        assertEquals(Map.of("departure", ops), confirmers.ofMonitor(tenant, DIRECT));
+
+        UUID trip = id(newTrip(DIRECT, null));
+        assertThrows(SecurityException.class, () -> confirmers.require(tenant, trip, "departure", Set.of(other)));
+        confirmers.require(tenant, trip, "departure", Set.of(ops, other));
+        confirmers.require(tenant, trip, "departure", null);
+        confirmers.require(tenant, trip, "arrival", Set.of());
+        confirmers.require(tenant, id(newTrip(null, null)), "departure", Set.of());
+
+        confirmers.save(tenant, ACTOR, DIRECT, Map.of(), Set.of(ops));
+        confirmers.require(tenant, trip, "departure", Set.of(other));
+        assertEquals(Map.of(), confirmers.ofTrip(tenant, trip));
     }
 
 }

@@ -24,6 +24,7 @@ import {
 } from "./monitors-api";
 import { ParamsEditor, PlanEditor } from "./plan-params";
 import RuleCard from "./rule-card";
+import { ConfirmersPanel } from "./confirmers-panel";
 
 function versionAttribution(
   version: {
@@ -296,6 +297,13 @@ export default function MonitorEditor({
                 />
               </Section>
             </div>
+
+            <Section
+              title={tr("confirmers.title", d)}
+              hint={tr("confirmers.hint", d)}
+            >
+              <ConfirmersPanel monitor={monitorKey} canEdit={canEdit} d={d} />
+            </Section>
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-end justify-between gap-3">

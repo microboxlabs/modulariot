@@ -89,6 +89,21 @@ describe("a trip milestone", () => {
     expect(screen.getByText("milestoneStatus.confirmed")).toBeInTheDocument();
   });
 
+  it("tells a person outside the milestone's team that the team confirms it", () => {
+    render(
+      <MilestoneRow
+        m={milestone()}
+        planned={null}
+        canConfirm={false}
+        teamOnly
+        d={{}}
+        lang="en"
+      />
+    );
+    expect(screen.queryByText("sheet.confirm")).not.toBeInTheDocument();
+    expect(screen.getByText("sheet.teamOnly")).toBeInTheDocument();
+  });
+
   it("shows the API's refusal", async () => {
     confirm.mockRejectedValueOnce(new Error("departure is not confirmed"));
     row(milestone({ milestone: "arrival", status: "open" }));

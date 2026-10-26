@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamServiceAccount;
 import com.microboxlabs.miot.core.iam.model.IamTeam;
 import com.microboxlabs.miot.core.iam.model.IamTeamMember;
+import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
@@ -62,6 +63,26 @@ public class TeamsService {
     }
 
     // --- teams ---
+
+    /** A team the caller belongs to. */
+    public record TeamRef(UUID id, String name) {
+    }
+
+    /** The organization's teams that have the caller as a member; none for a caller that is not a person. */
+    public Uni<List<TeamRef>> teamsOf(String slug, Caller caller) {
+        if (caller == null || !caller.isUser()) {
+            return Uni.createFrom().item(List.of());
+        }
+        return Panache.withSession(() -> root(slug).flatMap(root -> IamUser.findByEmail(caller.email())
+                .flatMap(user -> user == null ? Uni.createFrom().item(List.<TeamRef>of())
+                        : IamTeamMember.findByUser(user.id).flatMap(memberships -> {
+                            Set<UUID> mine = new HashSet<>();
+                            memberships.forEach(m -> mine.add(m.id.teamId));
+                            return IamTeam.findByOrganization(root.id).map(teams -> teams.stream()
+                                    .filter(t -> mine.contains(t.id))
+                                    .map(t -> new TeamRef(t.id, t.name)).toList());
+                        }))));
+    }
 
     public Uni<List<TeamView>> teams(String slug) {
         return Panache.withSession(() -> root(slug).flatMap(root -> IamTeam.findByOrganization(root.id)

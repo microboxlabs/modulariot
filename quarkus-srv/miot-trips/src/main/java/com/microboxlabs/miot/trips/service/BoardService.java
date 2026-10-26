@@ -9,6 +9,7 @@ import com.microboxlabs.miot.trips.dto.BoardView;
 import com.microboxlabs.miot.trips.dto.StageView;
 import com.microboxlabs.miot.trips.dto.TripSheet;
 import com.microboxlabs.miot.trips.store.BoardStore;
+import com.microboxlabs.miot.trips.store.ConfirmerStore;
 import com.microboxlabs.miot.trips.store.MonitorRunStore;
 import com.microboxlabs.miot.trips.store.StageStore;
 import com.microboxlabs.miot.trips.store.Pg;
@@ -45,21 +46,23 @@ public class BoardService {
     private final StageStore stages;
     private final MilestoneService milestones;
     private final MonitorRunStore runs;
+    private final ConfirmerStore confirmers;
     private final Clock clock;
 
     @Inject
     public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
-            MonitorRunStore runs) {
-        this(board, fleet, stages, milestones, runs, Clock.systemUTC());
+            MonitorRunStore runs, ConfirmerStore confirmers) {
+        this(board, fleet, stages, milestones, runs, confirmers, Clock.systemUTC());
     }
 
     public BoardService(BoardStore board, FleetResources fleet, StageStore stages, MilestoneService milestones,
-            MonitorRunStore runs, Clock clock) {
+            MonitorRunStore runs, ConfirmerStore confirmers, Clock clock) {
         this.board = board;
         this.fleet = fleet;
         this.stages = stages;
         this.milestones = milestones;
         this.runs = runs;
+        this.confirmers = confirmers;
         this.clock = clock;
     }
 
@@ -74,7 +77,8 @@ public class BoardService {
         return new TripSheet(BoardView.Card.of(row, TripBoard.lane(row, now)),
                 stages.listBySubject(tenantCode, Stage.SUBJECT_TRIP, tripId).stream()
                         .sorted(Comparator.comparingInt(Stage::seq)).map(StageView::of).toList(),
-                milestones.list(tenantCode, tripId), runs.transitions(tenantCode, tripId, 50),
+                milestones.list(tenantCode, tripId), confirmers.ofTrip(tenantCode, tripId),
+                runs.transitions(tenantCode, tripId, 50),
                 board.feedSource(tenantCode, tripId).orElse(null));
     }
 

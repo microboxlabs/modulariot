@@ -3,9 +3,12 @@ package com.microboxlabs.miot.trips.api;
 import com.microboxlabs.miot.core.api.OrgResourceSupport;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.core.iam.TeamsService;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.trips.access.TripsAccessCatalog;
+import com.microboxlabs.miot.trips.service.ConfirmerService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.MilestoneService.DetectionRef;
 import com.microboxlabs.miot.trips.service.TripService;
@@ -25,7 +28,9 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.OffsetDateTime;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -59,6 +64,8 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
 
     private final MilestoneService milestones;
     private final TripService trips;
+    private final ConfirmerService confirmers;
+    private final TeamsService teams;
 
     @Inject
     public OrgTripMilestonesResource(
@@ -67,10 +74,14 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             MilestoneService milestones,
-            TripService trips) {
+            TripService trips,
+            ConfirmerService confirmers,
+            TeamsService teams) {
         super(tenantContext, organizationContext, roleService, identity);
         this.milestones = milestones;
         this.trips = trips;
+        this.confirmers = confirmers;
+        this.teams = teams;
     }
 
     @GET
@@ -103,8 +114,9 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             @PathParam(MILESTONE) String milestone, ConfirmRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> {
+        return callerTeams(organizationId).flatMap(mine -> work(() -> {
             UUID tripId = trip(tenant, id);
+            confirmers.require(tenant, tripId, milestone, mine);
             String ch = channel(body == null ? null : body.channel());
             if (body != null && body.expectedDetection() != null) {
                 if (body.at() != null) {
@@ -117,7 +129,7 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             }
             return Response.ok(milestones.confirm(tenant, actor, tripId, milestone,
                     body == null ? null : body.at(), ch, body == null ? null : body.note())).build();
-        });
+        }));
     }
 
     @POST
@@ -130,8 +142,9 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             @PathParam(MILESTONE) String milestone, RejectRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> {
+        return callerTeams(organizationId).flatMap(mine -> work(() -> {
             UUID tripId = trip(tenant, id);
+            confirmers.require(tenant, tripId, milestone, mine);
             String ch = channel(body == null ? null : body.channel());
             if (body != null && body.expectedDetection() != null) {
                 DetectionRequest expected = body.expectedDetection();
@@ -141,7 +154,7 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             }
             return Response.ok(milestones.reject(tenant, actor, tripId, milestone,
                     ch, body == null ? null : body.note())).build();
-        });
+        }));
     }
 
     /** People confirm through the UI or the API; the feed and notice replies have their own paths. */
@@ -153,6 +166,16 @@ public class OrgTripMilestonesResource extends OrgResourceSupport {
             throw new IllegalArgumentException("channel must be ui or api");
         }
         return channel;
+    }
+
+    /** The caller's teams in the organization; null when the caller is not a person. */
+    private Uni<Set<UUID>> callerTeams(String organizationId) {
+        Caller caller = caller();
+        if (!caller.isUser()) {
+            return Uni.createFrom().nullItem();
+        }
+        return teams.teamsOf(organizationId, caller)
+                .map(refs -> refs.stream().map(TeamsService.TeamRef::id).collect(Collectors.toSet()));
     }
 
     private UUID trip(String tenant, String id) {

@@ -7,6 +7,7 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import { useTripsPermission } from "../monitors/monitors-api";
 import { MILESTONE_CONFIRM } from "../milestones/milestones-api";
+import { useMyAccess } from "@/features/settings-admin/team/team-api";
 import { LANE_VIEW, type BoardCard } from "../board/board-api";
 import { shortTime, statusLabel } from "../board/trip-card";
 import {
@@ -104,6 +105,8 @@ function Milestones({
   lang,
 }: Readonly<{ sheet: Sheet; d: I18nRecord; lang: string }>) {
   const canConfirm = useTripsPermission(MILESTONE_CONFIRM);
+  const { access } = useMyAccess();
+  const mine = new Set((access?.teams ?? []).map((t) => t.id));
   const planned: Record<string, string | null> = {
     departure: sheet.card.plannedStart,
     arrival: sheet.card.plannedArrival,
@@ -116,13 +119,32 @@ function Milestones({
           key={m.milestone}
           m={m}
           planned={planned[m.milestone] ?? null}
-          canConfirm={canConfirm}
+          canConfirm={canConfirmAs(
+            canConfirm,
+            sheet.confirmers[m.milestone],
+            mine
+          )}
+          teamOnly={teamOnly(sheet.confirmers[m.milestone], mine)}
           d={d}
           lang={lang}
         />
       ))}
     </Panel>
   );
+}
+
+/** The permission, and membership of the milestone's team when it has one. */
+function canConfirmAs(
+  permission: boolean,
+  team: string | undefined,
+  mine: Set<string>
+) {
+  return permission && (!team || mine.has(team));
+}
+
+/** True when the milestone has a team the user is not in. */
+function teamOnly(team: string | undefined, mine: Set<string>) {
+  return Boolean(team) && !mine.has(team ?? "");
 }
 
 const STAGE_STYLE: Record<SheetStage["status"], string> = {

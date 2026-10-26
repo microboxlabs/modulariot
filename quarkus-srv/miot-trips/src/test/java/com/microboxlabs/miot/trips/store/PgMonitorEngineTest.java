@@ -415,6 +415,17 @@ class PgMonitorEngineTest {
                 () -> milestones.detect(tenant, ACTOR, tripId, "validation", "test", null, evidence));
     }
 
+    @Test
+    void nullMetadataValuesAreRejectedAsInvalidInput() {
+        UUID tripId = id(newTrip(null, null));
+        Map<String, Object> evidence = new java.util.LinkedHashMap<>();
+        evidence.put("seal", null);
+        assertThrows(IllegalArgumentException.class,
+                () -> milestones.detect(tenant, ACTOR, tripId, "validation", "test", null, evidence));
+        assertThrows(IllegalArgumentException.class,
+                () -> milestones.confirm(tenant, ACTOR, tripId, "validation", null, "api", null, evidence));
+    }
+
     private List<OperationalEvent> firedFor(UUID tripId, String type) {
         return fired.stream().filter(e -> e.type().equals(type) && e.context().key().equals(tripId.toString()))
                 .toList();

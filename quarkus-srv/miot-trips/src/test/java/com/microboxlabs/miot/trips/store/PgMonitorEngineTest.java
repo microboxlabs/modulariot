@@ -38,6 +38,7 @@ import com.microboxlabs.miot.trips.service.BoardService;
 import com.microboxlabs.miot.trips.service.ConfirmerService;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.TripBoard;
+import com.microboxlabs.miot.trips.service.TripsTeamDeletionGuard;
 import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.service.MonitorClock;
@@ -709,23 +710,34 @@ class PgMonitorEngineTest {
         ConfirmerService confirmers = new ConfirmerService(new PgConfirmerStore(() -> pool), monitors, audit, tx);
         UUID ops = UUID.randomUUID();
         UUID other = UUID.randomUUID();
+        Pg.query(pool, "INSERT INTO miot_iam.iam_team (id) VALUES ($1), ($2)", Tuple.of(ops, other));
+        Set<UUID> orgTeams = Set.of(ops);
+        Set<UUID> otherTeam = Set.of(other);
+        Map<String, UUID> foreignAssignment = Map.of("departure", other);
+        Map<String, UUID> unknownMilestone = Map.of("unloading", ops);
+        Map<String, UUID> departureAssignment = Map.of("departure", ops);
         assertThrows(IllegalArgumentException.class, () -> confirmers.save(tenant, ACTOR, DIRECT,
-                Map.of("departure", other), Set.of(ops)), "a team of another organization");
+                foreignAssignment, orgTeams), "a team of another organization");
         assertThrows(IllegalArgumentException.class, () -> confirmers.save(tenant, ACTOR, DIRECT,
-                Map.of("unloading", ops), Set.of(ops)));
+                unknownMilestone, orgTeams));
         assertThrows(java.util.NoSuchElementException.class, () -> confirmers.save(tenant, ACTOR, "no-such",
-                Map.of("departure", ops), Set.of(ops)));
-        confirmers.save(tenant, ACTOR, DIRECT, Map.of("departure", ops), Set.of(ops, other));
-        assertEquals(Map.of("departure", ops), confirmers.ofMonitor(tenant, DIRECT));
+                departureAssignment, orgTeams));
+        confirmers.save(tenant, ACTOR, DIRECT, departureAssignment, Set.of(ops, other));
+        assertEquals(departureAssignment, confirmers.ofMonitor(tenant, DIRECT));
+
+        TripsTeamDeletionGuard deletionGuard = new TripsTeamDeletionGuard(() -> pool);
+        var deletionCheck = deletionGuard.requireUnused(ops).await();
+        assertThrows(IllegalStateException.class, deletionCheck::indefinitely);
 
         UUID trip = id(newTrip(DIRECT, null));
-        assertThrows(SecurityException.class, () -> confirmers.require(tenant, trip, "departure", Set.of(other)));
+        assertThrows(SecurityException.class, () -> confirmers.require(tenant, trip, "departure", otherTeam));
         confirmers.require(tenant, trip, "departure", Set.of(ops, other));
         confirmers.require(tenant, trip, "departure", null);
         confirmers.require(tenant, trip, "arrival", Set.of());
         confirmers.require(tenant, id(newTrip(null, null)), "departure", Set.of());
 
-        confirmers.save(tenant, ACTOR, DIRECT, Map.of(), Set.of(ops));
+        confirmers.save(tenant, ACTOR, DIRECT, Map.of(), orgTeams);
+        deletionGuard.requireUnused(ops).await().indefinitely();
         confirmers.require(tenant, trip, "departure", Set.of(other));
         assertEquals(Map.of(), confirmers.ofTrip(tenant, trip));
     }

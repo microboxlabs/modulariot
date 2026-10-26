@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
@@ -56,7 +57,8 @@ public class OrgAccessResource {
             @HeaderParam("X-Dev-User-Email") String devEmail) {
         Caller caller = IamIdentityAugmentor.callerOf(identity, devEmail, clientIdClaims);
         return evaluator.evaluate(organizationId, caller)
-                .flatMap(access -> (access.member() ? teams.teamsOf(organizationId, caller)
+                .flatMap(access -> (access.member() && !PlatformScope.isPlatform(organizationId)
+                        ? teams.teamsOf(organizationId, caller)
                         : Uni.createFrom().item(List.<TeamsService.TeamRef>of()))
                         .map(mine -> new AccessDto(organizationId,
                                 access.member() ? access.baseRole().name() : null, access.roles(),

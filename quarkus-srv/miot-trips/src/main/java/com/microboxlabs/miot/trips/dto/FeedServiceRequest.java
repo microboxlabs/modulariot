@@ -99,7 +99,8 @@ public record FeedServiceRequest(
                     .filter(p -> p != null && key.equals(key(p.document()))).findFirst().orElse(null);
         }
 
-        private static String key(String value) {
+        /** The canonical plate/document key used by fleet lookups. */
+        public static String key(String value) {
             return value == null ? "" : value.replaceAll("[^A-Za-z0-9]", "").toUpperCase(java.util.Locale.ROOT);
         }
     }

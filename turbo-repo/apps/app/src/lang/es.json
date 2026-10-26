@@ -1501,7 +1501,7 @@
             "homeUrlLabel": "Enlace del logo",
             "homeUrlPlaceholder": "https://www.ejemplo.com/",
             "homeUrlHelp": "A dónde lleva el logo al hacer clic. Déjalo vacío para que no sea un enlace.",
-        "activeLabel": "Activo",
+            "activeLabel": "Activo",
             "activeHelp": "Al desactivarlo, el dominio vuelve al logo por defecto sin perder lo configurado.",
             "save": "Guardar",
             "saving": "Guardando…",

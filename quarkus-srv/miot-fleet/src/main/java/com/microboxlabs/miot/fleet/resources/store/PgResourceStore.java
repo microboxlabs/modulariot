@@ -367,6 +367,12 @@ public class PgResourceStore implements ResourceStore {
                 r -> new FleetResources.Match(r.getUUID(ID), r.getBoolean("usable")));
     }
 
+    @Override
+    public void lockRegistrations(String tenantCode) {
+        query(pool.get(), "SELECT pg_advisory_xact_lock(hashtextextended('miot_fleet.registration:' || $1, 0))",
+                Tuple.of(tenantCode));
+    }
+
     // ---- shared ---------------------------------------------------------
 
     /** An ILIKE pattern that matches {@code term} literally: % and _ in user input are not wildcards. */

@@ -59,19 +59,20 @@ public interface FleetResources {
     }
 
     /**
-     * Registers a carrier and returns its id. Joins the caller's transaction. {@code legalName} null takes the tax id.
+     * Registers a missing carrier or reuses its current normalized tax id, refusing an inactive match. Joins the
+     * caller's transaction. {@code legalName} null takes the tax id; existing details are not overwritten.
      */
     default UUID registerCarrier(String tenantCode, String actor, String taxId, String legalName) {
         throw new UnsupportedOperationException("fleet is not enabled");
     }
 
-    /** Registers a truck or trailer ({@code resourceType}) of {@code carrierId} and returns its id. */
+    /** Registers or reuses a truck/trailer by normalized plate; a new one belongs to {@code carrierId}. */
     default UUID registerVehicle(String tenantCode, String actor, String resourceType, String plate,
             UUID carrierId) {
         throw new UnsupportedOperationException("fleet is not enabled");
     }
 
-    /** Registers a driver and returns its id; {@code fullName}, {@code mobilePhone} and {@code carrierId} may be null. */
+    /** Registers or reuses a driver by document; name, phone and carrier may be null and existing details stay intact. */
     default UUID registerDriver(String tenantCode, String actor, String document, String fullName,
             String mobilePhone, UUID carrierId) {
         throw new UnsupportedOperationException("fleet is not enabled");

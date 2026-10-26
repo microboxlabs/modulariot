@@ -75,6 +75,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
@@ -114,7 +115,7 @@ class PgFeedReconcilerTest {
             new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
     private final com.microboxlabs.miot.fleet.resources.store.PgResourceStore resources =
             new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool);
-    private final FleetResourcesService fleet = new FleetResourcesService(resources);
+    private final FleetResourcesService fleet = new FleetResourcesService(resources, tx);
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
             new PgTripStore(() -> pool), fleet, projector, audit, tx);
     private final PgFeedStore feeds = new PgFeedStore(() -> pool);
@@ -1080,5 +1081,79 @@ class PgFeedReconcilerTest {
         assertEquals(List.of("truck NEW-404 is not in the fleet directory; send its carrier's tax id to register it"),
                 missing.errors());
         assertTrue(fleet.driverByDocument(tenant, "20000009").isEmpty(), "a reported service registers nothing");
+    }
+
+    @Test
+    void anInactiveCarrierCannotRegisterNewResourcesEvenInADryRun() {
+        registering();
+        pool.preparedQuery("UPDATE miot_fleet.carrier SET status = 'inactive' WHERE tenant_code = $1")
+                .execute(Tuple.of(tenant)).await().atMost(WAIT);
+        FeedServiceRequest request = registered(1, 6, "TEST-101", null,
+                new FeedServiceRequest.Carrier("20000000001", null), List.of(), "TEST-DRIVER-01");
+        FeedResult dry = reconciler.reconcile(tenant, ACTOR, FEED, "S-054", request, true);
+        assertEquals(FeedReconciler.REPORT, dry.action());
+        assertEquals(List.of("carrier 20000000001 is inactive"), dry.errors());
+        FeedResult result = send("S-054", request);
+        assertEquals(FeedReconciler.REPORT, result.action());
+        assertEquals(dry.errors(), result.errors());
+        assertTrue(fleet.byPlate(tenant, "truck", "TEST-101").isEmpty());
+        assertTrue(fleet.driverByDocument(tenant, "TEST-DRIVER-01").isEmpty());
+        assertNull(result.tripId());
+    }
+
+    @Test
+    void repeatedDocumentsRegisterAndAssignOneDriver() {
+        registering();
+        FeedResult result = send("S-055", registered(1, 6, "ABC-123", null, null,
+                List.of(new FeedServiceRequest.Person("TESTDRIVER02", "Example Driver", null)),
+                "test-driver-02", "TESTDRIVER02"));
+        UUID driverId = fleet.driverByDocument(tenant, "TESTDRIVER02").orElseThrow().id();
+        assertEquals(List.of(driverId.toString()), openWindows(trip(result), "driver"));
+        assertEquals(1, result.operations().stream().filter(o -> o.startsWith("register driver ")).count());
+    }
+
+    @Test
+    void aFailureAfterRegistrationRollsBackEveryNewFleetResource() {
+        registering();
+        FeedServiceRequest request = registered(1, 6, "TEST-303", null,
+                new FeedServiceRequest.Carrier("TEST-CARRIER-03", "Example Carrier"),
+                List.of(new FeedServiceRequest.Person("TESTDRIVER03", "Example Driver", "x".repeat(65))),
+                "TESTDRIVER03");
+        assertThrows(IllegalArgumentException.class, () -> send("S-056", request));
+        assertTrue(fleet.carrierByTaxId(tenant, "TESTCARRIER03").isEmpty());
+        assertTrue(fleet.byPlate(tenant, "truck", "TEST-303").isEmpty());
+        assertTrue(fleet.driverByDocument(tenant, "TESTDRIVER03").isEmpty());
+        assertEquals(FeedReconciler.ERROR, feeds.service(tenant, FEED, "S-056").orElseThrow().lastAction());
+    }
+
+    @Test
+    void concurrentNormalizedCarriersShareOneIdentity() throws Exception {
+        CountDownLatch readMissing = new CountDownLatch(2);
+        CompletableFuture<Void> proceed = new CompletableFuture<>();
+        var first = CompletableFuture.supplyAsync(
+                () -> registerAfterLookup("TEST-CARRIER-04", readMissing, proceed));
+        var second = CompletableFuture.supplyAsync(
+                () -> registerAfterLookup("testcarrier04", readMissing, proceed));
+        assertTrue(readMissing.await(5, TimeUnit.SECONDS), "both transactions first observe a missing carrier");
+        proceed.complete(null);
+        UUID carrierId = first.get(5, TimeUnit.SECONDS);
+        assertEquals(carrierId, second.get(5, TimeUnit.SECONDS));
+        assertEquals(1, fleet.carriers(tenant, "Concurrent Example", 10).size());
+
+        UUID truckId = fleet.registerVehicle(tenant, ACTOR, "truck", "TEST-404", carrierId);
+        assertEquals(truckId, fleet.registerVehicle(tenant, ACTOR, "truck", "test404", carrierId));
+        UUID driverId = fleet.registerDriver(tenant, ACTOR, "TEST-DRIVER-04", "Example Driver", null, carrierId);
+        assertEquals(driverId, fleet.registerDriver(tenant, ACTOR, "testdriver04", "Another Name", null, carrierId));
+        assertEquals("Example Driver", fleet.driver(tenant, driverId).orElseThrow().fullName(),
+                "reusing a normalized document never overwrites existing details");
+    }
+
+    private UUID registerAfterLookup(String taxId, CountDownLatch readMissing, CompletableFuture<Void> proceed) {
+        return tx.inTransaction(() -> {
+            assertTrue(fleet.carrierByTaxId(tenant, taxId).isEmpty());
+            readMissing.countDown();
+            proceed.orTimeout(5, TimeUnit.SECONDS).join();
+            return fleet.registerCarrier(tenant, ACTOR, taxId, "Concurrent Example Carrier");
+        });
     }
 }

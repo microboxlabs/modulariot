@@ -1501,7 +1501,7 @@
             "homeUrlLabel": "Logo link",
             "homeUrlPlaceholder": "https://www.example.com/",
             "homeUrlHelp": "Where the logo goes when clicked. Leave it empty to render the logo unlinked.",
-        "activeLabel": "Active",
+            "activeLabel": "Active",
             "activeHelp": "Turning this off returns the domain to the default logo without losing what's configured.",
             "save": "Save",
             "saving": "Saving…",

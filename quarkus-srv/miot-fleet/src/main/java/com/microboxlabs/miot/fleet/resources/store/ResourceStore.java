@@ -12,6 +12,9 @@ import java.util.UUID;
 /** The resource directory: carriers, trucks, trailers, drivers. Every call is tenant-scoped. */
 public interface ResourceStore {
 
+    /** Serializes registrations for one tenant until the caller's transaction ends. */
+    void lockRegistrations(String tenantCode);
+
     Carrier insertCarrier(Carrier carrier);
 
     Optional<Carrier> findCarrier(String tenantCode, UUID id);
@@ -63,7 +66,7 @@ public interface ResourceStore {
     Optional<FleetResources.Carrier> carrierSummary(String tenantCode, UUID id);
 
     /**
-     * The current row of {@code table} (truck, trailer: plate; driver: rut) whose key, upper-cased and stripped to
+     * The current row of {@code table} (truck, trailer: plate; driver, carrier: rut) whose key, upper-cased and stripped to
      * letters and digits, equals {@code key}; an active one first. Takes no row lock.
      */
     Optional<FleetResources.Match> findByKey(String tenantCode, String table, String key);

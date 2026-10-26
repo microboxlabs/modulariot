@@ -43,6 +43,7 @@ const feed: Feed = {
   ],
   arrivalStage: "transit",
   requiredResources: ["truck", "driver"],
+  registersResources: true,
   active: false,
   openServices: 3,
   updatedAt: null,
@@ -89,6 +90,7 @@ describe("FeedsPanel", () => {
           stages: feed.stages,
           arrivalStage: "transit",
           requiredResources: ["truck", "driver"],
+          registersResources: true,
           active: false,
         },
         false

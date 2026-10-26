@@ -37,6 +37,7 @@ const NEW_FEED: FeedBody = {
   stages: [],
   arrivalStage: "",
   requiredResources: ["truck", "driver"],
+  registersResources: true,
   active: true,
 };
 
@@ -46,6 +47,7 @@ function bodyOf(f: Feed): FeedBody {
     stages: f.stages,
     arrivalStage: f.arrivalStage,
     requiredResources: f.requiredResources,
+    registersResources: f.registersResources,
     active: f.active,
   };
 }
@@ -224,6 +226,20 @@ function FeedModal({
               ))}
             </div>
           </fieldset>
+
+          <div className="flex flex-col gap-1">
+            <ToggleSwitch
+              disabled={busy}
+              checked={body.registersResources}
+              label={tr("registersLabel", d)}
+              onChange={(registersResources) => change({ registersResources })}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {body.registersResources
+                ? tr("registersHint", d)
+                : tr("registersOffHint", d)}
+            </p>
+          </div>
 
           <ToggleSwitch
             disabled={busy}

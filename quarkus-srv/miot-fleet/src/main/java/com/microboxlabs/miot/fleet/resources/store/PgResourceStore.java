@@ -358,13 +358,19 @@ public class PgResourceStore implements ResourceStore {
     public Optional<FleetResources.Match> findByKey(String tenantCode, String table, String key) {
         String column = switch (table) {
             case TRUCK, TRAILER -> LICENSE_PLATE;
-            case DRIVER -> RUT;
+            case DRIVER, CARRIER -> RUT;
             default -> throw new IllegalArgumentException("not a keyed resource table: " + table);
         };
         return first(query(pool.get(), select("id, is_active AND COALESCE(status, 'active') <> 'inactive' AS usable",
                 table) + " AND upper(regexp_replace(" + column + " COLLATE \"C\", '[^A-Za-z0-9]', '', 'g')) = $2"
                 + " ORDER BY usable DESC, id LIMIT 1", Tuple.of(tenantCode, key)),
                 r -> new FleetResources.Match(r.getUUID(ID), r.getBoolean("usable")));
+    }
+
+    @Override
+    public void lockRegistrations(String tenantCode) {
+        query(pool.get(), "SELECT pg_advisory_xact_lock(hashtextextended('miot_fleet.registration:' || $1, 0))",
+                Tuple.of(tenantCode));
     }
 
     // ---- shared ---------------------------------------------------------

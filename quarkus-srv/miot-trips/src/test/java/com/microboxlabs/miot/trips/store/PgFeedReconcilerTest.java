@@ -29,6 +29,7 @@ import com.microboxlabs.miot.trips.domain.Stage;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import com.microboxlabs.miot.trips.dto.MonitorViews;
+import com.microboxlabs.miot.core.fleet.FleetResources;
 import com.microboxlabs.miot.trips.dto.AssignmentView;
 import com.microboxlabs.miot.trips.dto.FeedBatchRequest;
 import com.microboxlabs.miot.trips.dto.FeedBatchResult;
@@ -74,6 +75,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
@@ -113,7 +115,7 @@ class PgFeedReconcilerTest {
             new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
     private final com.microboxlabs.miot.fleet.resources.store.PgResourceStore resources =
             new com.microboxlabs.miot.fleet.resources.store.PgResourceStore(() -> pool);
-    private final FleetResourcesService fleet = new FleetResourcesService(resources);
+    private final FleetResourcesService fleet = new FleetResourcesService(resources, tx);
     private final AssignmentService assignments = new AssignmentService(new PgAssignmentStore(() -> pool),
             new PgTripStore(() -> pool), fleet, projector, audit, tx);
     private final PgFeedStore feeds = new PgFeedStore(() -> pool);
@@ -173,18 +175,18 @@ class PgFeedReconcilerTest {
     private FeedProfile profile(List<String> stageTypes) {
         return new FeedProfile(tenant, FEED, "Servicios", stageTypes.stream()
                 .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "closing",
-                new LinkedHashSet<>(List.of("truck", "driver")), true, null, ACTOR, null, ACTOR);
+                new LinkedHashSet<>(List.of("truck", "driver")), false, true, null, ACTOR, null, ACTOR);
     }
 
     @Test
     void creatingAFeedCannotOverwriteAnExistingProfile() {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
         FeedProfileRequest original = new FeedProfileRequest("Original", List.of(
-                new FeedProfile.StagePlan("preparation", "READY")), "preparation", List.of("truck"), true);
+                new FeedProfile.StagePlan("preparation", "READY")), "preparation", List.of("truck"), null, true);
         profiles.createView(tenant, ACTOR, "create-key", original);
         FeedProfile before = feeds.profile(tenant, "create-key").orElseThrow();
         FeedProfileRequest replacement = new FeedProfileRequest("Replacement", List.of(
-                new FeedProfile.StagePlan("closing", "CLOSED")), "closing", List.of(), false);
+                new FeedProfile.StagePlan("closing", "CLOSED")), "closing", List.of(), null, false);
 
         assertThrows(IllegalStateException.class,
                 () -> profiles.createView(tenant, ACTOR, "create-key", replacement));
@@ -196,10 +198,10 @@ class PgFeedReconcilerTest {
     @Test
     void onlyOneConcurrentCreatorCanClaimAFeedKey() throws Exception {
         FeedProfile first = new FeedProfile(tenant, "racing-feed", "First", List.of(
-                new FeedProfile.StagePlan("preparation", null)), "preparation", Set.of(), true,
+                new FeedProfile.StagePlan("preparation", null)), "preparation", Set.of(), true, true,
                 null, ACTOR, null, ACTOR);
         FeedProfile second = new FeedProfile(tenant, first.feedKey(), "Second", first.stages(), first.arrivalStage(),
-                first.requiredResources(), true, null, ACTOR, null, ACTOR);
+                first.requiredResources(), true, true, null, ACTOR, null, ACTOR);
         var a = CompletableFuture.supplyAsync(() -> feeds.createProfile(first));
         var b = CompletableFuture.supplyAsync(() -> feeds.createProfile(second));
         List<Optional<FeedProfile>> outcomes = List.of(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS));
@@ -331,7 +333,7 @@ class PgFeedReconcilerTest {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
         profiles.save(tenant, ACTOR, FEED, new FeedProfileRequest("Servicios", List.of(
                 new FeedProfile.StagePlan("preparation", "ADDED"), new FeedProfile.StagePlan("closing", "FINISHED")),
-                "closing", null, null));
+                "closing", null, null, null));
 
         FeedResult r = send("S-020", desired(2, 10, "ABC-123", null, "10000001"));
 
@@ -453,7 +455,7 @@ class PgFeedReconcilerTest {
                 "S-1", request, true));
         FeedProfile on = feeds.profile(tenant, FEED).orElseThrow();
         feeds.saveProfile(new FeedProfile(tenant, FEED, on.name(), on.stages(), on.arrivalStage(),
-                on.requiredResources(), false, null, ACTOR, null, ACTOR));
+                on.requiredResources(), true, false, null, ACTOR, null, ACTOR));
         IllegalStateException off = assertThrows(IllegalStateException.class, () -> reconciler.reconcile(tenant,
                 ACTOR, FEED, "S-1", request, true));
         assertEquals("feed " + FEED + " is inactive", off.getMessage());
@@ -578,13 +580,13 @@ class PgFeedReconcilerTest {
         List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
 
-        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null);
+        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null, null);
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingArrival),
                 "the arrival stage must be in the plan");
-        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null);
+        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null, null);
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas", valid));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "closing", List.of("truck"), null));
+                new FeedProfileRequest("Nuevo", plan, "closing", List.of("truck"), null, null));
         assertTrue(saved.active());
     }
 
@@ -674,7 +676,7 @@ class PgFeedReconcilerTest {
         monitors.publish(tenant, ACTOR, "reports");
         new FeedProfileService(feeds, audit).save(tenant, ACTOR, FEED,
                 new FeedProfileRequest("Reports", List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
-                        new FeedProfile.StagePlan("closing", "FINISHED")), "closing", null, null));
+                        new FeedProfile.StagePlan("closing", "FINISHED")), "closing", null, null, null));
         FeedServiceRequest row = withReports(desired(1, 5, "ABC-123", null, "10000001"), Map.of(
                 "arrival", new FeedServiceRequest.MilestoneReport(at(0), Map.of()),
                 "departure", new FeedServiceRequest.MilestoneReport(at(-0.2), Map.of("gate", "G3"))));
@@ -804,7 +806,7 @@ class PgFeedReconcilerTest {
         FeedProfile current = feeds.profile(tenant, FEED).orElseThrow();
         feeds.saveProfile(new FeedProfile(tenant, FEED, current.name(),
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED")), "preparation",
-                current.requiredResources(), true, null, ACTOR, null, ACTOR));
+                current.requiredResources(), true, true, null, ACTOR, null, ACTOR));
         FeedResult noClosing = send("S-035", withActuals(ended, at(-11), null, at(-6)));
         assertEquals(FeedReconciler.REPORT, noClosing.action());
         assertTrue(noClosing.errors().get(0).contains("closing as its final stage"));
@@ -1011,5 +1013,147 @@ class PgFeedReconcilerTest {
         FeedServiceRequest d = desired(2, 10, "ABC-123", null, "10000001");
         assertEquals(reconciler.hash(d), reconciler.hash(new FeedServiceRequest(d.orderType(), d.orderRef(), null,
                 null, d.plannedStart(), d.plannedEnd(), null, null, null, d.resources(), null, null, null, null)));
+    }
+
+    private void registering() {
+        FeedProfile base = feeds.profile(tenant, FEED).orElseThrow();
+        feeds.saveProfile(new FeedProfile(tenant, FEED, base.name(), base.stages(), base.arrivalStage(),
+                base.requiredResources(), true, true, null, ACTOR, null, ACTOR));
+    }
+
+    private FeedServiceRequest registered(double startH, double endH, String truck, String trailer,
+            FeedServiceRequest.Carrier carrier, List<FeedServiceRequest.Person> people, String... drivers) {
+        return new FeedServiceRequest("directo", "Cliente Prueba · Carga general", at(startH), at(endH),
+                new FeedServiceRequest.Resources(truck, trailer, List.of(drivers), carrier, people), null);
+    }
+
+    @Test
+    void aFeedThatRegistersResourcesAddsTheUnknownOnesToFleetBeforeTheTrip() {
+        registering();
+        FeedServiceRequest.Carrier carrier = new FeedServiceRequest.Carrier("20-99999999-1", "Transportes Nuevos SAC");
+        FeedServiceRequest d = registered(1, 6, "NEW-101", "NEW-202", carrier, List.of(
+                new FeedServiceRequest.Person("20000001", "Conductor Uno", "+51 900 000 001"),
+                new FeedServiceRequest.Person("2000-0002", "Conductor Dos", " ")), "20000001", "20000002");
+
+        FeedResult dry = reconciler.reconcile(tenant, ACTOR, FEED, "S-050", d, true);
+        assertEquals(List.of(), dry.errors());
+        assertTrue(dry.operations().containsAll(List.of("find or register carrier Transportes Nuevos SAC",
+                "register truck NEW-101", "register trailer NEW-202", "register driver 20000001",
+                "register driver 20000002")), dry.operations().toString());
+        assertTrue(fleet.byPlate(tenant, "truck", "NEW-101").isEmpty(), "a dry run registers nothing");
+
+        FeedResult r = send("S-050", d);
+        assertEquals(FeedReconciler.CREATE, r.action());
+        assertEquals(List.of(), r.errors());
+        UUID carrierId = fleet.carrierByTaxId(tenant, "20999999991").orElseThrow().id();
+        UUID truck = fleet.byPlate(tenant, "truck", "NEW-101").orElseThrow().id();
+        UUID trailer = fleet.byPlate(tenant, "trailer", "NEW-202").orElseThrow().id();
+        assertEquals(carrierId, fleet.vehicle(tenant, "truck", truck).orElseThrow().carrierId());
+        assertEquals(carrierId, fleet.vehicle(tenant, "trailer", trailer).orElseThrow().carrierId());
+        UUID first = fleet.driverByDocument(tenant, "20000001").orElseThrow().id();
+        FleetResources.Driver one = fleet.driver(tenant, first).orElseThrow();
+        assertEquals("Conductor Uno", one.fullName());
+        assertEquals("+51 900 000 001", one.phone());
+        UUID second = fleet.driverByDocument(tenant, "20000002").orElseThrow().id();
+        assertEquals("Conductor Dos", fleet.driver(tenant, second).orElseThrow().fullName(),
+                "details match the driver ignoring dashes");
+        assertEquals(List.of(truck.toString(), trailer.toString(), first.toString(), second.toString()),
+                trip(r).assignments().stream().map(AssignmentView::resourceId).toList());
+
+        FeedResult again = send("S-051", registered(2, 7, "NEW-101", null, carrier, List.of(), "20000001"));
+        assertEquals(List.of(), again.errors());
+        assertTrue(again.operations().stream().noneMatch(o -> o.startsWith("register")), again.operations().toString());
+        assertEquals(1, fleet.carriers(tenant, "Transportes Nuevos", 10).size(), "the carrier is not registered twice");
+    }
+
+    @Test
+    void aKnownCarrierIsReusedAndAVehicleWithoutOneIsReported() {
+        registering();
+        FeedResult reused = send("S-052", registered(1, 6, "NEW-303", null,
+                new FeedServiceRequest.Carrier("20000000001", null), List.of(), "10000001"));
+        assertEquals(List.of(), reused.errors());
+        UUID truck = fleet.byPlate(tenant, "truck", "NEW-303").orElseThrow().id();
+        assertEquals(fleet.carrierByTaxId(tenant, "20000000001").orElseThrow().id(),
+                fleet.vehicle(tenant, "truck", truck).orElseThrow().carrierId());
+
+        FeedResult missing = send("S-053", registered(1, 6, "NEW-404", null, null, List.of(), "20000009"));
+        assertEquals(FeedReconciler.REPORT, missing.action());
+        assertEquals(List.of("truck NEW-404 is not in the fleet directory; send its carrier's tax id to register it"),
+                missing.errors());
+        assertTrue(fleet.driverByDocument(tenant, "20000009").isEmpty(), "a reported service registers nothing");
+    }
+
+    @Test
+    void anInactiveCarrierCannotRegisterNewResourcesEvenInADryRun() {
+        registering();
+        pool.preparedQuery("UPDATE miot_fleet.carrier SET status = 'inactive' WHERE tenant_code = $1")
+                .execute(Tuple.of(tenant)).await().atMost(WAIT);
+        FeedServiceRequest request = registered(1, 6, "TEST-101", null,
+                new FeedServiceRequest.Carrier("20000000001", null), List.of(), "TEST-DRIVER-01");
+        FeedResult dry = reconciler.reconcile(tenant, ACTOR, FEED, "S-054", request, true);
+        assertEquals(FeedReconciler.REPORT, dry.action());
+        assertEquals(List.of("carrier 20000000001 is inactive"), dry.errors());
+        FeedResult result = send("S-054", request);
+        assertEquals(FeedReconciler.REPORT, result.action());
+        assertEquals(dry.errors(), result.errors());
+        assertTrue(fleet.byPlate(tenant, "truck", "TEST-101").isEmpty());
+        assertTrue(fleet.driverByDocument(tenant, "TEST-DRIVER-01").isEmpty());
+        assertNull(result.tripId());
+    }
+
+    @Test
+    void repeatedDocumentsRegisterAndAssignOneDriver() {
+        registering();
+        FeedResult result = send("S-055", registered(1, 6, "ABC-123", null, null,
+                List.of(new FeedServiceRequest.Person("TESTDRIVER02", "Example Driver", null)),
+                "test-driver-02", "TESTDRIVER02"));
+        UUID driverId = fleet.driverByDocument(tenant, "TESTDRIVER02").orElseThrow().id();
+        assertEquals(List.of(driverId.toString()), openWindows(trip(result), "driver"));
+        assertEquals(1, result.operations().stream().filter(o -> o.startsWith("register driver ")).count());
+    }
+
+    @Test
+    void aFailureAfterRegistrationRollsBackEveryNewFleetResource() {
+        registering();
+        FeedServiceRequest request = registered(1, 6, "TEST-303", null,
+                new FeedServiceRequest.Carrier("TEST-CARRIER-03", "Example Carrier"),
+                List.of(new FeedServiceRequest.Person("TESTDRIVER03", "Example Driver", "x".repeat(65))),
+                "TESTDRIVER03");
+        assertThrows(IllegalArgumentException.class, () -> send("S-056", request));
+        assertTrue(fleet.carrierByTaxId(tenant, "TESTCARRIER03").isEmpty());
+        assertTrue(fleet.byPlate(tenant, "truck", "TEST-303").isEmpty());
+        assertTrue(fleet.driverByDocument(tenant, "TESTDRIVER03").isEmpty());
+        assertEquals(FeedReconciler.ERROR, feeds.service(tenant, FEED, "S-056").orElseThrow().lastAction());
+    }
+
+    @Test
+    void concurrentNormalizedCarriersShareOneIdentity() throws Exception {
+        CountDownLatch readMissing = new CountDownLatch(2);
+        CompletableFuture<Void> proceed = new CompletableFuture<>();
+        var first = CompletableFuture.supplyAsync(
+                () -> registerAfterLookup("TEST-CARRIER-04", readMissing, proceed));
+        var second = CompletableFuture.supplyAsync(
+                () -> registerAfterLookup("testcarrier04", readMissing, proceed));
+        assertTrue(readMissing.await(5, TimeUnit.SECONDS), "both transactions first observe a missing carrier");
+        proceed.complete(null);
+        UUID carrierId = first.get(5, TimeUnit.SECONDS);
+        assertEquals(carrierId, second.get(5, TimeUnit.SECONDS));
+        assertEquals(1, fleet.carriers(tenant, "Concurrent Example", 10).size());
+
+        UUID truckId = fleet.registerVehicle(tenant, ACTOR, "truck", "TEST-404", carrierId);
+        assertEquals(truckId, fleet.registerVehicle(tenant, ACTOR, "truck", "test404", carrierId));
+        UUID driverId = fleet.registerDriver(tenant, ACTOR, "TEST-DRIVER-04", "Example Driver", null, carrierId);
+        assertEquals(driverId, fleet.registerDriver(tenant, ACTOR, "testdriver04", "Another Name", null, carrierId));
+        assertEquals("Example Driver", fleet.driver(tenant, driverId).orElseThrow().fullName(),
+                "reusing a normalized document never overwrites existing details");
+    }
+
+    private UUID registerAfterLookup(String taxId, CountDownLatch readMissing, CompletableFuture<Void> proceed) {
+        return tx.inTransaction(() -> {
+            assertTrue(fleet.carrierByTaxId(tenant, taxId).isEmpty());
+            readMissing.countDown();
+            proceed.orTimeout(5, TimeUnit.SECONDS).join();
+            return fleet.registerCarrier(tenant, ACTOR, taxId, "Concurrent Example Carrier");
+        });
     }
 }

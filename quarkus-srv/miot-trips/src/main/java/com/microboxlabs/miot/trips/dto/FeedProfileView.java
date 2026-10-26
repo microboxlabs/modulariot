@@ -10,6 +10,7 @@ public record FeedProfileView(
         List<FeedProfile.StagePlan> stages,
         String arrivalStage,
         List<String> requiredResources,
+        boolean registersResources,
         boolean active,
         int openServices,
         OffsetDateTime updatedAt,
@@ -17,6 +18,6 @@ public record FeedProfileView(
 
     public static FeedProfileView of(FeedProfile p, int openServices) {
         return new FeedProfileView(p.feedKey(), p.name(), p.stages(), p.arrivalStage(),
-                List.copyOf(p.requiredResources()), p.active(), openServices, p.updatedAt(), p.updatedBy());
+                List.copyOf(p.requiredResources()), p.registersResources(), p.active(), openServices, p.updatedAt(), p.updatedBy());
     }
 }

@@ -52,4 +52,29 @@ public interface FleetResources {
     default List<Carrier> carriers(String tenantCode, String query, int limit) {
         return List.of();
     }
+
+    /** The current carrier whose tax id (RUT, RUC) matches {@code taxId} ignoring dots, dashes and spaces. */
+    default Optional<Match> carrierByTaxId(String tenantCode, String taxId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Registers a missing carrier or reuses its current normalized tax id, refusing an inactive match. Joins the
+     * caller's transaction. {@code legalName} null takes the tax id; existing details are not overwritten.
+     */
+    default UUID registerCarrier(String tenantCode, String actor, String taxId, String legalName) {
+        throw new UnsupportedOperationException("fleet is not enabled");
+    }
+
+    /** Registers or reuses a truck/trailer by normalized plate; a new one belongs to {@code carrierId}. */
+    default UUID registerVehicle(String tenantCode, String actor, String resourceType, String plate,
+            UUID carrierId) {
+        throw new UnsupportedOperationException("fleet is not enabled");
+    }
+
+    /** Registers or reuses a driver by document; name, phone and carrier may be null and existing details stay intact. */
+    default UUID registerDriver(String tenantCode, String actor, String document, String fullName,
+            String mobilePhone, UUID carrierId) {
+        throw new UnsupportedOperationException("fleet is not enabled");
+    }
 }

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Feed, FeedBody } from "./feeds-api";
 import FeedsPanel from "./feeds-panel";
@@ -82,5 +88,27 @@ describe("FeedsPanel", () => {
     expect(screen.getByLabelText("key")).toHaveValue("test-feed");
     expect(screen.getByText("keyTaken")).toBeInTheDocument();
     expect(screen.getByText("create")).toBeDisabled();
+  });
+
+  it("locks form values during a save and restores them when it fails", async () => {
+    let fail: (error: Error) => void = () => {};
+    api.save.mockReturnValue(
+      new Promise<Feed>((_resolve, reject) => {
+        fail = reject;
+      })
+    );
+    render(
+      <FeedsPanel creating={false} onCreatingDone={() => {}} d={{}} md={{}} />
+    );
+    fireEvent.click(screen.getByText("edit"));
+    fireEvent.click(screen.getByText("save"));
+    const name = screen.getByLabelText("name");
+    expect(name).toBeDisabled();
+    expect(screen.getByLabelText("arrivalStage")).toBeDisabled();
+    expect(screen.getByLabelText("resources.truck")).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "activeLabel" })).toBeDisabled();
+    await act(async () => fail(new Error("Save failed")));
+    await waitFor(() => expect(name).toBeEnabled());
+    expect(screen.getByText("Save failed")).toBeInTheDocument();
   });
 });

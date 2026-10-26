@@ -127,6 +127,7 @@ function FeedModal({
               <TextInput
                 id="feed-name"
                 sizing="sm"
+                disabled={busy}
                 value={body.name}
                 onChange={(e) => {
                   change({ name: e.target.value });
@@ -142,7 +143,7 @@ function FeedModal({
                 sizing="sm"
                 className="font-mono"
                 value={key}
-                disabled={!creating}
+                disabled={!creating || busy}
                 onChange={(e) => {
                   setKey(e.target.value);
                   setKeyEdited(true);
@@ -177,6 +178,7 @@ function FeedModal({
             <Select
               id="feed-arrival"
               sizing="sm"
+              disabled={busy}
               value={arrival}
               onChange={(e) => change({ arrivalStage: e.target.value })}
             >
@@ -203,6 +205,7 @@ function FeedModal({
                 <div key={r} className="flex items-center gap-2">
                   <Checkbox
                     id={`feed-resource-${r}`}
+                    disabled={busy}
                     checked={body.requiredResources.includes(r)}
                     onChange={(e) => toggleResource(r, e.target.checked)}
                   />
@@ -215,6 +218,7 @@ function FeedModal({
           </fieldset>
 
           <ToggleSwitch
+            disabled={busy}
             checked={body.active}
             label={tr("activeLabel", d)}
             onChange={(active) => change({ active })}

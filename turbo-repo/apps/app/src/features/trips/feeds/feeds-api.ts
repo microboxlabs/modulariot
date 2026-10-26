@@ -6,7 +6,11 @@
  */
 
 import useSWR, { mutate } from "swr";
-import { tripsRequest, type StagePlan } from "../monitors/monitors-api";
+import {
+  scopeValuesKey,
+  tripsRequest,
+  type StagePlan,
+} from "../monitors/monitors-api";
 
 export const FEED_ADMIN = "trips:feed.admin";
 
@@ -44,6 +48,6 @@ export async function saveFeed(feedKey: string, body: FeedBody) {
     `${feedsKey}/${encodeURIComponent(feedKey)}`,
     { method: "PUT", body }
   );
-  await mutate(feedsKey);
+  await Promise.all([mutate(feedsKey), mutate(scopeValuesKey)]);
   return saved;
 }

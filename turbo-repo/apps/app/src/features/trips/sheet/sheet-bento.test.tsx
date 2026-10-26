@@ -191,13 +191,14 @@ describe("trip bento", () => {
     expect(screen.getByText("sheet.noValidations")).toBeInTheDocument();
   });
 
-  it("shows milestones, stages and delivered loads as progress", () => {
+  it("shows the loads delivered, not milestones or stages", () => {
     render(
       <Progress sheet={sheet(milestones({ departure: "confirmed" }))} d={{}} />
     );
-    expect(screen.getByText("(1 / 5)")).toBeInTheDocument();
     expect(screen.getByText("(1 / 2)")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument();
+    expect(screen.queryByText("sheet.milestones")).toBeNull();
+    expect(screen.queryByText("sheet.plan")).toBeNull();
   });
 
   it("tells a trip from an own site from a customer pickup", () => {

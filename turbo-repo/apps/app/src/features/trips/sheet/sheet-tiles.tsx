@@ -318,29 +318,15 @@ function LoadKpis({
   );
 }
 
-/** The load's KPIs (lead time, occupancy) and how far the trip is: milestones, stages and loads delivered. */
+/** The load's KPIs: lead time, occupancy and loads delivered. */
 export function Progress({
   sheet,
   d,
 }: Readonly<{ sheet: TripSheet; d: I18nRecord }>) {
-  const confirmed = sheet.milestones.filter(
-    (m) => m.status === "confirmed"
-  ).length;
-  const closed = sheet.stages.filter((s) => s.status === "completed").length;
   const delivery = sheet.card.delivery;
   return (
     <div className="grid grid-cols-[1fr_5rem_2.5rem_auto] items-center gap-x-2 gap-y-2 p-3">
       <LoadKpis details={sheet.details} d={d} />
-      <Bar
-        label={tr("sheet.milestones", d)}
-        done={confirmed}
-        total={sheet.milestones.length}
-      />
-      <Bar
-        label={tr("sheet.plan", d)}
-        done={closed}
-        total={sheet.stages.length}
-      />
       {delivery && (
         <Bar
           label={tr("sheet.deliveries.title", d)}

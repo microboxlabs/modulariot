@@ -2,6 +2,7 @@ package com.microboxlabs.miot.content.gcs;
 
 import com.google.cloud.ReadChannel;
 import com.google.cloud.WriteChannel;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -13,7 +14,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -27,6 +30,7 @@ public class GcsContentDriver implements ContentDriver {
 
     static final String SCHEME = "gcs";
     private static final String PREFIX = SCHEME + "://";
+    private static final String UPLOAD_ID = "miot-upload-id";
 
     private final Supplier<Storage> storage;
     private final Optional<String> bucket;
@@ -50,12 +54,30 @@ public class GcsContentDriver implements ContentDriver {
     @Override
     public String write(String path, InputStream in, String mimetype) throws IOException {
         String b = bucket.orElseThrow(() -> new IllegalStateException("miot.content.gcs.bucket is not set"));
-        BlobInfo info = BlobInfo.newBuilder(BlobId.of(b, path)).setContentType(mimetype).build();
+        String uploadId = UUID.randomUUID().toString();
+        BlobInfo info = BlobInfo.newBuilder(BlobId.of(b, path)).setContentType(mimetype)
+                .setMetadata(Map.of(UPLOAD_ID, uploadId)).build();
         try (WriteChannel channel = client().writer(info, Storage.BlobWriteOption.doesNotExist());
                 OutputStream out = Channels.newOutputStream(channel)) {
             in.transferTo(out);
+        } catch (IOException | RuntimeException failure) {
+            removePartial(info.getBlobId(), uploadId, failure);
+            throw failure;
         }
         return PREFIX + b + "/" + path;
+    }
+
+    /** Closing a failed stream may commit a partial object; delete only this upload's exact generation. */
+    private void removePartial(BlobId id, String uploadId, Exception failure) {
+        try {
+            Blob partial = client().get(id);
+            if (partial != null && partial.getMetadata() != null
+                    && uploadId.equals(partial.getMetadata().get(UPLOAD_ID))) {
+                client().delete(id, Storage.BlobSourceOption.generationMatch(partial.getGeneration()));
+            }
+        } catch (RuntimeException cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
+        }
     }
 
     @Override

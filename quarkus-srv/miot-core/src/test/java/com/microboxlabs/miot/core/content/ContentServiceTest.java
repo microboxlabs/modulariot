@@ -6,13 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SecureDirectoryStream;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
@@ -39,6 +43,9 @@ class ContentServiceTest {
     @TempDir
     Path root;
 
+    @TempDir
+    Path outside;
+
     private final Rows store = new Rows();
 
     private ContentService service(long maxBytes, Instant now) {
@@ -47,11 +54,12 @@ class ContentServiceTest {
     }
 
     @Test
-    void storesTheFileByTenantAndDayWithItsSizeAndDigest() throws Exception {
+    void storesTheFileWithItsTenantSizeAndDigest() throws Exception {
         Content c = service(1024, NOW).write("t1", "user:a", "manifest.pdf", "application/pdf",
                 new ByteArrayInputStream(PDF));
 
-        assertTrue(c.contentUrl().startsWith("fs://t1/2026/10/26/"));
+        assertEquals("t1", c.tenantCode());
+        assertTrue(c.contentUrl().startsWith("fs://.content-"));
         assertEquals(PDF.length, c.size());
         assertEquals(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(PDF)), c.sha256());
         assertEquals("manifest.pdf", c.name());
@@ -59,19 +67,23 @@ class ContentServiceTest {
         try (InputStream in = service(1024, NOW).open("t1", UUID.fromString(c.id())).stream()) {
             assertArrayEquals(PDF, in.readAllBytes());
         }
-        assertThrows(NoSuchElementException.class, () -> service(1024, NOW).open("t2", UUID.fromString(c.id())));
+        ContentService reader = service(1024, NOW);
+        UUID id = UUID.fromString(c.id());
+        assertThrows(NoSuchElementException.class, () -> reader.open("t2", id));
     }
 
     @Test
     void refusesOtherTypesBytesThatDoNotMatchAndLargeFiles() throws IOException {
         ContentService s = service(PDF.length - 1L, NOW);
-
+        ByteArrayInputStream html = new ByteArrayInputStream("<html>".getBytes(StandardCharsets.UTF_8));
+        ByteArrayInputStream wrongType = new ByteArrayInputStream(PDF);
+        ByteArrayInputStream tooLarge = new ByteArrayInputStream(PDF);
         assertThrows(IllegalArgumentException.class, () -> s.write("t1", "u", "a.html", "text/html",
-                new ByteArrayInputStream("<html>".getBytes(StandardCharsets.UTF_8))));
+                html));
         assertThrows(IllegalArgumentException.class, () -> s.write("t1", "u", "a.png", "image/png",
-                new ByteArrayInputStream(PDF)));
+                wrongType));
         IllegalArgumentException large = assertThrows(IllegalArgumentException.class,
-                () -> s.write("t1", "u", "a.pdf", "application/pdf", new ByteArrayInputStream(PDF)));
+                () -> s.write("t1", "u", "a.pdf", "application/pdf", tooLarge));
         assertTrue(large.getMessage().contains("larger"));
         assertTrue(store.rows.isEmpty());
         try (Stream<Path> files = Files.walk(root)) {
@@ -92,18 +104,98 @@ class ContentServiceTest {
         FileContentDriver fs = new FileContentDriver(root);
         assertTrue(fs.exists(kept.contentUrl()));
         assertFalse(fs.exists(dropped.contentUrl()));
-        assertThrows(NoSuchElementException.class,
-                () -> service(1024, NOW).owner("t1", UUID.fromString(dropped.id()), "x"));
+        ContentService owner = service(1024, NOW);
+        UUID droppedId = UUID.fromString(dropped.id());
+        assertThrows(NoSuchElementException.class, () -> owner.owner("t1", droppedId, "x"));
+    }
+
+    @Test
+    void aFailedPhysicalDeletionKeepsTheRowForTheNextCleanup() {
+        Content content = service(1024, NOW).write("t1", "u", "a.pdf", "application/pdf",
+                new ByteArrayInputStream(PDF));
+        FileContentDriver flaky = new FileContentDriver(root) {
+            private boolean fail = true;
+
+            @Override
+            public void delete(String url) throws IOException {
+                if (fail) {
+                    fail = false;
+                    throw new IOException("temporary deletion failure");
+                }
+                super.delete(url);
+            }
+        };
+        ContentService cleanup = new ContentService(store, List.of(flaky), "fs", 1024,
+                ContentService.DEFAULT_TYPES, Duration.ofHours(24),
+                Clock.fixed(NOW.plus(Duration.ofHours(25)), ZoneOffset.UTC));
+        assertEquals(0, cleanup.deleteUnowned(10));
+        assertTrue(store.find("t1", UUID.fromString(content.id())).isPresent());
+        assertTrue(flaky.exists(content.contentUrl()));
+        assertEquals(1, cleanup.deleteUnowned(10));
+        assertFalse(flaky.exists(content.contentUrl()));
     }
 
     @Test
     void theFileDriverStaysInsideItsRoot() {
         FileContentDriver fs = new FileContentDriver(root);
-
+        ByteArrayInputStream input = new ByteArrayInputStream(PDF);
         assertThrows(IllegalArgumentException.class,
-                () -> fs.write("../escape", new ByteArrayInputStream(PDF), "application/pdf"));
+                () -> fs.write("../escape", input, "application/pdf"));
         assertThrows(IllegalArgumentException.class, () -> fs.read("fs://../../etc/passwd"));
         assertThrows(IllegalArgumentException.class, () -> fs.read("gcs://bucket/x"));
+    }
+
+    @Test
+    void symbolicParentsCannotRedirectFileOperations() throws IOException {
+        FileContentDriver fs = new FileContentDriver(root);
+        Path secret = outside.resolve("document");
+        Files.write(secret, PDF);
+        Files.createSymbolicLink(root.resolve("tenant"), outside);
+        assertThrows(IOException.class, () -> fs.read("fs://tenant/document"));
+        assertThrows(IOException.class, () -> fs.delete("fs://tenant/document"));
+        assertFalse(fs.exists("fs://tenant/document"));
+        ByteArrayInputStream input = new ByteArrayInputStream(PDF);
+        String url = fs.write("tenant/new-document", input, "application/pdf");
+        assertFalse(Files.exists(outside.resolve("new-document")));
+        try (InputStream in = fs.read(url)) {
+            assertArrayEquals(PDF, in.readAllBytes());
+        }
+        fs.delete(url);
+        fs.delete(url);
+        assertArrayEquals(PDF, Files.readAllBytes(secret));
+    }
+
+    @Test
+    void aStoredFileReplacedByASymbolicLinkIsNeverFollowed() throws IOException {
+        FileContentDriver fs = new FileContentDriver(root);
+        Path secret = outside.resolve("secret");
+        Files.write(secret, PDF);
+        String url = fs.write("tenant/document", new ByteArrayInputStream(PDF), "application/pdf");
+        Path stored = root.resolve(url.substring("fs://".length()));
+        Files.delete(stored);
+        Files.createSymbolicLink(stored, secret);
+        assertThrows(IOException.class, () -> fs.read(url));
+        assertFalse(fs.exists(url));
+        fs.delete(url);
+        assertArrayEquals(PDF, Files.readAllBytes(secret));
+    }
+
+    @Test
+    void legacyHierarchicalFilesRemainReadableAndDeletable() throws IOException {
+        try (DirectoryStream<Path> directory = Files.newDirectoryStream(root)) {
+            assumeTrue(directory instanceof SecureDirectoryStream<?>);
+        }
+        FileContentDriver fs = new FileContentDriver(root);
+        Path legacy = root.resolve("tenant/old-document");
+        Files.createDirectories(legacy.getParent());
+        Files.write(legacy, PDF);
+        String url = "fs://tenant/old-document";
+        assertTrue(fs.exists(url));
+        try (InputStream in = fs.read(url)) {
+            assertArrayEquals(PDF, in.readAllBytes());
+        }
+        fs.delete(url);
+        assertFalse(Files.exists(legacy));
     }
 
     @Test
@@ -111,9 +203,22 @@ class ContentServiceTest {
         assertTrue(ContentService.matches("image/jpeg", new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0}));
         assertTrue(ContentService.matches("image/png", new byte[] {(byte) 0x89, 'P', 'N', 'G'}));
         assertTrue(ContentService.matches("image/webp", "RIFF0000WEBPVP8 ".getBytes(StandardCharsets.US_ASCII)));
-        assertTrue(ContentService.matches("image/heic", "0000ftypheic".getBytes(StandardCharsets.US_ASCII)));
+        assertTrue(ContentService.matches("image/heic", bmff("heic")));
+        assertTrue(ContentService.matches("image/heic", bmff("mif1", "heix")));
+        assertFalse(ContentService.matches("image/heic", bmff("mp42", "isom")));
+        assertFalse(ContentService.matches("image/heic", bmff("avif", "mif1", "miaf")));
         assertFalse(ContentService.matches("image/jpeg", PDF));
         assertFalse(ContentService.matches("application/pdf", new byte[0]));
+    }
+
+    private static byte[] bmff(String major, String... compatible) {
+        ByteBuffer header = ByteBuffer.allocate(16 + compatible.length * 4);
+        header.putInt(header.capacity()).put("ftyp".getBytes(StandardCharsets.US_ASCII));
+        header.put(major.getBytes(StandardCharsets.US_ASCII)).putInt(0);
+        for (String brand : compatible) {
+            header.put(brand.getBytes(StandardCharsets.US_ASCII));
+        }
+        return header.array();
     }
 
     /** {@link ContentStore} in memory. */
@@ -142,15 +247,21 @@ class ContentServiceTest {
         }
 
         @Override
-        public List<Content> deleteUnowned(OffsetDateTime before, int limit) {
+        public List<Content> unowned(OffsetDateTime before, int limit) {
             List<Content> out = new ArrayList<>();
             for (Content c : List.copyOf(rows.values())) {
                 if (out.size() < limit && c.owner() == null && created.get(c.id()).isBefore(before.toInstant())) {
-                    rows.remove(c.id());
                     out.add(c);
                 }
             }
             return out;
+        }
+
+        @Override
+        public boolean deleteUnowned(String tenantCode, UUID id, OffsetDateTime before) {
+            return find(tenantCode, id)
+                    .filter(c -> c.owner() == null && created.get(c.id()).isBefore(before.toInstant()))
+                    .map(c -> rows.remove(c.id()) != null).orElse(false);
         }
     }
 }

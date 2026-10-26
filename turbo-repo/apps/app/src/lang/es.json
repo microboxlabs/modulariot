@@ -3129,6 +3129,7 @@
           "trailer": "Remolque",
           "driver": "Conductor"
         },
+        "noResources": "Ninguno",
         "openServices": "Servicios abiertos",
         "state": "Estado",
         "active": "Activo",

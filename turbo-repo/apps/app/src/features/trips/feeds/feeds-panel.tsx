@@ -335,9 +335,11 @@ export default function FeedsPanel({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {f.requiredResources
-                      .map((r) => tr(`resources.${r}`, d))
-                      .join(", ")}
+                    {f.requiredResources.length === 0
+                      ? tr("noResources", d)
+                      : f.requiredResources
+                          .map((r) => tr(`resources.${r}`, d))
+                          .join(", ")}
                   </td>
                   <td className="px-4 py-3">{f.openServices}</td>
                   <td className="px-4 py-3">

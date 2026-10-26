@@ -3096,9 +3096,11 @@
         "confirm": "Confirmar",
         "reject": "No corresponde",
         "names": {
+          "presentation": "Presentación",
+          "validation": "Validación",
           "departure": "Salida",
           "arrival": "Llegada",
-          "closure": "Cierre"
+          "closure": "Cierre de monitoreo"
         },
         "sources": {
           "gps": "GPS",
@@ -3146,9 +3148,11 @@
         },
         "milestone": "Hito",
         "milestones": {
+          "presentation": "Presentación",
+          "validation": "Validación",
           "departure": "Salida",
           "arrival": "Llegada",
-          "closure": "Cierre"
+          "closure": "Cierre de monitoreo"
         },
         "fieldsTitle": "Campos del viaje",
         "insertField": "Insertar {path} en la expresión",
@@ -5051,11 +5055,13 @@
       "lanes": {
         "unassigned": "Sin recursos",
         "scheduled": "Programado",
-        "departure_pending": "Salida por confirmar",
+        "presentation": "Presentación",
+        "validation": "Validación",
+        "departure_pending": "Salida por autorizar",
         "in_transit": "En tránsito",
         "arrival_pending": "Llegada por confirmar",
-        "unloading": "En descarga",
-        "closure_pending": "Cierre por confirmar",
+        "closure_pending": "Cierre de monitoreo",
+        "to_deliver": "Por entregar",
         "completed": "Realizado",
         "regularized": "Regularizado",
         "cancelled": "Anulado"
@@ -5071,9 +5077,11 @@
         "arrived": "Llegó"
       },
       "milestone": {
+        "presentation": "Presentación",
+        "validation": "Validación",
         "departure": "Salida",
         "arrival": "Llegada",
-        "closure": "Cierre"
+        "closure": "Cierre de monitoreo"
       },
       "milestoneStatus": {
         "open": "sin registro",
@@ -5159,7 +5167,8 @@
           "invoke": "Ejecutar proceso",
           "other": "Acción"
         },
-        "teamOnly": "Solo el equipo asignado confirma este hito."
+        "teamOnly": "Solo el equipo asignado confirma este hito.",
+        "evidence": "Datos recibidos"
       },
       "live": {
         "on": "En vivo",

@@ -4,9 +4,11 @@ import Link from "next/link";
 import { HiArrowRight, HiExclamation } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { MILESTONES } from "../monitors/monitors-api";
 import type { BoardCard, MilestoneStatus } from "./board-api";
 
-const MILESTONES = ["departure", "arrival", "closure"] as const;
+/** Shown on the card only once a source reported them. */
+const OPTIONAL = new Set(["presentation", "validation"]);
 
 const MILESTONE_STYLE: Record<MilestoneStatus, string> = {
   open: "bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-300",
@@ -156,6 +158,7 @@ export function TripCard({
           <div className="flex flex-wrap gap-1">
             {MILESTONES.map((m) => {
               const status = card.milestones[m] ?? "open";
+              if (OPTIONAL.has(m) && status === "open") return null;
               return (
                 <span
                   key={m}

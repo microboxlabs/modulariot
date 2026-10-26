@@ -3096,9 +3096,11 @@
         "confirm": "Confirm",
         "reject": "Not right",
         "names": {
+          "presentation": "Presentation",
+          "validation": "Validation",
           "departure": "Departure",
           "arrival": "Arrival",
-          "closure": "Closure"
+          "closure": "Monitoring closure"
         },
         "sources": {
           "gps": "GPS",
@@ -3146,9 +3148,11 @@
         },
         "milestone": "Milestone",
         "milestones": {
+          "presentation": "Presentation",
+          "validation": "Validation",
           "departure": "Departure",
           "arrival": "Arrival",
-          "closure": "Closure"
+          "closure": "Monitoring closure"
         },
         "fieldsTitle": "Trip fields",
         "insertField": "Insert {path} into the expression",
@@ -5051,11 +5055,13 @@
       "lanes": {
         "unassigned": "No resources",
         "scheduled": "Scheduled",
-        "departure_pending": "Departure to confirm",
+        "presentation": "Presentation",
+        "validation": "Validation",
+        "departure_pending": "Departure to authorize",
         "in_transit": "In transit",
         "arrival_pending": "Arrival to confirm",
-        "unloading": "Unloading",
-        "closure_pending": "Closure to confirm",
+        "closure_pending": "Monitoring closure",
+        "to_deliver": "To deliver",
         "completed": "Completed",
         "regularized": "Regularized",
         "cancelled": "Cancelled"
@@ -5071,9 +5077,11 @@
         "arrived": "Arrived"
       },
       "milestone": {
+        "presentation": "Presentation",
+        "validation": "Validation",
         "departure": "Departure",
         "arrival": "Arrival",
-        "closure": "Closure"
+        "closure": "Monitoring closure"
       },
       "milestoneStatus": {
         "open": "not recorded",
@@ -5159,7 +5167,8 @@
           "invoke": "Run process",
           "other": "Action"
         },
-        "teamOnly": "Only the assigned team confirms this milestone."
+        "teamOnly": "Only the assigned team confirms this milestone.",
+        "evidence": "Data received"
       },
       "live": {
         "on": "Live",

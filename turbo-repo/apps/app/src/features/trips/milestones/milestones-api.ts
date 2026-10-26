@@ -6,13 +6,13 @@
  */
 
 import useSWR, { mutate } from "swr";
-import { tripsRequest } from "../monitors/monitors-api";
+import { tripsRequest, type Milestone } from "../monitors/monitors-api";
 
 export const MILESTONE_CONFIRM = "trips:milestone.confirm";
 
 export interface TripMilestone {
   tripId: string;
-  milestone: "departure" | "arrival" | "closure";
+  milestone: Milestone;
   status: "open" | "pending" | "confirmed" | "rejected";
   source: string | null;
   proposedAt: string | null;

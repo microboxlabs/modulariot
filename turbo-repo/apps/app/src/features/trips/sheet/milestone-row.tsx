@@ -50,19 +50,41 @@ function Detail({
         : null,
     ],
   ];
+  const evidence = Object.entries(m.evidence ?? {});
   return (
-    <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
-      {rows.map(([key, value]) => (
-        <div key={key}>
-          <dt className="text-gray-500 dark:text-gray-400">
-            {trDynamic(key, d)}
-          </dt>
-          <dd className="font-medium text-gray-900 dark:text-gray-100">
-            {value ?? "—"}
-          </dd>
+    <>
+      <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+        {rows.map(([key, value]) => (
+          <div key={key}>
+            <dt className="text-gray-500 dark:text-gray-400">
+              {trDynamic(key, d)}
+            </dt>
+            <dd className="font-medium text-gray-900 dark:text-gray-100">
+              {value ?? "—"}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {evidence.length > 0 && (
+        <div className="mt-2 text-xs">
+          <p className="text-gray-500 dark:text-gray-400">
+            {tr("sheet.evidence", d)}
+          </p>
+          <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+            {evidence.map(([key, value]) => (
+              <div key={key} className="contents">
+                <dt className="text-gray-500 dark:text-gray-400">{key}</dt>
+                <dd className="break-all font-medium text-gray-900 dark:text-gray-100">
+                  {typeof value === "object"
+                    ? JSON.stringify(value)
+                    : String(value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
-      ))}
-    </dl>
+      )}
+    </>
   );
 }
 

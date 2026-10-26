@@ -3,7 +3,7 @@
 /** Client for the trips board API (`/trips/board/{view}`) through the `/api/trips/*` proxy. */
 
 import useSWR from "swr";
-import { tripsRequest } from "../monitors/monitors-api";
+import { tripsRequest, type Milestone } from "../monitors/monitors-api";
 
 export const BOARD_VIEWS = [
   "planning",
@@ -34,9 +34,7 @@ export interface BoardCard {
   arrivedAt: string | null;
   actualEnd: string | null;
   currentStage: string | null;
-  milestones: Partial<
-    Record<"departure" | "arrival" | "closure", MilestoneStatus>
-  >;
+  milestones: Partial<Record<Milestone, MilestoneStatus>>;
   alerts: string[];
   monitorKey: string | null;
   regularized: boolean;
@@ -108,11 +106,13 @@ export function useTripsBoardCounts(enabled: boolean) {
 export const LANE_VIEW: Record<string, BoardViewKey> = {
   unassigned: "planning",
   scheduled: "planning",
-  departure_pending: "planning",
+  presentation: "dispatch",
+  validation: "dispatch",
+  departure_pending: "dispatch",
   in_transit: "dispatch",
   arrival_pending: "dispatch",
-  unloading: "delivery",
-  closure_pending: "delivery",
+  closure_pending: "dispatch",
+  to_deliver: "delivery",
   completed: "finished",
   regularized: "finished",
   cancelled: "finished",

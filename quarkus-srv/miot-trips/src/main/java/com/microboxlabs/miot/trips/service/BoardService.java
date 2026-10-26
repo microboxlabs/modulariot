@@ -133,19 +133,28 @@ public class BoardService {
     /** A finished trip carries resource ids; the card shows the plate, the driver and the truck's carrier. */
     private List<BoardRow> resolveResources(String tenantCode, List<BoardRow> rows) {
         Map<String, Optional<FleetResources.Vehicle>> trucks = new HashMap<>();
+        Map<String, Optional<FleetResources.Vehicle>> trailers = new HashMap<>();
         Map<String, Optional<FleetResources.Driver>> drivers = new HashMap<>();
         Map<UUID, Optional<FleetResources.Carrier>> carriers = new HashMap<>();
         return rows.stream().map(r -> {
             Optional<FleetResources.Vehicle> truck = r.truck() == null ? Optional.empty()
                     : trucks.computeIfAbsent(r.truck(), id -> Optional.ofNullable(Pg.parse(id))
                             .flatMap(u -> fleet.vehicle(tenantCode, Assignment.TRUCK, u)));
+            Optional<FleetResources.Vehicle> trailer = r.trailer() == null ? Optional.empty()
+                    : trailers.computeIfAbsent(r.trailer(), id -> Optional.ofNullable(Pg.parse(id))
+                            .flatMap(u -> fleet.vehicle(tenantCode, Assignment.TRAILER, u)));
             Optional<FleetResources.Driver> driver = r.driver() == null ? Optional.empty()
                     : drivers.computeIfAbsent(r.driver(), id -> Optional.ofNullable(Pg.parse(id))
+                            .flatMap(u -> fleet.driver(tenantCode, u)));
+            Optional<FleetResources.Driver> secondDriver = r.secondDriver() == null ? Optional.empty()
+                    : drivers.computeIfAbsent(r.secondDriver(), id -> Optional.ofNullable(Pg.parse(id))
                             .flatMap(u -> fleet.driver(tenantCode, u)));
             Optional<FleetResources.Carrier> carrier = truck.map(FleetResources.Vehicle::carrierId)
                     .flatMap(id -> carriers.computeIfAbsent(id, c -> fleet.carrier(tenantCode, c)));
             return r.withResources(truck.map(FleetResources.Vehicle::licensePlate).orElse(null),
+                    trailer.map(FleetResources.Vehicle::licensePlate).orElse(null),
                     driver.map(FleetResources.Driver::fullName).orElse(null),
+                    secondDriver.map(FleetResources.Driver::fullName).orElse(null),
                     carrier.map(FleetResources.Carrier::legalName).orElse(null));
         }).toList();
     }

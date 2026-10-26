@@ -67,8 +67,10 @@ class TripBoardTest {
     void betweenStagesTheLastClosedStageAndConfirmedMilestonesMoveTheTripOn() {
         assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", null, "preparation", null, null, PAST, LATER,
                 true)));
-        assertEquals(TripBoard.UNLOADING, lane(row("in_progress", null, "transit", null, null, PAST, LATER,
+        assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", null, "transit", null, null, PAST, LATER,
                 true)));
+        assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", null, "stop", null, null, PAST, LATER,
+                true)), "a closed intermediate stop is still en route");
         assertEquals(TripBoard.IN_TRANSIT, lane(row("in_progress", "preparation", null,
                 Map.of("departure", "confirmed"), null, PAST, LATER, true)), "no rule advanced the stage");
         assertEquals(TripBoard.UNLOADING, lane(row("in_progress", "transit", null,

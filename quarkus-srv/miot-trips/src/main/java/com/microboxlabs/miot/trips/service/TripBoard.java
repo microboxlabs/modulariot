@@ -86,7 +86,11 @@ public final class TripBoard {
                 byStage = 2;
             }
         } else if (row.lastStage() != null) {
-            byStage = BEFORE_DEPARTURE.contains(row.lastStage()) ? 1 : 2;
+            if (BEFORE_DEPARTURE.contains(row.lastStage()) || EN_ROUTE.contains(row.lastStage())) {
+                byStage = 1;
+            } else {
+                byStage = 2;
+            }
         }
         int byMilestone = 0;
         if (TripMilestone.CONFIRMED.equals(row.milestone(TripMilestone.ARRIVAL))) {

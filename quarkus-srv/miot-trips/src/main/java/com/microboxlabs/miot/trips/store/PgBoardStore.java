@@ -93,21 +93,35 @@ public class PgBoardStore implements BoardStore {
             SELECT""" + " " + TRIP_STATE + """
             ,
             t.origin, t.destination,
-            (SELECT s.service_status FROM miot_trips.stage s
+            coalesce((SELECT s.service_status FROM miot_trips.stage s
               WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
-                AND s.status = 'completed' AND s.version_of IS NULL AND s.is_active AND s.service_status IS NOT NULL
-              ORDER BY s.seq DESC LIMIT 1) AS label,
+                AND s.status <> 'pending' AND s.version_of IS NULL AND s.is_active
+                AND s.service_status IS NOT NULL
+              ORDER BY (s.status = 'in_progress') DESC, s.actual_start DESC NULLS LAST, s.seq DESC LIMIT 1),
+              t.status) AS label,
             (SELECT max(s.planned_end) FROM miot_trips.stage s
               WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
                 AND s.version_of IS NULL AND s.is_active) AS planned_arrival,
             (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
               WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'truck'
-                AND a.version_of IS NULL AND a.is_active ORDER BY a.valid_from DESC LIMIT 1) AS truck,
-            NULL::text AS trailer,
+                AND a.version_of IS NULL AND a.is_active
+              ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+              LIMIT 1) AS truck,
+            (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
+              WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'trailer'
+                AND a.version_of IS NULL AND a.is_active
+              ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+              LIMIT 1) AS trailer,
             (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
               WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'driver'
-                AND a.version_of IS NULL AND a.is_active ORDER BY a.valid_from LIMIT 1) AS driver,
-            NULL::text AS second_driver, NULL::text AS carrier,
+                AND a.version_of IS NULL AND a.is_active
+              ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from ASC, a.created_at ASC
+              LIMIT 1) AS driver,
+            (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
+              WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'driver'
+                AND a.valid_to IS NULL AND a.version_of IS NULL AND a.is_active
+              ORDER BY a.valid_from, a.created_at OFFSET 1 LIMIT 1) AS second_driver,
+            NULL::text AS carrier,
             EXISTS (SELECT 1 FROM miot_trips.audit_event e
                      WHERE e.tenant_code = t.tenant_code AND e.entity_type = 'trip' AND e.entity_id = t.id::text
                        AND e.action = 'trip.created' AND e.details->>'regularized' = 'true') AS regularized,
@@ -120,6 +134,21 @@ public class PgBoardStore implements BoardStore {
                 FROM rows
                 WHERE $2::text IS NULL OR concat_ws(' ', array_to_string(codes, ' '), origin, destination)
                       ILIKE '%' || $2 || '%'
+                   OR EXISTS (SELECT 1 FROM miot_fleet.truck v
+                              LEFT JOIN miot_fleet.carrier c ON c.id = v.carrier_id
+                                    AND c.tenant_code = v.tenant_code AND c.version_of IS NULL
+                              WHERE v.id = rows.truck::uuid AND v.tenant_code = $1 AND v.version_of IS NULL
+                                AND (v.license_plate ILIKE '%' || $2 || '%'
+                                     OR c.legal_name ILIKE '%' || $2 || '%'))
+                   OR EXISTS (SELECT 1 FROM miot_fleet.trailer v
+                              WHERE v.id = rows.trailer::uuid AND v.tenant_code = $1 AND v.version_of IS NULL
+                                AND v.license_plate ILIKE '%' || $2 || '%')
+                   OR EXISTS (SELECT 1 FROM miot_fleet.driver d
+                              WHERE d.id = rows.driver::uuid AND d.tenant_code = $1 AND d.version_of IS NULL
+                                AND d.full_name ILIKE '%' || $2 || '%')
+                   OR EXISTS (SELECT 1 FROM miot_fleet.driver d
+                              WHERE d.id = rows.second_driver::uuid AND d.tenant_code = $1
+                                AND d.version_of IS NULL AND d.full_name ILIKE '%' || $2 || '%')
             ), ranked AS (
                 SELECT matched.*,
                        count(*) OVER (PARTITION BY board_lane) AS lane_count,

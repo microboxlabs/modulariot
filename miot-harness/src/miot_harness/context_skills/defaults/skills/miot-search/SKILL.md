@@ -107,6 +107,10 @@ value you have confirmed; never emit a literal placeholder.
 | `/shipping` | shipping, embarque, despacho (kanban) | Services in shipping | kanban params |
 | `/delivery` | delivery, entrega, reparto (kanban) | Services in delivery | kanban params |
 | `/finished` | finished, finalizados, completados (kanban) | Completed services | kanban params |
+| `/trips/planning` | trip planning, planificación de viajes | Trips being planned, assigned, or awaiting departure confirmation | `q` |
+| `/trips/dispatch` | trip dispatch, despacho de viajes, viajes en tránsito | Trips in transit or awaiting arrival confirmation | `q` |
+| `/trips/delivery` | trip delivery, entrega de viajes | Trips unloading or awaiting closure confirmation | `q` |
+| `/trips/finished` | finished trips, viajes finalizados, viajes cancelados | Completed, regularized, or cancelled trips | `q`, `date_range_from`/`date_range_to` |
 | `/mytasks` | my tasks, mis tareas, tareas | The user's tasks | `status=pending\|finished` + kanban params; a task opens at `/task/edit/{taskId}` |
 | `/geographic-view` | map, mapa, geographic view, posición, GPS, where is, dónde está | Live map of assets/vehicles | `licensePlate` |
 | `/fleet` | fleet, flota, assets, trucks, camiones, tractos, trailers, ramplas, remolques, documentos, acreditación, horas de motor, kilómetros | The organization's assets with their carrier, trips, documents and indicators (one asset at `/fleet/{assetId}`) | — |

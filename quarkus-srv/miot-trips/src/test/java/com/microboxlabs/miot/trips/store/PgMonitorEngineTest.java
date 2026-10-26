@@ -99,7 +99,15 @@ class PgMonitorEngineTest {
             mandates, projector, audit, tx);
     private final StageService stages = new StageService(new PgStageStore(() -> pool), new PgTripStore(() -> pool),
             new PgTripCargoStore(() -> pool), mandates, projector, audit, tx);
-    private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
+    private Runnable afterMonitorSnapshot = () -> { };
+    private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool) {
+        @Override
+        public List<TripMonitor> all(String tenantCode) {
+            List<TripMonitor> snapshot = super.all(tenantCode);
+            afterMonitorSnapshot.run();
+            return snapshot;
+        }
+    };
     private final PgMonitorRunStore runs = new PgMonitorRunStore(() -> pool);
     private final MonitorService monitors = new MonitorService(monitorStore, null, null, audit, tx);
     private final FleetResourcesService fleet = new FleetResourcesService(
@@ -253,6 +261,22 @@ class PgMonitorEngineTest {
         assertEquals("direct-orders", engine.state(tenant, picked).orElseThrow().monitorKey(),
                 "the narrower scope wins over the general one");
         assertEquals(Stage.RUNNING, status(picked, "preparation"));
+    }
+
+    @Test
+    void aTripKeepsTheVersionWhoseScopeWasMatchedWhenAnotherVersionIsPublished() {
+        publish("snapshot", List.of(), MonitorScope.ANY);
+        afterMonitorSnapshot = () -> {
+            afterMonitorSnapshot = () -> { };
+            publish("snapshot", List.of(), scope("other-order-type"));
+        };
+
+        UUID tripId = id(newTrip(null, null));
+
+        assertEquals(2, monitors.get(tenant, "snapshot").published().version());
+        assertEquals("snapshot", engine.state(tenant, tripId).orElseThrow().monitorKey());
+        assertEquals(1, engine.state(tenant, tripId).orElseThrow().monitorVersion(),
+                "binding must use the same version whose scope accepted the trip");
     }
 
     @Test

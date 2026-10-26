@@ -42,7 +42,7 @@ function labelOf(options: Option[], value: string) {
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
-/** "Feed: Exacta · Destino: ANF", "Todos los viajes" or "Sin alcance". */
+/** "Feed: Fuente A · Destino: Lugar A", "Todos los viajes" or "Sin alcance". */
 export function scopeSummary(
   scope: MonitorScope | null,
   values: ScopeValues | undefined,

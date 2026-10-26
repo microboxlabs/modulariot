@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * One version of a trip monitor: the rules that move the stages of one class of trip of a tenant, the stage plan a
  * trip gets when it is created without stages, the parameters its rules read as {@code params.*}, and the trips it
- * takes ({@code scope}; null until it is set, and then the monitor takes none).
+ * takes ({@code scope}; when null, the monitor takes no trips).
  */
 public record TripMonitor(
         String tenantCode,

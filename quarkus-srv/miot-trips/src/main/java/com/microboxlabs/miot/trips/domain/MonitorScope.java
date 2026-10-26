@@ -91,11 +91,11 @@ public record MonitorScope(List<String> feeds, List<String> orderTypes, List<Str
     }
 
     /** Whether every value {@code a} accepts, {@code b} accepts too. */
-    private static boolean subset(List<String> a, List<String> b) {
-        if (b.isEmpty()) {
+    private static boolean subset(List<String> candidate, List<String> container) {
+        if (container.isEmpty()) {
             return true;
         }
-        return !a.isEmpty() && b.containsAll(a);
+        return !candidate.isEmpty() && container.containsAll(candidate);
     }
 
     private static boolean accepts(List<String> values, String value) {

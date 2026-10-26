@@ -105,9 +105,11 @@ export default function MonitorEditor({
     monitorKey,
     detail?.draft?.scope ?? null
   );
+  // Publishing waits for the check: a scope not yet checked could be a duplicate.
+  const unchecked = !!detail?.draft?.scope && !savedCheck;
   const duplicated =
     savedCheck?.overlaps.some((o) => o.relation === "DUPLICATE") ?? false;
-  const publishBlocked = findings.length > 0 || duplicated;
+  const publishBlocked = findings.length > 0 || duplicated || unchecked;
 
   const change = (patch: Partial<MonitorBody>) => {
     setBody((b) => (b ? { ...b, ...patch } : b));

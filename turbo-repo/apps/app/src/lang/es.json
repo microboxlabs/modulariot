@@ -3296,6 +3296,7 @@
           "allTrips": "Todos los viajes",
           "none": "Sin alcance",
           "noOverlap": "No se cruza con otros monitores publicados.",
+          "checkFailed": "No se pudo comprobar si el alcance se cruza con otros monitores. No se puede publicar hasta comprobarlo.",
           "relation": {
             "DUPLICATE": "Se cruza con «{name}»: un viaje podría quedar en ambos. Ajusta los valores para publicar.",
             "NARROWER": "Más específico que «{name}»: este monitor toma los viajes que comparten.",

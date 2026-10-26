@@ -239,7 +239,7 @@ export default function ScopeEditor({
   d: I18nRecord;
 }>) {
   const options = useMemo(() => scopeOptions(values), [values]);
-  const { data: check } = useScopeCheck(monitorKey, scope);
+  const { data: check, error: checkError } = useScopeCheck(monitorKey, scope);
   const shown = scope ?? ANY_TRIP;
 
   return (
@@ -267,7 +267,14 @@ export default function ScopeEditor({
           />
         ))}
       </div>
-      {scope && check && <ScopeOverlaps overlaps={check.overlaps} d={d} />}
+      {scope && checkError && (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300">
+          {tr("scope.checkFailed", d)}
+        </p>
+      )}
+      {scope && check && !checkError && (
+        <ScopeOverlaps overlaps={check.overlaps} d={d} />
+      )}
     </div>
   );
 }

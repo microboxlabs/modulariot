@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { MonitorScope, ScopeOverlap, ScopeValues } from "./monitors-api";
 import ScopeEditor, { scopeSummary } from "./scope-section";
 
-const check = vi.hoisted(() => ({ overlaps: [] as ScopeOverlap[] }));
+const check = vi.hoisted(() => ({
+  overlaps: [] as ScopeOverlap[],
+  error: undefined as Error | undefined,
+}));
 vi.mock("@/features/i18n/tr.service", () => ({
   tr: (key: string, _d: unknown, vars?: Record<string, string>) =>
     vars ? `${key} ${Object.values(vars).join(" ")}` : key,
@@ -11,7 +14,8 @@ vi.mock("@/features/i18n/tr.service", () => ({
 vi.mock("./monitors-api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./monitors-api")>()),
   useScopeCheck: (_key: string, scope: MonitorScope | null) => ({
-    data: scope ? { overlaps: check.overlaps } : undefined,
+    data: scope && !check.error ? { overlaps: check.overlaps } : undefined,
+    error: scope ? check.error : undefined,
   }),
 }));
 
@@ -115,5 +119,21 @@ describe("ScopeEditor", () => {
     expect(
       screen.getByText("scope.relation.NARROWER Monitor B")
     ).toBeInTheDocument();
+  });
+
+  it("says when the overlap check fails", () => {
+    check.error = new Error("HTTP 404");
+    render(
+      <ScopeEditor
+        monitorKey="m"
+        scope={scope({})}
+        values={values}
+        readOnly
+        onChange={() => undefined}
+        d={{}}
+      />
+    );
+    expect(screen.getByText("scope.checkFailed")).toBeInTheDocument();
+    check.error = undefined;
   });
 });

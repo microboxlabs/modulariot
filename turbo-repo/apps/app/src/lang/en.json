@@ -3296,6 +3296,7 @@
           "allTrips": "Every trip",
           "none": "No scope",
           "noOverlap": "It does not meet other published monitors.",
+          "checkFailed": "Could not check whether the scope overlaps other monitors. It cannot be published until it is checked.",
           "relation": {
             "DUPLICATE": "Overlaps «{name}»: a trip could be in both. Change the values to publish.",
             "NARROWER": "More specific than «{name}»: this monitor takes the trips they share.",

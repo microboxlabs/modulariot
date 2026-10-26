@@ -5196,7 +5196,6 @@
           "needsProof": "Upload a POD to confirm the delivery."
         },
         "tripInfo": "Trip information",
-        "serviceCode": "Service code",
         "status": "Status",
         "monitor": "Monitor",
         "route": "Route",

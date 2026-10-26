@@ -99,11 +99,6 @@ export function TripInfo({
     [<FaTruck key="t" className={ICON} />, "sheet.truck", card.truck],
     [<FaTruck key="r" className={ICON} />, "sheet.trailer", card.trailer],
     [
-      <FaClipboardList key="c" className={ICON} />,
-      "sheet.serviceCode",
-      card.codes.join(" · ") || null,
-    ],
-    [
       <FaShield key="s" className={ICON} />,
       "sheet.status",
       statusLabel(card, d),

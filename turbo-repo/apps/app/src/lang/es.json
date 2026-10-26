@@ -5049,8 +5049,7 @@
         "planning": "Planificación",
         "dispatch": "Despachos",
         "delivery": "Entregas",
-        "finished": "Finalizados",
-        "trip": "Viaje"
+        "finished": "Finalizados"
       },
       "lanes": {
         "unassigned": "Sin recursos",
@@ -5062,6 +5061,10 @@
         "arrival_pending": "Llegada por confirmar",
         "closure_pending": "Cierre de monitoreo",
         "to_deliver": "Por entregar",
+        "delivery_pending": "POD por confirmar",
+        "delivered": "Entregado",
+        "accepted": "Aceptado",
+        "settled": "Liquidado",
         "completed": "Realizado",
         "regularized": "Regularizado",
         "cancelled": "Anulado"
@@ -5074,7 +5077,8 @@
         "noTruck": "Sin camión",
         "noDriver": "Sin conductor",
         "overdue": "Hito vencido",
-        "arrived": "Llegó"
+        "arrived": "Llegó",
+        "delivered": "{done}/{loads} entregadas"
       },
       "milestone": {
         "presentation": "Presentación",
@@ -5112,8 +5116,6 @@
         "cancelled": "Anulado"
       },
       "sheet": {
-        "service": "Servicio",
-        "resources": "Recursos",
         "truck": "Camión",
         "trailer": "Rampla",
         "drivers": "Conductores",
@@ -5126,15 +5128,8 @@
         "reject": "No corresponde",
         "record": "Registrar",
         "recordAt": "Hora del hito",
-        "plan": "Etapas",
-        "plannedEnd": "fin planificado",
-        "history": "Historia",
         "noHistory": "El monitor aún no registra eventos.",
         "feed": "Fila del feed",
-        "noFeed": "Viaje creado sin feed.",
-        "feedKey": "Feed",
-        "lastAction": "Última acción",
-        "lastReconciled": "Último proceso",
         "cancelReason": "Motivo de anulación",
         "channels": {
           "feed": "feed",
@@ -5150,11 +5145,6 @@
           "unloading": "Descarga",
           "closing": "Cierre"
         },
-        "stageStatus": {
-          "pending": "Pendiente",
-          "in_progress": "En curso",
-          "completed": "Cerrada"
-        },
         "actions": {
           "advance": "Avanzar a",
           "start": "Iniciar",
@@ -5168,7 +5158,92 @@
           "other": "Acción"
         },
         "teamOnly": "Solo el equipo asignado confirma este hito.",
-        "evidence": "Datos recibidos"
+        "evidence": "Datos recibidos",
+        "deliveries": {
+          "title": "Entregas",
+          "none": "Sin entregas registradas.",
+          "new": "Nueva entrega",
+          "create": "Crear entrega",
+          "cancel": "Cancelar",
+          "customer": "Cliente",
+          "reference": "Referencia",
+          "loads": "Cargas",
+          "noCustomer": "Sin cliente",
+          "wholeTrip": "Todo el viaje",
+          "confirm": "Confirmar",
+          "upload": "Subir POD",
+          "file": "Archivo",
+          "completes": "{step} completa el viaje",
+          "pendingLoads": "Cargas sin entrega: {codes}",
+          "kinds": {
+            "signature": "Firma",
+            "photo": "Foto",
+            "document": "Documento",
+            "other": "Otro"
+          },
+          "needsProof": "Sube un POD para confirmar la entrega."
+        },
+        "tripInfo": "Información del viaje",
+        "status": "Estado",
+        "monitor": "Monitor",
+        "route": "Ruta",
+        "departure": "Salida",
+        "arrival": "Llegada",
+        "driver1": "Conductor 1",
+        "driver2": "Conductor 2",
+        "dispatch": "Despacho",
+        "alerts": "Alertas del viaje",
+        "noAlerts": "Sin alertas.",
+        "processState": "Estado de proceso",
+        "duration": "Duración del viaje",
+        "nextConfirm": "Confirmar {milestone}",
+        "nextRecord": "Registrar {milestone}",
+        "tabs": {
+          "milestones": "Hitos",
+          "movements": "Movimientos del monitor",
+          "cargo": "Cargas"
+        },
+        "table": {
+          "at": "Fecha",
+          "event": "Evento",
+          "rule": "Regla",
+          "stage": "Etapa",
+          "actions": "Acciones",
+          "status": "Estado",
+          "milestone": "Hito",
+          "order": "Orden",
+          "description": "Descripción",
+          "qty": "Cantidad"
+        },
+        "serviceType": "Tipo de servicio",
+        "carrierRut": "RUT transportista",
+        "carrierCode": "Código transportista",
+        "tripType": {
+          "own": "Sede propia",
+          "pickup": "Retiro en cliente",
+          "unknown": "Origen sin tipo"
+        },
+        "validations": "Validaciones",
+        "noValidations": "Sin validaciones recibidas.",
+        "checkStatus": {
+          "passed": "Aprobada",
+          "failed": "Fallida",
+          "notReported": "Sin informar"
+        },
+        "leadTime": "Lead Time",
+        "withSla": "{count} con SLA",
+        "occupancy": "Ocupación",
+        "weight": "Peso",
+        "volume": "Volumen",
+        "noCargo": "Sin cargas asociadas al viaje.",
+        "cargoStatus": {
+          "announced": "Anunciada",
+          "ready": "Lista",
+          "picked_up": "Retirada",
+          "delivered": "Entregada",
+          "received": "Recibida",
+          "rejected": "Rechazada"
+        }
       },
       "live": {
         "on": "En vivo",
@@ -7016,6 +7091,7 @@
       "delete_error": "Error al eliminar el archivo",
       "delete_modal_title": "Eliminar archivo",
       "delete_modal_desc": "Esto moverá el archivo a la papelera. Se puede recuperar desde allí si es necesario.",
+      "delete_modal_desc_permanent": "El archivo se elimina del expediente y no se puede recuperar.",
       "move_modal_title": "Mover a servicio",
       "move_modal_desc": "Busca y selecciona el servicio de destino",
       "move_search_placeholder": "Buscar por ID o nombre de servicio…",

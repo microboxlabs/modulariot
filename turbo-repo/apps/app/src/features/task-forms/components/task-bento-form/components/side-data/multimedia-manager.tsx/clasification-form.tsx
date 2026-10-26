@@ -6,6 +6,7 @@ import InnerContainer from "./gallery/inner-container";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
+import { useMediaSource } from "./media-source";
 
 export type FileType = {
   name: string;
@@ -24,20 +25,24 @@ export type SendableFile = {
 };
 
 export default function ClasificationForm({
-  packageId,
   setIsOpen,
   uploadableFiles,
   dictionary,
   setUploadableFiles,
-  uploadFile,
+  upload,
   onUploadComplete,
 }: {
-  packageId: string;
   setIsOpen: (isOpen: boolean) => void;
   uploadableFiles: any[];
   dictionary: I18nRecord;
   setUploadableFiles: (files: any[]) => void;
-  uploadFile: (file: SendableFile, skipRevalidation?: boolean) => Promise<any>;
+  /** Adds a file with its category; `skipRevalidation` for all but the last of a batch. */
+  upload: (
+    file: File,
+    category: string,
+    name: string,
+    skipRevalidation: boolean
+  ) => Promise<unknown>;
   onUploadComplete: () => void;
 }) {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -54,7 +59,7 @@ export default function ClasificationForm({
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const categories = getCategories(dictionary);
+  const categories = useMediaSource().useCategories(dictionary);
 
   useEffect(() => {
     if (loadableDocs.length === 0) {
@@ -102,16 +107,7 @@ export default function ClasificationForm({
         const doc = docsToUpload[i];
         const isLast = i === docsToUpload.length - 1;
         // Skip revalidation for all but the last file
-        await uploadFile(
-          {
-            filedata: doc.file as File,
-            prop_mintral_contentType: doc.category!,
-            prop_cm_name: doc.name,
-            prop_mimetype: doc.type,
-            alf_destination: `workspace://SpacesStore/${packageId}`,
-          },
-          !isLast
-        );
+        await upload(doc.file, doc.category!, doc.name, !isLast);
       }
     })();
 

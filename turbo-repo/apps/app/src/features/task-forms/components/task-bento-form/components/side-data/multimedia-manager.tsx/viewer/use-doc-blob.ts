@@ -2,40 +2,53 @@
 
 import { useState, useEffect } from "react";
 import type { MediaViewerItem } from "./media-inline-viewer";
+import { useMediaSource } from "../media-source";
 
-export function useDocBlob(current: MediaViewerItem | undefined, id: string | undefined) {
-  const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({});
-  const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
+export function useDocBlob(
+  current: MediaViewerItem | undefined,
+  id: string | undefined
+) {
+  const source = useMediaSource();
+  const content =
+    current?.type === "document" && id ? source.contentUrl(id) : null;
+  const revision = current?.file.entry.modifiedAt ?? "";
+  const refresh = current?.refreshKey ?? 0;
+  const separator = content?.includes("?") ? "&" : "?";
+  const key = content
+    ? `${content}${separator}revision=${encodeURIComponent(revision)}&refresh=${refresh}`
+    : null;
+  const [preview, setPreview] = useState<{ key: string; url: string } | null>(
+    null
+  );
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
 
   useEffect(() => {
-    if (current?.type !== "document" || !id) return;
-    if (docBlobUrls[id] || loadingDocs.has(id)) return;
-
-    setLoadingDocs((prev) => new Set(prev).add(id));
-    fetch(`/app/api/bento/content?nodeId=${id}`)
-      .then((res) => res.blob())
+    setPreview(null);
+    if (!key) return;
+    const controller = new AbortController();
+    let active = true;
+    let objectUrl: string | undefined;
+    setLoadingKey(key);
+    fetch(key, { signal: controller.signal })
+      .then((response) => (response.ok ? response.blob() : null))
       .then((blob) => {
-        const url = URL.createObjectURL(blob);
-        setDocBlobUrls((prev) => ({ ...prev, [id]: url }));
+        if (!active || !blob) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPreview({ key, url: objectUrl });
       })
       .catch(() => {})
       .finally(() => {
-        setLoadingDocs((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
+        if (active) setLoadingKey(null);
       });
-  }, [current, id, docBlobUrls, loadingDocs]);
-
-  useEffect(() => {
     return () => {
-      Object.values(docBlobUrls).forEach((url) => URL.revokeObjectURL(url));
+      active = false;
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key]);
 
-  const docUrl = current?.type === "document" && id ? docBlobUrls[id] : null;
-  const isDocLoading = current?.type === "document" && id ? loadingDocs.has(id) : false;
-
-  return { docUrl, isDocLoading };
+  return {
+    docUrl: preview?.key === key ? preview.url : null,
+    isDocLoading: key !== null && loadingKey === key,
+  };
 }

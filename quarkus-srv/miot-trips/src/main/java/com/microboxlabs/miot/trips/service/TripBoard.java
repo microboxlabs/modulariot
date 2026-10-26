@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.trips.domain.BoardRow;
+import com.microboxlabs.miot.trips.domain.DeliveryCycle;
 import com.microboxlabs.miot.trips.domain.Trip;
 import com.microboxlabs.miot.trips.domain.TripMilestone;
 import java.time.OffsetDateTime;
@@ -13,7 +14,8 @@ import java.util.Set;
  * never from the tenant's service status. A milestone is to confirm when a detection waits for a person, or when the
  * monitor raised its overdue alert and the planned time is still past. Before departure a trip moves to dispatch once
  * something reports its presentation or validation, or its departure is to confirm. A confirmed closure ends the
- * monitoring: the trip waits for its delivery.
+ * monitoring. The delivery view runs alongside: a trip is there once it has a delivery or its closure is confirmed,
+ * in the lane of the step every load reached, so a trip may be in dispatch and in delivery at once.
  */
 public final class TripBoard {
 
@@ -31,6 +33,7 @@ public final class TripBoard {
     public static final String ARRIVAL_PENDING = "arrival_pending";
     public static final String CLOSURE_PENDING = "closure_pending";
     public static final String TO_DELIVER = "to_deliver";
+    public static final String DELIVERY_PENDING = "delivery_pending";
     public static final String COMPLETED = "completed";
     public static final String REGULARIZED = "regularized";
     public static final String CANCELLED = "cancelled";
@@ -39,7 +42,8 @@ public final class TripBoard {
             PLANNING, List.of(UNASSIGNED, SCHEDULED),
             DISPATCH, List.of(PRESENTATION, VALIDATION, DEPARTURE_PENDING, IN_TRANSIT, ARRIVAL_PENDING,
                     CLOSURE_PENDING),
-            DELIVERY, List.of(TO_DELIVER),
+            DELIVERY, List.of(TO_DELIVER, DELIVERY_PENDING, DeliveryCycle.DELIVERED, DeliveryCycle.ACCEPTED,
+                    DeliveryCycle.SETTLED),
             FINISHED, List.of(COMPLETED, REGULARIZED, CANCELLED));
 
     private static final Set<String> BEFORE_DEPARTURE = Set.of("preparation", "loading");
@@ -55,6 +59,27 @@ public final class TripBoard {
                     DISPATCH, DELIVERY, FINISHED)));
         }
         return lanes;
+    }
+
+    /** The trip's lane in {@code view}; null when the trip is not in the delivery view. */
+    public static String lane(BoardRow row, String view, OffsetDateTime now) {
+        return DELIVERY.equals(view) ? deliveryLane(row) : lane(row, now);
+    }
+
+    /**
+     * The step every load reached; before that, whether a step waits for a confirmation. Null for a finished trip and
+     * for one without deliveries whose closure is not confirmed.
+     */
+    public static String deliveryLane(BoardRow row) {
+        if (Trip.CANCELLED.equals(row.status()) || Trip.DONE.equals(row.status())
+                || !row.deliveries().any() && !confirmed(row, TripMilestone.CLOSURE)) {
+            return null;
+        }
+        int level = row.deliveries().level();
+        if (level == 0) {
+            return row.deliveries().pending() ? DELIVERY_PENDING : TO_DELIVER;
+        }
+        return DeliveryCycle.ALL_STEPS.get(level - 1);
     }
 
     public static String lane(BoardRow row, OffsetDateTime now) {

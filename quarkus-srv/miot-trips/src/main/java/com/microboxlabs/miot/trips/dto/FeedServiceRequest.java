@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,8 @@ import java.util.Map;
  * {@code actualStart}, {@code actualArrival} and {@code actualEnd} are the departure, arrival and closure a person
  * recorded at the source; each confirms that milestone of the trip. {@code milestones} reports any milestone by name
  * ({@code presentation}, {@code validation}…) with the metadata the source has; see {@link MilestoneReport}.
+ * {@code slaMinutes} is the mandate's agreed lead time. {@code cargo} lists the units of the load in order; the
+ * n-th item is the mandate's n-th unit. Without cargo the units are left as they are.
  * {@code source} is the original record (a spreadsheet row), kept for audit and not compared.
  */
 public record FeedServiceRequest(
@@ -27,11 +30,28 @@ public record FeedServiceRequest(
         OffsetDateTime actualEnd,
         Resources resources,
         JsonNode source,
-        @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, MilestoneReport> milestones) {
+        @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, MilestoneReport> milestones,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Integer slaMinutes,
+        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CargoItem> cargo) {
 
     public FeedServiceRequest {
         milestones = milestones == null ? Map.of()
                 : java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(milestones));
+        cargo = cargo == null ? List.of() : List.copyOf(cargo);
+    }
+
+    @SuppressWarnings("java:S107") // The feed row without SLA or cargo.
+    public FeedServiceRequest(String orderType, String orderRef, String origin, String destination,
+            OffsetDateTime plannedStart, OffsetDateTime plannedEnd, OffsetDateTime actualStart,
+            OffsetDateTime actualArrival, OffsetDateTime actualEnd, Resources resources, JsonNode source,
+            Map<String, MilestoneReport> milestones) {
+        this(orderType, orderRef, origin, destination, plannedStart, plannedEnd, actualStart, actualArrival,
+                actualEnd, resources, source, milestones, null, null);
+    }
+
+    /** One unit of the load: what it is, how many, its weight in kg and its volume in m³. */
+    public record CargoItem(String description, BigDecimal qty, String qtyUnit, BigDecimal weightKg,
+            BigDecimal volumeM3) {
     }
 
     @SuppressWarnings("java:S107") // The feed row without milestone reports.

@@ -171,6 +171,20 @@ export function TripCard({
                 </span>
               );
             })}
+            {card.delivery && card.delivery.loads > 0 && (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                  card.delivery.pending
+                    ? MILESTONE_STYLE.pending
+                    : MILESTONE_STYLE.open
+                }`}
+              >
+                {tr("card.delivered", d, {
+                  done: String(card.delivery.reached.delivered),
+                  loads: String(card.delivery.loads),
+                })}
+              </span>
+            )}
             {card.regularized && (
               <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-800 dark:bg-purple-900/50 dark:text-purple-300">
                 {tr("lanes.regularized", d)}

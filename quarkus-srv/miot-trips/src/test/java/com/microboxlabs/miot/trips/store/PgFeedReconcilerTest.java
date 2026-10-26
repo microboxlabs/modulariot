@@ -39,6 +39,8 @@ import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.service.MilestoneService;
 import com.microboxlabs.miot.trips.service.AssignmentService;
 import com.microboxlabs.miot.trips.service.AuditService;
+import com.microboxlabs.miot.trips.service.CargoService;
+import com.microboxlabs.miot.trips.service.TripCargoService;
 import com.microboxlabs.miot.trips.service.FeedBatchService;
 import com.microboxlabs.miot.trips.service.FeedProfileService;
 import com.microboxlabs.miot.trips.service.FeedReconciler;
@@ -55,6 +57,7 @@ import com.microboxlabs.miot.trips.service.TripService;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.time.Clock;
@@ -116,6 +119,12 @@ class PgFeedReconcilerTest {
             new PgTripStore(() -> pool), audit, tx);
     private final FeedReconciler reconciler = new FeedReconciler(feeds, mandates, trips, stages, assignments,
             locations, milestones, audit, fleet, tx, json, clock);
+    private final CargoService cargoUnits = new CargoService(new PgCargoStore(() -> pool), mandates, projector,
+            audit, tx);
+    private final FeedReconciler withCargo = new FeedReconciler(feeds, mandates, trips, stages, assignments,
+            locations, milestones, audit, fleet, tx, json, clock, cargoUnits,
+            new TripCargoService(new PgTripCargoStore(() -> pool), new PgTripStore(() -> pool),
+                    new PgCargoStore(() -> pool), new PgStageStore(() -> pool), mandates, projector, audit, tx));
     private final PgMonitorStore monitorStore = new PgMonitorStore(() -> pool);
     private final MonitorEngine engine = new MonitorEngine(new PgMonitorRunStore(() -> pool), monitorStore,
             new PgTripStore(() -> pool), new PgStageStore(() -> pool), new PgAssignmentStore(() -> pool),
@@ -823,7 +832,136 @@ class PgFeedReconcilerTest {
         assertEquals(FEED, feed.feedKey());
         assertEquals("S-020", feed.externalCode());
         assertEquals("sample note", feed.source().get("Observaciones"));
+        String attribute = """
+                INSERT INTO miot_fleet.resource_attribute (tenant_code, resource_type, resource_id, attribute_type,
+                    attribute_key, attribute_value, valid_until, source_system)
+                VALUES ($1, 'driver', $2::uuid, 'TEST', $3, $4, $5, 'checks')""";
+        pool.preparedQuery(attribute).executeAndAwait(Tuple.of(tenant, fleetIds.d1(), "ALCOHOL", "PASSED",
+                OffsetDateTime.parse("2099-01-01T00:00:00Z")));
+        pool.preparedQuery(attribute).executeAndAwait(Tuple.of(tenant, fleetIds.d1(), "DRUGS", "PASSED",
+                OffsetDateTime.parse("2020-01-01T00:00:00Z")));
+        BoardStore.TripDetails details = board.details(tenant, tripId).orElseThrow();
+        assertEquals(List.of(new BoardStore.Order("S-020", "directo", "Cliente Prueba · Carga general")),
+                details.orders());
+        assertEquals(List.of(new BoardStore.Driver("Conductor", "10000001", null, List.of(
+                new BoardStore.Validation("TEST", "ALCOHOL", "PASSED", "checks", "2099-01-01T00:00:00Z")))),
+                details.drivers(), "an expired validation is left out");
+        assertEquals(new BoardStore.Carrier("Transportes Prueba SAC", "20000000001", null), details.carrier());
+        assertEquals("zone", details.originType(), "a place the feed creates is a zone");
         assertTrue(board.open(tenant, "s-020").stream().anyMatch(b -> b.tripId().equals(r.tripId())),
                 "the search ignores case");
+    }
+
+    private FeedServiceRequest loaded(Integer sla, FeedServiceRequest.CargoItem... cargo) {
+        FeedServiceRequest d = desired(2, 10, "ABC-123", null, "10000001");
+        return new FeedServiceRequest(d.orderType(), d.orderRef(), null, null, d.plannedStart(), d.plannedEnd(),
+                null, null, null, d.resources(), null, null, sla, List.of(cargo));
+    }
+
+    private static FeedServiceRequest.CargoItem unit(String description, String weightKg, String volumeM3) {
+        return new FeedServiceRequest.CargoItem(description, java.math.BigDecimal.ONE, "pallet",
+                new java.math.BigDecimal(weightKg), new java.math.BigDecimal(volumeM3));
+    }
+
+    @Test
+    void theFeedsCargoAndSlaReachTheMandateAndTheTripsLoadAndLeadTime() {
+        FeedResult r = withCargo.reconcile(tenant, ACTOR, FEED, "S-030",
+                loaded(600, unit("Pallet A", "1000", "2.5"), unit("Pallet B", "500", "1.5")), false);
+        assertTrue(r.errors().isEmpty(), () -> r.errors().toString());
+        UUID tripId = UUID.fromString(r.tripId());
+        PgBoardStore board = new PgBoardStore(() -> pool);
+        BoardStore.TripDetails details = board.details(tenant, tripId).orElseThrow();
+        assertEquals(2, details.load().units());
+        assertEquals(0, new java.math.BigDecimal("1500").compareTo(details.load().weightKg()));
+        assertEquals(0, new java.math.BigDecimal("4.0").compareTo(details.load().volumeM3()));
+        assertEquals(new BoardStore.LeadTime(0, 0, 1, 0), details.leadTime(), "an SLA not delivered yet is open");
+        assertEquals(List.of("Pallet A", "Pallet B"),
+                details.cargo().stream().map(BoardStore.Cargo::description).toList());
+        assertEquals("pallet", details.cargo().getFirst().qtyUnit());
+        assertEquals(600, mandates.get(tenant, UUID.fromString(r.mandateId())).slaMinutes());
+
+        FeedResult changed = withCargo.reconcile(tenant, ACTOR, FEED, "S-030",
+                loaded(720, unit("Pallet A", "1200", "2.5")), false);
+        assertTrue(changed.errors().isEmpty(), () -> changed.errors().toString());
+        assertTrue(changed.warnings().stream().anyMatch(w -> w.contains("no longer sent")), "a dropped unit stays");
+        assertEquals(720, mandates.get(tenant, UUID.fromString(r.mandateId())).slaMinutes());
+        assertEquals(0, new java.math.BigDecimal("1700").compareTo(
+                board.details(tenant, tripId).orElseThrow().load().weightKg()));
+
+        FeedResult same = withCargo.reconcile(tenant, ACTOR, FEED, "S-030",
+                loaded(720, unit("Pallet A", "1200.0", "2.50")), false);
+        assertEquals(List.of(), same.operations(), "the same units in another scale change nothing");
+    }
+
+    @Test
+    void cargoAlreadyAnnouncedForTheMandateIsMountedWhenTheFeedCreatesItsTrip() {
+        Mandate mandate = mandates.createOrGet(tenant, ACTOR,
+                new com.microboxlabs.miot.trips.dto.MandateRequest("S-031", "direct", loaded(600).orderRef(), null, null, null))
+                .mandate();
+        var unit = unit("Pallet A", "1000", "2.5");
+        cargoUnits.announce(tenant, ACTOR, UUID.fromString(mandate.id()),
+                new com.microboxlabs.miot.trips.dto.CargoRequest(unit.description(), unit.qty(), unit.qtyUnit(),
+                        unit.weightKg(), unit.volumeM3(), null));
+        FeedResult result = withCargo.reconcile(tenant, ACTOR, FEED, "S-031", loaded(600, unit), false);
+        assertEquals(1, new PgBoardStore(() -> pool).details(tenant, UUID.fromString(result.tripId()))
+                .orElseThrow().load().units());
+        assertEquals(1, cargoUnits.listByMandate(tenant, UUID.fromString(mandate.id())).size());
+        assertEquals(List.of(), withCargo.reconcile(tenant, ACTOR, FEED, "S-031", loaded(600, unit), false)
+                .operations());
+    }
+
+    @Test
+    void cargoAndSlaChangesToAClosedTripAreReportedAndKeptUnchanged() {
+        FeedResult first = withCargo.reconcile(tenant, ACTOR, FEED, "S-032",
+                loaded(600, unit("Pallet A", "1000", "2.5")), false);
+        UUID tripId = UUID.fromString(first.tripId());
+        trips.cancel(tenant, ACTOR, tripId, "test closure");
+        FeedResult changed = withCargo.reconcile(tenant, ACTOR, FEED, "S-032",
+                loaded(720, unit("Pallet A", "2000", "3.0")), false);
+        assertTrue(changed.warnings().stream().anyMatch(w -> w.contains("slaMinutes") && w.contains("cargo")),
+                () -> changed.warnings().toString());
+        assertEquals(600, mandates.get(tenant, UUID.fromString(first.mandateId())).slaMinutes());
+        assertEquals(0, new java.math.BigDecimal("1000").compareTo(new PgBoardStore(() -> pool)
+                .details(tenant, tripId).orElseThrow().load().weightKg()));
+    }
+
+    @Test
+    void omittedCargoValuesAndNormalizedStringsDoNotKeepUpdatingTheSameUnit() {
+        FeedResult first = withCargo.reconcile(tenant, ACTOR, FEED, "S-034",
+                loaded(600, unit("Pallet A", "1000", "2.5")), false);
+        var sparse = new FeedServiceRequest.CargoItem(" Pallet A ", null, " pallet ", null, null);
+        for (int i = 0; i < 2; i++) {
+            assertEquals(List.of(), withCargo.reconcile(tenant, ACTOR, FEED, "S-034", loaded(600, sparse), false)
+                    .operations());
+        }
+        var clearUnit = new FeedServiceRequest.CargoItem(null, null, " ", null, null);
+        withCargo.reconcile(tenant, ACTOR, FEED, "S-034", loaded(600, clearUnit), false);
+        assertEquals(List.of(), withCargo.reconcile(tenant, ACTOR, FEED, "S-034", loaded(600, clearUnit), false)
+                .operations());
+        var stored = cargoUnits.listByMandate(tenant, UUID.fromString(first.mandateId())).get(0);
+        assertNull(stored.qtyUnit());
+        assertEquals("Pallet A", stored.description());
+        assertEquals(0, new java.math.BigDecimal("1000").compareTo(stored.weightKg()));
+    }
+
+    @Test
+    void ongoingTripsShowOnlyCurrentDriversAndClosedTripsKeepTheirHistory() {
+        FeedResult first = send("S-035", desired(2, 10, "ABC-123", null, "10000001", "10000002"));
+        UUID tripId = UUID.fromString(first.tripId());
+        AssignmentView former = trips.detail(tenant, tripId).assignments().stream()
+                .filter(a -> a.resourceId().equals(fleetIds.d2())).findFirst().orElseThrow();
+        assignments.end(tenant, ACTOR, UUID.fromString(former.id()), null, "test replacement");
+        PgBoardStore board = new PgBoardStore(() -> pool);
+        assertEquals(List.of("10000001"), board.details(tenant, tripId).orElseThrow().drivers().stream()
+                .map(BoardStore.Driver::rut).toList());
+        trips.cancel(tenant, ACTOR, tripId, "test closure");
+        assertEquals(2, board.details(tenant, tripId).orElseThrow().drivers().size());
+    }
+
+    @Test
+    void aRowWithoutCargoOrSlaKeepsItsHash() {
+        FeedServiceRequest d = desired(2, 10, "ABC-123", null, "10000001");
+        assertEquals(reconciler.hash(d), reconciler.hash(new FeedServiceRequest(d.orderType(), d.orderRef(), null,
+                null, d.plannedStart(), d.plannedEnd(), null, null, null, d.resources(), null, null, null, null)));
     }
 }

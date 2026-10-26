@@ -46,9 +46,16 @@ final class MonitorContext {
     private final MandateService mandates;
     private final MilestoneService milestones;
     private final FleetResources fleet;
+    private final DeliveryReach deliveries;
 
     MonitorContext(TripStore trips, StageStore stages, AssignmentStore assignments, LocationStore locations,
             MandateService mandates, MilestoneService milestones, FleetResources fleet) {
+        this(trips, stages, assignments, locations, mandates, milestones, fleet, DeliveryReach.NONE);
+    }
+
+    @SuppressWarnings("java:S107") // The constructor above with the trip's deliveries.
+    MonitorContext(TripStore trips, StageStore stages, AssignmentStore assignments, LocationStore locations,
+            MandateService mandates, MilestoneService milestones, FleetResources fleet, DeliveryReach deliveries) {
         this.trips = trips;
         this.stages = stages;
         this.assignments = assignments;
@@ -56,6 +63,7 @@ final class MonitorContext {
         this.mandates = mandates;
         this.milestones = milestones;
         this.fleet = fleet;
+        this.deliveries = deliveries;
     }
 
     /** The context of {@code event} on the trip, with the monitor's parameters. */
@@ -78,6 +86,7 @@ final class MonitorContext {
         ctx.put("mandates", linked);
         ctx.put("assignments", assignments(tenant, tripId));
         ctx.put("milestones", milestones(tenant, tripId));
+        ctx.put("deliveries", deliveries.snapshot(tenant, tripId));
         ctx.put("event", event(event));
         if ("signal".equals(event.on())) {
             Map<String, Object> signal = new LinkedHashMap<>();

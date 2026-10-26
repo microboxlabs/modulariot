@@ -31,6 +31,29 @@ import java.util.function.Supplier;
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class PgBoardStore implements BoardStore {
 
+    /** The delivery lane state is shared by card and badge projections. */
+    private static final String DELIVERY_STATE = """
+            CASE WHEN EXISTS (SELECT 1 FROM miot_trips.trip_mandate tm
+                               WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              THEN ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_mandate dm
+                                            JOIN miot_trips.delivery_step ds
+                                              ON ds.delivery_id = dm.delivery_id AND ds.status = 'confirmed'
+                                           WHERE dm.trip_id = t.id AND dm.mandate_id = tm.mandate_id), 0)
+                           FROM miot_trips.trip_mandate tm
+                          WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active)
+              ELSE ARRAY(SELECT coalesce((SELECT max(array_position(ARRAY['delivered', 'accepted', 'settled'],
+                                                                    ds.step::text))
+                                            FROM miot_trips.delivery_step ds
+                                           WHERE ds.delivery_id = dl.id AND ds.status = 'confirmed'), 0)
+                           FROM miot_trips.delivery dl WHERE dl.trip_id = t.id)
+            END AS delivery_levels,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl WHERE dl.trip_id = t.id) AS has_delivery,
+            EXISTS (SELECT 1 FROM miot_trips.delivery dl
+                      JOIN miot_trips.delivery_step ds ON ds.delivery_id = dl.id AND ds.status = 'pending'
+                     WHERE dl.trip_id = t.id) AS delivery_pending""";
+
     private static final String TRIP_STATE = """
             t.id AS trip_id, t.status, t.planned_start, t.actual_start, t.actual_end, t.cancel_reason,
             (SELECT s.stage_type FROM miot_trips.stage s
@@ -61,7 +84,8 @@ public class PgBoardStore implements BoardStore {
             ARRAY(SELECT m.external_code FROM miot_trips.trip_mandate tm
                     JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
                    WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active
-                   ORDER BY tm.seq) AS codes""";
+                   ORDER BY tm.seq) AS codes,
+            """ + DELIVERY_STATE;
 
     private static final String OPEN = "SELECT " + TRIP_STATE + """
             ,
@@ -94,7 +118,8 @@ public class PgBoardStore implements BoardStore {
                          jsonb_array_elements(x.actions) a
                          WHERE x.trip_id = t.id AND a->>'type' = 'alert'
                            AND a->>'value' IN ('presentation_overdue', 'departure_overdue',
-                                              'arrival_overdue', 'closure_overdue')) AS alerts
+                                              'arrival_overdue', 'closure_overdue')) AS alerts,
+            """ + DELIVERY_STATE + "\n" + """
             FROM miot_trips.trip_live l
             JOIN miot_trips.trip t ON t.id = l.trip_id AND t.tenant_code = l.tenant_code
             WHERE l.tenant_code = $1""";
@@ -184,6 +209,101 @@ public class PgBoardStore implements BoardStore {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
+    private static final String DETAILS = """
+            SELECT
+              (SELECT jsonb_agg(jsonb_build_object('code', m.external_code, 'orderType', m.order_type,
+                                                   'orderRef', m.order_ref) ORDER BY tm.seq)::text
+                 FROM miot_trips.trip_mandate tm
+                 JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
+                WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active) AS orders,
+              (SELECT jsonb_agg(jsonb_build_object('name', x.full_name, 'rut', x.rut, 'phone', x.phone,
+                                'validations', (
+                       SELECT coalesce(jsonb_agg(jsonb_build_object('type', ra.attribute_type,
+                                  'key', ra.attribute_key, 'value', ra.attribute_value,
+                                  'source', ra.source_system,
+                                  'validUntil', to_char(ra.valid_until AT TIME ZONE 'UTC',
+                                                        'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+                                  ORDER BY ra.attribute_type, ra.attribute_key), '[]'::jsonb)
+                         FROM miot_fleet.resource_attribute ra
+                        WHERE ra.tenant_code = t.tenant_code AND ra.resource_type = 'driver'
+                          AND ra.resource_id = x.id AND ra.version_of IS NULL AND ra.is_active
+                          AND (ra.valid_from IS NULL OR ra.valid_from <= now())
+                          AND (ra.valid_until IS NULL OR ra.valid_until >= now())))
+                                ORDER BY x.n)::text
+                 FROM (SELECT dr.id, dr.full_name, dr.rut, coalesce(dr.mobile_phone, dr.phone) AS phone,
+                              row_number() OVER (ORDER BY (a.valid_to IS NULL) DESC, a.valid_from,
+                                                          a.created_at) AS n
+                         FROM miot_trips.trip_resource_assignment a
+                         JOIN miot_fleet.driver dr
+                           ON dr.id = a.resource_id AND dr.tenant_code = a.tenant_code AND dr.version_of IS NULL
+                        WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'driver'
+                          AND a.version_of IS NULL AND a.is_active
+                          AND (t.status IN ('completed', 'cancelled') OR a.valid_to IS NULL)) x
+                WHERE x.n <= 2) AS drivers,
+              (SELECT jsonb_agg(jsonb_build_object('id', cu.id, 'mandate', m.external_code,
+                                'orderRef', m.order_ref, 'line', ml.seq, 'partial', cu.partial_no,
+                                'description', cu.description, 'qty', cu.qty, 'qtyUnit', cu.qty_unit,
+                                'weightKg', cu.weight_kg, 'volumeM3', cu.volume_m3, 'status', cu.status)
+                                ORDER BY m.external_code, ml.seq, cu.partial_no)::text
+                 FROM miot_trips.trip_cargo tc
+                 JOIN miot_trips.cargo_unit cu ON cu.id = tc.cargo_id AND cu.version_of IS NULL AND cu.is_active
+                 JOIN miot_trips.mandate_line ml ON ml.id = cu.line_id
+                 JOIN miot_trips.mandate m ON m.id = ml.mandate_id AND m.version_of IS NULL
+                WHERE tc.trip_id = t.id AND tc.version_of IS NULL AND tc.is_active) AS cargo,
+              o.type AS origin_type, d.type AS destination_type,
+              c.legal_name AS carrier_name, c.rut AS carrier_rut, c.external_id AS carrier_code,
+              ld.units AS load_units, ld.weight AS load_weight, ld.volume AS load_volume,
+              coalesce(tr.max_weight, v.max_weight) AS weight_capacity, v.volume AS volume_capacity,
+              lt.on_time, lt.late, lt.lead_open, lt.without_sla
+            FROM miot_trips.trip t
+            LEFT JOIN miot_trips.location o
+                   ON o.id = t.origin_id AND o.tenant_code = t.tenant_code AND o.version_of IS NULL
+            LEFT JOIN miot_trips.location d
+                   ON d.id = t.destination_id AND d.tenant_code = t.tenant_code AND d.version_of IS NULL
+            LEFT JOIN LATERAL (
+                SELECT a.resource_id FROM miot_trips.trip_resource_assignment a
+                 WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'truck'
+                   AND a.version_of IS NULL AND a.is_active
+                 ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+                 LIMIT 1) ta ON true
+            LEFT JOIN miot_fleet.truck v
+                   ON v.id = ta.resource_id AND v.tenant_code = t.tenant_code AND v.version_of IS NULL
+            LEFT JOIN miot_fleet.carrier c
+                   ON c.id = v.carrier_id AND c.tenant_code = v.tenant_code AND c.version_of IS NULL
+            LEFT JOIN LATERAL (
+                SELECT a.resource_id FROM miot_trips.trip_resource_assignment a
+                 WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'trailer'
+                   AND a.version_of IS NULL AND a.is_active
+                 ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+                 LIMIT 1) tra ON true
+            LEFT JOIN miot_fleet.trailer tr
+                   ON tr.id = tra.resource_id AND tr.tenant_code = t.tenant_code AND tr.version_of IS NULL
+            CROSS JOIN LATERAL (
+                SELECT count(*)::int AS units, sum(cu.weight_kg) AS weight, sum(cu.volume_m3) AS volume
+                  FROM miot_trips.trip_cargo tc
+                  JOIN miot_trips.cargo_unit cu
+                    ON cu.id = tc.cargo_id AND cu.version_of IS NULL AND cu.is_active
+                 WHERE tc.trip_id = t.id AND tc.version_of IS NULL AND tc.is_active) ld
+            CROSS JOIN LATERAL (
+                SELECT count(*) FILTER (WHERE x.delivered_at <= x.due)::int AS on_time,
+                       count(*) FILTER (WHERE x.delivered_at > x.due)::int AS late,
+                       count(*) FILTER (WHERE x.due IS NOT NULL AND x.delivered_at IS NULL)::int AS lead_open,
+                       count(*) FILTER (WHERE x.due IS NULL)::int AS without_sla
+                  FROM (SELECT coalesce((SELECT ms.confirmed_at FROM miot_trips.trip_milestone ms
+                                          WHERE ms.trip_id = t.id AND ms.milestone = 'departure'
+                                            AND ms.status = 'confirmed'),
+                                        t.actual_start, t.planned_start)
+                               + make_interval(mins => m.sla_minutes) AS due,
+                               (SELECT min(ds.confirmed_at) FROM miot_trips.delivery_mandate dm
+                                  JOIN miot_trips.delivery_step ds
+                                    ON ds.delivery_id = dm.delivery_id AND ds.step = 'delivered'
+                                   AND ds.status = 'confirmed'
+                                 WHERE dm.trip_id = t.id AND dm.mandate_id = m.id) AS delivered_at
+                          FROM miot_trips.trip_mandate tm
+                          JOIN miot_trips.mandate m ON m.id = tm.mandate_id AND m.version_of IS NULL
+                         WHERE tm.trip_id = t.id AND tm.version_of IS NULL AND tm.is_active) x) lt
+            WHERE t.tenant_code = $1 AND t.id = $2 AND t.version_of IS NULL""";
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -239,6 +359,33 @@ public class PgBoardStore implements BoardStore {
                         time(r, "last_reconciled_at")));
     }
 
+    @Override
+    public Optional<TripDetails> details(String tenantCode, UUID tripId) {
+        return query(pool.get(), DETAILS, Tuple.of(tenantCode, tripId)).stream().findFirst()
+                .map(r -> new TripDetails(list(r.getString("orders"), new TypeReference<List<Order>>() {
+                }), list(r.getString("drivers"), new TypeReference<List<Driver>>() {
+                }),
+                        r.getString("carrier_name") == null ? null
+                                : new Carrier(r.getString("carrier_name"), r.getString("carrier_rut"),
+                                        r.getString("carrier_code")),
+                        r.getString("origin_type"), r.getString("destination_type"),
+                        new Load(r.getInteger("load_units"), r.getBigDecimal("load_weight"),
+                                r.getBigDecimal("load_volume"), r.getBigDecimal("weight_capacity"),
+                                r.getBigDecimal("volume_capacity")),
+                        new LeadTime(r.getInteger("on_time"), r.getInteger("late"), r.getInteger("lead_open"),
+                                r.getInteger("without_sla")),
+                        list(r.getString("cargo"), new TypeReference<List<Cargo>>() {
+                        })));
+    }
+
+    private static <T> List<T> list(String json, TypeReference<List<T>> type) {
+        try {
+            return json == null ? List.of() : JSON.readValue(json, type);
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
     /** The row the source sent, as the feed kept it in the desired state. */
     private static Map<String, Object> source(String desired) {
         if (desired == null) {
@@ -286,7 +433,14 @@ public class PgBoardStore implements BoardStore {
                 r.getString("destination"), r.getString("truck"), r.getString("trailer"), r.getString("driver"),
                 r.getString("second_driver"), r.getString("carrier"), r.getString("monitor_key"),
                 Boolean.TRUE.equals(r.getBoolean("regularized")), r.getString("cancel_reason"),
-                time(r, "updated_at"));
+                time(r, "updated_at"), deliveries(r));
+    }
+
+    private static BoardRow.Deliveries deliveries(Row r) {
+        Integer[] levels = r.getArrayOfIntegers("delivery_levels");
+        return new BoardRow.Deliveries(levels == null ? List.of() : Arrays.asList(levels),
+                Boolean.TRUE.equals(r.getBoolean("has_delivery")),
+                Boolean.TRUE.equals(r.getBoolean("delivery_pending")));
     }
 
     private static BoardRow countRow(Row r) {
@@ -296,6 +450,6 @@ public class PgBoardStore implements BoardStore {
         return new BoardRow(null, r.getString("status"), time(r, "planned_start"), time(r, "planned_arrival"),
                 null, null, null, r.getString("current_stage"), r.getString("last_stage"), milestones,
                 alerts == null ? null : new HashSet<>(Arrays.asList(alerts)), null, null, null, null,
-                r.getString("truck"), null, r.getString("driver"), null, null, null, false, null, null);
+                r.getString("truck"), null, r.getString("driver"), null, null, null, false, null, null, deliveries(r));
     }
 }

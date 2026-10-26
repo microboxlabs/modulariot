@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /**
  * Everything the trip page shows: its card, plan, milestones, the team that confirms each milestone (milestone → team
- * id), the monitor's transitions and the feed's row.
+ * id), the monitor's transitions, the feed's row, the deliveries, and its orders, carrier and location types.
  */
 public record TripSheet(
         BoardView.Card card,
@@ -17,5 +17,7 @@ public record TripSheet(
         List<TripMilestone> milestones,
         Map<String, UUID> confirmers,
         List<MonitorRun.Transition> transitions,
-        BoardStore.FeedSource feed) {
+        BoardStore.FeedSource feed,
+        DeliveryViews.Deliveries deliveries,
+        BoardStore.TripDetails details) {
 }

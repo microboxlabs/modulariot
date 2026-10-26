@@ -55,6 +55,18 @@ describe("board live updates", () => {
     expect(source.closed).toBe(true);
   });
 
+  it("refreshes during a continuous stream of changes", () => {
+    renderHook(() => useBoardEvents());
+    const source = FakeEventSource.last!;
+    act(() => {
+      for (let i = 0; i < 10; i++) {
+        source.onmessage?.({ data: '{"type":"trip","tripId":"a"}' });
+        vi.advanceTimersByTime(200);
+      }
+    });
+    expect(mutate).toHaveBeenCalledTimes(3);
+  });
+
   it("matches the board views and trip pages only", () => {
     expect(isBoardKey("/api/trips/board/planning?q=x")).toBe(true);
     expect(isBoardKey("/api/trips/board/sheet/123")).toBe(true);

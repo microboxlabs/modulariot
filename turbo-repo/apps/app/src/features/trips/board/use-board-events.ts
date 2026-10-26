@@ -30,8 +30,9 @@ export function useBoardEvents(): boolean {
       } catch {
         return;
       }
-      window.clearTimeout(timer);
+      if (timer !== undefined) return;
       timer = window.setTimeout(() => {
+        timer = undefined;
         void mutate(isBoardKey);
       }, DEBOUNCE_MS);
     };

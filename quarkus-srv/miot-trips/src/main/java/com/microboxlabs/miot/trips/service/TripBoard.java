@@ -43,7 +43,7 @@ public final class TripBoard {
     private TripBoard() {
     }
 
-    public static List<String> lanes(String view) {
+    public static List<String> lanesForView(String view) {
         List<String> lanes = LANES.get(view);
         if (lanes == null) {
             throw new IllegalArgumentException("view must be one of " + String.join(", ", List.of(PLANNING,
@@ -78,16 +78,26 @@ public final class TripBoard {
      * confirmed departure or arrival moves the trip on even when no stage followed it.
      */
     private static String phase(BoardRow row) {
-        int byStage;
+        int byStage = 0;
         if (row.currentStage() != null) {
-            byStage = BEFORE_DEPARTURE.contains(row.currentStage()) ? 0 : EN_ROUTE.contains(row.currentStage()) ? 1 : 2;
+            if (EN_ROUTE.contains(row.currentStage())) {
+                byStage = 1;
+            } else if (!BEFORE_DEPARTURE.contains(row.currentStage())) {
+                byStage = 2;
+            }
         } else if (row.lastStage() != null) {
-            byStage = BEFORE_DEPARTURE.contains(row.lastStage()) ? 1 : 2;
-        } else {
-            byStage = 0;
+            if (BEFORE_DEPARTURE.contains(row.lastStage()) || EN_ROUTE.contains(row.lastStage())) {
+                byStage = 1;
+            } else {
+                byStage = 2;
+            }
         }
-        int byMilestone = TripMilestone.CONFIRMED.equals(row.milestone(TripMilestone.ARRIVAL)) ? 2
-                : TripMilestone.CONFIRMED.equals(row.milestone(TripMilestone.DEPARTURE)) ? 1 : 0;
+        int byMilestone = 0;
+        if (TripMilestone.CONFIRMED.equals(row.milestone(TripMilestone.ARRIVAL))) {
+            byMilestone = 2;
+        } else if (TripMilestone.CONFIRMED.equals(row.milestone(TripMilestone.DEPARTURE))) {
+            byMilestone = 1;
+        }
         return List.of(PLANNING, DISPATCH, DELIVERY).get(Math.max(byStage, byMilestone));
     }
 

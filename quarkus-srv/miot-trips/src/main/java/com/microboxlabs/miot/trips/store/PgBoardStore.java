@@ -18,6 +18,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -92,32 +93,71 @@ public class PgBoardStore implements BoardStore {
             SELECT""" + " " + TRIP_STATE + """
             ,
             t.origin, t.destination,
-            (SELECT s.service_status FROM miot_trips.stage s
+            coalesce((SELECT s.service_status FROM miot_trips.stage s
               WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
-                AND s.status = 'completed' AND s.version_of IS NULL AND s.is_active AND s.service_status IS NOT NULL
-              ORDER BY s.seq DESC LIMIT 1) AS label,
+                AND s.status <> 'pending' AND s.version_of IS NULL AND s.is_active
+                AND s.service_status IS NOT NULL
+              ORDER BY (s.status = 'in_progress') DESC, s.actual_start DESC NULLS LAST, s.seq DESC LIMIT 1),
+              t.status) AS label,
             (SELECT max(s.planned_end) FROM miot_trips.stage s
               WHERE s.tenant_code = t.tenant_code AND s.subject_type = 'trip' AND s.subject_id = t.id
                 AND s.version_of IS NULL AND s.is_active) AS planned_arrival,
             (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
               WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'truck'
-                AND a.version_of IS NULL AND a.is_active ORDER BY a.valid_from DESC LIMIT 1) AS truck,
-            NULL::text AS trailer,
+                AND a.version_of IS NULL AND a.is_active
+              ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+              LIMIT 1) AS truck,
+            (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
+              WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'trailer'
+                AND a.version_of IS NULL AND a.is_active
+              ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from DESC, a.id
+              LIMIT 1) AS trailer,
             (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
               WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'driver'
-                AND a.version_of IS NULL AND a.is_active ORDER BY a.valid_from LIMIT 1) AS driver,
-            NULL::text AS second_driver, NULL::text AS carrier,
+                AND a.version_of IS NULL AND a.is_active
+              ORDER BY (a.valid_to IS NULL) DESC, a.valid_to DESC NULLS LAST, a.valid_from ASC, a.created_at ASC
+              LIMIT 1) AS driver,
+            (SELECT a.resource_id::text FROM miot_trips.trip_resource_assignment a
+              WHERE a.tenant_code = t.tenant_code AND a.trip_id = t.id AND a.resource_type = 'driver'
+                AND a.valid_to IS NULL AND a.version_of IS NULL AND a.is_active
+              ORDER BY a.valid_from, a.created_at OFFSET 1 LIMIT 1) AS second_driver,
+            NULL::text AS carrier,
             EXISTS (SELECT 1 FROM miot_trips.audit_event e
                      WHERE e.tenant_code = t.tenant_code AND e.entity_type = 'trip' AND e.entity_id = t.id::text
                        AND e.action = 'trip.created' AND e.details->>'regularized' = 'true') AS regularized,
             t.updated_at
             FROM done t
+            ), matched AS (
+                SELECT rows.*,
+                       CASE WHEN status = 'cancelled' THEN 'cancelled'
+                            WHEN regularized THEN 'regularized' ELSE 'completed' END AS board_lane
+                FROM rows
+                WHERE $2::text IS NULL OR concat_ws(' ', array_to_string(codes, ' '), origin, destination)
+                      ILIKE '%' || $2 || '%'
+                   OR EXISTS (SELECT 1 FROM miot_fleet.truck v
+                              LEFT JOIN miot_fleet.carrier c ON c.id = v.carrier_id
+                                    AND c.tenant_code = v.tenant_code AND c.version_of IS NULL
+                              WHERE v.id = rows.truck::uuid AND v.tenant_code = $1 AND v.version_of IS NULL
+                                AND (v.license_plate ILIKE '%' || $2 || '%'
+                                     OR c.legal_name ILIKE '%' || $2 || '%'))
+                   OR EXISTS (SELECT 1 FROM miot_fleet.trailer v
+                              WHERE v.id = rows.trailer::uuid AND v.tenant_code = $1 AND v.version_of IS NULL
+                                AND v.license_plate ILIKE '%' || $2 || '%')
+                   OR EXISTS (SELECT 1 FROM miot_fleet.driver d
+                              WHERE d.id = rows.driver::uuid AND d.tenant_code = $1 AND d.version_of IS NULL
+                                AND d.full_name ILIKE '%' || $2 || '%')
+                   OR EXISTS (SELECT 1 FROM miot_fleet.driver d
+                              WHERE d.id = rows.second_driver::uuid AND d.tenant_code = $1
+                                AND d.version_of IS NULL AND d.full_name ILIKE '%' || $2 || '%')
+            ), ranked AS (
+                SELECT matched.*,
+                       count(*) OVER (PARTITION BY board_lane) AS lane_count,
+                       row_number() OVER (PARTITION BY board_lane
+                                          ORDER BY coalesce(actual_end, updated_at) DESC NULLS LAST, trip_id)
+                           AS lane_rank
+                FROM matched
             )
-            SELECT * FROM rows
-            WHERE $2::text IS NULL OR concat_ws(' ', array_to_string(codes, ' '), origin, destination)
-                  ILIKE '%' || $2 || '%'
-            ORDER BY coalesce(actual_end, updated_at) DESC
-            LIMIT $5""";
+            SELECT * FROM ranked WHERE lane_rank <= $5 ORDER BY board_lane, lane_rank""";
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -138,14 +178,14 @@ public class PgBoardStore implements BoardStore {
     }
 
     @Override
-    public List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit) {
-        return finished(tenantCode, q, from, to, limit, null);
+    public FinishedPage finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int perLane) {
+        return finished(tenantCode, q, from, to, perLane, null);
     }
 
     @Override
     public Optional<BoardRow> trip(String tenantCode, UUID tripId) {
         return open(tenantCode, null, tripId).stream().findFirst()
-                .or(() -> finished(tenantCode, null, null, null, 1, tripId).stream().findFirst());
+                .or(() -> finished(tenantCode, null, null, null, 1, tripId).rows().stream().findFirst());
     }
 
     @Override
@@ -183,11 +223,16 @@ public class PgBoardStore implements BoardStore {
         return query(pool.get(), OPEN, Tuple.of(tenantCode, q, tripId)).stream().map(PgBoardStore::row).toList();
     }
 
-    private List<BoardRow> finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int limit,
+    private FinishedPage finished(String tenantCode, String q, OffsetDateTime from, OffsetDateTime to, int perLane,
             UUID tripId) {
-        return query(pool.get(), FINISHED, Tuple.tuple().addString(tenantCode).addString(q)
-                .addOffsetDateTime(from).addOffsetDateTime(to).addInteger(limit).addUUID(tripId))
-                .stream().map(PgBoardStore::row).toList();
+        Map<String, Integer> counts = new HashMap<>();
+        List<BoardRow> rows = query(pool.get(), FINISHED, Tuple.tuple().addString(tenantCode).addString(q)
+                .addOffsetDateTime(from).addOffsetDateTime(to).addInteger(perLane).addUUID(tripId))
+                .stream().map(r -> {
+                    counts.put(r.getString("board_lane"), Math.toIntExact(r.getLong("lane_count")));
+                    return row(r);
+                }).toList();
+        return new FinishedPage(rows, counts);
     }
 
     private static BoardRow row(Row r) {

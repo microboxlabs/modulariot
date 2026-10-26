@@ -40,6 +40,9 @@ public class BoardService {
     private static final Duration FINISHED_DEFAULT = Duration.ofDays(7);
     private static final Duration FINISHED_MAX = Duration.ofDays(93);
 
+    private record ViewRows(List<BoardRow> rows, Comparator<BoardRow> order, Map<String, Integer> counts) {
+    }
+
     private final BoardStore board;
     private final FleetResources fleet;
     private final StageStore stages;
@@ -81,59 +84,77 @@ public class BoardService {
     /** {@code from} and {@code to} only apply to the finished view; the default is the last seven days. */
     public BoardView view(String tenantCode, String view, String q, OffsetDateTime from, OffsetDateTime to,
             Integer limit) {
-        List<String> lanes = TripBoard.lanes(view);
+        List<String> lanes = TripBoard.lanesForView(view);
         int perLane = limit == null ? DEFAULT_LIMIT : Math.clamp(limit, 1, MAX_LIMIT);
         String query = q == null || q.isBlank() ? null : Check.limited(q.trim(), "q", 100);
         OffsetDateTime now = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
-        List<BoardRow> rows;
-        Comparator<BoardRow> order;
-        if (TripBoard.FINISHED.equals(view)) {
-            OffsetDateTime end = to == null ? now : to;
-            OffsetDateTime start = from == null ? end.minus(FINISHED_DEFAULT) : from;
-            if (!start.isBefore(end) || Duration.between(start, end).compareTo(FINISHED_MAX) > 0) {
-                throw new IllegalArgumentException("from must be before to, at most 93 days apart");
-            }
-            rows = resolveResources(tenantCode,
-                    board.finished(tenantCode, query, start, end, perLane * lanes.size()));
-            order = Comparator.comparing((BoardRow r) -> r.actualEnd() == null ? r.updatedAt() : r.actualEnd(),
-                    Comparator.nullsLast(Comparator.reverseOrder()));
-        } else {
-            rows = board.open(tenantCode, query);
-            Function<BoardRow, OffsetDateTime> due = TripBoard.PLANNING.equals(view) ? BoardRow::plannedStart
-                    : BoardRow::plannedArrival;
-            order = Comparator.comparing(due, Comparator.nullsLast(Comparator.naturalOrder()));
-        }
+        ViewRows selected = viewRows(tenantCode, view, query, from, to, perLane, now);
         Map<String, List<BoardRow>> byLane = new LinkedHashMap<>();
         lanes.forEach(lane -> byLane.put(lane, new ArrayList<>()));
-        for (BoardRow row : rows) {
+        for (BoardRow row : selected.rows()) {
             List<BoardRow> lane = byLane.get(TripBoard.lane(row, now));
             if (lane != null) {
                 lane.add(row);
             }
         }
         List<BoardView.Lane> out = byLane.entrySet().stream().map(e -> new BoardView.Lane(e.getKey(),
-                e.getValue().size(), e.getValue().stream().sorted(order).limit(perLane)
+                selected.counts().getOrDefault(e.getKey(), e.getValue().size()),
+                e.getValue().stream().sorted(selected.order()).limit(perLane)
                         .map(r -> BoardView.Card.of(r, e.getKey())).toList()))
                 .toList();
         return new BoardView(view, out, now);
     }
 
+    private ViewRows viewRows(String tenantCode, String view, String query, OffsetDateTime from, OffsetDateTime to,
+            int perLane, OffsetDateTime now) {
+        if (TripBoard.FINISHED.equals(view)) {
+            return finishedRows(tenantCode, query, from, to, perLane, now);
+        }
+        Function<BoardRow, OffsetDateTime> due = TripBoard.PLANNING.equals(view) ? BoardRow::plannedStart
+                : BoardRow::plannedArrival;
+        return new ViewRows(board.open(tenantCode, query),
+                Comparator.comparing(due, Comparator.nullsLast(Comparator.naturalOrder())), Map.of());
+    }
+
+    private ViewRows finishedRows(String tenantCode, String query, OffsetDateTime from, OffsetDateTime to,
+            int perLane, OffsetDateTime now) {
+        OffsetDateTime end = to == null ? now : to;
+        OffsetDateTime start = from == null ? end.minus(FINISHED_DEFAULT) : from;
+        if (!start.isBefore(end) || Duration.between(start, end).compareTo(FINISHED_MAX) > 0) {
+            throw new IllegalArgumentException("from must be before to, at most 93 days apart");
+        }
+        BoardStore.FinishedPage page = board.finished(tenantCode, query, start, end, perLane);
+        Comparator<BoardRow> order = Comparator.comparing(
+                (BoardRow r) -> r.actualEnd() == null ? r.updatedAt() : r.actualEnd(),
+                Comparator.nullsLast(Comparator.reverseOrder()));
+        return new ViewRows(resolveResources(tenantCode, page.rows()), order, page.counts());
+    }
+
     /** A finished trip carries resource ids; the card shows the plate, the driver and the truck's carrier. */
     private List<BoardRow> resolveResources(String tenantCode, List<BoardRow> rows) {
         Map<String, Optional<FleetResources.Vehicle>> trucks = new HashMap<>();
+        Map<String, Optional<FleetResources.Vehicle>> trailers = new HashMap<>();
         Map<String, Optional<FleetResources.Driver>> drivers = new HashMap<>();
         Map<UUID, Optional<FleetResources.Carrier>> carriers = new HashMap<>();
         return rows.stream().map(r -> {
             Optional<FleetResources.Vehicle> truck = r.truck() == null ? Optional.empty()
                     : trucks.computeIfAbsent(r.truck(), id -> Optional.ofNullable(Pg.parse(id))
                             .flatMap(u -> fleet.vehicle(tenantCode, Assignment.TRUCK, u)));
+            Optional<FleetResources.Vehicle> trailer = r.trailer() == null ? Optional.empty()
+                    : trailers.computeIfAbsent(r.trailer(), id -> Optional.ofNullable(Pg.parse(id))
+                            .flatMap(u -> fleet.vehicle(tenantCode, Assignment.TRAILER, u)));
             Optional<FleetResources.Driver> driver = r.driver() == null ? Optional.empty()
                     : drivers.computeIfAbsent(r.driver(), id -> Optional.ofNullable(Pg.parse(id))
+                            .flatMap(u -> fleet.driver(tenantCode, u)));
+            Optional<FleetResources.Driver> secondDriver = r.secondDriver() == null ? Optional.empty()
+                    : drivers.computeIfAbsent(r.secondDriver(), id -> Optional.ofNullable(Pg.parse(id))
                             .flatMap(u -> fleet.driver(tenantCode, u)));
             Optional<FleetResources.Carrier> carrier = truck.map(FleetResources.Vehicle::carrierId)
                     .flatMap(id -> carriers.computeIfAbsent(id, c -> fleet.carrier(tenantCode, c)));
             return r.withResources(truck.map(FleetResources.Vehicle::licensePlate).orElse(null),
+                    trailer.map(FleetResources.Vehicle::licensePlate).orElse(null),
                     driver.map(FleetResources.Driver::fullName).orElse(null),
+                    secondDriver.map(FleetResources.Driver::fullName).orElse(null),
                     carrier.map(FleetResources.Carrier::legalName).orElse(null));
         }).toList();
     }

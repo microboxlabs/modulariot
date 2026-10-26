@@ -83,11 +83,6 @@ export function SheetHead({
           <span className="font-normal text-gray-800 dark:text-gray-200">
             {statusLabel(card, d)}
           </span>
-          {(card.origin || card.destination) && (
-            <span className="ml-2">
-              {card.origin ?? "—"} → {card.destination ?? "—"}
-            </span>
-          )}
         </h2>
       </div>
       <div className="flex flex-row items-center gap-1">

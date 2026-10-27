@@ -56,6 +56,7 @@ public class EngineCaseService {
     /** The list filters the cases answer; any other one leaves them out. */
     private static final Set<String> CASE_FILTERS = Set.of(TRIP_ID, ASSET_ID, NAME, LEVEL, FROM, TO);
     private static final String SYMPTOM_NAME = "symptom_name";
+    private static final String CONDITIONS_AGG = "conditions_agg";
     private static final String SYMPTOM_NAMES = "symptom_name_list";
     private static final String ICU_CODE = "icu_code";
     private static final String ICU_CONDITION = "icu_condition";
@@ -261,7 +262,7 @@ public class EngineCaseService {
     public JsonNode header(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
-        out.set("conditions_agg", JSON.arrayNode());
+        out.set(CONDITIONS_AGG, JSON.arrayNode());
         // One timeline entry with the case, which the map selects to load its point.
         String end = (c.closedAt() != null ? c.closedAt() : c.openedAt()).toString();
         ObjectNode entry = out.putArray("timeline").addObject();
@@ -269,7 +270,7 @@ public class EngineCaseService {
         entry.put("end", end);
         entry.put("symptom_id", c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
-        ObjectNode agg = entry.putArray("conditions_agg").addObject();
+        ObjectNode agg = entry.putArray(CONDITIONS_AGG).addObject();
         agg.put("start", c.openedAt().toString());
         agg.put("end", end);
         agg.put("symptom_id", c.symptomId());
@@ -345,7 +346,7 @@ public class EngineCaseService {
             t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> rows.add(timelineRow(a)));
         }
         for (JsonNode entry : out.path("timeline")) {
-            for (JsonNode agg : entry.path("conditions_agg")) {
+            for (JsonNode agg : entry.path(CONDITIONS_AGG)) {
                 ((ObjectNode) agg).set("treatments", rows.deepCopy());
                 ((ObjectNode) agg).put("assigned_to", assignedTo);
             }

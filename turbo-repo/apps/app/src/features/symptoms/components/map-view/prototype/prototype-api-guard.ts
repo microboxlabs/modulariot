@@ -117,17 +117,17 @@ async function saveEngineTreatment(
 ): Promise<TreatmentsRequest> {
   if (progress?.pendingClose?.symptomId === payload.symptom_id) {
     await finishEngineTreatment(payload, progress);
-    return payload;
-  }
-  const treatment = await openEngineTreatment(payload);
-  await addTreatmentAction(treatment.id, engineAction(payload, action));
-  if (finish) {
-    await finishEngineTreatment(
-      payload,
-      progress,
-      treatment.id,
-      payload.description ?? undefined
-    );
+  } else {
+    const treatment = await openEngineTreatment(payload);
+    await addTreatmentAction(treatment.id, engineAction(payload, action));
+    if (finish) {
+      await finishEngineTreatment(
+        payload,
+        progress,
+        treatment.id,
+        payload.description ?? undefined
+      );
+    }
   }
   return payload;
 }

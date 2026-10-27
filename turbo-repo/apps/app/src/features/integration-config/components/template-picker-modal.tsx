@@ -8,12 +8,8 @@ import {
   ModalFooter,
   TextInput,
 } from "flowbite-react";
-import {
-  HiOutlineChartBar,
-  HiOutlineDatabase,
-  HiOutlineTemplate,
-  HiSearch,
-} from "react-icons/hi";
+import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
+import { BrandLogo } from "@/features/common/components/brand-logo";
 import type { ReactNode } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -80,13 +76,25 @@ export function TemplatePickerModal({
           <NativeOption
             title="PostgREST"
             description={tr("picker.postgrest", dict)}
-            icon={<HiOutlineDatabase className="h-5 w-5" />}
+            icon={
+              <BrandLogo
+                logo={{ default: "/credential-logos/postgresql.svg" }}
+                alt="PostgREST"
+                size={32}
+              />
+            }
             onSelect={() => onSelectNative("POSTGREST")}
           />
           <NativeOption
             title="BigQuery"
             description={tr("picker.bigquery", dict)}
-            icon={<HiOutlineChartBar className="h-5 w-5" />}
+            icon={
+              <BrandLogo
+                logo={{ default: "/credential-logos/bigquery.svg" }}
+                alt="BigQuery"
+                size={32}
+              />
+            }
             onSelect={() => onSelectNative("BIGQUERY")}
           />
         </div>

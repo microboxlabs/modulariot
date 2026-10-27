@@ -1,6 +1,6 @@
 import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
-import { Database, Image, Link } from "flowbite-react-icons/outline";
+import { Image, Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import type {
   BrandLogoSources,
@@ -27,7 +27,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
-  POSTGREST: { icon: Database },
+  POSTGREST: { logo: { default: "/credential-logos/postgresql.svg" } },
   RESEND: {
     logo: {
       light: "/credential-logos/resend-light.svg",
@@ -67,7 +67,7 @@ export function connectionMark(
   const channel = CHANNEL_TEMPLATES[typeName];
   if (channel) return { icon: channelLogo(channel) };
   if (isBigQueryConnection(connection)) {
-    return { logo: { default: "/credential-logos/google-cloud.svg" } };
+    return { logo: { default: "/credential-logos/bigquery.svg" } };
   }
   return PROVIDER_MARKS[connection.providerType] ?? { icon: Link };
 }

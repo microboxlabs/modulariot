@@ -5,6 +5,23 @@ import type { IntegrationConnection } from "../integration-config.types";
 import { BigQueryQueriesModal } from "./bigquery-queries-modal";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("./sql-code-editor", () => ({
+  default: ({
+    id,
+    value,
+    onChange,
+  }: {
+    id: string;
+    value: string;
+    onChange: (text: string) => void;
+  }) => (
+    <textarea
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+}));
 
 const connection: IntegrationConnection = {
   id: "c1",

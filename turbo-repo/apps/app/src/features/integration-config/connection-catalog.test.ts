@@ -46,7 +46,7 @@ describe("connectionMark", () => {
     expect(
       connectionMark(connection({ providerType: "POSTGREST" }), "PostgREST")
         .logo
-    ).toEqual({ default: "/credential-logos/postgresql.svg" });
+    ).toEqual({ default: "/credential-logos/postgrest.svg" });
     expect(
       connectionMark(
         connection({

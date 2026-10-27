@@ -27,7 +27,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
-  POSTGREST: { logo: { default: "/credential-logos/postgresql.svg" } },
+  POSTGREST: { logo: { default: "/credential-logos/postgrest.svg" } },
   RESEND: {
     logo: {
       light: "/credential-logos/resend-light.svg",

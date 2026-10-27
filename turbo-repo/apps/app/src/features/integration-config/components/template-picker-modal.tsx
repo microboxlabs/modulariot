@@ -78,7 +78,7 @@ export function TemplatePickerModal({
             description={tr("picker.postgrest", dict)}
             icon={
               <BrandLogo
-                logo={{ default: "/credential-logos/postgresql.svg" }}
+                logo={{ default: "/credential-logos/postgrest.svg" }}
                 alt="PostgREST"
                 size={32}
               />

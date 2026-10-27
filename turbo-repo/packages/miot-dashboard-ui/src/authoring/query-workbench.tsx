@@ -22,7 +22,7 @@ import { SqlEditor, type SqlEditorHandle } from "./sql-editor";
 
 export interface QueryWorkbenchProps {
   readonly client: QueryAuthoringClient;
-  /** The open source; omit it and the component shows a source picker. */
+  /** The open source; omit it and the first one opens. */
   readonly sourceId?: string;
   readonly onSourceChange?: (sourceId: string) => void;
   /** The open saved query, so a host can keep it in its URL. */
@@ -362,7 +362,7 @@ export function QueryWorkbench({
   return (
     <div className="miot-qw">
       <aside className="miot-qw-side">
-        {controlledSource === undefined && sources && (
+        {sources && sources.length > 0 && (
           <label className="miot-qw-field">
             <span>{labels.source}</span>
             <select

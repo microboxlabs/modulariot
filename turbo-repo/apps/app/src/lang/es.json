@@ -6685,6 +6685,7 @@
     "message": "Mensaje",
     "response": "Respuesta",
     "treatment_saved": "Tratamiento guardado correctamente",
+    "treatment_save_error": "No se pudo finalizar el tratamiento. Inténtalo de nuevo.",
     "creation_date": "Fecha de creación del síntoma",
     "Check Load Securing Absence": "Ausencia de Amarre y Sujeción",
     "mapSelection": "Selección de mapa",

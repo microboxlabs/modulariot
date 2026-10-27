@@ -10,10 +10,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
+import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
+import com.microboxlabs.miot.symptoms.domain.TreatmentType;
+import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -288,6 +294,58 @@ class EngineCaseServiceTest {
                 signals.path("features").get(0).path("geometry").asText());
         assertThrows(NoSuchElementException.class, () -> service.header(TENANT, 12), "a GPS database id");
         assertThrows(NoSuchElementException.class, () -> service.header(TENANT, -99));
+    }
+
+    @Test
+    void theHeaderListsTheCaseTreatmentsAndWhenItClosed() {
+        Instant closed = OPENED.plusSeconds(600);
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01", OPENED, 4, "T-1",
+                null, null, null, closed, 0, null, 0L));
+        List<TreatmentView> treatments = List.of(
+                treatment(TreatmentStatus.CLOSED, action(ActionKind.CALL, "Juan", "Contestó", "Va en camino"),
+                        action(ActionKind.NOTE, null, null, "nota")),
+                treatment(TreatmentStatus.CANCELLED, action(ActionKind.CALL, "Pedro", null, null)),
+                treatment(TreatmentStatus.CLOSED, action(ActionKind.INVALIDATE, null, "Motivo: prueba", null)));
+
+        JsonNode header = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments);
+
+        JsonNode agg = header.path("timeline").get(0).path("conditions_agg").get(0);
+        assertEquals(closed.toString(), agg.path("end").asText());
+        assertEquals("operator@example.com", agg.path("assigned_to").asText());
+        JsonNode rows = agg.path("treatments");
+        assertEquals(2, rows.size(), "notes and cancelled treatments are left out");
+        assertEquals("llamar al conductor", rows.get(0).path("treatment_type").asText());
+        assertEquals("Llamado a: Juan", rows.get(0).path("description").path("message").asText());
+        assertEquals("Contestó · Va en camino", rows.get(0).path("description").path("driver_response").asText());
+        assertEquals("invalidar sintoma", rows.get(1).path("treatment_type").asText());
+        assertEquals("Motivo: prueba", rows.get(1).path("description").path("message").asText());
+    }
+
+    @Test
+    void aDateRangeShowsTheCasesActiveInIt() {
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",
+                OPENED.minusSeconds(86_400), 4, "T-1", null, null, null, OPENED.plusSeconds(60), 0, null, 0L));
+        store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO02",
+                OPENED.minusSeconds(86_400), 4, "T-2", null, null, null, OPENED.minusSeconds(4 * 3600), 0, null, 0L));
+        store.add(new EngineCase(14, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO03",
+                OPENED.minusSeconds(43_200), 4, "T-3", null, null, null, null, 0, null, 0L));
+
+        JsonNode day = service.withCases(TENANT, Map.of("p_start_date_historic", "2026-10-22T00:00:00Z",
+                "p_end_date_historic", "2026-10-23T00:00:00Z"), null);
+
+        assertEquals(List.of(-14L, -12L), ids(day), "closed in the range or still open; not closed before it");
+    }
+
+    private static TreatmentView treatment(TreatmentStatus status, TreatmentAction... actions) {
+        OffsetDateTime at = OPENED.atOffset(ZoneOffset.UTC);
+        return new TreatmentView("t", -12, "DEMO01", "T-1", TreatmentType.CALL, status, "operator@example.com", at,
+                status == TreatmentStatus.CLOSED ? "operator@example.com" : null, null, null, null, at,
+                List.of(actions));
+    }
+
+    private static TreatmentAction action(ActionKind kind, String contact, String outcome, String note) {
+        return new TreatmentAction("a", "t", TENANT, 1, kind, null, contact, null, null, null, null, outcome, null,
+                null, null, note, List.of(), Map.of(), "operator@example.com", OPENED.atOffset(ZoneOffset.UTC));
     }
 
     @Test

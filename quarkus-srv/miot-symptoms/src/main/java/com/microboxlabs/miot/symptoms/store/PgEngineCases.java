@@ -82,10 +82,10 @@ public class PgEngineCases implements EngineCaseStore {
                AND ($2::text IS NULL OR o.trip_id = $2)
                AND ($3::text IS NULL OR o.asset_id ILIKE '%' || $3 || '%')
                AND ($4::text IS NULL OR lower(d.name) = lower($4))
-               AND ($5::timestamptz IS NULL OR o.at >= $5)
                AND ($6::timestamptz IS NULL OR o.at < $6)
             """) + " WHERE ($5::timestamptz IS NOT NULL OR $6::timestamptz IS NOT NULL OR x.closed_id IS NULL)")
-            + ") z WHERE ($7::int IS NULL OR z.current_level = $7) ORDER BY z.at DESC LIMIT 200";
+            + ") z WHERE ($7::int IS NULL OR z.current_level = $7)"
+            + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5) ORDER BY z.at DESC LIMIT 200";
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));

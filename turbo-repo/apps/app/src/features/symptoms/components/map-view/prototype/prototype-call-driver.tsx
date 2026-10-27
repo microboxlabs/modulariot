@@ -5,7 +5,10 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useEffect, useState } from "react";
 import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-modal/branded-multi-select";
-import { guardedRequestTreatment } from "./prototype-api-guard";
+import {
+  guardedFinishTreatment,
+  guardedRequestTreatment,
+} from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { useRouter } from "next/navigation";
@@ -309,24 +312,38 @@ export default function PrototypeCallDriver({
   // Shared by both "Finalizar Tratamiento" and "Guardar y hacer otra
   // llamada" — the only difference between them is what happens after the
   // request resolves (leave the panel vs. go back to "who to call").
-  const saveTreatment = () =>
-    guardedRequestTreatment({
-      ...treatmentRequest,
-      ...callTreatmentTexts({
-        targetLabel,
-        targetPhone,
-        esConductor,
-        resultadoLabel,
-        notaLlamada,
-        callDurationSeconds,
-      }),
-    });
+  const saveTreatment = (finish: boolean) =>
+    guardedRequestTreatment(
+      {
+        ...treatmentRequest,
+        ...callTreatmentTexts({
+          targetLabel,
+          targetPhone,
+          esConductor,
+          resultadoLabel,
+          notaLlamada,
+          callDurationSeconds,
+        }),
+      },
+      {
+        finish,
+        action: {
+          contactName: targetLabel || "Conductor",
+          contactPhone: targetPhone || undefined,
+          outcomeLabel: resultadoLabel || undefined,
+          durationSeconds: callDurationSeconds ?? undefined,
+          note: notaLlamada.trim() || undefined,
+        },
+      }
+    );
 
   const skipSave = saved;
 
   const handleSave = async () => {
-    if (!skipSave) {
-      const response = await saveTreatment();
+    if (skipSave) {
+      await guardedFinishTreatment(treatmentRequest);
+    } else {
+      const response = await saveTreatment(true);
       setTreatmentRequest({
         ...treatmentRequest,
         treatment_id: response.treatment_id,
@@ -340,7 +357,7 @@ export default function PrototypeCallDriver({
 
   const handleSaveAndCallAgain = async () => {
     if (!skipSave) {
-      const response = await saveTreatment();
+      const response = await saveTreatment(false);
       setTreatmentRequest({
         ...treatmentRequest,
         treatment_id: response.treatment_id,

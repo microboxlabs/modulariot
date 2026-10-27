@@ -317,7 +317,8 @@ export function ListCardRow({
       >
         <div
           className={twMerge(
-            "truncate text-gray-900 dark:text-white",
+            // el nombre completo, en varias líneas si hace falta
+            "break-words text-gray-900 dark:text-white",
             compact ? "text-xs" : "text-sm"
           )}
         >

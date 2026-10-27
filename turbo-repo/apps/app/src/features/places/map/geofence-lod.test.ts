@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PX_ABRIR_INTERIORES,
+  agruparConInteriores,
   radioLugarM,
   zoomAbrirInteriores,
   zoomAlClicNombre,
@@ -71,6 +72,54 @@ describe("geofence lod", () => {
     parentId: "park",
     radio_m: 40,
   };
+
+  const medida = () => ({ w: 100, h: 24, dy: 0 });
+  const prioridad = () => 0;
+  const zAbrePark = zoomAbrirInteriores({
+    center: [-33, -70],
+    polygon: null,
+    radius_m: 250,
+  });
+  const ids = (grupos: { id: string }[][]) =>
+    grupos.map((g) => g.map((i) => i.id));
+
+  it("shows only the parent until it is zoomed in enough", () => {
+    const grupos = agruparConInteriores(
+      [padreNom, hijoNom],
+      zAbrePark - 0.5,
+      medida,
+      prioridad
+    );
+    expect(ids(grupos)).toEqual([["park"]]);
+  });
+
+  it("then shows the inners in place of the parent", () => {
+    const grupos = agruparConInteriores(
+      [padreNom, hijoNom],
+      zAbrePark,
+      medida,
+      prioridad
+    );
+    expect(ids(grupos)).toEqual([["lot"]]);
+  });
+
+  it("clusters inners only with the inners of their own parent", () => {
+    const hermano = { ...hijoNom, id: "lot-2" };
+    // another place right on top of the inners: it stays out of their cluster
+    const vecino = { ...padreNom, id: "vecino", radio_m: 10 };
+    const grupos = agruparConInteriores(
+      [padreNom, hijoNom, hermano, vecino],
+      zAbrePark + 1,
+      medida,
+      prioridad
+    );
+    expect(ids(grupos)).toEqual([["vecino"], ["lot", "lot-2"]]);
+  });
+
+  it("treats an inner whose parent is not on the map as a normal place", () => {
+    const grupos = agruparConInteriores([hijoNom], 4, medida, prioridad);
+    expect(ids(grupos)).toEqual([["lot"]]);
+  });
 
   it("zooms past the cluster when clicking the parent name", () => {
     const zAbre = zoomAbrirInteriores({

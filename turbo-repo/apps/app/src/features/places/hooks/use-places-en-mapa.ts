@@ -6,6 +6,7 @@
 // (bento y síntomas), así ninguno lo arma por su cuenta.
 import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import type { MapRef } from "react-map-gl";
+import type { AmbitoBorrador } from "../data/draft-store";
 import { CURSOR_AGREGAR } from "../map/cursors";
 import { zoomAlClicNombre } from "../map/geofence-lod";
 import { useResaltadoAnimado } from "../map/highlight-animation";
@@ -26,7 +27,10 @@ export function usePlacesEnMapa(
     nombres = {},
     mapStyle,
     zoom,
+    ambito = "geografico",
   }: {
+    /** Dónde se guarda el borrador del formulario (uno por mapa). */
+    ambito?: AmbitoBorrador;
     /** El editor de Lugares está abierto: los clics del mapa son suyos. */
     editando: boolean;
     /** Las geocercas se ven (solo lectura si no se edita). */
@@ -42,13 +46,27 @@ export function usePlacesEnMapa(
   const ws = usePlacesWorkspace(mapRef, {
     enabled: editando || verGeocercas,
     puedeEditar,
+    ambito,
   });
 
   // al cerrar el editor, lo que quedó abierto (formulario, import) se cierra
+  // y la geocerca resaltada desde la lista deja de estarlo
   useEffect(() => {
-    if (!editando && ws.modo !== "ver") ws.cerrarForm();
+    if (editando) return;
+    if (ws.modo !== "ver") ws.cerrarForm();
+    ws.setHoveredPlaceId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editando]);
+
+  // la primera vez que el editor se abre (p. ej. tras recargar), se retoma
+  // el formulario que quedó sin guardar
+  const borradorVisto = useRef(false);
+  useEffect(() => {
+    if (!editando || !ws.puedeEditar || borradorVisto.current) return;
+    borradorVisto.current = true;
+    ws.restaurarBorrador();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editando, ws.puedeEditar]);
 
   // deck.gl vuelve a crear la capa de nombres cada vez que se abre el editor
   const generacion = useRef(0);
@@ -146,7 +164,7 @@ export function usePlacesEnMapa(
       onMapClick: editando ? ws.onMapClick : undefined,
       // el clic derecho abre los menús de crear o editar: solo con permiso
       onMapContextMenu:
-        editando && puedeEditar ? ws.onMapContextMenu : undefined,
+        editando && ws.puedeEditar ? ws.onMapContextMenu : undefined,
       idleCursor: editando && ws.clicAgrega ? CURSOR_AGREGAR : undefined,
     },
   };

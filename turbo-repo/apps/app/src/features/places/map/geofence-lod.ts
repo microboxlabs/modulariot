@@ -1,4 +1,5 @@
 import { distanciaM } from "../geofences/geofence-editor";
+import { agruparSolapes, type MedidaBadge } from "./badge-layout";
 import { centroide } from "./map-handles";
 import type { Lugar } from "../places.types";
 
@@ -69,6 +70,42 @@ function geomDeNombre(item: ItemNombreLod): GeomLugar {
     polygon: item.lugar?.polygon ?? null,
     radius_m: item.radio_m ?? item.lugar?.radius_m ?? 250,
   };
+}
+
+/** Interiores de cada padre presente (las de un padre que no está, sueltas). */
+function interioresPorPadre<T extends ItemNombreLod>(items: T[]) {
+  const ids = new Set(items.map((i) => i.id));
+  const hijos = new Map<string, T[]>();
+  for (const item of items) {
+    if (!item.inner || !item.parentId || !ids.has(item.parentId)) continue;
+    hijos.set(item.parentId, [...(hijos.get(item.parentId) ?? []), item]);
+  }
+  return hijos;
+}
+
+/**
+ * Agrupa los badges sin mezclar las interiores con otros lugares.
+ * Lejos: solo el padre (sus interiores van "dentro" de él). Cuando el padre
+ * ya se ve grande (`zoomAbrirInteriores`), su badge da paso a los de sus
+ * interiores, que se juntan solo entre ellas.
+ */
+export function agruparConInteriores<T extends ItemNombreLod>(
+  items: T[],
+  zoom: number,
+  medida: (item: T) => MedidaBadge,
+  prioridad: (item: T) => number
+): T[][] {
+  const hijosDe = interioresPorPadre(items);
+  const sueltos: T[] = [];
+  const abiertos: T[][] = [];
+  for (const item of items) {
+    if (item.inner && item.parentId && hijosDe.has(item.parentId)) continue;
+    const hijos = hijosDe.get(item.id);
+    if (hijos && zoom >= zoomAbrirInteriores(geomDeNombre(item))) {
+      abiertos.push(...agruparSolapes(hijos, zoom, medida, prioridad));
+    } else sueltos.push(item);
+  }
+  return [...agruparSolapes(sueltos, zoom, medida, prioridad), ...abiertos];
 }
 
 /**

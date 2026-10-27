@@ -37,6 +37,7 @@ import {
   PlacesEditorOverlays,
   type GeocercaExterna,
   PlacesMapLayers,
+  hayBorrador,
   usePlacesEnMapa,
 } from "@/features/places";
 import PlacesFloatingOverlay from "./places-overlay/places-floating-overlay";
@@ -309,6 +310,15 @@ export default function MapVisualizationTrip({
     setLugaresAbierto(abierto);
     onLugaresChange?.(abierto);
   };
+  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
+  // (el editor retoma el borrador al abrirse)
+  const borradorRevisado = useRef(false);
+  useEffect(() => {
+    if (!puedeEditarLugares || borradorRevisado.current) return;
+    borradorRevisado.current = true;
+    if (!lugaresAbierto && hayBorrador("viaje")) cambiarLugares(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeEditarLugares]);
   const [zoom, setZoom] = useState(2);
   const alCambioZoom = (z: number) => {
     const next = Math.round((z || 2) * 10) / 10;
@@ -329,7 +339,14 @@ export default function MapVisualizationTrip({
     nombres: { geocercas: verGeocercas, trayectos: editandoLugares },
     mapStyle,
     zoom,
+    ambito: "viaje",
   });
+
+  // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
+  const alternarLugares = (abierto: boolean) => {
+    if (abierto) cambiarLugares(true);
+    else lugares.ws.pedirSalir(() => cambiarLugares(false));
+  };
 
   const { timelapse } = useTimelapse(
     licensePlate ?? null,
@@ -800,7 +817,7 @@ export default function MapVisualizationTrip({
             <PlacesToggle
               dict={dict}
               abierto={lugaresAbierto}
-              onCambiar={cambiarLugares}
+              onCambiar={alternarLugares}
             />
           }
         />

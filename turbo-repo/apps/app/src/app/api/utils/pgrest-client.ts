@@ -100,9 +100,35 @@ export function decodeEwkbPoint(
 export function decodeEwkbPolygonCentroid(
   hex: string | null | undefined
 ): DecodedPoint | null {
+  const ring = decodeEwkbOuterRing(hex);
+  if (!ring || ring.length === 0) return null;
+  let lng = 0;
+  let lat = 0;
+  for (const [x, y] of ring) {
+    lng += x;
+    lat += y;
+  }
+  const longitude = lng / ring.length;
+  const latitude = lat / ring.length;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude };
+}
+
+/**
+ * Outer ring of an EWKB-hex (Multi)Polygon as `[lon, lat]` pairs (a Z value,
+ * if any, is dropped). MultiPolygon → its first polygon. Returns null on
+ * malformed input instead of throwing.
+ */
+export function decodeEwkbOuterRing(
+  hex: string | null | undefined
+): [number, number][] | null {
   if (!hex) return null;
   const clean = hex.replace(/^(\\x|0x)/i, "");
-  if (clean.length === 0 || clean.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(clean))
+  if (
+    clean.length === 0 ||
+    clean.length % 2 !== 0 ||
+    !/^[0-9a-f]+$/i.test(clean)
+  )
     return null;
   try {
     const geo = wkx.Geometry.parse(Buffer.from(clean, "hex")).toGeoJSON() as {
@@ -115,20 +141,49 @@ export function decodeEwkbPolygonCentroid(
         ? (geo.coordinates[0] as number[][][])[0]
         : (geo.coordinates as number[][][])[0]
     ) as number[][] | undefined;
-    if (!ring || ring.length === 0) return null;
-    let lng = 0;
-    let lat = 0;
-    for (const [x, y] of ring) {
-      lng += x;
-      lat += y;
-    }
-    const longitude = lng / ring.length;
-    const latitude = lat / ring.length;
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-    return { latitude, longitude };
+    if (!ring) return null;
+    return ring.map(([x, y]) => [x, y] as [number, number]);
   } catch {
     return null;
   }
+}
+
+/** A row of the streamhub `geofences` table, as read for the places map. */
+export interface StreamhubGeofenceRow {
+  geofence_id: number;
+  client_geofence_id: string | null;
+  geofence_name: string | null;
+  polygon_type: string | null;
+  /** EWKB hex (Multi)Polygon; circles are stored already as polygons. */
+  coordinates: string | null;
+  /** Free-form JSON: `category`, `address`, `radius_meters`, … */
+  properties: Record<string, unknown> | null;
+}
+
+/**
+ * Every geofence of one streamhub client (`client_id`, the Auth0 M2M client
+ * that owns it). Read-only: the places map loads them, nothing writes back.
+ */
+export async function fetchClientGeofences(
+  clientId: string
+): Promise<StreamhubGeofenceRow[]> {
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/geofences?select=geofence_id,client_geofence_id,geofence_name,polygon_type,coordinates,properties&client_id=eq.${encodeURIComponent(
+    clientId
+  )}&order=geofence_name.asc`;
+  const response = await pgrestFetch(url, {
+    headers: {
+      accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest GET geofences failed: ${response.status} ${response.statusText}`
+    );
+  }
+  return (await response.json()) as StreamhubGeofenceRow[];
 }
 
 export interface GeofenceCentroid {

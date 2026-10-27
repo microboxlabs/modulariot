@@ -10,6 +10,7 @@ import {
   marcaDe,
   type MarcasLista,
 } from "./list-card";
+import { esDeStreamhub } from "../data/streamhub-geofences";
 import { parentPlaceId } from "../geofences/inner-geofences";
 import { colorDeLugar, iconoDeLugar, type Lugar } from "../places.types";
 
@@ -230,8 +231,10 @@ function LugarRow({
   expandido?: boolean;
 }>) {
   const ir = () => onIr(l);
-  const editar = onEditar && (() => onEditar(l));
-  const eliminar = onEliminar && (() => onEliminar(l));
+  // las geocercas de StreamHub son de solo lectura: sin editar ni eliminar
+  const editable = !esDeStreamhub(l.place_id);
+  const editar = editable && onEditar ? () => onEditar(l) : undefined;
+  const eliminar = editable && onEliminar ? () => onEliminar(l) : undefined;
   const color = colorDeLugar(l);
   const marcarHover = () => onHover?.(l.place_id);
   const soltarHover = () => onHover?.(null);

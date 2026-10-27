@@ -37,8 +37,10 @@ vi.mock("@/features/places", async () => ({
   PlaceBadgeTooltip: () => null,
   PlacesEditorOverlays: () => null,
   PlacesMapLayers: () => <span data-testid="capas-lugares" />,
+  hayBorrador: () => false,
   usePlacesEnMapa: () => ({
-    ws: { tooltipBadge: null },
+    // sin cambios sin guardar: salir de Lugares sigue de inmediato
+    ws: { tooltipBadge: null, pedirSalir: (seguir: () => void) => seguir() },
     capasNombres: [],
     propsMapa: {},
   }),

@@ -20,6 +20,7 @@ import {
   PlaceBadgeTooltip,
   PlacesEditorOverlays,
   PlacesMapLayers,
+  hayBorrador,
   usePlacesEnMapa,
 } from "@/features/places";
 import { MapRef } from "react-map-gl";
@@ -64,7 +65,7 @@ export default function MapVisualization({
   const [zoom, setZoom] = useState(2);
 
   const mapRef = useRef<MapRef | null>(null);
-  const { activeView } = useGeographicProfile();
+  const { activeView, setActiveView } = useGeographicProfile();
   const placesMode = activeView === "places";
   // barra "Capas": qué se dibuja; en la vista general las geocercas (forma y
   // nombre) se ven, solo lectura, bajo los camiones mientras estén activas
@@ -85,6 +86,15 @@ export default function MapVisualization({
   });
   const places = lugares.ws;
 
+  // tras recargar con un lugar o trayecto a medio editar: volver a Lugares
+  // (el editor retoma el borrador al abrirse)
+  const borradorRevisado = useRef(false);
+  useEffect(() => {
+    if (!puedeEditarLugares || borradorRevisado.current) return;
+    borradorRevisado.current = true;
+    if (!placesMode && hayBorrador("geografico")) setActiveView("places");
+  }, [puedeEditarLugares, placesMode, setActiveView]);
+
   useEffect(() => {
     if (placesMode) {
       setPositions([]);
@@ -102,8 +112,13 @@ export default function MapVisualization({
     setSearch(searchParams.get("licensePlate") || "");
   }, [searchParams.get("licensePlate")]);
 
+  // cerrar Lugares no mueve la cámara: el encuadre de los camiones es para
+  // cuando cargan, no para la vuelta desde Lugares
+  const veniaDeLugares = useRef(placesMode);
   useEffect(() => {
-    if (placesMode) return;
+    const salioDeLugares = veniaDeLugares.current && !placesMode;
+    veniaDeLugares.current = placesMode;
+    if (placesMode || salioDeLugares) return;
     if (
       !isLoading &&
       mapRef.current &&
@@ -239,7 +254,8 @@ export default function MapVisualization({
           }
           topRight={
             <>
-              <MapNotch dict={dict} />
+              {/* dejar Lugares con cambios sin guardar: igual que su ✕ */}
+              <MapNotch dict={dict} alSalirDeLugares={places.pedirSalir} />
               {/* capas, justo bajo los botones de vistas */}
               <MapLayersCard
                 dict={dict}

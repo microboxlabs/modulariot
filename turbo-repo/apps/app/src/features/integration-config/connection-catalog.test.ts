@@ -3,6 +3,8 @@ import { Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import { FaSlack } from "react-icons/fa";
 import {
+  BIGQUERY_LOGO,
+  POSTGREST_LOGO,
   connectionMark,
   connectionState,
   connectionTypeName,
@@ -46,7 +48,7 @@ describe("connectionMark", () => {
     expect(
       connectionMark(connection({ providerType: "POSTGREST" }), "PostgREST")
         .logo
-    ).toEqual({ default: "/credential-logos/postgrest.svg" });
+    ).toEqual(POSTGREST_LOGO);
     expect(
       connectionMark(
         connection({
@@ -56,7 +58,7 @@ describe("connectionMark", () => {
         }),
         "BigQuery"
       ).logo
-    ).toEqual({ default: "/credential-logos/bigquery.svg" });
+    ).toEqual(BIGQUERY_LOGO);
     expect(connectionMark(connection({}), "Slack de comunicaciones").icon).toBe(
       FaSlack
     );

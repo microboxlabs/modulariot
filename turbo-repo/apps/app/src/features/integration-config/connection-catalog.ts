@@ -25,11 +25,21 @@ const PROVIDER_LABELS: Record<string, string> = {
   WHATSAPP: "WhatsApp",
 };
 
+/** Built-in provider logos, in the gray ink of the other brand marks. */
+export const POSTGREST_LOGO: BrandLogoSources = {
+  light: "/credential-logos/postgrest-light.svg",
+  dark: "/credential-logos/postgrest-dark.svg",
+};
+export const BIGQUERY_LOGO: BrandLogoSources = {
+  light: "/credential-logos/bigquery-light.svg",
+  dark: "/credential-logos/bigquery-dark.svg",
+};
+
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
   // Taller than wide: the round keyline gives it the height the square one takes away.
   POSTGREST: {
-    logo: { default: "/credential-logos/postgrest.svg" },
+    logo: POSTGREST_LOGO,
     keyline: "circle",
   },
   RESEND: {
@@ -72,7 +82,7 @@ export function connectionMark(
   if (channel) return { icon: channelLogo(channel) };
   if (isBigQueryConnection(connection)) {
     return {
-      logo: { default: "/credential-logos/bigquery.svg" },
+      logo: BIGQUERY_LOGO,
       keyline: "circle",
     };
   }

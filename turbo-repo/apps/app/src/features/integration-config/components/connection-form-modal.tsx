@@ -26,6 +26,8 @@ import {
   type UpdateConnectionRequest,
 } from "../integration-config.types";
 import { IntegrationFormModal } from "./integration-form-modal";
+import type { BrandLogoSources } from "@/features/common/components/brand-logo";
+import { BIGQUERY_LOGO, POSTGREST_LOGO } from "../connection-catalog";
 import { BIGQUERY_BASE_URL, isBigQueryConnection } from "../bigquery-query";
 
 interface ConnectionFormModalProps {
@@ -366,9 +368,9 @@ function ContractPanel({
 
 type NativeKind = "POSTGREST" | "BIGQUERY";
 
-const NATIVE_LOGOS: Record<NativeKind, string> = {
-  POSTGREST: "/credential-logos/postgrest.svg",
-  BIGQUERY: "/credential-logos/bigquery.svg",
+const NATIVE_LOGOS: Record<NativeKind, BrandLogoSources> = {
+  POSTGREST: POSTGREST_LOGO,
+  BIGQUERY: BIGQUERY_LOGO,
 };
 
 /** A built-in provider explains itself in the subtitle; a template's contract is shown below it. */

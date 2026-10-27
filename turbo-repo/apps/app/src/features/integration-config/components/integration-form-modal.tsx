@@ -4,7 +4,10 @@ import { HiTrash } from "react-icons/hi";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { BrandLogo } from "@/features/common/components/brand-logo";
+import {
+  BrandLogo,
+  type BrandLogoSources,
+} from "@/features/common/components/brand-logo";
 import { ModalGlyph } from "./modal-glyph";
 
 interface IntegrationFormModalProps {
@@ -16,7 +19,7 @@ interface IntegrationFormModalProps {
   /** Leading mark, rendered inside the shared glyph frame. */
   readonly glyph: React.ReactNode;
   /** A built-in provider's logo (BigQuery, PostgREST — both drawn on the round keyline), shown at 40px in place of the glyph. */
-  readonly logo?: string;
+  readonly logo?: BrandLogoSources;
   readonly onClose: () => void;
   /** Delete this record — surfaced in the header when editing one. */
   readonly onDelete?: () => void;
@@ -67,12 +70,7 @@ export function IntegrationFormModal({
       subtitle={subtitle}
       icon={
         logo ? (
-          <BrandLogo
-            logo={{ default: logo }}
-            alt={title}
-            keyline="circle"
-            size={40}
-          />
+          <BrandLogo logo={logo} alt={title} keyline="circle" size={40} />
         ) : (
           <ModalGlyph>{glyph}</ModalGlyph>
         )

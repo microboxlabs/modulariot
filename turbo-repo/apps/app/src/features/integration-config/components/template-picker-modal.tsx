@@ -10,6 +10,7 @@ import {
 } from "flowbite-react";
 import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
 import { BrandLogo } from "@/features/common/components/brand-logo";
+import { BIGQUERY_LOGO, POSTGREST_LOGO } from "../connection-catalog";
 import type { ReactNode } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -78,7 +79,7 @@ export function TemplatePickerModal({
             description={tr("picker.postgrest", dict)}
             icon={
               <BrandLogo
-                logo={{ default: "/credential-logos/postgrest.svg" }}
+                logo={POSTGREST_LOGO}
                 alt="PostgREST"
                 keyline="circle"
                 size={48}
@@ -91,7 +92,7 @@ export function TemplatePickerModal({
             description={tr("picker.bigquery", dict)}
             icon={
               <BrandLogo
-                logo={{ default: "/credential-logos/bigquery.svg" }}
+                logo={BIGQUERY_LOGO}
                 alt="BigQuery"
                 keyline="circle"
                 size={48}

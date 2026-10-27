@@ -1,6 +1,11 @@
+import { useSyncExternalStore } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SymptomDetail, SymptomSpec } from "./maintainer-api";
+import type {
+  SymptomDetail,
+  SymptomSpec,
+  SymptomVersion,
+} from "./maintainer-api";
 
 const api = vi.hoisted(() => ({
   useSymptomDefinition: vi.fn(),
@@ -156,5 +161,105 @@ describe("useSymptomDraft and a draft written elsewhere", () => {
 
     rerender({ id: "s2" });
     await waitFor(() => expect(result.current.external).toBe(false));
+  });
+});
+
+describe("useSymptomDraft after a publish or a discard", () => {
+  const V010 = {
+    id: "v1",
+    version: "0.1.0",
+    status: "PUBLISHED",
+    spec: { state: "TEST", activation: "a" },
+  } as SymptomVersion;
+  const DRAFT_ACTIVE = {
+    id: "v2",
+    version: null,
+    status: "DRAFT",
+    spec: { state: "ACTIVE", activation: "a" },
+  } as SymptomVersion;
+  let cached: SymptomDetail;
+  const listeners = new Set<() => void>();
+  const subscribe = (l: () => void) => {
+    listeners.add(l);
+    return () => listeners.delete(l);
+  };
+  // As SWR's: a change rewrites the cache; a reload that is dropped resolves with what the cache holds.
+  const mutate = vi.fn(async (change?: (d: SymptomDetail) => SymptomDetail) => {
+    if (change) {
+      cached = change(cached);
+      listeners.forEach((l) => l());
+    }
+    return cached;
+  });
+
+  beforeEach(() => {
+    cached = {
+      definition: { state: "TEST", currentVersion: "0.1.0" },
+      current: V010,
+      draft: DRAFT_ACTIVE,
+      versions: [V010],
+    } as unknown as SymptomDetail;
+    mutate.mockClear();
+    api.useSymptomDefinition.mockImplementation(() => ({
+      data: useSyncExternalStore(subscribe, () => cached),
+      error: undefined,
+      mutate,
+    }));
+    api.validateSpec.mockResolvedValue({ findings: [] });
+    api.previewSpec.mockResolvedValue({ samples: [] });
+    api.refreshSymptoms.mockResolvedValue(undefined);
+    api.discardDraft.mockResolvedValue(undefined);
+    swr.mutate.mockResolvedValue(undefined);
+  });
+
+  it("shows the published version and its state, with no draft, without waiting for a reload", async () => {
+    const { result } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() => expect(result.current.spec).toEqual(DRAFT_ACTIVE.spec));
+    const v011 = {
+      ...DRAFT_ACTIVE,
+      version: "0.1.1",
+      status: "PUBLISHED",
+    } as SymptomVersion;
+
+    await act(() => result.current.showPublished(v011));
+
+    const detail = result.current.detail as SymptomDetail;
+    expect(detail.definition.currentVersion).toBe("0.1.1");
+    expect(detail.definition.state).toBe("ACTIVE");
+    expect(detail.draft).toBeNull();
+    expect(detail.current).toBe(v011);
+    expect(detail.versions.map((v) => v.version)).toEqual(["0.1.1", "0.1.0"]);
+    expect(result.current.spec).toEqual(v011.spec);
+  });
+
+  it("takes the family of the published version", async () => {
+    cached = {
+      ...cached,
+      definition: { ...cached.definition, family: "speed" },
+    } as SymptomDetail;
+    const { result } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() => expect(result.current.spec).toEqual(DRAFT_ACTIVE.spec));
+    const v011 = {
+      ...DRAFT_ACTIVE,
+      version: "0.1.1",
+      status: "PUBLISHED",
+      spec: { ...DRAFT_ACTIVE.spec, family: "fatigue" },
+    } as SymptomVersion;
+
+    await act(() => result.current.showPublished(v011));
+
+    expect(result.current.detail?.definition.family).toBe("fatigue");
+  });
+
+  it("drops the draft on discard and goes back to the version in force", async () => {
+    const { result } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() => expect(result.current.spec).toEqual(DRAFT_ACTIVE.spec));
+
+    await act(() => result.current.discard());
+
+    expect(api.discardDraft).toHaveBeenCalledWith("s1", expect.anything());
+    expect(result.current.detail?.draft).toBeNull();
+    expect(result.current.detail?.definition.currentVersion).toBe("0.1.0");
+    expect(result.current.spec).toEqual(V010.spec);
   });
 });

@@ -12,11 +12,27 @@
  * the bare `/calendar` landing page still resolves to an unregistered key and
  * stays bar-less.
  */
+const TRIPS_BOARD_VIEWS = new Set([
+  "planning",
+  "dispatch",
+  "delivery",
+  "finished",
+]);
+
 export function resolveSection(segments: string[]): string | undefined {
   const finalPath = segments.at(-1);
 
   if (segments.includes("calendar") && finalPath === "planning") {
     return "calendar-planning";
+  }
+
+  // The trips board's views reuse the kanban's last segments.
+  if (
+    segments.at(-2) === "trips" &&
+    finalPath &&
+    TRIPS_BOARD_VIEWS.has(finalPath)
+  ) {
+    return finalPath === "finished" ? "trips-finished" : "trips-board";
   }
 
   return finalPath;

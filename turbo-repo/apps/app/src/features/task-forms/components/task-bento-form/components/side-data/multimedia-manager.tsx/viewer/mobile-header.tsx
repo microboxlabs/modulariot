@@ -53,7 +53,7 @@ export default function MobileHeader({
   onNext: () => void;
   onDownload: () => void;
   onEdit?: () => void;
-  onMove: () => void;
+  onMove?: () => void;
   onDelete?: () => void;
   onDecision: (decision: ReviewStatus) => void;
   onClose: () => void;
@@ -135,14 +135,16 @@ export default function MobileHeader({
             <HiPencilSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
         )}
-        <button
-          type="button"
-          onClick={onMove}
-          className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-          aria-label={tr("bento.multimedia.viewer_move", dictionary)}
-        >
-          <HiArrowsRightLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-        </button>
+        {onMove && (
+          <button
+            type="button"
+            onClick={onMove}
+            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+            aria-label={tr("bento.multimedia.viewer_move", dictionary)}
+          >
+            <HiArrowsRightLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          </button>
+        )}
         {onDelete && (
           <button
             type="button"

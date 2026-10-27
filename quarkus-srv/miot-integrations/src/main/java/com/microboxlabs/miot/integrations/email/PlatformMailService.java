@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.email;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -25,7 +26,7 @@ public class PlatformMailService {
      * Starts with "_", which organizations may not use as their tenant client id
      * ({@code PlatformOrganizationsResource}), so no organization can own it.
      */
-    public static final String PLATFORM_TENANT = "_platform";
+    public static final String PLATFORM_TENANT = PlatformScope.TENANT;
     static final String NAME = "Platform email";
 
     /** {@code configured} is false and the rest null when no sender is set. */
@@ -87,7 +88,8 @@ public class PlatformMailService {
         if (apiKey.isEmpty()) {
             throw new IllegalArgumentException("apiKey is required");
         }
-        return store.create(AuthType.BEARER_TOKEN, Map.of(), Map.of(ResendEmailSender.TOKEN, apiKey),
+        // Tagged like an organization's Resend key, so Credenciales shows it as Resend.
+        return store.create(AuthType.BEARER_TOKEN, Map.of("provider", "resend"), Map.of(ResendEmailSender.TOKEN, apiKey),
                 client.baseUrl(), Map.of(ResendEmailSender.FROM, from), actor);
     }
 

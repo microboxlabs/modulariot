@@ -53,6 +53,8 @@ class ControlTowerPermissionsTest {
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
             Map.entry("OrgControlTowerAuditResource.list", VIEW),
             Map.entry("OrgControlTowerContactsResource.list", VIEW),
+            Map.entry("OrgControlTowerContactsResource.page", VIEW),
+            Map.entry("OrgControlTowerContactsResource.facets", VIEW),
             Map.entry("OrgControlTowerContactsResource.get", VIEW),
             Map.entry("OrgControlTowerContactsResource.create", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.importContacts", CONTACT_WRITE),
@@ -64,7 +66,9 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerMapResource.symptoms", VIEW),
             Map.entry("OrgControlTowerMapResource.symptom", VIEW),
             Map.entry("OrgControlTowerMapResource.symptomSignals", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomPositions", VIEW),
             Map.entry("OrgControlTowerMapResource.tripPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.assetPositions", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),

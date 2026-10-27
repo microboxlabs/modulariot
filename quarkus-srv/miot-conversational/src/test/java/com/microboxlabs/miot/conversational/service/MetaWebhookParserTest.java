@@ -128,4 +128,52 @@ class MetaWebhookParserTest {
         assertNull(MetaWebhookParser.toE164(null));
         assertNull(MetaWebhookParser.toE164("not-a-number"));
     }
+
+    @Test
+    void readsTheAnsweredMessageIdFromContext() {
+        String json = """
+                {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"PNID_42"},
+                "messages":[{"from":"56900000001","id":"wamid.REPLY","timestamp":"1719792000","type":"text",
+                "text":{"body":"si"},"context":{"from":"15550000000","id":"wamid.OUT"}}]}}]}]}
+                """;
+        InboundMessage m = parse(json).messages().get(0);
+        assertEquals("wamid.OUT", m.contextMessageId());
+        assertNull(m.buttonPayload());
+    }
+
+    @Test
+    void readsATemplateQuickReplyAsTextWithItsPayload() {
+        String json = """
+                {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"PNID_42"},
+                "messages":[{"from":"56900000001","id":"wamid.BTN","timestamp":"1719792000","type":"button",
+                "button":{"payload":"msg-123","text":"Confirmo"},"context":{"id":"wamid.OUT"}}]}}]}]}
+                """;
+        InboundMessage m = parse(json).messages().get(0);
+        assertEquals(MessageType.TEXT, m.type());
+        assertEquals("Confirmo", m.body());
+        assertEquals("msg-123", m.buttonPayload());
+        assertEquals("wamid.OUT", m.contextMessageId());
+    }
+
+    @Test
+    void readsAnInteractiveButtonOrListReply() {
+        String button = """
+                {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"PNID_42"},
+                "messages":[{"from":"56900000001","id":"wamid.I1","type":"interactive",
+                "interactive":{"type":"button_reply","button_reply":{"id":"yes","title":"Sí"}}}]}}]}]}
+                """;
+        InboundMessage b = parse(button).messages().get(0);
+        assertEquals("yes", b.buttonPayload());
+        assertEquals("Sí", b.body());
+
+        String list = """
+                {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"PNID_42"},
+                "messages":[{"from":"56900000001","id":"wamid.I2","type":"interactive",
+                "interactive":{"type":"list_reply","list_reply":{"id":"opt-2","title":"Retraso"}}}]}}]}]}
+                """;
+        InboundMessage l = parse(list).messages().get(0);
+        assertEquals("opt-2", l.buttonPayload());
+        assertEquals("Retraso", l.body());
+        assertEquals(MessageType.TEXT, l.type());
+    }
 }

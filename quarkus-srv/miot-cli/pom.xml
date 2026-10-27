@@ -22,6 +22,10 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-content-gcs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-fleet</artifactId>
         </dependency>
         <dependency>
@@ -53,6 +57,10 @@
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-symptoms</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-trips</artifactId>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>

@@ -63,7 +63,9 @@ export default function ScriptModal({
         <div className="flex flex-col gap-3">
           {!readOnly && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="text-gray-500">{tr("scriptVariables", d)}</span>
+              <span className="text-gray-500 dark:text-gray-400">
+                {tr("scriptVariables", d)}
+              </span>
               {SCRIPT_VARIABLES.map((v) => (
                 <button
                   key={v}
@@ -91,7 +93,7 @@ export default function ScriptModal({
             onChange={(e) => onChange(e.target.value)}
           />
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
               {sample ? tr("scriptPreview", d) : tr("scriptNoSample", d)}
             </span>
             <p className="whitespace-pre-wrap rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:bg-gray-900/50 dark:text-gray-100">

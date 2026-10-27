@@ -26,6 +26,7 @@ public class OrganizationRequestFilter {
     private final TenantContext tenantContext;
     private final SecurityIdentity securityIdentity;
     private final OrganizationAccess organizationAccess;
+    private final PlatformAuthorizer platformAuthorizer;
     private final List<String> clientIdClaims;
     private final String orgPathPrefix;
     private final List<String> ownOrganizationPaths;
@@ -35,6 +36,7 @@ public class OrganizationRequestFilter {
             TenantContext tenantContext,
             SecurityIdentity securityIdentity,
             OrganizationAccess organizationAccess,
+            PlatformAuthorizer platformAuthorizer,
             @ConfigProperty(name = "miot.auth.client-id-claims", defaultValue = "aud,azp") List<String> clientIdClaims,
             @ConfigProperty(name = "miot.auth.org-path-prefix", defaultValue = "/api/v1/orgs/") String orgPathPrefix,
             @ConfigProperty(name = "miot.iam.api-key-own-organization-paths", defaultValue = "/api/v1/asset/track")
@@ -42,6 +44,7 @@ public class OrganizationRequestFilter {
         this.tenantContext = tenantContext;
         this.securityIdentity = securityIdentity;
         this.organizationAccess = organizationAccess;
+        this.platformAuthorizer = platformAuthorizer;
         this.clientIdClaims = clientIdClaims;
         this.orgPathPrefix = orgPathPrefix;
         this.ownOrganizationPaths = ownOrganizationPaths;
@@ -54,7 +57,9 @@ public class OrganizationRequestFilter {
         Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(securityIdentity);
 
         Uni<OrganizationAccess.Refusal> entered;
-        if (orgSlug != null) {
+        if (PlatformScope.reserved(orgSlug)) {
+            entered = enterPlatform(orgSlug, path, serviceAccount);
+        } else if (orgSlug != null) {
             entered = serviceAccount != null
                     ? organizationAccess.enter(orgSlug, serviceAccount)
                     : organizationAccess.enter(orgSlug, resolveEmail(requestContext), resolveM2mClientId());
@@ -65,6 +70,28 @@ public class OrganizationRequestFilter {
             return Uni.createFrom().nullItem();
         }
         return entered.map(refusal -> refusal == null ? null : jsonResponse(refusal.status(), refusal.message()));
+    }
+
+    /**
+     * {@code _platform} lets a platform owner in, from a verified token only, on the resources that serve the
+     * platform scope; the others answer 404, as does any other reserved slug.
+     */
+    private Uni<OrganizationAccess.Refusal> enterPlatform(String slug, String path, Caller serviceAccount) {
+        String rest = path.substring(Math.min(path.length(), orgPathPrefix.length() + slug.length()));
+        if (!PlatformScope.isPlatform(slug)) {
+            return refusal(Response.Status.NOT_FOUND, OrganizationAccess.ORGANIZATION_NOT_FOUND);
+        }
+        if (!PlatformScope.supports(rest)) {
+            return refusal(Response.Status.NOT_FOUND, "Not available in the platform scope");
+        }
+        if (serviceAccount != null) {
+            return refusal(Response.Status.FORBIDDEN, OrganizationAccess.PLATFORM_OWNER_REQUIRED);
+        }
+        return organizationAccess.enterPlatform(platformAuthorizer.callerEmail());
+    }
+
+    private static Uni<OrganizationAccess.Refusal> refusal(Response.Status status, String message) {
+        return Uni.createFrom().item(new OrganizationAccess.Refusal(status, message));
     }
 
     private boolean ownOrganizationPath(String path) {

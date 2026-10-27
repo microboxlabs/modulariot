@@ -88,6 +88,8 @@ export interface MyAccess {
   baseRole: BaseRole | null;
   roles: string[];
   permissions: string[];
+  /** The organization's teams the caller belongs to. */
+  teams?: { id: string; name: string }[];
 }
 
 /** The organization joined (its slug) and the new membership. */

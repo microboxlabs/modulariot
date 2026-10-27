@@ -7,8 +7,12 @@
  */
 
 import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 
-export type TowerTreatmentType = "CALL" | "IGNORE_CONDITION" | "INVALIDATE_SYMPTOM";
+export type TowerTreatmentType =
+  | "CALL"
+  | "IGNORE_CONDITION"
+  | "INVALIDATE_SYMPTOM";
 export type TowerTreatmentStatus = "OPEN" | "CLOSED" | "CANCELLED";
 export type TowerActionKind = "CALL" | "IGNORE" | "INVALIDATE" | "NOTE";
 export type TowerCallMethod = "PHONE" | "WHATSAPP" | "MEET" | "TEAMS";
@@ -58,6 +62,8 @@ export interface TowerContactChannels {
   whatsapp?: string;
   meet?: string;
   teams?: string;
+  /** Where communication rules send email. */
+  email?: string;
 }
 
 export interface TowerContact {
@@ -72,6 +78,10 @@ export interface TowerContact {
   nationalId: string | null;
   nationalIdType: string | null;
   company: string | null;
+  /** The company's tax id, stored without dots or dashes, upper case. */
+  companyRut?: string | null;
+  /** RUT, RUC or OTRO. */
+  companyTaxIdType?: string | null;
   position: string | null;
   channels: TowerContactChannels | null;
   tags: string[] | null;
@@ -80,6 +90,30 @@ export interface TowerContact {
   lastCalledAt: string | null;
   answered: number;
   missed: number;
+}
+
+/** One page of the book; `next` is the cursor of the following page, null on the last. */
+export interface TowerContactPage {
+  items: TowerContact[];
+  next: string | null;
+}
+
+/** Which contacts a page holds. `role`, `company` and `tag` match whole values, ignoring case. */
+export interface TowerContactQuery {
+  q?: string;
+  kind?: "member" | "external";
+  role?: string;
+  company?: string;
+  tag?: string;
+}
+
+/** What the whole book holds, for the filters and pickers. */
+export interface TowerContactFacets {
+  total: number;
+  roles: string[];
+  companies: { name: string; rut: string | null; taxIdType: string | null }[];
+  tags: string[];
+  members: { memberUserId: string; contactId: string }[];
 }
 
 /** Create or update body. On update, a field left out keeps its value and "" clears it. */
@@ -93,6 +127,8 @@ export interface TowerContactBody {
   nationalId?: string;
   nationalIdType?: string;
   company?: string;
+  companyRut?: string;
+  companyTaxIdType?: string;
   position?: string;
   channels?: TowerContactChannels;
   tags?: string[];
@@ -114,7 +150,12 @@ export interface TowerContactImportResult {
   rows: TowerContactImportRow[];
 }
 
-export type AddActionBody = Partial<Omit<TowerAction, "id" | "treatmentId" | "seq" | "performedBy" | "performedAt">> & {
+export type AddActionBody = Partial<
+  Omit<
+    TowerAction,
+    "id" | "treatmentId" | "seq" | "performedBy" | "performedAt"
+  >
+> & {
   kind: TowerActionKind;
 };
 
@@ -141,11 +182,17 @@ function parseJson(text: string) {
 }
 
 /** `path` is relative to the proxy, or a full app API URL such as a key from the `*Key` helpers. */
-async function request<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
+async function request<T>(
+  path: string,
+  init?: { method?: string; body?: unknown }
+): Promise<T> {
   const url = path.startsWith(API_ROOT) ? path : `${BASE}${path}`;
   const response = await fetch(url, {
     method: init?.method ?? "GET",
-    headers: init?.body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    headers:
+      init?.body !== undefined
+        ? { "Content-Type": "application/json" }
+        : undefined,
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     cache: "no-store",
   });
@@ -153,36 +200,77 @@ async function request<T>(path: string, init?: { method?: string; body?: unknown
   const text = await response.text();
   const json = text ? parseJson(text) : undefined;
   if (!response.ok) {
-    throw new ControlTowerError(json?.error ?? `HTTP ${response.status}`, response.status);
+    throw new ControlTowerError(
+      json?.error ?? `HTTP ${response.status}`,
+      response.status
+    );
   }
   return json as T;
 }
 
-const fetcher = <T,>(path: string) => request<T>(path);
+const fetcher = <T>(path: string) => request<T>(path);
 
 /** SWR keys are the full proxy URLs, so they never collide with other app keys. */
-export const treatmentsKey = (symptomId: number | string) => `${BASE}/symptoms/${symptomId}/treatments`;
+export const treatmentsKey = (symptomId: number | string) =>
+  `${BASE}/symptoms/${symptomId}/treatments`;
 export const contactsKey = `${BASE}/contacts`;
+export const contactFacetsKey = `${BASE}/contacts/facets`;
+export const CONTACT_PAGE_SIZE = 100;
+
+export function contactPageKey(
+  query: TowerContactQuery,
+  cursor?: string | null
+): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(query)) {
+    if (value) params.set(name, value);
+  }
+  params.set("limit", String(CONTACT_PAGE_SIZE));
+  if (cursor) params.set("cursor", cursor);
+  return `${BASE}/contacts/page?${params}`;
+}
 
 /* ---------- treatments ---------- */
 
-export function useSymptomTreatments(symptomId: number | string | null | undefined) {
-  return useSWR<TowerTreatment[]>(symptomId ? treatmentsKey(symptomId) : null, fetcher);
+export function useSymptomTreatments(
+  symptomId: number | string | null | undefined
+) {
+  return useSWR<TowerTreatment[]>(
+    symptomId ? treatmentsKey(symptomId) : null,
+    fetcher
+  );
 }
 
 export function openTreatment(
   symptomId: number | string,
-  body: { type: TowerTreatmentType; assetId?: string; tripId?: string; note?: string }
+  body: {
+    type: TowerTreatmentType;
+    assetId?: string;
+    tripId?: string;
+    note?: string;
+  }
 ) {
-  return request<TowerTreatment>(treatmentsKey(symptomId), { method: "POST", body });
+  return request<TowerTreatment>(treatmentsKey(symptomId), {
+    method: "POST",
+    body,
+  });
 }
 
 export function addTreatmentAction(treatmentId: string, body: AddActionBody) {
-  return request<TowerAction>(`/treatments/${treatmentId}/actions`, { method: "POST", body });
+  return request<TowerAction>(`/treatments/${treatmentId}/actions`, {
+    method: "POST",
+    body,
+  });
 }
 
-export function closeTreatment(treatmentId: string, body: { resolution?: string; note?: string } = {}) {
-  return request<TowerTreatment>(`/treatments/${treatmentId}/close`, { method: "POST", body });
+export function closeTreatment(
+  treatmentId: string,
+  body: { resolution?: string; note?: string } = {}
+) {
+  return request<TowerTreatment>(`/treatments/${treatmentId}/close`, {
+    method: "POST",
+    body,
+  });
 }
 
 export function cancelTreatment(treatmentId: string, reason?: string) {
@@ -194,8 +282,40 @@ export function cancelTreatment(treatmentId: string, reason?: string) {
 
 /* ---------- contacts ---------- */
 
-export function useContacts() {
-  return useSWR<TowerContact[]>(contactsKey, fetcher);
+/** The whole book in one request; `enabled` false fetches nothing. */
+export function useContacts(enabled = true) {
+  return useSWR<TowerContact[]>(enabled ? contactsKey : null, fetcher);
+}
+
+/** The book 100 at a time: `setSize(size + 1)` fetches the next page. */
+export function useContactPages(query: TowerContactQuery) {
+  return useSWRInfinite<TowerContactPage>(
+    (index, previous: TowerContactPage | null) =>
+      index > 0 && !previous?.next
+        ? null
+        : contactPageKey(query, previous?.next),
+    fetcher,
+    { revalidateFirstPage: false, keepPreviousData: true }
+  );
+}
+
+export function useContactFacets() {
+  return useSWR<TowerContactFacets>(contactFacetsKey, fetcher);
+}
+
+/** Every contact that passes `query`, page after page. */
+export async function fetchAllContacts(
+  query: TowerContactQuery
+): Promise<TowerContact[]> {
+  const all: TowerContact[] = [];
+  async function fetchPage(cursor: string | null): Promise<TowerContact[]> {
+    const page: TowerContactPage = await request<TowerContactPage>(
+      contactPageKey(query, cursor)
+    );
+    all.push(...page.items);
+    return page.next ? fetchPage(page.next) : all;
+  }
+  return fetchPage(null);
 }
 
 export function createContact(body: TowerContactBody & { name: string }) {
@@ -203,7 +323,10 @@ export function createContact(body: TowerContactBody & { name: string }) {
 }
 
 export function updateContact(contactId: string, body: TowerContactBody) {
-  return request<TowerContact>(`/contacts/${contactId}`, { method: "PATCH", body });
+  return request<TowerContact>(`/contacts/${contactId}`, {
+    method: "PATCH",
+    body,
+  });
 }
 
 /** Needs an organization owner. */
@@ -212,8 +335,13 @@ export function deleteContact(contactId: string) {
 }
 
 /** Creates each row on its own; a national id already in the book is skipped. */
-export function importContacts(contacts: (TowerContactBody & { name: string })[]) {
-  return request<TowerContactImportResult>("/contacts/import", { method: "POST", body: { contacts } });
+export function importContacts(
+  contacts: (TowerContactBody & { name: string })[]
+) {
+  return request<TowerContactImportResult>("/contacts/import", {
+    method: "POST",
+    body: { contacts },
+  });
 }
 
 /** The shared request helper, for other Control Tower clients on the same proxy. */

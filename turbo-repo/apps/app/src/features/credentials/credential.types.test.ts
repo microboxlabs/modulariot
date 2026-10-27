@@ -2,7 +2,37 @@ import { describe, expect, it } from "vitest";
 import {
   Auth0M2MCredentialSchema,
   buildAuth0TokenUrl,
+  usagePath,
 } from "./credential.types";
+
+describe("usagePath", () => {
+  it("sends channels to their Comunicaciones section and the rest to their pages", () => {
+    expect(
+      usagePath({
+        id: "u",
+        label: "x",
+        kind: "CHANNEL",
+        providerType: "WHATSAPP",
+      })
+    ).toBe("/users/settings/communications?section=channel:whatsapp");
+    expect(
+      usagePath({
+        id: "u",
+        label: "x",
+        kind: "CHANNEL",
+        providerType: "RESEND",
+      })
+    ).toBe("/users/settings/communications?section=channel:email");
+    expect(
+      usagePath({
+        id: "u",
+        label: "x",
+        kind: "INTEGRATION",
+        providerType: "CUSTOM_HTTP",
+      })
+    ).toBe("/users/settings/connections");
+  });
+});
 
 describe("buildAuth0TokenUrl", () => {
   it("normalizes the scheme and trailing slashes", () => {

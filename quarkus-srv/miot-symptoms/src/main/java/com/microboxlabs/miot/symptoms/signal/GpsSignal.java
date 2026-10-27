@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
@@ -15,6 +16,10 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
  * CEL root {@code signal}. {@code frame} is the frame as the device sent it;
  * the other parts are what the signal builder adds from the trip, the vehicle,
  * the road network and the zones. A part the builder does not know is null.
+ *
+ * <p>The builder publishes each client's trip in {@code trips}, keyed by
+ * client; the evaluator gives each organization's rules its own as
+ * {@code trip}, so one organization never reads another's trip.
  *
  * <p>The rule editor's fields for the {@code gps_signal} source are read from
  * these annotations ({@link SignalFields}): {@code title} is the label,
@@ -32,6 +37,7 @@ public record GpsSignal(
         @JsonProperty("asset_id") String assetId,
         @Schema(hidden = true) Instant at,
         @Schema(hidden = true) List<String> clients,
+        @Schema(hidden = true) Map<String, Trip> trips,
         Trip trip,
         Vehicle vehicle,
         Road road,
@@ -52,8 +58,12 @@ public record GpsSignal(
             @JsonProperty("double_driver") Boolean doubleDriver,
             @Schema(title = "Viaje", extensions = @Extension(name = "x-origin", value = "TRIP"))
             String id,
+            @Schema(title = "Código de servicio", extensions = @Extension(name = "x-origin", value = "TRIP"))
+            String code,
             @Schema(title = "Tipo de viaje", extensions = @Extension(name = "x-origin", value = "TRIP"))
             String type,
+            @Schema(title = "Estado del servicio", extensions = @Extension(name = "x-origin", value = "TRIP"))
+            String status,
             @Schema(title = "Tiempo en viaje", extensions = {
                     @Extension(name = "x-unit", value = "min"), @Extension(name = "x-origin", value = "TRIP") })
             @JsonProperty("age_min") Double ageMin,
@@ -73,7 +83,8 @@ public record GpsSignal(
 
         /** A vehicle without a trip in progress. */
         public static Trip none() {
-            return new Trip(false, false, null, null, null, null, null, null, null, null, null, null, null);
+            return new Trip(false, false, null, null, null, null, null, null, null, null, null, null, null, null,
+                    null);
         }
     }
 
@@ -104,13 +115,13 @@ public record GpsSignal(
             @Schema(title = "Transportista") String name) {
     }
 
-    /** The trip's driver as the driver registry knows them: never their name or national id. */
+    /** The trip's driver as the fleet knows them: never their name or national id. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record Driver(
-            @Schema(title = "Conductor (id del registro)") String id,
-            @Schema(title = "Conductor registrado") Boolean registered,
+            @Schema(title = "Conductor (id de la flota)") String id,
+            @Schema(title = "Conductor en la flota") Boolean registered,
             @Schema(title = "Estado del conductor") DriverStatus status,
             @Schema(title = "Licencia vencida") @JsonProperty("license_expired") Boolean licenseExpired) {
     }

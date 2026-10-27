@@ -1,4 +1,10 @@
-import { z } from "zod";
+import type { ComponentType, SVGProps } from "react";
+import type {
+  BrandLogoSources,
+  LogoKeyline,
+} from "@/features/common/components/brand-logo";
+import { Whatsapp } from "flowbite-react-icons/solid";
+import { z } from "zod/v3";
 
 /**
  * Credentials — reusable identities/secrets that are configured once in Settings
@@ -18,6 +24,7 @@ export type CredentialTypeId =
   | "API_KEY"
   | "BEARER_TOKEN"
   | "RESEND"
+  | "WHATSAPP"
   | "BASIC_AUTH";
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
@@ -31,6 +38,27 @@ export interface CredentialUsage {
   readonly id: string;
   readonly label: string;
   readonly kind: CredentialUsageKind;
+  /** The connection's provider, e.g. WHATSAPP or CUSTOM_HTTP. */
+  readonly providerType?: string;
+  /** What identifies the connection: the WhatsApp number id, the sender, or the URL. */
+  readonly detail?: string | null;
+}
+
+/** The settings page where a credential's consumer is managed. */
+export function usagePath(usage: CredentialUsage): string {
+  switch (usage.kind) {
+    case "CHANNEL":
+      // WhatsApp and email accounts are set up in Comunicaciones, one section per channel.
+      return usage.providerType === "RESEND"
+        ? "/users/settings/communications?section=channel:email"
+        : "/users/settings/communications?section=channel:whatsapp";
+    case "DATA_SOURCE":
+      return "/users/settings/data-sources";
+    case "JOB":
+      return "/integrations";
+    default:
+      return "/users/settings/connections";
+  }
 }
 
 export interface CredentialListItem {
@@ -132,23 +160,6 @@ export interface Auth0M2MConfig {
 
 export type TokenRequestFormat = "FORM" | "JSON";
 
-/**
- * Logo sources for a credential type. Any image URL works — SVG, PNG, local
- * asset or remote — because logos render through a plain <img>.
- *
- * Provide `light`/`dark` when the mark needs different ink per theme, or just
- * `default` when one asset reads correctly on both (most brand marks do).
- * Missing entries fall back: theme-specific → default → the built-in key mark.
- */
-export interface CredentialLogo {
-  /** Used when the app is in light theme. */
-  readonly light?: string;
-  /** Used when the app is in dark theme. */
-  readonly dark?: string;
-  /** Theme-agnostic asset, and the fallback for whichever theme is missing. */
-  readonly default?: string;
-}
-
 export interface CredentialTypeDescriptor {
   readonly id: CredentialTypeId;
   readonly nameKey: string;
@@ -162,32 +173,12 @@ export interface CredentialTypeDescriptor {
    * test at all rather than a button that can't mean anything.
    */
   readonly supportsTest: boolean;
-  /** Omit to fall back to {@link DEFAULT_CREDENTIAL_LOGO}. */
-  readonly logo?: CredentialLogo;
-}
-
-/** Neutral key mark (PNG) used when a type ships no logo of its own. */
-export const DEFAULT_CREDENTIAL_LOGO: CredentialLogo = {
-  default: "/credential-logos/credential-default.png",
-};
-
-/**
- * Collapses a logo to the two sources the renderer needs. When both come out
- * equal the caller can render a single <img> instead of a light/dark pair.
- */
-export function resolveCredentialLogo(logo?: CredentialLogo): {
-  lightSrc: string;
-  darkSrc: string;
-} {
-  const fallback =
-    logo?.default ??
-    DEFAULT_CREDENTIAL_LOGO.default ??
-    DEFAULT_CREDENTIAL_LOGO.light ??
-    "";
-  return {
-    lightSrc: logo?.light ?? fallback,
-    darkSrc: logo?.dark ?? fallback,
-  };
+  /** Omit to fall back to the built-in key mark. */
+  readonly logo?: BrandLogoSources;
+  /** An icon from the app's icon library, drawn in the text colour; takes the place of `logo`. */
+  readonly icon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /** The mark's overall shape, which sets how much of the tile it fills. Square by default. */
+  readonly keyline?: LogoKeyline;
 }
 
 /**
@@ -257,11 +248,21 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     descriptionKey: "types.resend.description",
     available: true,
     supportsTest: false,
-    // Monochrome mark, so it needs per-theme ink.
+    // Monochrome mark in the gray of the library icons, with per-theme ink.
     logo: {
       light: "/credential-logos/resend-light.svg",
       dark: "/credential-logos/resend-dark.svg",
     },
+  },
+  {
+    // A bearer token tagged with WHATSAPP_PROVIDER: a Meta app's access token for a WhatsApp channel.
+    id: "WHATSAPP",
+    nameKey: "types.whatsapp.name",
+    descriptionKey: "types.whatsapp.description",
+    available: true,
+    supportsTest: false,
+    icon: Whatsapp,
+    keyline: "circle",
   },
   {
     id: "BASIC_AUTH",
@@ -503,6 +504,9 @@ export const BearerTokenCredentialSchema = z.object({
     .min(1, "validation.environmentRequired")
     .max(40, "validation.environmentTooLong"),
   token: z.string().trim().min(1, "validation.tokenRequired"),
+  /** WhatsApp only: the Meta App secret and the webhook verify token. Blank keeps the stored one. */
+  appSecret: z.string().optional(),
+  verifyToken: z.string().optional(),
 });
 
 /** On edit the token may be left blank to keep the stored one. */
@@ -514,7 +518,7 @@ export const BearerTokenCredentialEditSchema =
 export type BearerTokenFormData = z.infer<
   typeof BearerTokenCredentialSchema
 > & {
-  /** {@link RESEND_PROVIDER} on a Resend API key; absent on a plain bearer token. */
+  /** {@link RESEND_PROVIDER} or {@link WHATSAPP_PROVIDER}; absent on a plain bearer token. */
   provider?: string;
 };
 
@@ -531,6 +535,18 @@ export const ResendCredentialSchema =
 
 export const ResendCredentialEditSchema =
   BearerTokenCredentialEditSchema.extend(providerField);
+
+/** Marks a bearer credential as a WhatsApp (Meta) access token, like {@link RESEND_PROVIDER}. */
+export const WHATSAPP_PROVIDER = "whatsapp";
+
+const whatsAppProviderField = { provider: z.literal(WHATSAPP_PROVIDER) };
+
+export const WhatsAppCredentialSchema = BearerTokenCredentialSchema.extend(
+  whatsAppProviderField
+);
+
+export const WhatsAppCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(whatsAppProviderField);
 
 /**
  * Any credential form's data. The list/create/update paths are type-agnostic —

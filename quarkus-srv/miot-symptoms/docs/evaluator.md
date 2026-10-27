@@ -51,8 +51,23 @@ An ACTIVE OPENED row of `signal_transitions` is a Control Tower case until a CLO
 
 | Endpoint | What changes |
 |---|---|
-| `GET …/control-tower/map/symptoms` | With paging only (no filters), page 1 lists the open cases first, in the GPS function's row shape, with their count in `open_cases`; the paging totals stay the GPS function's. They still show when the GPS database cannot be read |
-| `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and `live_trip`, and the signal's point as an EWKB feature |
+| `GET …/control-tower/map/symptoms` | Page 1 lists the matching cases first, in the GPS function's row shape, with their count in `engine_cases`; the paging totals stay the GPS function's. Cases answer `p_trip_id`, `p_asset_id` (part of the plate), `p_symptom_name`, `p_icu_code` (current level) and the dates: without dates the open cases, with them the cases opened in the range, closed ones with `end_time`. A driver, carrier, origin or destination filter leaves them out. They still show when the GPS database cannot be read |
+| `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and the trip's `trip_live` row while it runs, and the signal's point as an EWKB feature |
 | `POST …/treatments/{id}/close` | Closing the treatment of a case closes the case (CLOSED row with `closed_by`) and drops its Redis episode, so the next signal that meets the condition opens a new case |
 
 A case's symptom id is the OPENED row's id negated, so it never meets a GPS database symptom id in `treatment` and `audit_event`. The row keeps the signal's trip, position and speed (V0.8.5).
+
+## Case events
+
+Each new transition, and an operator's close, is published in-process as an `OperationalEvent` (`miot-core`, `core.event`) with `Event.fireAsync` (`events/SymptomEvents`). A replayed signal publishes nothing again: the log returns only the rows it inserted.
+
+| Type | When |
+|---|---|
+| `symptom.case.opened` | OPENED transition |
+| `symptom.case.level_changed` | LEVEL_CHANGED transition |
+| `symptom.case.closed` | CLOSED transition, or `POST …/treatments/{id}/close` (`closedBy` set) |
+| `symptom.case.sla_expired` | The SLA timer, see below |
+
+`source` is `miot-symptoms`, `context` is `{kind: "symptom_case", key: "<symptom id>"}` (the negated OPENED id), `data` is `SymptomCaseData`. TEST symptoms publish with `test: true`. `SymptomEventCatalog` lists the types and the payload class.
+
+The SLA timer (`cases/SlaTimer`, every 60 s, `miot.symptoms.sla.enabled`, on with the evaluator) reads the ACTIVE cases opened in the last 7 days whose current level has `operator` and `slaMinutes`, reached that level more than `slaMinutes` ago, and have no treatment that is open or was opened since the case reached the level. It writes `miot_symptoms.sla_expiry (tenant_code, case_id, level)` (V0.9.7) and publishes only when the row is new, so each case and level expires once across replicas.

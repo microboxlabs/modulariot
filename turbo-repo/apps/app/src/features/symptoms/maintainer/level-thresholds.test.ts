@@ -49,18 +49,28 @@ describe("parseThresholds", () => {
     expect(parseThresholds(null)).toBeNull();
   });
 
+  it("reads an exact value and writes it back", () => {
+    const t = parseThresholds("measure == 1000 && held_s >= 60");
+    expect(t?.measure).toEqual({
+      lower: { op: "==", value: 1000 },
+      upper: null,
+    });
+    expect(t && compileThresholds(t)).toBe("measure == 1000 && held_s >= 60");
+  });
+
   it("returns null for rules the form cannot show", () => {
     for (const rule of [
       "measure > 0 || measure < 5", // o
       "measure > 0 && measure > 5", // two lower bounds
       "measure < 5 && measure <= 3", // two upper bounds
       "(measure > 0)", // parentheses
-      "measure == 5", // equality
+      "measure == 5 && measure < 9", // an exact value with another bound
       "signal.frame.gps.speed > 90", // a source field
       "measure > held_s", // variable against variable
       "measure > 9007199254740993", // a number the form cannot keep
       "!(measure > 3)", // negation
       "5 < measure", // reversed
+      "held_s == 60", // an exact hold time is never reached
     ]) {
       expect(parseThresholds(rule), rule).toBeNull();
     }

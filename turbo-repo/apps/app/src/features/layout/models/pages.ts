@@ -6,11 +6,21 @@ import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaDev, FaTruckLoading } from "react-icons/fa";
-import { HiCog, HiLightningBolt, HiOutlineTruck } from "react-icons/hi";
+import {
+  HiCog,
+  HiLightningBolt,
+  HiOutlineMap,
+  HiOutlineTruck,
+} from "react-icons/hi";
 import { HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
+import {
+  PLATFORM_SCOPE_PAGES,
+  PLATFORM_SCOPE_SETTINGS,
+} from "@/features/common/platform-scope";
+import { boardEnabled, KANBAN_SECTIONS } from "./board-module";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
@@ -18,6 +28,7 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   calendar: CalendarIcon,
   kanban: ClipboardIcon,
   tasks: FaBookIcon,
+  trips: HiOutlineMap as FC<ComponentProps<"svg">>,
   controlTower: LuTowerControl as FC<ComponentProps<"svg">>,
   liveStreams: VideoCameraIcon,
   collaboratorsManagement: PeopleIcon,
@@ -77,9 +88,16 @@ export const pages: SidebarItem[] = pagesConfig.map((p) => ({
 export function visiblePages(
   devToolsEnabled: boolean,
   storytellingEnabled: boolean,
-  dashboardServerEnabled: boolean
+  dashboardServerEnabled: boolean,
+  boardModule: string | null = ""
 ): SidebarItem[] {
   return pages.filter((p) => {
+    if (KANBAN_SECTIONS.has(p.label)) {
+      return boardModule !== null && boardEnabled("kanban", boardModule);
+    }
+    if (p.label === "trips") {
+      return boardModule !== null && boardEnabled("trips", boardModule);
+    }
     if (p.label === DEV_PAGE_LABEL) return devToolsEnabled;
     if (p.label === STORYTELLING_PAGE_LABEL) return storytellingEnabled;
     if (p.label === DASHBOARD_SERVER_PAGE_LABEL) return dashboardServerEnabled;
@@ -105,6 +123,29 @@ export interface SettingsGates {
   readonly gps: boolean;
   /** Whether the signed-in user may view the fleet (`fleet:assets.view`). */
   readonly fleet: boolean;
+  /** Whether the active scope is the platform rather than an organization. */
+  readonly platformScope?: boolean;
+}
+
+const SETTINGS_LABEL = "settings";
+
+/**
+ * In the platform scope only the pages the platform has remain: Settings, with the entries that
+ * exist for the platform, and the job console.
+ */
+function platformScopePages(input: SidebarItem[]): SidebarItem[] {
+  return input
+    .filter(
+      (page) =>
+        page.label === SETTINGS_LABEL ||
+        (!!page.href && PLATFORM_SCOPE_PAGES.includes(page.href))
+    )
+    .map((page) => ({
+      ...page,
+      items: (page.items ?? []).filter(
+        (item) => !!item.href && PLATFORM_SCOPE_SETTINGS.includes(item.href)
+      ),
+    }));
 }
 
 /**
@@ -119,6 +160,7 @@ export function filterSettings(
   input: SidebarItem[],
   gates: SettingsGates
 ): SidebarItem[] {
+  if (gates.platformScope) return platformScopePages(input);
   if (
     gates.harness &&
     gates.platformOwner &&

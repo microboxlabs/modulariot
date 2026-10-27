@@ -5,7 +5,12 @@ import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-conte
 import { Card } from "flowbite-react";
 import Image from "next/image";
 import PrototypeSideInfo from "./prototype-side-info";
-import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
+import MapVisualizationTrip, {
+  type CasePoint,
+} from "@/features/geographic-view/components/map-visualization-trip";
+import type { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
+import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
+import { chipText } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
 import { useEffect, useState } from "react";
@@ -33,6 +38,21 @@ const MENU_OPTIONS: SelectedOption[] = [
 
 function isSelectedOption(value: string | null): value is SelectedOption {
   return !!value && (MENU_OPTIONS as string[]).includes(value);
+}
+
+function titleCase(value: string | null | undefined): string {
+  return (
+    value?.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()) ?? ""
+  );
+}
+
+function firstPoint(
+  location: TreatmentsLocationResponseItem | null | undefined
+): CasePoint | null {
+  const feature = location?.features?.[0];
+  return feature?.longitude != null && feature?.latitude != null
+    ? { longitude: feature.longitude, latitude: feature.latitude }
+    : null;
 }
 
 function panelWidths(
@@ -77,7 +97,8 @@ export default function PrototypeGeneralMap({
   const searchParams = useSearchParams();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
-    assetId ?? ""
+    assetId ?? "",
+    id
   );
 
   const {
@@ -161,13 +182,19 @@ export default function PrototypeGeneralMap({
     isLoading: _locationLoading,
   } = useTreatmentsLocation(
     selectedTreatment?.trip_info?.trip_id ?? "",
-    //format the first letter of each word in uppercase
-    selectedTreatmentIndex?.type
-      ?.toString()
-      .toLowerCase()
-      .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "",
+    titleCase(selectedTreatmentIndex?.type?.toString()),
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
+
+  // A case without a trip keeps its opening point on the map, whichever
+  // timeline entry or pulse is selected.
+  const tripless = !tripId && isEngineCaseId(id);
+  const { data: caseLocation } = useTreatmentsLocation(
+    "",
+    tripless ? titleCase(treatmentData?.symptom_info?.name) : "",
+    id
+  );
+  const casePoint = tripless ? firstPoint(caseLocation) : null;
 
   useEffect(() => {
     if (errorTreatments) {
@@ -176,6 +203,8 @@ export default function PrototypeGeneralMap({
   }, [errorTreatments, router]);
 
   if (errorTreatments) return null;
+  const symptomsDict = dict.symptoms as I18nRecord;
+  const tripInfo = treatmentData?.trip_info;
   return (
     <>
       <div
@@ -237,82 +266,53 @@ export default function PrototypeGeneralMap({
                 tag_style="bg-transparent border-gray-300 dark:border-gray-500 dark:text-white"
                 tags={[
                   {
-                    text: treatmentData?.symptom_info?.icu_code ? (
-                      ((dict.symptoms as I18nRecord)[
-                        titles[
-                          treatmentData?.symptom_info?.icu_code.toString() as keyof typeof titles
-                        ].title
-                      ] as string)
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      treatmentData?.symptom_info?.icu_code
+                        ? (symptomsDict[
+                            titles[
+                              treatmentData.symptom_info.icu_code.toString() as keyof typeof titles
+                            ]?.title
+                          ] as string)
+                        : null
                     ),
                   },
                   {
-                    text: treatmentData?.trip_info?.asset_id ? (
-                      ((dict.symptoms as I18nRecord).license_plate as string) +
-                      ": " +
-                      treatmentData?.trip_info?.asset_id
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      treatmentData?.trip_info?.asset_id ?? assetId,
+                      symptomsDict.license_plate as string
                     ),
                     icon: <FaTruck className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text:
-                      treatmentData?.trip_info?.origin &&
-                      treatmentData?.trip_info?.destination ? (
-                        ((dict.symptoms as I18nRecord).route as string) +
-                        ": " +
-                        treatmentData?.trip_info?.origin +
-                        " - " +
-                        treatmentData?.trip_info?.destination
-                      ) : (
-                        <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                          ejemplo
-                        </div>
-                      ),
+                    text: chipText(
+                      loading,
+                      tripInfo?.origin && tripInfo?.destination
+                        ? `${tripInfo.origin} - ${tripInfo.destination}`
+                        : null,
+                      symptomsDict.route as string
+                    ),
                     icon: (
                       <FaMapPin className="text-gray-900 dark:text-white" />
                     ),
                   },
                   {
-                    text: treatmentData?.trip_info?.driver ? (
-                      treatmentData?.trip_info?.driver
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
-                    ),
+                    text: chipText(loading, tripInfo?.driver),
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text:
-                      treatmentData?.trip_info?.driver2 ??
-                      treatmentData?.trip_info?.driver2,
+                    text: tripInfo?.driver2,
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text: treatmentData?.trip_info?.trip_id ? (
-                      "Trip id: " + treatmentData?.trip_info?.trip_id
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
-                    ),
+                    text: chipText(loading, tripInfo?.trip_id, "Trip id"),
                   },
                   {
-                    text: treatmentData?.trip_info?.carrier ? (
-                      ((dict.symptoms as I18nRecord).transporter as string) +
-                      ": " +
-                      treatmentData?.trip_info?.carrier
-                    ) : (
-                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
-                        ejemplo
-                      </div>
+                    text: chipText(
+                      loading,
+                      tripInfo?.carrier,
+                      symptomsDict.transporter as string
                     ),
                   },
                 ]}
@@ -363,6 +363,7 @@ export default function PrototypeGeneralMap({
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
               onLugaresChange={setLugaresAbierto}
+              casePoint={casePoint}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

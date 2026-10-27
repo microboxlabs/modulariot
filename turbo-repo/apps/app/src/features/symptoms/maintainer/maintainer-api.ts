@@ -199,8 +199,12 @@ export interface SymptomDetail {
 export interface Finding {
   section: string;
   severity: "ERROR" | "WARNING";
+  /** Spanish text, shown when the app does not know the code. */
   message: string;
   position: number;
+  /** Translated as `finding<Code>` in the lang files. */
+  code?: string;
+  params?: Record<string, string>;
 }
 
 export interface ValidationReport {
@@ -339,6 +343,8 @@ export function useControlTowerAccess() {
     data?.permissions.includes(permission) ?? false;
   return {
     can,
+    /** False until the permissions arrive; until then every `can*` is false. */
+    loaded: data !== undefined,
     canOperate: can("controltower:case.treat"),
     canMaintain: can("controltower:symptom.edit"),
   };
@@ -499,15 +505,6 @@ export async function saveAsTemplate(
   });
   await refreshSymptoms(saved.definition.id, PLATFORM_TEMPLATES);
   return saved;
-}
-
-/** The platform's templates, drafts included (platform owners); nothing is fetched while `enabled` is false. */
-export function usePlatformTemplates(enabled: boolean) {
-  return useSWR<SymptomSummary[]>(
-    enabled ? PLATFORM_TEMPLATES.defs : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
 }
 
 /** Creates an off draft for each engine rule the organization does not have yet. */

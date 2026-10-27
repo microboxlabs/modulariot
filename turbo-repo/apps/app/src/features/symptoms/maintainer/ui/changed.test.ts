@@ -33,6 +33,19 @@ describe("changedPaths", () => {
     ]);
   });
 
+  it("treats a missing key as equal to the false or empty list the editor writes", () => {
+    const draft = structuredClone(published) as Record<string, unknown>;
+    const levels = draft.levels as { response: Record<string, unknown> }[];
+    levels[1].response.consequence = false;
+    levels[1].response.escalateTo = null;
+    levels[1].response.evidence = [];
+    expect(changedPaths(draft, published).size).toBe(0);
+    levels[1].response.consequence = true;
+    expect([...changedPaths(draft, published)]).toEqual([
+      "levels.1.response.consequence",
+    ]);
+  });
+
   it("finds changes under a path", () => {
     const paths = new Set(["levels.1.response.slaMinutes"]);
     expect(isChanged(paths, "levels.1")).toBe(true);

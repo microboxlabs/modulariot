@@ -191,6 +191,29 @@ describe("LevelSteps", () => {
     expect(screen.getByDisplayValue("Transportista")).toBe(second);
   });
 
+  it("shows a step's error under it and marks the field", () => {
+    render(
+      <LevelSteps
+        steps={[{ ...STEPS[0]!, role: "" }, STEPS[1]!]}
+        slaMinutes={5}
+        errors={{ 0: { contact: "El paso 1 no dice a quién contactar." } }}
+        readOnly={false}
+        d={d}
+        onChange={vi.fn()}
+      />
+    );
+    const items = screen.getAllByRole("listitem");
+    expect(
+      within(items[0]!).getByText("El paso 1 no dice a quién contactar.")
+    ).toBeTruthy();
+    expect(within(items[0]!).getByLabelText("Persona").className).toContain(
+      "border-red-500"
+    );
+    expect(within(items[1]!).getByLabelText("Persona").className).not.toContain(
+      "border-red-500"
+    );
+  });
+
   it("lets readers read the script but not change the steps", () => {
     render(
       <LevelSteps

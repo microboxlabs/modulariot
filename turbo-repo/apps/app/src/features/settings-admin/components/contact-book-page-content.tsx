@@ -1,26 +1,43 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Spinner } from "flowbite-react";
 import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import FilterSearch from "@/features/common/components/filter-search";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import { FilterChip } from "@/features/symptoms/maintainer/ui/filter-chip";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
-import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  ControlTowerError,
+  useContacts,
+  type TowerContactQuery,
+} from "@/features/symptoms/control-tower/control-tower-api";
+import { useContactReach } from "@/features/conversations/conversations-api";
+import { ruleHref } from "@/features/conversations/rules-tab";
 import ContactFormModal from "../contact-book/contact-form-modal";
 import ContactTable, {
+  ContactCard,
   type ContactTableLabels,
 } from "../contact-book/contact-table";
 import ImportContactsModal from "../contact-book/import-contacts-modal";
 import {
-  organizationNames,
-  useContactBook,
+  bookCompanies,
+  toBookContact,
+  useContactBookPages,
   type BookContact,
 } from "../contact-book/store";
 import { useContactBadges } from "../contact-book/taxonomy-store";
-import { useIncrementalCount } from "../contact-book/use-incremental-count";
+import { useLoadMore } from "../contact-book/use-load-more";
 
-const PAGE_SIZE = 10;
+type ContactFilters = Record<"kind" | "role" | "company" | "tag", string>;
+const NO_FILTERS: ContactFilters = { kind: "", role: "", company: "", tag: "" };
+const NO_VALUES: string[] = [];
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface ContactBookPageContentProps {
   readonly dict: I18nRecord;
@@ -31,6 +48,8 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
   return {
     columns: {
       name: tr("colName", d),
+      role: tr("colRole", d),
+      company: tr("colCompany", d),
       badges: tr("colBadges", d),
       methods: tr("colMethods", d),
       actions: tr("colActions", d),
@@ -40,12 +59,23 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
       whatsapp: tr("methodWhatsapp", d),
       meet: tr("methodMeet", d),
       teams: tr("methodTeams", d),
+      email: tr("methodEmail", d),
     },
     copied: tr("copied", d),
     notConnected: tr("methodNotConnected", d),
     clickToCopy: tr("clickToCopy", d),
     edit: tr("edit", d),
     remove: tr("removeContact", d),
+    card: {
+      member: tr("cardMember", d),
+      external: tr("cardExternal", d),
+      provisional: tr("cardProvisional", d),
+      unreachable: tr("cardUnreachable", d),
+      rut: tr("cardRut", d),
+      reaches: tr("cardReaches", d),
+      reachesNone: tr("cardReachesNone", d),
+      dependsOnEvent: tr("cardDependsOnEvent", d),
+    },
   };
 }
 
@@ -55,7 +85,7 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
  * The organization's directory of people, stored by the Control Tower API
  * and shared by every operator. Contacts created here (or from the call
  * panel's "Llamar y guardar en la libreta") can be picked in "who to call".
- * The table loads 10 rows at a time as it's scrolled.
+ * The API filters the book and sends it 100 contacts at a time; the next 100 load as the list is scrolled.
  */
 export default function ContactBookPageContent({
   dict,
@@ -63,25 +93,54 @@ export default function ContactBookPageContent({
 }: ContactBookPageContentProps) {
   const d = dict?.contactBook as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
+  const [filters, setFilters] = useState<ContactFilters>(NO_FILTERS);
+  const [search, setSearch] = useState("");
+  const [searched, setSearched] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setSearched(search.trim()),
+      SEARCH_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [search]);
+  const member = tr("cardMember", d);
+  const external = tr("cardExternal", d);
+  const query = useMemo<TowerContactQuery>(() => {
+    let kind: TowerContactQuery["kind"];
+    if (filters.kind === member) kind = "member";
+    else if (filters.kind === external) kind = "external";
+    return {
+      q: searched,
+      kind,
+      role: filters.role,
+      company: filters.company,
+      tag: filters.tag,
+    };
+  }, [searched, filters, member, external]);
   const {
     contacts,
+    facets,
     hydrated,
     error,
+    hasMore,
+    loadingMore,
+    loadMore,
     save,
     addMany,
     remove,
     renameTag,
     deleteTag,
-  } = useContactBook();
+  } = useContactBookPages(query);
+  const sentinelRef = useLoadMore(loadMore, hasMore && !loadingMore);
   const { badges } = useContactBadges();
-  const organizations = useMemo(() => organizationNames(contacts), [contacts]);
+  const { data: reach } = useContactReach();
+  const organizations = useMemo(() => bookCompanies(facets), [facets]);
   const [editing, setEditing] = useState<BookContact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const { visible, hasMore, sentinelRef } = useIncrementalCount(
-    contacts.length,
-    PAGE_SIZE
-  );
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
+  // The CSV preview flags documents already in the book, so the import reads the whole book.
+  const { data: wholeBook } = useContacts(importOpen);
 
   const openCreate = () => {
     setEditing(null);
@@ -96,11 +155,13 @@ export default function ContactBookPageContent({
     try {
       await save(contact);
     } catch (e) {
-      const duplicate = e instanceof ControlTowerError && e.status === 409;
-      ShowNotification({
-        type: "error",
-        message: duplicate ? tr("duplicateRut", d) : tr("saveError", d),
-      });
+      const conflict = e instanceof ControlTowerError && e.status === 409;
+      let message = tr("saveError", d);
+      if (conflict)
+        message = e.message.includes("member")
+          ? tr("duplicateMember", d)
+          : tr("duplicateRut", d);
+      ShowNotification({ type: "error", message });
       throw e;
     }
   };
@@ -115,72 +176,114 @@ export default function ContactBookPageContent({
     });
   };
 
+  const roles = facets?.roles ?? NO_VALUES;
+  const companies = organizations.map((o) => o.name);
+  const tags = facets?.tags ?? NO_VALUES;
+  const filterDefs = [
+    {
+      key: "kind" as const,
+      label: tr("filterKind", d),
+      options: [member, external],
+    },
+    { key: "role" as const, label: tr("filterRole", d), options: roles },
+    {
+      key: "company" as const,
+      label: tr("filterCompany", d),
+      options: companies,
+    },
+    { key: "tag" as const, label: tr("filterTag", d), options: tags },
+  ];
+  const labels = contactTableLabels(d);
+  const badgesById = new Map(badges.map((b) => [b.id, b]));
+  const emptyBook = facets?.total === 0;
+
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "contactBook"]}
-          disableLinks
-        />
-      </div>
-
-      <div className="flex w-full min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 pt-2 pb-4 dark:bg-gray-900">
-        <div className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
-              <HiOutlineBookOpen className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", d)}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("description", d)}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              <HiOutlineUpload className="h-4 w-4" />
-              {tr("importContacts", d)}
-            </button>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              <HiPlus className="h-4 w-4" />
-              {tr("newContact", d)}
-            </button>
-          </div>
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "contactBook"]}
+      icon={HiOutlineBookOpen}
+      title={tr("title", d)}
+      description={tr("description", d)}
+      filters={
+        <>
+          <FilterSearch
+            value={search}
+            onChange={setSearch}
+            label={tr("searchLabel", d)}
+            placeholder={tr("searchPlaceholder", d)}
+          />
+          {filterDefs.map((f) => (
+            <FilterChip
+              key={f.key}
+              label={f.label}
+              value={filters[f.key]}
+              options={f.options}
+              allLabel={tr("filterAll", d)}
+              onChange={(v) => setFilters({ ...filters, [f.key]: v })}
+            />
+          ))}
+        </>
+      }
+      actions={
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <LayoutToggle
+            layout={layout}
+            labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+            onLayout={setLayout}
+          />
+          <Button size="sm" color="light" onClick={() => setImportOpen(true)}>
+            <HiOutlineUpload className="mr-1 h-4 w-4" />
+            {tr("importContacts", d)}
+          </Button>
+          <Button size="sm" color="blue" onClick={openCreate}>
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("newContact", d)}
+          </Button>
         </div>
-
-        {hydrated && contacts.length === 0 && (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-y-auto rounded-lg border border-dashed border-gray-300 px-4 py-16 text-center dark:border-gray-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {error ? tr("loadError", d) : tr("empty", d)}
-            </p>
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+        {hydrated && contacts.length === 0 && (error || emptyBook) && (
+          <p className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
+            {error ? tr("loadError", d) : tr("empty", d)}
+          </p>
+        )}
+        {hydrated && !error && !emptyBook && contacts.length === 0 && (
+          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            {tr("emptyFiltered", d)}
+          </p>
+        )}
+        {contacts.length > 0 && layout === "cards" && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {contacts.map((c) => (
+              <ContactCard
+                key={c.id}
+                contact={c}
+                labels={labels}
+                onEdit={openEdit}
+                onRemove={removeContact}
+                badgesById={badgesById}
+                reach={reach ? (reach[c.id] ?? []) : undefined}
+                ruleHref={(id) => ruleHref(lang, id)}
+              />
+            ))}
           </div>
         )}
-
-        {hydrated && contacts.length > 0 && (
+        {contacts.length > 0 && layout === "list" && (
           <ContactTable
-            contacts={contacts.slice(0, visible)}
+            contacts={contacts}
             badges={badges}
-            labels={contactTableLabels(d)}
+            labels={labels}
             onEdit={openEdit}
             onRemove={removeContact}
-            className="min-h-0 flex-1"
-            footer={
-              hasMore && <div ref={sentinelRef} className="h-8" aria-hidden />
-            }
           />
+        )}
+        {hasMore && <div ref={sentinelRef} className="h-8" aria-hidden />}
+        {loadingMore && (
+          <div className="flex justify-center py-3">
+            <Spinner size="sm" aria-label={tr("loadingMore", d)} />
+          </div>
         )}
       </div>
 
@@ -192,15 +295,23 @@ export default function ContactBookPageContent({
         onRenameTag={renameTag}
         onDeleteTag={deleteTag}
         organizations={organizations}
+        roles={roles}
+        takenMemberIds={
+          new Set(
+            (facets?.members ?? []).flatMap((m) =>
+              m.contactId === editing?.id ? [] : [m.memberUserId]
+            )
+          )
+        }
         dict={dict}
       />
       <ImportContactsModal
         show={importOpen}
         onClose={() => setImportOpen(false)}
-        contacts={contacts}
+        contacts={(wholeBook ?? []).map((c) => toBookContact(c, badges))}
         onImport={addMany}
         dict={dict}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

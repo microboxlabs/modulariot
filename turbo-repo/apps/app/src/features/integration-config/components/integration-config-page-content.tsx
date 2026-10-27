@@ -1,13 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, Button, Spinner } from "flowbite-react";
 import { HiOutlineLink, HiPlus } from "react-icons/hi";
 import { toast } from "sonner";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import {
+  connectionTypeName,
+  DEFAULT_CONNECTION_FILTERS,
+  DEFAULT_CONNECTION_SORT,
+  filterConnections,
+  hasActiveConnectionFilters,
+  sortConnections,
+  type ConnectionFilters,
+  type ConnectionSort,
+} from "../connection-catalog";
 import { useIntegrationConfig } from "../use-integration-config";
 import type {
   IntegrationConnection,
@@ -15,6 +28,7 @@ import type {
   NativeProvider,
 } from "../integration-config.types";
 import { ConnectionsList } from "./connections-list";
+import { ConnectionsToolbar } from "./connections-toolbar";
 import { TemplatesList } from "./templates-list";
 import { TemplateFormModal } from "./template-form-modal";
 import { TemplatePickerModal } from "./template-picker-modal";
@@ -27,6 +41,8 @@ interface IntegrationConfigPageContentProps {
   readonly dict: I18nRecord;
   /** `pages.userSettings.breadcrumb` — the trail is shared with the other settings pages. */
   readonly breadcrumbDict: I18nRecord;
+  /** Root dictionary — the shared filter badges translate from it. */
+  readonly rootDict: I18nRecord;
   readonly lang: string;
 }
 
@@ -47,6 +63,7 @@ interface IntegrationConfigPageContentProps {
 export function IntegrationConfigPageContent({
   dict,
   breadcrumbDict,
+  rootDict,
   lang,
 }: Readonly<IntegrationConfigPageContentProps>) {
   const { activeOrg } = useOrgScopes();
@@ -83,6 +100,28 @@ export function IntegrationConfigPageContent({
   const [deletingConnection, setDeletingConnection] =
     useState<IntegrationConnection | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ConnectionFilters>(
+    DEFAULT_CONNECTION_FILTERS
+  );
+  const [sort, setSort] = useState<ConnectionSort>(DEFAULT_CONNECTION_SORT);
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
+
+  const types = useMemo(
+    () =>
+      [
+        ...new Set(
+          connections.map((connection) =>
+            connectionTypeName(connection, templates)
+          )
+        ),
+      ].sort((a, b) => a.localeCompare(b)),
+    [connections, templates]
+  );
+  const visible = useMemo(
+    () =>
+      sortConnections(filterConnections(connections, templates, filters), sort),
+    [connections, templates, filters, sort]
+  );
 
   const instanceCount = (templateId: string) =>
     connections.filter((connection) => connection.templateId === templateId)
@@ -171,49 +210,48 @@ export function IntegrationConfigPageContent({
   }
 
   return (
-    // Same shell as Settings › Credentials: a full-width breadcrumb bar
-    // (outside the scroll container, so it never moves — including during
-    // rubber-band overscroll) over a capped, independently-scrolling
-    // content column, so a wide monitor doesn't strand the row actions far
-    // from the names they belong to.
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "connections"]}
-          disableLinks
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "connections"]}
+      icon={HiOutlineLink}
+      title={tr("page.title", dict)}
+      description={tr("page.subtitle", dict)}
+      filters={
+        <ConnectionsToolbar
+          filters={filters}
+          onFiltersChange={setFilters}
+          sort={sort}
+          onSortChange={setSort}
+          types={types}
+          dict={dict}
+          rootDict={rootDict}
         />
-      </div>
-
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <HiOutlineLink className="h-6 w-6 shrink-0 text-gray-500 dark:text-gray-400" />
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("page.title", dict)}
-              </h1>
-              {/* Capped, so the description wraps at a readable measure instead of
-                  running the full width of a wide monitor. */}
-              <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-                {tr("page.subtitle", dict)}
-              </p>
-            </div>
-          </div>
-          {/* shrink-0: the description is the flexible side of this row. Without it a
-              long one squeezes the button until its label breaks across lines. */}
+      }
+      actions={
+        <div className="flex shrink-0 items-center gap-2">
+          <LayoutToggle
+            layout={layout}
+            labels={{
+              cards: tr("viewCards", dict),
+              list: tr("viewList", dict),
+            }}
+            onLayout={setLayout}
+          />
           <Button
+            size="sm"
             color="blue"
             className="shrink-0 whitespace-nowrap"
             onClick={handleAddConnection}
             disabled={!orgSlug}
           >
-            <HiPlus className="mr-2 h-4 w-4" />
+            <HiPlus className="mr-1 h-4 w-4" />
             {tr("connections.new", dict)}
           </Button>
         </div>
-
+      }
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
         {error && (
           <Alert color="failure">
             <span className="text-sm">
@@ -231,7 +269,7 @@ export function IntegrationConfigPageContent({
         ) : (
           <>
             <ConnectionsList
-              connections={connections}
+              connections={visible}
               templates={templates}
               credentials={credentials}
               onOpen={handleEditConnection}
@@ -239,11 +277,16 @@ export function IntegrationConfigPageContent({
               onDelete={setDeletingConnection}
               onFunctions={setFunctionsFor}
               testing={testing}
-              emptyMessage={tr("connections.empty", dict)}
+              emptyMessage={
+                hasActiveConnectionFilters(filters)
+                  ? tr("filters.noMatches", dict)
+                  : tr("connections.empty", dict)
+              }
+              layout={layout}
               dict={dict}
             />
 
-            {/* The types behind the list above. Second, because most visits are here to
+            {/* The types behind the connections. Second, because most visits are here to
                 point an existing type somewhere new, not to define a new one. */}
             <SectionHeader
               title={tr("templates.title", dict)}
@@ -267,6 +310,7 @@ export function IntegrationConfigPageContent({
               onOpen={(template) => setTemplateModal({ open: true, template })}
               onDelete={setDeletingTemplate}
               emptyMessage={tr("templates.empty", dict)}
+              layout={layout}
               dict={dict}
             />
           </>
@@ -346,7 +390,7 @@ export function IntegrationConfigPageContent({
         loading={saving}
         dict={dict}
       />
-    </div>
+    </SettingsPageShell>
   );
 }
 

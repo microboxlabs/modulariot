@@ -4,6 +4,7 @@ import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { SymptomSpec } from "./maintainer-api";
+import Select from "./ui/select";
 
 type Recurrence = NonNullable<SymptomSpec["recurrence"]>;
 
@@ -91,7 +92,7 @@ export default function RecurrenceForm({
       {enabled && (
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <span>{tr("recurrenceIfSame", d)}</span>
-          <select
+          <Select
             aria-label={tr("recurrenceEntity", d)}
             className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             disabled={readOnly}
@@ -103,7 +104,7 @@ export default function RecurrenceForm({
                 {trDynamic(e.label, d)}
               </option>
             ))}
-          </select>
+          </Select>
           <span>{tr("recurrenceHas", d)}</span>
           <NumberInput
             value={r.count}

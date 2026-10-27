@@ -5,6 +5,7 @@ import { Button, Modal, ModalHeader, ModalBody } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { MODAL_THEME } from "../../modal-theme";
+import { useMediaSource } from "../../media-source";
 
 export function DeleteConfirmModal({
   show,
@@ -25,10 +26,11 @@ export function DeleteConfirmModal({
   title?: string;
   description?: ReactNode;
 }>) {
-  const desc =
-    description === undefined
-      ? tr("bento.multimedia.delete_modal_desc", dictionary)
-      : description;
+  const recoverable = useMediaSource().recoverableDelete;
+  const descArchivo = recoverable
+    ? tr("bento.multimedia.delete_modal_desc", dictionary)
+    : tr("bento.multimedia.delete_modal_desc_permanent", dictionary);
+  const desc = description === undefined ? descArchivo : description;
   return (
     <Modal
       dismissible

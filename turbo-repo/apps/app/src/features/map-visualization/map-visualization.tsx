@@ -151,6 +151,7 @@ export default function MapVisualization({
   rounded = true,
   children,
   minZoom,
+  onMapLoad,
 }: {
   mapStyle: MapStyleName;
   layers: LayersList;
@@ -178,6 +179,8 @@ export default function MapVisualization({
   children?: ReactNode;
   /** Lowest zoom the user can reach; Mapbox's default is -2. */
   minZoom?: number;
+  /** Called once the map has loaded and `mapRef` can move the camera. */
+  onMapLoad?: () => void;
 }) {
   const runtimeConfig = useRuntimeConfig();
   const mapboxAccessToken = runtimeConfig?.MAPBOX_API_KEY ?? "";
@@ -381,6 +384,7 @@ export default function MapVisualization({
             onZoomChange?.(z);
             detachBoxZoomRef.current?.();
             detachBoxZoomRef.current = attachBoxZoom(e.target);
+            onMapLoad?.();
           }}
           boxZoom={false}
           minZoom={minZoom}

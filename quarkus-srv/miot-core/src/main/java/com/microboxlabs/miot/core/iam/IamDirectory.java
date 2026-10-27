@@ -171,13 +171,24 @@ public class IamDirectory {
 
     /** Notes when a member signed in. Needs an open session. */
     public Uni<Void> signedIn(String email) {
+        return signedIn(email, null);
+    }
+
+    /** Notes when a member signed in, and keeps the name the identity provider gives when the user has none. */
+    public Uni<Void> signedIn(String email, String name) {
         Instant now = Instant.now();
-        return Panache.withTransaction(() -> IamUser.findOrCreate(email).flatMap(user -> seen(user, now)))
+        return Panache.withTransaction(() -> IamUser.findOrCreate(email).flatMap(user -> seen(user, name, now)))
                 .replaceWithVoid();
     }
 
-    private static Uni<IamUser> seen(IamUser user, Instant now) {
-        if (user.lastSeenAt != null && !user.lastSeenAt.isBefore(now.minus(SEEN_EVERY))) {
+    private static Uni<IamUser> seen(IamUser user, String name, Instant now) {
+        String trimmed = name == null ? null : name.trim();
+        boolean named = user.name == null && trimmed != null && !trimmed.isEmpty()
+                && !trimmed.equalsIgnoreCase(user.email);
+        if (named) {
+            user.name = trimmed;
+        }
+        if (!named && user.lastSeenAt != null && !user.lastSeenAt.isBefore(now.minus(SEEN_EVERY))) {
             return Uni.createFrom().item(user);
         }
         user.lastSeenAt = now;

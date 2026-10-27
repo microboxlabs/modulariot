@@ -36,13 +36,14 @@ public class IntegrationConnectionResolver {
     }
 
     /**
-     * @throws ConnectionResolutionException if no usable connection of {@code providerType}
-     *         is configured for {@code tenantCode}, or its credential cannot be read.
+     * @throws ConnectionNotConfiguredException if no connection of {@code providerType} is configured for
+     *         {@code tenantCode}
+     * @throws ConnectionResolutionException if its credential cannot be read
      */
     public ResolvedConnection resolve(String tenantCode, ProviderType providerType) {
         IntegrationConnection connection = connectionRepository.findActiveByProvider(tenantCode, providerType);
         if (connection == null) {
-            throw new ConnectionResolutionException(
+            throw new ConnectionNotConfiguredException(
                     "No usable " + providerType + " connection is configured for this organization");
         }
         return withCredential(tenantCode, connection, providerType.toString());
@@ -133,5 +134,29 @@ public class IntegrationConnectionResolver {
             return Optional.empty();
         }
         return Optional.of(new InboundChannelRef(connection.tenantCode(), connection.id()));
+    }
+
+    /**
+     * The webhook keys of the active WHATSAPP connection {@code connectionId}, of any tenant. Empty when there is
+     * no such connection or its credential cannot be read, so the webhook refuses the request.
+     */
+    public Optional<WhatsAppWebhookKeys> whatsAppWebhookKeys(String connectionId) {
+        IntegrationConnection connection = connectionRepository.findActiveWhatsAppById(connectionId);
+        if (connection == null) {
+            return Optional.empty();
+        }
+        ResolvedConnection resolved;
+        try {
+            resolved = withCredential(connection.tenantCode(), connection, "WhatsApp connection");
+        } catch (ConnectionResolutionException e) {
+            return Optional.empty();
+        }
+        return Optional.of(new WhatsAppWebhookKeys(connection.tenantCode(), connection.id(),
+                blankIfNull(resolved.secretString(WhatsAppWebhookKeys.APP_SECRET)),
+                blankIfNull(resolved.secretString(WhatsAppWebhookKeys.VERIFY_TOKEN))));
+    }
+
+    private static String blankIfNull(String value) {
+        return value == null ? "" : value;
     }
 }

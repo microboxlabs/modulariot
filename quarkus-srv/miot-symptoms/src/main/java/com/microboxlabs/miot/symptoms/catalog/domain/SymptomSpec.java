@@ -31,6 +31,11 @@ public record SymptomSpec(
         String family,
         SymptomState state) {
 
+    /** A measure without an expression is no measure, whatever name it kept. */
+    public SymptomSpec {
+        measure = measure == null || measure.expression() == null ? null : measure;
+    }
+
     /** A spec that leaves the family and the state as the symptom has them. */
     public SymptomSpec(String source, String activation, Measure measure, List<Level> levels, Lifecycle lifecycle,
             Recurrence recurrence) {
@@ -57,6 +62,11 @@ public record SymptomSpec(
     /** @param expression CEL over the source object; null for symptoms with a fixed level */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Measure(String expression, String label, String unit) {
+
+        /** A blank expression is no measure: levels are then measured by the time held. */
+        public Measure {
+            expression = expression == null || expression.isBlank() ? null : expression;
+        }
     }
 
     /**

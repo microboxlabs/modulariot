@@ -7,15 +7,13 @@ import {
   HiOutlineChip,
   HiOutlineCreditCard,
   HiOutlineKey,
-  HiOutlineLightningBolt,
-  HiOutlineMail,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
   HiOutlineTruck,
   HiServer,
 } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import MailTemplateEditor from "../mail-templates/mail-template-editor";
@@ -23,11 +21,9 @@ import BrandingSection from "./branding-section";
 import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
-import PlatformMailSection from "./platform-mail-section";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
-import SymptomTemplatesSection from "./symptom-templates-section";
 import PlatformSectionList, {
   type PlatformSectionEntry,
 } from "./platform-section-list";
@@ -64,12 +60,9 @@ export default function PlatformPageContent({
   const brandingDict = (platformDict?.branding as I18nRecord) ?? {};
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
-  const mailDict = (platformDict?.mail as I18nRecord) ?? {};
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
-  const symptomTemplatesDict =
-    (platformDict?.symptomTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
@@ -97,12 +90,6 @@ export default function PlatformPageContent({
       icon: HiOutlineChip,
     },
     {
-      id: "mail",
-      label: tr("title", mailDict),
-      description: tr("menuHint", mailDict),
-      icon: HiOutlineMail,
-    },
-    {
       id: "vehicleImages",
       label: tr("title", vehicleImagesDict),
       description: tr("menuHint", vehicleImagesDict),
@@ -119,12 +106,6 @@ export default function PlatformPageContent({
       label: tr("title", templatesDict),
       description: tr("menuHint", templatesDict),
       icon: HiOutlineTemplate,
-    },
-    {
-      id: "symptomTemplates",
-      label: tr("title", symptomTemplatesDict),
-      description: tr("menuHint", symptomTemplatesDict),
-      icon: HiOutlineLightningBolt,
     },
     {
       id: "plan",
@@ -144,70 +125,46 @@ export default function PlatformPageContent({
     branding: <BrandingSection dict={brandingDict} lang={lang} />,
     superusers: <PlatformOwnersCard dict={superusersDict} />,
     models: <ModelProvidersSection dict={modelsDict} />,
-    mail: <PlatformMailSection dict={mailDict} />,
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
-    ),
-    symptomTemplates: (
-      <SymptomTemplatesSection dict={symptomTemplatesDict} lang={lang} />
     ),
     plan: <HarnessPlanSection dict={planDict} />,
     usage: <ModelUsageCard dict={usageDict} lang={lang} />,
   };
 
   return (
-    // Same shell as Settings > Organizations: a full-width breadcrumb bar
-    // outside the scroll container, so it never moves — including during
-    // rubber-band overscroll — above a capped content column whose list and
-    // detail panels scroll internally.
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "platform"]}
-          disableLinks
-        />
-      </div>
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "platform"]}
+      icon={HiServer}
+      title={tr("title", platformDict)}
+      description={tr("description", platformDict)}
+    >
+      {isLoading && <Spinner size="md" />}
 
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 px-4 pt-2 pb-6 dark:bg-gray-900">
-        <div className="flex items-center gap-3">
-          <HiServer className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {tr("title", platformDict)}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("description", platformDict)}
-            </p>
+      {!isLoading && !isPlatformOwner && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-medium">{tr("notOwnerTitle", platformDict)}</p>
+          <p className="mt-1">{tr("notOwnerBody", platformDict)}</p>
+        </div>
+      )}
+
+      {!isLoading && isPlatformOwner && (
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
+          <PlatformSectionList
+            sections={sections}
+            selected={selected}
+            onSelect={setSelected}
+            dict={platformDict}
+          />
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+            {panels[selected]}
           </div>
         </div>
-
-        {isLoading && <Spinner size="md" />}
-
-        {!isLoading && !isPlatformOwner && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-            <p className="font-medium">{tr("notOwnerTitle", platformDict)}</p>
-            <p className="mt-1">{tr("notOwnerBody", platformDict)}</p>
-          </div>
-        )}
-
-        {!isLoading && isPlatformOwner && (
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
-            <PlatformSectionList
-              sections={sections}
-              selected={selected}
-              onSelect={setSelected}
-              dict={platformDict}
-            />
-            <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-              {panels[selected]}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </SettingsPageShell>
   );
 }

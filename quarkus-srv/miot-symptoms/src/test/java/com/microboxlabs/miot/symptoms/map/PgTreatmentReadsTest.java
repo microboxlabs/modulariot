@@ -9,6 +9,7 @@ import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.pgclient.PgConnectOptions;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -115,7 +116,10 @@ class PgTreatmentReadsTest {
                     ('EF56', 'org-b', true, null, null),
                     ('GH78', 'stored-a', true, now() - interval '10 days', null),
                     ('IJ90', 'org-b', true, null, null),
-                    ('KL12', 'org-b', true, null, null)""");
+                    ('KL12', 'org-b', true, null, null),
+                    ('MN34', 'org-b', true, now() - interval '1 hour', null),
+                    ('OP56', 'org-c', true, null, now() - interval '30 minutes'),
+                    ('OP56', 'org-b', true, now() - interval '30 minutes', null)""");
         run("""
                 INSERT INTO public.asset_data
                 SELECT 'AB12', now() - interval '2 days' + i * interval '1 hour', 50, 90, public.miot_test_point(-70, -33)
@@ -128,6 +132,11 @@ class PgTreatmentReadsTest {
                 INSERT INTO public.asset_data VALUES
                     ('KL12', now() - interval '19 days', 1, 0, public.miot_test_point(-70, -33)),
                     ('KL12', now() - interval '10 days', 2, 0, public.miot_test_point(-70, -33))""");
+        run("""
+                INSERT INTO public.asset_data VALUES
+                    ('MN34', now() - interval '1 hour' - interval '2 seconds', 1, 0, public.miot_test_point(-70, -33)),
+                    ('OP56', now() - interval '40 minutes', 1, 0, public.miot_test_point(-70, -33)),
+                    ('OP56', now() - interval '20 minutes', 2, 0, public.miot_test_point(-70, -33))""");
     }
 
     @AfterAll
@@ -235,5 +244,34 @@ class PgTreatmentReadsTest {
         JsonNode points = positions("T7", "KL12", "org-b").orElseThrow();
         assertEquals(1, points.size());
         assertEquals(1, points.get(0).path("speed").asInt());
+    }
+
+    @Test
+    void anAssetsPositionsInARangeAreSampledOldestFirst() {
+        Instant now = Instant.now();
+        JsonNode window = await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-b", 10));
+        assertTrue(window.size() <= 10 && window.size() >= 8, "size " + window.size());
+        assertEquals(1, window.get(0).path("speed").asInt());
+        assertEquals(25, window.get(window.size() - 1).path("speed").asInt());
+        assertEquals("T6", window.get(0).path("tripid").asText(), "sent during trip T6");
+        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(1)), now, "org-b", 10)).size());
+        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-x", 10)).size(),
+                "the asset is not mapped to org-x");
+    }
+
+    @Test
+    void aNewVehiclesFirstSignalBeforeItsMappingCounts() {
+        Instant now = Instant.now();
+        JsonNode first = await(reads.assetPositions("MN34", now.minus(Duration.ofHours(2)), now, "org-b", 10));
+        assertEquals(1, first.size(), "sent two seconds before the mapping was written");
+    }
+
+    @Test
+    void aSignalWhileAnotherClientHadTheVehicleDoesNotCount() {
+        Instant now = Instant.now();
+        JsonNode points = await(reads.assetPositions("OP56", now.minus(Duration.ofHours(1)), now, "org-b", 10));
+        assertEquals(1, points.size());
+        assertEquals(2, points.get(0).path("speed").asInt());
+        assertTrue(points.get(0).path("tripid").isNull(), "no trip");
     }
 }

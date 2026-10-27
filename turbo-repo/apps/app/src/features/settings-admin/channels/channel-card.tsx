@@ -47,6 +47,8 @@ interface ChannelCardProps<F, E extends object> {
   /** The channel's form; it gets the card's modal props plus {@link modalProps}. */
   readonly Modal: ComponentType<ChannelModalProps<F> & E>;
   readonly modalProps: E;
+  /** After the connection is created or edited. */
+  readonly onChanged?: () => void;
 }
 
 /**
@@ -65,6 +67,7 @@ export function ChannelCard<F, E extends object>({
   Badges,
   Modal,
   modalProps,
+  onChanged,
 }: Readonly<ChannelCardProps<F, E>>) {
   const { connection, isLoading, error, actionLoading, create, update, test } =
     useOrgChannel(orgSlug, provider);
@@ -82,6 +85,7 @@ export function ChannelCard<F, E extends object>({
       await action();
       setModalMode(null);
       toast.success(trDynamic(doneKey, dict));
+      onChanged?.();
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err : new Error(tr("toast.error", dict))

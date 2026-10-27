@@ -18,20 +18,47 @@
   {
     "label": "calendar",
     "dynamicItemsSource": "calendars",
-    "items": [
-      { "href": "/calendar", "label": "calendarOverview" }
-    ],
+    "items": [{ "href": "/calendar", "label": "calendarOverview" }],
     "requiredPermissions": ["calendar:view", "calendar:plan", "calendar:assign"]
   },
   {
     "label": "kanban",
     "items": [
-      { "href": "/planning", "label": "planning", "requiredPermissions": ["coordination:kanban.view"] },
-      { "href": "/shipping", "label": "shipping", "requiredPermissions": ["coordination:kanban.view"] },
-      { "href": "/delivery", "label": "delivery", "requiredPermissions": ["coordination:kanban.view"] },
-      { "href": "/finished", "label": "finished", "requiredPermissions": ["coordination:finished.view"] }
+      {
+        "href": "/planning",
+        "label": "planning",
+        "requiredPermissions": ["coordination:kanban.view"]
+      },
+      {
+        "href": "/shipping",
+        "label": "shipping",
+        "requiredPermissions": ["coordination:kanban.view"]
+      },
+      {
+        "href": "/delivery",
+        "label": "delivery",
+        "requiredPermissions": ["coordination:kanban.view"]
+      },
+      {
+        "href": "/finished",
+        "label": "finished",
+        "requiredPermissions": ["coordination:finished.view"]
+      }
     ],
-    "requiredPermissions": ["coordination:kanban.view", "coordination:finished.view"]
+    "requiredPermissions": [
+      "coordination:kanban.view",
+      "coordination:finished.view"
+    ]
+  },
+  {
+    "label": "trips",
+    "items": [
+      { "href": "/trips/planning", "label": "planning" },
+      { "href": "/trips/dispatch", "label": "shipping" },
+      { "href": "/trips/delivery", "label": "delivery" },
+      { "href": "/trips/finished", "label": "finished" }
+    ],
+    "requiredPermissions": ["trips:view"]
   },
   {
     "label": "tasks",
@@ -46,10 +73,22 @@
     "label": "controlTower",
     "href": "/reports",
     "items": [
-      { "href": "/geographic-view", "label": "geographicView", "requiredPermissions": ["coordination:geographic.view"] },
-      { "href": "/symptoms", "label": "symptoms", "requiredPermissions": ["controltower:view"] },
+      {
+        "href": "/geographic-view",
+        "label": "geographicView",
+        "requiredPermissions": ["coordination:geographic.view"]
+      },
+      {
+        "href": "/symptoms",
+        "label": "symptoms",
+        "requiredPermissions": ["controltower:view"]
+      },
       { "href": "/signal-history", "label": "signalHistory" },
-      { "href": "/whatsapp/conversations", "label": "conversations", "requiredPermissions": ["conversations:view"] }
+      {
+        "href": "/whatsapp/conversations",
+        "label": "conversations",
+        "requiredPermissions": ["conversations:view"]
+      }
     ]
   },
   {
@@ -91,6 +130,8 @@
       { "href": "/users/settings/team", "label": "team" },
       { "href": "/users/settings/gps", "label": "gps" },
       { "href": "/users/settings/symptoms", "label": "symptomCatalog" },
+      { "href": "/users/settings/trips", "label": "trips" },
+      { "href": "/users/settings/communications", "label": "communications" },
       { "href": "/users/settings/selectables", "label": "selectables" },
       { "href": "/users/settings/contact-book", "label": "contactBook" },
       { "href": "/users/settings/data-sources", "label": "dataSources" },

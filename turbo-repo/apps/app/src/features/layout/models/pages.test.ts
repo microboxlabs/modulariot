@@ -15,6 +15,31 @@ function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
 }
 
 describe("visiblePages", () => {
+  it("shows only the work board BOARD_MODULE names, and neither before the config loads", () => {
+    const boards = (module: string | null) =>
+      visiblePages(false, false, false, module)
+        .map((p) => p.label)
+        .filter((l) => l === "kanban" || l === "trips");
+    expect(boards("")).toEqual(["kanban", "trips"]);
+    expect(boards("trips")).toEqual(["trips"]);
+    expect(boards("kanban")).toEqual(["kanban"]);
+    expect(boards(null)).toEqual([]);
+  });
+
+  it("shows My tasks, Where is my load and Collaborators only with the kanban model", () => {
+    const legacy = (module: string | null) =>
+      visiblePages(false, false, false, module)
+        .map((p) => p.label)
+        .filter((l) =>
+          ["tasks", "whereIsMyLoad", "collaboratorsManagement"].includes(l)
+        );
+    const all = ["tasks", "collaboratorsManagement", "whereIsMyLoad"];
+    expect(legacy("")).toEqual(all);
+    expect(legacy("kanban")).toEqual(all);
+    expect(legacy("trips")).toEqual([]);
+    expect(legacy(null)).toEqual([]);
+  });
+
   it("hides the Dev section unless dev tools are on", () => {
     expect(
       visiblePages(false, false, false).some((p) => p.label === DEV_PAGE_LABEL)
@@ -91,6 +116,8 @@ describe("filterSettings", () => {
       "/users/settings/organizations",
       "/users/settings/team",
       "/users/settings/symptoms",
+      "/users/settings/trips",
+      "/users/settings/communications",
       "/users/settings/selectables",
       "/users/settings/contact-book",
       "/users/settings/data-sources",
@@ -133,6 +160,29 @@ describe("filterSettings", () => {
     expect(
       settingsHrefs(filterSettings(pages, { ...gates, trainer: false }))
     ).not.toContain("/harness/learning");
+  });
+
+  it("keeps only the job console and Settings, with the platform's entries, in the platform scope", () => {
+    const filtered = filterSettings(pages, {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      gps: true,
+      fleet: true,
+      platformScope: true,
+    });
+    expect(filtered.map((page) => page.label)).toEqual([
+      "integrations",
+      "settings",
+    ]);
+    expect(settingsHrefs(filtered)).toEqual([
+      "/users/settings/platform",
+      "/users/settings/organizations",
+      "/users/settings/symptoms",
+      "/users/settings/communications",
+      "/users/settings/credentials",
+      "/users/settings/connections",
+    ]);
   });
 
   it("offers GPS to those who may view it", () => {

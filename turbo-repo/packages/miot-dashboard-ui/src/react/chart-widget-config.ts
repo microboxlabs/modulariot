@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 const series = z.object({
   columnKey: z.string(),
   label: z.string(),

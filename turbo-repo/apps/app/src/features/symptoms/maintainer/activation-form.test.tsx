@@ -26,7 +26,7 @@ const field = (path: string, type: string): SourceField => ({
 
 const FIELDS = [
   field("signal.trip.active", "bool"),
-  field("signal.frame.gps.speed", "number"),
+  field("signal.derived.speed_avg_5m", "number"),
 ];
 
 describe("useActivationForm", () => {
@@ -46,13 +46,18 @@ describe("useActivationForm", () => {
         ...form!,
         rows: [
           ...form!.rows,
-          { id: "new", path: "signal.frame.gps.speed", op: ">", value: 90 },
+          {
+            id: "new",
+            path: "signal.derived.speed_avg_5m",
+            op: ">",
+            value: 90,
+          },
         ],
       });
     });
     rerender();
     expect(onChange).toHaveBeenCalledWith(
-      "signal.trip.active\n&& signal.frame.gps.speed > 90"
+      "signal.trip.active\n&& signal.derived.speed_avg_5m > 90"
     );
     expect(result.current.form?.rows.map((r) => r.id)).toContain("new");
   });
@@ -63,16 +68,16 @@ describe("useActivationForm", () => {
       ({ rule, fields }) => useActivationForm(rule, fields, onChange),
       {
         initialProps: {
-          rule: "signal.frame.gps.speed > 90",
+          rule: "signal.derived.speed_avg_5m > 90",
           fields: [] as SourceField[],
         },
       }
     );
     expect(result.current.form).toBeNull();
-    rerender({ rule: "signal.frame.gps.speed > 90", fields: FIELDS });
+    rerender({ rule: "signal.derived.speed_avg_5m > 90", fields: FIELDS });
     expect(result.current.form?.rows[0]).toMatchObject({ op: ">", value: 90 });
     rerender({
-      rule: "signal.frame.gps.speed > signal.trip.active",
+      rule: "signal.derived.speed_avg_5m > signal.trip.active",
       fields: FIELDS,
     });
     expect(result.current.form).toBeNull();
@@ -92,7 +97,7 @@ describe("useActivationForm", () => {
     const onChange = vi.fn();
     const { result } = renderHook(() =>
       useActivationForm(
-        "signal.trip.active && signal.frame.gps.speed > 90",
+        "signal.trip.active && signal.derived.speed_avg_5m > 90",
         FIELDS,
         onChange
       )
@@ -124,7 +129,12 @@ describe("the number input", () => {
   const form = {
     match: "all" as const,
     rows: [
-      { id: "r", path: "signal.frame.gps.speed", op: ">" as const, value: 90 },
+      {
+        id: "r",
+        path: "signal.derived.speed_avg_5m",
+        op: ">" as const,
+        value: 90,
+      },
     ],
     groups: [],
   };
@@ -194,7 +204,7 @@ describe("reordering conditions", () => {
   const d = { dragCondition: "Arrastra" };
   const row = (id: string, value: number): Condition => ({
     id,
-    path: "signal.frame.gps.speed",
+    path: "signal.derived.speed_avg_5m",
     op: ">",
     value,
   });

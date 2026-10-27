@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.catalog.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 
 /**
  * A platform template: a ready symptom an organization copies into its catalog. Templates are the published
@@ -15,5 +16,5 @@ public record SymptomTemplate(String key, String name, String family, String ico
         String version, SymptomSpec spec) {
 
     /** The tenant whose symptoms are the platform templates. They are always OFF. */
-    public static final String PLATFORM_TENANT = "platform";
+    public static final String PLATFORM_TENANT = PlatformScope.TENANT;
 }

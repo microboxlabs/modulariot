@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { Card, TextInput, Button, Alert, Label, HelperText } from "flowbite-react";
 import { Save } from "lucide-react";
 import { DangerZone } from "@modulariot/ui/danger-zone";

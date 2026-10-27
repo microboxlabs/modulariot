@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.smallrye.mutiny.Uni;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,15 @@ class ControlTowerTreatmentServiceTest {
             }
             return Uni.createFrom().item(Optional.of(JSON.createArrayNode().add(JSON.createObjectNode()
                     .put("assetid", "AB12").put("longitude", -70.6).put("latitude", -33.4))));
+        }
+
+        @Override
+        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit) {
+            calls.add("asset " + assetId + " " + from + " " + to + " " + clientId + " " + limit);
+            if (!"client-child".equals(clientId)) {
+                return Uni.createFrom().item(JSON.createArrayNode());
+            }
+            return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
         }
     }
 
@@ -145,6 +155,47 @@ class ControlTowerTreatmentServiceTest {
         Uni<JsonNode> other = service.tripPositions(CLIENTS, "T2", "AB12");
         assertThrows(NoSuchElementException.class, () -> await(other));
         assertThrows(IllegalArgumentException.class, () -> service.tripPositions(CLIENTS, "T1", " "));
+    }
+
+    @Test
+    void assetPositionsAreReadForTheRangeAndCapped() {
+        Instant from = Instant.parse("2026-10-22T02:00:00Z");
+        Instant to = Instant.parse("2026-10-22T03:30:00Z");
+
+        JsonNode positions = await(service.assetPositions(CLIENTS, " DEMO01 ", from, to));
+
+        assertEquals("DEMO01", positions.get(0).path("assetid").asText());
+        assertEquals("asset DEMO01 " + from + " " + to + " client-child " + ControlTowerTreatmentService.MAX_POSITIONS,
+                reads.calls.get(1), "the first client id without the asset mapped reads nothing");
+        assertTrue(await(service.assetPositions(List.of("client-a"), "DEMO01", from, to)).isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> service.assetPositions(CLIENTS, " ", from, to));
+    }
+
+    @Test
+    void aRangeIsReadWithItsOffsetAndBounded() {
+        JsonNode positions = await(service.rangePositions(CLIENTS, "DEMO01", "2026-10-22T00:00:00-03:00",
+                "2026-10-23T23:59:59-03:00"));
+
+        assertEquals("DEMO01", positions.get(0).path("assetid").asText());
+        assertEquals("asset DEMO01 2026-10-22T03:00:00Z 2026-10-24T02:59:59Z client-child "
+                + ControlTowerTreatmentService.MAX_POSITIONS, reads.calls.get(1));
+        assertEquals(1, await(service.rangePositions(CLIENTS, "DEMO01", "2026-10-15T00:00:00Z",
+                "2026-10-22T00:00:00Z")).size(), "seven days is the limit");
+    }
+
+    @Test
+    void aBadRangeIsRefusedBeforeReading() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.rangePositions(CLIENTS, "DEMO01", "2026-10-23T00:00:00Z", "2026-10-22T00:00:00Z"));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.rangePositions(CLIENTS, "DEMO01", "2026-10-22T00:00:00Z", "2026-10-22T00:00:00Z"));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.rangePositions(CLIENTS, "DEMO01", "2026-10-15T00:00:00Z", "2026-10-22T00:00:01Z"));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.rangePositions(CLIENTS, "DEMO01", "2026-10-22 00:00", "2026-10-23T00:00:00Z"));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.rangePositions(CLIENTS, "DEMO01", null, "2026-10-23T00:00:00Z"));
+        assertTrue(reads.calls.isEmpty());
     }
 
     @Test

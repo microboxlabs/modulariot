@@ -10,6 +10,7 @@ import dev.cel.common.navigation.CelNavigableAst;
 import dev.cel.common.navigation.CelNavigableExpr;
 import dev.cel.compiler.CelCompiler;
 import dev.cel.compiler.CelCompilerFactory;
+import dev.cel.extensions.CelOptionalLibrary;
 import dev.cel.parser.CelUnparser;
 import dev.cel.parser.CelUnparserFactory;
 import java.util.ArrayList;
@@ -26,7 +27,11 @@ import java.util.stream.Collectors;
  */
 public final class RuleText {
 
-    private static final CelCompiler PARSER = CelCompilerFactory.standardCelCompilerBuilder().build();
+    private static final CelCompiler PARSER = CelCompilerFactory.standardCelCompilerBuilder()
+            .addLibraries(CelOptionalLibrary.INSTANCE)
+            .build();
+    /** The function CEL parses {@code a.?b} into. */
+    private static final String OPTIONAL_SELECT = "_?._";
     private static final CelUnparser UNPARSER = CelUnparserFactory.newUnparser();
 
     private RuleText() {
@@ -91,16 +96,28 @@ public final class RuleText {
                 .map(e -> e.constant().stringValue());
     }
 
-    /** Field paths the rule reads, such as {@code signal.frame.gps.speed}. Text inside strings is not a field. */
+    /**
+     * Field paths the rule reads, such as {@code signal.frame.gps.speed}, also when read with {@code .?}.
+     * Text inside strings is not a field.
+     */
     public static Set<String> fieldPaths(String rule) {
         Set<String> all = new LinkedHashSet<>();
         parse(rule).ifPresent(ast -> CelNavigableAst.fromAst(ast).getRoot().allNodes()
-                .filter(n -> n.getKind() == ExprKind.Kind.SELECT)
+                .filter(n -> n.getKind() == ExprKind.Kind.SELECT || optionalSelect(n.expr()))
                 .map(n -> path(n.expr()))
                 .forEach(p -> p.ifPresent(all::add)));
         return all.stream()
                 .filter(p -> all.stream().noneMatch(other -> other.startsWith(p + ".")))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /** The variables the rule reads, such as {@code measure} or {@code signal}; empty when it does not parse. */
+    public static Set<String> identifiers(String rule) {
+        Set<String> out = new LinkedHashSet<>();
+        parse(rule).ifPresent(ast -> CelNavigableAst.fromAst(ast).getRoot().allNodes()
+                .filter(n -> n.getKind() == ExprKind.Kind.IDENT)
+                .forEach(n -> out.add(n.expr().ident().name())));
+        return out;
     }
 
     /** The numeric literals in the rule. */
@@ -183,8 +200,18 @@ public final class RuleText {
         return switch (e.exprKind().getKind()) {
             case IDENT -> Optional.of(e.ident().name());
             case SELECT -> path(e.select().operand()).map(base -> base + "." + e.select().field());
+            case CALL -> optionalSelect(e)
+                    ? path(e.call().args().get(0)).map(base -> base + "." + e.call().args().get(1).constant().stringValue())
+                    : Optional.empty();
             default -> Optional.empty();
         };
+    }
+
+    /** {@code a.?b}: a call with the operand and the field name as a string. */
+    private static boolean optionalSelect(CelExpr e) {
+        return e.exprKind().getKind() == ExprKind.Kind.CALL && e.call().function().equals(OPTIONAL_SELECT)
+                && e.call().args().size() == 2
+                && e.call().args().get(1).exprKind().getKind() == ExprKind.Kind.CONSTANT;
     }
 
     private static Optional<CelAbstractSyntaxTree> parse(String rule) {

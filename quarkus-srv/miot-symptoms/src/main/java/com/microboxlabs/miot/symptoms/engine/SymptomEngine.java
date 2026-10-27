@@ -1,14 +1,8 @@
 package com.microboxlabs.miot.symptoms.engine;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
-/**
- * Read access to the engine that evaluates symptoms. Today that is the GPS
- * database's rules and {@code process_symptoms_*} functions; a later
- * implementation can evaluate the modulith's own versions instead, behind
- * this same interface.
- */
+/** Read access to the GPS database's rule engine, so its rules can be imported as symptoms. */
 public interface SymptomEngine {
 
     /** Whether this engine is connected, so callers can say so instead of showing empty data. */
@@ -16,18 +10,4 @@ public interface SymptomEngine {
 
     /** The rules the engine runs for the organization. */
     List<EngineRule> rules(String tenantCode);
-
-    /** Cases per symptom name and ICU level that started in {@code [from, to)}, excluded cases left out. */
-    List<LevelCount> levelCounts(String tenantCode, OffsetDateTime from, OffsetDateTime to);
-
-    /** The newest cases of one symptom that started at or after {@code since}, at most {@code limit}. */
-    List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit);
-
-    /**
-     * One page of a symptom's cases that started in {@code [from, to)} at one of {@code icus}, excluded cases left
-     * out, ordered by id. Pass the last id of the previous page as {@code afterId} (0 for the first page); a page
-     * shorter than {@code limit} is the last one.
-     */
-    List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from, OffsetDateTime to,
-            List<Integer> icus, long afterId, int limit);
 }

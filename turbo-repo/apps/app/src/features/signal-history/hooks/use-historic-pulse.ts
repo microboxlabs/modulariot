@@ -1,5 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { HistoricSignal } from "../types/historic-signal.type";
+
+const FLUSH_MS = 250;
+
+export function historicPulsesUrl(
+  assetId: string,
+  p_from: string,
+  p_to: string
+): string | null {
+  if (!assetId || !p_from || !p_to) return null;
+  const params = new URLSearchParams({ assetId, p_from, p_to });
+  return `/app/api/map/historic-pulses?${params.toString()}`;
+}
 
 export function useHistoricPulse(
   assetId: string,
@@ -7,68 +19,63 @@ export function useHistoricPulse(
   p_to: string
 ) {
   const [positions, setPositions] = useState<HistoricSignal[]>([]);
-  const [error, _setError] = useState<Error | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    // Don't make API call if required parameters are missing
-    if (!assetId || !p_from || !p_to) {
+    const url = historicPulsesUrl(assetId, p_from, p_to);
+    setPositions([]);
+    setError(null);
+    if (!url) {
       setIsLoading(false);
-      setPositions([]);
       return;
     }
 
-    const positionBuffer: HistoricSignal[] = [];
-    let size = 0;
-
-    // Ensure loading is true when starting
     setIsLoading(true);
-
-    eventSourceRef.current = new EventSource(
-      `/app/api/map/historic-pulses?assetId=${assetId}&p_from=${p_from}&p_to=${p_to}`
-    );
-
-    const eventSource = eventSourceRef.current;
+    const positionBuffer: HistoricSignal[] = [];
+    let opened = false;
+    let failed = false;
+    const eventSource = new EventSource(url);
 
     eventSource.onopen = () => {
-      setIsLoading(true);
+      opened = true;
+    };
+    eventSource.addEventListener("failed", () => {
+      failed = true;
+    });
+
+    // A burst of thousands of events renders once per flush, not per event.
+    let flush: ReturnType<typeof setTimeout> | null = null;
+    const show = () => {
+      if (flush) clearTimeout(flush);
+      flush = null;
+      setPositions([...positionBuffer]);
     };
 
     eventSource.onmessage = (event) => {
       try {
-        const position = JSON.parse(event.data as string) as HistoricSignal;
-        positionBuffer[size++] = position;
-        setPositions([...positionBuffer.slice(0, size)]);
-        // Update positions immediately
-        /* setTimeout(() => {
-          setPositions([...positionBuffer.slice()]);
-        }, 500); */
-      } catch (err) {
-        // TODO: Check
-        console.error(err);
+        positionBuffer.push(JSON.parse(event.data as string) as HistoricSignal);
+        flush ??= setTimeout(show, FLUSH_MS);
+      } catch {
+        // Invalid JSON, skip
       }
     };
 
-    const closeConnection = () => {
-      setPositions([...positionBuffer.slice()]);
+    // The server closes the stream after the last signal, which EventSource
+    // reports as an error; a stream that never opened or that sent "failed"
+    // is a failure.
+    eventSource.onerror = () => {
       eventSource.close();
+      show();
+      if (!opened || failed) {
+        setError(new Error("The signals could not be loaded"));
+      }
       setIsLoading(false);
     };
 
-    eventSource.onerror = (_error) => {
-      if (eventSource.readyState === 2 || eventSource.readyState === 0) {
-        closeConnection();
-      }
-    };
-
-    // Cleanup function
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        setIsLoading(false);
-      }
-      setPositions([...positionBuffer.slice()]);
+      if (flush) clearTimeout(flush);
+      eventSource.close();
     };
   }, [assetId, p_from, p_to]);
 

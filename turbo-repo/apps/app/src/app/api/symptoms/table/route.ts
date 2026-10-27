@@ -10,6 +10,7 @@ import {
 } from "@/app/api/utils/control-tower-map";
 import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
+import { formatActiveDuration } from "@/features/symptoms/model/active-duration";
 
 // Parameter mapping configuration
 const PARAM_MAPPING = {
@@ -59,10 +60,11 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       condition: item?.icu_condition?.toLowerCase(),
       icu_code: item?.icu_code,
       licensePlate: item?.asset_id,
-      time: item?.duration_sec?.toString(),
+      time: formatActiveDuration(item?.duration_sec) ?? "",
       trip: item?.trip_id,
       driver: item?.driver,
       date: item?.start_time,
+      endDate: item?.end_time ?? null,
       service: item?.asset_id,
       alertType: item?.type_of_incidence,
       status: item?.treatment_count === 0 ? "" : "Tratado",

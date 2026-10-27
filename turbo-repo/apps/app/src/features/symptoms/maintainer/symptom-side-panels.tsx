@@ -11,6 +11,7 @@ import type {
   Preview,
   ValidationReport,
 } from "./maintainer-api";
+import { findingText } from "./rule-problems";
 import { ICU_LEVELS } from "./symptom-labels";
 
 const cardClass =
@@ -111,7 +112,7 @@ export function ReviewPanel({
             <HiExclamation
               className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${f.severity === "ERROR" ? "text-red-500" : "text-yellow-500"}`}
             />
-            {f.message}
+            {findingText(f, d)}
           </li>
         ))}
       </ul>
@@ -129,7 +130,9 @@ export function PreviewPanel({
   return (
     <Panel title={tr("preview", d)}>
       {samples.length === 0 && (
-        <p className="text-xs text-gray-500">{tr("noSamples", d)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("noSamples", d)}
+        </p>
       )}
       <ul className="flex flex-col gap-2">
         {samples.map((s, i) => {
@@ -147,7 +150,7 @@ export function PreviewPanel({
               key={key}
               className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300"
             >
-              <span className="w-16 shrink-0 text-gray-500">
+              <span className="w-16 shrink-0 text-gray-500 dark:text-gray-400">
                 {tr("sample", d, { n: String(i + 1) })}
               </span>
               <span className="flex-1">
@@ -203,7 +206,7 @@ export function FieldsPanel({
                   {f.path}
                 </span>
                 {value !== undefined && (
-                  <span className="shrink-0 font-mono text-gray-500">
+                  <span className="shrink-0 font-mono text-gray-500 dark:text-gray-400">
                     {sampleText(value)}
                   </span>
                 )}

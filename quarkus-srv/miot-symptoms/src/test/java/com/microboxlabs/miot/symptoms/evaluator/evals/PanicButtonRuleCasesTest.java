@@ -44,6 +44,11 @@ class PanicButtonRuleCasesTest {
     }
 
     @Test
+    void theTemplateReadsTheButtonAsAnOptional() {
+        assertEquals("signal.frame.?sensors.?panic_button == TRUE", TEMPLATE.activation());
+    }
+
+    @Test
     void framesWithoutAPressOpenNothing() {
         assertEquals(List.of(), run(frame(0, false, true), frame(30, false, false)));
     }

@@ -16,6 +16,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepos
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationTemplateRepository;
+import com.microboxlabs.miot.integrations.tester.ConnectionTester;
 import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -125,7 +126,9 @@ public class IntegrationConnectionService {
         if (existing == null) {
             return null;
         }
-        rotateTokenIfPresent(tenantCode, existing, req.token());
+        String credentialId = req.credentialProfileId() == null
+                ? existing.credentialProfileId() : req.credentialProfileId();
+        updateSecrets(tenantCode, credentialId, req.token(), req.secrets());
         String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
         return connectionRepository.update(
                 tenantCode, connectionId, req.name(), baseUrl, req.credentialProfileId(), req.metadata());
@@ -147,21 +150,32 @@ public class IntegrationConnectionService {
     }
 
     /**
-     * Rotates the linked credential's secret when a non-blank token is supplied.
-     * Fails (does not silently drop the token) when there is no resolvable credential,
-     * so the rotation is part of the update's success contract.
+     * Sets the non-blank token and secrets on the linked credential and keeps its other keys.
+     * Fails (does not silently drop them) when there is no resolvable credential, so the
+     * change is part of the update's success contract.
      */
-    private void rotateTokenIfPresent(String tenantCode, IntegrationConnection existing, String token) {
-        if (token == null || token.isBlank()) {
+    private void updateSecrets(
+            String tenantCode, String credentialId, String token, Map<String, String> secrets) {
+        Map<String, Object> updates = new LinkedHashMap<>();
+        if (secrets != null) {
+            secrets.forEach((key, value) -> {
+                if (key != null && value != null && !value.isBlank()) {
+                    updates.put(key, value);
+                }
+            });
+        }
+        if (token != null && !token.isBlank()) {
+            updates.put("token", token);
+        }
+        if (updates.isEmpty()) {
             return;
         }
-        CredentialProfile rotated = existing.credentialProfileId() == null
+        CredentialProfile updated = credentialId == null
                 ? null
-                : credentialProfileService.rotateSecret(
-                        tenantCode, existing.credentialProfileId(), Map.of("token", token));
-        if (rotated == null) {
+                : credentialProfileService.mergeSecret(tenantCode, credentialId, updates);
+        if (updated == null) {
             throw new IllegalStateException(
-                    "Cannot rotate the access token: the connection has no resolvable credential profile");
+                    "Cannot store the secret: the connection has no resolvable credential profile");
         }
     }
 
@@ -205,12 +219,18 @@ public class IntegrationConnectionService {
                 ? null
                 : credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
 
-        ConnectionTestResponse response = testerRegistry.testerFor(connection.providerType())
-                .test(connection, credential, req);
+        ConnectionTester tester = testerRegistry.testerFor(connection.providerType());
+        ConnectionTestResponse response = tester.test(connection, credential, req);
 
         ConnectionStatus status = response.success() ? ConnectionStatus.ACTIVE : ConnectionStatus.TEST_FAILED;
         connectionRepository.updateTestResult(
                 connection.tenantCode(), connection.id(), status, response.testedAt(), response.success());
+        // A test that called the provider with the credential exercised it too, so the credentials screen shows
+        // the same result. A contract-only check says nothing about the credential.
+        if (credential != null && tester.validatesCredential()) {
+            credentialProfileRepository.updateTestResult(
+                    connection.tenantCode(), credential.id(), response.testedAt(), response.success());
+        }
         return response;
     }
 

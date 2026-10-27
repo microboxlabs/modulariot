@@ -5,6 +5,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
 import GeneralMap from "@/features/symptoms/components/map-view/prototype/prototype-general-map";
 import { RuntimeConfigReady } from "@/features/runtime-config/runtime-config-context";
+import { tripIdOf } from "@/features/symptoms/model/treatment-link";
 
 interface MapViewParams {
   params: Promise<{
@@ -25,7 +26,7 @@ export default async function SymptomList({
   const [, dict] = await getDictionary(lang);
   // Get tripId from query parameters if available
   const searchParamsResult = await searchParams;
-  const tripId = searchParamsResult?.tripId as string;
+  const tripId = tripIdOf(searchParamsResult?.tripId);
 
   const assetId = searchParamsResult?.assetId as string;
   return (

@@ -22,4 +22,9 @@ public interface ConnectionTester {
             IntegrationConnection connection,
             CredentialProfile credential,
             ConnectionTestRequest request);
+
+    /** Whether {@link #test} calls the provider with the credential, so its result also holds for the credential. */
+    default boolean validatesCredential() {
+        return true;
+    }
 }

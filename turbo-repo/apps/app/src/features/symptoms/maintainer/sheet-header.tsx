@@ -79,7 +79,8 @@ export function familyOptions(
   return options;
 }
 
-function VersionMenu({
+/** The version chip and its menu: history, and duplicate or save as template where the editor offers them. */
+export function VersionMenu({
   label,
   canFork,
   d,
@@ -91,7 +92,7 @@ function VersionMenu({
   canFork: boolean;
   d: I18nRecord;
   onHistory: () => void;
-  onDuplicate: () => void;
+  onDuplicate?: () => void;
   onSaveAsTemplate?: () => void;
 }>) {
   const [open, setOpen] = useState(false);
@@ -142,7 +143,7 @@ function VersionMenu({
           >
             ↺ {tr("versionsHistory", d)}
           </button>
-          {canFork && (
+          {canFork && onDuplicate && (
             <button
               type="button"
               role="menuitem"
@@ -192,6 +193,7 @@ export default function SheetHeader({
   onHistory,
   onDuplicate,
   onSaveAsTemplate,
+  actions,
 }: Readonly<{
   def: SymptomDefinition;
   spec: SymptomSpec | null;
@@ -210,6 +212,8 @@ export default function SheetHeader({
   onDuplicate: () => void;
   /** Offered to platform owners only. */
   onSaveAsTemplate?: () => void;
+  /** The draft's changes and actions, shown before the state. */
+  actions?: React.ReactNode;
 }>) {
   const family = canonicalFamily(spec?.family ?? def.family, families);
   const state = draftState(def, spec);
@@ -219,7 +223,7 @@ export default function SheetHeader({
     : tr("unpublished", d);
 
   return (
-    <div className="flex flex-wrap items-start gap-3">
+    <div className="flex flex-wrap items-start gap-3 lg:flex-nowrap">
       <Link
         href={backHref}
         aria-label={tr("backToCatalog", d)}
@@ -236,7 +240,7 @@ export default function SheetHeader({
           fixed_label={def.name}
         />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             {def.name}
@@ -284,8 +288,9 @@ export default function SheetHeader({
           <span>· {originText(def, templates, d, forkedFrom)}</span>
         </div>
       </div>
-      {!stateless && (
-        <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-3">
+        {actions}
+        {!stateless && (
           <StateToggle
             value={state}
             d={d}
@@ -296,8 +301,8 @@ export default function SheetHeader({
               if (spec && next !== state) onChange({ ...spec, state: next });
             }}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

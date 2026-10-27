@@ -1,8 +1,8 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { HiTrash } from "react-icons/hi";
-import { MdDragIndicator } from "react-icons/md";
+import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -22,8 +22,10 @@ import {
   parseConditions,
   ruleKey,
 } from "./condition-form";
+import FieldCombobox from "./field-combobox";
 import type { SourceField } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
+import Select from "./ui/select";
 
 const pillClass =
   "rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
@@ -81,7 +83,9 @@ export function NumberValue({
         // Text that is not a number ("", "-", "1,5") goes back to the number the rule holds.
         onBlur={() => setTyped({ text: decimalText(value), value })}
       />
-      {unit && <span className="text-xs text-gray-500">{unit}</span>}
+      {unit && (
+        <span className="text-xs text-gray-500 dark:text-gray-400">{unit}</span>
+      )}
     </span>
   );
 }
@@ -116,7 +120,7 @@ function ValueInput({
   if (field.values?.length) {
     const known = field.values.some((v) => v.value === value);
     return (
-      <select
+      <Select
         aria-label={tr("conditionValue", d)}
         className={pillClass}
         disabled={readOnly}
@@ -129,7 +133,7 @@ function ValueInput({
             {v.label}
           </option>
         ))}
-      </select>
+      </Select>
     );
   }
   return (
@@ -166,25 +170,14 @@ function ConditionRow({
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-800">
       {handle}
-      <select
-        aria-label={tr("conditionField", d)}
-        className={pillClass}
-        disabled={readOnly}
+      <FieldCombobox
         value={row.path}
-        onChange={(e) => {
-          const next = fields.find((f) => f.path === e.target.value);
-          if (next) onChange({ ...newCondition(next), id: row.id });
-        }}
-      >
-        {fields.map((f) => (
-          <option key={f.path} value={f.path}>
-            {f.engineSupported
-              ? f.label
-              : `${f.label} (${tr("engineNotYetTag", d)})`}
-          </option>
-        ))}
-      </select>
-      <select
+        fields={fields}
+        readOnly={readOnly}
+        d={d}
+        onChange={(next) => onChange({ ...newCondition(next), id: row.id })}
+      />
+      <Select
         aria-label={tr("conditionOp", d)}
         className={pillClass}
         disabled={readOnly}
@@ -198,7 +191,7 @@ function ConditionRow({
             {opLabel(op, field.type, d)}
           </option>
         ))}
-      </select>
+      </Select>
       <ValueInput
         row={row}
         field={field}
@@ -225,8 +218,6 @@ function ConditionRow({
   );
 }
 
-const KEY_STEP: Record<string, number> = { ArrowUp: -1, ArrowDown: 1 };
-
 function Rows({
   rows,
   fields,
@@ -241,99 +232,30 @@ function Rows({
   onChange: (rows: Condition[]) => void;
 }>) {
   const first = fields[0];
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [over, setOver] = useState<string | null>(null);
-  // A row moved with the keyboard keeps focus on its handle, once the moved list comes back.
-  const handles = useRef(new Map<string, HTMLButtonElement>());
-  const pendingFocus = useRef<{ id: string; index: number } | null>(null);
-  useEffect(() => {
-    const pending = pendingFocus.current;
-    if (!pending) return;
-    pendingFocus.current = null;
-    if (rows[pending.index]?.id === pending.id)
-      handles.current.get(pending.id)?.focus();
-  }, [rows]);
-  const sortable = !readOnly && rows.length > 1;
-  const move = (id: string, to: number, keepFocus = false) => {
-    const next = moveRow(
-      rows,
-      rows.findIndex((x) => x.id === id),
-      to
-    );
-    if (next === rows) return;
-    if (keepFocus) pendingFocus.current = { id, index: to };
-    onChange(next);
-  };
-  const end = () => {
-    setDragging(null);
-    setOver(null);
-  };
   return (
     <div className="flex flex-col gap-1.5">
-      {rows.map((r, i) => (
-        <div
-          key={r.id}
-          data-testid="condition-row"
-          className={`rounded-lg ${dragging === r.id ? "opacity-50" : ""} ${
-            over === r.id && dragging !== r.id
-              ? "ring-2 ring-blue-400 dark:ring-blue-500"
-              : ""
-          }`}
-          onDragOver={(e) => {
-            if (!dragging) return;
-            e.preventDefault();
-            setOver(r.id);
-          }}
-          onDrop={(e) => {
-            if (!dragging) return;
-            e.preventDefault();
-            move(dragging, i);
-            end();
-          }}
-        >
+      <SortableRows
+        items={rows}
+        keys={rows.map((r) => r.id)}
+        readOnly={readOnly}
+        handleLabel={tr("dragCondition", d)}
+        rowClassName="rounded-lg"
+        rowTestId="condition-row"
+        onMove={(from, to) => onChange(moveRow(rows, from, to))}
+        renderRow={(r, _i, handle) => (
           <ConditionRow
             row={r}
             fields={fields}
             readOnly={readOnly}
             d={d}
-            handle={
-              sortable && (
-                <button
-                  type="button"
-                  draggable
-                  ref={(el) => {
-                    if (el) handles.current.set(r.id, el);
-                    else handles.current.delete(r.id);
-                  }}
-                  aria-label={tr("dragCondition", d)}
-                  title={tr("dragCondition", d)}
-                  className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing dark:hover:text-gray-200"
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", r.id);
-                    const rowEl = e.currentTarget.parentElement;
-                    if (rowEl) e.dataTransfer.setDragImage(rowEl, 12, 12);
-                    setDragging(r.id);
-                  }}
-                  onDragEnd={end}
-                  onKeyDown={(e) => {
-                    const step = KEY_STEP[e.key];
-                    if (step === undefined) return;
-                    e.preventDefault();
-                    move(r.id, i + step, true);
-                  }}
-                >
-                  <MdDragIndicator className="h-4 w-4" />
-                </button>
-              )
-            }
+            handle={handle}
             onChange={(next) =>
               onChange(rows.map((x) => (x.id === r.id ? next : x)))
             }
             onRemove={() => onChange(rows.filter((x) => x.id !== r.id))}
           />
-        </div>
-      ))}
+        )}
+      />
       {!readOnly && first && (
         <button
           type="button"
@@ -378,7 +300,7 @@ function GroupBox({
         <span>
           {group.match === "none" ? tr("exceptIf", d) : tr("andAlso", d)}
         </span>
-        <select
+        <Select
           aria-label={tr("groupMatch", d)}
           className={pillClass}
           disabled={readOnly}
@@ -390,14 +312,14 @@ function GroupBox({
           <option value="all">{tr("matchAll", d)}</option>
           <option value="any">{tr("matchAny", d)}</option>
           <option value="none">{tr("matchNone", d)}</option>
-        </select>
-        <span className="text-xs text-gray-500">
+        </Select>
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {trDynamic(MATCH_HELP[group.match], d)}
         </span>
         {!readOnly && (
           <button
             type="button"
-            className="ml-auto text-xs text-gray-500 hover:text-red-500"
+            className="ml-auto text-xs text-gray-500 dark:text-gray-400 hover:text-red-500"
             onClick={onRemove}
           >
             {tr("removeGroup", d)}
@@ -425,7 +347,7 @@ function FieldsTable({
         {tr("availableFields", d)}
       </summary>
       <table className="mt-2 w-full text-left text-[11px] text-gray-700 dark:text-gray-300">
-        <thead className="text-gray-500">
+        <thead className="text-gray-500 dark:text-gray-400">
           <tr>
             <th className="pr-3">{tr("fieldColumn", d)}</th>
             <th className="pr-3">{tr("typeColumn", d)}</th>
@@ -517,7 +439,7 @@ export default function ActivationForm({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
         <span>{tr("conditionsHold", d)}</span>
-        <select
+        <Select
           aria-label={tr("listMatch", d)}
           className={pillClass}
           disabled={readOnly}
@@ -528,8 +450,8 @@ export default function ActivationForm({
         >
           <option value="all">{tr("matchAll", d)}</option>
           <option value="any">{tr("matchAny", d)}</option>
-        </select>
-        <span className="text-xs text-gray-500">
+        </Select>
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {trDynamic(MATCH_HELP[form.match], d)} · {tr("orderDoesNotMatter", d)}
         </span>
       </div>

@@ -35,7 +35,7 @@ const FIELDS = [
   field("signal.road.maxspeed_osm", "number"),
   field("signal.road.maxspeed_custom", "number"),
   field("signal.local_hour", "number"),
-  field("signal.frame.gps.speed", "number"),
+  field("signal.derived.speed_avg_5m", "number"),
   field("signal.geo.zone", "zone"),
   field("signal.vehicle.weight_category", "list", [
     { value: "HEAVY", label: "Pesado" },
@@ -84,7 +84,7 @@ describe("parseConditions", () => {
     expect(
       shape(
         parseConditions(
-          'signal.trip.active && !signal.derived.moving && signal.frame.gps.speed >= 90.5 && signal.vehicle.weight_category != "LIGHT"',
+          'signal.trip.active && !signal.derived.moving && signal.derived.speed_avg_5m >= 90.5 && signal.vehicle.weight_category != "LIGHT"',
           FIELDS
         )
       )
@@ -93,7 +93,7 @@ describe("parseConditions", () => {
       rows: [
         { path: "signal.trip.active", op: "is_true", value: null },
         { path: "signal.derived.moving", op: "is_false", value: null },
-        { path: "signal.frame.gps.speed", op: ">=", value: 90.5 },
+        { path: "signal.derived.speed_avg_5m", op: ">=", value: 90.5 },
         { path: "signal.vehicle.weight_category", op: "!=", value: "LIGHT" },
       ],
       groups: [],
@@ -202,22 +202,33 @@ describe("parseConditions", () => {
     ).toBe('say "hi"');
   });
 
+  it("reads values in single quotes and writes them back in double quotes", () => {
+    const form = parseConditions(
+      "signal.geo.zone == 'Faena (Norte) && Sur' && signal.trip.active",
+      FIELDS
+    );
+    expect(form?.rows[0]?.value).toBe("Faena (Norte) && Sur");
+    expect(compileConditions(form!)).toBe(
+      'signal.geo.zone == "Faena (Norte) && Sur"\n&& signal.trip.active'
+    );
+    expect(parseConditions("signal.geo.zone == 'a\\'b'", FIELDS)).toBeNull();
+  });
+
   it("returns null for logic the form cannot show", () => {
     for (const rule of [
-      "signal.trip.active && signal.frame.gps.speed > signal.road.maxspeed_osm", // field against field
-      "signal.frame.gps.speed - signal.road.maxspeed_osm > 10", // calculation
+      "signal.trip.active && signal.derived.speed_avg_5m > signal.road.maxspeed_osm", // field against field
+      "signal.derived.speed_avg_5m - signal.road.maxspeed_osm > 10", // calculation
       "signal.unknown.field > 3", // not in the source
       "signal.trip.active || signal.derived.moving && signal.local_hour < 6", // mixed at the top
       "signal.trip.active || (signal.derived.moving && signal.local_hour < 6)", // group under o
       "signal.trip.active && ((signal.derived.moving || signal.local_hour < 6) && signal.trip.double_driver)", // nested
       "signal.trip.active && !(signal.derived.moving && signal.local_hour < 6)", // not all
-      "signal.frame.gps.speed > 1e3", // number syntax the form does not write
-      "signal.frame.gps.speed > 9007199254740993", // more digits than a number keeps
-      "signal.frame.gps.speed > 0.1000000000000000055511151231257827", // the same
-      "signal.frame.gps.speed > 007", // leading zeros
-      'signal.frame.gps.speed > "90"', // text on a number field
+      "signal.derived.speed_avg_5m > 1e3", // number syntax the form does not write
+      "signal.derived.speed_avg_5m > 9007199254740993", // more digits than a number keeps
+      "signal.derived.speed_avg_5m > 0.1000000000000000055511151231257827", // the same
+      "signal.derived.speed_avg_5m > 007", // leading zeros
+      'signal.derived.speed_avg_5m > "90"', // text on a number field
       'signal.geo.zone > "A"', // order on text
-      "signal.geo.zone == 'A'", // single quotes
       'signal.geo.zone == "\\x41"', // an escape the form does not write
       "signal.trip.active == 1", // number on a yes/no field
       "signal.trip.active && (signal.derived.moving", // unbalanced
@@ -230,20 +241,20 @@ describe("parseConditions", () => {
 
 describe("numbers and durations", () => {
   it("keeps numbers exactly, dropping only trailing zeros", () => {
-    expect(roundTrip("signal.frame.gps.speed > 90.5")).toBe(
-      "signal.frame.gps.speed > 90.5"
+    expect(roundTrip("signal.derived.speed_avg_5m > 90.5")).toBe(
+      "signal.derived.speed_avg_5m > 90.5"
     );
-    expect(roundTrip("signal.frame.gps.speed > 90.50")).toBe(
-      "signal.frame.gps.speed > 90.5"
+    expect(roundTrip("signal.derived.speed_avg_5m > 90.50")).toBe(
+      "signal.derived.speed_avg_5m > 90.5"
     );
-    expect(roundTrip("signal.frame.gps.speed > 90.0")).toBe(
-      "signal.frame.gps.speed > 90"
+    expect(roundTrip("signal.derived.speed_avg_5m > 90.0")).toBe(
+      "signal.derived.speed_avg_5m > 90"
     );
-    expect(roundTrip("signal.frame.gps.speed >= -0.0")).toBe(
-      "signal.frame.gps.speed >= 0"
+    expect(roundTrip("signal.derived.speed_avg_5m >= -0.0")).toBe(
+      "signal.derived.speed_avg_5m >= 0"
     );
-    expect(roundTrip("signal.frame.gps.speed < 9007199254740991")).toBe(
-      "signal.frame.gps.speed < 9007199254740991"
+    expect(roundTrip("signal.derived.speed_avg_5m < 9007199254740991")).toBe(
+      "signal.derived.speed_avg_5m < 9007199254740991"
     );
   });
 
@@ -256,7 +267,9 @@ describe("numbers and durations", () => {
     for (const n of [1e-7, 0.1, 2.5e-12, 90, -0.5]) {
       const rule = compileConditions({
         match: "all",
-        rows: [{ id: "r", path: "signal.frame.gps.speed", op: ">", value: n }],
+        rows: [
+          { id: "r", path: "signal.derived.speed_avg_5m", op: ">", value: n },
+        ],
         groups: [],
       });
       expect(shape(parseConditions(rule, FIELDS))?.rows[0]?.value, rule).toBe(
@@ -286,11 +299,11 @@ describe("numbers and durations", () => {
 describe("compileConditions", () => {
   it("puts each top-level condition on its own line, starting with &&", () => {
     const form = parseConditions(
-      'signal.trip.active && signal.frame.gps.speed > 90 && (signal.geo.zone == "A" || signal.geo.zone == "B")',
+      'signal.trip.active && signal.derived.speed_avg_5m > 90 && (signal.geo.zone == "A" || signal.geo.zone == "B")',
       FIELDS
     ) as ConditionForm;
     expect(compileConditions(form)).toBe(
-      'signal.trip.active\n&& signal.frame.gps.speed > 90\n&& (signal.geo.zone == "A" || signal.geo.zone == "B")'
+      'signal.trip.active\n&& signal.derived.speed_avg_5m > 90\n&& (signal.geo.zone == "A" || signal.geo.zone == "B")'
     );
   });
 
@@ -386,5 +399,90 @@ describe("moveRow", () => {
     expect(moveRow(rows, -1, 0)).toBe(rows);
     expect(moveRow(rows, 1, 1)).toBe(rows);
     expect(rows).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("fields of the device frame", () => {
+  const PANIC = [
+    ...FIELDS,
+    field("signal.frame.sensors.panic_button", "bool"),
+    field("signal.frame.sensors.engine_status", "bool"),
+    field("signal.frame.gps.speed", "number"),
+  ];
+  const pressed = {
+    match: "all",
+    rows: [
+      { path: "signal.frame.sensors.panic_button", op: "is_true", value: null },
+    ],
+    groups: [],
+  };
+
+  it("reads a yes/no field written with .? and TRUE or FALSE", () => {
+    expect(
+      shape(
+        parseConditions("signal.frame.?sensors.?panic_button == TRUE", PANIC)
+      )
+    ).toEqual(pressed);
+    expect(
+      shape(
+        parseConditions("signal.frame.?sensors.?panic_button == FALSE", PANIC)
+      )?.rows[0]?.op
+    ).toBe("is_false");
+  });
+
+  it("still reads the panic rule written with has()", () => {
+    const rule =
+      "has(signal.frame.sensors)\n&& has(signal.frame.sensors.panic_button)\n&& signal.frame.sensors.panic_button == true";
+    const form = parseConditions(rule, PANIC) as ConditionForm;
+    expect(shape(form)).toEqual(pressed);
+    expect(compileConditions(form)).toBe(
+      "signal.frame.?sensors.?panic_button == TRUE"
+    );
+  });
+
+  it("writes yes/no fields with .? and other frame fields with has(), each once", () => {
+    const form = parseConditions(
+      "signal.trip.active && signal.frame.sensors.panic_button && !signal.frame.sensors.engine_status && signal.frame.gps.speed > 0",
+      PANIC
+    ) as ConditionForm;
+    expect(compileConditions(form)).toBe(
+      [
+        "has(signal.frame.gps)",
+        "has(signal.frame.gps.speed)",
+        "signal.trip.active",
+        "signal.frame.?sensors.?panic_button == TRUE",
+        "signal.frame.?sensors.?engine_status == FALSE",
+        "signal.frame.gps.speed > 0",
+      ].join("\n&& ")
+    );
+  });
+
+  it("keeps each has() with its condition in an 'any' list and in groups", () => {
+    const rule =
+      "((has(signal.frame.gps) && has(signal.frame.gps.speed) && signal.frame.gps.speed > 90) || signal.trip.double_driver)\n&& !(signal.frame.?sensors.?panic_button == TRUE || signal.derived.moving)";
+    const form = parseConditions(rule, PANIC) as ConditionForm;
+    expect(form.match).toBe("any");
+    expect(form.groups[0]?.match).toBe("none");
+    expect(ruleKey(compileConditions(form))).toBe(ruleKey(rule));
+  });
+
+  it("leaves to the expression what the form does not write", () => {
+    expect(
+      parseConditions("has(signal.frame.sensors) && signal.trip.active", PANIC)
+    ).toBeNull();
+    expect(
+      parseConditions(
+        "(has(signal.frame.gps) && signal.frame.gps.speed > 90) || signal.trip.active",
+        PANIC
+      )
+    ).toBeNull();
+    expect(
+      parseConditions("signal.frame.sensors.?panic_button == TRUE", PANIC)
+    ).toBeNull();
+  });
+
+  it("does not test fields outside the frame", () => {
+    const form = parseConditions("signal.trip.active", PANIC) as ConditionForm;
+    expect(compileConditions(form)).toBe("signal.trip.active");
   });
 });

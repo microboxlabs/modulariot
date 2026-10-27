@@ -18,6 +18,7 @@ export const PERMISSIONS = {
   controlTowerCaseTreat: "controltower:case.treat",
   conversationsView: "conversations:view",
   collaboratorsManage: "collaborators:manage",
+  tripsView: "trips:view",
 } as const;
 
 /** Every gate the app decides, with the permissions that open it. */
@@ -51,4 +52,5 @@ export const ACCESS_RULES = {
   },
   conversations: { requiredPermissions: [PERMISSIONS.conversationsView] },
   collaborators: { requiredPermissions: [PERMISSIONS.collaboratorsManage] },
+  trips: { requiredPermissions: [PERMISSIONS.tripsView] },
 } as const satisfies Record<string, AccessRule>;

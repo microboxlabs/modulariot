@@ -2,6 +2,10 @@
 
 import { ApiError } from "@/features/settings-admin/data/json-client";
 import type {
+  CreateOperationRequest,
+  IntegrationOperation,
+} from "./bigquery-query";
+import type {
   ConnectionTestResult,
   CreateConnectionRequest,
   CreateTemplateRequest,
@@ -43,7 +47,11 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function sendJson<T>(method: string, url: string, body?: unknown): Promise<T> {
+async function sendJson<T>(
+  method: string,
+  url: string,
+  body?: unknown
+): Promise<T> {
   const res = await fetch(url, {
     method,
     ...(body === undefined
@@ -61,7 +69,9 @@ async function sendJson<T>(method: string, url: string, body?: unknown): Promise
 /* Templates                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function fetchTemplates(orgSlug: string): Promise<IntegrationTemplate[]> {
+export function fetchTemplates(
+  orgSlug: string
+): Promise<IntegrationTemplate[]> {
   return getJson<IntegrationTemplate[]>(`${base(orgSlug)}/templates`);
 }
 
@@ -69,7 +79,11 @@ export function createTemplate(
   orgSlug: string,
   body: CreateTemplateRequest
 ): Promise<IntegrationTemplate> {
-  return sendJson<IntegrationTemplate>("POST", `${base(orgSlug)}/templates`, body);
+  return sendJson<IntegrationTemplate>(
+    "POST",
+    `${base(orgSlug)}/templates`,
+    body
+  );
 }
 
 export function updateTemplate(
@@ -85,14 +99,19 @@ export function updateTemplate(
 }
 
 export function deleteTemplate(orgSlug: string, id: string): Promise<void> {
-  return sendJson<void>("DELETE", `${base(orgSlug)}/templates/${encodeURIComponent(id)}`);
+  return sendJson<void>(
+    "DELETE",
+    `${base(orgSlug)}/templates/${encodeURIComponent(id)}`
+  );
 }
 
 /* -------------------------------------------------------------------------- */
 /* Connections (instances)                                                     */
 /* -------------------------------------------------------------------------- */
 
-export function fetchConnections(orgSlug: string): Promise<IntegrationConnection[]> {
+export function fetchConnections(
+  orgSlug: string
+): Promise<IntegrationConnection[]> {
   return getJson<IntegrationConnection[]>(`${base(orgSlug)}/connections`);
 }
 
@@ -100,7 +119,11 @@ export function createConnection(
   orgSlug: string,
   body: CreateConnectionRequest
 ): Promise<IntegrationConnection> {
-  return sendJson<IntegrationConnection>("POST", `${base(orgSlug)}/connections`, body);
+  return sendJson<IntegrationConnection>(
+    "POST",
+    `${base(orgSlug)}/connections`,
+    body
+  );
 }
 
 export function updateConnection(
@@ -154,6 +177,31 @@ export function importPostgrestFunctions(
   return sendJson<PostgrestImportResult>(
     "POST",
     `${base(orgSlug)}/connections/${encodeURIComponent(id)}/postgrest/import`,
+    body
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Operations                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export function fetchOperations(
+  orgSlug: string,
+  id: string
+): Promise<IntegrationOperation[]> {
+  return getJson<IntegrationOperation[]>(
+    `${base(orgSlug)}/connections/${encodeURIComponent(id)}/operations`
+  );
+}
+
+export function createOperation(
+  orgSlug: string,
+  id: string,
+  body: CreateOperationRequest
+): Promise<IntegrationOperation> {
+  return sendJson<IntegrationOperation>(
+    "POST",
+    `${base(orgSlug)}/connections/${encodeURIComponent(id)}/operations`,
     body
   );
 }

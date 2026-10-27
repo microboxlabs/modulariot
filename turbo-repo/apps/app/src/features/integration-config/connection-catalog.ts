@@ -1,3 +1,4 @@
+import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
 import { Database, Image, Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
@@ -52,6 +53,7 @@ export function connectionTypeName(
   connection: IntegrationConnection,
   templates: readonly IntegrationTemplate[]
 ): string {
+  if (isBigQueryConnection(connection)) return "BigQuery";
   return (
     templates.find((template) => template.id === connection.templateId)?.name ??
     providerLabel(connection.providerType)
@@ -64,6 +66,9 @@ export function connectionMark(
 ): ConnectionMark {
   const channel = CHANNEL_TEMPLATES[typeName];
   if (channel) return { icon: channelLogo(channel) };
+  if (isBigQueryConnection(connection)) {
+    return { logo: { default: "/credential-logos/google-cloud.svg" } };
+  }
   return PROVIDER_MARKS[connection.providerType] ?? { icon: Link };
 }
 

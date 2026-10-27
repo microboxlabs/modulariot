@@ -4753,7 +4753,8 @@
         "empty": "Aún no hay plantillas.",
         "native": "Integradas",
         "templates": "Plantillas",
-        "postgrest": "Fuente de datos para dashboards: se prueba con su credencial y luego eliges qué funciones exponer."
+        "postgrest": "Fuente de datos para dashboards: se prueba con su credencial y luego eliges qué funciones exponer.",
+        "bigquery": "Fuente de datos para dashboards: SQL de BigQuery con una cuenta de servicio de Google."
       },
       "validation": {
         "nameRequired": "El nombre es obligatorio",
@@ -4835,6 +4836,40 @@
         "sortNameDesc": "Nombre (Z-A)",
         "sortTested": "Prueba más reciente",
         "noMatches": "Ninguna conexión coincide con estos filtros."
+      },
+      "bigquery": {
+        "help": "Fuente de datos para dashboards: SQL de BigQuery guardado aquí, ejecutado con una cuenta de servicio de Google. Los dashboards eligen la consulta y entregan valores para sus parámetros, nunca SQL.",
+        "baseUrlHelp": "La API de BigQuery. No se puede cambiar.",
+        "credentialRequired": "Elige una credencial de cuenta de servicio de Google.",
+        "noCredentials": "No hay credenciales de cuenta de servicio de Google. Crea una en Ajustes › Credenciales.",
+        "queries": "Consultas",
+        "title": "Consultas de {name}",
+        "subtitle": "Cada consulta queda disponible para los dashboards en Consultas guardadas. Solo se aceptan SELECT.",
+        "loadFailed": "No se pudieron cargar las consultas.",
+        "empty": "Esta conexión aún no tiene consultas.",
+        "add": "Agregar consulta",
+        "save": "Guardar consulta",
+        "saved": "Consulta guardada",
+        "name": "Nombre",
+        "namePlaceholder": "Costo por servicio",
+        "project": "Proyecto",
+        "location": "Ubicación",
+        "megabytes": "Lectura máxima (MB)",
+        "sql": "SQL",
+        "sqlHelp": "Usa @nombre para cada parámetro; los valores nunca se pegan en el SQL. Devuelve datos ya agregados: máximo 5.000 filas, sin columnas anidadas.",
+        "parameters": "Parámetros",
+        "parameterName": "Nombre del parámetro",
+        "parameterType": "Tipo",
+        "addParameter": "Agregar parámetro",
+        "errors": {
+          "name": "Escribe un nombre.",
+          "project": "El proyecto debe ser un ID de proyecto de Google Cloud, como mi-proyecto-123.",
+          "location": "Escribe una ubicación, como US o EU.",
+          "sql": "Escribe el SQL.",
+          "bytes": "La lectura máxima debe estar entre 1 y 1.000 MB.",
+          "parameterName": "Los parámetros empiezan con una letra o _ y solo llevan letras, números y _.",
+          "parameterDuplicate": "Hay dos parámetros con el mismo nombre."
+        }
       }
     },
     "calendar": {

@@ -6310,13 +6310,9 @@
     },
     "server": {
       "title": "Dashboards",
-      "parallel": "This workspace runs alongside the existing dashboards while migration is validated.",
       "loading": "Loading dashboard…",
       "loadError": "Could not load dashboards. Check your organization and access.",
       "newName": "New dashboard",
-      "slug": "Dashboard ID (lowercase letters, numbers and hyphens)",
-      "create": "Create dashboard",
-      "createError": "Could not create the dashboard. Check your permissions or choose a different ID.",
       "empty": "No dashboards in this organization yet.",
       "name": "Dashboard name",
       "save": "Save",

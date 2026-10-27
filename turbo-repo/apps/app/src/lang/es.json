@@ -6310,13 +6310,9 @@
     },
     "server": {
       "title": "Dashboards",
-      "parallel": "Este espacio funciona junto a los dashboards existentes mientras se valida la migración.",
       "loading": "Cargando dashboard…",
       "loadError": "No se pudieron cargar los dashboards. Revisa tu organización y acceso.",
       "newName": "Nuevo dashboard",
-      "slug": "ID del dashboard (minúsculas, números y guiones)",
-      "create": "Crear dashboard",
-      "createError": "No se pudo crear el dashboard. Revisa tus permisos o elige otro ID.",
       "empty": "Esta organización aún no tiene dashboards.",
       "name": "Nombre del dashboard",
       "save": "Guardar",

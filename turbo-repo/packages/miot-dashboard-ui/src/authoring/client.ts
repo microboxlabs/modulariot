@@ -50,10 +50,11 @@ export class QueryAuthoringError extends DashboardApiError {
 }
 
 export interface QueryAuthoringClientOptions {
-  /** The server's base URL, or a same-origin proxy prefix. */
-  baseUrl: string;
-  tenantId: string;
-  scopeId: string;
+  /**
+   * The `query-sources` collection, already bound to one tenant and scope: from
+   * `createQueryAuthoringRoute`, or a host proxy that may carry a query string.
+   */
+  route: string;
   fetch?: typeof fetch;
   /** Resolve the current bearer token for each request; never stored. */
   getToken?: (signal?: AbortSignal) => Promise<string | null>;
@@ -61,20 +62,35 @@ export interface QueryAuthoringClientOptions {
   credentials?: RequestCredentials;
 }
 
-/** Client for the server's `/query-sources` routes. */
-export function createQueryAuthoringClient(
-  options: QueryAuthoringClientOptions,
-): QueryAuthoringClient {
+/** The `query-sources` route of a standalone server. */
+export function createQueryAuthoringRoute(options: {
+  baseUrl: string;
+  tenantId: string;
+  scopeId: string;
+}): string {
   validateEndpoint(options.baseUrl);
-  const fetchImpl = options.fetch ?? fetch;
-  const credentials = options.credentials ?? "omit";
-  const root = appendRoute(
+  if (options.baseUrl.includes("?")) throw new QueryAuthoringError(400);
+  return appendRoute(
     options.baseUrl,
     undefined,
     `tenants/${pathSegment(options.tenantId)}/scopes/${pathSegment(options.scopeId)}/query-sources`,
   );
+}
+
+function withQuery(url: string, query: URLSearchParams): string {
+  return `${url}${url.includes("?") ? "&" : "?"}${query}`;
+}
+
+/** Client for the server's `/query-sources` routes. */
+export function createQueryAuthoringClient(
+  options: QueryAuthoringClientOptions,
+): QueryAuthoringClient {
+  validateEndpoint(options.route);
+  const fetchImpl = options.fetch ?? fetch;
+  const credentials = options.credentials ?? "omit";
+  const root = options.route;
   const source = (sourceId: string, action: string) =>
-    `${root}/${pathSegment(sourceId)}/${action}`;
+    appendRoute(root, sourceId, action);
 
   async function call<T>(url: string, init: RequestInit = {}): Promise<T> {
     const headers = Object.fromEntries(new Headers(init.headers));
@@ -123,7 +139,7 @@ export function createQueryAuthoringClient(
       const query = new URLSearchParams({ projectId });
       if (schemaOptions.refresh) query.set("refresh", "1");
       return call(
-        `${source(sourceId, "schema")}?${query}`,
+        withQuery(source(sourceId, "schema"), query),
         schemaOptions.signal ? { signal: schemaOptions.signal } : {},
       );
     },
@@ -132,13 +148,13 @@ export function createQueryAuthoringClient(
     createPlan: (sourceId, draft) =>
       call(source(sourceId, "plans"), post(draft)),
     updatePlan: (sourceId, plan, draft) =>
-      call(`${source(sourceId, "plans")}/${pathSegment(plan.id)}`, {
+      call(source(sourceId, `plans/${pathSegment(plan.id)}`), {
         method: "PUT",
         body: JSON.stringify(draft),
         headers: { "if-match": `"${plan.revision}"` },
       }),
     removePlan: (sourceId, planId) =>
-      call(`${source(sourceId, "plans")}/${pathSegment(planId)}`, {
+      call(source(sourceId, `plans/${pathSegment(planId)}`), {
         method: "DELETE",
       }),
     estimate: (sourceId, draft, signal) =>

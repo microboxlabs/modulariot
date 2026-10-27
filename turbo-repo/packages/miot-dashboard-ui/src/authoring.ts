@@ -1,5 +1,6 @@
 export {
   createQueryAuthoringClient,
+  createQueryAuthoringRoute,
   QueryAuthoringError,
   type QueryAuthoringClient,
   type QueryAuthoringClientOptions,

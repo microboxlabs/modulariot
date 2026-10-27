@@ -1,6 +1,10 @@
 import { expect, it, vi } from "vitest";
 import type { QueryPlan } from "@microboxlabs/miot-dashboard-contract/authoring";
-import { createQueryAuthoringClient, QueryAuthoringError } from "./client";
+import {
+  createQueryAuthoringClient,
+  createQueryAuthoringRoute,
+  QueryAuthoringError,
+} from "./client";
 import { formatBytes } from "./labels";
 import { toCsv } from "./results-table";
 
@@ -20,9 +24,11 @@ const draft = {
 function setup(response: Response = Response.json({ data: [] })) {
   const fetchImpl = vi.fn<typeof fetch>(async () => response.clone());
   const client = createQueryAuthoringClient({
-    baseUrl: "/api/dashboard",
-    tenantId: "acme",
-    scopeId: "ops",
+    route: createQueryAuthoringRoute({
+      baseUrl: "/api/dashboard",
+      tenantId: "acme",
+      scopeId: "ops",
+    }),
     fetch: fetchImpl,
     getToken: async () => "token",
   });
@@ -95,4 +101,20 @@ it("formats bytes in decimal units and rows as CSV", () => {
       warnings: [],
     }),
   ).toBe('name,n\n"a, ""b""",1\n,2');
+});
+
+it("keeps a host proxy's query string on every route", async () => {
+  const fetchImpl = vi.fn<typeof fetch>(async () =>
+    Response.json({ data: [] }),
+  );
+  const client = createQueryAuthoringClient({
+    route: "/app/api/query-sources?org=acme",
+    fetch: fetchImpl,
+  });
+  await client.schema("c1", "analytics-prod");
+  await client.removePlan("c1", "p1");
+  expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+    "/app/api/query-sources/c1/schema?org=acme&projectId=analytics-prod",
+    "/app/api/query-sources/c1/plans/p1?org=acme",
+  ]);
 });

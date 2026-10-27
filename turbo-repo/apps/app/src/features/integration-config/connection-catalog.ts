@@ -27,7 +27,11 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
-  POSTGREST: { logo: { default: "/credential-logos/postgrest.svg" } },
+  // Taller than wide: the round keyline gives it the height the square one takes away.
+  POSTGREST: {
+    logo: { default: "/credential-logos/postgrest.svg" },
+    keyline: "circle",
+  },
   RESEND: {
     logo: {
       light: "/credential-logos/resend-light.svg",

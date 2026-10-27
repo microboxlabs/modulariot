@@ -15,7 +15,7 @@ interface IntegrationFormModalProps {
   readonly subtitle: string;
   /** Leading mark, rendered inside the shared glyph frame. */
   readonly glyph: React.ReactNode;
-  /** A provider's logo, shown at 40px in place of the glyph, as the credential forms do. */
+  /** A built-in provider's logo (BigQuery, PostgREST — both drawn on the round keyline), shown at 40px in place of the glyph. */
   readonly logo?: string;
   readonly onClose: () => void;
   /** Delete this record — surfaced in the header when editing one. */
@@ -67,7 +67,12 @@ export function IntegrationFormModal({
       subtitle={subtitle}
       icon={
         logo ? (
-          <BrandLogo logo={{ default: logo }} alt={title} size={40} />
+          <BrandLogo
+            logo={{ default: logo }}
+            alt={title}
+            keyline="circle"
+            size={40}
+          />
         ) : (
           <ModalGlyph>{glyph}</ModalGlyph>
         )

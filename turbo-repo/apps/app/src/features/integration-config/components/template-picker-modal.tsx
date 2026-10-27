@@ -80,6 +80,7 @@ export function TemplatePickerModal({
               <BrandLogo
                 logo={{ default: "/credential-logos/postgrest.svg" }}
                 alt="PostgREST"
+                keyline="circle"
                 size={48}
               />
             }

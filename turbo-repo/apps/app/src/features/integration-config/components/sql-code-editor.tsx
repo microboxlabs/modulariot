@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { autocompletion } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { SQLDialect, sql } from "@codemirror/lang-sql";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -69,6 +70,7 @@ export default function SqlCodeEditor({
           keymap.of([...defaultKeymap, ...historyKeymap]),
           sql({ dialect: BigQuerySQL, upperCaseKeywords: true }),
           syntaxHighlighting(highlight),
+          autocompletion({ icons: false }),
           ...(hint ? [placeholder(hint)] : []),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ id, spellcheck: "false" }),

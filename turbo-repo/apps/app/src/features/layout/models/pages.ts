@@ -108,6 +108,7 @@ export function visiblePages(
     if (p.label === DASHBOARD_SERVER_PAGE_LABEL) {
       return (
         dashboardServerEnabled &&
+        dashboardModule !== null &&
         dashboardModuleEnabled("server", dashboardModule)
       );
     }

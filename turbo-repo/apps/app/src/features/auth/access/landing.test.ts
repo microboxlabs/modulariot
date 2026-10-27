@@ -47,6 +47,47 @@ describe("firstAllowedPage", () => {
     );
   });
 
+  it("lands on server dashboards when Home is off and the server is enabled", () => {
+    expect(
+      firstAllowedPage(["dashboards:view"], "/home", "", "server", true)
+    ).toBe("/dashboards");
+  });
+
+  it("uses the server dashboard's existing open route without opening arbitrary routes", () => {
+    expect(firstAllowedPage([], "/fleet", "", "server", true)).toBe(
+      "/dashboards"
+    );
+    expect(firstAllowedPage(null, "/fleet", "", "server", true)).toBe(
+      "/dashboards"
+    );
+    expect(firstAllowedPage([], "/fleet", "", "legacy", true)).toBeNull();
+    expect(firstAllowedPage([], "/fleet", "", "server", false)).toBeNull();
+  });
+
+  it("filters a preferred server dashboard and preserves existing module priorities", () => {
+    expect(
+      firstAllowedPage(
+        ["dashboards:view"],
+        "/dashboards/fleet",
+        "",
+        "legacy",
+        true
+      )
+    ).toBe("/home");
+    expect(
+      firstAllowedPage(
+        ["dashboards:view"],
+        "/dashboards/fleet",
+        "",
+        "server",
+        true
+      )
+    ).toBe("/dashboards/fleet");
+    expect(
+      firstAllowedPage(["coordination:reports.view"], "/shipping", "", "", true)
+    ).toBe("/reports");
+  });
+
   it("does not land on Where is my load or Collaborators with the trips model", () => {
     const legacy = ["coordination:loads.search", "collaborators:manage"];
     expect(firstAllowedPage(legacy, "/home", "trips")).toBeNull();

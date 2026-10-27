@@ -18,3 +18,11 @@ export function dashboardModuleEnabled(
 export function isLegacyDashboardPath(path: string): boolean {
   return path === "/home" || path.startsWith("/home/");
 }
+
+/** The dashboard module a page belongs to, matching whole path segments. */
+export function dashboardOfPath(path: string): DashboardModule | null {
+  if (isLegacyDashboardPath(path)) return "legacy";
+  if (path === "/dashboards" || path.startsWith("/dashboards/"))
+    return "server";
+  return null;
+}

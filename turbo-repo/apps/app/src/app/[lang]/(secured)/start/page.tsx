@@ -11,7 +11,8 @@ export default async function StartPage({ params }: ParamsWithLang) {
   const page = firstAllowedPage(
     await currentPermissions(),
     homePath(),
-    process.env.BOARD_MODULE
+    process.env.BOARD_MODULE,
+    process.env.DASHBOARD_MODULE
   );
   redirect(`/${lang}${page ?? "/no-access"}`);
 }

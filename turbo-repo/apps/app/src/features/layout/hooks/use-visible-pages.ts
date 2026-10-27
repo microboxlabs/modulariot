@@ -28,14 +28,24 @@ export function useVisiblePages(
   const storytellingEnabled = runtimeConfig?.ENABLE_STORYTELLING === "true";
   // Null until the config arrives: neither board shows, so the one turned off never flashes.
   const boardModule = runtimeConfig ? (runtimeConfig.BOARD_MODULE ?? "") : null;
+  const dashboardModule = runtimeConfig
+    ? (runtimeConfig.DASHBOARD_MODULE ?? "")
+    : null;
   return useMemo(
     () =>
       visiblePages(
         devToolsEnabled,
         storytellingEnabled,
         dashboardServerEnabled,
-        boardModule
+        boardModule,
+        dashboardModule
       ),
-    [devToolsEnabled, storytellingEnabled, dashboardServerEnabled, boardModule]
+    [
+      devToolsEnabled,
+      storytellingEnabled,
+      dashboardServerEnabled,
+      boardModule,
+      dashboardModule,
+    ]
   );
 }

@@ -38,6 +38,15 @@ describe("firstAllowedPage", () => {
     );
   });
 
+  it("does not land on the legacy dashboards when DASHBOARD_MODULE is server", () => {
+    expect(
+      firstAllowedPage(["dashboards:view"], "/home", "", "server")
+    ).toBeNull();
+    expect(firstAllowedPage(["dashboards:view"], "/home", "", "")).toBe(
+      "/home"
+    );
+  });
+
   it("does not land on Where is my load or Collaborators with the trips model", () => {
     const legacy = ["coordination:loads.search", "collaborators:manage"];
     expect(firstAllowedPage(legacy, "/home", "trips")).toBeNull();

@@ -20,7 +20,8 @@ export default async function NoAccessPage({ params }: ParamsWithLang) {
   const home = firstAllowedPage(
     await currentPermissions(),
     homePath(),
-    process.env.BOARD_MODULE
+    process.env.BOARD_MODULE,
+    process.env.DASHBOARD_MODULE
   );
   const title = home
     ? dict("pages.noAccess.page.title")

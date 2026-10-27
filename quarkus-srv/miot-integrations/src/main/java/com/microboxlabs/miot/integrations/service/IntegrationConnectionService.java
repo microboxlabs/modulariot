@@ -219,7 +219,7 @@ public class IntegrationConnectionService {
                 ? null
                 : credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
 
-        ConnectionTester tester = testerRegistry.testerFor(connection.providerType());
+        ConnectionTester tester = testerRegistry.testerFor(connection);
         ConnectionTestResponse response = tester.test(connection, credential, req);
 
         ConnectionStatus status = response.success() ? ConnectionStatus.ACTIVE : ConnectionStatus.TEST_FAILED;
@@ -232,6 +232,38 @@ public class IntegrationConnectionService {
                     connection.tenantCode(), credential.id(), response.testedAt(), response.success());
         }
         return response;
+    }
+
+    /**
+     * Tests a connection before it is saved, with the values it would be created with. Nothing is
+     * stored: neither the connection nor the result on it or on its credential.
+     */
+    public ConnectionTestResponse testDraft(String tenantCode, CreateIntegrationConnectionRequest req) {
+        IntegrationTemplate template = req.templateId() == null
+                ? null
+                : templateRepository.findByTenantAndId(tenantCode, req.templateId());
+        if (req.templateId() != null && template == null) {
+            return new ConnectionTestResponse(false, OffsetDateTime.now(), "Unknown integration template");
+        }
+        IntegrationConnection draft = new IntegrationConnection(
+                IntegrationConnection.DRAFT_ID,
+                tenantCode,
+                req.name(),
+                template != null ? template.providerType() : req.providerType(),
+                req.baseUrl(),
+                req.credentialProfileId(),
+                ConnectionStatus.DRAFT,
+                null,
+                null,
+                safeMap(req.metadata()),
+                template != null ? template.id() : null);
+        CredentialProfile credential = draft.credentialProfileId() == null
+                ? null
+                : credentialProfileRepository.findByTenantAndId(tenantCode, draft.credentialProfileId());
+        if (draft.credentialProfileId() != null && credential == null) {
+            return new ConnectionTestResponse(false, OffsetDateTime.now(), "The credential could not be found");
+        }
+        return testerRegistry.testerFor(draft).test(draft, credential, null);
     }
 
     private Map<String, Object> safeMap(Map<String, Object> map) {

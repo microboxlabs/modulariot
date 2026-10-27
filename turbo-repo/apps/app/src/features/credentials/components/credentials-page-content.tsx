@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Alert, Button, Spinner } from "flowbite-react";
 import { HiKey, HiPlus } from "react-icons/hi";
 import { toast } from "sonner";
@@ -121,8 +121,11 @@ export default function CredentialsPageContent({
   const [formType, setFormType] = useState<CredentialTypeId>(ENTRA);
   const [editing, setEditing] = useState<CredentialListItem | null>(null);
   const [deleting, setDeleting] = useState<CredentialListItem | null>(null);
+  /** The form values of the last dry run that passed, while creating. */
+  const passedDraft = useRef<string | null>(null);
 
   function handleAdd() {
+    passedDraft.current = null;
     setEditing(null);
     setPickerOpen(true);
   }
@@ -147,9 +150,15 @@ export default function CredentialsPageContent({
         await update(editing.id, form);
         toast.success(tr("toast.updated", credentialsDict));
       } else {
-        await create(formType, form);
+        const created = await create(formType, form);
         toast.success(tr("toast.created", credentialsDict));
+        // A dry run leaves no result on the badge; repeat it on the saved
+        // credential when it passed with exactly these values.
+        if (passedDraft.current === JSON.stringify(form)) {
+          await test(created.id).catch(() => undefined);
+        }
       }
+      passedDraft.current = null;
       setFormOpen(false);
       setEditing(null);
     } catch (cause) {
@@ -173,9 +182,10 @@ export default function CredentialsPageContent({
     form: CredentialFormData
   ): Promise<CredentialTestResult> {
     try {
-      return editing
-        ? await test(editing.id)
-        : await testConfig(formType, form);
+      if (editing) return await test(editing.id);
+      const result = await testConfig(formType, form);
+      passedDraft.current = result.success ? JSON.stringify(form) : null;
+      return result;
     } catch (cause) {
       return {
         success: false,

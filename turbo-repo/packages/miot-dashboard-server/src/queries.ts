@@ -34,3 +34,7 @@ export {
   createLocalQueryOperations,
   type LocalQueryAuthoringOptions,
 } from "./authoring/local";
+export {
+  createRemoteQueryAuthoring,
+  type RemoteQueryAuthoringOptions,
+} from "./authoring/remote";

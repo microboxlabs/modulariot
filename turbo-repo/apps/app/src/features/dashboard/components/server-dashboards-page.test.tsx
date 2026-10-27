@@ -23,7 +23,10 @@ const state = vi.hoisted(() => ({
   push: vi.fn(),
   host: undefined as DashboardSettingsHost | undefined,
   storage: undefined as
-    | { config: DashboardStorageSchema; onChange: (c: DashboardStorageSchema) => void }
+    | {
+        config: DashboardStorageSchema;
+        onChange: (c: DashboardStorageSchema) => void;
+      }
     | undefined,
 }));
 vi.mock("next-auth/react", () => ({
@@ -32,7 +35,10 @@ vi.mock("next-auth/react", () => ({
     data: { user: { id: state.userId } },
   }),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: state.push }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: state.push }),
+  useParams: () => ({ lang: "en" }),
+}));
 vi.mock(
   "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
   () => ({
@@ -91,9 +97,16 @@ const dictionary = {
       loadError: "Dashboard unavailable",
       unsaved: "Unsaved changes",
       saving: "Saving…",
-      create: "Create dashboard",
-      slug: "Dashboard identifier",
       newName: "New dashboard",
+      empty: "No dashboards yet",
+    },
+    landing: { title: "Dashboards", cta: "Create dashboard" },
+    create: {
+      title: "New dashboard",
+      nameLabel: "Name",
+      submit: "Create",
+      duplicateSlug: "Name already taken",
+      errorNotification: "Could not create",
     },
   },
 };
@@ -199,19 +212,34 @@ describe("parallel dashboard pages", () => {
     const createButton = await screen.findByRole("button", {
       name: "Create dashboard",
     });
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "Dashboard identifier" }),
-      {
-        target: { value: "demo-validation" },
-      }
-    );
     fireEvent.click(createButton);
+    fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+      target: { value: "Demo Validación" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() =>
-      expect(state.push).toHaveBeenCalledWith("/en/dashboards/demo-validation")
+      expect(state.push).toHaveBeenCalledWith("/en/dashboards/demo-validacion")
     );
     const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
-    expect(write?.[0]).toBe("/app/api/dashboards/demo-validation?org=acme");
+    expect(write?.[0]).toBe("/app/api/dashboards/demo-validacion?org=acme");
     expect(write?.[1]?.headers).toMatchObject({ "if-match": '\"0\"' });
+  });
+  it("refuses a name whose id is already listed, without writing", async () => {
+    state.canEdit = true;
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create dashboard" })
+    );
+    fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+      target: { value: "Fleet" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Name already taken"
+    );
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(
+      false
+    );
   });
   it("does not fall back to the application role when permission lookup fails", async () => {
     state.orgRole = "OWNER";
@@ -261,7 +289,9 @@ describe("parallel dashboard pages", () => {
       state.storage!.onChange({ ...state.storage!.config, name: "Changed" })
     );
     expect(await screen.findByText("Saving…")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save" })
+    ).not.toBeInTheDocument();
     await waitFor(
       () => expect(screen.queryByText("Saving…")).not.toBeInTheDocument(),
       { timeout: 4000 }

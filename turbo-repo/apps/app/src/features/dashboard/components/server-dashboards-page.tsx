@@ -103,27 +103,25 @@ function ServerDashboardList({
     <div className="flex h-full w-full flex-col items-center overflow-y-auto px-4 py-16">
       <DashboardLandingHero dict={dictionary} />
       {canCreate && (
-        <>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-          >
-            <HiPlus className="mr-2 h-4 w-4" />
-            {tr("dashboard.landing.cta", dictionary)}
-          </button>
-          <ServerCreateDashboardModal
-            isOpen={creating}
-            onClose={() => setCreating(false)}
-            onCreated={(slug) =>
-              router.push(`/${lang}/dashboards/${encodeURIComponent(slug)}`)
-            }
-            client={client}
-            existingSlugs={data?.map((d) => d.slug) ?? []}
-            dict={dictionary}
-          />
-        </>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+        >
+          <HiPlus className="mr-2 h-4 w-4" />
+          {tr("dashboard.landing.cta", dictionary)}
+        </button>
       )}
+      <ServerCreateDashboardModal
+        isOpen={creating && canCreate}
+        onClose={() => setCreating(false)}
+        onCreated={(slug) =>
+          router.push(`/${lang}/dashboards/${encodeURIComponent(slug)}`)
+        }
+        client={client}
+        existingSlugs={data?.map((d) => d.slug) ?? []}
+        dict={dictionary}
+      />
       <div className="mt-12 w-full max-w-3xl">
         {(error || scopeError) && (
           <p role="alert" className="py-4 text-center text-sm text-red-600">

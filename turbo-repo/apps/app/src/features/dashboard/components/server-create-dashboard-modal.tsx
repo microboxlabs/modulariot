@@ -20,9 +20,9 @@ export function serverDashboardSlug(name: string): string {
     .replaceAll(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "")
+    .replace(/^-/, "")
     .slice(0, 80)
-    .replace(/-+$/, "");
+    .replace(/-$/, "");
 }
 
 interface Props {
@@ -49,6 +49,7 @@ export function ServerCreateDashboardModal({
   const [saving, setSaving] = useState(false);
 
   function close() {
+    if (saving) return;
     setName("");
     setError(null);
     onClose();
@@ -97,7 +98,10 @@ export function ServerCreateDashboardModal({
           id="server-dashboard-name"
           placeholder={t("namePlaceholder")}
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value);
+            setError(null);
+          }}
           color={error ? "failure" : undefined}
           disabled={saving}
         />

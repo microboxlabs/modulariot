@@ -19,4 +19,12 @@ describe("serverDashboardSlug", () => {
     expect(slug).toHaveLength(79);
     expect(slug).toMatch(/^[a-z0-9][a-z0-9-]{0,79}$/);
   });
+
+  it("collapses long separator runs and trims both boundaries", () => {
+    const separators = "_".repeat(20000);
+    expect(
+      serverDashboardSlug(`${separators}Café${separators}2${separators}`)
+    ).toBe("cafe-2");
+    expect(serverDashboardSlug(separators)).toBe("");
+  });
 });

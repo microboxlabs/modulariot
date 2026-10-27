@@ -4,6 +4,7 @@ import { HiTrash } from "react-icons/hi";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { BrandLogo } from "@/features/common/components/brand-logo";
 import { ModalGlyph } from "./modal-glyph";
 
 interface IntegrationFormModalProps {
@@ -14,6 +15,8 @@ interface IntegrationFormModalProps {
   readonly subtitle: string;
   /** Leading mark, rendered inside the shared glyph frame. */
   readonly glyph: React.ReactNode;
+  /** A provider's logo, shown at 40px in place of the glyph, as the credential forms do. */
+  readonly logo?: string;
   readonly onClose: () => void;
   /** Delete this record — surfaced in the header when editing one. */
   readonly onDelete?: () => void;
@@ -37,6 +40,7 @@ export function IntegrationFormModal({
   title,
   subtitle,
   glyph,
+  logo,
   onClose,
   onDelete,
   onSubmit,
@@ -61,7 +65,13 @@ export function IntegrationFormModal({
       size="3xl"
       title={title}
       subtitle={subtitle}
-      icon={<ModalGlyph>{glyph}</ModalGlyph>}
+      icon={
+        logo ? (
+          <BrandLogo logo={{ default: logo }} alt={title} size={40} />
+        ) : (
+          <ModalGlyph>{glyph}</ModalGlyph>
+        )
+      }
       headerActions={
         isEdit && onDelete ? (
           <button

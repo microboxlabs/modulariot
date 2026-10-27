@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Select, Spinner, TextInput } from "flowbite-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -45,8 +45,12 @@ interface ConnectionFormModalProps {
   ) => Promise<unknown>;
   /** Delete this connection — surfaced in the header when editing one. */
   readonly onDelete?: () => void;
-  /** Exercise the saved connection; absent while creating, since there is no id yet. */
-  readonly onTest?: () => Promise<ConnectionTestResult>;
+  /** Test a saved connection by id; the result is stored on it. */
+  readonly onTest?: (id: string) => Promise<ConnectionTestResult>;
+  /** Test the form values before the connection exists; nothing is stored. */
+  readonly onTestDraft?: (
+    request: CreateConnectionRequest
+  ) => Promise<ConnectionTestResult>;
   readonly saving: boolean;
   readonly dict: I18nRecord;
 }
@@ -74,6 +78,7 @@ export function ConnectionFormModal({
   onSave,
   onDelete,
   onTest,
+  onTestDraft,
   saving,
   dict,
 }: Readonly<ConnectionFormModalProps>) {
@@ -85,6 +90,9 @@ export function ConnectionFormModal({
     (providerType === "BIGQUERY" ||
       (connection !== undefined && isBigQueryConnection(connection)));
   // BigQuery queries authenticate with a Google service account and nothing else.
+  let nativeKind: NativeKind | null = null;
+  if (isBigQuery) nativeKind = "BIGQUERY";
+  else if (isPostgrest) nativeKind = "POSTGREST";
   const choices = isBigQuery
     ? credentials.filter((c) => c.typeId === "GOOGLE_SERVICE_ACCOUNT")
     : credentials;
@@ -93,11 +101,15 @@ export function ConnectionFormModal({
     null
   );
   const [testing, setTesting] = useState(false);
+  /** The request of the last draft test that passed, to repeat it once the connection exists. */
+  const passedDraft = useRef<string | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    trigger,
+    getValues,
     formState: { errors },
   } = useForm<ConnectionFormData>({
     resolver: zodResolver(ConnectionFormSchema),
@@ -109,6 +121,7 @@ export function ConnectionFormModal({
     if (!show) return;
     setError(null);
     setTestResult(null);
+    passedDraft.current = null;
     reset(
       connection
         ? {
@@ -120,35 +133,57 @@ export function ConnectionFormModal({
     );
   }, [show, connection, reset, isBigQuery]);
 
-  async function submit(data: ConnectionFormData) {
-    const credentialProfileId = data.credentialProfileId || null;
-    setError(null);
-    if (isBigQuery && !credentialProfileId) {
-      setError(new Error(tr("bigquery.credentialRequired", dict)));
-      return;
+  /** What creating with these values sends; null when editing. */
+  function createRequest(
+    data: ConnectionFormData
+  ): CreateConnectionRequest | null {
+    const common = {
+      name: data.name.trim(),
+      baseUrl: data.baseUrl.trim(),
+      credentialProfileId: data.credentialProfileId || null,
+    };
+    if (connection) return null;
+    if (template) return { ...common, templateId: template.id };
+    if (providerType) {
+      return {
+        ...common,
+        providerType:
+          providerType === "BIGQUERY" ? "CUSTOM_HTTP" : providerType,
+      };
     }
+    return null;
+  }
+
+  function missingCredential(data: ConnectionFormData): boolean {
+    if (!isBigQuery || data.credentialProfileId) return false;
+    setError(new Error(tr("bigquery.credentialRequired", dict)));
+    return true;
+  }
+
+  async function submit(data: ConnectionFormData) {
+    setError(null);
+    if (missingCredential(data)) return;
     try {
       if (connection) {
         await onSave(null, connection.id, {
           name: data.name.trim(),
           baseUrl: data.baseUrl.trim(),
-          credentialProfileId,
+          credentialProfileId: data.credentialProfileId || null,
         });
-      } else if (template) {
-        await onSave({
-          name: data.name.trim(),
-          baseUrl: data.baseUrl.trim(),
-          credentialProfileId,
-          templateId: template.id,
-        });
-      } else if (providerType) {
-        await onSave({
-          name: data.name.trim(),
-          baseUrl: data.baseUrl.trim(),
-          credentialProfileId,
-          providerType:
-            providerType === "BIGQUERY" ? "CUSTOM_HTTP" : providerType,
-        });
+      } else {
+        const request = createRequest(data);
+        if (!request) return;
+        const created = (await onSave(request)) as
+          | IntegrationConnection
+          | undefined;
+        // The draft test stored nothing; repeat it so the new connection shows the result.
+        if (
+          onTest &&
+          created?.id &&
+          passedDraft.current === JSON.stringify(request)
+        ) {
+          await onTest(created.id).catch(() => undefined);
+        }
       }
       onClose();
     } catch (cause) {
@@ -160,11 +195,32 @@ export function ConnectionFormModal({
     }
   }
 
+  async function runTest(): Promise<ConnectionTestResult | null> {
+    if (connection) return onTest ? onTest(connection.id) : null;
+    if (!onTestDraft) return null;
+    if (!(await trigger())) return null;
+    const data = getValues();
+    if (missingCredential(data)) return null;
+    const request = createRequest(data);
+    if (!request) return null;
+    const result = await onTestDraft(request);
+    passedDraft.current = result.success ? JSON.stringify(request) : null;
+    return result;
+  }
+
+  const canTest = connection ? onTest !== undefined : onTestDraft !== undefined;
+
   async function handleTest() {
-    if (!onTest) return;
+    setError(null);
     setTesting(true);
     try {
-      setTestResult(await onTest());
+      setTestResult(await runTest());
+    } catch (cause) {
+      setTestResult({
+        success: false,
+        testedAt: new Date().toISOString(),
+        message: cause instanceof Error ? cause.message : null,
+      });
     } finally {
       setTesting(false);
     }
@@ -179,8 +235,9 @@ export function ConnectionFormModal({
           ? tr("connection.form.editTitle", dict)
           : tr("connection.form.createTitle", dict)
       }
-      subtitle={tr("connection.form.subtitle", dict)}
+      subtitle={formSubtitle(nativeKind, dict)}
       glyph={<HiOutlineLink className="h-5 w-5" />}
+      logo={nativeKind ? NATIVE_LOGOS[nativeKind] : undefined}
       onClose={onClose}
       onDelete={onDelete}
       onSubmit={handleSubmit(submit)}
@@ -188,16 +245,7 @@ export function ConnectionFormModal({
       saving={saving}
       dict={dict}
     >
-      {template ? (
-        <ContractPanel template={template} dict={dict} />
-      ) : (
-        <NativePanel
-          provider={
-            isBigQuery ? "BIGQUERY" : (providerType ?? connection?.providerType)
-          }
-          dict={dict}
-        />
-      )}
+      {template && <ContractPanel template={template} dict={dict} />}
 
       <SettingsFormField
         id="connection-name"
@@ -252,9 +300,9 @@ export function ConnectionFormModal({
         )}
       </SettingsFormField>
 
-      {/* Testing an instance calls the real endpoint, so it only exists once the
-            instance does — while creating there is nothing yet to exercise. */}
-      {isEdit && onTest && (
+      {/* Creating tests the form values without storing anything; editing tests the
+          saved connection and records the result on it. */}
+      {canTest && (
         <div className="flex items-center gap-3">
           <Button
             type="button"
@@ -316,29 +364,19 @@ function ContractPanel({
   );
 }
 
-/** What a built-in provider connection does, in place of a template contract. */
-function NativePanel({
-  provider,
-  dict,
-}: Readonly<{ provider: string | undefined; dict: I18nRecord }>) {
-  const panel = NATIVE_PANELS[provider ?? ""];
-  if (!panel) return null;
-  return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
-      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-        {panel.title}
-      </div>
-      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-        {trDynamic(panel.helpKey, dict)}
-      </p>
-    </div>
-  );
-}
+type NativeKind = "POSTGREST" | "BIGQUERY";
 
-const NATIVE_PANELS: Record<string, { title: string; helpKey: string }> = {
-  POSTGREST: { title: "PostgREST", helpKey: "connection.form.postgrestHelp" },
-  BIGQUERY: { title: "BigQuery", helpKey: "bigquery.help" },
+const NATIVE_LOGOS: Record<NativeKind, string> = {
+  POSTGREST: "/credential-logos/postgrest.svg",
+  BIGQUERY: "/credential-logos/bigquery.svg",
 };
+
+/** A built-in provider explains itself in the subtitle; a template's contract is shown below it. */
+function formSubtitle(kind: NativeKind | null, dict: I18nRecord): string {
+  if (kind === "BIGQUERY") return tr("bigquery.help", dict);
+  if (kind === "POSTGREST") return tr("connection.form.postgrestHelp", dict);
+  return tr("connection.form.subtitle", dict);
+}
 
 function baseUrlHelp(
   isPostgrest: boolean,

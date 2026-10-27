@@ -82,6 +82,7 @@ export function IntegrationConfigPageContent({
     saveConnection,
     removeConnection,
     testInstance,
+    testDraft,
   } = useIntegrationConfig(orgSlug);
 
   const [templateModal, setTemplateModal] = useState<{
@@ -359,11 +360,8 @@ export function IntegrationConfigPageContent({
             ? () => handleDeleteConnectionFromModal(connectionModal.connection!)
             : undefined
         }
-        onTest={
-          connectionModal.connection
-            ? () => testInstance(connectionModal.connection!.id)
-            : undefined
-        }
+        onTest={testInstance}
+        onTestDraft={testDraft}
         saving={saving}
         dict={dict}
       />

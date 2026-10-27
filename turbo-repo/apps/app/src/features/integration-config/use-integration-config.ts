@@ -12,6 +12,7 @@ import {
   fetchConnections,
   fetchTemplates,
   testConnection,
+  testConnectionDraft,
   updateConnection,
   updateTemplate,
 } from "./integration-config-data-service";
@@ -52,20 +53,27 @@ export function useIntegrationConfig(orgSlug: string | null) {
 
   const [saving, setSaving] = useState(false);
 
-  const withSaving = useCallback(async <T>(work: () => Promise<T>): Promise<T> => {
-    setSaving(true);
-    try {
-      return await work();
-    } finally {
-      setSaving(false);
-    }
-  }, []);
+  const withSaving = useCallback(
+    async <T>(work: () => Promise<T>): Promise<T> => {
+      setSaving(true);
+      try {
+        return await work();
+      } finally {
+        setSaving(false);
+      }
+    },
+    []
+  );
 
   const saveTemplate = useCallback(
     (body: CreateTemplateRequest, id?: string) =>
       withSaving(async () => {
         const saved = id
-          ? await updateTemplate(orgSlug as string, id, body as UpdateTemplateRequest)
+          ? await updateTemplate(
+              orgSlug as string,
+              id,
+              body as UpdateTemplateRequest
+            )
           : await createTemplate(orgSlug as string, body);
         await templates.mutate();
         return saved;
@@ -83,11 +91,18 @@ export function useIntegrationConfig(orgSlug: string | null) {
   );
 
   const saveConnection = useCallback(
-    (create: CreateConnectionRequest | null, id?: string, patch?: UpdateConnectionRequest) =>
+    (
+      create: CreateConnectionRequest | null,
+      id?: string,
+      patch?: UpdateConnectionRequest
+    ) =>
       withSaving(async () => {
         const saved = id
           ? await updateConnection(orgSlug as string, id, patch ?? {})
-          : await createConnection(orgSlug as string, create as CreateConnectionRequest);
+          : await createConnection(
+              orgSlug as string,
+              create as CreateConnectionRequest
+            );
         await connections.mutate();
         return saved;
       }),
@@ -112,6 +127,13 @@ export function useIntegrationConfig(orgSlug: string | null) {
     [orgSlug, connections]
   );
 
+  /** Tests unsaved values; nothing is stored, so nothing to revalidate. */
+  const testDraft = useCallback(
+    (request: CreateConnectionRequest): Promise<ConnectionTestResult> =>
+      testConnectionDraft(orgSlug as string, request),
+    [orgSlug]
+  );
+
   return {
     templates: templates.data ?? [],
     connections: connections.data ?? [],
@@ -124,6 +146,7 @@ export function useIntegrationConfig(orgSlug: string | null) {
     saveConnection,
     removeConnection,
     testInstance,
+    testDraft,
     refresh: () => {
       void templates.mutate();
       void connections.mutate();

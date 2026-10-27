@@ -44,8 +44,8 @@ public interface EngineCaseStore {
     }
 
     /**
-     * Each value null for any. Without {@code from} and {@code to}, only open cases; with them, the cases opened
-     * from {@code from} until before {@code to}, open or closed. {@code assetId} matches part of the vehicle id,
+     * Each value null for any. Without {@code from} and {@code to}, only open cases; with them, the cases active
+     * in the range: opened before {@code to} and still open or closed at or after {@code from}. {@code assetId} matches part of the vehicle id,
      * {@code symptomName} the whole name ignoring case, {@code level} the case's current level.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to) {

@@ -1,5 +1,11 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.service.DemoSeeder;
+import com.microboxlabs.miot.symptoms.service.TreatmentService;
+import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
+import com.microboxlabs.miot.symptoms.store.InMemoryContactStore;
+import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
@@ -88,6 +94,8 @@ class OrgControlTowerMapResourceTest {
         return new OrgControlTowerMapResource(tenant, org, new Roles(), null, map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
                         (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
+                new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
+                        new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
                         Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)));
     }
@@ -102,6 +110,8 @@ class OrgControlTowerMapResourceTest {
     private final List<String> ranges = new ArrayList<>();
 
     private final InMemoryEngineCases engineCases = new InMemoryEngineCases();
+    private final InMemoryTreatmentStore treatments = new InMemoryTreatmentStore();
+    private final InMemoryContactStore contacts = new InMemoryContactStore();
     private final List<String> treatmentClients = new ArrayList<>();
 
     /** Symptom 7 and trip T1 on asset AB12 are client-a's. */

@@ -17,3 +17,14 @@ export {
   createRemoteQueryCatalog,
   type RemoteQueryCatalogOptions,
 } from "./queries/remote-catalog";
+export {
+  BigQueryProblem,
+  createBigQueryRunner,
+  type BigQueryRunnerOptions,
+} from "./queries/bigquery";
+export {
+  createQueryWorkbench,
+  PREVIEW_LIMITS,
+  type QueryWorkbench,
+  type QueryWorkbenchOptions,
+} from "./authoring/workbench";

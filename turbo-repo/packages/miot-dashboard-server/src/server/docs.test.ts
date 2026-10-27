@@ -485,6 +485,17 @@ describe("the spec against the router", () => {
     credentials: "/tenants/{tenantId}/scopes/{scopeId}/credentials",
     credential:
       "/tenants/{tenantId}/scopes/{scopeId}/credentials/{credentialRef}",
+    querySources: "/tenants/{tenantId}/scopes/{scopeId}/query-sources",
+    querySourceSchema:
+      "/tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/schema",
+    queryPlans:
+      "/tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/plans",
+    queryPlan:
+      "/tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/plans/{planId}",
+    queryEstimate:
+      "/tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/estimate",
+    queryPreview:
+      "/tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/preview",
   };
 
   const concrete = (template: string) =>
@@ -494,7 +505,9 @@ describe("the spec against the router", () => {
       .replace("{slug}", EXAMPLE.slug)
       .replace("{dataSourceId}", EXAMPLE.dataSourceId)
       .replace("{credentialRef}", EXAMPLE.credentialRef)
-      .replace("{queryId}", EXAMPLE.queryId);
+      .replace("{queryId}", EXAMPLE.queryId)
+      .replace("{sourceId}", "warehouse")
+      .replace("{planId}", "daily");
 
   const spec = readSpecPaths();
 
@@ -529,6 +542,21 @@ describe("the spec against the router", () => {
       credentials: createMemoryCredentialsStore(),
       queries: { operations: { execute: async () => ({ rows: [] }) } },
       queryCatalog: { list: async () => [] },
+      authoring: {
+        listSources: async () => [],
+        accessFor: async () => null,
+        plans: {
+          list: async () => [],
+          get: async () => null,
+          create: async () => {
+            throw new Error("unused");
+          },
+          update: async () => {
+            throw new Error("unused");
+          },
+          remove: async () => {},
+        },
+      },
       port: 0,
       host: "127.0.0.1",
       log: () => {},

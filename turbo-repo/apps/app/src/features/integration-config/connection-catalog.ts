@@ -67,7 +67,10 @@ export function connectionMark(
   const channel = CHANNEL_TEMPLATES[typeName];
   if (channel) return { icon: channelLogo(channel) };
   if (isBigQueryConnection(connection)) {
-    return { logo: { default: "/credential-logos/bigquery.svg" } };
+    return {
+      logo: { default: "/credential-logos/bigquery.svg" },
+      keyline: "circle",
+    };
   }
   return PROVIDER_MARKS[connection.providerType] ?? { icon: Link };
 }

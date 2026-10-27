@@ -92,6 +92,7 @@ export function TemplatePickerModal({
               <BrandLogo
                 logo={{ default: "/credential-logos/bigquery.svg" }}
                 alt="BigQuery"
+                keyline="circle"
                 size={48}
               />
             }

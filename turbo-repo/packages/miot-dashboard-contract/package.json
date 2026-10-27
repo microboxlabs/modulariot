@@ -38,6 +38,10 @@
       "types": "./dist/errors.d.ts",
       "import": "./dist/errors.js"
     },
+    "./authoring": {
+      "types": "./dist/authoring.d.ts",
+      "import": "./dist/authoring.js"
+    },
     "./openapi.yaml": "./contract/openapi.yaml",
     "./dashboard-config.schema.json": "./contract/dashboard-config.schema.json",
     "./package.json": "./package.json"

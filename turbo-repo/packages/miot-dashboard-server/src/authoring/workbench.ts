@@ -91,7 +91,7 @@ function parseDraft(input: unknown): QueryPlanDraft {
   );
 }
 
-function planOf(draft: QueryPlanDraft): BigQueryPlan {
+export function planOf(draft: QueryPlanDraft): BigQueryPlan {
   return {
     projectId: draft.projectId,
     location: draft.location,

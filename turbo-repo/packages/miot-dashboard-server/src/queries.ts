@@ -28,3 +28,9 @@ export {
   type QueryWorkbench,
   type QueryWorkbenchOptions,
 } from "./authoring/workbench";
+export {
+  BIGQUERY_SCOPE,
+  createLocalQueryAuthoring,
+  createLocalQueryOperations,
+  type LocalQueryAuthoringOptions,
+} from "./authoring/local";

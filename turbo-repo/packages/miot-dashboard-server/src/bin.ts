@@ -30,6 +30,11 @@ import {
   type ServerConfig,
 } from "./server/config";
 import { openDataSources } from "./server/open-datasources";
+import {
+  createLocalQueryAuthoring,
+  createLocalQueryOperations,
+} from "./authoring/local";
+import { createSqlQueryPlanStore } from "./store/sql/query-plans";
 import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
@@ -329,16 +334,40 @@ async function main(): Promise<void> {
   log({ level: "info", msg: "scopes", membership: scopes.describe });
   log({ level: "info", msg: "datasources", state: data.describe });
 
+  // Without an operations module, a server that keeps its own BigQuery
+  // datasources and credentials writes and runs saved queries itself.
+  const local =
+    operations === undefined &&
+    data.dataSources !== undefined &&
+    data.credentials !== undefined &&
+    assembled.driver !== undefined
+      ? createLocalQueryAuthoring({
+          dataSources: data.dataSources,
+          credentials: data.credentials,
+          plans: createSqlQueryPlanStore(assembled.driver),
+        })
+      : undefined;
+  const queryOperations =
+    operations ??
+    (local ? createLocalQueryOperations({ authoring: local }) : undefined);
+  const authoring = operations?.queryAuthoring ?? local;
+  log({
+    level: "info",
+    msg: "query authoring",
+    state: authoring ? (local ? "on, saved here" : "on, from the operations module") : "off",
+  });
+
   const running = await serve({
     policy: createAllowedGroupsPolicy(),
     identity: auth.identity,
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
-    ...(operations ? { queries: { operations } } : {}),
-    ...(operations?.queryCatalog
-      ? { queryCatalog: operations.queryCatalog }
+    ...(queryOperations ? { queries: { operations: queryOperations } } : {}),
+    ...(queryOperations?.queryCatalog
+      ? { queryCatalog: queryOperations.queryCatalog }
       : {}),
+    ...(authoring ? { authoring } : {}),
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,

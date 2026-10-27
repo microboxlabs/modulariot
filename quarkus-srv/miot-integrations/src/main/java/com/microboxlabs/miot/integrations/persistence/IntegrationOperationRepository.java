@@ -7,6 +7,7 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,38 @@ public class IntegrationOperationRepository {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id, connection_id, name, method, path, request_schema, response_schema, test_operation
             """;
+
+    private static final String COLUMNS =
+            "id, connection_id, name, method, path, request_schema, response_schema, test_operation, updated_at";
+
+    private static final String SELECT_VERSIONED_BY_CONNECTION = "SELECT " + COLUMNS + """
+
+            FROM miot_integrations.integration_operations
+            WHERE connection_id = $1 AND active
+            ORDER BY lower(name)
+            """;
+
+    private static final String SELECT_VERSIONED = "SELECT " + COLUMNS + """
+
+            FROM miot_integrations.integration_operations
+            WHERE connection_id = $1 AND id = $2 AND active
+            """;
+
+    private static final String UPDATE_IF_UNCHANGED = """
+            UPDATE miot_integrations.integration_operations
+            SET name = $3, request_schema = $4, updated_at = now()
+            WHERE connection_id = $1 AND id = $2 AND active AND updated_at = $5
+            RETURNING """ + " " + COLUMNS;
+
+    private static final String DEACTIVATE = """
+            UPDATE miot_integrations.integration_operations
+            SET active = false, updated_at = now()
+            WHERE connection_id = $1 AND id = $2 AND active
+            """;
+
+    /** An operation with the time it was last written, which callers use as its revision. */
+    public record Versioned(IntegrationOperation operation, OffsetDateTime updatedAt) {
+    }
 
     private final Instance<Pool> clientInstance;
 
@@ -97,6 +130,67 @@ public class IntegrationOperationRepository {
                 .execute(params)
                 .await().indefinitely()
                 .iterator().next());
+    }
+
+    public List<Versioned> listVersioned(String connectionId) {
+        return client().preparedQuery(SELECT_VERSIONED_BY_CONNECTION)
+                .execute(Tuple.of(UUID.fromString(connectionId)))
+                .await().indefinitely()
+                .stream()
+                .map(row -> new Versioned(mapRow(row), row.getOffsetDateTime("updated_at")))
+                .toList();
+    }
+
+    /** @return the active operation of that connection, or {@code null} */
+    public Versioned findVersioned(String connectionId, String operationId) {
+        UUID id = toUuid(operationId);
+        if (id == null) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_VERSIONED)
+                .execute(Tuple.of(UUID.fromString(connectionId), id))
+                .await().indefinitely().iterator();
+        if (!rows.hasNext()) {
+            return null;
+        }
+        Row row = rows.next();
+        return new Versioned(mapRow(row), row.getOffsetDateTime("updated_at"));
+    }
+
+    /**
+     * Replaces the name and request schema when the row was last written at {@code expected}.
+     *
+     * @return the new version, or {@code null} when the row changed or is gone
+     */
+    public Versioned updateIfUnchanged(String connectionId, String operationId, String name,
+            Map<String, Object> requestSchema, OffsetDateTime expected) {
+        UUID id = toUuid(operationId);
+        if (id == null) {
+            return null;
+        }
+        Tuple params = Tuple.tuple()
+                .addUUID(UUID.fromString(connectionId))
+                .addUUID(id)
+                .addString(name)
+                .addJsonObject(toJson(requestSchema))
+                .addOffsetDateTime(expected);
+        var rows = client().preparedQuery(UPDATE_IF_UNCHANGED).execute(params).await().indefinitely().iterator();
+        if (!rows.hasNext()) {
+            return null;
+        }
+        Row row = rows.next();
+        return new Versioned(mapRow(row), row.getOffsetDateTime("updated_at"));
+    }
+
+    /** Soft delete: the row stays for history and its name can be used again. */
+    public void deactivate(String connectionId, String operationId) {
+        UUID id = toUuid(operationId);
+        if (id == null) {
+            return;
+        }
+        client().preparedQuery(DEACTIVATE)
+                .execute(Tuple.of(UUID.fromString(connectionId), id))
+                .await().indefinitely();
     }
 
     private Pool client() {

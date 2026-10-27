@@ -152,7 +152,7 @@ class PgSlaStoreTest {
     }
 
     @Test
-    void casesAreFoundByTripVehicleNameLevelAndOpeningTime() {
+    void casesAreFoundByTripVehicleNameLevelAndActiveTime() {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);
         Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
@@ -173,8 +173,18 @@ class PgSlaStoreTest {
         assertEquals(t0.plusSeconds(60), cases.list(tenant, new EngineCaseStore.CaseFilter(null, null, null, 3, t0,
                 to)).get(0).closedAt());
         assertTrue(cases.list(tenant, new EngineCaseStore.CaseFilter("T-2", null, null, null, t0, to)).isEmpty());
-        assertTrue(cases.list(tenant, new EngineCaseStore.CaseFilter(null, null, null, null, t0.plusSeconds(121),
-                to)).isEmpty(), "opened before the range");
+        assertEquals(List.of(second), ids(cases.list(tenant,
+                new EngineCaseStore.CaseFilter(null, null, null, null, t0.plusSeconds(121), to))),
+                "the case opened before the range remains active in it");
+        assertEquals(List.of(first), ids(cases.list(tenant,
+                new EngineCaseStore.CaseFilter(null, null, null, 3, t0.plusSeconds(60), to))),
+                "closing exactly at the inclusive start is included");
+        assertTrue(cases.list(tenant, new EngineCaseStore.CaseFilter(null, null, null, null,
+                t0.plusSeconds(61), t0.plusSeconds(120))).isEmpty(),
+                "exclude cases closed before the start or opened at the exclusive end");
+        assertTrue(cases.list("other-" + tenant,
+                new EngineCaseStore.CaseFilter(null, null, null, null, t0, to)).isEmpty(),
+                "history stays within the tenant");
     }
 
     private static List<Long> ids(List<com.microboxlabs.miot.symptoms.cases.EngineCase> found) {

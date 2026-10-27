@@ -6684,6 +6684,7 @@
     "message": "Message",
     "response": "Response",
     "treatment_saved": "Treatment saved successfully",
+    "treatment_save_error": "The treatment could not be finished. Please try again.",
     "creation_date": "Symptom creation date",
     "Check Load Securing Absence": "Check load securing absence",
     "mapSelection": "Map selection",

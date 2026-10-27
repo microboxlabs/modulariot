@@ -22,7 +22,7 @@ import {
 } from "./prototype-api-guard";
 
 const base: TreatmentsRequest = {
-  asset_id: "BCF918",
+  asset_id: "asset-test",
   assigned_to: "operator@example.com",
   client_id: null,
   status: "active",
@@ -58,7 +58,7 @@ describe("treatments on an engine case", () => {
 
     expect(tower.openTreatment).toHaveBeenCalledWith("-16", {
       type: "INVALIDATE_SYMPTOM",
-      assetId: "BCF918",
+      assetId: "asset-test",
       tripId: "trip-1",
     });
     expect(tower.addTreatmentAction).toHaveBeenCalledWith(
@@ -95,14 +95,14 @@ describe("treatments on an engine case", () => {
   it("a call saved to make another one keeps the treatment open until it finishes", async () => {
     await guardedRequestTreatment(base, {
       finish: false,
-      action: { contactName: "Juan", durationSeconds: 30 },
+      action: { contactName: "Test driver", durationSeconds: 30 },
     });
 
     expect(tower.addTreatmentAction).toHaveBeenCalledWith(
       "t-1",
       expect.objectContaining({
         kind: "CALL",
-        contactName: "Juan",
+        contactName: "Test driver",
         durationSeconds: 30,
       })
     );
@@ -117,6 +117,44 @@ describe("treatments on an engine case", () => {
 
     expect(legacy.requestTreatment).not.toHaveBeenCalled();
     expect(tower.openTreatment).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed close without recording the acknowledged action again", async () => {
+    const progress = {};
+    tower.closeTreatment.mockRejectedValueOnce(new Error("case close failed"));
+    tower.openTreatment.mockResolvedValueOnce({ id: "t-1" });
+    tower.openTreatment.mockResolvedValue({ id: "t-2" });
+
+    await expect(
+      guardedRequestTreatment({ ...base }, { progress })
+    ).rejects.toThrow("case close failed");
+    await guardedRequestTreatment({ ...base }, { progress });
+
+    expect(tower.openTreatment).toHaveBeenCalledTimes(1);
+    expect(tower.addTreatmentAction).toHaveBeenCalledTimes(1);
+    expect(tower.closeTreatment.mock.calls).toEqual([
+      ["t-1", {}],
+      ["t-1", {}],
+    ]);
+  });
+
+  it("retries finishing the same treatment if the case close failed after it closed", async () => {
+    const progress = {};
+    tower.closeTreatment.mockRejectedValueOnce(new Error("case close failed"));
+    tower.openTreatment.mockResolvedValueOnce({ id: "t-1" });
+    tower.openTreatment.mockResolvedValue({ id: "t-2" });
+
+    await expect(guardedFinishTreatment(base, progress)).rejects.toThrow(
+      "case close failed"
+    );
+    await guardedFinishTreatment(base, progress);
+
+    expect(tower.openTreatment).toHaveBeenCalledTimes(1);
+    expect(tower.addTreatmentAction).not.toHaveBeenCalled();
+    expect(tower.closeTreatment.mock.calls).toEqual([
+      ["t-1", {}],
+      ["t-1", {}],
+    ]);
   });
 });
 

@@ -3,11 +3,12 @@
 import { Button, ButtonGroup, Textarea, TextInput } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-modal/branded-multi-select";
 import {
   guardedFinishTreatment,
   guardedRequestTreatment,
+  type EngineTreatmentProgress,
 } from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
@@ -270,6 +271,9 @@ export default function PrototypeCallDriver({
   // True once this call's request has gone out and nothing has been edited
   // since — a plain revisit (switch away and back) then can't re-send it.
   const [saved, setSaved] = useState(initialDraft?.saved ?? false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitting = useRef(false);
+  const engineProgress = useRef<EngineTreatmentProgress>({});
   const markEdited = () => setSaved(false);
 
   // Convention: the first "who to call" option is the driver.
@@ -327,9 +331,11 @@ export default function PrototypeCallDriver({
       },
       {
         finish,
+        progress: engineProgress.current,
         action: {
-          contactName: targetLabel || "Conductor",
-          contactPhone: targetPhone || undefined,
+          contactName: initialCallTargetName || targetLabel || "Conductor",
+          contactPhone: initialCallTargetPhone || telefonoLlamada || undefined,
+          contactRole: initialCallTargetRole || undefined,
           outcomeLabel: resultadoLabel || undefined,
           durationSeconds: callDurationSeconds ?? undefined,
           note: notaLlamada.trim() || undefined,
@@ -340,42 +346,60 @@ export default function PrototypeCallDriver({
   const skipSave = saved;
 
   const handleSave = async () => {
-    if (skipSave) {
-      await guardedFinishTreatment(treatmentRequest);
-    } else {
-      const response = await saveTreatment(true);
-      setTreatmentRequest({
-        ...treatmentRequest,
-        treatment_id: response.treatment_id,
-      });
-      ShowNotification({ type: "success", message: t("treatment_saved") });
+    if (submitting.current) return;
+    submitting.current = true;
+    setIsSubmitting(true);
+    try {
+      if (skipSave) {
+        await guardedFinishTreatment(treatmentRequest, engineProgress.current);
+      } else {
+        const response = await saveTreatment(true);
+        setTreatmentRequest({
+          ...treatmentRequest,
+          treatment_id: response.treatment_id,
+        });
+        ShowNotification({ type: "success", message: t("treatment_saved") });
+      }
+      setIsMenuOpen(false);
+      router.push("/symptoms");
+    } catch {
+      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
-
-    setIsMenuOpen(false);
-    router.push("/symptoms");
   };
 
   const handleSaveAndCallAgain = async () => {
-    if (!skipSave) {
-      const response = await saveTreatment(false);
-      setTreatmentRequest({
-        ...treatmentRequest,
-        treatment_id: response.treatment_id,
-      });
-      ShowNotification({ type: "success", message: t("treatment_saved") });
-      // Reported explicitly: this component unmounts right after, before an
-      // effect could carry `saved: true` upward.
-      onDraftChange?.({
-        selectedTagIds,
-        callTargetId,
-        targetPhone,
-        resultadoId,
-        notaLlamada,
-        saved: true,
-      });
+    if (submitting.current) return;
+    submitting.current = true;
+    setIsSubmitting(true);
+    try {
+      if (!skipSave) {
+        const response = await saveTreatment(false);
+        setTreatmentRequest({
+          ...treatmentRequest,
+          treatment_id: response.treatment_id,
+        });
+        ShowNotification({ type: "success", message: t("treatment_saved") });
+        // Reported explicitly: this component unmounts right after, before an
+        // effect could carry `saved: true` upward.
+        onDraftChange?.({
+          selectedTagIds,
+          callTargetId,
+          targetPhone,
+          resultadoId,
+          notaLlamada,
+          saved: true,
+        });
+      }
+      onMakeAnotherCall?.();
+    } catch {
+      ShowNotification({ type: "error", message: t("treatment_save_error") });
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
-
-    onMakeAnotherCall?.();
   };
 
   /* ---------- shared field fragments ---------- */
@@ -551,12 +575,14 @@ export default function PrototypeCallDriver({
           onSaveAndCallAgain={handleSaveAndCallAgain}
           onSwitchOption={onSwitchTreatment}
           disableSwitchOptions={sinRespuesta}
-          disabled={noteEmpty}
+          disabled={
+            noteEmpty || isSubmitting || !!engineProgress.current.pendingClose
+          }
         />
       ) : (
         <Button
           color="light"
-          disabled={noteEmpty}
+          disabled={noteEmpty || isSubmitting}
           className="h-10 flex-1 rounded-r-none whitespace-nowrap"
           onClick={() => sendTeamsCall(telefonoLlamada)}
         >
@@ -567,7 +593,7 @@ export default function PrototypeCallDriver({
       )}
       <Button
         color={sinRespuesta ? "light" : "blue"}
-        disabled={sinRespuesta || noteEmpty}
+        disabled={sinRespuesta || noteEmpty || isSubmitting}
         className="h-10 flex-1 rounded-l-none whitespace-nowrap transition-colors duration-300"
         onClick={handleSave}
       >

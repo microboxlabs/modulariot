@@ -65,6 +65,16 @@ export interface EngineTreatmentOptions {
   action?: Partial<AddActionBody>;
   /** False records the action and leaves the treatment open. */
   finish?: boolean;
+  /** Per-form progress lets a failed close retry the acknowledged action's episode. */
+  progress?: EngineTreatmentProgress;
+}
+
+export interface EngineTreatmentProgress {
+  pendingClose?: {
+    symptomId: TreatmentsRequest["symptom_id"];
+    treatmentId: string;
+    resolution?: string;
+  };
 }
 
 /** The call forms leave `treatment_type` empty: their saves are calls. */
@@ -103,16 +113,44 @@ function engineAction(
  */
 async function saveEngineTreatment(
   payload: TreatmentsRequest,
-  { action, finish = true }: EngineTreatmentOptions
+  { action, finish = true, progress }: EngineTreatmentOptions
 ): Promise<TreatmentsRequest> {
+  if (progress?.pendingClose?.symptomId === payload.symptom_id) {
+    await finishEngineTreatment(payload, progress);
+    return payload;
+  }
   const treatment = await openEngineTreatment(payload);
   await addTreatmentAction(treatment.id, engineAction(payload, action));
   if (finish) {
-    await closeTreatment(treatment.id, {
-      resolution: payload.description ?? undefined,
-    });
+    await finishEngineTreatment(
+      payload,
+      progress,
+      treatment.id,
+      payload.description ?? undefined
+    );
   }
   return payload;
+}
+
+async function finishEngineTreatment(
+  payload: TreatmentsRequest,
+  progress?: EngineTreatmentProgress,
+  treatmentId?: string,
+  resolution?: string
+): Promise<void> {
+  let pending = progress?.pendingClose;
+  if (pending?.symptomId !== payload.symptom_id) pending = undefined;
+  pending ??= {
+    symptomId: payload.symptom_id,
+    treatmentId: treatmentId ?? (await openEngineTreatment(payload)).id,
+    resolution,
+  };
+  if (progress) progress.pendingClose = pending;
+  await closeTreatment(
+    pending.treatmentId,
+    pending.resolution === undefined ? {} : { resolution: pending.resolution }
+  );
+  if (progress) progress.pendingClose = undefined;
 }
 
 /**
@@ -135,11 +173,11 @@ export async function guardedRequestTreatment(
  * already saved. Other cases have nothing to close.
  */
 export async function guardedFinishTreatment(
-  payload: TreatmentsRequest
+  payload: TreatmentsRequest,
+  progress?: EngineTreatmentProgress
 ): Promise<void> {
   if (isPrototypeApiDisabled() || !isEngineCase(payload)) return;
-  const treatment = await openEngineTreatment(payload);
-  await closeTreatment(treatment.id, {});
+  await finishEngineTreatment(payload, progress);
 }
 
 /**
@@ -179,18 +217,23 @@ export async function guardedInvalidateSymptom({
   setTreatmentRequest,
   treatmentData,
   reason,
+  progress,
 }: {
   treatmentRequest: TreatmentsRequest;
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   treatmentData: TreatmentsGeneralResponseItem | null;
   reason: string;
+  progress?: EngineTreatmentProgress;
 }): Promise<void> {
-  const treatmentResult = await guardedRequestTreatment({
-    ...treatmentRequest,
-    status: "active",
-    treatment_type: "invalidar sintoma",
-    description: reason,
-  });
+  const treatmentResult = await guardedRequestTreatment(
+    {
+      ...treatmentRequest,
+      status: "active",
+      treatment_type: "invalidar sintoma",
+      description: reason,
+    },
+    { progress }
+  );
 
   setTreatmentRequest({
     ...treatmentRequest,

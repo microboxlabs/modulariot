@@ -8,7 +8,8 @@ This guide is for administrators. It lets dashboards run saved BigQuery SQL. Vie
 
 - A Google service account with permission to run jobs and read the datasets the SQL uses. Nothing more.
 - A BigQuery connection whose base URL is `https://bigquery.googleapis.com`, with that service account as its credential.
-- The credential's OAuth scope set to `https://www.googleapis.com/auth/bigquery`. The scope does not grant extra permissions; IAM still decides.
+- The credential's OAuth scope left blank, which means `https://www.googleapis.com/auth/bigquery`. Queries run as BigQuery jobs, and `bigquery.readonly` cannot create them. The scope does not grant extra permissions; IAM still decides.
+- In ModularIoT, **Load JSON file** in the credential form fills in the project, email and private key from the key file.
 
 ## Define the operation
 

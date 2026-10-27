@@ -8,7 +8,8 @@ Esta guía es para administradores. Permite que los dashboards ejecuten SQL guar
 
 - Una cuenta de servicio de Google con permiso para ejecutar trabajos y leer los datasets que usa el SQL. Nada más.
 - Una conexión de BigQuery cuya URL base es `https://bigquery.googleapis.com`, con esa cuenta de servicio como credencial.
-- El ámbito OAuth de la credencial definido como `https://www.googleapis.com/auth/bigquery`. El ámbito no otorga permisos adicionales; IAM sigue decidiendo.
+- El ámbito OAuth de la credencial en blanco, que equivale a `https://www.googleapis.com/auth/bigquery`. Las consultas se ejecutan como trabajos de BigQuery, y `bigquery.readonly` no puede crearlos. El ámbito no otorga permisos adicionales; IAM sigue decidiendo.
+- En ModularIoT, **Cargar archivo JSON** en el formulario de la credencial completa el proyecto, el correo y la clave privada desde el archivo de clave.
 
 ## Definir la operación
 

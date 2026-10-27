@@ -11,6 +11,7 @@ const ENV_KEYS = [
   "SYMPTOMS_PROTOTYPE_DISABLE_API",
   "SYMPTOMS_PAST_FORMS",
   "BOARD_MODULE",
+  "DASHBOARD_MODULE",
 ] as const;
 
 describe("runtime config route", () => {
@@ -30,6 +31,7 @@ describe("runtime config route", () => {
     process.env[ENV_KEYS[6]] = "true";
     process.env[ENV_KEYS[7]] = "true";
     process.env[ENV_KEYS[8]] = "trips";
+    process.env[ENV_KEYS[9]] = "server";
 
     const response = GET();
     const data = await response.json();
@@ -44,6 +46,7 @@ describe("runtime config route", () => {
       SYMPTOMS_PROTOTYPE_DISABLE_API: "true",
       SYMPTOMS_PAST_FORMS: "true",
       BOARD_MODULE: "trips",
+      DASHBOARD_MODULE: "server",
     });
   });
 

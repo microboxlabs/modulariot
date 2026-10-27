@@ -21,6 +21,7 @@ import {
   PLATFORM_SCOPE_SETTINGS,
 } from "@/features/common/platform-scope";
 import { boardEnabled, KANBAN_SECTIONS } from "./board-module";
+import { dashboardModuleEnabled } from "./dashboard-module";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
@@ -56,6 +57,9 @@ export const STORYTELLING_PAGE_LABEL = "storytelling";
 /** The server-backed dashboard workspace, hidden unless ENABLE_DASHBOARD_SERVER is "true". */
 export const DASHBOARD_SERVER_PAGE_LABEL = "dashboardServer";
 
+/** Home, the dashboards stored in the app, hidden when DASHBOARD_MODULE is "server". */
+export const LEGACY_DASHBOARDS_PAGE_LABEL = "home";
+
 // cpd-off — sidebar configuration data, structural repetition is intentional
 /**
  * Every registered page, Dev included. Anything that *renders* navigation
@@ -89,7 +93,8 @@ export function visiblePages(
   devToolsEnabled: boolean,
   storytellingEnabled: boolean,
   dashboardServerEnabled: boolean,
-  boardModule: string | null = ""
+  boardModule: string | null = "",
+  dashboardModule: string | null = ""
 ): SidebarItem[] {
   return pages.filter((p) => {
     if (KANBAN_SECTIONS.has(p.label)) {
@@ -100,7 +105,19 @@ export function visiblePages(
     }
     if (p.label === DEV_PAGE_LABEL) return devToolsEnabled;
     if (p.label === STORYTELLING_PAGE_LABEL) return storytellingEnabled;
-    if (p.label === DASHBOARD_SERVER_PAGE_LABEL) return dashboardServerEnabled;
+    if (p.label === DASHBOARD_SERVER_PAGE_LABEL) {
+      return (
+        dashboardServerEnabled &&
+        dashboardModule !== null &&
+        dashboardModuleEnabled("server", dashboardModule)
+      );
+    }
+    if (p.label === LEGACY_DASHBOARDS_PAGE_LABEL) {
+      return (
+        dashboardModule !== null &&
+        dashboardModuleEnabled("legacy", dashboardModule)
+      );
+    }
     return true;
   });
 }

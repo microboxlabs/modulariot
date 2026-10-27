@@ -26,6 +26,17 @@ describe("visiblePages", () => {
     expect(boards(null)).toEqual([]);
   });
 
+  it("shows only the dashboards DASHBOARD_MODULE names, and neither before the config loads", () => {
+    const dashboards = (module: string | null) =>
+      visiblePages(false, false, true, "", module)
+        .map((p) => p.label)
+        .filter((l) => l === "home" || l === DASHBOARD_SERVER_PAGE_LABEL);
+    expect(dashboards("")).toEqual([DASHBOARD_SERVER_PAGE_LABEL, "home"]);
+    expect(dashboards("server")).toEqual([DASHBOARD_SERVER_PAGE_LABEL]);
+    expect(dashboards("legacy")).toEqual(["home"]);
+    expect(dashboards(null)).toEqual([]);
+  });
+
   it("shows My tasks, Where is my load and Collaborators only with the kanban model", () => {
     const legacy = (module: string | null) =>
       visiblePages(false, false, false, module)

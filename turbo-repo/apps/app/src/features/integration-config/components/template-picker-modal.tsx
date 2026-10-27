@@ -80,7 +80,7 @@ export function TemplatePickerModal({
               <BrandLogo
                 logo={{ default: "/credential-logos/postgrest.svg" }}
                 alt="PostgREST"
-                size={32}
+                size={48}
               />
             }
             onSelect={() => onSelectNative("POSTGREST")}
@@ -92,7 +92,7 @@ export function TemplatePickerModal({
               <BrandLogo
                 logo={{ default: "/credential-logos/bigquery.svg" }}
                 alt="BigQuery"
-                size={32}
+                size={48}
               />
             }
             onSelect={() => onSelectNative("BIGQUERY")}
@@ -180,9 +180,9 @@ function NativeOption({
     <button
       type="button"
       onClick={onSelect}
-      className="flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-gray-700"
+      className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-gray-700"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center">
         {icon}
       </span>
       <div className="min-w-0 flex-1">

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IntegrationConnection } from "../integration-config.types";
@@ -69,7 +75,10 @@ beforeEach(() => {
   );
   vi.stubGlobal("fetch", fetcher);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 function show() {
   render(
@@ -141,5 +150,53 @@ describe("BigQueryQueriesModal", () => {
     expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
       false
     );
+  });
+
+  it("edits parameters independently when added in the same clock tick", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Add query" }));
+    vi.spyOn(Date, "now").mockReturnValue(42);
+    const add = screen.getByRole("button", { name: "Add parameter" });
+    fireEvent.click(add);
+    fireEvent.click(add);
+    const names = screen.getAllByLabelText("Parameter name");
+    fireEvent.change(names[0]!, { target: { value: "first" } });
+    fireEvent.change(names[1]!, { target: { value: "second" } });
+    expect(names[0]).toHaveValue("first");
+    expect(names[1]).toHaveValue("second");
+  });
+
+  it("protects the draft against edits while its save is pending", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: "Add query" }));
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Demo query" },
+    });
+    fireEvent.change(screen.getByLabelText("SQL"), {
+      target: { value: "SELECT 1" },
+    });
+    let resolve!: (response: Response) => void;
+    fetcher.mockReturnValueOnce(
+      new Promise<Response>((done) => {
+        resolve = done;
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save query" }));
+    await waitFor(() =>
+      expect(
+        fetcher.mock.calls.some(([, init]) => init?.method === "POST")
+      ).toBe(true)
+    );
+    expect(screen.getByLabelText("Name")).toBeDisabled();
+    expect(screen.getByLabelText("SQL")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Add parameter" })
+    ).toBeDisabled();
+    await act(async () =>
+      resolve(Response.json({ id: "demo-query" }, { status: 201 }))
+    );
+    expect(
+      await screen.findByRole("button", { name: "Add query" })
+    ).toBeEnabled();
   });
 });

@@ -103,6 +103,10 @@ export function ConnectionFormModal({
     null
   );
   const [testing, setTesting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const session = useRef(0);
+  const working = useRef(false);
+  const busy = saving || testing || submitting;
   /** The request of the last draft test that passed, to repeat it once the connection exists. */
   const passedDraft = useRef<string | null>(null);
 
@@ -120,6 +124,10 @@ export function ConnectionFormModal({
 
   // Initialize when the modal opens so a reopened form never shows stale input.
   useEffect(() => {
+    session.current += 1;
+    working.current = false;
+    setTesting(false);
+    setSubmitting(false);
     if (!show) return;
     setError(null);
     setTestResult(null);
@@ -133,7 +141,10 @@ export function ConnectionFormModal({
           }
         : { ...DEFAULTS, baseUrl: isBigQuery ? BIGQUERY_BASE_URL : "" }
     );
-  }, [show, connection, reset, isBigQuery]);
+    return () => {
+      session.current += 1;
+    };
+  }, [show, connection, template, providerType, reset, isBigQuery]);
 
   /** What creating with these values sends; null when editing. */
   function createRequest(
@@ -167,8 +178,17 @@ export function ConnectionFormModal({
   }
 
   async function submit(data: ConnectionFormData) {
+    if (saving || working.current) return;
     setError(null);
     if (missingCredential(data)) return;
+    working.current = true;
+    setSubmitting(true);
+    const current = session.current;
+    const request = createRequest(data);
+    const repeatTest =
+      !isPostgrest &&
+      request !== null &&
+      passedDraft.current === JSON.stringify(request);
     try {
       if (connection) {
         await onSave(null, connection.id, {
@@ -176,60 +196,76 @@ export function ConnectionFormModal({
           baseUrl: data.baseUrl.trim(),
           credentialProfileId: data.credentialProfileId || null,
         });
-      } else {
-        const request = createRequest(data);
-        if (!request) return;
+        if (current === session.current) onClose();
+      } else if (request) {
         const created = (await onSave(request)) as
           | IntegrationConnection
           | undefined;
-        // The draft test stored nothing; repeat it so the new connection shows the result.
-        if (
-          onTest &&
-          created?.id &&
-          passedDraft.current === JSON.stringify(request)
-        ) {
+        if (current === session.current) onClose();
+        // Record the saved connection's result after closing the original form.
+        if (onTest && created?.id && repeatTest) {
           await onTest(created.id).catch(() => undefined);
         }
       }
-      onClose();
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause
-          : new Error(tr("common.saveFailed", dict))
-      );
+      if (current === session.current) {
+        setError(
+          cause instanceof Error
+            ? cause
+            : new Error(tr("common.saveFailed", dict))
+        );
+      }
+    } finally {
+      if (current === session.current) {
+        working.current = false;
+        setSubmitting(false);
+      }
     }
-  }
-
-  async function runTest(): Promise<ConnectionTestResult | null> {
-    if (connection) return onTest ? onTest(connection.id) : null;
-    if (!onTestDraft) return null;
-    if (!(await trigger())) return null;
-    const data = getValues();
-    if (missingCredential(data)) return null;
-    const request = createRequest(data);
-    if (!request) return null;
-    const result = await onTestDraft(request);
-    passedDraft.current = result.success ? JSON.stringify(request) : null;
-    return result;
   }
 
   const canTest = connection ? onTest !== undefined : onTestDraft !== undefined;
 
   async function handleTest() {
+    if (saving || working.current) return;
+    working.current = true;
+    const current = session.current;
     setError(null);
+    setTestResult(null);
     setTesting(true);
     try {
-      setTestResult(await runTest());
+      let result: ConnectionTestResult | null = null;
+      let request: CreateConnectionRequest | null = null;
+      if (connection && onTest) result = await onTest(connection.id);
+      else if (onTestDraft && (await trigger())) {
+        if (current !== session.current) return;
+        const data = getValues();
+        if (missingCredential(data)) return;
+        request = createRequest(data);
+        if (request) result = await onTestDraft(request);
+      }
+      if (current !== session.current) return;
+      passedDraft.current =
+        result?.success && request ? JSON.stringify(request) : null;
+      setTestResult(result);
     } catch (cause) {
-      setTestResult({
-        success: false,
-        testedAt: new Date().toISOString(),
-        message: cause instanceof Error ? cause.message : null,
-      });
+      if (current === session.current) {
+        passedDraft.current = null;
+        setTestResult({
+          success: false,
+          testedAt: new Date().toISOString(),
+          message: cause instanceof Error ? cause.message : null,
+        });
+      }
     } finally {
-      setTesting(false);
+      if (current === session.current) {
+        working.current = false;
+        setTesting(false);
+      }
     }
+  }
+
+  function close() {
+    if (!busy) onClose();
   }
 
   return (
@@ -244,89 +280,98 @@ export function ConnectionFormModal({
       subtitle={formSubtitle(nativeKind, dict)}
       glyph={<HiOutlineLink className="h-5 w-5" />}
       logo={nativeKind ? NATIVE_LOGOS[nativeKind] : undefined}
-      onClose={onClose}
+      onClose={close}
       onDelete={onDelete}
       onSubmit={handleSubmit(submit)}
       error={error}
-      saving={saving}
+      saving={saving || submitting}
+      busy={busy}
       dict={dict}
     >
-      {template && <ContractPanel template={template} dict={dict} />}
+      <fieldset disabled={busy} className="flex flex-col gap-4">
+        <legend className="sr-only">
+          {tr("connection.form.createTitle", dict)}
+        </legend>
+        {template && <ContractPanel template={template} dict={dict} />}
 
-      <SettingsFormField
-        id="connection-name"
-        label={tr("connection.form.name", dict)}
-        error={trDynamic(errors.name?.message ?? "", dict)}
-      >
-        <TextInput
+        <SettingsFormField
           id="connection-name"
-          placeholder={tr("connection.form.namePlaceholder", dict)}
-          {...register("name")}
-          color={errors.name ? "failure" : undefined}
-        />
-      </SettingsFormField>
+          label={tr("connection.form.name", dict)}
+          error={trDynamic(errors.name?.message ?? "", dict)}
+        >
+          <TextInput
+            id="connection-name"
+            placeholder={tr("connection.form.namePlaceholder", dict)}
+            {...register("name")}
+            color={errors.name ? "failure" : undefined}
+          />
+        </SettingsFormField>
 
-      <SettingsFormField
-        id="connection-base-url"
-        label={tr("connection.form.baseUrl", dict)}
-        error={trDynamic(errors.baseUrl?.message ?? "", dict)}
-      >
-        <TextInput
+        <SettingsFormField
           id="connection-base-url"
-          type="url"
-          className="font-mono [&_input]:text-sm"
-          placeholder="https://api.partner.example.com"
-          readOnly={isBigQuery}
-          {...register("baseUrl")}
-          color={errors.baseUrl ? "failure" : undefined}
-        />
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {baseUrlHelp(isPostgrest, isBigQuery, dict)}
-        </p>
-      </SettingsFormField>
-
-      <SettingsFormField
-        id="connection-credential"
-        label={tr("connection.form.credential", dict)}
-      >
-        <Select id="connection-credential" {...register("credentialProfileId")}>
-          <option value="">{tr("connection.form.noCredential", dict)}</option>
-          {choices.map((credential) => (
-            <option key={credential.id} value={credential.id}>
-              {credential.name} · {credential.environment}
-            </option>
-          ))}
-        </Select>
-        {choices.length === 0 && (
+          label={tr("connection.form.baseUrl", dict)}
+          error={trDynamic(errors.baseUrl?.message ?? "", dict)}
+        >
+          <TextInput
+            id="connection-base-url"
+            type="url"
+            className="font-mono [&_input]:text-sm"
+            placeholder="https://api.partner.example.com"
+            readOnly={isBigQuery}
+            {...register("baseUrl")}
+            color={errors.baseUrl ? "failure" : undefined}
+          />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {isBigQuery
-              ? tr("bigquery.noCredentials", dict)
-              : tr("connection.form.noCredentials", dict)}
+            {baseUrlHelp(isPostgrest, isBigQuery, dict)}
           </p>
-        )}
-      </SettingsFormField>
+        </SettingsFormField>
 
-      {/* Creating tests the form values without storing anything; editing tests the
-          saved connection and records the result on it. */}
-      {canTest && (
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            color="light"
-            disabled={testing || saving}
-            onClick={handleTest}
+        <SettingsFormField
+          id="connection-credential"
+          label={tr("connection.form.credential", dict)}
+        >
+          <Select
+            id="connection-credential"
+            {...register("credentialProfileId")}
           >
-            {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
-          </Button>
-          {testResult && <TestResultLine result={testResult} dict={dict} />}
-        </div>
-      )}
+            <option value="">{tr("connection.form.noCredential", dict)}</option>
+            {choices.map((credential) => (
+              <option key={credential.id} value={credential.id}>
+                {credential.name} · {credential.environment}
+              </option>
+            ))}
+          </Select>
+          {choices.length === 0 && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {isBigQuery
+                ? tr("bigquery.noCredentials", dict)
+                : tr("connection.form.noCredentials", dict)}
+            </p>
+          )}
+        </SettingsFormField>
 
-      <Alert color="gray" icon={HiLockClosed}>
-        <span className="text-xs">
-          {tr("connection.form.secretNotice", dict)}
-        </span>
-      </Alert>
+        {/* Creating tests the form values without storing anything; editing tests the
+          saved connection and records the result on it. */}
+        {canTest && (
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              color="light"
+              disabled={testing || saving}
+              onClick={handleTest}
+            >
+              {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
+            </Button>
+            {testResult && <TestResultLine result={testResult} dict={dict} />}
+          </div>
+        )}
+
+        <Alert color="gray" icon={HiLockClosed}>
+          <span className="text-xs">
+            {tr("connection.form.secretNotice", dict)}
+          </span>
+        </Alert>
+      </fieldset>
     </IntegrationFormModal>
   );
 }

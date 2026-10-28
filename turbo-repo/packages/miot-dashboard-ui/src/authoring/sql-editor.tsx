@@ -1,6 +1,7 @@
 "use client";
 import {
   forwardRef,
+  startTransition,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -131,6 +132,7 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
     const [initial] = useState(value);
     const latest = useRef({ onChange, onRun });
     latest.current = { onChange, onRun };
+    const emitted = useRef(new Set<string>());
 
     useImperativeHandle(ref, () => ({
       insert(text) {
@@ -174,8 +176,13 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
               ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
             }),
             EditorView.updateListener.of((update) => {
-              if (update.docChanged)
-                latest.current.onChange(update.state.doc.toString());
+              if (!update.docChanged) return;
+              const text = update.state.doc.toString();
+              emitted.current.add(text);
+              // Keystrokes reach here from CodeMirror's own DOM handlers, so
+              // React would treat each one as an urgent update; typing fast
+              // then exceeds its limit of nested updates.
+              startTransition(() => latest.current.onChange(text));
             }),
           ],
         }),
@@ -188,9 +195,19 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
       // Built once; later values are written in by the effects below.
     }, []);
 
+    // Only a value set from outside replaces the text. A value this editor
+    // emitted arrives late while the author types, and writing it back would
+    // undo their last keystrokes and emit again.
     useEffect(() => {
       const editor = view.current;
-      if (!editor || editor.state.doc.toString() === value) return;
+      if (!editor) return;
+      const current = editor.state.doc.toString();
+      if (current === value) {
+        emitted.current.clear();
+        return;
+      }
+      if (emitted.current.has(value)) return;
+      emitted.current.clear();
       editor.dispatch({
         changes: { from: 0, to: editor.state.doc.length, insert: value },
       });
@@ -208,9 +225,11 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
       });
     }, [schema]);
 
+    // Only when the line changes: a dispatch first reads pending keystrokes, so
+    // dispatching on every text change would emit them from inside this effect.
     useEffect(() => {
       view.current?.dispatch({ effects: setProblemLine.of(line) });
-    }, [line, value]);
+    }, [line]);
 
     return <div ref={host} className="miot-sql-editor" />;
   },

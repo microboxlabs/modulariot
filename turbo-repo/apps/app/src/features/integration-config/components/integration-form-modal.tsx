@@ -26,6 +26,7 @@ interface IntegrationFormModalProps {
   readonly onSubmit: () => void;
   readonly error: Error | null;
   readonly saving: boolean;
+  readonly busy?: boolean;
   readonly dict: I18nRecord;
   readonly children: React.ReactNode;
 }
@@ -49,6 +50,7 @@ export function IntegrationFormModal({
   onSubmit,
   error,
   saving,
+  busy = false,
   dict,
   children,
 }: Readonly<IntegrationFormModalProps>) {
@@ -80,6 +82,7 @@ export function IntegrationFormModal({
           <button
             type="button"
             onClick={onDelete}
+            disabled={saving || busy}
             aria-label={tr("common.delete", dict)}
             title={tr("common.delete", dict)}
             className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
@@ -89,7 +92,7 @@ export function IntegrationFormModal({
         ) : null
       }
       submitLabel={submitLabel}
-      isProcessing={saving}
+      isProcessing={saving || busy}
       error={error}
       onSubmit={onSubmit}
       showCancelButton

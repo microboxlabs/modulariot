@@ -321,3 +321,33 @@ describe("isolated document editing", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 });
+
+describe("save/reload commit boundaries", () => {
+  it("retains an edit queued after the save response but before publishing its result", async () => {
+    const { session, client } = setup();
+    await session.load();
+    session.onChange({ ...empty, name: "Submitted" });
+    let finish!: (value: Awaited<ReturnType<typeof client.save>>) => void;
+    client.save.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const saving = session.save();
+    finish({ etag: '"8"', revision: 8, updatedAt: "now" });
+    queueMicrotask(() => session.onChange({ ...empty, name: "Newer edit" }));
+    expect(await saving).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      config: { name: "Newer edit" },
+      dirty: true,
+      etag: '"8"',
+    });
+    expect(await session.save()).toBe(true);
+    expect(client.save.mock.calls[1]?.slice(1, 3)).toEqual([
+      { ...empty, name: "Newer edit" },
+      '"8"',
+    ]);
+    expect(session.getSnapshot().dirty).toBe(false);
+  });
+});

@@ -72,6 +72,11 @@ public class IntegrationConnectionResolver {
         return withCredential(tenantCode, connection, "connection " + connectionId);
     }
 
+    /** Resolves a connection already in hand, such as one being tested before it is saved. */
+    public ResolvedConnection resolve(String tenantCode, IntegrationConnection connection) {
+        return withCredential(tenantCode, connection, "connection");
+    }
+
     /** Resolves one ACTIVE tenant-owned snapshot for dashboard execution. */
     public ResolvedConnection resolveActive(String tenantCode, String connectionId) {
         IntegrationConnection connection = connectionRepository.findByTenantAndId(tenantCode, connectionId);

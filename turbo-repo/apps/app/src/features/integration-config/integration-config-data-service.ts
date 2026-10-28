@@ -149,6 +149,18 @@ export function testConnection(
   );
 }
 
+/** Tests a connection before it is saved; nothing is stored. */
+export function testConnectionDraft(
+  orgSlug: string,
+  body: CreateConnectionRequest
+): Promise<ConnectionTestResult> {
+  return sendJson<ConnectionTestResult>(
+    "POST",
+    `${base(orgSlug)}/connections/test`,
+    body
+  );
+}
+
 export function deleteConnection(orgSlug: string, id: string): Promise<void> {
   return sendJson<void>(
     "DELETE",

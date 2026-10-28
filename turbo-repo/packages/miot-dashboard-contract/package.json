@@ -69,6 +69,7 @@
     "@repo/typescript-config": "*",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.0.0",
+    "ajv": "^8.20.0",
     "tsup": "^8.0.0",
     "tsx": "^4.22.0",
     "typescript": "5.8.2",

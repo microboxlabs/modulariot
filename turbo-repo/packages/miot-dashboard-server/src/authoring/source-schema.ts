@@ -135,34 +135,45 @@ export async function readSourceSchema(
     const rows = answer.data.rows ?? [];
     if (rows.length > MAX_FIELD_PATHS || answer.data.pageToken)
       truncated = true;
-    const tables = new Map<string, SourceTable>();
-    for (const { f } of rows.slice(0, MAX_FIELD_PATHS)) {
-      const [datasetName, tableName, tableType, path, dataType] = f.map(
-        (cell) => cell.v ?? "",
-      ) as [string, string, string, string, string];
-      const dataset = datasets.get(datasetName);
-      if (!dataset) continue;
-      const key = `${datasetName}.${tableName}`;
-      let table = tables.get(key);
-      if (!table) {
-        table = {
-          name: tableName,
-          type: TABLE_TYPES[tableType] ?? "TABLE",
-          columns: [],
-        };
-        tables.set(key, table);
-        dataset.tables.push(table);
-      }
-      const parts = path.split(".");
-      let siblings = table.columns;
-      for (const part of parts.slice(0, -1)) {
-        const parent = siblings.find((candidate) => candidate.name === part);
-        if (!parent) break;
-        parent.fields ??= [];
-        siblings = parent.fields;
-      }
-      siblings.push(columnOf(parts.at(-1) ?? path, dataType));
-    }
+    appendRows(datasets, rows.slice(0, MAX_FIELD_PATHS));
   }
   return { projectId, datasets: [...datasets.values()], truncated };
+}
+
+function appendField(table: SourceTable, path: string, dataType: string) {
+  const parts = path.split(".");
+  let siblings = table.columns;
+  for (const part of parts.slice(0, -1)) {
+    const parent = siblings.find((candidate) => candidate.name === part);
+    if (!parent) break;
+    parent.fields ??= [];
+    siblings = parent.fields;
+  }
+  siblings.push(columnOf(parts.at(-1) ?? path, dataType));
+}
+
+function appendRows(
+  datasets: Map<string, SourceDataset>,
+  rows: NonNullable<z.infer<typeof rowsSchema>["rows"]>,
+) {
+  const tables = new Map<string, SourceTable>();
+  for (const { f } of rows) {
+    const [datasetName, tableName, tableType, path, dataType] = f.map(
+      (cell) => cell.v ?? "",
+    ) as [string, string, string, string, string];
+    const dataset = datasets.get(datasetName);
+    if (!dataset) continue;
+    const key = `${datasetName}.${tableName}`;
+    let table = tables.get(key);
+    if (!table) {
+      table = {
+        name: tableName,
+        type: TABLE_TYPES[tableType] ?? "TABLE",
+        columns: [],
+      };
+      tables.set(key, table);
+      dataset.tables.push(table);
+    }
+    appendField(table, path, dataType);
+  }
 }

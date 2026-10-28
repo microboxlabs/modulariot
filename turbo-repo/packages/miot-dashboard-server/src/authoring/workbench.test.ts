@@ -349,3 +349,96 @@ describe("schema", () => {
     });
   });
 });
+
+describe("schema cache caller isolation", () => {
+  it.each(["user", "scope"])(
+    "does not reuse another %s's metadata for the same source",
+    async (boundary) => {
+      const host = authoring();
+      host.value.accessFor = vi.fn(async (input) => ({
+        accessToken: `${input.identity.userId}-${input.scopeId}`,
+      }));
+      const fetchImpl = vi.fn<typeof fetch>(async () =>
+        Response.json({ datasets: [] }),
+      );
+      const workbench = createQueryWorkbench({
+        authoring: host.value,
+        fetchImpl,
+      });
+      const first = request();
+      const second =
+        boundary === "user"
+          ? { ...first, identity: { ...first.identity, userId: "demo-other" } }
+          : { ...first, scopeId: "demo-other" };
+      await workbench.schema(first, "warehouse", "analytics-prod");
+      await workbench.schema(second, "warehouse", "analytics-prod");
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      expect(
+        new Headers(fetchImpl.mock.calls[1]?.[1]?.headers).get("authorization"),
+      ).toBe(`Bearer ${second.identity.userId}-${second.scopeId}`);
+    },
+  );
+});
+
+describe("estimate and save deadlines", () => {
+  it.each(["estimate", "createPlan"] as const)(
+    "bounds a stalled %s dry run without waiting for the client to disconnect",
+    async (action) => {
+      const host = authoring();
+      const incoming = new AbortController();
+      const fetchImpl = vi.fn<typeof fetch>(
+        async (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            init!.signal!.addEventListener(
+              "abort",
+              () => reject(init!.signal!.reason),
+              { once: true },
+            );
+          }),
+      );
+      const workbench = createQueryWorkbench({
+        authoring: host.value,
+        fetchImpl,
+        timeoutMs: 10,
+      });
+      try {
+        const pending = workbench[action](
+          { ...request(), signal: incoming.signal },
+          "warehouse",
+          draft,
+        ).then(
+          (value) => ({ value }),
+          (error: unknown) => ({ error }),
+        );
+        const result = await Promise.race([
+          pending,
+          new Promise<"stalled">((resolve) =>
+            setTimeout(() => resolve("stalled"), 100),
+          ),
+        ]);
+        expect(result).not.toBe("stalled");
+        if (action === "estimate")
+          expect(result).toMatchObject({
+            value: {
+              ok: false,
+              problem: { message: "The estimate took more than 0.01 s" },
+            },
+          });
+        else expect(result).toMatchObject({ error: { code: "BAD_REQUEST" } });
+        expect(incoming.signal.aborted).toBe(false);
+        expect(fetchImpl.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+        expect(host.saved).toEqual([]);
+      } finally {
+        incoming.abort();
+      }
+    },
+  );
+
+  it("sends the original SQL text so BigQuery coordinates match the editor", async () => {
+    const { workbench, fetchImpl } = setup(Response.json(dryRun()));
+    const sql = "\n\n  SELECT 1\n";
+    await workbench.estimate(request(), "warehouse", { ...draft, sql });
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]![1]!.body));
+    expect(body.configuration.query.query).toBe(sql);
+  });
+});

@@ -11,6 +11,29 @@ import type { IntegrationConnection } from "../integration-config.types";
 import { BigQueryQueriesModal } from "./bigquery-queries-modal";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("./sql-code-editor", () => ({
+  default: ({
+    id,
+    value,
+    onChange,
+    readOnly,
+    ariaLabelledBy,
+  }: {
+    id: string;
+    value: string;
+    onChange: (text: string) => void;
+    readOnly?: boolean;
+    ariaLabelledBy?: string;
+  }) => (
+    <textarea
+      id={id}
+      aria-labelledby={ariaLabelledBy}
+      readOnly={readOnly}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+}));
 
 const connection: IntegrationConnection = {
   id: "c1",

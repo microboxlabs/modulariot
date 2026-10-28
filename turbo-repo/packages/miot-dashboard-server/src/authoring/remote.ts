@@ -1,7 +1,9 @@
-import type {
-  QueryPlan,
-  QuerySource,
+import {
+  queryPlanSchema,
+  queryPlansSchema,
+  querySourcesSchema,
 } from "@microboxlabs/miot-dashboard-contract/authoring";
+import { z } from "zod/v3";
 import { DashboardServerError } from "../access/errors";
 import { readJsonBody } from "../http/read-json";
 import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
@@ -54,6 +56,20 @@ function contentBody(content: QueryPlanContent) {
     })),
   };
 }
+
+function parsedResponse<T>(schema: z.ZodType<T>, value: unknown): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success)
+    throw new DashboardServerError(
+      "UPSTREAM_ERROR",
+      "The query store returned an invalid response",
+    );
+  return parsed.data;
+}
+const accessSchema = z.object({
+  accessToken: z.string().min(1),
+  expiresAt: z.string().optional(),
+});
 
 /**
  * Query authoring served by a host such as the ModularIoT modulith: it lists the
@@ -114,7 +130,14 @@ export function createRemoteQueryAuthoring(
     }
     if (response.status === 204) return undefined;
     const parsed = await readJsonBody(response, MAX_RESPONSE_BYTES).catch(
-      () => null,
+      () => {
+        if (response.ok)
+          throw new DashboardServerError(
+            "UPSTREAM_ERROR",
+            "The query store returned unreadable JSON",
+          );
+        return null;
+      },
     );
     if (response.ok) return withoutNulls(parsed);
     const message =
@@ -135,7 +158,9 @@ export function createRemoteQueryAuthoring(
   return {
     async listSources(request) {
       const sources = await call("sources", who(request), request.signal);
-      return Array.isArray(sources) ? (sources as QuerySource[]) : [];
+      return sources === null
+        ? []
+        : parsedResponse(querySourcesSchema, sources);
     },
 
     async accessFor(request) {
@@ -144,13 +169,7 @@ export function createRemoteQueryAuthoring(
         { ...who(request), sourceId: request.sourceId },
         request.signal,
       );
-      if (
-        !access ||
-        typeof access !== "object" ||
-        typeof (access as { accessToken?: unknown }).accessToken !== "string"
-      )
-        return null;
-      return access as { accessToken: string; expiresAt?: string };
+      return access === null ? null : parsedResponse(accessSchema, access);
     },
 
     plans: {
@@ -158,14 +177,17 @@ export function createRemoteQueryAuthoring(
         const plans = await call("plans/list", { tenantId, sourceId });
         if (plans === null)
           throw DashboardServerError.notFound("Query source not found");
-        return plans as QueryPlan[];
+        return parsedResponse(queryPlansSchema, plans);
       },
       async get(tenantId, sourceId, planId) {
-        return (await call("plans/get", {
-          tenantId,
-          sourceId,
-          planId,
-        })) as QueryPlan | null;
+        return parsedResponse(
+          queryPlanSchema.nullable(),
+          await call("plans/get", {
+            tenantId,
+            sourceId,
+            planId,
+          }),
+        );
       },
       async create(tenantId, sourceId, content, actor) {
         const plan = await call("plans/create", {
@@ -176,7 +198,7 @@ export function createRemoteQueryAuthoring(
         });
         if (plan === null)
           throw DashboardServerError.notFound("Query source not found");
-        return plan as QueryPlan;
+        return parsedResponse(queryPlanSchema, plan);
       },
       async update(
         tenantId,
@@ -196,7 +218,7 @@ export function createRemoteQueryAuthoring(
         });
         if (plan === null)
           throw DashboardServerError.notFound("Query not found");
-        return plan as QueryPlan;
+        return parsedResponse(queryPlanSchema, plan);
       },
       async remove(tenantId, sourceId, planId) {
         await call("plans/remove", { tenantId, sourceId, planId });

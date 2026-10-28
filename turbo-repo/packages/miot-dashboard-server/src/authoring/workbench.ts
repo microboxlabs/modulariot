@@ -150,13 +150,18 @@ export function createQueryWorkbench(
     draft: QueryPlanDraft,
     signal: AbortSignal,
   ): Promise<QueryEstimate> {
+    const deadline = AbortSignal.any([
+      signal,
+      AbortSignal.timeout(runner.timeoutMs),
+    ]);
     try {
       const dry = await runner.dryRun(
         planOf(draft),
         samplesOf(draft),
         token,
-        signal,
+        deadline,
       );
+      deadline.throwIfAborted();
       const estimate: QueryEstimate = {
         ok: dry.statementType === "SELECT",
         statementType: dry.statementType,
@@ -169,6 +174,14 @@ export function createQueryWorkbench(
         };
       return estimate;
     } catch (error) {
+      if (deadline.aborted && !signal.aborted) {
+        return {
+          ok: false,
+          problem: {
+            message: `The estimate took more than ${runner.timeoutMs / 1000} s`,
+          },
+        };
+      }
       return { ok: false, problem: problemOf(error) };
     }
   }
@@ -214,7 +227,14 @@ export function createQueryWorkbench(
       if (!/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(projectId))
         throw DashboardServerError.badRequest("Invalid projectId");
       const granted = await access(request, sourceId);
-      const key = [request.identity.tenantId, sourceId, projectId].join("\0");
+      const key = JSON.stringify([
+        request.identity.tenantId,
+        request.identity.userId,
+        request.identity.kind,
+        request.scopeId,
+        sourceId,
+        projectId,
+      ]);
       const cached = schemas.get(key);
       if (cached && !schemaOptions.refresh && now() - cached.at < schemaTtlMs)
         return cached.schema;

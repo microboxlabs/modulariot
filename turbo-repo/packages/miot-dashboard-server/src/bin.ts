@@ -29,7 +29,10 @@ import {
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
-import { openDataSources } from "./server/open-datasources";
+import {
+  openDataSources,
+  type OpenedDataSources,
+} from "./server/open-datasources";
 import {
   createLocalQueryAuthoring,
   createLocalQueryOperations,
@@ -285,6 +288,39 @@ function warnAboutStartupConfig(
   }
 }
 
+/** Select local saved-query services only when no host operations are configured. */
+function buildQueryServices(
+  operations: Awaited<ReturnType<typeof loadConfiguredOperations>>,
+  data: OpenedDataSources,
+  driver: SqlDriver | undefined,
+) {
+  const local =
+    operations === undefined && data.dataSources && data.credentials && driver
+      ? createLocalQueryAuthoring({
+          dataSources: data.dataSources,
+          credentials: data.credentials,
+          plans: createSqlQueryPlanStore(driver),
+        })
+      : undefined;
+  const queryOperations =
+    operations ??
+    (local ? createLocalQueryOperations({ authoring: local }) : undefined);
+  const authoring = operations?.queryAuthoring ?? local;
+  let describe = "off";
+  if (authoring)
+    describe = local ? "on, saved here" : "on, from the operations module";
+  return {
+    describe,
+    options: {
+      ...(queryOperations ? { queries: { operations: queryOperations } } : {}),
+      ...(queryOperations?.queryCatalog
+        ? { queryCatalog: queryOperations.queryCatalog }
+        : {}),
+      ...(authoring ? { authoring } : {}),
+    },
+  };
+}
+
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
   const operations = await loadConfiguredOperations(config);
@@ -334,28 +370,8 @@ async function main(): Promise<void> {
   log({ level: "info", msg: "scopes", membership: scopes.describe });
   log({ level: "info", msg: "datasources", state: data.describe });
 
-  // Without an operations module, a server that keeps its own BigQuery
-  // datasources and credentials writes and runs saved queries itself.
-  const local =
-    operations === undefined &&
-    data.dataSources !== undefined &&
-    data.credentials !== undefined &&
-    assembled.driver !== undefined
-      ? createLocalQueryAuthoring({
-          dataSources: data.dataSources,
-          credentials: data.credentials,
-          plans: createSqlQueryPlanStore(assembled.driver),
-        })
-      : undefined;
-  const queryOperations =
-    operations ??
-    (local ? createLocalQueryOperations({ authoring: local }) : undefined);
-  const authoring = operations?.queryAuthoring ?? local;
-  log({
-    level: "info",
-    msg: "query authoring",
-    state: authoring ? (local ? "on, saved here" : "on, from the operations module") : "off",
-  });
+  const queryServices = buildQueryServices(operations, data, assembled.driver);
+  log({ level: "info", msg: "query authoring", state: queryServices.describe });
 
   const running = await serve({
     policy: createAllowedGroupsPolicy(),
@@ -363,11 +379,7 @@ async function main(): Promise<void> {
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
-    ...(queryOperations ? { queries: { operations: queryOperations } } : {}),
-    ...(queryOperations?.queryCatalog
-      ? { queryCatalog: queryOperations.queryCatalog }
-      : {}),
-    ...(authoring ? { authoring } : {}),
+    ...queryServices.options,
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,

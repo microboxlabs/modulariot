@@ -190,22 +190,11 @@ export function ConnectionFormModal({
       request !== null &&
       passedDraft.current === JSON.stringify(request);
     try {
-      if (connection) {
-        await onSave(null, connection.id, {
-          name: data.name.trim(),
-          baseUrl: data.baseUrl.trim(),
-          credentialProfileId: data.credentialProfileId || null,
-        });
-        if (current === session.current) onClose();
-      } else if (request) {
-        const created = (await onSave(request)) as
-          | IntegrationConnection
-          | undefined;
-        if (current === session.current) onClose();
-        // Record the saved connection's result after closing the original form.
-        if (onTest && created?.id && repeatTest) {
-          await onTest(created.id).catch(() => undefined);
-        }
+      const created = await saveValues(data, request);
+      if (current === session.current) onClose();
+      // Record the saved connection's result after closing the original form.
+      if (onTest && created?.id && repeatTest) {
+        await onTest(created.id).catch(() => undefined);
       }
     } catch (cause) {
       if (current === session.current) {
@@ -223,6 +212,38 @@ export function ConnectionFormModal({
     }
   }
 
+  async function saveValues(
+    data: ConnectionFormData,
+    request: CreateConnectionRequest | null
+  ) {
+    if (connection) {
+      await onSave(null, connection.id, {
+        name: data.name.trim(),
+        baseUrl: data.baseUrl.trim(),
+        credentialProfileId: data.credentialProfileId || null,
+      });
+      return;
+    }
+    if (request)
+      return (await onSave(request)) as IntegrationConnection | undefined;
+  }
+
+  async function runTest(current: number) {
+    if (connection) {
+      return {
+        result: onTest ? await onTest(connection.id) : null,
+        request: null,
+      };
+    }
+    if (!onTestDraft || !(await trigger()) || current !== session.current)
+      return null;
+    const data = getValues();
+    if (missingCredential(data)) return null;
+    const request = createRequest(data);
+    if (!request) return null;
+    return { result: await onTestDraft(request), request };
+  }
+
   const canTest = connection ? onTest !== undefined : onTestDraft !== undefined;
 
   async function handleTest() {
@@ -233,17 +254,9 @@ export function ConnectionFormModal({
     setTestResult(null);
     setTesting(true);
     try {
-      let result: ConnectionTestResult | null = null;
-      let request: CreateConnectionRequest | null = null;
-      if (connection && onTest) result = await onTest(connection.id);
-      else if (onTestDraft && (await trigger())) {
-        if (current !== session.current) return;
-        const data = getValues();
-        if (missingCredential(data)) return;
-        request = createRequest(data);
-        if (request) result = await onTestDraft(request);
-      }
-      if (current !== session.current) return;
+      const outcome = await runTest(current);
+      if (!outcome || current !== session.current) return;
+      const { result, request } = outcome;
       passedDraft.current =
         result?.success && request ? JSON.stringify(request) : null;
       setTestResult(result);

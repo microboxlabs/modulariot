@@ -25,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -69,7 +70,7 @@ class GoogleServiceAccountStrategyTest {
         assertEquals(3, parts.length);
         JsonNode claims = new ObjectMapper().readTree(Base64.getUrlDecoder().decode(parts[1]));
         assertEquals(EMAIL, claims.get("iss").asText());
-        assertEquals(GoogleServiceAccountConfigs.DEFAULT_SCOPE, claims.get("scope").asText());
+        assertEquals("https://www.googleapis.com/auth/bigquery", claims.get("scope").asText());
         assertEquals("https://oauth2.googleapis.com/token", claims.get("aud").asText());
         assertEquals(1_700_000_000L, claims.get("iat").asLong());
         assertEquals(1_700_003_600L, claims.get("exp").asLong());
@@ -87,6 +88,26 @@ class GoogleServiceAccountStrategyTest {
                 URI.create("https://oauth2.googleapis.com/token"));
 
         assertEquals(3, strategy().signAssertion(config).split("\\.").length);
+    }
+
+    @Test
+    void missingAndBlankScopesAllowCreatingQueryJobs() {
+        GoogleServiceAccountConfig missing = GoogleServiceAccountConfigs.toConfig(
+                Map.of("clientEmail", EMAIL), Map.of("privateKey", pem));
+        GoogleServiceAccountConfig blank = GoogleServiceAccountConfigs.toConfig(
+                Map.of("clientEmail", EMAIL, "scope", "  "), Map.of("privateKey", pem));
+
+        assertEquals("https://www.googleapis.com/auth/bigquery", missing.scope());
+        assertEquals("https://www.googleapis.com/auth/bigquery", blank.scope());
+    }
+
+    @Test
+    void preservesAnExplicitReadOnlyScope() {
+        GoogleServiceAccountConfig config = GoogleServiceAccountConfigs.toConfig(
+                Map.of("clientEmail", EMAIL, "scope", "https://www.googleapis.com/auth/bigquery.readonly"),
+                Map.of("privateKey", pem));
+
+        assertEquals("https://www.googleapis.com/auth/bigquery.readonly", config.scope());
     }
 
     @Test

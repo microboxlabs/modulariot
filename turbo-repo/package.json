@@ -40,7 +40,7 @@
     "@luma.gl/shadertools": "9.3.6",
     "@luma.gl/webgl": "9.3.6",
     "esbuild": "0.28.1",
-    "postcss": "8.5.31",
+    "postcss": "8.5.32",
     "sharp": "$sharp"
   },
   "packageManager": "npm@10.2.4",

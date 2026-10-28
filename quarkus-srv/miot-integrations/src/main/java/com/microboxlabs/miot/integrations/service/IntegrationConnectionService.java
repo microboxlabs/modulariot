@@ -21,6 +21,7 @@ import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -243,7 +244,7 @@ public class IntegrationConnectionService {
                 ? null
                 : templateRepository.findByTenantAndId(tenantCode, req.templateId());
         if (req.templateId() != null && template == null) {
-            return new ConnectionTestResponse(false, OffsetDateTime.now(), "Unknown integration template");
+            return new ConnectionTestResponse(false, OffsetDateTime.now(ZoneOffset.UTC), "Unknown integration template");
         }
         IntegrationConnection draft = new IntegrationConnection(
                 IntegrationConnection.DRAFT_ID,
@@ -261,7 +262,7 @@ public class IntegrationConnectionService {
                 ? null
                 : credentialProfileRepository.findByTenantAndId(tenantCode, draft.credentialProfileId());
         if (draft.credentialProfileId() != null && credential == null) {
-            return new ConnectionTestResponse(false, OffsetDateTime.now(), "The credential could not be found");
+            return new ConnectionTestResponse(false, OffsetDateTime.now(ZoneOffset.UTC), "The credential could not be found");
         }
         return testerRegistry.testerFor(draft).test(draft, credential, null);
     }

@@ -11,10 +11,10 @@ import {
   ModalFooter,
   Select,
   Spinner,
-  Textarea,
   TextInput,
 } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi";
+import SqlCodeEditor from "./sql-code-editor";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -192,6 +192,7 @@ export function BigQueryQueriesModal({
             <QueryForm
               draft={draft}
               problem={problem}
+              readOnly={saving}
               onChange={patch}
               onAddParameter={addParameter}
               onUpdateParameter={updateParameter}
@@ -257,6 +258,7 @@ function QueryRow({ query }: Readonly<{ query: BigQueryQuerySummary }>) {
 interface QueryFormProps {
   readonly draft: Draft;
   readonly problem: string | null;
+  readonly readOnly: boolean;
   readonly onChange: (change: Partial<Draft>) => void;
   readonly onAddParameter: () => void;
   readonly onUpdateParameter: (
@@ -270,6 +272,7 @@ interface QueryFormProps {
 function QueryForm({
   draft,
   problem,
+  readOnly,
   onChange,
   onAddParameter,
   onUpdateParameter,
@@ -319,15 +322,14 @@ function QueryForm({
         </div>
       </div>
       <div>
-        <Label htmlFor="bq-sql">{tr("bigquery.sql", dict)}</Label>
-        <Textarea
+        <Label id="bq-sql-label">{tr("bigquery.sql", dict)}</Label>
+        <SqlCodeEditor
           id="bq-sql"
-          rows={6}
-          spellCheck={false}
-          className="font-mono text-sm"
+          ariaLabelledBy="bq-sql-label"
+          readOnly={readOnly}
           placeholder="SELECT service, SUM(cost) AS cost FROM `project.dataset.table` WHERE day >= @since GROUP BY service"
           value={draft.sql}
-          onChange={(event) => onChange({ sql: event.target.value })}
+          onChange={(sql) => onChange({ sql })}
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {tr("bigquery.sqlHelp", dict)}

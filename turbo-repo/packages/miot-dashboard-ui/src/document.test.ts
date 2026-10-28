@@ -146,7 +146,7 @@ describe("isolated document editing", () => {
     expect(session.getSnapshot().editorKey).not.toBe(editorKey);
   });
 
-  it("serializes operations and prevents edits during a save", async () => {
+  it("serializes operations and keeps edits made during a save dirty", async () => {
     const { session, client } = setup();
     await session.load();
     session.onChange({ ...empty, name: "First edit" });
@@ -158,16 +158,47 @@ describe("isolated document editing", () => {
         }),
     );
     const saving = session.save();
-    expect(session.getSnapshot().readOnly).toBe(true);
-    expect(session.onChange({ ...empty, name: "Racing edit" })).toBe(false);
+    expect(session.getSnapshot()).toMatchObject({
+      busy: true,
+      readOnly: false,
+    });
+    expect(session.onChange({ ...empty, name: "Racing edit" })).toBe(true);
     expect(await session.save()).toBe(false);
     expect(await session.discardAndReload()).toBe(false);
     finish({ etag: '"8"', revision: 8, updatedAt: "now" });
     expect(await saving).toBe(true);
     expect(session.getSnapshot()).toMatchObject({
-      config: { name: "First edit" },
-      dirty: false,
+      config: { name: "Racing edit" },
+      etag: '"8"',
+      dirty: true,
       readOnly: false,
+    });
+    expect(await session.save()).toBe(true);
+    expect(client.save.mock.calls[1]?.slice(1, 3)).toEqual([
+      { ...empty, name: "Racing edit" },
+      '"8"',
+    ]);
+    expect(session.getSnapshot().dirty).toBe(false);
+  });
+
+  it("stays read-only while reloading", async () => {
+    const { session, client } = setup();
+    await session.load();
+    let finish!: (value: Awaited<ReturnType<typeof client.load>>) => void;
+    client.load.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const reloading = session.discardAndReload();
+    expect(session.getSnapshot().readOnly).toBe(true);
+    expect(session.onChange({ ...empty, name: "Lost edit" })).toBe(false);
+    finish({ config: empty, etag: '"9"' });
+    expect(await reloading).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      readOnly: false,
+      etag: '"9"',
     });
   });
 

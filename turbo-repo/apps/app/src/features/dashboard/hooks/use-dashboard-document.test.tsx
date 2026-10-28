@@ -83,7 +83,7 @@ describe("server dashboard document", () => {
     expect(writes[0]?.[1]?.headers).toMatchObject({ "if-match": '"7"' });
   });
 
-  it("serializes saves and advances the revision after success", async () => {
+  it("serializes saves, keeps edits made during a save and advances the revision", async () => {
     const { result, fetcher } = setup();
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
     act(() => result.current.onChange({ ...empty, name: "Edited" }));
@@ -98,12 +98,12 @@ describe("server dashboard document", () => {
     act(() => {
       pending = result.current.save();
     });
-    expect(result.current.readOnly).toBe(true);
+    expect(result.current.readOnly).toBe(false);
     await act(async () => {
       expect(await result.current.save()).toBe(false);
     });
     act(() =>
-      result.current.onChange({ ...empty, name: "Rejected during save" })
+      result.current.onChange({ ...empty, name: "Edited during save" })
     );
     await act(async () => {
       release(
@@ -114,8 +114,8 @@ describe("server dashboard document", () => {
       );
       expect(await pending).toBe(true);
     });
-    expect(result.current.dirty).toBe(false);
-    expect(result.current.config.name).toBe("Edited");
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.config.name).toBe("Edited during save");
     act(() => result.current.onChange({ ...empty, name: "Next" }));
     fetcher.mockResolvedValueOnce(new Response(null, { status: 409 }));
     await act(async () => {

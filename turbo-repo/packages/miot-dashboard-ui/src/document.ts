@@ -56,6 +56,7 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
   let snapshot = initial;
   let generation = 0;
   let destroyed = false;
+  let reloading = false;
   let active: AbortController | undefined;
   const listeners = new Set<() => void>();
 
@@ -65,7 +66,7 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
       restricted ||
       !next.isLoaded ||
       !next.exists ||
-      next.busy ||
+      reloading ||
       next.capabilities?.canEdit !== true ||
       next.capabilities.readOnly ||
       next.error === 401 ||
@@ -104,6 +105,17 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
   }
 
   async function reload() {
+    if (destroyed || active) return false;
+    reloading = true;
+    try {
+      return await fetchDocument();
+    } finally {
+      reloading = false;
+      if (!destroyed) publish({});
+    }
+  }
+
+  function fetchDocument() {
     return run(async (signal) => {
       const [document, capabilities] = await Promise.all([
         client.load(slug, signal),
@@ -146,7 +158,8 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
       const { config, etag } = snapshot;
       return run(async (signal) => {
         const saved = await client.save(slug, config, etag, signal);
-        return { etag: saved.etag, dirty: false };
+        // Edits made while saving stay dirty for the next save.
+        return { etag: saved.etag, dirty: snapshot.config !== config };
       });
     },
     /** Host obtains explicit discard intent first; failed reloads retain the draft. */

@@ -64,17 +64,17 @@ class DashboardAuthoringServiceTest {
     @Test
     void refusesAnInvalidQuery() {
         var base = content();
-        assertThrows(IllegalArgumentException.class, () -> service.requestSchema(
-                new DashboardAuthoringService.Content(" ", null, base.projectId(), base.location(), base.sql(),
-                        base.maximumBytesBilled(), base.parameters(), null), "ana"));
-        assertThrows(IllegalArgumentException.class, () -> service.requestSchema(
-                new DashboardAuthoringService.Content(base.name(), null, base.projectId(), base.location(), base.sql(),
-                        2_000_000_000L, base.parameters(), null), "ana"));
-        assertThrows(IllegalArgumentException.class, () -> service.requestSchema(
-                new DashboardAuthoringService.Content(base.name(), null, base.projectId(), base.location(), base.sql(),
-                        base.maximumBytesBilled(),
-                        List.of(new DashboardAuthoringService.Parameter("x", "GEOGRAPHY", null)), null), "ana"));
+        var blankName = new DashboardAuthoringService.Content(" ", null, base.projectId(), base.location(), base.sql(),
+                base.maximumBytesBilled(), base.parameters(), null);
+        var excessiveBytes = new DashboardAuthoringService.Content(base.name(), null, base.projectId(), base.location(), base.sql(),
+                2_000_000_000L, base.parameters(), null);
+        var unsupportedType = new DashboardAuthoringService.Content(base.name(), null, base.projectId(), base.location(), base.sql(),
+                base.maximumBytesBilled(), List.of(new DashboardAuthoringService.Parameter("x", "GEOGRAPHY", null)), null);
+        assertThrows(IllegalArgumentException.class, () -> service.requestSchema(blankName, "demo-author"));
+        assertThrows(IllegalArgumentException.class, () -> service.requestSchema(excessiveBytes, "demo-author"));
+        assertThrows(IllegalArgumentException.class, () -> service.requestSchema(unsupportedType, "demo-author"));
     }
+
     @Test
     void preservesSqlCoordinatesWhenSavingAndReading() {
         var base = content();
@@ -138,11 +138,12 @@ class DashboardAuthoringServiceTest {
         }
         var operations = new Operations();
         var authoring = new DashboardAuthoringService(connections, null, operations, null, 1_000_000_000L);
-        assertThrows(DashboardAuthoringService.ConflictException.class, () -> authoring.create("demo-tenant", sourceId, content(), "demo-author"));
-        assertThrows(DashboardAuthoringService.ConflictException.class, () -> authoring.update("demo-tenant", sourceId, "demo-plan", content(), "1767225600000000", "demo-author"));
+        var input = content();
+        assertThrows(DashboardAuthoringService.ConflictException.class, () -> authoring.create("demo-tenant", sourceId, input, "demo-author"));
+        assertThrows(DashboardAuthoringService.ConflictException.class, () -> authoring.update("demo-tenant", sourceId, "demo-plan", input, "1767225600000000", "demo-author"));
         operations.failure = new io.vertx.pgclient.PgException("demo database failure", "ERROR", "08006", "demo");
         org.junit.jupiter.api.Assertions.assertSame(operations.failure, assertThrows(io.vertx.pgclient.PgException.class,
-                () -> authoring.create("demo-tenant", sourceId, content(), "demo-author")));
+                () -> authoring.create("demo-tenant", sourceId, input, "demo-author")));
     }
 
     @Test

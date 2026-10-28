@@ -16,7 +16,9 @@ class DashboardAuthoringResourceTest {
     static class Service extends DashboardAuthoringService {
         RuntimeException failure;
         String tenant;
+        Optional<List<Plan>> savedPlans = Optional.of(List.of());
         Service() { super(null, null, null, null, 1_000_000_000L); }
+        @Override public Optional<List<Plan>> list(String tenantCode, String sourceId) { return savedPlans; }
         @Override public List<Source> sources(String tenantCode) {
             tenant = tenantCode;
             if (failure != null) throw failure;
@@ -70,4 +72,12 @@ class DashboardAuthoringResourceTest {
         resource.provider.failure = new IllegalStateException("demo private provider detail");
         assertEquals(Map.of("error", "Dashboard authoring could not be completed"), answer(502, resource.sources(KEY, REQUEST)).getEntity());
     }
+    @Test void distinguishesAnEmptyQueryListFromAnUnknownSource() {
+        var resource = new Resource(KEY);
+        var request = new DashboardAuthoringResource.PlanRequest("demo-org", "demo-author", "demo-source", null, null, null);
+        assertEquals(List.of(), answer(200, resource.list(KEY, request)).getEntity());
+        resource.provider.savedPlans = Optional.empty();
+        answer(404, resource.list(KEY, request));
+    }
+
 }

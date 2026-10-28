@@ -35,6 +35,10 @@
       "import": "./dist/templates.js"
     },
     "./styles.css": "./styles.css",
+    "./authoring": {
+      "types": "./dist/authoring.d.ts",
+      "import": "./dist/authoring.js"
+    },
     "./embed": {
       "types": "./dist/embed.d.ts",
       "import": "./dist/embed.js"
@@ -73,6 +77,13 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-sql": "6.10.0",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.13",
+    "@lezer/highlight": "1.2.5",
     "@microboxlabs/miot-dashboard-contract": "^0.6.0",
     "zod": "^4.6.6",
     "handlebars": "^4.7.10",

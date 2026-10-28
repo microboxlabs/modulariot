@@ -94,7 +94,7 @@ function setup() {
     plans,
     fetchImpl,
   });
-  return { authoring, fetchImpl };
+  return { authoring, fetchImpl, credentials };
 }
 
 describe("local query authoring", () => {
@@ -204,5 +204,41 @@ describe("local query operations", () => {
     await expect(run({ other: "x" })).rejects.toMatchObject({
       code: "UPSTREAM_ERROR",
     });
+  });
+});
+
+describe("cached source credential invalidation", () => {
+  it.each(["removed", "NONE"])(
+    "does not reuse a token after its vault credential is %s",
+    async (change) => {
+      const { authoring, credentials } = setup();
+      const input = { ...request, sourceId: "warehouse" };
+      expect(await authoring.accessFor(input)).not.toBeNull();
+      if (change === "removed")
+        await credentials.removeCredential("acme", "warehouse-sa");
+      else
+        await credentials.putCredential("acme", "warehouse-sa", {
+          kind: "NONE",
+        });
+      expect(await authoring.accessFor(input)).toBeNull();
+    },
+  );
+  it("obtains a new token after the credential ref points at another account", async () => {
+    const { authoring, credentials, fetchImpl } = setup();
+    const input = { ...request, sourceId: "warehouse" };
+    await authoring.accessFor(input);
+    await credentials.putCredential("acme", "warehouse-sa", {
+      kind: "SERVICE_ACCOUNT",
+      projectId: "demo-project",
+      clientEmail: "demo-reader@demo-project.iam.gserviceaccount.com",
+      privateKey,
+    });
+    fetchImpl.mockImplementation(async () =>
+      Response.json({ access_token: "replacement-token", expires_in: 3600 }),
+    );
+    expect((await authoring.accessFor(input))?.accessToken).toBe(
+      "replacement-token",
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });

@@ -19,7 +19,11 @@ const planSchema = z
   .object({
     projectId: z.string().regex(/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/),
     location: z.string().regex(/^[A-Za-z0-9-]{2,64}$/),
-    sql: z.string().trim().min(1).max(65_536),
+    sql: z
+      .string()
+      .min(1)
+      .max(65_536)
+      .refine((sql) => sql.trim().length > 0),
     maximumBytesBilled: z.number().int().positive().safe(),
     parameterTypes: z.record(
       z.string().regex(/^[A-Za-z_]\w{0,127}$/),
@@ -34,10 +38,7 @@ export type BigQueryPlan = z.infer<typeof planSchema>;
 function parameter(name: string, type: string, value: DashboardQueryValue) {
   const array = type.startsWith("ARRAY<") && type.endsWith(">");
   const scalarType = array ? type.slice(6, -1) : type;
-  if (
-    !scalarTypes.has(scalarType) ||
-    array !== Array.isArray(value)
-  )
+  if (!scalarTypes.has(scalarType) || array !== Array.isArray(value))
     throw upstreamError();
   const scalar = (item: Exclude<DashboardQueryValue, unknown[]>) => ({
     value: item === null ? null : String(item),

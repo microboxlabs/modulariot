@@ -348,11 +348,13 @@ paths:
                             required: [id, label]
                             properties:
                               id: { type: string, minLength: 1, maxLength: 128 }
-                              label: { type: string, minLength: 1, maxLength: 256 }
+                              label:
+                                { type: string, minLength: 1, maxLength: 256 }
                               schema:
                                 type: array
                                 maxItems: 100
-                                items: { type: string, minLength: 1, maxLength: 128 }
+                                items:
+                                  { type: string, minLength: 1, maxLength: 128 }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1344,14 +1346,25 @@ components:
         name: { type: string, pattern: "^[A-Za-z_]\\w{0,127}$" }
         type:
           type: string
-          enum: [STRING, INT64, FLOAT64, NUMERIC, BIGNUMERIC, BOOL, DATE, DATETIME, TIME, TIMESTAMP]
+          enum:
+            [
+              STRING,
+              INT64,
+              FLOAT64,
+              NUMERIC,
+              BIGNUMERIC,
+              BOOL,
+              DATE,
+              DATETIME,
+              TIME,
+              TIMESTAMP,
+            ]
         sample:
           type: [string, "null"]
           maxLength: 4096
           description: Value used in the editor. Dashboards never use it.
-    QueryPlanDraft:
+    QueryPlanFields:
       type: object
-      additionalProperties: false
       required: [name, projectId, location, sql, maximumBytesBilled, parameters]
       properties:
         name: { type: string, minLength: 1, maxLength: 128 }
@@ -1365,6 +1378,10 @@ components:
           maxItems: 100
           items:
             $ref: "#/components/schemas/QueryPlanParameter"
+    QueryPlanDraft:
+      allOf:
+        - $ref: "#/components/schemas/QueryPlanFields"
+      unevaluatedProperties: false
     QueryColumn:
       type: object
       required: [name, type]
@@ -1378,7 +1395,7 @@ components:
             $ref: "#/components/schemas/QueryColumn"
     QueryPlan:
       allOf:
-        - $ref: "#/components/schemas/QueryPlanDraft"
+        - $ref: "#/components/schemas/QueryPlanFields"
         - type: object
           required: [id, sourceId, revision, updatedAt]
           properties:
@@ -1391,6 +1408,7 @@ components:
             revision: { type: string }
             updatedAt: { type: string, format: date-time }
             updatedBy: { type: string }
+      unevaluatedProperties: false
     SourceSchema:
       type: object
       required: [projectId, datasets, truncated]
@@ -1416,7 +1434,15 @@ components:
                     name: { type: string }
                     type:
                       type: string
-                      enum: [TABLE, VIEW, EXTERNAL, MATERIALIZED_VIEW, SNAPSHOT, CLONE]
+                      enum:
+                        [
+                          TABLE,
+                          VIEW,
+                          EXTERNAL,
+                          MATERIALIZED_VIEW,
+                          SNAPSHOT,
+                          CLONE,
+                        ]
                     columns:
                       type: array
                       items:
@@ -1443,7 +1469,18 @@ components:
           $ref: "#/components/schemas/QueryProblem"
     QueryPreview:
       type: object
-      required: [ok, columns, rows, totalRows, truncated, totalBytesProcessed, cacheHit, durationMs, warnings]
+      required:
+        [
+          ok,
+          columns,
+          rows,
+          totalRows,
+          truncated,
+          totalBytesProcessed,
+          cacheHit,
+          durationMs,
+          warnings,
+        ]
       properties:
         ok: { type: boolean }
         columns:

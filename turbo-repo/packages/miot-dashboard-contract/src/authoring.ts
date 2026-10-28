@@ -147,7 +147,11 @@ export const queryPlanDraftSchema = z
     description: z.string().max(1024).optional(),
     projectId: z.string().regex(/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/),
     location: z.string().regex(/^[A-Za-z0-9-]{2,64}$/),
-    sql: z.string().trim().min(1).max(65_536),
+    sql: z
+      .string()
+      .min(1)
+      .max(65_536)
+      .refine((sql) => sql.trim().length > 0, "SQL must not be blank"),
     maximumBytesBilled: z.number().int().positive().safe(),
     parameters: z
       .array(queryPlanParameterSchema)
@@ -161,13 +165,126 @@ export const queryPlanDraftSchema = z
   })
   .strict();
 
-/** `@name` references in the SQL, outside strings, identifiers and comments. */
+/** Runtime validation of authoring responses from servers and host adapters. */
+export const queryColumnSchema: z.ZodType<QueryColumn> = z.lazy(() =>
+  z.object({
+    name: z.string(),
+    type: z.string(),
+    mode: z.enum(["NULLABLE", "REQUIRED", "REPEATED"]).optional(),
+    fields: z.array(queryColumnSchema).optional(),
+  }),
+);
+export const querySourceSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  kind: z.enum(QUERY_SOURCE_KINDS),
+  defaultProjectId: z.string(),
+  defaultLocation: z.string().optional(),
+});
+export const querySourcesSchema = z.array(querySourceSchema);
+export const queryPlanSchema = queryPlanDraftSchema.extend({
+  id: z.string(),
+  sourceId: z.string(),
+  columns: z.array(queryColumnSchema).optional(),
+  revision: z.string(),
+  updatedAt: z.string(),
+  updatedBy: z.string().optional(),
+});
+export const queryPlansSchema = z.array(queryPlanSchema);
+export const sourceSchema = z.object({
+  projectId: z.string(),
+  truncated: z.boolean(),
+  datasets: z.array(
+    z.object({
+      name: z.string(),
+      location: z.string(),
+      tables: z.array(
+        z.object({
+          name: z.string(),
+          type: z.enum([
+            "TABLE",
+            "VIEW",
+            "EXTERNAL",
+            "MATERIALIZED_VIEW",
+            "SNAPSHOT",
+            "CLONE",
+          ]),
+          columns: z.array(queryColumnSchema),
+        }),
+      ),
+    }),
+  ),
+});
+const queryProblemSchema = z.object({
+  message: z.string(),
+  line: z.number().int().optional(),
+  column: z.number().int().optional(),
+});
+export const queryEstimateSchema = z.object({
+  ok: z.boolean(),
+  statementType: z.string().optional(),
+  totalBytesProcessed: z.number().optional(),
+  columns: z.array(queryColumnSchema).optional(),
+  problem: queryProblemSchema.optional(),
+});
+const responseScalar = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+export const queryPreviewSchema = z.object({
+  ok: z.boolean(),
+  columns: z.array(queryColumnSchema),
+  rows: z.array(z.record(z.union([responseScalar, z.array(responseScalar)]))),
+  totalRows: z.number(),
+  truncated: z.boolean(),
+  totalBytesProcessed: z.number(),
+  cacheHit: z.boolean(),
+  durationMs: z.number(),
+  warnings: z.array(z.string()),
+  problem: queryProblemSchema.optional(),
+});
+
+function quotedEnd(sql: string, start: number): number | null {
+  const character = sql[start];
+  if (!character || !["'", '"', "`"].includes(character)) return null;
+  const delimiter =
+    character !== "`" && sql.startsWith(character.repeat(3), start)
+      ? character.repeat(3)
+      : character;
+  let index = start + delimiter.length;
+  while (index < sql.length) {
+    if (sql[index] === "\\") index += 2;
+    else if (sql.startsWith(delimiter, index)) return index + delimiter.length;
+    else index++;
+  }
+  return sql.length;
+}
+
+function ignoredTokenEnd(sql: string, start: number): number | null {
+  if (sql[start] === "#" || sql.startsWith("--", start)) {
+    const newline = sql.slice(start).search(/[\r\n]/);
+    return newline < 0 ? sql.length : start + newline + 1;
+  }
+  if (sql.startsWith("/*", start)) {
+    const end = sql.indexOf("*/", start + 2);
+    return end < 0 ? sql.length : end + 2;
+  }
+  return quotedEnd(sql, start);
+}
+
+/** `@name` references outside GoogleSQL strings, identifiers and comments. */
 export function sqlParameterNames(sql: string): string[] {
   const names = new Set<string>();
-  const token =
-    /--[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`[^`]*`|@@?([A-Za-z_]\w*)/g;
-  for (const match of sql.matchAll(token)) {
-    if (match[1] && !match[0].startsWith("@@")) names.add(match[1]);
+  let index = 0;
+  while (index < sql.length) {
+    const ignoredEnd = ignoredTokenEnd(sql, index);
+    if (ignoredEnd !== null) {
+      index = ignoredEnd;
+      continue;
+    }
+    const parameter =
+      sql[index] === "@" ? /^@@?([A-Za-z_]\w*)/.exec(sql.slice(index)) : null;
+    if (parameter) {
+      if (!parameter[0].startsWith("@@")) names.add(parameter[1]!);
+      index += parameter[0].length;
+    } else index++;
   }
   return [...names];
 }

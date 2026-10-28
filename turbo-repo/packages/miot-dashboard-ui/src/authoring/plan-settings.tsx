@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import {
   QUERY_PARAMETER_TYPES,
   sqlParameterNames,
@@ -22,20 +23,72 @@ export function PlanSettings({
   disabled,
   onChange,
 }: PlanSettingsProps) {
-  const declared = new Set(draft.parameters.map((parameter) => parameter.name));
-  const undeclared = sqlParameterNames(draft.sql).filter(
-    (name) => !declared.has(name),
+  const nextId = useRef(draft.parameters.length);
+  const [rows, setRows] = useState(() =>
+    draft.parameters.map((parameter, id) => ({ id, parameter })),
   );
-  const setParameter = (index: number, change: Partial<QueryPlanParameter>) =>
-    onChange({
-      parameters: draft.parameters.map((parameter, at) =>
-        at === index ? { ...parameter, ...change } : parameter,
+  const currentRows = useRef(rows);
+  const lastParameters = useRef(draft.parameters);
+  useEffect(() => {
+    if (draft.parameters === lastParameters.current) return;
+    const used = new Set<number>();
+    const next = draft.parameters.map((parameter) => {
+      const existing = currentRows.current.find(
+        (row) =>
+          !used.has(row.id) &&
+          (row.parameter === parameter ||
+            row.parameter.name === parameter.name),
+      );
+      const id = existing?.id ?? nextId.current++;
+      used.add(id);
+      return { id, parameter };
+    });
+    lastParameters.current = draft.parameters;
+    currentRows.current = next;
+    setRows(next);
+  }, [draft.parameters]);
+  function updateRows(next: typeof rows) {
+    currentRows.current = next;
+    setRows(next);
+    const parameters = next.map((row) => row.parameter);
+    lastParameters.current = parameters;
+    onChange({ parameters });
+  }
+  const declared = new Set(
+    draft.parameters.map((parameter) => parameter.name.toLowerCase()),
+  );
+  const undeclared = sqlParameterNames(draft.sql).filter(
+    (name) => !declared.has(name.toLowerCase()),
+  );
+  function setParameter(id: number, change: Partial<QueryPlanParameter>) {
+    if (disabled) return;
+    updateRows(
+      currentRows.current.map((row) =>
+        row.id === id
+          ? { id, parameter: { ...row.parameter, ...change } }
+          : row,
       ),
-    });
-  const addParameter = (name: string) =>
-    onChange({
-      parameters: [...draft.parameters, { name, type: "STRING", sample: null }],
-    });
+    );
+  }
+  function addParameter(name: string) {
+    if (disabled || currentRows.current.length >= 100) return;
+    updateRows([
+      ...currentRows.current,
+      {
+        id: nextId.current++,
+        parameter: { name, type: "STRING", sample: null },
+      },
+    ]);
+  }
+  function removeParameter(id: number) {
+    if (!disabled)
+      updateRows(currentRows.current.filter((row) => row.id !== id));
+  }
+  function nextParameterName() {
+    let number = 1;
+    while (declared.has(`param_${number}`)) number++;
+    return `param_${number}`;
+  }
 
   return (
     <details className="miot-qw-settings" open>
@@ -111,9 +164,8 @@ export function PlanSettings({
               </tr>
             </thead>
             <tbody>
-              {draft.parameters.map((parameter, index) => (
-                // Parameters are edited in place, so a name is not stable.
-                <tr key={index}>
+              {rows.map(({ parameter, id }) => (
+                <tr key={id}>
                   <td>
                     <input
                       className="miot-qw-input"
@@ -121,7 +173,7 @@ export function PlanSettings({
                       value={parameter.name}
                       spellCheck={false}
                       onChange={(event) =>
-                        setParameter(index, { name: event.target.value })
+                        setParameter(id, { name: event.target.value })
                       }
                     />
                   </td>
@@ -131,7 +183,7 @@ export function PlanSettings({
                       aria-label={labels.parameterType}
                       value={parameter.type}
                       onChange={(event) =>
-                        setParameter(index, {
+                        setParameter(id, {
                           type: event.target.value as QueryParameterType,
                         })
                       }
@@ -149,7 +201,7 @@ export function PlanSettings({
                       aria-label={labels.parameterSample}
                       value={parameter.sample ?? ""}
                       onChange={(event) =>
-                        setParameter(index, {
+                        setParameter(id, {
                           sample:
                             event.target.value === ""
                               ? null
@@ -163,13 +215,7 @@ export function PlanSettings({
                       type="button"
                       className="miot-qw-icon-button"
                       aria-label={`${labels.removeParameter} @${parameter.name}`}
-                      onClick={() =>
-                        onChange({
-                          parameters: draft.parameters.filter(
-                            (_parameter, at) => at !== index,
-                          ),
-                        })
-                      }
+                      onClick={() => removeParameter(id)}
                     >
                       ×
                     </button>
@@ -193,7 +239,8 @@ export function PlanSettings({
           <button
             type="button"
             className="miot-qw-button"
-            onClick={() => addParameter(`param_${draft.parameters.length + 1}`)}
+            disabled={rows.length >= 100}
+            onClick={() => addParameter(nextParameterName())}
           >
             {labels.addParameter}
           </button>

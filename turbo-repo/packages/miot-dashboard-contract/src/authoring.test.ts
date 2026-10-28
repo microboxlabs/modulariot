@@ -82,3 +82,21 @@ describe("problemFromMessage", () => {
     });
   });
 });
+
+describe("SQL source coordinates", () => {
+  it("preserves leading lines and spaces so diagnostics address the editor text", () => {
+    const sql = "\n\n  SELECT missing_column\n";
+    expect(queryPlanDraftSchema.parse({ ...draft, sql }).sql).toBe(sql);
+  });
+});
+
+describe("GoogleSQL literal parameters", () => {
+  it("does not declare names inside triple quoted raw or escaped literals", () => {
+    const sql = [
+      "SELECT r'''we'll ignore @hidden''' AS text, @real",
+      'SELECT """the "quoted" @hidden value""", @other',
+      "SELECT `@identifier`, @@session.time_zone /* @comment */",
+    ].join("\n");
+    expect(sqlParameterNames(sql)).toEqual(["real", "other"]);
+  });
+});

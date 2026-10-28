@@ -21,8 +21,24 @@ const draft = {
   parameters: [],
 };
 
-function setup(response: Response = Response.json({ data: [] })) {
-  const fetchImpl = vi.fn<typeof fetch>(async () => response.clone());
+function setup(response?: Response) {
+  const fetchImpl = vi.fn<typeof fetch>(async (url, init) => {
+    if (response) return response.clone();
+    if (String(url).includes("/schema?"))
+      return Response.json({
+        data: { projectId: "analytics-prod", datasets: [], truncated: false },
+      });
+    if (init?.method === "PUT")
+      return Response.json({
+        data: {
+          ...draft,
+          ...plan,
+          sourceId: "warehouse",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      });
+    return Response.json({ data: [] });
+  });
   const client = createQueryAuthoringClient({
     route: createQueryAuthoringRoute({
       baseUrl: "/api/dashboard",
@@ -104,8 +120,12 @@ it("formats bytes in decimal units and rows as CSV", () => {
 });
 
 it("keeps a host proxy's query string on every route", async () => {
-  const fetchImpl = vi.fn<typeof fetch>(async () =>
-    Response.json({ data: [] }),
+  const fetchImpl = vi.fn<typeof fetch>(async (_url, init) =>
+    init?.method === "DELETE"
+      ? new Response(null, { status: 204 })
+      : Response.json({
+          data: { projectId: "analytics-prod", datasets: [], truncated: false },
+        }),
   );
   const client = createQueryAuthoringClient({
     route: "/app/api/query-sources?org=acme",
@@ -117,4 +137,36 @@ it("keeps a host proxy's query string on every route", async () => {
     "/app/api/query-sources/c1/schema?org=acme&projectId=analytics-prod",
     "/app/api/query-sources/c1/plans/p1?org=acme",
   ]);
+});
+
+it.each(["schema", "listPlans", "preview", "estimate"] as const)(
+  "rejects malformed successful %s responses at the API boundary",
+  async (action) => {
+    const { client } = setup(Response.json({ data: { wrong: true } }));
+    const pending =
+      action === "listPlans"
+        ? client.listPlans("demo")
+        : action === "schema"
+          ? client.schema("demo", "demo-project")
+          : client[action]("demo", draft);
+    await expect(pending).rejects.toMatchObject({ status: 502 });
+  },
+);
+it("neutralizes CSV formulas in strings and headers while retaining numeric values", () => {
+  expect(
+    toCsv({
+      ok: true,
+      columns: [
+        { name: "=header", type: "STRING" },
+        { name: "n", type: "INT64" },
+      ],
+      rows: [{ "=header": "=1+1", n: -7 }],
+      totalRows: 1,
+      truncated: false,
+      totalBytesProcessed: 0,
+      cacheHit: false,
+      durationMs: 0,
+      warnings: [],
+    }),
+  ).toBe("'=header,n\n'=1+1,-7");
 });

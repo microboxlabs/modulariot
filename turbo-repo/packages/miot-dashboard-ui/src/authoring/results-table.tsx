@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import type { QueryPreview } from "@microboxlabs/miot-dashboard-contract/authoring";
 import type { DashboardQueryValue } from "@microboxlabs/miot-dashboard-contract/document";
 import { fill, formatBytes, type QueryWorkbenchLabels } from "./labels";
@@ -12,7 +13,9 @@ function text(value: DashboardQueryValue | undefined): string {
 }
 
 function csvCell(value: DashboardQueryValue | undefined): string {
-  const cell = text(value);
+  const raw = text(value);
+  const cell =
+    typeof value === "string" && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return /[",\n\r]/.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell;
 }
 
@@ -39,14 +42,22 @@ export function ResultsTable({
   locale,
   onCopy,
 }: ResultsTableProps) {
-  if (!preview || !preview.ok) {
+  const shown = useMemo(() => {
+    const counts = new Map<string, number>();
+    return (preview?.rows ?? []).slice(0, SHOWN_ROWS).map((row) => {
+      const signature = JSON.stringify(row);
+      const occurrence = counts.get(signature) ?? 0;
+      counts.set(signature, occurrence + 1);
+      return { row, key: JSON.stringify([signature, occurrence]) };
+    });
+  }, [preview?.rows]);
+  if (!preview?.ok) {
     return (
       <section className="miot-qw-results" aria-label={labels.results}>
         <p className="miot-qw-muted">{labels.noResults}</p>
       </section>
     );
   }
-  const shown = preview.rows.slice(0, SHOWN_ROWS);
   return (
     <section className="miot-qw-results" aria-label={labels.results}>
       <header className="miot-qw-results__header">
@@ -101,9 +112,8 @@ export function ResultsTable({
             </tr>
           </thead>
           <tbody>
-            {shown.map((row, index) => (
-              // Rows have no identity of their own.
-              <tr key={index}>
+            {shown.map(({ row, key }) => (
+              <tr key={key}>
                 {preview.columns.map((column) => (
                   <td
                     key={column.name}

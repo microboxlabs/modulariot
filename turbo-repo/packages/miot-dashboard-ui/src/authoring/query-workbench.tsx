@@ -1,5 +1,12 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   QueryEstimate,
   QueryPlan,
@@ -66,7 +73,7 @@ function sameDraft(a: QueryPlanDraft, b: QueryPlanDraft): boolean {
 
 function messageOf(error: unknown, labels: QueryWorkbenchLabels): string {
   if (error instanceof QueryAuthoringError) {
-    if (error.status === 409) return labels.conflict;
+    if (error.status === 409) return error.detail || labels.conflict;
     return error.detail ?? `${labels.failed} (${error.status})`;
   }
   return labels.failed;
@@ -75,32 +82,103 @@ function messageOf(error: unknown, labels: QueryWorkbenchLabels): string {
 const aborted = (error: unknown) =>
   error instanceof Error && error.name === "AbortError";
 
-/**
- * Write, test and save SQL queries against a query source: schema explorer,
- * saved queries, SQL editor with completion, dry-run estimate and results.
- */
-export function QueryWorkbench({
+/** Query editing state belongs to one client and one source at a time. */
+export function QueryWorkbench(props: QueryWorkbenchProps) {
+  const [session, setSession] = useState({ client: props.client, version: 0 });
+  if (session.client !== props.client) {
+    setSession({ client: props.client, version: session.version + 1 });
+    return null;
+  }
+  return <ClientWorkbench key={session.version} {...props} />;
+}
+
+function ClientWorkbench(props: QueryWorkbenchProps) {
+  const {
+    client,
+    sourceId: controlledSource,
+    onSourceChange,
+    onPlanChange,
+  } = props;
+  const [sources, setSources] = useState<QuerySource[] | null>(null);
+  const [ownSource, setOwnSource] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const labels = useMemo(
+    () => ({ ...DEFAULT_QUERY_WORKBENCH_LABELS, ...props.labels }),
+    [props.labels],
+  );
+  const currentLabels = useRef(labels);
+  useLayoutEffect(() => {
+    currentLabels.current = labels;
+  }, [labels]);
+  useEffect(() => {
+    const controller = new AbortController();
+    client
+      .listSources(controller.signal)
+      .then((list) => {
+        if (controller.signal.aborted) return;
+        setSources(list);
+        if (list[0]) setOwnSource((current) => current ?? list[0]!.id);
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted && !aborted(reason))
+          setLoadError(messageOf(reason, currentLabels.current));
+      });
+    return () => controller.abort();
+  }, [client]);
+  const sourceId = controlledSource ?? ownSource ?? undefined;
+  function selectSource(value: string) {
+    setOwnSource(value);
+    onSourceChange?.(value);
+    onPlanChange?.(null);
+  }
+  return (
+    <WorkbenchSession
+      key={sourceId ?? ""}
+      {...props}
+      sourceId={sourceId}
+      sources={sources}
+      labels={labels}
+      loadError={loadError}
+      onSelectSource={
+        controlledSource === undefined || onSourceChange
+          ? selectSource
+          : undefined
+      }
+    />
+  );
+}
+
+type SessionProps = Omit<QueryWorkbenchProps, "labels"> & {
+  sources: QuerySource[] | null;
+  labels: QueryWorkbenchLabels;
+  loadError: string | null;
+  onSelectSource?: (sourceId: string) => void;
+};
+
+function WorkbenchSession({
   client,
-  sourceId: controlledSource,
-  onSourceChange,
+  sourceId,
+  sources,
+  labels,
+  loadError,
+  onSelectSource,
   planId,
   onPlanChange,
   canWrite,
-  labels: labelOverrides,
   locale,
   defaultMaximumBytesBilled = 1_000_000_000,
-}: QueryWorkbenchProps) {
-  const labels = useMemo(
-    () => ({ ...DEFAULT_QUERY_WORKBENCH_LABELS, ...labelOverrides }),
-    [labelOverrides],
-  );
+}: SessionProps) {
   const editor = useRef<SqlEditorHandle>(null);
-  const [sources, setSources] = useState<QuerySource[] | null>(null);
-  const [ownSource, setOwnSource] = useState<string | null>(null);
-  const sourceId = controlledSource ?? ownSource;
   const source = sources?.find((item) => item.id === sourceId) ?? null;
-
   const [plans, setPlans] = useState<QueryPlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const draftsNow = useRef<Record<string, QueryPlanDraft>>({});
+  const selected = useRef<string | null>(planId ?? null);
+  const expectedEcho = useRef<string | null | undefined>(undefined);
+  const mounted = useRef(true);
+  const mutation = useRef(false);
+  const schemaRequest = useRef<AbortController | null>(null);
+  const [removing, setRemoving] = useState(false);
   const [newKeys, setNewKeys] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, QueryPlanDraft>>({});
   const [activeKey, setActiveKey] = useState<string | null>(planId ?? null);
@@ -119,6 +197,32 @@ export function QueryWorkbench({
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const run = useRef<AbortController | null>(null);
+  const busy = saving || removing;
+  const applySelection = useCallback((key: string | null) => {
+    run.current?.abort();
+    run.current = null;
+    selected.current = key;
+    setActiveKey(key);
+    setRunning(false);
+    setPreview(null);
+    setEstimate(null);
+    setEstimateError(null);
+    setConfirmRemove(false);
+    setError(null);
+    setNotice(null);
+  }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      run.current?.abort();
+      schemaRequest.current?.abort();
+    };
+  }, []);
+  function replaceDrafts(next: Record<string, QueryPlanDraft>) {
+    draftsNow.current = next;
+    setDrafts(next);
+  }
 
   const emptyDraft = useCallback(
     (): QueryPlanDraft => ({
@@ -142,43 +246,45 @@ export function QueryWorkbench({
     (drafts[key] !== undefined && !sameDraft(drafts[key], baseline(key)));
   const activePlan = savedPlan(activeKey);
   const draft: QueryPlanDraft | null =
-    activeKey === null ? null : (drafts[activeKey] ?? baseline(activeKey));
+    activeKey === null ||
+    (!activeKey.startsWith(NEW) && (loadingPlans || activePlan === null))
+      ? null
+      : (drafts[activeKey] ?? baseline(activeKey));
 
+  const currentLabels = useRef(labels);
+  useLayoutEffect(() => {
+    currentLabels.current = labels;
+  }, [labels]);
   useEffect(() => {
+    if (!sourceId) {
+      setLoadingPlans(false);
+      return;
+    }
     const controller = new AbortController();
-    client
-      .listSources(controller.signal)
-      .then((list) => {
-        setSources(list);
-        if (controlledSource === undefined && list[0])
-          setOwnSource((current) => current ?? list[0]!.id);
-      })
-      .catch((reason: unknown) => {
-        if (!aborted(reason)) setError(messageOf(reason, labels));
-      });
-    return () => controller.abort();
-    // Sources are read once per client.
-  }, [client]);
-
-  useEffect(() => {
-    if (!sourceId) return;
-    const controller = new AbortController();
-    setPlans([]);
-    setNewKeys([]);
-    setDrafts({});
-    setPreview(null);
     client
       .listPlans(sourceId, controller.signal)
-      .then(setPlans)
+      .then((list) => {
+        if (!controller.signal.aborted) setPlans(list);
+      })
       .catch((reason: unknown) => {
-        if (!aborted(reason)) setError(messageOf(reason, labels));
+        if (!controller.signal.aborted && !aborted(reason))
+          setError(messageOf(reason, currentLabels.current));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingPlans(false);
       });
     return () => controller.abort();
   }, [client, sourceId]);
 
   useEffect(() => {
-    if (planId !== undefined) setActiveKey(planId);
-  }, [planId]);
+    if (planId === undefined) return;
+    if (expectedEcho.current !== undefined && expectedEcho.current === planId) {
+      expectedEcho.current = undefined;
+      return;
+    }
+    expectedEcho.current = undefined;
+    applySelection(planId);
+  }, [planId, applySelection]);
 
   const projectId = draft?.projectId ?? source?.defaultProjectId ?? "";
   const schemaKey = `${sourceId}|${projectId}`;
@@ -187,46 +293,65 @@ export function QueryWorkbench({
   const loadSchema = useCallback(
     (refresh: boolean, signal?: AbortSignal) => {
       if (!sourceId || !PROJECT_ID.test(projectId)) return;
+      schemaRequest.current?.abort();
+      const controller = new AbortController();
+      schemaRequest.current = controller;
+      const combined = signal
+        ? AbortSignal.any([controller.signal, signal])
+        : controller.signal;
+      const current = () =>
+        mounted.current &&
+        !combined.aborted &&
+        schemaRequest.current === controller;
       setSchemaLoading(true);
       setSchemaError(null);
       client
-        .schema(sourceId, projectId, { refresh, ...(signal ? { signal } : {}) })
-        .then((loaded) =>
-          setSchemas((current) => ({ ...current, [schemaKey]: loaded })),
-        )
-        .catch((reason: unknown) => {
-          if (!aborted(reason)) setSchemaError(messageOf(reason, labels));
+        .schema(sourceId, projectId, { refresh, signal: combined })
+        .then((loaded) => {
+          if (!current()) return;
+          setSchemas((cache) => ({ ...cache, [schemaKey]: loaded }));
+          setSchemaLoading(false);
         })
-        .finally(() => setSchemaLoading(false));
+        .catch((reason: unknown) => {
+          if (!current()) return;
+          if (!aborted(reason)) setSchemaError(messageOf(reason, labels));
+          setSchemaLoading(false);
+        });
     },
     [client, sourceId, projectId, schemaKey, labels],
   );
-
   useEffect(() => {
-    if (schemas[schemaKey]) return;
+    if (schema !== null) return;
     const controller = new AbortController();
     const timer = setTimeout(() => loadSchema(false, controller.signal), 400);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [schemaKey]);
+  }, [schemaKey, schema, loadSchema]);
 
   const draftKey = draft ? JSON.stringify(draft) : "";
   useEffect(() => {
     setEstimate(null);
     setEstimateError(null);
-    if (!sourceId || !draft || !draft.sql.trim()) return;
+    setEstimating(false);
+    if (!sourceId || !draft?.sql.trim()) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       setEstimating(true);
       client
         .estimate(sourceId, draft, controller.signal)
-        .then(setEstimate)
-        .catch((reason: unknown) => {
-          if (!aborted(reason)) setEstimateError(messageOf(reason, labels));
+        .then((value) => {
+          if (!controller.signal.aborted && mounted.current) setEstimate(value);
         })
-        .finally(() => setEstimating(false));
+        .catch((reason: unknown) => {
+          if (!controller.signal.aborted && mounted.current && !aborted(reason))
+            setEstimateError(messageOf(reason, labels));
+        })
+        .finally(() => {
+          if (!controller.signal.aborted && mounted.current)
+            setEstimating(false);
+        });
     }, 600);
     return () => {
       clearTimeout(timer);
@@ -236,104 +361,157 @@ export function QueryWorkbench({
   }, [client, sourceId, draftKey]);
 
   function open(key: string | null) {
-    run.current?.abort();
-    setActiveKey(key);
-    setPreview(null);
-    setConfirmRemove(false);
-    setError(null);
-    setNotice(null);
-    onPlanChange?.(key === null || key.startsWith(NEW) ? null : key);
+    applySelection(key);
+    const value = key === null || key.startsWith(NEW) ? null : key;
+    expectedEcho.current = value !== planId ? value : undefined;
+    onPlanChange?.(value);
   }
-
   function change(update: Partial<QueryPlanDraft>) {
-    if (!activeKey || !draft) return;
-    setDrafts((current) => ({
-      ...current,
-      [activeKey]: { ...draft, ...update },
-    }));
+    if (
+      !activeKey ||
+      !draft ||
+      mutation.current ||
+      selected.current !== activeKey
+    )
+      return;
+    const current = draftsNow.current[activeKey] ?? draft;
+    replaceDrafts({
+      ...draftsNow.current,
+      [activeKey]: { ...current, ...update },
+    });
+    run.current?.abort();
+    run.current = null;
+    setRunning(false);
+    setPreview(null);
+    setEstimate(null);
+    setEstimateError(null);
+    setError(null);
   }
-
   function createNew(from?: QueryPlanDraft) {
+    if (mutation.current || loadingPlans) return;
     const key = `${NEW}${++newCount.current}`;
     setNewKeys((current) => [...current, key]);
-    setDrafts((current) => ({ ...current, [key]: from ?? emptyDraft() }));
+    replaceDrafts({ ...draftsNow.current, [key]: from ?? emptyDraft() });
     open(key);
   }
-
   async function runPreview() {
-    if (!sourceId || !draft || running) return;
+    const currentDraft = activeKey
+      ? (draftsNow.current[activeKey] ?? draft)
+      : null;
+    if (
+      !sourceId ||
+      !currentDraft ||
+      running ||
+      (run.current !== null && !run.current.signal.aborted) ||
+      mutation.current
+    )
+      return;
     run.current?.abort();
     const controller = new AbortController();
     run.current = controller;
     setRunning(true);
     setError(null);
     try {
-      setPreview(await client.preview(sourceId, draft, controller.signal));
+      const value = await client.preview(
+        sourceId,
+        currentDraft,
+        controller.signal,
+      );
+      if (
+        mounted.current &&
+        run.current === controller &&
+        !controller.signal.aborted
+      )
+        setPreview(value);
     } catch (reason) {
-      if (!aborted(reason)) setError(messageOf(reason, labels));
+      if (
+        mounted.current &&
+        run.current === controller &&
+        !controller.signal.aborted &&
+        !aborted(reason)
+      )
+        setError(messageOf(reason, labels));
     } finally {
-      if (run.current === controller) setRunning(false);
+      if (mounted.current && run.current === controller) {
+        run.current = null;
+        setRunning(false);
+      }
     }
   }
-
   async function save() {
-    if (!sourceId || !draft || !activeKey || saving || !canWrite) return;
+    const submitted = activeKey
+      ? (draftsNow.current[activeKey] ?? draft)
+      : null;
+    if (!sourceId || !submitted || !activeKey || mutation.current || !canWrite)
+      return;
+    const submittedKey = activeKey;
+    mutation.current = true;
     setSaving(true);
     setError(null);
     try {
       const saved = activePlan
-        ? await client.updatePlan(sourceId, activePlan, draft)
-        : await client.createPlan(sourceId, draft);
+        ? await client.updatePlan(sourceId, activePlan, submitted)
+        : await client.createPlan(sourceId, submitted);
+      if (!mounted.current) return;
       setPlans((current) =>
         [...current.filter((plan) => plan.id !== saved.id), saved].sort(
           (a, b) => a.name.localeCompare(b.name, locale),
         ),
       );
-      setDrafts((current) => {
-        const next = { ...current };
-        delete next[activeKey];
-        return next;
-      });
-      setNewKeys((current) => current.filter((key) => key !== activeKey));
-      open(saved.id);
+      const next = { ...draftsNow.current };
+      const latest = next[submittedKey];
+      delete next[submittedKey];
+      if (latest && !sameDraft(latest, submitted)) next[saved.id] = latest;
+      replaceDrafts(next);
+      setNewKeys((current) => current.filter((key) => key !== submittedKey));
+      if (selected.current === submittedKey) open(saved.id);
     } catch (reason) {
-      setError(messageOf(reason, labels));
+      if (mounted.current) setError(messageOf(reason, labels));
     } finally {
-      setSaving(false);
+      mutation.current = false;
+      if (mounted.current) setSaving(false);
     }
   }
-
   function discard() {
-    if (!activeKey) return;
+    if (!activeKey || mutation.current) return;
     if (activeKey.startsWith(NEW)) {
       setNewKeys((current) => current.filter((key) => key !== activeKey));
       open(null);
     }
-    setDrafts((current) => {
-      const next = { ...current };
-      delete next[activeKey];
-      return next;
-    });
+    const next = { ...draftsNow.current };
+    delete next[activeKey];
+    replaceDrafts(next);
+    setPreview(null);
+    setError(null);
   }
-
   async function remove() {
-    if (!sourceId || !activePlan || !canWrite) return;
+    if (!sourceId || !activePlan || !canWrite || mutation.current) return;
+    mutation.current = true;
+    setRemoving(true);
     try {
       await client.removePlan(sourceId, activePlan.id);
+      if (!mounted.current) return;
       setPlans((current) =>
         current.filter((plan) => plan.id !== activePlan.id),
       );
       open(null);
     } catch (reason) {
-      setError(messageOf(reason, labels));
+      if (mounted.current) setError(messageOf(reason, labels));
+    } finally {
+      mutation.current = false;
+      if (mounted.current) setRemoving(false);
     }
   }
 
   function copy(text: string) {
     void navigator.clipboard
       ?.writeText(text)
-      .then(() => setNotice(labels.copied))
-      .catch(() => setError(labels.failed));
+      .then(() => {
+        if (mounted.current) setNotice(labels.copied);
+      })
+      .catch(() => {
+        if (mounted.current) setError(labels.failed);
+      });
   }
 
   const entries = [
@@ -368,10 +546,9 @@ export function QueryWorkbench({
             <select
               className="miot-qw-input"
               value={sourceId ?? ""}
+              disabled={!onSelectSource}
               onChange={(event) => {
-                setOwnSource(event.target.value);
-                onSourceChange?.(event.target.value);
-                open(null);
+                onSelectSource?.(event.target.value);
               }}
             >
               {sources.map((item) => (
@@ -388,7 +565,7 @@ export function QueryWorkbench({
             <button
               type="button"
               className="miot-qw-button"
-              disabled={!sourceId}
+              disabled={!sourceId || loadingPlans || busy}
               onClick={() => createNew()}
             >
               + {labels.newQuery}
@@ -404,16 +581,25 @@ export function QueryWorkbench({
                   type="button"
                   className="miot-qw-list__item"
                   aria-current={entry.key === activeKey || undefined}
+                  disabled={busy}
                   onClick={() => open(entry.key)}
                 >
                   <span>{entry.name}</span>
                   {isDirty(entry.key) && (
-                    <span
+                    <svg
                       className="miot-qw-dot"
                       role="img"
                       aria-label={labels.unsaved}
-                      title={labels.unsaved}
-                    />
+                      viewBox="0 0 8 8"
+                    >
+                      <title>{labels.unsaved}</title>
+                      <circle
+                        cx="4"
+                        cy="4"
+                        r="4"
+                        fill="var(--miot-qw-accent)"
+                      />
+                    </svg>
                   )}
                 </button>
               </li>
@@ -425,19 +611,26 @@ export function QueryWorkbench({
           loading={schemaLoading}
           error={schemaError}
           labels={labels}
-          onInsert={(text) => editor.current?.insert(text)}
+          onInsert={(text) => {
+            if (!mutation.current) editor.current?.insert(text);
+          }}
           onRefresh={() => loadSchema(true)}
         />
       </aside>
 
       <main className="miot-qw-main">
+        {(loadError ?? error) && (
+          <p className="miot-qw-error" role="alert">
+            {loadError ?? error}
+          </p>
+        )}
         {draft && activeKey ? (
           <>
             <div className="miot-qw-toolbar" role="toolbar">
               <button
                 type="button"
                 className="miot-qw-button miot-qw-button--primary"
-                disabled={running || !draft.sql.trim()}
+                disabled={busy || running || !draft.sql.trim()}
                 onClick={() => void runPreview()}
                 title="⌘↵"
               >
@@ -447,7 +640,7 @@ export function QueryWorkbench({
                 <button
                   type="button"
                   className="miot-qw-button"
-                  disabled={saving || !isDirty(activeKey)}
+                  disabled={busy || !isDirty(activeKey)}
                   onClick={() => void save()}
                 >
                   {saving ? labels.saving : labels.save}
@@ -456,7 +649,7 @@ export function QueryWorkbench({
               <button
                 type="button"
                 className="miot-qw-button"
-                disabled={!isDirty(activeKey)}
+                disabled={busy || !isDirty(activeKey)}
                 onClick={discard}
               >
                 {labels.discard}
@@ -472,6 +665,7 @@ export function QueryWorkbench({
                 <button
                   type="button"
                   className="miot-qw-button"
+                  disabled={busy}
                   onClick={() =>
                     createNew({
                       ...draft,
@@ -486,6 +680,7 @@ export function QueryWorkbench({
                 <button
                   type="button"
                   className="miot-qw-button miot-qw-button--danger"
+                  disabled={busy}
                   onClick={() => setConfirmRemove(true)}
                 >
                   {labels.remove}
@@ -499,6 +694,7 @@ export function QueryWorkbench({
                 <button
                   type="button"
                   className="miot-qw-button miot-qw-button--danger"
+                  disabled={busy}
                   onClick={() => void remove()}
                 >
                   {labels.remove}
@@ -506,22 +702,19 @@ export function QueryWorkbench({
                 <button
                   type="button"
                   className="miot-qw-button"
+                  disabled={busy}
                   onClick={() => setConfirmRemove(false)}
                 >
                   {labels.cancel}
                 </button>
               </div>
             )}
-            {error && (
-              <p className="miot-qw-error" role="alert">
-                {error}
-              </p>
-            )}
             <SqlEditor
               key={`${sourceId}|${activeKey}`}
               ref={editor}
               id="miot-qw-sql"
               ariaLabel="SQL"
+              readOnly={busy}
               value={draft.sql}
               schema={schema}
               problemLine={problem?.line ?? null}
@@ -564,9 +757,10 @@ export function QueryWorkbench({
               )}
             </p>
             <PlanSettings
+              key={activeKey}
               draft={draft}
               labels={labels}
-              disabled={false}
+              disabled={busy}
               onChange={change}
             />
             <ResultsTable

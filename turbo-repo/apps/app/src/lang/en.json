@@ -4856,7 +4856,7 @@
         "location": "Location",
         "megabytes": "Maximum read (MB)",
         "sql": "SQL",
-        "sqlHelp": "Use @name for each parameter; values are never pasted into the SQL. Return aggregated data: at most 5,000 rows, no nested columns.",
+        "sqlHelp": "Use @name for each parameter; values are never pasted into the SQL. Return aggregated data: at most 5,000 rows, no nested columns. For exact INT64 or NUMERIC values, pass quoted strings in the parameter JSON.",
         "parameters": "Parameters",
         "parameterName": "Parameter name",
         "parameterType": "Type",
@@ -4868,7 +4868,10 @@
           "sql": "Enter the SQL.",
           "bytes": "The maximum read must be between 1 and 1,000 MB.",
           "parameterName": "Parameters start with a letter or _ and contain only letters, digits and _.",
-          "parameterDuplicate": "Two parameters have the same name."
+          "parameterDuplicate": "Two parameters have the same name.",
+          "parameterReserved": "The parameter names pattern and patternProperties are reserved by the dashboard schema.",
+          "parameterLimit": "A query can declare at most 100 parameters.",
+          "size": "The query and its parameter schema exceed the 64 KiB execution limit. Shorten the SQL or remove parameters."
         }
       }
     },

@@ -32,7 +32,7 @@ describe("buildBigQueryOperation", () => {
       additionalProperties: false,
       properties: {
         since: { type: "string", format: "date" },
-        limit: { type: "integer" },
+        limit: { type: ["integer", "string"] },
       },
       required: ["since", "limit"],
       "x-dashboard": {
@@ -87,9 +87,82 @@ describe("bigQueryFormError", () => {
       })
     ).toBe("bigquery.errors.parameterName");
   });
+
+  it.each(["pattern", "patternProperties"])(
+    "rejects the backend-reserved parameter name %s",
+    (name) => {
+      expect(
+        bigQueryFormError({ ...FORM, parameters: [{ name, type: "STRING" }] })
+      ).toBe("bigquery.errors.parameterReserved");
+    }
+  );
+
+  it("enforces the complete UTF-8 schema budget, including metadata", () => {
+    const form = { ...FORM, sql: "SELECT 1 /**/" };
+    const size = new TextEncoder().encode(
+      JSON.stringify(buildBigQueryOperation(form).requestSchema)
+    ).length;
+    const padding = "a".repeat(65_536 - size);
+    expect(
+      bigQueryFormError({ ...form, sql: `SELECT 1 /*${padding}*/` })
+    ).toBeNull();
+    expect(
+      bigQueryFormError({ ...form, sql: `SELECT 1 /*${padding}a*/` })
+    ).toBe("bigquery.errors.size");
+    expect(
+      bigQueryFormError({ ...form, sql: `SELECT 1 /*${"á".repeat(40_000)}*/` })
+    ).toBe("bigquery.errors.size");
+  });
+
+  it("rejects more parameters than the execution boundary accepts", () => {
+    const parameters = Array.from({ length: 101 }, (_, i) => ({
+      name: `p${i}`,
+      type: "STRING" as const,
+    }));
+    expect(bigQueryFormError({ ...FORM, parameters })).toBe(
+      "bigquery.errors.parameterLimit"
+    );
+  });
+});
+
+it("permits precision-preserving scalar strings for INT64 and NUMERIC", () => {
+  const operation = buildBigQueryOperation({
+    ...FORM,
+    parameters: [
+      { name: "large", type: "INT64" },
+      { name: "decimal", type: "NUMERIC" },
+      { name: "approximate", type: "FLOAT64" },
+    ],
+  });
+  expect(operation.requestSchema.properties).toEqual({
+    large: { type: ["integer", "string"] },
+    decimal: { type: ["number", "string"] },
+    approximate: { type: "number" },
+  });
+  expect(operation.requestSchema["x-dashboard"]).toMatchObject({
+    parameterTypes: {
+      large: "INT64",
+      decimal: "NUMERIC",
+      approximate: "FLOAT64",
+    },
+  });
 });
 
 describe("bigQueryQueries", () => {
+  it("does not render objects as query text", () => {
+    const operation = buildBigQueryOperation(FORM);
+    operation.requestSchema["x-dashboard"] = {
+      kind: "BIGQUERY",
+      projectId: {},
+      location: {},
+      query: {},
+    };
+    expect(bigQueryQueries([{ id: "demo", ...operation }])[0]).toMatchObject({
+      projectId: "",
+      location: "",
+      sql: "",
+    });
+  });
   it("lists only the BigQuery operations", () => {
     const query = buildBigQueryOperation(FORM);
     expect(

@@ -157,7 +157,11 @@ export function ConnectionFormModal({
   }
 
   function missingCredential(data: ConnectionFormData): boolean {
-    if (!isBigQuery || data.credentialProfileId) return false;
+    if (
+      !isBigQuery ||
+      choices.some((credential) => credential.id === data.credentialProfileId)
+    )
+      return false;
     setError(new Error(tr("bigquery.credentialRequired", dict)));
     return true;
   }

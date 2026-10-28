@@ -69,8 +69,8 @@ public class DashboardAuthoringResource {
     @Path("/plans/list")
     public Uni<Response> list(@HeaderParam("x-miot-proxy-key") String key, PlanRequest request) {
         return handle(key, request == null ? null : request.tenantId(), tenant -> {
-            var plans = service.list(tenant, request.sourceId());
-            return plans == null ? status(404, NOT_FOUND) : Response.ok(plans);
+            return service.list(tenant, request.sourceId()).map(Response::ok)
+                    .orElseGet(() -> status(404, NOT_FOUND));
         });
     }
 

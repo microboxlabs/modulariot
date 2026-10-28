@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -38,7 +40,14 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  */
 @ApplicationScoped
 public class DashboardAuthoringService {
+    // Fixed operation path shared with saved BigQuery definitions, not a deployment URL or filesystem location.
+    @SuppressWarnings("java:S1075")
     public static final String OPERATION_PATH = "/bigquery/v2/queries";
+    private static final String BIGQUERY = "BIGQUERY";
+    private static final String STRING = "string";
+    private static final String PROJECT_ID = "projectId";
+    private static final String DESCRIPTION = "description";
+    private static final String UPDATED_BY = "updatedBy";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String DASHBOARD = "x-dashboard";
     private static final String PARAMETER_TYPES = "parameterTypes";
@@ -106,7 +115,7 @@ public class DashboardAuthoringService {
                 ResolvedConnection resolved = resolver.resolve(tenantCode, connection);
                 String project = projectOf(resolved);
                 if (resolved.authType() == AuthType.GOOGLE_SERVICE_ACCOUNT && project != null) {
-                    sources.add(new Source(connection.id(), connection.name(), "BIGQUERY", project));
+                    sources.add(new Source(connection.id(), connection.name(), BIGQUERY, project));
                 }
             } catch (ConnectionResolutionException e) {
                 // A connection whose credential cannot be read is not offered.
@@ -128,13 +137,13 @@ public class DashboardAuthoringService {
                 auth.expiresAt() == null ? null : auth.expiresAt().toString());
     }
 
-    /** @return null when the source is unknown */
-    public List<Plan> list(String tenantCode, String sourceId) {
-        if (source(tenantCode, sourceId) == null) return null;
-        return operations.listVersioned(sourceId).stream()
+    /** Unknown sources stay distinct from known sources without saved queries. */
+    public Optional<List<Plan>> list(String tenantCode, String sourceId) {
+        if (source(tenantCode, sourceId) == null) return Optional.empty();
+        return Optional.of(operations.listVersioned(sourceId).stream()
                 .map(version -> toPlan(sourceId, version))
-                .filter(plan -> plan != null)
-                .toList();
+                .filter(Objects::nonNull)
+                .toList());
     }
 
     /** @return null when the source or the query is unknown */
@@ -227,7 +236,7 @@ public class DashboardAuthoringService {
     }
 
     private static String projectOf(ResolvedConnection resolved) {
-        Object value = resolved.publicConfig() == null ? null : resolved.publicConfig().get("projectId");
+        Object value = resolved.publicConfig() == null ? null : resolved.publicConfig().get(PROJECT_ID);
         String project = value == null ? null : value.toString();
         return BigQueryProbe.validProjectId(project) ? project : null;
     }
@@ -247,8 +256,8 @@ public class DashboardAuthoringService {
         ObjectNode schema = JSON.createObjectNode().put(TYPE, "object").put("additionalProperties", false);
         ObjectNode properties = schema.putObject("properties");
         ArrayNode required = schema.putArray("required");
-        ObjectNode dashboard = schema.putObject(DASHBOARD).put("readOnly", true).put("kind", "BIGQUERY")
-                .put("credentialScoped", true).put("projectId", content.projectId()).put("location", content.location())
+        ObjectNode dashboard = schema.putObject(DASHBOARD).put("readOnly", true).put("kind", BIGQUERY)
+                .put("credentialScoped", true).put(PROJECT_ID, content.projectId()).put("location", content.location())
                 .put("query", content.sql())
                 .put("maximumBytesBilled", Long.toString(content.maximumBytesBilled()));
         ObjectNode types = dashboard.putObject(PARAMETER_TYPES);
@@ -261,7 +270,7 @@ public class DashboardAuthoringService {
         }
         if (!samples.isEmpty()) dashboard.set("samples", samples);
         if (content.description() != null && !content.description().isBlank()) {
-            dashboard.put("description", content.description().strip());
+            dashboard.put(DESCRIPTION, content.description().strip());
         }
         ArrayNode columns = JSON.createArrayNode();
         if (content.columns() != null) {
@@ -270,7 +279,7 @@ public class DashboardAuthoringService {
                     .put("mode", column.mode() == null ? "NULLABLE" : column.mode()));
         }
         dashboard.set("columns", columns);
-        if (actor != null) dashboard.put("updatedBy", actor);
+        if (actor != null) dashboard.put(UPDATED_BY, actor);
         Map<String, Object> stored = JSON.convertValue(schema, Map.class);
         var candidate = new IntegrationOperation("draft", "source", content.name(), "POST", OPERATION_PATH, stored, Map.of(), false);
         if (schema.toString().getBytes(StandardCharsets.UTF_8).length > 65_536
@@ -308,19 +317,19 @@ public class DashboardAuthoringService {
         ObjectNode property = JSON.createObjectNode();
         ArrayNode types = property.putArray(TYPE).add("null");
         switch (type) {
-            case "INT64" -> types.add("integer").add("string");
+            case "INT64" -> types.add("integer").add(STRING);
             case "FLOAT64" -> types.add("number");
-            case "NUMERIC", "BIGNUMERIC" -> types.add("number").add("string");
+            case "NUMERIC", "BIGNUMERIC" -> types.add("number").add(STRING);
             case "BOOL" -> types.add("boolean");
-            case "DATE" -> { types.add("string"); property.put("format", "date"); }
-            default -> types.add("string");
+            case "DATE" -> { types.add(STRING); property.put("format", "date"); }
+            default -> types.add(STRING);
         }
         return property;
     }
 
     /** The scalar-only authoring contract cannot preserve operator-owned tenant bindings or arrays. */
     private static boolean editable(IntegrationOperation operation, JsonNode dashboard) {
-        return "BIGQUERY".equals(dashboard.path("kind").asText())
+        return BIGQUERY.equals(dashboard.path("kind").asText())
                 && dashboard.path("credentialScoped").asBoolean(false)
                 && !dashboard.has("tenantParameter")
                 && DashboardOperationPolicy.eligible(operation)
@@ -359,10 +368,10 @@ public class DashboardAuthoringService {
         dashboard.path("columns").forEach(column -> columns.add(new Column(column.path("name").asText(),
                 column.path(TYPE).asText(), column.path("mode").asText("NULLABLE"))));
         return new Plan(operation.id(), sourceId, operation.name(),
-                dashboard.hasNonNull("description") ? dashboard.path("description").asText() : null,
-                dashboard.path("projectId").asText(), dashboard.path("location").asText(),
+                dashboard.hasNonNull(DESCRIPTION) ? dashboard.path(DESCRIPTION).asText() : null,
+                dashboard.path(PROJECT_ID).asText(), dashboard.path("location").asText(),
                 dashboard.path("query").asText(), bytes, parameters, columns.isEmpty() ? null : columns,
                 revisionOf(version.updatedAt()), version.updatedAt().toInstant().toString(),
-                dashboard.hasNonNull("updatedBy") ? dashboard.path("updatedBy").asText() : null);
+                dashboard.hasNonNull(UPDATED_BY) ? dashboard.path(UPDATED_BY).asText() : null);
     }
 }

@@ -16,6 +16,8 @@ import java.util.UUID;
 @ApplicationScoped
 public class IntegrationOperationRepository {
 
+    private static final String UPDATED_AT = "updated_at";
+
     private static final String SELECT_BY_CONNECTION = """
             SELECT id, connection_id, name, method, path, request_schema, response_schema, test_operation
             FROM miot_integrations.integration_operations
@@ -137,7 +139,7 @@ public class IntegrationOperationRepository {
                 .execute(Tuple.of(UUID.fromString(connectionId)))
                 .await().indefinitely()
                 .stream()
-                .map(row -> new Versioned(mapRow(row), row.getOffsetDateTime("updated_at")))
+                .map(row -> new Versioned(mapRow(row), row.getOffsetDateTime(UPDATED_AT)))
                 .toList();
     }
 
@@ -154,7 +156,7 @@ public class IntegrationOperationRepository {
             return null;
         }
         Row row = rows.next();
-        return new Versioned(mapRow(row), row.getOffsetDateTime("updated_at"));
+        return new Versioned(mapRow(row), row.getOffsetDateTime(UPDATED_AT));
     }
 
     /**
@@ -179,7 +181,7 @@ public class IntegrationOperationRepository {
             return null;
         }
         Row row = rows.next();
-        return new Versioned(mapRow(row), row.getOffsetDateTime("updated_at"));
+        return new Versioned(mapRow(row), row.getOffsetDateTime(UPDATED_AT));
     }
 
     /** Soft delete: the row stays for history and its name can be used again. */

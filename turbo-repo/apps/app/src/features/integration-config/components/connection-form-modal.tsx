@@ -26,6 +26,7 @@ import {
   type UpdateConnectionRequest,
 } from "../integration-config.types";
 import { IntegrationFormModal } from "./integration-form-modal";
+import { BIGQUERY_BASE_URL, isBigQueryConnection } from "../bigquery-query";
 
 interface ConnectionFormModalProps {
   readonly show: boolean;
@@ -79,6 +80,14 @@ export function ConnectionFormModal({
   const isEdit = connection !== undefined;
   const isPostgrest =
     !template && (providerType ?? connection?.providerType) === "POSTGREST";
+  const isBigQuery =
+    !template &&
+    (providerType === "BIGQUERY" ||
+      (connection !== undefined && isBigQueryConnection(connection)));
+  // BigQuery queries authenticate with a Google service account and nothing else.
+  const choices = isBigQuery
+    ? credentials.filter((c) => c.typeId === "GOOGLE_SERVICE_ACCOUNT")
+    : credentials;
   const [error, setError] = useState<Error | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(
     null
@@ -107,13 +116,20 @@ export function ConnectionFormModal({
             baseUrl: connection.baseUrl,
             credentialProfileId: connection.credentialProfileId ?? "",
           }
-        : DEFAULTS
+        : { ...DEFAULTS, baseUrl: isBigQuery ? BIGQUERY_BASE_URL : "" }
     );
-  }, [show, connection, reset]);
+  }, [show, connection, reset, isBigQuery]);
 
   async function submit(data: ConnectionFormData) {
     const credentialProfileId = data.credentialProfileId || null;
     setError(null);
+    if (
+      isBigQuery &&
+      !choices.some((credential) => credential.id === credentialProfileId)
+    ) {
+      setError(new Error(tr("bigquery.credentialRequired", dict)));
+      return;
+    }
     try {
       if (connection) {
         await onSave(null, connection.id, {
@@ -133,7 +149,8 @@ export function ConnectionFormModal({
           name: data.name.trim(),
           baseUrl: data.baseUrl.trim(),
           credentialProfileId,
-          providerType,
+          providerType:
+            providerType === "BIGQUERY" ? "CUSTOM_HTTP" : providerType,
         });
       }
       onClose();
@@ -178,78 +195,81 @@ export function ConnectionFormModal({
         <ContractPanel template={template} dict={dict} />
       ) : (
         <NativePanel
-          provider={providerType ?? connection?.providerType}
+          provider={
+            isBigQuery ? "BIGQUERY" : (providerType ?? connection?.providerType)
+          }
           dict={dict}
         />
       )}
 
-        <SettingsFormField
+      <SettingsFormField
+        id="connection-name"
+        label={tr("connection.form.name", dict)}
+        error={trDynamic(errors.name?.message ?? "", dict)}
+      >
+        <TextInput
           id="connection-name"
-          label={tr("connection.form.name", dict)}
-          error={trDynamic(errors.name?.message ?? "", dict)}
-        >
-          <TextInput
-            id="connection-name"
-            placeholder={tr("connection.form.namePlaceholder", dict)}
-            {...register("name")}
-            color={errors.name ? "failure" : undefined}
-          />
-        </SettingsFormField>
+          placeholder={tr("connection.form.namePlaceholder", dict)}
+          {...register("name")}
+          color={errors.name ? "failure" : undefined}
+        />
+      </SettingsFormField>
 
-        <SettingsFormField
+      <SettingsFormField
+        id="connection-base-url"
+        label={tr("connection.form.baseUrl", dict)}
+        error={trDynamic(errors.baseUrl?.message ?? "", dict)}
+      >
+        <TextInput
           id="connection-base-url"
-          label={tr("connection.form.baseUrl", dict)}
-          error={trDynamic(errors.baseUrl?.message ?? "", dict)}
-        >
-          <TextInput
-            id="connection-base-url"
-            type="url"
-            className="font-mono [&_input]:text-sm"
-            placeholder="https://api.partner.example.com"
-            {...register("baseUrl")}
-            color={errors.baseUrl ? "failure" : undefined}
-          />
+          type="url"
+          className="font-mono [&_input]:text-sm"
+          placeholder="https://api.partner.example.com"
+          readOnly={isBigQuery}
+          {...register("baseUrl")}
+          color={errors.baseUrl ? "failure" : undefined}
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {baseUrlHelp(isPostgrest, isBigQuery, dict)}
+        </p>
+      </SettingsFormField>
+
+      <SettingsFormField
+        id="connection-credential"
+        label={tr("connection.form.credential", dict)}
+      >
+        <Select id="connection-credential" {...register("credentialProfileId")}>
+          <option value="">{tr("connection.form.noCredential", dict)}</option>
+          {choices.map((credential) => (
+            <option key={credential.id} value={credential.id}>
+              {credential.name} · {credential.environment}
+            </option>
+          ))}
+        </Select>
+        {choices.length === 0 && (
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {isPostgrest
-              ? tr("connection.form.postgrestBaseUrlHelp", dict)
-              : tr("connection.form.baseUrlHelp", dict)}
+            {isBigQuery
+              ? tr("bigquery.noCredentials", dict)
+              : tr("connection.form.noCredentials", dict)}
           </p>
-        </SettingsFormField>
-
-        <SettingsFormField
-          id="connection-credential"
-          label={tr("connection.form.credential", dict)}
-        >
-          <Select id="connection-credential" {...register("credentialProfileId")}>
-            <option value="">{tr("connection.form.noCredential", dict)}</option>
-            {credentials.map((credential) => (
-              <option key={credential.id} value={credential.id}>
-                {credential.name} · {credential.environment}
-              </option>
-            ))}
-          </Select>
-          {credentials.length === 0 && (
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {tr("connection.form.noCredentials", dict)}
-            </p>
-          )}
-        </SettingsFormField>
-
-        {/* Testing an instance calls the real endpoint, so it only exists once the
-            instance does — while creating there is nothing yet to exercise. */}
-        {isEdit && onTest && (
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              color="light"
-              disabled={testing || saving}
-              onClick={handleTest}
-            >
-              {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
-            </Button>
-            {testResult && <TestResultLine result={testResult} dict={dict} />}
-          </div>
         )}
+      </SettingsFormField>
+
+      {/* Testing an instance calls the real endpoint, so it only exists once the
+            instance does — while creating there is nothing yet to exercise. */}
+      {isEdit && onTest && (
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            color="light"
+            disabled={testing || saving}
+            onClick={handleTest}
+          >
+            {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
+          </Button>
+          {testResult && <TestResultLine result={testResult} dict={dict} />}
+        </div>
+      )}
 
       <Alert color="gray" icon={HiLockClosed}>
         <span className="text-xs">
@@ -304,17 +324,33 @@ function NativePanel({
   provider,
   dict,
 }: Readonly<{ provider: string | undefined; dict: I18nRecord }>) {
-  if (provider !== "POSTGREST") return null;
+  const panel = NATIVE_PANELS[provider ?? ""];
+  if (!panel) return null;
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-        PostgREST
+        {panel.title}
       </div>
       <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-        {tr("connection.form.postgrestHelp", dict)}
+        {trDynamic(panel.helpKey, dict)}
       </p>
     </div>
   );
+}
+
+const NATIVE_PANELS: Record<string, { title: string; helpKey: string }> = {
+  POSTGREST: { title: "PostgREST", helpKey: "connection.form.postgrestHelp" },
+  BIGQUERY: { title: "BigQuery", helpKey: "bigquery.help" },
+};
+
+function baseUrlHelp(
+  isPostgrest: boolean,
+  isBigQuery: boolean,
+  dict: I18nRecord
+): string {
+  if (isBigQuery) return tr("bigquery.baseUrlHelp", dict);
+  if (isPostgrest) return tr("connection.form.postgrestBaseUrlHelp", dict);
+  return tr("connection.form.baseUrlHelp", dict);
 }
 
 function TestResultLine({

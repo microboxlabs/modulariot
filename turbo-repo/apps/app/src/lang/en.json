@@ -4753,7 +4753,8 @@
         "empty": "No templates yet.",
         "native": "Built-in",
         "templates": "Templates",
-        "postgrest": "Data source for dashboards: tested with its credential, then you choose which functions to expose."
+        "postgrest": "Data source for dashboards: tested with its credential, then you choose which functions to expose.",
+        "bigquery": "Dashboard data source: BigQuery SQL with a Google service account."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -4835,6 +4836,43 @@
         "sortNameDesc": "Name (Z-A)",
         "sortTested": "Most recently tested",
         "noMatches": "No connection matches these filters."
+      },
+      "bigquery": {
+        "help": "Dashboard data source: BigQuery SQL saved here, run with a Google service account. Dashboards pick the query and pass values for its parameters, never SQL.",
+        "baseUrlHelp": "The BigQuery API. It cannot be changed.",
+        "credentialRequired": "Choose a Google service account credential.",
+        "noCredentials": "There are no Google service account credentials. Create one in Settings › Credentials.",
+        "queries": "Queries",
+        "title": "Queries of {name}",
+        "subtitle": "Each query is offered to dashboards under Saved queries. Only SELECT is accepted.",
+        "loadFailed": "Could not load the queries.",
+        "empty": "This connection has no queries yet.",
+        "add": "Add query",
+        "save": "Save query",
+        "saved": "Query saved",
+        "name": "Name",
+        "namePlaceholder": "Cost by service",
+        "project": "Project",
+        "location": "Location",
+        "megabytes": "Maximum read (MB)",
+        "sql": "SQL",
+        "sqlHelp": "Use @name for each parameter; values are never pasted into the SQL. Return aggregated data: at most 5,000 rows, no nested columns. For exact INT64 or NUMERIC values, pass quoted strings in the parameter JSON.",
+        "parameters": "Parameters",
+        "parameterName": "Parameter name",
+        "parameterType": "Type",
+        "addParameter": "Add parameter",
+        "errors": {
+          "name": "Enter a name.",
+          "project": "The project must be a Google Cloud project ID, such as my-project-123.",
+          "location": "Enter a location, such as US or EU.",
+          "sql": "Enter the SQL.",
+          "bytes": "The maximum read must be between 1 and 1,000 MB.",
+          "parameterName": "Parameters start with a letter or _ and contain only letters, digits and _.",
+          "parameterDuplicate": "Two parameters have the same name.",
+          "parameterReserved": "The parameter names pattern and patternProperties are reserved by the dashboard schema.",
+          "parameterLimit": "A query can declare at most 100 parameters.",
+          "size": "The query and its parameter schema exceed the 64 KiB execution limit. Shorten the SQL or remove parameters."
+        }
       }
     },
     "calendar": {

@@ -22,6 +22,7 @@ import {
   type ConnectionSort,
 } from "../connection-catalog";
 import { useIntegrationConfig } from "../use-integration-config";
+import type { CredentialListItem } from "@/features/credentials/credential.types";
 import type {
   IntegrationConnection,
   IntegrationTemplate,
@@ -35,6 +36,7 @@ import { TemplatePickerModal } from "./template-picker-modal";
 import { ConnectionFormModal } from "./connection-form-modal";
 import { IntegrationDeleteDialog } from "./integration-delete-dialog";
 import { PostgrestFunctionsModal } from "./postgrest-functions-modal";
+import { BigQueryQueriesModal } from "./bigquery-queries-modal";
 
 interface IntegrationConfigPageContentProps {
   /** `pages.integrationConnections` subtree. */
@@ -95,6 +97,9 @@ export function IntegrationConfigPageContent({
   }>({ open: false });
   const [functionsFor, setFunctionsFor] =
     useState<IntegrationConnection | null>(null);
+  const [queriesFor, setQueriesFor] = useState<IntegrationConnection | null>(
+    null
+  );
   const [deletingTemplate, setDeletingTemplate] =
     useState<IntegrationTemplate | null>(null);
   const [deletingConnection, setDeletingConnection] =
@@ -276,6 +281,7 @@ export function IntegrationConfigPageContent({
               onTest={handleTest}
               onDelete={setDeletingConnection}
               onFunctions={setFunctionsFor}
+              onQueries={setQueriesFor}
               testing={testing}
               emptyMessage={
                 hasActiveConnectionFilters(filters)
@@ -371,6 +377,19 @@ export function IntegrationConfigPageContent({
         />
       )}
 
+      {queriesFor && orgSlug && (
+        <BigQueryQueriesModal
+          orgSlug={orgSlug}
+          connection={queriesFor}
+          defaultProjectId={credentialProjectId(
+            credentials,
+            queriesFor.credentialProfileId
+          )}
+          onClose={() => setQueriesFor(null)}
+          dict={dict}
+        />
+      )}
+
       <IntegrationDeleteDialog
         show={deletingConnection !== null}
         title={tr("delete.connectionTitle", dict)}
@@ -430,6 +449,16 @@ function templateInUseWarning(
   return count === 0
     ? null
     : tr("delete.templateInUse", dict, { count: String(count) });
+}
+
+/** The project of a Google service account credential, proposed for its queries. */
+function credentialProjectId(
+  credentials: readonly CredentialListItem[],
+  id: string | null
+): string {
+  const config = credentials.find((credential) => credential.id === id)?.config;
+  const projectId = (config as { projectId?: unknown } | undefined)?.projectId;
+  return typeof projectId === "string" ? projectId : "";
 }
 
 /** The API's own reason when it gave one, so a 409 names what blocked it. */

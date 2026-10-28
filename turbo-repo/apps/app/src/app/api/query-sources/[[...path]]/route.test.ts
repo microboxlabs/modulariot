@@ -12,7 +12,7 @@ vi.mock("@/app/api/utils/quarkus-proxy", () => ({
   forwardToQuarkus: forwardMock,
 }));
 
-import { DELETE, GET, PUT } from "./route";
+import { DELETE, GET, PUT, POST } from "./route";
 
 const context = (path?: string[]) => ({ params: Promise.resolve({ path }) });
 
@@ -72,4 +72,10 @@ describe("query-sources proxy", () => {
     expect(dots.status).toBe(400);
     expect(forwardMock).not.toHaveBeenCalled();
   });
+});
+
+it.each(["estimate", "plans"])("allows the server dry run to finish for %s writes and propagates cancellation", async (action) => {
+ const request = new Request(`https://app.test/api/query-sources/demo/${action}?org=acme`, { method: "POST", body: JSON.stringify({ sql: "SELECT 1" }) });
+ await POST(request, context(["demo", action]));
+ expect(forwardMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ timeoutMs: 30_000, signal: request.signal }));
 });

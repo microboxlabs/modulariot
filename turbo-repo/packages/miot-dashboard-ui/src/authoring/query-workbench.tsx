@@ -34,7 +34,8 @@ export interface QueryWorkbenchProps {
   readonly onSourceChange?: (sourceId: string) => void;
   /** The open saved query, so a host can keep it in its URL. */
   readonly planId?: string | null;
-  readonly onPlanChange?: (planId: string | null) => void;
+  /** The source accompanies the selection so URL hosts can navigate atomically. */
+  readonly onPlanChange?: (planId: string | null, sourceId?: string) => void;
   /** Save, duplicate and delete. Reading and running need only the server's permission. */
   readonly canWrite: boolean;
   readonly labels?: Partial<QueryWorkbenchLabels>;
@@ -129,7 +130,7 @@ function ClientWorkbench(props: QueryWorkbenchProps) {
   function selectSource(value: string) {
     setOwnSource(value);
     onSourceChange?.(value);
-    onPlanChange?.(null);
+    onPlanChange?.(null, value);
   }
   return (
     <WorkbenchSession
@@ -364,7 +365,7 @@ function WorkbenchSession({
     applySelection(key);
     const value = key === null || key.startsWith(NEW) ? null : key;
     expectedEcho.current = value !== planId ? value : undefined;
-    onPlanChange?.(value);
+    onPlanChange?.(value, sourceId);
   }
   function change(update: Partial<QueryPlanDraft>) {
     if (

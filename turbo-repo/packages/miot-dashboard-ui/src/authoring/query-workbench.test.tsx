@@ -542,3 +542,11 @@ it("does not create an empty draft for a linked saved plan while loading or when
   expect(screen.queryByLabelText("SQL")).toBeNull();
   expect(api.createPlan).not.toHaveBeenCalled();
 });
+
+it("includes the actual source in plan navigation for implicit and controlled source hosts", async () => {
+ const changePlan = vi.fn();
+ const api = client();
+ render(<QueryWorkbench client={api} onPlanChange={changePlan} canWrite />);
+ fireEvent.click(await screen.findByRole("button", { name: "Daily trips" }));
+ expect(changePlan).toHaveBeenLastCalledWith("daily", "warehouse");
+});

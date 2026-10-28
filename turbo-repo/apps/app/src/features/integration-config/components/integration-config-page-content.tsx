@@ -365,8 +365,8 @@ export function IntegrationConfigPageContent({
               lang={lang}
               dict={dict?.queryEditor as I18nRecord}
               onSourceChange={(source) => navigate("bigquery", { source })}
-              onPlanChange={(query) =>
-                navigate("bigquery", { source: params.get("source"), query })
+              onPlanChange={(query, source) =>
+                navigate("bigquery", { source: source ?? params.get("source"), query })
               }
             />
           )}

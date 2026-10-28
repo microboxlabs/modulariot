@@ -28,7 +28,7 @@ export function QueryEditorSection({
   /** `pages.integrationConnections.queryEditor`. */
   dict: I18nRecord;
   onSourceChange: (sourceId: string) => void;
-  onPlanChange: (planId: string | null) => void;
+  onPlanChange: (planId: string | null, sourceId?: string) => void;
 }>) {
   const client = useMemo(() => {
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "/app";

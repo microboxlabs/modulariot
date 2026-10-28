@@ -74,8 +74,17 @@ describe("query-sources proxy", () => {
   });
 });
 
-it.each(["estimate", "plans"])("allows the server dry run to finish for %s writes and propagates cancellation", async (action) => {
- const request = new Request(`https://app.test/api/query-sources/demo/${action}?org=acme`, { method: "POST", body: JSON.stringify({ sql: "SELECT 1" }) });
- await POST(request, context(["demo", action]));
- expect(forwardMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ timeoutMs: 30_000, signal: request.signal }));
-});
+it.each(["estimate", "plans"])(
+  "allows the server dry run to finish for %s writes and propagates cancellation",
+  async (action) => {
+    const request = new Request(
+      `https://app.test/api/query-sources/demo/${action}?org=acme`,
+      { method: "POST", body: JSON.stringify({ sql: "SELECT 1" }) }
+    );
+    await POST(request, context(["demo", action]));
+    expect(forwardMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: 30_000, signal: request.signal })
+    );
+  }
+);

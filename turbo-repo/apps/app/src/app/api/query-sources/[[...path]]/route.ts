@@ -42,7 +42,8 @@ async function forward(request: Request, context: Context) {
       );
     }
   }
-  const running = ["preview", "schema", "estimate"].includes(path[1] ?? "") ||
+  const running =
+    ["preview", "schema", "estimate"].includes(path[1] ?? "") ||
     (path[1] === "plans" && ["POST", "PUT"].includes(request.method));
   return forwardToQuarkus(
     orgPath(

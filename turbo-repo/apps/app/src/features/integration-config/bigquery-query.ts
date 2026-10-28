@@ -87,23 +87,33 @@ export function bigQueryFormError(form: BigQueryQueryForm): string | null {
   ) {
     return "bigquery.errors.bytes";
   }
+  if (form.parameters.length > 100) return "bigquery.errors.parameterLimit";
   const names = form.parameters.map((parameter) => parameter.name);
   if (names.some((name) => !PARAMETER_NAME.test(name))) {
     return "bigquery.errors.parameterName";
   }
+  if (
+    names.some((name) => name === "pattern" || name === "patternProperties")
+  ) {
+    return "bigquery.errors.parameterReserved";
+  }
   if (new Set(names).size !== names.length) {
     return "bigquery.errors.parameterDuplicate";
   }
+  const schema = JSON.stringify(buildBigQueryOperation(form).requestSchema);
+  if (new TextEncoder().encode(schema).length > 65_536)
+    return "bigquery.errors.size";
   return null;
 }
 
 function propertyFor(type: BigQueryType): Record<string, unknown> {
   switch (type) {
     case "INT64":
-      return { type: "integer" };
+      return { type: ["integer", "string"] };
     case "FLOAT64":
-    case "NUMERIC":
       return { type: "number" };
+    case "NUMERIC":
+      return { type: ["number", "string"] };
     case "BOOL":
       return { type: "boolean" };
     case "DATE":
@@ -179,12 +189,16 @@ export function bigQueryQueries(
       {
         id: operation.id,
         name: operation.name,
-        projectId: String(dashboard.projectId ?? ""),
-        location: String(dashboard.location ?? ""),
-        sql: String(dashboard.query ?? ""),
+        projectId:
+          typeof dashboard.projectId === "string" ? dashboard.projectId : "",
+        location:
+          typeof dashboard.location === "string" ? dashboard.location : "",
+        sql: typeof dashboard.query === "string" ? dashboard.query : "",
         parameters:
           typeof types === "object" && types !== null
-            ? Object.entries(types).map(([name, type]) => `${name}: ${type}`)
+            ? Object.entries(types).flatMap(([name, type]) =>
+                typeof type === "string" ? [`${name}: ${type}`] : []
+              )
             : [],
       },
     ];

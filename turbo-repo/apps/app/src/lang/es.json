@@ -4856,7 +4856,7 @@
         "location": "Ubicación",
         "megabytes": "Lectura máxima (MB)",
         "sql": "SQL",
-        "sqlHelp": "Usa @nombre para cada parámetro; los valores nunca se pegan en el SQL. Devuelve datos ya agregados: máximo 5.000 filas, sin columnas anidadas.",
+        "sqlHelp": "Usa @nombre para cada parámetro; los valores nunca se pegan en el SQL. Devuelve datos ya agregados: máximo 5.000 filas, sin columnas anidadas. Para valores INT64 o NUMERIC exactos, usa cadenas entre comillas en el JSON de parámetros.",
         "parameters": "Parámetros",
         "parameterName": "Nombre del parámetro",
         "parameterType": "Tipo",
@@ -4868,7 +4868,10 @@
           "sql": "Escribe el SQL.",
           "bytes": "La lectura máxima debe estar entre 1 y 1.000 MB.",
           "parameterName": "Los parámetros empiezan con una letra o _ y solo llevan letras, números y _.",
-          "parameterDuplicate": "Hay dos parámetros con el mismo nombre."
+          "parameterDuplicate": "Hay dos parámetros con el mismo nombre.",
+          "parameterReserved": "Los nombres pattern y patternProperties están reservados por el esquema del dashboard.",
+          "parameterLimit": "Una consulta admite como máximo 100 parámetros.",
+          "size": "La consulta y el esquema de parámetros superan el límite de ejecución de 64 KiB. Reduce el SQL o los parámetros."
         }
       }
     },

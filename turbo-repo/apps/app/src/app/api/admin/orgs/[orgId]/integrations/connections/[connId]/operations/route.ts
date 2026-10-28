@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
 import { requireOrganizationOwner } from "@/app/api/utils/organization-owner";
+import { z } from "zod/v3";
+
+const CreateOperationSchema = z
+  .object({
+    name: z.string(),
+    method: z.string(),
+    path: z.string(),
+    requestSchema: z.record(z.unknown()).optional(),
+    responseSchema: z.record(z.unknown()).optional(),
+    testOperation: z.boolean().optional(),
+  })
+  .passthrough();
 
 type Params = { params: Promise<{ orgId: string; connId: string }> };
 
@@ -30,11 +42,19 @@ export async function POST(request: Request, { params }: Params) {
   const { orgId, connId } = await params;
   const denied = await requireOrganizationOwner(orgId);
   if (denied) return denied;
-  let body: unknown;
   try {
-    body = await request.json();
+    const parsed = CreateOperationSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid operation", issues: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+    return forwardToQuarkus(path(orgId, connId), {
+      method: "POST",
+      body: parsed.data,
+    });
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  return forwardToQuarkus(path(orgId, connId), { method: "POST", body });
 }

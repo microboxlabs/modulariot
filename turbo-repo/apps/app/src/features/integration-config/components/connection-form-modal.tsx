@@ -123,7 +123,10 @@ export function ConnectionFormModal({
   async function submit(data: ConnectionFormData) {
     const credentialProfileId = data.credentialProfileId || null;
     setError(null);
-    if (isBigQuery && !credentialProfileId) {
+    if (
+      isBigQuery &&
+      !choices.some((credential) => credential.id === credentialProfileId)
+    ) {
       setError(new Error(tr("bigquery.credentialRequired", dict)));
       return;
     }

@@ -45,6 +45,10 @@ tags:
     description: >
       How a datasource authenticates. Served only where this server keeps the
       credentials; every route here answers `404` elsewhere.
+  - name: query-authoring
+    description: >
+      Writing, testing and saving SQL queries. Served only where the host
+      provides query authoring; every route here answers `404` elsewhere.
 
 security:
   - bearerAuth: []
@@ -344,11 +348,13 @@ paths:
                             required: [id, label]
                             properties:
                               id: { type: string, minLength: 1, maxLength: 128 }
-                              label: { type: string, minLength: 1, maxLength: 256 }
+                              label:
+                                { type: string, minLength: 1, maxLength: 256 }
                               schema:
                                 type: array
                                 maxItems: 100
-                                items: { type: string, minLength: 1, maxLength: 128 }
+                                items:
+                                  { type: string, minLength: 1, maxLength: 128 }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -799,6 +805,359 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /tenants/{tenantId}/scopes/{scopeId}/query-sources:
+    get:
+      operationId: listQuerySources
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Sources an author can write SQL queries against
+      description: >
+        Served only where the host provides query authoring. Requires the
+        Editor role in the scope and the `canEdit` capability; embed tokens
+        are refused.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: The sources.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QuerySource"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/schema:
+    get:
+      operationId: getQuerySourceSchema
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Datasets, tables and columns of a project
+      description: >
+        Read from INFORMATION_SCHEMA, one query per dataset location; BigQuery
+        bills each the 10 MB minimum of a metadata query. Reused for 10
+        minutes unless `refresh=1`.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+        - name: projectId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: refresh
+          in: query
+          required: false
+          schema: { type: string, enum: ["1"] }
+      responses:
+        "200":
+          description: The schema.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SourceSchema"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          description: BigQuery refused the metadata query. The message is BigQuery's.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/plans:
+    get:
+      operationId: listQueryPlans
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Saved queries of a source
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+      responses:
+        "200":
+          description: The saved queries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QueryPlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      operationId: createQueryPlan
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Save a new query
+      description: >
+        Requires the Coordinator role. The query is dry-run first and must be
+        a SELECT that BigQuery accepts. A saved query becomes an operation of
+        the source in the query catalog.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryPlanDraft"
+      responses:
+        "201":
+          description: Saved. `ETag` is the revision.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/QueryPlan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/plans/{planId}:
+    get:
+      operationId: getQueryPlan
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: One saved query
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+        - $ref: "#/components/parameters/planId"
+      responses:
+        "200":
+          description: The query. `ETag` is the revision.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/QueryPlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateQueryPlan
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Replace a saved query
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+        - $ref: "#/components/parameters/planId"
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+          description: The `revision` of the query that was edited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryPlanDraft"
+      responses:
+        "200":
+          description: Saved. `ETag` is the new revision.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/QueryPlan"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+    delete:
+      operationId: deleteQueryPlan
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Delete a saved query
+      description: Dashboards that use it stop getting rows from it.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+        - $ref: "#/components/parameters/planId"
+      responses:
+        "204":
+          description: Deleted. No body.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/estimate:
+    post:
+      operationId: estimateQuery
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Dry-run a draft
+      description: >
+        Free. Says how many bytes the query reads, its statement type and its
+        columns. A query BigQuery refuses answers 200 with `ok: false` and the
+        problem, because that is what the editor shows.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryPlanDraft"
+      responses:
+        "200":
+          description: The estimate.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/QueryEstimate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/scopes/{scopeId}/query-sources/{sourceId}/preview:
+    post:
+      operationId: previewQuery
+      tags: [query-authoring]
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      summary: Run a draft with the dashboard's limits
+      description: >
+        Runs the query the way a dashboard does, binding each parameter's
+        `sample`, and returns up to 5,000 rows. Results a dashboard would
+        refuse are still returned, with `warnings`. BigQuery's errors answer
+        200 with `ok: false`.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/sourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryPlanDraft"
+      responses:
+        "200":
+          description: The rows, or the problem.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/QueryPreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -880,6 +1239,18 @@ components:
       description: >
         Caller-chosen handle a datasource names. It addresses a credential
         and is not one, so it is safe in a path or a log line.
+    sourceId:
+      name: sourceId
+      in: path
+      required: true
+      schema: { type: string }
+      description: A query source, as listed by `/query-sources`.
+    planId:
+      name: planId
+      in: path
+      required: true
+      schema: { type: string }
+      description: A saved query of the source.
     ifMatch:
       name: If-Match
       in: header
@@ -958,6 +1329,179 @@ components:
             code: CONFLICT
 
   schemas:
+    QuerySource:
+      type: object
+      required: [id, label, kind, defaultProjectId]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        kind: { type: string, enum: [BIGQUERY] }
+        defaultProjectId: { type: string }
+        defaultLocation: { type: string }
+    QueryPlanParameter:
+      type: object
+      additionalProperties: false
+      required: [name, type]
+      properties:
+        name: { type: string, pattern: "^[A-Za-z_]\\w{0,127}$" }
+        type:
+          type: string
+          enum:
+            [
+              STRING,
+              INT64,
+              FLOAT64,
+              NUMERIC,
+              BIGNUMERIC,
+              BOOL,
+              DATE,
+              DATETIME,
+              TIME,
+              TIMESTAMP,
+            ]
+        sample:
+          type: [string, "null"]
+          maxLength: 4096
+          description: Value used in the editor. Dashboards never use it.
+    QueryPlanFields:
+      type: object
+      required: [name, projectId, location, sql, maximumBytesBilled, parameters]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        description: { type: string, maxLength: 1024 }
+        projectId: { type: string, pattern: "^[a-z][a-z0-9-]{4,61}[a-z0-9]$" }
+        location: { type: string, pattern: "^[A-Za-z0-9-]{2,64}$" }
+        sql: { type: string, minLength: 1, maxLength: 65536 }
+        maximumBytesBilled: { type: integer, minimum: 1 }
+        parameters:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/QueryPlanParameter"
+    QueryPlanDraft:
+      allOf:
+        - $ref: "#/components/schemas/QueryPlanFields"
+      unevaluatedProperties: false
+    QueryColumn:
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        mode: { type: string, enum: [NULLABLE, REQUIRED, REPEATED] }
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryColumn"
+    QueryPlan:
+      allOf:
+        - $ref: "#/components/schemas/QueryPlanFields"
+        - type: object
+          required: [id, sourceId, revision, updatedAt]
+          properties:
+            id: { type: string }
+            sourceId: { type: string }
+            columns:
+              type: array
+              items:
+                $ref: "#/components/schemas/QueryColumn"
+            revision: { type: string }
+            updatedAt: { type: string, format: date-time }
+            updatedBy: { type: string }
+      unevaluatedProperties: false
+    SourceSchema:
+      type: object
+      required: [projectId, datasets, truncated]
+      properties:
+        projectId: { type: string }
+        truncated:
+          type: boolean
+          description: There were more datasets, tables or columns than returned.
+        datasets:
+          type: array
+          items:
+            type: object
+            required: [name, location, tables]
+            properties:
+              name: { type: string }
+              location: { type: string }
+              tables:
+                type: array
+                items:
+                  type: object
+                  required: [name, type, columns]
+                  properties:
+                    name: { type: string }
+                    type:
+                      type: string
+                      enum:
+                        [
+                          TABLE,
+                          VIEW,
+                          EXTERNAL,
+                          MATERIALIZED_VIEW,
+                          SNAPSHOT,
+                          CLONE,
+                        ]
+                    columns:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/QueryColumn"
+    QueryProblem:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        line: { type: integer }
+        column: { type: integer }
+    QueryEstimate:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        statementType: { type: string }
+        totalBytesProcessed: { type: integer }
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryColumn"
+        problem:
+          $ref: "#/components/schemas/QueryProblem"
+    QueryPreview:
+      type: object
+      required:
+        [
+          ok,
+          columns,
+          rows,
+          totalRows,
+          truncated,
+          totalBytesProcessed,
+          cacheHit,
+          durationMs,
+          warnings,
+        ]
+      properties:
+        ok: { type: boolean }
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryColumn"
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        totalRows: { type: integer }
+        truncated: { type: boolean }
+        totalBytesProcessed: { type: integer }
+        cacheHit: { type: boolean }
+        durationMs: { type: integer }
+        warnings:
+          type: array
+          items: { type: string }
+        problem:
+          $ref: "#/components/schemas/QueryProblem"
     QueryScalar:
       oneOf:
         - { type: string, maxLength: 2048 }

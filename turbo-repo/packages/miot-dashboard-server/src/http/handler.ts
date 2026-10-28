@@ -1,5 +1,10 @@
 import type { DashboardQueryCatalog } from "../seams/query-catalog";
 import { projectQueryCatalog } from "./query-catalog";
+import type { QueryAuthoring } from "../seams/authoring";
+import {
+  createQueryWorkbench,
+  type QueryWorkbenchOptions,
+} from "../authoring/workbench";
 /**
  * The HTTP layer: a Web `Request` in, a Web `Response` out.
  *
@@ -84,6 +89,10 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * (see `isCredentialsStore`). A read-only one answers 404.
    */
   credentials?: CredentialsVault;
+  /** Omit it and the query-source routes answer 404. */
+  authoring?: QueryAuthoring;
+  /** Limits, clock and fetch of the query editor. */
+  authoringOptions?: Omit<QueryWorkbenchOptions, "authoring">;
   /** Clock, fetch and timeout for the connection test. For tests. */
   testConnection?: TestConnectionOptions;
   /**
@@ -139,6 +148,34 @@ export function createDashboardHandler(
       // Nothing left to report it to.
     }
   };
+  const workbench =
+    options.authoring === undefined
+      ? null
+      : createQueryWorkbench({
+          ...options.authoringOptions,
+          authoring: options.authoring,
+        });
+  /** Authorizes before anything else, as every route here does. */
+  async function authoring(
+    request: Request,
+    match: RouteMatch,
+    action: "query.author.read" | "query.author.run" | "query.author.write",
+  ) {
+    if (workbench === null) throw notFound();
+    const decision = await access.authorize(request, {
+      tenantId: match.tenantId,
+      scopeId: match.scopeId,
+      action,
+    });
+    return {
+      workbench,
+      context: {
+        identity: decision.identity,
+        scopeId: match.scopeId,
+        signal: request.signal,
+      },
+    };
+  }
   const basePath = normalizeBasePath(options.basePath);
   const testOptions = options.testConnection ?? {};
 
@@ -505,6 +542,132 @@ export function createDashboardHandler(
       }
       return methodNotAllowed();
     },
+
+    async querySources(request, match) {
+      if (request.method.toUpperCase() !== "GET") return methodNotAllowed();
+      const { workbench, context } = await authoring(
+        request,
+        match,
+        "query.author.read",
+      );
+      return jsonResponse({ data: await workbench.sources(context) });
+    },
+
+    async querySourceSchema(request, match) {
+      if (request.method.toUpperCase() !== "GET") return methodNotAllowed();
+      const { workbench, context } = await authoring(
+        request,
+        match,
+        "query.author.read",
+      );
+      const url = new URL(request.url, "http://localhost");
+      const projectId = url.searchParams.get("projectId") ?? "";
+      const data = await workbench.schema(context, requireId(match), projectId, {
+        refresh: url.searchParams.get("refresh") === "1",
+      });
+      return jsonResponse({ data });
+    },
+
+    async queryPlans(request, match) {
+      const method = request.method.toUpperCase();
+      if (method === "GET") {
+        const { workbench, context } = await authoring(
+          request,
+          match,
+          "query.author.read",
+        );
+        return jsonResponse({
+          data: await workbench.listPlans(context, requireId(match)),
+        });
+      }
+      if (method === "POST") {
+        const { workbench, context } = await authoring(
+          request,
+          match,
+          "query.author.write",
+        );
+        const data = await workbench.createPlan(
+          context,
+          requireId(match),
+          await readBody(request),
+        );
+        return planResponse(data, 201);
+      }
+      return methodNotAllowed();
+    },
+
+    async queryPlan(request, match) {
+      const method = request.method.toUpperCase();
+      const planId = requirePlanId(match);
+      if (method === "GET") {
+        const { workbench, context } = await authoring(
+          request,
+          match,
+          "query.author.read",
+        );
+        return planResponse(
+          await workbench.getPlan(context, requireId(match), planId),
+        );
+      }
+      if (method === "PUT") {
+        const { workbench, context } = await authoring(
+          request,
+          match,
+          "query.author.write",
+        );
+        const revision = readPlanRevision(request);
+        const data = await workbench.updatePlan(
+          context,
+          requireId(match),
+          planId,
+          await readBody(request),
+          revision,
+        );
+        return planResponse(data);
+      }
+      if (method === "DELETE") {
+        const { workbench, context } = await authoring(
+          request,
+          match,
+          "query.author.write",
+        );
+        await workbench.removePlan(context, requireId(match), planId);
+        return noContentResponse();
+      }
+      return methodNotAllowed();
+    },
+
+    async queryEstimate(request, match) {
+      if (request.method.toUpperCase() !== "POST") return methodNotAllowed();
+      const { workbench, context } = await authoring(
+        request,
+        match,
+        "query.author.run",
+      );
+      return jsonResponse({
+        data: await workbench.estimate(
+          context,
+          requireId(match),
+          await readBody(request),
+        ),
+      });
+    },
+
+    async queryPreview(request, match) {
+      if (request.method.toUpperCase() !== "POST") return methodNotAllowed();
+      const { workbench, context } = await authoring(
+        request,
+        match,
+        "query.author.run",
+      );
+      return jsonResponse({
+        data: await workbench.preview(
+          context,
+          requireId(match),
+          await readBody(request),
+        ),
+      });
+    },
   };
 
   const handle = async function handle(request: Request): Promise<Response> {
@@ -548,6 +711,31 @@ function requireSlug(match: RouteMatch): string {
     throw DashboardServerError.badRequest("Missing dashboard slug");
   }
   return match.slug;
+}
+
+function requirePlanId(match: RouteMatch): string {
+  if (match.planId === undefined) {
+    throw DashboardServerError.badRequest("Missing query identifier");
+  }
+  return match.planId;
+}
+
+function planResponse(plan: { revision: string }, status = 200): Response {
+  const response = jsonResponse({ data: plan }, status);
+  response.headers.set("ETag", `"${plan.revision}"`);
+  return response;
+}
+
+/** A saved query is only replaced with the revision it was read at. */
+function readPlanRevision(request: Request): string {
+  const header = request.headers.get("if-match");
+  const token = header?.replace(/^W\//, "").replaceAll('"', "").trim();
+  if (!token) {
+    throw DashboardServerError.badRequest(
+      "Send the revision of the query you edited as If-Match",
+    );
+  }
+  return token;
 }
 
 function requireId(match: RouteMatch): string {

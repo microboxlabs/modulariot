@@ -8,6 +8,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { codeEditorTheme } from "@/features/common/components/code-editor-theme";
 
 /** GoogleSQL as BigQuery reads it: backtick names, `#` comments and `@name` parameters. */
 const BigQuerySQL = SQLDialect.define({
@@ -99,17 +100,7 @@ export default function SqlCodeEditor({
           EditorView.updateListener.of((u) => {
             if (u.docChanged) latest.current(u.state.doc.toString());
           }),
-          EditorView.theme({
-            "&": { fontSize: "13px", backgroundColor: "transparent" },
-            "&.cm-focused": { outline: "none" },
-            ".cm-content": {
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              padding: "8px 0",
-              lineHeight: "19px",
-              minHeight: "132px",
-            },
-            ".cm-line": { padding: "0 10px" },
-          }),
+          codeEditorTheme("132px"),
         ],
       }),
       parent: host.current,

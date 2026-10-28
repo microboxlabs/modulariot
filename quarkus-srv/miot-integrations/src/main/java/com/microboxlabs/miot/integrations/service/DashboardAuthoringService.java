@@ -13,6 +13,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepos
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -25,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.function.Supplier;
+import io.vertx.pgclient.PgException;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -149,8 +152,8 @@ public class DashboardAuthoringService {
         if (operations.findByConnectionAndName(sourceId, name) != null) {
             throw new ConflictException("A query with that name already exists");
         }
-        IntegrationOperation created = operations.create(new IntegrationOperation(UUID.randomUUID().toString(),
-                sourceId, name, "POST", OPERATION_PATH, schema, Map.of(), false));
+        IntegrationOperation created = withNameConflict(() -> operations.create(new IntegrationOperation(UUID.randomUUID().toString(),
+                sourceId, name, "POST", OPERATION_PATH, schema, Map.of(), false)));
         return toPlan(sourceId, operations.findVersioned(sourceId, created.id()));
     }
 
@@ -166,7 +169,7 @@ public class DashboardAuthoringService {
         if (sameName != null && !sameName.id().equals(planId)) {
             throw new ConflictException("A query with that name already exists");
         }
-        var updated = operations.updateIfUnchanged(sourceId, planId, name, schema, instantOf(expectedRevision));
+        var updated = withNameConflict(() -> operations.updateIfUnchanged(sourceId, planId, name, schema, instantOf(expectedRevision)));
         if (updated == null) throw new ConflictException("The query was saved by someone else");
         return toPlan(sourceId, updated);
     }
@@ -178,6 +181,18 @@ public class DashboardAuthoringService {
         if (current == null || toPlan(sourceId, current) == null) return false;
         operations.deactivate(sourceId, planId);
         return true;
+    }
+
+    private static <T> T withNameConflict(Supplier<T> write) {
+        try {
+            return write.get();
+        } catch (PgException error) {
+            if ("23505".equals(error.getSqlState())
+                    && "idx_integration_operations_connection_name_active".equals(error.getConstraint())) {
+                throw new ConflictException("A query with that name already exists");
+            }
+            throw error;
+        }
     }
 
     /** Microseconds since the epoch: the precision Postgres keeps. */
@@ -234,7 +249,7 @@ public class DashboardAuthoringService {
         ArrayNode required = schema.putArray("required");
         ObjectNode dashboard = schema.putObject(DASHBOARD).put("readOnly", true).put("kind", "BIGQUERY")
                 .put("credentialScoped", true).put("projectId", content.projectId()).put("location", content.location())
-                .put("query", content.sql().strip())
+                .put("query", content.sql())
                 .put("maximumBytesBilled", Long.toString(content.maximumBytesBilled()));
         ObjectNode types = dashboard.putObject(PARAMETER_TYPES);
         ObjectNode samples = JSON.createObjectNode();
@@ -256,7 +271,11 @@ public class DashboardAuthoringService {
         }
         dashboard.set("columns", columns);
         if (actor != null) dashboard.put("updatedBy", actor);
-        return JSON.convertValue(schema, Map.class);
+        Map<String, Object> stored = JSON.convertValue(schema, Map.class);
+        var candidate = new IntegrationOperation("draft", "source", content.name(), "POST", OPERATION_PATH, stored, Map.of(), false);
+        if (schema.toString().getBytes(StandardCharsets.UTF_8).length > 65_536
+                || !DashboardOperationPolicy.eligible(candidate)) throw new IllegalArgumentException("Query exceeds dashboard schema limits");
+        return stored;
     }
 
     private void validate(Content content) {
@@ -272,7 +291,8 @@ public class DashboardAuthoringService {
         Set<String> seen = new HashSet<>();
         for (Parameter parameter : parameters(content)) {
             if (parameter == null || parameter.name() == null || !NAME.matcher(parameter.name()).matches()
-                    || !TYPES.contains(parameter.type()) || !seen.add(parameter.name().toLowerCase(Locale.ROOT))
+                    || parameter.type() == null || !TYPES.contains(parameter.type()) || !seen.add(parameter.name().toLowerCase(Locale.ROOT))
+                    || Set.of("pattern", "patternProperties").contains(parameter.name())
                     || (parameter.sample() != null && parameter.sample().length() > 4096)) {
                 throw new IllegalArgumentException("Invalid query parameter");
             }
@@ -286,14 +306,36 @@ public class DashboardAuthoringService {
 
     private static ObjectNode property(String type) {
         ObjectNode property = JSON.createObjectNode();
+        ArrayNode types = property.putArray(TYPE).add("null");
         switch (type) {
-            case "INT64" -> property.put(TYPE, "integer");
-            case "FLOAT64", "NUMERIC", "BIGNUMERIC" -> property.put(TYPE, "number");
-            case "BOOL" -> property.put(TYPE, "boolean");
-            case "DATE" -> property.put(TYPE, "string").put("format", "date");
-            default -> property.put(TYPE, "string");
+            case "INT64" -> types.add("integer").add("string");
+            case "FLOAT64" -> types.add("number");
+            case "NUMERIC", "BIGNUMERIC" -> types.add("number").add("string");
+            case "BOOL" -> types.add("boolean");
+            case "DATE" -> { types.add("string"); property.put("format", "date"); }
+            default -> types.add("string");
         }
         return property;
+    }
+
+    /** The scalar-only authoring contract cannot preserve operator-owned tenant bindings or arrays. */
+    private static boolean editable(IntegrationOperation operation, JsonNode dashboard) {
+        return "BIGQUERY".equals(dashboard.path("kind").asText())
+                && dashboard.path("credentialScoped").asBoolean(false)
+                && !dashboard.has("tenantParameter")
+                && DashboardOperationPolicy.eligible(operation)
+                && scalarParameters(dashboard.path(PARAMETER_TYPES));
+    }
+
+    private static boolean scalarParameters(JsonNode types) {
+        if (!types.isObject() || types.size() > 100) return false;
+        var entries = types.fields();
+        while (entries.hasNext()) {
+            var entry = entries.next();
+            if (!NAME.matcher(entry.getKey()).matches() || !entry.getValue().isTextual()
+                    || !TYPES.contains(entry.getValue().asText())) return false;
+        }
+        return true;
     }
 
     /** @return null for an operation that is not a BigQuery dashboard query */
@@ -301,7 +343,7 @@ public class DashboardAuthoringService {
         IntegrationOperation operation = version.operation();
         JsonNode dashboard = JSON.valueToTree(operation.requestSchema() == null ? Map.of() : operation.requestSchema())
                 .path(DASHBOARD);
-        if (!"BIGQUERY".equals(dashboard.path("kind").asText())) return null;
+        if (!editable(operation, dashboard)) return null;
         long bytes;
         try {
             bytes = Long.parseLong(dashboard.path("maximumBytesBilled").asText());

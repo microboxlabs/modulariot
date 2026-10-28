@@ -123,8 +123,7 @@ public class DashboardAuthoringResource {
         if (tenantId == null || tenantId.isBlank() || tenantId.length() > 256) {
             return Uni.createFrom().item(error(400, "Invalid dashboard authoring request"));
         }
-        return Panache.withSession(() -> Organization.findBySlug(tenantId)
-                        .map(org -> org == null ? Optional.<String>empty() : Optional.ofNullable(org.tenantClientId)))
+        return tenantCodeFor(tenantId)
                 .flatMap(tenant -> tenant.isEmpty() ? Uni.createFrom().item(error(404, "Organization not found"))
                         : Uni.createFrom().item(() -> noStore(action.apply(tenant.get())))
                                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool()))
@@ -132,6 +131,11 @@ public class DashboardAuthoringResource {
                 .onFailure(DashboardAuthoringService.ConflictException.class)
                 .recoverWithItem(e -> error(409, e.getMessage()))
                 .onFailure().recoverWithItem(() -> error(502, "Dashboard authoring could not be completed"));
+    }
+
+    protected Uni<Optional<String>> tenantCodeFor(String slug) {
+        return Panache.withSession(() -> Organization.findBySlug(slug)
+                .map(org -> org == null ? Optional.<String>empty() : Optional.ofNullable(org.tenantClientId)));
     }
 
     private static Response.ResponseBuilder status(int status, String message) {

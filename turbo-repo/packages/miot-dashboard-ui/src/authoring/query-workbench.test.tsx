@@ -542,3 +542,47 @@ it("does not create an empty draft for a linked saved plan while loading or when
   expect(screen.queryByLabelText("SQL")).toBeNull();
   expect(api.createPlan).not.toHaveBeenCalled();
 });
+
+it("includes the actual source in plan navigation for implicit source hosts", async () => {
+  const changePlan = vi.fn();
+  const api = client();
+  render(<QueryWorkbench client={api} onPlanChange={changePlan} canWrite />);
+  fireEvent.click(await screen.findByRole("button", { name: "Daily trips" }));
+  expect(changePlan).toHaveBeenLastCalledWith("daily", "warehouse");
+});
+
+it("keeps controlled source changes and query clearing in the same source context", async () => {
+  const changeSource = vi.fn(),
+    changePlan = vi.fn();
+  const api = client({
+    listSources: vi.fn(async () => [
+      {
+        id: "warehouse",
+        label: "Warehouse",
+        kind: "BIGQUERY" as const,
+        defaultProjectId: "analytics-prod",
+      },
+      {
+        id: "demo-next",
+        label: "Demo next",
+        kind: "BIGQUERY" as const,
+        defaultProjectId: "demo-project",
+      },
+    ]),
+  });
+  render(
+    <QueryWorkbench
+      client={api}
+      sourceId="warehouse"
+      onSourceChange={changeSource}
+      onPlanChange={changePlan}
+      canWrite
+    />,
+  );
+  await screen.findByRole("button", { name: "Daily trips" });
+  fireEvent.change(screen.getByLabelText("Source"), {
+    target: { value: "demo-next" },
+  });
+  expect(changeSource).toHaveBeenLastCalledWith("demo-next");
+  expect(changePlan).toHaveBeenLastCalledWith(null, "demo-next");
+});

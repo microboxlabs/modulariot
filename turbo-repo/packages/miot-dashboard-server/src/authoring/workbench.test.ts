@@ -442,3 +442,31 @@ describe("estimate and save deadlines", () => {
     expect(body.configuration.query.query).toBe(sql);
   });
 });
+
+it("maps a schema-read deadline to UPSTREAM_ERROR but preserves client cancellation", async () => {
+  const fetchImpl = vi.fn<typeof fetch>(async () => {
+    throw new DOMException("Demo deadline", "TimeoutError");
+  });
+  const timed = createQueryWorkbench({
+    authoring: authoring().value,
+    fetchImpl,
+  });
+  await expect(
+    timed.schema(request(), "warehouse", "analytics-prod"),
+  ).rejects.toMatchObject({ code: "UPSTREAM_ERROR" });
+  const incoming = new AbortController();
+  const cancelled = createQueryWorkbench({
+    authoring: authoring().value,
+    fetchImpl: async () => {
+      incoming.abort();
+      throw incoming.signal.reason;
+    },
+  });
+  await expect(
+    cancelled.schema(
+      { ...request(), signal: incoming.signal },
+      "warehouse",
+      "analytics-prod",
+    ),
+  ).rejects.toMatchObject({ name: "AbortError" });
+});

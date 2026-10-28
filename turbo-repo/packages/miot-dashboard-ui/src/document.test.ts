@@ -181,6 +181,59 @@ describe("isolated document editing", () => {
     expect(session.getSnapshot().dirty).toBe(false);
   });
 
+  it("keeps an edit made after the save response but before it is applied", async () => {
+    const { session, client } = setup();
+    await session.load();
+    session.onChange({ ...empty, name: "Saved" });
+    client.save.mockImplementationOnce(() => {
+      const saved = Promise.resolve({
+        etag: '"8"',
+        revision: 8,
+        updatedAt: "now",
+      });
+      // Runs after the save callback returns and before run() applies its result.
+      void saved.then(() =>
+        queueMicrotask(() => session.onChange({ ...empty, name: "Late edit" })),
+      );
+      return saved;
+    });
+    expect(await session.save()).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      config: { name: "Late edit" },
+      dirty: true,
+    });
+  });
+
+  it("stays read-only until a reload started by a listener finishes", async () => {
+    const { session, client } = setup();
+    await session.load();
+    let finish!: (value: Awaited<ReturnType<typeof client.load>>) => void;
+    let nested: Promise<boolean> | undefined;
+    const unsubscribe = session.subscribe(() => {
+      const { busy } = session.getSnapshot();
+      if (!busy && !nested && client.load.mock.calls.length === 2) {
+        client.load.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finish = resolve;
+            }),
+        );
+        nested = session.discardAndReload();
+      }
+    });
+    expect(await session.discardAndReload()).toBe(true);
+    unsubscribe();
+    expect(nested).toBeDefined();
+    expect(session.getSnapshot().readOnly).toBe(true);
+    expect(session.onChange({ ...empty, name: "Lost edit" })).toBe(false);
+    finish({ config: empty, etag: '"10"' });
+    expect(await nested).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      readOnly: false,
+      etag: '"10"',
+    });
+  });
+
   it("stays read-only while reloading", async () => {
     const { session, client } = setup();
     await session.load();

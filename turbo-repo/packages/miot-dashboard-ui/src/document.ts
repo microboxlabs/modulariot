@@ -56,7 +56,7 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
   let snapshot = initial;
   let generation = 0;
   let destroyed = false;
-  let reloading = false;
+  let reloads = 0;
   let active: AbortController | undefined;
   const listeners = new Set<() => void>();
 
@@ -66,7 +66,7 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
       restricted ||
       !next.isLoaded ||
       !next.exists ||
-      reloading ||
+      reloads > 0 ||
       next.capabilities?.canEdit !== true ||
       next.capabilities.readOnly ||
       next.error === 401 ||
@@ -75,8 +75,12 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
     for (const listener of listeners) listener();
   }
 
+  type Patch = Partial<DashboardDocumentSnapshot>;
+  /** `work` may return a function, applied to the snapshot current when the result lands. */
   async function run(
-    work: (signal: AbortSignal) => Promise<Partial<DashboardDocumentSnapshot>>,
+    work: (
+      signal: AbortSignal,
+    ) => Promise<Patch | ((current: DashboardDocumentSnapshot) => Patch)>,
   ) {
     if (destroyed || active) return false;
     const operation = new AbortController();
@@ -86,7 +90,7 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
       if (operation.signal.aborted) return false;
       const patch = await work(operation.signal);
       if (destroyed || active !== operation) return false;
-      publish(patch);
+      publish(typeof patch === "function" ? patch(snapshot) : patch);
       return true;
     } catch (error) {
       operation.abort();
@@ -106,11 +110,11 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
 
   async function reload() {
     if (destroyed || active) return false;
-    reloading = true;
+    reloads++;
     try {
       return await fetchDocument();
     } finally {
-      reloading = false;
+      reloads--;
       if (!destroyed) publish({});
     }
   }
@@ -159,7 +163,10 @@ export function createDashboardDocument(options: DashboardDocumentOptions) {
       return run(async (signal) => {
         const saved = await client.save(slug, config, etag, signal);
         // Edits made while saving stay dirty for the next save.
-        return { etag: saved.etag, dirty: snapshot.config !== config };
+        return (current: DashboardDocumentSnapshot) => ({
+          etag: saved.etag,
+          dirty: current.config !== config,
+        });
       });
     },
     /** Host obtains explicit discard intent first; failed reloads retain the draft. */

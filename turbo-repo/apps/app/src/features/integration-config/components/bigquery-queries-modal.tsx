@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import useSWR from "swr";
 import {
   Alert,
@@ -86,6 +86,7 @@ export function BigQueryQueriesModal({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const nextParameter = useRef(0);
   const queries = bigQueryQueries(data ?? []);
 
   function patch(change: Partial<Draft>) {
@@ -97,7 +98,7 @@ export function BigQueryQueriesModal({
     patch({
       parameters: [
         ...(draft?.parameters ?? []),
-        { id: Date.now(), name: "", type: "STRING" },
+        { id: ++nextParameter.current, name: "", type: "STRING" },
       ],
     });
   }
@@ -117,7 +118,7 @@ export function BigQueryQueriesModal({
   }
 
   async function save() {
-    if (!draft) return;
+    if (!draft || saving) return;
     const form = {
       name: draft.name,
       projectId: draft.projectId.trim(),
@@ -186,15 +187,18 @@ export function BigQueryQueriesModal({
           </ul>
         )}
         {draft ? (
-          <QueryForm
-            draft={draft}
-            problem={problem}
-            onChange={patch}
-            onAddParameter={addParameter}
-            onUpdateParameter={updateParameter}
-            onRemoveParameter={removeParameter}
-            dict={dict}
-          />
+          <fieldset disabled={saving} className="min-w-0">
+            <legend className="sr-only">{tr("bigquery.add", dict)}</legend>
+            <QueryForm
+              draft={draft}
+              problem={problem}
+              onChange={patch}
+              onAddParameter={addParameter}
+              onUpdateParameter={updateParameter}
+              onRemoveParameter={removeParameter}
+              dict={dict}
+            />
+          </fieldset>
         ) : (
           <Button
             color="light"

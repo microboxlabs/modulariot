@@ -1,4 +1,4 @@
-import { Callout } from 'nextra/components'
+import { Callout } from "nextra/components";
 
 # Connect BigQuery
 
@@ -8,7 +8,8 @@ This guide is for administrators. It lets dashboards run saved BigQuery SQL. Vie
 
 - A Google service account with permission to run jobs and read the datasets the SQL uses. Nothing more.
 - A BigQuery connection whose base URL is `https://bigquery.googleapis.com`, with that service account as its credential.
-- The credential's OAuth scope set to `https://www.googleapis.com/auth/bigquery`. The scope does not grant extra permissions; IAM still decides.
+- The credential's OAuth scope left blank, which means `https://www.googleapis.com/auth/bigquery`. Queries run as BigQuery jobs, and `bigquery.readonly` cannot create them. The scope does not grant extra permissions; IAM still decides.
+- In ModularIoT, **Load JSON file** in the credential form fills in the project, email and private key from the key file.
 
 ## Define the operation
 
@@ -35,12 +36,12 @@ A BigQuery operation is a POST operation on the connection. Its request schema d
 }
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `query` | The SQL. Parameters are named placeholders such as `@days`. Values are never pasted into the SQL. |
-| `parameterTypes` | The BigQuery type of each parameter: `STRING`, `INT64`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`, or a flat array such as `ARRAY<STRING>`. Use `{}` for none. |
-| `maximumBytesBilled` | The most the query may scan, in bytes, as a decimal string. It cannot exceed the host ceiling (1 GB by default). |
-| `projectId`, `location` | Where the job runs |
+| Field                   | Meaning                                                                                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`                 | The SQL. Parameters are named placeholders such as `@days`. Values are never pasted into the SQL.                                                                                                        |
+| `parameterTypes`        | The BigQuery type of each parameter: `STRING`, `INT64`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`, or a flat array such as `ARRAY<STRING>`. Use `{}` for none. |
+| `maximumBytesBilled`    | The most the query may scan, in bytes, as a decimal string. It cannot exceed the host ceiling (1 GB by default).                                                                                         |
+| `projectId`, `location` | Where the job runs                                                                                                                                                                                       |
 
 ## What happens on every run
 
@@ -51,7 +52,8 @@ A BigQuery operation is a POST operation on the connection. Its request schema d
 Nested or repeated columns, and results that need more than one page, are refused. Shape the SQL for the dashboard: aggregate, and select only the columns widgets show.
 
 <Callout type="info">
-Each run costs a dry run plus the query. Use the dashboard's automatic refresh sparingly on expensive operations.
+  Each run costs a dry run plus the query. Use the dashboard's automatic refresh
+  sparingly on expensive operations.
 </Callout>
 
 ## Without ModularIoT

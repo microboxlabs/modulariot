@@ -123,6 +123,8 @@ export default function CredentialsPageContent({
   const [deleting, setDeleting] = useState<CredentialListItem | null>(null);
   /** The form values of the last dry run that passed, while creating. */
   const passedDraft = useRef<string | null>(null);
+  const submitting = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   function handleAdd() {
     passedDraft.current = null;
@@ -145,7 +147,11 @@ export default function CredentialsPageContent({
   }
 
   async function handleSubmit(form: CredentialFormData) {
+    if (submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
     try {
+      let createdToTest: string | null = null;
       if (editing) {
         await update(editing.id, form);
         toast.success(tr("toast.updated", credentialsDict));
@@ -155,14 +161,18 @@ export default function CredentialsPageContent({
         // A dry run leaves no result on the badge; repeat it on the saved
         // credential when it passed with exactly these values.
         if (passedDraft.current === JSON.stringify(form)) {
-          await test(created.id).catch(() => undefined);
+          createdToTest = created.id;
         }
       }
       passedDraft.current = null;
       setFormOpen(false);
       setEditing(null);
+      if (createdToTest) await test(createdToTest).catch(() => undefined);
     } catch (cause) {
       toast.error(messageOf(cause, tr("toast.saveFailed", credentialsDict)));
+    } finally {
+      submitting.current = false;
+      setSaving(false);
     }
   }
 
@@ -219,7 +229,7 @@ export default function CredentialsPageContent({
     onSubmit: handleSubmit,
     onTest: handleFormTest,
     onDelete: editing ? () => handleDeleteFromModal(editing) : undefined,
-    loading: actionLoading,
+    loading: actionLoading || saving,
     environments,
     dict: credentialsDict,
   };

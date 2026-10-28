@@ -17,17 +17,15 @@ export interface ServiceAccountKeyFields {
 export function parseServiceAccountKeyFile(
   text: string
 ): ServiceAccountKeyFields | null {
-  let json: unknown;
   try {
-    json = JSON.parse(text);
+    const parsed = KeyFileSchema.safeParse(JSON.parse(text));
+    if (!parsed.success) return null;
+    return {
+      projectId: parsed.data.project_id,
+      clientEmail: parsed.data.client_email,
+      privateKey: parsed.data.private_key,
+    };
   } catch {
     return null;
   }
-  const parsed = KeyFileSchema.safeParse(json);
-  if (!parsed.success) return null;
-  return {
-    projectId: parsed.data.project_id,
-    clientEmail: parsed.data.client_email,
-    privateKey: parsed.data.private_key,
-  };
 }

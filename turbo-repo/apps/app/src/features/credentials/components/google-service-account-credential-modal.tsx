@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Textarea, TextInput } from "flowbite-react";
 import { HiUpload } from "react-icons/hi";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -82,10 +82,29 @@ export function GoogleServiceAccountCredentialModal(
   const [keyFile, setKeyFile] = useState<
     { ok: true; name: string } | { ok: false } | null
   >(null);
+  const fileLoad = useRef(0);
+
+  useEffect(() => {
+    fileLoad.current += 1;
+    setKeyFile(null);
+    return () => {
+      fileLoad.current += 1;
+    };
+  }, [props.show, props.editing]);
 
   async function loadKeyFile(file: File | undefined) {
     if (!file) return;
-    const fields = parseServiceAccountKeyFile(await file.text());
+    const request = ++fileLoad.current;
+    setKeyFile(null);
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      if (request === fileLoad.current) setKeyFile({ ok: false });
+      return;
+    }
+    if (request !== fileLoad.current) return;
+    const fields = parseServiceAccountKeyFile(text);
     if (!fields) {
       setKeyFile({ ok: false });
       return;

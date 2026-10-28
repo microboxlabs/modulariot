@@ -1,4 +1,4 @@
-import { Callout } from 'nextra/components'
+import { Callout } from "nextra/components";
 
 # Conectar BigQuery
 
@@ -36,12 +36,12 @@ Una operación de BigQuery es una operación POST en la conexión. Su esquema de
 }
 ```
 
-| Campo | Significado |
-| --- | --- |
-| `query` | El SQL. Los parámetros son marcadores con nombre, como `@days`. Los valores nunca se pegan dentro del SQL. |
-| `parameterTypes` | El tipo de BigQuery de cada parámetro: `STRING`, `INT64`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`, o un arreglo plano como `ARRAY<STRING>`. Use `{}` si no hay ninguno. |
-| `maximumBytesBilled` | Lo máximo que la consulta puede leer, en bytes, como cadena decimal. No puede superar el tope del host (1 GB por defecto). |
-| `projectId`, `location` | Dónde se ejecuta el trabajo |
+| Campo                   | Significado                                                                                                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`                 | El SQL. Los parámetros son marcadores con nombre, como `@days`. Los valores nunca se pegan dentro del SQL.                                                                                                          |
+| `parameterTypes`        | El tipo de BigQuery de cada parámetro: `STRING`, `INT64`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`, o un arreglo plano como `ARRAY<STRING>`. Use `{}` si no hay ninguno. |
+| `maximumBytesBilled`    | Lo máximo que la consulta puede leer, en bytes, como cadena decimal. No puede superar el tope del host (1 GB por defecto).                                                                                          |
+| `projectId`, `location` | Dónde se ejecuta el trabajo                                                                                                                                                                                         |
 
 ## Qué pasa en cada ejecución
 
@@ -52,7 +52,8 @@ Una operación de BigQuery es una operación POST en la conexión. Su esquema de
 Se rechazan las columnas anidadas o repetidas, y los resultados que necesitan más de una página. Adapte el SQL al dashboard: agregue los datos y seleccione solo las columnas que muestran los widgets.
 
 <Callout type="info">
-Cada ejecución cuesta una ejecución de prueba más la consulta. Use con moderación la actualización automática del dashboard en operaciones costosas.
+  Cada ejecución cuesta una ejecución de prueba más la consulta. Use con
+  moderación la actualización automática del dashboard en operaciones costosas.
 </Callout>
 
 ## Sin ModularIoT

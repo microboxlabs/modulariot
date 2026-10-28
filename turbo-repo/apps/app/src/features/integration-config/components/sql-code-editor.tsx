@@ -5,7 +5,7 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { SQLDialect, sql } from "@codemirror/lang-sql";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 
@@ -42,20 +42,33 @@ const highlight = HighlightStyle.define([
   { tag: [tags.lineComment, tags.blockComment], class: "italic text-gray-500" },
 ]);
 
+function editability(readOnly: boolean) {
+  return [
+    EditorState.readOnly.of(readOnly),
+    EditorView.editable.of(!readOnly),
+    EditorView.contentAttributes.of({ "aria-readonly": String(readOnly) }),
+  ];
+}
+
 /** A BigQuery SQL editor with highlighting and keyword completion. */
 export default function SqlCodeEditor({
   id,
   value,
   placeholder: hint,
   onChange,
+  readOnly = false,
+  ariaLabelledBy,
 }: Readonly<{
   id: string;
   value: string;
   placeholder?: string;
   onChange: (text: string) => void;
+  readOnly?: boolean;
+  ariaLabelledBy?: string;
 }>) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
+  const editable = useRef(new Compartment());
   const [initial] = useState(value);
   const latest = useRef(onChange);
   latest.current = onChange;
@@ -73,7 +86,16 @@ export default function SqlCodeEditor({
           autocompletion({ icons: false }),
           ...(hint ? [placeholder(hint)] : []),
           EditorView.lineWrapping,
-          EditorView.contentAttributes.of({ id, spellcheck: "false" }),
+          editable.current.of(editability(readOnly)),
+          EditorView.contentAttributes.of({
+            id,
+            spellcheck: "false",
+            role: "textbox",
+            tabindex: "0",
+            ...(ariaLabelledBy
+              ? { "aria-labelledby": ariaLabelledBy }
+              : { "aria-label": "SQL" }),
+          }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) latest.current(u.state.doc.toString());
           }),
@@ -99,6 +121,12 @@ export default function SqlCodeEditor({
     // Built once; a value set from outside is written in by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: editable.current.reconfigure(editability(readOnly)),
+    });
+  }, [readOnly]);
 
   useEffect(() => {
     const v = view.current;

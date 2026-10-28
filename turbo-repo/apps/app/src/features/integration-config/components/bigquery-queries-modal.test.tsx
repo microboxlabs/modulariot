@@ -16,13 +16,19 @@ vi.mock("./sql-code-editor", () => ({
     id,
     value,
     onChange,
+    readOnly,
+    ariaLabelledBy,
   }: {
     id: string;
     value: string;
     onChange: (text: string) => void;
+    readOnly?: boolean;
+    ariaLabelledBy?: string;
   }) => (
     <textarea
       id={id}
+      aria-labelledby={ariaLabelledBy}
+      readOnly={readOnly}
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />

@@ -192,6 +192,7 @@ export function BigQueryQueriesModal({
             <QueryForm
               draft={draft}
               problem={problem}
+              readOnly={saving}
               onChange={patch}
               onAddParameter={addParameter}
               onUpdateParameter={updateParameter}
@@ -257,6 +258,7 @@ function QueryRow({ query }: Readonly<{ query: BigQueryQuerySummary }>) {
 interface QueryFormProps {
   readonly draft: Draft;
   readonly problem: string | null;
+  readonly readOnly: boolean;
   readonly onChange: (change: Partial<Draft>) => void;
   readonly onAddParameter: () => void;
   readonly onUpdateParameter: (
@@ -270,6 +272,7 @@ interface QueryFormProps {
 function QueryForm({
   draft,
   problem,
+  readOnly,
   onChange,
   onAddParameter,
   onUpdateParameter,
@@ -319,9 +322,11 @@ function QueryForm({
         </div>
       </div>
       <div>
-        <Label htmlFor="bq-sql">{tr("bigquery.sql", dict)}</Label>
+        <Label id="bq-sql-label">{tr("bigquery.sql", dict)}</Label>
         <SqlCodeEditor
           id="bq-sql"
+          ariaLabelledBy="bq-sql-label"
+          readOnly={readOnly}
           placeholder="SELECT service, SUM(cost) AS cost FROM `project.dataset.table` WHERE day >= @since GROUP BY service"
           value={draft.sql}
           onChange={(sql) => onChange({ sql })}

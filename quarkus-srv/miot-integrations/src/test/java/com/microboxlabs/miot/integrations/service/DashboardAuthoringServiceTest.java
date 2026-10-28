@@ -57,7 +57,7 @@ class DashboardAuthoringServiceTest {
     @Test
     void leavesOutOperationsThatAreNotBigQueryQueries() {
         var other = new IntegrationOperationRepository.Versioned(
-                operation(Map.of("type", "object")), OffsetDateTime.now());
+                operation(Map.of("type", "object")), OffsetDateTime.parse("2026-01-01T00:00:00Z"));
         assertNull(DashboardAuthoringService.toPlan("c", other));
     }
 
@@ -82,7 +82,7 @@ class DashboardAuthoringServiceTest {
         var input = new DashboardAuthoringService.Content(base.name(), null, base.projectId(), base.location(), sql,
                 base.maximumBytesBilled(), List.of(), List.of());
         var saved = operation(service.requestSchema(input, "demo-author"));
-        var plan = DashboardAuthoringService.toPlan("demo-source", new IntegrationOperationRepository.Versioned(saved, OffsetDateTime.now()));
+        var plan = DashboardAuthoringService.toPlan("demo-source", new IntegrationOperationRepository.Versioned(saved, OffsetDateTime.parse("2026-01-01T00:00:00Z")));
         assertEquals(sql, plan.sql());
     }
 

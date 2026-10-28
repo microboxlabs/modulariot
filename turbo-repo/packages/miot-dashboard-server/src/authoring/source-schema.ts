@@ -115,7 +115,7 @@ export async function readSourceSchema(
     ...new Set([...datasets.values()].map((dataset) => dataset.location)),
   ].filter((location) => LOCATION.test(location));
 
-  for (const location of locations) {
+  async function readLocation(location: string) {
     const answer = rowsSchema.safeParse(
       await call(`${base}/queries`, token, signal, 16 * 1024 * 1024, {
         query: sql(projectId, location),
@@ -130,13 +130,25 @@ export async function readSourceSchema(
       throw new BigQueryProblem("Unexpected BigQuery answer");
     if (answer.data.jobComplete === false) {
       truncated = true;
-      continue;
+      return;
     }
     const rows = answer.data.rows ?? [];
     if (rows.length > MAX_FIELD_PATHS || answer.data.pageToken)
       truncated = true;
     appendRows(datasets, rows.slice(0, MAX_FIELD_PATHS));
   }
+  // Each answer can be 16 MB. Bound parallel metadata queries to four, and
+  // merge each result immediately rather than retaining every raw response.
+  const remaining = locations.values();
+  async function worker(): Promise<void> {
+    const next = remaining.next();
+    if (next.done) return;
+    await readLocation(next.value);
+    return worker();
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(4, locations.length) }, () => worker()),
+  );
   return { projectId, datasets: [...datasets.values()], truncated };
 }
 

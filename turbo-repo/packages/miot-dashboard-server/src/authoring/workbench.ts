@@ -250,6 +250,15 @@ export function createQueryWorkbench(
       } catch (error) {
         if (error instanceof BigQueryProblem)
           throw new DashboardServerError("UPSTREAM_ERROR", error.message);
+        if (
+          !request.signal.aborted &&
+          error instanceof Error &&
+          ["TimeoutError", "AbortError"].includes(error.name)
+        )
+          throw new DashboardServerError(
+            "UPSTREAM_ERROR",
+            "BigQuery did not answer the schema request in time",
+          );
         throw error;
       }
       if (schemas.size >= MAX_CACHED) {

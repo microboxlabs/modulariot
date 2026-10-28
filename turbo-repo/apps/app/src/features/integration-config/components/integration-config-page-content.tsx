@@ -1,13 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Spinner } from "flowbite-react";
-import { HiOutlineLink, HiPlus } from "react-icons/hi";
+import {
+  HiOutlineDatabase,
+  HiOutlineLink,
+  HiOutlineTemplate,
+  HiPlus,
+} from "react-icons/hi";
 import { toast } from "sonner";
 import LayoutToggle, {
   type CatalogLayout,
 } from "@/features/common/components/layout-toggle";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import SectionMenu, {
+  type SectionMenuEntry,
+} from "@/features/common/components/section-menu";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -22,7 +31,6 @@ import {
   type ConnectionSort,
 } from "../connection-catalog";
 import { useIntegrationConfig } from "../use-integration-config";
-import type { CredentialListItem } from "@/features/credentials/credential.types";
 import type {
   IntegrationConnection,
   IntegrationTemplate,
@@ -36,7 +44,19 @@ import { TemplatePickerModal } from "./template-picker-modal";
 import { ConnectionFormModal } from "./connection-form-modal";
 import { IntegrationDeleteDialog } from "./integration-delete-dialog";
 import { PostgrestFunctionsModal } from "./postgrest-functions-modal";
-import { BigQueryQueriesModal } from "./bigquery-queries-modal";
+import { QueryEditorSection } from "./query-editor-section";
+
+type ConnectionsSection = "connections" | "templates" | "bigquery";
+const SECTIONS: readonly ConnectionsSection[] = [
+  "connections",
+  "templates",
+  "bigquery",
+];
+
+function sectionOf(params: URLSearchParams): ConnectionsSection {
+  const value = params.get("section");
+  return SECTIONS.find((section) => section === value) ?? "connections";
+}
 
 interface IntegrationConfigPageContentProps {
   /** `pages.integrationConnections` subtree. */
@@ -70,6 +90,52 @@ export function IntegrationConfigPageContent({
 }: Readonly<IntegrationConfigPageContentProps>) {
   const { activeOrg } = useOrgScopes();
   const orgSlug = activeOrg?.slug ?? null;
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const section = sectionOf(params);
+  const sectionsDict = dict?.sections as I18nRecord;
+  // The dashboard server lets organization owners save queries; admins read and run them.
+  const canSaveQueries =
+    activeOrg?.role === "OWNER" || activeOrg?.role === "PLATFORM_OWNER";
+
+  /** Writes the section and its own parameters to the URL, dropping the others. */
+  function navigate(
+    next: ConnectionsSection,
+    extra: Record<string, string | null> = {}
+  ) {
+    const query = new URLSearchParams();
+    if (next !== "connections") query.set("section", next);
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) query.set(key, value);
+    }
+    const search = query.toString();
+    router.replace(search ? `${pathname}?${search}` : pathname, {
+      scroll: false,
+    });
+  }
+
+  const sections: SectionMenuEntry<ConnectionsSection>[] = [
+    {
+      id: "connections",
+      label: tr("connections", sectionsDict),
+      description: tr("connectionsHelp", sectionsDict),
+      icon: HiOutlineLink,
+    },
+    {
+      id: "templates",
+      label: tr("templates", sectionsDict),
+      description: tr("templatesHelp", sectionsDict),
+      icon: HiOutlineTemplate,
+    },
+    {
+      id: "bigquery",
+      label: tr("bigquery", sectionsDict),
+      description: tr("bigqueryHelp", sectionsDict),
+      icon: HiOutlineDatabase,
+      group: tr("editors", sectionsDict),
+    },
+  ];
   const {
     templates,
     connections,
@@ -98,9 +164,6 @@ export function IntegrationConfigPageContent({
   }>({ open: false });
   const [functionsFor, setFunctionsFor] =
     useState<IntegrationConnection | null>(null);
-  const [queriesFor, setQueriesFor] = useState<IntegrationConnection | null>(
-    null
-  );
   const [deletingTemplate, setDeletingTemplate] =
     useState<IntegrationTemplate | null>(null);
   const [deletingConnection, setDeletingConnection] =
@@ -224,56 +287,99 @@ export function IntegrationConfigPageContent({
       title={tr("page.title", dict)}
       description={tr("page.subtitle", dict)}
       filters={
-        <ConnectionsToolbar
-          filters={filters}
-          onFiltersChange={setFilters}
-          sort={sort}
-          onSortChange={setSort}
-          types={types}
-          dict={dict}
-          rootDict={rootDict}
-        />
+        section === "connections" && (
+          <ConnectionsToolbar
+            filters={filters}
+            onFiltersChange={setFilters}
+            sort={sort}
+            onSortChange={setSort}
+            types={types}
+            dict={dict}
+            rootDict={rootDict}
+          />
+        )
       }
       actions={
-        <div className="flex shrink-0 items-center gap-2">
-          <LayoutToggle
-            layout={layout}
-            labels={{
-              cards: tr("viewCards", dict),
-              list: tr("viewList", dict),
-            }}
-            onLayout={setLayout}
-          />
-          <Button
-            size="sm"
-            color="blue"
-            className="shrink-0 whitespace-nowrap"
-            onClick={handleAddConnection}
-            disabled={!orgSlug}
-          >
-            <HiPlus className="mr-1 h-4 w-4" />
-            {tr("connections.new", dict)}
-          </Button>
-        </div>
+        section !== "bigquery" && (
+          <div className="flex shrink-0 items-center gap-2">
+            <LayoutToggle
+              layout={layout}
+              labels={{
+                cards: tr("viewCards", dict),
+                list: tr("viewList", dict),
+              }}
+              onLayout={setLayout}
+            />
+            {section === "connections" ? (
+              <Button
+                size="sm"
+                color="blue"
+                className="shrink-0 whitespace-nowrap"
+                onClick={handleAddConnection}
+                disabled={!orgSlug}
+              >
+                <HiPlus className="mr-1 h-4 w-4" />
+                {tr("connections.new", dict)}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                color="blue"
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => setTemplateModal({ open: true })}
+                disabled={!orgSlug}
+              >
+                <HiPlus className="mr-1 h-4 w-4" />
+                {tr("templates.new", dict)}
+              </Button>
+            )}
+          </div>
+        )
       }
     >
-      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
-        {error && (
-          <Alert color="failure">
-            <span className="text-sm">
-              {isForbidden(error)
-                ? tr("errors.forbidden", dict)
-                : tr("errors.loadFailed", dict)}
-            </span>
-          </Alert>
-        )}
+      {/* Below md the menu and the detail stack and scroll together; from md only the detail scrolls. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 max-md:overflow-y-auto md:grid-cols-[320px_1fr]">
+        <SectionMenu
+          title={tr("title", sectionsDict)}
+          sections={sections}
+          selected={section}
+          onSelect={(next) => navigate(next)}
+        />
+        <div className="-m-1 flex min-h-0 flex-col gap-4 p-1 md:overflow-y-auto">
+          {error && section !== "bigquery" && (
+            <Alert color="failure">
+              <span className="text-sm">
+                {isForbidden(error)
+                  ? tr("errors.forbidden", dict)
+                  : tr("errors.loadFailed", dict)}
+              </span>
+            </Alert>
+          )}
 
-        {isLoading ? (
-          <div className="flex justify-center py-10">
-            <Spinner aria-label={tr("list.loading", dict)} />
-          </div>
-        ) : (
-          <>
+          {section === "bigquery" && orgSlug && (
+            <QueryEditorSection
+              orgSlug={orgSlug}
+              sourceId={params.get("source") ?? undefined}
+              planId={params.get("query")}
+              canWrite={canSaveQueries}
+              lang={lang}
+              dict={dict?.queryEditor as I18nRecord}
+              onSourceChange={(source) => navigate("bigquery", { source })}
+              onPlanChange={(query, source) =>
+                navigate("bigquery", {
+                  source: source ?? params.get("source"),
+                  query,
+                })
+              }
+            />
+          )}
+
+          {section !== "bigquery" && isLoading && (
+            <div className="flex justify-center py-10">
+              <Spinner aria-label={tr("list.loading", dict)} />
+            </div>
+          )}
+          {section === "connections" && !isLoading && (
             <ConnectionsList
               connections={visible}
               templates={templates}
@@ -282,7 +388,9 @@ export function IntegrationConfigPageContent({
               onTest={handleTest}
               onDelete={setDeletingConnection}
               onFunctions={setFunctionsFor}
-              onQueries={setQueriesFor}
+              onQueries={(connection) =>
+                navigate("bigquery", { source: connection.id })
+              }
               testing={testing}
               emptyMessage={
                 hasActiveConnectionFilters(filters)
@@ -292,36 +400,26 @@ export function IntegrationConfigPageContent({
               layout={layout}
               dict={dict}
             />
-
-            {/* The types behind the connections. Second, because most visits are here to
-                point an existing type somewhere new, not to define a new one. */}
-            <SectionHeader
-              title={tr("templates.title", dict)}
-              help={tr("templates.help", dict)}
-              action={
-                <Button
-                  size="sm"
-                  color="light"
-                  className="shrink-0 whitespace-nowrap"
-                  onClick={() => setTemplateModal({ open: true })}
-                  disabled={!orgSlug}
-                >
-                  <HiPlus className="mr-2 h-4 w-4" />
-                  {tr("templates.new", dict)}
-                </Button>
-              }
-            />
-            <TemplatesList
-              templates={templates}
-              instanceCount={instanceCount}
-              onOpen={(template) => setTemplateModal({ open: true, template })}
-              onDelete={setDeletingTemplate}
-              emptyMessage={tr("templates.empty", dict)}
-              layout={layout}
-              dict={dict}
-            />
-          </>
-        )}
+          )}
+          {section === "templates" && !isLoading && (
+            <>
+              <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
+                {tr("templates.help", dict)}
+              </p>
+              <TemplatesList
+                templates={templates}
+                instanceCount={instanceCount}
+                onOpen={(template) =>
+                  setTemplateModal({ open: true, template })
+                }
+                onDelete={setDeletingTemplate}
+                emptyMessage={tr("templates.empty", dict)}
+                layout={layout}
+                dict={dict}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       <TemplateFormModal
@@ -375,19 +473,6 @@ export function IntegrationConfigPageContent({
         />
       )}
 
-      {queriesFor && orgSlug && (
-        <BigQueryQueriesModal
-          orgSlug={orgSlug}
-          connection={queriesFor}
-          defaultProjectId={credentialProjectId(
-            credentials,
-            queriesFor.credentialProfileId
-          )}
-          onClose={() => setQueriesFor(null)}
-          dict={dict}
-        />
-      )}
-
       <IntegrationDeleteDialog
         show={deletingConnection !== null}
         title={tr("delete.connectionTitle", dict)}
@@ -413,26 +498,6 @@ export function IntegrationConfigPageContent({
 
 /* -------------------------------------------------------------------------- */
 
-function SectionHeader({
-  title,
-  help,
-  action,
-}: Readonly<{ title: string; help: string; action: React.ReactNode }>) {
-  return (
-    <div className="flex items-end justify-between gap-4 border-t border-gray-200 pt-5 dark:border-gray-700">
-      <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {title}
-        </h2>
-        <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-          {help}
-        </p>
-      </div>
-      {action}
-    </div>
-  );
-}
-
 /**
  * The API refuses to delete a template that connections still instance. Saying so in the
  * dialog turns a 409 the operator can't act on into a step they can: clear the instances.
@@ -447,16 +512,6 @@ function templateInUseWarning(
   return count === 0
     ? null
     : tr("delete.templateInUse", dict, { count: String(count) });
-}
-
-/** The project of a Google service account credential, proposed for its queries. */
-function credentialProjectId(
-  credentials: readonly CredentialListItem[],
-  id: string | null
-): string {
-  const config = credentials.find((credential) => credential.id === id)?.config;
-  const projectId = (config as { projectId?: unknown } | undefined)?.projectId;
-  return typeof projectId === "string" ? projectId : "";
 }
 
 /** The API's own reason when it gave one, so a 409 names what blocked it. */

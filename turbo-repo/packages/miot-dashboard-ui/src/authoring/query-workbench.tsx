@@ -29,12 +29,13 @@ import { SqlEditor, type SqlEditorHandle } from "./sql-editor";
 
 export interface QueryWorkbenchProps {
   readonly client: QueryAuthoringClient;
-  /** The open source; omit it and the component shows a source picker. */
+  /** The open source; omit it and the first one opens. */
   readonly sourceId?: string;
   readonly onSourceChange?: (sourceId: string) => void;
   /** The open saved query, so a host can keep it in its URL. */
   readonly planId?: string | null;
-  readonly onPlanChange?: (planId: string | null) => void;
+  /** The source accompanies the selection so URL hosts can navigate atomically. */
+  readonly onPlanChange?: (planId: string | null, sourceId?: string) => void;
   /** Save, duplicate and delete. Reading and running need only the server's permission. */
   readonly canWrite: boolean;
   readonly labels?: Partial<QueryWorkbenchLabels>;
@@ -129,7 +130,7 @@ function ClientWorkbench(props: QueryWorkbenchProps) {
   function selectSource(value: string) {
     setOwnSource(value);
     onSourceChange?.(value);
-    onPlanChange?.(null);
+    onPlanChange?.(null, value);
   }
   return (
     <WorkbenchSession
@@ -139,7 +140,11 @@ function ClientWorkbench(props: QueryWorkbenchProps) {
       sources={sources}
       labels={labels}
       loadError={loadError}
-      onSelectSource={controlledSource === undefined ? selectSource : undefined}
+      onSelectSource={
+        controlledSource === undefined || onSourceChange
+          ? selectSource
+          : undefined
+      }
     />
   );
 }
@@ -360,7 +365,7 @@ function WorkbenchSession({
     applySelection(key);
     const value = key === null || key.startsWith(NEW) ? null : key;
     expectedEcho.current = value !== planId ? value : undefined;
-    onPlanChange?.(value);
+    onPlanChange?.(value, sourceId);
   }
   function change(update: Partial<QueryPlanDraft>) {
     if (
@@ -536,14 +541,15 @@ function WorkbenchSession({
   return (
     <div className="miot-qw">
       <aside className="miot-qw-side">
-        {onSelectSource && sources && (
+        {sources && sources.length > 0 && (
           <label className="miot-qw-field">
             <span>{labels.source}</span>
             <select
               className="miot-qw-input"
               value={sourceId ?? ""}
+              disabled={!onSelectSource}
               onChange={(event) => {
-                onSelectSource(event.target.value);
+                onSelectSource?.(event.target.value);
               }}
             >
               {sources.map((item) => (

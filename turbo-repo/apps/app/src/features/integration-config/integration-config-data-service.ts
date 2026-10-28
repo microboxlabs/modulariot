@@ -2,10 +2,6 @@
 
 import { ApiError } from "@/features/settings-admin/data/json-client";
 import type {
-  CreateOperationRequest,
-  IntegrationOperation,
-} from "./bigquery-query";
-import type {
   ConnectionTestResult,
   CreateConnectionRequest,
   CreateTemplateRequest,
@@ -189,31 +185,6 @@ export function importPostgrestFunctions(
   return sendJson<PostgrestImportResult>(
     "POST",
     `${base(orgSlug)}/connections/${encodeURIComponent(id)}/postgrest/import`,
-    body
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Operations                                                                  */
-/* -------------------------------------------------------------------------- */
-
-export function fetchOperations(
-  orgSlug: string,
-  id: string
-): Promise<IntegrationOperation[]> {
-  return getJson<IntegrationOperation[]>(
-    `${base(orgSlug)}/connections/${encodeURIComponent(id)}/operations`
-  );
-}
-
-export function createOperation(
-  orgSlug: string,
-  id: string,
-  body: CreateOperationRequest
-): Promise<IntegrationOperation> {
-  return sendJson<IntegrationOperation>(
-    "POST",
-    `${base(orgSlug)}/connections/${encodeURIComponent(id)}/operations`,
     body
   );
 }

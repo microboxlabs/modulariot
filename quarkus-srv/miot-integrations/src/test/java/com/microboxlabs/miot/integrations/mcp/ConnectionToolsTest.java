@@ -75,7 +75,7 @@ class ConnectionToolsTest {
                 tenant, List.of("azp", "aud"));
         ConnectionTesterRegistry testers = new ConnectionTesterRegistry(null, null) {
             @Override
-            public ConnectionTester testerFor(ProviderType providerType) {
+            public ConnectionTester testerFor(IntegrationConnection connection) {
                 return new ConnectionTester() {
                     @Override
                     public boolean supports(ProviderType type) {

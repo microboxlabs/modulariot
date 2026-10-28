@@ -7,11 +7,12 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type {
   QueryPlan,
   QueryPreview,
+  SourceSchema,
 } from "@microboxlabs/miot-dashboard-contract/authoring";
 import { QueryAuthoringError, type QueryAuthoringClient } from "./client";
 import type { SqlEditorHandle, SqlEditorProps } from "./sql-editor";
@@ -20,7 +21,7 @@ import { QueryWorkbench } from "./query-workbench";
 const inserted: string[] = [];
 vi.mock("./sql-editor", () => ({
   SqlEditor: forwardRef<SqlEditorHandle, SqlEditorProps>(function Editor(
-    { value, onChange, ariaLabel },
+    { value, onChange, ariaLabel, readOnly },
     ref,
   ) {
     useImperativeHandle(ref, () => ({
@@ -31,6 +32,7 @@ vi.mock("./sql-editor", () => ({
       <textarea
         aria-label={ariaLabel}
         value={value}
+        readOnly={readOnly}
         onChange={(event) => onChange(event.target.value)}
       />
     );
@@ -170,7 +172,13 @@ it("marks unsaved changes, saves with the revision read and discards", async () 
 it("creates a new query in the source's project", async () => {
   const api = client();
   render(<QueryWorkbench client={api} canWrite />);
-  fireEvent.click(await screen.findByRole("button", { name: "+ New query" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "+ New query" })).toHaveProperty(
+      "disabled",
+      false,
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "+ New query" }));
   fireEvent.change(screen.getByLabelText("SQL"), {
     target: { value: "SELECT 1" },
   });
@@ -255,4 +263,282 @@ it("hides saving and deleting without write permission", async () => {
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
   expect(screen.getByRole("button", { name: /Run/ })).toBeTruthy();
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+it("preserves a duplicate-name conflict detail instead of telling the author to reload", async () => {
+  const api = client({
+    updatePlan: vi.fn(async () => {
+      throw new QueryAuthoringError(409, "A demo query already has that name");
+    }),
+  });
+  await openDaily(api);
+  fireEvent.change(screen.getByLabelText("SQL"), {
+    target: { value: "SELECT 2" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect((await screen.findByRole("alert")).textContent).toBe(
+    "A demo query already has that name",
+  );
+});
+
+it.each(["new", "duplicate"])(
+  "keeps a controlled %s draft open when the host echoes a null planId",
+  async (action) => {
+    const api = client();
+    function Controlled() {
+      const [id, setId] = useState<string | null>("daily");
+      return (
+        <QueryWorkbench
+          client={api}
+          sourceId="warehouse"
+          canWrite
+          planId={id}
+          onPlanChange={setId}
+        />
+      );
+    }
+    render(<Controlled />);
+    await screen.findByLabelText("SQL");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: action === "new" ? "+ New query" : "Duplicate",
+      }),
+    );
+    expect(screen.getByLabelText("SQL")).toBeTruthy();
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe(
+      action === "new" ? "New query" : "Daily trips (copy)",
+    );
+  },
+);
+
+it("clears completed results when planId changes through external navigation", async () => {
+  const next = { ...plan, id: "next", name: "Next demo", sql: "SELECT 9" };
+  const api = client({ listPlans: vi.fn(async () => [plan, next]) });
+  const view = render(
+    <QueryWorkbench
+      client={api}
+      sourceId="warehouse"
+      canWrite
+      planId="daily"
+    />,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: /Run/ }));
+  await screen.findByText("2026-10-01");
+  view.rerender(
+    <QueryWorkbench client={api} sourceId="warehouse" canWrite planId="next" />,
+  );
+  expect(screen.queryByText("2026-10-01")).toBeNull();
+  expect((screen.getByLabelText("SQL") as HTMLTextAreaElement).value).toBe(
+    "SELECT 9",
+  );
+});
+
+it("aborts and ignores a preview that finishes after external navigation", async () => {
+  const pending = deferred<QueryPreview>();
+  const next = { ...plan, id: "next", name: "Next demo", sql: "SELECT 9" };
+  const run = vi.fn(async () => pending.promise);
+  const api = client({
+    listPlans: vi.fn(async () => [plan, next]),
+    preview: run,
+  });
+  const view = render(
+    <QueryWorkbench
+      client={api}
+      sourceId="warehouse"
+      canWrite
+      planId="daily"
+    />,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: /Run/ }));
+  await waitFor(() => expect(run).toHaveBeenCalledOnce());
+  const signal = (
+    run.mock.calls[0] as unknown as [string, unknown, AbortSignal]
+  )[2];
+  view.rerender(
+    <QueryWorkbench client={api} sourceId="warehouse" canWrite planId="next" />,
+  );
+  expect(signal.aborted).toBe(true);
+  await act(async () => pending.resolve(preview));
+  expect(screen.queryByText("2026-10-01")).toBeNull();
+});
+
+it("does not put a source A save into source B or change B's selection", async () => {
+  const pending = deferred<QueryPlan>();
+  const next = {
+    ...plan,
+    id: "lake-plan",
+    sourceId: "lake",
+    name: "Lake demo",
+    sql: "SELECT 9",
+  };
+  const save = vi.fn(async () => pending.promise);
+  const api = client({
+    listSources: vi.fn(async () => [
+      {
+        id: "warehouse",
+        label: "Warehouse",
+        kind: "BIGQUERY" as const,
+        defaultProjectId: "analytics-prod",
+      },
+      {
+        id: "lake",
+        label: "Lake",
+        kind: "BIGQUERY" as const,
+        defaultProjectId: "demo-project",
+      },
+    ]),
+    listPlans: vi.fn(async (source) =>
+      source === "warehouse" ? [plan] : [next],
+    ),
+    updatePlan: save,
+  });
+  await openDaily(api);
+  fireEvent.change(screen.getByLabelText("SQL"), {
+    target: { value: "SELECT 2" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  fireEvent.change(screen.getByLabelText("Source"), {
+    target: { value: "lake" },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Lake demo" }));
+  await act(async () =>
+    pending.resolve({ ...plan, sql: "SELECT 2", revision: "r2" }),
+  );
+  expect((screen.getByLabelText("SQL") as HTMLTextAreaElement).value).toBe(
+    "SELECT 9",
+  );
+  expect(screen.queryByRole("button", { name: "Daily trips" })).toBeNull();
+});
+
+it("locks SQL and settings for the complete pending save", async () => {
+  const pending = deferred<QueryPlan>();
+  const save = vi.fn(async () => pending.promise);
+  const api = client({ updatePlan: save });
+  await openDaily(api);
+  fireEvent.change(screen.getByLabelText("SQL"), {
+    target: { value: "SELECT 2" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(screen.getByLabelText("SQL")).toHaveProperty("readOnly", true);
+  expect(screen.getByLabelText("Name")).toHaveProperty("disabled", true);
+  await act(async () =>
+    pending.resolve({ ...plan, sql: "SELECT 2", revision: "r2" }),
+  );
+});
+
+it("clears a failed preview diagnostic when SQL is edited", async () => {
+  const api = client({
+    preview: vi.fn(async () => ({
+      ...preview,
+      ok: false,
+      problem: { message: "Old demo error", line: 1 },
+    })),
+  });
+  await openDaily(api);
+  fireEvent.click(screen.getByRole("button", { name: /Run/ }));
+  await screen.findByText(/Old demo error/);
+  fireEvent.change(screen.getByLabelText("SQL"), {
+    target: { value: "SELECT 2" },
+  });
+  expect(screen.queryByText(/Old demo error/)).toBeNull();
+});
+
+it.each(["sources", "plans"])(
+  "shows an initial %s load failure before a query is open",
+  async (step) => {
+    const fail = vi.fn(async () => {
+      throw new QueryAuthoringError(403, "Demo access denied");
+    });
+    const api = client(
+      step === "sources" ? { listSources: fail } : { listPlans: fail },
+    );
+    render(<QueryWorkbench client={api} canWrite />);
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Demo access denied",
+    );
+  },
+);
+
+it.each(["cached", "pending"])(
+  "isolates %s schema metadata when the client changes with identical source IDs",
+  async (mode) => {
+    const oldSchema = deferred<SourceSchema>();
+    const a = client(
+      mode === "pending"
+        ? { schema: vi.fn(async () => oldSchema.promise) }
+        : {},
+    );
+    const b = client({
+      schema: vi.fn(async () => ({
+        projectId: "analytics-prod",
+        datasets: [{ name: "demo-new", location: "US", tables: [] }],
+        truncated: false,
+      })),
+    });
+    const view = render(
+      <QueryWorkbench
+        client={a}
+        sourceId="warehouse"
+        planId="daily"
+        canWrite
+      />,
+    );
+    await waitFor(() => expect(a.schema).toHaveBeenCalledOnce(), {
+      timeout: 1500,
+    });
+    view.rerender(
+      <QueryWorkbench
+        client={b}
+        sourceId="warehouse"
+        planId="daily"
+        canWrite
+      />,
+    );
+    await waitFor(() => expect(b.schema).toHaveBeenCalledOnce(), {
+      timeout: 1500,
+    });
+    await act(async () =>
+      oldSchema.resolve({
+        projectId: "analytics-prod",
+        datasets: [{ name: "old-demo", location: "US", tables: [] }],
+        truncated: false,
+      }),
+    );
+    expect(screen.queryByRole("button", { name: /old-demo/ })).toBeNull();
+  },
+);
+
+it("does not create an empty draft for a linked saved plan while loading or when absent", async () => {
+  let finish!: (plans: QueryPlan[]) => void;
+  const api = client({
+    listPlans: vi.fn(
+      () =>
+        new Promise<QueryPlan[]>((resolve) => {
+          finish = resolve;
+        }),
+    ),
+  });
+  render(
+    <QueryWorkbench
+      client={api}
+      sourceId="warehouse"
+      planId="missing"
+      canWrite
+    />,
+  );
+  await waitFor(() => expect(api.listPlans).toHaveBeenCalled());
+  expect(screen.queryByLabelText("SQL")).toBeNull();
+  await act(async () => finish([]));
+  expect(screen.queryByLabelText("SQL")).toBeNull();
+  expect(api.createPlan).not.toHaveBeenCalled();
 });

@@ -139,3 +139,23 @@ describe("remote query authoring", () => {
     ).toThrow(TypeError);
   });
 });
+
+it.each(["broken-json", "wrong-plan", "wrong-list"])(
+  "rejects a malformed successful host response: %s",
+  async (kind) => {
+    const response =
+      kind === "broken-json"
+        ? new Response("{")
+        : Response.json(
+            kind === "wrong-plan"
+              ? { id: "incomplete" }
+              : [{ id: "incomplete" }],
+          );
+    const { authoring } = setup(response);
+    const pending =
+      kind === "wrong-list"
+        ? authoring.plans.list("demo", "source")
+        : authoring.plans.get("demo", "source", "plan");
+    await expect(pending).rejects.toMatchObject({ code: "UPSTREAM_ERROR" });
+  },
+);

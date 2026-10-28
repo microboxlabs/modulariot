@@ -52,6 +52,36 @@ function toPlan(raw: RawRow): QueryPlan {
   };
 }
 
+function planValues(content: QueryPlanContent): SqlValue[] {
+  return [
+    content.name,
+    content.name.toLowerCase(),
+    content.description ?? null,
+    content.projectId,
+    content.location,
+    content.sql,
+    content.maximumBytesBilled,
+    JSON.stringify(content.parameters),
+    content.columns === undefined ? null : JSON.stringify(content.columns),
+  ];
+}
+
+function translateNameConflict(error: unknown, name: string): never {
+  if (
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    "constraint" in error &&
+    error.code === "23505" &&
+    error.constraint === "query_plans_tenant_id_source_id_name_key_key"
+  ) {
+    throw DashboardServerError.conflict(
+      `A query named "${name}" already exists in this source`,
+    );
+  }
+  throw error;
+}
+
 export interface SqlQueryPlanStoreOptions {
   now?: () => Date;
   newId?: () => string;
@@ -92,20 +122,6 @@ export function createSqlQueryPlanStore(
       );
   }
 
-  function values(content: QueryPlanContent): SqlValue[] {
-    return [
-      content.name,
-      content.name.toLowerCase(),
-      content.description ?? null,
-      content.projectId,
-      content.location,
-      content.sql,
-      content.maximumBytesBilled,
-      JSON.stringify(content.parameters),
-      content.columns === undefined ? null : JSON.stringify(content.columns),
-    ];
-  }
-
   return {
     async list(tenantId, sourceId) {
       const p = placeholders(driver.dialect);
@@ -124,65 +140,69 @@ export function createSqlQueryPlanStore(
     },
 
     create(tenantId, sourceId, content, actor) {
-      return driver.transaction(async () => {
-        await checkName(tenantId, sourceId, content.name, null);
-        const p = placeholders(driver.dialect);
-        const rows = await driver.all<RawRow>(
-          `INSERT INTO query_plans
+      return driver
+        .transaction(async () => {
+          await checkName(tenantId, sourceId, content.name, null);
+          const p = placeholders(driver.dialect);
+          const rows = await driver.all<RawRow>(
+            `INSERT INTO query_plans
              (tenant_id, source_id, id, name, name_key, description, project_id, location,
               sql_text, maximum_bytes_billed, parameters, columns, revision, updated_at, updated_by)
            VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()},
                    ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()})
            RETURNING ${COLUMNS}`,
-          [
-            tenantId,
-            sourceId,
-            newId(),
-            ...values(content),
-            newId(),
-            now().toISOString(),
-            actor,
-          ],
-        );
-        if (rows[0] === undefined)
-          throw new Error("Saving a query returned no row");
-        return toPlan(rows[0]);
-      });
+            [
+              tenantId,
+              sourceId,
+              newId(),
+              ...planValues(content),
+              newId(),
+              now().toISOString(),
+              actor,
+            ],
+          );
+          if (rows[0] === undefined)
+            throw new Error("Saving a query returned no row");
+          return toPlan(rows[0]);
+        })
+        .catch((error: unknown) => translateNameConflict(error, content.name));
     },
 
     update(tenantId, sourceId, planId, content, expectedRevision, actor) {
-      return driver.transaction(async () => {
-        const current = await find(tenantId, sourceId, planId);
-        if (current === null)
-          throw DashboardServerError.notFound("Query not found");
-        if (current.revision !== expectedRevision)
-          throw DashboardServerError.conflict(
-            "The query was saved by someone else since you opened it",
-          );
-        await checkName(tenantId, sourceId, content.name, planId);
-        const p = placeholders(driver.dialect);
-        const rows = await driver.all<RawRow>(
-          `UPDATE query_plans SET
+      return driver
+        .transaction(async () => {
+          const current = await find(tenantId, sourceId, planId);
+          if (current === null)
+            throw DashboardServerError.notFound("Query not found");
+          if (current.revision !== expectedRevision)
+            throw DashboardServerError.conflict(
+              "The query was saved by someone else since you opened it",
+            );
+          await checkName(tenantId, sourceId, content.name, planId);
+          const p = placeholders(driver.dialect);
+          const rows = await driver.all<RawRow>(
+            `UPDATE query_plans SET
              name = ${p()}, name_key = ${p()}, description = ${p()}, project_id = ${p()},
              location = ${p()}, sql_text = ${p()}, maximum_bytes_billed = ${p()},
              parameters = ${p()}, columns = ${p()}, revision = ${p()}, updated_at = ${p()},
              updated_by = ${p()}
            WHERE tenant_id = ${p()} AND source_id = ${p()} AND id = ${p()}
            RETURNING ${COLUMNS}`,
-          [
-            ...values(content),
-            newId(),
-            now().toISOString(),
-            actor,
-            tenantId,
-            sourceId,
-            planId,
-          ],
-        );
-        if (rows[0] === undefined)
-          throw new Error("Saving a query returned no row");
-        return toPlan(rows[0]);
-      });
+            [
+              ...planValues(content),
+              newId(),
+              now().toISOString(),
+              actor,
+              tenantId,
+              sourceId,
+              planId,
+            ],
+          );
+          if (rows[0] === undefined)
+            throw new Error("Saving a query returned no row");
+          return toPlan(rows[0]);
+        })
+        .catch((error: unknown) => translateNameConflict(error, content.name));
     },
 
     async remove(tenantId, sourceId, planId) {

@@ -4,6 +4,7 @@ import {
   startTransition,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -109,6 +110,7 @@ export interface SqlEditorProps {
   readonly onRun?: () => void;
   readonly placeholder?: string;
   readonly ariaLabel?: string;
+  readonly readOnly?: boolean;
 }
 
 /** CodeMirror editor for BigQuery SQL with schema completion. */
@@ -123,21 +125,25 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
       onRun,
       placeholder: hint,
       ariaLabel,
+      readOnly = false,
     },
     ref,
   ) {
     const host = useRef<HTMLDivElement>(null);
     const view = useRef<EditorView | null>(null);
     const language = useRef(new Compartment());
+    const editable = useRef(new Compartment());
     const [initial] = useState(value);
     const latest = useRef({ onChange, onRun });
-    latest.current = { onChange, onRun };
+    useLayoutEffect(() => {
+      latest.current = { onChange, onRun };
+    }, [onChange, onRun]);
     const emitted = useRef(new Set<string>());
 
     useImperativeHandle(ref, () => ({
       insert(text) {
         const editor = view.current;
-        if (!editor) return;
+        if (!editor || editor.state.readOnly) return;
         editor.dispatch(editor.state.replaceSelection(text));
         editor.focus();
       },
@@ -170,6 +176,10 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
             problemLine,
             ...(hint ? [placeholder(hint)] : []),
             EditorView.lineWrapping,
+            editable.current.of([
+              EditorState.readOnly.of(readOnly),
+              EditorView.editable.of(!readOnly),
+            ]),
             EditorView.contentAttributes.of({
               id,
               spellcheck: "false",
@@ -212,6 +222,15 @@ export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(
         changes: { from: 0, to: editor.state.doc.length, insert: value },
       });
     }, [value]);
+
+    useEffect(() => {
+      view.current?.dispatch({
+        effects: editable.current.reconfigure([
+          EditorState.readOnly.of(readOnly),
+          EditorView.editable.of(!readOnly),
+        ]),
+      });
+    }, [readOnly]);
 
     useEffect(() => {
       view.current?.dispatch({

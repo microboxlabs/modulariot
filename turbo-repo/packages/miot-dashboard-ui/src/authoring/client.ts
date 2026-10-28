@@ -1,3 +1,12 @@
+import { z } from "zod/v3";
+import {
+  queryEstimateSchema,
+  queryPlanSchema,
+  queryPlansSchema,
+  queryPreviewSchema,
+  querySourcesSchema,
+  sourceSchema,
+} from "@microboxlabs/miot-dashboard-contract/authoring";
 import type {
   QueryEstimate,
   QueryPlan,
@@ -92,7 +101,11 @@ export function createQueryAuthoringClient(
   const source = (sourceId: string, action: string) =>
     appendRoute(root, sourceId, action);
 
-  async function call<T>(url: string, init: RequestInit = {}): Promise<T> {
+  async function call<T>(
+    url: string,
+    schema: z.ZodType<T>,
+    init: RequestInit = {},
+  ): Promise<T> {
     const headers = Object.fromEntries(new Headers(init.headers));
     if (options.getToken) {
       const token = await options
@@ -113,7 +126,11 @@ export function createQueryAuthoringClient(
       if (init.signal?.aborted) throw error;
       throw new QueryAuthoringError(502);
     });
-    if (response.status === 204) return undefined as T;
+    if (response.status === 204) {
+      const empty = schema.safeParse(undefined);
+      if (!empty.success) throw new QueryAuthoringError(502);
+      return empty.data;
+    }
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok) {
       const detail =
@@ -124,7 +141,9 @@ export function createQueryAuthoringClient(
     }
     if (!body || typeof body !== "object" || !("data" in body))
       throw new QueryAuthoringError(502);
-    return (body as { data: T }).data;
+    const parsed = schema.safeParse((body as { data: unknown }).data);
+    if (!parsed.success) throw new QueryAuthoringError(502);
+    return parsed.data;
   }
 
   const post = (body: unknown, signal?: AbortSignal): RequestInit => ({
@@ -134,32 +153,46 @@ export function createQueryAuthoringClient(
   });
 
   return {
-    listSources: (signal) => call(root, signal ? { signal } : {}),
+    listSources: (signal) =>
+      call(root, querySourcesSchema, signal ? { signal } : {}),
     schema: (sourceId, projectId, schemaOptions = {}) => {
       const query = new URLSearchParams({ projectId });
       if (schemaOptions.refresh) query.set("refresh", "1");
       return call(
         withQuery(source(sourceId, "schema"), query),
+        sourceSchema,
         schemaOptions.signal ? { signal: schemaOptions.signal } : {},
       );
     },
     listPlans: (sourceId, signal) =>
-      call(source(sourceId, "plans"), signal ? { signal } : {}),
+      call(
+        source(sourceId, "plans"),
+        queryPlansSchema,
+        signal ? { signal } : {},
+      ),
     createPlan: (sourceId, draft) =>
-      call(source(sourceId, "plans"), post(draft)),
+      call(source(sourceId, "plans"), queryPlanSchema, post(draft)),
     updatePlan: (sourceId, plan, draft) =>
-      call(source(sourceId, `plans/${pathSegment(plan.id)}`), {
+      call(source(sourceId, `plans/${pathSegment(plan.id)}`), queryPlanSchema, {
         method: "PUT",
         body: JSON.stringify(draft),
         headers: { "if-match": `"${plan.revision}"` },
       }),
     removePlan: (sourceId, planId) =>
-      call(source(sourceId, `plans/${pathSegment(planId)}`), {
+      call(source(sourceId, `plans/${pathSegment(planId)}`), z.void(), {
         method: "DELETE",
       }),
     estimate: (sourceId, draft, signal) =>
-      call(source(sourceId, "estimate"), post(draft, signal)),
+      call(
+        source(sourceId, "estimate"),
+        queryEstimateSchema,
+        post(draft, signal),
+      ),
     preview: (sourceId, draft, signal) =>
-      call(source(sourceId, "preview"), post(draft, signal)),
+      call(
+        source(sourceId, "preview"),
+        queryPreviewSchema,
+        post(draft, signal),
+      ),
   };
 }

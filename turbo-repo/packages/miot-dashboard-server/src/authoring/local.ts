@@ -5,6 +5,7 @@
  * `createLocalQueryOperations`.
  */
 
+import { createHash } from "node:crypto";
 import type { QuerySource } from "@microboxlabs/miot-dashboard-contract/authoring";
 import { serviceAccountAccessToken } from "../identity/google-service-account";
 import {
@@ -42,7 +43,10 @@ export function createLocalQueryAuthoring(
   options: LocalQueryAuthoringOptions,
 ): QueryAuthoring {
   const now = options.now ?? Date.now;
-  const tokens = new Map<string, { token: string; expiresAt: number }>();
+  const tokens = new Map<
+    string,
+    { token: string; expiresAt: number; fingerprint: string }
+  >();
 
   const usable = (source: DataSourceDescriptor | null) =>
     source !== null &&
@@ -66,19 +70,22 @@ export function createLocalQueryAuthoring(
     request: AuthoringRequest,
   ): Promise<QuerySource[]> {
     const tenantId = request.identity.tenantId;
-    const sources: QuerySource[] = [];
-    for (const source of await options.dataSources.list(tenantId)) {
-      if (!usable(source)) continue;
-      const account = await serviceAccount(tenantId, source);
-      if (account === null) continue;
-      sources.push({
-        id: source.id,
-        label: source.name,
-        kind: "BIGQUERY",
-        defaultProjectId: account.projectId,
-      });
-    }
-    return sources;
+    const sources = await options.dataSources.list(tenantId);
+    const available = await Promise.all(
+      sources
+        .filter(usable)
+        .map(async (source): Promise<QuerySource | null> => {
+          const account = await serviceAccount(tenantId, source);
+          if (account === null) return null;
+          return {
+            id: source.id,
+            label: source.name,
+            kind: "BIGQUERY",
+            defaultProjectId: account.projectId,
+          };
+        }),
+    );
+    return available.filter((source): source is QuerySource => source !== null);
   }
 
   async function accessFor(
@@ -87,15 +94,31 @@ export function createLocalQueryAuthoring(
     const tenantId = request.identity.tenantId;
     const source = await options.dataSources.get(tenantId, request.sourceId);
     if (source === null || !usable(source)) return null;
-    const key = [tenantId, source.id, source.credentialRef].join("\0");
+    const key = JSON.stringify([tenantId, source.id, source.credentialRef]);
+    const account = await serviceAccount(tenantId, source);
+    if (account === null) {
+      tokens.delete(key);
+      return null;
+    }
+    const fingerprint = createHash("sha256")
+      .update(
+        JSON.stringify([
+          account.projectId,
+          account.clientEmail,
+          account.privateKey,
+        ]),
+      )
+      .digest("hex");
     const cached = tokens.get(key);
-    if (cached && cached.expiresAt - 60_000 > now())
+    if (
+      cached?.fingerprint === fingerprint &&
+      cached.expiresAt - 60_000 > now()
+    ) {
       return {
         accessToken: cached.token,
         expiresAt: new Date(cached.expiresAt).toISOString(),
       };
-    const account = await serviceAccount(tenantId, source);
-    if (account === null) return null;
+    }
     const granted = await serviceAccountAccessToken({
       clientEmail: account.clientEmail,
       privateKey: account.privateKey,
@@ -103,7 +126,12 @@ export function createLocalQueryAuthoring(
       ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
       now,
     });
-    tokens.set(key, granted);
+    tokens.delete(key);
+    if (tokens.size >= 64) {
+      const oldest = tokens.keys().next().value;
+      if (oldest !== undefined) tokens.delete(oldest);
+    }
+    tokens.set(key, { ...granted, fingerprint });
     return {
       accessToken: granted.token,
       expiresAt: new Date(granted.expiresAt).toISOString(),
@@ -165,24 +193,25 @@ export function createLocalQueryOperations(
           scopeId: ref.scopeId,
           signal,
         });
-        const connections = [];
-        for (const source of sources) {
-          const plans = await authoring.plans.list(
-            identity.tenantId,
-            source.id,
-          );
-          connections.push({
-            id: source.id,
-            label: source.label,
-            operations: plans.map((plan) => ({
-              id: plan.id,
-              label: plan.name,
-              ...(plan.columns
-                ? { schema: plan.columns.map((column) => column.name) }
-                : {}),
-            })),
-          });
-        }
+        const connections = await Promise.all(
+          sources.map(async (source) => {
+            const plans = await authoring.plans.list(
+              identity.tenantId,
+              source.id,
+            );
+            return {
+              id: source.id,
+              label: source.label,
+              operations: plans.map((plan) => ({
+                id: plan.id,
+                label: plan.name,
+                ...(plan.columns
+                  ? { schema: plan.columns.map((column) => column.name) }
+                  : {}),
+              })),
+            };
+          }),
+        );
         return connections;
       },
     },

@@ -4912,7 +4912,8 @@
         "testFailed": "Connection test failed",
         "connectionDeleted": "Connection deleted",
         "managedGeocodingCreating": "Connecting the platform geocoding…",
-        "managedGeocodingCreated": "Platform geocoding connected"
+        "managedGeocodingCreated": "Platform geocoding connected",
+        "managedGeocodingNoProvider": "The platform has no geocoding provider yet. Set it in Settings › Platform › Geocoding."
       },
       "template": {
         "form": {

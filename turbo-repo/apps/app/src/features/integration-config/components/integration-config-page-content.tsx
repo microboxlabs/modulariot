@@ -230,9 +230,11 @@ export function IntegrationConfigPageContent({
       refresh();
       toast.success(tr("toast.managedGeocodingCreated", dict), { id: pending });
     } catch (cause) {
-      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
-        id: pending,
-      });
+      const message =
+        (cause as { status?: number }).status === 409
+          ? tr("toast.managedGeocodingNoProvider", dict)
+          : messageOf(cause, tr("toast.actionFailed", dict));
+      toast.error(message, { id: pending });
     }
   }
 

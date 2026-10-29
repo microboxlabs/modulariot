@@ -8,10 +8,13 @@ import {
   ModalFooter,
   TextInput,
 } from "flowbite-react";
-import { MapPin } from "flowbite-react-icons/outline";
 import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
 import { BrandLogo } from "@/features/common/components/brand-logo";
-import { BIGQUERY_LOGO, POSTGREST_LOGO } from "../connection-catalog";
+import {
+  BIGQUERY_LOGO,
+  GEOCODING_LOGO,
+  POSTGREST_LOGO,
+} from "../connection-catalog";
 import type { ReactNode } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -109,9 +112,12 @@ export function TemplatePickerModal({
               title={tr("picker.managedGeocoding", dict)}
               description={tr("picker.managedGeocodingHelp", dict)}
               icon={
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                  <MapPin className="h-6 w-6" />
-                </span>
+                <BrandLogo
+                  logo={GEOCODING_LOGO}
+                  alt="Geocoding"
+                  keyline="circle"
+                  size={48}
+                />
               }
               onSelect={onSelectManagedGeocoding}
             />

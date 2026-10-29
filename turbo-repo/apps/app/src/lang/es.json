@@ -4912,7 +4912,8 @@
         "testFailed": "La prueba de conexión falló",
         "connectionDeleted": "Conexión eliminada",
         "managedGeocodingCreating": "Conectando el geocoding de la plataforma…",
-        "managedGeocodingCreated": "Geocoding de la plataforma conectado"
+        "managedGeocodingCreated": "Geocoding de la plataforma conectado",
+        "managedGeocodingNoProvider": "La plataforma aún no tiene proveedor de geocoding. Configúralo en Configuración › Plataforma › Geocodificación."
       },
       "template": {
         "form": {

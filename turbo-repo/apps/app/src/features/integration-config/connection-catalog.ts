@@ -1,6 +1,6 @@
 import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
-import { Image, Link, MapPin } from "flowbite-react-icons/outline";
+import { Image, Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import type {
   BrandLogoSources,
@@ -35,10 +35,17 @@ export const BIGQUERY_LOGO: BrandLogoSources = {
   light: "/credential-logos/bigquery-light.svg",
   dark: "/credential-logos/bigquery-dark.svg",
 };
+export const GEOCODING_LOGO: BrandLogoSources = {
+  light: "/credential-logos/geocoding-light.svg",
+  dark: "/credential-logos/geocoding-dark.svg",
+};
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
-  GEOCODING: { icon: MapPin },
+  GEOCODING: {
+    logo: GEOCODING_LOGO,
+    keyline: "circle",
+  },
   // Taller than wide: the round keyline gives it the height the square one takes away.
   POSTGREST: {
     logo: POSTGREST_LOGO,

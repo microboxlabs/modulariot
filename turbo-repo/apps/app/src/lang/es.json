@@ -2807,7 +2807,7 @@
           "mapboxAddTitle": "Nuevo token de Mapbox",
           "mapboxEditTitle": "Editar token de Mapbox",
           "mapboxSubtitle": "El token con el que la plataforma consulta el geocoding de Mapbox.",
-          "mapboxTokenHelp": "Usa un token secreto de servidor (sk.). Se guarda cifrado y nunca se devuelve.",
+          "mapboxTokenHelp": "Crea un token solo para el servidor, sin scopes ni restricción de URL: el geocoding no los necesita. Se guarda cifrado y nunca se devuelve.",
           "googleMapsAddTitle": "Nueva clave de Google Maps",
           "googleMapsEditTitle": "Editar clave de Google Maps",
           "googleMapsSubtitle": "La clave API con la que la plataforma consulta la Geocoding API de Google.",

@@ -25,10 +25,16 @@ import java.util.zip.GZIPInputStream;
 public class AdminBoundaries {
 
     public record Boundary(String country, String code, String name, String province, String region,
-            double[] centroid, double[] bbox, GeoShape shape) {
+            List<Double> centroid, List<Double> bbox, GeoShape shape) {
+
+        public Boundary {
+            centroid = List.copyOf(centroid);
+            bbox = List.copyOf(bbox);
+        }
 
         boolean mayContain(double lon, double lat) {
-            return bbox != null && lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3];
+            return bbox.size() == 4 && lon >= bbox.get(0) && lon <= bbox.get(2)
+                    && lat >= bbox.get(1) && lat <= bbox.get(3);
         }
     }
 
@@ -105,14 +111,12 @@ public class AdminBoundaries {
         }
     }
 
-    private static double[] doubles(JsonNode array) {
+    private static List<Double> doubles(JsonNode array) {
         if (array == null || !array.isArray()) {
-            return null;
+            return List.of();
         }
-        double[] out = new double[array.size()];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = array.get(i).asDouble();
-        }
-        return out;
+        List<Double> out = new ArrayList<>(array.size());
+        for (JsonNode value : array) out.add(value.asDouble());
+        return List.copyOf(out);
     }
 }

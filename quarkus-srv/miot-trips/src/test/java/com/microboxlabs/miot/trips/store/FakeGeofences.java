@@ -16,6 +16,7 @@ public class FakeGeofences implements GeofenceDirectory {
 
     private final List<Owned> all = new ArrayList<>();
     private final Map<Integer, String> shapes = new HashMap<>();
+    private final Map<Integer, String> owners = new HashMap<>();
     private boolean configured = true;
     private int nextId = 10_000;
 
@@ -76,7 +77,25 @@ public class FakeGeofences implements GeofenceDirectory {
         int id = nextId++;
         add(tenantCode, id, code, name);
         shapes.put(id, area);
+        try {
+            var metadata = new com.fasterxml.jackson.databind.ObjectMapper().readTree(properties);
+            if ("miot-trips".equals(metadata.path("created_by").asText())) owners.put(id, metadata.path("location_id").asText());
+        } catch (java.io.IOException e) {
+            throw new IllegalArgumentException("invalid geofence properties", e);
+        }
         return find(tenantCode, id);
+    }
+
+    @Override
+    public Optional<Geofence> place(String tenantCode, String locationId, String name, String area, String properties) {
+        if (!configured) return Optional.empty();
+        Optional<Geofence> existing = matching(tenantCode, locationId, null, 1).stream().findFirst();
+        if (existing.isEmpty()) return create(tenantCode, locationId, name, area, properties);
+        if (!locationId.equals(owners.get(existing.get().id()))) {
+            throw new IllegalArgumentException("the geofence is managed outside this location");
+        }
+        shapes.put(existing.get().id(), area);
+        return existing;
     }
 
     @Override

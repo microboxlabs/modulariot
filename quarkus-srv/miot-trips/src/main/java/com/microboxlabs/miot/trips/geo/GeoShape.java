@@ -62,12 +62,14 @@ public final class GeoShape {
 
     /** A point of the largest polygon: its area centroid, or the middle of its widest crossing at that latitude. */
     public double[] center() {
-        double[][] outer = null;
+        List<double[][]> selected = polygons.get(0);
+        double[][] outer = selected.get(0);
         double best = -1;
         for (List<double[][]> rings : polygons) {
             double a = Math.abs(area(rings.get(0)));
             if (a > best) {
                 best = a;
+                selected = rings;
                 outer = rings.get(0);
             }
         }
@@ -84,7 +86,10 @@ public final class GeoShape {
         }
         cx /= 6 * a;
         cy /= 6 * a;
-        return contains(cx, cy) ? new double[] {cx, cy} : widestCrossing(outer, cy);
+        if (contains(cx, cy)) return new double[] {cx, cy};
+        double[] point = widestCrossing(selected, cy);
+        if (!contains(point[0], point[1])) throw new IllegalArgumentException("a shape has no interior reference point");
+        return point;
     }
 
     /** Meters from the point to the nearest edge, on an equirectangular projection around the point. */
@@ -106,7 +111,7 @@ public final class GeoShape {
         double dx = x2 - x1;
         double dy = y2 - y1;
         double len = dx * dx + dy * dy;
-        double t = len == 0 ? 0 : Math.max(0, Math.min(1, -(x1 * dx + y1 * dy) / len));
+        double t = len == 0 ? 0 : Math.clamp(-(x1 * dx + y1 * dy) / len, 0, 1);
         return Math.hypot(x1 + t * dx, y1 + t * dy);
     }
 
@@ -118,17 +123,11 @@ public final class GeoShape {
         return a / 2;
     }
 
-    private static double[] widestCrossing(double[][] ring, double y) {
+    private static double[] widestCrossing(List<double[][]> rings, double y) {
         List<Double> xs = new ArrayList<>();
-        for (int i = 0; i < ring.length - 1; i++) {
-            double y1 = ring[i][1];
-            double y2 = ring[i + 1][1];
-            if ((y1 > y) != (y2 > y)) {
-                xs.add(ring[i][0] + (y - y1) * (ring[i + 1][0] - ring[i][0]) / (y2 - y1));
-            }
-        }
+        for (double[][] ring : rings) addCrossings(xs, ring, y);
         xs.sort(null);
-        double[] out = ring[0].clone();
+        double[] out = rings.get(0)[0].clone();
         double width = -1;
         for (int i = 0; i + 1 < xs.size(); i += 2) {
             if (xs.get(i + 1) - xs.get(i) > width) {
@@ -137,6 +136,16 @@ public final class GeoShape {
             }
         }
         return out;
+    }
+
+    private static void addCrossings(List<Double> xs, double[][] ring, double y) {
+        for (int i = 0; i < ring.length - 1; i++) {
+            double y1 = ring[i][1];
+            double y2 = ring[i + 1][1];
+            if ((y1 > y) != (y2 > y)) {
+                xs.add(ring[i][0] + (y - y1) * (ring[i + 1][0] - ring[i][0]) / (y2 - y1));
+            }
+        }
     }
 
     private static List<double[][]> polygon(JsonNode rings) {

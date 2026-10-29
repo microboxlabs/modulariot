@@ -3,6 +3,14 @@ name: MIOT Release Train
 on:
   workflow_dispatch:
     inputs:
+      deployment_provider:
+        description: "Deploy this release only to this provider."
+        required: true
+        default: azure
+        type: choice
+        options:
+          - azure
+          - gke
       release_version:
         description: "Umbrella stack semver without v prefix. Leave blank to bump the latest miot-stack@v* patch."
         required: false
@@ -1166,6 +1174,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
+          DEPLOYMENT_PROVIDER: ${{ inputs.deployment_provider }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
           RELEASE_NOTES_VERSION: v${{ needs.prepare.outputs.release_notes_version }}
           BUILD_CHANNEL: release
@@ -1213,6 +1222,7 @@ jobs:
           BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
+            --arg deployment_provider "$DEPLOYMENT_PROVIDER" \
             --arg release_version "$RELEASE_VERSION" \
             --arg release_notes_version "$RELEASE_NOTES_VERSION" \
             --arg build_channel "$BUILD_CHANNEL" \
@@ -1254,6 +1264,7 @@ jobs:
             '{
               event_type: "miot-stack-release",
               client_payload: {
+                deployment_provider: $deployment_provider,
                 release_version: $release_version,
                 release_notes_version: $release_notes_version,
                 channel: $build_channel,
@@ -1309,6 +1320,7 @@ jobs:
             }' > stack-dispatch-payload.json
 
           jq -n \
+            --arg deployment_provider "$DEPLOYMENT_PROVIDER" \
             --arg release_version "$RELEASE_VERSION" \
             --arg release_notes_version "$RELEASE_NOTES_VERSION" \
             --arg build_channel "$BUILD_CHANNEL" \
@@ -1349,6 +1361,7 @@ jobs:
             --arg harness_image_ref "$HARNESS_IMAGE_REF" \
             '{
               release_version: $release_version,
+              deployment_provider: $deployment_provider,
               stack_version: $release_version,
               release_notes_version: $release_notes_version,
               channel: $build_channel,

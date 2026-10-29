@@ -56,10 +56,14 @@ uv run miot-harness demo "Tell me the story of delivery compliance this month an
 Merge certified PRs into `trunk` as usual. Pushes, completed component builds,
 and the nightly schedule publish images and a stack manifest without deploying.
 When the batch is complete, open **Actions → MIOT Stack Nightly / Deploy trunk →
-Run workflow**, select **trunk**, and run it once. The CLI equivalent is:
+Run workflow**, select **trunk** and either **azure** or **gke**, and run it once.
+Azure uses its development targets; GKE uses its own configured environment.
+Each provider has its own deployment queue, so deploy them at separate times:
 
 ```bash
-gh workflow run app-nightly.yml --repo microboxlabs/modulariot --ref trunk
+gh workflow run app-nightly.yml --repo microboxlabs/modulariot --ref trunk -f deployment_provider=azure
+# Run separately when GKE should receive trunk:
+gh workflow run app-nightly.yml --repo microboxlabs/modulariot --ref trunk -f deployment_provider=gke
 ```
 
 The manual run captures `trunk` at dispatch time. It waits up to 30 minutes for
@@ -70,7 +74,8 @@ since an earlier successful trunk build reuse that commit's image; missing or
 failed builds block deployment instead of falling back to `latest`.
 
 The private repository owns target environments and approvals. Tagged production
-releases continue to use the release train.
+releases continue to use the release train, which also selects one provider per
+run. No request deploys to both Azure and GKE.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md). For security issues, see our [Security Policy](SECURITY.md).
 

@@ -1,6 +1,6 @@
 name: MIOT Stack Nightly / Deploy trunk
 
-run-name: "${{ github.event_name == 'workflow_dispatch' && 'Deploy trunk' || 'Build nightly' }} · ${{ github.sha }}"
+run-name: "${{ github.event_name == 'workflow_dispatch' && format('Deploy trunk / {0}', inputs.deployment_provider) || 'Build nightly' }} · ${{ github.sha }}"
 
 on:
   # App/UI/DB changes have no separate image-build workflow — the app image is
@@ -37,10 +37,19 @@ on:
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
+    inputs:
+      deployment_provider:
+        description: "Deploy trunk only to this provider."
+        required: true
+        default: azure
+        type: choice
+        options:
+          - azure
+          - gke
 
 concurrency:
   # Automatic builds cannot cancel a manually selected trunk deployment.
-  group: ${{ github.event_name == 'workflow_dispatch' && 'miot-stack-deploy-trunk' || format('miot-stack-nightly-{0}', github.ref) }}
+  group: ${{ github.event_name == 'workflow_dispatch' && format('miot-stack-deploy-trunk-{0}', inputs.deployment_provider) || format('miot-stack-nightly-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 permissions:
@@ -745,6 +754,8 @@ jobs:
     steps:
       - name: Generate stack deployment payload
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          DEPLOYMENT_PROVIDER: ${{ inputs.deployment_provider }}
           RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           BUILD_CHANNEL: nightly
           GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
@@ -777,6 +788,8 @@ jobs:
           BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
+            --arg event_name "$EVENT_NAME" \
+            --arg deployment_provider "$DEPLOYMENT_PROVIDER" \
             --arg release_version "$RELEASE_VERSION" \
             --arg build_channel "$BUILD_CHANNEL" \
             --arg git_sha "$GIT_SHA" \
@@ -807,8 +820,10 @@ jobs:
             --arg harness_image_ref "$HARNESS_IMAGE_REF" \
             --arg harness_source_tag "$HARNESS_SOURCE_TAG" \
             '{
-              event_type: "miot-stack-nightly",
+              event_type: (if $event_name == "workflow_dispatch" then "miot-stack-trunk" else "miot-stack-nightly" end),
               client_payload: {
+                deploy_kind: (if $event_name == "workflow_dispatch" then "trunk" else "nightly" end),
+                deployment_provider: $deployment_provider,
                 release_version: $release_version,
                 channel: $build_channel,
                 git_sha: $git_sha,
@@ -872,7 +887,7 @@ jobs:
             nightly-dispatch-payload.json
 
   deploy:
-    name: Deploy trunk
+    name: Deploy trunk to ${{ inputs.deployment_provider }}
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/trunk'
     runs-on: ubuntu-latest
     needs: [metadata, manifest]
@@ -881,6 +896,9 @@ jobs:
     environment:
       name: app-deploy
     steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ github.workflow_sha }}
       - name: Download selected stack payload
         uses: actions/download-artifact@v4
         with:
@@ -890,15 +908,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
+          DEPLOYMENT_PROVIDER: ${{ inputs.deployment_provider }}
           EXPECTED_SHA: ${{ needs.metadata.outputs.head_sha }}
-        run: |
-          DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
-          if [[ -z "$GH_TOKEN" ]]; then
-            echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
-            exit 1
-          fi
-          jq -e --arg sha "$EXPECTED_SHA" '.client_payload.git_sha == $sha' nightly-dispatch-payload.json >/dev/null
-          gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
-            --method POST \
-            --input nightly-dispatch-payload.json
-          echo "Dispatched trunk commit $EXPECTED_SHA to $DEPLOY_DISPATCH_REPO."
+        run: .github/scripts/dispatch-trunk.sh

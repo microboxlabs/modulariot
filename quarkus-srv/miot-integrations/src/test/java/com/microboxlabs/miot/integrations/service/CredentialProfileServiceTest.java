@@ -17,6 +17,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.dto.CredentialTestRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.CredentialTestResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
@@ -128,6 +129,36 @@ class CredentialProfileServiceTest {
 
         assertEquals(CredentialType.API_KEY, created.credentialType());
         assertEquals(AuthType.API_KEY_QUERY, created.authType());
+    }
+
+    /** Only the platform creates a managed credential; through this API it could name any account. */
+    @Test
+    void refusesAManagedGoogleCredential() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                        "Forged", CredentialType.GOOGLE_SERVICE_ACCOUNT, null, null,
+                        Map.of("managed", true, "clientEmail", "t-other@tenants.iam.gserviceaccount.com"),
+                        Map.of("privateKey", "x"))));
+        assertEquals("Managed credentials are created by the platform", error.getMessage());
+    }
+
+    @Test
+    void aManagedCredentialHasNoSecretAndCannotBeEditedOrTested() {
+        CredentialProfile managed = service().createManaged(TENANT, ACTOR, "Geocoding", AuthType.BEARER_TOKEN,
+                Map.of());
+
+        assertEquals(Map.of("managed", true), managed.publicConfig());
+        assertEquals("none", managed.secretPreview());
+        IllegalArgumentException edit = assertThrows(IllegalArgumentException.class,
+                () -> service().update(TENANT, ACTOR, managed.id(), new UpdateCredentialProfileRequest(
+                        null, null, null, Map.of("token", "mine"))));
+        assertEquals("This credential is managed by the platform", edit.getMessage());
+        CredentialTestResponse test = service().test(TENANT, managed.id());
+        assertFalse(test.success());
+        assertEquals("This credential is managed by the platform", test.message());
+        assertNull(credentials.recordedTestResult);
+        assertThrows(IllegalArgumentException.class, () -> service().testConfig(new CredentialTestRequest(
+                CredentialType.BEARER_TOKEN, Map.of("managed", true), Map.of("token", "x"))));
     }
 
     @Test

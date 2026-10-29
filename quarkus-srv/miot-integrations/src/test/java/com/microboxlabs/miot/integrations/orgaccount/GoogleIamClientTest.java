@@ -48,7 +48,7 @@ class GoogleIamClientTest {
         server.start();
         String base = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
         client = new GoogleIamClient(HttpClient.newHttpClient(), json, () -> "platform-token",
-                base + "iam/", base + "creds/");
+                base + "iam/", base + "creds/", base + "crm/");
         status = 200;
     }
 
@@ -100,6 +100,25 @@ class GoogleIamClientTest {
         client.enable("tenants-p", "t-acme@tenants-p.iam.gserviceaccount.com");
         assertTrue(calls.get(0).path().endsWith(":disable"));
         assertTrue(calls.get(1).path().endsWith(":enable"));
+    }
+
+    @Test
+    void addsAMemberToAProjectRoleOnce() throws IOException {
+        answer = "{\"version\":1,\"etag\":\"e1\",\"bindings\":[{\"role\":\"roles/owner\",\"members\":[\"user:a\"]}]}";
+        client.grantProjectRole("tenants-p", "serviceAccount:t-acme@x", "roles/bigquery.jobUser");
+        assertEquals("/crm/projects/tenants-p:getIamPolicy", calls.get(0).path());
+        assertEquals(3, calls.get(0).body().path("options").path("requestedPolicyVersion").asInt());
+        JsonNode sent = calls.get(1).body().path("policy");
+        assertEquals("/crm/projects/tenants-p:setIamPolicy", calls.get(1).path());
+        assertEquals("e1", sent.path("etag").asText());
+        assertEquals(3, sent.path("version").asInt());
+        assertEquals("roles/bigquery.jobUser", sent.path("bindings").get(1).path("role").asText());
+        assertEquals("serviceAccount:t-acme@x", sent.path("bindings").get(1).path("members").get(0).asText());
+
+        calls.clear();
+        answer = json.writeValueAsString(sent);
+        client.grantProjectRole("tenants-p", "serviceAccount:t-acme@x", "roles/bigquery.jobUser");
+        assertEquals(1, calls.size());
     }
 
     @Test

@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -24,15 +26,25 @@ public class IntegrationConnectionResolver {
     private final IntegrationConnectionRepository connectionRepository;
     private final CredentialProfileRepository credentialProfileRepository;
     private final IntegrationSecretCipher secretCipher;
+    private final ManagedGoogleIdentity managed;
 
     @Inject
     public IntegrationConnectionResolver(
             IntegrationConnectionRepository connectionRepository,
             CredentialProfileRepository credentialProfileRepository,
-            IntegrationSecretCipher secretCipher) {
+            IntegrationSecretCipher secretCipher,
+            ManagedGoogleIdentity managed) {
         this.connectionRepository = connectionRepository;
         this.credentialProfileRepository = credentialProfileRepository;
         this.secretCipher = secretCipher;
+        this.managed = managed;
+    }
+
+    public IntegrationConnectionResolver(
+            IntegrationConnectionRepository connectionRepository,
+            CredentialProfileRepository credentialProfileRepository,
+            IntegrationSecretCipher secretCipher) {
+        this(connectionRepository, credentialProfileRepository, secretCipher, ManagedGoogleIdentity.NONE);
     }
 
     /**
@@ -120,7 +132,20 @@ public class IntegrationConnectionResolver {
                 secret,
                 credential.authType(),
                 credential.credentialType(),
-                credential.publicConfig());
+                publicConfig(tenantCode, credential, label));
+    }
+
+    /** A managed Google credential always names this tenant's own account, whatever it stored. */
+    private Map<String, Object> publicConfig(String tenantCode, CredentialProfile credential, String label) {
+        if (credential.authType() != AuthType.GOOGLE_SERVICE_ACCOUNT
+                || !ManagedGoogleIdentity.isManaged(credential.publicConfig())) {
+            return credential.publicConfig();
+        }
+        try {
+            return managed.bind(tenantCode, credential.publicConfig());
+        } catch (ManagedGoogleIdentity.UnavailableException e) {
+            throw new ConnectionResolutionException(e.getMessage() + " (" + label + ")");
+        }
     }
 
     /**

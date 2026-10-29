@@ -22,6 +22,9 @@ public class OrgServiceAccountRepository {
     private static final String FIND = "SELECT " + COLUMNS
             + " FROM miot_integrations.org_service_accounts WHERE tenant_code = $1";
 
+    private static final String FIND_BY_EMAIL = "SELECT " + COLUMNS
+            + " FROM miot_integrations.org_service_accounts WHERE email = $1";
+
     private static final String INSERT = "INSERT INTO miot_integrations.org_service_accounts"
             + " (tenant_code, project_id, account_id, email, unique_id, disabled, created_by, updated_by)"
             + " VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING " + COLUMNS;
@@ -43,6 +46,11 @@ public class OrgServiceAccountRepository {
 
     public Optional<OrgServiceAccount> find(String tenantCode) {
         RowSet<Row> rows = execute(FIND, Tuple.of(tenantCode));
+        return rows.iterator().hasNext() ? Optional.of(map(rows.iterator().next())) : Optional.empty();
+    }
+
+    public Optional<OrgServiceAccount> findByEmail(String email) {
+        RowSet<Row> rows = execute(FIND_BY_EMAIL, Tuple.of(email));
         return rows.iterator().hasNext() ? Optional.of(map(rows.iterator().next())) : Optional.empty();
     }
 

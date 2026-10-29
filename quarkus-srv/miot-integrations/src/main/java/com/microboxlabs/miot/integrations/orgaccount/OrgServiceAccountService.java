@@ -11,8 +11,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -23,9 +25,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * roles of its own here: what it may read is granted elsewhere.
  */
 @ApplicationScoped
-public class OrgServiceAccountService {
+public class OrgServiceAccountService implements ManagedGoogleIdentity {
 
     static final String CHECK_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+    static final String JOB_USER = "roles/bigquery.jobUser";
     private static final int MAX_ID = 30;
     private static final int MIN_ID = 6;
 
@@ -130,6 +133,31 @@ public class OrgServiceAccountService {
         GoogleIamClient.AccessToken token = iam.impersonate(account.email(), List.of(CHECK_SCOPE),
                 Duration.ofMinutes(5));
         return new Check(false, token.expiresAt());
+    }
+
+    /** Lets the account run BigQuery jobs in the organizations' project, which then bills them. */
+    public void allowQueries(String tenantCode) {
+        OrgServiceAccount account = repository.find(tenantCode).orElseThrow(NotFoundException::new);
+        iam.grantProjectRole(account.projectId(), "serviceAccount:" + account.email(), JOB_USER);
+    }
+
+    @Override
+    public Map<String, Object> bind(String tenantCode, Map<String, Object> publicConfig) {
+        OrgServiceAccount account = repository.find(tenantCode).orElseThrow(
+                () -> new UnavailableException("The organization has no service account"));
+        if (account.disabled()) throw new UnavailableException("The organization's service account is disabled");
+        Map<String, Object> bound = new LinkedHashMap<>(publicConfig);
+        bound.put(CLIENT_EMAIL, account.email());
+        return bound;
+    }
+
+    @Override
+    public Token accessToken(String email, String scope) {
+        OrgServiceAccount account = repository.findByEmail(email).orElseThrow(
+                () -> new UnavailableException("Not an organization's service account"));
+        if (account.disabled()) throw new UnavailableException("The organization's service account is disabled");
+        GoogleIamClient.AccessToken token = iam.impersonate(account.email(), List.of(scope), Duration.ofHours(1));
+        return new Token(token.token(), token.expiresAt());
     }
 
     /** Matched on adoption, so an account another organization owns is never taken over. */

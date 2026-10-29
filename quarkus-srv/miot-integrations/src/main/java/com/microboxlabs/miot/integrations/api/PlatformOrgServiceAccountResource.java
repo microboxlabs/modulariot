@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.integrations.orgaccount.GoogleCallException;
 import com.microboxlabs.miot.integrations.orgaccount.OrgServiceAccount;
 import com.microboxlabs.miot.integrations.orgaccount.OrgServiceAccountService;
+import com.microboxlabs.miot.integrations.service.ManagedBigQueryConnections;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
@@ -55,13 +56,33 @@ public class PlatformOrgServiceAccountResource {
     record Org(String tenantCode, String name) {
     }
 
+    public record ManagedConnectionView(String connectionId, String name, String status, boolean tested,
+            String testMessage) {
+    }
+
     private final OrgServiceAccountService service;
+    private final ManagedBigQueryConnections bigQuery;
     private final PlatformAuthorizer authorizer;
 
     @Inject
-    public PlatformOrgServiceAccountResource(OrgServiceAccountService service, PlatformAuthorizer authorizer) {
+    public PlatformOrgServiceAccountResource(OrgServiceAccountService service, ManagedBigQueryConnections bigQuery,
+            PlatformAuthorizer authorizer) {
         this.service = service;
+        this.bigQuery = bigQuery;
         this.authorizer = authorizer;
+    }
+
+    @POST
+    @Path("/bigquery-connection")
+    @Operation(summary = "Connect the organization to BigQuery as its own service account",
+            description = "Creates the account when missing, lets it run jobs in the organizations' project,"
+                    + " creates the connection once and tests it. Idempotent.")
+    public Uni<Response> connectBigQuery(@PathParam("slug") String slug) {
+        return run(slug, (org, actor) -> {
+            ManagedBigQueryConnections.Result result = bigQuery.create(org.tenantCode(), slug, org.name(), actor);
+            return Response.ok(new ManagedConnectionView(result.connection().id(), result.connection().name(),
+                    result.connection().status().name(), result.test().success(), result.test().message())).build();
+        });
     }
 
     @GET

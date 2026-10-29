@@ -31,6 +31,11 @@ class OrgServiceAccountServiceTest {
         }
 
         @Override
+        public Optional<OrgServiceAccount> findByEmail(String email) {
+            return rows.values().stream().filter(a -> a.email().equals(email)).findFirst();
+        }
+
+        @Override
         public OrgServiceAccount insert(OrgServiceAccount account) {
             rows.put(account.tenantCode(), account);
             return account;
@@ -77,6 +82,11 @@ class OrgServiceAccountServiceTest {
         @Override
         public void enable(String projectId, String email) {
             calls.add("enable " + email);
+        }
+
+        @Override
+        public void grantProjectRole(String projectId, String member, String role) {
+            calls.add("grant " + role + " " + member + " on " + projectId);
         }
 
         @Override
@@ -158,6 +168,34 @@ class OrgServiceAccountServiceTest {
         assertFalse(check.toString().contains("secret-token"));
         service.setDisabled("client-1", true, "b");
         assertNull(service.check("client-1").tokenExpiresAt());
+    }
+
+    @Test
+    void bindsAManagedCredentialToTheTenantsOwnAccount() {
+        service.create("client-1", "acme", "Acme", "a");
+        service.create("client-2", "other", "Other", "a");
+        Map<String, Object> forged = Map.of("managed", true, "clientEmail", FakeIam.email("t-other"),
+                "projectId", PROJECT);
+        assertEquals(FakeIam.email("t-acme"), service.bind("client-1", forged).get("clientEmail"));
+        assertThrows(ManagedGoogleIdentity.UnavailableException.class, () -> service.bind("nobody", forged));
+        service.setDisabled("client-1", true, "b");
+        assertThrows(ManagedGoogleIdentity.UnavailableException.class, () -> service.bind("client-1", forged));
+    }
+
+    @Test
+    void impersonatesOnlyOrganizationAccounts() {
+        service.create("client-1", "acme", "Acme", "a");
+        assertEquals("secret-token", service.accessToken(FakeIam.email("t-acme"), "scope").value());
+        assertThrows(ManagedGoogleIdentity.UnavailableException.class,
+                () -> service.accessToken("miot-modulith@" + PROJECT + ".iam.gserviceaccount.com", "scope"));
+    }
+
+    @Test
+    void letsTheAccountRunJobsInTheProject() {
+        service.create("client-1", "acme", "Acme", "a");
+        service.allowQueries("client-1");
+        assertTrue(iam.calls.contains("grant roles/bigquery.jobUser serviceAccount:" + FakeIam.email("t-acme")
+                + " on " + PROJECT));
     }
 
     @Test

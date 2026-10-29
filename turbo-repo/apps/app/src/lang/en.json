@@ -1721,8 +1721,6 @@
           "menuHint": "Each organization's usage and quota",
           "search": "Search by name, identifier or tax id",
           "assign": "Assign quota",
-          "previousMonth": "Previous month",
-          "nextMonth": "Next month",
           "kpi": {
             "subscribed": "Subscribed",
             "withUsage": "{count} with a subscription or usage",
@@ -1779,6 +1777,24 @@
           },
           "errors": {
             "quota": "The quota must be a whole number of zero or more, or empty."
+          },
+          "filters": {
+            "subscription": "Subscription",
+            "subscribed": "Subscribed",
+            "unsubscribed": "No subscription",
+            "level": "Quota",
+            "levelOk": "Normal",
+            "levelAlert": "On alert",
+            "levelExhausted": "Used up",
+            "mode": "When used up",
+            "month": "Month",
+            "sortLabel": "Sort",
+            "sort": {
+              "USAGE_DESC": "Most used",
+              "NAME_ASC": "Name (A-Z)",
+              "COST_DESC": "Highest cost",
+              "CHARGE_DESC": "Highest charge"
+            }
           }
         },
         "plan": {

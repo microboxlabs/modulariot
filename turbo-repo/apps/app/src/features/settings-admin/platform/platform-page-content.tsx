@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Spinner } from "flowbite-react";
+import { useCallback, useState, type ReactNode } from "react";
+import { Button, Spinner } from "flowbite-react";
 import {
   HiOutlineChartBar,
   HiOutlineChip,
@@ -13,6 +13,7 @@ import {
   HiOutlineShare,
   HiOutlineTemplate,
   HiOutlineTruck,
+  HiPlus,
   HiServer,
 } from "react-icons/hi";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
@@ -26,6 +27,14 @@ import ModelUsageCard from "./model-usage-card";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import GeocodingPlanSection from "./geocoding-plan-section";
 import GeocodingTenantsSection from "./geocoding-tenants-section";
+import GeocodingTenantsToolbar from "./geocoding-tenants-toolbar";
+import {
+  DEFAULT_TENANT_SORT,
+  NO_TENANT_FILTERS,
+  type TenantFilters,
+  type TenantSort,
+} from "./geocoding-tenants-view";
+import { monthOf } from "@/features/geocoding/geocoding-plan-view";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
@@ -37,6 +46,8 @@ import type { PlatformSection } from "./platform.types";
 interface PlatformPageContentProps {
   /** `pages.userSettings` subtree. */
   readonly dict: I18nRecord;
+  /** The whole dictionary; the filter badges translate their shared rows from it. */
+  readonly rootDict: I18nRecord;
   readonly lang: string;
 }
 
@@ -58,6 +69,7 @@ interface PlatformPageContentProps {
  */
 export default function PlatformPageContent({
   dict,
+  rootDict,
   lang,
 }: PlatformPageContentProps) {
   const platformDict = (dict?.platform as I18nRecord) ?? {};
@@ -76,6 +88,13 @@ export default function PlatformPageContent({
 
   const { isPlatformOwner, isLoading } = useIsPlatformOwner();
   const [selected, setSelected] = useState<PlatformSection>("branding");
+  const [tenantFilters, setTenantFilters] =
+    useState<TenantFilters>(NO_TENANT_FILTERS);
+  const [tenantSort, setTenantSort] = useState<TenantSort>(DEFAULT_TENANT_SORT);
+  const [tenantMonth, setTenantMonth] = useState(() => monthOf(new Date()));
+  const [assigning, setAssigning] = useState(false);
+  const assignDone = useCallback(() => setAssigning(false), []);
+  const onTenants = selected === "geocodingTenants";
 
   const group = {
     brand: tr("groups.brand", platformDict),
@@ -164,7 +183,15 @@ export default function PlatformPageContent({
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
     geocodingPlan: <GeocodingPlanSection dict={geocodingPlanDict} />,
     geocodingTenants: (
-      <GeocodingTenantsSection dict={geocodingTenantsDict} lang={lang} />
+      <GeocodingTenantsSection
+        dict={geocodingTenantsDict}
+        lang={lang}
+        filters={tenantFilters}
+        sort={tenantSort}
+        month={tenantMonth}
+        assigning={assigning}
+        onAssignDone={assignDone}
+      />
     ),
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
@@ -182,6 +209,29 @@ export default function PlatformPageContent({
       icon={HiServer}
       title={tr("title", platformDict)}
       description={tr("description", platformDict)}
+      filters={
+        onTenants && (
+          <GeocodingTenantsToolbar
+            filters={tenantFilters}
+            onFiltersChange={setTenantFilters}
+            sort={tenantSort}
+            onSortChange={setTenantSort}
+            month={tenantMonth}
+            onMonthChange={setTenantMonth}
+            dict={geocodingTenantsDict}
+            rootDict={rootDict}
+            lang={lang}
+          />
+        )
+      }
+      actions={
+        onTenants && (
+          <Button color="blue" size="sm" onClick={() => setAssigning(true)}>
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("assign", geocodingTenantsDict)}
+          </Button>
+        )
+      }
     >
       {isLoading && <Spinner size="md" />}
 

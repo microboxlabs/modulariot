@@ -3,6 +3,7 @@ import type {
   OnExhausted,
   OrgGeocodingUsage,
 } from "@/features/geocoding/geocoding-plan.types";
+import { quotaLevel } from "@/features/geocoding/geocoding-plan-view";
 import {
   filterOrgs,
   type SwitcherOrg,
@@ -88,15 +89,64 @@ export function tenantTotals(rows: readonly TenantRow[]): TenantTotals {
   };
 }
 
-/** Rows matching the query as the header's switcher matches, most used first. */
+export type TenantSort =
+  | "USAGE_DESC"
+  | "NAME_ASC"
+  | "COST_DESC"
+  | "CHARGE_DESC";
+export const DEFAULT_TENANT_SORT: TenantSort = "USAGE_DESC";
+
+/** The toolbar's filters; an empty list does not filter. */
+export interface TenantFilters {
+  query: string;
+  /** `subscribed`, `unsubscribed`. */
+  subscription: readonly string[];
+  /** Quota levels: `ok`, `alert`, `exhausted`. */
+  levels: readonly string[];
+  modes: readonly OnExhausted[];
+}
+
+export const NO_TENANT_FILTERS: TenantFilters = {
+  query: "",
+  subscription: [],
+  levels: [],
+  modes: [],
+};
+
+function passes(values: readonly string[], value: string): boolean {
+  return values.length === 0 || values.includes(value);
+}
+
+/** Rows matching the filters (the query as the header's switcher matches), in `sort` order. */
 export function visibleRows(
   rows: readonly TenantRow[],
-  query: string
+  filters: TenantFilters,
+  sort: TenantSort,
+  alertPct: number
 ): TenantRow[] {
-  return filterOrgs(rows, query).sort(
-    (a, b) => b.used - a.used || a.displayName.localeCompare(b.displayName)
+  const kept = filterOrgs(rows, filters.query).filter(
+    (r) =>
+      passes(
+        filters.subscription,
+        r.subscribed ? "subscribed" : "unsubscribed"
+      ) &&
+      passes(filters.levels, quotaLevel(r.used, r.quota, alertPct)) &&
+      passes(filters.modes, r.onExhausted)
   );
+  return kept.sort(COMPARE[sort]);
 }
+
+const byName = (a: TenantRow, b: TenantRow) =>
+  a.displayName.localeCompare(b.displayName, "es", { sensitivity: "base" });
+
+const COMPARE: Record<TenantSort, (a: TenantRow, b: TenantRow) => number> = {
+  USAGE_DESC: (a, b) => b.used - a.used || byName(a, b),
+  NAME_ASC: byName,
+  COST_DESC: (a, b) =>
+    (b.providerCostUsd ?? 0) - (a.providerCostUsd ?? 0) || byName(a, b),
+  CHARGE_DESC: (a, b) =>
+    (b.chargeUsd ?? 0) - (a.chargeUsd ?? 0) || byName(a, b),
+};
 
 export const PAGE_SIZE = 20;
 

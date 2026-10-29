@@ -8,21 +8,17 @@ import {
   HiOutlineOfficeBuilding,
   HiOutlineGlobeAlt,
   HiPencil,
-  HiPlus,
 } from "react-icons/hi";
 import CatalogTable from "@/features/common/components/catalog-table";
-import FilterSearch from "@/features/common/components/filter-search";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   formatUsd,
-  monthOf,
   quotaLevel,
   quotaPercent,
   type QuotaLevel,
 } from "@/features/geocoding/geocoding-plan-view";
-import { MonthPicker } from "@/features/geocoding/geocoding-usage";
 import GeocodingQuotaModal, { type QuotaTarget } from "./geocoding-quota-modal";
 import {
   pageOf,
@@ -30,7 +26,9 @@ import {
   tenantRows,
   tenantTotals,
   visibleRows,
+  type TenantFilters,
   type TenantRow,
+  type TenantSort,
 } from "./geocoding-tenants-view";
 import {
   useGeocodingPlan,
@@ -41,6 +39,13 @@ import { usePlatformOrganizations } from "./use-platform-organizations";
 interface GeocodingTenantsSectionProps {
   readonly dict: I18nRecord;
   readonly lang: string;
+  /** Set in the page's filter strip, like the other catalogs. */
+  readonly filters: TenantFilters;
+  readonly sort: TenantSort;
+  readonly month: string;
+  /** The header's Assign quota button opens the modal for a new organization. */
+  readonly assigning: boolean;
+  readonly onAssignDone: () => void;
 }
 
 const BAR: Record<QuotaLevel, string> = {
@@ -51,14 +56,17 @@ const BAR: Record<QuotaLevel, string> = {
 
 /**
  * Every organization with a geocoding subscription or usage in a month: totals,
- * a searchable, paged table, and a modal to give or change a quota.
+ * a filtered, paged table, and a modal to give or change a quota.
  */
 export default function GeocodingTenantsSection({
   dict,
   lang,
-}: GeocodingTenantsSectionProps) {
-  const [month, setMonth] = useState(() => monthOf(new Date()));
-  const [query, setQuery] = useState("");
+  filters,
+  sort,
+  month,
+  assigning,
+  onAssignDone,
+}: Readonly<GeocodingTenantsSectionProps>) {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<QuotaTarget | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -77,7 +85,15 @@ export default function GeocodingTenantsSection({
     [usage, organizations, plan]
   );
   const totals = useMemo(() => tenantTotals(rows), [rows]);
-  const shown = useMemo(() => visibleRows(rows, query), [rows, query]);
+  const alertPct = plan?.alertPct ?? 80;
+  const shown = useMemo(
+    () => visibleRows(rows, filters, sort, alertPct),
+    [rows, filters, sort, alertPct]
+  );
+  const filtering =
+    filters.query.trim() !== "" ||
+    filters.subscription.length + filters.levels.length + filters.modes.length >
+      0;
   const current = pageOf(shown, page);
   const orgs = useMemo(() => switcherOrgs(organizations), [organizations]);
   const subscribed = useMemo(
@@ -85,7 +101,7 @@ export default function GeocodingTenantsSection({
     [rows]
   );
 
-  useEffect(() => setPage(1), [query, month]);
+  useEffect(() => setPage(1), [filters, sort, month]);
 
   const open = (row: TenantRow | null) => {
     setEditing(
@@ -99,26 +115,17 @@ export default function GeocodingTenantsSection({
     setShowModal(true);
   };
 
+  useEffect(() => {
+    if (!assigning) return;
+    setEditing(null);
+    setShowModal(true);
+    onAssignDone();
+  }, [assigning, onAssignDone]);
+
   const numbers = new Intl.NumberFormat(lang);
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <MonthPicker month={month} onMonth={setMonth} lang={lang} d={dict} />
-        <div className="min-w-56 flex-1">
-          <FilterSearch
-            value={query}
-            onChange={setQuery}
-            label={tr("search", dict)}
-            placeholder={tr("search", dict)}
-          />
-        </div>
-        <Button size="sm" color="blue" onClick={() => open(null)}>
-          <HiPlus className="mr-1 h-4 w-4" />
-          {tr("assign", dict)}
-        </Button>
-      </div>
-
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiStat
           icon={{ icon: HiOutlineOfficeBuilding }}
@@ -199,7 +206,7 @@ export default function GeocodingTenantsSection({
                   colSpan={7}
                   className="px-4 py-6 text-center text-sm text-gray-500"
                 >
-                  {query ? tr("noMatches", dict) : tr("empty", dict)}
+                  {filtering ? tr("noMatches", dict) : tr("empty", dict)}
                 </td>
               </tr>
             )}
@@ -207,7 +214,7 @@ export default function GeocodingTenantsSection({
               <TenantTableRow
                 key={row.slug}
                 row={row}
-                alertPct={plan?.alertPct ?? 80}
+                alertPct={alertPct}
                 lang={lang}
                 dict={dict}
                 onEdit={() => open(row)}

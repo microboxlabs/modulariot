@@ -1721,8 +1721,6 @@
           "menuHint": "Uso y cuota de cada organización",
           "search": "Buscar por nombre, identificador o RUT",
           "assign": "Asignar cuota",
-          "previousMonth": "Mes anterior",
-          "nextMonth": "Mes siguiente",
           "kpi": {
             "subscribed": "Con suscripción",
             "withUsage": "{count} con suscripción o uso",
@@ -1779,6 +1777,24 @@
           },
           "errors": {
             "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
+          },
+          "filters": {
+            "subscription": "Suscripción",
+            "subscribed": "Con suscripción",
+            "unsubscribed": "Sin suscripción",
+            "level": "Cuota",
+            "levelOk": "Normal",
+            "levelAlert": "En alerta",
+            "levelExhausted": "Agotada",
+            "mode": "Al agotarla",
+            "month": "Mes",
+            "sortLabel": "Ordenar",
+            "sort": {
+              "USAGE_DESC": "Más usadas",
+              "NAME_ASC": "Nombre (A-Z)",
+              "COST_DESC": "Mayor costo",
+              "CHARGE_DESC": "Mayor cobro"
+            }
           }
         },
         "plan": {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  NO_TENANT_FILTERS,
   PAGE_SIZE,
   pageOf,
   tenantRows,
@@ -115,12 +116,51 @@ describe("visibleRows and pageOf", () => {
       ORGS,
       PLAN
     );
+    const find = (query: string) =>
+      visibleRows(rows, { ...NO_TENANT_FILTERS, query }, "USAGE_DESC", 80).map(
+        (r) => r.slug
+      );
 
-    expect(visibleRows(rows, "acme transportes").map((r) => r.slug)).toEqual([
-      "acme",
-    ]);
-    expect(visibleRows(rows, "761234567").map((r) => r.slug)).toEqual(["acme"]);
-    expect(visibleRows(rows, "").map((r) => r.slug)).toEqual(["beta", "acme"]);
+    expect(find("acme transportes")).toEqual(["acme"]);
+    expect(find("761234567")).toEqual(["acme"]);
+    expect(find("")).toEqual(["beta", "acme"]);
+  });
+
+  it("filters by subscription and quota level, and sorts", () => {
+    const rows = tenantRows(
+      [
+        usage("acme", 500, 500, true),
+        usage("beta", 4, null, false),
+        usage("gone", 450, 500, true),
+      ],
+      ORGS,
+      PLAN
+    );
+    const slugs = (r: { slug: string }[]) => r.map((x) => x.slug);
+
+    expect(
+      slugs(
+        visibleRows(
+          rows,
+          { ...NO_TENANT_FILTERS, subscription: ["unsubscribed"] },
+          "USAGE_DESC",
+          80
+        )
+      )
+    ).toEqual(["beta"]);
+    expect(
+      slugs(
+        visibleRows(
+          rows,
+          { ...NO_TENANT_FILTERS, levels: ["exhausted"] },
+          "USAGE_DESC",
+          80
+        )
+      )
+    ).toEqual(["acme"]);
+    expect(slugs(visibleRows(rows, NO_TENANT_FILTERS, "NAME_ASC", 80))).toEqual(
+      ["beta", "gone", "acme"]
+    );
   });
 
   it("pages the rows", () => {

@@ -42,7 +42,7 @@ class LocationGeocodingTest {
             .add("PROVIDENCIA", "PROVIDENCIA", "1234", -70.6110, -33.4263);
 
     private LocationResolver resolver() {
-        return new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, stub.geocoder(TENANT));
+        return new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, stub.geocoder());
     }
 
     /** Refuses every provider call and remembers who asked. */
@@ -54,7 +54,7 @@ class LocationGeocodingTest {
     };
 
     private LocationResolver resolver(GeocodingGate gate, GeocodingMetrics metrics) {
-        return new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, stub.geocoder(TENANT), gate,
+        return new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, stub.geocoder(), gate,
                 metrics);
     }
 
@@ -209,8 +209,9 @@ class LocationGeocodingTest {
     }
 
     @Test
-    void withoutAConnectionTheSiteNeedsReview() {
-        Outcome out = resolver().resolve("org-c", "client-without-connection", larco("Av. Larco 101"));
+    void withoutAPlatformConnectionTheSiteNeedsReview() {
+        Outcome out = new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, StubGeocoding.none())
+                .resolve("org-c", TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals("geocoding: no geocoding connection is configured", out.placement().note());

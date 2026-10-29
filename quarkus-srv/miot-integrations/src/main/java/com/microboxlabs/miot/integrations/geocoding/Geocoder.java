@@ -18,8 +18,8 @@ import java.util.List;
 import org.jboss.logging.Logger;
 
 /**
- * Forward geocoding through a {@link ProviderType#GEOCODING} connection: the organization's own, else the
- * platform's. The connection picks the provider. Blocking.
+ * Forward geocoding through the platform's {@link ProviderType#GEOCODING} connection. The platform contracts and
+ * pays the provider; organizations never have their own connection. The connection picks the provider. Blocking.
  */
 @ApplicationScoped
 public class Geocoder {
@@ -59,8 +59,8 @@ public class Geocoder {
         this.metrics = metrics;
     }
 
-    public Result forward(String tenantCode, Query query) {
-        ResolvedConnection resolved = connection(tenantCode);
+    public Result forward(Query query) {
+        ResolvedConnection resolved = connection();
         if (resolved == null) {
             metrics.providerError(null, "no_connection");
             return Result.failed(null, "no geocoding connection is configured");
@@ -105,20 +105,15 @@ public class Geocoder {
         }
     }
 
-    /** The organization's connection, else the platform's; one whose credential cannot be read is skipped. */
-    private ResolvedConnection connection(String tenantCode) {
-        for (String tenant : new String[] {tenantCode, PlatformMailService.PLATFORM_TENANT}) {
-            if (tenant == null) {
-                continue;
-            }
-            try {
-                return resolver.resolve(tenant, ProviderType.GEOCODING);
-            } catch (ConnectionNotConfiguredException e) {
-                // try the next one
-            } catch (ConnectionResolutionException e) {
-                LOG.warnf("The geocoding connection of %s cannot be read: %s", tenant, e.getMessage());
-            }
+    /** The platform's connection, or null when it is missing or its credential cannot be read. */
+    private ResolvedConnection connection() {
+        try {
+            return resolver.resolve(PlatformMailService.PLATFORM_TENANT, ProviderType.GEOCODING);
+        } catch (ConnectionNotConfiguredException e) {
+            return null;
+        } catch (ConnectionResolutionException e) {
+            LOG.warnf("The platform geocoding connection cannot be read: %s", e.getMessage());
+            return null;
         }
-        return null;
     }
 }

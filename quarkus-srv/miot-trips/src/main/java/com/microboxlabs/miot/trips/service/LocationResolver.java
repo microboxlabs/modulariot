@@ -211,7 +211,7 @@ public class LocationResolver {
         if (refusal != null) {
             return new ByAddress(null, "geocoding: " + refusal.message(), Usage.NONE);
         }
-        Geocoder.Result r = geocoder.forward(tenantCode, new Query(address, b.name(), country));
+        Geocoder.Result r = geocoder.forward(new Query(address, b.name(), country));
         Usage usage = new Usage(r.provider(), false, r.called(), r.costUsd());
         if (!r.called()) {
             return new ByAddress(null, "geocoding: " + r.error(), usage);

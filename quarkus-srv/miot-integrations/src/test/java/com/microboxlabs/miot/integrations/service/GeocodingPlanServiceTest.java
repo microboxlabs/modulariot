@@ -240,10 +240,27 @@ class GeocodingPlanServiceTest {
         assertEquals(112, r.usage().used());
         assertEquals(165, r.usage().resolutions());
         assertEquals(10, r.usage().cacheHits());
-        assertEquals(new BigDecimal("0.56"), r.usage().providerCostUsd());
         assertEquals(12, r.usage().overageCalls());
         assertEquals(0, new BigDecimal("0.06").compareTo(r.usage().overageUsd()));
+        assertEquals(0, new BigDecimal("0.06").compareTo(r.usage().chargeUsd()));
         assertTrue(r.enforced());
+    }
+
+    @Test
+    void theProviderCostIsShownOnlyToThePlatform() {
+        subscribe(100, "overage");
+        plans.plan = new Plan(new BigDecimal("49.00"), 1000, new BigDecimal("0.004"), 80, null, null);
+        plans.bySource = List.of(new SourceUse("provider", "resolved", 120, 10, 110, new BigDecimal("0.55")));
+
+        OrgPlanResponse org = service(false).orgPlan(ORG, YearMonth.of(2026, 9));
+        assertNull(org.usage().providerCostUsd());
+        assertNull(org.usage().bySource().get(0).providerCostUsd());
+        assertEquals(0, new BigDecimal("49.04").compareTo(org.usage().chargeUsd()));
+
+        OrgUsage platform = service(false).allUsage(YearMonth.of(2026, 9)).get(0);
+        assertEquals(new BigDecimal("0.55"), platform.usage().providerCostUsd());
+        assertEquals(new BigDecimal("0.55"), platform.usage().bySource().get(0).providerCostUsd());
+        assertEquals(0, new BigDecimal("49.04").compareTo(platform.usage().chargeUsd()));
     }
 
     @Test
@@ -254,6 +271,7 @@ class GeocodingPlanServiceTest {
         assertNull(none.usage().quota());
         assertEquals(0, none.usage().overageCalls());
         assertNull(none.usage().providerCostUsd());
+        assertNull(none.usage().chargeUsd());
         assertEquals(OffsetDateTime.parse("2026-10-01T00:00Z"), none.usage().periodStart());
 
         subscribe(10, "review");

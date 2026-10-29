@@ -10,6 +10,7 @@ import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import com.microboxlabs.miot.integrations.service.OperationInvocationException;
+import com.microboxlabs.miot.integrations.service.PlatformOnlyProviderException;
 import com.microboxlabs.miot.integrations.service.PostgrestCatalog;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -90,9 +91,9 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             CreateIntegrationConnectionRequest req) {
         String tenant = tenantCode(organizationId);
-        return ownerWork(organizationId, () -> Response.status(Response.Status.CREATED)
+        return ownerWork(organizationId, () -> platformOnly(() -> Response.status(Response.Status.CREATED)
                 .entity(service.createConnection(tenant, req))
-                .build());
+                .build()));
     }
 
     @POST
@@ -129,12 +130,12 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("connectionId") String connectionId,
             UpdateIntegrationConnectionRequest req) {
         String tenant = tenantCode(organizationId);
-        return ownerWork(organizationId, () -> {
+        return ownerWork(organizationId, () -> platformOnly(() -> {
             var connection = service.updateConnection(tenant, connectionId, req);
             return connection == null
                     ? Response.status(Response.Status.NOT_FOUND).build()
                     : Response.ok(connection).build();
-        });
+        }));
     }
 
     @DELETE
@@ -219,6 +220,14 @@ public class OrgIntegrationConnectionsResource {
         String tenant = tenantCode(organizationId);
         return ownerWork(organizationId,
                 () -> postgrestResponse(() -> Response.ok(postgrest.importFunctions(tenant, connectionId, req)).build()));
+    }
+
+    private static Response platformOnly(Supplier<Response> work) {
+        try {
+            return work.get();
+        } catch (PlatformOnlyProviderException e) {
+            return error(Response.Status.FORBIDDEN, e.getMessage());
+        }
     }
 
     private static Response postgrestResponse(Supplier<Response> work) {

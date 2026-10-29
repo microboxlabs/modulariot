@@ -29,9 +29,10 @@ import java.util.Optional;
 /**
  * Finds a site's point. Sources, first that applies: a geofence of the tenant with the site's code or name, a Plus
  * Code (a short one is recovered from the district's centroid), the caller's coordinates, the internal address
- * table (Chile), the shared geocode cache, then the geocoding provider. The address sources need a district with a
- * boundary, and the provider counts only address-level results. The provider is asked only when the
- * {@link GeocodingGate} allows it; when the organization's quota is used up the site needs review. The point must fall in the declared district, or
+ * table (Chile), the shared geocode cache, then the geocoding provider through the tenant's own connection. The
+ * address sources need a district with a boundary, and the provider counts only address-level results. The provider
+ * is asked only when the {@link GeocodingGate} allows it; when the organization's quota is used up the site needs
+ * review. The point must fall in the declared district, or
  * within {@link #BORDER_METERS} of it, to resolve; otherwise, or with no source, the site needs review.
  */
 @ApplicationScoped
@@ -211,7 +212,7 @@ public class LocationResolver {
         if (refusal != null) {
             return new ByAddress(null, "geocoding: " + refusal.message(), Usage.NONE);
         }
-        Geocoder.Result r = geocoder.forward(new Query(address, b.name(), country));
+        Geocoder.Result r = geocoder.forward(tenantCode, new Query(address, b.name(), country));
         Usage usage = new Usage(r.provider(), false, r.called(), r.costUsd());
         if (!r.called()) {
             return new ByAddress(null, "geocoding: " + r.error(), usage);

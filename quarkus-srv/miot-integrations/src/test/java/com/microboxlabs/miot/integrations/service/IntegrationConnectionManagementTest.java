@@ -101,6 +101,28 @@ class IntegrationConnectionManagementTest {
     }
 
     @Test
+    void anOrganizationCannotDeleteOrTestAGeocodingConnection() {
+        connections.providerType = ProviderType.GEOCODING;
+
+        assertThrows(PlatformOnlyProviderException.class, () -> service().deleteConnection(TENANT, "conn-1"));
+        assertThrows(PlatformOnlyProviderException.class, () -> service().testConnection(TENANT, "conn-1", null));
+        assertThrows(PlatformOnlyProviderException.class, () -> service().testDraft(TENANT,
+                new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, null, null, null)));
+        assertFalse(connections.softDeleted);
+    }
+
+    @Test
+    void thePlatformManagesAnOrganizationGeocodingConnection() {
+        IntegrationConnection created = service().createPlatformManaged(TENANT, new CreateIntegrationConnectionRequest(
+                "Geocoding", ProviderType.GEOCODING, null, "cred-1", Map.of(), null));
+        connections.providerType = ProviderType.GEOCODING;
+
+        assertEquals(TENANT, created.tenantCode());
+        assertTrue(service().deletePlatformManaged(TENANT, "conn-1"));
+        assertTrue(connections.softDeleted);
+    }
+
+    @Test
     void thePlatformCreatesItsGeocodingConnection() {
         IntegrationConnection created = service().createConnection(PlatformMailService.PLATFORM_TENANT,
                 new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, "cred-1", Map.of(),

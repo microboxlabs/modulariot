@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.microboxlabs.miot.integrations.domain.AuthType;
+import com.microboxlabs.miot.integrations.domain.CredentialType;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.geocoding.Geocoder;
@@ -8,6 +10,7 @@ import com.microboxlabs.miot.integrations.geocoding.GoogleGeocoding;
 import com.microboxlabs.miot.integrations.geocoding.MapboxGeocoding;
 import com.microboxlabs.miot.integrations.service.ConnectionNotConfiguredException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
+import com.microboxlabs.miot.integrations.service.ManagedCredentials;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -81,13 +84,17 @@ public final class StubGeocoding implements AutoCloseable {
         return sb.append("]}").toString();
     }
 
-    /** Resolves the platform's connection only, as production does. */
+    /** The platform's connection, and a managed connection for every organization. */
     Geocoder geocoder() {
         IntegrationConnectionResolver resolver = new IntegrationConnectionResolver(null, null, null) {
             @Override
             public ResolvedConnection resolve(String tenantCode, ProviderType providerType) {
-                if (!PlatformMailService.PLATFORM_TENANT.equals(tenantCode) || providerType != ProviderType.GEOCODING) {
+                if (providerType != ProviderType.GEOCODING) {
                     throw new ConnectionNotConfiguredException("none");
+                }
+                if (!PlatformMailService.PLATFORM_TENANT.equals(tenantCode)) {
+                    return new ResolvedConnection("org-geo", null, Map.of(), Map.of(), AuthType.BEARER_TOKEN,
+                            CredentialType.BEARER_TOKEN, Map.of(ManagedCredentials.MANAGED, true));
                 }
                 return new ResolvedConnection("geo-1", base, Map.copyOf(metadata),
                         Map.of(GeocodingConnection.TOKEN, "pk.test"));

@@ -369,8 +369,8 @@ export default function MapVisualizationTrip({
   });
 
   // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
-  const alternarLugares = (abierto: boolean) => {
-    if (abierto) cambiarLugares(true);
+  const alternarLugares = () => {
+    if (!lugaresAbierto) cambiarLugares(true);
     else lugares.ws.pedirSalir(() => cambiarLugares(false));
   };
 

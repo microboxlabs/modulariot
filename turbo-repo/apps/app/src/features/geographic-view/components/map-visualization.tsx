@@ -262,13 +262,11 @@ export default function MapVisualization({
             </>
           }
           bottomLeft={
-            <>
-              <MapStyleSelector
-                dict={dict}
-                selectedStyle={mapStyle}
-                setSelectedStyle={setMapStyle}
-              />
-            </>
+            <MapStyleSelector
+              dict={dict}
+              selectedStyle={mapStyle}
+              setSelectedStyle={setMapStyle}
+            />
           }
         />
         {/* menús y barras de dibujo: sobre el mapa, en sus coordenadas */}

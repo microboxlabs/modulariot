@@ -108,11 +108,20 @@ export default function ToolBar({
     : "dark";
 
   const geofencesPanelOpen = selectedTool === "geofences";
+  const geofencesInactiveText = mapstyles.find(
+    (style) => style.value === selectedStyle
+  )?.isDark
+    ? "text-gray-500"
+    : "text-gray-300";
+  const geofencesModeClass =
+    geofences_mode?.geofencesMode === "none"
+      ? geofencesInactiveText
+      : "bg-blue-500 text-white ";
   const geofencesButton = geofences_mode && (
     <div
       ref={geofencesButtonRef}
       data-geofences-button
-      className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${geofences_mode.geofencesMode === "none" ? `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}` : "bg-blue-500 text-white "} ${geofencesPanelOpen ? "border-blue-500" : ""}`}
+      className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${geofencesModeClass} ${geofencesPanelOpen ? "border-blue-500" : ""}`}
       onClick={toggleGeofencesPanel}
     >
       <FaMapPin size={20} />

@@ -298,7 +298,7 @@ export function PlacesCatalogLists({
   const editable = ws.puedeEditar !== false;
   const todosLugares = ws.todosLugares ?? ws.lugares;
   const categorias = categoriasDeLugares(todosLugares);
-  const [categoriaElegida, setCategoria] = useState("");
+  const [categoriaElegida, setCategoriaElegida] = useState("");
   // una categoría que ya no está (otros datos) vuelve a todas
   const categoria = categorias.some((c) => c.categoria === categoriaElegida)
     ? categoriaElegida
@@ -366,7 +366,7 @@ export function PlacesCatalogLists({
       <CategoryFilter
         categorias={categorias}
         valor={categoria}
-        onCambiar={setCategoria}
+        onCambiar={setCategoriaElegida}
       />
 
       {/* agregar, a todo el ancho bajo la búsqueda: solo con el permiso */}

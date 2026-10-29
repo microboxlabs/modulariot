@@ -41,7 +41,7 @@ class PgGeocodingBillingHistoryTest {
                     + "INSERT INTO miot_integrations.geocoding_subscriptions (organization, monthly_quota, on_exhausted, created_at, updated_at) "
                     + "VALUES ('synthetic-org', 1, 'overage', '2020-01-01Z', '2020-01-01Z')")
                     .replace("miot_integrations", schema)).execute().await().atMost(TIMEOUT);
-            migrate(pool, schema, "V0.6.35__geocoding_billing_history.sql");
+            migrate(pool, schema, "V0.6.36__geocoding_billing_history.sql");
             GeocodingPlanRepository repository = new GeocodingPlanRepository(null) {
                 @Override
                 protected RowSet<Row> execute(String sql, Tuple params) {

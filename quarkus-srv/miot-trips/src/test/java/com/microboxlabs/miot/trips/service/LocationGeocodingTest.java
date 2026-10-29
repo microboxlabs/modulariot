@@ -189,12 +189,13 @@ class LocationGeocodingTest {
     }
 
     @Test
-    void withoutAPlatformConnectionTheSiteNeedsReview() {
+    void withoutItsOwnConnectionTheSiteNeedsReview() {
         Outcome out = new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, StubGeocoding.none())
                 .resolve(TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
-        assertEquals("geocoding: no geocoding connection is configured", out.placement().note());
+        assertEquals("geocoding: this organization has no geocoding connection; a platform owner adds it in"
+                + " Conexiones", out.placement().note());
         assertFalse(out.usage().called());
         assertTrue(stub.queries.isEmpty());
     }

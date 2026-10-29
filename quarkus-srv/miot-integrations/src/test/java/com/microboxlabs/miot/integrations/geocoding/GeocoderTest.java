@@ -5,11 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.integrations.domain.AuthType;
+import com.microboxlabs.miot.integrations.domain.CredentialType;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingProvider.Query;
 import com.microboxlabs.miot.integrations.service.ConnectionNotConfiguredException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
+import com.microboxlabs.miot.integrations.service.ManagedCredentials;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -81,6 +84,7 @@ class GeocoderTest {
     }
 
     private static final String PLATFORM = PlatformMailService.PLATFORM_TENANT;
+    private static final String ORG = "acme";
 
     private IntegrationConnectionResolver resolver(Map<String, ResolvedConnection> byTenant) {
         return new IntegrationConnectionResolver(null, null, null) {
@@ -99,7 +103,20 @@ class GeocoderTest {
         return new ResolvedConnection("c1", url, metadata, Map.of(GeocodingConnection.TOKEN, "tok"));
     }
 
+    /** The organization's managed connection: no secret, no metadata. */
+    private static ResolvedConnection managed() {
+        return new ResolvedConnection("org-1", null, Map.of(), Map.of(), AuthType.BEARER_TOKEN,
+                CredentialType.BEARER_TOKEN, Map.of(ManagedCredentials.MANAGED, true));
+    }
+
+    /** {@link #ORG} has its managed connection unless {@code byTenant} says otherwise. */
     private Geocoder geocoder(Map<String, ResolvedConnection> byTenant, boolean googleStorable) {
+        Map<String, ResolvedConnection> all = new HashMap<>(byTenant);
+        all.putIfAbsent(ORG, managed());
+        return bare(all, googleStorable);
+    }
+
+    private Geocoder bare(Map<String, ResolvedConnection> byTenant, boolean googleStorable) {
         return new Geocoder(resolver(byTenant),
                 List.of(new MapboxGeocoding(base), new GoogleGeocoding(base, googleStorable)));
     }
@@ -111,7 +128,7 @@ class GeocoderTest {
     @Test
     void mapboxAsksForPermanentResultsInTheCountryWithoutLanguage() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.COST, "0.005"))), false).forward(larco());
+                Map.of(GeocodingConnection.COST, "0.005"))), false).forward(ORG, larco());
 
         assertEquals("mapbox", r.provider());
         assertTrue(r.called());
@@ -133,7 +150,7 @@ class GeocoderTest {
     @Test
     void aTemporaryMapboxConnectionIsNotStorable() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PERMANENT, "false"))), false).forward(larco());
+                Map.of(GeocodingConnection.PERMANENT, "false"))), false).forward(ORG, larco());
 
         assertFalse(r.storable());
         assertEquals("false", requests.get(0).get("permanent"));
@@ -143,7 +160,7 @@ class GeocoderTest {
     @Test
     void googleIsChosenByTheConnectionAndIsNotStorableByDefault() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(larco());
+                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(ORG, larco());
 
         assertEquals("google", r.provider());
         assertFalse(r.storable());
@@ -158,7 +175,7 @@ class GeocoderTest {
     @Test
     void googleStorableIsAFlagOnTheProvider() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), true).forward(larco());
+                Map.of(GeocodingConnection.PROVIDER, "google"))), true).forward(ORG, larco());
 
         assertTrue(r.storable());
     }
@@ -167,7 +184,7 @@ class GeocoderTest {
     void googleZeroResultsIsAnAnsweredEmptyCall() {
         googleBody = "{\"status\":\"ZERO_RESULTS\",\"results\":[]}";
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(larco());
+                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(ORG, larco());
 
         assertTrue(r.called());
         assertTrue(r.candidates().isEmpty());
@@ -177,7 +194,7 @@ class GeocoderTest {
     void googleDeniedIsAnError() {
         googleBody = "{\"status\":\"REQUEST_DENIED\",\"error_message\":\"bad key tok\"}";
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(larco());
+                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(ORG, larco());
 
         assertFalse(r.called());
         assertEquals("Google answered REQUEST_DENIED", r.error());
@@ -186,35 +203,60 @@ class GeocoderTest {
     @Test
     void anHttpErrorDoesNotQuoteTheToken() {
         status = 401;
-        Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base, Map.of())), false).forward(larco());
+        Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base, Map.of())), false).forward(ORG, larco());
 
         assertFalse(r.called());
         assertEquals("Mapbox answered HTTP 401", r.error());
     }
 
     @Test
-    void anOrganizationConnectionIsNeverUsed() {
-        Geocoder.Result r = geocoder(Map.of("acme", connection(base, Map.of())), false).forward(larco());
+    void anOrganizationWithoutItsOwnConnectionGetsNoCall() {
+        Geocoder.Result r = bare(Map.of(PLATFORM, connection(base, Map.of())), false).forward(ORG, larco());
+
+        assertNull(r.provider());
+        assertFalse(r.called());
+        assertEquals("this organization has no geocoding connection; a platform owner adds it in Conexiones",
+                r.error());
+        assertTrue(requests.isEmpty());
+    }
+
+    /** A connection the organization made itself, with its own token, is not the platform's managed one. */
+    @Test
+    void anOrganizationConnectionThatIsNotManagedIsRefused() {
+        Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base, Map.of()),
+                ORG, connection(base, Map.of())), false).forward(ORG, larco());
 
         assertFalse(r.called());
-        assertEquals("no geocoding connection is configured", r.error());
+        assertEquals("this organization's geocoding connection is not managed by the platform", r.error());
         assertTrue(requests.isEmpty());
     }
 
     @Test
-    void noConnectionMeansNoCall() {
-        Geocoder.Result r = geocoder(Map.of(), false).forward(larco());
+    void theOrganizationConnectionCarriesNoCost() {
+        Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base, Map.of(GeocodingConnection.COST, "0.005")),
+                ORG, new ResolvedConnection("org-1", null, Map.of(GeocodingConnection.COST, "9"), Map.of(),
+                        AuthType.BEARER_TOKEN, CredentialType.BEARER_TOKEN,
+                        Map.of(ManagedCredentials.MANAGED, true))), false).forward(ORG, larco());
+
+        assertTrue(r.called());
+        assertEquals(new BigDecimal("0.005"), r.costUsd());
+        assertEquals("tok", requests.get(0).get("access_token"));
+    }
+
+    @Test
+    void noPlatformProviderMeansNoCall() {
+        Geocoder.Result r = geocoder(Map.of(), false).forward(ORG, larco());
 
         assertNull(r.provider());
         assertFalse(r.called());
-        assertEquals("no geocoding connection is configured", r.error());
+        assertEquals("the platform has no geocoding provider", r.error());
         assertTrue(requests.isEmpty());
     }
 
     @Test
     void theTokenIsNotSentToAnotherHost() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(URI.create("https://evil.example"), Map.of())),
-                false).forward(larco());
+                false).forward(ORG, larco());
 
         assertFalse(r.called());
         assertTrue(requests.isEmpty());
@@ -224,7 +266,7 @@ class GeocoderTest {
     @Test
     void anUnknownProviderIsAnError() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "here"))), false).forward(larco());
+                Map.of(GeocodingConnection.PROVIDER, "here"))), false).forward(ORG, larco());
 
         assertEquals("unknown geocoding provider here", r.error());
         assertTrue(requests.isEmpty());

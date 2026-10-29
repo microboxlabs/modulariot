@@ -104,7 +104,7 @@ public class OrgIntegrationConnectionsResource {
             CreateIntegrationConnectionRequest req) {
         String tenant = tenantCode(organizationId);
         return ownerWork(organizationId,
-                () -> Response.ok(service.testDraft(tenant, req)).build());
+                () -> platformOnly(() -> Response.ok(service.testDraft(tenant, req)).build()));
     }
 
     @GET
@@ -145,7 +145,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId) {
         String tenant = tenantCode(organizationId);
-        return ownerWork(organizationId, () -> {
+        return ownerWork(organizationId, () -> platformOnly(() -> {
             try {
                 return service.deleteConnection(tenant, connectionId)
                         ? Response.noContent().build()
@@ -157,7 +157,7 @@ public class OrgIntegrationConnectionsResource {
                         .entity(Map.of(ERROR, e.getMessage()))
                         .build();
             }
-        });
+        }));
     }
 
     @POST
@@ -169,7 +169,7 @@ public class OrgIntegrationConnectionsResource {
             ConnectionTestRequest req) {
         String tenant = tenantCode(organizationId);
         return ownerWork(organizationId,
-                () -> Response.ok(service.testConnection(tenant, connectionId, req)).build());
+                () -> platformOnly(() -> Response.ok(service.testConnection(tenant, connectionId, req)).build()));
     }
 
     @GET

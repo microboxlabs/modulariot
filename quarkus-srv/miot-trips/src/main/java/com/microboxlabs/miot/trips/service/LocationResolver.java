@@ -26,7 +26,7 @@ import java.util.Optional;
 /**
  * Finds a site's point. Sources, first that applies: a geofence of the tenant with the site's code or name, a Plus
  * Code (a short one is recovered from the district's centroid), the caller's coordinates, the internal address
- * table (Chile), the shared geocode cache, then the geocoding provider. The address sources need a district with a
+ * table (Chile), the shared geocode cache, then the geocoding provider through the tenant's own connection. The address sources need a district with a
  * boundary, and the provider counts only address-level results. The point must fall in the declared district, or
  * within {@link #BORDER_METERS} of it, to resolve; otherwise, or with no source, the site needs review.
  */
@@ -129,7 +129,7 @@ public class LocationResolver {
         }
         Usage usage = Usage.NONE;
         if (found == null && !manual && blankToNull(site.address()) != null && b != null && b.shape() != null) {
-            ByAddress byAddress = fromAddress(country, b, site.address());
+            ByAddress byAddress = fromAddress(tenantCode, country, b, site.address());
             found = byAddress.found();
             note = note == null ? byAddress.note() : note;
             usage = byAddress.usage();
@@ -173,7 +173,7 @@ public class LocationResolver {
      * Steps 4 and 5: the internal address table, then the shared cache, then the provider. A provider result is
      * kept in the cache only when it resolves and the provider's terms allow storing it.
      */
-    private ByAddress fromAddress(String country, Boundary b, String address) {
+    private ByAddress fromAddress(String tenantCode, String country, Boundary b, String address) {
         if (addresses.supports(country)) {
             var street = Addresses.street(address);
             if (street.isPresent()) {
@@ -191,7 +191,7 @@ public class LocationResolver {
             return new ByAddress(new Found(new Point(cached.get().lon(), cached.get().lat()), PROVIDER, null, null),
                     null, new Usage(cached.get().provider(), true, false, null));
         }
-        Geocoder.Result r = geocoder.forward(new Query(address, b.name(), country));
+        Geocoder.Result r = geocoder.forward(tenantCode, new Query(address, b.name(), country));
         Usage usage = new Usage(r.provider(), false, r.called(), r.costUsd());
         if (!r.called()) {
             return new ByAddress(null, "geocoding: " + r.error(), usage);

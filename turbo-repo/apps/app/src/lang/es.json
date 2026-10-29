@@ -1660,9 +1660,11 @@
             "mapbox": "Mapbox Geocoding v6. Los resultados se guardan en la caché si el modo permanente está activo.",
             "google": "Google Geocoding. Por sus términos, los resultados no se guardan en la caché."
           },
-          "token": "Token",
-          "tokenKeep": "Guardado: {preview}. Déjalo vacío para conservarlo.",
-          "tokenHint": "Se usa solo desde el servidor y solo con el host del proveedor.",
+          "credential": "Credencial",
+          "credentialPick": "Elige una credencial",
+          "credentialHelp": "Token del proveedor, guardado en Credenciales con el ámbito Plataforma.",
+          "credentialNone": "No hay tokens en Credenciales de la Plataforma. Cambia al ámbito Plataforma, crea una credencial de tipo token y vuelve aquí.",
+          "credentialRequired": "Elige la credencial con el token del proveedor.",
           "permanent": "Modo permanente",
           "permanentHelp": "Permite guardar los resultados. Mapbox lo cobra aparte.",
           "cost": "Nuestro costo por llamada (US$)",
@@ -4912,8 +4914,7 @@
         "testFailed": "La prueba de conexión falló",
         "connectionDeleted": "Conexión eliminada",
         "managedGeocodingCreating": "Conectando el geocoding de la plataforma…",
-        "managedGeocodingCreated": "Geocoding de la plataforma conectado",
-        "managedGeocodingNoProvider": "La plataforma aún no tiene proveedor de geocoding. Configúralo en Configuración › Plataforma › Geocodificación."
+        "managedGeocodingCreated": "Geocoding de la plataforma conectado"
       },
       "template": {
         "form": {
@@ -5056,6 +5057,11 @@
         "copyJson": "Copiar JSON",
         "conflict": "Otra persona guardó esta consulta. Recárgala para ver su versión.",
         "failed": "La solicitud falló"
+      },
+      "managedGeocodingSetup": {
+        "title": "Proveedor de geocoding de la plataforma",
+        "body": "La plataforma aún no tiene proveedor. Elige su credencial y configúralo aquí: se guarda una sola vez para la plataforma y luego se conecta esta organización.",
+        "submit": "Guardar y conectar"
       }
     },
     "calendar": {

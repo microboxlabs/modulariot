@@ -6,31 +6,31 @@ import {
 
 const draft = {
   provider: "mapbox" as const,
-  token: " pk.secret ",
+  credentialId: " cred-1 ",
   permanent: true,
   cost: "0.0075",
 };
 
 describe("platform geocoding form", () => {
-  it("sends the provider, token, permanent mode and our cost", () => {
+  it("sends the provider, credential, permanent mode and our cost", () => {
     expect(toGeocodingRequest(draft, false)).toEqual({
       ok: true,
       value: {
         provider: "mapbox",
-        token: "pk.secret",
+        credentialProfileId: "cred-1",
         permanent: true,
         costPerRequestUsd: 0.0075,
       },
     });
   });
 
-  it("needs a token only the first time", () => {
-    expect(toGeocodingRequest({ ...draft, token: "" }, false)).toEqual({
+  it("needs a credential the first time and keeps the linked one later", () => {
+    expect(toGeocodingRequest({ ...draft, credentialId: "" }, false)).toEqual({
       ok: false,
-      error: "tokenRequired",
+      error: "credentialRequired",
     });
-    const kept = toGeocodingRequest({ ...draft, token: "" }, true);
-    expect(kept.ok && kept.value.token).toBe("");
+    const kept = toGeocodingRequest({ ...draft, credentialId: "" }, true);
+    expect(kept.ok && kept.value.credentialProfileId).toBeNull();
   });
 
   it("refuses a cost that is not a number and sends none when empty", () => {
@@ -47,7 +47,7 @@ describe("platform geocoding form", () => {
     expect(google.ok && google.value.permanent).toBe(false);
   });
 
-  it("starts from what is stored, without the token", () => {
+  it("starts from what is stored, with its credential", () => {
     expect(
       geocodingDraftFrom({
         configured: true,
@@ -55,11 +55,12 @@ describe("platform geocoding form", () => {
         provider: "google",
         permanent: null,
         costPerRequestUsd: 0.005,
-        tokenPreview: "AIza…",
+        credentialProfileId: "cred-1",
+        credentialName: "Google Maps",
       })
     ).toEqual({
       provider: "google",
-      token: "",
+      credentialId: "cred-1",
       permanent: true,
       cost: "0.005",
     });

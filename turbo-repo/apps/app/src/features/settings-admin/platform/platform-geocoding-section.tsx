@@ -1,18 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Badge,
-  Checkbox,
-  Label,
-  Select,
-  Spinner,
-  TextInput,
-} from "flowbite-react";
+import { Badge, Spinner } from "flowbite-react";
 import { HiOutlineGlobeAlt } from "react-icons/hi";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import PlatformGeocodingFields from "./platform-geocoding-fields";
 import {
   PlatformSettingButtons,
   PlatformSettingRemoveModal,
@@ -23,19 +17,11 @@ import {
   toGeocodingRequest,
   type GeocodingDraft,
 } from "./platform-geocoding-form";
-import {
-  usePlatformGeocoding,
-  type GeocodingProviderName,
-} from "./use-platform-geocoding";
+import { usePlatformGeocoding } from "./use-platform-geocoding";
 
 interface PlatformGeocodingSectionProps {
   readonly dict: I18nRecord;
 }
-
-const PROVIDERS: readonly { id: GeocodingProviderName; label: string }[] = [
-  { id: "mapbox", label: "Mapbox" },
-  { id: "google", label: "Google" },
-];
 
 /**
  * The geocoding provider the platform contracts and pays for. Every
@@ -48,7 +34,7 @@ export default function PlatformGeocodingSection({
   const { provider, isLoading, error, save, remove } = usePlatformGeocoding();
   const [draft, setDraft] = useState<GeocodingDraft>({
     provider: "mapbox",
-    token: "",
+    credentialId: "",
     permanent: true,
     cost: "",
   });
@@ -69,7 +55,7 @@ export default function PlatformGeocodingSection({
       toast.error(trDynamic(result.error, dict));
       return;
     }
-    submit(result.value, () => set({ token: "" }));
+    submit(result.value);
   };
 
   return (
@@ -100,88 +86,16 @@ export default function PlatformGeocodingSection({
 
       {provider && (
         <div className="mt-4 flex max-w-xl flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="platform-geocoding-provider">
-              {tr("provider", dict)}
-            </Label>
-            <Select
-              id="platform-geocoding-provider"
-              sizing="sm"
-              value={draft.provider}
-              disabled={busy}
-              onChange={(e) =>
-                set({ provider: e.target.value as GeocodingProviderName })
-              }
-            >
-              {PROVIDERS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-            </Select>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {trDynamic(draft.provider, dict.providerHelp as I18nRecord)}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="platform-geocoding-token">
-              {tr("token", dict)}
-            </Label>
-            <TextInput
-              id="platform-geocoding-token"
-              type="password"
-              sizing="sm"
-              autoComplete="off"
-              placeholder={
-                provider.tokenPreview
-                  ? tr("tokenKeep", dict, { preview: provider.tokenPreview })
-                  : ""
-              }
-              value={draft.token}
-              disabled={busy}
-              onChange={(e) => set({ token: e.target.value })}
-            />
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {tr("tokenHint", dict)}
-            </span>
-          </div>
-          {draft.provider === "mapbox" && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="platform-geocoding-permanent"
-                  checked={draft.permanent}
-                  disabled={busy}
-                  onChange={(e) => set({ permanent: e.target.checked })}
-                />
-                <Label htmlFor="platform-geocoding-permanent">
-                  {tr("permanent", dict)}
-                </Label>
-              </div>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("permanentHelp", dict)}
-              </span>
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="platform-geocoding-cost">{tr("cost", dict)}</Label>
-            <TextInput
-              id="platform-geocoding-cost"
-              sizing="sm"
-              inputMode="decimal"
-              placeholder="0.005"
-              value={draft.cost}
-              disabled={busy}
-              onChange={(e) => set({ cost: e.target.value })}
-            />
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {tr("costHelp", dict)}
-            </span>
-          </div>
+          <PlatformGeocodingFields
+            dict={dict}
+            draft={draft}
+            busy={busy}
+            onChange={set}
+          />
           <PlatformSettingButtons
             dict={dict}
             busy={busy}
-            canSave={configured || draft.token.trim() !== ""}
+            canSave={configured || draft.credentialId !== ""}
             configured={configured}
             onSave={onSave}
             onRemove={() => setConfirmRemove(true)}

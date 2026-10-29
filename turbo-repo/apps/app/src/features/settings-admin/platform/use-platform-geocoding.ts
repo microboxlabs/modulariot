@@ -16,13 +16,15 @@ export interface PlatformGeocoding {
   permanent: boolean | null;
   /** What one call costs the platform. */
   costPerRequestUsd: number | null;
-  tokenPreview: string | null;
+  /** A bearer-token credential of the platform scope, kept in Credentials. */
+  credentialProfileId: string | null;
+  credentialName: string | null;
 }
 
-/** Mirrors `SetPlatformGeocodingRequest`. `token` blank keeps the stored one. */
+/** Mirrors `SetPlatformGeocodingRequest`. A null credential keeps the linked one. */
 export interface SetPlatformGeocoding {
   provider: GeocodingProviderName;
-  token: string;
+  credentialProfileId: string | null;
   permanent: boolean;
   costPerRequestUsd: number | null;
 }

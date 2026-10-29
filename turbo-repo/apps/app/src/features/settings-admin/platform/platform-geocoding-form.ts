@@ -7,34 +7,36 @@ import type {
 /** The provider form as typed. */
 export interface GeocodingDraft {
   provider: GeocodingProviderName;
-  token: string;
+  credentialId: string;
   permanent: boolean;
   cost: string;
 }
 
 export type GeocodingDraftResult =
   | { ok: true; value: SetPlatformGeocoding }
-  | { ok: false; error: "costInvalid" | "tokenRequired" };
+  | { ok: false; error: "costInvalid" | "credentialRequired" };
 
 const COST = /^\d{1,6}(\.\d{1,6})?$/;
 
 export function geocodingDraftFrom(stored: PlatformGeocoding): GeocodingDraft {
   return {
     provider: stored.provider ?? "mapbox",
-    token: "",
+    credentialId: stored.credentialProfileId ?? "",
     permanent: stored.permanent ?? true,
     cost:
       stored.costPerRequestUsd === null ? "" : String(stored.costPerRequestUsd),
   };
 }
 
-/** The request body, or the first problem. A token is needed only the first time. */
+/** The request body, or the first problem. A credential is needed the first time. */
 export function toGeocodingRequest(
   draft: GeocodingDraft,
   configured: boolean
 ): GeocodingDraftResult {
-  const token = draft.token.trim();
-  if (!configured && token === "") return { ok: false, error: "tokenRequired" };
+  const credentialId = draft.credentialId.trim();
+  if (!configured && credentialId === "") {
+    return { ok: false, error: "credentialRequired" };
+  }
   const cost = draft.cost.trim();
   if (cost !== "" && !COST.test(cost)) {
     return { ok: false, error: "costInvalid" };
@@ -43,7 +45,7 @@ export function toGeocodingRequest(
     ok: true,
     value: {
       provider: draft.provider,
-      token,
+      credentialProfileId: credentialId === "" ? null : credentialId,
       permanent: draft.provider === "mapbox" ? draft.permanent : false,
       costPerRequestUsd: cost === "" ? null : Number(cost),
     },

@@ -25,6 +25,7 @@ import {
   removeManagedGeocoding,
 } from "@/features/settings-admin/platform/org-geocoding-connection";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import { ManagedGeocodingProviderModal } from "./managed-geocoding-provider-modal";
 import {
   connectionTypeName,
   isPlatformManaged,
@@ -164,6 +165,7 @@ export function IntegrationConfigPageContent({
     template?: IntegrationTemplate;
   }>({ open: false });
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [providerSetupOpen, setProviderSetupOpen] = useState(false);
   const [connectionModal, setConnectionModal] = useState<{
     open: boolean;
     connection?: IntegrationConnection;
@@ -220,7 +222,10 @@ export function IntegrationConfigPageContent({
     setConnectionModal({ open: true, providerType });
   }
 
-  /** Creates the organization's connection to the platform's geocoding provider, once. */
+  /**
+   * Creates the organization's connection to the platform's geocoding provider, once.
+   * Without a platform provider (409) it asks for one first.
+   */
   async function handleManagedGeocoding() {
     if (!orgSlug) return;
     setPickerOpen(false);
@@ -230,12 +235,20 @@ export function IntegrationConfigPageContent({
       refresh();
       toast.success(tr("toast.managedGeocodingCreated", dict), { id: pending });
     } catch (cause) {
-      const message =
-        (cause as { status?: number }).status === 409
-          ? tr("toast.managedGeocodingNoProvider", dict)
-          : messageOf(cause, tr("toast.actionFailed", dict));
-      toast.error(message, { id: pending });
+      if ((cause as { status?: number }).status === 409) {
+        toast.dismiss(pending);
+        setProviderSetupOpen(true);
+        return;
+      }
+      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
+        id: pending,
+      });
     }
+  }
+
+  async function handleProviderSaved() {
+    setProviderSetupOpen(false);
+    await handleManagedGeocoding();
   }
 
   function handleEditConnection(connection: IntegrationConnection) {
@@ -480,6 +493,16 @@ export function IntegrationConfigPageContent({
         dict={dict}
       />
 
+      {isPlatformOwner && (
+        <ManagedGeocodingProviderModal
+          isOpen={providerSetupOpen}
+          dict={dict}
+          providerDict={platformGeocodingDict(rootDict)}
+          onClose={() => setProviderSetupOpen(false)}
+          onSaved={handleProviderSaved}
+        />
+      )}
+
       <ConnectionFormModal
         show={connectionModal.open}
         connection={connectionModal.connection}
@@ -550,6 +573,13 @@ function templateInUseWarning(
 }
 
 /** The API's own reason when it gave one, so a 409 names what blocked it. */
+function platformGeocodingDict(rootDict: I18nRecord): I18nRecord {
+  const pages = rootDict.pages as I18nRecord | undefined;
+  const settings = pages?.userSettings as I18nRecord | undefined;
+  const platform = settings?.platform as I18nRecord | undefined;
+  return (platform?.geocoding as I18nRecord) ?? {};
+}
+
 function messageOf(cause: unknown, fallback: string): string {
   const message = cause instanceof Error ? cause.message : "";
   return message || fallback;

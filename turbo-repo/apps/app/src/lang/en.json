@@ -1660,9 +1660,11 @@
             "mapbox": "Mapbox Geocoding v6. Results are kept in the cache when permanent mode is on.",
             "google": "Google Geocoding. Its terms do not allow keeping results in the cache."
           },
-          "token": "Token",
-          "tokenKeep": "Stored: {preview}. Leave it empty to keep it.",
-          "tokenHint": "Used only by the server and sent only to the provider's host.",
+          "credential": "Credential",
+          "credentialPick": "Choose a credential",
+          "credentialHelp": "The provider's token, kept in Credentials under the Platform scope.",
+          "credentialNone": "There are no tokens in the Platform's Credentials. Switch to the Platform scope, create a token credential and come back.",
+          "credentialRequired": "Choose the credential that holds the provider's token.",
           "permanent": "Permanent mode",
           "permanentHelp": "Allows keeping results. Mapbox charges it separately.",
           "cost": "Our cost per call (USD)",
@@ -4912,8 +4914,7 @@
         "testFailed": "Connection test failed",
         "connectionDeleted": "Connection deleted",
         "managedGeocodingCreating": "Connecting the platform geocoding…",
-        "managedGeocodingCreated": "Platform geocoding connected",
-        "managedGeocodingNoProvider": "The platform has no geocoding provider yet. Set it in Settings › Platform › Geocoding."
+        "managedGeocodingCreated": "Platform geocoding connected"
       },
       "template": {
         "form": {
@@ -5056,6 +5057,11 @@
         "copyJson": "Copy JSON",
         "conflict": "Someone else saved this query. Reload it to see their version.",
         "failed": "The request failed"
+      },
+      "managedGeocodingSetup": {
+        "title": "Platform geocoding provider",
+        "body": "The platform has no provider yet. Choose its credential and set it here: it is saved once for the platform, then this organization is connected.",
+        "submit": "Save and connect"
       }
     },
     "calendar": {

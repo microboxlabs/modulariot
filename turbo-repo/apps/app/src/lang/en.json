@@ -2056,6 +2056,25 @@
           "noOwners": "This organization has no owner yet. Until a platform owner assigns one, nobody can manage its members.",
           "ownersError": "Could not load the owners."
         },
+        "serviceAccount": {
+          "title": "Service account",
+          "description": "This organization's Google identity. It has no key: the platform acts as it when the organization queries published data.",
+          "loadError": "Could not load the service account.",
+          "notConfigured": "Service accounts are not configured on this platform.",
+          "none": "None yet. It is created when you add the \"BigQuery · platform account\" connection in this organization's Settings › Connections.",
+          "email": "Account",
+          "active": "Active",
+          "disabled": "Disabled",
+          "createdBy": "Created by",
+          "updatedBy": "Last change",
+          "check": "Test access",
+          "checking": "Testing…",
+          "checkOk": "The platform can act as this account. It got a token valid until {until}.",
+          "checkDisabled": "The account is disabled: nothing can act as it.",
+          "disable": "Disable",
+          "enable": "Enable",
+          "actionError": "The action could not be completed."
+        },
         "parentAccount": "Primary account",
         "noSelection": "Select an organization to view details.",
         "modulesTitle": "Modules",
@@ -5042,7 +5061,9 @@
         "bigquery": "Dashboard data source: BigQuery SQL with a Google service account.",
         "managedGeocoding": "Geocoding · platform provider",
         "managedGeocodingHelp": "Locates addresses with the provider the platform contracts, within the organization's plan. Platform owners only.",
-        "platformGeocodingHelp": "Set the provider the platform contracts: provider, credential and cost per call. Organizations use it through their managed connection."
+        "platformGeocodingHelp": "Set the provider the platform contracts: provider, credential and cost per call. Organizations use it through their managed connection.",
+        "managedBigquery": "BigQuery · platform account",
+        "managedBigqueryHelp": "Platform owners only. The organization queries as its own service account, with no key, and sees only the data you publish to it."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -5059,7 +5080,9 @@
         "connectionDeleted": "Connection deleted",
         "managedGeocodingCreating": "Connecting the platform geocoding…",
         "managedGeocodingCreated": "Platform geocoding connected",
-        "platformGeocodingSaved": "Platform geocoding provider saved"
+        "platformGeocodingSaved": "Platform geocoding provider saved",
+        "managedBigqueryCreating": "Creating the organization's BigQuery connection…",
+        "managedBigqueryCreated": "BigQuery connection created"
       },
       "template": {
         "form": {

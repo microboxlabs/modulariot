@@ -143,14 +143,14 @@ class LocationResolverTest {
     void aPointJustOutsideASimplifiedBorderStillResolves() {
         // Providencia's centroid, nudged 200 m past the district's border is still within the slack
         AdminBoundaries.Boundary providencia = BOUNDARIES.byCode("CL", "13123").orElseThrow();
-        double[] c = providencia.centroid();
-        double lon = c[0];
-        while (providencia.shape().contains(lon, c[1])) {
+        var c = providencia.centroid();
+        double lon = c.get(0);
+        while (providencia.shape().contains(lon, c.get(1))) {
             lon += 0.0001;
         }
-        lon += 200 / (111_320 * Math.cos(Math.toRadians(c[1])));
+        lon += 200 / (111_320 * Math.cos(Math.toRadians(c.get(1))));
 
-        Outcome out = resolver.resolve(ORG, TENANT, new Site("CD-06", "CD", null, "CL", "13123", null, null, c[1], lon));
+        Outcome out = resolver.resolve(ORG, TENANT, new Site("CD-06", "CD", null, "CL", "13123", null, null, c.get(1), lon));
 
         assertEquals(Location.RESOLVED, out.placement().status());
     }

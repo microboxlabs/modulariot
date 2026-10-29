@@ -35,6 +35,8 @@ interface TemplatePickerModalProps {
   readonly onSelectManagedGeocoding?: () => void;
   /** In the Plataforma scope the option sets the provider itself. */
   readonly managedGeocodingInPlatform?: boolean;
+  /** Offered to platform owners: BigQuery as the organization's own service account. */
+  readonly onSelectManagedBigQuery?: () => void;
   readonly dict: I18nRecord;
 }
 
@@ -54,6 +56,7 @@ export function TemplatePickerModal({
   onSelectNative,
   onSelectManagedGeocoding,
   managedGeocodingInPlatform = false,
+  onSelectManagedBigQuery,
   dict,
 }: Readonly<TemplatePickerModalProps>) {
   const [query, setQuery] = useState("");
@@ -127,6 +130,21 @@ export function TemplatePickerModal({
                 />
               }
               onSelect={onSelectManagedGeocoding}
+            />
+          )}
+          {onSelectManagedBigQuery && (
+            <NativeOption
+              title={tr("picker.managedBigquery", dict)}
+              description={tr("picker.managedBigqueryHelp", dict)}
+              icon={
+                <BrandLogo
+                  logo={BIGQUERY_LOGO}
+                  alt="BigQuery"
+                  keyline="circle"
+                  size={48}
+                />
+              }
+              onSelect={onSelectManagedBigQuery}
             />
           )}
         </div>

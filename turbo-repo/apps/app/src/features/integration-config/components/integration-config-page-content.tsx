@@ -20,11 +20,12 @@ import SectionMenu, {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import { connectManagedBigQuery } from "@/features/settings-admin/platform/org-service-account";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import {
   connectManagedGeocoding,
   removeManagedGeocoding,
 } from "@/features/settings-admin/platform/org-geocoding-connection";
-import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
 import { ManagedGeocodingProviderModal } from "./managed-geocoding-provider-modal";
 import {
@@ -261,6 +262,31 @@ export function IntegrationConfigPageContent({
       return;
     }
     await handleManagedGeocoding();
+  }
+
+  /** Creates the organization's account if missing and the BigQuery connection that queries as it. */
+  async function handleManagedBigQuery() {
+    if (!orgSlug) return;
+    setPickerOpen(false);
+    const pending = toast.loading(tr("toast.managedBigqueryCreating", dict));
+    try {
+      const created = await connectManagedBigQuery(orgSlug);
+      refresh();
+      if (created.tested) {
+        toast.success(tr("toast.managedBigqueryCreated", dict), {
+          id: pending,
+          description: created.testMessage ?? undefined,
+        });
+      } else {
+        toast.error(created.testMessage ?? tr("toast.testFailed", dict), {
+          id: pending,
+        });
+      }
+    } catch (cause) {
+      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
+        id: pending,
+      });
+    }
   }
 
   function handleEditConnection(connection: IntegrationConnection) {
@@ -506,6 +532,9 @@ export function IntegrationConfigPageContent({
           isPlatformOwner ? () => void handleManagedGeocoding() : undefined
         }
         managedGeocodingInPlatform={inPlatformScope}
+        onSelectManagedBigQuery={
+          isPlatformOwner ? () => void handleManagedBigQuery() : undefined
+        }
         dict={dict}
       />
 

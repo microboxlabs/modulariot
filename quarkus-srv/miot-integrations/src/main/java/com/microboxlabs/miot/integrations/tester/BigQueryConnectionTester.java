@@ -8,6 +8,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
 import com.microboxlabs.miot.integrations.service.BigQueryProbe;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -61,6 +62,11 @@ public class BigQueryConnectionTester implements ConnectionTester {
                         + errorMessage(dryRun.body())
                         + ". The scope must be https://www.googleapis.com/auth/bigquery and the account needs "
                         + "BigQuery Job User on " + project);
+            }
+            if (ManagedGoogleIdentity.isManaged(credential.publicConfig())) {
+                // Its data is published to it from other projects; this one only runs its jobs.
+                return new ConnectionTestResponse(true, now, "BigQuery OK — the organization's service account "
+                        + "can run queries in " + project);
             }
             OperationInvocationResult datasets = probe.datasets(connection, project);
             if (!datasets.successful()) {

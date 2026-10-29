@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import org.jboss.logging.Logger;
 
 /**
@@ -87,9 +87,11 @@ public class LocationResolutionService {
         Location l = target(tenantCode, actor, req);
         Placement p = l.placement();
         Site site = new Site(code(l), l.name(), or(req.address(), p.address()), or(req.country(), p.country()),
-                or(req.districtCode(), p.districtCode()),
+                districtCode(req.districtCode(), req.district(), p),
                 req.districtCode() != null ? req.district() : or(req.district(), p.districtName()),
-                req.plusCode(), req.latitude(), req.longitude());
+                pointCode(req.plusCode(), req.latitude(), req.longitude(), p),
+                latitude(req.plusCode(), req.latitude(), req.longitude(), p),
+                longitude(req.plusCode(), req.latitude(), req.longitude(), p));
         Outcome outcome = resolver.resolve(organization, tenantCode, site);
         Location resolved;
         try {
@@ -117,6 +119,11 @@ public class LocationResolutionService {
     /** Each site on its own: one that fails does not stop the others. */
     public List<LocationResolveResult> resolveAll(String organization, String tenantCode, String actor,
             List<LocationResolveRequest> sites) {
+        return resolveAll(organization, tenantCode, actor, sites, Function.identity());
+    }
+
+    public <T> List<LocationResolveResult> resolveAll(String organization, String tenantCode, String actor, List<T> sites,
+            Function<T, LocationResolveRequest> decode) {
         if (sites == null || sites.isEmpty()) {
             throw new IllegalArgumentException("sites are required");
         }
@@ -126,10 +133,13 @@ public class LocationResolutionService {
         List<LocationResolveResult> out = new ArrayList<>();
         for (int i = 0; i < sites.size(); i++) {
             try {
-                Location resolved = resolve(organization, tenantCode, actor, sites.get(i));
-                out.add(new LocationResolveResult(i, LocationView.of(resolved), null));
-            } catch (IllegalArgumentException | NoSuchElementException | IllegalStateException e) {
+                out.add(new LocationResolveResult(i, LocationView.of(resolve(organization, tenantCode, actor, decode.apply(sites.get(i)))),
+                        null));
+            } catch (IllegalArgumentException | NoSuchElementException e) {
                 out.add(new LocationResolveResult(i, null, e.getMessage()));
+            } catch (RuntimeException e) {
+                LOG.warnf(e, "Location resolution failed for item %d", i);
+                out.add(new LocationResolveResult(i, null, "could not resolve site"));
             }
         }
         return out;
@@ -143,9 +153,11 @@ public class LocationResolutionService {
         Location l = store.find(tenantCode, id).orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
         Placement p = l.placement();
         Outcome outcome = resolver.place(new Site(code(l), l.name(), p.address(), or(req.country(), p.country()),
-                or(req.districtCode(), p.districtCode()),
+                districtCode(req.districtCode(), req.district(), p),
                 req.districtCode() != null ? req.district() : or(req.district(), p.districtName()),
-                req.plusCode(), req.latitude(), req.longitude()));
+                pointCode(req.plusCode(), req.latitude(), req.longitude(), p),
+                latitude(req.plusCode(), req.latitude(), req.longitude(), p),
+                longitude(req.plusCode(), req.latitude(), req.longitude(), p)));
         if (!outcome.resolved()) {
             throw new IllegalArgumentException(outcome.placement().note());
         }
@@ -194,9 +206,10 @@ public class LocationResolutionService {
         Placement placement = outcome.placement();
         Integer geofenceId = outcome.geofenceId();
         if (outcome.resolved() && geofenceId == null) {
-            var created = geofences.create(tenantCode, code(l), l.name(),
-                    circle(placement.longitude(), placement.latitude(), RADIUS.getOrDefault(l.type(), 200)),
-                    properties(l, placement));
+            String area = circle(placement.longitude(), placement.latitude(), RADIUS.getOrDefault(l.type(), 200));
+            var created = LocationResolver.MANUAL.equals(placement.source())
+                    ? geofences.place(tenantCode, l.id(), l.name(), area, properties(l, placement))
+                    : geofences.create(tenantCode, code(l), l.name(), area, properties(l, placement));
             if (created.isPresent()) {
                 geofenceId = created.get().id();
             } else {
@@ -210,7 +223,7 @@ public class LocationResolutionService {
         return tx.inTransaction(() -> {
             Location updated = store.setPlacement(tenantCode, UUID.fromString(l.id()), stored, linked, actor)
                     .orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
-            if (!Objects.equals(l.geofenceId(), updated.geofenceId())) {
+            if (linked != null) {
                 live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, UUID.fromString(l.id())));
             }
             Map<String, Object> details = new HashMap<>();
@@ -220,6 +233,27 @@ public class LocationResolutionService {
             audit.log(tenantCode, actor, "location." + stored.status(), LOCATION, updated.id(), null, details);
             return updated;
         });
+    }
+
+    private static String districtCode(String incomingCode, String incomingName, Placement current) {
+        if (incomingCode != null) return incomingCode;
+        return incomingName == null ? current.districtCode() : null;
+    }
+
+    private static boolean hasPoint(String code, Double lat, Double lon) {
+        return code != null || lat != null || lon != null;
+    }
+
+    private static String pointCode(String code, Double lat, Double lon, Placement current) {
+        return hasPoint(code, lat, lon) ? code : current.plusCode();
+    }
+
+    private static Double latitude(String code, Double lat, Double lon, Placement current) {
+        return hasPoint(code, lat, lon) ? lat : current.latitude();
+    }
+
+    private static Double longitude(String code, Double lat, Double lon, Placement current) {
+        return hasPoint(code, lat, lon) ? lon : current.longitude();
     }
 
     /** The geofence's code: the location's external code, or its id when it has none. */

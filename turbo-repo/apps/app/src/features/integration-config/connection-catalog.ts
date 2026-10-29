@@ -1,6 +1,6 @@
 import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
-import { Image, Link } from "flowbite-react-icons/outline";
+import { Globe, Image, Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import type {
   BrandLogoSources,
@@ -20,6 +20,7 @@ export interface ConnectionMark {
 
 const PROVIDER_LABELS: Record<string, string> = {
   CAR_IMAGES: "CarImages",
+  GEOCODING: "Geocoding",
   POSTGREST: "PostgREST",
   RESEND: "Resend",
   WHATSAPP: "WhatsApp",
@@ -37,6 +38,7 @@ export const BIGQUERY_LOGO: BrandLogoSources = {
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
+  GEOCODING: { icon: Globe },
   // Taller than wide: the round keyline gives it the height the square one takes away.
   POSTGREST: {
     logo: POSTGREST_LOGO,

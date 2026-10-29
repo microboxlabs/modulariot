@@ -15,12 +15,11 @@ import SectionMenu, {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
-import GeocodingConnectionCard from "./geocoding-connection-card";
 import GeocodingUsage from "./geocoding-usage";
 import ReviewQueue from "./review-queue";
 
-type GeocodingSection = "review" | "provider" | "usage";
-const SECTIONS: readonly GeocodingSection[] = ["review", "provider", "usage"];
+type GeocodingSection = "review" | "usage";
+const SECTIONS: readonly GeocodingSection[] = ["review", "usage"];
 
 /** The section in `?section=`; the review queue when absent or unknown. */
 export function geocodingSectionOf(params: URLSearchParams): GeocodingSection {
@@ -33,13 +32,12 @@ const SECTION_ICONS: Record<
   SectionMenuEntry<GeocodingSection>["icon"]
 > = {
   review: HiOutlineLocationMarker,
-  provider: HiOutlineGlobeAlt,
   usage: HiOutlineChartBar,
 };
 
 /**
- * Settings › Geocodificación: locations to place by hand, the organization's
- * provider connection, and the month's usage against the quota.
+ * Settings › Geocodificación: locations to place by hand and the month's usage
+ * against the quota. The provider is the platform's, set in Settings › Platform.
  */
 export default function GeocodingPageContent({
   dict,
@@ -98,12 +96,6 @@ export default function GeocodingPageContent({
         />
         <div className="-m-1 flex min-h-0 flex-col gap-4 p-1 md:overflow-y-auto">
           {section === "review" && <ReviewQueue q={q} d={rd} />}
-          {section === "provider" && (
-            <GeocodingConnectionCard
-              orgSlug={orgSlug}
-              dict={d?.provider as I18nRecord}
-            />
-          )}
           {section === "usage" && (
             <GeocodingUsage
               orgSlug={orgSlug}

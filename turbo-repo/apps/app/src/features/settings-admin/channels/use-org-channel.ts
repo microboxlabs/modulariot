@@ -3,7 +3,6 @@
 import { useState } from "react";
 import useSWR from "swr";
 import {
-  type IntegrationsBase,
   createChannelConnection,
   fetchChannelConnection,
   testChannelConnection,
@@ -18,14 +17,9 @@ import type {
 
 /**
  * The organization's connection of one provider, with create, update and test.
- * A null orgSlug skips the fetch. `base` points at another modulith's
- * integrations; the coordinator one when left out.
+ * A null orgSlug skips the fetch.
  */
-export function useOrgChannel(
-  orgSlug: string | null,
-  provider: string,
-  base?: IntegrationsBase
-) {
+export function useOrgChannel(orgSlug: string | null, provider: string) {
   const [actionLoading, setActionLoading] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR<
@@ -34,7 +28,7 @@ export function useOrgChannel(
   >(
     orgSlug ? ["org-channel", provider, orgSlug] : null,
     ([, kind, slug]: [string, string, string]) =>
-      fetchChannelConnection(slug, kind, base),
+      fetchChannelConnection(slug, kind),
     { revalidateOnFocus: false, dedupingInterval: 60_000 }
   );
 
@@ -60,8 +54,7 @@ export function useOrgChannel(
       const created = await createChannelConnection(
         requireSlug(),
         provider,
-        input,
-        base
+        input
       );
       await mutate(created, { revalidate: false });
       return created;
@@ -72,8 +65,7 @@ export function useOrgChannel(
       const updated = await updateChannelConnection(
         requireSlug(),
         connectionId,
-        input,
-        base
+        input
       );
       await mutate(updated, { revalidate: false });
       return updated;

@@ -11,7 +11,6 @@ import type {
   ChannelUpdate,
   IntegrationConnection,
 } from "./channel.types";
-import type { IntegrationsBase } from "./channel-connections";
 import { useOrgChannel } from "./use-org-channel";
 
 /** What the card hands to the channel's form modal. */
@@ -50,10 +49,6 @@ interface ChannelCardProps<F, E extends object> {
   readonly modalProps: E;
   /** After the connection is created or edited. */
   readonly onChanged?: () => void;
-  /** Where the connection lives, when not on the coordinator modulith. */
-  readonly integrationsBase?: IntegrationsBase;
-  /** False for a provider without a connection test: the card shows no Test. */
-  readonly testable?: boolean;
 }
 
 /**
@@ -73,11 +68,9 @@ export function ChannelCard<F, E extends object>({
   Modal,
   modalProps,
   onChanged,
-  integrationsBase,
-  testable = true,
 }: Readonly<ChannelCardProps<F, E>>) {
   const { connection, isLoading, error, actionLoading, create, update, test } =
-    useOrgChannel(orgSlug, provider, integrationsBase);
+    useOrgChannel(orgSlug, provider);
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [submitError, setSubmitError] = useState<Error | null>(null);
 
@@ -158,7 +151,7 @@ export function ChannelCard<F, E extends object>({
           Detail={Detail}
           onConfigure={() => openModal("create")}
           onEdit={() => openModal("edit")}
-          onTest={testable ? handleTest : undefined}
+          onTest={handleTest}
         />
       </div>
 
@@ -186,7 +179,7 @@ interface CardBodyProps {
   readonly Detail: ComponentType<ChannelPartProps>;
   readonly onConfigure: () => void;
   readonly onEdit: () => void;
-  readonly onTest?: () => void;
+  readonly onTest: () => void;
 }
 
 function CardBody({
@@ -232,11 +225,9 @@ function CardBody({
         <Button size="xs" color="light" disabled={busy} onClick={onEdit}>
           {tr("editButton", dict)}
         </Button>
-        {onTest && (
-          <Button size="xs" color="light" disabled={busy} onClick={onTest}>
-            {busy ? <Spinner size="sm" /> : tr("testButton", dict)}
-          </Button>
-        )}
+        <Button size="xs" color="light" disabled={busy} onClick={onTest}>
+          {busy ? <Spinner size="sm" /> : tr("testButton", dict)}
+        </Button>
       </div>
     </div>
   );

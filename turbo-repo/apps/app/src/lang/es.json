@@ -1651,6 +1651,35 @@
           "statusFailed": "Prueba fallida",
           "statusUntested": "Sin probar"
         },
+        "geocoding": {
+          "title": "Geocodificación",
+          "menuHint": "Proveedor que contrata la plataforma",
+          "description": "La plataforma contrata y paga el proveedor de geocodificación. Todas las organizaciones lo usan dentro de la cuota de su plan; ninguna configura un proveedor propio.",
+          "provider": "Proveedor",
+          "providerHelp": {
+            "mapbox": "Mapbox Geocoding v6. Los resultados se guardan en la caché si el modo permanente está activo.",
+            "google": "Google Geocoding. Por sus términos, los resultados no se guardan en la caché."
+          },
+          "token": "Token",
+          "tokenKeep": "Guardado: {preview}. Déjalo vacío para conservarlo.",
+          "tokenHint": "Se usa solo desde el servidor y solo con el host del proveedor.",
+          "permanent": "Modo permanente",
+          "permanentHelp": "Permite guardar los resultados. Mapbox lo cobra aparte.",
+          "cost": "Nuestro costo por llamada (US$)",
+          "costHelp": "Lo que el proveedor cobra a la plataforma por llamada. Se copia en cada registro de uso. No es lo que paga la organización, que sale de su plan.",
+          "costInvalid": "Ingresa un número, por ejemplo 0.005",
+          "save": "Guardar",
+          "remove": "Quitar",
+          "saved": "Proveedor guardado.",
+          "saveError": "No se pudo guardar el proveedor.",
+          "removed": "Proveedor quitado.",
+          "removeError": "No se pudo quitar el proveedor.",
+          "loadError": "No se pudo cargar el proveedor.",
+          "removeTitle": "Quitar el proveedor de geocodificación",
+          "removeBody": "Las direcciones que no estén en la caché ni en la fuente interna irán a revisión en todas las organizaciones.",
+          "statusNone": "Sin configurar",
+          "statusConfigured": "Configurado"
+        },
         "plan": {
           "title": "Plan de asientos",
           "menuHint": "Precio por asiento y tokens incluidos",
@@ -3383,20 +3412,16 @@
       },
       "geocoding": {
         "pageTitle": "Geocodificación",
-        "pageDescription": "Ubica las direcciones de los viajes: lo que queda por revisar, el proveedor que se usa y lo consumido en el mes.",
+        "pageDescription": "Ubica las direcciones de los viajes: lo que queda por revisar y lo consumido en el mes dentro de la cuota.",
         "menuTitle": "Geocodificación",
         "sections": {
           "review": {
             "label": "Por revisar",
             "description": "Ubicaciones que no se pudieron ubicar solas"
           },
-          "provider": {
-            "label": "Proveedor",
-            "description": "Conexión de Mapbox o Google"
-          },
           "usage": {
             "label": "Uso mensual",
-            "description": "Llamadas al proveedor, cuota y costo"
+            "description": "Llamadas al proveedor, cuota y cargo"
           }
         },
         "review": {
@@ -3438,57 +3463,6 @@
             "zone": "Zona"
           }
         },
-        "provider": {
-          "title": "Proveedor de geocodificación",
-          "description": "La conexión con la que se ubican las direcciones que no están en la caché ni en la fuente interna. Sin ella se usa la de la plataforma, si existe.",
-          "loadError": "No se pudo cargar la conexión de geocodificación.",
-          "providerLabel": "Proveedor",
-          "costLabel": "US$ {cost} por llamada",
-          "configureButton": "Configurar",
-          "testButton": "Probar",
-          "editButton": "Editar",
-          "status": {
-            "active": "Activo",
-            "draft": "Sin probar",
-            "inactive": "Inactivo",
-            "failed": "Prueba fallida"
-          },
-          "modal": {
-            "addTitle": "Configurar proveedor de geocodificación",
-            "subtitle": "Elige Mapbox o Google e ingresa el token de la cuenta.",
-            "editTitle": "Editar proveedor de geocodificación",
-            "editSubtitle": "Deja el token vacío para mantener el guardado.",
-            "defaultName": "Geocodificación",
-            "name": "Nombre de la conexión",
-            "provider": "Proveedor",
-            "providerHelp": {
-              "mapbox": "Mapbox Geocoding v6. Los resultados se guardan en la caché si el modo permanente está activo.",
-              "google": "Google Geocoding. Por sus términos, los resultados no se guardan en la caché."
-            },
-            "token": "Token",
-            "tokenKeep": "Vacío mantiene el token guardado",
-            "permanent": "Modo permanente",
-            "permanentHelp": "Permite guardar los resultados. Mapbox lo cobra aparte.",
-            "cost": "Costo por llamada (US$)",
-            "costHelp": "Se copia en cada registro de uso. Vacío: sin costo.",
-            "cancel": "Cancelar",
-            "saving": "Guardando...",
-            "createButton": "Crear",
-            "saveButton": "Guardar"
-          },
-          "toast": {
-            "created": "Proveedor de geocodificación configurado",
-            "updated": "Proveedor de geocodificación actualizado",
-            "testSuccess": "Prueba de conexión exitosa",
-            "testFailed": "La prueba de conexión falló",
-            "error": "Ocurrió un error"
-          },
-          "validation": {
-            "nameRequired": "El nombre de la conexión es obligatorio",
-            "tokenRequired": "Ingresa el token del proveedor",
-            "costInvalid": "Ingresa un número, por ejemplo 0.005"
-          }
-        },
         "usage": {
           "title": "Uso mensual",
           "description": "Cada llamada al proveedor cuenta para la cuota del mes (UTC). La caché, la fuente interna, las geocercas, los Plus Codes y las coordenadas no cuentan.",
@@ -3513,11 +3487,12 @@
             "description": "Ubicaciones resueltas por cualquier fuente",
             "cacheHits": "{count} desde la caché ({rate})"
           },
-          "cost": {
-            "title": "Costo",
-            "description": "Lo que cobró el proveedor y el excedente",
-            "provider": "Proveedor",
+          "charge": {
+            "title": "Cargo del plan",
+            "description": "Lo que se cobra a la organización según su plan",
+            "monthly": "Plan mensual",
             "overage": "Excedente",
+            "total": "Total del mes: {total}",
             "overageCalls": "{count} llamadas sobre la cuota a {price} cada una"
           },
           "bySource": {
@@ -3527,8 +3502,7 @@
             "result": "Resultado",
             "resolutions": "Resoluciones",
             "cacheHits": "Caché",
-            "providerCalls": "Llamadas",
-            "cost": "Costo"
+            "providerCalls": "Llamadas"
           },
           "sources": {
             "geofence": "Geocerca",

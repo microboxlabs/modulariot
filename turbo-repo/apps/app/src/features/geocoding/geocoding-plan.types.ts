@@ -24,10 +24,13 @@ export interface GeocodingSourceUse {
   resolutions: number;
   cacheHits: number;
   providerCalls: number;
-  providerCostUsd: number | null;
 }
 
-/** One calendar month (UTC). `used` is provider calls; `quota` is null without a subscription. */
+/**
+ * One calendar month (UTC). `used` is provider calls; `quota` is null without a
+ * subscription. `chargeUsd` is what the plan charges the organization: the
+ * monthly price plus `overageUsd`. The platform's provider cost is not sent.
+ */
 export interface GeocodingUsage {
   periodStart: string;
   periodEnd: string;
@@ -35,9 +38,9 @@ export interface GeocodingUsage {
   used: number;
   resolutions: number;
   cacheHits: number;
-  providerCostUsd: number | null;
   overageCalls: number;
   overageUsd: number | null;
+  chargeUsd: number | null;
   bySource: GeocodingSourceUse[];
 }
 

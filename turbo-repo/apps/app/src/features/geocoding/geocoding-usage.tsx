@@ -171,35 +171,35 @@ function ResolutionsCard({
   );
 }
 
-function CostCard({
+function ChargeCard({
   data,
   lang,
   d,
 }: Readonly<{ data: OrgGeocodingPlan; lang: string; d: I18nRecord }>) {
-  const { usage, plan } = data;
+  const { usage, plan, subscription } = data;
   return (
     <section className={cardClass}>
       <div className={cardHeaderClass}>
         <IconTile icon={HiOutlineCurrencyDollar} />
         <div className="min-w-0 flex-1">
-          <h2 className={cardTitleClass}>{tr("cost.title", d)}</h2>
+          <h2 className={cardTitleClass}>{tr("charge.title", d)}</h2>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {tr("cost.description", d)}
+            {tr("charge.description", d)}
           </p>
         </div>
       </div>
       <div className="grid flex-1 grid-cols-2 gap-4 px-4 py-3">
         <div>
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            {tr("cost.provider", d)}
+            {tr("charge.monthly", d)}
           </p>
           <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-            {formatUsd(usage.providerCostUsd, lang)}
+            {formatUsd(subscription ? plan.monthlyPriceUsd : null, lang)}
           </p>
         </div>
         <div>
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            {tr("cost.overage", d)}
+            {tr("charge.overage", d)}
           </p>
           <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
             {formatUsd(usage.overageUsd, lang)}
@@ -207,10 +207,15 @@ function CostCard({
         </div>
       </div>
       <div className={footerClass}>
-        {tr("cost.overageCalls", d, {
-          count: usage.overageCalls.toLocaleString(),
-          price: formatUsd(plan.overagePriceUsd, lang),
-        })}
+        <p>
+          {tr("charge.total", d, { total: formatUsd(usage.chargeUsd, lang) })}
+        </p>
+        <p>
+          {tr("charge.overageCalls", d, {
+            count: usage.overageCalls.toLocaleString(),
+            price: formatUsd(plan.overagePriceUsd, lang),
+          })}
+        </p>
       </div>
     </section>
   );
@@ -218,9 +223,8 @@ function CostCard({
 
 function SourceTable({
   rows,
-  lang,
   d,
-}: Readonly<{ rows: GeocodingSourceUse[]; lang: string; d: I18nRecord }>) {
+}: Readonly<{ rows: GeocodingSourceUse[]; d: I18nRecord }>) {
   const sources = d.sources as I18nRecord;
   const results = d.results as I18nRecord;
   return (
@@ -253,9 +257,6 @@ function SourceTable({
                 <th className="px-4 py-2 text-right font-medium">
                   {tr("bySource.providerCalls", d)}
                 </th>
-                <th className="px-4 py-2 text-right font-medium">
-                  {tr("bySource.cost", d)}
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -273,9 +274,6 @@ function SourceTable({
                   <td className="px-4 py-2 text-right">{row.resolutions}</td>
                   <td className="px-4 py-2 text-right">{row.cacheHits}</td>
                   <td className="px-4 py-2 text-right">{row.providerCalls}</td>
-                  <td className="px-4 py-2 text-right">
-                    {formatUsd(row.providerCostUsd, lang)}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -313,7 +311,7 @@ function Notices({
   );
 }
 
-/** This month's geocoding: provider calls against the quota, resolutions by source, and cost. */
+/** This month's geocoding: provider calls against the quota, resolutions by source, and the plan charge. */
 export default function GeocodingUsage({
   orgSlug,
   lang,
@@ -354,10 +352,10 @@ export default function GeocodingUsage({
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <QuotaCard data={data} d={d} />
           <ResolutionsCard data={data} d={d} />
-          <CostCard data={data} lang={lang} d={d} />
+          <ChargeCard data={data} lang={lang} d={d} />
         </div>
       )}
-      {data && <SourceTable rows={rows} lang={lang} d={d} />}
+      {data && <SourceTable rows={rows} d={d} />}
     </section>
   );
 }

@@ -53,6 +53,7 @@ export type PlatformSection =
   | "superusers"
   | "models"
   | "vehicleImages"
+  | "geocoding"
   | "sharing"
   | "templates"
   | "plan"

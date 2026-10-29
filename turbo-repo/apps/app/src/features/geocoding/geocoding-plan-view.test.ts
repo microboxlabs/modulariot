@@ -14,9 +14,9 @@ const usage = (resolutions: number, cacheHits: number): GeocodingUsage => ({
   used: 0,
   resolutions,
   cacheHits,
-  providerCostUsd: null,
   overageCalls: 0,
   overageUsd: null,
+  chargeUsd: null,
   bySource: [],
 });
 

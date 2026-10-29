@@ -1651,6 +1651,35 @@
           "statusFailed": "Test failed",
           "statusUntested": "Not tested"
         },
+        "geocoding": {
+          "title": "Geocoding",
+          "menuHint": "Provider the platform contracts",
+          "description": "The platform contracts and pays the geocoding provider. Every organization uses it within its plan's quota; no organization sets up its own provider.",
+          "provider": "Provider",
+          "providerHelp": {
+            "mapbox": "Mapbox Geocoding v6. Results are kept in the cache when permanent mode is on.",
+            "google": "Google Geocoding. Its terms do not allow keeping results in the cache."
+          },
+          "token": "Token",
+          "tokenKeep": "Stored: {preview}. Leave it empty to keep it.",
+          "tokenHint": "Used only by the server and sent only to the provider's host.",
+          "permanent": "Permanent mode",
+          "permanentHelp": "Allows keeping results. Mapbox charges it separately.",
+          "cost": "Our cost per call (USD)",
+          "costHelp": "What the provider charges the platform per call. Copied into each usage row. It is not what the organization pays, which comes from its plan.",
+          "costInvalid": "Enter a number, for example 0.005",
+          "save": "Save",
+          "remove": "Remove",
+          "saved": "Provider saved.",
+          "saveError": "Could not save the provider.",
+          "removed": "Provider removed.",
+          "removeError": "Could not remove the provider.",
+          "loadError": "Could not load the provider.",
+          "removeTitle": "Remove the geocoding provider",
+          "removeBody": "Addresses that are not in the cache or the internal source will go to review in every organization.",
+          "statusNone": "Not set",
+          "statusConfigured": "Set"
+        },
         "plan": {
           "title": "Seat plan",
           "menuHint": "Price per seat and included tokens",
@@ -3383,20 +3412,16 @@
       },
       "geocoding": {
         "pageTitle": "Geocoding",
-        "pageDescription": "Locates trip addresses: what is left to review, the provider in use and the month's usage.",
+        "pageDescription": "Places trip addresses: what is left to review and the month's use against the quota.",
         "menuTitle": "Geocoding",
         "sections": {
           "review": {
             "label": "To review",
             "description": "Locations that could not be placed on their own"
           },
-          "provider": {
-            "label": "Provider",
-            "description": "Mapbox or Google connection"
-          },
           "usage": {
             "label": "Monthly usage",
-            "description": "Provider calls, quota and cost"
+            "description": "Provider calls, quota and charge"
           }
         },
         "review": {
@@ -3438,57 +3463,6 @@
             "zone": "Zone"
           }
         },
-        "provider": {
-          "title": "Geocoding provider",
-          "description": "The connection that locates addresses not found in the cache or the internal source. Without it the platform's is used, if there is one.",
-          "loadError": "The geocoding connection could not be loaded.",
-          "providerLabel": "Provider",
-          "costLabel": "US$ {cost} per call",
-          "configureButton": "Configure",
-          "testButton": "Test",
-          "editButton": "Edit",
-          "status": {
-            "active": "Active",
-            "draft": "Not tested",
-            "inactive": "Inactive",
-            "failed": "Test failed"
-          },
-          "modal": {
-            "addTitle": "Configure geocoding provider",
-            "subtitle": "Choose Mapbox or Google and enter the account's token.",
-            "editTitle": "Edit geocoding provider",
-            "editSubtitle": "Leave the token empty to keep the stored one.",
-            "defaultName": "Geocoding",
-            "name": "Connection name",
-            "provider": "Provider",
-            "providerHelp": {
-              "mapbox": "Mapbox Geocoding v6. Results are cached when permanent mode is on.",
-              "google": "Google Geocoding. Its terms do not allow caching results."
-            },
-            "token": "Token",
-            "tokenKeep": "Empty keeps the stored token",
-            "permanent": "Permanent mode",
-            "permanentHelp": "Allows storing results. Mapbox charges it separately.",
-            "cost": "Cost per call (US$)",
-            "costHelp": "Copied into each usage record. Empty: no cost.",
-            "cancel": "Cancel",
-            "saving": "Saving...",
-            "createButton": "Create",
-            "saveButton": "Save"
-          },
-          "toast": {
-            "created": "Geocoding provider configured",
-            "updated": "Geocoding provider updated",
-            "testSuccess": "Connection test succeeded",
-            "testFailed": "Connection test failed",
-            "error": "Something went wrong"
-          },
-          "validation": {
-            "nameRequired": "The connection name is required",
-            "tokenRequired": "Enter the provider's token",
-            "costInvalid": "Enter a number, for example 0.005"
-          }
-        },
         "usage": {
           "title": "Monthly usage",
           "description": "Each provider call counts toward the month's quota (UTC). The cache, the internal source, geofences, Plus Codes and coordinates do not count.",
@@ -3513,11 +3487,12 @@
             "description": "Locations resolved by any source",
             "cacheHits": "{count} from the cache ({rate})"
           },
-          "cost": {
-            "title": "Cost",
-            "description": "What the provider charged, and the overage",
-            "provider": "Provider",
+          "charge": {
+            "title": "Plan charge",
+            "description": "What the organization is charged from its plan",
+            "monthly": "Monthly plan",
             "overage": "Overage",
+            "total": "Month total: {total}",
             "overageCalls": "{count} calls over the quota at {price} each"
           },
           "bySource": {
@@ -3527,8 +3502,7 @@
             "result": "Result",
             "resolutions": "Resolutions",
             "cacheHits": "Cache",
-            "providerCalls": "Calls",
-            "cost": "Cost"
+            "providerCalls": "Calls"
           },
           "sources": {
             "geofence": "Geofence",

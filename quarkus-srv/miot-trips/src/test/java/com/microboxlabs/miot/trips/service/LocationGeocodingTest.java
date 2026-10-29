@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.geocoding.AllowAllGeocodingGate;
+import com.microboxlabs.miot.core.geocoding.GeocodingGate;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingConnection;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingMetrics;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.geo.AdminBoundaries;
 import com.microboxlabs.miot.trips.service.LocationResolver.Outcome;
@@ -14,13 +17,17 @@ import com.microboxlabs.miot.trips.store.FakeAddresses;
 import com.microboxlabs.miot.trips.store.FakeGeofences;
 import com.microboxlabs.miot.trips.store.GeocodeCache;
 import com.microboxlabs.miot.trips.store.InMemoryGeocodeCache;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /** Steps 4 and 5 of the resolver: the internal source, the shared cache and the provider, against a stub. */
 class LocationGeocodingTest {
 
+    private static final String ORG = "org-a";
     private static final String TENANT = "client-a";
     private static final AdminBoundaries BOUNDARIES = new AdminBoundaries();
     private static final double LARCO_LON = -77.0297;
@@ -38,6 +45,19 @@ class LocationGeocodingTest {
         return new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, stub.geocoder(TENANT));
     }
 
+    /** Refuses every provider call and remembers who asked. */
+    private final List<String> asked = new ArrayList<>();
+    private final GeocodingGate exhausted = (organization, tenantCode) -> {
+        asked.add(organization + "/" + tenantCode);
+        return new GeocodingGate.Refusal("geocoding_quota_exhausted",
+                "the organization used its 1000 geocoding resolutions for this month");
+    };
+
+    private LocationResolver resolver(GeocodingGate gate, GeocodingMetrics metrics) {
+        return new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, cache, stub.geocoder(TENANT), gate,
+                metrics);
+    }
+
     @AfterEach
     void stop() {
         stub.close();
@@ -51,7 +71,7 @@ class LocationGeocodingTest {
     void anAddressLevelResultInTheDistrictResolvesAndIsCached() {
         stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
 
-        Outcome out = resolver().resolve(TENANT, larco("Av. Larco 101"));
+        Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertEquals(LocationResolver.PROVIDER, out.placement().source());
@@ -72,10 +92,10 @@ class LocationGeocodingTest {
     @Test
     void theSameAddressIsServedFromTheCacheWithoutACall() {
         stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
-        resolver().resolve(TENANT, larco("Av. Larco 101"));
+        resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
-        Outcome again = resolver().resolve("client-b", new Site("X", "Otro sitio", "AV LARCO 101", "PE", "150122",
-                null, null, null, null));
+        Outcome again = resolver().resolve("org-b", "client-b", new Site("X", "Otro sitio", "AV LARCO 101", "PE",
+                "150122", null, null, null, null));
 
         assertEquals(1, stub.queries.size());
         assertEquals(Location.RESOLVED, again.placement().status());
@@ -90,7 +110,7 @@ class LocationGeocodingTest {
     void aStreetLevelResultNeedsReviewAndIsNotCached() {
         stub.answer(StubGeocoding.features("street", LARCO_LON, LARCO_LAT, "place", LARCO_LON, LARCO_LAT));
 
-        Outcome out = resolver().resolve(TENANT, larco("Av. Larco"));
+        Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco"));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals("mapbox found only street, not an address", out.placement().note());
@@ -103,7 +123,7 @@ class LocationGeocodingTest {
     void anAddressOutsideTheDistrictNeedsReviewAndIsNotCached() {
         stub.answer(StubGeocoding.features("address", LIMA_LON, LIMA_LAT));
 
-        Outcome out = resolver().resolve(TENANT, larco("Av. Larco 101"));
+        Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals(LocationResolver.PROVIDER, out.placement().source());
@@ -115,7 +135,7 @@ class LocationGeocodingTest {
     void theFirstAddressInsideTheDistrictIsTaken() {
         stub.answer(StubGeocoding.features("address", LIMA_LON, LIMA_LAT, "address", LARCO_LON, LARCO_LAT));
 
-        Outcome out = resolver().resolve(TENANT, larco("Av. Larco 101"));
+        Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertEquals(LARCO_LON, out.placement().longitude());
@@ -126,7 +146,7 @@ class LocationGeocodingTest {
         stub.metadata(GeocodingConnection.PROVIDER, "google")
                 .answer(StubGeocoding.results("street_address", LARCO_LON, LARCO_LAT));
 
-        Outcome out = resolver().resolve(TENANT, larco("Av. Larco 101"));
+        Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertEquals("google", out.usage().provider());
@@ -138,7 +158,7 @@ class LocationGeocodingTest {
         stub.metadata(GeocodingConnection.PERMANENT, "false")
                 .answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
 
-        Outcome out = resolver().resolve(TENANT, larco("Av. Larco 101"));
+        Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertTrue(cache.entries.isEmpty());
@@ -146,7 +166,7 @@ class LocationGeocodingTest {
 
     @Test
     void theInternalSourceResolvesAChileanAddressWithoutAProvider() {
-        Outcome out = resolver().resolve(TENANT, new Site("S-1", "Oficina", "Avenida Providencia 1234, Of. 501",
+        Outcome out = resolver().resolve(ORG, TENANT, new Site("S-1", "Oficina", "Avenida Providencia 1234, Of. 501",
                 "CL", "13123", null, null, null, null));
 
         assertEquals(Location.RESOLVED, out.placement().status(), out.placement().note());
@@ -161,7 +181,7 @@ class LocationGeocodingTest {
     void aChileanAddressTheInternalSourceDoesNotHaveGoesToTheProvider() {
         stub.answer(StubGeocoding.features("address", -70.6110, -33.4263));
 
-        Outcome out = resolver().resolve(TENANT, new Site("S-1", "Oficina", "Avenida Providencia 999", "CL",
+        Outcome out = resolver().resolve(ORG, TENANT, new Site("S-1", "Oficina", "Avenida Providencia 999", "CL",
                 "13123", null, null, null, null));
 
         assertEquals(LocationResolver.PROVIDER, out.placement().source());
@@ -170,7 +190,7 @@ class LocationGeocodingTest {
 
     @Test
     void aPlusCodeIsUsedBeforeTheAddress() {
-        Outcome out = resolver().resolve(TENANT, new Site("CD-01", "CD", "Av. Larco 101", "PE", "150122", null,
+        Outcome out = resolver().resolve(ORG, TENANT, new Site("CD-01", "CD", "Av. Larco 101", "PE", "150122", null,
                 "57V4VXHC+H4", null, null));
 
         assertEquals(LocationResolver.PLUS_CODE, out.placement().source());
@@ -180,7 +200,7 @@ class LocationGeocodingTest {
 
     @Test
     void withoutADistrictTheProviderIsNotAsked() {
-        Outcome out = resolver().resolve(TENANT, new Site("CD-01", "CD", "Av. Larco 101", "PE", null, null, null,
+        Outcome out = resolver().resolve(ORG, TENANT, new Site("CD-01", "CD", "Av. Larco 101", "PE", null, null, null,
                 null, null));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
@@ -190,11 +210,57 @@ class LocationGeocodingTest {
 
     @Test
     void withoutAConnectionTheSiteNeedsReview() {
-        Outcome out = resolver().resolve("client-without-connection", larco("Av. Larco 101"));
+        Outcome out = resolver().resolve("org-c", "client-without-connection", larco("Av. Larco 101"));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals("geocoding: no geocoding connection is configured", out.placement().note());
         assertFalse(out.usage().called());
         assertTrue(stub.queries.isEmpty());
+    }
+
+    @Test
+    void anExhaustedQuotaSendsTheSiteToReviewWithoutCallingTheProvider() {
+        stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
+
+        Outcome out = resolver(exhausted, GeocodingMetrics.NONE).resolve(ORG, TENANT, larco("Av. Larco 101"));
+
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertEquals("geocoding: the organization used its 1000 geocoding resolutions for this month",
+                out.placement().note());
+        assertTrue(stub.queries.isEmpty());
+        assertFalse(out.usage().called());
+        assertNull(out.usage().costUsd());
+        assertEquals(List.of(ORG + "/" + TENANT), asked);
+    }
+
+    @Test
+    void freeSourcesDoNotAskTheGate() {
+        stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
+        resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
+        LocationResolver gated = resolver(exhausted, GeocodingMetrics.NONE);
+
+        Outcome cached = gated.resolve(ORG, TENANT, larco("Av. Larco 101"));
+        Outcome internal = gated.resolve(ORG, TENANT, new Site("S-1", "Oficina", "Avenida Providencia 1234", "CL",
+                "13123", null, null, null, null));
+        Outcome plusCode = gated.resolve(ORG, TENANT, new Site("CD-01", "CD", "Av. Larco 101", "PE", "150122", null,
+                "57V4VXHC+H4", null, null));
+
+        assertEquals(Location.RESOLVED, cached.placement().status());
+        assertEquals(LocationResolver.INTERNAL, internal.placement().source());
+        assertEquals(LocationResolver.PLUS_CODE, plusCode.placement().source());
+        assertTrue(asked.isEmpty());
+    }
+
+    @Test
+    void cacheLookupsAreMetered() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        LocationResolver metered = resolver(new AllowAllGeocodingGate(), new GeocodingMetrics(meters));
+        stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
+
+        metered.resolve(ORG, TENANT, larco("Av. Larco 101"));
+        metered.resolve(ORG, TENANT, larco("Av. Larco 101"));
+
+        assertEquals(1.0, meters.get("geocoding.cache.lookups").tags("result", "miss").counter().count());
+        assertEquals(1.0, meters.get("geocoding.cache.lookups").tags("result", "hit").counter().count());
     }
 }

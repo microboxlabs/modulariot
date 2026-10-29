@@ -76,8 +76,11 @@ public class LocationResolutionService {
         this.usage = usage;
     }
 
-    /** Fields the request leaves out keep what the location has. */
-    public Location resolve(String tenantCode, String actor, LocationResolveRequest req) {
+    /**
+     * Fields the request leaves out keep what the location has. {@code organization} is whose geocoding quota a
+     * provider call uses.
+     */
+    public Location resolve(String organization, String tenantCode, String actor, LocationResolveRequest req) {
         if (req == null) {
             throw new IllegalArgumentException("body is required");
         }
@@ -87,23 +90,24 @@ public class LocationResolutionService {
                 or(req.districtCode(), p.districtCode()),
                 req.districtCode() != null ? req.district() : or(req.district(), p.districtName()),
                 req.plusCode(), req.latitude(), req.longitude());
-        Outcome outcome = resolver.resolve(tenantCode, site);
+        Outcome outcome = resolver.resolve(organization, tenantCode, site);
         Location resolved;
         try {
             resolved = finish(tenantCode, actor, l, outcome);
         } catch (RuntimeException e) {
             // A provider call that was made is still charged.
-            record(tenantCode, actor, outcome.placement(), outcome.usage());
+            record(organization, tenantCode, actor, outcome.placement(), outcome.usage());
             throw e;
         }
-        record(tenantCode, actor, resolved.placement(), outcome.usage());
+        record(organization, tenantCode, actor, resolved.placement(), outcome.usage());
         return resolved;
     }
 
     /** Usage is for charging; a failure to record it does not undo the resolution. */
-    private void record(String tenantCode, String actor, Placement p, LocationResolver.Usage u) {
+    private void record(String organization, String tenantCode, String actor, Placement p,
+            LocationResolver.Usage u) {
         try {
-            usage.record(new Resolution(tenantCode, actor, p.source(), p.status(), u.provider(), u.cacheHit(),
+            usage.record(new Resolution(organization, tenantCode, actor, p.source(), p.status(), u.provider(), u.cacheHit(),
                     u.called(), u.costUsd()));
         } catch (RuntimeException e) {
             LOG.warnf("Geocoding usage of %s not recorded: %s", tenantCode, e.getMessage());
@@ -111,7 +115,7 @@ public class LocationResolutionService {
     }
 
     /** Each site on its own: one that fails does not stop the others. */
-    public List<LocationResolveResult> resolveAll(String tenantCode, String actor,
+    public List<LocationResolveResult> resolveAll(String organization, String tenantCode, String actor,
             List<LocationResolveRequest> sites) {
         if (sites == null || sites.isEmpty()) {
             throw new IllegalArgumentException("sites are required");
@@ -122,8 +126,8 @@ public class LocationResolutionService {
         List<LocationResolveResult> out = new ArrayList<>();
         for (int i = 0; i < sites.size(); i++) {
             try {
-                out.add(new LocationResolveResult(i, LocationView.of(resolve(tenantCode, actor, sites.get(i))),
-                        null));
+                Location resolved = resolve(organization, tenantCode, actor, sites.get(i));
+                out.add(new LocationResolveResult(i, LocationView.of(resolved), null));
             } catch (IllegalArgumentException | NoSuchElementException | IllegalStateException e) {
                 out.add(new LocationResolveResult(i, null, e.getMessage()));
             }

@@ -1,7 +1,10 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.google.openlocationcode.OpenLocationCode;
+import com.microboxlabs.miot.core.geocoding.AllowAllGeocodingGate;
+import com.microboxlabs.miot.core.geocoding.GeocodingGate;
 import com.microboxlabs.miot.integrations.geocoding.Geocoder;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingMetrics;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingProvider.Candidate;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingProvider.Query;
 import com.microboxlabs.miot.trips.domain.Location;
@@ -27,7 +30,8 @@ import java.util.Optional;
  * Finds a site's point. Sources, first that applies: a geofence of the tenant with the site's code or name, a Plus
  * Code (a short one is recovered from the district's centroid), the caller's coordinates, the internal address
  * table (Chile), the shared geocode cache, then the geocoding provider. The address sources need a district with a
- * boundary, and the provider counts only address-level results. The point must fall in the declared district, or
+ * boundary, and the provider counts only address-level results. The provider is asked only when the
+ * {@link GeocodingGate} allows it; when the organization's quota is used up the site needs review. The point must fall in the declared district, or
  * within {@link #BORDER_METERS} of it, to resolve; otherwise, or with no source, the site needs review.
  */
 @ApplicationScoped
@@ -87,28 +91,38 @@ public class LocationResolver {
     private final InternalAddresses addresses;
     private final GeocodeCache cache;
     private final Geocoder geocoder;
+    private final GeocodingGate gate;
+    private final GeocodingMetrics metrics;
+
+    /** Every provider call allowed, no meters. */
+    public LocationResolver(GeofenceDirectory geofences, AdminBoundaries boundaries, InternalAddresses addresses,
+            GeocodeCache cache, Geocoder geocoder) {
+        this(geofences, boundaries, addresses, cache, geocoder, new AllowAllGeocodingGate(), GeocodingMetrics.NONE);
+    }
 
     @Inject
     public LocationResolver(GeofenceDirectory geofences, AdminBoundaries boundaries, InternalAddresses addresses,
-            GeocodeCache cache, Geocoder geocoder) {
+            GeocodeCache cache, Geocoder geocoder, GeocodingGate gate, GeocodingMetrics metrics) {
         this.geofences = geofences;
         this.boundaries = boundaries;
         this.addresses = addresses;
         this.cache = cache;
         this.geocoder = geocoder;
+        this.gate = gate;
+        this.metrics = metrics;
     }
 
-    /** Tries the sources in order. */
-    public Outcome resolve(String tenantCode, Site site) {
-        return locate(tenantCode, site, false);
+    /** Tries the sources in order. {@code organization} is whose quota a provider call uses; it may be null. */
+    public Outcome resolve(String organization, String tenantCode, Site site) {
+        return locate(organization, tenantCode, site, false);
     }
 
     /** A point set by hand: Plus Code or coordinates, never an existing geofence; the source is manual. */
     public Outcome place(Site site) {
-        return locate(null, site, true);
+        return locate(null, null, site, true);
     }
 
-    private Outcome locate(String tenantCode, Site site, boolean manual) {
+    private Outcome locate(String organization, String tenantCode, Site site, boolean manual) {
         String country = site.country() == null ? null : site.country().strip().toUpperCase(Locale.ROOT);
         District district = district(country, site);
         Boundary b = district.boundary();
@@ -129,7 +143,7 @@ public class LocationResolver {
         }
         Usage usage = Usage.NONE;
         if (found == null && !manual && blankToNull(site.address()) != null && b != null && b.shape() != null) {
-            ByAddress byAddress = fromAddress(tenantCode, country, b, site.address());
+            ByAddress byAddress = fromAddress(organization, tenantCode, country, b, site.address());
             found = byAddress.found();
             note = note == null ? byAddress.note() : note;
             usage = byAddress.usage();
@@ -170,10 +184,11 @@ public class LocationResolver {
     }
 
     /**
-     * Steps 4 and 5: the internal address table, then the shared cache, then the provider. A provider result is
-     * kept in the cache only when it resolves and the provider's terms allow storing it.
+     * Steps 4 and 5: the internal address table, then the shared cache, then the provider if the gate allows it. A
+     * provider result is kept in the cache only when it resolves and the provider's terms allow storing it.
      */
-    private ByAddress fromAddress(String tenantCode, String country, Boundary b, String address) {
+    private ByAddress fromAddress(String organization, String tenantCode, String country, Boundary b,
+            String address) {
         if (addresses.supports(country)) {
             var street = Addresses.street(address);
             if (street.isPresent()) {
@@ -187,9 +202,14 @@ public class LocationResolver {
         }
         String key = Addresses.key(address, b.name());
         var cached = cache.find(key, country);
+        metrics.cacheLookup(cached.isPresent());
         if (cached.isPresent()) {
             return new ByAddress(new Found(new Point(cached.get().lon(), cached.get().lat()), PROVIDER, null, null),
                     null, new Usage(cached.get().provider(), true, false, null));
+        }
+        GeocodingGate.Refusal refusal = gate.checkProviderCall(organization, tenantCode);
+        if (refusal != null) {
+            return new ByAddress(null, "geocoding: " + refusal.message(), Usage.NONE);
         }
         Geocoder.Result r = geocoder.forward(tenantCode, new Query(address, b.name(), country));
         Usage usage = new Usage(r.provider(), false, r.called(), r.costUsd());

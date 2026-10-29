@@ -17,11 +17,11 @@ public class GeocodeUsageRepository {
 
     private static final String INSERT = """
             INSERT INTO miot_integrations.geocode_usage (
-                tenant_id, user_id, source, result, provider, cache_hit, cost_usd
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)""";
+                organization, tenant_id, user_id, source, result, provider, cache_hit, provider_called, cost_usd
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""";
 
-    public record UsageRow(String tenantId, String userId, String source, String result, String provider,
-            boolean cacheHit, BigDecimal costUsd) {
+    public record UsageRow(String organization, String tenantId, String userId, String source, String result,
+            String provider, boolean cacheHit, boolean providerCalled, BigDecimal costUsd) {
     }
 
     private final Instance<Pool> clientInstance;
@@ -33,12 +33,14 @@ public class GeocodeUsageRepository {
 
     public void insert(UsageRow r) {
         Tuple params = Tuple.tuple()
+                .addString(r.organization())
                 .addString(r.tenantId())
                 .addString(r.userId())
                 .addString(r.source())
                 .addString(r.result())
                 .addString(r.provider())
                 .addBoolean(r.cacheHit())
+                .addBoolean(r.providerCalled())
                 .addValue(r.costUsd() == null ? null : Numeric.create(r.costUsd()));
         clientInstance.get().preparedQuery(INSERT).execute(params).await().atMost(QUERY_TIMEOUT);
     }

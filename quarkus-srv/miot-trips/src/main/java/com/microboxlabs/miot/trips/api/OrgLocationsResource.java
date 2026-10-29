@@ -93,9 +93,9 @@ public class OrgLocationsResource extends OrgResourceSupport {
             if (body != null && body.isArray()) {
                 List<LocationResolveRequest> sites = new ArrayList<>();
                 body.forEach(site -> sites.add(site(site)));
-                return Response.ok(resolution.resolveAll(tenant, actor, sites)).build();
+                return Response.ok(resolution.resolveAll(organizationId, tenant, actor, sites)).build();
             }
-            return Response.ok(LocationView.of(resolution.resolve(tenant, actor, site(body)))).build();
+            return Response.ok(LocationView.of(resolution.resolve(organizationId, tenant, actor, site(body)))).build();
         });
     }
 

@@ -10,9 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.Subscription;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingEvents;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingMetrics;
 import com.microboxlabs.miot.integrations.persistence.GeocodeUsageRepository;
+import com.microboxlabs.miot.integrations.persistence.GeocodingPlanRepository;
 import com.microboxlabs.miot.integrations.persistence.GeocodeUsageRepository.UsageRow;
 import com.microboxlabs.miot.integrations.service.GeocodeUsageService;
+import com.microboxlabs.miot.integrations.service.GeocodingPlanService;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.dto.LocationPointRequest;
 import com.microboxlabs.miot.trips.dto.LocationRejectRequest;
@@ -36,6 +41,7 @@ import jakarta.ws.rs.core.Response;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
 class OrgLocationsResourceTest {
@@ -49,6 +55,16 @@ class OrgLocationsResourceTest {
     private final FakeGeofences geofences = new FakeGeofences();
     private final List<UsageRow> usage = new ArrayList<>();
     private final OrgLocationsResource resource = resource();
+
+    /** No organization has a geocoding subscription; nothing is enforced. */
+    private static GeocodingPlanService noPlan() {
+        return new GeocodingPlanService(new GeocodingPlanRepository(null) {
+            @Override
+            public Subscription subscription(String organization) {
+                return null;
+            }
+        }, new GeocodingEvents(e -> CompletableFuture.completedFuture(null)), GeocodingMetrics.NONE, false);
+    }
 
     private OrgLocationsResource resource() {
         AuditService audit = new AuditService(world.auditStore);
@@ -64,7 +80,7 @@ class OrgLocationsResourceTest {
                     public void insert(UsageRow r) {
                         usage.add(r);
                     }
-                }));
+                }, noPlan(), GeocodingMetrics.NONE));
         return new OrgLocationsResource(null, null, null, null, locations, resolution) {
             @Override
             protected String tenantCode(String org) {
@@ -131,8 +147,9 @@ class OrgLocationsResourceTest {
         assertEquals("locationId must be a UUID", results.get(2).error());
         assertEquals(1, geofences.of(TENANT).size(), "a site in review gets no geofence");
         assertEquals(List.of(
-                new UsageRow(TENANT, "ops@example.com", "coordinates", "resolved", null, false, null),
-                new UsageRow(TENANT, "ops@example.com", "coordinates", "needs_review", null, false, null)), usage,
+                new UsageRow(ORG, TENANT, "ops@example.com", "coordinates", "resolved", null, false, false, null),
+                new UsageRow(ORG, TENANT, "ops@example.com", "coordinates", "needs_review", null, false, false,
+                        null)), usage,
                 "one usage row per resolution, none for a site that failed before it");
     }
 

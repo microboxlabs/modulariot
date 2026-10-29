@@ -128,6 +128,7 @@ describe("filterSettings", () => {
       "/users/settings/team",
       "/users/settings/symptoms",
       "/users/settings/trips",
+      "/users/settings/geocoding",
       "/users/settings/communications",
       "/users/settings/selectables",
       "/users/settings/contact-book",

@@ -2423,6 +2423,7 @@
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
         "trips": "Viajes",
+        "geocoding": "Geocodificación",
         "communications": "Comunicaciones",
         "gps": "GPS",
         "symptomTemplates": "Plantillas de síntomas",
@@ -3378,6 +3379,171 @@
           "assigned": "Equipo asignado",
           "save": "Guardar equipos",
           "saved": "Equipos guardados"
+        }
+      },
+      "geocoding": {
+        "pageTitle": "Geocodificación",
+        "pageDescription": "Ubica las direcciones de los viajes: lo que queda por revisar, el proveedor que se usa y lo consumido en el mes.",
+        "menuTitle": "Geocodificación",
+        "sections": {
+          "review": {
+            "label": "Por revisar",
+            "description": "Ubicaciones que no se pudieron ubicar solas"
+          },
+          "provider": {
+            "label": "Proveedor",
+            "description": "Conexión de Mapbox o Google"
+          },
+          "usage": {
+            "label": "Uso mensual",
+            "description": "Llamadas al proveedor, cuota y costo"
+          }
+        },
+        "review": {
+          "title": "Por revisar",
+          "description": "Ubicaciones cuyo punto no se encontró o cayó fuera de su distrito. Marca el punto en el mapa o ingresa un Plus Code; al validarlo se crea la geocerca.",
+          "search": "Buscar por nombre, código o dirección",
+          "count": "{count} por revisar",
+          "loading": "Cargando…",
+          "empty": "No hay ubicaciones por revisar.",
+          "noMatches": "Ninguna ubicación coincide con la búsqueda.",
+          "location": "Ubicación",
+          "address": "Dirección",
+          "district": "Distrito",
+          "reason": "Motivo",
+          "type": "Tipo",
+          "noReason": "Sin motivo",
+          "placeAction": "Ubicar",
+          "rejectAction": "Rechazar",
+          "cancel": "Cancelar",
+          "place": {
+            "title": "Ubicar {name}",
+            "help": "Haz clic en el mapa o arrastra el marcador. Si ingresas un Plus Code, se usa en lugar del punto del mapa.",
+            "map": "Mapa para marcar el punto",
+            "point": "Punto",
+            "noPoint": "Sin punto: haz clic en el mapa",
+            "plusCode": "Plus Code (opcional)",
+            "save": "Validar y crear geocerca"
+          },
+          "reject": {
+            "title": "Rechazar {name}",
+            "note": "Por qué no se puede ubicar",
+            "confirm": "Rechazar"
+          },
+          "types": {
+            "plant": "Planta",
+            "port": "Puerto",
+            "distribution_center": "Centro de distribución",
+            "customer": "Cliente",
+            "zone": "Zona"
+          }
+        },
+        "provider": {
+          "title": "Proveedor de geocodificación",
+          "description": "La conexión con la que se ubican las direcciones que no están en la caché ni en la fuente interna. Sin ella se usa la de la plataforma, si existe.",
+          "loadError": "No se pudo cargar la conexión de geocodificación.",
+          "providerLabel": "Proveedor",
+          "costLabel": "US$ {cost} por llamada",
+          "configureButton": "Configurar",
+          "testButton": "Probar",
+          "editButton": "Editar",
+          "status": {
+            "active": "Activo",
+            "draft": "Sin probar",
+            "inactive": "Inactivo",
+            "failed": "Prueba fallida"
+          },
+          "modal": {
+            "addTitle": "Configurar proveedor de geocodificación",
+            "subtitle": "Elige Mapbox o Google e ingresa el token de la cuenta.",
+            "editTitle": "Editar proveedor de geocodificación",
+            "editSubtitle": "Deja el token vacío para mantener el guardado.",
+            "defaultName": "Geocodificación",
+            "name": "Nombre de la conexión",
+            "provider": "Proveedor",
+            "providerHelp": {
+              "mapbox": "Mapbox Geocoding v6. Los resultados se guardan en la caché si el modo permanente está activo.",
+              "google": "Google Geocoding. Por sus términos, los resultados no se guardan en la caché."
+            },
+            "token": "Token",
+            "tokenKeep": "Vacío mantiene el token guardado",
+            "permanent": "Modo permanente",
+            "permanentHelp": "Permite guardar los resultados. Mapbox lo cobra aparte.",
+            "cost": "Costo por llamada (US$)",
+            "costHelp": "Se copia en cada registro de uso. Vacío: sin costo.",
+            "cancel": "Cancelar",
+            "saving": "Guardando...",
+            "createButton": "Crear",
+            "saveButton": "Guardar"
+          },
+          "toast": {
+            "created": "Proveedor de geocodificación configurado",
+            "updated": "Proveedor de geocodificación actualizado",
+            "testSuccess": "Prueba de conexión exitosa",
+            "testFailed": "La prueba de conexión falló",
+            "error": "Ocurrió un error"
+          },
+          "validation": {
+            "nameRequired": "El nombre de la conexión es obligatorio",
+            "tokenRequired": "Ingresa el token del proveedor",
+            "costInvalid": "Ingresa un número, por ejemplo 0.005"
+          }
+        },
+        "usage": {
+          "title": "Uso mensual",
+          "description": "Cada llamada al proveedor cuenta para la cuota del mes (UTC). La caché, la fuente interna, las geocercas, los Plus Codes y las coordenadas no cuentan.",
+          "previousMonth": "Mes anterior",
+          "nextMonth": "Mes siguiente",
+          "loadError": "No se pudo cargar el uso de geocodificación.",
+          "forbidden": "Solo un dueño de la organización puede ver el uso de geocodificación.",
+          "notEnforced": "La cuota aún no se aplica: no se rechaza ninguna llamada, pero el uso se registra.",
+          "noSubscription": "La organización no tiene suscripción. La cuota del plan es {quota} llamadas al mes; cada llamada extra cuesta {price}.",
+          "quota": {
+            "title": "Cuota",
+            "description": "Llamadas al proveedor en el mes",
+            "unit": "llamadas",
+            "remaining": "Quedan {count}",
+            "onExhausted": {
+              "review": "al agotarse, las ubicaciones van a revisión",
+              "overage": "al agotarse, cada llamada se cobra como excedente"
+            }
+          },
+          "resolutions": {
+            "title": "Resoluciones",
+            "description": "Ubicaciones resueltas por cualquier fuente",
+            "cacheHits": "{count} desde la caché ({rate})"
+          },
+          "cost": {
+            "title": "Costo",
+            "description": "Lo que cobró el proveedor y el excedente",
+            "provider": "Proveedor",
+            "overage": "Excedente",
+            "overageCalls": "{count} llamadas sobre la cuota a {price} cada una"
+          },
+          "bySource": {
+            "title": "Por fuente y resultado",
+            "empty": "Sin resoluciones en este mes.",
+            "source": "Fuente",
+            "result": "Resultado",
+            "resolutions": "Resoluciones",
+            "cacheHits": "Caché",
+            "providerCalls": "Llamadas",
+            "cost": "Costo"
+          },
+          "sources": {
+            "geofence": "Geocerca",
+            "plus_code": "Plus Code",
+            "coordinates": "Coordenadas",
+            "internal": "Fuente interna",
+            "provider": "Proveedor",
+            "manual": "Manual",
+            "none": "Ninguna"
+          },
+          "results": {
+            "resolved": "Resuelta",
+            "needs_review": "Por revisar",
+            "rejected": "Rechazada"
+          }
         }
       },
       "symptomCatalog": {
@@ -5484,6 +5650,7 @@
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
         "trips": "Viajes",
+        "geocoding": "Geocodificación",
         "communications": "Comunicaciones",
         "gps": "GPS",
         "fleet": "Flota"

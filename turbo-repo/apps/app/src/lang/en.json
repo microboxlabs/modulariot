@@ -2423,6 +2423,7 @@
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
         "trips": "Trips",
+        "geocoding": "Geocoding",
         "communications": "Communications",
         "gps": "GPS",
         "symptomTemplates": "Symptom templates",
@@ -3378,6 +3379,171 @@
           "assigned": "Assigned team",
           "save": "Save teams",
           "saved": "Teams saved"
+        }
+      },
+      "geocoding": {
+        "pageTitle": "Geocoding",
+        "pageDescription": "Locates trip addresses: what is left to review, the provider in use and the month's usage.",
+        "menuTitle": "Geocoding",
+        "sections": {
+          "review": {
+            "label": "To review",
+            "description": "Locations that could not be placed on their own"
+          },
+          "provider": {
+            "label": "Provider",
+            "description": "Mapbox or Google connection"
+          },
+          "usage": {
+            "label": "Monthly usage",
+            "description": "Provider calls, quota and cost"
+          }
+        },
+        "review": {
+          "title": "To review",
+          "description": "Locations whose point was not found or fell outside their district. Set the point on the map or enter a Plus Code; validating it creates the geofence.",
+          "search": "Search by name, code or address",
+          "count": "{count} to review",
+          "loading": "Loading…",
+          "empty": "No locations to review.",
+          "noMatches": "No location matches the search.",
+          "location": "Location",
+          "address": "Address",
+          "district": "District",
+          "reason": "Reason",
+          "type": "Type",
+          "noReason": "No reason",
+          "placeAction": "Place",
+          "rejectAction": "Reject",
+          "cancel": "Cancel",
+          "place": {
+            "title": "Place {name}",
+            "help": "Click the map or drag the marker. A Plus Code, when entered, is used instead of the map point.",
+            "map": "Map to set the point",
+            "point": "Point",
+            "noPoint": "No point: click the map",
+            "plusCode": "Plus Code (optional)",
+            "save": "Validate and create geofence"
+          },
+          "reject": {
+            "title": "Reject {name}",
+            "note": "Why it cannot be located",
+            "confirm": "Reject"
+          },
+          "types": {
+            "plant": "Plant",
+            "port": "Port",
+            "distribution_center": "Distribution center",
+            "customer": "Customer",
+            "zone": "Zone"
+          }
+        },
+        "provider": {
+          "title": "Geocoding provider",
+          "description": "The connection that locates addresses not found in the cache or the internal source. Without it the platform's is used, if there is one.",
+          "loadError": "The geocoding connection could not be loaded.",
+          "providerLabel": "Provider",
+          "costLabel": "US$ {cost} per call",
+          "configureButton": "Configure",
+          "testButton": "Test",
+          "editButton": "Edit",
+          "status": {
+            "active": "Active",
+            "draft": "Not tested",
+            "inactive": "Inactive",
+            "failed": "Test failed"
+          },
+          "modal": {
+            "addTitle": "Configure geocoding provider",
+            "subtitle": "Choose Mapbox or Google and enter the account's token.",
+            "editTitle": "Edit geocoding provider",
+            "editSubtitle": "Leave the token empty to keep the stored one.",
+            "defaultName": "Geocoding",
+            "name": "Connection name",
+            "provider": "Provider",
+            "providerHelp": {
+              "mapbox": "Mapbox Geocoding v6. Results are cached when permanent mode is on.",
+              "google": "Google Geocoding. Its terms do not allow caching results."
+            },
+            "token": "Token",
+            "tokenKeep": "Empty keeps the stored token",
+            "permanent": "Permanent mode",
+            "permanentHelp": "Allows storing results. Mapbox charges it separately.",
+            "cost": "Cost per call (US$)",
+            "costHelp": "Copied into each usage record. Empty: no cost.",
+            "cancel": "Cancel",
+            "saving": "Saving...",
+            "createButton": "Create",
+            "saveButton": "Save"
+          },
+          "toast": {
+            "created": "Geocoding provider configured",
+            "updated": "Geocoding provider updated",
+            "testSuccess": "Connection test succeeded",
+            "testFailed": "Connection test failed",
+            "error": "Something went wrong"
+          },
+          "validation": {
+            "nameRequired": "The connection name is required",
+            "tokenRequired": "Enter the provider's token",
+            "costInvalid": "Enter a number, for example 0.005"
+          }
+        },
+        "usage": {
+          "title": "Monthly usage",
+          "description": "Each provider call counts toward the month's quota (UTC). The cache, the internal source, geofences, Plus Codes and coordinates do not count.",
+          "previousMonth": "Previous month",
+          "nextMonth": "Next month",
+          "loadError": "The geocoding usage could not be loaded.",
+          "forbidden": "Only an owner of the organization can see the geocoding usage.",
+          "notEnforced": "The quota is not enforced yet: no call is refused, but usage is recorded.",
+          "noSubscription": "The organization has no subscription. The plan's quota is {quota} calls a month; each extra call costs {price}.",
+          "quota": {
+            "title": "Quota",
+            "description": "Provider calls this month",
+            "unit": "calls",
+            "remaining": "{count} left",
+            "onExhausted": {
+              "review": "once used up, locations go to review",
+              "overage": "once used up, each call is charged as overage"
+            }
+          },
+          "resolutions": {
+            "title": "Resolutions",
+            "description": "Locations resolved by any source",
+            "cacheHits": "{count} from the cache ({rate})"
+          },
+          "cost": {
+            "title": "Cost",
+            "description": "What the provider charged, and the overage",
+            "provider": "Provider",
+            "overage": "Overage",
+            "overageCalls": "{count} calls over the quota at {price} each"
+          },
+          "bySource": {
+            "title": "By source and result",
+            "empty": "No resolutions this month.",
+            "source": "Source",
+            "result": "Result",
+            "resolutions": "Resolutions",
+            "cacheHits": "Cache",
+            "providerCalls": "Calls",
+            "cost": "Cost"
+          },
+          "sources": {
+            "geofence": "Geofence",
+            "plus_code": "Plus Code",
+            "coordinates": "Coordinates",
+            "internal": "Internal source",
+            "provider": "Provider",
+            "manual": "Manual",
+            "none": "None"
+          },
+          "results": {
+            "resolved": "Resolved",
+            "needs_review": "To review",
+            "rejected": "Rejected"
+          }
         }
       },
       "symptomCatalog": {
@@ -5484,6 +5650,7 @@
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
         "trips": "Trips",
+        "geocoding": "Geocoding",
         "communications": "Communications",
         "gps": "GPS",
         "fleet": "Fleet"

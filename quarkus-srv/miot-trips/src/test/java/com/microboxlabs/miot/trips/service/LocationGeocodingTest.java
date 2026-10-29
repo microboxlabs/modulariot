@@ -68,6 +68,15 @@ class LocationGeocodingTest {
     }
 
     @Test
+    void aProviderRefusalTakesPriorityOverInvalidPointInput() {
+        Outcome out = resolver(exhausted, new GeocodingMetrics(new io.micrometer.core.instrument.simple.SimpleMeterRegistry())).resolve(ORG, TENANT,
+                new Site("synthetic", "Synthetic site", "Synthetic street 101", "PE", "150122", null, "INVALID", null, null));
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertTrue(out.placement().note().contains("1000 geocoding resolutions"));
+        assertTrue(stub.queries.isEmpty());
+    }
+
+    @Test
     void sameNamedDistrictsHaveSeparateCacheEntries() {
         stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
         resolver().resolve(ORG, TENANT, larco("Synthetic street 101"));
@@ -257,7 +266,7 @@ class LocationGeocodingTest {
     void anExhaustedQuotaSendsTheSiteToReviewWithoutCallingTheProvider() {
         stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
 
-        Outcome out = resolver(exhausted, GeocodingMetrics.NONE).resolve(ORG, TENANT, larco("Av. Larco 101"));
+        Outcome out = resolver(exhausted, new GeocodingMetrics(new io.micrometer.core.instrument.simple.SimpleMeterRegistry())).resolve(ORG, TENANT, larco("Av. Larco 101"));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals("geocoding: the organization used its 1000 geocoding resolutions for this month",
@@ -272,7 +281,7 @@ class LocationGeocodingTest {
     void freeSourcesDoNotAskTheGate() {
         stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
         resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
-        LocationResolver gated = resolver(exhausted, GeocodingMetrics.NONE);
+        LocationResolver gated = resolver(exhausted, new GeocodingMetrics(new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
 
         Outcome cached = gated.resolve(ORG, TENANT, larco("Av. Larco 101"));
         Outcome internal = gated.resolve(ORG, TENANT, new Site("S-1", "Oficina", "Avenida Providencia 1234", "CL",

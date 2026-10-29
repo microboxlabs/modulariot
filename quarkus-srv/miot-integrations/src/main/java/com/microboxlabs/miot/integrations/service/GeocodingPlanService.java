@@ -104,18 +104,19 @@ public class GeocodingPlanService {
 
     /** {@code month} null is the current one. The platform's provider cost is left out. */
     public OrgPlanResponse orgPlan(String organization, YearMonth month) {
-        Plan plan = repository.plan();
-        Subscription subscription = repository.subscription(organization);
-        return new OrgPlanResponse(plan, subscription,
-                usage(organization, plan, subscription, or(month)).withoutProviderCost(), plan.enforced());
+        YearMonth period = or(month);
+        Plan terms = planFor(period);
+        Subscription subscription = subscriptionFor(organization, period);
+        return new OrgPlanResponse(terms == null ? repository.plan() : terms, subscription,
+                usage(organization, terms, subscription, period).withoutProviderCost(), repository.plan().enforced());
     }
 
     /** Every organization with a subscription or with usage in the month, with the platform's provider cost. */
     public List<OrgUsage> allUsage(YearMonth month) {
         YearMonth m = or(month);
-        Plan plan = repository.plan();
+        Plan plan = planFor(m);
         return repository.organizations(start(m), start(m.plusMonths(1))).stream().map(org -> {
-            Subscription subscription = repository.subscription(org);
+            Subscription subscription = subscriptionFor(org, m);
             return new OrgUsage(org, subscription, usage(org, plan, subscription, m));
         }).toList();
     }
@@ -180,13 +181,22 @@ public class GeocodingPlanService {
         long cacheHits = bySource.stream().mapToLong(SourceUse::cacheHits).sum();
         BigDecimal cost = bySource.stream().map(SourceUse::providerCostUsd).filter(c -> c != null)
                 .reduce(BigDecimal::add).orElse(null);
-        Integer quota = subscription == null ? null : quota(plan, subscription);
+        Integer quota = subscription == null || plan == null ? null : quota(plan, subscription);
         long overage = quota == null ? 0 : Math.max(0, used - quota);
-        BigDecimal overageUsd = subscription != null && OVERAGE.equals(subscription.onExhausted())
+        BigDecimal overageUsd = subscription != null && plan != null && OVERAGE.equals(subscription.onExhausted())
                 ? plan.overagePriceUsd().multiply(BigDecimal.valueOf(overage))
                 : BigDecimal.ZERO;
-        BigDecimal charge = subscription == null ? null : plan.monthlyPriceUsd().add(overageUsd);
+        BigDecimal charge = subscription == null || plan == null ? null : plan.monthlyPriceUsd().add(overageUsd);
         return new Usage(from, to, quota, used, resolutions, cacheHits, cost, overage, overageUsd, charge, bySource);
+    }
+
+    private Plan planFor(YearMonth period) {
+        return period.isBefore(YearMonth.now(clock)) ? repository.planAt(start(period.plusMonths(1))) : repository.plan();
+    }
+
+    private Subscription subscriptionFor(String organization, YearMonth period) {
+        return period.isBefore(YearMonth.now(clock))
+                ? repository.subscriptionAt(organization, start(period.plusMonths(1))) : repository.subscription(organization);
     }
 
     private Refusal refuse(String code, String message) {

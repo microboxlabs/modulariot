@@ -70,7 +70,7 @@ public final class GeocodingPlanDtos {
      * One calendar month (UTC). {@code used} is the provider calls; {@code quota} is null without a subscription.
      * {@code providerCostUsd} is the platform's cost, shown only to the platform owner. {@code chargeUsd} is what
      * the organization is charged from the plan: the monthly price plus {@code overageUsd}, which is charged only
-     * with {@code onExhausted = overage}. It is null without a subscription.
+     * with {@code onExhausted = overage}. It is null without a subscription or when historical billing terms are unavailable.
      */
     public record Usage(
             OffsetDateTime periodStart,

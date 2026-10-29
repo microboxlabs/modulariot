@@ -54,6 +54,20 @@ class GeocodingPlanServiceTest {
         List<SourceUse> bySource = List.of();
         int subscriptionReads;
         boolean failing;
+        boolean historicalOverride;
+        Plan historicalPlan;
+        final Map<String, Subscription> historicalSubscriptions = new HashMap<>();
+
+        @Override
+        public Plan planAt(OffsetDateTime end) {
+            return historicalOverride ? historicalPlan : plan;
+        }
+
+        @Override
+        public Subscription subscriptionAt(String organization, OffsetDateTime end) {
+            return historicalOverride ? historicalSubscriptions.get(organization) : subscriptions.get(organization);
+        }
+
 
         Plans() {
             super(null);
@@ -126,6 +140,45 @@ class GeocodingPlanServiceTest {
 
     private void subscribe(Integer quota, String onExhausted) {
         plans.subscriptions.put(ORG, new Subscription(quota, onExhausted, null, null));
+    }
+
+    @Test
+    void completedMonthsKeepTheirPricesQuotaAndExhaustionPolicy() {
+        subscribe(100, "overage");
+        plans.bySource = List.of(new SourceUse("provider", "resolved", 112, 0, 112, null));
+        plans.historicalOverride = true;
+        plans.historicalPlan = plans.plan;
+        plans.historicalSubscriptions.put(ORG, plans.subscriptions.get(ORG));
+        GeocodingPlanService service = service(false);
+        var before = service.orgPlan(ORG, YearMonth.of(2026, 9));
+        service.setPlan(new SetPlanRequest(new BigDecimal("99"), 20, new BigDecimal("2"), 80, null), "owner");
+        service.setSubscription(ORG, new SetSubscriptionRequest(1, "review"), "owner");
+        var after = service.orgPlan(ORG, YearMonth.of(2026, 9));
+        assertEquals(before.usage(), after.usage());
+        assertEquals(before.subscription(), after.subscription());
+        assertEquals(0, new BigDecimal("0.06").compareTo(after.usage().chargeUsd()));
+        assertEquals(new BigDecimal("99"), service.orgPlan(ORG, null).usage().chargeUsd());
+    }
+
+    @Test
+    void aNewSubscriptionCannotChargeAnEarlierMonth() {
+        plans.historicalOverride = true;
+        plans.historicalPlan = plans.plan;
+        GeocodingPlanService service = service(false);
+        service.setSubscription(ORG, new SetSubscriptionRequest(1, "overage"), "owner");
+        var past = service.orgPlan(ORG, YearMonth.of(2026, 9));
+        assertNull(past.subscription());
+        assertNull(past.usage().chargeUsd());
+        assertNull(past.usage().quota());
+    }
+
+    @Test
+    void unknownHistoricalPricesAreNotReplacedWithCurrentPrices() {
+        plans.historicalOverride = true;
+        plans.historicalSubscriptions.put(ORG, new Subscription(10, "overage", "owner", null));
+        var past = service(false).orgPlan(ORG, YearMonth.of(2026, 9));
+        assertNull(past.usage().chargeUsd());
+        assertNull(past.usage().quota());
     }
 
     @Test

@@ -26,14 +26,14 @@ public class GeocodingPlanRepository {
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(10);
 
     private static final String PLAN_COLUMNS =
-            "monthly_price_usd, resolutions_per_month, overage_price_usd, alert_pct, updated_by, updated_at";
+            "monthly_price_usd, resolutions_per_month, overage_price_usd, alert_pct, enforced, updated_by, updated_at";
 
     private static final String PLAN = "SELECT " + PLAN_COLUMNS + " FROM miot_integrations.geocoding_plan WHERE id = 1";
 
     private static final String SET_PLAN = """
             UPDATE miot_integrations.geocoding_plan
                SET monthly_price_usd = $1, resolutions_per_month = $2, overage_price_usd = $3, alert_pct = $4,
-                   updated_by = $5, updated_at = now()
+                   enforced = $5, updated_by = $6, updated_at = now()
              WHERE id = 1
             RETURNING\s""" + PLAN_COLUMNS;
 
@@ -89,12 +89,13 @@ public class GeocodingPlanRepository {
     }
 
     public Plan setPlan(BigDecimal monthlyPriceUsd, int resolutionsPerMonth, BigDecimal overagePriceUsd,
-                        int alertPct, String actor) {
+                        int alertPct, boolean enforced, String actor) {
         Tuple params = Tuple.tuple()
                 .addValue(Numeric.create(monthlyPriceUsd))
                 .addInteger(resolutionsPerMonth)
                 .addValue(Numeric.create(overagePriceUsd))
                 .addInteger(alertPct)
+                .addBoolean(enforced)
                 .addString(actor);
         return mapPlan(execute(SET_PLAN, params).iterator().next());
     }
@@ -149,6 +150,7 @@ public class GeocodingPlanRepository {
                 row.getInteger("resolutions_per_month"),
                 row.getBigDecimal("overage_price_usd"),
                 row.getInteger("alert_pct"),
+                row.getBoolean("enforced"),
                 row.getString("updated_by"),
                 row.getOffsetDateTime("updated_at"));
     }

@@ -39,7 +39,7 @@ class GeocodeUsageServiceTest {
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final GeocodeUsageService service = new GeocodeUsageService(usage,
             new GeocodingPlanService(plans, new GeocodingEvents(e -> CompletableFuture.completedFuture(null)),
-                    GeocodingMetrics.NONE, false, Clock.systemUTC()),
+                    GeocodingMetrics.NONE, Clock.systemUTC()),
             new GeocodingMetrics(meters));
     private static final BigDecimal PRICE = new BigDecimal("0.005");
 

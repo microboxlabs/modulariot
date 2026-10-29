@@ -4914,7 +4914,8 @@
         "postgrest": "Data source for dashboards: tested with its credential, then you choose which functions to expose.",
         "bigquery": "Dashboard data source: BigQuery SQL with a Google service account.",
         "managedGeocoding": "Geocoding · platform provider",
-        "managedGeocodingHelp": "Locates addresses with the provider the platform contracts, within the organization's plan. Platform owners only."
+        "managedGeocodingHelp": "Locates addresses with the provider the platform contracts, within the organization's plan. Platform owners only.",
+        "platformGeocodingHelp": "Set the provider the platform contracts: provider, credential and cost per call. Organizations use it through their managed connection."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -4930,7 +4931,8 @@
         "testFailed": "Connection test failed",
         "connectionDeleted": "Connection deleted",
         "managedGeocodingCreating": "Connecting the platform geocoding…",
-        "managedGeocodingCreated": "Platform geocoding connected"
+        "managedGeocodingCreated": "Platform geocoding connected",
+        "platformGeocodingSaved": "Platform geocoding provider saved"
       },
       "template": {
         "form": {
@@ -5077,7 +5079,8 @@
       "managedGeocodingSetup": {
         "title": "Platform geocoding provider",
         "body": "The platform has no provider yet. Choose its credential and set it here: it is saved once for the platform, then this organization is connected.",
-        "submit": "Save and connect"
+        "submit": "Save and connect",
+        "platformBody": "The provider every organization uses. Choose the Platform's Mapbox or Google Maps credential and our cost per call."
       }
     },
     "calendar": {

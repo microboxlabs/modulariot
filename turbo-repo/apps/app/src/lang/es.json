@@ -4914,7 +4914,8 @@
         "postgrest": "Fuente de datos para dashboards: se prueba con su credencial y luego eliges qué funciones exponer.",
         "bigquery": "Fuente de datos para dashboards: SQL de BigQuery con una cuenta de servicio de Google.",
         "managedGeocoding": "Geocoding · proveedor de la plataforma",
-        "managedGeocodingHelp": "Ubica direcciones con el proveedor que contrata la plataforma, dentro del plan de la organización. Solo dueños de la plataforma."
+        "managedGeocodingHelp": "Ubica direcciones con el proveedor que contrata la plataforma, dentro del plan de la organización. Solo dueños de la plataforma.",
+        "platformGeocodingHelp": "Configura el proveedor que contrata la plataforma: proveedor, credencial y costo por consulta. Las organizaciones lo usan con su conexión administrada."
       },
       "validation": {
         "nameRequired": "El nombre es obligatorio",
@@ -4930,7 +4931,8 @@
         "testFailed": "La prueba de conexión falló",
         "connectionDeleted": "Conexión eliminada",
         "managedGeocodingCreating": "Conectando el geocoding de la plataforma…",
-        "managedGeocodingCreated": "Geocoding de la plataforma conectado"
+        "managedGeocodingCreated": "Geocoding de la plataforma conectado",
+        "platformGeocodingSaved": "Proveedor de geocoding de la plataforma guardado"
       },
       "template": {
         "form": {
@@ -5077,7 +5079,8 @@
       "managedGeocodingSetup": {
         "title": "Proveedor de geocoding de la plataforma",
         "body": "La plataforma aún no tiene proveedor. Elige su credencial y configúralo aquí: se guarda una sola vez para la plataforma y luego se conecta esta organización.",
-        "submit": "Guardar y conectar"
+        "submit": "Guardar y conectar",
+        "platformBody": "El proveedor que usan todas las organizaciones. Elige la credencial Mapbox o Google Maps de la Plataforma y nuestro costo por consulta."
       }
     },
     "calendar": {

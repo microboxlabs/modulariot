@@ -33,6 +33,8 @@ interface TemplatePickerModalProps {
   readonly onSelectNative: (provider: NativeProvider) => void;
   /** Offered to platform owners: geocoding through the platform's provider. */
   readonly onSelectManagedGeocoding?: () => void;
+  /** In the Plataforma scope the option sets the provider itself. */
+  readonly managedGeocodingInPlatform?: boolean;
   readonly dict: I18nRecord;
 }
 
@@ -51,6 +53,7 @@ export function TemplatePickerModal({
   onSelect,
   onSelectNative,
   onSelectManagedGeocoding,
+  managedGeocodingInPlatform = false,
   dict,
 }: Readonly<TemplatePickerModalProps>) {
   const [query, setQuery] = useState("");
@@ -110,7 +113,11 @@ export function TemplatePickerModal({
           {onSelectManagedGeocoding && (
             <NativeOption
               title={tr("picker.managedGeocoding", dict)}
-              description={tr("picker.managedGeocodingHelp", dict)}
+              description={
+                managedGeocodingInPlatform
+                  ? tr("picker.platformGeocodingHelp", dict)
+                  : tr("picker.managedGeocodingHelp", dict)
+              }
               icon={
                 <BrandLogo
                   logo={GEOCODING_LOGO}

@@ -25,6 +25,7 @@ import {
   removeManagedGeocoding,
 } from "@/features/settings-admin/platform/org-geocoding-connection";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
 import { ManagedGeocodingProviderModal } from "./managed-geocoding-provider-modal";
 import {
   connectionTypeName,
@@ -97,6 +98,7 @@ export function IntegrationConfigPageContent({
 }: Readonly<IntegrationConfigPageContentProps>) {
   const { activeOrg } = useOrgScopes();
   const orgSlug = activeOrg?.slug ?? null;
+  const inPlatformScope = orgSlug === PLATFORM_SCOPE_SLUG;
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -229,6 +231,11 @@ export function IntegrationConfigPageContent({
   async function handleManagedGeocoding() {
     if (!orgSlug) return;
     setPickerOpen(false);
+    // The Plataforma scope holds the provider itself, not a managed connection to it.
+    if (inPlatformScope) {
+      setProviderSetupOpen(true);
+      return;
+    }
     const pending = toast.loading(tr("toast.managedGeocodingCreating", dict));
     try {
       await connectManagedGeocoding(orgSlug);
@@ -248,6 +255,11 @@ export function IntegrationConfigPageContent({
 
   async function handleProviderSaved() {
     setProviderSetupOpen(false);
+    if (inPlatformScope) {
+      refresh();
+      toast.success(tr("toast.platformGeocodingSaved", dict));
+      return;
+    }
     await handleManagedGeocoding();
   }
 
@@ -490,12 +502,14 @@ export function IntegrationConfigPageContent({
         onSelectManagedGeocoding={
           isPlatformOwner ? () => void handleManagedGeocoding() : undefined
         }
+        managedGeocodingInPlatform={inPlatformScope}
         dict={dict}
       />
 
       {isPlatformOwner && (
         <ManagedGeocodingProviderModal
           isOpen={providerSetupOpen}
+          mode={inPlatformScope ? "platform" : "organization"}
           dict={dict}
           providerDict={platformGeocodingDict(rootDict)}
           onClose={() => setProviderSetupOpen(false)}

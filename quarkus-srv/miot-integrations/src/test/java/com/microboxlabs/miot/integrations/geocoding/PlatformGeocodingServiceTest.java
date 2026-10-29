@@ -74,8 +74,20 @@ class PlatformGeocodingServiceTest {
     }
 
     @Test
-    void switchingToGoogleKeepsTheCredentialAndDropsPermanent() {
-        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", false, null), "owner");
+    void aCredentialTaggedForTheOtherProviderIsRefused() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.put(new SetPlatformGeocodingRequest("google", "cred-mapbox", null, null), "owner"));
+        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, null), "owner");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.put(new SetPlatformGeocodingRequest("google", null, null, null), "owner"));
+        assertEquals("google", service.put(
+                new SetPlatformGeocodingRequest("google", "cred-google", null, null), "owner").provider());
+    }
+
+    @Test
+    void switchingToGoogleKeepsAPlainTokenAndDropsPermanent() {
+        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-plain", false, null), "owner");
 
         PlatformGeocodingView view = service.put(
                 new SetPlatformGeocodingRequest("google", null, true, new BigDecimal("0.005")), "owner");
@@ -83,7 +95,7 @@ class PlatformGeocodingServiceTest {
         assertEquals("google", view.provider());
         assertNull(view.permanent());
         assertEquals(URI.create("https://maps.googleapis.com"), repository.connection.baseUrl());
-        assertEquals("cred-mapbox", repository.connection.credentialProfileId());
+        assertEquals("cred-plain", repository.connection.credentialProfileId());
     }
 
     @Test
@@ -159,7 +171,9 @@ class PlatformGeocodingServiceTest {
 
     private static final class FakeCredentials extends CredentialProfileService {
         private final List<CredentialProfileResponse> stored = List.of(
-                credential("cred-mapbox", "Mapbox", AuthType.BEARER_TOKEN, Map.of()),
+                credential("cred-mapbox", "Mapbox", AuthType.BEARER_TOKEN, Map.of("provider", "mapbox")),
+                credential("cred-google", "Google Maps", AuthType.BEARER_TOKEN, Map.of("provider", "google_maps")),
+                credential("cred-plain", "Token", AuthType.BEARER_TOKEN, Map.of()),
                 credential("cred-basic", "Basic", AuthType.BASIC, Map.of()),
                 credential("cred-managed", "Managed", AuthType.BEARER_TOKEN, Map.of("managed", true)));
 

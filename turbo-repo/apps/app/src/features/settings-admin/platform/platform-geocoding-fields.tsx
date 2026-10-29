@@ -2,7 +2,10 @@
 
 import { Checkbox, Label, Select, TextInput } from "flowbite-react";
 import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
-import type { CredentialListItem } from "@/features/credentials/credential.types";
+import type {
+  CredentialListItem,
+  CredentialTypeId,
+} from "@/features/credentials/credential.types";
 import { useCredentials } from "@/features/credentials/use-credentials";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -22,10 +25,25 @@ const PROVIDERS: readonly { id: GeocodingProviderName; label: string }[] = [
   { id: "google", label: "Google" },
 ];
 
-/** A bearer token of the platform scope; managed credentials have no secret of their own. */
-function isPlainBearerToken(credential: CredentialListItem): boolean {
+const PROVIDER_CREDENTIAL: Record<GeocodingProviderName, CredentialTypeId> = {
+  mapbox: "MAPBOX",
+  google: "GOOGLE_MAPS",
+};
+
+/**
+ * The provider's own credential type, or a plain bearer token. Managed
+ * credentials have no secret of their own.
+ */
+function fitsProvider(
+  credential: CredentialListItem,
+  provider: GeocodingProviderName
+): boolean {
   const config = credential.config as Record<string, unknown>;
-  return credential.typeId === "BEARER_TOKEN" && config.managed !== true;
+  if (config.managed === true) return false;
+  return (
+    credential.typeId === PROVIDER_CREDENTIAL[provider] ||
+    credential.typeId === "BEARER_TOKEN"
+  );
 }
 
 /** Provider, credential, permanent mode and cost of the platform's geocoding provider. */
@@ -36,7 +54,7 @@ export default function PlatformGeocodingFields({
   onChange,
 }: Readonly<PlatformGeocodingFieldsProps>) {
   const { credentials, isLoading } = useCredentials(PLATFORM_SCOPE_SLUG);
-  const tokens = credentials.filter(isPlainBearerToken);
+  const tokens = credentials.filter((c) => fitsProvider(c, draft.provider));
   const credentialHint =
     tokens.length === 0
       ? tr("credentialNone", dict)

@@ -1662,8 +1662,8 @@
           },
           "credential": "Credencial",
           "credentialPick": "Elige una credencial",
-          "credentialHelp": "Token del proveedor, guardado en Credenciales con el ámbito Plataforma.",
-          "credentialNone": "No hay tokens en Credenciales de la Plataforma. Cambia al ámbito Plataforma, crea una credencial de tipo token y vuelve aquí.",
+          "credentialHelp": "Credencial Mapbox o Google Maps del ámbito Plataforma, guardada en Credenciales.",
+          "credentialNone": "No hay credenciales de este proveedor en la Plataforma. Cambia al ámbito Plataforma y crea una credencial Mapbox o Google Maps en Credenciales.",
           "credentialRequired": "Elige la credencial con el token del proveedor.",
           "permanent": "Modo permanente",
           "permanentHelp": "Permite guardar los resultados. Mapbox lo cobra aparte.",
@@ -2674,6 +2674,14 @@
             "name": "WhatsApp",
             "description": "El token de acceso de una app de Meta, para el canal de WhatsApp."
           },
+          "mapbox": {
+            "name": "Mapbox",
+            "description": "Un token de acceso de Mapbox, para ubicar direcciones (geocoding)."
+          },
+          "googleMaps": {
+            "name": "Google Maps",
+            "description": "Una clave API de Google Maps Platform, para ubicar direcciones (geocoding)."
+          },
           "basic": {
             "name": "Autenticación básica",
             "description": "Usuario y contraseña enviados como HTTP basic."
@@ -2796,6 +2804,14 @@
           "resendEditTitle": "Editar clave de Resend",
           "resendSubtitle": "La clave con la que el canal de correo envía. Basta una clave de solo envío.",
           "resendTokenHelp": "Empieza con re_. Se guarda cifrada y nunca se devuelve.",
+          "mapboxAddTitle": "Nuevo token de Mapbox",
+          "mapboxEditTitle": "Editar token de Mapbox",
+          "mapboxSubtitle": "El token con el que la plataforma consulta el geocoding de Mapbox.",
+          "mapboxTokenHelp": "Usa un token secreto de servidor (sk.). Se guarda cifrado y nunca se devuelve.",
+          "googleMapsAddTitle": "Nueva clave de Google Maps",
+          "googleMapsEditTitle": "Editar clave de Google Maps",
+          "googleMapsSubtitle": "La clave API con la que la plataforma consulta la Geocoding API de Google.",
+          "googleMapsTokenHelp": "Empieza con AIza. Restríngela a la Geocoding API. Se guarda cifrada y nunca se devuelve.",
           "whatsappAddTitle": "Nuevo token de WhatsApp",
           "whatsappEditTitle": "Editar token de WhatsApp",
           "whatsappSubtitle": "El token de acceso con el que el canal de WhatsApp llama a la API de Meta.",

@@ -1662,8 +1662,8 @@
           },
           "credential": "Credential",
           "credentialPick": "Choose a credential",
-          "credentialHelp": "The provider's token, kept in Credentials under the Platform scope.",
-          "credentialNone": "There are no tokens in the Platform's Credentials. Switch to the Platform scope, create a token credential and come back.",
+          "credentialHelp": "A Mapbox or Google Maps credential of the Platform scope, kept in Credentials.",
+          "credentialNone": "The Platform has no credential for this provider. Switch to the Platform scope and create a Mapbox or Google Maps credential in Credentials.",
           "credentialRequired": "Choose the credential that holds the provider's token.",
           "permanent": "Permanent mode",
           "permanentHelp": "Allows keeping results. Mapbox charges it separately.",
@@ -2674,6 +2674,14 @@
             "name": "WhatsApp",
             "description": "A Meta app's access token, for the WhatsApp channel."
           },
+          "mapbox": {
+            "name": "Mapbox",
+            "description": "A Mapbox access token, for locating addresses (geocoding)."
+          },
+          "googleMaps": {
+            "name": "Google Maps",
+            "description": "A Google Maps Platform API key, for locating addresses (geocoding)."
+          },
           "basic": {
             "name": "Basic auth",
             "description": "Username and password sent as HTTP basic authentication."
@@ -2796,6 +2804,14 @@
           "resendEditTitle": "Edit Resend key",
           "resendSubtitle": "The key the email channel sends with. A send-only key is enough.",
           "resendTokenHelp": "Starts with re_. Stored encrypted and never returned.",
+          "mapboxAddTitle": "New Mapbox token",
+          "mapboxEditTitle": "Edit Mapbox token",
+          "mapboxSubtitle": "The token the platform uses for Mapbox geocoding.",
+          "mapboxTokenHelp": "Use a secret server token (sk.). Stored encrypted and never returned.",
+          "googleMapsAddTitle": "New Google Maps key",
+          "googleMapsEditTitle": "Edit Google Maps key",
+          "googleMapsSubtitle": "The API key the platform uses for Google's Geocoding API.",
+          "googleMapsTokenHelp": "Starts with AIza. Restrict it to the Geocoding API. Stored encrypted and never returned.",
           "whatsappAddTitle": "New WhatsApp token",
           "whatsappEditTitle": "Edit WhatsApp token",
           "whatsappSubtitle": "The access token the WhatsApp channel calls the Meta API with.",

@@ -25,6 +25,8 @@ export type CredentialTypeId =
   | "BEARER_TOKEN"
   | "RESEND"
   | "WHATSAPP"
+  | "MAPBOX"
+  | "GOOGLE_MAPS"
   | "BASIC_AUTH";
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
@@ -262,6 +264,32 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     available: true,
     supportsTest: false,
     icon: Whatsapp,
+    keyline: "circle",
+  },
+  {
+    // A bearer token tagged with MAPBOX_PROVIDER: a Mapbox access token for geocoding.
+    id: "MAPBOX",
+    nameKey: "types.mapbox.name",
+    descriptionKey: "types.mapbox.description",
+    available: true,
+    supportsTest: false,
+    logo: {
+      light: "/credential-logos/mapbox-light.svg",
+      dark: "/credential-logos/mapbox-dark.svg",
+    },
+    keyline: "circle",
+  },
+  {
+    // A bearer token tagged with GOOGLE_MAPS_PROVIDER: a Google Maps Platform API key.
+    id: "GOOGLE_MAPS",
+    nameKey: "types.googleMaps.name",
+    descriptionKey: "types.googleMaps.description",
+    available: true,
+    supportsTest: false,
+    logo: {
+      light: "/credential-logos/google-maps-light.svg",
+      dark: "/credential-logos/google-maps-dark.svg",
+    },
     keyline: "circle",
   },
   {
@@ -518,7 +546,7 @@ export const BearerTokenCredentialEditSchema =
 export type BearerTokenFormData = z.infer<
   typeof BearerTokenCredentialSchema
 > & {
-  /** {@link RESEND_PROVIDER} or {@link WHATSAPP_PROVIDER}; absent on a plain bearer token. */
+  /** The provider tag of a tagged bearer token; absent on a plain one. */
   provider?: string;
 };
 
@@ -547,6 +575,29 @@ export const WhatsAppCredentialSchema = BearerTokenCredentialSchema.extend(
 
 export const WhatsAppCredentialEditSchema =
   BearerTokenCredentialEditSchema.extend(whatsAppProviderField);
+
+/** Marks a bearer credential as a Mapbox access token, like {@link RESEND_PROVIDER}. */
+export const MAPBOX_PROVIDER = "mapbox";
+
+const mapboxProviderField = { provider: z.literal(MAPBOX_PROVIDER) };
+
+export const MapboxCredentialSchema =
+  BearerTokenCredentialSchema.extend(mapboxProviderField);
+
+export const MapboxCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(mapboxProviderField);
+
+/** Marks a bearer credential as a Google Maps Platform API key, like {@link RESEND_PROVIDER}. */
+export const GOOGLE_MAPS_PROVIDER = "google_maps";
+
+const googleMapsProviderField = { provider: z.literal(GOOGLE_MAPS_PROVIDER) };
+
+export const GoogleMapsCredentialSchema = BearerTokenCredentialSchema.extend(
+  googleMapsProviderField
+);
+
+export const GoogleMapsCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(googleMapsProviderField);
 
 /**
  * Any credential form's data. The list/create/update paths are type-agnostic —

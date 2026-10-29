@@ -32,6 +32,10 @@ import java.util.Map;
 public class PlatformGeocodingService {
 
     static final String NAME = "Platform geocoding";
+    /** {@code publicConfig.provider} of a Mapbox or Google Maps credential, as the app's Credentials sets it. */
+    static final String CREDENTIAL_TAG = "provider";
+    static final Map<String, String> CREDENTIAL_TAGS = Map.of(
+            MapboxGeocoding.NAME, "mapbox", GoogleGeocoding.NAME, "google_maps");
 
     /** {@code configured} is false and the rest null when no provider is set. */
     public record PlatformGeocodingView(boolean configured, String connectionId, String provider, Boolean permanent,
@@ -91,8 +95,10 @@ public class PlatformGeocodingService {
         if (cost != null && cost.signum() < 0) {
             throw new IllegalArgumentException(GeocodingConnection.COST + " cannot be negative");
         }
-        if (credentialId != null) {
-            requireBearerCredential(credentialId);
+        IntegrationConnection existing = find();
+        String linked = credentialId != null ? credentialId : existing == null ? null : existing.credentialProfileId();
+        if (linked != null) {
+            requireCredentialFor(linked, provider.name());
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put(GeocodingConnection.PROVIDER, provider.name());
@@ -102,7 +108,6 @@ public class PlatformGeocodingService {
         if (cost != null) {
             metadata.put(GeocodingConnection.COST, cost.toPlainString());
         }
-        IntegrationConnection existing = find();
         if (existing == null) {
             if (credentialId == null) {
                 throw new IllegalArgumentException("credentialProfileId is required");
@@ -130,13 +135,19 @@ public class PlatformGeocodingService {
         return repository.findActiveByProvider(PLATFORM_TENANT, ProviderType.GEOCODING);
     }
 
-    private void requireBearerCredential(String id) {
+    /** A plain bearer token, or one tagged for this provider in Credentials. */
+    private void requireCredentialFor(String id, String provider) {
         CredentialProfileResponse credential = credentials.get(PLATFORM_TENANT, id);
         if (credential == null) {
             throw new IllegalArgumentException("credential " + id + " is not a credential of the platform");
         }
         if (credential.authType() != AuthType.BEARER_TOKEN || ManagedCredentials.isManaged(credential.publicConfig())) {
             throw new IllegalArgumentException("the geocoding credential must be a bearer token");
+        }
+        Object tag = credential.publicConfig() == null ? null : credential.publicConfig().get(CREDENTIAL_TAG);
+        if (tag != null && !tag.equals(CREDENTIAL_TAGS.get(provider))) {
+            throw new IllegalArgumentException("credential " + credential.displayName() + " is for " + tag
+                    + ", not " + provider);
         }
     }
 

@@ -1915,9 +1915,7 @@
           "description": "This organization's Google identity. It has no key: the platform acts as it when the organization queries published data.",
           "loadError": "Could not load the service account.",
           "notConfigured": "Service accounts are not configured on this platform.",
-          "none": "This organization has no service account in project {project} yet.",
-          "create": "Create service account",
-          "creating": "Creating…",
+          "none": "None yet. It is created when you add the \"BigQuery · platform account\" connection in this organization's Settings › Connections.",
           "email": "Account",
           "active": "Active",
           "disabled": "Disabled",
@@ -4775,7 +4773,9 @@
         "native": "Built-in",
         "templates": "Templates",
         "postgrest": "Data source for dashboards: tested with its credential, then you choose which functions to expose.",
-        "bigquery": "Dashboard data source: BigQuery SQL with a Google service account."
+        "bigquery": "Dashboard data source: BigQuery SQL with a Google service account.",
+        "managedBigquery": "BigQuery · platform account",
+        "managedBigqueryHelp": "Platform owners only. The organization queries as its own service account, with no key, and sees only the data you publish to it."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -4789,7 +4789,9 @@
         "actionFailed": "Could not complete the action",
         "testOk": "Connection tested successfully",
         "testFailed": "Connection test failed",
-        "connectionDeleted": "Connection deleted"
+        "connectionDeleted": "Connection deleted",
+        "managedBigqueryCreating": "Creating the organization's BigQuery connection…",
+        "managedBigqueryCreated": "BigQuery connection created"
       },
       "template": {
         "form": {

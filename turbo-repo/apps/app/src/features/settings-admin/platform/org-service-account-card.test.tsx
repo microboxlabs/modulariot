@@ -8,7 +8,6 @@ const hook = vi.hoisted(() => ({
   mutate: vi.fn(),
 }));
 const calls = vi.hoisted(() => ({
-  create: vi.fn(),
   set: vi.fn(),
   check: vi.fn(),
 }));
@@ -20,7 +19,6 @@ vi.mock("./org-service-account", () => ({
     isLoading: false,
     mutate: hook.mutate,
   }),
-  createOrgServiceAccount: calls.create,
   setOrgServiceAccount: calls.set,
   checkOrgServiceAccount: calls.check,
 }));
@@ -28,8 +26,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 const dict = {
   serviceAccount: {
-    none: "No account in {project}",
-    create: "Create",
+    none: "Created from Connections",
     notConfigured: "Not configured",
     check: "Test access",
     checkOk: "OK until {until}",
@@ -59,20 +56,13 @@ describe("OrgServiceAccountCard", () => {
     hook.state = { configured: false, projectId: null, account: null };
     render(<OrgServiceAccountCard slug="acme" dict={dict} lang="es" />);
     expect(screen.getByText("Not configured")).toBeInTheDocument();
-    expect(screen.queryByText("Create")).not.toBeInTheDocument();
   });
 
-  it("creates the account", async () => {
+  it("points to Connections when the organization has no account", () => {
     hook.state = { configured: true, projectId: "tenants-p", account: null };
-    const created = { configured: true, projectId: "tenants-p", account };
-    calls.create.mockResolvedValue(created);
     render(<OrgServiceAccountCard slug="acme" dict={dict} lang="es" />);
-    expect(screen.getByText("No account in tenants-p")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Create"));
-    await waitFor(() =>
-      expect(hook.mutate).toHaveBeenCalledWith(created, { revalidate: false })
-    );
-    expect(calls.create).toHaveBeenCalledWith("acme");
+    expect(screen.getByText("Created from Connections")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("tests access and disables an active account", async () => {

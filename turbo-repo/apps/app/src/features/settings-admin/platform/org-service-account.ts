@@ -49,17 +49,30 @@ export function useOrgServiceAccount(slug: string, enabled: boolean) {
   return { state: data, error, isLoading, mutate };
 }
 
-export function createOrgServiceAccount(
-  slug: string
-): Promise<OrgServiceAccountState> {
-  return sendJson<OrgServiceAccountState>("POST", url(slug), {});
-}
-
 export function setOrgServiceAccount(
   slug: string,
   action: OrgServiceAccountAction
 ): Promise<OrgServiceAccountState> {
   return sendJson<OrgServiceAccountState>("POST", url(slug, action), {});
+}
+
+export interface ManagedBigQueryConnection {
+  readonly connectionId: string;
+  readonly name: string;
+  readonly status: string;
+  readonly tested: boolean;
+  readonly testMessage: string | null;
+}
+
+/** Creates the account if missing and the organization's BigQuery connection that queries as it. */
+export function connectManagedBigQuery(
+  slug: string
+): Promise<ManagedBigQueryConnection> {
+  return sendJson<ManagedBigQueryConnection>(
+    "POST",
+    url(slug, "bigquery-connection"),
+    {}
+  );
 }
 
 export function checkOrgServiceAccount(

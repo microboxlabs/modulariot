@@ -1915,9 +1915,7 @@
           "description": "La identidad de Google de esta organización. No tiene llave: la plataforma actúa como ella cuando la organización consulta datos publicados.",
           "loadError": "No se pudo cargar la cuenta de servicio.",
           "notConfigured": "Las cuentas de servicio no están configuradas en esta plataforma.",
-          "none": "Esta organización aún no tiene cuenta de servicio en el proyecto {project}.",
-          "create": "Crear cuenta de servicio",
-          "creating": "Creando…",
+          "none": "Aún no tiene. Se crea al agregar la conexión «BigQuery · cuenta de la plataforma» en Ajustes › Conexiones de esta organización.",
           "email": "Cuenta",
           "active": "Activa",
           "disabled": "Desactivada",
@@ -4775,7 +4773,9 @@
         "native": "Integradas",
         "templates": "Plantillas",
         "postgrest": "Fuente de datos para dashboards: se prueba con su credencial y luego eliges qué funciones exponer.",
-        "bigquery": "Fuente de datos para dashboards: SQL de BigQuery con una cuenta de servicio de Google."
+        "bigquery": "Fuente de datos para dashboards: SQL de BigQuery con una cuenta de servicio de Google.",
+        "managedBigquery": "BigQuery · cuenta de la plataforma",
+        "managedBigqueryHelp": "Solo dueños de plataforma. La organización consulta como su propia cuenta de servicio, sin llave, y ve solo los datos que le publiques."
       },
       "validation": {
         "nameRequired": "El nombre es obligatorio",
@@ -4789,7 +4789,9 @@
         "actionFailed": "No se pudo completar la acción",
         "testOk": "Conexión probada correctamente",
         "testFailed": "La prueba de conexión falló",
-        "connectionDeleted": "Conexión eliminada"
+        "connectionDeleted": "Conexión eliminada",
+        "managedBigqueryCreating": "Creando la conexión BigQuery de la organización…",
+        "managedBigqueryCreated": "Conexión BigQuery creada"
       },
       "template": {
         "form": {

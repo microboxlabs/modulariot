@@ -8,7 +8,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
   checkOrgServiceAccount,
-  createOrgServiceAccount,
   setOrgServiceAccount,
   useOrgServiceAccount,
   type OrgServiceAccountView,
@@ -21,7 +20,7 @@ interface OrgServiceAccountCardProps {
   readonly lang: string;
 }
 
-type Busy = "create" | "disable" | "enable" | "check" | null;
+type Busy = "disable" | "enable" | "check" | null;
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -76,8 +75,9 @@ function AccountDetails({ account, dict, lang }: AccountDetailsProps) {
 }
 
 /**
- * The organization's Google service account, for a platform owner: create it,
- * check that the platform can act as it, and disable or enable it.
+ * The organization's Google service account, for a platform owner: check that
+ * the platform can act as it, and disable or enable it. It is created with the
+ * organization's managed BigQuery connection, in Conexiones.
  */
 export default function OrgServiceAccountCard({
   slug,
@@ -104,11 +104,9 @@ export default function OrgServiceAccountCard({
         );
         return;
       }
-      const next =
-        action === "create"
-          ? await createOrgServiceAccount(slug)
-          : await setOrgServiceAccount(slug, action);
-      await mutate(next, { revalidate: false });
+      await mutate(await setOrgServiceAccount(slug, action), {
+        revalidate: false,
+      });
     } catch (e) {
       toast.error(errorText(e, tr("actionError", dict)));
     } finally {
@@ -143,19 +141,9 @@ export default function OrgServiceAccountCard({
       )}
 
       {state?.configured && !account && (
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            {tr("none", dict, { project: state.projectId ?? "" })}
-          </p>
-          <Button
-            size="sm"
-            color="blue"
-            disabled={busy !== null}
-            onClick={() => void run("create")}
-          >
-            {busy === "create" ? tr("creating", dict) : tr("create", dict)}
-          </Button>
-        </div>
+        <p className="mt-4 text-sm text-gray-700 dark:text-gray-300">
+          {tr("none", dict)}
+        </p>
       )}
 
       {account && (

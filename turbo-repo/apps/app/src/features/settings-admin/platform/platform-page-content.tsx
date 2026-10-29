@@ -76,66 +76,83 @@ export default function PlatformPageContent({
   const { isPlatformOwner, isLoading } = useIsPlatformOwner();
   const [selected, setSelected] = useState<PlatformSection>("branding");
 
+  const group = {
+    brand: tr("groups.brand", platformDict),
+    access: tr("groups.access", platformDict),
+    ai: tr("groups.ai", platformDict),
+    geocoding: tr("groups.geocoding", platformDict),
+  };
+
   const sections: readonly PlatformSectionEntry[] = [
     {
       id: "branding",
       label: tr("title", brandingDict),
       description: tr("menuHint", brandingDict),
       icon: HiOutlinePhotograph,
-    },
-    {
-      id: "superusers",
-      label: tr("title", superusersDict),
-      description: tr("menuHint", superusersDict),
-      icon: HiOutlineKey,
-    },
-    {
-      id: "models",
-      label: tr("title", modelsDict),
-      description: tr("menuHint", modelsDict),
-      icon: HiOutlineChip,
+      group: group.brand,
     },
     {
       id: "vehicleImages",
       label: tr("title", vehicleImagesDict),
       description: tr("menuHint", vehicleImagesDict),
       icon: HiOutlineTruck,
-    },
-    {
-      id: "geocoding",
-      label: tr("title", geocodingDict),
-      description: tr("menuHint", geocodingDict),
-      icon: HiOutlineGlobeAlt,
-    },
-    {
-      id: "geocodingPlan",
-      label: tr("title", geocodingPlanDict),
-      description: tr("menuHint", geocodingPlanDict),
-      icon: HiOutlineMap,
-    },
-    {
-      id: "sharing",
-      label: tr("title", sharingDict),
-      description: tr("menuHint", sharingDict),
-      icon: HiOutlineShare,
+      group: group.brand,
     },
     {
       id: "templates",
       label: tr("title", templatesDict),
       description: tr("menuHint", templatesDict),
       icon: HiOutlineTemplate,
+      group: group.brand,
+    },
+    {
+      id: "superusers",
+      label: tr("title", superusersDict),
+      description: tr("menuHint", superusersDict),
+      icon: HiOutlineKey,
+      group: group.access,
+    },
+    {
+      id: "sharing",
+      label: tr("title", sharingDict),
+      description: tr("menuHint", sharingDict),
+      icon: HiOutlineShare,
+      group: group.access,
+    },
+    {
+      id: "models",
+      label: tr("title", modelsDict),
+      description: tr("menuHint", modelsDict),
+      icon: HiOutlineChip,
+      group: group.ai,
     },
     {
       id: "plan",
       label: tr("title", planDict),
       description: tr("menuHint", planDict),
       icon: HiOutlineCreditCard,
+      group: group.ai,
     },
     {
       id: "usage",
       label: tr("title", usageDict),
       description: tr("menuHint", usageDict),
       icon: HiOutlineChartBar,
+      group: group.ai,
+    },
+    {
+      id: "geocoding",
+      label: tr("menuTitle", geocodingDict),
+      description: tr("menuHint", geocodingDict),
+      icon: HiOutlineGlobeAlt,
+      group: group.geocoding,
+    },
+    {
+      id: "geocodingPlan",
+      label: tr("menuTitle", geocodingPlanDict),
+      description: tr("menuHint", geocodingPlanDict),
+      icon: HiOutlineMap,
+      group: group.geocoding,
     },
   ];
 

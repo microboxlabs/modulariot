@@ -1450,6 +1450,12 @@
         "title": "Plataforma",
         "description": "Ajustes que no pertenecen a ninguna organización: valen para todos los dominios y cuentas.",
         "listTitle": "Ajustes de plataforma",
+        "groups": {
+          "brand": "Marca y contenido",
+          "access": "Acceso",
+          "ai": "IA",
+          "geocoding": "Geocodificación"
+        },
         "notOwnerTitle": "No tienes acceso a esta sección",
         "notOwnerBody": "Solo quienes administran la plataforma pueden ver y cambiar estos ajustes.",
         "branding": {
@@ -1653,6 +1659,7 @@
         },
         "geocoding": {
           "title": "Geocodificación",
+          "menuTitle": "Proveedor",
           "menuHint": "Proveedor que contrata la plataforma",
           "description": "La plataforma contrata y paga el proveedor de geocodificación. Una organización lo usa, dentro de la cuota de su plan, cuando un dueño de la plataforma le agrega la conexión «Geocoding · proveedor de la plataforma» en Conexiones. Ninguna configura un proveedor propio.",
           "provider": "Proveedor",
@@ -1684,6 +1691,7 @@
         },
         "geocodingPlan": {
           "title": "Plan de geocodificación",
+          "menuTitle": "Plan y cuotas",
           "menuHint": "Cuotas y precios por organización",
           "description": "Cuántas consultas al proveedor incluye el plan cada mes y cuánto cuestan. Solo cuentan las consultas al proveedor.",
           "enforced": "Aplicar las cuotas",
@@ -3275,6 +3283,10 @@
         "pageTitle": "Viajes",
         "pageDescription": "Cómo entran y avanzan los viajes de la organización.",
         "menuTitle": "Secciones",
+        "groups": {
+          "trips": "Viajes",
+          "geocoding": "Geocodificación"
+        },
         "sections": {
           "monitors": {
             "label": "Monitores",
@@ -3291,6 +3303,14 @@
           "feeds": {
             "label": "Feeds",
             "description": "Fuentes externas que envían los viajes"
+          },
+          "geocodingReview": {
+            "label": "Por revisar",
+            "description": "Ubicaciones sin punto confiable"
+          },
+          "geocodingUsage": {
+            "label": "Uso del mes",
+            "description": "Consultas contra la cuota"
           }
         },
         "title": "Monitores de viajes",

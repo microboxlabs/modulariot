@@ -131,7 +131,6 @@
       { "href": "/users/settings/gps", "label": "gps" },
       { "href": "/users/settings/symptoms", "label": "symptomCatalog" },
       { "href": "/users/settings/trips", "label": "trips" },
-      { "href": "/users/settings/geocoding", "label": "geocoding" },
       { "href": "/users/settings/communications", "label": "communications" },
       { "href": "/users/settings/selectables", "label": "selectables" },
       { "href": "/users/settings/contact-book", "label": "contactBook" },

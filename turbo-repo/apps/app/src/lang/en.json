@@ -1450,6 +1450,12 @@
         "title": "Platform",
         "description": "Settings that belong to no organization: they apply across every domain and account.",
         "listTitle": "Platform settings",
+        "groups": {
+          "brand": "Brand and content",
+          "access": "Access",
+          "ai": "AI",
+          "geocoding": "Geocoding"
+        },
         "notOwnerTitle": "You don't have access to this section",
         "notOwnerBody": "Only platform administrators can see and change these settings.",
         "branding": {
@@ -1653,6 +1659,7 @@
         },
         "geocoding": {
           "title": "Geocoding",
+          "menuTitle": "Provider",
           "menuHint": "Provider the platform contracts",
           "description": "The platform contracts and pays the geocoding provider. An organization uses it, within its plan's quota, once a platform owner adds the \"Geocoding · platform provider\" connection in Connections. No organization sets up its own provider.",
           "provider": "Provider",
@@ -1684,6 +1691,7 @@
         },
         "geocodingPlan": {
           "title": "Geocoding plan",
+          "menuTitle": "Plan and quotas",
           "menuHint": "Quotas and prices per organization",
           "description": "How many provider calls the plan includes each month and what they cost. Only provider calls count.",
           "enforced": "Apply the quotas",
@@ -3275,6 +3283,10 @@
         "pageTitle": "Trips",
         "pageDescription": "How the organization's trips come in and move forward.",
         "menuTitle": "Sections",
+        "groups": {
+          "trips": "Trips",
+          "geocoding": "Geocoding"
+        },
         "sections": {
           "monitors": {
             "label": "Monitors",
@@ -3291,6 +3303,14 @@
           "feeds": {
             "label": "Feeds",
             "description": "External sources that send the trips"
+          },
+          "geocodingReview": {
+            "label": "To review",
+            "description": "Locations without a reliable point"
+          },
+          "geocodingUsage": {
+            "label": "Monthly usage",
+            "description": "Calls against the quota"
           }
         },
         "title": "Trip monitors",

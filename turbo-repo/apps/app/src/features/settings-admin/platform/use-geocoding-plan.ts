@@ -39,8 +39,12 @@ export function useGeocodingSubscriptions(month: string) {
     ApiError
   >(
     ["platform-geocoding-usage", month],
-    ([, m]: [string, string]) =>
-      getJson<OrgGeocodingUsage[]>(`${PLAN_URL}/usage?month=${m}`),
+    async ([, m]: [string, string]) =>
+      (
+        await getJson<{ organizations?: OrgGeocodingUsage[] }>(
+          `${PLAN_URL}/usage?month=${m}`
+        )
+      ).organizations ?? [],
     { revalidateOnFocus: false }
   );
 

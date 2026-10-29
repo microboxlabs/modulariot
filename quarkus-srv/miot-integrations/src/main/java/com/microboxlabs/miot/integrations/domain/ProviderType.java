@@ -13,5 +13,7 @@ public enum ProviderType {
     /** Transactional email through the Resend API. */
     RESEND,
     /** Vehicle studio images through carimagesapi.com. */
-    CAR_IMAGES
+    CAR_IMAGES,
+    /** Forward geocoding through Mapbox or Google; {@code metadata.provider} picks which. */
+    GEOCODING
 }

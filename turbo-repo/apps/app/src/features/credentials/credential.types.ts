@@ -267,12 +267,13 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     keyline: "circle",
   },
   {
-    // A bearer token tagged with MAPBOX_PROVIDER: a Mapbox access token for geocoding.
+    // A bearer token tagged with MAPBOX_PROVIDER: a Mapbox access token for geocoding,
+    // tested against Mapbox's token endpoint (no geocoding, no quota).
     id: "MAPBOX",
     nameKey: "types.mapbox.name",
     descriptionKey: "types.mapbox.description",
     available: true,
-    supportsTest: false,
+    supportsTest: true,
     logo: {
       light: "/credential-logos/mapbox-light.svg",
       dark: "/credential-logos/mapbox-dark.svg",

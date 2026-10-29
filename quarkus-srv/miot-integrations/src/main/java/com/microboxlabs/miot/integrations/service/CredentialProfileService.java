@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
 import com.microboxlabs.miot.integrations.auth.google.GoogleServiceAccountConfigs;
 import com.microboxlabs.miot.integrations.auth.oauth.OAuth2CredentialConfigs;
 import com.microboxlabs.miot.integrations.domain.AuthType;
@@ -27,6 +28,7 @@ import com.microboxlabs.miot.integrations.tester.CredentialTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -130,7 +132,7 @@ public class CredentialProfileService {
         }
         validateConfig(credentialType, publicConfig);
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         CredentialProfile created = credentialProfileRepository.create(new CredentialProfile(
                 UUID.randomUUID().toString(),
                 tenantCode,
@@ -288,7 +290,7 @@ public class CredentialProfileService {
         List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
         String environment = resolveEnvironment(null, existing);
         requireNameAvailable(existing, name, environment, null);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         return credentialProfileRepository.create(new CredentialProfile(
                 UUID.randomUUID().toString(), tenantCode, name, CredentialType.GOOGLE_SERVICE_ACCOUNT,
                 AuthType.GOOGLE_SERVICE_ACCOUNT, environment, config, encrypt(Map.of(), name),
@@ -309,8 +311,8 @@ public class CredentialProfileService {
                     String.valueOf(bound.get(ManagedGoogleIdentity.CLIENT_EMAIL)), scope);
             long seconds = token.expiresAt() == null ? 0
                     : Math.max(0, token.expiresAt().getEpochSecond() - Instant.now().getEpochSecond());
-            return new CredentialTestResponse(true, OffsetDateTime.now(), "OK", seconds);
-        } catch (ManagedGoogleIdentity.UnavailableException | GoogleCallException e) {
+            return new CredentialTestResponse(true, OffsetDateTime.now(ZoneOffset.UTC), "OK", seconds);
+        } catch (ManagedGoogleIdentityUnavailableException | GoogleCallException e) {
             return CredentialTestResponse.failure(e.getMessage());
         }
     }

@@ -54,8 +54,9 @@ class ManagedGoogleIdentityTest {
     @Test
     void withoutThePlatformIdentityAManagedCredentialDoesNotResolve() {
         GoogleServiceAccountAuthProvider provider = new GoogleServiceAccountAuthProvider(null);
-        assertThrows(AuthResolutionException.class, () -> provider.resolve(new CredentialAuthContext(
+        CredentialAuthContext context = new CredentialAuthContext(
                 AuthType.GOOGLE_SERVICE_ACCOUNT, CredentialType.GOOGLE_SERVICE_ACCOUNT,
-                Map.of("managed", true, "clientEmail", "t-acme@tenants-p.iam.gserviceaccount.com"), Map.of())));
+                Map.of("managed", true, "clientEmail", "t-acme@tenants-p.iam.gserviceaccount.com"), Map.of());
+        assertThrows(AuthResolutionException.class, () -> provider.resolve(context));
     }
 }

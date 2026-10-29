@@ -10,6 +10,11 @@ public class GoogleCallException extends RuntimeException {
         this.status = status;
     }
 
+    public GoogleCallException(int status, String message, Throwable cause) {
+        super(message, cause);
+        this.status = status;
+    }
+
     public int status() {
         return status;
     }

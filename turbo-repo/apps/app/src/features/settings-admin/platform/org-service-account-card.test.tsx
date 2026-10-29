@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrgServiceAccountCard from "./org-service-account-card";
 import type { OrgServiceAccountState } from "./org-service-account";
@@ -86,5 +92,44 @@ describe("OrgServiceAccountCard", () => {
     await waitFor(() =>
       expect(calls.set).toHaveBeenCalledWith("acme", "disable")
     );
+  });
+  it("clears a completed check when the organization changes", async () => {
+    hook.state = { configured: true, projectId: "project-demo", account };
+    calls.check.mockResolvedValue({
+      disabled: false,
+      tokenExpiresAt: "2026-10-29T12:05:00Z",
+    });
+    const view = render(
+      <OrgServiceAccountCard slug="demo-a" dict={dict} lang="en" />
+    );
+    fireEvent.click(screen.getByText("Test access"));
+    expect(await screen.findByText(/^OK until/)).toBeInTheDocument();
+    view.rerender(
+      <OrgServiceAccountCard slug="demo-b" dict={dict} lang="en" />
+    );
+    expect(screen.queryByText(/^OK until/)).not.toBeInTheDocument();
+  });
+
+  it("ignores an old organization's in-flight check after switching", async () => {
+    hook.state = { configured: true, projectId: "project-demo", account };
+    let finish!: (value: { disabled: boolean; tokenExpiresAt: string }) => void;
+    calls.check.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const view = render(
+      <OrgServiceAccountCard slug="demo-a" dict={dict} lang="en" />
+    );
+    fireEvent.click(screen.getByText("Test access"));
+    view.rerender(
+      <OrgServiceAccountCard slug="demo-b" dict={dict} lang="en" />
+    );
+    await act(async () => {
+      finish({ disabled: false, tokenExpiresAt: "2026-10-29T12:05:00Z" });
+    });
+    expect(screen.queryByText(/^OK until/)).not.toBeInTheDocument();
+    expect(screen.getByText("Test access")).toBeEnabled();
   });
 });

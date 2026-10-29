@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.service;
 
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
+import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
@@ -32,28 +33,38 @@ public class ManagedBigQueryConnections {
     private final CredentialProfileService credentials;
     private final CredentialProfileRepository credentialRepository;
     private final IntegrationConnectionService connections;
+    private final ManagedConnectionLock lock;
 
     @Inject
     public ManagedBigQueryConnections(OrgServiceAccountService accounts, CredentialProfileService credentials,
-            CredentialProfileRepository credentialRepository, IntegrationConnectionService connections) {
+            CredentialProfileRepository credentialRepository, IntegrationConnectionService connections, ManagedConnectionLock lock) {
         this.accounts = accounts;
         this.credentials = credentials;
         this.credentialRepository = credentialRepository;
         this.connections = connections;
+        this.lock = lock;
     }
 
     /** Idempotent: an organization keeps one managed BigQuery connection. */
     public Result create(String tenantCode, String slug, String name, String actor) {
         OrgServiceAccount account = accounts.create(tenantCode, slug, name, actor);
         accounts.allowQueries(tenantCode);
-        IntegrationConnection connection = existing(tenantCode).orElseGet(() -> {
-            CredentialProfile credential = credentials.createManaged(tenantCode, actor, NAME,
-                    Map.of(ManagedGoogleIdentity.CLIENT_EMAIL, account.email(), "projectId", account.projectId()));
+        IntegrationConnection connection = lock.locked(tenantCode, () -> existing(tenantCode).orElseGet(() -> {
+            CredentialProfile credential = managedCredential(tenantCode).orElseGet(() ->
+                    credentials.createManaged(tenantCode, actor, NAME,
+                            Map.of(ManagedGoogleIdentity.CLIENT_EMAIL, account.email(), "projectId", account.projectId())));
             return connections.createConnection(tenantCode, new CreateIntegrationConnectionRequest(NAME,
                     ProviderType.CUSTOM_HTTP, URI.create(BigQueryProbe.BASE_URL), credential.id(), Map.of(), null));
-        });
+        }));
         ConnectionTestResponse test = connections.testConnection(tenantCode, connection.id(), null);
         return new Result(connections.getConnection(tenantCode, connection.id()), test);
+    }
+
+    private Optional<CredentialProfile> managedCredential(String tenantCode) {
+        return credentialRepository.listByTenant(tenantCode).stream()
+                .filter(c -> c.authType() == AuthType.GOOGLE_SERVICE_ACCOUNT
+                        && ManagedGoogleIdentity.isManaged(c.publicConfig()))
+                .findFirst();
     }
 
     /** The tenant's BigQuery connection whose credential is the managed one. */

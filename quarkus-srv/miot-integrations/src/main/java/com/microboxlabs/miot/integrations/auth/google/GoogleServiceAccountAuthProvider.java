@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.auth.google;
 
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
 import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthProvider;
@@ -58,7 +59,7 @@ public class GoogleServiceAccountAuthProvider implements CredentialAuthProvider 
         try {
             ManagedGoogleIdentity.Token token = managed.accessToken(email, scope);
             return ResolvedAuth.headers(Map.of("Authorization", "Bearer " + token.value()), token.expiresAt());
-        } catch (ManagedGoogleIdentity.UnavailableException | GoogleCallException e) {
+        } catch (ManagedGoogleIdentityUnavailableException | GoogleCallException e) {
             throw new AuthResolutionException("Could not act as the organization's service account: "
                     + e.getMessage());
         }

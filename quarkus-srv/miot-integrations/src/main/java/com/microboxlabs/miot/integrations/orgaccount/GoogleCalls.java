@@ -9,6 +9,8 @@ import java.net.http.HttpResponse;
 
 final class GoogleCalls {
 
+    private static final org.jboss.logging.Logger LOG = org.jboss.logging.Logger.getLogger(GoogleCalls.class);
+
     private GoogleCalls() {
     }
 
@@ -18,7 +20,8 @@ final class GoogleCalls {
         try {
             response = http.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
-            throw new GoogleCallException(502, "The " + what + " request failed: " + e.getMessage());
+            LOG.warnf(e, "The %s request failed", what);
+            throw new GoogleCallException(502, "The " + what + " request failed", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new GoogleCallException(502, "The " + what + " request was interrupted");

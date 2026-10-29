@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { z } from "zod";
 import { getJson, sendJson, type ApiError } from "../data/json-client";
 
 export interface OrgServiceAccountView {
@@ -56,23 +57,27 @@ export function setOrgServiceAccount(
   return sendJson<OrgServiceAccountState>("POST", url(slug, action), {});
 }
 
-export interface ManagedBigQueryConnection {
-  readonly connectionId: string;
-  readonly name: string;
-  readonly status: string;
-  readonly tested: boolean;
-  readonly testMessage: string | null;
-}
+const managedBigQueryConnectionSchema = z.object({
+  connectionId: z.string().min(1),
+  name: z.string(),
+  status: z.string(),
+  tested: z.boolean(),
+  testMessage: z.string().nullable(),
+});
+export type ManagedBigQueryConnection = Readonly<
+  z.infer<typeof managedBigQueryConnectionSchema>
+>;
 
 /** Creates the account if missing and the organization's BigQuery connection that queries as it. */
-export function connectManagedBigQuery(
+export async function connectManagedBigQuery(
   slug: string
 ): Promise<ManagedBigQueryConnection> {
-  return sendJson<ManagedBigQueryConnection>(
+  const response = await sendJson<ManagedBigQueryConnection>(
     "POST",
     url(slug, "bigquery-connection"),
     {}
   );
+  return managedBigQueryConnectionSchema.parse(response);
 }
 
 export function checkOrgServiceAccount(

@@ -8,6 +8,8 @@ import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.util.Date;
+import java.net.URI;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -18,11 +20,16 @@ class PlatformGoogleTokenTest {
         AtomicInteger loads = new AtomicInteger();
         PlatformGoogleToken token = new PlatformGoogleToken(() -> {
             loads.incrementAndGet();
-            return GoogleCredentials.create(new AccessToken("ya29.platform",
-                    new Date(System.currentTimeMillis() + 3_600_000)));
+            return new GoogleCredentials(GoogleCredentials.newBuilder().setQuotaProjectId("quota-demo")) {
+                @Override
+                public AccessToken refreshAccessToken() {
+                    return new AccessToken("ya29.platform", new Date(System.currentTimeMillis() + 3_600_000));
+                }
+            };
         });
-        assertEquals("ya29.platform", token.get());
-        assertEquals("ya29.platform", token.get());
+        URI uri = URI.create("https://iamcredentials.googleapis.com/");
+        assertEquals(List.of("Bearer ya29.platform"), token.metadata(uri).get("Authorization"));
+        assertEquals(List.of("quota-demo"), token.metadata(uri).get("x-goog-user-project"));
         assertEquals(1, loads.get());
     }
 
@@ -31,7 +38,9 @@ class PlatformGoogleTokenTest {
         PlatformGoogleToken token = new PlatformGoogleToken(() -> {
             throw new IOException("Your default credentials were not found");
         });
-        GoogleCallException error = assertThrows(GoogleCallException.class, token::get);
-        assertTrue(error.getMessage().contains("not found"));
+        URI uri = URI.create("https://iamcredentials.googleapis.com/");
+        GoogleCallException error = assertThrows(GoogleCallException.class, () -> token.metadata(uri));
+        assertEquals("The platform has no usable Google credentials", error.getMessage());
+        assertEquals("Your default credentials were not found", error.getCause().getMessage());
     }
 }

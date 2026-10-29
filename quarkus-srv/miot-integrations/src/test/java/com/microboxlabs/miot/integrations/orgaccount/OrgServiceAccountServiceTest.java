@@ -57,7 +57,7 @@ class OrgServiceAccountServiceTest {
         final List<String> calls = new ArrayList<>();
 
         FakeIam() {
-            super(null, null, () -> "unused");
+            super(null, null, uri -> Map.of());
         }
 
         @Override
@@ -177,16 +177,16 @@ class OrgServiceAccountServiceTest {
         Map<String, Object> forged = Map.of("managed", true, "clientEmail", FakeIam.email("t-other"),
                 "projectId", PROJECT);
         assertEquals(FakeIam.email("t-acme"), service.bind("client-1", forged).get("clientEmail"));
-        assertThrows(ManagedGoogleIdentity.UnavailableException.class, () -> service.bind("nobody", forged));
+        assertThrows(ManagedGoogleIdentityUnavailableException.class, () -> service.bind("nobody", forged));
         service.setDisabled("client-1", true, "b");
-        assertThrows(ManagedGoogleIdentity.UnavailableException.class, () -> service.bind("client-1", forged));
+        assertThrows(ManagedGoogleIdentityUnavailableException.class, () -> service.bind("client-1", forged));
     }
 
     @Test
     void impersonatesOnlyOrganizationAccounts() {
         service.create("client-1", "acme", "Acme", "a");
         assertEquals("secret-token", service.accessToken(FakeIam.email("t-acme"), "scope").value());
-        assertThrows(ManagedGoogleIdentity.UnavailableException.class,
+        assertThrows(ManagedGoogleIdentityUnavailableException.class,
                 () -> service.accessToken("miot-modulith@" + PROJECT + ".iam.gserviceaccount.com", "scope"));
     }
 

@@ -3,6 +3,8 @@ package com.microboxlabs.miot.integrations.orgaccount;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.net.URI;
 
 /**
  * The modulith's own Google access token, from Application Default Credentials:
@@ -29,13 +31,12 @@ public class PlatformGoogleToken {
                 () -> GoogleCredentials.getApplicationDefault().createScoped(List.of(CLOUD_PLATFORM)));
     }
 
-    public synchronized String get() {
+    public synchronized Map<String, List<String>> metadata(URI uri) {
         try {
             if (credentials == null) credentials = source.load();
-            credentials.refreshIfExpired();
-            return credentials.getAccessToken().getTokenValue();
+            return credentials.getRequestMetadata(uri);
         } catch (IOException e) {
-            throw new GoogleCallException(502, "The platform has no usable Google credentials: " + e.getMessage());
+            throw new GoogleCallException(502, "The platform has no usable Google credentials", e);
         }
     }
 }

@@ -16,9 +16,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class GoogleIamClientTest {
 
@@ -31,11 +34,13 @@ class GoogleIamClientTest {
     private int status;
     private String answer;
     private GoogleIamClient client;
+    private String callsQuotaProject;
 
     @BeforeEach
     void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
+            callsQuotaProject = exchange.getRequestHeaders().getFirst("x-goog-user-project");
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             calls.add(new Call(exchange.getRequestMethod(), exchange.getRequestURI().getRawPath(),
                     exchange.getRequestHeaders().getFirst("Authorization"),
@@ -47,7 +52,8 @@ class GoogleIamClientTest {
         });
         server.start();
         String base = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
-        client = new GoogleIamClient(HttpClient.newHttpClient(), json, () -> "platform-token",
+        client = new GoogleIamClient(HttpClient.newHttpClient(), json, uri -> Map.of("Authorization", List.of("Bearer platform-token"),
+                        "x-goog-user-project", List.of("quota-demo")),
                 base + "iam/", base + "creds/", base + "crm/");
         status = 200;
     }
@@ -70,6 +76,7 @@ class GoogleIamClientTest {
         assertEquals("POST", call.method());
         assertEquals("/iam/projects/tenants-p/serviceAccounts", call.path());
         assertEquals("Bearer platform-token", call.authorization());
+        assertEquals("quota-demo", callsQuotaProject);
         assertEquals("t-acme", call.body().path("accountId").asText());
         assertEquals("ModularIoT · Acme", call.body().path("serviceAccount").path("displayName").asText());
     }
@@ -133,5 +140,37 @@ class GoogleIamClientTest {
                 + ":generateAccessToken", call.path());
         assertEquals("300s", call.body().path("lifetime").asText());
         assertEquals("https://www.googleapis.com/auth/cloud-platform", call.body().path("scope").get(0).asText());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "not-json", "null", "{\"email\":\"test@example.com\"}",
+            "{\"uniqueId\":\"123\"}"})
+    void rejectsMalformedAccountResponses(String body) {
+        answer = body;
+        GoogleCallException error = assertThrows(GoogleCallException.class,
+                () -> client.create("project-demo", "t-demo", "Demo", "synthetic"));
+        assertEquals(502, error.status());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "not-json", "[]"})
+    void neverReplacesAPolicyWithoutItsEtag(String body) {
+        answer = body;
+        GoogleCallException error = assertThrows(GoogleCallException.class,
+                () -> client.grantProjectRole("project-demo", "serviceAccount:demo@example.com", "roles/bigquery.jobUser"));
+        assertEquals(502, error.status());
+        assertEquals(1, calls.size());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"accessToken\":\"synthetic\"}",
+            "{\"accessToken\":\"synthetic\",\"expireTime\":\"bad\"}"})
+    void mapsMalformedTokenExpiryToBadGateway(String body) {
+        answer = body;
+        List<String> scopes = List.of("scope");
+        Duration lifetime = Duration.ofMinutes(5);
+        GoogleCallException error = assertThrows(GoogleCallException.class,
+                () -> client.impersonate("demo@example.com", scopes, lifetime));
+        assertEquals(502, error.status());
     }
 }

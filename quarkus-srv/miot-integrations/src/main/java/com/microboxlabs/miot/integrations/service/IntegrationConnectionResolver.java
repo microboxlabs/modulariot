@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
 import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
@@ -143,7 +144,7 @@ public class IntegrationConnectionResolver {
         }
         try {
             return managed.bind(tenantCode, credential.publicConfig());
-        } catch (ManagedGoogleIdentity.UnavailableException e) {
+        } catch (ManagedGoogleIdentityUnavailableException e) {
             throw new ConnectionResolutionException(e.getMessage() + " (" + label + ")");
         }
     }

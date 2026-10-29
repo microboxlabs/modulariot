@@ -16,12 +16,6 @@ public interface ManagedGoogleIdentity {
     record Token(String value, Instant expiresAt) {
     }
 
-    class UnavailableException extends RuntimeException {
-        public UnavailableException(String message) {
-            super(message);
-        }
-    }
-
     static boolean isManaged(Map<String, Object> publicConfig) {
         Object value = publicConfig == null ? null : publicConfig.get(MANAGED);
         return Boolean.TRUE.equals(value) || "true".equals(String.valueOf(value));
@@ -37,12 +31,12 @@ public interface ManagedGoogleIdentity {
     ManagedGoogleIdentity NONE = new ManagedGoogleIdentity() {
         @Override
         public Map<String, Object> bind(String tenantCode, Map<String, Object> publicConfig) {
-            throw new UnavailableException("Managed Google credentials are not available here");
+            throw new ManagedGoogleIdentityUnavailableException("Managed Google credentials are not available here");
         }
 
         @Override
         public Token accessToken(String email, String scope) {
-            throw new UnavailableException("Managed Google credentials are not available here");
+            throw new ManagedGoogleIdentityUnavailableException("Managed Google credentials are not available here");
         }
     };
 }

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
 import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthRegistry;
@@ -76,7 +77,7 @@ public class CredentialAuthResolver {
         }
         try {
             return managed.bind(tenantCode, profile.publicConfig());
-        } catch (ManagedGoogleIdentity.UnavailableException e) {
+        } catch (ManagedGoogleIdentityUnavailableException e) {
             throw new AuthResolutionException(e.getMessage());
         }
     }

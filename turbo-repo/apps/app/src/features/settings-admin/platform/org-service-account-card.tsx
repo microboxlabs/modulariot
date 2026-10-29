@@ -79,7 +79,13 @@ function AccountDetails({ account, dict, lang }: AccountDetailsProps) {
  * the platform can act as it, and disable or enable it. It is created with the
  * organization's managed BigQuery connection, in Conexiones.
  */
-export default function OrgServiceAccountCard({
+export default function OrgServiceAccountCard(
+  props: OrgServiceAccountCardProps
+) {
+  return <OrgServiceAccountSession key={props.slug} {...props} />;
+}
+
+function OrgServiceAccountSession({
   slug,
   dict: orgsDict,
   lang,

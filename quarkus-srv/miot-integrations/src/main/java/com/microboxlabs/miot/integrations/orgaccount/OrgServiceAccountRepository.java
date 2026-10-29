@@ -10,6 +10,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /** Blocking access with a bounded wait, like {@code ModelProviderRepository}. */
 @ApplicationScoped
@@ -27,16 +28,20 @@ public class OrgServiceAccountRepository {
 
     private static final String INSERT = "INSERT INTO miot_integrations.org_service_accounts"
             + " (tenant_code, project_id, account_id, email, unique_id, disabled, created_by, updated_by)"
-            + " VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING " + COLUMNS;
+            + " VALUES ($1, $2, $3, $4, $5, $6, $7, $7) ON CONFLICT DO NOTHING RETURNING " + COLUMNS;
 
     private static final String SET_DISABLED = "UPDATE miot_integrations.org_service_accounts"
             + " SET disabled = $2, updated_by = $3, updated_at = now() WHERE tenant_code = $1 RETURNING " + COLUMNS;
 
-    private final Instance<Pool> pool;
+    private final Supplier<Pool> pool;
 
     @Inject
     public OrgServiceAccountRepository(Instance<Pool> pool) {
-        this.pool = pool;
+        this.pool = pool::get;
+    }
+
+    OrgServiceAccountRepository(Pool pool) {
+        this.pool = () -> pool;
     }
 
     /** For unit tests that override every method. */
@@ -63,7 +68,9 @@ public class OrgServiceAccountRepository {
                 .addString(account.uniqueId())
                 .addBoolean(account.disabled())
                 .addString(account.createdBy());
-        return map(execute(INSERT, params).iterator().next());
+        RowSet<Row> rows = execute(INSERT, params);
+        return rows.iterator().hasNext() ? map(rows.iterator().next())
+                : find(account.tenantCode()).orElseThrow(() -> new IllegalStateException("The existing account was not found"));
     }
 
     public OrgServiceAccount setDisabled(String tenantCode, boolean disabled, String actor) {

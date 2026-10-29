@@ -70,7 +70,7 @@ public class OrgServiceAccountService implements ManagedGoogleIdentity {
         HttpClient http = HttpClient.newHttpClient();
         ObjectMapper json = new ObjectMapper();
         PlatformGoogleToken token = PlatformGoogleToken.applicationDefault();
-        return new GoogleIamClient(http, json, token::get);
+        return new GoogleIamClient(http, json, token::metadata);
     }
 
     public boolean configured() {
@@ -142,8 +142,8 @@ public class OrgServiceAccountService implements ManagedGoogleIdentity {
     @Override
     public Map<String, Object> bind(String tenantCode, Map<String, Object> publicConfig) {
         OrgServiceAccount account = repository.find(tenantCode).orElseThrow(
-                () -> new UnavailableException("The organization has no service account"));
-        if (account.disabled()) throw new UnavailableException("The organization's service account is disabled");
+                () -> new ManagedGoogleIdentityUnavailableException("The organization has no service account"));
+        if (account.disabled()) throw new ManagedGoogleIdentityUnavailableException("The organization's service account is disabled");
         Map<String, Object> bound = new LinkedHashMap<>(publicConfig);
         bound.put(CLIENT_EMAIL, account.email());
         return bound;
@@ -152,8 +152,8 @@ public class OrgServiceAccountService implements ManagedGoogleIdentity {
     @Override
     public Token accessToken(String email, String scope) {
         OrgServiceAccount account = repository.findByEmail(email).orElseThrow(
-                () -> new UnavailableException("Not an organization's service account"));
-        if (account.disabled()) throw new UnavailableException("The organization's service account is disabled");
+                () -> new ManagedGoogleIdentityUnavailableException("Not an organization's service account"));
+        if (account.disabled()) throw new ManagedGoogleIdentityUnavailableException("The organization's service account is disabled");
         GoogleIamClient.AccessToken token = iam.impersonate(account.email(), List.of(scope), Duration.ofHours(1));
         return new Token(token.token(), token.expiresAt());
     }
@@ -184,7 +184,19 @@ public class OrgServiceAccountService implements ManagedGoogleIdentity {
     }
 
     private static String trimDashes(String value) {
-        return value.replaceAll("-{2,}", "-").replaceAll("-+$", "");
+        StringBuilder normalized = new StringBuilder(value.length());
+        boolean dash = false;
+        for (int i = 0; i < value.length(); i++) {
+            char current = value.charAt(i);
+            if (current == '-') {
+                dash = true;
+            } else {
+                if (dash) normalized.append('-');
+                normalized.append(current);
+                dash = false;
+            }
+        }
+        return normalized.toString();
     }
 
     private static String hash(String value) {

@@ -32,7 +32,9 @@ class ManagedBigQueryConnectionsTest {
                 return account;
             }
             @Override
-            public void allowQueries(String tenant) { }
+            public void allowQueries(String tenant) {
+                // IAM is outside this persistence retry regression; no external calls are made.
+            }
         };
         CredentialProfile credential = new CredentialProfile("credential-demo", "tenant-demo", "Managed",
                 CredentialType.GOOGLE_SERVICE_ACCOUNT, AuthType.GOOGLE_SERVICE_ACCOUNT, "DEFAULT",

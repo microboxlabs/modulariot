@@ -34,7 +34,7 @@ public class ManagedConnectionLock {
         for (;;) {
             Optional<T> result = pool.get().withTransaction(connection ->
                     connection.preparedQuery(LOCK).execute(Tuple.of(tenantCode)).flatMap(rows -> {
-                        if (!rows.iterator().next().getBoolean(0)) return Uni.createFrom().item(Optional.<T>empty());
+                        if (!Boolean.TRUE.equals(rows.iterator().next().getBoolean(0))) return Uni.createFrom().item(Optional.<T>empty());
                         // Blocking repository calls run on this transaction connection, never on the event loop.
                         return Uni.createFrom().item(() -> Optional.of(ManagedProvisioningTransaction.run(connection, work)))
                                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());

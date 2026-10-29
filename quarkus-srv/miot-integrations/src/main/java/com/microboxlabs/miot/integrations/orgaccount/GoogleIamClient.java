@@ -25,6 +25,8 @@ public class GoogleIamClient {
     static final String RESOURCE_MANAGER = "https://cloudresourcemanager.googleapis.com/v1/";
     private static final String PROJECTS = "projects/";
     private static final String MEMBERS = "members";
+    private static final String EMAIL = "email";
+    private static final String UNIQUE_ID = "uniqueId";
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
     private static final int POLICY_ATTEMPTS = 3;
 
@@ -159,11 +161,11 @@ public class GoogleIamClient {
     }
 
     private static Account account(JsonNode node) {
-        if (!node.path("email").isTextual() || node.path("email").asText().isBlank()
-                || !node.path("uniqueId").isTextual() || node.path("uniqueId").asText().isBlank()) {
+        if (!node.path(EMAIL).isTextual() || node.path(EMAIL).asText().isBlank()
+                || !node.path(UNIQUE_ID).isTextual() || node.path(UNIQUE_ID).asText().isBlank()) {
             throw new GoogleCallException(502, "The service account response had no email or unique id");
         }
-        return new Account(node.path("email").asText(), node.path("uniqueId").asText(),
+        return new Account(node.path(EMAIL).asText(), node.path(UNIQUE_ID).asText(),
                 node.path("description").asText(""), node.path("disabled").asBoolean(false));
     }
 

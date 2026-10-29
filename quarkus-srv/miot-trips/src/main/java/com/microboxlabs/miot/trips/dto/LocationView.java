@@ -1,10 +1,13 @@
 package com.microboxlabs.miot.trips.dto;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.trips.domain.Location;
 import java.time.OffsetDateTime;
 
 /** A location as the API serves it. */
+@RegisterForReflection
 public record LocationView(
         String id,
         String name,

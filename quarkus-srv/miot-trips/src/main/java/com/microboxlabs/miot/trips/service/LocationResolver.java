@@ -22,6 +22,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Finds a site's point. Sources, first that applies: a geofence of the tenant with the site's code or name, a Plus
@@ -36,6 +37,8 @@ public class LocationResolver {
 
     /** Slack at district borders: the boundary layers are simplified. */
     static final double BORDER_METERS = 500;
+    private static final String DISTRICT = "district ";
+    private static final Set<String> COUNTRIES = Set.of(Locale.getISOCountries());
 
     public static final String GEOFENCE = "geofence";
     public static final String PLUS_CODE = "plus_code";
@@ -109,33 +112,18 @@ public class LocationResolver {
     }
 
     private Outcome locate(String tenantCode, Site site, boolean manual) {
-        String country = site.country() == null ? null : site.country().strip().toUpperCase(Locale.ROOT);
+        String country = country(site.country());
         District district = district(country, site);
         Boundary b = district.boundary();
         Placement declared = new Placement(site.address(), country,
-                b != null ? b.code() : site.districtCode(), b != null ? b.name() : site.districtName(),
+                b != null ? b.code() : bounded(site.districtCode(), 16),
+                b != null ? b.name() : bounded(site.districtName(), 255),
                 null, null, null, null, null, null);
-        Found found = manual ? null : fromGeofence(tenantCode, site);
-        String note = null;
-        if (found == null && site.plusCode() != null && !site.plusCode().isBlank()) {
-            found = fromPlusCode(site.plusCode(), b);
-            note = found.note();
-            found = found.point() == null ? null : found;
-        }
-        if (found == null && (site.latitude() != null || site.longitude() != null)) {
-            found = fromCoordinates(site.latitude(), site.longitude());
-            note = note == null ? found.note() : note;
-            found = found.point() == null ? null : found;
-        }
-        Usage usage = Usage.NONE;
-        if (found == null && !manual && blankToNull(site.address()) != null && b != null && b.shape() != null) {
-            ByAddress byAddress = fromAddress(tenantCode, country, b, site.address());
-            found = byAddress.found();
-            note = note == null ? byAddress.note() : note;
-            usage = byAddress.usage();
-        }
-        if (found == null) {
-            return review(declared, null, null, note != null ? note : nothingNote(site, b), usage);
+        ByAddress selected = fromSources(tenantCode, site, manual, b, country);
+        Found found = selected.found();
+        Usage usage = selected.usage();
+        if (found == null || found.point() == null) {
+            return review(declared, null, null, selected.note(), usage);
         }
         String source = manual ? MANUAL : found.source();
         Point p = found.point();
@@ -143,7 +131,7 @@ public class LocationResolver {
             return review(declared, p, source, district.note(), usage);
         }
         if (b.shape() == null) {
-            return review(declared, p, source, "district " + b.code() + " has no boundary to check against",
+            return review(declared, p, source, DISTRICT + b.code() + " has no boundary to check against",
                     usage);
         }
         if (!inside(b, p)) {
@@ -212,9 +200,52 @@ public class LocationResolver {
         return new ByAddress(new Found(p, PROVIDER, null, null), null, usage);
     }
 
+    private ByAddress fromSources(String tenantCode, Site site, boolean manual, Boundary district, String country) {
+        Found point = fromPointSources(tenantCode, site, manual, district);
+        if (point.point() != null) return new ByAddress(point, null, Usage.NONE);
+        if (!manual && blankToNull(site.address()) != null && district != null && district.shape() != null) {
+            ByAddress address = fromAddress(tenantCode, country, district, site.address());
+            return new ByAddress(address.found(), address.note(), address.usage());
+        }
+        return new ByAddress(null, point.note() != null ? point.note() : nothingNote(site, district), Usage.NONE);
+    }
+
+    private Found fromPointSources(String tenantCode, Site site, boolean manual, Boundary district) {
+        Found found = manual ? null : fromGeofence(tenantCode, site);
+        if (found != null) return found;
+        String note = null;
+        if (site.plusCode() != null && !site.plusCode().isBlank()) {
+            found = fromPlusCode(site.plusCode(), district);
+            if (found.point() != null) return found;
+            note = found.note();
+        }
+        if (site.latitude() != null || site.longitude() != null) {
+            found = fromCoordinates(site.latitude(), site.longitude());
+            if (found.point() != null) return found;
+            return new Found(null, found.source(), null, note == null ? found.note() : note);
+        }
+        return new Found(null, null, null, note == null ? "no geofence, plus code or coordinates" : note);
+    }
+
+    private static String country(String raw) {
+        String code = raw == null ? null : raw.strip().toUpperCase(Locale.ROOT);
+        return code != null && COUNTRIES.contains(code) ? code : null;
+    }
+
+    private static String bounded(String raw, int max) {
+        String value = blankToNull(raw);
+        return value != null && value.length() <= max ? value : null;
+    }
+
     private District district(String country, Site site) {
         if (country == null || country.isBlank()) {
             return new District(null, "country is required to check the district");
+        }
+        if (site.districtCode() != null && site.districtCode().strip().length() > 16) {
+            return new District(null, "district code is too long");
+        }
+        if (site.districtName() != null && site.districtName().strip().length() > 255) {
+            return new District(null, "district name is too long");
         }
         if (!boundaries.supports(country)) {
             return new District(null, "country " + country + " has no district boundaries");
@@ -232,8 +263,8 @@ public class LocationResolver {
             return new District(named.get(0), null);
         }
         return new District(null, named.isEmpty()
-                ? "district " + site.districtName().strip() + " not found in " + country
-                : "district " + site.districtName().strip() + " is ambiguous in " + country + "; send its code");
+                ? DISTRICT + site.districtName().strip() + " not found in " + country
+                : DISTRICT + site.districtName().strip() + " is ambiguous in " + country + "; send its code");
     }
 
     private Found fromGeofence(String tenantCode, Site site) {
@@ -264,10 +295,10 @@ public class LocationResolver {
         }
         OpenLocationCode olc = new OpenLocationCode(code);
         if (olc.isShort()) {
-            if (district == null || district.centroid() == null) {
+            if (district == null || district.centroid().size() != 2) {
                 return new Found(null, PLUS_CODE, null, "a short plus code needs a district with a boundary");
             }
-            olc = olc.recover(district.centroid()[1], district.centroid()[0]);
+            olc = olc.recover(district.centroid().get(1), district.centroid().get(0));
         }
         OpenLocationCode.CodeArea area = olc.decode();
         return new Found(new Point(area.getCenterLongitude(), area.getCenterLatitude()), PLUS_CODE, null, null);

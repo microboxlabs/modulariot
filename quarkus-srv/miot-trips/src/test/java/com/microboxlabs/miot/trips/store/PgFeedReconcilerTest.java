@@ -47,6 +47,7 @@ import com.microboxlabs.miot.trips.service.FeedBatchService;
 import com.microboxlabs.miot.trips.service.FeedProfileService;
 import com.microboxlabs.miot.trips.service.FeedReconciler;
 import com.microboxlabs.miot.trips.service.FeedServiceJobHandler;
+import com.microboxlabs.miot.trips.service.FeedSites;
 import com.microboxlabs.miot.trips.service.LocationService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
@@ -500,7 +501,7 @@ class PgFeedReconcilerTest {
     void aBatchQueuesOnlyChangedServicesAndTheJobAppliesTheLatestState() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
-        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
+        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, new FeedSites(null, null), json);
         FeedBatchRequest first = new FeedBatchRequest("b1", List.of(
                 new FeedBatchRequest.Item("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001")),
                 new FeedBatchRequest.Item(" ", desired(2, 10, "ABC-123", null, "10000001")),
@@ -565,7 +566,7 @@ class PgFeedReconcilerTest {
     void aJobForAServiceThatCannotBeCreatedFailsWithoutRetry() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
-        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
+        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, new FeedSites(null, null), json);
         batches.send(tenant, ACTOR, FEED, new FeedBatchRequest(null, List.of(
                 new FeedBatchRequest.Item("S-005", desired(1, 6, "JKL-000", null, "10000001")))));
 

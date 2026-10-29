@@ -17,6 +17,8 @@ import java.util.Map;
  * {@code slaMinutes} is the mandate's agreed lead time. {@code cargo} lists the units of the load in order; the
  * n-th item is the mandate's n-th unit. Without cargo the units are left as they are.
  * {@code source} is the original record (a spreadsheet row), kept for audit and not compared.
+ * {@code originSite} and {@code destinationSite} say where each place is; a location that is not resolved yet is
+ * located from them after the service is applied (see {@link Site}).
  */
 public record FeedServiceRequest(
         String orderType,
@@ -32,12 +34,33 @@ public record FeedServiceRequest(
         JsonNode source,
         @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, MilestoneReport> milestones,
         @JsonInclude(JsonInclude.Include.NON_NULL) Integer slaMinutes,
-        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CargoItem> cargo) {
+        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CargoItem> cargo,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Site originSite,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Site destinationSite) {
 
     public FeedServiceRequest {
         milestones = milestones == null ? Map.of()
                 : java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(milestones));
         cargo = cargo == null ? List.of() : List.copyOf(cargo);
+    }
+
+    @SuppressWarnings("java:S107") // The feed row without sites.
+    public FeedServiceRequest(String orderType, String orderRef, String origin, String destination,
+            OffsetDateTime plannedStart, OffsetDateTime plannedEnd, OffsetDateTime actualStart,
+            OffsetDateTime actualArrival, OffsetDateTime actualEnd, Resources resources, JsonNode source,
+            Map<String, MilestoneReport> milestones, Integer slaMinutes, List<CargoItem> cargo) {
+        this(orderType, orderRef, origin, destination, plannedStart, plannedEnd, actualStart, actualArrival,
+                actualEnd, resources, source, milestones, slaMinutes, cargo, null, null);
+    }
+
+    /**
+     * Where a place is, as the source declares it: the address with its district and country, a Plus Code, or
+     * coordinates. {@code districtCode} is the Peruvian ubigeo or the Chilean commune code; {@code country} is ISO
+     * 3166 alpha-2.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Site(String address, String country, String districtCode, String district, String plusCode,
+            Double latitude, Double longitude) {
     }
 
     @SuppressWarnings("java:S107") // The feed row without SLA or cargo.

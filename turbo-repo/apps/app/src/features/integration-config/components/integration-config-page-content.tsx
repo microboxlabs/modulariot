@@ -21,7 +21,13 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import {
+  connectManagedGeocoding,
+  removeManagedGeocoding,
+} from "@/features/settings-admin/platform/org-geocoding-connection";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import {
   connectionTypeName,
+  isPlatformManaged,
   DEFAULT_CONNECTION_FILTERS,
   DEFAULT_CONNECTION_SORT,
   filterConnections,
@@ -149,7 +155,9 @@ export function IntegrationConfigPageContent({
     removeConnection,
     testInstance,
     testDraft,
+    refresh,
   } = useIntegrationConfig(orgSlug);
+  const { isPlatformOwner } = useIsPlatformOwner();
 
   const [templateModal, setTemplateModal] = useState<{
     open: boolean;
@@ -212,6 +220,22 @@ export function IntegrationConfigPageContent({
     setConnectionModal({ open: true, providerType });
   }
 
+  /** Creates the organization's connection to the platform's geocoding provider, once. */
+  async function handleManagedGeocoding() {
+    if (!orgSlug) return;
+    setPickerOpen(false);
+    const pending = toast.loading(tr("toast.managedGeocodingCreating", dict));
+    try {
+      await connectManagedGeocoding(orgSlug);
+      refresh();
+      toast.success(tr("toast.managedGeocodingCreated", dict), { id: pending });
+    } catch (cause) {
+      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
+        id: pending,
+      });
+    }
+  }
+
   function handleEditConnection(connection: IntegrationConnection) {
     setConnectionModal({
       open: true,
@@ -247,7 +271,12 @@ export function IntegrationConfigPageContent({
   async function handleDeleteConnection() {
     if (!deletingConnection) return;
     try {
-      await removeConnection(deletingConnection.id);
+      if (isPlatformManaged(deletingConnection) && orgSlug) {
+        await removeManagedGeocoding(orgSlug);
+        refresh();
+      } else {
+        await removeConnection(deletingConnection.id);
+      }
       toast.success(tr("toast.connectionDeleted", dict));
       setDeletingConnection(null);
     } catch (cause) {
@@ -387,6 +416,7 @@ export function IntegrationConfigPageContent({
               onOpen={handleEditConnection}
               onTest={handleTest}
               onDelete={setDeletingConnection}
+              canRemoveManaged={isPlatformOwner}
               onFunctions={setFunctionsFor}
               onQueries={(connection) =>
                 navigate("bigquery", { source: connection.id })
@@ -442,6 +472,9 @@ export function IntegrationConfigPageContent({
         onClose={() => setPickerOpen(false)}
         onSelect={handleTemplatePicked}
         onSelectNative={handleNativePicked}
+        onSelectManagedGeocoding={
+          isPlatformOwner ? () => void handleManagedGeocoding() : undefined
+        }
         dict={dict}
       />
 

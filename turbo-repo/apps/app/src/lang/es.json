@@ -1654,7 +1654,7 @@
         "geocoding": {
           "title": "Geocodificación",
           "menuHint": "Proveedor que contrata la plataforma",
-          "description": "La plataforma contrata y paga el proveedor de geocodificación. Todas las organizaciones lo usan dentro de la cuota de su plan; ninguna configura un proveedor propio.",
+          "description": "La plataforma contrata y paga el proveedor de geocodificación. Una organización lo usa, dentro de la cuota de su plan, cuando un dueño de la plataforma le agrega la conexión «Geocoding · proveedor de la plataforma» en Conexiones. Ninguna configura un proveedor propio.",
           "provider": "Proveedor",
           "providerHelp": {
             "mapbox": "Mapbox Geocoding v6. Los resultados se guardan en la caché si el modo permanente está activo.",
@@ -1676,7 +1676,7 @@
           "removeError": "No se pudo quitar el proveedor.",
           "loadError": "No se pudo cargar el proveedor.",
           "removeTitle": "Quitar el proveedor de geocodificación",
-          "removeBody": "Las direcciones que no estén en la caché ni en la fuente interna irán a revisión en todas las organizaciones.",
+          "removeBody": "Las direcciones que no estén en la caché ni en la fuente interna irán a revisión en todas las organizaciones conectadas.",
           "statusNone": "Sin configurar",
           "statusConfigured": "Configurado"
         },
@@ -4894,7 +4894,9 @@
         "native": "Integradas",
         "templates": "Plantillas",
         "postgrest": "Fuente de datos para dashboards: se prueba con su credencial y luego eliges qué funciones exponer.",
-        "bigquery": "Fuente de datos para dashboards: SQL de BigQuery con una cuenta de servicio de Google."
+        "bigquery": "Fuente de datos para dashboards: SQL de BigQuery con una cuenta de servicio de Google.",
+        "managedGeocoding": "Geocoding · proveedor de la plataforma",
+        "managedGeocodingHelp": "Ubica direcciones con el proveedor que contrata la plataforma, dentro del plan de la organización. Solo dueños de la plataforma."
       },
       "validation": {
         "nameRequired": "El nombre es obligatorio",
@@ -4908,7 +4910,9 @@
         "actionFailed": "No se pudo completar la acción",
         "testOk": "Conexión probada correctamente",
         "testFailed": "La prueba de conexión falló",
-        "connectionDeleted": "Conexión eliminada"
+        "connectionDeleted": "Conexión eliminada",
+        "managedGeocodingCreating": "Conectando el geocoding de la plataforma…",
+        "managedGeocodingCreated": "Geocoding de la plataforma conectado"
       },
       "template": {
         "form": {

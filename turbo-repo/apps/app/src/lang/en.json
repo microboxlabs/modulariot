@@ -1654,7 +1654,7 @@
         "geocoding": {
           "title": "Geocoding",
           "menuHint": "Provider the platform contracts",
-          "description": "The platform contracts and pays the geocoding provider. Every organization uses it within its plan's quota; no organization sets up its own provider.",
+          "description": "The platform contracts and pays the geocoding provider. An organization uses it, within its plan's quota, once a platform owner adds the \"Geocoding · platform provider\" connection in Connections. No organization sets up its own provider.",
           "provider": "Provider",
           "providerHelp": {
             "mapbox": "Mapbox Geocoding v6. Results are kept in the cache when permanent mode is on.",
@@ -1676,7 +1676,7 @@
           "removeError": "Could not remove the provider.",
           "loadError": "Could not load the provider.",
           "removeTitle": "Remove the geocoding provider",
-          "removeBody": "Addresses that are not in the cache or the internal source will go to review in every organization.",
+          "removeBody": "Addresses that are not in the cache or the internal source will go to review in every connected organization.",
           "statusNone": "Not set",
           "statusConfigured": "Set"
         },
@@ -4894,7 +4894,9 @@
         "native": "Built-in",
         "templates": "Templates",
         "postgrest": "Data source for dashboards: tested with its credential, then you choose which functions to expose.",
-        "bigquery": "Dashboard data source: BigQuery SQL with a Google service account."
+        "bigquery": "Dashboard data source: BigQuery SQL with a Google service account.",
+        "managedGeocoding": "Geocoding · platform provider",
+        "managedGeocodingHelp": "Locates addresses with the provider the platform contracts, within the organization's plan. Platform owners only."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -4908,7 +4910,9 @@
         "actionFailed": "Could not complete the action",
         "testOk": "Connection tested successfully",
         "testFailed": "Connection test failed",
-        "connectionDeleted": "Connection deleted"
+        "connectionDeleted": "Connection deleted",
+        "managedGeocodingCreating": "Connecting the platform geocoding…",
+        "managedGeocodingCreated": "Platform geocoding connected"
       },
       "template": {
         "form": {

@@ -1,6 +1,6 @@
 import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
-import { Image, Link } from "flowbite-react-icons/outline";
+import { Image, Link, MapPin } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import type {
   BrandLogoSources,
@@ -20,6 +20,7 @@ export interface ConnectionMark {
 
 const PROVIDER_LABELS: Record<string, string> = {
   CAR_IMAGES: "CarImages",
+  GEOCODING: "Geocoding",
   POSTGREST: "PostgREST",
   RESEND: "Resend",
   WHATSAPP: "WhatsApp",
@@ -37,6 +38,7 @@ export const BIGQUERY_LOGO: BrandLogoSources = {
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
+  GEOCODING: { icon: MapPin },
   // Taller than wide: the round keyline gives it the height the square one takes away.
   POSTGREST: {
     logo: POSTGREST_LOGO,
@@ -57,6 +59,15 @@ const CHANNEL_TEMPLATES: Record<string, string> = {
   "Slack de comunicaciones": "slack",
   "Teams de comunicaciones": "teams",
 };
+
+/**
+ * A connection the platform creates and manages for the organization: the
+ * organization's geocoding connection to the platform's provider. It cannot be
+ * opened, edited or tested here; only a platform owner removes it.
+ */
+export function isPlatformManaged(connection: IntegrationConnection): boolean {
+  return connection.providerType === "GEOCODING";
+}
 
 export function providerLabel(providerType: string): string {
   return PROVIDER_LABELS[providerType] ?? providerType;

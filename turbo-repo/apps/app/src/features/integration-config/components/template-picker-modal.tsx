@@ -8,6 +8,7 @@ import {
   ModalFooter,
   TextInput,
 } from "flowbite-react";
+import { MapPin } from "flowbite-react-icons/outline";
 import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
 import { BrandLogo } from "@/features/common/components/brand-logo";
 import { BIGQUERY_LOGO, POSTGREST_LOGO } from "../connection-catalog";
@@ -27,6 +28,8 @@ interface TemplatePickerModalProps {
   readonly onSelect: (template: IntegrationTemplate) => void;
   /** A built-in provider, created without a template. */
   readonly onSelectNative: (provider: NativeProvider) => void;
+  /** Offered to platform owners: geocoding through the platform's provider. */
+  readonly onSelectManagedGeocoding?: () => void;
   readonly dict: I18nRecord;
 }
 
@@ -44,6 +47,7 @@ export function TemplatePickerModal({
   onClose,
   onSelect,
   onSelectNative,
+  onSelectManagedGeocoding,
   dict,
 }: Readonly<TemplatePickerModalProps>) {
   const [query, setQuery] = useState("");
@@ -100,6 +104,18 @@ export function TemplatePickerModal({
             }
             onSelect={() => onSelectNative("BIGQUERY")}
           />
+          {onSelectManagedGeocoding && (
+            <NativeOption
+              title={tr("picker.managedGeocoding", dict)}
+              description={tr("picker.managedGeocodingHelp", dict)}
+              icon={
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                  <MapPin className="h-6 w-6" />
+                </span>
+              }
+              onSelect={onSelectManagedGeocoding}
+            />
+          )}
         </div>
         <p className="mt-4 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
           {tr("picker.templates", dict)}

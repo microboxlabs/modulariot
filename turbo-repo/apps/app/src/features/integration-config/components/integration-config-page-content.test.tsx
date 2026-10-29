@@ -19,6 +19,9 @@ vi.mock(
     useOrgScopes: () => ({ activeOrg: { slug: "demo-org", role: "OWNER" } }),
   })
 );
+vi.mock("@/features/settings-admin/platform/use-platform-membership", () => ({
+  useIsPlatformOwner: () => ({ isPlatformOwner: false, isLoading: false }),
+}));
 vi.mock("../use-integration-config", () => ({
   useIntegrationConfig: () => ({
     templates: [],

@@ -40,7 +40,8 @@ class ManagedGeocodingConnectionsTest {
                 new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key"), null);
         IntegrationConnectionService connectionService = new IntegrationConnectionService(credentials,
                 credentialService, connections, null, null, new NoBindings(), null);
-        return new ManagedGeocodingConnections(connectionService, connections, credentialService, credentials);
+        return new ManagedGeocodingConnections(connectionService, connections, credentialService, credentials,
+                new com.microboxlabs.miot.integrations.service.TestManagedConnectionLock());
     }
 
     private void platformProvider() {

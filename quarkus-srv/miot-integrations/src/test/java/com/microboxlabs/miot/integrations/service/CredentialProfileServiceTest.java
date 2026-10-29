@@ -48,6 +48,16 @@ class CredentialProfileServiceTest {
     private final FakeConnections connections = new FakeConnections();
 
     @Test
+    void managedSecretsCannotBeMutatedThroughConnectionHelpers() {
+        CredentialProfileService service = service();
+        CredentialProfile profile = service.createManaged(TENANT, ACTOR, "Synthetic geocoding", AuthType.BEARER_TOKEN, Map.of());
+        Map<String, Object> secret = Map.of("token", "synthetic-token");
+        assertThrows(IllegalArgumentException.class, () -> service.mergeSecret(TENANT, profile.id(), secret));
+        assertThrows(IllegalArgumentException.class, () -> service.rotateSecret(TENANT, profile.id(), secret));
+        assertEquals(profile.encryptedSecretJson(), credentials.findByTenantAndId(TENANT, profile.id()).encryptedSecretJson());
+    }
+
+    @Test
     void createsAnEntraCredentialWithTheActorAndTheDerivedAuthType() {
         CredentialProfileResponse created = service().create(TENANT, ACTOR, entraRequest("Partner API", "QA"));
 

@@ -37,6 +37,7 @@ public class LocationResolver {
 
     /** Slack at district borders: the boundary layers are simplified. */
     static final double BORDER_METERS = 500;
+    private static final org.jboss.logging.Logger LOG = org.jboss.logging.Logger.getLogger(LocationResolver.class);
     private static final String DISTRICT = "district ";
     private static final Set<String> COUNTRIES = Set.of(Locale.getISOCountries());
 
@@ -173,7 +174,7 @@ public class LocationResolver {
                 }
             }
         }
-        String key = Addresses.key(address, b.name());
+        String key = b.code() + "|" + Addresses.key(address, b.name());
         var cached = cache.find(key, country);
         if (cached.isPresent()) {
             return new ByAddress(new Found(new Point(cached.get().lon(), cached.get().lat()), PROVIDER, null, null),
@@ -184,6 +185,9 @@ public class LocationResolver {
         if (!r.called()) {
             return new ByAddress(null, "geocoding: " + r.error(), usage);
         }
+        if (!r.storable()) {
+            return new ByAddress(null, "geocoding results cannot be stored with this provider configuration", usage);
+        }
         List<Candidate> exact = r.candidates().stream().filter(Candidate::addressLevel).toList();
         if (exact.isEmpty()) {
             String type = r.candidates().isEmpty() ? null : r.candidates().get(0).type();
@@ -193,11 +197,17 @@ public class LocationResolver {
         Candidate pick = exact.stream().filter(c -> inside(b, new Point(c.lon(), c.lat()))).findFirst()
                 .orElse(exact.get(0));
         Point p = new Point(pick.lon(), pick.lat());
-        if (r.storable() && inside(b, p)) {
-            cache.put(key, country, new GeocodeCache.Entry(p.lat(), p.lon(), PROVIDER, r.provider(),
-                    OffsetDateTime.now()));
-        }
+        if (inside(b, p)) cacheResult(key, country, p, r.provider());
         return new ByAddress(new Found(p, PROVIDER, null, null), null, usage);
+    }
+
+    private void cacheResult(String key, String country, Point point, String provider) {
+        try {
+            cache.put(key, country, new GeocodeCache.Entry(point.lat(), point.lon(), PROVIDER, provider,
+                    OffsetDateTime.now(java.time.ZoneOffset.UTC)));
+        } catch (RuntimeException cause) {
+            LOG.warn("Geocoding result was resolved but could not be cached", cause);
+        }
     }
 
     private ByAddress fromSources(String tenantCode, Site site, boolean manual, Boundary district, String country) {
@@ -224,7 +234,7 @@ public class LocationResolver {
             if (found.point() != null) return found;
             return new Found(null, found.source(), null, note == null ? found.note() : note);
         }
-        return new Found(null, null, null, note == null ? "no geofence, plus code or coordinates" : note);
+        return new Found(null, null, null, note);
     }
 
     private static String country(String raw) {

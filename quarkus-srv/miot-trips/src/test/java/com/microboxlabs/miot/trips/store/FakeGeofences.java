@@ -16,6 +16,8 @@ public class FakeGeofences implements GeofenceDirectory {
 
     private final List<Owned> all = new ArrayList<>();
     private final Map<Integer, String> shapes = new HashMap<>();
+    private boolean configured = true;
+    private int nextId = 10_000;
 
     /** A square of side {@code 2 * half} degrees centered on the point. */
     public FakeGeofences square(int id, double lon, double lat, double half) {
@@ -34,6 +36,47 @@ public class FakeGeofences implements GeofenceDirectory {
     public FakeGeofences add(String tenantCode, int id, String code, String name) {
         all.add(new Owned(tenantCode, new Geofence(id, code, name)));
         return this;
+    }
+
+    /** As when the GPS database is not configured: nothing is created. */
+    public FakeGeofences unconfigured() {
+        configured = false;
+        return this;
+    }
+
+    /** The tenant's geofences, created ones included. */
+    public List<Geofence> of(String tenantCode) {
+        return all.stream().filter(o -> o.tenantCode().equals(tenantCode)).map(Owned::geofence).toList();
+    }
+
+    public String shape(int id) {
+        return shapes.get(id);
+    }
+
+    @Override
+    public List<Geofence> matching(String tenantCode, String code, String name, int limit) {
+        List<Geofence> mine = of(tenantCode);
+        List<Geofence> out = new ArrayList<>(mine.stream().filter(g -> code != null && code.equals(g.code())).toList());
+        mine.stream().filter(g -> name != null && name.equalsIgnoreCase(g.name()) && !out.contains(g)).forEach(out::add);
+        return out.stream().limit(limit).toList();
+    }
+
+    @Override
+    public Optional<Geofence> create(String tenantCode, String code, String name, String area, String properties) {
+        if (tenantCode == null || tenantCode.isBlank()) {
+            throw new IllegalArgumentException("a geofence needs the tenant's client id");
+        }
+        if (!configured) {
+            return Optional.empty();
+        }
+        Optional<Geofence> existing = matching(tenantCode, code, null, 1).stream().findFirst();
+        if (existing.isPresent()) {
+            return existing;
+        }
+        int id = nextId++;
+        add(tenantCode, id, code, name);
+        shapes.put(id, area);
+        return find(tenantCode, id);
     }
 
     @Override

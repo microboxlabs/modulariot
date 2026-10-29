@@ -12,6 +12,7 @@ import com.microboxlabs.miot.integrations.service.ConnectionNotConfiguredExcepti
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import com.sun.net.httpserver.HttpServer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
@@ -226,5 +227,23 @@ class GeocoderTest {
 
         assertEquals("unknown geocoding provider here", r.error());
         assertTrue(requests.isEmpty());
+    }
+
+    @Test
+    void providerCallsAndErrorsAreMetered() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        Geocoder geocoder = new Geocoder(resolver(Map.of("acme", connection(base, Map.of()))),
+                List.of(new MapboxGeocoding(base)), new GeocodingMetrics(meters));
+
+        geocoder.forward("acme", larco());
+        status = 500;
+        geocoder.forward("acme", larco());
+        geocoder.forward("nobody", larco());
+
+        assertEquals(1, meters.get("geocoding.provider.latency").tags("provider", "mapbox", "outcome", "found")
+                .timer().count());
+        assertEquals(1.0, meters.get("geocoding.provider.errors").tags("provider", "mapbox", "reason", "io")
+                .counter().count());
+        assertEquals(1.0, meters.get("geocoding.provider.errors").tags("reason", "no_connection").counter().count());
     }
 }

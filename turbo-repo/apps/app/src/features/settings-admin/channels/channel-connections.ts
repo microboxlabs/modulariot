@@ -15,8 +15,11 @@ import type {
  * on non-2xx.
  */
 
+/** The coordinator modulith's integrations; a channel may live on another (see `use-org-channel`). */
 const integrationsBase = (orgSlug: string) =>
   `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/integrations`;
+
+export type IntegrationsBase = (orgSlug: string) => string;
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -59,10 +62,11 @@ async function sendJson<T>(
 /** The organization's connection of this provider, or null if none. */
 export async function fetchChannelConnection(
   orgSlug: string,
-  provider: string
+  provider: string,
+  base: IntegrationsBase = integrationsBase
 ): Promise<IntegrationConnection | null> {
   const connections = await getJson<IntegrationConnection[]>(
-    `${integrationsBase(orgSlug)}/connections`
+    `${base(orgSlug)}/connections`
   );
   return connections.find((c) => c.providerType === provider) ?? null;
 }
@@ -71,14 +75,20 @@ export async function fetchChannelConnection(
 export async function createChannelConnection(
   orgSlug: string,
   provider: string,
-  input: ChannelCreate
+  input: ChannelCreate,
+  base: IntegrationsBase = integrationsBase
 ): Promise<IntegrationConnection> {
   if (input.credentialProfileId) {
-    return postConnection(orgSlug, provider, input, input.credentialProfileId);
+    return postConnection(
+      base(orgSlug),
+      provider,
+      input,
+      input.credentialProfileId
+    );
   }
   const credential = await sendJson<CredentialProfileResponse>(
     "POST",
-    `${integrationsBase(orgSlug)}/credential-profiles`,
+    `${base(orgSlug)}/credential-profiles`,
     {
       displayName: input.credentialName,
       authType: "BEARER_TOKEN",
@@ -87,11 +97,11 @@ export async function createChannelConnection(
     }
   );
   try {
-    return await postConnection(orgSlug, provider, input, credential.id);
+    return await postConnection(base(orgSlug), provider, input, credential.id);
   } catch (cause) {
     // Don't leave a credential behind for a connection that was not created.
     await fetch(
-      `${integrationsBase(orgSlug)}/credential-profiles/${encodeURIComponent(credential.id)}`,
+      `${base(orgSlug)}/credential-profiles/${encodeURIComponent(credential.id)}`,
       { method: "DELETE" }
     ).catch(() => undefined);
     throw cause;
@@ -99,29 +109,26 @@ export async function createChannelConnection(
 }
 
 function postConnection(
-  orgSlug: string,
+  url: string,
   provider: string,
   input: ChannelCreate,
   credentialProfileId: string
 ): Promise<IntegrationConnection> {
-  return sendJson<IntegrationConnection>(
-    "POST",
-    `${integrationsBase(orgSlug)}/connections`,
-    {
-      name: input.name,
-      providerType: provider,
-      baseUrl: input.baseUrl,
-      credentialProfileId,
-      metadata: input.metadata,
-    }
-  );
+  return sendJson<IntegrationConnection>("POST", `${url}/connections`, {
+    name: input.name,
+    providerType: provider,
+    baseUrl: input.baseUrl,
+    credentialProfileId,
+    metadata: input.metadata,
+  });
 }
 
 /** Updates name, base URL and metadata; a non-blank token or secret replaces the stored one. */
 export async function updateChannelConnection(
   orgSlug: string,
   connectionId: string,
-  input: ChannelUpdate
+  input: ChannelUpdate,
+  base: IntegrationsBase = integrationsBase
 ): Promise<IntegrationConnection> {
   const body: Record<string, unknown> = {
     name: input.name,
@@ -140,7 +147,7 @@ export async function updateChannelConnection(
   }
   return sendJson<IntegrationConnection>(
     "PATCH",
-    `${integrationsBase(orgSlug)}/connections/${encodeURIComponent(connectionId)}`,
+    `${base(orgSlug)}/connections/${encodeURIComponent(connectionId)}`,
     body
   );
 }

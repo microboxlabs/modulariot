@@ -27,7 +27,8 @@ public class PgLocationStore implements LocationStore {
 
     private static final String COLUMNS = """
             id, tenant_code, name, type, external_code, geom_geojson::text AS geom_geojson, geofence_id,
-            created_at, created_by, updated_at, updated_by""";
+            created_at, created_by, updated_at, updated_by, address, country, district_code, district_name,
+            plus_code, latitude, longitude, resolution_source, resolution_status, resolution_note""";
 
     private final Supplier<Pool> pool;
 
@@ -82,7 +83,7 @@ public class PgLocationStore implements LocationStore {
     }
 
     @Override
-    public List<Location> list(String tenantCode, String q, String type, int page, int size) {
+    public List<Location> list(String tenantCode, String q, String type, String status, int page, int size) {
         StringBuilder sql = new StringBuilder(SELECT).append(COLUMNS)
                 .append(" FROM miot_trips.location WHERE tenant_code = $1 AND version_of IS NULL");
         Tuple params = Tuple.of(tenantCode);
@@ -94,6 +95,10 @@ public class PgLocationStore implements LocationStore {
         if (type != null) {
             params.addString(type);
             sql.append(" AND type = $").append(params.size());
+        }
+        if (status != null) {
+            params.addString(status);
+            sql.append(" AND resolution_status = $").append(params.size());
         }
         params.addInteger(size);
         sql.append(" ORDER BY name, id LIMIT $").append(params.size());
@@ -123,6 +128,22 @@ public class PgLocationStore implements LocationStore {
                 Tuple.of(tenantCode, id, geofenceId, actor)));
     }
 
+    @Override
+    public Optional<Location> setPlacement(String tenantCode, UUID id, Location.Placement p, Integer geofenceId,
+            String actor) {
+        return first(query(pool.get(), """
+                UPDATE miot_trips.location SET
+                    address = $3, country = $4, district_code = $5, district_name = $6, plus_code = $7,
+                    latitude = $8, longitude = $9, resolution_source = $10, resolution_status = $11,
+                    resolution_note = $12, geofence_id = COALESCE($13, geofence_id),
+                    updated_by = $14, updated_at = now()
+                WHERE tenant_code = $1 AND id = $2 RETURNING\s""" + COLUMNS,
+                Tuple.tuple().addString(tenantCode).addUUID(id).addString(p.address()).addString(p.country())
+                        .addString(p.districtCode()).addString(p.districtName()).addString(p.plusCode())
+                        .addDouble(p.latitude()).addDouble(p.longitude()).addString(p.source())
+                        .addString(p.status()).addString(p.note()).addInteger(geofenceId).addString(actor)));
+    }
+
     private static Optional<Location> first(RowSet<Row> rows) {
         RowIterator<Row> it = rows.iterator();
         return it.hasNext() ? Optional.of(location(it.next())) : Optional.empty();
@@ -132,6 +153,9 @@ public class PgLocationStore implements LocationStore {
         return new Location(text(r.getUUID("id")), r.getString("tenant_code"), r.getString("name"),
                 r.getString("type"), r.getString("external_code"), r.getString("geom_geojson"),
                 r.getInteger("geofence_id"), time(r, "created_at"), r.getString("created_by"), time(r, "updated_at"),
-                r.getString("updated_by"));
+                r.getString("updated_by"), new Location.Placement(r.getString("address"), r.getString("country"),
+                        r.getString("district_code"), r.getString("district_name"), r.getString("plus_code"),
+                        r.getDouble("latitude"), r.getDouble("longitude"), r.getString("resolution_source"),
+                        r.getString("resolution_status"), r.getString("resolution_note")));
     }
 }

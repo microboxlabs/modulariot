@@ -54,6 +54,7 @@ export type PlatformSection =
   | "models"
   | "vehicleImages"
   | "geocoding"
+  | "geocodingPlan"
   | "sharing"
   | "templates"
   | "plan"

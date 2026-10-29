@@ -8,6 +8,7 @@ import {
   HiOutlineCreditCard,
   HiOutlineGlobeAlt,
   HiOutlineKey,
+  HiOutlineMap,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
@@ -24,6 +25,7 @@ import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import PlatformGeocodingSection from "./platform-geocoding-section";
+import GeocodingPlanSection from "./geocoding-plan-section";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
@@ -64,6 +66,7 @@ export default function PlatformPageContent({
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
   const geocodingDict = (platformDict?.geocoding as I18nRecord) ?? {};
+  const geocodingPlanDict = (platformDict?.geocodingPlan as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
@@ -105,6 +108,12 @@ export default function PlatformPageContent({
       icon: HiOutlineGlobeAlt,
     },
     {
+      id: "geocodingPlan",
+      label: tr("title", geocodingPlanDict),
+      description: tr("menuHint", geocodingPlanDict),
+      icon: HiOutlineMap,
+    },
+    {
       id: "sharing",
       label: tr("title", sharingDict),
       description: tr("menuHint", sharingDict),
@@ -136,6 +145,7 @@ export default function PlatformPageContent({
     models: <ModelProvidersSection dict={modelsDict} />,
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
     geocoding: <PlatformGeocodingSection dict={geocodingDict} />,
+    geocodingPlan: <GeocodingPlanSection dict={geocodingPlanDict} />,
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />

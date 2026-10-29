@@ -29,3 +29,24 @@ export async function GET(
     { sessionOnly: true }
   );
 }
+
+/**
+ * PUT /api/admin/orgs/[orgId]/geocoding-plan — the organization's quota and
+ * what happens when it is used. The modulith allows only a platform owner.
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await params;
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  return forwardToStreamhubModulith(
+    `/api/v1/orgs/${encodeURIComponent(orgId)}/geocoding-plan`,
+    { method: "PUT", body, sessionOnly: true }
+  );
+}

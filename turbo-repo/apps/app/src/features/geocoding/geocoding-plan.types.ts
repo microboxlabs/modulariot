@@ -4,8 +4,25 @@ export interface GeocodingPlan {
   resolutionsPerMonth: number;
   overagePriceUsd: number;
   alertPct: number;
+  /** Applies the quotas; off, no provider call is refused. */
+  enforced: boolean;
   updatedBy: string | null;
   updatedAt: string | null;
+}
+
+/** Mirrors `SetPlanRequest`. `enforced` null keeps the plan's. */
+export interface SetGeocodingPlan {
+  monthlyPriceUsd: number;
+  resolutionsPerMonth: number;
+  overagePriceUsd: number;
+  alertPct: number;
+  enforced: boolean;
+}
+
+/** Mirrors `SetSubscriptionRequest`. `monthlyQuota` null uses the plan's. */
+export interface SetGeocodingSubscription {
+  monthlyQuota: number | null;
+  onExhausted: OnExhausted;
 }
 
 export type OnExhausted = "review" | "overage";
@@ -49,4 +66,11 @@ export interface OrgGeocodingPlan {
   subscription: GeocodingSubscription | null;
   usage: GeocodingUsage;
   enforced: boolean;
+}
+
+/** One organization's month, for the platform owner. */
+export interface OrgGeocodingUsage {
+  organization: string;
+  subscription: GeocodingSubscription | null;
+  usage: GeocodingUsage & { providerCostUsd: number | null };
 }

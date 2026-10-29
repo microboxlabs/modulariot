@@ -37,7 +37,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
     public List<EngineCase> list(String tenantCode, CaseFilter f) {
         return cases.stream()
                 .filter(c -> f.openOnly() ? c.closedAt() == null
-                        : (f.from() == null || !c.openedAt().isBefore(f.from()))
+                        : (f.from() == null || c.closedAt() == null || !c.closedAt().isBefore(f.from()))
                                 && (f.to() == null || c.openedAt().isBefore(f.to())))
                 .filter(c -> f.tripId() == null || f.tripId().equals(c.tripId()))
                 .filter(c -> f.assetId() == null

@@ -15,6 +15,11 @@ public interface ConnectionTester {
 
     boolean supports(ProviderType providerType);
 
+    /** Whether this tester handles the connection; by default, decided by its provider type. */
+    default boolean supports(IntegrationConnection connection) {
+        return supports(connection.providerType());
+    }
+
     /**
      * @param credential the connection's linked credential profile, or {@code null} if none is set
      */

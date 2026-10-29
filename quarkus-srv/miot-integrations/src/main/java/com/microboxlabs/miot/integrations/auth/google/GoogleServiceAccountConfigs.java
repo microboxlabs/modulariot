@@ -17,7 +17,8 @@ import java.util.Optional;
 public final class GoogleServiceAccountConfigs {
 
     public static final String DEFAULT_TOKEN_URL = "https://oauth2.googleapis.com/token";
-    public static final String DEFAULT_SCOPE = "https://www.googleapis.com/auth/bigquery.readonly";
+    /** BigQuery queries run as jobs, which the read-only scope may not create. */
+    public static final String DEFAULT_SCOPE = "https://www.googleapis.com/auth/bigquery";
 
     private GoogleServiceAccountConfigs() {
     }

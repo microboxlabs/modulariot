@@ -23,7 +23,10 @@ const state = vi.hoisted(() => ({
   push: vi.fn(),
   host: undefined as DashboardSettingsHost | undefined,
   storage: undefined as
-    | { config: DashboardStorageSchema; onChange: (c: DashboardStorageSchema) => void }
+    | {
+        config: DashboardStorageSchema;
+        onChange: (c: DashboardStorageSchema) => void;
+      }
     | undefined,
 }));
 vi.mock("next-auth/react", () => ({
@@ -32,7 +35,10 @@ vi.mock("next-auth/react", () => ({
     data: { user: { id: state.userId } },
   }),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: state.push }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: state.push }),
+  useParams: () => ({ lang: "en" }),
+}));
 vi.mock(
   "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
   () => ({
@@ -91,9 +97,18 @@ const dictionary = {
       loadError: "Dashboard unavailable",
       unsaved: "Unsaved changes",
       saving: "Saving…",
-      create: "Create dashboard",
-      slug: "Dashboard identifier",
       newName: "New dashboard",
+      empty: "No dashboards yet",
+    },
+    landing: { title: "Dashboards", cta: "Create dashboard" },
+    create: {
+      title: "New dashboard",
+      nameLabel: "Name",
+      submit: "Create",
+      nameRequired: "Name is required",
+      nameInvalid: "Name needs letters or digits",
+      duplicateSlug: "Name already taken",
+      errorNotification: "Could not create",
     },
   },
 };
@@ -139,10 +154,24 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 function show(slug?: string) {
   render(
-    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+    <SWRConfig
+      value={{
+        provider: () => new Map(),
+        dedupingInterval: 0,
+        focusThrottleInterval: 0,
+      }}
+    >
       <ServerDashboardsPage dictionary={dictionary} lang="en" slug={slug} />
     </SWRConfig>
   );
+}
+
+function deferredResponse() {
+  let resolve!: (response: Response) => void;
+  const promise = new Promise<Response>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
 }
 
 describe("parallel dashboard pages", () => {
@@ -199,20 +228,175 @@ describe("parallel dashboard pages", () => {
     const createButton = await screen.findByRole("button", {
       name: "Create dashboard",
     });
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "Dashboard identifier" }),
-      {
-        target: { value: "demo-validation" },
-      }
-    );
     fireEvent.click(createButton);
+    fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+      target: { value: "Demo Validación" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() =>
-      expect(state.push).toHaveBeenCalledWith("/en/dashboards/demo-validation")
+      expect(state.push).toHaveBeenCalledWith("/en/dashboards/demo-validacion")
     );
     const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
-    expect(write?.[0]).toBe("/app/api/dashboards/demo-validation?org=acme");
-    expect(write?.[1]?.headers).toMatchObject({ "if-match": '\"0\"' });
+    expect(write?.[0]).toBe("/app/api/dashboards/demo-validacion?org=acme");
+    expect(write?.[1]?.headers).toMatchObject({ "if-match": '"0"' });
   });
+  it("refuses a name whose id is already listed, without writing", async () => {
+    state.canEdit = true;
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create dashboard" })
+    );
+    fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+      target: { value: "Fleet" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Name already taken"
+    );
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(
+      false
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+      target: { value: "Another dashboard" },
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it.each([
+    { status: 409, message: "Name already taken" },
+    { status: 412, message: "Name already taken" },
+    { status: 503, message: "Could not create" },
+  ])(
+    "allows correction and retry after a $status response",
+    async ({ status, message }) => {
+      state.canEdit = true;
+      show();
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Create dashboard" })
+      );
+      const input = await screen.findByRole("textbox", { name: "Name" });
+      fireEvent.change(input, { target: { value: "Demo dashboard" } });
+      fetcher.mockResolvedValueOnce(new Response(null, { status }));
+      fireEvent.click(screen.getByRole("button", { name: "Create" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(message);
+      fireEvent.change(input, { target: { value: "Another dashboard" } });
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Create" }));
+      await waitFor(() =>
+        expect(state.push).toHaveBeenCalledWith(
+          "/en/dashboards/another-dashboard"
+        )
+      );
+    }
+  );
+  it.each([
+    ["   ", "Name is required"],
+    ["¡¿?!", "Name needs letters or digits"],
+  ])("does not write an invalid name %s", async (name, message) => {
+    state.canEdit = true;
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create dashboard" })
+    );
+    fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+      target: { value: name },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(
+      false
+    );
+  });
+  it("ignores Escape while a dashboard is being saved", async () => {
+    state.canEdit = true;
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create dashboard" })
+    );
+    fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+      target: { value: "Pending dashboard" },
+    });
+    const save = deferredResponse();
+    fetcher.mockReturnValueOnce(save.promise);
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Create" })).toBeDisabled()
+    );
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+      "Pending dashboard"
+    );
+    await act(async () => {
+      save.resolve(
+        Response.json(
+          { data: { revision: 1, updatedAt: "now" } },
+          { headers: { ETag: '"1"' } }
+        )
+      );
+    });
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith(
+        "/en/dashboards/pending-dashboard"
+      )
+    );
+  });
+  it.each([false, true])(
+    "preserves the draft and pending state across permission refresh (saving: %s)",
+    async (saving) => {
+      state.canEdit = true;
+      show();
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Create dashboard" })
+      );
+      fireEvent.change(await screen.findByRole("textbox", { name: "Name" }), {
+        target: { value: "Pending dashboard" },
+      });
+      const save = deferredResponse();
+      if (saving) {
+        fetcher.mockReturnValueOnce(save.promise);
+        fireEvent.click(screen.getByRole("button", { name: "Create" }));
+        await waitFor(() =>
+          expect(screen.getByRole("button", { name: "Create" })).toBeDisabled()
+        );
+      }
+      const permissions = deferredResponse();
+      const previousFetch = fetcher.getMockImplementation()!;
+      const revalidate = vi.fn(() => permissions.promise);
+      fetcher.mockImplementation((input, init) =>
+        String(input).includes("/dashboard-capabilities?")
+          ? revalidate()
+          : previousFetch(input, init)
+      );
+      fireEvent.focus(window);
+      await waitFor(() => expect(revalidate).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      );
+      await act(async () => {
+        permissions.resolve(Response.json({ canCreate: true }));
+      });
+      expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue(
+        "Pending dashboard"
+      );
+      expect(
+        screen.getByRole("button", { name: "Create" }).hasAttribute("disabled")
+      ).toBe(saving);
+      if (saving) {
+        await act(async () => {
+          save.resolve(
+            Response.json(
+              { data: { revision: 1, updatedAt: "now" } },
+              { headers: { ETag: '"1"' } }
+            )
+          );
+        });
+        await waitFor(() =>
+          expect(state.push).toHaveBeenCalledWith(
+            "/en/dashboards/pending-dashboard"
+          )
+        );
+      }
+    }
+  );
   it("does not fall back to the application role when permission lookup fails", async () => {
     state.orgRole = "OWNER";
     state.scopeFailure = true;
@@ -261,7 +445,9 @@ describe("parallel dashboard pages", () => {
       state.storage!.onChange({ ...state.storage!.config, name: "Changed" })
     );
     expect(await screen.findByText("Saving…")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save" })
+    ).not.toBeInTheDocument();
     await waitFor(
       () => expect(screen.queryByText("Saving…")).not.toBeInTheDocument(),
       { timeout: 4000 }

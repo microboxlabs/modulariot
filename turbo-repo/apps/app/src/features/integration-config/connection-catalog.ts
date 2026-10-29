@@ -1,5 +1,6 @@
+import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
-import { Database, Image, Link } from "flowbite-react-icons/outline";
+import { Image, Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import type {
   BrandLogoSources,
@@ -24,9 +25,23 @@ const PROVIDER_LABELS: Record<string, string> = {
   WHATSAPP: "WhatsApp",
 };
 
+/** Built-in provider logos, in the gray ink of the other brand marks. */
+export const POSTGREST_LOGO: BrandLogoSources = {
+  light: "/credential-logos/postgrest-light.svg",
+  dark: "/credential-logos/postgrest-dark.svg",
+};
+export const BIGQUERY_LOGO: BrandLogoSources = {
+  light: "/credential-logos/bigquery-light.svg",
+  dark: "/credential-logos/bigquery-dark.svg",
+};
+
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
-  POSTGREST: { icon: Database },
+  // Taller than wide: the round keyline gives it the height the square one takes away.
+  POSTGREST: {
+    logo: POSTGREST_LOGO,
+    keyline: "circle",
+  },
   RESEND: {
     logo: {
       light: "/credential-logos/resend-light.svg",
@@ -52,6 +67,7 @@ export function connectionTypeName(
   connection: IntegrationConnection,
   templates: readonly IntegrationTemplate[]
 ): string {
+  if (isBigQueryConnection(connection)) return "BigQuery";
   return (
     templates.find((template) => template.id === connection.templateId)?.name ??
     providerLabel(connection.providerType)
@@ -64,6 +80,12 @@ export function connectionMark(
 ): ConnectionMark {
   const channel = CHANNEL_TEMPLATES[typeName];
   if (channel) return { icon: channelLogo(channel) };
+  if (isBigQueryConnection(connection)) {
+    return {
+      logo: BIGQUERY_LOGO,
+      keyline: "circle",
+    };
+  }
   return PROVIDER_MARKS[connection.providerType] ?? { icon: Link };
 }
 

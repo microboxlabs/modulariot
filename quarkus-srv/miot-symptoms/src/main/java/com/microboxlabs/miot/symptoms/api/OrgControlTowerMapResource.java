@@ -13,6 +13,7 @@ import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
 import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
 import com.microboxlabs.miot.symptoms.map.TripWindows;
+import com.microboxlabs.miot.symptoms.service.TreatmentService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.PermissionsAllowed;
@@ -53,6 +54,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final ControlTowerMapService map;
     private final ControlTowerTreatmentService treatments;
     private final EngineCaseService cases;
+    private final TreatmentService caseTreatments;
     private final TripWindows tripWindows;
 
     @Inject
@@ -64,12 +66,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             ControlTowerMapService map,
             ControlTowerTreatmentService treatments,
             EngineCaseService cases,
+            TreatmentService caseTreatments,
             TripWindows tripWindows) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
         this.treatments = treatments;
         this.cases = cases;
+        this.caseTreatments = caseTreatments;
         this.tripWindows = tripWindows;
     }
 
@@ -168,7 +172,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             @PathParam("symptomId") String symptomId) {
         String tenant = tenantCode(organizationId);
         if (engineCase(symptomId)) {
-            return answer(() -> blocking(() -> cases.header(tenant, Long.parseLong(symptomId.trim()))));
+            long id = Long.parseLong(symptomId.trim());
+            return answer(() -> blocking(() -> EngineCaseService.withTreatments(cases.header(tenant, id),
+                    caseTreatments.listForSymptom(tenant, id))));
         }
         return answer(() -> treatments.treatment(clientIds(), symptomId));
     }

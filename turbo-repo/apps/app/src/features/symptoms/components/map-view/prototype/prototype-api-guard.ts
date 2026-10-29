@@ -22,6 +22,14 @@ import { getRuntimeConfig } from "@/features/runtime-config/runtime-config-conte
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import {
+  addTreatmentAction,
+  closeTreatment,
+  openTreatment,
+  type AddActionBody,
+  type TowerActionKind,
+  type TowerTreatmentType,
+} from "@/features/symptoms/control-tower/control-tower-api";
 
 export function isPrototypeApiDisabled(): boolean {
   return getRuntimeConfig()?.SYMPTOMS_PROTOTYPE_DISABLE_API === "true";
@@ -33,29 +41,158 @@ export function isPrototypeApiDisabled(): boolean {
 export const isMockDataEnabled = isPrototypeApiDisabled;
 
 /**
+ * A case opened by the symptom engine: its id is negative and only the
+ * Control Tower treatments API knows it. The GPS database RPC rejects it.
+ */
+export function isEngineCase(payload: TreatmentsRequest): boolean {
+  return Number(payload.symptom_id) < 0;
+}
+
+const TOWER_TREATMENT_TYPES: Record<string, TowerTreatmentType> = {
+  "llamar al conductor": "CALL",
+  "ignorar condicion": "IGNORE_CONDITION",
+  "invalidar sintoma": "INVALIDATE_SYMPTOM",
+};
+
+const TOWER_ACTION_KINDS: Record<TowerTreatmentType, TowerActionKind> = {
+  CALL: "CALL",
+  IGNORE_CONDITION: "IGNORE",
+  INVALIDATE_SYMPTOM: "INVALIDATE",
+};
+
+export interface EngineTreatmentOptions {
+  /** Fields of the recorded action beyond what the payload carries. */
+  action?: Partial<AddActionBody>;
+  /** False records the action and leaves the treatment open. */
+  finish?: boolean;
+  /** Per-form progress lets a failed close retry the acknowledged action's episode. */
+  progress?: EngineTreatmentProgress;
+}
+
+export interface EngineTreatmentProgress {
+  pendingClose?: {
+    symptomId: TreatmentsRequest["symptom_id"];
+    treatmentId: string;
+    resolution?: string;
+  };
+}
+
+/** The call forms leave `treatment_type` empty: their saves are calls. */
+function towerType(payload: TreatmentsRequest): TowerTreatmentType {
+  return TOWER_TREATMENT_TYPES[payload.treatment_type] ?? "CALL";
+}
+
+/** Opens the operator's treatment on the case, or resumes the open one. */
+function openEngineTreatment(payload: TreatmentsRequest) {
+  return openTreatment(payload.symptom_id ?? "", {
+    type: towerType(payload),
+    assetId: payload.asset_id || undefined,
+    tripId: payload.trip_id || undefined,
+  });
+}
+
+function engineAction(
+  payload: TreatmentsRequest,
+  extra: Partial<AddActionBody> | undefined
+): AddActionBody {
+  const type = towerType(payload);
+  const reason = payload.description ?? undefined;
+  return {
+    kind: TOWER_ACTION_KINDS[type],
+    outcomeLabel: reason,
+    message: payload.message ?? undefined,
+    note: payload.driver_response ?? undefined,
+    contactName: type === "CALL" ? "Conductor" : undefined,
+    ...extra,
+  };
+}
+
+/**
+ * Records the form's save on an engine case: the action, then the close,
+ * which also closes the case.
+ */
+async function saveEngineTreatment(
+  payload: TreatmentsRequest,
+  { action, finish = true, progress }: EngineTreatmentOptions
+): Promise<TreatmentsRequest> {
+  if (progress?.pendingClose?.symptomId === payload.symptom_id) {
+    await finishEngineTreatment(payload, progress);
+  } else {
+    const treatment = await openEngineTreatment(payload);
+    await addTreatmentAction(treatment.id, engineAction(payload, action));
+    if (finish) {
+      await finishEngineTreatment(
+        payload,
+        progress,
+        treatment.id,
+        payload.description ?? undefined
+      );
+    }
+  }
+  return payload;
+}
+
+async function finishEngineTreatment(
+  payload: TreatmentsRequest,
+  progress?: EngineTreatmentProgress,
+  treatmentId?: string,
+  resolution?: string
+): Promise<void> {
+  let pending = progress?.pendingClose;
+  if (pending?.symptomId !== payload.symptom_id) pending = undefined;
+  pending ??= {
+    symptomId: payload.symptom_id,
+    treatmentId: treatmentId ?? (await openEngineTreatment(payload)).id,
+    resolution,
+  };
+  if (progress) progress.pendingClose = pending;
+  await closeTreatment(
+    pending.treatmentId,
+    pending.resolution === undefined ? {} : { resolution: pending.resolution }
+  );
+  if (progress) progress.pendingClose = undefined;
+}
+
+/**
  * Drop-in replacement for `requestTreatment` — when the real API is
  * disabled, echoes the request payload straight back instead of sending it,
  * so callers reading the response (`treatment_id`, etc.) don't need their
- * own disabled-path branching.
+ * own disabled-path branching. Engine cases go to the Control Tower API.
  */
 export async function guardedRequestTreatment(
-  payload: TreatmentsRequest
+  payload: TreatmentsRequest,
+  engine: EngineTreatmentOptions = {}
 ): Promise<TreatmentsRequest> {
   if (isPrototypeApiDisabled()) return payload;
+  if (isEngineCase(payload)) return saveEngineTreatment(payload, engine);
   return requestTreatment(payload);
+}
+
+/**
+ * Closes the operator's treatment on an engine case after its actions were
+ * already saved. Other cases have nothing to close.
+ */
+export async function guardedFinishTreatment(
+  payload: TreatmentsRequest,
+  progress?: EngineTreatmentProgress
+): Promise<void> {
+  if (isPrototypeApiDisabled() || !isEngineCase(payload)) return;
+  await finishEngineTreatment(payload, progress);
 }
 
 /**
  * The preaction every treatment form runs when its menu opens: records a
  * `pending` treatment of `treatmentType` and keeps the returned
  * `treatment_id` so the form's final save updates that same record. Shared
- * by the past modal (`symptom-form.tsx`) and the inline form.
+ * by the past modal (`symptom-form.tsx`) and the inline form. An engine case
+ * opens its treatment at the save instead.
  */
 export async function startPendingTreatment(
   treatmentRequest: TreatmentsRequest,
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void,
   treatmentType: string
 ): Promise<void> {
+  if (isEngineCase(treatmentRequest)) return;
   const pending = {
     ...treatmentRequest,
     treatment_type: treatmentType,
@@ -80,18 +217,23 @@ export async function guardedInvalidateSymptom({
   setTreatmentRequest,
   treatmentData,
   reason,
+  progress,
 }: {
   treatmentRequest: TreatmentsRequest;
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   treatmentData: TreatmentsGeneralResponseItem | null;
   reason: string;
+  progress?: EngineTreatmentProgress;
 }): Promise<void> {
-  const treatmentResult = await guardedRequestTreatment({
-    ...treatmentRequest,
-    status: "active",
-    treatment_type: "invalidar sintoma",
-    description: reason,
-  });
+  const treatmentResult = await guardedRequestTreatment(
+    {
+      ...treatmentRequest,
+      status: "active",
+      treatment_type: "invalidar sintoma",
+      description: reason,
+    },
+    { progress }
+  );
 
   setTreatmentRequest({
     ...treatmentRequest,
@@ -100,7 +242,7 @@ export async function guardedInvalidateSymptom({
     treatment_id: treatmentResult.treatment_id,
   });
 
-  if (isPrototypeApiDisabled()) return;
+  if (isPrototypeApiDisabled() || isEngineCase(treatmentRequest)) return;
 
   const invalidateResponse = await fetch("/app/api/symptoms/invalidate", {
     method: "POST",

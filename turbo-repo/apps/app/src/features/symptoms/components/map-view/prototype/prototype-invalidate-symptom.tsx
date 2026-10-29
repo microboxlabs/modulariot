@@ -2,10 +2,13 @@
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import { guardedInvalidateSymptom } from "./prototype-api-guard";
+import {
+  guardedInvalidateSymptom,
+  type EngineTreatmentProgress,
+} from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Textarea } from "flowbite-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MdBlock } from "react-icons/md";
 import { useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -49,6 +52,7 @@ export default function PrototypeInvalidateSymptom({
   const router = useRouter();
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const engineProgress = useRef<EngineTreatmentProgress>({});
   const [motivoId, setMotivoId] = useState("");
 
   const { options: motivoOptions } = useSelectableOptions("invalidate_reason");
@@ -68,6 +72,7 @@ export default function PrototypeInvalidateSymptom({
         setTreatmentRequest,
         treatmentData,
         reason: razonCompleta,
+        progress: engineProgress.current,
       });
 
       setIsMenuOpen(false);

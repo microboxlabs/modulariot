@@ -20,6 +20,7 @@ import { linter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { codeEditorTheme } from "./code-editor-theme";
 
 /** The values a property takes, offered while typing and checked in the text. */
 export interface JsonValues {
@@ -564,17 +565,7 @@ export default function JsonCodeEditor({
             emitted.current = JSON.stringify(out);
             latest.current.onChange(out, text);
           }),
-          EditorView.theme({
-            "&": { fontSize: "13px", backgroundColor: "transparent" },
-            "&.cm-focused": { outline: "none" },
-            ".cm-content": {
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              padding: "8px 0",
-              lineHeight: "19px",
-              minHeight: "160px",
-            },
-            ".cm-line": { padding: "0 10px" },
-          }),
+          codeEditorTheme("160px"),
         ],
       }),
       parent: host.current,

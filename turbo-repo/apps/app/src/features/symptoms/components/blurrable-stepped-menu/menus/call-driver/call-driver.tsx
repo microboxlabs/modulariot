@@ -3,9 +3,12 @@
 import { Button, Textarea } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import TagManager from "@/features/symptoms/components/tag-manager";
-import { guardedRequestTreatment } from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
+import {
+  guardedRequestTreatment,
+  type EngineTreatmentProgress,
+} from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { useRouter } from "next/navigation";
@@ -43,6 +46,7 @@ export default function CallDriver({
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
 }) {
+  const engineProgress = useRef<EngineTreatmentProgress>({});
   const [selectedTags, setSelectedTags] = useState<Array<{ text: string }>>([]);
   const [inputValue, setInputValue] = useState("");
 
@@ -82,11 +86,14 @@ export default function CallDriver({
       function: async () => {
         // Read both texts from the inputs: the open preaction can reset
         // treatmentRequest after the operator has started typing.
-        const response = await guardedRequestTreatment({
-          ...treatmentRequest,
-          message: messageToCommunicate,
-          driver_response: driverResponse,
-        });
+        const response = await guardedRequestTreatment(
+          {
+            ...treatmentRequest,
+            message: messageToCommunicate,
+            driver_response: driverResponse,
+          },
+          { progress: engineProgress.current }
+        );
 
         setTreatmentRequest({
           ...treatmentRequest,

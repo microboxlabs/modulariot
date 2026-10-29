@@ -46,7 +46,9 @@ export interface CreateTemplateRequest {
   readonly responseSchema: Record<string, unknown>;
 }
 
-export type UpdateTemplateRequest = Partial<Omit<CreateTemplateRequest, "providerType">>;
+export type UpdateTemplateRequest = Partial<
+  Omit<CreateTemplateRequest, "providerType">
+>;
 
 export type CreateConnectionRequest = {
   readonly name: string;
@@ -59,12 +61,15 @@ export type CreateConnectionRequest = {
     }
   | {
       /** A built-in provider, created without a template. */
-      readonly providerType: NativeProvider;
+      readonly providerType: string;
     }
 );
 
-/** Providers the app supports directly, without an operator-defined template. */
-export const NATIVE_PROVIDERS = ["POSTGREST"] as const;
+/**
+ * Providers the app supports directly, without an operator-defined template. BIGQUERY is
+ * stored as a CUSTOM_HTTP connection to the BigQuery API (see `bigquery-query.ts`).
+ */
+export const NATIVE_PROVIDERS = ["POSTGREST", "BIGQUERY"] as const;
 export type NativeProvider = (typeof NATIVE_PROVIDERS)[number];
 
 export function isNativeProvider(value: string): value is NativeProvider {
@@ -118,10 +123,15 @@ export function buildPostgrestImport(
         const pinned = Object.fromEntries(
           pins
             .filter((pin) => pin.name.trim() && pin.value.trim())
-            .filter((pin) => pin.name.trim() === "select" || names.has(pin.name.trim()))
+            .filter(
+              (pin) =>
+                pin.name.trim() === "select" || names.has(pin.name.trim())
+            )
             .map((pin) => [pin.name.trim(), pin.value.trim()])
         );
-        return Object.keys(pinned).length ? { name: fn.name, pinned } : { name: fn.name };
+        return Object.keys(pinned).length
+          ? { name: fn.name, pinned }
+          : { name: fn.name };
       }),
   };
 }
@@ -149,7 +159,13 @@ export const PROVIDER_TYPES: readonly string[] = [
   "ECM",
 ];
 
-export const HTTP_METHODS: readonly string[] = ["POST", "PUT", "PATCH", "GET", "DELETE"];
+export const HTTP_METHODS: readonly string[] = [
+  "POST",
+  "PUT",
+  "PATCH",
+  "GET",
+  "DELETE",
+];
 
 /**
  * Parses a JSON string into an object, or returns an error message. Used by the schema

@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
+import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
+import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -52,6 +56,7 @@ public class EngineCaseService {
     /** The list filters the cases answer; any other one leaves them out. */
     private static final Set<String> CASE_FILTERS = Set.of(TRIP_ID, ASSET_ID, NAME, LEVEL, FROM, TO);
     private static final String SYMPTOM_NAME = "symptom_name";
+    private static final String CONDITIONS_AGG = "conditions_agg";
     private static final String SYMPTOM_NAMES = "symptom_name_list";
     private static final String ICU_CODE = "icu_code";
     private static final String ICU_CONDITION = "icu_condition";
@@ -130,7 +135,7 @@ public class EngineCaseService {
     }
 
     /**
-     * The list filters as a case filter. Without dates, the open cases; with them, those opened in the range.
+     * The list filters as a case filter. Without dates, the open cases; with them, those active in the range.
      * A date without an offset is UTC.
      *
      * @throws IllegalArgumentException when the level is not a number or a date is not ISO-8601
@@ -257,16 +262,17 @@ public class EngineCaseService {
     public JsonNode header(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
-        out.set("conditions_agg", JSON.arrayNode());
+        out.set(CONDITIONS_AGG, JSON.arrayNode());
         // One timeline entry with the case, which the map selects to load its point.
+        String end = (c.closedAt() != null ? c.closedAt() : c.openedAt()).toString();
         ObjectNode entry = out.putArray("timeline").addObject();
         entry.put("start", c.openedAt().toString());
-        entry.put("end", c.openedAt().toString());
+        entry.put("end", end);
         entry.put("symptom_id", c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
-        ObjectNode agg = entry.putArray("conditions_agg").addObject();
+        ObjectNode agg = entry.putArray(CONDITIONS_AGG).addObject();
         agg.put("start", c.openedAt().toString());
-        agg.put("end", c.openedAt().toString());
+        agg.put("end", end);
         agg.put("symptom_id", c.symptomId());
         agg.put("is_symptom", 1);
         agg.put("type", c.name());
@@ -322,6 +328,52 @@ public class EngineCaseService {
             description.put("last_reported_speed", c.speedKmh());
         }
         return out;
+    }
+
+    /**
+     * The header with the case's treatments in its timeline, one entry per call, ignore or invalidate action,
+     * in the shape of the GPS database's treatments. Cancelled treatments and notes are left out.
+     */
+    public static JsonNode withTreatments(JsonNode header, List<TreatmentView> treatments) {
+        ObjectNode out = header.deepCopy();
+        ArrayNode rows = JSON.arrayNode();
+        String assignedTo = null;
+        for (TreatmentView t : treatments) {
+            if (t.status() == TreatmentStatus.CANCELLED) {
+                continue;
+            }
+            assignedTo = t.closedBy() != null ? t.closedBy() : t.openedBy();
+            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> rows.add(timelineRow(a)));
+        }
+        for (JsonNode entry : out.path("timeline")) {
+            for (JsonNode agg : entry.path(CONDITIONS_AGG)) {
+                ((ObjectNode) agg).set("treatments", rows.deepCopy());
+                ((ObjectNode) agg).put("assigned_to", assignedTo);
+            }
+        }
+        return out;
+    }
+
+    private static ObjectNode timelineRow(TreatmentAction a) {
+        ObjectNode row = JSON.objectNode();
+        ObjectNode description = row.putObject("description");
+        if (a.kind() == ActionKind.CALL) {
+            row.put("treatment_type", "llamar al conductor");
+            description.put("message", a.message() != null ? a.message() : "Llamado a: " + a.contactName());
+            description.put("driver_response", joined(a.outcomeLabel(), a.note()));
+        } else {
+            row.put("treatment_type", a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
+            description.put("message", a.outcomeLabel());
+            description.put("driver_response", a.note());
+        }
+        return row;
+    }
+
+    private static String joined(String first, String second) {
+        if (first == null || first.isBlank()) {
+            return second;
+        }
+        return second == null || second.isBlank() ? first : first + " · " + second;
     }
 
     /** The vehicle and the time range of the signals the treatment page shows for a case. */

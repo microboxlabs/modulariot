@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { Database, Link } from "flowbite-react-icons/outline";
+import { Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import { FaSlack } from "react-icons/fa";
 import {
+  BIGQUERY_LOGO,
+  POSTGREST_LOGO,
   connectionMark,
   connectionState,
   connectionTypeName,
@@ -45,8 +47,18 @@ describe("connectionMark", () => {
     });
     expect(
       connectionMark(connection({ providerType: "POSTGREST" }), "PostgREST")
-        .icon
-    ).toBe(Database);
+        .logo
+    ).toEqual(POSTGREST_LOGO);
+    expect(
+      connectionMark(
+        connection({
+          providerType: "CUSTOM_HTTP",
+          baseUrl: "https://bigquery.googleapis.com",
+          templateId: null,
+        }),
+        "BigQuery"
+      ).logo
+    ).toEqual(BIGQUERY_LOGO);
     expect(connectionMark(connection({}), "Slack de comunicaciones").icon).toBe(
       FaSlack
     );

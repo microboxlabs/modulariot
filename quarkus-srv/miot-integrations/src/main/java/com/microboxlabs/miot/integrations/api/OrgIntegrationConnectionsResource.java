@@ -95,6 +95,17 @@ public class OrgIntegrationConnectionsResource {
                 .build());
     }
 
+    @POST
+    @Path("/connections/test")
+    @Operation(summary = "Test a connection before it is saved; nothing is stored")
+    public Uni<Response> testDraftConnection(
+            @PathParam("organizationId") String organizationId,
+            CreateIntegrationConnectionRequest req) {
+        String tenant = tenantCode(organizationId);
+        return ownerWork(organizationId,
+                () -> Response.ok(service.testDraft(tenant, req)).build());
+    }
+
     @GET
     @Path("/connections/{connectionId}")
     @Operation(summary = "Get an integration connection")

@@ -1,7 +1,13 @@
 "use client";
 
 import { Badge, DropdownItem, Spinner } from "flowbite-react";
-import { HiOutlineDatabase, HiPencil, HiPlay, HiTrash } from "react-icons/hi";
+import {
+  HiOutlineChartBar,
+  HiOutlineDatabase,
+  HiPencil,
+  HiPlay,
+  HiTrash,
+} from "react-icons/hi";
 import { BrandLogo } from "@/features/common/components/brand-logo";
 import CatalogTable from "@/features/common/components/catalog-table";
 import type { CatalogLayout } from "@/features/common/components/layout-toggle";
@@ -24,6 +30,7 @@ import {
   RowMenu,
   SUBLINE,
 } from "./integration-row";
+import { isBigQueryConnection } from "../bigquery-query";
 
 interface ConnectionsListProps {
   readonly connections: readonly IntegrationConnection[];
@@ -35,6 +42,8 @@ interface ConnectionsListProps {
   readonly onDelete: (connection: IntegrationConnection) => void;
   /** Pick the functions a PostgREST connection exposes to dashboards. */
   readonly onFunctions: (connection: IntegrationConnection) => void;
+  /** Write the SQL queries a BigQuery connection offers to dashboards. */
+  readonly onQueries: (connection: IntegrationConnection) => void;
   /** Id of the connection currently being exercised, if any. */
   readonly testing: string | null;
   readonly emptyMessage: string;
@@ -54,6 +63,7 @@ export function ConnectionsList({
   onTest,
   onDelete,
   onFunctions,
+  onQueries,
   testing,
   emptyMessage,
   layout,
@@ -78,6 +88,9 @@ export function ConnectionsList({
         connection.providerType === "POSTGREST"
           ? () => onFunctions(connection)
           : undefined,
+      onQueries: isBigQueryConnection(connection)
+        ? () => onQueries(connection)
+        : undefined,
     },
     testing: testing === connection.id,
   }));
@@ -114,6 +127,7 @@ interface ConnectionActions {
   readonly onTest: () => void;
   readonly onDelete: () => void;
   readonly onFunctions?: () => void;
+  readonly onQueries?: () => void;
 }
 
 interface ConnectionItemProps {
@@ -258,6 +272,11 @@ function ConnectionMenu({
       {actions.onFunctions && (
         <DropdownItem icon={HiOutlineDatabase} onClick={actions.onFunctions}>
           {tr("postgrest.functions", dict)}
+        </DropdownItem>
+      )}
+      {actions.onQueries && (
+        <DropdownItem icon={HiOutlineChartBar} onClick={actions.onQueries}>
+          {tr("bigquery.queries", dict)}
         </DropdownItem>
       )}
       <DropdownItem icon={HiTrash} onClick={actions.onDelete}>

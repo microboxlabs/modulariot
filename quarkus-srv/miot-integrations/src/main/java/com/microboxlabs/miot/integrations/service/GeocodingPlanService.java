@@ -110,14 +110,15 @@ public class GeocodingPlanService {
         return repository.subscription(organization);
     }
 
-    /** {@code month} null is the current one. */
+    /** {@code month} null is the current one. The platform's provider cost is left out. */
     public OrgPlanResponse orgPlan(String organization, YearMonth month) {
         Plan plan = repository.plan();
         Subscription subscription = repository.subscription(organization);
-        return new OrgPlanResponse(plan, subscription, usage(organization, plan, subscription, or(month)), enforced);
+        return new OrgPlanResponse(plan, subscription,
+                usage(organization, plan, subscription, or(month)).withoutProviderCost(), enforced);
     }
 
-    /** Every organization with a subscription or with usage in the month. */
+    /** Every organization with a subscription or with usage in the month, with the platform's provider cost. */
     public List<OrgUsage> allUsage(YearMonth month) {
         YearMonth m = or(month);
         Plan plan = repository.plan();
@@ -191,7 +192,8 @@ public class GeocodingPlanService {
         BigDecimal overageUsd = subscription != null && OVERAGE.equals(subscription.onExhausted())
                 ? plan.overagePriceUsd().multiply(BigDecimal.valueOf(overage))
                 : BigDecimal.ZERO;
-        return new Usage(from, to, quota, used, resolutions, cacheHits, cost, overage, overageUsd, bySource);
+        BigDecimal charge = subscription == null ? null : plan.monthlyPriceUsd().add(overageUsd);
+        return new Usage(from, to, quota, used, resolutions, cacheHits, cost, overage, overageUsd, charge, bySource);
     }
 
     private Refusal refuse(String code, String message) {

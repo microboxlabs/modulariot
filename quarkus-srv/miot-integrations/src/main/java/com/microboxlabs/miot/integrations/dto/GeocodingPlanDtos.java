@@ -46,7 +46,8 @@ public final class GeocodingPlanDtos {
 
     /**
      * Resolutions of one source and result in the period. {@code source} is {@code none} when no source placed the
-     * site. {@code providerCostUsd} is what the provider charged for the calls, null when none was priced.
+     * site. {@code providerCostUsd} is what the provider charged the platform for the calls ({@code cost_usd} in
+     * {@code geocode_usage}), null when none was priced or for an organization's own view.
      */
     public record SourceUse(
             String source,
@@ -55,11 +56,17 @@ public final class GeocodingPlanDtos {
             long cacheHits,
             long providerCalls,
             BigDecimal providerCostUsd) {
+
+        SourceUse withoutProviderCost() {
+            return new SourceUse(source, result, resolutions, cacheHits, providerCalls, null);
+        }
     }
 
     /**
      * One calendar month (UTC). {@code used} is the provider calls; {@code quota} is null without a subscription.
-     * {@code overageUsd} is charged only with {@code onExhausted = overage}.
+     * {@code providerCostUsd} is the platform's cost, shown only to the platform owner. {@code chargeUsd} is what
+     * the organization is charged from the plan: the monthly price plus {@code overageUsd}, which is charged only
+     * with {@code onExhausted = overage}. It is null without a subscription.
      */
     public record Usage(
             OffsetDateTime periodStart,
@@ -71,10 +78,17 @@ public final class GeocodingPlanDtos {
             BigDecimal providerCostUsd,
             long overageCalls,
             BigDecimal overageUsd,
+            BigDecimal chargeUsd,
             List<SourceUse> bySource) {
+
+        /** For the organization: the platform's provider cost is left out. */
+        public Usage withoutProviderCost() {
+            return new Usage(periodStart, periodEnd, quota, used, resolutions, cacheHits, null, overageCalls,
+                    overageUsd, chargeUsd, bySource.stream().map(SourceUse::withoutProviderCost).toList());
+        }
     }
 
-    /** What the organization's Geocoding settings page shows. */
+    /** What the organization's Geocoding settings page shows. Its usage has no provider cost. */
     public record OrgPlanResponse(Plan plan, Subscription subscription, Usage usage, boolean enforced) {
     }
 

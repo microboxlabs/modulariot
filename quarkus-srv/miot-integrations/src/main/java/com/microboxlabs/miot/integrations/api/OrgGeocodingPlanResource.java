@@ -25,7 +25,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
  * An organization's geocoding subscription and its usage in a month: resolutions by source and result, provider
- * calls against the quota, and cost. An owner of the org or a platform owner reads it; only a platform owner
+ * calls against the quota, and what the plan charges. The platform's provider cost is not included; it is in
+ * {@code /api/v1/platform/geocoding-plan/usage}. An owner of the org or a platform owner reads it; only a platform owner
  * changes the subscription, since it sets what the organization is charged.
  */
 @Path("/api/v1/orgs/{organizationId}/geocoding-plan")

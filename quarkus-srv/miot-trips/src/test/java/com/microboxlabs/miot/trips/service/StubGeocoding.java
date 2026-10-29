@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.microboxlabs.miot.integrations.domain.ProviderType;
+import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.geocoding.Geocoder;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingConnection;
 import com.microboxlabs.miot.integrations.geocoding.GoogleGeocoding;
@@ -20,7 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** A local stand-in for Mapbox and Google, and a {@link Geocoder} that reaches it through a tenant's connection. */
+/** A local stand-in for Mapbox and Google, and a {@link Geocoder} that reaches it through the platform's connection. */
 public final class StubGeocoding implements AutoCloseable {
 
     final List<String> queries = new ArrayList<>();
@@ -80,12 +81,12 @@ public final class StubGeocoding implements AutoCloseable {
         return sb.append("]}").toString();
     }
 
-    /** Resolves a connection for {@code tenant} only. */
-    Geocoder geocoder(String tenant) {
+    /** Resolves the platform's connection only, as production does. */
+    Geocoder geocoder() {
         IntegrationConnectionResolver resolver = new IntegrationConnectionResolver(null, null, null) {
             @Override
             public ResolvedConnection resolve(String tenantCode, ProviderType providerType) {
-                if (!tenant.equals(tenantCode) || providerType != ProviderType.GEOCODING) {
+                if (!PlatformMailService.PLATFORM_TENANT.equals(tenantCode) || providerType != ProviderType.GEOCODING) {
                     throw new ConnectionNotConfiguredException("none");
                 }
                 return new ResolvedConnection("geo-1", base, Map.copyOf(metadata),

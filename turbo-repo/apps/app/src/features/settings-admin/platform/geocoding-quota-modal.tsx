@@ -101,7 +101,7 @@ export default function GeocodingQuotaModal({
       isProcessing={isSaving}
       error={error}
       onSubmit={() => void submit()}
-      size="lg"
+      size="3xl"
     >
       <div className="flex flex-col gap-4">
         {!target && (
@@ -127,44 +127,48 @@ export default function GeocodingQuotaModal({
             />
           </div>
         )}
-        <div>
-          <Label htmlFor="geo-quota-value">{tr("modal.quota", dict)}</Label>
-          <TextInput
-            id="geo-quota-value"
-            inputMode="numeric"
-            placeholder={tr("modal.quotaPlaceholder", dict, {
-              quota: planQuota.toLocaleString(),
-            })}
-            value={quota}
-            onChange={(e) => setQuota(e.target.value)}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {tr("modal.quotaHelp", dict)}
-          </p>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <Label htmlFor="geo-quota-value">{tr("modal.quota", dict)}</Label>
+            <TextInput
+              id="geo-quota-value"
+              type="number"
+              min={0}
+              step={1}
+              placeholder={tr("modal.quotaPlaceholder", dict, {
+                quota: planQuota.toLocaleString(),
+              })}
+              value={quota}
+              onChange={(e) => setQuota(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {tr("modal.quotaHelp", dict)}
+            </p>
+          </div>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-sm font-medium text-gray-900 dark:text-white">
+              {tr("modal.onExhausted", dict)}
+            </legend>
+            {MODES.map((m) => (
+              <div key={m} className="flex items-start gap-2">
+                <Radio
+                  id={`geo-quota-${m}`}
+                  name="geo-quota-mode"
+                  checked={mode === m}
+                  onChange={() => setMode(m)}
+                />
+                <Label htmlFor={`geo-quota-${m}`} className="font-normal">
+                  <span className="block font-medium">
+                    {trDynamic(`modes.${m}.label`, dict)}
+                  </span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">
+                    {trDynamic(`modes.${m}.help`, dict)}
+                  </span>
+                </Label>
+              </div>
+            ))}
+          </fieldset>
         </div>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium text-gray-900 dark:text-white">
-            {tr("modal.onExhausted", dict)}
-          </legend>
-          {MODES.map((m) => (
-            <div key={m} className="flex items-start gap-2">
-              <Radio
-                id={`geo-quota-${m}`}
-                name="geo-quota-mode"
-                checked={mode === m}
-                onChange={() => setMode(m)}
-              />
-              <Label htmlFor={`geo-quota-${m}`} className="font-normal">
-                <span className="block font-medium">
-                  {trDynamic(`modes.${m}.label`, dict)}
-                </span>
-                <span className="block text-xs text-gray-500 dark:text-gray-400">
-                  {trDynamic(`modes.${m}.help`, dict)}
-                </span>
-              </Label>
-            </div>
-          ))}
-        </fieldset>
       </div>
     </FormModal>
   );

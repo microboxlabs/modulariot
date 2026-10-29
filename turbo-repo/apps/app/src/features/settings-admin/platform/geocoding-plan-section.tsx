@@ -21,6 +21,17 @@ import {
 } from "./geocoding-plan-form";
 import { useGeocodingPlan } from "./use-geocoding-plan";
 
+/** Bounds of each number field; prices go to a hundredth of a cent. */
+const NUMBER_LIMITS: Record<
+  keyof Omit<GeocodingPlanDraft, "enforced">,
+  { min: number; max?: number; step: number }
+> = {
+  resolutionsPerMonth: { min: 0, step: 1 },
+  alertPct: { min: 1, max: 100, step: 1 },
+  monthlyPriceUsd: { min: 0, step: 0.01 },
+  overagePriceUsd: { min: 0, step: 0.0001 },
+};
+
 interface GeocodingPlanSectionProps {
   readonly dict: I18nRecord;
 }
@@ -76,7 +87,8 @@ export default function GeocodingPlanSection({
         <Label htmlFor={id}>{label}</Label>
         <TextInput
           id={id}
-          inputMode="decimal"
+          type="number"
+          {...NUMBER_LIMITS[key]}
           value={draft[key]}
           onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
         />

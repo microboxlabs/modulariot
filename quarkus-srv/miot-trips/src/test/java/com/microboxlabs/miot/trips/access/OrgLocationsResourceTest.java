@@ -10,6 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.integrations.persistence.GeocodeUsageRepository;
+import com.microboxlabs.miot.integrations.persistence.GeocodeUsageRepository.UsageRow;
+import com.microboxlabs.miot.integrations.service.GeocodeUsageService;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.dto.LocationPointRequest;
 import com.microboxlabs.miot.trips.dto.LocationRejectRequest;
@@ -21,13 +24,17 @@ import com.microboxlabs.miot.trips.service.AuditService;
 import com.microboxlabs.miot.trips.service.LocationResolutionService;
 import com.microboxlabs.miot.trips.service.LocationResolver;
 import com.microboxlabs.miot.trips.service.LocationService;
+import com.microboxlabs.miot.trips.service.StubGeocoding;
 import com.microboxlabs.miot.trips.service.TripLiveProjector;
+import com.microboxlabs.miot.trips.store.FakeAddresses;
 import com.microboxlabs.miot.trips.store.FakeGeofences;
 import com.microboxlabs.miot.trips.store.GeofenceDirectory.Geofence;
 import com.microboxlabs.miot.trips.store.InMemoryFleet;
+import com.microboxlabs.miot.trips.store.InMemoryGeocodeCache;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import jakarta.ws.rs.core.Response;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +47,7 @@ class OrgLocationsResourceTest {
 
     private final InMemoryTripsWorld world = new InMemoryTripsWorld();
     private final FakeGeofences geofences = new FakeGeofences();
+    private final List<UsageRow> usage = new ArrayList<>();
     private final OrgLocationsResource resource = resource();
 
     private OrgLocationsResource resource() {
@@ -48,8 +56,15 @@ class OrgLocationsResourceTest {
         LocationService locations = new LocationService(world.locationStore, geofences, world.tripStore, live, audit,
                 Transactions.none());
         LocationResolutionService resolution = new LocationResolutionService(world.locationStore, locations,
-                new LocationResolver(geofences, BOUNDARIES), geofences, world.tripStore, live, audit,
-                Transactions.none());
+                new LocationResolver(geofences, BOUNDARIES, new FakeAddresses(), new InMemoryGeocodeCache(),
+                        StubGeocoding.none()),
+                geofences, world.tripStore, live, audit, Transactions.none(),
+                new GeocodeUsageService(new GeocodeUsageRepository(null) {
+                    @Override
+                    public void insert(UsageRow r) {
+                        usage.add(r);
+                    }
+                }));
         return new OrgLocationsResource(null, null, null, null, locations, resolution) {
             @Override
             protected String tenantCode(String org) {
@@ -115,6 +130,10 @@ class OrgLocationsResourceTest {
         assertNull(results.get(1).location().geofenceId());
         assertEquals("locationId must be a UUID", results.get(2).error());
         assertEquals(1, geofences.of(TENANT).size(), "a site in review gets no geofence");
+        assertEquals(List.of(
+                new UsageRow(TENANT, "ops@example.com", "coordinates", "resolved", null, false, null),
+                new UsageRow(TENANT, "ops@example.com", "coordinates", "needs_review", null, false, null)), usage,
+                "one usage row per resolution, none for a site that failed before it");
     }
 
     @Test

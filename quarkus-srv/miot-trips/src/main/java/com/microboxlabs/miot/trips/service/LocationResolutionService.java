@@ -2,6 +2,8 @@ package com.microboxlabs.miot.trips.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.integrations.service.GeocodeUsageService;
+import com.microboxlabs.miot.integrations.service.GeocodeUsageService.Resolution;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Location.Placement;
 import com.microboxlabs.miot.trips.dto.LocationPointRequest;
@@ -25,15 +27,18 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
+import org.jboss.logging.Logger;
 
 /**
  * Locates sites with {@link LocationResolver} and keeps the result on the location. A resolved site points at a GPS
  * geofence of the tenant: the one that matched, or a new one around the point, sized by the site's type. The GPS
- * write happens before the modulith transaction; a retry finds the geofence by its code.
+ * write happens before the modulith transaction; a retry finds the geofence by its code. Each resolution is
+ * recorded in the geocoding usage.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class LocationResolutionService {
+    private static final Logger LOG = Logger.getLogger(LocationResolutionService.class);
     private static final String LOCATION = "location";
     private static final String LOCATION_NOT_FOUND = "location not found";
     public static final int MAX_BATCH = 200;
@@ -54,11 +59,12 @@ public class LocationResolutionService {
     private final TripLiveProjector live;
     private final AuditService audit;
     private final Transactions tx;
+    private final GeocodeUsageService usage;
 
     @Inject
     public LocationResolutionService(LocationStore store, LocationService locations, LocationResolver resolver,
             GeofenceDirectory geofences, TripStore trips, TripLiveProjector live, AuditService audit,
-            Transactions tx) {
+            Transactions tx, GeocodeUsageService usage) {
         this.store = store;
         this.locations = locations;
         this.resolver = resolver;
@@ -67,6 +73,7 @@ public class LocationResolutionService {
         this.live = live;
         this.audit = audit;
         this.tx = tx;
+        this.usage = usage;
     }
 
     /** Fields the request leaves out keep what the location has. */
@@ -80,7 +87,27 @@ public class LocationResolutionService {
                 or(req.districtCode(), p.districtCode()),
                 req.districtCode() != null ? req.district() : or(req.district(), p.districtName()),
                 req.plusCode(), req.latitude(), req.longitude());
-        return finish(tenantCode, actor, l, resolver.resolve(tenantCode, site));
+        Outcome outcome = resolver.resolve(tenantCode, site);
+        Location resolved;
+        try {
+            resolved = finish(tenantCode, actor, l, outcome);
+        } catch (RuntimeException e) {
+            // A provider call that was made is still charged.
+            record(tenantCode, actor, outcome.placement(), outcome.usage());
+            throw e;
+        }
+        record(tenantCode, actor, resolved.placement(), outcome.usage());
+        return resolved;
+    }
+
+    /** Usage is for charging; a failure to record it does not undo the resolution. */
+    private void record(String tenantCode, String actor, Placement p, LocationResolver.Usage u) {
+        try {
+            usage.record(new Resolution(tenantCode, actor, p.source(), p.status(), u.provider(), u.cacheHit(),
+                    u.called(), u.costUsd()));
+        } catch (RuntimeException e) {
+            LOG.warnf("Geocoding usage of %s not recorded: %s", tenantCode, e.getMessage());
+        }
     }
 
     /** Each site on its own: one that fails does not stop the others. */

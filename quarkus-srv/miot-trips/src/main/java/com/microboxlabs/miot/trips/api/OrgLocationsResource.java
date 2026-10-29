@@ -91,9 +91,12 @@ public class OrgLocationsResource extends OrgResourceSupport {
         String actor = actor();
         return work(() -> {
             if (body != null && body.isArray()) {
-                List<LocationResolveRequest> sites = new ArrayList<>();
-                body.forEach(site -> sites.add(site(site)));
-                return Response.ok(resolution.resolveAll(organizationId, tenant, actor, sites)).build();
+                if (body.size() > LocationResolutionService.MAX_BATCH) {
+                    throw new IllegalArgumentException("at most " + LocationResolutionService.MAX_BATCH + " sites per request");
+                }
+                List<JsonNode> sites = new ArrayList<>();
+                body.forEach(sites::add);
+                return Response.ok(resolution.resolveAll(organizationId, tenant, actor, sites, OrgLocationsResource::site)).build();
             }
             return Response.ok(LocationView.of(resolution.resolve(organizationId, tenant, actor, site(body)))).build();
         });

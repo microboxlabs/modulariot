@@ -67,14 +67,17 @@ class OrgLocationsResourceTest {
     }
 
     private OrgLocationsResource resource() {
+        return resource(geofences, world.projector(new InMemoryFleet()));
+    }
+
+    private OrgLocationsResource resource(com.microboxlabs.miot.trips.store.GeofenceDirectory fences, TripLiveProjector live) {
         AuditService audit = new AuditService(world.auditStore);
-        TripLiveProjector live = world.projector(new InMemoryFleet());
-        LocationService locations = new LocationService(world.locationStore, geofences, world.tripStore, live, audit,
+        LocationService locations = new LocationService(world.locationStore, fences, world.tripStore, live, audit,
                 Transactions.none());
         LocationResolutionService resolution = new LocationResolutionService(world.locationStore, locations,
-                new LocationResolver(geofences, BOUNDARIES, new FakeAddresses(), new InMemoryGeocodeCache(),
+                new LocationResolver(fences, BOUNDARIES, new FakeAddresses(), new InMemoryGeocodeCache(),
                         StubGeocoding.none()),
-                geofences, world.tripStore, live, audit, Transactions.none(),
+                fences, world.tripStore, live, audit, Transactions.none(),
                 new GeocodeUsageService(new GeocodeUsageRepository(null) {
                     @Override
                     public void insert(UsageRow r) {
@@ -234,5 +237,125 @@ class OrgLocationsResourceTest {
         assertEquals(400, await(resource.resolve(ORG, json("{\"latitude\": \"north\"}"))).getStatus());
         assertEquals(404, await(resource.place(ORG, "11111111-1111-1111-1111-111111111111",
                 new LocationPointRequest(null, null, null, null, -12.1, -77.0))).getStatus());
+    }
+
+    @Test
+    void malformedBatchItemsDoNotPreventValidSitesFromResolving() {
+        Response response = await(resource.resolve(ORG, json("""
+                [{"externalCode":"batch-a","country":"PE","districtCode":"150122","plusCode":"57V4VXHC+H4"},
+                 {"latitude":"north"},
+                 {"externalCode":"batch-c","country":"PE","districtCode":"150122","plusCode":"57V4VXHC+H4"}]""")));
+        assertEquals(200, response.getStatus());
+        @SuppressWarnings("unchecked")
+        List<LocationResolveResult> results = (List<LocationResolveResult>) response.getEntity();
+        assertEquals(3, results.size());
+        assertEquals(Location.RESOLVED, results.get(0).location().resolutionStatus());
+        assertNull(results.get(1).location());
+        assertNotNull(results.get(1).error());
+        assertEquals(Location.RESOLVED, results.get(2).location().resolutionStatus());
+    }
+
+    @Test
+    void aDistrictOnlyRetryKeepsTheSavedPoint() {
+        LocationView first = (LocationView) await(resource.resolve(ORG, json("""
+                {"externalCode":"retry-a","country":"PE","plusCode":"57V4VXHC+H4"}"""))).getEntity();
+        assertEquals(Location.NEEDS_REVIEW, first.resolutionStatus());
+        LocationView second = (LocationView) await(resource.resolve(ORG, json("""
+                {"externalCode":"retry-a","districtCode":"150122"}"""))).getEntity();
+        assertEquals(Location.RESOLVED, second.resolutionStatus());
+        assertEquals(first.latitude(), second.latitude());
+        assertEquals(first.longitude(), second.longitude());
+    }
+
+    @Test
+    void aReplacementDistrictNameDoesNotKeepTheOldCode() {
+        LocationView first = (LocationView) await(resource.resolve(ORG, json("""
+                {"externalCode":"district-a","country":"CL","districtCode":"13101"}"""))).getEntity();
+        Response placed = await(resource.place(ORG, first.id(),
+                new LocationPointRequest(null, null, "Providencia", null, -33.4316, -70.6090)));
+        assertEquals(200, placed.getStatus());
+        LocationView second = (LocationView) placed.getEntity();
+        assertEquals(Location.RESOLVED, second.resolutionStatus());
+        assertEquals("13123", second.districtCode());
+    }
+
+    @Test
+    void movingAManualPointKeepsSharedGeofencesAndMovesItsOwnArea() {
+        LocationView first = (LocationView) await(resource.resolve(ORG, json("""
+                {"externalCode":"manual-a","country":"CL","district":"Providencia","latitude":-33.4316,"longitude":-70.6090}"""))).getEntity();
+        String originalArea = geofences.shape(first.geofenceId());
+        Response placed = await(resource.place(ORG, first.id(),
+                new LocationPointRequest(null, null, null, null, -33.4330, -70.6080)));
+        assertEquals(200, placed.getStatus());
+        LocationView second = (LocationView) placed.getEntity();
+        double[] point = com.microboxlabs.miot.trips.geo.GeoShape.parse(geofences.shape(second.geofenceId())).center();
+        assertEquals(-70.6080, point[0], 0.00001);
+        assertEquals(-33.4330, point[1], 0.00001);
+        assertEquals(originalArea, geofences.shape(first.geofenceId()));
+        Response moved = await(resource.place(ORG, first.id(),
+                new LocationPointRequest(null, null, null, null, -33.4320, -70.6075)));
+        assertEquals(200, moved.getStatus());
+        LocationView third = (LocationView) moved.getEntity();
+        assertEquals(second.geofenceId(), third.geofenceId());
+        double[] changed = com.microboxlabs.miot.trips.geo.GeoShape.parse(geofences.shape(third.geofenceId())).center();
+        assertEquals(-70.6075, changed[0], 0.00001);
+        assertEquals(-33.4320, changed[1], 0.00001);
+    }
+
+    @Test
+    void unexpectedBackendErrorsDoNotAbortLaterBatchSitesOrExposeDiagnostics() {
+        FakeGeofences unreliable = new FakeGeofences() {
+            @Override
+            public List<Geofence> matching(String tenant, String code, String name, int limit) {
+                if ("broken".equals(code)) throw new RuntimeException("synthetic internal-db.example diagnostics");
+                return super.matching(tenant, code, name, limit);
+            }
+        };
+        OrgLocationsResource endpoint = resource(unreliable, world.projector(new InMemoryFleet()));
+        Response response = await(endpoint.resolve(ORG, json("""
+                [{"externalCode":"first","country":"PE","districtCode":"150122","plusCode":"57V4VXHC+H4"},
+                 {"externalCode":"broken","country":"PE","districtCode":"150122","plusCode":"57V4VXHC+H4"},
+                 {"externalCode":"last","country":"PE","districtCode":"150122","plusCode":"57V4VXHC+H4"}]""")));
+        assertEquals(200, response.getStatus());
+        @SuppressWarnings("unchecked")
+        List<LocationResolveResult> results = (List<LocationResolveResult>) response.getEntity();
+        assertEquals(Location.RESOLVED, results.get(0).location().resolutionStatus());
+        assertEquals("could not resolve site", results.get(1).error());
+        assertEquals(Location.RESOLVED, results.get(2).location().resolutionStatus());
+    }
+
+    @Test
+    void invalidContextValuesBecomeReviewInsteadOfFailingPersistenceValidation() {
+        var body = JSON.createObjectNode().put("externalCode", "invalid-context").put("country", "PERU")
+                .put("districtCode", "1".repeat(17)).put("district", "x".repeat(256))
+                .put("latitude", -12.1211).put("longitude", -77.03);
+        Response response = await(resource.resolve(ORG, body));
+        assertEquals(200, response.getStatus());
+        LocationView site = (LocationView) response.getEntity();
+        assertEquals(Location.NEEDS_REVIEW, site.resolutionStatus());
+        assertNull(site.country());
+        assertNull(site.districtCode());
+        assertNull(site.district());
+        assertNotNull(site.resolutionNote());
+        assertNull(site.geofenceId());
+    }
+
+    @Test
+    void resolvingTheSameLinkStillRefreshesLiveTripsAfterAnUnlockedRead() {
+        java.util.concurrent.atomic.AtomicInteger refreshes = new java.util.concurrent.atomic.AtomicInteger();
+        TripLiveProjector live = new TripLiveProjector(null, null, null, null, null, null, null) {
+            @Override
+            public void refreshAll(String tenant, java.util.Collection<java.util.UUID> ids) {
+                assertEquals(TENANT, tenant);
+                refreshes.incrementAndGet();
+            }
+        };
+        OrgLocationsResource endpoint = resource(geofences, live);
+        JsonNode body = json("""
+                {"externalCode":"refresh-a","country":"CL","district":"Providencia","latitude":-33.4316,"longitude":-70.6090}""");
+        LocationView first = (LocationView) await(endpoint.resolve(ORG, body)).getEntity();
+        LocationView second = (LocationView) await(endpoint.resolve(ORG, body)).getEntity();
+        assertEquals(first.geofenceId(), second.geofenceId());
+        assertEquals(2, refreshes.get());
     }
 }

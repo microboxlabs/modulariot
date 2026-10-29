@@ -29,6 +29,9 @@ public interface GeofenceDirectory {
      */
     Optional<Geofence> create(String tenantCode, String code, String name, String area, String properties);
 
+    /** Creates or moves a location-owned manual geofence, keyed by its UUID; external/shared areas stay untouched. */
+    Optional<Geofence> place(String tenantCode, String locationId, String name, String area, String properties);
+
     /** The areas of these geofences as GeoJSON, by id; missing ids are left out. */
     Map<Integer, String> shapes(Collection<Integer> ids);
 }

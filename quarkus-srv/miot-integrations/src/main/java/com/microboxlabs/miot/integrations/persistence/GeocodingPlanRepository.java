@@ -71,7 +71,12 @@ public class GeocodingPlanRepository {
              GROUP BY 1, 2 ORDER BY 1, 2""";
 
     private static final String ORGANIZATIONS = """
-            SELECT organization FROM miot_integrations.geocoding_subscriptions
+            SELECT organization FROM (
+                SELECT DISTINCT ON (organization) organization, active
+                  FROM miot_integrations.geocoding_billing_history
+                 WHERE kind = 'subscription' AND effective_at < $2
+                 ORDER BY organization, effective_at DESC, version_id DESC
+            ) versions WHERE active
             UNION
             SELECT DISTINCT organization FROM miot_integrations.geocode_usage
              WHERE organization IS NOT NULL AND recorded_at >= $1 AND recorded_at < $2
@@ -86,6 +91,31 @@ public class GeocodingPlanRepository {
 
     public Plan plan() {
         return mapPlan(execute(PLAN, Tuple.tuple()).iterator().next());
+    }
+
+    /** Latest known terms before the period end; null when no historical terms are available. */
+    public Plan planAt(OffsetDateTime periodEnd) {
+        var rows = execute("""
+                SELECT terms.* FROM (
+                    SELECT snapshot, active FROM miot_integrations.geocoding_billing_history
+                     WHERE kind = 'plan' AND effective_at < $1
+                     ORDER BY effective_at DESC, version_id DESC LIMIT 1
+                ) version CROSS JOIN LATERAL jsonb_populate_record(
+                    NULL::miot_integrations.geocoding_plan, version.snapshot) terms
+                WHERE version.active""", Tuple.of(periodEnd));
+        return rows.iterator().hasNext() ? mapPlan(rows.iterator().next()) : null;
+    }
+
+    public Subscription subscriptionAt(String organization, OffsetDateTime periodEnd) {
+        var rows = execute("""
+                SELECT terms.* FROM (
+                    SELECT snapshot, active FROM miot_integrations.geocoding_billing_history
+                     WHERE kind = 'subscription' AND organization = $1 AND effective_at < $2
+                     ORDER BY effective_at DESC, version_id DESC LIMIT 1
+                ) version CROSS JOIN LATERAL jsonb_populate_record(
+                    NULL::miot_integrations.geocoding_subscriptions, version.snapshot) terms
+                WHERE version.active""", Tuple.of(organization, periodEnd));
+        return rows.iterator().hasNext() ? mapSubscription(rows.iterator().next()) : null;
     }
 
     public Plan setPlan(BigDecimal monthlyPriceUsd, int resolutionsPerMonth, BigDecimal overagePriceUsd,
@@ -105,7 +135,10 @@ public class GeocodingPlanRepository {
         if (!rows.iterator().hasNext()) {
             return null;
         }
-        Row row = rows.iterator().next();
+        return mapSubscription(rows.iterator().next());
+    }
+
+    private static Subscription mapSubscription(Row row) {
         return new Subscription(row.getInteger("monthly_quota"), row.getString("on_exhausted"),
                 row.getString("updated_by"), row.getOffsetDateTime("updated_at"));
     }
@@ -153,7 +186,7 @@ public class GeocodingPlanRepository {
                 row.getOffsetDateTime("updated_at"));
     }
 
-    private RowSet<Row> execute(String sql, Tuple params) {
+    protected RowSet<Row> execute(String sql, Tuple params) {
         Uni<RowSet<Row>> query = clientInstance.get().preparedQuery(sql).execute(params);
         return query.await().atMost(QUERY_TIMEOUT);
     }

@@ -108,6 +108,7 @@ public class CredentialProfileService {
         requireNameAvailable(existing, displayName, environment, null);
 
         Map<String, Object> publicConfig = safeMap(req.publicConfig());
+        refuseManaged(publicConfig);
         Map<String, Object> secretConfig = safeMap(req.secretConfig());
         if (secretConfig.isEmpty()) {
             throw new IllegalArgumentException("secretConfig is required");
@@ -172,6 +173,10 @@ public class CredentialProfileService {
     private UpdateCredentialProfileParams prepareProfileUpdate(
             String tenantCode, String actor, String id, UpdateCredentialProfileRequest req,
             CredentialProfile current, Map<String, Object> requestedSecret) {
+        if (ManagedCredentials.isManaged(current.publicConfig())) {
+            throw new IllegalArgumentException("This credential is managed by the platform");
+        }
+        refuseManaged(req.publicConfig());
         String displayName = req.displayName() == null ? null : requireName(req.displayName());
         List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
         String environment = req.environment() == null ? null : resolveEnvironment(req.environment(), existing);
@@ -235,6 +240,9 @@ public class CredentialProfileService {
         if (profile == null) {
             return null;
         }
+        if (ManagedCredentials.isManaged(profile.publicConfig())) {
+            return CredentialTestResponse.failure("This credential is managed by the platform");
+        }
         CredentialTestResponse response = runTest(
                 profile.credentialType(), profile.publicConfig(), decrypt(profile));
         credentialProfileRepository.updateTestResult(
@@ -250,7 +258,33 @@ public class CredentialProfileService {
         if (req == null || req.credentialType() == null) {
             throw new IllegalArgumentException("credentialType is required");
         }
+        refuseManaged(req.publicConfig());
         return runTest(req.credentialType(), safeMap(req.publicConfig()), safeMap(req.secretConfig()));
+    }
+
+    /**
+     * A credential with no secret that the platform manages for an organization: {@code managed: true} in its public
+     * half. Only platform code calls this, never the generic credential API.
+     */
+    public CredentialProfile createManaged(String tenantCode, String actor, String displayName, AuthType authType,
+            Map<String, Object> publicConfig) {
+        Map<String, Object> config = new LinkedHashMap<>(publicConfig);
+        config.put(ManagedCredentials.MANAGED, true);
+        CredentialType credentialType = CredentialType.fromAuthType(authType);
+        String name = requireName(displayName);
+        List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
+        String environment = resolveEnvironment(null, existing);
+        requireNameAvailable(existing, name, environment, null);
+        OffsetDateTime now = OffsetDateTime.now();
+        return credentialProfileRepository.create(new CredentialProfile(
+                UUID.randomUUID().toString(), tenantCode, name, credentialType, authType, environment, config,
+                encrypt(Map.of(), name), maskSecret(Map.of()), 1, null, null, now, now, actor, actor));
+    }
+
+    private static void refuseManaged(Map<String, Object> publicConfig) {
+        if (ManagedCredentials.isManaged(publicConfig)) {
+            throw new IllegalArgumentException("Managed credentials are created by the platform");
+        }
     }
 
     /**

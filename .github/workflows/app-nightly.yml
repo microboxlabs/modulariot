@@ -1,4 +1,6 @@
-name: MIOT Stack Nightly
+name: MIOT Stack Nightly / Deploy trunk
+
+run-name: "${{ github.event_name == 'workflow_dispatch' && 'Deploy trunk' || 'Build nightly' }} · ${{ github.sha }}"
 
 on:
   # App/UI/DB changes have no separate image-build workflow — the app image is
@@ -37,8 +39,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: miot-stack-nightly-${{ github.ref }}
-  cancel-in-progress: true
+  # Automatic builds cannot cancel a manually selected trunk deployment.
+  group: ${{ github.event_name == 'workflow_dispatch' && 'miot-stack-deploy-trunk' || format('miot-stack-nightly-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 permissions:
   contents: read
@@ -113,10 +116,47 @@ jobs:
             echo "expect_harness_sha=$expect_harness_sha"
           } >> "$GITHUB_OUTPUT"
 
+  sources:
+    name: Validate selected trunk builds
+    runs-on: ubuntu-latest
+    needs: metadata
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      docs_short_sha: ${{ steps.sources.outputs.docs_short_sha || needs.metadata.outputs.short_sha }}
+      expect_docs_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_docs_sha == 'true' }}
+      web_short_sha: ${{ steps.sources.outputs.web_short_sha || needs.metadata.outputs.short_sha }}
+      expect_web_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_web_sha == 'true' }}
+      modulith_short_sha: ${{ steps.sources.outputs.modulith_short_sha || needs.metadata.outputs.short_sha }}
+      expect_modulith_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_modulith_sha == 'true' }}
+      harness_short_sha: ${{ steps.sources.outputs.harness_short_sha || needs.metadata.outputs.short_sha }}
+      expect_harness_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_harness_sha == 'true' }}
+    steps:
+      - name: Checkout selected trunk commit
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ needs.metadata.outputs.head_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Wait for successful builds of the selected trunk state
+        if: github.event_name == 'workflow_dispatch'
+        id: sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/resolve-trunk-builds.js
+      - name: Report selection
+        run: echo "Component selection ready for ${{ needs.metadata.outputs.head_sha }}"
+
   build-app:
     name: Build and publish nightly app image
     runs-on: ubuntu-latest
-    needs: metadata
+    needs: [metadata, sources]
     permissions:
       contents: read
       packages: write
@@ -300,13 +340,13 @@ jobs:
           APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
           APP_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
           DOCS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}
-          DOCS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          DOCS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           WEB_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.WEB_IMAGE_NAME }}
           WEB_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
-          MODULITH_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          MODULITH_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
-          HARNESS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          HARNESS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           BUILD_CREDITS_JSON: ${{ steps.credits.outputs.json }}
         run: |
           mkdir -p turbo-repo/apps/app/public
@@ -435,7 +475,7 @@ jobs:
   resolve-docs:
     name: Resolve nightly docs image
     runs-on: ubuntu-latest
-    needs: metadata
+    needs: [metadata, sources]
     permissions:
       contents: read
       packages: write
@@ -445,6 +485,10 @@ jobs:
       image_tag: ${{ steps.resolve.outputs.image_tag }}
       source_tag: ${{ steps.resolve.outputs.source_tag }}
     steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ needs.metadata.outputs.head_sha }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
@@ -458,45 +502,12 @@ jobs:
       - name: Resolve source image
         id: resolve
         env:
-          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
+          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.sources.outputs.docs_short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:latest
-          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.metadata.outputs.expect_docs_sha }}
-        run: |
-          max_attempts=30
-          delay=10
-
-          source_image=""
-          source_tag=""
-          for attempt in $(seq 1 "$max_attempts"); do
-            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
-              source_image="$SHA_IMAGE"
-              source_tag="sha-${SHORT_SHA}"
-              break
-            fi
-            if [[ "$EXPECT_SHA" != "true" ]]; then
-              break
-            fi
-            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
-            sleep "$delay"
-          done
-
-          if [[ -z "$source_image" ]]; then
-            if [[ "$EXPECT_SHA" == "true" ]]; then
-              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
-              exit 1
-            fi
-            echo "::notice::${SHA_IMAGE} not found (docs unchanged this commit); falling back to ${LATEST_IMAGE}."
-            source_image="$LATEST_IMAGE"
-            source_tag="latest"
-          fi
-
-          docker buildx imagetools inspect "$source_image" >/dev/null
-          {
-            echo "source_image=$source_image"
-            echo "source_tag=$source_tag"
-            echo "image_tag=nightly-${{ needs.metadata.outputs.nightly_date }}"
-          } >> "$GITHUB_OUTPUT"
+          SHORT_SHA: ${{ needs.sources.outputs.docs_short_sha }}
+          NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.sources.outputs.expect_docs_sha }}
+        run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
         env:
@@ -530,7 +541,7 @@ jobs:
   resolve-web:
     name: Resolve nightly web image
     runs-on: ubuntu-latest
-    needs: metadata
+    needs: [metadata, sources]
     permissions:
       contents: read
       packages: write
@@ -540,6 +551,10 @@ jobs:
       image_tag: ${{ steps.resolve.outputs.image_tag }}
       source_tag: ${{ steps.resolve.outputs.source_tag }}
     steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ needs.metadata.outputs.head_sha }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
@@ -553,45 +568,12 @@ jobs:
       - name: Resolve source image
         id: resolve
         env:
-          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.WEB_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
+          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.WEB_IMAGE_NAME }}:sha-${{ needs.sources.outputs.web_short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.WEB_IMAGE_NAME }}:latest
-          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.metadata.outputs.expect_web_sha }}
-        run: |
-          max_attempts=30
-          delay=10
-
-          source_image=""
-          source_tag=""
-          for attempt in $(seq 1 "$max_attempts"); do
-            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
-              source_image="$SHA_IMAGE"
-              source_tag="sha-${SHORT_SHA}"
-              break
-            fi
-            if [[ "$EXPECT_SHA" != "true" ]]; then
-              break
-            fi
-            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
-            sleep "$delay"
-          done
-
-          if [[ -z "$source_image" ]]; then
-            if [[ "$EXPECT_SHA" == "true" ]]; then
-              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
-              exit 1
-            fi
-            echo "::notice::${SHA_IMAGE} not found (web unchanged this commit); falling back to ${LATEST_IMAGE}."
-            source_image="$LATEST_IMAGE"
-            source_tag="latest"
-          fi
-
-          docker buildx imagetools inspect "$source_image" >/dev/null
-          {
-            echo "source_image=$source_image"
-            echo "source_tag=$source_tag"
-            echo "image_tag=nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}"
-          } >> "$GITHUB_OUTPUT"
+          SHORT_SHA: ${{ needs.sources.outputs.web_short_sha }}
+          NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.sources.outputs.expect_web_sha }}
+        run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
         env:
@@ -625,7 +607,7 @@ jobs:
   resolve-modulith:
     name: Resolve nightly modulith image
     runs-on: ubuntu-latest
-    needs: metadata
+    needs: [metadata, sources]
     permissions:
       contents: read
       packages: write
@@ -635,6 +617,10 @@ jobs:
       image_tag: ${{ steps.resolve.outputs.image_tag }}
       source_tag: ${{ steps.resolve.outputs.source_tag }}
     steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ needs.metadata.outputs.head_sha }}
+
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
@@ -646,54 +632,12 @@ jobs:
       - name: Resolve source image
         id: resolve
         env:
-          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
+          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.sources.outputs.modulith_short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:latest
-          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.metadata.outputs.expect_modulith_sha }}
-        run: |
-          # Prefer the commit-pinned image; only consider :latest as a fallback.
-          #
-          #   EXPECT_SHA=true  -> the matching build (Quarkus CI) just reported
-          #     success, so this image MUST exist. Poll to absorb registry
-          #     propagation lag, then FAIL rather than silently shipping a stale
-          #     :latest (#764 — the fallback used to read as success).
-          #   EXPECT_SHA=false -> the modulith may be unchanged for this commit
-          #     (app push / cron). A missing sha image is expected; fall back to
-          #     :latest immediately, no waiting.
-          max_attempts=30
-          delay=10
-
-          source_image=""
-          source_tag=""
-          for attempt in $(seq 1 "$max_attempts"); do
-            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
-              source_image="$SHA_IMAGE"
-              source_tag="sha-${SHORT_SHA}"
-              break
-            fi
-            if [[ "$EXPECT_SHA" != "true" ]]; then
-              break
-            fi
-            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
-            sleep "$delay"
-          done
-
-          if [[ -z "$source_image" ]]; then
-            if [[ "$EXPECT_SHA" == "true" ]]; then
-              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
-              exit 1
-            fi
-            echo "::notice::${SHA_IMAGE} not found (modulith unchanged this commit); falling back to ${LATEST_IMAGE}."
-            source_image="$LATEST_IMAGE"
-            source_tag="latest"
-          fi
-
-          docker buildx imagetools inspect "$source_image" >/dev/null
-          {
-            echo "source_image=$source_image"
-            echo "source_tag=$source_tag"
-            echo "image_tag=nightly-${{ needs.metadata.outputs.nightly_date }}"
-          } >> "$GITHUB_OUTPUT"
+          SHORT_SHA: ${{ needs.sources.outputs.modulith_short_sha }}
+          NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.sources.outputs.expect_modulith_sha }}
+        run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
         env:
@@ -727,7 +671,7 @@ jobs:
   resolve-harness:
     name: Resolve nightly harness image
     runs-on: ubuntu-latest
-    needs: metadata
+    needs: [metadata, sources]
     permissions:
       contents: read
       packages: write
@@ -737,6 +681,10 @@ jobs:
       image_tag: ${{ steps.resolve.outputs.image_tag }}
       source_tag: ${{ steps.resolve.outputs.source_tag }}
     steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ needs.metadata.outputs.head_sha }}
+
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
@@ -748,54 +696,12 @@ jobs:
       - name: Resolve source image
         id: resolve
         env:
-          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
+          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:sha-${{ needs.sources.outputs.harness_short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:latest
-          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.metadata.outputs.expect_harness_sha }}
-        run: |
-          # Prefer the commit-pinned image; only consider :latest as a fallback.
-          #
-          #   EXPECT_SHA=true  -> the matching build (Harness CI) just reported
-          #     success, so this image MUST exist. Poll to absorb registry
-          #     propagation lag, then FAIL rather than silently shipping a stale
-          #     :latest (#764 — the fallback used to read as success).
-          #   EXPECT_SHA=false -> the harness may be unchanged for this commit
-          #     (app push / cron). A missing sha image is expected; fall back to
-          #     :latest immediately, no waiting.
-          max_attempts=30
-          delay=10
-
-          source_image=""
-          source_tag=""
-          for attempt in $(seq 1 "$max_attempts"); do
-            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
-              source_image="$SHA_IMAGE"
-              source_tag="sha-${SHORT_SHA}"
-              break
-            fi
-            if [[ "$EXPECT_SHA" != "true" ]]; then
-              break
-            fi
-            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
-            sleep "$delay"
-          done
-
-          if [[ -z "$source_image" ]]; then
-            if [[ "$EXPECT_SHA" == "true" ]]; then
-              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
-              exit 1
-            fi
-            echo "::notice::${SHA_IMAGE} not found (harness unchanged this commit); falling back to ${LATEST_IMAGE}."
-            source_image="$LATEST_IMAGE"
-            source_tag="latest"
-          fi
-
-          docker buildx imagetools inspect "$source_image" >/dev/null
-          {
-            echo "source_image=$source_image"
-            echo "source_tag=$source_tag"
-            echo "image_tag=nightly-${{ needs.metadata.outputs.nightly_date }}"
-          } >> "$GITHUB_OUTPUT"
+          SHORT_SHA: ${{ needs.sources.outputs.harness_short_sha }}
+          NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.sources.outputs.expect_harness_sha }}
+        run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
         env:
@@ -826,21 +732,15 @@ jobs:
             echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  deploy:
-    name: Dispatch development environment deploys
+  manifest:
+    name: Publish stack manifest
     runs-on: ubuntu-latest
     needs: [metadata, build-app, resolve-docs, resolve-web, resolve-modulith, resolve-harness]
     permissions:
       contents: read
-    environment:
-      # Dispatch credentials are shared with tagged releases. The private
-      # deployment repository still restricts nightly targets to development.
-      name: app-deploy
     steps:
-      - name: Dispatch private deployment workflow
+      - name: Generate stack deployment payload
         env:
-          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
-          DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
           RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           BUILD_CHANNEL: nightly
           GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
@@ -855,27 +755,21 @@ jobs:
           APP_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
           APP_IMAGE_REF: ${{ needs.build-app.outputs.image }}
           DOCS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}
-          DOCS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          DOCS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           DOCS_IMAGE_REF: ${{ needs.resolve-docs.outputs.image }}
           WEB_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.WEB_IMAGE_NAME }}
           WEB_IMAGE_TAG: ${{ needs.resolve-web.outputs.image_tag }}
           WEB_IMAGE_REF: ${{ needs.resolve-web.outputs.image }}
           WEB_SOURCE_TAG: ${{ needs.resolve-web.outputs.source_tag }}
           MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
-          MODULITH_IMAGE_TAG: ${{ needs.resolve-modulith.outputs.image_tag }}
+          MODULITH_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           MODULITH_IMAGE_REF: ${{ needs.resolve-modulith.outputs.image }}
           MODULITH_SOURCE_TAG: ${{ needs.resolve-modulith.outputs.source_tag }}
           HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
-          HARNESS_IMAGE_TAG: ${{ needs.resolve-harness.outputs.image_tag }}
+          HARNESS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           HARNESS_IMAGE_REF: ${{ needs.resolve-harness.outputs.image }}
           HARNESS_SOURCE_TAG: ${{ needs.resolve-harness.outputs.source_tag }}
         run: |
-          DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
-
-          if [[ -z "$GH_TOKEN" ]]; then
-            echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
-            exit 1
-          fi
           BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
@@ -958,15 +852,49 @@ jobs:
 
           jq '.client_payload' nightly-dispatch-payload.json > nightly-manifest.json
 
-          cat nightly-dispatch-payload.json |
-            gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
-              --method POST \
-              --input -
-
-          echo "Dispatched nightly stack deployment ${RELEASE_VERSION} to ${DEPLOY_DISPATCH_REPO}."
+          {
+            echo "# Stack ready"
+            echo "- Commit: $GIT_SHA"
+            echo "- Version: $RELEASE_VERSION"
+            echo "- Deployment: manual execution on trunk only"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload nightly manifest artifact
         uses: actions/upload-artifact@v4
         with:
           name: nightly-manifest-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
-          path: nightly-manifest.json
+          path: |
+            nightly-manifest.json
+            nightly-dispatch-payload.json
+
+  deploy:
+    name: Deploy trunk
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/trunk'
+    runs-on: ubuntu-latest
+    needs: [metadata, manifest]
+    permissions:
+      contents: read
+    environment:
+      name: app-deploy
+    steps:
+      - name: Download selected stack payload
+        uses: actions/download-artifact@v4
+        with:
+          name: nightly-manifest-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+
+      - name: Dispatch private deployment workflow
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
+          EXPECTED_SHA: ${{ needs.metadata.outputs.head_sha }}
+        run: |
+          DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
+            exit 1
+          fi
+          jq -e --arg sha "$EXPECTED_SHA" '.client_payload.git_sha == $sha' nightly-dispatch-payload.json >/dev/null
+          gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
+            --method POST \
+            --input nightly-dispatch-payload.json
+          echo "Dispatched trunk commit $EXPECTED_SHA to $DEPLOY_DISPATCH_REPO."

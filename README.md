@@ -51,6 +51,27 @@ uv run miot-harness demo "Tell me the story of delivery compliance this month an
 
 ## Contributing
 
+### Deploy a batch of certified PRs
+
+Merge certified PRs into `trunk` as usual. Pushes, completed component builds,
+and the nightly schedule publish images and a stack manifest without deploying.
+When the batch is complete, open **Actions → MIOT Stack Nightly / Deploy trunk →
+Run workflow**, select **trunk**, and run it once. The CLI equivalent is:
+
+```bash
+gh workflow run app-nightly.yml --repo microboxlabs/modulariot --ref trunk
+```
+
+The manual run captures `trunk` at dispatch time. It waits up to 30 minutes for
+successful CI and component builds with matching inputs, builds the app at that
+commit, and sends one stack deployment request to the private deployments
+repository. Later merges are left for the next deployment. Components unchanged
+since an earlier successful trunk build reuse that commit's image; missing or
+failed builds block deployment instead of falling back to `latest`.
+
+The private repository owns target environments and approvals. Tagged production
+releases continue to use the release train.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md). For security issues, see our [Security Policy](SECURITY.md).
 
 ## Community

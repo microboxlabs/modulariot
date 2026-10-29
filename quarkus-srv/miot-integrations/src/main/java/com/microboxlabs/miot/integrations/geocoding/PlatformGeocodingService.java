@@ -75,12 +75,13 @@ public class PlatformGeocodingService {
      * @throws IllegalStateException when a new token has no credential to go to
      */
     public PlatformGeocodingView put(SetPlatformGeocodingRequest body, String actor) {
-        String name = body == null || body.provider() == null || body.provider().isBlank()
-                ? MapboxGeocoding.NAME : body.provider().strip().toLowerCase();
+        if (body == null) throw new IllegalArgumentException("Request body is required");
+        String name = body.provider() == null || body.provider().isBlank()
+                ? MapboxGeocoding.NAME : body.provider().strip().toLowerCase(java.util.Locale.ROOT);
         GeocodingProvider provider = providers.stream().filter(p -> p.name().equals(name)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("unknown geocoding provider " + name));
-        String token = body == null || body.token() == null ? "" : body.token().strip();
-        BigDecimal cost = body == null ? null : body.costPerRequestUsd();
+        String token = body.token() == null ? "" : body.token().strip();
+        BigDecimal cost = body.costPerRequestUsd();
         if (cost != null && cost.signum() < 0) {
             throw new IllegalArgumentException(GeocodingConnection.COST + " cannot be negative");
         }

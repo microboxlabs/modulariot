@@ -69,8 +69,8 @@ public class GpsGeofenceDirectory implements GeofenceDirectory {
         List<Geofence> out = new ArrayList<>();
         gps.readPool().preparedQuery("SELECT " + COLUMNS + """
                  FROM geofences
-                WHERE client_id = $1 AND (client_geofence_id = $2 OR lower(geofence_name) = lower($3))
-                ORDER BY client_geofence_id = $2 DESC NULLS LAST, geofence_id LIMIT $4""")
+                WHERE client_id = $1 AND (client_geofence_id = $2::text OR lower(geofence_name) = lower($3::text))
+                ORDER BY client_geofence_id = $2::text DESC NULLS LAST, geofence_id LIMIT $4""")
                 .execute(Tuple.of(tenantCode, code, name, limit)).await().atMost(TIMEOUT)
                 .forEach(r -> out.add(geofence(r)));
         return out;
@@ -87,7 +87,7 @@ public class GpsGeofenceDirectory implements GeofenceDirectory {
         var rows = gps.pool().preparedQuery("""
                 INSERT INTO geofences (coordinates, client_geofence_id, client_id, geofence_name,
                     geofence_classification, polygon_type, created_at, updated_at, properties)
-                VALUES (ST_SetSRID(ST_GeomFromGeoJSON($4), 4326)::geography, $2, $1, $3, 1, 'point', now(), now(),
+                VALUES (ST_SetSRID(ST_GeomFromGeoJSON($4::text), 4326)::geography, $2, $1, $3, 1, 'point', now(), now(),
                     $5::jsonb)
                 ON CONFLICT (client_id, client_geofence_id) DO NOTHING
                 RETURNING\s""" + COLUMNS)

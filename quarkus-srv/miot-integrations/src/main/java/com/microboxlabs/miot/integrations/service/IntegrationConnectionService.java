@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.integrations.service;
 
+import static com.microboxlabs.miot.integrations.email.PlatformMailService.PLATFORM_TENANT;
+
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
@@ -75,6 +77,7 @@ public class IntegrationConnectionService {
         }
 
         ProviderType providerType = template != null ? template.providerType() : req.providerType();
+        requireAllowed(tenantCode, providerType);
         IntegrationConnection connection = new IntegrationConnection(
                 UUID.randomUUID().toString(),
                 tenantCode,
@@ -127,6 +130,7 @@ public class IntegrationConnectionService {
         if (existing == null) {
             return null;
         }
+        requireAllowed(tenantCode, existing.providerType());
         String credentialId = req.credentialProfileId() == null
                 ? existing.credentialProfileId() : req.credentialProfileId();
         updateSecrets(tenantCode, credentialId, req.token(), req.secrets());
@@ -265,6 +269,18 @@ public class IntegrationConnectionService {
             return new ConnectionTestResponse(false, OffsetDateTime.now(ZoneOffset.UTC), "The credential could not be found");
         }
         return testerRegistry.testerFor(draft).test(draft, credential, null);
+    }
+
+    /**
+     * The platform contracts and pays the geocoding provider, so only the platform tenant holds a
+     * {@link ProviderType#GEOCODING} connection.
+     *
+     * @throws PlatformOnlyProviderException for an organization
+     */
+    private static void requireAllowed(String tenantCode, ProviderType providerType) {
+        if (providerType == ProviderType.GEOCODING && !PLATFORM_TENANT.equals(tenantCode)) {
+            throw new PlatformOnlyProviderException(providerType);
+        }
     }
 
     private Map<String, Object> safeMap(Map<String, Object> map) {

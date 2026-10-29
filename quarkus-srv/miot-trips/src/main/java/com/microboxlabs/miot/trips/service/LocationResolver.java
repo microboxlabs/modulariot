@@ -129,7 +129,7 @@ public class LocationResolver {
         }
         Usage usage = Usage.NONE;
         if (found == null && !manual && blankToNull(site.address()) != null && b != null && b.shape() != null) {
-            ByAddress byAddress = fromAddress(tenantCode, country, b, site.address());
+            ByAddress byAddress = fromAddress(country, b, site.address());
             found = byAddress.found();
             note = note == null ? byAddress.note() : note;
             usage = byAddress.usage();
@@ -173,7 +173,7 @@ public class LocationResolver {
      * Steps 4 and 5: the internal address table, then the shared cache, then the provider. A provider result is
      * kept in the cache only when it resolves and the provider's terms allow storing it.
      */
-    private ByAddress fromAddress(String tenantCode, String country, Boundary b, String address) {
+    private ByAddress fromAddress(String country, Boundary b, String address) {
         if (addresses.supports(country)) {
             var street = Addresses.street(address);
             if (street.isPresent()) {
@@ -191,7 +191,7 @@ public class LocationResolver {
             return new ByAddress(new Found(new Point(cached.get().lon(), cached.get().lat()), PROVIDER, null, null),
                     null, new Usage(cached.get().provider(), true, false, null));
         }
-        Geocoder.Result r = geocoder.forward(tenantCode, new Query(address, b.name(), country));
+        Geocoder.Result r = geocoder.forward(new Query(address, b.name(), country));
         Usage usage = new Usage(r.provider(), false, r.called(), r.costUsd());
         if (!r.called()) {
             return new ByAddress(null, "geocoding: " + r.error(), usage);

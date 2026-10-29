@@ -35,10 +35,13 @@ const geofencesKey = (q: string) =>
 
 const fetcher = <T>(url: string) => tripsRequest<T>(url);
 
-async function fetchLocations(url: string) {
-  const locations: TripLocation[] = [];
+/** Every page of a location query; `url` already holds `size=200`. */
+export async function fetchLocations<T extends TripLocation = TripLocation>(
+  url: string
+) {
+  const locations: T[] = [];
   for (let page = 0; ; page++) {
-    const rows = await tripsRequest<TripLocation[]>(`${url}&page=${page}`);
+    const rows = await tripsRequest<T[]>(`${url}&page=${page}`);
     locations.push(...rows);
     if (rows.length < 200) return locations;
   }

@@ -5,11 +5,15 @@ import { tr } from "@/features/i18n/tr.service";
 import { useOrgModules } from "../hooks/use-org-modules";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
+import OrgServiceAccountCard from "../platform/org-service-account-card";
 import type { OrgSummary } from "../types";
 
 interface OrgDetailPanelProps {
   readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
+  readonly lang: string;
+  /** Platform owners also manage the organization's service account here. */
+  readonly isPlatformOwner: boolean;
 }
 
 /**
@@ -20,6 +24,8 @@ interface OrgDetailPanelProps {
 export default function OrgDetailPanel({
   organization,
   dict,
+  lang,
+  isPlatformOwner,
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
   const {
@@ -47,6 +53,9 @@ export default function OrgDetailPanel({
         dict={dict}
       />
       {isOwner && <GpsWebhookCard orgSlug={orgSlug} dict={dict} />}
+      {isPlatformOwner && (
+        <OrgServiceAccountCard slug={orgSlug} dict={dict} lang={lang} />
+      )}
     </div>
   );
 }

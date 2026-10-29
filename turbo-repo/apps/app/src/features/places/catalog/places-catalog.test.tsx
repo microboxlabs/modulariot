@@ -442,6 +442,103 @@ describe("PlacesCatalogLists", () => {
     expect(screen.queryByText("Lugares")).toBeNull();
   });
 
+  it("filters the geofences by category and hides routes meanwhile", () => {
+    const base: Lugar = {
+      place_id: "p1",
+      name: "Zona el Manzano",
+      address: null,
+      category: "Zona de riesgo",
+      category_id: null,
+      geometry_type: "polygon",
+      color: null,
+      center: [-33, -70],
+      polygon: [
+        [-33, -70],
+        [-32, -70],
+        [-32, -69],
+      ],
+      radius_m: null,
+      metadata: null,
+      external_id: null,
+      active_from: null,
+      active_until: null,
+    };
+    const otro: Lugar = {
+      ...base,
+      place_id: "p2",
+      name: "Copec POZ",
+      category: "General",
+    };
+    const trayecto: Trayecto = {
+      trayecto_id: "t1",
+      name: "Acceso norte",
+      kind: "vial",
+      width_m: 30,
+      points: [
+        [0, 0],
+        [1, 1],
+      ],
+      waypoints: null,
+      parent_name: null,
+      ajustado: true,
+      external_id: null,
+    };
+    const ws = {
+      busca: "",
+      setBusca: vi.fn(),
+      lugares: [base, otro],
+      todosLugares: [base, otro],
+      editandoLugarId: null,
+      modo: "lista",
+      irALugar: vi.fn(),
+      setHoveredPlaceId: vi.fn(),
+      todosTrayectos: [trayecto],
+      versionDe: () => null,
+      editandoTrayId: null,
+      irATrayecto: vi.fn(),
+      puedeEditar: false,
+    } as unknown as PlacesWorkspace;
+
+    render(<PlacesCatalogLists ws={ws} />);
+    const filtro = screen.getByRole("combobox", {
+      name: "Filtrar por categoría",
+    });
+    expect(
+      within(filtro)
+        .getAllByRole("option")
+        .map((o) => o.textContent)
+    ).toEqual(["Todas las categorías", "General (1)", "Zona de riesgo (1)"]);
+    expect(screen.getByText("Acceso norte")).toBeInTheDocument();
+
+    fireEvent.change(filtro, { target: { value: "Zona de riesgo" } });
+    expect(screen.getByText("Zona el Manzano")).toBeInTheDocument();
+    expect(screen.queryByText("Copec POZ")).toBeNull();
+    expect(screen.queryByText("Acceso norte")).toBeNull();
+
+    fireEvent.change(filtro, { target: { value: "" } });
+    expect(screen.getByText("Copec POZ")).toBeInTheDocument();
+    expect(screen.getByText("Acceso norte")).toBeInTheDocument();
+  });
+
+  it("has no category filter with a single category", () => {
+    const ws = {
+      busca: "",
+      setBusca: vi.fn(),
+      lugares: [],
+      todosLugares: [],
+      todosTrayectos: [],
+      editandoLugarId: null,
+      editandoTrayId: null,
+      modo: "lista",
+      versionDe: () => null,
+      puedeEditar: false,
+    } as unknown as PlacesWorkspace;
+    render(<PlacesCatalogLists ws={ws} />);
+    expect(
+      screen.queryByRole("combobox", { name: "Filtrar por categoría" })
+    ).toBeNull();
+  });
+
   it("is read-only without the Editor de lugares permission", () => {
     const lugar: Lugar = {
       place_id: "p1",

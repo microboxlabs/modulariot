@@ -7,7 +7,7 @@ import {
   LinearInterpolator,
   ScatterplotLayer,
 } from "deck.gl";
-import type { PickingInfo } from "@deck.gl/core";
+import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
@@ -24,6 +24,7 @@ import PulseTooltip, {
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import ToolBar from "./tool-bar/tool-bar";
+import type { GeofencesMode } from "./tool-bar/geofences-mode-selector";
 // import MapStyleSelector from "./map-style-selector";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 // import MapButton from "./map-button";
@@ -284,6 +285,20 @@ function geocercasDelViaje(
   });
 }
 
+/**
+ * Las capas de deck.gl en orden de dibujo (la última queda encima). Los
+ * nombres de las geocercas van bajo lo del viaje (pulsos, vehículo, banderas)
+ * salvo con el editor de Lugares abierto: ahí se pregunta por las geocercas,
+ * así que sus nombres pasan encima de todo.
+ */
+export function capasDelMapa(
+  delViaje: LayersList,
+  nombres: LayersList,
+  editando: boolean
+): LayersList {
+  return editando ? [...delViaje, ...nombres] : [...nombres, ...delViaje];
+}
+
 export default function MapVisualizationTrip({
   tripId,
   positions,
@@ -334,12 +349,14 @@ export default function MapVisualizationTrip({
     setZoom((prev) => (prev === next ? prev : next));
   };
   const [showStops, setShowStops] = useState(true);
-  const [showGeofences, setShowGeofences] = useState(true);
+  // qué geocercas se ven (botón "geocercas" de la barra de herramientas):
+  // todas, solo las del viaje (por defecto) o ninguna
+  const [geofencesMode, setGeofencesMode] = useState<GeofencesMode>("trip");
   const [showPulse, setShowPulse] = useState(true);
-  // las geocercas de Lugares siguen al botón "geocercas" de la barra de
-  // herramientas del mapa (el mismo que las del viaje); cerrado, se ven solo
-  // de lectura sobre el viaje
-  const verGeocercas = showGeofences;
+  const showGeofences = geofencesMode !== "none";
+  // las de Lugares, solo de lectura sobre el viaje, van con "todas"; con el
+  // editor abierto se ven siempre (son lo que se edita)
+  const verGeocercas = geofencesMode === "all" || editandoLugares;
   const lugares = usePlacesEnMapa(mapRef, {
     editando: editandoLugares,
     verGeocercas,
@@ -782,9 +799,9 @@ export default function MapVisualizationTrip({
               showStops,
               setShowStops,
             }}
-            show_geofences={{
-              showGeofences,
-              setShowGeofences,
+            geofences_mode={{
+              geofencesMode,
+              setGeofencesMode,
             }}
             show_pulse={{
               showPulse,
@@ -809,11 +826,11 @@ export default function MapVisualizationTrip({
               | "outdoors"
               | "hybrid"
           }
-          layers={
-            verGeocercas || editandoLugares
-              ? [...lugares.capasNombres, ...layers]
-              : layers
-          }
+          layers={capasDelMapa(
+            layers,
+            verGeocercas ? lugares.capasNombres : [],
+            editandoLugares
+          )}
           isLoading={false}
           mapRef={mapRef}
           // con la barra de Lugares al lado, el borde que la toca va recto
@@ -823,12 +840,8 @@ export default function MapVisualizationTrip({
           onMapLoad={() => setMapReady(true)}
           {...lugares.propsMapa}
         >
-          {(editandoLugares || verGeocercas) && (
-            <PlacesMapLayers
-              ws={lugares.ws}
-              vistaGeneral={!editandoLugares}
-              ocultar={{ geocercas: !verGeocercas }}
-            />
+          {verGeocercas && (
+            <PlacesMapLayers ws={lugares.ws} vistaGeneral={!editandoLugares} />
           )}
         </MapVisualization>
 

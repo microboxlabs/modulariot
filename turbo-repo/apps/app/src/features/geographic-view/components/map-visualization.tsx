@@ -28,11 +28,7 @@ import MapVisualizationGeneric from "@/features/map-visualization/map-visualizat
 import { useGeographicProfile } from "../profiles/geographic-profile-context";
 import MapNotch from "./map-notch/map-notch";
 import MapControlsFrame from "./map-controls-frame";
-import PlacesPermissionDebug from "./places-permission-debug";
-import {
-  DEBUG_PERMISO_LUGARES,
-  usePermisoEditorLugares,
-} from "../profiles/places-permission";
+import { usePermisoEditorLugares } from "../profiles/places-permission";
 import PlacesFloatingOverlay from "./places-overlay/places-floating-overlay";
 import { SlidePanel } from "./places-overlay/panel-motion";
 
@@ -267,8 +263,6 @@ export default function MapVisualization({
           }
           bottomLeft={
             <>
-              {/* solo con NEXT_PUBLIC_DEBUG_PLACES_PERMISSION=true: probar Lugares sin el permiso */}
-              {DEBUG_PERMISO_LUGARES && <PlacesPermissionDebug dict={dict} />}
               <MapStyleSelector
                 dict={dict}
                 selectedStyle={mapStyle}

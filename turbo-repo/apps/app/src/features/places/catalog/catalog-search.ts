@@ -24,6 +24,41 @@ export function filtrarLugares(lugares: Lugar[], busca: string): Lugar[] {
   return lugares.filter((l) => hit.has(l.place_id));
 }
 
+/** Valor del filtro para los lugares sin categoría. */
+export const SIN_CATEGORIA = "__sin_categoria__";
+
+const categoriaDe = (l: Lugar) => l.category ?? SIN_CATEGORIA;
+
+// por nombre, y los sin categoría al final
+function compararCategorias(a: string, b: string): number {
+  if (a === SIN_CATEGORIA) return 1;
+  if (b === SIN_CATEGORIA) return -1;
+  return a.localeCompare(b, "es");
+}
+
+/** Las categorías de los lugares, con cuántos tiene cada una. */
+export function categoriasDeLugares(
+  lugares: Lugar[]
+): { categoria: string; total: number }[] {
+  const totales = new Map<string, number>();
+  for (const l of lugares) {
+    const c = categoriaDe(l);
+    totales.set(c, (totales.get(c) ?? 0) + 1);
+  }
+  return [...totales]
+    .map(([categoria, total]) => ({ categoria, total }))
+    .sort((a, b) => compararCategorias(a.categoria, b.categoria));
+}
+
+/** Los lugares de una categoría; "" son todos. */
+export function filtrarPorCategoria(
+  lugares: Lugar[],
+  categoria: string
+): Lugar[] {
+  if (!categoria) return lugares;
+  return lugares.filter((l) => categoriaDe(l) === categoria);
+}
+
 export function filtrarTrayectos(
   trayectos: Trayecto[],
   busca: string

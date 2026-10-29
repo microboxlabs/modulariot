@@ -6694,6 +6694,11 @@
     "pulse": "Pulso",
     "stops": "Paradas",
     "geofences": "Geofences",
+    "geofencesMode": {
+      "all": "Todas las geocercas",
+      "trip": "Solo geocercas del viaje",
+      "none": "Sin geocercas"
+    },
     "cameraMovement": "Seguimiento de cámara",
     "watch": "Ver",
     "types": {
@@ -6900,6 +6905,9 @@
     "accumulated_resting_time": "Tiempo de descanso acumulado",
     "zone_names": "Zonas",
     "gps_provider": "Proveedor de GPS",
+    "vehicle_model": "Modelo",
+    "vehicle_no_model": "Sin modelo",
+    "vehicle_year": "Año",
     "median_report_interval": "Frecuencia de reportabilidad",
     "accumulated_time": "Tiempo de conducción",
     "show_stops": "Mostrar paradas",
@@ -6931,17 +6939,6 @@
       "title": "Lugares de interés",
       "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto.",
       "hint_read_only": "Solo lectura: busca en el catálogo o descarga. Crear, editar o importar necesita el permiso «Editor de lugares»."
-    },
-    "places_permission_debug": {
-      "title": "Debug · Editor de lugares",
-      "hint": "Prueba la vista con y sin el permiso. Solo en este navegador.",
-      "real": "Según roles",
-      "on": "Forzar activo",
-      "off": "Forzar inactivo",
-      "granted": "Tus roles lo tienen",
-      "denied": "Tus roles no lo tienen",
-      "active": "Activo",
-      "inactive": "Inactivo"
     },
     "trip_geofences": {
       "title": "Geocercas del viaje",

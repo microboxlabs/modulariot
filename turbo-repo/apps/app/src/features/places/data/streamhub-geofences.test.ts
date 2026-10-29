@@ -70,6 +70,23 @@ describe("streamhub geofences as places", () => {
     expect(l?.address).toBeNull();
   });
 
+  it("uses the StreamHub geofence type as category when there is none", () => {
+    const tipo = (geofence_type: unknown) =>
+      lugarDesdeGeofence(fila({ properties: { geofence_type } }), anillo)
+        ?.category;
+    expect(tipo(1)).toBe("Zona de riesgo");
+    expect(tipo(0)).toBe("General");
+    expect(tipo("4")).toBe("Paso fronterizo");
+    expect(tipo(7)).toBe("Tipo 7");
+    expect(tipo(null)).toBeNull();
+    expect(
+      lugarDesdeGeofence(
+        fila({ properties: { category: "cd", geofence_type: 1 } }),
+        anillo
+      )?.category
+    ).toBe("cd");
+  });
+
   it("tells StreamHub geofences from places created here", () => {
     expect(esDeStreamhub("streamhub-1156")).toBe(true);
     expect(esDeStreamhub("local-abc")).toBe(false);

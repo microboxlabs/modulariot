@@ -26,6 +26,25 @@ function texto(props: Record<string, unknown> | null, clave: string) {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
+/**
+ * Nombre de cada `properties.geofence_type` de StreamHub. No hay catálogo de
+ * tipos: 1 es el que usan los síntomas de "zona de riesgo"; 0 y 4 salen de
+ * los datos (geocercas comunes y pasos fronterizos de 30 km).
+ */
+const TIPOS_GEOCERCA: Record<number, string> = {
+  0: "General",
+  1: "Zona de riesgo",
+  4: "Paso fronterizo",
+};
+
+/** El tipo de la geocerca como categoría, si lo trae (número o texto). */
+function categoriaDeTipo(props: Record<string, unknown> | null) {
+  const v = props?.geofence_type;
+  const n = typeof v === "string" && v.trim() ? Number(v) : v;
+  if (typeof n !== "number" || !Number.isInteger(n)) return null;
+  return TIPOS_GEOCERCA[n] ?? `Tipo ${n}`;
+}
+
 /** Anillo [lon, lat] → vértices [lat, lon], sin repetir el punto de cierre. */
 function verticesDeAnillo(anillo: [number, number][]): LatLon[] {
   const vs = anillo.map(([lon, lat]) => [lat, lon] as LatLon);
@@ -61,7 +80,8 @@ export function lugarDesdeGeofence(
     place_id: `${PREFIJO_STREAMHUB}${row.geofence_id}`,
     name: nombre,
     address: texto(row.properties, "address"),
-    category: texto(row.properties, "category"),
+    category:
+      texto(row.properties, "category") ?? categoriaDeTipo(row.properties),
     category_id: null,
     geometry_type: "polygon",
     color: null,

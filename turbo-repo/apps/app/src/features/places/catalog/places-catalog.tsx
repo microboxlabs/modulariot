@@ -4,7 +4,13 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Button, ButtonGroup } from "flowbite-react";
 import { MdOutlineFileUpload } from "react-icons/md";
 import { twMerge } from "tailwind-merge";
-import { filtrarLugares, filtrarTrayectos } from "./catalog-search";
+import {
+  SIN_CATEGORIA,
+  categoriasDeLugares,
+  filtrarLugares,
+  filtrarPorCategoria,
+  filtrarTrayectos,
+} from "./catalog-search";
 import { ListCard } from "./list-card";
 import PlaceList from "./place-list";
 import { TrayectoList } from "./route-lists";
@@ -240,6 +246,44 @@ function accionesEditables(
   };
 }
 
+const nombreCategoria = (c: string) =>
+  c === SIN_CATEGORIA ? "Sin categoría" : c;
+
+/** Elige una categoría de geocercas; solo si hay más de una. */
+function CategoryFilter({
+  categorias,
+  valor,
+  onCambiar,
+}: Readonly<{
+  categorias: { categoria: string; total: number }[];
+  valor: string;
+  onCambiar: (categoria: string) => void;
+}>) {
+  if (categorias.length < 2) return null;
+  return (
+    <select
+      aria-label="Filtrar por categoría"
+      className={twMerge(inputCls, "shrink-0")}
+      value={valor}
+      onChange={(e) => onCambiar(e.target.value)}
+    >
+      <option value="">Todas las categorías</option>
+      {categorias.map(({ categoria, total }) => (
+        <option key={categoria} value={categoria}>
+          {`${nombreCategoria(categoria)} (${total})`}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function textoSinResultados(busca: string, categoria: string): string {
+  const q = busca.trim();
+  if (!categoria) return `Sin resultados para «${q}».`;
+  const cat = `en «${nombreCategoria(categoria)}»`;
+  return q ? `Sin resultados para «${q}» ${cat}.` : `Sin lugares ${cat}.`;
+}
+
 export function PlacesCatalogLists({
   ws,
   externas,
@@ -252,19 +296,32 @@ export function PlacesCatalogLists({
 }>) {
   // sin el permiso "Editor de lugares": solo listar, buscar y descargar
   const editable = ws.puedeEditar !== false;
-  const hayBusca = ws.busca.trim().length > 0;
-  const lugares = filtrarLugares(ws.todosLugares ?? ws.lugares, ws.busca);
-  const trayectos = filtrarTrayectos(ws.todosTrayectos ?? [], ws.busca);
-  const verLugares = !hayBusca || lugares.length > 0;
-  const verTrayectos = !hayBusca || trayectos.length > 0;
-  const externasFiltradas = filtrarExternas(externas?.items ?? [], ws.busca);
-  const verExternas = !!externas && (!hayBusca || externasFiltradas.length > 0);
-  const sinResultados =
-    hayBusca && !verLugares && !verTrayectos && !verExternas;
-  const sel = useSeleccionLista(
-    ws.todosLugares ?? ws.lugares,
-    ws.todosTrayectos ?? []
+  const todosLugares = ws.todosLugares ?? ws.lugares;
+  const categorias = categoriasDeLugares(todosLugares);
+  const [categoriaElegida, setCategoria] = useState("");
+  // una categoría que ya no está (otros datos) vuelve a todas
+  const categoria = categorias.some((c) => c.categoria === categoriaElegida)
+    ? categoriaElegida
+    : "";
+  // con una categoría solo quedan lugares: trayectos y externas no la tienen
+  const filtrando = ws.busca.trim().length > 0 || categoria !== "";
+  const lugares = filtrarPorCategoria(
+    filtrarLugares(todosLugares, ws.busca),
+    categoria
   );
+  const trayectos = categoria
+    ? []
+    : filtrarTrayectos(ws.todosTrayectos ?? [], ws.busca);
+  const verLugares = !filtrando || lugares.length > 0;
+  const verTrayectos = !filtrando || trayectos.length > 0;
+  const externasFiltradas = categoria
+    ? []
+    : filtrarExternas(externas?.items ?? [], ws.busca);
+  const verExternas =
+    !!externas && (!filtrando || externasFiltradas.length > 0);
+  const sinResultados =
+    filtrando && !verLugares && !verTrayectos && !verExternas;
+  const sel = useSeleccionLista(todosLugares, ws.todosTrayectos ?? []);
   const todosVisibles =
     lugares.length + trayectos.length > 0 &&
     lugares.every((l) => sel.marcasLugares.marcados.has(l.place_id)) &&
@@ -306,6 +363,12 @@ export function PlacesCatalogLists({
         />
       </div>
 
+      <CategoryFilter
+        categorias={categorias}
+        valor={categoria}
+        onCambiar={setCategoria}
+      />
+
       {/* agregar, a todo el ancho bajo la búsqueda: solo con el permiso */}
       {editable && (
         <div className="shrink-0">
@@ -327,7 +390,7 @@ export function PlacesCatalogLists({
         <ListCard>
           {sinResultados ? (
             <p className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
-              {`Sin resultados para «${ws.busca.trim()}».`}
+              {textoSinResultados(ws.busca, categoria)}
             </p>
           ) : (
             <>

@@ -1691,9 +1691,10 @@
         },
         "geocodingPlan": {
           "title": "Plan de geocodificación",
-          "menuTitle": "Plan y cuotas",
-          "menuHint": "Cuotas y precios por organización",
+          "menuTitle": "Plan",
+          "menuHint": "Cuota por defecto, precios y si se aplican",
           "description": "Cuántas consultas al proveedor incluye el plan cada mes y cuánto cuestan. Solo cuentan las consultas al proveedor.",
+          "providerHint": "El proveedor es una conexión: Conexiones, en el scope Plataforma.",
           "enforced": "Aplicar las cuotas",
           "enforcedOn": "Una organización sin suscripción no consulta al proveedor. Al agotar su cuota se aplica lo que dice su suscripción.",
           "enforcedOff": "No se rechaza ninguna consulta. El uso igual se registra, se muestra y se alerta.",
@@ -1707,26 +1708,76 @@
           "saved": "Se guardó el plan.",
           "saveError": "No se pudo guardar.",
           "loadError": "No se pudo cargar.",
-          "subscriptionsTitle": "Cuotas por organización",
-          "subscriptionsDescription": "Organizaciones con suscripción o con uso en {month}. Una cuota vacía usa la del plan.",
-          "subscriptionsEmpty": "Ninguna organización tiene suscripción ni uso este mes.",
-          "subscriptionSaved": "Se guardó la cuota.",
-          "colOrganization": "Organización",
-          "colQuota": "Cuota mensual",
-          "colOnExhausted": "Al agotarla",
-          "colUsed": "Usadas este mes",
-          "planQuota": "Del plan",
-          "onExhaustedReview": "Enviar a revisión",
-          "onExhaustedOverage": "Seguir y cobrar excedente",
-          "noSubscription": "Sin suscripción",
-          "addOrganization": "Agregar organización",
-          "pickOrganization": "Elige una organización",
-          "add": "Agregar",
           "errors": {
             "monthlyPrice": "El precio mensual debe ser un número mayor o igual a cero.",
             "resolutions": "La cuota debe ser un número entero mayor o igual a cero.",
             "overagePrice": "El precio excedente debe ser un número mayor o igual a cero.",
             "alertPct": "La alerta debe estar entre 1 y 100.",
+            "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
+          }
+        },
+        "geocodingTenants": {
+          "menuTitle": "Organizaciones",
+          "menuHint": "Uso y cuota de cada organización",
+          "search": "Buscar por nombre, identificador o RUT",
+          "assign": "Asignar cuota",
+          "previousMonth": "Mes anterior",
+          "nextMonth": "Mes siguiente",
+          "kpi": {
+            "subscribed": "Con suscripción",
+            "withUsage": "{count} con suscripción o uso",
+            "providerCalls": "Consultas al proveedor",
+            "resolutions": "{count} resoluciones en total",
+            "cache": "Resueltas por caché",
+            "margin": "Cobro del mes",
+            "providerCost": "Costo del proveedor: {cost}"
+          },
+          "columns": {
+            "organization": "Organización",
+            "quota": "Usadas / cuota",
+            "cache": "Caché",
+            "providerCost": "Costo proveedor",
+            "charge": "Cobro",
+            "onExhausted": "Al agotarla"
+          },
+          "fromPlan": "del plan",
+          "noSubscription": "Sin suscripción",
+          "empty": "Ninguna organización tiene suscripción ni uso en este mes.",
+          "noMatches": "Ninguna organización coincide con la búsqueda.",
+          "page": "Página {page} de {pages} · {count} organizaciones",
+          "previous": "Anterior",
+          "next": "Siguiente",
+          "edit": "Editar cuota",
+          "save": "Guardar",
+          "saveError": "No se pudo guardar.",
+          "loadError": "No se pudo cargar el uso.",
+          "modes": {
+            "review": {
+              "label": "Enviar a revisión",
+              "help": "Deja de consultar al proveedor; los sitios quedan por revisar."
+            },
+            "overage": {
+              "label": "Cobrar excedente",
+              "help": "Sigue consultando y cobra cada consulta sobre la cuota al precio del plan."
+            }
+          },
+          "modal": {
+            "addTitle": "Asignar cuota",
+            "addSubtitle": "Da a una organización su cuota de geocodificación.",
+            "editTitle": "Editar cuota",
+            "organization": "Organización",
+            "searchOrganization": "Busca por nombre, identificador o RUT",
+            "alreadySubscribed": "Ya tiene cuota; edítala en la tabla",
+            "noMatches": "Ninguna organización coincide.",
+            "refine": "{count} más; escribe para acotar.",
+            "pickFirst": "Elige una organización.",
+            "quota": "Cuota mensual (consultas al proveedor)",
+            "quotaPlaceholder": "Vacía: la del plan ({quota})",
+            "quotaHelp": "Solo cuentan las consultas al proveedor. Geocerca, Plus Code, coordenadas, fuente interna y caché no consumen cuota.",
+            "onExhausted": "Al agotar la cuota",
+            "cancel": "Cancelar"
+          },
+          "errors": {
             "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
           }
         },

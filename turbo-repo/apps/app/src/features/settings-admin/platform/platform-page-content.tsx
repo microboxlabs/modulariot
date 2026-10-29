@@ -24,8 +24,8 @@ import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
-import PlatformGeocodingSection from "./platform-geocoding-section";
 import GeocodingPlanSection from "./geocoding-plan-section";
+import GeocodingTenantsSection from "./geocoding-tenants-section";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
@@ -65,8 +65,9 @@ export default function PlatformPageContent({
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
-  const geocodingDict = (platformDict?.geocoding as I18nRecord) ?? {};
   const geocodingPlanDict = (platformDict?.geocodingPlan as I18nRecord) ?? {};
+  const geocodingTenantsDict =
+    (platformDict?.geocodingTenants as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
@@ -141,9 +142,9 @@ export default function PlatformPageContent({
       group: group.ai,
     },
     {
-      id: "geocoding",
-      label: tr("menuTitle", geocodingDict),
-      description: tr("menuHint", geocodingDict),
+      id: "geocodingTenants",
+      label: tr("menuTitle", geocodingTenantsDict),
+      description: tr("menuHint", geocodingTenantsDict),
       icon: HiOutlineGlobeAlt,
       group: group.geocoding,
     },
@@ -161,8 +162,10 @@ export default function PlatformPageContent({
     superusers: <PlatformOwnersCard dict={superusersDict} />,
     models: <ModelProvidersSection dict={modelsDict} />,
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
-    geocoding: <PlatformGeocodingSection dict={geocodingDict} />,
     geocodingPlan: <GeocodingPlanSection dict={geocodingPlanDict} />,
+    geocodingTenants: (
+      <GeocodingTenantsSection dict={geocodingTenantsDict} lang={lang} />
+    ),
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />

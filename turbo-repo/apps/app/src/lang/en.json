@@ -1691,9 +1691,10 @@
         },
         "geocodingPlan": {
           "title": "Geocoding plan",
-          "menuTitle": "Plan and quotas",
-          "menuHint": "Quotas and prices per organization",
+          "menuTitle": "Plan",
+          "menuHint": "Default quota, prices and whether they apply",
           "description": "How many provider calls the plan includes each month and what they cost. Only provider calls count.",
+          "providerHint": "The provider is a connection: Connections, in the Platform scope.",
           "enforced": "Apply the quotas",
           "enforcedOn": "An organization without a subscription does not call the provider. Once its quota is used, its subscription decides.",
           "enforcedOff": "No call is refused. Usage is still recorded, shown and alerted on.",
@@ -1707,26 +1708,76 @@
           "saved": "The plan was saved.",
           "saveError": "Could not save.",
           "loadError": "Could not load.",
-          "subscriptionsTitle": "Quotas per organization",
-          "subscriptionsDescription": "Organizations with a subscription or usage in {month}. An empty quota uses the plan's.",
-          "subscriptionsEmpty": "No organization has a subscription or usage this month.",
-          "subscriptionSaved": "The quota was saved.",
-          "colOrganization": "Organization",
-          "colQuota": "Monthly quota",
-          "colOnExhausted": "When used up",
-          "colUsed": "Used this month",
-          "planQuota": "Plan's",
-          "onExhaustedReview": "Send to review",
-          "onExhaustedOverage": "Go on and charge overage",
-          "noSubscription": "No subscription",
-          "addOrganization": "Add organization",
-          "pickOrganization": "Pick an organization",
-          "add": "Add",
           "errors": {
             "monthlyPrice": "The monthly price must be a number of zero or more.",
             "resolutions": "The quota must be a whole number of zero or more.",
             "overagePrice": "The overage price must be a number of zero or more.",
             "alertPct": "The alert must be from 1 to 100.",
+            "quota": "The quota must be a whole number of zero or more, or empty."
+          }
+        },
+        "geocodingTenants": {
+          "menuTitle": "Organizations",
+          "menuHint": "Each organization's usage and quota",
+          "search": "Search by name, identifier or tax id",
+          "assign": "Assign quota",
+          "previousMonth": "Previous month",
+          "nextMonth": "Next month",
+          "kpi": {
+            "subscribed": "Subscribed",
+            "withUsage": "{count} with a subscription or usage",
+            "providerCalls": "Provider calls",
+            "resolutions": "{count} resolutions in all",
+            "cache": "Answered by the cache",
+            "margin": "Month's charge",
+            "providerCost": "Provider cost: {cost}"
+          },
+          "columns": {
+            "organization": "Organization",
+            "quota": "Used / quota",
+            "cache": "Cache",
+            "providerCost": "Provider cost",
+            "charge": "Charge",
+            "onExhausted": "When used up"
+          },
+          "fromPlan": "plan's",
+          "noSubscription": "No subscription",
+          "empty": "No organization has a subscription or usage this month.",
+          "noMatches": "No organization matches the search.",
+          "page": "Page {page} of {pages} · {count} organizations",
+          "previous": "Previous",
+          "next": "Next",
+          "edit": "Edit quota",
+          "save": "Save",
+          "saveError": "Could not save.",
+          "loadError": "Could not load the usage.",
+          "modes": {
+            "review": {
+              "label": "Send to review",
+              "help": "Stops calling the provider; sites wait for review."
+            },
+            "overage": {
+              "label": "Charge overage",
+              "help": "Keeps calling and charges each call over the quota at the plan's price."
+            }
+          },
+          "modal": {
+            "addTitle": "Assign quota",
+            "addSubtitle": "Gives an organization its geocoding quota.",
+            "editTitle": "Edit quota",
+            "organization": "Organization",
+            "searchOrganization": "Search by name, identifier or tax id",
+            "alreadySubscribed": "Already has a quota; edit it in the table",
+            "noMatches": "No organization matches.",
+            "refine": "{count} more; type to narrow.",
+            "pickFirst": "Pick an organization.",
+            "quota": "Monthly quota (provider calls)",
+            "quotaPlaceholder": "Empty: the plan's ({quota})",
+            "quotaHelp": "Only provider calls count. Geofences, Plus Codes, coordinates, the internal source and the cache use no quota.",
+            "onExhausted": "When the quota is used up",
+            "cancel": "Cancel"
+          },
+          "errors": {
             "quota": "The quota must be a whole number of zero or more, or empty."
           }
         },

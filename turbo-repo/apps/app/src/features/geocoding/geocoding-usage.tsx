@@ -55,7 +55,7 @@ function monthLabel(month: string, lang: string) {
   }).format(new Date(`${month}-01T00:00:00Z`));
 }
 
-function MonthPicker({
+export function MonthPicker({
   month,
   onMonth,
   lang,

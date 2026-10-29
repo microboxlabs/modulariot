@@ -7,7 +7,6 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
@@ -70,8 +69,7 @@ public class OrgServiceAccountService implements ManagedGoogleIdentity {
     private static GoogleIamClient platformClient() {
         HttpClient http = HttpClient.newHttpClient();
         ObjectMapper json = new ObjectMapper();
-        PlatformGoogleToken token = new PlatformGoogleToken(http, json, Clock.systemUTC(),
-                PlatformGoogleToken.defaultAdcFile());
+        PlatformGoogleToken token = PlatformGoogleToken.applicationDefault();
         return new GoogleIamClient(http, json, token::get);
     }
 

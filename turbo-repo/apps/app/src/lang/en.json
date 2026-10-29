@@ -5079,7 +5079,6 @@
       "managedGeocodingSetup": {
         "title": "Platform geocoding provider",
         "body": "The platform has no provider yet. Choose its credential and set it here: it is saved once for the platform, then this organization is connected.",
-        "submit": "Save and connect",
         "platformBody": "The provider every organization uses. Choose the Platform's Mapbox or Google Maps credential and our cost per call."
       }
     },

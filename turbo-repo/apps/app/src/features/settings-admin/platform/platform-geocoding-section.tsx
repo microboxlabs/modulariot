@@ -90,6 +90,7 @@ export default function PlatformGeocodingSection({
             dict={dict}
             draft={draft}
             busy={busy}
+            compact
             onChange={set}
           />
           <PlatformSettingButtons

@@ -5079,7 +5079,6 @@
       "managedGeocodingSetup": {
         "title": "Proveedor de geocoding de la plataforma",
         "body": "La plataforma aún no tiene proveedor. Elige su credencial y configúralo aquí: se guarda una sola vez para la plataforma y luego se conecta esta organización.",
-        "submit": "Guardar y conectar",
         "platformBody": "El proveedor que usan todas las organizaciones. Elige la credencial Mapbox o Google Maps de la Plataforma y nuestro costo por consulta."
       }
     },

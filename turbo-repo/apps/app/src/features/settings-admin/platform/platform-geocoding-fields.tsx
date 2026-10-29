@@ -9,6 +9,7 @@ import type {
 import { useCredentials } from "@/features/credentials/use-credentials";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
 import type { GeocodingDraft } from "./platform-geocoding-form";
 import type { GeocodingProviderName } from "./use-platform-geocoding";
 
@@ -17,6 +18,8 @@ interface PlatformGeocodingFieldsProps {
   readonly dict: I18nRecord;
   readonly draft: GeocodingDraft;
   readonly busy: boolean;
+  /** Small inputs, for the settings section; the modal uses the regular size. */
+  readonly compact?: boolean;
   readonly onChange: (patch: Partial<GeocodingDraft>) => void;
 }
 
@@ -29,6 +32,8 @@ const PROVIDER_CREDENTIAL: Record<GeocodingProviderName, CredentialTypeId> = {
   mapbox: "MAPBOX",
   google: "GOOGLE_MAPS",
 };
+
+const HINT = "mt-1 text-xs text-gray-500 dark:text-gray-400";
 
 /**
  * The provider's own credential type, or a plain bearer token. Managed
@@ -51,6 +56,7 @@ export default function PlatformGeocodingFields({
   dict,
   draft,
   busy,
+  compact = false,
   onChange,
 }: Readonly<PlatformGeocodingFieldsProps>) {
   const { credentials, isLoading } = useCredentials(PLATFORM_SCOPE_SLUG);
@@ -59,15 +65,17 @@ export default function PlatformGeocodingFields({
     tokens.length === 0
       ? tr("credentialNone", dict)
       : tr("credentialHelp", dict);
+  const sizing = compact ? "sm" : undefined;
+
   return (
-    <div className="flex max-w-xl flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="platform-geocoding-provider">
-          {tr("provider", dict)}
-        </Label>
+    <div className="flex flex-col gap-4">
+      <SettingsFormField
+        id="platform-geocoding-provider"
+        label={tr("provider", dict)}
+      >
         <Select
           id="platform-geocoding-provider"
-          sizing="sm"
+          sizing={sizing}
           value={draft.provider}
           disabled={busy}
           onChange={(e) =>
@@ -80,17 +88,17 @@ export default function PlatformGeocodingFields({
             </option>
           ))}
         </Select>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <p className={HINT}>
           {trDynamic(draft.provider, dict.providerHelp as I18nRecord)}
-        </span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="platform-geocoding-credential">
-          {tr("credential", dict)}
-        </Label>
+        </p>
+      </SettingsFormField>
+      <SettingsFormField
+        id="platform-geocoding-credential"
+        label={tr("credential", dict)}
+      >
         <Select
           id="platform-geocoding-credential"
-          sizing="sm"
+          sizing={sizing}
           value={draft.credentialId}
           disabled={busy || isLoading}
           onChange={(e) => onChange({ credentialId: e.target.value })}
@@ -98,16 +106,14 @@ export default function PlatformGeocodingFields({
           <option value="">{tr("credentialPick", dict)}</option>
           {tokens.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {c.name} · {c.environment}
             </option>
           ))}
         </Select>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {credentialHint}
-        </span>
-      </div>
+        <p className={HINT}>{credentialHint}</p>
+      </SettingsFormField>
       {draft.provider === "mapbox" && (
-        <div className="flex flex-col gap-1">
+        <div>
           <div className="flex items-center gap-2">
             <Checkbox
               id="platform-geocoding-permanent"
@@ -119,26 +125,21 @@ export default function PlatformGeocodingFields({
               {tr("permanent", dict)}
             </Label>
           </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {tr("permanentHelp", dict)}
-          </span>
+          <p className={HINT}>{tr("permanentHelp", dict)}</p>
         </div>
       )}
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="platform-geocoding-cost">{tr("cost", dict)}</Label>
+      <SettingsFormField id="platform-geocoding-cost" label={tr("cost", dict)}>
         <TextInput
           id="platform-geocoding-cost"
-          sizing="sm"
+          sizing={sizing}
           inputMode="decimal"
           placeholder="0.005"
           value={draft.cost}
           disabled={busy}
           onChange={(e) => onChange({ cost: e.target.value })}
         />
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {tr("costHelp", dict)}
-        </span>
-      </div>
+        <p className={HINT}>{tr("costHelp", dict)}</p>
+      </SettingsFormField>
     </div>
   );
 }

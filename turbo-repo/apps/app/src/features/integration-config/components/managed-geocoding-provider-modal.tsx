@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Button,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-} from "flowbite-react";
-import { toast } from "sonner";
+import { HiOutlineLink } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import PlatformGeocodingFields from "@/features/settings-admin/platform/platform-geocoding-fields";
@@ -18,6 +11,8 @@ import {
   type GeocodingDraft,
 } from "@/features/settings-admin/platform/platform-geocoding-form";
 import { usePlatformGeocoding } from "@/features/settings-admin/platform/use-platform-geocoding";
+import { GEOCODING_LOGO } from "../connection-catalog";
+import { IntegrationFormModal } from "./integration-form-modal";
 
 interface ManagedGeocodingProviderModalProps {
   readonly isOpen: boolean;
@@ -42,7 +37,7 @@ const EMPTY_DRAFT: GeocodingDraft = {
   cost: "",
 };
 
-/** The platform's geocoding provider, set from Conexiones. */
+/** The platform's geocoding provider, set from Conexiones in the connection modal's shell. */
 export function ManagedGeocodingProviderModal({
   isOpen,
   mode,
@@ -54,12 +49,14 @@ export function ManagedGeocodingProviderModal({
   const { provider, save } = usePlatformGeocoding();
   const [draft, setDraft] = useState<GeocodingDraft>(EMPTY_DRAFT);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const configured = provider?.configured ?? false;
   const set = (patch: Partial<GeocodingDraft>) =>
     setDraft((d) => ({ ...d, ...patch }));
 
   useEffect(() => {
     if (isOpen) {
+      setError(null);
       setDraft(
         provider?.configured ? geocodingDraftFrom(provider) : EMPTY_DRAFT
       );
@@ -69,51 +66,45 @@ export function ManagedGeocodingProviderModal({
   const submit = async () => {
     const result = toGeocodingRequest(draft, configured);
     if (!result.ok) {
-      toast.error(trDynamic(result.error, providerDict));
+      setError(new Error(trDynamic(result.error, providerDict)));
       return;
     }
     setBusy(true);
+    setError(null);
     try {
       await save(result.value);
       await onSaved();
     } catch {
-      toast.error(tr("saveError", providerDict));
+      setError(new Error(tr("saveError", providerDict)));
     } finally {
       setBusy(false);
     }
   };
 
-  const platform = mode === "platform";
   return (
-    <Modal show={isOpen} size="lg" onClose={onClose} dismissible={!busy}>
-      <ModalHeader>{tr("managedGeocodingSetup.title", dict)}</ModalHeader>
-      <ModalBody>
-        <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-          {platform
-            ? tr("managedGeocodingSetup.platformBody", dict)
-            : tr("managedGeocodingSetup.body", dict)}
-        </p>
-        <PlatformGeocodingFields
-          dict={providerDict}
-          draft={draft}
-          busy={busy}
-          onChange={set}
-        />
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          color="blue"
-          disabled={busy || draft.credentialId === ""}
-          onClick={submit}
-        >
-          {platform
-            ? tr("common.save", dict)
-            : tr("managedGeocodingSetup.submit", dict)}
-        </Button>
-        <Button color="gray" disabled={busy} onClick={onClose}>
-          {tr("common.cancel", dict)}
-        </Button>
-      </ModalFooter>
-    </Modal>
+    <IntegrationFormModal
+      show={isOpen}
+      isEdit={configured}
+      title={tr("managedGeocodingSetup.title", dict)}
+      subtitle={
+        mode === "platform"
+          ? tr("managedGeocodingSetup.platformBody", dict)
+          : tr("managedGeocodingSetup.body", dict)
+      }
+      glyph={<HiOutlineLink className="h-5 w-5" />}
+      logo={GEOCODING_LOGO}
+      onClose={onClose}
+      onSubmit={() => void submit()}
+      error={error}
+      saving={busy}
+      dict={dict}
+    >
+      <PlatformGeocodingFields
+        dict={providerDict}
+        draft={draft}
+        busy={busy}
+        onChange={set}
+      />
+    </IntegrationFormModal>
   );
 }

@@ -16,6 +16,7 @@ import com.microboxlabs.miot.integrations.service.ManagedCredentials;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import com.microboxlabs.miot.integrations.service.ManagedConnectionLock;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -50,15 +51,17 @@ public class ManagedGeocodingConnections {
     private final IntegrationConnectionRepository connectionRepository;
     private final CredentialProfileService credentials;
     private final CredentialProfileRepository credentialRepository;
+    private final ManagedConnectionLock lock;
 
     @Inject
     public ManagedGeocodingConnections(IntegrationConnectionService connections,
             IntegrationConnectionRepository connectionRepository, CredentialProfileService credentials,
-            CredentialProfileRepository credentialRepository) {
+            CredentialProfileRepository credentialRepository, ManagedConnectionLock lock) {
         this.connections = connections;
         this.connectionRepository = connectionRepository;
         this.credentials = credentials;
         this.credentialRepository = credentialRepository;
+        this.lock = lock;
     }
 
     /**
@@ -70,6 +73,10 @@ public class ManagedGeocodingConnections {
      */
     public IntegrationConnection connect(String tenantCode, String actor) {
         requireOrganization(tenantCode);
+        return lock.locked(tenantCode, () -> connectLocked(tenantCode, actor));
+    }
+
+    private IntegrationConnection connectLocked(String tenantCode, String actor) {
         IntegrationConnection platform = connectionRepository.findActiveByProvider(PLATFORM_TENANT,
                 ProviderType.GEOCODING);
         if (platform == null) {
@@ -84,14 +91,8 @@ public class ManagedGeocodingConnections {
         }
         CredentialProfile credential = credentials.createManaged(tenantCode, actor, NAME, AuthType.BEARER_TOKEN,
                 Map.of());
-        IntegrationConnection created;
-        try {
-            created = connections.createPlatformManaged(tenantCode, new CreateIntegrationConnectionRequest(NAME,
+        IntegrationConnection created = connections.createPlatformManaged(tenantCode, new CreateIntegrationConnectionRequest(NAME,
                     ProviderType.GEOCODING, platform.baseUrl(), credential.id(), Map.of(), null));
-        } catch (RuntimeException e) {
-            credentials.delete(tenantCode, actor, credential.id(), true);
-            throw e;
-        }
         // Nothing to test on the organization's side: it works once the platform's provider does.
         IntegrationConnection active = connectionRepository.updateTestResult(tenantCode, created.id(),
                 ConnectionStatus.ACTIVE, OffsetDateTime.now(), true);
@@ -106,6 +107,10 @@ public class ManagedGeocodingConnections {
     /** @return false when the organization had no managed geocoding connection */
     public boolean remove(String tenantCode, String actor) {
         requireOrganization(tenantCode);
+        return lock.locked(tenantCode, () -> removeLocked(tenantCode, actor));
+    }
+
+    private boolean removeLocked(String tenantCode, String actor) {
         Optional<IntegrationConnection> existing = find(tenantCode);
         if (existing.isEmpty()) {
             return false;

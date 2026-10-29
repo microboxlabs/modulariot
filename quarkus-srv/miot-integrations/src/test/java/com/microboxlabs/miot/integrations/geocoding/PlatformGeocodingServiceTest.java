@@ -33,6 +33,12 @@ class PlatformGeocodingServiceTest {
                     new GoogleGeocoding(URI.create("https://maps.googleapis.com"), false)));
 
     @Test
+    void aMissingBodyIsAnInvalidConfiguration() {
+        assertThrows(IllegalArgumentException.class, () -> service.put(null, "owner"));
+        assertNull(repository.connection);
+    }
+
+    @Test
     void nothingIsConfiguredAtFirst() {
         assertFalse(service.get().configured());
     }

@@ -85,13 +85,14 @@ public class PlatformGeocodingService {
      *         or a credential that is not a platform bearer token
      */
     public PlatformGeocodingView put(SetPlatformGeocodingRequest body, String actor) {
-        String name = body == null || body.provider() == null || body.provider().isBlank()
-                ? MapboxGeocoding.NAME : body.provider().strip().toLowerCase();
+        if (body == null) throw new IllegalArgumentException("Request body is required");
+        String name = body.provider() == null || body.provider().isBlank()
+                ? MapboxGeocoding.NAME : body.provider().strip().toLowerCase(java.util.Locale.ROOT);
         GeocodingProvider provider = providers.stream().filter(p -> p.name().equals(name)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("unknown geocoding provider " + name));
-        String credentialId = body == null || body.credentialProfileId() == null || body.credentialProfileId().isBlank()
+        String credentialId = body.credentialProfileId() == null || body.credentialProfileId().isBlank()
                 ? null : body.credentialProfileId().strip();
-        BigDecimal cost = body == null ? null : body.costPerRequestUsd();
+        BigDecimal cost = body.costPerRequestUsd();
         if (cost != null && cost.signum() < 0) {
             throw new IllegalArgumentException(GeocodingConnection.COST + " cannot be negative");
         }

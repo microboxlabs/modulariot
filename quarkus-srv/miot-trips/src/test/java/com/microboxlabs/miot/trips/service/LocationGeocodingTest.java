@@ -68,6 +68,33 @@ class LocationGeocodingTest {
     }
 
     @Test
+    void sameNamedDistrictsHaveSeparateCacheEntries() {
+        stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
+        resolver().resolve(ORG, TENANT, larco("Synthetic street 101"));
+        var other = BOUNDARIES.byName("PE", "MIRAFLORES").stream()
+                .filter(b -> !b.code().equals("150122") && b.shape() != null).findFirst().orElseThrow();
+        stub.answer(StubGeocoding.features("address", other.centroid().get(0), other.centroid().get(1)));
+        Outcome out = resolver().resolve(ORG, TENANT, new Site("other", "Synthetic location", "Synthetic street 101", "PE", other.code(), null, null, null, null));
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals(2, stub.queries.size());
+        assertEquals(2, cache.entries.size());
+    }
+
+    @Test
+    void cacheWriteFailureKeepsTheResolvedPointAndAccounting() {
+        stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
+        GeocodeCache unavailable = new GeocodeCache() {
+            @Override public java.util.Optional<Entry> find(String key, String country) { return java.util.Optional.empty(); }
+            @Override public void put(String key, String country, Entry entry) { throw new IllegalStateException("synthetic cache failure"); }
+        };
+        LocationResolver resolver = new LocationResolver(new FakeGeofences(), BOUNDARIES, addresses, unavailable, stub.geocoder());
+        Outcome out = resolver.resolve(ORG, TENANT, larco("Synthetic street 101"));
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertTrue(out.usage().called());
+        assertEquals(new BigDecimal("0.00075"), out.usage().costUsd());
+    }
+
+    @Test
     void anAddressLevelResultInTheDistrictResolvesAndIsCached() {
         stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
 
@@ -83,7 +110,7 @@ class LocationGeocodingTest {
         assertTrue(stub.queries.get(0).contains("q=Av.+Larco+101%2C+MIRAFLORES"));
         assertTrue(stub.queries.get(0).contains("permanent=true"));
         assertTrue(stub.queries.get(0).contains("country=pe"));
-        GeocodeCache.Entry entry = cache.entries.get("PE|AV LARCO 101 MIRAFLORES");
+        GeocodeCache.Entry entry = cache.entries.get("PE|150122|AV LARCO 101 MIRAFLORES");
         assertEquals(LARCO_LON, entry.lon());
         assertEquals("mapbox", entry.provider());
         assertEquals(LocationResolver.PROVIDER, entry.source());
@@ -142,25 +169,31 @@ class LocationGeocodingTest {
     }
 
     @Test
-    void googleResultsResolveButAreNotCached() {
+    void googleResultsWithoutStoragePermissionNeedReview() {
         stub.metadata(GeocodingConnection.PROVIDER, "google")
                 .answer(StubGeocoding.results("street_address", LARCO_LON, LARCO_LAT));
 
         Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
-        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertNull(out.placement().latitude());
+        assertNull(out.placement().longitude());
+        assertNull(out.geofenceId());
         assertEquals("google", out.usage().provider());
         assertTrue(cache.entries.isEmpty());
     }
 
     @Test
-    void aTemporaryMapboxConnectionIsNotCached() {
+    void aTemporaryMapboxConnectionNeedsReview() {
         stub.metadata(GeocodingConnection.PERMANENT, "false")
                 .answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
 
         Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
 
-        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertNull(out.placement().latitude());
+        assertNull(out.placement().longitude());
+        assertNull(out.geofenceId());
         assertTrue(cache.entries.isEmpty());
     }
 

@@ -53,6 +53,7 @@ public class CredentialProfileService {
     /** Where credentials land when the caller states no environment (the WhatsApp channel doesn't). */
     static final String DEFAULT_ENVIRONMENT = "PRODUCTION";
 
+    private static final String MANAGED_MESSAGE = "This credential is managed by the platform";
     private static final int MAX_NAME_LENGTH = 160;
     private static final int MAX_ENVIRONMENT_LENGTH = 40;
     private static final int MAX_SECRET_UPDATE_ATTEMPTS = 5;
@@ -191,7 +192,7 @@ public class CredentialProfileService {
             String tenantCode, String actor, String id, UpdateCredentialProfileRequest req,
             CredentialProfile current, Map<String, Object> requestedSecret) {
         if (ManagedCredentials.isManaged(current.publicConfig())) {
-            throw new IllegalArgumentException("This credential is managed by the platform");
+            throw new IllegalArgumentException(MANAGED_MESSAGE);
         }
         refuseManaged(req.publicConfig());
         String displayName = req.displayName() == null ? null : requireName(req.displayName());
@@ -259,7 +260,7 @@ public class CredentialProfileService {
         }
         if (ManagedCredentials.isManaged(profile.publicConfig())
                 && profile.credentialType() != CredentialType.GOOGLE_SERVICE_ACCOUNT) {
-            return CredentialTestResponse.failure("This credential is managed by the platform");
+            return CredentialTestResponse.failure(MANAGED_MESSAGE);
         }
         CredentialTestResponse response = ManagedGoogleIdentity.isManaged(profile.publicConfig())
                 ? testManaged(tenantCode, profile)
@@ -333,6 +334,9 @@ public class CredentialProfileService {
      * @return the updated credential, or {@code null} when it does not exist
      */
     public CredentialProfile rotateSecret(String tenantCode, String id, Map<String, Object> secretConfig) {
+        CredentialProfile profile = credentialProfileRepository.findByTenantAndId(tenantCode, id);
+        if (profile == null) return null;
+        requireMutable(profile);
         return credentialProfileRepository.updateSecret(
                 tenantCode, id, encrypt(secretConfig, id), maskSecret(secretConfig));
     }
@@ -348,6 +352,7 @@ public class CredentialProfileService {
             if (profile == null) {
                 return null;
             }
+            requireMutable(profile);
             Map<String, Object> secret = new LinkedHashMap<>(secretCipher.decrypt(profile.encryptedSecretJson()));
             secret.putAll(updates);
             CredentialProfile updated = credentialProfileRepository.updateSecretIfVersion(
@@ -357,6 +362,10 @@ public class CredentialProfileService {
             }
         }
         throw new IllegalStateException("Credential changed concurrently; retry the update");
+    }
+
+    private static void requireMutable(CredentialProfile profile) {
+        if (ManagedCredentials.isManaged(profile.publicConfig())) throw new IllegalArgumentException(MANAGED_MESSAGE);
     }
 
     private CredentialTestResponse runTest(

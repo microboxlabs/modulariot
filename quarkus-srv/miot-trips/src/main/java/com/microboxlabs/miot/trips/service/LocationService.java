@@ -50,13 +50,18 @@ public class LocationService {
         this.tx = tx;
     }
 
-    public List<Location> list(String tenantCode, String q, String type, Integer page, Integer size) {
+    public List<Location> list(String tenantCode, String q, String type, String status, Integer page,
+            Integer size) {
         int p = page == null ? 0 : Math.max(page, 0);
         int s = size == null ? 50 : size;
         if (s < 1 || s > MandateService.MAX_PAGE_SIZE) {
             throw new IllegalArgumentException("size must be between 1 and " + MandateService.MAX_PAGE_SIZE);
         }
-        return store.list(tenantCode, Check.blankToNull(q), Check.blankToNull(type), p, s);
+        String st = Check.blankToNull(status);
+        if (st != null) {
+            Check.oneOf(st, "status", Location.RESOLVED, Location.NEEDS_REVIEW, Location.REJECTED);
+        }
+        return store.list(tenantCode, Check.blankToNull(q), Check.blankToNull(type), st, p, s);
     }
 
     public Location create(String tenantCode, String actor, LocationRequest body) {

@@ -114,7 +114,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.21__create_trip_documents.sql",
             "/db/migration/trips/V0.10.22__monitor_scope.sql",
             "/db/migration/trips/V0.10.23__validate_monitor_scopes.sql",
-            "/db/migration/trips/V0.10.24__feed_registers_resources.sql"};
+            "/db/migration/trips/V0.10.24__feed_registers_resources.sql",
+            "/db/migration/trips/V0.10.25__location_resolution.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -399,6 +400,31 @@ class PgTripsStoresTest {
                 OffsetDateTime.now(ZoneOffset.UTC), null, trip.createdAt(), trip.createdBy(), null, ACTOR));
         projector.refresh(tenant, tripId);
         assertTrue(live.find(tenant, tripId).isEmpty(), "completed kills the hot row");
+    }
+
+    @Test
+    void aPlacementIsStoredAndListedByStatus() {
+        String tenant = tenant();
+        Location cd = locations.insert(new Location(null, tenant, "CD Lima", "distribution_center", "CD-01",
+                null, null, ACTOR, null, ACTOR));
+        Location.Placement review = new Location.Placement("Av. Larco 101", "PE", "150122", "MIRAFLORES", null,
+                null, null, null, Location.NEEDS_REVIEW, "no geofence, plus code or coordinates");
+        locations.setPlacement(tenant, UUID.fromString(cd.id()), review, null, ACTOR).orElseThrow();
+        assertEquals(List.of(cd.id()), locations.list(tenant, null, null, Location.NEEDS_REVIEW, 0, 10).stream()
+                .map(Location::id).toList());
+
+        Location placed = locations.setPlacement(tenant, UUID.fromString(cd.id()), review.withResult(
+                "57V4VXHC+H4", -12.1211, -77.0297, "plus_code", Location.RESOLVED, null), 77, ACTOR).orElseThrow();
+        assertEquals(77, placed.geofenceId());
+        assertEquals(-12.1211, placed.placement().latitude());
+        assertEquals("PE", placed.placement().country());
+        assertTrue(locations.list(tenant, null, null, Location.NEEDS_REVIEW, 0, 10).isEmpty());
+
+        Location rejected = locations.setPlacement(tenant, UUID.fromString(cd.id()),
+                placed.placement().withResult(null, null, null, null, Location.REJECTED, "x"), null, ACTOR)
+                .orElseThrow();
+        assertEquals(77, rejected.geofenceId(), "a null geofence keeps the link");
+        assertTrue(locations.setPlacement("other-tenant", UUID.fromString(cd.id()), review, null, ACTOR).isEmpty());
     }
 
     @Test

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import en from "@/lang/en.json";
 import type { IntegrationConnection } from "../integration-config.types";
@@ -40,22 +40,24 @@ function renderList(canRemoveManaged: boolean) {
 }
 
 describe("ConnectionsList, a connection the platform manages", () => {
-  it("is shown to the organization without anything to open or change", () => {
+  it("lets the organization test it, but not open or change it", () => {
     renderList(false);
 
     expect(screen.getByText("Geocoding · ModularIoT")).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Geocoding · ModularIoT" })
     ).toBeNull();
-    expect(screen.queryByRole("button", { name: dict.menu.label })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: dict.menu.label }));
+    expect(screen.getByText(dict.connections.test)).toBeTruthy();
+    expect(screen.queryByText(dict.common.edit)).toBeNull();
+    expect(screen.queryByText(dict.common.delete)).toBeNull();
   });
 
-  it("has a menu for a platform owner, to remove it", () => {
+  it("lets a platform owner remove it", () => {
     renderList(true);
 
-    expect(
-      screen.queryByRole("button", { name: "Geocoding · ModularIoT" })
-    ).toBeNull();
-    expect(screen.getByRole("button", { name: dict.menu.label })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: dict.menu.label }));
+    expect(screen.getByText(dict.common.delete)).toBeTruthy();
+    expect(screen.queryByText(dict.common.edit)).toBeNull();
   });
 });

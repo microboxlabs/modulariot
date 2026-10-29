@@ -441,6 +441,9 @@ export function IntegrationConfigPageContent({
               templates={templates}
               credentials={credentials}
               onOpen={handleEditConnection}
+              onOpenManaged={
+                inPlatformScope ? () => setProviderSetupOpen(true) : undefined
+              }
               onTest={handleTest}
               onDelete={setDeletingConnection}
               canRemoveManaged={isPlatformOwner}

@@ -39,9 +39,11 @@ interface ConnectionsListProps {
   readonly templates: readonly IntegrationTemplate[];
   readonly credentials: readonly CredentialListItem[];
   readonly onOpen: (connection: IntegrationConnection) => void;
+  /** Opens a platform-managed connection; absent where it cannot be opened. */
+  readonly onOpenManaged?: () => void;
   readonly onTest: (connection: IntegrationConnection) => void;
   readonly onDelete: (connection: IntegrationConnection) => void;
-  /** A platform owner may remove a connection the platform manages; nobody may open or test it. */
+  /** A platform owner may remove a connection the platform manages. */
   readonly canRemoveManaged?: boolean;
   /** Pick the functions a PostgREST connection exposes to dashboards. */
   readonly onFunctions: (connection: IntegrationConnection) => void;
@@ -63,6 +65,7 @@ export function ConnectionsList({
   templates,
   credentials,
   onOpen,
+  onOpenManaged,
   onTest,
   onDelete,
   canRemoveManaged = false,
@@ -87,8 +90,9 @@ export function ConnectionsList({
           (credential) => credential.id === connection.credentialProfileId
         )?.name ?? null,
       actions: {
-        onOpen: managed ? undefined : () => onOpen(connection),
-        onTest: managed ? undefined : () => onTest(connection),
+        onOpen: managed ? onOpenManaged : () => onOpen(connection),
+        // A managed connection is tested through the platform's provider, so it stays read-only.
+        onTest: () => onTest(connection),
         onDelete:
           managed && !canRemoveManaged ? undefined : () => onDelete(connection),
         onFunctions:

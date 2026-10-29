@@ -68,9 +68,10 @@ const CHANNEL_TEMPLATES: Record<string, string> = {
 };
 
 /**
- * A connection the platform creates and manages for the organization: the
- * organization's geocoding connection to the platform's provider. It cannot be
- * opened, edited or tested here; only a platform owner removes it.
+ * A connection the platform creates and manages: an organization's geocoding
+ * connection, or the platform's own provider. It is not edited through the
+ * connection form; its test runs through the platform's provider, and only a
+ * platform owner removes it.
  */
 export function isPlatformManaged(connection: IntegrationConnection): boolean {
   return connection.providerType === "GEOCODING";

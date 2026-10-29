@@ -25,7 +25,7 @@ public class GeocodeUsageService {
         this.usage = usage;
     }
 
-    public void record(Resolution r) {
+    public void recordResolution(Resolution r) {
         if (r == null || r.tenantId() == null || r.tenantId().isBlank() || r.result() == null) {
             throw new IllegalArgumentException("tenantId and result are required");
         }

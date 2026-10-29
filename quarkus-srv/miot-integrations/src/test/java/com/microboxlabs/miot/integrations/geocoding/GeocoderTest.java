@@ -100,7 +100,7 @@ class GeocoderTest {
     }
 
     private ResolvedConnection connection(URI url, Map<String, Object> metadata) {
-        return new ResolvedConnection("c1", url, metadata, Map.of(GeocodingConnection.TOKEN, "tok"));
+        return new ResolvedConnection("c1", url, metadata, Map.of(GeocodingConnection.TOKEN_KEY, "tok"));
     }
 
     /** The organization's managed connection: no secret, no metadata. */
@@ -150,7 +150,7 @@ class GeocoderTest {
     @Test
     void aTemporaryMapboxConnectionIsNotStorable() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PERMANENT, "false"))), false).forward(ORG, larco());
+                Map.of(GeocodingConnection.PERMANENT_KEY, "false"))), false).forward(ORG, larco());
 
         assertFalse(r.storable());
         assertEquals("false", requests.get(0).get("permanent"));
@@ -160,7 +160,7 @@ class GeocoderTest {
     @Test
     void googleIsChosenByTheConnectionAndIsNotStorableByDefault() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(ORG, larco());
+                Map.of(GeocodingConnection.PROVIDER_KEY, "google"))), false).forward(ORG, larco());
 
         assertEquals("google", r.provider());
         assertFalse(r.storable());
@@ -175,7 +175,7 @@ class GeocoderTest {
     @Test
     void googleStorableIsAFlagOnTheProvider() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), true).forward(ORG, larco());
+                Map.of(GeocodingConnection.PROVIDER_KEY, "google"))), true).forward(ORG, larco());
 
         assertTrue(r.storable());
     }
@@ -184,7 +184,7 @@ class GeocoderTest {
     void googleZeroResultsIsAnAnsweredEmptyCall() {
         googleBody = "{\"status\":\"ZERO_RESULTS\",\"results\":[]}";
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(ORG, larco());
+                Map.of(GeocodingConnection.PROVIDER_KEY, "google"))), false).forward(ORG, larco());
 
         assertTrue(r.called());
         assertTrue(r.candidates().isEmpty());
@@ -194,7 +194,7 @@ class GeocoderTest {
     void googleDeniedIsAnError() {
         googleBody = "{\"status\":\"REQUEST_DENIED\",\"error_message\":\"bad key tok\"}";
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "google"))), false).forward(ORG, larco());
+                Map.of(GeocodingConnection.PROVIDER_KEY, "google"))), false).forward(ORG, larco());
 
         assertFalse(r.called());
         assertEquals("Google answered REQUEST_DENIED", r.error());
@@ -266,7 +266,7 @@ class GeocoderTest {
     @Test
     void anUnknownProviderIsAnError() {
         Geocoder.Result r = geocoder(Map.of(PLATFORM, connection(base,
-                Map.of(GeocodingConnection.PROVIDER, "here"))), false).forward(ORG, larco());
+                Map.of(GeocodingConnection.PROVIDER_KEY, "here"))), false).forward(ORG, larco());
 
         assertEquals("unknown geocoding provider here", r.error());
         assertTrue(requests.isEmpty());

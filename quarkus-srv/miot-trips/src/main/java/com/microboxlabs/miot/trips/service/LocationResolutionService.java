@@ -95,17 +95,17 @@ public class LocationResolutionService {
             resolved = finish(tenantCode, actor, l, outcome);
         } catch (RuntimeException e) {
             // A provider call that was made is still charged.
-            record(tenantCode, actor, outcome.placement(), outcome.usage());
+            recordUsage(tenantCode, actor, outcome.placement(), outcome.usage());
             throw e;
         }
-        record(tenantCode, actor, resolved.placement(), outcome.usage());
+        recordUsage(tenantCode, actor, resolved.placement(), outcome.usage());
         return resolved;
     }
 
     /** Usage is for charging; a failure to record it does not undo the resolution. */
-    private void record(String tenantCode, String actor, Placement p, LocationResolver.Usage u) {
+    private void recordUsage(String tenantCode, String actor, Placement p, LocationResolver.Usage u) {
         try {
-            usage.record(new Resolution(tenantCode, actor, p.source(), p.status(), u.provider(), u.cacheHit(),
+            usage.recordResolution(new Resolution(tenantCode, actor, p.source(), p.status(), u.provider(), u.cacheHit(),
                     u.called(), u.costUsd()));
         } catch (RuntimeException e) {
             LOG.warnf("Geocoding usage of %s not recorded: %s", tenantCode, e.getMessage());

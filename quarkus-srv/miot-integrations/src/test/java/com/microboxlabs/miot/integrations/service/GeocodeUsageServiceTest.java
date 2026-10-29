@@ -33,14 +33,14 @@ class GeocodeUsageServiceTest {
 
     @Test
     void aProviderCallCarriesItsCost() {
-        service.record(new Resolution("acme", "ana", "provider", "resolved", "mapbox", false, true, PRICE));
+        service.recordResolution(new Resolution("acme", "ana", "provider", "resolved", "mapbox", false, true, PRICE));
 
         assertEquals(new UsageRow("acme", "ana", "provider", "resolved", "mapbox", false, PRICE), usage.rows.get(0));
     }
 
     @Test
     void aCacheHitCostsNothing() {
-        service.record(new Resolution("acme", null, "provider", "resolved", "mapbox", true, false, PRICE));
+        service.recordResolution(new Resolution("acme", null, "provider", "resolved", "mapbox", true, false, PRICE));
 
         assertNull(usage.rows.get(0).costUsd());
         assertEquals(true, usage.rows.get(0).cacheHit());
@@ -48,14 +48,14 @@ class GeocodeUsageServiceTest {
 
     @Test
     void sourcesWithoutAProviderCallCostNothing() {
-        service.record(new Resolution("acme", null, "plus_code", "resolved", null, false, false, PRICE));
+        service.recordResolution(new Resolution("acme", null, "plus_code", "resolved", null, false, false, PRICE));
 
         assertNull(usage.rows.get(0).costUsd());
     }
 
     @Test
     void theTenantIsRequired() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.record(new Resolution(" ", null, null, "needs_review", null, false, false, null)));
+        Resolution invalid = new Resolution(" ", null, null, "needs_review", null, false, false, null);
+        assertThrows(IllegalArgumentException.class, () -> service.recordResolution(invalid));
     }
 }

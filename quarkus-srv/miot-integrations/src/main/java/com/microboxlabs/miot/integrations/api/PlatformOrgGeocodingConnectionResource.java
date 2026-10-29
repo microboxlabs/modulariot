@@ -87,8 +87,6 @@ public class PlatformOrgGeocodingConnectionResource {
     static Response respond(String tenant, String actor, BiFunction<String, String, Response> action) {
         try {
             return action.apply(tenant, actor);
-        } catch (ManagedGeocodingConnections.NoPlatformProviderException e) {
-            return error(Response.Status.CONFLICT, e.getMessage());
         } catch (IllegalArgumentException e) {
             return error(Response.Status.BAD_REQUEST, e.getMessage());
         } catch (IllegalStateException e) {

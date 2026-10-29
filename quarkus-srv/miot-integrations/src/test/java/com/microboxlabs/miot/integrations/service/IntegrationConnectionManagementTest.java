@@ -83,10 +83,9 @@ class IntegrationConnectionManagementTest {
 
     @Test
     void anOrganizationCannotCreateAGeocodingConnection() {
-        PlatformOnlyProviderException error = assertThrows(PlatformOnlyProviderException.class,
-                () -> service().createConnection(TENANT, new CreateIntegrationConnectionRequest(
-                        "Mapbox", ProviderType.GEOCODING, null, "cred-1", Map.of(), null)));
-
+        IntegrationConnectionService service = service();
+        CreateIntegrationConnectionRequest request = new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, "cred-1", Map.of(), null);
+        PlatformOnlyProviderException error = assertThrows(PlatformOnlyProviderException.class, () -> service.createConnection(TENANT, request));
         assertTrue(error.getMessage().startsWith("GEOCODING connections are managed by the platform"));
         assertNull(connections.created);
     }
@@ -94,20 +93,20 @@ class IntegrationConnectionManagementTest {
     @Test
     void anOrganizationCannotChangeAGeocodingConnection() {
         connections.providerType = ProviderType.GEOCODING;
-
-        assertThrows(PlatformOnlyProviderException.class, () -> service().updateConnection(TENANT, "conn-1",
-                new UpdateIntegrationConnectionRequest(null, null, Map.of("costPerRequestUsd", "0"), null, null)));
+        IntegrationConnectionService service = service();
+        UpdateIntegrationConnectionRequest request = new UpdateIntegrationConnectionRequest(null, null, Map.of("costPerRequestUsd", "0"), null, null);
+        assertThrows(PlatformOnlyProviderException.class, () -> service.updateConnection(TENANT, "conn-1", request));
         assertNull(connections.updatedCredentialId);
     }
 
     @Test
     void anOrganizationCannotDeleteOrTestAGeocodingConnection() {
         connections.providerType = ProviderType.GEOCODING;
-
-        assertThrows(PlatformOnlyProviderException.class, () -> service().deleteConnection(TENANT, "conn-1"));
-        assertThrows(PlatformOnlyProviderException.class, () -> service().testConnection(TENANT, "conn-1", null));
-        assertThrows(PlatformOnlyProviderException.class, () -> service().testDraft(TENANT,
-                new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, null, null, null)));
+        IntegrationConnectionService service = service();
+        CreateIntegrationConnectionRequest request = new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, null, null, null);
+        assertThrows(PlatformOnlyProviderException.class, () -> service.deleteConnection(TENANT, "conn-1"));
+        assertThrows(PlatformOnlyProviderException.class, () -> service.testConnection(TENANT, "conn-1", null));
+        assertThrows(PlatformOnlyProviderException.class, () -> service.testDraft(TENANT, request));
         assertFalse(connections.softDeleted);
     }
 

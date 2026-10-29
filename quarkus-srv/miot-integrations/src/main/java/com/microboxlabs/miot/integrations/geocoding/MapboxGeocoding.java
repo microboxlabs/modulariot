@@ -20,7 +20,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class MapboxGeocoding implements GeocodingProvider {
 
-    public static final String NAME = "mapbox";
+    public static final String PROVIDER_NAME = "mapbox";
     private static final int LIMIT = 5;
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -34,7 +34,7 @@ public class MapboxGeocoding implements GeocodingProvider {
 
     @Override
     public String name() {
-        return NAME;
+        return PROVIDER_NAME;
     }
 
     @Override

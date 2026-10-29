@@ -95,7 +95,7 @@ public class ManagedGeocodingConnections {
                     ProviderType.GEOCODING, platform.baseUrl(), credential.id(), Map.of(), null));
         // Nothing to test on the organization's side: it works once the platform's provider does.
         IntegrationConnection active = connectionRepository.updateTestResult(tenantCode, created.id(),
-                ConnectionStatus.ACTIVE, OffsetDateTime.now(), true);
+                ConnectionStatus.ACTIVE, OffsetDateTime.now(java.time.ZoneOffset.UTC), true);
         return active == null ? created : active;
     }
 

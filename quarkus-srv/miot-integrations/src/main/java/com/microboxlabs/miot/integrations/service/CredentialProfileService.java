@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
 import com.microboxlabs.miot.integrations.auth.google.GoogleServiceAccountConfigs;
 import com.microboxlabs.miot.integrations.auth.oauth.OAuth2CredentialConfigs;
 import com.microboxlabs.miot.integrations.domain.AuthType;
@@ -16,6 +17,8 @@ import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
 import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
+import com.microboxlabs.miot.integrations.orgaccount.GoogleCallException;
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.UpdateCredentialProfileParams;
@@ -24,6 +27,8 @@ import com.microboxlabs.miot.integrations.secret.IntegrationSecretEncryptionExce
 import com.microboxlabs.miot.integrations.tester.CredentialTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,17 +61,29 @@ public class CredentialProfileService {
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationSecretCipher secretCipher;
     private final CredentialTesterRegistry testerRegistry;
+    private final ManagedGoogleIdentity managed;
 
     @Inject
     public CredentialProfileService(
             CredentialProfileRepository credentialProfileRepository,
             IntegrationConnectionRepository connectionRepository,
             IntegrationSecretCipher secretCipher,
-            CredentialTesterRegistry testerRegistry) {
+            CredentialTesterRegistry testerRegistry,
+            ManagedGoogleIdentity managed) {
         this.credentialProfileRepository = credentialProfileRepository;
         this.connectionRepository = connectionRepository;
         this.secretCipher = secretCipher;
         this.testerRegistry = testerRegistry;
+        this.managed = managed;
+    }
+
+    public CredentialProfileService(
+            CredentialProfileRepository credentialProfileRepository,
+            IntegrationConnectionRepository connectionRepository,
+            IntegrationSecretCipher secretCipher,
+            CredentialTesterRegistry testerRegistry) {
+        this(credentialProfileRepository, connectionRepository, secretCipher, testerRegistry,
+                ManagedGoogleIdentity.NONE);
     }
 
     public List<CredentialProfileResponse> list(String tenantCode) {
@@ -108,13 +125,14 @@ public class CredentialProfileService {
         requireNameAvailable(existing, displayName, environment, null);
 
         Map<String, Object> publicConfig = safeMap(req.publicConfig());
+        refuseManaged(publicConfig);
         Map<String, Object> secretConfig = safeMap(req.secretConfig());
         if (secretConfig.isEmpty()) {
             throw new IllegalArgumentException("secretConfig is required");
         }
         validateConfig(credentialType, publicConfig);
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         CredentialProfile created = credentialProfileRepository.create(new CredentialProfile(
                 UUID.randomUUID().toString(),
                 tenantCode,
@@ -172,6 +190,10 @@ public class CredentialProfileService {
     private UpdateCredentialProfileParams prepareProfileUpdate(
             String tenantCode, String actor, String id, UpdateCredentialProfileRequest req,
             CredentialProfile current, Map<String, Object> requestedSecret) {
+        if (ManagedGoogleIdentity.isManaged(current.publicConfig())) {
+            throw new IllegalArgumentException("This credential is managed by the platform");
+        }
+        refuseManaged(req.publicConfig());
         String displayName = req.displayName() == null ? null : requireName(req.displayName());
         List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
         String environment = req.environment() == null ? null : resolveEnvironment(req.environment(), existing);
@@ -235,8 +257,9 @@ public class CredentialProfileService {
         if (profile == null) {
             return null;
         }
-        CredentialTestResponse response = runTest(
-                profile.credentialType(), profile.publicConfig(), decrypt(profile));
+        CredentialTestResponse response = ManagedGoogleIdentity.isManaged(profile.publicConfig())
+                ? testManaged(tenantCode, profile)
+                : runTest(profile.credentialType(), profile.publicConfig(), decrypt(profile));
         credentialProfileRepository.updateTestResult(
                 tenantCode, id, response.testedAt(), response.success());
         return response;
@@ -250,7 +273,48 @@ public class CredentialProfileService {
         if (req == null || req.credentialType() == null) {
             throw new IllegalArgumentException("credentialType is required");
         }
+        refuseManaged(req.publicConfig());
         return runTest(req.credentialType(), safeMap(req.publicConfig()), safeMap(req.secretConfig()));
+    }
+
+    /**
+     * The credential that stands for the organization's own Google service account. It
+     * has no secret; only the platform creates it, never the generic credential API.
+     */
+    public CredentialProfile createManaged(String tenantCode, String actor, String displayName,
+            Map<String, Object> publicConfig) {
+        Map<String, Object> config = new LinkedHashMap<>(publicConfig);
+        config.put(ManagedGoogleIdentity.MANAGED, true);
+        validateConfig(CredentialType.GOOGLE_SERVICE_ACCOUNT, config);
+        String name = requireName(displayName);
+        List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
+        String environment = resolveEnvironment(null, existing);
+        requireNameAvailable(existing, name, environment, null);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        return credentialProfileRepository.create(new CredentialProfile(
+                UUID.randomUUID().toString(), tenantCode, name, CredentialType.GOOGLE_SERVICE_ACCOUNT,
+                AuthType.GOOGLE_SERVICE_ACCOUNT, environment, config, encrypt(Map.of(), name),
+                maskSecret(Map.of()), 1, null, null, now, now, actor, actor));
+    }
+
+    private static void refuseManaged(Map<String, Object> publicConfig) {
+        if (ManagedGoogleIdentity.isManaged(publicConfig)) {
+            throw new IllegalArgumentException("Managed credentials are created by the platform");
+        }
+    }
+
+    private CredentialTestResponse testManaged(String tenantCode, CredentialProfile profile) {
+        try {
+            Map<String, Object> bound = managed.bind(tenantCode, profile.publicConfig());
+            String scope = String.valueOf(bound.getOrDefault("scope", GoogleServiceAccountConfigs.DEFAULT_SCOPE));
+            ManagedGoogleIdentity.Token token = managed.accessToken(
+                    String.valueOf(bound.get(ManagedGoogleIdentity.CLIENT_EMAIL)), scope);
+            long seconds = token.expiresAt() == null ? 0
+                    : Math.max(0, token.expiresAt().getEpochSecond() - Instant.now().getEpochSecond());
+            return new CredentialTestResponse(true, OffsetDateTime.now(ZoneOffset.UTC), "OK", seconds);
+        } catch (ManagedGoogleIdentityUnavailableException | GoogleCallException e) {
+            return CredentialTestResponse.failure(e.getMessage());
+        }
     }
 
     /**

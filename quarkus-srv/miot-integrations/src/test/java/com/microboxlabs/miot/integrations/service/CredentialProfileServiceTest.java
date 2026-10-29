@@ -130,6 +130,19 @@ class CredentialProfileServiceTest {
         assertEquals(AuthType.API_KEY_QUERY, created.authType());
     }
 
+    /** Only the platform creates a managed credential; through this API it could name any account. */
+    @Test
+    void refusesAManagedGoogleCredential() {
+        CredentialProfileService service = service();
+        CreateCredentialProfileRequest request = new CreateCredentialProfileRequest(
+                "Forged", CredentialType.GOOGLE_SERVICE_ACCOUNT, null, null,
+                Map.of("managed", true, "clientEmail", "t-other@tenants.iam.gserviceaccount.com"),
+                Map.of("privateKey", "x"));
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> service.create(TENANT, ACTOR, request));
+        assertEquals("Managed credentials are created by the platform", error.getMessage());
+    }
+
     @Test
     void refusesToCreateACredentialWithNoSecret() {
         IllegalArgumentException error = assertThrows(

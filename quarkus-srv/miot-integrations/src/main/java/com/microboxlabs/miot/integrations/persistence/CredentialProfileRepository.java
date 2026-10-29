@@ -5,6 +5,7 @@ import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.CredentialType;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -246,8 +247,8 @@ public class CredentialProfileRepository {
                 .iterator().next());
     }
 
-    private Pool client() {
-        return clientInstance.get();
+    private SqlClient client() {
+        return ManagedProvisioningTransaction.client(clientInstance.get());
     }
 
     private CredentialProfile first(RowSet<Row> rows) {

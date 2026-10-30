@@ -43,20 +43,20 @@ El ejemplo usa una tabla `solicitudes` con estas columnas. Cambie los nombres po
 2. Seleccione **Crear Dashboard**.
 3. En **Nombre**, escriba `Solicitudes` y seleccione **Crear**.
 
-El dashboard se abre vacío. Los cambios se guardan solos unos segundos después de cada edición.
+El dashboard se abre vacío, con el botón **Add Widget** en el centro. Los cambios se guardan solos unos segundos después de cada edición.
 
 ### Agregar un Stacked Stat con datos fijos
 
 Empiece con números escritos a mano para ver el widget antes de conectar datos.
 
-1. Active **Modo Edición** en la parte superior del dashboard.
-2. Seleccione **Agregar Widget** y elija **Stacked Stat**.
+1. Seleccione **Add Widget**, escriba `Stacked` en el buscador y elija **Stacked Stat**. El widget aparece con datos de ejemplo ("Traffic Sources").
+2. Active **Modo Edición** en la parte superior derecha. Desde ahora, el botón para agregar widgets se llama **Agregar Widget** y está bajo la grilla.
 3. Pase el cursor sobre el widget y abra sus ajustes (el engranaje).
 4. En la pestaña **Visualización**:
    - **Tipo de gráfico**: **Barra**. **Dona** dibuja un anillo con las mismas partes.
-   - **Title**: `Solicitudes por estado`.
-   - **Unit**: borre el `%` que trae por defecto.
-   - **Categories**: borre las cuatro categorías de ejemplo. Seleccione **Add** tres veces y complete cada fila. El color se elige con el selector de color de la fila:
+   - **Título**: `Solicitudes por estado`.
+   - **Unidad**: borre el `%` que trae por defecto.
+   - **Categories**: el widget trae cuatro categorías de ejemplo. Cambie las tres primeras y borre la cuarta con el ícono de papelera. El color se elige con el círculo de color de cada fila:
 
      | Etiqueta | Valor | Color |
      | --- | --- | --- |
@@ -64,20 +64,20 @@ Empiece con números escritos a mano para ver el widget antes de conectar datos.
      | `En curso` | `7` | azul |
      | `Cerrada` | `30` | verde |
 
-5. Guarde los ajustes.
+5. Seleccione **Guardar**, al pie del panel.
 
-El widget muestra una barra dividida en tres partes, proporcionales a 12, 7 y 30, y una leyenda con cada número.
+El widget muestra una barra dividida en tres partes, proporcionales a 12, 7 y 30, y una leyenda con cada número. El widget no cambia mientras edita sus ajustes; el cambio se ve al guardar.
 
 <Callout type="warning">
-**Cuidado:** si no borra el `%` de **Unit**, la leyenda muestra `12%`. Algunos ajustes del Stacked Stat (**Title**, **Unit**, **Categories**, **Add**) aparecen en inglés en la interfaz en español.
+**Cuidado:** si no borra el `%` de **Unidad**, la leyenda muestra `12%`. Algunos ajustes del Stacked Stat (**Show Header**, **Categories**, **Add**) aparecen en inglés en la interfaz en español. La tecla Esc no cierra el selector de color: abre el aviso de cambios sin guardar. Elija **Seguir editando**.
 </Callout>
 
 ### Escribir la consulta del resumen
 
 Un Stacked Stat lee **una sola fila**: la primera que devuelve la consulta. Cada categoría lee una columna de esa fila. Por eso la consulta convierte los estados (filas) en columnas.
 
-1. Vaya a **Ajustes › Conexiones** y abra la sección **BigQuery**.
-2. Elija su conexión y seleccione **Nueva**.
+1. Vaya a **Ajustes › Conexiones** y abra **BigQuery**, en **Editores**.
+2. Elija su conexión en **Conexión** y seleccione **+ Nueva**.
 3. Escriba la consulta:
 
    ```sql
@@ -95,21 +95,47 @@ Un Stacked Stat lee **una sola fila**: la primera que devuelve la consulta. Cada
    | --- | --- | --- | --- |
    | 49 | 12 | 7 | 30 |
 
-5. Abra **Ajustes de la consulta**, escriba el nombre `resumen_estados` y seleccione **Guardar**.
+5. En **Ajustes de la consulta**, debajo del editor, cambie **Nombre** a `resumen_estados` y seleccione **Guardar**.
 
-Solo se pueden guardar consultas `SELECT`. El editor muestra cuántos bytes leerá antes de ejecutarla. Una consulta guardada aquí aparece como **Operación** de esa conexión en los dashboards de la organización.
+Solo se pueden guardar consultas `SELECT`. Bajo el editor, **Leerá** indica cuántos bytes leerá la consulta. Una consulta guardada aquí aparece de inmediato como **Operación** de esa conexión en los dashboards de la organización.
+
+<details>
+<summary>Probar sin una tabla propia</summary>
+
+Reemplace el `FROM` por esta tabla de ejemplo. Genera 49 solicitudes y lee 0 bytes:
+
+```sql
+WITH solicitudes AS (
+  SELECT
+    FORMAT('S-%04d', n) AS id,
+    CASE WHEN n <= 12 THEN 'pendiente' WHEN n <= 19 THEN 'en_curso' ELSE 'cerrada' END AS estado,
+    CASE MOD(n, 3) WHEN 0 THEN 'Equipo norte' WHEN 1 THEN 'Equipo sur' ELSE 'Equipo centro' END AS responsable,
+    TIMESTAMP_SUB(TIMESTAMP '2026-10-30 12:00:00', INTERVAL n * 7 HOUR) AS creada_en
+  FROM UNNEST(GENERATE_ARRAY(1, 49)) AS n
+)
+SELECT
+  COUNT(*) AS total,
+  SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) AS pendiente,
+  SUM(CASE WHEN estado = 'en_curso'  THEN 1 ELSE 0 END) AS en_curso,
+  SUM(CASE WHEN estado = 'cerrada'   THEN 1 ELSE 0 END) AS cerrada
+FROM solicitudes
+```
+
+Use el mismo `WITH solicitudes AS (…)` al inicio de la consulta de detalle del paso 5.
+
+</details>
 
 ### Conectar el widget a la consulta
 
 Un dashboard usa una consulta por medio de una **consulta guardada**: un nombre corto que los widgets eligen.
 
-1. Vuelva al dashboard. Con **Modo Edición** activo, abra el menú de ajustes del dashboard (el engranaje del encabezado) y elija **Consultas guardadas**.
+1. Vuelva al dashboard. Con **Modo Edición** activo, abra el menú de ajustes del dashboard (el engranaje junto a **Modo Edición**) y elija **Consultas guardadas**.
 2. Seleccione **Agregar consulta** y complete:
    - **Nombre del resultado**: `resumen`.
    - **Conexión**: su conexión de BigQuery.
    - **Operación**: `resumen_estados`.
    - **Parámetros (JSON)**: `{}`.
-3. Seleccione **Aplicar al borrador**. Esto agrega la consulta al dashboard. El dashboard se guarda solo; no hay un paso de publicación.
+3. Seleccione **Aplicar al borrador**. Esto agrega la consulta al dashboard. El dashboard se guarda solo; no hay un paso de publicación. Cierre el menú haciendo clic fuera de él.
 4. Abra los ajustes del Stacked Stat. En la pestaña **Proveedor de Datos**, fije **Fuente de Datos** en **Planificador** y elija `resumen` en **Variable**. Debajo aparecen las columnas disponibles: `total`, `pendiente`, `en_curso`, `cerrada`.
 5. En la pestaña **Visualización**, cambie el valor de cada categoría por una plantilla con el nombre de la columna:
 
@@ -119,14 +145,23 @@ Un dashboard usa una consulta por medio de una **consulta guardada**: un nombre 
    | `En curso` | `{{en_curso}}` |
    | `Cerrada` | `{{cerrada}}` |
 
-6. Cambie **Title** a `Solicitudes por estado ({{total}})` y guarde.
+6. Cambie **Título** a `Solicitudes por estado ({{total}})` y seleccione **Guardar**.
 
 El widget muestra los números reales. `{{columna}}` se reemplaza por el valor de esa columna en la primera fila.
+
+![Stacked Stat con el título Solicitudes por estado (49) y la leyenda Pendiente 12, En curso 7, Cerrada 30](/dashboards/stat_stacked/bar.png)
+
+<Callout type="warning">
+**Cuidado:** si el widget muestra **Error: No se pudieron cargar los resultados** justo después de agregar la consulta guardada, recargue la página. El servidor ejecuta la consulta desde el dashboard guardado, y el guardado automático tarda unos segundos.
+</Callout>
 
 <details>
 <summary>Opciones de Fuente de Datos</summary>
 
-**Planificador** es el nombre que da la interfaz a las consultas guardadas del dashboard. **Estático (JSON)** usa datos escritos en el widget. **PGREST** llama a una función de PostgREST directamente desde el widget, sin consulta guardada.
+| Opción | El widget lee |
+| --- | --- |
+| **Planificador** | Una consulta guardada del dashboard, elegida en **Variable** |
+| **Estático (JSON)** | Datos escritos en el propio widget |
 
 </details>
 
@@ -137,14 +172,16 @@ Una tabla lee **todas las filas** de su consulta. Una fila de la consulta es una
 1. En **Ajustes › Conexiones › BigQuery**, cree otra consulta, `detalle_solicitudes`:
 
    ```sql
-   SELECT id, estado, responsable, creada_en
+   SELECT
+     id, estado, responsable,
+     FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada_en
    FROM `mi-proyecto.operaciones.solicitudes`
    WHERE (IFNULL(@estado, '') = '' OR estado = @estado)
    ORDER BY creada_en DESC
    LIMIT 500
    ```
 
-2. En **Parámetros**, declare `estado` de tipo `STRING`.
+2. Bajo **Parámetros** aparece el botón **Declarar @estado**. Selecciónelo. El parámetro queda con tipo `STRING`.
 3. Deje el **Valor de prueba** vacío y seleccione **Ejecutar**. Vuelven todos los estados: la consulta recibe `NULL` e `IFNULL` lo trata como vacío.
 4. Escriba `en_curso` en **Valor de prueba** y ejecute de nuevo. Vuelven solo esas filas.
 5. Guarde la consulta.
@@ -159,8 +196,12 @@ Una tabla lee **todas las filas** de su consulta. Una fila de la consulta es una
      ```
 
 7. Seleccione **Agregar Widget** y elija **Tabla de Datos V2**.
-8. En sus ajustes, pestaña **Proveedor de Datos**, fije **Fuente de Datos** en **Planificador** y **Variable** en `detalle`. Las columnas de la tabla se completan con las de la consulta.
-9. En **Columnas**, cambie las etiquetas: `ID`, `Estado`, `Responsable`, `Creada`. Guarde.
+8. En sus ajustes, pestaña **Proveedor de Datos**, fije **Fuente de Datos** en **Planificador** y **Variable** en `detalle`. Debajo aparecen las columnas disponibles.
+9. En la pestaña **Visualización**, revise **Columnas**: las columnas de ejemplo se reemplazan por `Id`, `Estado`, `Responsable` y `Creada En`. Cambie **Título** a `Detalle de solicitudes` y seleccione **Guardar**.
+
+Si **Columnas** sigue mostrando las columnas de ejemplo (Vehículo, Cliente…), la consulta aún no se había ejecutado. Guarde, recargue la página y vuelva a elegir `detalle` en **Variable**.
+
+`FORMAT_TIMESTAMP` convierte la fecha en texto. Sin él, la tabla muestra un `TIMESTAMP` de BigQuery como un número (`1.7933364E9`).
 
 `@estado` es un parámetro de BigQuery. El vínculo `{"kind": "filter", "key": "estado"}` le da el valor del filtro `estado`, que crea en el paso siguiente. Mientras el filtro está vacío, el servidor envía `defaultValue` (`""`). La condición `IFNULL(@estado, '') = ''` deja pasar entonces todas las filas.
 
@@ -172,21 +213,25 @@ Una tabla lee **todas las filas** de su consulta. Una fila de la consulta es una
 
 1. Abra el menú de ajustes del dashboard y elija **Barra de Filtros**.
 2. Seleccione **Agregar filtro** y complete:
-   - **Clave del filtro**: `estado`. Debe ser igual a `key` en el vínculo de la consulta.
-   - **Etiqueta visible**: `Estado`.
-   - **Tipo de control**: **Selección**.
-   - **Opciones estáticas**: agregue tres opciones. **Etiqueta de la opción** es lo que ve el usuario; **Valor de la opción** es lo que recibe la consulta:
+   - **Tipo de filtro**: **Selección**.
+   - **Etiqueta de visualización**: `Estado`.
+   - **Clave de parámetro**: `estado`. Debe ser igual a `key` en el vínculo de la consulta. Si la deja vacía, se deriva de la etiqueta.
+   - Active **Permitir una sola selección**.
+   - **Origen de las opciones**: **Manual (escritas a mano)**.
+   - **Opciones**: seleccione **Agregar opción** tres veces. **Etiqueta** es lo que ve el usuario; **Valor** es lo que recibe la consulta:
 
-     | Etiqueta de la opción | Valor de la opción |
+     | Etiqueta | Valor |
      | --- | --- |
      | `Pendiente` | `pendiente` |
      | `En curso` | `en_curso` |
      | `Cerrada` | `cerrada` |
 
-   - Active **Permitir una sola selección**.
-3. Seleccione **Aplicar filtros al borrador**.
+3. Seleccione **Guardar** en el panel.
+4. Desactive **Modo Edición**. El filtro aparece sobre los widgets como un botón **Estado**.
 
-Elija **En curso** en la barra de filtros. La tabla se recarga y muestra solo esas filas. El Stacked Stat no cambia porque su consulta no vincula el filtro `estado`. Así el resumen muestra siempre todos los estados.
+Abra **Estado** y elija **En curso**. La tabla se recarga y muestra 7 filas. La dirección de la página cambia a `?estado=en_curso`; puede compartir ese enlace con el filtro aplicado. El Stacked Stat no cambia porque su consulta no vincula el filtro `estado`. Así el resumen muestra siempre todos los estados.
+
+![Dashboard con el filtro Estado: En curso, el Stacked Stat con los tres estados y la tabla con 7 filas en curso](/dashboards/tutorial/result.png)
 
 <Callout type="info">
 Hacer clic en una parte de la barra del Stacked Stat no filtra la tabla. El filtro de la barra de filtros es la forma de hacerlo.
@@ -194,8 +239,8 @@ Hacer clic en una parte de la barra del Stacked Stat no filtra la tabla. El filt
 
 ### Compartir el dashboard
 
-1. Desactive **Modo Edición**.
-2. Abra el menú de ajustes y seleccione **Gestionar permisos**.
+1. Abra el menú de ajustes y elija **Control de acceso**.
+2. Seleccione **Gestionar permisos**.
 3. Busque a su colega en **Usuarios**, elija el rol **Lector** (Consumer) y seleccione **Añadir**.
 
 Su colega puede abrir el dashboard y usar el filtro, pero no puede cambiarlo. Para que pueda editar, asígnele **Editor**. En la interfaz, Lector, Colaborador, Editor y Administrador son los roles Consumer, Contributor, Editor y Coordinator.

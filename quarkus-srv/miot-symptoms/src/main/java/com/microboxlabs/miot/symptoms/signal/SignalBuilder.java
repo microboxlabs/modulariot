@@ -39,11 +39,12 @@ public class SignalBuilder {
         }
         String assetId = frame.getAssetId();
         Instant at = frame.getTimestamp().toInstant();
-        List<String> clients = refs.clientsAt(assetId, sender(message.getClientId()), at);
+        String sender = sender(message.getClientId());
+        List<String> clients = refs.clientsAt(assetId, sender, at);
         Map<String, GpsSignal.Trip> trips = new LinkedHashMap<>();
         refs.tripsAt(assetId, at, clients).forEach((client, t) -> trips.put(client, trip(t, at)));
         Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
-        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, clients, trips.isEmpty() ? null : trips,
+        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, clients, sender, trips.isEmpty() ? null : trips,
                 null, null, null, null, at.atZone(zone).getHour(), new GpsSignal.Derived(moving, null), frame));
     }
 

@@ -37,7 +37,7 @@ The browser never receives credentials, data URLs or SQL. The dashboard names a 
 | --- | --- |
 | Clicking a chart does not filter other widgets. | Add a select filter to the dashboard and bind it to the parameter of the table's query. |
 | Single-value widgets (Stat, Stacked Stat) read only the first row of the query. | Write the query so it returns one row, with one column per value. |
-| A pie chart does not give each category a fixed color. It takes the palette colors in row order. | Use a Stacked Stat (one color per category), or bars with one series per category. |
+| A pie chart does not give each category a fixed color. It takes the chart's color list (the palette or the custom colors) in row order. | Use a Stacked Stat (one color per category), or bars with one series per category. |
 | The SQL editor works only with BigQuery. | With PostgreSQL, write the query as a function and publish it with PostgREST. |
 | The widget settings panels are React components. | An application that does not use React builds its own settings forms. |
 | Maps, containers and file upload exist only in the ModularIoT app. | — |

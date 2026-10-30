@@ -31,7 +31,9 @@ Column names are the names the widget uses. Write a short alias with `AS`, witho
 ## Tables: many rows
 
 ```sql
-SELECT id, estado, responsable, creada_en
+SELECT
+  id, estado, responsable,
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada_en
 FROM `my-project.operations.solicitudes`
 ORDER BY creada_en DESC
 LIMIT 500
@@ -42,6 +44,8 @@ LIMIT 500
 | Data Source | Planner |
 | Variable | the result name, for example `detalle` |
 | Columns | filled in from the query columns |
+
+Turn dates into text with `FORMAT_TIMESTAMP`. A `TIMESTAMP` column reaches the table as a number (`1.7933364E9`).
 
 Write `ORDER BY` and `LIMIT` in the query. The table's sorting and column filters work only on the rows the query returned.
 
@@ -296,7 +300,7 @@ A filter does not change a widget if the widget's query does not bind that filte
 | Result size | 2 MiB of JSON |
 | Time | 20 seconds |
 
-Values must be text, numbers, true/false, `NULL` or flat lists of those types. A `STRUCT` or `RECORD` column makes the query fail: convert it with `TO_JSON_STRING` or select its fields. `NULL` reaches the widget as empty text.
+Values must be text, numbers, true/false or `NULL`. With BigQuery, an `ARRAY`, `STRUCT` or `RECORD` column makes the query fail: convert it with `TO_JSON_STRING` or select its fields. `NULL` reaches the widget as empty text. A `TIMESTAMP` column arrives as a number: convert it with `FORMAT_TIMESTAMP`.
 
 ## Next
 

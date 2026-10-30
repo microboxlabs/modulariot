@@ -1,0 +1,70 @@
+import { Callout } from 'nextra/components'
+
+# Plantillas
+
+**Para:** implementadores.
+
+Los campos de texto de un widget aceptan plantillas entre llaves dobles. Una plantilla se reemplaza por un valor de la consulta o de un filtro. El resultado siempre se muestra como texto, nunca como HTML.
+
+## Variables
+
+| Plantilla | Lee |
+| --- | --- |
+| `{{pendiente}}` | La columna `pendiente` de la primera fila |
+| `{{row.pendiente}}` | Lo mismo |
+| `{{filter.estado}}` | El valor actual del filtro `estado`. Vacío si no tiene valor |
+| `{{data_provider.clave}}` | Un valor definido en la configuración del widget |
+
+Los widgets de un valor (Stat, Stacked Stat, Text Card) leen la primera fila. En una tabla, `{{row.columna}}` lee la fila de cada celda.
+
+## Funciones
+
+Las plantillas usan Handlebars. Estas funciones están disponibles en todos los widgets. Si el valor no es un número o una fecha válida, devuelven `-`.
+
+### Números
+
+| Plantilla | Valor | Resultado |
+| --- | --- | --- |
+| `{{formatNumber total}}` | `12500.5` | `12.500,5` |
+| `{{formatNumber total decimals=1}}` | `25.678` | `25,7` |
+| `{{formatNumber total prefix="$"}}` | `1500` | `$1.500` |
+| `{{formatNumber total decimals=2 locale="en-US"}}` | `25.678` | `25.68` |
+| `{{toFixed pct 1}}` | `25.678` | `25.7` |
+| `{{round pct}}` | `25.6` | `26` |
+| `{{multiply ratio 100}}` | `0.85` | `85` |
+| `{{divide total 1000}}` | `2500` | `2.5` |
+| `{{extractNumber lectura}}` | `"25.5 kg"` | `25.5` |
+
+`formatNumber` usa `es-CL` por defecto: punto para miles, coma para decimales. Use `locale="en-US"` para el formato en inglés. `toFixed`, `round`, `multiply` y `divide` devuelven el número sin separador de miles.
+
+### Fechas
+
+| Plantilla | Resultado |
+| --- | --- |
+| `{{formatDate creada_en}}` | `30-10-2026, 14:05` |
+| `{{formatDate creada_en format="date"}}` | `30-10-2026` |
+| `{{formatDate creada_en format="time"}}` | `14:05` |
+| `{{formatDate creada_en format="relative"}}` | `5m`, `3h`, `2d` |
+| `{{formatDate creada_en timezone="America/Lima"}}` | La fecha en otra zona horaria |
+| `{{datePart creada_en "weekday"}}` | `viernes` |
+| `{{timeAgo creada_en}}` | `3h ago` |
+
+`datePart` acepta `year`, `month`, `day`, `hour`, `minute` y `weekday`. La zona horaria por defecto es `America/Santiago` y el idioma, `es-CL`.
+
+<Callout type="warning">
+**Cuidado:** `formatDate` necesita una fecha que JavaScript pueda leer, como `2026-10-30T14:05:00Z` o `2026-10-30 14:05`. Una columna `TIMESTAMP` de BigQuery llega como número de segundos (`1.7933364E9`), y `formatDate` no la reconoce: muestra `-`. Convierta la fecha en la consulta con `FORMAT_TIMESTAMP`.
+</Callout>
+
+## Ejemplos
+
+| Campo | Plantilla | Resultado |
+| --- | --- | --- |
+| Título de un Stacked Stat | `Solicitudes por estado ({{total}})` | `Solicitudes por estado (49)` |
+| Valor de un Stat | `{{formatNumber monto prefix="$"}}` | `$1.250.000` |
+| Título que sigue a un filtro | `Detalle: {{filter.estado}}` | `Detalle: en_curso` |
+| Celda de una tabla | `{{row.responsable}} · {{formatDate row.creada_en format="date"}}` | `Equipo sur · 30-10-2026` |
+
+## Relacionado
+
+- [Consultas para widgets](/es/products/dashboards/tutorials/queries-for-widgets)
+- [Documentos y widgets](/es/products/dashboards/concepts/documents-and-widgets)

@@ -1,0 +1,70 @@
+import { Callout } from 'nextra/components'
+
+# Templates
+
+**For:** implementers.
+
+Widget text fields accept templates in double braces. A template is replaced by a value from the query or from a filter. The result is always shown as text, never as HTML.
+
+## Variables
+
+| Template | Reads |
+| --- | --- |
+| `{{pendiente}}` | The `pendiente` column of the first row |
+| `{{row.pendiente}}` | The same |
+| `{{filter.estado}}` | The current value of the `estado` filter. Empty when it has no value |
+| `{{data_provider.key}}` | A value defined in the widget configuration |
+
+Single-value widgets (Stat, Stacked Stat, Text Card) read the first row. In a table, `{{row.column}}` reads each cell's row.
+
+## Functions
+
+Templates use Handlebars. These functions are available in every widget. When the value is not a valid number or date, they return `-`.
+
+### Numbers
+
+| Template | Value | Result |
+| --- | --- | --- |
+| `{{formatNumber total}}` | `12500.5` | `12.500,5` |
+| `{{formatNumber total decimals=1}}` | `25.678` | `25,7` |
+| `{{formatNumber total prefix="$"}}` | `1500` | `$1.500` |
+| `{{formatNumber total decimals=2 locale="en-US"}}` | `25.678` | `25.68` |
+| `{{toFixed pct 1}}` | `25.678` | `25.7` |
+| `{{round pct}}` | `25.6` | `26` |
+| `{{multiply ratio 100}}` | `0.85` | `85` |
+| `{{divide total 1000}}` | `2500` | `2.5` |
+| `{{extractNumber reading}}` | `"25.5 kg"` | `25.5` |
+
+`formatNumber` uses `es-CL` by default: dot for thousands, comma for decimals. Pass `locale="en-US"` for the English format. `toFixed`, `round`, `multiply` and `divide` return the number without a thousands separator.
+
+### Dates
+
+| Template | Result |
+| --- | --- |
+| `{{formatDate creada_en}}` | `30-10-2026, 14:05` |
+| `{{formatDate creada_en format="date"}}` | `30-10-2026` |
+| `{{formatDate creada_en format="time"}}` | `14:05` |
+| `{{formatDate creada_en format="relative"}}` | `5m`, `3h`, `2d` |
+| `{{formatDate creada_en timezone="America/Lima"}}` | The date in another time zone |
+| `{{datePart creada_en "weekday"}}` | `viernes` |
+| `{{timeAgo creada_en}}` | `3h ago` |
+
+`datePart` accepts `year`, `month`, `day`, `hour`, `minute` and `weekday`. The default time zone is `America/Santiago` and the default locale is `es-CL`.
+
+<Callout type="warning">
+**Pitfall:** `formatDate` needs a date JavaScript can read, such as `2026-10-30T14:05:00Z` or `2026-10-30 14:05`. A BigQuery `TIMESTAMP` column arrives as a number of seconds (`1.7933364E9`), and `formatDate` does not recognize it: it shows `-`. Convert the date in the query with `FORMAT_TIMESTAMP`.
+</Callout>
+
+## Examples
+
+| Field | Template | Result |
+| --- | --- | --- |
+| Stacked Stat title | `Requests by state ({{total}})` | `Requests by state (49)` |
+| Stat value | `{{formatNumber amount prefix="$"}}` | `$1.250.000` |
+| Title that follows a filter | `Detail: {{filter.estado}}` | `Detail: en_curso` |
+| Table cell | `{{row.responsable}} · {{formatDate row.creada_en format="date"}}` | `South team · 30-10-2026` |
+
+## Related
+
+- [Queries for widgets](/en/products/dashboards/tutorials/queries-for-widgets)
+- [Documents and widgets](/en/products/dashboards/concepts/documents-and-widgets)

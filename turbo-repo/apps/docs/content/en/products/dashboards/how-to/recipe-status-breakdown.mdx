@@ -1,0 +1,66 @@
+import { Callout } from 'nextra/components'
+
+# Recipe: KPI per state and a 100% bar
+
+**For:** implementers. **Setup:** ModularIoT.
+
+**Result:** one number per state and a 100% bar split by state, each state with its fixed color.
+
+![Stacked Stat Solicitudes por estado (49) with Pendiente 12, En curso 7, Cerrada 30](/dashboards/stat_stacked/templated.png)
+
+## Before you start
+
+| Step | Where |
+| --- | --- |
+| Save each SQL query with a name | **Settings › Connections › BigQuery** › **+ New** › **Save** |
+| Add a saved query to the dashboard | With **Edit Mode** on: settings menu (gear) › **Saved queries** › **Add query**. **Connection**: your BigQuery connection. **Operation**: the SQL query's name |
+| Add a widget | With **Edit Mode** on: **Add Widget** |
+
+The full walkthrough is in [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard).
+
+## Query
+
+One row, one column per state. Save it in **Settings › Connections › BigQuery** as `resumen_estados`.
+
+```sql
+SELECT
+  COUNT(*) AS total,
+  COUNTIF(estado = 'pendiente') AS pendiente,
+  COUNTIF(estado = 'en_curso')  AS en_curso,
+  COUNTIF(estado = 'cerrada')   AS cerrada
+FROM `my-project.operations.solicitudes`
+```
+
+## Steps
+
+1. Add the saved query: **Result name** `resumen`, **Operation** `resumen_estados`, **Parameters (JSON)** `{}`. **Apply to draft**.
+2. **Add Widget** › **Stacked Stat**.
+3. **Data Provider** tab: **Data Source** **Planner**, **Variable** `resumen`.
+4. **Visualization** tab:
+
+   | Setting | Value |
+   | --- | --- |
+   | **Chart Type** | Bar |
+   | **Title** | `Requests by state ({{total}})` |
+   | **Unit** | Delete the default `%` |
+   | **Categories** | The widget comes with four sample categories. Change three and delete the fourth: `Pending` `{{pendiente}}` `eab308` · `In progress` `{{en_curso}}` `3b82f6` · `Closed` `{{cerrada}}` `22c55e` |
+
+5. **Save**.
+
+## Variants
+
+| You want | Change |
+| --- | --- |
+| Percentages in the legend | Compute `pendiente_pct`, `en_curso_pct` and `cerrada_pct` in the query. Use `{{pendiente_pct}}`… as each category's value and **Unit** `%`. See [Percentages](/en/products/dashboards/tutorials/queries-for-widgets#percentages) |
+| A ring instead of a bar | **Chart Type** Donut |
+| A large number per state | Add one Stat Card per state with the same variable and **Value** `{{pendiente}}`. Stacked Stat does not show large numbers ([#2235](https://github.com/microboxlabs/modulariot/issues/2235)) |
+| React to a date filter | Add `@desde` and `@hasta` to the query and bind them in **Parameters (JSON)**. See [Filters as parameters](/en/products/dashboards/tutorials/queries-for-widgets#filters-as-parameters) |
+
+<Callout type="warning">
+A query with `GROUP BY estado` returns one row per state, and Stacked Stat reads only the first. Pivot the query as above.
+</Callout>
+
+## Related
+
+- [Stacked Stat](/en/products/dashboards/reference/widgets/stacked-stat)
+- [Recipe: filter a table by state](/en/products/dashboards/how-to/recipe-filter-table)

@@ -1,0 +1,66 @@
+import { Callout } from 'nextra/components'
+
+# Receta: KPI por estado y barra 100 %
+
+**Para:** implementadores. **Configuración:** ModularIoT.
+
+**Resultado:** un número por estado y una barra 100 % dividida por estado, cada estado con su color fijo.
+
+![Stacked Stat Solicitudes por estado (49) con Pendiente 12, En curso 7, Cerrada 30](/dashboards/stat_stacked/templated.png)
+
+## Antes de empezar
+
+| Paso | Dónde |
+| --- | --- |
+| Guardar cada consulta SQL con un nombre | **Ajustes › Conexiones › BigQuery** › **+ Nueva** › **Guardar** |
+| Agregar una consulta guardada al dashboard | Con **Modo Edición** activo: menú de ajustes (engranaje) › **Consultas guardadas** › **Agregar consulta**. **Conexión**: su conexión de BigQuery. **Operación**: el nombre de la consulta SQL |
+| Agregar un widget | Con **Modo Edición** activo: **Agregar Widget** |
+
+El paso a paso completo está en [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
+
+## Consulta
+
+Una fila, una columna por estado. Guárdela en **Ajustes › Conexiones › BigQuery** como `resumen_estados`.
+
+```sql
+SELECT
+  COUNT(*) AS total,
+  COUNTIF(estado = 'pendiente') AS pendiente,
+  COUNTIF(estado = 'en_curso')  AS en_curso,
+  COUNTIF(estado = 'cerrada')   AS cerrada
+FROM `mi-proyecto.operaciones.solicitudes`
+```
+
+## Pasos
+
+1. Agregue la consulta guardada: **Nombre del resultado** `resumen`, **Operación** `resumen_estados`, **Parámetros (JSON)** `{}`. **Aplicar al borrador**.
+2. **Agregar Widget** › **Stacked Stat**.
+3. Pestaña **Proveedor de Datos**: **Fuente de Datos** **Planificador**, **Variable** `resumen`.
+4. Pestaña **Visualización**:
+
+   | Ajuste | Valor |
+   | --- | --- |
+   | **Tipo de gráfico** | Barra |
+   | **Título** | `Solicitudes por estado ({{total}})` |
+   | **Unidad** | Borre el `%` que trae por defecto |
+   | **Categories** | El widget trae cuatro categorías de ejemplo. Cambie tres y borre la cuarta: `Pendiente` `{{pendiente}}` `eab308` · `En curso` `{{en_curso}}` `3b82f6` · `Cerrada` `{{cerrada}}` `22c55e` |
+
+5. **Guardar**.
+
+## Variantes
+
+| Quiere | Cambie |
+| --- | --- |
+| Porcentajes en la leyenda | Calcule `pendiente_pct`, `en_curso_pct` y `cerrada_pct` en la consulta. Use `{{pendiente_pct}}`… como valor de cada categoría y **Unidad** `%`. Vea [Porcentajes](/es/products/dashboards/tutorials/queries-for-widgets#porcentajes) |
+| Un anillo en lugar de barra | **Tipo de gráfico** Dona |
+| Un número grande por estado | Agregue un Stat Card por estado con la misma variable y **Valor** `{{pendiente}}`. El Stacked Stat no muestra números grandes ([#2235](https://github.com/microboxlabs/modulariot/issues/2235)) |
+| Que responda a un filtro de fecha | Agregue `@desde` y `@hasta` a la consulta y vincúlelos en **Parámetros (JSON)**. Vea [Filtros como parámetros](/es/products/dashboards/tutorials/queries-for-widgets#filtros-como-parámetros) |
+
+<Callout type="warning">
+Una consulta con `GROUP BY estado` devuelve una fila por estado, y el Stacked Stat lee solo la primera. Pivote la consulta como arriba.
+</Callout>
+
+## Relacionado
+
+- [Stacked Stat](/es/products/dashboards/reference/widgets/stacked-stat)
+- [Receta: filtrar una tabla por estado](/es/products/dashboards/how-to/recipe-filter-table)

@@ -4,6 +4,19 @@ import { Callout } from 'nextra/components'
 
 Each widget type has a `componentId`, stored in the document, and a registry function in the UI library that teaches a page to draw it. A page draws only the types whose registries it includes.
 
+## Pages per widget
+
+| Widget | Page |
+| --- | --- |
+| Stacked Stat | [Stacked Stat](/en/products/dashboards/reference/widgets/stacked-stat) |
+| Chart v2 | [Chart v2](/en/products/dashboards/reference/widgets/chart-v2) |
+| Data Table V2 | [Data Table V2](/en/products/dashboards/reference/widgets/data-table) |
+| Stat Card, Status Card, Progress Stat, Progress, Circular Stat | [Stat (single value)](/en/products/dashboards/reference/widgets/stat) |
+
+To pick a widget from a design, see [Choose a widget](/en/products/dashboards/tutorials/choose-a-widget).
+
+## Registering in the library
+
 Every registry function is available from `@microboxlabs/miot-dashboard-ui/react`, `/embed` and the self-contained `/browser` build, except charts, which have their own entries.
 
 ## Text and cards

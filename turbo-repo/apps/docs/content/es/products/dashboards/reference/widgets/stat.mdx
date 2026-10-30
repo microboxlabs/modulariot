@@ -1,0 +1,144 @@
+import { Callout } from 'nextra/components'
+
+# Stat (un valor)
+
+**Para:** implementadores. **Configuración:** las etiquetas de los ajustes son las de ModularIoT.
+
+Widgets que muestran un número, con color según su valor o su avance hacia una meta. Todos leen **la primera fila** de su consulta.
+
+| Widget | `componentId` | Muestra |
+| --- | --- | --- |
+| Stat Card | `stat_icon` | Un número con un ícono y un título |
+| Status Card | `stat_status` | Un valor de estado (texto o número) con borde de color |
+| Progress Stat | `stat_progress` | Avance hacia una meta, con barra y marcas |
+| Progress | `percentage_value` | `valor / máximo (porcentaje)` con una barra |
+| Circular Stat | `stat_circular` | Un anillo con el valor sobre un máximo |
+
+Otros widgets de un valor: Detailed Stat (`stat_detailed`), Sparkline Stat (`stat_sparkline`), Expandable Stat (`stat_expandable`), Sensitive Stat (`stat_sensitive`). Ver [Catálogo](/es/products/dashboards/reference/widgets).
+
+## Datos que leen
+
+Una fila, una columna por número:
+
+```sql
+SELECT
+  COUNTIF(estado != 'cerrada') AS abiertas,
+  COUNTIF(estado = 'cerrada')  AS cerradas,
+  COUNT(*)                     AS total,
+  40                           AS meta,
+  ROUND(AVG(horas), 0)         AS horas_promedio
+FROM `mi-proyecto.operaciones.solicitudes`
+```
+
+Cada campo de texto del widget nombra una columna con una plantilla: `{{cerradas}}` o `{{row.cerradas}}`.
+
+## Variantes
+
+| Variante | Widget | Ajustes | Consulta | Captura |
+| --- | --- | --- | --- | --- |
+| Número simple | Stat Card | **Valor** `{{abiertas}}` | `abiertas` | [Número simple](#número-simple) |
+| Verde, amarillo, rojo | Stat Card | **Reglas de Color por Valor**: `>` 48 rojo, `>` 24 amarillo, `<=` 24 verde; objetivo Texto e Ícono | `horas_promedio` | [Verde, amarillo, rojo](#verde-amarillo-rojo) |
+| Estado con texto | Status Card | **Valor** `{{estado}}`; regla `=` `Operativo` → verde | `estado` (texto) | [Estado con texto](#estado-con-texto) |
+| Meta con umbrales | Progress Stat | **Valor** `{{cerradas}}`, **Objetivo** `{{meta}}`; **Umbrales** sobre `{{row.cerradas}}` | `cerradas`, `meta` | [Meta con umbrales](#meta-con-umbrales) |
+| Parte de un total | Progress | **Valor** `{{cerradas}}`, **Máx** `{{total}}` | `cerradas`, `total` | [Parte de un total](#parte-de-un-total) |
+| Anillo | Circular Stat | **Valor** `{{cerradas}}`, **Max** `{{total}}`, **Color del Anillo** | `cerradas`, `total` | [Anillo](#anillo) |
+
+### Número simple
+
+![Stat Card Solicitudes abiertas 19](/dashboards/stat/icon-plain.png)
+
+### Verde, amarillo, rojo
+
+![18 h en verde](/dashboards/stat/icon-green.png)
+
+![36 h en amarillo](/dashboards/stat/icon-yellow.png)
+
+![52 h en rojo](/dashboards/stat/icon-red.png)
+
+### Estado con texto
+
+![Status Card Estado del servicio: Operativo en verde](/dashboards/stat/status.png)
+
+### Meta con umbrales
+
+![Progress Stat Cerradas este mes 30 de 40 en amarillo](/dashboards/stat/progress-thresholds.png)
+
+### Parte de un total
+
+![Progress Cerradas sobre el total 30 / 49 (61%)](/dashboards/stat/progress-bar.png)
+
+### Anillo
+
+![Circular Stat 30 de 49](/dashboards/stat/circular.png)
+
+## Ajustes principales
+
+| Widget | Ajuste | Clave | Efecto |
+| --- | --- | --- | --- |
+| Todos | **Título**, **Valor**, **Unidad** | `title`, `value`, `unit` | Aceptan plantillas |
+| Stat Card | **Subtítulo** | `subtitle` | Texto bajo el valor; acepta Markdown |
+| Stat Card | **Diseño de Tarjeta**: Horizontal / Vertical | `cardVariant` | Ícono a la izquierda o arriba |
+| Stat Card | **Ícono**, **Fondo**, **Color del valor**, **Texto secundario** | `showIcon`, `icon`, `iconColor`, `showBgColor`, `bgColor`, `showValueColor`, `valueColor`, … | Colores fijos |
+| Stat Card | **Ir a** | `showGoTo`, `goToUrl` | Toda la tarjeta es un enlace. Acepta plantillas |
+| Stat Card, Status Card | **Reglas de Color por Valor** | `valueColorRules.rules[]`: `operator`, `value`, `color`, `targets` | Color según el valor. La regla gana a los colores fijos |
+| Status Card | **Icon** | `icon` | `check`, `warning`, `clock`, `truck`, … |
+| Progress Stat | **Objetivo** | `target` | Meta. La barra muestra `valor / objetivo` |
+| Progress Stat | **Umbrales** | `thresholds`: `field`, `applyTo`, `rules[]` | Color de la barra (Background) y del valor (Text) |
+| Progress | **Máx**, **Color de la Barra**, **Reglas de Color de la Barra** | `max`, `barColor`, `barColorRules` | Las reglas comparan el porcentaje o el valor (botones **%** / **Conteo**) |
+| Circular Stat | **Max**, **Color del Anillo**, **Reglas de Color del Anillo** | `maxValue`, `ringColor`, `ringColorRules` | Anillo de 0 a 100 % |
+
+### Reglas de color y umbrales
+
+| Operador | Compara |
+| --- | --- |
+| `=`, `!=` | Como número si los dos lados son números; si no, como texto sin distinguir mayúsculas |
+| `contains`, `!contains` | Texto, sin distinguir mayúsculas |
+| `>`, `<`, `>=`, `<=` | Como número. Quita del valor lo que no es dígito |
+
+| Tipo | Orden de evaluación |
+| --- | --- |
+| **Reglas de Color por Valor** | `>` y `>=` de mayor a menor valor, luego `<` y `<=` de menor a mayor. Gana la primera que se cumple |
+| **Umbrales** (Progress Stat) | En el orden de la lista. Gana la primera que se cumple |
+
+En un Stat Card, las reglas comparan el número del valor. Un valor de texto ("OK") se convierte en 0. Para estados con texto, use un Status Card.
+
+<Callout type="warning">
+**Cuidado:** en **Umbrales**, el campo **Evaluar campo** debe tener una plantilla (`{{row.cerradas}}`). Si queda vacío, ninguna regla se aplica.
+</Callout>
+
+## Ejemplo completo
+
+```json
+{
+  "componentId": "stat_icon",
+  "config": {
+    "title": "Horas promedio de atención",
+    "value": "{{horas_promedio}}",
+    "unit": " h",
+    "subtitle": "",
+    "cardVariant": "horizontal",
+    "showIcon": true,
+    "icon": "clock",
+    "iconColor": "3b82f6",
+    "dataMode": "planner",
+    "plannerVariableName": "kpis",
+    "valueColorRules": {
+      "rules": [
+        { "operator": "greater_than", "value": "48", "compareMode": "static", "color": "ef4444", "targets": ["text", "icon"] },
+        { "operator": "greater_than", "value": "24", "compareMode": "static", "color": "eab308", "targets": ["text", "icon"] },
+        { "operator": "less_than_or_equal", "value": "24", "compareMode": "static", "color": "22c55e", "targets": ["text", "icon"] }
+      ]
+    }
+  }
+}
+```
+
+## Límites
+
+| Límite | Alternativa |
+| --- | --- |
+| Leen solo la primera fila | Una columna por número en la consulta |
+| Stat Card convierte un valor que no es número en 0 | Use un Status Card para texto |
+| El valor se muestra sin separador de miles | `{{formatNumber total}}` en el campo Valor |
+| Status Card y Circular Stat borran el JSON estático al guardar sus ajustes | Use una consulta guardada |
+| En widgets angostos, el título de un Stat Card se corta | Use un título corto o un ancho mayor |

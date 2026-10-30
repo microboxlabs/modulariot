@@ -4,6 +4,19 @@ import { Callout } from 'nextra/components'
 
 Cada tipo de widget tiene un `componentId`, guardado en el documento, y una función de registro en la biblioteca de UI que le enseña a una página a dibujarlo. Una página dibuja solo los tipos cuyos registros incluye.
 
+## Páginas por widget
+
+| Widget | Página |
+| --- | --- |
+| Stacked Stat | [Stacked Stat](/es/products/dashboards/reference/widgets/stacked-stat) |
+| Chart v2 | [Chart v2](/es/products/dashboards/reference/widgets/chart-v2) |
+| Tabla de Datos V2 | [Tabla de Datos V2](/es/products/dashboards/reference/widgets/data-table) |
+| Stat Card, Status Card, Progress Stat, Progress, Circular Stat | [Stat (un valor)](/es/products/dashboards/reference/widgets/stat) |
+
+Para elegir un widget a partir de un diseño, vea [Elegir un widget](/es/products/dashboards/tutorials/choose-a-widget).
+
+## Registro en la biblioteca
+
 Todas las funciones de registro están disponibles desde `@microboxlabs/miot-dashboard-ui/react`, `/embed` y el build autocontenido `/browser`, excepto los gráficos, que tienen sus propias entradas.
 
 ## Texto y tarjetas

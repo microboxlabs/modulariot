@@ -1,0 +1,155 @@
+import { Callout } from 'nextra/components'
+
+# Tabla de Datos V2
+
+**Para:** implementadores. **`componentId`:** `data_table_v2`. **Configuración:** las etiquetas de los ajustes son las de ModularIoT.
+
+Muestra filas en una tabla. Quien ve el dashboard puede filtrar y ordenar columnas, cambiar su ancho y exportar a CSV.
+
+![Tabla con Id, Estado, Responsable, Creada y Horas](/dashboards/data_table_v2/basic.png)
+
+## Datos que lee
+
+Lee **todas las filas** de su consulta. Cada columna muestra una plantilla evaluada en cada fila: `{{row.estado}}`.
+
+```sql
+SELECT
+  id, estado, responsable,
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada_en,
+  CAST(horas AS STRING) AS horas
+FROM `mi-proyecto.operaciones.solicitudes`
+ORDER BY creada_en DESC
+LIMIT 500
+```
+
+Al elegir la consulta en **Variable**, las columnas de la tabla se reemplazan por las de la consulta, con etiquetas generadas a partir del nombre (`creada_en` → `Creada En`).
+
+## Variantes
+
+| Variante | Ajustes | Forma de la consulta | Captura |
+| --- | --- | --- | --- |
+| Básica | Columnas con `{{row.columna}}`; **Sufijo** `h` en Horas | Una fila por registro | [Básica](#básica) |
+| Estado con color | Columna Estado con tipo `badge` y reglas de color (pincel) | Igual | [Estado con color](#estado-con-color) |
+| Filas de color | **Coloración**: Horas mayor que 30 → rojo | Igual | [Filas de color](#filas-de-color) |
+| Acciones por fila | **Utilidades** › **Agregar acción** | Una columna con el id para el enlace | [Acciones por fila](#acciones-por-fila) |
+
+### Básica
+
+![Tabla básica con 12 elementos](/dashboards/data_table_v2/basic.png)
+
+### Estado con color
+
+![Columna Estado con insignias amarilla y azul](/dashboards/data_table_v2/column-color-rules.png)
+
+En la columna Estado: escriba `badge` en el primer campo bajo la clave, active el pincel y agregue una regla por estado (`=` `pendiente` → amarillo, y así).
+
+### Filas de color
+
+![Fila con 37 horas marcada en rojo](/dashboards/data_table_v2/row-color-rules.png)
+
+<Callout type="warning">
+**Cuidado:** las reglas de **Coloración** que se agregan desde la interfaz no se aplican: el widget guarda `rowColorRules.enabled: false` y la sección no tiene interruptor. Escriba `"enabled": true` en el documento ([Importar y exportar](/es/products/dashboards/how-to/import-export)).
+</Callout>
+
+### Acciones por fila
+
+![Tabla con un menú de tres puntos al final de cada fila](/dashboards/data_table_v2/row-actions.png)
+
+| Acción | Se usa con |
+| --- | --- |
+| La primera (**Acción principal**) | Clic en la fila. Ctrl o Cmd + clic abre otra pestaña |
+| Las demás (**Acciones secundarias**) | Menú de tres puntos y clic derecho en la fila |
+
+El enlace acepta plantillas: `/app/es/solicitudes/{{row.id}}`. Solo se permiten enlaces `http`, `https`, `mailto`, `tel` o relativos.
+
+## Ajustes
+
+| Sección | Ajuste | Clave en el documento | Efecto |
+| --- | --- | --- | --- |
+| General | **Título** | `title` | Texto fijo; no acepta plantillas. Es también el nombre del archivo CSV |
+| General | **Cantidad de filas** | `showRowCount` | "12 elementos". Cuenta las filas después de los filtros |
+| General | **Divisores de columnas** | `showColumnDividers` | Líneas entre columnas |
+| General | **Mostrar exportación** | `showExport` | Botón de descarga a CSV |
+| General | **Filas alternadas** | `striped` | Fondo alternado |
+| Utilidades | **Agregar acción** | `rowActions[]`: `name`, `link`, `target` | Ver [Acciones por fila](#acciones-por-fila) |
+| Columnas | Clave | `columns[].key` | Plantilla de la celda: `{{row.estado}}` |
+| Columnas | Título de la tarjeta | `columns[].label` | Encabezado |
+| Columnas | Primer campo `text` | `columns[].type` | Cómo se dibuja: `text`, `badge`, `signed`, `progress` |
+| Columnas | Segundo campo `text` | `columns[].dataType` | Tipo para el filtro: `text`, `number`, `date`, `enum`, `boolean`. Vacío: se detecta |
+| Columnas | **Sufijo** | `columns[].decorator` | Texto pequeño después del valor. No va al CSV |
+| Columnas | Pincel | `colorRulesEnabled`, `colorMap[]` | Color del texto o de la insignia según el valor |
+| Columnas | Signo de interrogación | `descriptionEnabled`, `description` | Ayuda en el encabezado (acepta Markdown) |
+| Columnas | Alfiler | `sticky` | Fija la columna al desplazar en horizontal. Solo columnas en los bordes |
+| Coloración | **Agregar regla** | `rowColorRules` | Color de fondo de la fila |
+| Proveedor de Datos | **Fuente de Datos**, **Variable** | `dataMode`, `plannerVariableName`, `rows` | En modo estático, las filas van en `rows` |
+
+### Tipos de columna
+
+| `type` | Se dibuja como |
+| --- | --- |
+| `text` | Texto. Si el valor tiene un salto de línea, la primera línea va en negrita |
+| `badge` | Insignia. Toma el color de la regla que se cumple |
+| `signed` | Número en rojo si es negativo, naranjo de 0 a 999, verde desde 1000 |
+| `progress` | Barra de 0 a 100 con el número |
+
+Para formatear números o fechas use funciones de plantilla en la clave: `{{formatNumber row.monto prefix="$"}}`. Vea [Plantillas](/es/products/dashboards/reference/templates).
+
+## Lo que hace quien ve el dashboard
+
+| Acción | Cómo | Se guarda |
+| --- | --- | --- |
+| Filtrar una columna | Embudo en el encabezado. Búsqueda, lista de valores, rango de números o de fechas | No |
+| Ordenar | Clic en el encabezado de una columna ordenable | No |
+| Cambiar el ancho | Arrastrar los tres puntos del encabezado; Enter o doble clic ajusta | Solo en **Modo Edición** |
+| Exportar | Botón de descarga › CSV | — |
+
+El CSV contiene las filas visibles después de filtros y orden, separadas por `;`, en UTF-8.
+
+<Callout type="info">
+Filtrar y ordenar funciona cuando la clave de la columna es `{{row.columna}}`. Con una función (`{{formatDate row.fecha}}`) la columna no se filtra ni se ordena. Formatee en la consulta si necesita las dos cosas.
+</Callout>
+
+## Ejemplo completo
+
+```json
+{
+  "componentId": "data_table_v2",
+  "config": {
+    "title": "Detalle de solicitudes",
+    "showRowCount": true,
+    "showColumnDividers": true,
+    "showExport": true,
+    "dataMode": "planner",
+    "plannerVariableName": "detalle",
+    "columns": [
+      { "key": "{{row.id}}", "label": "Id", "type": "text" },
+      {
+        "key": "{{row.estado}}", "label": "Estado", "type": "badge", "colorRulesEnabled": true,
+        "colorMap": [
+          { "operator": "equals", "value": "pendiente", "color": "eab308" },
+          { "operator": "equals", "value": "en_curso", "color": "3b82f6" },
+          { "operator": "equals", "value": "cerrada", "color": "22c55e" }
+        ]
+      },
+      { "key": "{{row.responsable}}", "label": "Responsable", "type": "text" },
+      { "key": "{{row.horas}}", "label": "Horas", "type": "text", "decorator": "h" }
+    ],
+    "sort": { "enabled": true, "columns": ["{{row.id}}", "{{row.horas}}"] },
+    "rowColorRules": {
+      "enabled": true,
+      "rules": [{ "column": "{{row.horas}}", "operator": "greater_than", "value": "30", "color": "ef4444" }]
+    }
+  }
+}
+```
+
+## Límites
+
+| Límite | Alternativa |
+| --- | --- |
+| Dibuja todas las filas, sin paginar. Más de 5.000 filas hace fallar la consulta | Limite en la consulta (`LIMIT 500`) |
+| Las columnas ordenables no se eligen en la interfaz | Escriba `sort.columns` en el documento |
+| Elegir la consulta reemplaza las columnas y borra colores, sufijos y descripciones | Elija la consulta antes de configurar las columnas |
+| Las reglas de **Coloración** agregadas en la interfaz no se aplican | `"enabled": true` en el documento |
+| Un `TIMESTAMP` de BigQuery se muestra como `1.79E9` | `FORMAT_TIMESTAMP` en la consulta |
+| En modo estático, los valores deben ser texto (`"30"`, no `30`) | Use comillas en `rows` |

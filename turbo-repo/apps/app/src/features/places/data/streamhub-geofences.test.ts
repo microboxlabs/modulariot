@@ -34,7 +34,7 @@ describe("streamhub geofences as places", () => {
       place_id: `${PREFIJO_STREAMHUB}1156`,
       name: "BASE EXACTA",
       external_id: "base-exacta",
-      category: "cd",
+      category: null,
       address: "Av. Siempre Viva 742",
       geometry_type: "polygon",
       radius_m: null,
@@ -62,29 +62,24 @@ describe("streamhub geofences as places", () => {
   });
 
   it("ignores non-text properties", () => {
-    const l = lugarDesdeGeofence(
-      fila({ properties: { category: 3, address: "" } }),
-      anillo
-    );
-    expect(l?.category).toBeNull();
+    const l = lugarDesdeGeofence(fila({ properties: { address: "" } }), anillo);
     expect(l?.address).toBeNull();
   });
 
-  it("uses the StreamHub geofence type as category when there is none", () => {
-    const tipo = (geofence_type: unknown) =>
-      lugarDesdeGeofence(fila({ properties: { geofence_type } }), anillo)
-        ?.category;
-    expect(tipo(1)).toBe("Zona de riesgo");
-    expect(tipo(0)).toBe("General");
-    expect(tipo("4")).toBe("Paso fronterizo");
-    expect(tipo(7)).toBe("Tipo 7");
-    expect(tipo(null)).toBeNull();
-    expect(
+  it("takes the category only from the geofence_category column", () => {
+    const categoria = (geofence_category: string | null | undefined) =>
       lugarDesdeGeofence(
-        fila({ properties: { category: "cd", geofence_type: 1 } }),
+        fila({
+          geofence_category,
+          properties: { category: "cd", geofence_type: 1 },
+        }),
         anillo
-      )?.category
-    ).toBe("cd");
+      )?.category;
+    expect(categoria(" Planta ")).toBe("Planta");
+    // empty or not deployed yet: no category, never the properties or type
+    expect(categoria("  ")).toBeNull();
+    expect(categoria(null)).toBeNull();
+    expect(categoria(undefined)).toBeNull();
   });
 
   it("tells StreamHub geofences from places created here", () => {

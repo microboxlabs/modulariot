@@ -158,6 +158,8 @@ export interface StreamhubGeofenceRow {
   coordinates: string | null;
   /** Free-form JSON: `category`, `address`, `radius_meters`, … */
   properties: Record<string, unknown> | null;
+  /** The geofence's category. Absent while the column is not deployed. */
+  geofence_category?: string | null;
 }
 
 /**
@@ -168,7 +170,9 @@ export async function fetchClientGeofences(
   clientId: string
 ): Promise<StreamhubGeofenceRow[]> {
   const token = await bearerToken();
-  const url = `${pgrestBaseUrl()}/geofences?select=geofence_id,client_geofence_id,geofence_name,polygon_type,coordinates,properties&client_id=eq.${encodeURIComponent(
+  // `*` rather than naming `geofence_category`: naming a column the database
+  // does not have yet fails the whole request (42703)
+  const url = `${pgrestBaseUrl()}/geofences?select=*&client_id=eq.${encodeURIComponent(
     clientId
   )}&order=geofence_name.asc`;
   const response = await pgrestFetch(url, {

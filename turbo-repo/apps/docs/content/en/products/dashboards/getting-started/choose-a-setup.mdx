@@ -4,8 +4,6 @@ import { Callout } from 'nextra/components'
 
 **For:** everyone.
 
-This page answers two questions: what to read for your role, and which setup Dashboards will run in.
-
 ## By role
 
 | Role | Does | Read, in order |
@@ -16,7 +14,7 @@ This page answers two questions: what to read for your role, and which setup Das
 
 ## By setup
 
-A setup is the application that hosts the dashboards. Setups differ in who signs people in, where credentials are stored and what you build.
+A setup is the application that hosts the dashboards.
 
 | Setup | Choose it when | Sign-in | Data credentials | You build |
 | --- | --- | --- | --- | --- |
@@ -33,7 +31,7 @@ Dashboards is part of the web app. An administrator turns it on and people open 
 
 ### Standalone server + your app
 
-Run the server with npm, Docker or Helm. Your identity provider signs people in; the server validates the token or ticket and decides what each person can do. Your page draws dashboards with the UI library.
+Run the server with npm, Docker or Helm. Your identity provider signs people in. The server validates the token or ticket and decides what each person can do. Your page draws dashboards with the UI library.
 
 | Your app uses | How it draws the dashboard | Editing in the UI |
 | --- | --- | --- |

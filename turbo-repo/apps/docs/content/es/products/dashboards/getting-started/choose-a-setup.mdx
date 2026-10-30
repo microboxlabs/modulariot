@@ -4,8 +4,6 @@ import { Callout } from 'nextra/components'
 
 **Para:** todos.
 
-Esta página responde dos preguntas: qué leer según su rol, y en qué configuración va a correr Dashboards.
-
 ## Según su rol
 
 | Rol | Hace | Lea, en orden |
@@ -16,9 +14,9 @@ Esta página responde dos preguntas: qué leer según su rol, y en qué configur
 
 ## Según la configuración
 
-Una configuración es la aplicación que aloja los dashboards. Las configuraciones se diferencian en quién inicia la sesión, dónde se guardan las credenciales y qué construye usted.
+Una configuración es la aplicación que aloja los dashboards.
 
-| Configuración | Elíjala cuando | Inicio de sesión | Credenciales de datos | Usted construye |
+| Configuración | Elíjala cuando | Autenticación | Credenciales de datos | Usted construye |
 | --- | --- | --- | --- | --- |
 | **Configuración de ModularIoT** | Su equipo usa la aplicación web de ModularIoT | ModularIoT | Conexiones de ModularIoT | Nada |
 | **Servidor independiente + su aplicación** | Quiere dashboards dentro de su producto | Su proveedor de identidad (JWT o ticket) | Base de datos del servidor, cifrada | La página que muestra los dashboards y, si no usa React, los formularios de edición |
@@ -33,7 +31,7 @@ Dashboards es parte de la aplicación web. Un administrador lo activa y las pers
 
 ### Servidor independiente + su aplicación
 
-Ejecute el servidor con npm, Docker o Helm. Su proveedor de identidad inicia la sesión; el servidor valida el token o el ticket y decide qué puede hacer cada persona. Su página dibuja los dashboards con la biblioteca de UI.
+Ejecute el servidor con npm, Docker o Helm. Su proveedor de identidad autentica a las personas. El servidor valida el token o el ticket y decide qué puede hacer cada persona. Su página dibuja los dashboards con la biblioteca de UI.
 
 | Su aplicación usa | Cómo dibuja el dashboard | Edición en la interfaz |
 | --- | --- | --- |

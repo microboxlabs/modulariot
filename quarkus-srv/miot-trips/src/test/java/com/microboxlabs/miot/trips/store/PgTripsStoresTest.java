@@ -115,7 +115,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.22__monitor_scope.sql",
             "/db/migration/trips/V0.10.23__validate_monitor_scopes.sql",
             "/db/migration/trips/V0.10.24__feed_registers_resources.sql",
-            "/db/migration/trips/V0.10.25__location_resolution.sql"};
+            "/db/migration/trips/V0.10.25__location_resolution.sql",
+            "/db/migration/trips/V0.10.26__geocode_cache.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -425,6 +426,32 @@ class PgTripsStoresTest {
                 .orElseThrow();
         assertEquals(77, rejected.geofenceId(), "a null geofence keeps the link");
         assertTrue(locations.setPlacement("other-tenant", UUID.fromString(cd.id()), review, null, ACTOR).isEmpty());
+    }
+
+    @Test
+    void aGeocodedPointIsCachedByAddressAndCountryAndReplaced() {
+        PgGeocodeCache cache = new PgGeocodeCache(() -> pool);
+        assertTrue(cache.find("AV LARCO 101 MIRAFLORES", "PE").isEmpty());
+
+        cache.put("AV LARCO 101 MIRAFLORES", "PE",
+                new GeocodeCache.Entry(-12.1211, -77.0297, "provider", "mapbox", null));
+        cache.put("AV LARCO 101 MIRAFLORES", "PE",
+                new GeocodeCache.Entry(-12.1212, -77.0298, "provider", "mapbox", null));
+
+        GeocodeCache.Entry entry = cache.find("AV LARCO 101 MIRAFLORES", "PE").orElseThrow();
+        assertEquals(-12.1212, entry.lat());
+        assertEquals("mapbox", entry.provider());
+        assertNotNull(entry.resolvedAt());
+        assertTrue(cache.find("AV LARCO 101 MIRAFLORES", "CL").isEmpty());
+
+        String tenant = tenant();
+        Location cd = locations.insert(new Location(null, tenant, "CD", "customer", "CD-02", null, null, ACTOR,
+                null, ACTOR));
+        Location.Placement p = new Location.Placement("Av. Larco 101", "PE", "150122", "MIRAFLORES", null, null,
+                null, null, null, null);
+        assertEquals("provider", locations.setPlacement(tenant, UUID.fromString(cd.id()),
+                p.withResult("57V4VXHC+H4", -12.1211, -77.0297, "provider", Location.RESOLVED, null), 78, ACTOR)
+                .orElseThrow().placement().source());
     }
 
     @Test

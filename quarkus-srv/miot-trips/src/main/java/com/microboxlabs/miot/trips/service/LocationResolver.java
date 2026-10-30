@@ -1,26 +1,35 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.google.openlocationcode.OpenLocationCode;
+import com.microboxlabs.miot.integrations.geocoding.Geocoder;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingProvider.Candidate;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingProvider.Query;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Location.Placement;
 import com.microboxlabs.miot.trips.geo.AdminBoundaries;
 import com.microboxlabs.miot.trips.geo.AdminBoundaries.Boundary;
+import com.microboxlabs.miot.trips.geo.Addresses;
 import com.microboxlabs.miot.trips.geo.GeoShape;
+import com.microboxlabs.miot.trips.store.GeocodeCache;
 import com.microboxlabs.miot.trips.store.GeofenceDirectory;
 import com.microboxlabs.miot.trips.store.GeofenceDirectory.Geofence;
+import com.microboxlabs.miot.trips.store.InternalAddresses;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * Finds a site's point without an external provider. Sources, first that applies: a geofence of the tenant with the
- * site's code or name, a Plus Code (a short one is recovered from the district's centroid), the caller's
- * coordinates. The point must fall in the declared district, or within {@link #BORDER_METERS} of it, to resolve;
- * otherwise, or with no source, the site needs review.
+ * Finds a site's point. Sources, first that applies: a geofence of the tenant with the site's code or name, a Plus
+ * Code (a short one is recovered from the district's centroid), the caller's coordinates, the internal address
+ * table (Chile), the shared geocode cache, then the geocoding provider through the tenant's own connection. The address sources need a district with a
+ * boundary, and the provider counts only address-level results. The point must fall in the declared district, or
+ * within {@link #BORDER_METERS} of it, to resolve; otherwise, or with no source, the site needs review.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -28,6 +37,7 @@ public class LocationResolver {
 
     /** Slack at district borders: the boundary layers are simplified. */
     static final double BORDER_METERS = 500;
+    private static final org.jboss.logging.Logger LOG = org.jboss.logging.Logger.getLogger(LocationResolver.class);
     private static final String DISTRICT = "district ";
     private static final Set<String> COUNTRIES = Set.of(Locale.getISOCountries());
 
@@ -35,14 +45,28 @@ public class LocationResolver {
     public static final String PLUS_CODE = "plus_code";
     public static final String COORDINATES = "coordinates";
     public static final String MANUAL = "manual";
+    public static final String INTERNAL = "internal";
+    public static final String PROVIDER = "provider";
 
     /** What the caller declares about a site; {@code code} and {@code name} match an existing geofence. */
     public record Site(String code, String name, String address, String country, String districtCode,
             String districtName, String plusCode, Double latitude, Double longitude) {
     }
 
+    /**
+     * The provider behind the result: {@code provider} asked or whose cached result was used, {@code called} when it
+     * answered during this resolution, at {@code costUsd}.
+     */
+    public record Usage(String provider, boolean cacheHit, boolean called, BigDecimal costUsd) {
+        static final Usage NONE = new Usage(null, false, false, null);
+    }
+
     /** {@code geofenceId} is the existing geofence that resolved the site, or null. */
-    public record Outcome(Placement placement, Integer geofenceId) {
+    public record Outcome(Placement placement, Integer geofenceId, Usage usage) {
+
+        public Outcome(Placement placement, Integer geofenceId) {
+            this(placement, geofenceId, Usage.NONE);
+        }
 
         public boolean resolved() {
             return Location.RESOLVED.equals(placement.status());
@@ -58,16 +82,27 @@ public class LocationResolver {
     private record District(Boundary boundary, String note) {
     }
 
-    private final GeofenceDirectory geofences;
-    private final AdminBoundaries boundaries;
-
-    @Inject
-    public LocationResolver(GeofenceDirectory geofences, AdminBoundaries boundaries) {
-        this.geofences = geofences;
-        this.boundaries = boundaries;
+    /** What the address sources found: a point, or a note on why not. */
+    private record ByAddress(Found found, String note, Usage usage) {
     }
 
-    /** Tries the three sources in order. */
+    private final GeofenceDirectory geofences;
+    private final AdminBoundaries boundaries;
+    private final InternalAddresses addresses;
+    private final GeocodeCache cache;
+    private final Geocoder geocoder;
+
+    @Inject
+    public LocationResolver(GeofenceDirectory geofences, AdminBoundaries boundaries, InternalAddresses addresses,
+            GeocodeCache cache, Geocoder geocoder) {
+        this.geofences = geofences;
+        this.boundaries = boundaries;
+        this.addresses = addresses;
+        this.cache = cache;
+        this.geocoder = geocoder;
+    }
+
+    /** Tries the sources in order. */
     public Outcome resolve(String tenantCode, Site site) {
         return locate(tenantCode, site, false);
     }
@@ -85,27 +120,115 @@ public class LocationResolver {
                 b != null ? b.code() : bounded(site.districtCode(), 16),
                 b != null ? b.name() : bounded(site.districtName(), 255),
                 null, null, null, null, null, null);
-        Found found = fromSources(tenantCode, site, manual, b);
-        if (found.point() == null) return review(declared, null, null, found.note());
+        ByAddress selected = fromSources(tenantCode, site, manual, b, country);
+        Found found = selected.found();
+        Usage usage = selected.usage();
+        if (found == null || found.point() == null) {
+            return review(declared, null, null, selected.note(), usage);
+        }
         String source = manual ? MANUAL : found.source();
         Point p = found.point();
         if (b == null) {
-            return review(declared, p, source, district.note());
+            return review(declared, p, source, district.note(), usage);
         }
         if (b.shape() == null) {
-            return review(declared, p, source, DISTRICT + b.code() + " has no boundary to check against");
+            return review(declared, p, source, DISTRICT + b.code() + " has no boundary to check against",
+                    usage);
         }
-        if (!b.shape().contains(p.lon(), p.lat()) && b.shape().distanceMeters(p.lon(), p.lat()) > BORDER_METERS) {
+        if (!inside(b, p)) {
             String where = boundaries.containing(country, p.lon(), p.lat())
                     .map(o -> "the point is in " + o.name() + " (" + o.code() + ")")
                     .orElse("the point is outside " + country);
-            return review(declared, p, source, where + ", not in " + b.name() + " (" + b.code() + ")");
+            return review(declared, p, source, where + ", not in " + b.name() + " (" + b.code() + ")", usage);
         }
         return new Outcome(declared.withResult(plusCode(p), p.lat(), p.lon(), source, Location.RESOLVED, null),
-                found.geofenceId());
+                found.geofenceId(), usage);
     }
 
-    private Found fromSources(String tenantCode, Site site, boolean manual, Boundary district) {
+    private static String nothingNote(Site site, Boundary b) {
+        if (blankToNull(site.address()) == null) {
+            return "no geofence, plus code or coordinates";
+        }
+        return b == null || b.shape() == null
+                ? "an address needs a district with a boundary to be geocoded"
+                : "no geofence, plus code or coordinates";
+    }
+
+    private static boolean inside(Boundary b, Point p) {
+        return b.shape().contains(p.lon(), p.lat()) || b.shape().distanceMeters(p.lon(), p.lat()) <= BORDER_METERS;
+    }
+
+    /**
+     * Steps 4 and 5: the internal address table, then the shared cache, then the provider. A provider result is
+     * kept in the cache only when it resolves and the provider's terms allow storing it.
+     */
+    private ByAddress fromAddress(String tenantCode, String country, Boundary b, String address) {
+        Found internal = fromInternal(country, b, address);
+        if (internal != null) return new ByAddress(internal, null, Usage.NONE);
+        String key = b.code() + "|" + Addresses.key(address, b.name());
+        var cached = cache.find(key, country);
+        if (cached.isPresent()) {
+            return new ByAddress(new Found(new Point(cached.get().lon(), cached.get().lat()), PROVIDER, null, null),
+                    null, new Usage(cached.get().provider(), true, false, null));
+        }
+        Geocoder.Result r = geocoder.forward(tenantCode, new Query(address, b.name(), country));
+        Usage usage = new Usage(r.provider(), false, r.called(), r.costUsd());
+        if (!r.called()) {
+            return new ByAddress(null, "geocoding: " + r.error(), usage);
+        }
+        if (!r.storable()) {
+            return new ByAddress(null, "geocoding results cannot be stored with this provider configuration", usage);
+        }
+        List<Candidate> exact = r.candidates().stream().filter(Candidate::addressLevel).toList();
+        if (exact.isEmpty()) {
+            String best = "nothing";
+            if (!r.candidates().isEmpty()) {
+                String type = r.candidates().get(0).type();
+                best = "only " + (type == null ? "a coarser place" : type);
+            }
+            return new ByAddress(null, r.provider() + " found " + best + ", not an address", usage);
+        }
+        Candidate pick = exact.stream().filter(c -> inside(b, new Point(c.lon(), c.lat()))).findFirst()
+                .orElse(exact.get(0));
+        Point p = new Point(pick.lon(), pick.lat());
+        if (inside(b, p)) cacheResult(key, country, p, r.provider());
+        return new ByAddress(new Found(p, PROVIDER, null, null), null, usage);
+    }
+
+    private Found fromInternal(String country, Boundary boundary, String address) {
+        if (addresses.supports(country)) {
+            var street = Addresses.street(address);
+            if (street.isPresent()) {
+                var match = addresses.find(country, Addresses.spellings(boundary.name(), false),
+                        Addresses.spellings(street.get().name(), true), street.get().number());
+                if (match.isPresent()) {
+                    return new Found(new Point(match.get().lon(), match.get().lat()), INTERNAL, null, null);
+                }
+            }
+        }
+        return null;
+    }
+
+    private void cacheResult(String key, String country, Point point, String provider) {
+        try {
+            cache.put(key, country, new GeocodeCache.Entry(point.lat(), point.lon(), PROVIDER, provider,
+                    OffsetDateTime.now(java.time.ZoneOffset.UTC)));
+        } catch (RuntimeException cause) {
+            LOG.warn("Geocoding result was resolved but could not be cached", cause);
+        }
+    }
+
+    private ByAddress fromSources(String tenantCode, Site site, boolean manual, Boundary district, String country) {
+        Found point = fromPointSources(tenantCode, site, manual, district);
+        if (point.point() != null) return new ByAddress(point, null, Usage.NONE);
+        if (!manual && blankToNull(site.address()) != null && district != null && district.shape() != null) {
+            ByAddress address = fromAddress(tenantCode, country, district, site.address());
+            return new ByAddress(address.found(), address.note(), address.usage());
+        }
+        return new ByAddress(null, point.note() != null ? point.note() : nothingNote(site, district), Usage.NONE);
+    }
+
+    private Found fromPointSources(String tenantCode, Site site, boolean manual, Boundary district) {
         Found found = manual ? null : fromGeofence(tenantCode, site);
         if (found != null) return found;
         String note = null;
@@ -119,7 +242,7 @@ public class LocationResolver {
             if (found.point() != null) return found;
             return new Found(null, found.source(), null, note == null ? found.note() : note);
         }
-        return new Found(null, null, null, note == null ? "no geofence, plus code or coordinates" : note);
+        return new Found(null, null, null, note);
     }
 
     private static String country(String raw) {
@@ -210,9 +333,9 @@ public class LocationResolver {
         return new Found(new Point(lon, lat), COORDINATES, null, null);
     }
 
-    private static Outcome review(Placement declared, Point p, String source, String note) {
+    private static Outcome review(Placement declared, Point p, String source, String note, Usage usage) {
         return new Outcome(declared.withResult(p == null ? null : plusCode(p), p == null ? null : p.lat(),
-                p == null ? null : p.lon(), source, Location.NEEDS_REVIEW, note), null);
+                p == null ? null : p.lon(), source, Location.NEEDS_REVIEW, note), null, usage);
     }
 
     private static String plusCode(Point p) {

@@ -53,6 +53,7 @@ public class CredentialProfileService {
     /** Where credentials land when the caller states no environment (the WhatsApp channel doesn't). */
     static final String DEFAULT_ENVIRONMENT = "PRODUCTION";
 
+    private static final String MANAGED_MESSAGE = "This credential is managed by the platform";
     private static final int MAX_NAME_LENGTH = 160;
     private static final int MAX_ENVIRONMENT_LENGTH = 40;
     private static final int MAX_SECRET_UPDATE_ATTEMPTS = 5;
@@ -190,8 +191,8 @@ public class CredentialProfileService {
     private UpdateCredentialProfileParams prepareProfileUpdate(
             String tenantCode, String actor, String id, UpdateCredentialProfileRequest req,
             CredentialProfile current, Map<String, Object> requestedSecret) {
-        if (ManagedGoogleIdentity.isManaged(current.publicConfig())) {
-            throw new IllegalArgumentException("This credential is managed by the platform");
+        if (ManagedCredentials.isManaged(current.publicConfig())) {
+            throw new IllegalArgumentException(MANAGED_MESSAGE);
         }
         refuseManaged(req.publicConfig());
         String displayName = req.displayName() == null ? null : requireName(req.displayName());
@@ -257,6 +258,10 @@ public class CredentialProfileService {
         if (profile == null) {
             return null;
         }
+        if (ManagedCredentials.isManaged(profile.publicConfig())
+                && profile.credentialType() != CredentialType.GOOGLE_SERVICE_ACCOUNT) {
+            return CredentialTestResponse.failure(MANAGED_MESSAGE);
+        }
         CredentialTestResponse response = ManagedGoogleIdentity.isManaged(profile.publicConfig())
                 ? testManaged(tenantCode, profile)
                 : runTest(profile.credentialType(), profile.publicConfig(), decrypt(profile));
@@ -278,27 +283,32 @@ public class CredentialProfileService {
     }
 
     /**
-     * The credential that stands for the organization's own Google service account. It
-     * has no secret; only the platform creates it, never the generic credential API.
+     * A credential with no secret that the platform manages for an organization: {@code managed: true} in its public
+     * half. Only platform code calls this, never the generic credential API.
      */
     public CredentialProfile createManaged(String tenantCode, String actor, String displayName,
             Map<String, Object> publicConfig) {
+        return createManaged(tenantCode, actor, displayName, AuthType.GOOGLE_SERVICE_ACCOUNT, publicConfig);
+    }
+
+    public CredentialProfile createManaged(String tenantCode, String actor, String displayName, AuthType authType,
+            Map<String, Object> publicConfig) {
         Map<String, Object> config = new LinkedHashMap<>(publicConfig);
-        config.put(ManagedGoogleIdentity.MANAGED, true);
-        validateConfig(CredentialType.GOOGLE_SERVICE_ACCOUNT, config);
+        config.put(ManagedCredentials.MANAGED, true);
+        CredentialType credentialType = CredentialType.fromAuthType(authType);
+        validateConfig(credentialType, config);
         String name = requireName(displayName);
         List<CredentialProfile> existing = credentialProfileRepository.listByTenant(tenantCode);
         String environment = resolveEnvironment(null, existing);
         requireNameAvailable(existing, name, environment, null);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         return credentialProfileRepository.create(new CredentialProfile(
-                UUID.randomUUID().toString(), tenantCode, name, CredentialType.GOOGLE_SERVICE_ACCOUNT,
-                AuthType.GOOGLE_SERVICE_ACCOUNT, environment, config, encrypt(Map.of(), name),
-                maskSecret(Map.of()), 1, null, null, now, now, actor, actor));
+                UUID.randomUUID().toString(), tenantCode, name, credentialType, authType, environment, config,
+                encrypt(Map.of(), name), maskSecret(Map.of()), 1, null, null, now, now, actor, actor));
     }
 
     private static void refuseManaged(Map<String, Object> publicConfig) {
-        if (ManagedGoogleIdentity.isManaged(publicConfig)) {
+        if (ManagedCredentials.isManaged(publicConfig)) {
             throw new IllegalArgumentException("Managed credentials are created by the platform");
         }
     }
@@ -324,6 +334,9 @@ public class CredentialProfileService {
      * @return the updated credential, or {@code null} when it does not exist
      */
     public CredentialProfile rotateSecret(String tenantCode, String id, Map<String, Object> secretConfig) {
+        CredentialProfile profile = credentialProfileRepository.findByTenantAndId(tenantCode, id);
+        if (profile == null) return null;
+        requireMutable(profile);
         return credentialProfileRepository.updateSecret(
                 tenantCode, id, encrypt(secretConfig, id), maskSecret(secretConfig));
     }
@@ -339,6 +352,7 @@ public class CredentialProfileService {
             if (profile == null) {
                 return null;
             }
+            requireMutable(profile);
             Map<String, Object> secret = new LinkedHashMap<>(secretCipher.decrypt(profile.encryptedSecretJson()));
             secret.putAll(updates);
             CredentialProfile updated = credentialProfileRepository.updateSecretIfVersion(
@@ -348,6 +362,10 @@ public class CredentialProfileService {
             }
         }
         throw new IllegalStateException("Credential changed concurrently; retry the update");
+    }
+
+    private static void requireMutable(CredentialProfile profile) {
+        if (ManagedCredentials.isManaged(profile.publicConfig())) throw new IllegalArgumentException(MANAGED_MESSAGE);
     }
 
     private CredentialTestResponse runTest(

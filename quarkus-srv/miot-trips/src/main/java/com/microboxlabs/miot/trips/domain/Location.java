@@ -26,7 +26,7 @@ public record Location(
 
     /**
      * The site as declared (address, country, district) and its point. {@code districtCode} is the Peruvian ubigeo
-     * or the Chilean commune code; {@code source} is geofence, plus_code, coordinates or manual.
+     * or the Chilean commune code; {@code source} is geofence, plus_code, coordinates, internal, provider or manual.
      */
     public record Placement(
             String address,

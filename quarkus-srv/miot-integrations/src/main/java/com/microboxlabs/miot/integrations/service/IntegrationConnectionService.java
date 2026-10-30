@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.integrations.service;
 
+import static com.microboxlabs.miot.integrations.email.PlatformMailService.PLATFORM_TENANT;
+
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
@@ -67,6 +69,19 @@ public class IntegrationConnectionService {
      * needs no template awareness. Without a template it is an ad-hoc connection.
      */
     public IntegrationConnection createConnection(String tenantCode, CreateIntegrationConnectionRequest req) {
+        return create(tenantCode, req, false);
+    }
+
+    /**
+     * Creates a connection of a platform-only provider type in an organization's tenant. Only platform code calls
+     * this, for a connection whose credential the platform manages.
+     */
+    public IntegrationConnection createPlatformManaged(String tenantCode, CreateIntegrationConnectionRequest req) {
+        return create(tenantCode, req, true);
+    }
+
+    private IntegrationConnection create(String tenantCode, CreateIntegrationConnectionRequest req,
+            boolean platformManaged) {
         IntegrationTemplate template = req.templateId() == null
                 ? null
                 : templateRepository.findByTenantAndId(tenantCode, req.templateId());
@@ -75,6 +90,9 @@ public class IntegrationConnectionService {
         }
 
         ProviderType providerType = template != null ? template.providerType() : req.providerType();
+        if (!platformManaged) {
+            requireAllowed(tenantCode, providerType);
+        }
         IntegrationConnection connection = new IntegrationConnection(
                 UUID.randomUUID().toString(),
                 tenantCode,
@@ -127,6 +145,7 @@ public class IntegrationConnectionService {
         if (existing == null) {
             return null;
         }
+        requireAllowed(tenantCode, existing.providerType());
         String credentialId = req.credentialProfileId() == null
                 ? existing.credentialProfileId() : req.credentialProfileId();
         updateSecrets(tenantCode, credentialId, req.token(), req.secrets());
@@ -142,6 +161,15 @@ public class IntegrationConnectionService {
      * @return {@code false} when the connection did not exist
      */
     public boolean deleteConnection(String tenantCode, String connectionId) {
+        IntegrationConnection existing = connectionRepository.findByTenantAndId(tenantCode, connectionId);
+        if (existing != null) {
+            requireAllowed(tenantCode, existing.providerType());
+        }
+        return deletePlatformManaged(tenantCode, connectionId);
+    }
+
+    /** Deletes a connection without the platform-only check. Only platform code calls this. */
+    public boolean deletePlatformManaged(String tenantCode, String connectionId) {
         int bindings = bindingRepository.countByConnection(connectionId);
         if (bindings > 0) {
             throw new IllegalStateException(
@@ -215,6 +243,7 @@ public class IntegrationConnectionService {
         if (connection == null) {
             return new ConnectionTestResponse(false, OffsetDateTime.now(), "Connection not found");
         }
+        requireAllowed(tenantCode, connection.providerType());
 
         CredentialProfile credential = connection.credentialProfileId() == null
                 ? null
@@ -246,6 +275,7 @@ public class IntegrationConnectionService {
         if (req.templateId() != null && template == null) {
             return new ConnectionTestResponse(false, OffsetDateTime.now(ZoneOffset.UTC), "Unknown integration template");
         }
+        requireAllowed(tenantCode, template != null ? template.providerType() : req.providerType());
         IntegrationConnection draft = new IntegrationConnection(
                 IntegrationConnection.DRAFT_ID,
                 tenantCode,
@@ -265,6 +295,19 @@ public class IntegrationConnectionService {
             return new ConnectionTestResponse(false, OffsetDateTime.now(ZoneOffset.UTC), "The credential could not be found");
         }
         return testerRegistry.testerFor(draft).test(draft, credential, null);
+    }
+
+    /**
+     * The platform contracts and pays the geocoding provider. An organization's {@link ProviderType#GEOCODING}
+     * connection is created and removed by a platform owner; the organization cannot create, change, test or delete
+     * it.
+     *
+     * @throws PlatformOnlyProviderException for an organization
+     */
+    private static void requireAllowed(String tenantCode, ProviderType providerType) {
+        if (providerType == ProviderType.GEOCODING && !PLATFORM_TENANT.equals(tenantCode)) {
+            throw new PlatformOnlyProviderException(providerType);
+        }
     }
 
     private Map<String, Object> safeMap(Map<String, Object> map) {

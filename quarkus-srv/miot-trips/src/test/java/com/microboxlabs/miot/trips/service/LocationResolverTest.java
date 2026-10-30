@@ -8,7 +8,9 @@ import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.geo.AdminBoundaries;
 import com.microboxlabs.miot.trips.service.LocationResolver.Outcome;
 import com.microboxlabs.miot.trips.service.LocationResolver.Site;
+import com.microboxlabs.miot.trips.store.FakeAddresses;
 import com.microboxlabs.miot.trips.store.FakeGeofences;
+import com.microboxlabs.miot.trips.store.InMemoryGeocodeCache;
 import org.junit.jupiter.api.Test;
 
 class LocationResolverTest {
@@ -17,7 +19,8 @@ class LocationResolverTest {
     private static final AdminBoundaries BOUNDARIES = new AdminBoundaries();
 
     private final FakeGeofences geofences = new FakeGeofences();
-    private final LocationResolver resolver = new LocationResolver(geofences, BOUNDARIES);
+    private final LocationResolver resolver = new LocationResolver(geofences, BOUNDARIES, new FakeAddresses(),
+            new InMemoryGeocodeCache(), StubGeocoding.none());
 
     /** Parque Kennedy, Miraflores, Lima (ubigeo 150122). */
     private static Site miraflores(String plusCode, Double lat, Double lon) {
@@ -76,7 +79,8 @@ class LocationResolverTest {
 
     @Test
     void noSourceNeedsReview() {
-        Outcome out = resolver.resolve(TENANT, miraflores(null, null, null));
+        Outcome out = resolver.resolve(TENANT,
+                new Site("CD-01", "CD Miraflores", null, "PE", "150122", null, null, null, null));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals("no geofence, plus code or coordinates", out.placement().note());

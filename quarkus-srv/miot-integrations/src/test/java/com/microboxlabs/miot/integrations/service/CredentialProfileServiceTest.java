@@ -17,6 +17,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.dto.CredentialTestRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.CredentialTestResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
@@ -45,6 +46,17 @@ class CredentialProfileServiceTest {
 
     private final FakeCredentials credentials = new FakeCredentials();
     private final FakeConnections connections = new FakeConnections();
+
+    @Test
+    void managedSecretsCannotBeMutatedThroughConnectionHelpers() {
+        CredentialProfileService service = service();
+        CredentialProfile profile = service.createManaged(TENANT, ACTOR, "Synthetic geocoding", AuthType.BEARER_TOKEN, Map.of());
+        Map<String, Object> secret = Map.of("token", "synthetic-token");
+        String id = profile.id();
+        assertThrows(IllegalArgumentException.class, () -> service.mergeSecret(TENANT, id, secret));
+        assertThrows(IllegalArgumentException.class, () -> service.rotateSecret(TENANT, id, secret));
+        assertEquals(profile.encryptedSecretJson(), credentials.findByTenantAndId(TENANT, profile.id()).encryptedSecretJson());
+    }
 
     @Test
     void createsAnEntraCredentialWithTheActorAndTheDerivedAuthType() {
@@ -141,6 +153,24 @@ class CredentialProfileServiceTest {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> service.create(TENANT, ACTOR, request));
         assertEquals("Managed credentials are created by the platform", error.getMessage());
+    }
+
+    @Test
+    void aManagedCredentialHasNoSecretAndCannotBeEditedOrTested() {
+        CredentialProfileService service = service();
+        CredentialProfile managed = service.createManaged(TENANT, ACTOR, "Geocoding", AuthType.BEARER_TOKEN, Map.of());
+        String id = managed.id();
+        assertEquals(Map.of("managed", true), managed.publicConfig());
+        assertEquals("none", managed.secretPreview());
+        UpdateCredentialProfileRequest update = new UpdateCredentialProfileRequest(null, null, null, Map.of("token", "mine"));
+        IllegalArgumentException edit = assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, ACTOR, id, update));
+        assertEquals("This credential is managed by the platform", edit.getMessage());
+        CredentialTestResponse result = service.test(TENANT, id);
+        assertFalse(result.success());
+        assertEquals("This credential is managed by the platform", result.message());
+        assertNull(credentials.recordedTestResult);
+        CredentialTestRequest request = new CredentialTestRequest(CredentialType.BEARER_TOKEN, Map.of("managed", true), Map.of("token", "x"));
+        assertThrows(IllegalArgumentException.class, () -> service.testConfig(request));
     }
 
     @Test

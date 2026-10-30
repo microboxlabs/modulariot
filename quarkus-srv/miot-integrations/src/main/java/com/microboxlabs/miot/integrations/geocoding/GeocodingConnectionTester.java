@@ -64,8 +64,12 @@ public class GeocodingConnectionTester implements ConnectionTester {
         if (GoogleGeocoding.PROVIDER_NAME.equals(platform.provider())) {
             return testGoogle(platform);
         }
+        if (!MapboxGeocoding.PROVIDER_NAME.equals(platform.provider())) {
+            return fail("Unknown platform geocoding provider");
+        }
         CredentialTestResponse result = mapbox.check(platform.token());
-        return new ConnectionTestResponse(result.success(), result.testedAt(), result.message());
+        return new ConnectionTestResponse(result.success(), result.testedAt(),
+                result.success() ? "The platform geocoding provider is available" : result.message());
     }
 
     private ConnectionTestResponse testGoogle(GeocodingConnection platform) {
@@ -74,7 +78,7 @@ public class GeocodingConnectionTester implements ConnectionTester {
         }
         try {
             google.forward(platform, PROBE);
-            return new ConnectionTestResponse(true, OffsetDateTime.now(), "Google accepted the API key");
+            return new ConnectionTestResponse(true, OffsetDateTime.now(java.time.ZoneOffset.UTC), "Google accepted the API key");
         } catch (IOException e) {
             return fail(e.getMessage());
         } catch (InterruptedException e) {
@@ -84,6 +88,6 @@ public class GeocodingConnectionTester implements ConnectionTester {
     }
 
     private static ConnectionTestResponse fail(String message) {
-        return new ConnectionTestResponse(false, OffsetDateTime.now(), message);
+        return new ConnectionTestResponse(false, OffsetDateTime.now(java.time.ZoneOffset.UTC), message);
     }
 }

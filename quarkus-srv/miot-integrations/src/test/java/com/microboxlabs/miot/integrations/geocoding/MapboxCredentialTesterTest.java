@@ -56,12 +56,12 @@ class MapboxCredentialTesterTest {
 
     @Test
     void aValidTokenPasses() {
-        body = "{\"code\":\"TokenValid\",\"token\":{\"usage\":\"pk\",\"user\":\"korutx-mbl\"}}";
+        body = "{\"code\":\"TokenValid\",\"token\":{\"usage\":\"pk\",\"user\":\"synthetic-mapbox-user\"}}";
 
         CredentialTestResponse result = tester.test(CredentialType.BEARER_TOKEN, MAPBOX, Map.of("token", "pk.abc"));
 
         assertTrue(result.success());
-        assertEquals("Valid pk token of korutx-mbl", result.message());
+        assertEquals("Valid pk token of synthetic-mapbox-user", result.message());
         assertEquals("access_token=pk.abc", query.get());
     }
 

@@ -3635,8 +3635,10 @@
           "loadError": "The geocoding usage could not be loaded.",
           "forbidden": "Only an owner of the organization can see the geocoding usage.",
           "notEnforced": "The quota is not enforced yet: no call is refused, but usage is recorded.",
-          "noSubscription": "The organization has no subscription. The plan's quota is {quota} calls a month; each extra call costs {price}.",
+          "noSubscriptionEnforced": "No subscription is recorded for this period. Provider calls require an assigned subscription while quotas are enforced. A platform owner manages subscriptions.",
+          "noSubscriptionNotEnforced": "No subscription is recorded for this period. Provider calls are currently allowed because quotas are off; no plan charge is calculated. A platform owner manages subscriptions.",
           "quota": {
+            "unavailable": "No quota is recorded for this period.",
             "title": "Quota",
             "description": "Provider calls this month",
             "unit": "calls",
@@ -3652,6 +3654,7 @@
             "cacheHits": "{count} from the cache ({rate})"
           },
           "charge": {
+            "unavailable": "No plan charge is recorded for this period.",
             "title": "Plan charge",
             "description": "What the organization is charged from its plan",
             "monthly": "Monthly plan",

@@ -324,7 +324,11 @@ export function IntegrationConfigPageContent({
   async function handleDeleteConnection() {
     if (!deletingConnection) return;
     try {
-      if (isPlatformManaged(deletingConnection) && orgSlug) {
+      if (
+        !inPlatformScope &&
+        isPlatformManaged(deletingConnection) &&
+        orgSlug
+      ) {
         await removeManagedGeocoding(orgSlug);
         refresh();
       } else {

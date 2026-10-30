@@ -11,6 +11,8 @@ import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Locale;
+import com.microboxlabs.miot.trips.geo.Addresses;
 import org.jboss.logging.Logger;
 
 /**
@@ -40,7 +42,7 @@ public class FeedSites {
             return done;
         }
         locate(organization, tenantCode, actor, desired.origin(), desired.originSite(), done);
-        if (!Objects.equals(desired.origin(), desired.destination())) {
+        if (desired.originSite() == null || !Objects.equals(desired.origin(), desired.destination())) {
             locate(organization, tenantCode, actor, desired.destination(), desired.destinationSite(), done);
         }
         return done;
@@ -62,7 +64,7 @@ public class FeedSites {
             done.add(code.trim() + ": " + resolved.placement().status());
         } catch (RuntimeException e) {
             LOG.warnf("Feed site %s of %s not located: %s", code, tenantCode, e.getMessage());
-            done.add(code.trim() + ": " + e.getMessage());
+            done.add(code.trim() + ": could not resolve site");
         }
     }
 
@@ -71,10 +73,27 @@ public class FeedSites {
         if (l.geofenceId() != null || Location.RESOLVED.equals(p.status()) || Location.REJECTED.equals(p.status())) {
             return false;
         }
-        return p.status() == null || !Objects.equals(site.address(), p.address())
-                || !Objects.equals(site.districtCode(), p.districtCode())
-                || site.plusCode() != null && !site.plusCode().equalsIgnoreCase(String.valueOf(p.plusCode()))
+        return p.status() == null || contextChanged(site, p) || pointChanged(site, p);
+    }
+
+    private static boolean contextChanged(Site site, Placement p) {
+        return changed(site.address(), p.address())
+                || changed(site.districtCode(), p.districtCode())
+                || changed(country(site.country()), country(p.country()))
+                || site.district() != null && !Addresses.fold(site.district()).equals(Addresses.fold(p.districtName()));
+    }
+
+    private static boolean pointChanged(Site site, Placement p) {
+        return site.plusCode() != null && !site.plusCode().strip().equalsIgnoreCase(String.valueOf(p.plusCode()))
                 || site.latitude() != null && !site.latitude().equals(p.latitude())
                 || site.longitude() != null && !site.longitude().equals(p.longitude());
+    }
+
+    private static boolean changed(String requested, String saved) {
+        return requested != null && !Objects.equals(requested.strip(), saved == null ? null : saved.strip());
+    }
+
+    private static String country(String value) {
+        return value == null ? null : value.strip().toUpperCase(Locale.ROOT);
     }
 }

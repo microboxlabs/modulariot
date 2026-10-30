@@ -31,6 +31,34 @@ class ConnectionTestRecordsCredentialTest {
     private String credentialId = "cred-1";
     private boolean succeeds = true;
     private boolean validates = true;
+    private ProviderType providerType = ProviderType.WHATSAPP;
+    private boolean managedCredential;
+
+    @Test
+    void aManagedGeocodingConnectionCanBeTestedThroughTheOrganizationResource() {
+        providerType = ProviderType.GEOCODING;
+        managedCredential = true;
+        validates = false;
+        var tenant = new com.microboxlabs.miot.core.auth.TenantContext();
+        tenant.setTenantCode(TENANT);
+        var organization = new com.microboxlabs.miot.core.auth.OrganizationContext();
+        organization.setOrganizationId("synthetic-org");
+        var roles = new com.microboxlabs.miot.core.permission.OrganizationRoleService(null, null, null) {
+            @Override public io.smallrye.mutiny.Uni<Void> requireOwner(String id) { return io.smallrye.mutiny.Uni.createFrom().voidItem(); }
+        };
+        var resource = new com.microboxlabs.miot.integrations.api.OrgIntegrationConnectionsResource(tenant, organization, roles, service(), null);
+        var response = resource.testConnection("synthetic-org", "conn-1", null).await().indefinitely();
+        assertEquals(200, response.getStatus());
+        assertTrue(((ConnectionTestResponse) response.getEntity()).success());
+        assertTrue(credentialResults.isEmpty());
+    }
+
+    @Test
+    void anUnmanagedOrganizationGeocodingConnectionIsStillRefused() {
+        providerType = ProviderType.GEOCODING;
+        IntegrationConnectionService service = service();
+        org.junit.jupiter.api.Assertions.assertThrows(PlatformOnlyProviderException.class, () -> service.testConnection(TENANT, "conn-1", null));
+    }
 
     @Test
     void aContractOnlyCheckLeavesTheCredentialAlone() {
@@ -78,7 +106,7 @@ class ConnectionTestRecordsCredentialTest {
 
         @Override
         public IntegrationConnection findByTenantAndId(String tenantCode, String connectionId) {
-            return new IntegrationConnection(connectionId, tenantCode, "WhatsApp", ProviderType.WHATSAPP,
+            return new IntegrationConnection(connectionId, tenantCode, "Synthetic connection", providerType,
                     URI.create("https://graph.example.test"), credentialId, ConnectionStatus.DRAFT, null, null,
                     Map.of());
         }
@@ -98,7 +126,7 @@ class ConnectionTestRecordsCredentialTest {
         @Override
         public CredentialProfile findByTenantAndId(String tenantCode, String id) {
             return new CredentialProfile(id, tenantCode, "WhatsApp token", null, AuthType.BEARER_TOKEN, null,
-                    Map.of(), "{}", "****", 1, null, null, null, null, null, null);
+                    Map.of("managed", managedCredential), "{}", "****", 1, null, null, null, null, null, null);
         }
 
         @Override

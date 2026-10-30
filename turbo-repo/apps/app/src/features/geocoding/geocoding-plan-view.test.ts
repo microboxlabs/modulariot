@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cacheHitRate,
+  formatUsd,
   quotaLevel,
   quotaPercent,
   shiftMonth,
@@ -21,6 +22,11 @@ const usage = (resolutions: number, cacheHits: number): GeocodingUsage => ({
 });
 
 describe("geocoding usage view", () => {
+  it("distinguishes an unknown charge from a known zero charge", () => {
+    expect(formatUsd(null, "en")).toBe("—");
+    expect(formatUsd(0, "en")).toBe("$0.00");
+  });
+
   it("moves across years", () => {
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");

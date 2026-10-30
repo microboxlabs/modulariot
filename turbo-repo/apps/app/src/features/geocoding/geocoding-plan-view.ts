@@ -1,4 +1,4 @@
-import type { GeocodingPlan, GeocodingUsage } from "./geocoding-plan.types";
+import type { GeocodingUsage } from "./geocoding-plan.types";
 
 /** `2026-10`, in UTC as the modulith counts months. */
 export function monthOf(date: Date): string {
@@ -9,14 +9,6 @@ export function monthOf(date: Date): string {
 export function shiftMonth(month: string, delta: number): string {
   const [year, m] = month.split("-").map((part) => Number.parseInt(part, 10));
   return monthOf(new Date(Date.UTC(year!, m! - 1 + delta, 1)));
-}
-
-/** The subscription's quota, else the plan's. */
-export function effectiveQuota(
-  usage: GeocodingUsage,
-  plan: GeocodingPlan
-): number {
-  return usage.quota ?? plan.resolutionsPerMonth;
 }
 
 /** 0–100, for the bar width. */
@@ -45,10 +37,11 @@ export function cacheHitRate(usage: GeocodingUsage): number | null {
 
 /** `$0.0125`: up to four decimals, since one call costs a fraction of a cent. */
 export function formatUsd(value: number | null, lang: string): string {
+  if (value === null) return "—";
   return new Intl.NumberFormat(lang, {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
-  }).format(value ?? 0);
+  }).format(value);
 }

@@ -243,11 +243,10 @@ public class IntegrationConnectionService {
         if (connection == null) {
             return new ConnectionTestResponse(false, OffsetDateTime.now(), "Connection not found");
         }
-        requireAllowed(tenantCode, connection.providerType());
-
-        CredentialProfile credential = connection.credentialProfileId() == null
+        CredentialProfile credential = connection.credentialProfileId() == null || credentialProfileRepository == null
                 ? null
                 : credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
+        requireStoredTestAllowed(tenantCode, connection, credential);
 
         ConnectionTester tester = testerRegistry.testerFor(connection);
         ConnectionTestResponse response = tester.test(connection, credential, req);
@@ -299,11 +298,20 @@ public class IntegrationConnectionService {
 
     /**
      * The platform contracts and pays the geocoding provider. An organization's {@link ProviderType#GEOCODING}
-     * connection is created and removed by a platform owner; the organization cannot create, change, test or delete
+     * connection is created and removed by a platform owner; the organization cannot create, change, draft-test or delete
      * it.
      *
      * @throws PlatformOnlyProviderException for an organization
      */
+    private static void requireStoredTestAllowed(String tenantCode, IntegrationConnection connection,
+            CredentialProfile credential) {
+        if (connection.providerType() != ProviderType.GEOCODING || PLATFORM_TENANT.equals(tenantCode)) return;
+        if (credential != null && tenantCode.equals(credential.tenantCode())
+                && credential.authType() == com.microboxlabs.miot.integrations.domain.AuthType.BEARER_TOKEN
+                && ManagedCredentials.isManaged(credential.publicConfig())) return;
+        throw new PlatformOnlyProviderException(ProviderType.GEOCODING);
+    }
+
     private static void requireAllowed(String tenantCode, ProviderType providerType) {
         if (providerType == ProviderType.GEOCODING && !PLATFORM_TENANT.equals(tenantCode)) {
             throw new PlatformOnlyProviderException(providerType);

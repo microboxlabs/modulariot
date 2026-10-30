@@ -50,14 +50,25 @@ class GeocodingConnectionTesterTest {
     }
 
     @Test
+    void unknownProvidersFailWithoutProbingMapbox() {
+        platform("unknown-synthetic-provider");
+        body = "{\"code\":\"TokenValid\",\"token\":{\"usage\":\"pk\",\"user\":\"synthetic-mapbox-user\"}}";
+        ConnectionTestResponse result = tester().test(null, null, null);
+        assertFalse(result.success());
+        assertEquals("Unknown platform geocoding provider", result.message());
+        assertEquals(null, path.get());
+    }
+
+    @Test
     void anOrganizationsConnectionIsTestedThroughThePlatformsMapboxToken() {
         platform("mapbox");
-        body = "{\"code\":\"TokenValid\",\"token\":{\"usage\":\"pk\",\"user\":\"korutx-mbl\"}}";
+        body = "{\"code\":\"TokenValid\",\"token\":{\"usage\":\"pk\",\"user\":\"synthetic-mapbox-user\"}}";
 
         ConnectionTestResponse result = tester().test(null, null, null);
 
         assertTrue(result.success());
-        assertEquals("Valid pk token of korutx-mbl", result.message());
+        assertEquals("The platform geocoding provider is available", result.message());
+        assertFalse(result.message().contains("synthetic-mapbox-user"));
         assertEquals("/tokens/v2", path.get());
     }
 

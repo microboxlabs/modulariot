@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -20,6 +21,7 @@ import java.util.Map;
  * {@code originSite} and {@code destinationSite} say where each place is; a location that is not resolved yet is
  * located from them after the service is applied (see {@link Site}).
  */
+@RegisterForReflection
 public record FeedServiceRequest(
         String orderType,
         String orderRef,
@@ -59,6 +61,7 @@ public record FeedServiceRequest(
      * 3166 alpha-2.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @RegisterForReflection
     public record Site(String address, String country, String districtCode, String district, String plusCode,
             Double latitude, Double longitude) {
     }

@@ -2,9 +2,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/lang/en.json";
 import type { ReactNode } from "react";
+import type { IntegrationConnection } from "../integration-config.types";
 const state = vi.hoisted(() => ({
   replace: vi.fn(),
   owner: false,
+  slug: "demo-org",
+  connections: [] as IntegrationConnection[],
+  remove: vi.fn(),
+  removeManaged: vi.fn(),
   refresh: vi.fn(),
   connect: vi.fn(),
   success: vi.fn(),
@@ -21,16 +26,14 @@ vi.mock("next/navigation", () => ({
 vi.mock(
   "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
   () => ({
-    useOrgScopes: () => ({ activeOrg: { slug: "demo-org", role: "OWNER" } }),
+    useOrgScopes: () => ({ activeOrg: { slug: state.slug, role: "OWNER" } }),
   })
 );
-vi.mock("@/features/settings-admin/platform/use-platform-membership", () => ({
-  useIsPlatformOwner: () => ({ isPlatformOwner: false, isLoading: false }),
-}));
 vi.mock("../use-integration-config", () => ({
   useIntegrationConfig: () => ({
     templates: [],
-    connections: [],
+    connections: state.connections,
+    removeConnection: state.remove,
     credentials: [],
     isLoading: false,
     error: null,
@@ -55,7 +58,20 @@ vi.mock("@/features/common/components/settings-page-shell", () => ({
 vi.mock("@/features/common/components/section-menu", () => ({
   default: () => null,
 }));
-vi.mock("./connections-list", () => ({ ConnectionsList: () => null }));
+vi.mock("./connections-list", () => ({
+  ConnectionsList: ({
+    connections,
+    onDelete,
+  }: Readonly<{
+    connections: IntegrationConnection[];
+    onDelete: (connection: IntegrationConnection) => void;
+  }>) =>
+    connections.map((connection) => (
+      <button key={connection.id} onClick={() => onDelete(connection)}>
+        Delete {connection.name}
+      </button>
+    )),
+}));
 vi.mock("./connections-toolbar", () => ({ ConnectionsToolbar: () => null }));
 vi.mock("./templates-list", () => ({ TemplatesList: () => null }));
 vi.mock("./template-form-modal", () => ({ TemplateFormModal: () => null }));
@@ -86,7 +102,11 @@ vi.mock("sonner", () => ({
 }));
 vi.mock("./connection-form-modal", () => ({ ConnectionFormModal: () => null }));
 vi.mock("./integration-delete-dialog", () => ({
-  IntegrationDeleteDialog: () => null,
+  IntegrationDeleteDialog: ({
+    show,
+    onConfirm,
+  }: Readonly<{ show: boolean; onConfirm: () => void }>) =>
+    show ? <button onClick={onConfirm}>Confirm deletion</button> : null,
 }));
 vi.mock("./postgrest-functions-modal", () => ({
   PostgrestFunctionsModal: () => null,
@@ -118,6 +138,10 @@ import { IntegrationConfigPageContent } from "./integration-config-page-content"
 beforeEach(() => {
   vi.clearAllMocks();
   state.owner = false;
+  state.slug = "demo-org";
+  state.connections = [];
+  state.remove.mockResolvedValue(undefined);
+  state.removeManaged.mockResolvedValue(undefined);
   state.params = new URLSearchParams(
     "section=bigquery&source=demo-old&query=demo-plan"
   );
@@ -208,4 +232,62 @@ describe("managed BigQuery connection", () => {
     );
     expect(state.refresh).not.toHaveBeenCalled();
   });
+});
+
+vi.mock(
+  "@/features/settings-admin/platform/org-geocoding-connection",
+  async (original) => ({
+    ...(await original<
+      typeof import("@/features/settings-admin/platform/org-geocoding-connection")
+    >()),
+    removeManagedGeocoding: state.removeManaged,
+  })
+);
+
+describe("managed geocoding deletion scope", () => {
+  it.each(["_platform", "demo-org"])(
+    "uses the matching deletion path in %s",
+    async (slug) => {
+      state.slug = slug;
+      state.owner = true;
+      state.params = new URLSearchParams("section=connections");
+      state.connections = [
+        {
+          id: "synthetic-geo",
+          name: "Synthetic geocoding",
+          providerType: "GEOCODING",
+          baseUrl: "https://api.example.test",
+          credentialProfileId: "synthetic-credential",
+          status: "ACTIVE",
+          lastTestedAt: null,
+          lastTestResult: null,
+          templateId: null,
+          metadata: {},
+        },
+      ];
+      render(
+        <IntegrationConfigPageContent
+          dict={en.pages.integrationConnections}
+          breadcrumbDict={{}}
+          rootDict={en}
+          lang="en"
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Delete Synthetic geocoding" })
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Confirm deletion" }));
+      if (slug === "_platform") {
+        await waitFor(() =>
+          expect(state.remove).toHaveBeenCalledWith("synthetic-geo")
+        );
+        expect(state.removeManaged).not.toHaveBeenCalled();
+      } else {
+        await waitFor(() =>
+          expect(state.removeManaged).toHaveBeenCalledWith(slug)
+        );
+        expect(state.remove).not.toHaveBeenCalled();
+      }
+    }
+  );
 });

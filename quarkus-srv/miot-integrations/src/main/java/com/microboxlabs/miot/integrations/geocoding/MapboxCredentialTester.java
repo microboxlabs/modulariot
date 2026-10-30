@@ -59,7 +59,7 @@ public class MapboxCredentialTester implements CredentialTester {
             String code = body.path("code").asText("");
             if (response.statusCode() == 200 && "TokenValid".equals(code)) {
                 JsonNode info = body.path("token");
-                return new CredentialTestResponse(true, OffsetDateTime.now(),
+                return new CredentialTestResponse(true, OffsetDateTime.now(java.time.ZoneOffset.UTC),
                         "Valid " + info.path("usage").asText("") + " token of " + info.path("user").asText("?"),
                         null);
             }

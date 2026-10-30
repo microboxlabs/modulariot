@@ -18,7 +18,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   cacheHitRate,
-  effectiveQuota,
   formatUsd,
   monthOf,
   quotaLevel,
@@ -98,7 +97,19 @@ function QuotaCard({
   d,
 }: Readonly<{ data: OrgGeocodingPlan; d: I18nRecord }>) {
   const { usage, plan, subscription } = data;
-  const quota = effectiveQuota(usage, plan);
+  const quota = usage.quota;
+  if (quota === null) {
+    return (
+      <section className={cardClass}>
+        <div className="px-4 py-5">
+          <h2 className={cardTitleClass}>{tr("quota.title", d)}</h2>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            {tr("quota.unavailable", d)}
+          </p>
+        </div>
+      </section>
+    );
+  }
   const level = quotaLevel(usage.used, quota, plan.alertPct);
   const mode = subscription?.onExhausted ?? "review";
   return (
@@ -177,6 +188,7 @@ function ChargeCard({
   d,
 }: Readonly<{ data: OrgGeocodingPlan; lang: string; d: I18nRecord }>) {
   const { usage, plan, subscription } = data;
+  const knownCharge = subscription !== null && usage.chargeUsd !== null;
   return (
     <section className={cardClass}>
       <div className={cardHeaderClass}>
@@ -194,7 +206,7 @@ function ChargeCard({
             {tr("charge.monthly", d)}
           </p>
           <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-            {formatUsd(subscription ? plan.monthlyPriceUsd : null, lang)}
+            {formatUsd(knownCharge ? plan.monthlyPriceUsd : null, lang)}
           </p>
         </div>
         <div>
@@ -202,7 +214,7 @@ function ChargeCard({
             {tr("charge.overage", d)}
           </p>
           <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-            {formatUsd(usage.overageUsd, lang)}
+            {formatUsd(knownCharge ? usage.overageUsd : null, lang)}
           </p>
         </div>
       </div>
@@ -211,10 +223,12 @@ function ChargeCard({
           {tr("charge.total", d, { total: formatUsd(usage.chargeUsd, lang) })}
         </p>
         <p>
-          {tr("charge.overageCalls", d, {
-            count: usage.overageCalls.toLocaleString(),
-            price: formatUsd(plan.overagePriceUsd, lang),
-          })}
+          {knownCharge
+            ? tr("charge.overageCalls", d, {
+                count: usage.overageCalls.toLocaleString(),
+                price: formatUsd(plan.overagePriceUsd, lang),
+              })
+            : tr("charge.unavailable", d)}
         </p>
       </div>
     </section>
@@ -286,9 +300,8 @@ function SourceTable({
 
 function Notices({
   data,
-  lang,
   d,
-}: Readonly<{ data: OrgGeocodingPlan; lang: string; d: I18nRecord }>) {
+}: Readonly<{ data: OrgGeocodingPlan; d: I18nRecord }>) {
   return (
     <>
       {!data.enforced && (
@@ -301,10 +314,9 @@ function Notices({
       )}
       {data.subscription === null && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300">
-          {tr("noSubscription", d, {
-            quota: data.plan.resolutionsPerMonth.toLocaleString(),
-            price: formatUsd(data.plan.overagePriceUsd, lang),
-          })}
+          {data.enforced
+            ? tr("noSubscriptionEnforced", d)
+            : tr("noSubscriptionNotEnforced", d)}
         </p>
       )}
     </>
@@ -347,7 +359,7 @@ export default function GeocodingUsage({
           {error.status === 403 ? tr("forbidden", d) : tr("loadError", d)}
         </p>
       )}
-      {data && <Notices data={data} lang={lang} d={d} />}
+      {data && <Notices data={data} d={d} />}
       {data && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <QuotaCard data={data} d={d} />

@@ -3635,8 +3635,10 @@
           "loadError": "No se pudo cargar el uso de geocodificación.",
           "forbidden": "Solo un dueño de la organización puede ver el uso de geocodificación.",
           "notEnforced": "La cuota aún no se aplica: no se rechaza ninguna llamada, pero el uso se registra.",
-          "noSubscription": "La organización no tiene suscripción. La cuota del plan es {quota} llamadas al mes; cada llamada extra cuesta {price}.",
+          "noSubscriptionEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor requieren una suscripción asignada cuando se aplican las cuotas. Un dueño de la plataforma administra las suscripciones.",
+          "noSubscriptionNotEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor están permitidas porque las cuotas están desactivadas; no se calcula un cargo del plan. Un dueño de la plataforma administra las suscripciones.",
           "quota": {
+            "unavailable": "No hay una cuota registrada para este período.",
             "title": "Cuota",
             "description": "Llamadas al proveedor en el mes",
             "unit": "llamadas",
@@ -3652,6 +3654,7 @@
             "cacheHits": "{count} desde la caché ({rate})"
           },
           "charge": {
+            "unavailable": "No hay un cargo del plan registrado para este período.",
             "title": "Cargo del plan",
             "description": "Lo que se cobra a la organización según su plan",
             "monthly": "Plan mensual",

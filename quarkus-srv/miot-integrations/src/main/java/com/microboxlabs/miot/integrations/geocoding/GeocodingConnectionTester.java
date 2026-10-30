@@ -61,7 +61,7 @@ public class GeocodingConnectionTester implements ConnectionTester {
         } catch (ConnectionResolutionException | IllegalArgumentException e) {
             return fail("The platform's geocoding connection cannot be read: " + e.getMessage());
         }
-        if (GoogleGeocoding.NAME.equals(platform.provider())) {
+        if (GoogleGeocoding.PROVIDER_NAME.equals(platform.provider())) {
             return testGoogle(platform);
         }
         CredentialTestResponse result = mapbox.check(platform.token());

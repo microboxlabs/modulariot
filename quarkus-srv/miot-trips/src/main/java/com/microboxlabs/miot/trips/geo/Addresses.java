@@ -21,9 +21,9 @@ public final class Addresses {
     /** The last number of the street part is the house number. */
     private static final Pattern NUMBERED = Pattern.compile("^(.*\\D)(\\d{1,5})(?:\\D.*)?$");
     private static final Pattern UNIT = Pattern.compile(
-            "\\s+(?:OF|OFIC|OFICINA|DEPTO|DPTO|DEP|LOCAL|BODEGA|PISO|LOTE)\\b.*$", Pattern.CASE_INSENSITIVE);
+            "\\s+(?:OF|OFIC|OFICINA|DEPTO|DPTO|DEP|LOCAL|BODEGA|PISO|LOTE)\\b.*$", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Pattern NUMBER_MARK = Pattern.compile(
-            "\\s*(?:#|N[°º.]?|NRO\\.?|NUM\\.?|NUMERO)\\s*$", Pattern.CASE_INSENSITIVE);
+            "\\s*(?:#|N[°º.]?|NRO\\.?|NUM\\.?|NUMERO)\\s*$", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Set<String> PREFIXES = Set.of("AV", "AVDA", "AVENIDA", "CALLE", "PASAJE", "PJE", "PSJE");
 
     private Addresses() {

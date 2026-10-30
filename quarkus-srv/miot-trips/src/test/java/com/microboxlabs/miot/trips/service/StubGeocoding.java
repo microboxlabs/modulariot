@@ -97,7 +97,7 @@ public final class StubGeocoding implements AutoCloseable {
                             CredentialType.BEARER_TOKEN, Map.of(ManagedCredentials.MANAGED, true));
                 }
                 return new ResolvedConnection("geo-1", base, Map.copyOf(metadata),
-                        Map.of(GeocodingConnection.TOKEN, "pk.test"));
+                        Map.of(GeocodingConnection.TOKEN_KEY, "pk.test"));
             }
         };
         return new Geocoder(resolver, List.of(new MapboxGeocoding(base), new GoogleGeocoding(base, false)));

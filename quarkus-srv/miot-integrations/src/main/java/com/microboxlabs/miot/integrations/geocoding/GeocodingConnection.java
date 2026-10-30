@@ -11,19 +11,19 @@ import java.math.BigDecimal;
 public record GeocodingConnection(String connectionId, String provider, String token, boolean permanent,
         BigDecimal costPerRequest) {
 
-    public static final String PROVIDER = "provider";
-    public static final String TOKEN = "token";
-    public static final String PERMANENT = "permanent";
+    public static final String PROVIDER_KEY = "provider";
+    public static final String TOKEN_KEY = "token";
+    public static final String PERMANENT_KEY = "permanent";
     public static final String COST = "costPerRequestUsd";
 
     /** @throws IllegalArgumentException when the cost is not a number */
     static GeocodingConnection of(ResolvedConnection c) {
-        String provider = c.metadataString(PROVIDER);
-        String permanent = c.metadataString(PERMANENT);
+        String provider = c.metadataString(PROVIDER_KEY);
+        String permanent = c.metadataString(PERMANENT_KEY);
         String cost = c.metadataString(COST);
         return new GeocodingConnection(c.connectionId(),
-                provider == null || provider.isBlank() ? MapboxGeocoding.NAME : provider.strip().toLowerCase(),
-                c.secretString(TOKEN), permanent == null || Boolean.parseBoolean(permanent.strip()),
+                provider == null || provider.isBlank() ? MapboxGeocoding.PROVIDER_NAME : provider.strip().toLowerCase(),
+                c.secretString(TOKEN_KEY), permanent == null || Boolean.parseBoolean(permanent.strip()),
                 cost == null || cost.isBlank() ? null : new BigDecimal(cost.strip()));
     }
 }

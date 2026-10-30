@@ -35,7 +35,7 @@ public class PlatformGeocodingService {
     /** {@code publicConfig.provider} of a Mapbox or Google Maps credential, as the app's Credentials sets it. */
     static final String CREDENTIAL_TAG = "provider";
     static final Map<String, String> CREDENTIAL_TAGS = Map.of(
-            MapboxGeocoding.NAME, "mapbox", GoogleGeocoding.NAME, "google_maps");
+            MapboxGeocoding.PROVIDER_NAME, "mapbox", GoogleGeocoding.PROVIDER_NAME, "google_maps");
 
     /** {@code configured} is false and the rest null when no provider is set. */
     public record PlatformGeocodingView(boolean configured, String connectionId, String provider, Boolean permanent,
@@ -87,7 +87,7 @@ public class PlatformGeocodingService {
     public PlatformGeocodingView put(SetPlatformGeocodingRequest body, String actor) {
         if (body == null) throw new IllegalArgumentException("Request body is required");
         String name = body.provider() == null || body.provider().isBlank()
-                ? MapboxGeocoding.NAME : body.provider().strip().toLowerCase(java.util.Locale.ROOT);
+                ? MapboxGeocoding.PROVIDER_NAME : body.provider().strip().toLowerCase(java.util.Locale.ROOT);
         GeocodingProvider provider = providers.stream().filter(p -> p.name().equals(name)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("unknown geocoding provider " + name));
         String credentialId = body.credentialProfileId() == null || body.credentialProfileId().isBlank()
@@ -102,9 +102,9 @@ public class PlatformGeocodingService {
             requireCredentialFor(linked, provider.name());
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put(GeocodingConnection.PROVIDER, provider.name());
-        if (MapboxGeocoding.NAME.equals(provider.name())) {
-            metadata.put(GeocodingConnection.PERMANENT, body.permanent() == null || body.permanent());
+        metadata.put(GeocodingConnection.PROVIDER_KEY, provider.name());
+        if (MapboxGeocoding.PROVIDER_NAME.equals(provider.name())) {
+            metadata.put(GeocodingConnection.PERMANENT_KEY, body.permanent() == null || body.permanent());
         }
         if (cost != null) {
             metadata.put(GeocodingConnection.COST, cost.toPlainString());
@@ -154,12 +154,12 @@ public class PlatformGeocodingService {
 
     private PlatformGeocodingView view(IntegrationConnection connection) {
         Map<String, Object> metadata = connection.metadata() == null ? Map.of() : connection.metadata();
-        Object provider = metadata.get(GeocodingConnection.PROVIDER);
-        Object permanent = metadata.get(GeocodingConnection.PERMANENT);
+        Object provider = metadata.get(GeocodingConnection.PROVIDER_KEY);
+        Object permanent = metadata.get(GeocodingConnection.PERMANENT_KEY);
         Object cost = metadata.get(GeocodingConnection.COST);
-        String name = provider instanceof String s && !s.isBlank() ? s : MapboxGeocoding.NAME;
+        String name = provider instanceof String s && !s.isBlank() ? s : MapboxGeocoding.PROVIDER_NAME;
         return new PlatformGeocodingView(true, connection.id(), name,
-                MapboxGeocoding.NAME.equals(name) ? permanent == null || Boolean.parseBoolean(permanent.toString())
+                MapboxGeocoding.PROVIDER_NAME.equals(name) ? permanent == null || Boolean.parseBoolean(permanent.toString())
                         : null,
                 cost == null || cost.toString().isBlank() ? null : new BigDecimal(cost.toString().strip()),
                 connection.credentialProfileId(), credentialName(connection.credentialProfileId()));

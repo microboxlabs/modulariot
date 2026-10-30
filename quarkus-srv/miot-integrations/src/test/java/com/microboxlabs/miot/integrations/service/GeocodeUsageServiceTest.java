@@ -45,7 +45,7 @@ class GeocodeUsageServiceTest {
 
     @Test
     void aProviderCallCarriesItsCostAndCounts() {
-        service.record(new Resolution("acme", "client-a", "ana", "provider", "resolved", "mapbox", false, true,
+        service.recordResolution(new Resolution("acme", "client-a", "ana", "provider", "resolved", "mapbox", false, true,
                 PRICE));
 
         assertEquals(new UsageRow("acme", "client-a", "ana", "provider", "resolved", "mapbox", false, true, PRICE),
@@ -55,7 +55,7 @@ class GeocodeUsageServiceTest {
 
     @Test
     void aCacheHitCostsNothingAndDoesNotCount() {
-        service.record(new Resolution("acme", "client-a", null, "provider", "resolved", "mapbox", true, false,
+        service.recordResolution(new Resolution("acme", "client-a", null, "provider", "resolved", "mapbox", true, false,
                 PRICE));
 
         assertNull(usage.rows.get(0).costUsd());
@@ -66,7 +66,7 @@ class GeocodeUsageServiceTest {
 
     @Test
     void sourcesWithoutAProviderCallCostNothing() {
-        service.record(new Resolution("acme", "client-a", null, "plus_code", "resolved", null, false, false, PRICE));
+        service.recordResolution(new Resolution("acme", "client-a", null, "plus_code", "resolved", null, false, false, PRICE));
 
         assertNull(usage.rows.get(0).costUsd());
         assertFalse(usage.rows.get(0).providerCalled());
@@ -74,8 +74,8 @@ class GeocodeUsageServiceTest {
 
     @Test
     void resolutionsAreCountedBySourceAndResult() {
-        service.record(new Resolution("acme", "client-a", null, "plus_code", "resolved", null, false, false, null));
-        service.record(new Resolution("acme", "client-a", null, null, "needs_review", null, false, false, null));
+        service.recordResolution(new Resolution("acme", "client-a", null, "plus_code", "resolved", null, false, false, null));
+        service.recordResolution(new Resolution("acme", "client-a", null, null, "needs_review", null, false, false, null));
 
         assertEquals(1.0, meters.get("geocoding.resolutions").tags("source", "plus_code", "result", "resolved")
                 .counter().count());
@@ -87,7 +87,7 @@ class GeocodeUsageServiceTest {
     void aFailingQuotaCheckDoesNotFailTheRecord() {
         plans.failing = true;
 
-        service.record(new Resolution("acme", "client-a", null, "provider", "resolved", "mapbox", false, true,
+        service.recordResolution(new Resolution("acme", "client-a", null, "provider", "resolved", "mapbox", false, true,
                 PRICE));
 
         assertEquals(1, usage.rows.size());
@@ -95,7 +95,7 @@ class GeocodeUsageServiceTest {
 
     @Test
     void theTenantIsRequired() {
-        assertThrows(IllegalArgumentException.class, () -> service.record(
-                new Resolution("acme", " ", null, null, "needs_review", null, false, false, null)));
+        Resolution invalid = new Resolution("acme", " ", null, null, "needs_review", null, false, false, null);
+        assertThrows(IllegalArgumentException.class, () -> service.recordResolution(invalid));
     }
 }

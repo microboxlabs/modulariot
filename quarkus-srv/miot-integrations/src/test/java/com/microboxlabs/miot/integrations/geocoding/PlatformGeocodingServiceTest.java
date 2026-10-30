@@ -63,8 +63,8 @@ class PlatformGeocodingServiceTest {
 
     @Test
     void aCredentialIsRequiredTheFirstTime() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put(new SetPlatformGeocodingRequest("mapbox", " ", true, null), "owner"));
+        SetPlatformGeocodingRequest request = new SetPlatformGeocodingRequest("mapbox", " ", true, null);
+        assertThrows(IllegalArgumentException.class, () -> service.put(request, "owner"));
         assertNull(repository.connection);
     }
 
@@ -116,10 +116,10 @@ class PlatformGeocodingServiceTest {
 
     @Test
     void anUnknownProviderOrANegativeCostIsRefused() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put(new SetPlatformGeocodingRequest("here", "cred-mapbox", null, null), "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.put(
-                new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, new BigDecimal("-1")), "owner"));
+        SetPlatformGeocodingRequest unknown = new SetPlatformGeocodingRequest("here", "cred-mapbox", null, null);
+        SetPlatformGeocodingRequest negative = new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, new BigDecimal("-1"));
+        assertThrows(IllegalArgumentException.class, () -> service.put(unknown, "owner"));
+        assertThrows(IllegalArgumentException.class, () -> service.put(negative, "owner"));
     }
 
     private static final class FakeConnections extends IntegrationConnectionRepository {

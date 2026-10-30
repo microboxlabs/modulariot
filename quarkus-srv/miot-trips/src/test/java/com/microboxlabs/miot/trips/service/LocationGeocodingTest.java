@@ -179,7 +179,7 @@ class LocationGeocodingTest {
 
     @Test
     void googleResultsWithoutStoragePermissionNeedReview() {
-        stub.metadata(GeocodingConnection.PROVIDER, "google")
+        stub.metadata(GeocodingConnection.PROVIDER_KEY, "google")
                 .answer(StubGeocoding.results("street_address", LARCO_LON, LARCO_LAT));
 
         Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));
@@ -194,7 +194,7 @@ class LocationGeocodingTest {
 
     @Test
     void aTemporaryMapboxConnectionNeedsReview() {
-        stub.metadata(GeocodingConnection.PERMANENT, "false")
+        stub.metadata(GeocodingConnection.PERMANENT_KEY, "false")
                 .answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
 
         Outcome out = resolver().resolve(ORG, TENANT, larco("Av. Larco 101"));

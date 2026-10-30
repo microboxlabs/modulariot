@@ -84,7 +84,7 @@ class GeocodingConnectionTesterTest {
 
     private void platform(String provider) {
         byTenant.put(PLATFORM_TENANT, new ResolvedConnection("platform", base,
-                Map.of(GeocodingConnection.PROVIDER, provider), Map.of(GeocodingConnection.TOKEN, "tok")));
+                Map.of(GeocodingConnection.PROVIDER_KEY, provider), Map.of(GeocodingConnection.TOKEN_KEY, "tok")));
     }
 
     private GeocodingConnectionTester tester() {

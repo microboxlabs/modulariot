@@ -96,9 +96,9 @@ public class OrgLocationsResource extends OrgResourceSupport {
                 }
                 List<JsonNode> sites = new ArrayList<>();
                 body.forEach(sites::add);
-                return Response.ok(resolution.resolveAll(tenant, actor, sites, OrgLocationsResource::site)).build();
+                return Response.ok(resolution.resolveAll(organizationId, tenant, actor, sites, OrgLocationsResource::site)).build();
             }
-            return Response.ok(LocationView.of(resolution.resolve(tenant, actor, site(body)))).build();
+            return Response.ok(LocationView.of(resolution.resolve(organizationId, tenant, actor, site(body)))).build();
         });
     }
 

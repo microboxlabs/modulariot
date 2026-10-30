@@ -52,6 +52,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-health</artifactId>
         </dependency>
+        <!-- Geocoding metrics (geocoding.GeocodingMetrics). -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer</artifactId>
+        </dependency>
         <!-- A connection list's answers are kept a minute, in a bounded cache. -->
         <dependency>
             <groupId>io.quarkus</groupId>

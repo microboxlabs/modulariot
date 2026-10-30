@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 class LocationResolverTest {
 
+    private static final String ORG = "org-a";
     private static final String TENANT = "client-a";
     private static final AdminBoundaries BOUNDARIES = new AdminBoundaries();
 
@@ -29,7 +30,7 @@ class LocationResolverTest {
 
     @Test
     void aFullPlusCodeInsideTheDistrictResolves() {
-        Outcome out = resolver.resolve(TENANT, miraflores("57V4VXHC+H4", null, null));
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("57V4VXHC+H4", null, null));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertEquals(LocationResolver.PLUS_CODE, out.placement().source());
@@ -42,7 +43,7 @@ class LocationResolverTest {
 
     @Test
     void aShortPlusCodeIsRecoveredFromTheDistrictCentroid() {
-        Outcome out = resolver.resolve(TENANT, miraflores("VXHC+H4 Miraflores", null, null));
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("VXHC+H4 Miraflores", null, null));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertEquals("57V4VXHC+H4", out.placement().plusCode());
@@ -50,7 +51,7 @@ class LocationResolverTest {
 
     @Test
     void aShortPlusCodeWithoutADistrictNeedsReview() {
-        Outcome out = resolver.resolve(TENANT,
+        Outcome out = resolver.resolve(ORG, TENANT,
                 new Site("CD-01", "CD", null, "PE", null, null, "VXHC+H4", null, null));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
@@ -60,7 +61,7 @@ class LocationResolverTest {
     @Test
     void aPointInAnotherDistrictNeedsReviewAndSaysWhere() {
         // Plaza de Armas, Santiago, declared in Providencia
-        Outcome out = resolver.resolve(TENANT,
+        Outcome out = resolver.resolve(ORG, TENANT,
                 new Site("CD-02", "CD", null, "CL", "13123", null, null, -33.4378, -70.6505));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
@@ -71,7 +72,7 @@ class LocationResolverTest {
 
     @Test
     void aPlusCodeOutsideTheDistrictNeedsReview() {
-        Outcome out = resolver.resolve(TENANT, miraflores("57V4XX34+CV", null, null));
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("57V4XX34+CV", null, null));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertTrue(out.placement().note().startsWith("the point is in LIMA (150101)"));
@@ -79,7 +80,7 @@ class LocationResolverTest {
 
     @Test
     void noSourceNeedsReview() {
-        Outcome out = resolver.resolve(TENANT,
+        Outcome out = resolver.resolve(ORG, TENANT,
                 new Site("CD-01", "CD Miraflores", null, "PE", "150122", null, null, null, null));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
@@ -90,7 +91,7 @@ class LocationResolverTest {
 
     @Test
     void coordinatesResolveByDistrictNameIgnoringAccents() {
-        Outcome out = resolver.resolve(TENANT,
+        Outcome out = resolver.resolve(ORG, TENANT,
                 new Site("CD-03", "CD", null, "cl", null, "nunoa", null, -33.4569, -70.5976));
 
         assertEquals(Location.RESOLVED, out.placement().status());
@@ -100,7 +101,7 @@ class LocationResolverTest {
 
     @Test
     void aNameThatRepeatsInTheCountryNeedsTheCode() {
-        Outcome out = resolver.resolve(TENANT,
+        Outcome out = resolver.resolve(ORG, TENANT,
                 new Site("CD-04", "CD", null, "PE", null, "Santa Rosa", null, -12.1, -77.0));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
@@ -109,7 +110,7 @@ class LocationResolverTest {
 
     @Test
     void aDistrictWithoutBoundaryNeedsReview() {
-        Outcome out = resolver.resolve(TENANT,
+        Outcome out = resolver.resolve(ORG, TENANT,
                 new Site("CD-05", "CD", null, "PE", "150137", null, null, -12.04, -76.97));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
@@ -121,7 +122,7 @@ class LocationResolverTest {
         geofences.add("client-b", 7, "CD-01", "CD Miraflores").square(7, -70.65, -33.44, 0.001);
         geofences.add(TENANT, 8, "CD-01", "Otro nombre").square(8, -77.0297, -12.1211, 0.001);
 
-        Outcome out = resolver.resolve(TENANT, miraflores("57V4XX34+CV", null, null));
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("57V4XX34+CV", null, null));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertEquals(LocationResolver.GEOFENCE, out.placement().source());
@@ -132,7 +133,7 @@ class LocationResolverTest {
     void anotherTenantsGeofenceIsNeverUsed() {
         geofences.add("client-b", 7, "CD-01", "CD Miraflores").square(7, -77.0297, -12.1211, 0.001);
 
-        Outcome out = resolver.resolve(TENANT, miraflores(null, null, null));
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores(null, null, null));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertNull(out.geofenceId());
@@ -149,7 +150,7 @@ class LocationResolverTest {
         }
         lon += 200 / (111_320 * Math.cos(Math.toRadians(c.get(1))));
 
-        Outcome out = resolver.resolve(TENANT, new Site("CD-06", "CD", null, "CL", "13123", null, null, c.get(1), lon));
+        Outcome out = resolver.resolve(ORG, TENANT, new Site("CD-06", "CD", null, "CL", "13123", null, null, c.get(1), lon));
 
         assertEquals(Location.RESOLVED, out.placement().status());
     }
@@ -167,7 +168,7 @@ class LocationResolverTest {
 
     @Test
     void anInvalidPlusCodeFallsBackToCoordinates() {
-        Outcome out = resolver.resolve(TENANT, miraflores("NOT-A-CODE", -12.1211, -77.0297));
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("NOT-A-CODE", -12.1211, -77.0297));
 
         assertEquals(Location.RESOLVED, out.placement().status());
         assertEquals(LocationResolver.COORDINATES, out.placement().source());

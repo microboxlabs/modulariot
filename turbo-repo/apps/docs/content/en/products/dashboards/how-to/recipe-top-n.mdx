@@ -1,0 +1,48 @@
+# Recipe: top N as a horizontal bar
+
+**For:** implementers. **Setup:** ModularIoT.
+
+**Result:** a ranking of the 5 owners with the most requests, from highest to lowest, with the value at the end of each bar.
+
+![Top 5 owners as horizontal bars with labels](/dashboards/chart_v2/bar-horizontal.png)
+
+## Query
+
+```sql
+SELECT responsable, COUNT(*) AS cantidad
+FROM `my-project.operations.solicitudes`
+GROUP BY responsable
+ORDER BY cantidad DESC
+LIMIT 5
+```
+
+The chart does not sort: the order comes from `ORDER BY`. The first row is at the top.
+
+## Steps
+
+1. Add the saved query `top_responsables` with **Parameters (JSON)** `{}`.
+2. **Add Widget** › **Chart v2**. **Data Provider**: **Planner**, **Variable** `top_responsables`.
+3. **Visualization**:
+
+   | Setting | Value |
+   | --- | --- |
+   | **Chart Family** | Cartesian |
+   | **X-Axis Column** | `responsable` |
+   | **Representations** | One, **Bar**, column `cantidad`, label `Requests`, **Labels** on |
+   | **Horizontal Bars** | On |
+   | **Show Legend** | Off |
+
+4. **Save**.
+
+## Variants
+
+| You want | Change |
+| --- | --- |
+| The top 10 | `LIMIT 10` and a taller widget |
+| The bottom (fewest requests) | `ORDER BY cantidad ASC` |
+| Color by value | **Colors & Rules**: for example `>` `10` red. See [Chart v2](/en/products/dashboards/reference/widgets/chart-v2#color-rules) |
+| Long names | They are cut at 120 pixels. Shorten them in the query |
+
+## Related
+
+- [Chart v2](/en/products/dashboards/reference/widgets/chart-v2)

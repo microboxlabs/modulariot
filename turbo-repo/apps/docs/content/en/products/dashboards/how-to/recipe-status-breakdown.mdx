@@ -1,0 +1,56 @@
+import { Callout } from 'nextra/components'
+
+# Recipe: KPI per state and a 100% bar
+
+**For:** implementers. **Setup:** ModularIoT.
+
+**Result:** one number per state and a 100% bar split by state, each state with its fixed color.
+
+![Stacked Stat Solicitudes por estado (49) with Pendiente 12, En curso 7, Cerrada 30](/dashboards/stat_stacked/templated.png)
+
+## Query
+
+One row, one column per state. Save it in **Settings › Connections › BigQuery** as `resumen_estados`.
+
+```sql
+SELECT
+  COUNT(*) AS total,
+  COUNTIF(estado = 'pendiente') AS pendiente,
+  COUNTIF(estado = 'en_curso')  AS en_curso,
+  COUNTIF(estado = 'cerrada')   AS cerrada
+FROM `my-project.operations.solicitudes`
+```
+
+## Steps
+
+1. In the dashboard, **Saved queries** › **Add query**: **Result name** `resumen`, **Operation** `resumen_estados`, **Parameters (JSON)** `{}`. **Apply to draft**.
+2. **Add Widget** › **Stacked Stat**.
+3. **Data Provider** tab: **Data Source** **Planner**, **Variable** `resumen`.
+4. **Visualization** tab:
+
+   | Setting | Value |
+   | --- | --- |
+   | **Chart Type** | Bar |
+   | **Title** | `Requests by state ({{total}})` |
+   | **Unit** | empty |
+   | **Categories** | `Pending` `{{pendiente}}` yellow · `In progress` `{{en_curso}}` blue · `Closed` `{{cerrada}}` green |
+
+5. **Save**.
+
+## Variants
+
+| You want | Change |
+| --- | --- |
+| Percentages in the legend | Compute `pendiente_pct` in the query and use **Unit** `%`. See [Percentages](/en/products/dashboards/tutorials/queries-for-widgets#percentages) |
+| A ring instead of a bar | **Chart Type** Donut |
+| A large number per state, as cards | Add one Stat Card per state with the same variable and **Value** `{{pendiente}}`. Stacked Stat has no card legend ([#2235](https://github.com/microboxlabs/modulariot/issues/2235)) |
+| React to a date filter | Add `@desde` and `@hasta` to the query and bind them in **Parameters (JSON)**. See [Filters as parameters](/en/products/dashboards/tutorials/queries-for-widgets#filters-as-parameters) |
+
+<Callout type="warning">
+**Pitfall:** a query with `GROUP BY estado` returns one row per state, and Stacked Stat reads only the first. Pivot the query as above.
+</Callout>
+
+## Related
+
+- [Stacked Stat](/en/products/dashboards/reference/widgets/stacked-stat)
+- [Recipe: filter a table by state](/en/products/dashboards/how-to/recipe-filter-table)

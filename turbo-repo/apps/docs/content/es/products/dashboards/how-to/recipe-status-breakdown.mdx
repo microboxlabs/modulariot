@@ -1,0 +1,56 @@
+import { Callout } from 'nextra/components'
+
+# Receta: KPI por estado y barra 100 %
+
+**Para:** implementadores. **Configuración:** ModularIoT.
+
+**Resultado:** un número por estado y una barra 100 % dividida por estado, cada estado con su color fijo.
+
+![Stacked Stat Solicitudes por estado (49) con Pendiente 12, En curso 7, Cerrada 30](/dashboards/stat_stacked/templated.png)
+
+## Consulta
+
+Una fila, una columna por estado. Guárdela en **Ajustes › Conexiones › BigQuery** como `resumen_estados`.
+
+```sql
+SELECT
+  COUNT(*) AS total,
+  COUNTIF(estado = 'pendiente') AS pendiente,
+  COUNTIF(estado = 'en_curso')  AS en_curso,
+  COUNTIF(estado = 'cerrada')   AS cerrada
+FROM `mi-proyecto.operaciones.solicitudes`
+```
+
+## Pasos
+
+1. En el dashboard, **Consultas guardadas** › **Agregar consulta**: **Nombre del resultado** `resumen`, **Operación** `resumen_estados`, **Parámetros (JSON)** `{}`. **Aplicar al borrador**.
+2. **Agregar Widget** › **Stacked Stat**.
+3. Pestaña **Proveedor de Datos**: **Fuente de Datos** **Planificador**, **Variable** `resumen`.
+4. Pestaña **Visualización**:
+
+   | Ajuste | Valor |
+   | --- | --- |
+   | **Tipo de gráfico** | Barra |
+   | **Título** | `Solicitudes por estado ({{total}})` |
+   | **Unidad** | vacía |
+   | **Categories** | `Pendiente` `{{pendiente}}` amarillo · `En curso` `{{en_curso}}` azul · `Cerrada` `{{cerrada}}` verde |
+
+5. **Guardar**.
+
+## Variantes
+
+| Quiere | Cambie |
+| --- | --- |
+| Porcentajes en la leyenda | Calcule `pendiente_pct` en la consulta y use **Unidad** `%`. Vea [Porcentajes](/es/products/dashboards/tutorials/queries-for-widgets#porcentajes) |
+| Un anillo en lugar de barra | **Tipo de gráfico** Dona |
+| Un número grande por estado, en tarjetas | Agregue un Stat Card por estado con la misma variable y **Valor** `{{pendiente}}`. El Stacked Stat no tiene leyenda en tarjetas ([#2235](https://github.com/microboxlabs/modulariot/issues/2235)) |
+| Que responda a un filtro de fecha | Agregue `@desde` y `@hasta` a la consulta y vincúlelos en **Parámetros (JSON)**. Vea [Filtros como parámetros](/es/products/dashboards/tutorials/queries-for-widgets#filtros-como-parámetros) |
+
+<Callout type="warning">
+**Cuidado:** una consulta con `GROUP BY estado` devuelve una fila por estado, y el Stacked Stat lee solo la primera. Pivote la consulta como arriba.
+</Callout>
+
+## Relacionado
+
+- [Stacked Stat](/es/products/dashboards/reference/widgets/stacked-stat)
+- [Receta: filtrar una tabla por estado](/es/products/dashboards/how-to/recipe-filter-table)

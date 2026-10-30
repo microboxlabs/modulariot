@@ -1,0 +1,67 @@
+import { Callout } from 'nextra/components'
+
+# Recipe: one color per state
+
+**For:** implementers. **Setup:** ModularIoT.
+
+**Result:** each state always shows in the same color (pending yellow, in progress blue, closed green), in the summary, in a bar chart and in the table.
+
+| Widget | How the color is fixed |
+| --- | --- |
+| Stacked Stat | One color per category in the settings |
+| Chart v2 bars | One series per state, each with its color |
+| Data Table V2 | One color rule per state on the column |
+| Chart v2 pie | Cannot be fixed from the UI |
+
+## Stacked Stat
+
+![Stacked Stat with Pendiente yellow, En curso blue and Cerrada green](/dashboards/stat_stacked/bar.png)
+
+Each category has its color. See [Recipe: KPI per state and a 100% bar](/en/products/dashboards/how-to/recipe-status-breakdown).
+
+## Bars with one color per state
+
+![Yellow, blue and green bars, one per state](/dashboards/chart_v2/colors-per-state.png)
+
+A bar chart colors by series. The query returns one column per state, with a value only in its state's row:
+
+```sql
+SELECT
+  CASE estado WHEN 'pendiente' THEN 'Pending' WHEN 'en_curso' THEN 'In progress' ELSE 'Closed' END AS etiqueta,
+  IF(estado = 'pendiente', COUNT(*), NULL) AS pendiente,
+  IF(estado = 'en_curso',  COUNT(*), NULL) AS en_curso,
+  IF(estado = 'cerrada',   COUNT(*), NULL) AS cerrada
+FROM `my-project.operations.solicitudes`
+GROUP BY estado
+ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
+```
+
+| Setting | Value |
+| --- | --- |
+| **X-Axis Column** | `etiqueta` |
+| **Representations** | Three bars: `pendiente` yellow, `en_curso` blue, `cerrada` green. All three with **Stacked** and **Labels** |
+| **Show Legend** | Off |
+
+With **Stacked**, each bar is centered on its category. Give all three representations a color.
+
+## Table with the state in color
+
+![Estado column with colored badges](/dashboards/data_table_v2/column-color-rules.png)
+
+On the Estado column: type `badge`, paintbrush on and one `=` rule per state. See [Data Table V2](/en/products/dashboards/reference/widgets/data-table#state-with-color).
+
+## Pie
+
+<Callout type="warning">
+**Pitfall:** in a pie, choosing a color for its representation paints **every** slice that color ([#2240](https://github.com/microboxlabs/modulariot/issues/2240)). Use bars or a Stacked Stat. If you need the pie, leave the color unset: slices take the default palette in row order.
+</Callout>
+
+## Colors used on these pages
+
+| State | Color |
+| --- | --- |
+| Pending | `eab308` |
+| In progress | `3b82f6` |
+| Closed | `22c55e` |
+
+In Stacked Stat and in table rules, the color goes without `#`. In Chart v2 `customColors`, with `#`.

@@ -1,0 +1,76 @@
+import { Callout } from 'nextra/components'
+
+# Recipe: filter a table by state
+
+**For:** implementers. **Setup:** ModularIoT.
+
+**Result:** a **State** filter above the dashboard. Choosing a state makes the table show only those rows. The summary keeps showing every state.
+
+![Filter Estado: En curso, the Stacked Stat with the three states and the table with 7 rows](/dashboards/tutorial/result.png)
+
+<Callout type="info">
+Clicking a chart or a bar does not filter the table ([#2234](https://github.com/microboxlabs/modulariot/issues/2234)). This recipe uses a dashboard filter.
+</Callout>
+
+## Queries
+
+**Detail**, with the `@estado` parameter of type `STRING`:
+
+```sql
+SELECT
+  id, estado, responsable,
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada_en
+FROM `my-project.operations.solicitudes`
+WHERE (IFNULL(@estado, '') = '' OR estado IN UNNEST(SPLIT(@estado, ',')))
+ORDER BY creada_en DESC
+LIMIT 500
+```
+
+**Filter options** (optional), so the list of states comes from the data:
+
+```sql
+SELECT DISTINCT estado,
+  CASE estado WHEN 'pendiente' THEN 'Pending' WHEN 'en_curso' THEN 'In progress' ELSE 'Closed' END AS etiqueta
+FROM `my-project.operations.solicitudes`
+ORDER BY estado
+```
+
+## Steps
+
+1. Add the saved query `detalle` with these parameters:
+
+   ```json
+   { "estado": { "kind": "filter", "key": "estado", "defaultValue": "" } }
+   ```
+
+2. Add a **Data Table V2** with **Data Source** **Planner** and **Variable** `detalle`.
+3. If you use the options query, add it as the saved query `estados`.
+4. Settings menu › **Filter Bar** › **Add filter**:
+
+   | Setting | Value |
+   | --- | --- |
+   | **Filter type** | Select |
+   | **Display label** | `State` |
+   | **Parameter key** | `estado` |
+   | **Allow a single selection** | On for one state at a time. Off for several |
+   | **Options source** | **Manual (typed by hand)** with `Pending`/`pendiente`, `In progress`/`en_curso`, `Closed`/`cerrada`, or the query `estados` with **Value column** `estado` and **Label column** `etiqueta` |
+
+5. **Save** in the panel and turn off **Edit Mode**.
+
+| Part | Does |
+| --- | --- |
+| `"key": "estado"` in the binding | Must match the filter's **Parameter key** |
+| `"defaultValue": ""` | With no filter, the query receives empty text and returns everything. BigQuery needs every parameter |
+| `SPLIT(@estado, ',')` | With several options chosen, the value arrives as `pendiente,en_curso` |
+
+The page address keeps the filter (`?estado=en_curso`). You can share that link.
+
+## To filter the summary too
+
+Add `@estado` to the summary query with the same condition and the same binding. With one state chosen, the 100% bar has a single color.
+
+## Related
+
+- [Add filters](/en/products/dashboards/how-to/add-filters)
+- [Data Table V2](/en/products/dashboards/reference/widgets/data-table)
+- [Filters as parameters](/en/products/dashboards/tutorials/queries-for-widgets#filters-as-parameters)

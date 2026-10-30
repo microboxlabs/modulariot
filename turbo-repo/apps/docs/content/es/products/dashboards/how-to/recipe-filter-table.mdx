@@ -1,0 +1,76 @@
+import { Callout } from 'nextra/components'
+
+# Receta: filtrar una tabla por estado
+
+**Para:** implementadores. **Configuración:** ModularIoT.
+
+**Resultado:** un filtro **Estado** sobre el dashboard. Al elegir un estado, la tabla muestra solo esas filas. El resumen sigue mostrando todos los estados.
+
+![Filtro Estado: En curso, el Stacked Stat con los tres estados y la tabla con 7 filas](/dashboards/tutorial/result.png)
+
+<Callout type="info">
+Hacer clic en un gráfico o en una barra no filtra la tabla ([#2234](https://github.com/microboxlabs/modulariot/issues/2234)). Esta receta usa un filtro del dashboard.
+</Callout>
+
+## Consultas
+
+**Detalle**, con el parámetro `@estado` de tipo `STRING`:
+
+```sql
+SELECT
+  id, estado, responsable,
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada_en
+FROM `mi-proyecto.operaciones.solicitudes`
+WHERE (IFNULL(@estado, '') = '' OR estado IN UNNEST(SPLIT(@estado, ',')))
+ORDER BY creada_en DESC
+LIMIT 500
+```
+
+**Opciones del filtro** (opcional), para que la lista de estados salga de los datos:
+
+```sql
+SELECT DISTINCT estado,
+  CASE estado WHEN 'pendiente' THEN 'Pendiente' WHEN 'en_curso' THEN 'En curso' ELSE 'Cerrada' END AS etiqueta
+FROM `mi-proyecto.operaciones.solicitudes`
+ORDER BY estado
+```
+
+## Pasos
+
+1. Agregue la consulta guardada `detalle` con estos parámetros:
+
+   ```json
+   { "estado": { "kind": "filter", "key": "estado", "defaultValue": "" } }
+   ```
+
+2. Agregue una **Tabla de Datos V2** con **Fuente de Datos** **Planificador** y **Variable** `detalle`.
+3. Si usa la consulta de opciones, agréguela como consulta guardada `estados`.
+4. Menú de ajustes › **Barra de Filtros** › **Agregar filtro**:
+
+   | Ajuste | Valor |
+   | --- | --- |
+   | **Tipo de filtro** | Selección |
+   | **Etiqueta de visualización** | `Estado` |
+   | **Clave de parámetro** | `estado` |
+   | **Permitir una sola selección** | Encendido para un estado a la vez. Apagado para varios |
+   | **Origen de las opciones** | **Manual (escritas a mano)** con `Pendiente`/`pendiente`, `En curso`/`en_curso`, `Cerrada`/`cerrada`, o la consulta `estados` con **Columna del valor** `estado` y **Columna de la etiqueta** `etiqueta` |
+
+5. **Guardar** en el panel y desactive **Modo Edición**.
+
+| Parte | Hace |
+| --- | --- |
+| `"key": "estado"` en el vínculo | Debe ser igual a la **Clave de parámetro** del filtro |
+| `"defaultValue": ""` | Sin filtro, la consulta recibe texto vacío y devuelve todo. BigQuery necesita todos sus parámetros |
+| `SPLIT(@estado, ',')` | Con varias opciones elegidas, el valor llega como `pendiente,en_curso` |
+
+La dirección de la página guarda el filtro (`?estado=en_curso`). Puede compartir ese enlace.
+
+## Para que el resumen también se filtre
+
+Agregue `@estado` a la consulta del resumen con la misma condición y el mismo vínculo. Con un solo estado elegido, la barra 100 % queda de un solo color.
+
+## Relacionado
+
+- [Agregar filtros](/es/products/dashboards/how-to/add-filters)
+- [Tabla de Datos V2](/es/products/dashboards/reference/widgets/data-table)
+- [Filtros como parámetros](/es/products/dashboards/tutorials/queries-for-widgets#filtros-como-parámetros)

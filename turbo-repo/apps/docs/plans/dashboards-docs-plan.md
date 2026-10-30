@@ -134,15 +134,20 @@ Browser access: the sign-in at modulariot.com/app uses social login. Screenshots
 signed-in session. Pages ship with the screenshot table and the image paths listed; a
 missing image is a TODO in the PR body, never a broken `<img>`.
 
-## Product gaps to file as issues
+## Product gaps filed
 
-| Gap | Status |
+| Issue | Gap |
 | --- | --- |
-| Chart v2 has no per-category color map for pie/bar slices (palette applies in row order) | To file |
-| Chart click cannot set a dashboard filter (no drill-down to a table) | To file |
-| Stacked Stat legend has no "cards" layout | To file |
-| Scalar widgets read only the first row; no "row where column = X" picker | To file |
-| BigQuery saved queries need every parameter; `omitWhenEmpty` makes the run fail | Confirmed in `bigquery-plan.ts`; to file |
+| #2240 | Chart v2 per-category colors; in the ModularIoT setup a pie color paints every slice |
+| #2234 | Chart click sets a dashboard filter (drill-down to a table) |
+| #2235 | Cards layout for the Stacked Stat legend |
+| #2236 | Scalar widgets read only the first row |
+| #2237 | BigQuery optional filters: `omitWhenEmpty` fails, empty test value is `NULL` |
+| #2238 | ModularIoT widget settings: "Planner" label, hard-coded English, demo defaults |
+| #2239 | Editing UI for non-React hosts (LiveView) |
+
+Screenshot variants that the ModularIoT UI cannot produce (Chart v2 palettes: the UI always saves
+`colorPalette: "custom"`) are built by importing a JSON document, and the page says so.
 
 ## PR order
 

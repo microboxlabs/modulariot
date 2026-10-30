@@ -364,18 +364,29 @@ export function IntegrationConfigPageContent({
     }
   }
 
-  const openManagedProvider = inPlatformScope
-    ? () => setProviderSetupOpen(true)
-    : undefined;
-  const selectManagedGeocoding = isPlatformOwner
-    ? () => void handleManagedGeocoding()
-    : undefined;
-  const selectManagedBigQuery = isPlatformOwner
-    ? () => void handleManagedBigQuery()
-    : undefined;
-  const deleteConnectionFromModal = connectionModal.connection
-    ? () => handleDeleteConnectionFromModal(connectionModal.connection!)
-    : undefined;
+  function openManagedProvider() {
+    setProviderSetupOpen(true);
+  }
+
+  function selectManagedGeocoding() {
+    void handleManagedGeocoding();
+  }
+
+  function selectManagedBigQuery() {
+    void handleManagedBigQuery();
+  }
+
+  function deleteConnectionFromModal() {
+    if (connectionModal.connection) {
+      handleDeleteConnectionFromModal(connectionModal.connection);
+    }
+  }
+
+  function deleteTemplateFromModal() {
+    if (templateModal.template) {
+      handleDeleteTemplateFromModal(templateModal.template);
+    }
+  }
 
   return (
     <SettingsPageShell
@@ -484,7 +495,7 @@ export function IntegrationConfigPageContent({
               templates={templates}
               credentials={credentials}
               onOpen={handleEditConnection}
-              onOpenManaged={openManagedProvider}
+              onOpenManaged={inPlatformScope ? openManagedProvider : undefined}
               onTest={handleTest}
               onDelete={setDeletingConnection}
               canRemoveManaged={isPlatformOwner}
@@ -528,11 +539,7 @@ export function IntegrationConfigPageContent({
         template={templateModal.template}
         onClose={() => setTemplateModal({ open: false })}
         onSave={saveTemplate}
-        onDelete={
-          templateModal.template
-            ? () => handleDeleteTemplateFromModal(templateModal.template!)
-            : undefined
-        }
+        onDelete={templateModal.template ? deleteTemplateFromModal : undefined}
         saving={saving}
         dict={dict}
       />
@@ -543,9 +550,13 @@ export function IntegrationConfigPageContent({
         onClose={() => setPickerOpen(false)}
         onSelect={handleTemplatePicked}
         onSelectNative={handleNativePicked}
-        onSelectManagedGeocoding={selectManagedGeocoding}
+        onSelectManagedGeocoding={
+          isPlatformOwner ? selectManagedGeocoding : undefined
+        }
         managedGeocodingInPlatform={inPlatformScope}
-        onSelectManagedBigQuery={selectManagedBigQuery}
+        onSelectManagedBigQuery={
+          isPlatformOwner ? selectManagedBigQuery : undefined
+        }
         dict={dict}
       />
 
@@ -568,7 +579,9 @@ export function IntegrationConfigPageContent({
         credentials={credentials}
         onClose={() => setConnectionModal({ open: false })}
         onSave={saveConnection}
-        onDelete={deleteConnectionFromModal}
+        onDelete={
+          connectionModal.connection ? deleteConnectionFromModal : undefined
+        }
         onTest={testInstance}
         onTestDraft={testDraft}
         saving={saving}

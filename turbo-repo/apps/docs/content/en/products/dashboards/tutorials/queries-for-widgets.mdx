@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Queries for widgets
 
-**For:** implementers.
+**For:** implementers. **Setup:** setting names are the ModularIoT ones; the queries apply to any setup.
 
 <Callout type="info">
 **You will learn to:**
@@ -16,7 +16,7 @@ import { Callout } from 'nextra/components'
 
 The examples use BigQuery SQL and a `solicitudes` (requests) table with the columns `id`, `estado` (state), `responsable` (owner) and `creada_en` (created at). With PostgreSQL, the same `SELECT` goes inside a function published by PostgREST.
 
-## The rule
+## One row or all rows
 
 Each widget reads its query in one of two ways:
 
@@ -43,7 +43,7 @@ LIMIT 500
 | Variable | the result name, for example `detalle` |
 | Columns | filled in from the query columns |
 
-Write `ORDER BY` and `LIMIT` in the query. The table's sorting and column filters work on the rows that already arrived, not on the whole source table.
+Write `ORDER BY` and `LIMIT` in the query. The table's sorting and column filters work only on the rows the query returned.
 
 ## Single value: the first row
 
@@ -124,7 +124,7 @@ SELECT
 FROM c
 ```
 
-In the Stacked Stat, use `{{pendiente_pct}}` as the value and `%` as **Unit**. `SAFE_DIVIDE` returns `NULL` instead of an error when `total` is 0; the widget shows 0.
+In the Stacked Stat, use `{{pendiente_pct}}` as the value and `%` as **Unit**. `SAFE_DIVIDE` returns `NULL` instead of an error when `total` is 0. The widget shows 0.
 
 To round inside the widget, use a template helper: `{{toFixed pendiente_pct 0}}`.
 
@@ -185,7 +185,7 @@ Stacked bars show counts. For 100% bars, return percentages per month, as in [Pe
 
 ### One color per state in bars
 
-A bar chart colors by series. To give each state its color in a chart with one bar per state, return one column per state and leave the others empty:
+A bar chart colors by series. To give each state its own color, return one column per state. Leave the other columns empty:
 
 ```sql
 SELECT
@@ -203,7 +203,7 @@ GROUP BY estado
 | en_curso | | 7 | |
 | cerrada | | | 30 |
 
-Create three bar representations, one per column, each with its color, and turn on **Stacked** on all three. With **Stacked**, each bar is centered on its category. Without it, the chart reserves room for the three series in every category.
+Create three bar representations, one per column. Give each its color. Turn on **Stacked** on all three. With **Stacked**, each bar is centered on its category. Without it, the chart reserves room for the three series in every category.
 
 <Callout type="info">
 Chart v2 color rules compare only the numeric value (for example, "greater than 20 → red"). They cannot pick a color by category name.
@@ -235,11 +235,16 @@ SELECT ROUND(100 * SAFE_DIVIDE(COUNTIF(estado = 'cerrada'), COUNT(*)), 1) AS cer
 FROM `my-project.operations.solicitudes`
 ```
 
+| Setting | Value |
+| --- | --- |
+| Chart Family | Gauge |
+| Representations | one, column `cerradas_pct` |
+
 ## Filters as parameters
 
 A dashboard filter reaches the query as a parameter. In BigQuery, a parameter is written `@name` and declared with a type in the query editor.
 
-They are connected in the dashboard's saved query, in **Parameters (JSON)**:
+Bind filters to parameters in the dashboard's saved query, in **Parameters (JSON)**:
 
 ```json
 {
@@ -272,7 +277,7 @@ LIMIT 500
 
 | Part | Does |
 | --- | --- |
-| `IFNULL(@estado, '') = ''` | With no filter, lets every row through. The editor sends `NULL` when the test value is empty; the dashboard sends `defaultValue`. |
+| `IFNULL(@estado, '') = ''` | With no filter, lets every row through. The editor sends `NULL` when the test value is empty. The dashboard sends `defaultValue`. |
 | `SPLIT(@estado, ',')` | Accepts one option or several |
 | `TIMESTAMP(@desde, 'America/Santiago')` | Reads the date in the given time zone. Use yours. |
 

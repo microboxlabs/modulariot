@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Elegir un widget
 
-**Para:** implementadores.
+**Para:** implementadores. **Configuración:** los nombres de widgets y ajustes son los de ModularIoT; el resto vale para cualquier configuración.
 
 <Callout type="info">
 **Aprenderá a:**
@@ -41,12 +41,12 @@ Los nombres son los de la interfaz de ModularIoT. El `componentId` es el que se 
 
 ## Una fila o todas las filas
 
-Cada widget lee su consulta de una de dos formas. Esto decide cómo escribe la consulta.
+Cada widget lee su consulta de una de dos formas. Escriba la consulta según la forma.
 
 | Lee | Widgets | La consulta devuelve |
 | --- | --- | --- |
 | **Solo la primera fila** | Text Card, Info Card, todos los Stat, Progress, Stacked Stat, Chart v2 **Indicador** | Una fila. Una columna por cada número que muestra el widget. |
-| **Todas las filas** | Tabla de Datos, Tabla de Datos V2, Lista de Datos, Chart v2 **Cartesiano** y **Torta** | Una fila por elemento: una fila por fila de tabla, por barra o por porción. |
+| **Todas las filas** | Tabla de Datos, Tabla de Datos V2, Lista de Datos, Chart v2 **Cartesiano** y **Torta** | Una fila por elemento: por fila de la tabla, por barra o por porción. |
 
 Los widgets de la primera fila usan plantillas: `{{pendiente}}` se reemplaza por el valor de la columna `pendiente` en la primera fila. Si la consulta devuelve más filas, el widget las ignora.
 
@@ -56,7 +56,7 @@ Los widgets de la primera fila usan plantillas: `{{pendiente}}` se reemplaza por
 
 ## Stacked Stat, torta o barras
 
-Los tres muestran partes de un total. Se diferencian en de dónde salen las categorías y los colores.
+Los tres muestran partes de un total.
 
 | | Stacked Stat | Chart v2 Torta | Chart v2 Barras |
 | --- | --- | --- | --- |
@@ -72,7 +72,7 @@ Use Stacked Stat cuando conoce los estados de antemano y cada uno tiene un color
 <details>
 <summary>Colores por categoría en Chart v2</summary>
 
-Chart v2 asigna colores por **serie**, no por categoría:
+Chart v2 asigna un color por **serie**:
 
 | Gráfico | Qué recibe un color |
 | --- | --- |
@@ -87,7 +87,12 @@ En la configuración de ModularIoT, el selector de color de cada representación
 | No toca el color de la representación | Cada porción con un color de la paleta por defecto, en el orden de las filas |
 | Elige un color para la representación | **Todas las porciones con ese color** |
 
-Para fijar un color por estado en una torta, edite el documento: exporte el dashboard, escriba en `customColors` un color por porción en el orden de las filas e impórtelo ([Importar y exportar](/es/products/dashboards/how-to/import-export)). Ordene las filas en la consulta con un orden fijo. Si un estado no tiene filas, los colores se corren.
+Para fijar un color por estado en una torta, edite el documento ([Importar y exportar](/es/products/dashboards/how-to/import-export)):
+
+1. Exporte el dashboard.
+2. En `customColors` del widget, escriba un color por porción, en el orden de las filas.
+3. Importe el archivo.
+4. Ordene las filas en la consulta con un orden fijo. Si un estado no tiene filas, los colores se desplazan.
 
 Para barras con un color por estado: devuelva una columna por estado y cree una representación por columna, cada una con su color. Vea [Consultas para widgets](/es/products/dashboards/tutorials/queries-for-widgets#un-color-por-estado-en-barras).
 

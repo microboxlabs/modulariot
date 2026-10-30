@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Choose a widget
 
-**For:** implementers.
+**For:** implementers. **Setup:** widget and setting names are the ModularIoT ones; the rest applies to any setup.
 
 <Callout type="info">
 **You will learn to:**
@@ -41,7 +41,7 @@ The names are the ones in the ModularIoT UI. The `componentId` is what the docum
 
 ## One row or all rows
 
-Each widget reads its query in one of two ways. This decides how you write the query.
+Each widget reads its query in one of two ways. Write the query to match.
 
 | Reads | Widgets | The query returns |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ First-row widgets use templates: `{{pendiente}}` is replaced by the value of the
 
 ## Stacked Stat, pie or bars
 
-All three show the parts of a total. They differ in where the categories and colors come from.
+All three show the parts of a total.
 
 | | Stacked Stat | Chart v2 Pie | Chart v2 Bars |
 | --- | --- | --- | --- |
@@ -72,7 +72,7 @@ Use Stacked Stat when you know the states in advance and each has a fixed color.
 <details>
 <summary>Colors per category in Chart v2</summary>
 
-Chart v2 assigns colors per **series**, not per category:
+Chart v2 assigns one color per **series**:
 
 | Chart | What gets a color |
 | --- | --- |
@@ -87,7 +87,12 @@ In the ModularIoT setup, the color picker of each representation writes `customC
 | Leave the representation color alone | Each slice in a default palette color, in row order |
 | Pick a color for the representation | **Every slice in that color** |
 
-To fix one color per state in a pie, edit the document: export the dashboard, write one color per slice in `customColors`, in row order, and import it ([Import and export](/en/products/dashboards/how-to/import-export)). Sort the rows in the query with a fixed order. If a state has no rows, the colors shift.
+To fix one color per state in a pie, edit the document ([Import and export](/en/products/dashboards/how-to/import-export)):
+
+1. Export the dashboard.
+2. In the widget's `customColors`, write one color per slice, in row order.
+3. Import the file.
+4. Sort the query rows in a fixed order. If a state has no rows, the colors shift.
 
 For bars with one color per state: return one column per state and create one representation per column, each with its color. See [Queries for widgets](/en/products/dashboards/tutorials/queries-for-widgets#one-color-per-state-in-bars).
 

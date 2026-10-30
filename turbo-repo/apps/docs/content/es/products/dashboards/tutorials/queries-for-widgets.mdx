@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Consultas para widgets
 
-**Para:** implementadores.
+**Para:** implementadores. **Configuración:** los nombres de ajustes son los de ModularIoT; las consultas valen para cualquier configuración.
 
 <Callout type="info">
 **Aprenderá a:**
@@ -16,7 +16,7 @@ import { Callout } from 'nextra/components'
 
 Los ejemplos usan SQL de BigQuery y una tabla `solicitudes` con las columnas `id`, `estado`, `responsable` y `creada_en`. Con PostgreSQL, el mismo `SELECT` va dentro de una función que publica PostgREST.
 
-## La regla
+## Una fila o todas las filas
 
 Cada widget lee su consulta de una de dos formas:
 
@@ -43,7 +43,7 @@ LIMIT 500
 | Variable | el nombre del resultado, por ejemplo `detalle` |
 | Columnas | se completan con las columnas de la consulta |
 
-Escriba `ORDER BY` y `LIMIT` en la consulta. El ordenamiento y los filtros por columna de la tabla trabajan sobre las filas que ya llegaron, no sobre toda la tabla de origen.
+Escriba `ORDER BY` y `LIMIT` en la consulta. El ordenamiento y los filtros por columna de la tabla trabajan solo sobre las filas que devolvió la consulta.
 
 ## Un valor: la primera fila
 
@@ -124,9 +124,9 @@ SELECT
 FROM c
 ```
 
-En el Stacked Stat, use `{{pendiente_pct}}` como valor y `%` como **Unit**. `SAFE_DIVIDE` devuelve `NULL` en lugar de un error cuando `total` es 0; el widget muestra 0.
+En el Stacked Stat, use `{{pendiente_pct}}` como valor y `%` como **Unit**. `SAFE_DIVIDE` devuelve `NULL` en lugar de un error cuando `total` es 0. El widget muestra 0.
 
-Para redondear dentro del widget, use un ayudante de plantilla: `{{toFixed pendiente_pct 0}}`.
+Para redondear dentro del widget, use una función de plantilla: `{{toFixed pendiente_pct 0}}`.
 
 ## Gráficos: columna X + una columna por serie
 
@@ -149,7 +149,7 @@ ORDER BY cantidad DESC
 
 Todas las barras tienen el color de la serie `cantidad`.
 
-### Top N en barra horizontal
+### Los N primeros en barra horizontal
 
 ```sql
 SELECT responsable, COUNT(*) AS cantidad
@@ -185,7 +185,7 @@ Las barras apiladas muestran cantidades. Para barras 100 %, devuelva porcentajes
 
 ### Un color por estado en barras
 
-Un gráfico de barras colorea por serie. Para que cada estado tenga su color en un gráfico de una barra por estado, devuelva una columna por estado y deje vacías las demás:
+Un gráfico de barras colorea por serie. Para dar a cada estado su color, devuelva una columna por estado. Deje vacías las demás:
 
 ```sql
 SELECT
@@ -203,7 +203,7 @@ GROUP BY estado
 | en_curso | | 7 | |
 | cerrada | | | 30 |
 
-Cree tres representaciones de barra, una por columna, cada una con su color, y active **Apilado** en las tres. Con **Apilado**, cada barra queda centrada en su categoría. Sin él, el gráfico reserva espacio para las tres series en cada categoría.
+Cree tres representaciones de barra, una por columna. Dé a cada una su color. Active **Apilado** en las tres. Con **Apilado**, cada barra queda centrada en su categoría. Sin él, el gráfico reserva espacio para las tres series en cada categoría.
 
 <Callout type="info">
 Las reglas de color de Chart v2 comparan solo el valor numérico (por ejemplo, "mayor que 20 → rojo"). No pueden elegir un color por el nombre de la categoría.
@@ -235,11 +235,16 @@ SELECT ROUND(100 * SAFE_DIVIDE(COUNTIF(estado = 'cerrada'), COUNT(*)), 1) AS cer
 FROM `mi-proyecto.operaciones.solicitudes`
 ```
 
+| Ajuste | Valor |
+| --- | --- |
+| Familia de gráfico | Indicador |
+| Representaciones | una, columna `cerradas_pct` |
+
 ## Filtros como parámetros
 
 Un filtro del dashboard llega a la consulta como un parámetro. En BigQuery, un parámetro se escribe `@nombre` y se declara con un tipo en el editor de consultas.
 
-Se conectan en la consulta guardada del dashboard, en **Parámetros (JSON)**:
+Vincule los filtros a los parámetros en la consulta guardada del dashboard, en **Parámetros (JSON)**:
 
 ```json
 {
@@ -272,7 +277,7 @@ LIMIT 500
 
 | Parte | Hace |
 | --- | --- |
-| `IFNULL(@estado, '') = ''` | Sin filtro, deja pasar todas las filas. El editor envía `NULL` cuando el valor de prueba está vacío; el dashboard envía `defaultValue`. |
+| `IFNULL(@estado, '') = ''` | Sin filtro, deja pasar todas las filas. El editor envía `NULL` cuando el valor de prueba está vacío. El dashboard envía `defaultValue`. |
 | `SPLIT(@estado, ',')` | Acepta una opción o varias |
 | `TIMESTAMP(@desde, 'America/Santiago')` | Lee la fecha en la zona horaria indicada. Use la suya. |
 

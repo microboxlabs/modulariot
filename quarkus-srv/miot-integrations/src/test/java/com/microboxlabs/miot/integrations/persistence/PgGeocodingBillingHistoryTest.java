@@ -34,7 +34,7 @@ class PgGeocodingBillingHistoryTest {
         String schema = "cert_billing_" + UUID.randomUUID().toString().replace("-", "");
         try {
             pool.query("CREATE SCHEMA " + schema).execute().await().atMost(TIMEOUT);
-            for (String migration : new String[]{"V0.6.33__create_geocode_usage.sql", "V0.6.34__create_geocoding_plan.sql"}) {
+            for (String migration : new String[]{"V0.6.33__create_geocode_usage.sql", "V0.6.34__create_geocoding_plan.sql", "V0.6.35__geocoding_plan_enforced.sql"}) {
                 migrate(pool, schema, migration);
             }
             pool.query(("UPDATE miot_integrations.geocoding_plan SET monthly_price_usd = 10, updated_at = '2020-01-01Z'; "

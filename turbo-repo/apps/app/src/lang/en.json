@@ -7015,7 +7015,31 @@
     "places": {
       "title": "Places of interest",
       "hint": "Search the catalog or import. Right-click the map to create a place or a route.",
-      "hint_read_only": "Read only: search the catalog or download. Creating, editing or importing needs the “Places editor” permission."
+      "hint_read_only": "Read only: search the catalog or download. Creating, editing or importing needs the “Places editor” permission.",
+      "search": {
+        "placeholder": "Search by name or category…",
+        "min_characters": "Type at least 2 characters",
+        "loading": "Searching…",
+        "no_results": "No geofence matches",
+        "no_results_for": "for",
+        "no_results_tags": "No geofence matches the chosen filters.",
+        "remove_tag": "Remove {tag}",
+        "field": {
+          "name": "Name",
+          "category": "Category"
+        }
+      }
+    },
+    "places_permission_debug": {
+      "title": "Debug · Places editor",
+      "hint": "Try the view with and without the permission. This browser only.",
+      "real": "From roles",
+      "on": "Force on",
+      "off": "Force off",
+      "granted": "Your roles grant it",
+      "denied": "Your roles don't grant it",
+      "active": "On",
+      "inactive": "Off"
     },
     "trip_geofences": {
       "title": "Trip geofences",

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import es from "@/lang/es.json";
 import { PlacesCatalogLists, PlacesImportCard } from "./places-catalog";
 import type { Lugar, Trayecto } from "../places.types";
 import type { PlacesWorkspace } from "../hooks/use-places-workspace";
@@ -442,7 +443,7 @@ describe("PlacesCatalogLists", () => {
     expect(screen.queryByText("Lugares")).toBeNull();
   });
 
-  it("filters the geofences by category and hides routes meanwhile", () => {
+  it("filters the geofences by a category picked in the bar and hides routes meanwhile", async () => {
     const base: Lugar = {
       place_id: "p1",
       name: "Zona el Manzano",
@@ -499,28 +500,100 @@ describe("PlacesCatalogLists", () => {
       puedeEditar: false,
     } as unknown as PlacesWorkspace;
 
-    render(<PlacesCatalogLists ws={ws} />);
-    const filtro = screen.getByRole("combobox", {
-      name: "Filtrar por categoría",
-    });
-    expect(
-      within(filtro)
-        .getAllByRole("option")
-        .map((o) => o.textContent)
-    ).toEqual(["Todas las categorías", "General (1)", "Zona de riesgo (1)"]);
+    render(<PlacesCatalogLists ws={ws} dict={es} />);
+    expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.getByText("Acceso norte")).toBeInTheDocument();
 
-    fireEvent.change(filtro, { target: { value: "Zona de riesgo" } });
+    // the bar says where the text is: a category, not a name
+    fireEvent.change(
+      screen.getByPlaceholderText("Buscar por nombre o categoría…"),
+      { target: { value: "riesgo" } }
+    );
+    const categoria = await screen.findByRole("button", {
+      name: /Categoría/,
+    });
+    expect(categoria).toHaveTextContent("(1)");
+    expect(screen.queryByRole("button", { name: /Nombre/ })).toBeNull();
+
+    fireEvent.click(categoria);
+    expect(screen.getByText("Categoría: riesgo")).toBeInTheDocument();
     expect(screen.getByText("Zona el Manzano")).toBeInTheDocument();
     expect(screen.queryByText("Copec POZ")).toBeNull();
     expect(screen.queryByText("Acceso norte")).toBeNull();
 
-    fireEvent.change(filtro, { target: { value: "" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Quitar Categoría: riesgo" })
+    );
     expect(screen.getByText("Copec POZ")).toBeInTheDocument();
     expect(screen.getByText("Acceso norte")).toBeInTheDocument();
   });
 
-  it("has no category filter with a single category", () => {
+  it("filters by geofence name, the trip's read-only ones included", async () => {
+    const base: Lugar = {
+      place_id: "p1",
+      name: "Planta Norte",
+      address: null,
+      category: "Planta",
+      category_id: null,
+      geometry_type: "circle",
+      color: null,
+      center: [-33, -70],
+      polygon: null,
+      radius_m: 100,
+      metadata: null,
+      external_id: null,
+      active_from: null,
+      active_until: null,
+    };
+    const ws = {
+      busca: "",
+      setBusca: vi.fn(),
+      lugares: [],
+      todosLugares: [
+        base,
+        { ...base, place_id: "p2", name: "Puerto Sur", category: "Puerto" },
+      ],
+      todosTrayectos: [],
+      editandoLugarId: null,
+      editandoTrayId: null,
+      modo: "ver",
+      irALugar: vi.fn(),
+      setHoveredPlaceId: vi.fn(),
+      versionDe: () => null,
+      puedeEditar: false,
+    } as unknown as PlacesWorkspace;
+    const externas = {
+      titulo: "Geocercas del viaje",
+      items: [
+        {
+          id: "o",
+          nombre: "Planta Quilicura",
+          detalle: "Origen del viaje",
+          ancla: [-33.36, -70.73] as [number, number],
+        },
+      ],
+    };
+    render(<PlacesCatalogLists ws={ws} externas={externas} dict={es} />);
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Buscar por nombre o categoría…"),
+      { target: { value: "planta" } }
+    );
+    // both fields match: one category, two names (one is the trip's)
+    const nombre = await screen.findByRole("button", { name: /Nombre/ });
+    expect(nombre).toHaveTextContent("(2)");
+    expect(screen.getByRole("button", { name: /Categoría/ })).toHaveTextContent(
+      "(1)"
+    );
+
+    fireEvent.click(nombre);
+    expect(screen.getByText("Nombre: planta")).toBeInTheDocument();
+    expect(screen.getByText("Planta Norte")).toBeInTheDocument();
+    expect(screen.getByText("Planta Quilicura")).toBeInTheDocument();
+    expect(screen.queryByText("Puerto Sur")).toBeNull();
+  });
+
+  it("says nothing is left when the filters match no geofence", async () => {
     const ws = {
       busca: "",
       setBusca: vi.fn(),
@@ -533,9 +606,16 @@ describe("PlacesCatalogLists", () => {
       versionDe: () => null,
       puedeEditar: false,
     } as unknown as PlacesWorkspace;
-    render(<PlacesCatalogLists ws={ws} />);
+    render(<PlacesCatalogLists ws={ws} dict={es} />);
+    fireEvent.change(
+      screen.getByPlaceholderText("Buscar por nombre o categoría…"),
+      { target: { value: "xyz" } }
+    );
     expect(
-      screen.queryByRole("combobox", { name: "Filtrar por categoría" })
+      await screen.findByText("Ninguna geocerca coincide")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Categoría|Nombre/ })
     ).toBeNull();
   });
 
@@ -590,7 +670,7 @@ describe("PlacesCatalogLists", () => {
       screen.getByRole("checkbox", { name: "Seleccionar Planta Norte" })
     ).toBeInTheDocument();
 
-    rerender(<PlacesCatalogLists ws={ws(false)} />);
+    rerender(<PlacesCatalogLists ws={ws(false)} dict={es} />);
     // without it: list, search and download only
     expect(screen.queryByRole("button", { name: "Importar" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Agregar" })).toBeNull();
@@ -601,7 +681,7 @@ describe("PlacesCatalogLists", () => {
       screen.queryByRole("checkbox", { name: "Seleccionar Planta Norte" })
     ).toBeNull();
     expect(
-      screen.getByPlaceholderText("Buscar por nombre, dirección o external_id…")
+      screen.getByPlaceholderText("Buscar por nombre o categoría…")
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Exportar" })

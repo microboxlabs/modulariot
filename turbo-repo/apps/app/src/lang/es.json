@@ -7015,7 +7015,31 @@
     "places": {
       "title": "Lugares de interés",
       "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto.",
-      "hint_read_only": "Solo lectura: busca en el catálogo o descarga. Crear, editar o importar necesita el permiso «Editor de lugares»."
+      "hint_read_only": "Solo lectura: busca en el catálogo o descarga. Crear, editar o importar necesita el permiso «Editor de lugares».",
+      "search": {
+        "placeholder": "Buscar por nombre o categoría…",
+        "min_characters": "Escribe al menos 2 caracteres",
+        "loading": "Buscando…",
+        "no_results": "Ninguna geocerca coincide",
+        "no_results_for": "con",
+        "no_results_tags": "Ninguna geocerca cumple los filtros elegidos.",
+        "remove_tag": "Quitar {tag}",
+        "field": {
+          "name": "Nombre",
+          "category": "Categoría"
+        }
+      }
+    },
+    "places_permission_debug": {
+      "title": "Debug · Editor de lugares",
+      "hint": "Prueba la vista con y sin el permiso. Solo en este navegador.",
+      "real": "Según roles",
+      "on": "Forzar activo",
+      "off": "Forzar inactivo",
+      "granted": "Tus roles lo tienen",
+      "denied": "Tus roles no lo tienen",
+      "active": "Activo",
+      "inactive": "Inactivo"
     },
     "trip_geofences": {
       "title": "Geocercas del viaje",

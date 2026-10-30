@@ -348,10 +348,10 @@ class GeocodingPlanServiceTest {
     void thePlanIsValidated() {
         GeocodingPlanService service = service(false);
         assertThrows(IllegalArgumentException.class, () -> service.setPlan(null, "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.setPlan(
-                new SetPlanRequest(BigDecimal.ONE, -1, BigDecimal.ONE, null), "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.setPlan(
-                new SetPlanRequest(BigDecimal.ONE, 10, BigDecimal.ONE, 0), "owner"));
+        SetPlanRequest negative = new SetPlanRequest(BigDecimal.ONE, -1, BigDecimal.ONE, null);
+        SetPlanRequest invalidAlert = new SetPlanRequest(BigDecimal.ONE, 10, BigDecimal.ONE, 0);
+        assertThrows(IllegalArgumentException.class, () -> service.setPlan(negative, "owner"));
+        assertThrows(IllegalArgumentException.class, () -> service.setPlan(invalidAlert, "owner"));
 
         Plan plan = service.setPlan(new SetPlanRequest(new BigDecimal("49.00"), 5000, new BigDecimal("0.004"), null),
                 "owner");
@@ -363,10 +363,10 @@ class GeocodingPlanServiceTest {
     void theSubscriptionIsValidated() {
         GeocodingPlanService service = service(false);
         assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, null, "owner"));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.setSubscription(ORG, new SetSubscriptionRequest(-1, null), "owner"));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.setSubscription(ORG, new SetSubscriptionRequest(10, "block"), "owner"));
+        SetSubscriptionRequest negative = new SetSubscriptionRequest(-1, null);
+        SetSubscriptionRequest invalidMode = new SetSubscriptionRequest(10, "block");
+        assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, negative, "owner"));
+        assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, invalidMode, "owner"));
 
         Subscription s = service.setSubscription(ORG, new SetSubscriptionRequest(null, null), "owner");
         assertNull(s.monthlyQuota());

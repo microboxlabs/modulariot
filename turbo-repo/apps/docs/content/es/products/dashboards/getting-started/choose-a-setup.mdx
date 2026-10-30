@@ -1,39 +1,63 @@
-# Elegir una configuración
+import { Callout } from 'nextra/components'
 
-Hay tres formas de usar Dashboards. Se diferencian en quién inicia la sesión de las personas, dónde se guardan las credenciales y cuánto construye usted.
+# Elegir su camino
 
-| Configuración | Elíjala cuando | Inicio de sesión | Credenciales | Usted construye |
+**Para:** todos.
+
+Esta página responde dos preguntas: qué leer según su rol, y en qué configuración va a correr Dashboards.
+
+## Según su rol
+
+| Rol | Hace | Lea, en orden |
+| --- | --- | --- |
+| Responsable de producto | Decide si el producto sirve | [Resumen](/es/products/dashboards), [Catálogo de widgets](/es/products/dashboards/reference/widgets) |
+| Implementador | Construye dashboards en la interfaz | [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard), [Agregar consultas guardadas](/es/products/dashboards/how-to/add-saved-queries), [Agregar filtros](/es/products/dashboards/how-to/add-filters), [Catálogo de widgets](/es/products/dashboards/reference/widgets) |
+| Desarrollador | Incrusta dashboards y opera el servidor | [Inicio rápido](/es/products/dashboards/getting-started/quickstart), [Incrustar un dashboard en una página web](/es/products/dashboards/tutorials/embed-in-a-web-page), [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users), [Referencia de configuración](/es/products/dashboards/reference/configuration) |
+
+## Según la configuración
+
+Una configuración es la aplicación que aloja los dashboards. Las configuraciones se diferencian en quién inicia la sesión, dónde se guardan las credenciales y qué construye usted.
+
+| Configuración | Elíjala cuando | Inicio de sesión | Credenciales de datos | Usted construye |
 | --- | --- | --- | --- | --- |
-| **Aplicación web de ModularIoT** | Su equipo ya usa ModularIoT | ModularIoT | Conexiones de ModularIoT | Nada |
-| **Servidor independiente** | Quiere dashboards en su propio producto, sin ModularIoT | Su proveedor de identidad (JWT) | La base de datos del servidor, cifrada | La página que muestra los dashboards |
-| **Biblioteca en su backend** | Ya ejecuta un backend Node.js y quiere un solo proceso | Su código | Su código | Adaptadores para identidad, almacenamiento y datos |
+| **Configuración de ModularIoT** | Su equipo usa la aplicación web de ModularIoT | ModularIoT | Conexiones de ModularIoT | Nada |
+| **Servidor independiente + su aplicación** | Quiere dashboards dentro de su producto | Su proveedor de identidad (JWT o ticket) | Base de datos del servidor, cifrada | La página que muestra los dashboards y, si no usa React, los formularios de edición |
+| **Biblioteca en su backend Node.js** | Ya tiene un backend Node.js y quiere un solo proceso | Su código | Su código | Adaptadores de identidad, almacenamiento y datos |
 
-## Aplicación web de ModularIoT
+### Configuración de ModularIoT
 
-Dashboards es parte de la aplicación web. Un administrador lo activa y las personas abren **Dashboards** en la navegación. Los datos vienen de las conexiones de la organización, que los administradores gestionan en la pantalla de conexiones.
+Dashboards es parte de la aplicación web. Un administrador lo activa y las personas abren **Dashboards** en la navegación. Los datos vienen de las conexiones de la organización. Las consultas SQL de BigQuery se escriben en **Ajustes › Conexiones › BigQuery**.
 
-- Comience con [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
-- Los operadores leen [Desplegar con ModularIoT](/es/products/dashboards/deployment/with-modulariot).
+- Implementadores: [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
+- Operadores: [Desplegar con ModularIoT](/es/products/dashboards/deployment/with-modulariot).
 
-## Servidor independiente
+### Servidor independiente + su aplicación
 
-Ejecute el servidor junto a su producto con npm, Docker o Helm. Su proveedor de identidad inicia la sesión de las personas; el servidor revisa sus tokens y decide qué pueden hacer. Su página web usa la biblioteca de UI para dibujar dashboards.
+Ejecute el servidor con npm, Docker o Helm. Su proveedor de identidad inicia la sesión; el servidor valida el token o el ticket y decide qué puede hacer cada persona. Su página dibuja los dashboards con la biblioteca de UI.
+
+| Su aplicación usa | Cómo dibuja el dashboard | Edición en la interfaz |
+| --- | --- | --- |
+| React | Componentes de `@microboxlabs/miot-dashboard-ui/react` | La biblioteca trae el panel de ajustes, el editor de consultas guardadas, el de filtros y el de permisos. Los campos de ajustes de cada widget los escribe usted. |
+| HTML o cualquier framework | El Web Component o `mountDashboard` | Usted construye todos los formularios de edición |
+| Phoenix LiveView | `mountDashboard` desde un hook de JavaScript | Usted construye los formularios en LiveView |
 
 - Pruébelo con el [Inicio rápido](/es/products/dashboards/getting-started/quickstart).
 - Luego siga [Incrustar un dashboard en una página web](/es/products/dashboards/tutorials/embed-in-a-web-page).
 - Configure el inicio de sesión con [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users).
 - Despliegue con [Docker](/es/products/dashboards/deployment/docker) o [Kubernetes](/es/products/dashboards/deployment/kubernetes).
 
-## Biblioteca en su backend
+### Biblioteca en su backend Node.js
 
-Monte el manejador de solicitudes del servidor en su propio backend Node.js, por ejemplo en una ruta de Next.js. Usted implementa algunas interfaces: quién llama, a qué organizaciones y ámbitos pertenece y dónde se guardan los dashboards. Las reglas de acceso no cambian.
+Monte el manejador de solicitudes del servidor en su backend, por ejemplo en una ruta de Next.js. Usted implementa algunas interfaces: quién llama, a qué organizaciones y ámbitos pertenece y dónde se guardan los dashboards. Las reglas de acceso no cambian.
 
 - Lea [Biblioteca del servidor](/es/products/dashboards/reference/server-library).
 
-## Qué se mantiene igual
+## Qué es igual en todas
 
-Elija la configuración que elija:
-
-- El documento del dashboard es el mismo, así que un dashboard exportado desde una configuración se importa en otra.
-- Cada solicitud se revisa en el mismo orden: identidad, organización, ámbito y luego la acción.
+- El documento del dashboard es el mismo. Un dashboard exportado de una configuración se importa en otra.
+- Cada solicitud se revisa en el mismo orden: identidad, organización, ámbito y acción.
 - El navegador nunca recibe una credencial, una URL de datos ni SQL.
+
+<Callout type="info">
+Los widgets de mapa, contenedor y carga de archivos solo existen en la configuración de ModularIoT. En las otras, un documento que los use muestra "no disponible" en su lugar.
+</Callout>

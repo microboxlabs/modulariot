@@ -14,7 +14,7 @@ import { Callout } from 'nextra/components'
 - recibir los valores de los filtros como parámetros.
 </Callout>
 
-Los ejemplos usan SQL de BigQuery y una tabla `solicitudes` con las columnas `id`, `estado`, `responsable` y `creada_en`. Con PostgreSQL, el mismo `SELECT` va dentro de una función que publica PostgREST.
+Los ejemplos usan SQL de BigQuery y una tabla `solicitudes` con las columnas `id`, `estado`, `responsable` y `creada_en`. Con PostgreSQL, escriba la misma forma de consulta en SQL de PostgreSQL (por ejemplo `COUNT(*) FILTER (WHERE …)`, `NULLIF`, `to_char`) dentro de una función que publica PostgREST.
 
 ## Una fila o todas las filas
 
@@ -91,7 +91,7 @@ FROM `mi-proyecto.operaciones.solicitudes`
 | --- | --- | --- | --- |
 | 49 | 12 | 7 | 30 |
 
-En BigQuery, `COUNTIF(estado = 'pendiente')` hace lo mismo que `SUM(CASE …)`.
+En BigQuery, `COUNTIF(estado = 'pendiente')` hace lo mismo que `SUM(CASE …)`, salvo con una tabla vacía: `SUM` devuelve `NULL` y `COUNTIF` devuelve 0.
 
 Un Stacked Stat con esta consulta usa una categoría por columna:
 
@@ -101,7 +101,7 @@ Un Stacked Stat con esta consulta usa una categoría por columna:
 | `En curso` | `{{en_curso}}` | azul |
 | `Cerrada` | `{{cerrada}}` | verde |
 
-El widget suma los valores y dibuja cada parte como su valor sobre la suma. La barra siempre llena el 100 %. La leyenda muestra los valores.
+El widget dibuja cada parte como su valor sobre la suma de los valores positivos. La barra llena el 100 % cuando al menos un valor es mayor que 0. La leyenda muestra los valores.
 
 <Callout type="warning">
 **Cuidado:** los estados se escriben en la consulta y en los ajustes. Si aparece un estado nuevo en los datos, no se muestra hasta que agregue su columna y su categoría.
@@ -262,7 +262,7 @@ La clave del objeto (`estado`, `desde`) es el nombre del parámetro en la consul
 
 | Tipo de filtro | Valores que entrega | Ejemplo de valor |
 | --- | --- | --- |
-| Texto | `<clave>` | `norte` |
+| Texto | `<clave>`. En ModularIoT, varios valores separados por coma | `norte` o `norte,sur` |
 | Rango de fechas | `<clave>_from` y `<clave>_to` | `2026-10-01 00:00:00` y `2026-10-31 23:59:59` |
 | Selección, una opción | `<clave>` | `en_curso` |
 | Selección, varias opciones | `<clave>`, valores separados por coma (configuración de ModularIoT) | `pendiente,en_curso` |
@@ -299,6 +299,9 @@ Un filtro no cambia un widget si la consulta del widget no vincula ese filtro. P
 | Columnas por fila | 100 |
 | Tamaño del resultado | 2 MiB de JSON |
 | Tiempo | 20 segundos |
+| Texto por valor | 2.048 caracteres |
+
+Un resultado que supera un límite hace fallar la consulta. Las filas no se recortan.
 
 Los valores deben ser texto, números, verdadero/falso o `NULL`. Con BigQuery, una columna `ARRAY`, `STRUCT` o `RECORD` hace fallar la consulta: conviértala con `TO_JSON_STRING` o seleccione sus campos. `NULL` llega al widget como texto vacío. Una columna `TIMESTAMP` llega como número: conviértala con `FORMAT_TIMESTAMP`.
 

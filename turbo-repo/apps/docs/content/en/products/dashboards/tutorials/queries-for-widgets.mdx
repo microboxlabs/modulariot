@@ -14,7 +14,7 @@ import { Callout } from 'nextra/components'
 - receive filter values as parameters.
 </Callout>
 
-The examples use BigQuery SQL and a `solicitudes` (requests) table with the columns `id`, `estado` (state), `responsable` (owner) and `creada_en` (created at). With PostgreSQL, the same `SELECT` goes inside a function published by PostgREST.
+The examples use BigQuery SQL and a `solicitudes` (requests) table with the columns `id`, `estado` (state), `responsable` (owner) and `creada_en` (created at). With PostgreSQL, write the same query shape in PostgreSQL SQL (for example `COUNT(*) FILTER (WHERE …)`, `NULLIF`, `to_char`) inside a function published by PostgREST.
 
 ## One row or all rows
 
@@ -91,7 +91,7 @@ FROM `my-project.operations.solicitudes`
 | --- | --- | --- | --- |
 | 49 | 12 | 7 | 30 |
 
-In BigQuery, `COUNTIF(estado = 'pendiente')` does the same as `SUM(CASE …)`.
+In BigQuery, `COUNTIF(estado = 'pendiente')` does the same as `SUM(CASE …)`, except on an empty table: `SUM` returns `NULL` and `COUNTIF` returns 0.
 
 A Stacked Stat with this query uses one category per column:
 
@@ -101,7 +101,7 @@ A Stacked Stat with this query uses one category per column:
 | `In progress` | `{{en_curso}}` | blue |
 | `Closed` | `{{cerrada}}` | green |
 
-The widget adds the values and draws each part as its value over the sum. The bar always fills 100%. The legend shows the values.
+The widget draws each part as its value over the sum of the positive values. The bar fills 100% when at least one value is above 0. The legend shows the values.
 
 <Callout type="warning">
 **Pitfall:** the states are written in the query and in the settings. If a new state appears in the data, it is not shown until you add its column and its category.
@@ -262,7 +262,7 @@ The object key (`estado`, `desde`) is the parameter name in the query. `key` is 
 
 | Filter type | Values it provides | Example value |
 | --- | --- | --- |
-| Text | `<key>` | `north` |
+| Text | `<key>`. In ModularIoT, several values separated by commas | `north` or `north,south` |
 | Date range | `<key>_from` and `<key>_to` | `2026-10-01 00:00:00` and `2026-10-31 23:59:59` |
 | Selection, one option | `<key>` | `en_curso` |
 | Selection, several options | `<key>`, values separated by commas (ModularIoT setup) | `pendiente,en_curso` |
@@ -299,6 +299,9 @@ A filter does not change a widget if the widget's query does not bind that filte
 | Columns per row | 100 |
 | Result size | 2 MiB of JSON |
 | Time | 20 seconds |
+| Text per value | 2,048 characters |
+
+A result over any limit makes the query fail. Rows are not truncated.
 
 Values must be text, numbers, true/false or `NULL`. With BigQuery, an `ARRAY`, `STRUCT` or `RECORD` column makes the query fail: convert it with `TO_JSON_STRING` or select its fields. `NULL` reaches the widget as empty text. A `TIMESTAMP` column arrives as a number: convert it with `FORMAT_TIMESTAMP`.
 

@@ -23,7 +23,7 @@ Busque en la primera columna lo que muestra su diseño.
 | Un KPI por estado y una barra 100 % dividida por estado | Stacked Stat, tipo **Barra** | `stat_stacked` |
 | Lo mismo, como dona | Stacked Stat, tipo **Dona** | `stat_stacked` |
 | Avance hacia una meta | Progress Stat, Progress o Circular Stat | `stat_progress`, `percentage_value`, `stat_circular` |
-| Un número con su tendencia en una línea pequeña | Sparkline Stat | `stat_sparkline` |
+| Un número con una línea pequeña. En ModularIoT, los puntos de la línea se escriben en los ajustes | Sparkline Stat | `stat_sparkline` |
 | Un número comparado con el período anterior | Detailed Stat | `stat_detailed` |
 | Barras por categoría, con ejes | Chart v2, familia **Cartesiano**, representación barra | `chart_v2` |
 | Un ranking: los N con más eventos | Chart v2, **Barras Horizontales** | `chart_v2` |
@@ -48,7 +48,7 @@ Cada widget lee su consulta de una de dos formas. Escriba la consulta según la 
 | **Solo la primera fila** | Text Card, Info Card, todos los Stat, Progress, Stacked Stat, Chart v2 **Indicador** | Una fila. Una columna por cada número que muestra el widget. |
 | **Todas las filas** | Tabla de Datos, Tabla de Datos V2, Lista de Datos, Chart v2 **Cartesiano** y **Torta** | Una fila por elemento: por fila de la tabla, por barra o por porción. |
 
-Los widgets de la primera fila usan plantillas: `{{pendiente}}` se reemplaza por el valor de la columna `pendiente` en la primera fila. Si la consulta devuelve más filas, el widget las ignora.
+Los Stat, el Stacked Stat y el Text Card usan plantillas: `{{pendiente}}` se reemplaza por el valor de la columna `pendiente` en la primera fila. El Indicador lee la columna de su representación en la primera fila. Si la consulta devuelve más filas, el widget las ignora.
 
 <Callout type="warning">
 **Cuidado:** si una consulta devuelve una fila por estado (`estado`, `cantidad`), un Stacked Stat solo ve el primer estado. Escriba la consulta con una columna por estado. [Consultas para widgets](/es/products/dashboards/tutorials/queries-for-widgets) muestra cómo.
@@ -64,7 +64,7 @@ Los tres muestran partes de un total.
 | Color de cada categoría | Fijo, uno por categoría | De la lista de colores, en el orden de las filas | Uno por serie; las barras de una serie comparten color |
 | Forma de la consulta | Una fila, una columna por categoría | Una fila por categoría: columna de nombre + columna de valor | Una fila por categoría: columna del eje X + una columna por serie |
 | Barra 100 % | Sí. Cada parte es su valor sobre la suma | No | No. Para 100 %, calcule porcentajes en la consulta |
-| KPI visible por categoría | Sí, en la leyenda | Al pasar el cursor, o con etiquetas | Con **Etiquetas** en la representación |
+| KPI visible por categoría | Sí, en la leyenda | Al pasar el cursor. Las etiquetas de las porciones muestran solo el nombre | Con **Etiquetas** en la representación |
 | Clic filtra otro widget | No | No | No |
 
 Use Stacked Stat cuando conoce los estados de antemano y cada uno tiene un color fijo. Use la torta o las barras cuando las categorías cambian con los datos.
@@ -76,8 +76,8 @@ Chart v2 asigna un color por **serie**:
 
 | Gráfico | Qué recibe un color |
 | --- | --- |
-| Barras o líneas | Cada representación (serie). El color de una serie es `customColors[i]`, donde `i` es su posición; si falta, el color de la paleta. |
-| Torta | Cada porción, en el orden de las filas, de la lista de colores del gráfico: `customColors` si tiene colores, si no la paleta por defecto. |
+| Barras o líneas | Cada representación (serie). El color de una serie es `customColors[i]`, donde `i` es su posición. Si falta, el color de la lista del gráfico en esa posición. En ModularIoT, cuando una representación tiene color, esa lista es `customColors`: dé color a todas las representaciones. |
+| Torta | Cada porción, en el orden de las filas, de la lista de colores del gráfico: `customColors` cuando `colorPalette` es `custom` y la lista no está vacía; si no, la paleta de `colorPalette`. ModularIoT guarda siempre `custom`. |
 | Cualquiera, con reglas de color | Un punto o una porción cuyo **valor numérico** cumple la regla. La regla no compara el nombre de la categoría. |
 
 En la configuración de ModularIoT, el selector de color de cada representación escribe `customColors[i]`. Una torta tiene una sola representación:
@@ -90,7 +90,7 @@ En la configuración de ModularIoT, el selector de color de cada representación
 Para fijar un color por estado en una torta, edite el documento ([Importar y exportar](/es/products/dashboards/how-to/import-export)):
 
 1. Exporte el dashboard.
-2. En `customColors` del widget, escriba un color por porción, en el orden de las filas.
+2. En el widget, confirme que `colorPalette` es `"custom"` y escriba en `customColors` un color por porción, en el orden de las filas.
 3. Importe el archivo.
 4. Ordene las filas en la consulta con un orden fijo. Si un estado no tiene filas, los colores se desplazan.
 

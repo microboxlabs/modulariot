@@ -1,39 +1,61 @@
-# Choose a setup
+import { Callout } from 'nextra/components'
 
-There are three ways to use Dashboards. They differ in who signs people in, where credentials live, and how much you build yourself.
+# Choose your path
 
-| Setup | Pick it when | Sign-in | Credentials | You build |
+**For:** everyone.
+
+## By role
+
+| Role | Does | Read, in order |
+| --- | --- | --- |
+| Product owner | Decides whether the product fits | [Overview](/en/products/dashboards), [Widget catalog](/en/products/dashboards/reference/widgets) |
+| Implementer | Builds dashboards in the UI | [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard), [Add saved queries](/en/products/dashboards/how-to/add-saved-queries), [Add filters](/en/products/dashboards/how-to/add-filters), [Widget catalog](/en/products/dashboards/reference/widgets) |
+| Developer | Embeds dashboards and runs the server | [Quickstart](/en/products/dashboards/getting-started/quickstart), [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page), [Authenticate users](/en/products/dashboards/how-to/authenticate-users), [Configuration reference](/en/products/dashboards/reference/configuration) |
+
+## By setup
+
+A setup is the application that hosts the dashboards.
+
+| Setup | Choose it when | Sign-in | Data credentials | You build |
 | --- | --- | --- | --- | --- |
-| **ModularIoT web app** | Your team already uses ModularIoT | ModularIoT | ModularIoT connections | Nothing |
-| **Standalone server** | You want dashboards in your own product, without ModularIoT | Your identity provider (JWT) | The server's database, encrypted | The page that shows the dashboards |
-| **Library in your backend** | You already run a Node.js backend and want one process | Your code | Your code | Adapters for identity, storage and data |
+| **ModularIoT setup** | Your team uses the ModularIoT web app | ModularIoT | ModularIoT connections | Nothing |
+| **Standalone server + your app** | You want dashboards inside your product | Your identity provider (JWT or ticket) | The server's database, encrypted | The page that shows dashboards and, without React, the editing forms |
+| **Library in your Node.js backend** | You already run a Node.js backend and want one process | Your code | Your code | Adapters for identity, storage and data |
 
-## ModularIoT web app
+### ModularIoT setup
 
-Dashboards is part of the web app. An administrator turns it on, and people open **Dashboards** in the navigation. Data comes from the organization's connections, which administrators manage on the connections screen.
+Dashboards is part of the web app. An administrator turns it on and people open **Dashboards** in the navigation. Data comes from the organization's connections. BigQuery SQL queries are written in **Settings › Connections › BigQuery**.
 
-- Start with [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard).
-- Operators read [Deploy with ModularIoT](/en/products/dashboards/deployment/with-modulariot).
+- Implementers: [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard).
+- Operators: [Deploy with ModularIoT](/en/products/dashboards/deployment/with-modulariot).
 
-## Standalone server
+### Standalone server + your app
 
-Run the server next to your product with npm, Docker or Helm. Your identity provider signs people in; the server checks their tokens and decides what they can do. Your web page uses the UI library to draw dashboards.
+Run the server with npm, Docker or Helm. Your identity provider signs people in. The server validates the token or ticket and decides what each person can do. Your page draws dashboards with the UI library.
+
+| Your app uses | How it draws the dashboard | Editing in the UI |
+| --- | --- | --- |
+| React | Components from `@microboxlabs/miot-dashboard-ui/react` | The library provides the settings panel, the saved-query editor, the filter editor and the permission editor. You write the settings fields of each widget. |
+| HTML or any framework | The Web Component or `mountDashboard` | You build all the editing forms |
+| Phoenix LiveView | `mountDashboard` from a JavaScript hook | You build the forms in LiveView |
 
 - Try it with the [Quickstart](/en/products/dashboards/getting-started/quickstart).
 - Then follow [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page).
 - Set up sign-in with [Authenticate users](/en/products/dashboards/how-to/authenticate-users).
 - Deploy with [Docker](/en/products/dashboards/deployment/docker) or [Kubernetes](/en/products/dashboards/deployment/kubernetes).
 
-## Library in your backend
+### Library in your Node.js backend
 
-Mount the server's request handler in your own Node.js backend, for example in a Next.js route. You implement a few interfaces: who is calling, which organizations and scopes they belong to, and where dashboards are stored. The access rules stay the same.
+Mount the server's request handler in your backend, for example in a Next.js route. You implement a few interfaces: who is calling, which organizations and scopes they belong to, and where dashboards are stored. The access rules do not change.
 
 - Read [Server library](/en/products/dashboards/reference/server-library).
 
-## What stays the same
+## What is the same in all of them
 
-Whichever setup you pick:
-
-- The dashboard document is the same, so a dashboard exported from one setup imports into another.
+- The dashboard document is the same. A dashboard exported from one setup imports into another.
 - Every request is checked in the same order: identity, organization, scope, then the action.
 - The browser never receives a credential, a data URL or SQL.
+
+<Callout type="info">
+Map, container and file upload widgets exist only in the ModularIoT setup. In the other setups, a document that uses them shows "unavailable" in their place.
+</Callout>

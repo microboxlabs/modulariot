@@ -4,14 +4,20 @@ import { Callout } from 'nextra/components'
 
 **For:** implementers. **Setup:** ModularIoT.
 
-**Result:** each state always shows in the same color (pending yellow, in progress blue, closed green), in the summary, in a bar chart and in the table.
+**Result:** each state always shows in the same color, in the summary, in a bar chart and in the table.
+
+| State | Color |
+| --- | --- |
+| Pending | `eab308` (yellow) |
+| In progress | `3b82f6` (blue) |
+| Closed | `22c55e` (green) |
 
 | Widget | How the color is fixed |
 | --- | --- |
 | Stacked Stat | One color per category in the settings |
 | Chart v2 bars | One series per state, each with its color |
 | Data Table V2 | One color rule per state on the column |
-| Chart v2 pie | Cannot be fixed from the UI |
+| Chart v2 pie | Only by editing the document |
 
 ## Stacked Stat
 
@@ -23,7 +29,7 @@ Each category has its color. See [Recipe: KPI per state and a 100% bar](/en/prod
 
 ![Yellow, blue and green bars, one per state](/dashboards/chart_v2/colors-per-state.png)
 
-A bar chart colors by series. The query returns one column per state, with a value only in its state's row:
+A bar chart colors by series. The query returns one column per state, with a value only in its state's row. It assumes three states. Save it as `barras_por_estado`:
 
 ```sql
 SELECT
@@ -36,11 +42,17 @@ GROUP BY estado
 ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
 ```
 
-| Setting | Value |
-| --- | --- |
-| **X-Axis Column** | `etiqueta` |
-| **Representations** | Three bars: `pendiente` yellow, `en_curso` blue, `cerrada` green. All three with **Stacked** and **Labels** |
-| **Show Legend** | Off |
+1. Add the saved query **Result name** `barras`, **Operation** `barras_por_estado`.
+2. **Add Widget** › **Chart v2**. **Data Provider**: **Planner**, **Variable** `barras`.
+3. **Visualization**:
+
+   | Setting | Value |
+   | --- | --- |
+   | **X-Axis Column** | `etiqueta` |
+   | **Representations** | The widget comes with a bar and a line. Change the line to **Bar** and add a third with **Add representation**. Columns `pendiente`, `en_curso`, `cerrada`, with the colors from the table above. All three with **Stacked** and **Labels** |
+   | **Show Legend** | Off |
+
+4. **Save**.
 
 With **Stacked**, each bar is centered on its category. Give all three representations a color.
 
@@ -53,15 +65,7 @@ On the Estado column: type `badge`, paintbrush on and one `=` rule per state. Se
 ## Pie
 
 <Callout type="warning">
-**Pitfall:** in a pie, choosing a color for its representation paints **every** slice that color ([#2240](https://github.com/microboxlabs/modulariot/issues/2240)). Use bars or a Stacked Stat. If you need the pie, leave the color unset: slices take the default palette in row order.
+In a pie, choosing a color for its representation paints **every** slice that color ([#2240](https://github.com/microboxlabs/modulariot/issues/2240)). If you already chose one, delete the representation and add it again.
 </Callout>
 
-## Colors used on these pages
-
-| State | Color |
-| --- | --- |
-| Pending | `eab308` |
-| In progress | `3b82f6` |
-| Closed | `22c55e` |
-
-In Stacked Stat and in table rules, the color goes without `#`. In Chart v2 `customColors`, with `#`.
+To fix one color per state in the pie, edit the document ([Import and export](/en/products/dashboards/how-to/import-export)): `"colorPalette": "custom"`, `"customColors": ["#eab308", "#3b82f6", "#22c55e"]`, and sort the rows with the same `ORDER BY` as above. If a state has no rows, the colors shift.

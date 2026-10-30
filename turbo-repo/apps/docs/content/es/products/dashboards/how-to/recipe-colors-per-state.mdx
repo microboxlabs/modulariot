@@ -4,14 +4,20 @@ import { Callout } from 'nextra/components'
 
 **Para:** implementadores. **Configuración:** ModularIoT.
 
-**Resultado:** cada estado se ve siempre con el mismo color (pendiente amarillo, en curso azul, cerrada verde), en el resumen, en un gráfico de barras y en la tabla.
+**Resultado:** cada estado se ve siempre con el mismo color, en el resumen, en un gráfico de barras y en la tabla.
+
+| Estado | Color |
+| --- | --- |
+| Pendiente | `eab308` (amarillo) |
+| En curso | `3b82f6` (azul) |
+| Cerrada | `22c55e` (verde) |
 
 | Widget | Cómo se fija el color |
 | --- | --- |
 | Stacked Stat | Un color por categoría en los ajustes |
 | Chart v2 barras | Una serie por estado, cada una con su color |
 | Tabla de Datos V2 | Una regla de color por estado en la columna |
-| Chart v2 torta | No se puede fijar desde la interfaz |
+| Chart v2 torta | Solo editando el documento |
 
 ## Stacked Stat
 
@@ -23,7 +29,7 @@ Cada categoría tiene su color. Vea [Receta: KPI por estado y barra 100 %](/es/p
 
 ![Barras amarilla, azul y verde, una por estado](/dashboards/chart_v2/colors-per-state.png)
 
-Un gráfico de barras colorea por serie. La consulta devuelve una columna por estado, con valor solo en la fila de su estado:
+Un gráfico de barras colorea por serie. La consulta devuelve una columna por estado, con valor solo en la fila de su estado. Supone tres estados. Guárdela como `barras_por_estado`:
 
 ```sql
 SELECT
@@ -36,11 +42,17 @@ GROUP BY estado
 ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
 ```
 
-| Ajuste | Valor |
-| --- | --- |
-| **Columna Eje X** | `etiqueta` |
-| **Representaciones** | Tres barras: `pendiente` amarillo, `en_curso` azul, `cerrada` verde. Las tres con **Apilado** y **Etiquetas** |
-| **Mostrar Leyenda** | Apagado |
+1. Agregue la consulta guardada **Nombre del resultado** `barras`, **Operación** `barras_por_estado`.
+2. **Agregar Widget** › **Chart v2**. **Proveedor de Datos**: **Planificador**, **Variable** `barras`.
+3. **Visualización**:
+
+   | Ajuste | Valor |
+   | --- | --- |
+   | **Columna Eje X** | `etiqueta` |
+   | **Representaciones** | El widget trae una barra y una línea. Cambie la línea a **Barras** y agregue una tercera con **Agregar representación**. Columnas `pendiente`, `en_curso`, `cerrada`, con los colores de la tabla de arriba. Las tres con **Apilado** y **Etiquetas** |
+   | **Mostrar Leyenda** | Apagado |
+
+4. **Guardar**.
 
 Con **Apilado**, cada barra queda centrada en su categoría. Dé color a las tres representaciones.
 
@@ -53,15 +65,7 @@ En la columna Estado: tipo `badge`, pincel encendido y una regla `=` por estado.
 ## Torta
 
 <Callout type="warning">
-**Cuidado:** en una torta, elegir un color para su representación pinta **todas** las porciones de ese color ([#2240](https://github.com/microboxlabs/modulariot/issues/2240)). Use barras o un Stacked Stat. Si necesita la torta, deje el color sin elegir: las porciones toman la paleta por defecto en el orden de las filas.
+En una torta, elegir un color para su representación pinta **todas** las porciones de ese color ([#2240](https://github.com/microboxlabs/modulariot/issues/2240)). Si ya eligió uno, borre la representación y agréguela de nuevo.
 </Callout>
 
-## Colores usados en estas páginas
-
-| Estado | Color |
-| --- | --- |
-| Pendiente | `eab308` |
-| En curso | `3b82f6` |
-| Cerrada | `22c55e` |
-
-En Stacked Stat y en las reglas de la tabla, el color va sin `#`. En `customColors` de Chart v2, con `#`.
+Para fijar un color por estado en la torta, edite el documento ([Importar y exportar](/es/products/dashboards/how-to/import-export)): `"colorPalette": "custom"`, `"customColors": ["#eab308", "#3b82f6", "#22c55e"]`, y ordene las filas con el mismo `ORDER BY` de arriba. Si un estado no tiene filas, los colores se desplazan.

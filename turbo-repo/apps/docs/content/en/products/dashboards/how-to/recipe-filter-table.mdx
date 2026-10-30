@@ -12,39 +12,49 @@ import { Callout } from 'nextra/components'
 Clicking a chart or a bar does not filter the table ([#2234](https://github.com/microboxlabs/modulariot/issues/2234)). This recipe uses a dashboard filter.
 </Callout>
 
+## Before you start
+
+| Step | Where |
+| --- | --- |
+| Save each SQL query with a name | **Settings › Connections › BigQuery** › **+ New** › **Save** |
+| Add a saved query to the dashboard | With **Edit Mode** on: settings menu (gear) › **Saved queries** › **Add query**. **Connection**: your BigQuery connection. **Operation**: the SQL query's name |
+| Add a widget | With **Edit Mode** on: **Add Widget** |
+
+The full walkthrough is in [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard).
+
 ## Queries
 
-**Detail**, with the `@estado` parameter of type `STRING`:
+**Detail**. Save it as `detalle_solicitudes`. In **Parameters**, select **Declare @estado** (type `STRING`):
 
 ```sql
 SELECT
   id, estado, responsable,
-  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada_en
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada
 FROM `my-project.operations.solicitudes`
 WHERE (IFNULL(@estado, '') = '' OR estado IN UNNEST(SPLIT(@estado, ',')))
 ORDER BY creada_en DESC
 LIMIT 500
 ```
 
-**Filter options** (optional), so the list of states comes from the data:
+**Filter options** (optional), so the list of states comes from the data. Save it as `estados_opciones`:
 
 ```sql
 SELECT DISTINCT estado,
   CASE estado WHEN 'pendiente' THEN 'Pending' WHEN 'en_curso' THEN 'In progress' ELSE 'Closed' END AS etiqueta
 FROM `my-project.operations.solicitudes`
-ORDER BY estado
+ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
 ```
 
 ## Steps
 
-1. Add the saved query `detalle` with these parameters:
+1. Turn on **Edit Mode**. Add the saved query **Result name** `detalle`, **Operation** `detalle_solicitudes`, with these parameters:
 
    ```json
    { "estado": { "kind": "filter", "key": "estado", "defaultValue": "" } }
    ```
 
 2. Add a **Data Table V2** with **Data Source** **Planner** and **Variable** `detalle`.
-3. If you use the options query, add it as the saved query `estados`.
+3. If you use the options query, add it with **Result name** `estados`, **Operation** `estados_opciones`, **Parameters (JSON)** `{}`.
 4. Settings menu › **Filter Bar** › **Add filter**:
 
    | Setting | Value |
@@ -52,8 +62,8 @@ ORDER BY estado
    | **Filter type** | Select |
    | **Display label** | `State` |
    | **Parameter key** | `estado` |
-   | **Allow a single selection** | On for one state at a time. Off for several |
-   | **Options source** | **Manual (typed by hand)** with `Pending`/`pendiente`, `In progress`/`en_curso`, `Closed`/`cerrada`, or the query `estados` with **Value column** `estado` and **Label column** `etiqueta` |
+   | **Allow a single selection** | Checked for one state at a time. Unchecked for several |
+   | **Options source** | **Manual (typed by hand)** with `Pending`/`pendiente`, `In progress`/`en_curso`, `Closed`/`cerrada`. Or the query `estados`, with **Value column** `estado` and **Label column** `etiqueta`. If no columns appear, wait for the dashboard to load and open **Filter Bar** again |
 
 5. **Save** in the panel and turn off **Edit Mode**.
 
@@ -67,7 +77,7 @@ The page address keeps the filter (`?estado=en_curso`). You can share that link.
 
 ## To filter the summary too
 
-Add `@estado` to the summary query with the same condition and the same binding. With one state chosen, the 100% bar has a single color.
+Add the same `WHERE` condition to the summary query, declare `@estado` (type `STRING`) in the editor and use the same binding in its **Parameters (JSON)**. With one state chosen, the 100% bar has a single color.
 
 ## Related
 

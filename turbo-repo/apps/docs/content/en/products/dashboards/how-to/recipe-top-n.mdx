@@ -6,6 +6,16 @@
 
 ![Top 5 owners as horizontal bars with labels](/dashboards/chart_v2/bar-horizontal.png)
 
+## Before you start
+
+| Step | Where |
+| --- | --- |
+| Save each SQL query with a name | **Settings › Connections › BigQuery** › **+ New** › **Save** |
+| Add a saved query to the dashboard | With **Edit Mode** on: settings menu (gear) › **Saved queries** › **Add query**. **Connection**: your BigQuery connection. **Operation**: the SQL query's name |
+| Add a widget | With **Edit Mode** on: **Add Widget** |
+
+The full walkthrough is in [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard).
+
 ## Query
 
 ```sql
@@ -16,19 +26,20 @@ ORDER BY cantidad DESC
 LIMIT 5
 ```
 
-The chart does not sort: the order comes from `ORDER BY`. The first row is at the top.
+Save it as `top_responsables`. The chart does not sort: the order comes from `ORDER BY`. The first row is at the top.
 
 ## Steps
 
-1. Add the saved query `top_responsables` with **Parameters (JSON)** `{}`.
-2. **Add Widget** › **Chart v2**. **Data Provider**: **Planner**, **Variable** `top_responsables`.
+1. Turn on **Edit Mode**. Add the saved query **Result name** `top`, **Operation** `top_responsables`, **Parameters (JSON)** `{}`.
+2. **Add Widget** › search `Chart` › **Chart v2**. **Data Provider**: **Planner**, **Variable** `top`.
 3. **Visualization**:
 
    | Setting | Value |
    | --- | --- |
+   | **Title** | `Top 5 owners` |
    | **Chart Family** | Cartesian |
    | **X-Axis Column** | `responsable` |
-   | **Representations** | One, **Bar**, column `cantidad`, label `Requests`, **Labels** on |
+   | **Representations** | The widget comes with two (bar and line). Delete the line. On the bar: column `cantidad`, label `Requests`, **Labels** on |
    | **Horizontal Bars** | On |
    | **Show Legend** | Off |
 
@@ -42,6 +53,8 @@ The chart does not sort: the order comes from `ORDER BY`. The first row is at th
 | The bottom (fewest requests) | `ORDER BY cantidad ASC` |
 | Color by value | **Colors & Rules**: for example `>` `10` red. See [Chart v2](/en/products/dashboards/reference/widgets/chart-v2#color-rules) |
 | Long names | They are cut at 120 pixels. Shorten them in the query |
+
+The label of the longest bar can be cut at the right edge, as in the screenshot ([#2246](https://github.com/microboxlabs/modulariot/issues/2246)).
 
 ## Related
 

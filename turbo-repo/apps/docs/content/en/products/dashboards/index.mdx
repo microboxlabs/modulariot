@@ -11,7 +11,7 @@ ModularIoT Dashboards is for building operational dashboards, sharing them and e
 | Capability | What it means |
 | --- | --- |
 | Grid editor | Drag and resize widgets on a 24-column grid. Changes save on their own. |
-| Widgets | Text, indicators (KPIs), stacked bars, bar, line, pie and gauge charts, tables and lists. |
+| Widgets | Text, KPIs, stacked bars, bar, line, pie and gauge charts, tables and lists. |
 | Queries | Each widget reads a saved query. SQL queries are written and tested in an editor (BigQuery) or exposed as functions (PostgREST). |
 | Filters | Text, date range and selection. A filter changes the parameters of the queries that use it. |
 | Permissions | Four roles per scope, plus extra roles per dashboard for people or groups. |
@@ -19,17 +19,17 @@ ModularIoT Dashboards is for building operational dashboards, sharing them and e
 | Embedding | Show dashboards in your application with React, a Web Component or any HTML page, including Phoenix LiveView. |
 | Import and export | Copy a dashboard between environments as a JSON file. |
 
-The browser never receives credentials, data URLs or SQL. The dashboard names a query; the server runs it.
+The browser never receives credentials, data URLs or SQL. The dashboard names a query. The server runs it.
 
 ## Typical uses
 
 | Use | Widgets |
 | --- | --- |
-| Status of an operation: how many records are in each state | Stacked Stat (KPI per state + 100% bar), Data Table |
+| Status of an operation: how many records are in each state | Stacked Stat (KPI per state + 100% bar), Data Table V2 |
 | Daily or monthly trend | Chart v2 (lines or bars by date) |
-| Ranking: the top 10 by number of events | Chart v2 (horizontal bar) |
+| The top 10 by number of events | Chart v2 (horizontal bar) |
 | Progress toward a goal | Progress Stat, Progress |
-| Row-by-row review | Data Table with column filters and CSV export |
+| Row-by-row review | Data Table V2 with column filters and CSV export |
 
 ## What it does not do yet
 
@@ -39,14 +39,14 @@ The browser never receives credentials, data URLs or SQL. The dashboard names a 
 | Single-value widgets (Stat, Stacked Stat) read only the first row of the query. | Write the query so it returns one row, with one column per value. |
 | A pie chart does not give each category a fixed color. It takes the palette colors in row order. | Use a Stacked Stat (one color per category), or bars with one series per category. |
 | The SQL editor works only with BigQuery. | With PostgreSQL, write the query as a function and publish it with PostgREST. |
-| The widget settings panels are React components. | A host that does not use React builds its own settings forms. |
+| The widget settings panels are React components. | An application that does not use React builds its own settings forms. |
 | Maps, containers and file upload exist only in the ModularIoT app. | — |
 
 ## Choose your path
 
 | You are | You want | Start at |
 | --- | --- | --- |
-| Product owner or customer | Know what it does and what it does not | This page and [Choose your path](/en/products/dashboards/getting-started/choose-a-setup) |
+| Product owner or customer | Know what it does and what it does not | This page and the [Widget catalog](/en/products/dashboards/reference/widgets) |
 | Implementer | Build dashboards in the UI: data, queries, widgets, filters, permissions | [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard) |
 | Developer | Embed dashboards in your application and run the server | [Quickstart](/en/products/dashboards/getting-started/quickstart), then [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page) |
 
@@ -57,7 +57,7 @@ The browser never receives credentials, data URLs or SQL. The dashboard names a 
   <Cards.Card title="Widget catalog" href="/en/products/dashboards/reference/widgets" arrow />
 </Cards>
 
-## How the parts fit
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -93,5 +93,5 @@ The server also ships as a container image and a Helm chart. See [Installation](
 | Reference | Every widget, setting, API route and limit |
 
 <Callout type="info">
-Pages that show the ModularIoT UI say so in their first line ("ModularIoT setup"). Everything else applies to any application that uses the libraries.
+Pages that use the ModularIoT UI say so in their first line with **Setup:** ModularIoT. Everything else applies to any application that uses the libraries.
 </Callout>

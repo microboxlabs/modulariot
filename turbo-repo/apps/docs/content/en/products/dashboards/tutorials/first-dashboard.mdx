@@ -22,7 +22,8 @@ The result is a dashboard of requests: at the top, how many are in each state; b
 | You need | Why | If you do not have it |
 | --- | --- | --- |
 | **Dashboards** in the navigation | It is where dashboards are created | Ask an administrator to turn it on ([Deploy with ModularIoT](/en/products/dashboards/deployment/with-modulariot)) |
-| The **Contributor** organization role or higher | Consumers can only view dashboards | Ask an administrator for the role |
+| The **Contributor** dashboard role or higher ([roles](/en/products/dashboards/concepts/access-model)) | With the Consumer role you can only view dashboards | Ask an administrator for the role |
+| The organization **Owner** role, to save SQL queries | Administrators can read and run queries, not save them | Ask an Owner to save the queries of steps 3 and 5 |
 | A BigQuery connection with a service account | To write the SQL queries | Steps 1 and 2 work without it. See [Connect BigQuery](/en/products/dashboards/how-to/connect-bigquery) |
 
 The example uses a `solicitudes` (requests) table with these columns. Replace the names with your table's.
@@ -46,15 +47,16 @@ The dashboard opens empty. Changes save on their own a few seconds after each ed
 
 ### Add a Stacked Stat with fixed data
 
-Start with numbers typed by hand. You see the widget before you connect data.
+Start with numbers typed by hand to see the widget before connecting data.
 
 1. Turn on **Edit Mode** at the top of the dashboard.
 2. Select **Add Widget** and choose **Stacked Stat**.
 3. Hover over the widget and open its settings (the gear).
 4. In the **Visualization** tab:
+   - **Chart Type**: **Bar**. **Donut** draws a ring with the same parts.
    - **Title**: `Requests by state`.
-   - **Unit**: leave it empty. The default is `%`.
-   - **Categories**: delete the four sample categories. Select **Add** three times and fill in:
+   - **Unit**: delete the default `%`.
+   - **Categories**: delete the four sample categories. Select **Add** three times and fill in each row. Pick the color with the row's color picker:
 
      | Label | Value | Color |
      | --- | --- | --- |
@@ -67,7 +69,7 @@ Start with numbers typed by hand. You see the widget before you connect data.
 The widget shows a bar split in three parts, proportional to 12, 7 and 30, and a legend with each number.
 
 <Callout type="warning">
-**Pitfall:** the default **Unit** is `%`. If you do not clear it, the legend shows `12%`.
+**Pitfall:** if you do not delete the `%` in **Unit**, the legend shows `12%`.
 </Callout>
 
 ### Write the summary query
@@ -95,7 +97,7 @@ A Stacked Stat reads **one row**: the first row the query returns. Each category
 
 5. Open **Query settings**, type the name `resumen_estados` and select **Save**.
 
-Only `SELECT` queries can be saved. The editor shows how many bytes the query will read before you run it.
+Only `SELECT` queries can be saved. The editor shows how many bytes the query will read before you run it. A query saved here appears as an **Operation** of that connection in the organization's dashboards.
 
 ### Connect the widget to the query
 
@@ -107,7 +109,7 @@ A dashboard uses a query through a **saved query**: a short name that widgets ch
    - **Connection**: your BigQuery connection.
    - **Operation**: `resumen_estados`.
    - **Parameters (JSON)**: `{}`.
-3. Select **Apply to draft**.
+3. Select **Apply to draft**. This adds the query to the dashboard. The dashboard saves on its own; there is no publish step.
 4. Open the Stacked Stat settings. In the **Data Provider** tab, set **Data Source** to **Planner** and choose `resumen` in **Variable**. The available columns appear below: `total`, `pendiente`, `en_curso`, `cerrada`.
 5. In the **Visualization** tab, replace each category value with a template that names the column:
 
@@ -122,7 +124,7 @@ A dashboard uses a query through a **saved query**: a short name that widgets ch
 The widget shows the real numbers. `{{column}}` is replaced by that column's value in the first row.
 
 <details>
-<summary>Why "Planner"</summary>
+<summary>Data Source options</summary>
 
 **Planner** is the UI's name for the dashboard's saved queries. **Static (JSON)** uses data typed into the widget. **PGREST** calls a PostgREST function directly from the widget, without a saved query.
 
@@ -142,9 +144,13 @@ A table reads **all the rows** of its query. One query row is one table row.
    LIMIT 500
    ```
 
-2. In **Parameters**, declare `estado` with type `STRING`. Leave **Test value** empty and run: the query receives `NULL`, `IFNULL` treats it as empty, and all states come back. Type `en_curso` and run again: only those rows come back. Save.
-3. In the dashboard, add a saved query:
+2. In **Parameters**, declare `estado` with type `STRING`.
+3. Leave **Test value** empty and select **Run**. All states come back: the query receives `NULL` and `IFNULL` treats it as empty.
+4. Type `en_curso` in **Test value** and run again. Only those rows come back.
+5. Save the query.
+6. In the dashboard, add a saved query:
    - **Result name**: `detalle`.
+   - **Connection**: your BigQuery connection.
    - **Operation**: `detalle_solicitudes`.
    - **Parameters (JSON)**:
 
@@ -152,11 +158,11 @@ A table reads **all the rows** of its query. One query row is one table row.
      { "estado": { "kind": "filter", "key": "estado", "defaultValue": "" } }
      ```
 
-4. Select **Add Widget** and choose **Data Table V2**.
-5. In its settings, **Data Provider** tab, set **Data Source** to **Planner** and **Variable** to `detalle`. The table columns are filled in from the query.
-6. In **Columns**, change the labels: `ID`, `State`, `Owner`, `Created`. Save.
+7. Select **Add Widget** and choose **Data Table V2**.
+8. In its settings, **Data Provider** tab, set **Data Source** to **Planner** and **Variable** to `detalle`. The table columns are filled in from the query.
+9. In **Columns**, change the labels: `ID`, `State`, `Owner`, `Created`. Save.
 
-`@estado` is a BigQuery parameter. The binding `{"kind": "filter", "key": "estado"}` gives it the value of the `estado` filter, which you create in the next step. While the filter is empty, the server sends `defaultValue` (`""`), and the condition `IFNULL(@estado, '') = ''` lets every row through.
+`@estado` is a BigQuery parameter. The binding `{"kind": "filter", "key": "estado"}` gives it the value of the `estado` filter, which you create in the next step. While the filter is empty, the server sends `defaultValue` (`""`). The condition `IFNULL(@estado, '') = ''` then lets every row through.
 
 <Callout type="warning">
 **Pitfall:** a BigQuery query always receives all its parameters. Do not use `omitWhenEmpty` with BigQuery: if the parameter is left out, the query fails. Use `defaultValue`.
@@ -169,11 +175,18 @@ A table reads **all the rows** of its query. One query row is one table row.
    - **Filter key**: `estado`. It must match `key` in the query binding.
    - **Display label**: `State`.
    - **Control type**: **Selection**.
-   - **Static options**: `Pending` / `pendiente`, `In progress` / `en_curso`, `Closed` / `cerrada`.
+   - **Static options**: add three options. **Option label** is what the user sees; **Option value** is what the query receives:
+
+     | Option label | Option value |
+     | --- | --- |
+     | `Pending` | `pendiente` |
+     | `In progress` | `en_curso` |
+     | `Closed` | `cerrada` |
+
    - Turn on **Allow a single selection**.
 3. Select **Apply filters to draft**.
 
-Choose **In progress** in the filter bar. The table reloads and shows only those rows. The Stacked Stat does not change: its query has no parameter bound to `estado`.
+Choose **In progress** in the filter bar. The table reloads and shows only those rows. The Stacked Stat does not change because its query does not bind the `estado` filter. The summary always shows every state.
 
 <Callout type="info">
 Clicking a part of the Stacked Stat bar does not filter the table. The filter bar is the way to do it.
@@ -183,9 +196,9 @@ Clicking a part of the Stacked Stat bar does not filter the table. The filter ba
 
 1. Turn off **Edit Mode**.
 2. Open the settings menu and select **Manage permissions**.
-3. Find your colleague under **Users**, choose the **Reader** role and select **Add**.
+3. Find your colleague under **Users**, choose the **Reader** role (Consumer) and select **Add**.
 
-Your colleague can open the dashboard and use the filter, but cannot change it. To let them edit, give them **Editor**.
+Your colleague can open the dashboard and use the filter, but cannot change it. To let them edit, give them **Editor**. In the UI, Reader, Contributor, Editor and Administrator are the roles Consumer, Contributor, Editor and Coordinator.
 
 </Steps>
 

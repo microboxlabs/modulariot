@@ -18,6 +18,7 @@ import {
   connectionMark,
   connectionState,
   connectionTypeName,
+  isPlatformManaged,
 } from "../connection-catalog";
 import type {
   IntegrationConnection,
@@ -31,7 +32,6 @@ import {
   SUBLINE,
 } from "./integration-row";
 import { isBigQueryConnection } from "../bigquery-query";
-import { isPlatformManaged } from "../connection-catalog";
 
 interface ConnectionsListProps {
   readonly connections: readonly IntegrationConnection[];

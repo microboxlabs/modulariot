@@ -84,7 +84,7 @@ public class PlatformGeocodingService {
      * @throws IllegalArgumentException for an unknown provider, a negative cost, a missing credential on first save,
      *         or a credential that is not a platform bearer token
      */
-    public PlatformGeocodingView put(SetPlatformGeocodingRequest body, String actor) {
+    public PlatformGeocodingView put(SetPlatformGeocodingRequest body) {
         if (body == null) throw new IllegalArgumentException("Request body is required");
         String name = body.provider() == null || body.provider().isBlank()
                 ? MapboxGeocoding.PROVIDER_NAME : body.provider().strip().toLowerCase(java.util.Locale.ROOT);
@@ -97,18 +97,11 @@ public class PlatformGeocodingService {
             throw new IllegalArgumentException(GeocodingConnection.COST + " cannot be negative");
         }
         IntegrationConnection existing = find();
-        String linked = credentialId != null ? credentialId : existing == null ? null : existing.credentialProfileId();
+        String linked = linkedCredentialId(credentialId, existing);
         if (linked != null) {
             requireCredentialFor(linked, provider.name());
         }
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put(GeocodingConnection.PROVIDER_KEY, provider.name());
-        if (MapboxGeocoding.PROVIDER_NAME.equals(provider.name())) {
-            metadata.put(GeocodingConnection.PERMANENT_KEY, body.permanent() == null || body.permanent());
-        }
-        if (cost != null) {
-            metadata.put(GeocodingConnection.COST, cost.toPlainString());
-        }
+        Map<String, Object> metadata = metadata(provider.name(), body);
         if (existing == null) {
             if (credentialId == null) {
                 throw new IllegalArgumentException("credentialProfileId is required");
@@ -123,13 +116,32 @@ public class PlatformGeocodingService {
     }
 
     /** Removes the connection; the credential stays in Credentials. @return false when no provider was set */
-    public boolean delete(String actor) {
+    public boolean delete() {
         IntegrationConnection existing = find();
         if (existing == null) {
             return false;
         }
         connections.deleteConnection(PLATFORM_TENANT, existing.id());
         return true;
+    }
+
+    private static String linkedCredentialId(String requested, IntegrationConnection existing) {
+        if (requested != null) {
+            return requested;
+        }
+        return existing == null ? null : existing.credentialProfileId();
+    }
+
+    private static Map<String, Object> metadata(String provider, SetPlatformGeocodingRequest body) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put(GeocodingConnection.PROVIDER_KEY, provider);
+        if (MapboxGeocoding.PROVIDER_NAME.equals(provider)) {
+            metadata.put(GeocodingConnection.PERMANENT_KEY, body.permanent() == null || body.permanent());
+        }
+        if (body.costPerRequestUsd() != null) {
+            metadata.put(GeocodingConnection.COST, body.costPerRequestUsd().toPlainString());
+        }
+        return metadata;
     }
 
     private IntegrationConnection find() {

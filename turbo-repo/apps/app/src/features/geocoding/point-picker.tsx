@@ -3,7 +3,7 @@
 import Map, {
   Marker,
   NavigationControl,
-  type MapLayerMouseEvent,
+  type MapMouseEvent,
   type MarkerDragEvent,
 } from "react-map-gl";
 import { Spinner } from "flowbite-react";
@@ -36,7 +36,7 @@ export default function PointPicker({
       </div>
     );
   }
-  const pick = (event: MapLayerMouseEvent) =>
+  const pick = (event: MapMouseEvent) =>
     onPoint({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
   const drag = (event: MarkerDragEvent) =>
     onPoint({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });

@@ -364,6 +364,19 @@ export function IntegrationConfigPageContent({
     }
   }
 
+  const openManagedProvider = inPlatformScope
+    ? () => setProviderSetupOpen(true)
+    : undefined;
+  const selectManagedGeocoding = isPlatformOwner
+    ? () => void handleManagedGeocoding()
+    : undefined;
+  const selectManagedBigQuery = isPlatformOwner
+    ? () => void handleManagedBigQuery()
+    : undefined;
+  const deleteConnectionFromModal = connectionModal.connection
+    ? () => handleDeleteConnectionFromModal(connectionModal.connection!)
+    : undefined;
+
   return (
     <SettingsPageShell
       breadcrumbDict={breadcrumbDict}
@@ -471,9 +484,7 @@ export function IntegrationConfigPageContent({
               templates={templates}
               credentials={credentials}
               onOpen={handleEditConnection}
-              onOpenManaged={
-                inPlatformScope ? () => setProviderSetupOpen(true) : undefined
-              }
+              onOpenManaged={openManagedProvider}
               onTest={handleTest}
               onDelete={setDeletingConnection}
               canRemoveManaged={isPlatformOwner}
@@ -532,13 +543,9 @@ export function IntegrationConfigPageContent({
         onClose={() => setPickerOpen(false)}
         onSelect={handleTemplatePicked}
         onSelectNative={handleNativePicked}
-        onSelectManagedGeocoding={
-          isPlatformOwner ? () => void handleManagedGeocoding() : undefined
-        }
+        onSelectManagedGeocoding={selectManagedGeocoding}
         managedGeocodingInPlatform={inPlatformScope}
-        onSelectManagedBigQuery={
-          isPlatformOwner ? () => void handleManagedBigQuery() : undefined
-        }
+        onSelectManagedBigQuery={selectManagedBigQuery}
         dict={dict}
       />
 
@@ -561,11 +568,7 @@ export function IntegrationConfigPageContent({
         credentials={credentials}
         onClose={() => setConnectionModal({ open: false })}
         onSave={saveConnection}
-        onDelete={
-          connectionModal.connection
-            ? () => handleDeleteConnectionFromModal(connectionModal.connection!)
-            : undefined
-        }
+        onDelete={deleteConnectionFromModal}
         onTest={testInstance}
         onTestDraft={testDraft}
         saving={saving}

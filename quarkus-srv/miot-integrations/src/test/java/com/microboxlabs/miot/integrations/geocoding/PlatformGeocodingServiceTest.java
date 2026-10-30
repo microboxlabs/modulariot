@@ -34,7 +34,7 @@ class PlatformGeocodingServiceTest {
 
     @Test
     void aMissingBodyIsAnInvalidConfiguration() {
-        assertThrows(IllegalArgumentException.class, () -> service.put(null, "owner"));
+        assertThrows(IllegalArgumentException.class, () -> service.put(null));
         assertNull(repository.connection);
     }
 
@@ -46,7 +46,7 @@ class PlatformGeocodingServiceTest {
     @Test
     void theFirstSaveLinksThePlatformCredentialWithOurCost() {
         PlatformGeocodingView view = service.put(
-                new SetPlatformGeocodingRequest(null, "cred-mapbox", null, new BigDecimal("0.0075")), "owner");
+                new SetPlatformGeocodingRequest(null, "cred-mapbox", null, new BigDecimal("0.0075")));
 
         assertTrue(view.configured());
         assertEquals("mapbox", view.provider());
@@ -64,39 +64,39 @@ class PlatformGeocodingServiceTest {
     @Test
     void aCredentialIsRequiredTheFirstTime() {
         SetPlatformGeocodingRequest request = new SetPlatformGeocodingRequest("mapbox", " ", true, null);
-        assertThrows(IllegalArgumentException.class, () -> service.put(request, "owner"));
+        assertThrows(IllegalArgumentException.class, () -> service.put(request));
         assertNull(repository.connection);
     }
 
     @Test
     void onlyAPlatformBearerTokenCredentialIsAccepted() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put(new SetPlatformGeocodingRequest("mapbox", "cred-basic", null, null), "owner"));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put(new SetPlatformGeocodingRequest("mapbox", "cred-managed", null, null), "owner"));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put(new SetPlatformGeocodingRequest("mapbox", "missing", null, null), "owner"));
+        SetPlatformGeocodingRequest basic = new SetPlatformGeocodingRequest("mapbox", "cred-basic", null, null);
+        SetPlatformGeocodingRequest managed = new SetPlatformGeocodingRequest("mapbox", "cred-managed", null, null);
+        SetPlatformGeocodingRequest missing = new SetPlatformGeocodingRequest("mapbox", "missing", null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.put(basic));
+        assertThrows(IllegalArgumentException.class, () -> service.put(managed));
+        assertThrows(IllegalArgumentException.class, () -> service.put(missing));
         assertNull(repository.connection);
     }
 
     @Test
     void aCredentialTaggedForTheOtherProviderIsRefused() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put(new SetPlatformGeocodingRequest("google", "cred-mapbox", null, null), "owner"));
-        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, null), "owner");
+        SetPlatformGeocodingRequest wrongProvider = new SetPlatformGeocodingRequest("google", "cred-mapbox", null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.put(wrongProvider));
+        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, null));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put(new SetPlatformGeocodingRequest("google", null, null, null), "owner"));
+        SetPlatformGeocodingRequest keepWrongProvider = new SetPlatformGeocodingRequest("google", null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.put(keepWrongProvider));
         assertEquals("google", service.put(
-                new SetPlatformGeocodingRequest("google", "cred-google", null, null), "owner").provider());
+                new SetPlatformGeocodingRequest("google", "cred-google", null, null)).provider());
     }
 
     @Test
     void switchingToGoogleKeepsAPlainTokenAndDropsPermanent() {
-        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-plain", false, null), "owner");
+        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-plain", false, null));
 
         PlatformGeocodingView view = service.put(
-                new SetPlatformGeocodingRequest("google", null, true, new BigDecimal("0.005")), "owner");
+                new SetPlatformGeocodingRequest("google", null, true, new BigDecimal("0.005")));
 
         assertEquals("google", view.provider());
         assertNull(view.permanent());
@@ -106,9 +106,9 @@ class PlatformGeocodingServiceTest {
 
     @Test
     void removingTheProviderKeepsTheCredential() {
-        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, null), "owner");
+        service.put(new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, null));
 
-        assertTrue(service.delete("owner"));
+        assertTrue(service.delete());
 
         assertNull(repository.connection);
         assertEquals("Mapbox", credentials.get(PLATFORM_TENANT, "cred-mapbox").displayName());
@@ -118,8 +118,8 @@ class PlatformGeocodingServiceTest {
     void anUnknownProviderOrANegativeCostIsRefused() {
         SetPlatformGeocodingRequest unknown = new SetPlatformGeocodingRequest("here", "cred-mapbox", null, null);
         SetPlatformGeocodingRequest negative = new SetPlatformGeocodingRequest("mapbox", "cred-mapbox", null, new BigDecimal("-1"));
-        assertThrows(IllegalArgumentException.class, () -> service.put(unknown, "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.put(negative, "owner"));
+        assertThrows(IllegalArgumentException.class, () -> service.put(unknown));
+        assertThrows(IllegalArgumentException.class, () -> service.put(negative));
     }
 
     private static final class FakeConnections extends IntegrationConnectionRepository {

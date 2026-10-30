@@ -9,6 +9,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.common.annotation.Blocking;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -31,8 +32,10 @@ import org.jboss.logging.Logger;
  * keeps the episodes in Redis (in memory when no Redis URL is set), records
  * the case changes in {@code miot_symptoms.signal_transitions}, publishes each new
  * one as a {@code symptom.case.*} event ({@link SymptomEvents}) and keeps
- * recent signals for rule previews ({@link SignalSamples}). On wherever the
- * symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
+ * recent signals for rule previews ({@link SignalSamples}). A signal older than
+ * the organization's watermark is counted ({@code miot.symptoms.evaluator.late})
+ * and handed to {@link LateFrames}; the symptoms do not run on it. On wherever
+ * the symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -42,6 +45,8 @@ public class EvaluatorStream {
     private static final ObjectMapper JSON = new ObjectMapper();
     static final String SOURCE = "gps_signal";
     private static final Duration VERSIONS_TTL = Duration.ofSeconds(30);
+    /** Client ids are 8 characters before any suffix; the tag keeps only those. */
+    private static final int SENDER_TAG = 8;
 
     private final boolean enabled;
     private final EvaluatorCatalog catalog;
@@ -51,6 +56,7 @@ public class EvaluatorStream {
     private final EpisodeRepository episodes;
     private final SignalSamples samples;
     private final SymptomEvents events;
+    private final LateFrames lateFrames;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -60,12 +66,12 @@ public class EvaluatorStream {
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters, SymptomEvents events) {
+            MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames) {
         this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
-                samples);
+                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE);
         if (enabled) {
             LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
@@ -78,6 +84,12 @@ public class EvaluatorStream {
 
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
             SignalSamples samples) {
+        this(enabled, catalog, sinks, clock, episodes, samples, LateFrames.NONE);
+    }
+
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
+            SignalSamples samples, LateFrames lateFrames) {
+        this.lateFrames = lateFrames;
         this.enabled = enabled;
         this.catalog = catalog;
         this.transitionLog = sinks.transitionLog();
@@ -131,12 +143,29 @@ public class EvaluatorStream {
             throw new IllegalArgumentException("not a signal time", e);
         }
         int recorded = 0;
+        boolean late = false;
         for (Object client : clients) {
             if (client instanceof String tenant) {
-                recorded += evaluate(tenant, assetId, instant, forTenant(signal, tenant));
+                Evaluated e = evaluate(tenant, assetId, instant, forTenant(signal, tenant));
+                recorded += e.transitions();
+                late |= e.late();
             }
         }
+        if (late) {
+            meters.counter("miot.symptoms.evaluator.late", "sender", senderTag(signal.get("sender"))).increment();
+        }
         return recorded;
+    }
+
+    static String senderTag(Object sender) {
+        if (!(sender instanceof String s) || s.isBlank()) {
+            return "none";
+        }
+        return s.length() > SENDER_TAG ? s.substring(0, SENDER_TAG) : s;
+    }
+
+    /** @param late the signal was older than the organization's watermark, so its symptoms did not run */
+    private record Evaluated(int transitions, boolean late) {
     }
 
     private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
@@ -150,13 +179,23 @@ public class EvaluatorStream {
         return out;
     }
 
-    private int evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {
+    private Evaluated evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {
         samples.keep(tenant, signal);
         List<CompiledSymptom> symptoms = symptoms(tenant);
         if (symptoms.isEmpty()) {
-            return 0;
+            return new Evaluated(0, false);
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
+        Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
+        if (newest != null && at.isBefore(newest)) {
+            try {
+                lateFrames.late(tenant, assetId, at, newest, signal);
+            } catch (RuntimeException e) {
+                // The symptoms skip it anyway: a failed hook is not worth a redelivery.
+                meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
+            }
+            return new Evaluated(0, true);
+        }
         SignalEvaluator.Result result = new SignalEvaluator(state)
                 .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
         // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
@@ -171,7 +210,7 @@ public class EvaluatorStream {
         if (!result.errors().isEmpty()) {
             meters.counter("miot.symptoms.evaluator.rule_errors").increment(result.errors().size());
         }
-        return result.transitions().size();
+        return new Evaluated(result.transitions().size(), false);
     }
 
     /**

@@ -124,6 +124,31 @@ class EvaluatorStreamTest {
     }
 
     @Test
+    void aLateSignalIsCountedAndHandedToTheHookWithoutRunningTheSymptoms() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        List<String> late = new ArrayList<>();
+        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(log, events, meters),
+                Clock.systemUTC(), new InMemoryEpisodeRepository(), samples,
+                (tenant, asset, at, newest, signal) -> late.add(tenant + " " + asset + " " + at + " < " + newest));
+
+        s.evaluate(signal("2026-10-22T03:00:30Z", false, DEMO));
+        assertEquals(0, s.evaluate(signal("2026-10-22T03:00:00Z", true, DEMO, OTHER)));
+        assertEquals(0, s.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)), "a replay is not late");
+
+        assertEquals(List.of(DEMO + " DEMO01 2026-10-22T03:00:00Z < 2026-10-22T03:00:30Z"), late,
+                "only the organization with symptoms has a watermark");
+        assertEquals(List.of(), recorded, "the pressed button in the late signal opens nothing");
+        assertEquals(1.0, meters.counter("miot.symptoms.evaluator.late", "sender", "none").count());
+    }
+
+    @Test
+    void theLateCounterIsTaggedWithTheSendersPrefix() {
+        assertEquals("abcdefgh", EvaluatorStream.senderTag("abcdefgh-long-m2m-id"));
+        assertEquals("short", EvaluatorStream.senderTag("short"));
+        assertEquals("none", EvaluatorStream.senderTag(null));
+    }
+
+    @Test
     void doesNothingWhenOff() {
         EvaluatorStream off = new EvaluatorStream(false, evaluatorCatalog,
                 new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),

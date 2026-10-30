@@ -40,6 +40,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 ## Order, versions and failures
 
 - Per vehicle and source, a signal not newer than the last one applied is ignored. This watermark is kept even when the episodes are not.
+- A `gps_signal` signal older than the organization's watermark is late: counted as `miot.symptoms.evaluator.late` (tag `sender`, the sending client's first 8 characters) and handed to `LateFrames`. Its symptoms do not run on it. A signal with the same time as the watermark is a replay, not late.
 - A new version takes over an open case; the levels' hold times start again under its thresholds.
 - An episode is kept while the activation runs, a level waits or a case is open. A vehicle off its candidate costs no storage.
 - A rule that fails on a signal (a missing field, a measure that is not a number) is reported as a `RuleError` for that symptom; its episode stays as it was and the other symptoms still run.

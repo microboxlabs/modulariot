@@ -68,7 +68,7 @@ test("fails closed on failed CI and missing builds", async () => {
 test("the CLI rejects manual deployments from branches other than trunk", () => {
   const result = spawnSync(process.execPath, [path.join(__dirname, "../scripts/resolve-trunk-builds.js")], { env: { ...process.env, GITHUB_REF: "refs/heads/feature" }, encoding: "utf8" });
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /requires refs\/heads\/trunk/);
+  assert.match(result.stderr, /refs\/heads\/trunk/);
 });
 
 test("the CLI outputs validated source SHAs for every component without dispatching a deployment", () => {
@@ -78,7 +78,7 @@ test("the CLI outputs validated source SHAs for every component without dispatch
   writeFileSync(path.join(bin, "gh"), `#!${process.execPath}\nif (process.argv[2] !== "api" || !process.argv[3].includes("/runs?branch=trunk")) process.exit(2);\nconsole.log(${JSON.stringify(JSON.stringify([build(sha)]))});\n`, { mode: 0o755 });
   const output = path.join(cwd, "outputs");
   const result = spawnSync(process.execPath, [path.join(__dirname, "../scripts/resolve-trunk-builds.js")], {
-    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, GITHUB_REF: "refs/heads/trunk", GITHUB_SHA: sha, GITHUB_REPOSITORY: "test/repo", GITHUB_OUTPUT: output },
+    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, GITHUB_REF: "refs/heads/trunk", SOURCE_SHA: sha, GITHUB_SHA: "b".repeat(40), GITHUB_REPOSITORY: "test/repo", GITHUB_OUTPUT: output },
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr);

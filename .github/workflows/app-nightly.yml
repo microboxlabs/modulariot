@@ -1,6 +1,6 @@
-name: MIOT Stack Nightly / Deploy trunk
+name: MIOT Stack Builds
 
-run-name: "${{ github.event_name == 'workflow_dispatch' && format('Deploy trunk / {0}', inputs.deployment_provider) || 'Build nightly' }} · ${{ github.sha }}"
+run-name: "Publish stack · ${{ github.event.workflow_run.head_sha || github.sha }}"
 
 on:
   # App/UI/DB changes have no separate image-build workflow — the app image is
@@ -9,7 +9,6 @@ on:
   push:
     branches:
       - trunk
-      - main
     paths:
       - 'turbo-repo/apps/app/**'
       - 'turbo-repo/packages/ui/**'
@@ -33,24 +32,13 @@ on:
       - completed
     branches:
       - trunk
-      - main
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
-    inputs:
-      deployment_provider:
-        description: "Deploy trunk only to this provider."
-        required: true
-        default: azure
-        type: choice
-        options:
-          - azure
-          - gke
 
 concurrency:
-  # Automatic builds cannot cancel a manually selected trunk deployment.
-  group: ${{ github.event_name == 'workflow_dispatch' && format('miot-stack-deploy-trunk-{0}', inputs.deployment_provider) || format('miot-stack-nightly-{0}', github.ref) }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  group: miot-stack-build-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -69,9 +57,7 @@ jobs:
   metadata:
     name: Resolve nightly metadata
     runs-on: ubuntu-latest
-    # A failed/cancelled upstream build must never ship — only a green Quarkus CI
-    # / Harness CI run should fan out into a deploy. Skipping `metadata` skips
-    # every downstream job (they all `needs: metadata`).
+    # Only successful, same-repository trunk CI may publish an available snapshot.
     if: >-
       ${{ github.event_name != 'workflow_run' ||
           (github.event.workflow_run.conclusion == 'success' &&
@@ -81,52 +67,16 @@ jobs:
       short_sha: ${{ steps.vars.outputs.short_sha }}
       head_sha: ${{ steps.vars.outputs.head_sha }}
       nightly_date: ${{ steps.vars.outputs.nightly_date }}
-      expect_docs_sha: ${{ steps.vars.outputs.expect_docs_sha }}
-      expect_web_sha: ${{ steps.vars.outputs.expect_web_sha }}
-      expect_modulith_sha: ${{ steps.vars.outputs.expect_modulith_sha }}
-      expect_harness_sha: ${{ steps.vars.outputs.expect_harness_sha }}
     steps:
       - name: Resolve image metadata
         id: vars
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          PUSH_SHA: ${{ github.sha }}
-          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-          WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
-          # For `workflow_run`, build images for the commit the upstream build
-          # actually built (its head_sha), not the branch tip GITHUB_SHA points
-          # at — they can differ if trunk advanced while the build ran.
-          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
-            head_sha="$WORKFLOW_RUN_SHA"
-          else
-            head_sha="$PUSH_SHA"
-          fi
-
-          # Require a commit-pinned source image ONLY for the component whose
-          # build just completed. Everything else is resolved opportunistically
-          # and may legitimately fall back to :latest (unchanged this run).
-          expect_docs_sha=false
-          expect_web_sha=false
-          expect_modulith_sha=false
-          expect_harness_sha=false
-          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
-            case "$WORKFLOW_RUN_NAME" in
-              "Docs CI") expect_docs_sha=true ;;
-              "Web CI") expect_web_sha=true ;;
-              "Quarkus CI") expect_modulith_sha=true ;;
-              "Harness CI") expect_harness_sha=true ;;
-            esac
-          fi
-
           {
-            echo "short_sha=${head_sha:0:7}"
-            echo "head_sha=$head_sha"
+            echo "short_sha=${SOURCE_SHA:0:7}"
+            echo "head_sha=$SOURCE_SHA"
             echo "nightly_date=$(date -u +'%Y%m%d')"
-            echo "expect_docs_sha=$expect_docs_sha"
-            echo "expect_web_sha=$expect_web_sha"
-            echo "expect_modulith_sha=$expect_modulith_sha"
-            echo "expect_harness_sha=$expect_harness_sha"
           } >> "$GITHUB_OUTPUT"
 
   sources:
@@ -139,28 +89,22 @@ jobs:
       actions: read
     outputs:
       docs_short_sha: ${{ steps.sources.outputs.docs_short_sha || needs.metadata.outputs.short_sha }}
-      expect_docs_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_docs_sha == 'true' }}
       web_short_sha: ${{ steps.sources.outputs.web_short_sha || needs.metadata.outputs.short_sha }}
-      expect_web_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_web_sha == 'true' }}
       modulith_short_sha: ${{ steps.sources.outputs.modulith_short_sha || needs.metadata.outputs.short_sha }}
-      expect_modulith_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_modulith_sha == 'true' }}
       harness_short_sha: ${{ steps.sources.outputs.harness_short_sha || needs.metadata.outputs.short_sha }}
-      expect_harness_sha: ${{ github.event_name == 'workflow_dispatch' || needs.metadata.outputs.expect_harness_sha == 'true' }}
     steps:
-      - name: Checkout selected trunk commit
-        if: github.event_name == 'workflow_dispatch'
+      - name: Checkout trusted build scripts
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.workflow_sha }}
           fetch-depth: 0
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
-        if: github.event_name == 'workflow_dispatch'
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Wait for successful builds of the selected trunk state
-        if: github.event_name == 'workflow_dispatch'
         id: sources
         env:
+          SOURCE_SHA: ${{ needs.metadata.outputs.head_sha }}
           GH_TOKEN: ${{ github.token }}
         run: node .github/scripts/resolve-trunk-builds.js
       - name: Report selection
@@ -345,7 +289,7 @@ jobs:
 
       - name: Write packaged build info
         env:
-          RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}-${{ github.run_id }}
           STACK_TAG: miot-stack@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
           SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
@@ -516,10 +460,8 @@ jobs:
         id: resolve
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.sources.outputs.docs_short_sha }}
-          LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:latest
           SHORT_SHA: ${{ needs.sources.outputs.docs_short_sha }}
           NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.sources.outputs.expect_docs_sha }}
         run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
@@ -582,10 +524,8 @@ jobs:
         id: resolve
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.WEB_IMAGE_NAME }}:sha-${{ needs.sources.outputs.web_short_sha }}
-          LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.WEB_IMAGE_NAME }}:latest
           SHORT_SHA: ${{ needs.sources.outputs.web_short_sha }}
           NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.sources.outputs.expect_web_sha }}
         run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
@@ -646,10 +586,8 @@ jobs:
         id: resolve
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.sources.outputs.modulith_short_sha }}
-          LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:latest
           SHORT_SHA: ${{ needs.sources.outputs.modulith_short_sha }}
           NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.sources.outputs.expect_modulith_sha }}
         run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
@@ -710,10 +648,8 @@ jobs:
         id: resolve
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:sha-${{ needs.sources.outputs.harness_short_sha }}
-          LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:latest
           SHORT_SHA: ${{ needs.sources.outputs.harness_short_sha }}
           NIGHTLY_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
-          EXPECT_SHA: ${{ needs.sources.outputs.expect_harness_sha }}
         run: .github/scripts/resolve-nightly-image.sh
 
       - name: Promote nightly tags
@@ -754,9 +690,7 @@ jobs:
     steps:
       - name: Generate stack deployment payload
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          DEPLOYMENT_PROVIDER: ${{ inputs.deployment_provider }}
-          RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}-${{ github.run_id }}
           BUILD_CHANNEL: nightly
           GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
           SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
@@ -788,8 +722,6 @@ jobs:
           BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
-            --arg event_name "$EVENT_NAME" \
-            --arg deployment_provider "$DEPLOYMENT_PROVIDER" \
             --arg release_version "$RELEASE_VERSION" \
             --arg build_channel "$BUILD_CHANNEL" \
             --arg git_sha "$GIT_SHA" \
@@ -820,10 +752,8 @@ jobs:
             --arg harness_image_ref "$HARNESS_IMAGE_REF" \
             --arg harness_source_tag "$HARNESS_SOURCE_TAG" \
             '{
-              event_type: (if $event_name == "workflow_dispatch" then "miot-stack-trunk" else "miot-stack-nightly" end),
+              event_type: "miot-stack-available",
               client_payload: {
-                deploy_kind: (if $event_name == "workflow_dispatch" then "trunk" else "nightly" end),
-                deployment_provider: $deployment_provider,
                 release_version: $release_version,
                 channel: $build_channel,
                 git_sha: $git_sha,
@@ -867,15 +797,15 @@ jobs:
                   }
                 }
               }
-            }' > nightly-dispatch-payload.json
+            }' > stack-available-payload.json
 
-          jq '.client_payload' nightly-dispatch-payload.json > nightly-manifest.json
+          jq '.client_payload' stack-available-payload.json > nightly-manifest.json
 
           {
             echo "# Stack ready"
             echo "- Commit: $GIT_SHA"
             echo "- Version: $RELEASE_VERSION"
-            echo "- Deployment: manual execution on trunk only"
+            echo "- Artifact availability only"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload nightly manifest artifact
@@ -884,17 +814,17 @@ jobs:
           name: nightly-manifest-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           path: |
             nightly-manifest.json
-            nightly-dispatch-payload.json
+            stack-available-payload.json
 
-  deploy:
-    name: Deploy trunk to ${{ inputs.deployment_provider }}
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/trunk'
+  notify:
+    name: Notify artifact availability
     runs-on: ubuntu-latest
     needs: [metadata, manifest]
     permissions:
       contents: read
     environment:
       name: app-deploy
+      deployment: false
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
@@ -904,10 +834,9 @@ jobs:
         with:
           name: nightly-manifest-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
 
-      - name: Dispatch private deployment workflow
+      - name: Notify private artifact receiver
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
-          DEPLOYMENT_PROVIDER: ${{ inputs.deployment_provider }}
           EXPECTED_SHA: ${{ needs.metadata.outputs.head_sha }}
-        run: .github/scripts/dispatch-trunk.sh
+        run: .github/scripts/notify-stack.sh

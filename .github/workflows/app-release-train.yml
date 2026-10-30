@@ -3,14 +3,6 @@ name: MIOT Release Train
 on:
   workflow_dispatch:
     inputs:
-      deployment_provider:
-        description: "Deploy this release only to this provider."
-        required: true
-        default: azure
-        type: choice
-        options:
-          - azure
-          - gke
       release_version:
         description: "Umbrella stack semver without v prefix. Leave blank to bump the latest miot-stack@v* patch."
         required: false
@@ -1154,8 +1146,8 @@ jobs:
           digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:harness-v${{ needs.prepare.outputs.harness_version }}" | awk '/^Digest:/ { print $2; exit }')"
           echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
 
-  deploy:
-    name: Dispatch configured environment deploys
+  publish:
+    name: Publish stack manifest and availability
     runs-on: ubuntu-latest
     needs:
       [
@@ -1169,12 +1161,14 @@ jobs:
       ]
     environment:
       name: app-deploy
+      deployment: false
     steps:
-      - name: Dispatch private deployment workflow
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.workflow_sha }}
+      - name: Generate release manifest
+        id: payload
         env:
-          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
-          DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
-          DEPLOYMENT_PROVIDER: ${{ inputs.deployment_provider }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
           RELEASE_NOTES_VERSION: v${{ needs.prepare.outputs.release_notes_version }}
           BUILD_CHANNEL: release
@@ -1213,16 +1207,9 @@ jobs:
           HARNESS_CHANGED: ${{ needs.prepare.outputs.harness_changed }}
           HARNESS_VERSION: ${{ needs.prepare.outputs.harness_version }}
         run: |
-          DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
-
-          if [[ -z "$GH_TOKEN" ]]; then
-            echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
-            exit 1
-          fi
           BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
-            --arg deployment_provider "$DEPLOYMENT_PROVIDER" \
             --arg release_version "$RELEASE_VERSION" \
             --arg release_notes_version "$RELEASE_NOTES_VERSION" \
             --arg build_channel "$BUILD_CHANNEL" \
@@ -1262,9 +1249,8 @@ jobs:
             --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
             --arg harness_image_ref "$HARNESS_IMAGE_REF" \
             '{
-              event_type: "miot-stack-release",
+              event_type: "miot-stack-available",
               client_payload: {
-                deployment_provider: $deployment_provider,
                 release_version: $release_version,
                 release_notes_version: $release_notes_version,
                 channel: $build_channel,
@@ -1317,10 +1303,9 @@ jobs:
                   }
                 }
               }
-            }' > stack-dispatch-payload.json
+            }' > stack-available-payload.json
 
           jq -n \
-            --arg deployment_provider "$DEPLOYMENT_PROVIDER" \
             --arg release_version "$RELEASE_VERSION" \
             --arg release_notes_version "$RELEASE_NOTES_VERSION" \
             --arg build_channel "$BUILD_CHANNEL" \
@@ -1361,7 +1346,6 @@ jobs:
             --arg harness_image_ref "$HARNESS_IMAGE_REF" \
             '{
               release_version: $release_version,
-              deployment_provider: $deployment_provider,
               stack_version: $release_version,
               release_notes_version: $release_notes_version,
               channel: $build_channel,
@@ -1435,22 +1419,22 @@ jobs:
               }
             }' > stack-manifest.json
 
-          cat stack-dispatch-payload.json |
-            gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
-              --method POST \
-              --input -
-
-          echo "Dispatched MIOT v${RELEASE_VERSION} deployment to ${DEPLOY_DISPATCH_REPO}."
-
       - name: Upload stack manifest to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ needs.prepare.outputs.stack_tag }}" stack-manifest.json --clobber --repo "$GITHUB_REPOSITORY"
 
+      - name: Notify private artifact receiver
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
+          EXPECTED_SHA: ${{ needs.tag.outputs.sha }}
+        run: .github/scripts/notify-stack.sh
+
   close-milestones:
     name: Close release milestones
     runs-on: ubuntu-latest
-    needs: [prepare, tag, deploy]
+    needs: [prepare, tag, publish]
     steps:
       - uses: actions/checkout@v5
         with:

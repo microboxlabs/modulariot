@@ -42,7 +42,7 @@ async function waitForBuild(name, component, sha, { repository, timeoutMs = 30 *
     const build = selectBuild(await listBuilds(component.workflow), sha, component.paths);
     if (build?.status === "completed") {
       if (build.conclusion !== "success") {
-        throw new Error(`${name}: matching build ${build.html_url} concluded ${build.conclusion}; refusing to deploy.`);
+        throw new Error(`${name}: matching build ${build.html_url} concluded ${build.conclusion}; refusing to publish.`);
       }
       console.log(`${name}: ${build.head_sha} (${build.html_url})`);
       return build;
@@ -54,9 +54,10 @@ async function waitForBuild(name, component, sha, { repository, timeoutMs = 30 *
 }
 
 async function main() {
-  const { GITHUB_REPOSITORY: repository, GITHUB_SHA: sha, GITHUB_REF: ref, GITHUB_OUTPUT: output } = process.env;
+  const { GITHUB_REPOSITORY: repository, GITHUB_SHA, GITHUB_REF: ref, GITHUB_OUTPUT: output } = process.env;
+  const sha = process.env.SOURCE_SHA || GITHUB_SHA;
   if (ref !== "refs/heads/trunk" || !/^[a-f0-9]{40}$/.test(sha ?? "") || !repository || !output) {
-    throw new Error("Deploy trunk requires refs/heads/trunk, GITHUB_SHA, GITHUB_REPOSITORY and GITHUB_OUTPUT.");
+    throw new Error("Stack snapshots require refs/heads/trunk, GITHUB_SHA, GITHUB_REPOSITORY and GITHUB_OUTPUT.");
   }
   const listBuilds = (workflow) => JSON.parse(run("gh", ["api",
     `repos/${repository}/actions/workflows/${workflow}/runs?branch=trunk&per_page=100`,

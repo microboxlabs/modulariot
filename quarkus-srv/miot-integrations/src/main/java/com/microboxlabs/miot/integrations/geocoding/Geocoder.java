@@ -27,6 +27,7 @@ import org.jboss.logging.Logger;
 @ApplicationScoped
 public class Geocoder {
 
+    private static final String CONFIG_ERROR_REASON = "config";
     private static final Logger LOG = Logger.getLogger(Geocoder.class);
 
     /**
@@ -77,22 +78,22 @@ public class Geocoder {
         try {
             connection = GeocodingConnection.of(resolved);
         } catch (NumberFormatException e) {
-            metrics.providerError(null, "config");
+            metrics.providerError(null, CONFIG_ERROR_REASON);
             return Result.failed(null, "the geocoding connection's " + GeocodingConnection.COST
                     + " is not a number");
         }
         GeocodingProvider provider = providers.stream().filter(p -> p.name().equals(connection.provider()))
                 .findFirst().orElse(null);
         if (provider == null) {
-            metrics.providerError(connection.provider(), "config");
+            metrics.providerError(connection.provider(), CONFIG_ERROR_REASON);
             return Result.failed(null, "unknown geocoding provider " + connection.provider());
         }
         if (connection.token() == null || connection.token().isBlank()) {
-            metrics.providerError(provider.name(), "config");
+            metrics.providerError(provider.name(), CONFIG_ERROR_REASON);
             return Result.failed(provider.name(), "the geocoding connection's credential has no token");
         }
         if (resolved.baseUrl() != null && !provider.serves(resolved.baseUrl())) {
-            metrics.providerError(provider.name(), "config");
+            metrics.providerError(provider.name(), CONFIG_ERROR_REASON);
             return Result.failed(provider.name(), "the geocoding connection must use " + provider.baseUrl());
         }
         long started = System.nanoTime();

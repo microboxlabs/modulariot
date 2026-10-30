@@ -20,10 +20,10 @@ Un filtro de rango de fechas con clave `date_range` entrega `date_range_from` y 
 2. Abra el menú de ajustes (el engranaje) y elija **Barra de Filtros**.
 3. Seleccione **Agregar filtro**.
 4. Complete:
-   - **Clave del filtro**: el nombre que usan las consultas, por ejemplo `vehicle`. Única en el dashboard.
-   - **Etiqueta visible**: lo que leen los usuarios, por ejemplo `Vehículo`.
-   - **Tipo de control**: texto, rango de fechas o selección.
-5. Aplique los filtros. El dashboard se guarda solo.
+   - **Tipo de filtro**: **Búsqueda de Texto**, **Rango de Fechas** o **Selección**.
+   - **Etiqueta de visualización**: lo que leen los usuarios, por ejemplo `Vehículo`.
+   - **Clave de parámetro**: el nombre que usan las consultas, por ejemplo `vehicle`. Única en el dashboard. Si la deja vacía, se deriva de la etiqueta.
+5. Seleccione **Guardar** en el panel. El dashboard se guarda solo.
 
 Luego vincule el filtro a un parámetro de consulta en **Consultas guardadas**:
 
@@ -41,15 +41,17 @@ Cambiar el nombre de la clave de un filtro no actualiza las consultas que la lee
 
 Un filtro de selección obtiene sus opciones de una de dos formas.
 
-**Opciones estáticas.** Escriba la etiqueta y el valor de cada opción. Úselas para listas cortas que cambian poco, como `Abierto`, `Cerrado`.
+**Manual (escritas a mano).** Con **Agregar opción**, escriba la **Etiqueta** y el **Valor** de cada opción. Úselas para listas cortas que cambian poco, como `Abierto`, `Cerrado`.
 
-**Desde una consulta guardada.** Elija **Fuente de opciones** y luego:
+**Desde una consulta guardada.** En **Origen de las opciones**, elija la consulta guardada por su **Nombre del resultado** y luego:
 
 | Campo | Significado |
 | --- | --- |
 | Consulta guardada | El resultado que contiene las opciones |
-| **Columna de valor** | La columna cuyo valor envía el filtro |
-| **Columna de etiqueta (opcional)** | La columna que leen los usuarios. Por defecto, la columna de valor. |
+| **Columna del valor** | La columna cuyo valor envía el filtro |
+| **Columna de la etiqueta** | La columna que leen los usuarios. **Igual que el valor** si no la elige |
+
+Las columnas aparecen después de que la consulta se ejecutó una vez. Si la lista está vacía, espere a que el dashboard cargue y vuelva a abrir **Barra de Filtros**.
 
 Las opciones que vienen de una consulta se deduplican y se actualizan con la consulta. El filtro no hace solicitudes adicionales: lee un resultado que el dashboard ya carga.
 

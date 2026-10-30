@@ -2,7 +2,20 @@ import { Callout } from 'nextra/components'
 
 # Widget catalog
 
-Each widget type has a `componentId`, stored in the document, and a registry function in the UI library that teaches a page to draw it. A page draws only the types whose registries it includes.
+Each widget type has a `componentId`, stored in the document, and a registry function in the UI library that a page needs to draw it. A page draws only the types whose registries it includes.
+
+## Pages per widget
+
+| Widget | Page |
+| --- | --- |
+| Stacked Stat | [Stacked Stat](/en/products/dashboards/reference/widgets/stacked-stat) |
+| Chart v2 | [Chart v2](/en/products/dashboards/reference/widgets/chart-v2) |
+| Data Table V2 | [Data Table V2](/en/products/dashboards/reference/widgets/data-table) |
+| Stat Card, Status Card, Progress Stat, Progress, Circular Stat | [Stat (single value)](/en/products/dashboards/reference/widgets/stat) |
+
+To pick a widget from a design, see [Choose a widget](/en/products/dashboards/tutorials/choose-a-widget).
+
+## Registering in the library
 
 Every registry function is available from `@microboxlabs/miot-dashboard-ui/react`, `/embed` and the self-contained `/browser` build, except charts, which have their own entries.
 
@@ -47,7 +60,7 @@ Viewers can filter, sort and resize locally. Their changes are not saved to the 
 | `chart` | Line, bar, scatter, pie and gauge charts | `createChartRegistry` |
 | `chart_v2` | The same, with mixed series and dual axes | `createChartRegistry` |
 
-Charts need ECharts 6, which your page loads and passes in through `createEngine`. Import `createChartRegistry` from `@microboxlabs/miot-dashboard-ui/react-charts` in React, or from `/browser-charts` instead of `/browser` in plain HTML. The default browser build leaves charts out to stay small.
+Charts need ECharts 6, which your page loads and passes in through `createEngine`. Import `createChartRegistry` from `@microboxlabs/miot-dashboard-ui/react-charts` in React, or from `/browser-charts` instead of `/browser` in plain HTML. The default browser build does not include charts.
 
 ## Host widgets
 
@@ -67,7 +80,7 @@ Every data-bound widget reads either `staticData` or a saved query result, set b
 { "dataMode": "planner", "plannerVariableName": "trips" }
 ```
 
-Single-value widgets use the first row. Tables, lists and charts use every row. Text settings accept [templates](/en/products/dashboards/concepts/documents-and-widgets#templates).
+Single-value widgets use the first row. Tables, lists and charts use every row. Text settings accept [templates](/en/products/dashboards/reference/templates).
 
 ## Register widgets
 
@@ -88,7 +101,7 @@ const definitions = [
 ];
 ```
 
-Each registry takes your translated labels, so the widgets speak your page's language. Combine them with `createWidgetRegistry` from `/core`, or with an object that has a `get(id)` method.
+Each registry takes your translated labels, so the widgets use your page's language. Combine them with `createWidgetRegistry` from `/core`, or with an object that has a `get(id)` method.
 
 <Callout type="info">
 The full option list for each registry is in the [UI library README](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md).

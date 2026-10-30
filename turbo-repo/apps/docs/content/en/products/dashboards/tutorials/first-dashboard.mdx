@@ -2,103 +2,204 @@ import { Callout, Steps } from 'nextra/components'
 
 # Build your first dashboard
 
-In this tutorial you build a small operations dashboard in the ModularIoT web app. It has a text card, a statistic that reads live data, and a filter. At the end you share it with a colleague.
+**For:** implementers. **Setup:** ModularIoT (the web app at modulariot.com/app).
 
-It takes about 15 minutes.
+<Callout type="info">
+**You will learn to:**
+
+- create a dashboard and add a widget;
+- write a SQL query that returns one row with a number per state;
+- show those numbers in a Stacked Stat (KPI per state + 100% bar);
+- show the detail in a table;
+- filter the table with a select filter;
+- share the dashboard.
+</Callout>
+
+The result is a dashboard of requests: at the top, how many are in each state; below, the list. It takes about 30 minutes.
 
 ## Before you start
 
-- You can sign in to the ModularIoT web app and see **Dashboards** in the navigation. If it is missing, ask your administrator to turn it on ([Deploy with ModularIoT](/en/products/dashboards/deployment/with-modulariot)).
-- Your role in the organization is **Contributor** or higher. Consumers can view dashboards but not create them.
-- Your organization has at least one connection with an approved operation, such as a PostgREST function. If not, ask an administrator to follow [Connect PostgREST](/en/products/dashboards/how-to/connect-postgrest). You can still do steps 1 to 3 without one.
+| You need | Why | If you do not have it |
+| --- | --- | --- |
+| **Dashboards** in the navigation | It is where dashboards are created | Ask an administrator to turn it on ([Deploy with ModularIoT](/en/products/dashboards/deployment/with-modulariot)) |
+| The **Contributor** organization role or higher | Consumers can only view dashboards | Ask an administrator for the role |
+| A BigQuery connection with a service account | To write the SQL queries | Steps 1 and 2 work without it. See [Connect BigQuery](/en/products/dashboards/how-to/connect-bigquery) |
+
+The example uses a `solicitudes` (requests) table with these columns. Replace the names with your table's.
+
+| Column | Type | Example |
+| --- | --- | --- |
+| `id` | STRING | `S-1042` |
+| `estado` (state) | STRING | `pendiente`, `en_curso`, `cerrada` |
+| `responsable` (owner) | STRING | `North team` |
+| `creada_en` (created at) | TIMESTAMP | `2026-10-01 09:30:00` |
 
 <Steps>
 
 ### Create the dashboard
 
 1. Open **Dashboards** in the navigation.
-2. In **Dashboard ID**, type `operations-overview`. Use lowercase letters, numbers and hyphens. The ID becomes part of the dashboard's address and cannot change later.
-3. Select **Create dashboard**.
+2. Select **Create Dashboard**.
+3. In **Name**, type `Requests` and select **Create**.
 
-The new dashboard opens empty, and it appears in the navigation under **Dashboards**.
+The dashboard opens empty. Changes save on their own a few seconds after each edit.
 
-### Add a text card
+### Add a Stacked Stat with fixed data
+
+Start with numbers typed by hand. You see the widget before you connect data.
 
 1. Turn on **Edit Mode** at the top of the dashboard.
-2. Select **Add Widget** and choose the **Text** card.
-3. Hover over the new card and select **Settings** (the gear on the card).
-4. In the text field, type `Welcome to the operations overview.` and apply.
+2. Select **Add Widget** and choose **Stacked Stat**.
+3. Hover over the widget and open its settings (the gear).
+4. In the **Visualization** tab:
+   - **Title**: `Requests by state`.
+   - **Unit**: leave it empty. The default is `%`.
+   - **Categories**: delete the four sample categories. Select **Add** three times and fill in:
 
-Drag the card by its body to move it. Drag its lower-right corner to resize it. The grid has 24 columns, so a card 12 columns wide fills half the width.
+     | Label | Value | Color |
+     | --- | --- | --- |
+     | `Pending` | `12` | yellow |
+     | `In progress` | `7` | blue |
+     | `Closed` | `30` | green |
 
-<Callout type="info">
-Changes save automatically about a second and a half after you stop editing. The header shows **Saving…** while it works. If a save fails, it shows **Unsaved changes** with a **Reload** button, and keeps your edits.
+5. Save the settings.
+
+The widget shows a bar split in three parts, proportional to 12, 7 and 30, and a legend with each number.
+
+<Callout type="warning">
+**Pitfall:** the default **Unit** is `%`. If you do not clear it, the legend shows `12%`.
 </Callout>
 
-### Add a saved query
+### Write the summary query
 
-A saved query gives widgets data. It names an operation that an administrator approved; you choose it from a list and never type a URL or SQL.
+A Stacked Stat reads **one row**: the first row the query returns. Each category reads one column of that row. So the query turns the states (rows) into columns.
 
-1. Open the settings menu (the gear in the dashboard header) and choose **Saved queries**.
-2. Select **Add query**.
-3. In **Result name**, type `trips`. Widgets will refer to the data by this name.
-4. Choose a **Connection** and an **Operation** from the lists.
-5. Leave **Parameters** as `{}` for now.
-6. Select **Apply to draft**.
+1. Go to **Settings › Connections** and open the **BigQuery** section.
+2. Choose your connection and select **New**.
+3. Write the query:
 
-The query runs as soon as a widget uses it.
-
-### Show a number from the query
-
-1. Select **Add Widget** and choose a statistic, for example the **Circular** statistic.
-2. Open the widget's **Settings**.
-3. Set **Data Source** to **Planner**, then choose `trips` as the **Variable**.
-4. In the value field, type a template with a column from the result, such as `{{completed}}`. Use `{{row.<column>}}` or `{{<column>}}` for any column the operation returns.
-5. Apply the settings.
-
-The widget shows the value from the first row of the result. When the query is loading, it shows a loading message. If it fails, it shows an error, never the details of the data source.
-
-### Add a filter
-
-Filters let viewers narrow the data without editing the dashboard.
-
-1. Open the settings menu and choose **Filter Bar**.
-2. Select **Add filter**. Set **Filter key** to `date_range`, the label to `Date`, and the type to **Date range**.
-3. Apply the filter.
-4. A date range filter gives two values, named after its key: `date_range_from` and `date_range_to`. Back in **Saved queries**, open `trips` and bind two parameters to them, for example:
-
-   ```json
-   {
-     "from": { "kind": "filter", "key": "date_range_from", "omitWhenEmpty": true },
-     "to": { "kind": "filter", "key": "date_range_to", "omitWhenEmpty": true }
-   }
+   ```sql
+   SELECT
+     COUNT(*) AS total,
+     SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) AS pendiente,
+     SUM(CASE WHEN estado = 'en_curso'  THEN 1 ELSE 0 END) AS en_curso,
+     SUM(CASE WHEN estado = 'cerrada'   THEN 1 ELSE 0 END) AS cerrada
+   FROM `my-project.operations.solicitudes`
    ```
 
-   The parameter names (`from`, `to`) must be ones the operation accepts. `omitWhenEmpty` leaves a parameter out while the filter is empty. [Add filters](/en/products/dashboards/how-to/add-filters) explains the values each filter type provides.
+4. Select **Run**. You should see one row:
 
-Pick a date range in the filter bar. The statistic reloads with the new range.
+   | total | pendiente | en_curso | cerrada |
+   | --- | --- | --- | --- |
+   | 49 | 12 | 7 | 30 |
 
-### Share it
+5. Open **Query settings**, type the name `resumen_estados` and select **Save**.
+
+Only `SELECT` queries can be saved. The editor shows how many bytes the query will read before you run it.
+
+### Connect the widget to the query
+
+A dashboard uses a query through a **saved query**: a short name that widgets choose.
+
+1. Go back to the dashboard. With **Edit Mode** on, open the dashboard settings menu (the gear in the header) and choose **Saved queries**.
+2. Select **Add query** and fill in:
+   - **Result name**: `resumen`.
+   - **Connection**: your BigQuery connection.
+   - **Operation**: `resumen_estados`.
+   - **Parameters (JSON)**: `{}`.
+3. Select **Apply to draft**.
+4. Open the Stacked Stat settings. In the **Data Provider** tab, set **Data Source** to **Planner** and choose `resumen` in **Variable**. The available columns appear below: `total`, `pendiente`, `en_curso`, `cerrada`.
+5. In the **Visualization** tab, replace each category value with a template that names the column:
+
+   | Label | Value |
+   | --- | --- |
+   | `Pending` | `{{pendiente}}` |
+   | `In progress` | `{{en_curso}}` |
+   | `Closed` | `{{cerrada}}` |
+
+6. Change **Title** to `Requests by state ({{total}})` and save.
+
+The widget shows the real numbers. `{{column}}` is replaced by that column's value in the first row.
+
+<details>
+<summary>Why "Planner"</summary>
+
+**Planner** is the UI's name for the dashboard's saved queries. **Static (JSON)** uses data typed into the widget. **PGREST** calls a PostgREST function directly from the widget, without a saved query.
+
+</details>
+
+### Add the detail table
+
+A table reads **all the rows** of its query. One query row is one table row.
+
+1. In **Settings › Connections › BigQuery**, create another query, `detalle_solicitudes`:
+
+   ```sql
+   SELECT id, estado, responsable, creada_en
+   FROM `my-project.operations.solicitudes`
+   WHERE (IFNULL(@estado, '') = '' OR estado = @estado)
+   ORDER BY creada_en DESC
+   LIMIT 500
+   ```
+
+2. In **Parameters**, declare `estado` with type `STRING`. Leave **Test value** empty and run: the query receives `NULL`, `IFNULL` treats it as empty, and all states come back. Type `en_curso` and run again: only those rows come back. Save.
+3. In the dashboard, add a saved query:
+   - **Result name**: `detalle`.
+   - **Operation**: `detalle_solicitudes`.
+   - **Parameters (JSON)**:
+
+     ```json
+     { "estado": { "kind": "filter", "key": "estado", "defaultValue": "" } }
+     ```
+
+4. Select **Add Widget** and choose **Data Table V2**.
+5. In its settings, **Data Provider** tab, set **Data Source** to **Planner** and **Variable** to `detalle`. The table columns are filled in from the query.
+6. In **Columns**, change the labels: `ID`, `State`, `Owner`, `Created`. Save.
+
+`@estado` is a BigQuery parameter. The binding `{"kind": "filter", "key": "estado"}` gives it the value of the `estado` filter, which you create in the next step. While the filter is empty, the server sends `defaultValue` (`""`), and the condition `IFNULL(@estado, '') = ''` lets every row through.
+
+<Callout type="warning">
+**Pitfall:** a BigQuery query always receives all its parameters. Do not use `omitWhenEmpty` with BigQuery: if the parameter is left out, the query fails. Use `defaultValue`.
+</Callout>
+
+### Filter the table by state
+
+1. Open the dashboard settings menu and choose **Filter Bar**.
+2. Select **Add filter** and fill in:
+   - **Filter key**: `estado`. It must match `key` in the query binding.
+   - **Display label**: `State`.
+   - **Control type**: **Selection**.
+   - **Static options**: `Pending` / `pendiente`, `In progress` / `en_curso`, `Closed` / `cerrada`.
+   - Turn on **Allow a single selection**.
+3. Select **Apply filters to draft**.
+
+Choose **In progress** in the filter bar. The table reloads and shows only those rows. The Stacked Stat does not change: its query has no parameter bound to `estado`.
+
+<Callout type="info">
+Clicking a part of the Stacked Stat bar does not filter the table. The filter bar is the way to do it.
+</Callout>
+
+### Share the dashboard
 
 1. Turn off **Edit Mode**.
 2. Open the settings menu and select **Manage permissions**.
-3. Enter your colleague's user ID exactly as your identity provider knows it, choose the role **Consumer**, and add it.
-4. Select **Save changes**.
+3. Find your colleague under **Users**, choose the **Reader** role and select **Add**.
 
-Your colleague can now open the dashboard and use its filters, but cannot change it. To let them edit, give them **Editor**.
+Your colleague can open the dashboard and use the filter, but cannot change it. To let them edit, give them **Editor**.
 
 </Steps>
 
 ## What you built
 
-- A dashboard with its own address in your organization.
-- A widget that reads approved data through a saved query.
-- A filter that changes that query's parameters.
-- A permission that shares the dashboard with one person.
+| Piece | Reads | Query shape |
+| --- | --- | --- |
+| Stacked Stat | The first row of `resumen` | One row, one column per state |
+| Data Table V2 | All rows of `detalle` | One row per request |
+| `estado` filter | — | Gives a value to the `@estado` parameter |
 
 ## Next steps
 
-- Learn every filter type: [Add filters](/en/products/dashboards/how-to/add-filters).
-- See all widgets: [Widget catalog](/en/products/dashboards/reference/widgets).
-- Copy this dashboard to another environment: [Import and export](/en/products/dashboards/how-to/import-export).
-- Understand roles: [Organizations, scopes and roles](/en/products/dashboards/concepts/access-model).
+- More query shapes (percentages, charts, date filters): [Add saved queries](/en/products/dashboards/how-to/add-saved-queries).
+- Every filter type: [Add filters](/en/products/dashboards/how-to/add-filters).
+- Every widget: [Widget catalog](/en/products/dashboards/reference/widgets).
+- Roles and permissions: [Organizations, scopes and roles](/en/products/dashboards/concepts/access-model).

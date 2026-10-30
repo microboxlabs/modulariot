@@ -37,7 +37,7 @@ El navegador nunca recibe credenciales, URL de datos ni SQL. El dashboard nombra
 | --- | --- |
 | Hacer clic en un gráfico no filtra otros widgets. | Agregue un filtro de selección al dashboard y vincúlelo al parámetro de la consulta de la tabla. |
 | Los widgets de un solo valor (Stat, Stacked Stat) leen solo la primera fila de la consulta. | Escriba la consulta para que devuelva una fila, con una columna por valor. |
-| Un gráfico de torta no asigna un color fijo a cada categoría. Toma los colores de la paleta en el orden de las filas. | Ordene las filas en la consulta y defina los colores personalizados en ese orden. |
+| Un gráfico de torta no asigna un color fijo a cada categoría. Toma los colores de la paleta en el orden de las filas. | Use un Stacked Stat (un color por categoría), o barras con una serie por categoría. |
 | El editor de SQL solo funciona con BigQuery. | Con PostgreSQL, escriba la consulta como una función y publíquela con PostgREST. |
 | Los paneles de ajustes de los widgets son componentes React. | Un host que no usa React construye sus propios formularios de ajustes. |
 | Mapas, contenedores y carga de archivos solo existen en la aplicación de ModularIoT. | — |

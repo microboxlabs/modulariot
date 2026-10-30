@@ -136,15 +136,16 @@ missing image is a TODO in the PR body, never a broken `<img>`.
 
 ## Product gaps filed
 
-| Issue | Gap |
-| --- | --- |
-| #2240 | Chart v2 per-category colors; in the ModularIoT setup a pie color paints every slice |
-| #2234 | Chart click sets a dashboard filter (drill-down to a table) |
-| #2235 | Cards layout for the Stacked Stat legend |
-| #2236 | Scalar widgets read only the first row |
-| #2237 | BigQuery optional filters: `omitWhenEmpty` fails, empty test value is `NULL` |
-| #2238 | ModularIoT widget settings: "Planner" label, hard-coded English, demo defaults |
-| #2239 | Editing UI for non-React hosts (LiveView) |
+| Issue | Gap | Implement? |
+| --- | --- | --- |
+| #2240 | Chart v2 per-category colors; in the ModularIoT setup a pie color paints every slice | yes (owner, 2026-10-30) |
+| #2234 | Chart click sets a dashboard filter (drill-down to a table) | yes (owner, 2026-10-30) |
+| #2235 | Cards layout for the Stacked Stat legend | yes (owner, 2026-10-30) |
+| #2236 | Scalar widgets read only the first row | yes (owner, 2026-10-30) |
+| #2237 | BigQuery optional filters: `omitWhenEmpty` fails, empty test value is `NULL` | yes (owner, 2026-10-30) |
+| #2238 | ModularIoT widget settings: "Planner" label, hard-coded English, demo defaults | yes (owner, 2026-10-30) |
+| #2241 | BigQuery TIMESTAMP shows as `1.79E9` | yes (owner, 2026-10-30) |
+| #2239 | Editing UI for non-React hosts (LiveView) | yes (owner, 2026-10-30) |
 
 Screenshot variants that the ModularIoT UI cannot produce (Chart v2 palettes: the UI always saves
 `colorPalette: "custom"`) are built by importing a JSON document, and the page says so.

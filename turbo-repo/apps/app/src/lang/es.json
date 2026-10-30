@@ -1450,6 +1450,12 @@
         "title": "Plataforma",
         "description": "Ajustes que no pertenecen a ninguna organización: valen para todos los dominios y cuentas.",
         "listTitle": "Ajustes de plataforma",
+        "groups": {
+          "brand": "Marca y contenido",
+          "access": "Acceso",
+          "ai": "IA",
+          "geocoding": "Geocodificación"
+        },
         "notOwnerTitle": "No tienes acceso a esta sección",
         "notOwnerBody": "Solo quienes administran la plataforma pueden ver y cambiar estos ajustes.",
         "branding": {
@@ -1650,6 +1656,146 @@
           "statusOk": "Funcionando",
           "statusFailed": "Prueba fallida",
           "statusUntested": "Sin probar"
+        },
+        "geocoding": {
+          "title": "Geocodificación",
+          "menuTitle": "Proveedor",
+          "menuHint": "Proveedor que contrata la plataforma",
+          "description": "La plataforma contrata y paga el proveedor de geocodificación. Una organización lo usa, dentro de la cuota de su plan, cuando un dueño de la plataforma le agrega la conexión «Geocoding · proveedor de la plataforma» en Conexiones. Ninguna configura un proveedor propio.",
+          "provider": "Proveedor",
+          "providerHelp": {
+            "mapbox": "Mapbox Geocoding v6. Los resultados se guardan en la caché si el modo permanente está activo.",
+            "google": "Google Geocoding. Por sus términos, los resultados no se guardan en la caché."
+          },
+          "credential": "Credencial",
+          "credentialPick": "Elige una credencial",
+          "credentialHelp": "Credencial Mapbox o Google Maps del ámbito Plataforma, guardada en Credenciales.",
+          "credentialNone": "No hay credenciales de este proveedor en la Plataforma. Cambia al ámbito Plataforma y crea una credencial Mapbox o Google Maps en Credenciales.",
+          "credentialRequired": "Elige la credencial con el token del proveedor.",
+          "permanent": "Modo permanente",
+          "permanentHelp": "Permite guardar los resultados. Mapbox lo cobra aparte.",
+          "cost": "Nuestro costo por llamada (US$)",
+          "costHelp": "Lo que el proveedor cobra a la plataforma por llamada. Se copia en cada registro de uso. No es lo que paga la organización, que sale de su plan.",
+          "costInvalid": "Ingresa un número, por ejemplo 0.005",
+          "save": "Guardar",
+          "remove": "Quitar",
+          "saved": "Proveedor guardado.",
+          "saveError": "No se pudo guardar el proveedor.",
+          "removed": "Proveedor quitado.",
+          "removeError": "No se pudo quitar el proveedor.",
+          "loadError": "No se pudo cargar el proveedor.",
+          "removeTitle": "Quitar el proveedor de geocodificación",
+          "removeBody": "Las direcciones que no estén en la caché ni en la fuente interna irán a revisión en todas las organizaciones conectadas.",
+          "statusNone": "Sin configurar",
+          "statusConfigured": "Configurado"
+        },
+        "geocodingPlan": {
+          "title": "Plan de geocodificación",
+          "menuTitle": "Plan",
+          "menuHint": "Cuota por defecto, precios y si se aplican",
+          "description": "Cuántas consultas al proveedor incluye el plan cada mes y cuánto cuestan. Solo cuentan las consultas al proveedor.",
+          "providerHint": "El proveedor es una conexión: Conexiones, en el scope Plataforma.",
+          "enforced": "Aplicar las cuotas",
+          "enforcedOn": "Una organización sin suscripción no consulta al proveedor. Al agotar su cuota se aplica lo que dice su suscripción.",
+          "enforcedOff": "No se rechaza ninguna consulta. El uso igual se registra, se muestra y se alerta.",
+          "resolutions": "Cuota mensual por defecto (consultas)",
+          "alertPct": "Alerta al (% de la cuota)",
+          "monthlyPrice": "Precio mensual (USD)",
+          "overagePrice": "Precio por consulta excedente (USD)",
+          "countHelp": "Geocerca, Plus Code, coordenadas, fuente interna y caché no consumen cuota.",
+          "save": "Guardar",
+          "saving": "Guardando…",
+          "saved": "Se guardó el plan.",
+          "saveError": "No se pudo guardar.",
+          "loadError": "No se pudo cargar.",
+          "errors": {
+            "monthlyPrice": "El precio mensual debe ser un número mayor o igual a cero.",
+            "resolutions": "La cuota debe ser un número entero mayor o igual a cero.",
+            "overagePrice": "El precio excedente debe ser un número mayor o igual a cero.",
+            "alertPct": "La alerta debe estar entre 1 y 100.",
+            "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
+          }
+        },
+        "geocodingTenants": {
+          "menuTitle": "Organizaciones",
+          "menuHint": "Uso y cuota de cada organización",
+          "search": "Buscar por nombre, identificador o RUT",
+          "assign": "Asignar cuota",
+          "kpi": {
+            "subscribed": "Con suscripción",
+            "withUsage": "{count} con suscripción o uso",
+            "providerCalls": "Consultas al proveedor",
+            "resolutions": "{count} resoluciones en total",
+            "cache": "Resueltas por caché",
+            "margin": "Cobro del mes",
+            "providerCost": "Costo del proveedor: {cost}"
+          },
+          "columns": {
+            "organization": "Organización",
+            "quota": "Usadas / cuota",
+            "cache": "Caché",
+            "providerCost": "Costo proveedor",
+            "charge": "Cobro",
+            "onExhausted": "Al agotarla"
+          },
+          "fromPlan": "del plan",
+          "noSubscription": "Sin suscripción",
+          "empty": "Ninguna organización tiene suscripción ni uso en este mes.",
+          "noMatches": "Ninguna organización coincide con la búsqueda.",
+          "page": "Página {page} de {pages} · {count} organizaciones",
+          "previous": "Anterior",
+          "next": "Siguiente",
+          "edit": "Editar cuota",
+          "save": "Guardar",
+          "saveError": "No se pudo guardar.",
+          "loadError": "No se pudo cargar el uso.",
+          "modes": {
+            "review": {
+              "label": "Enviar a revisión",
+              "help": "Deja de consultar al proveedor; los sitios quedan por revisar."
+            },
+            "overage": {
+              "label": "Cobrar excedente",
+              "help": "Sigue consultando y cobra cada consulta sobre la cuota al precio del plan."
+            }
+          },
+          "modal": {
+            "addTitle": "Asignar cuota",
+            "addSubtitle": "Da a una organización su cuota de geocodificación.",
+            "editTitle": "Editar cuota",
+            "organization": "Organización",
+            "searchOrganization": "Busca por nombre, identificador o RUT",
+            "alreadySubscribed": "Ya tiene cuota; edítala en la tabla",
+            "noMatches": "Ninguna organización coincide.",
+            "refine": "{count} más; escribe para acotar.",
+            "pickFirst": "Elige una organización.",
+            "quota": "Cuota mensual (consultas al proveedor)",
+            "quotaPlaceholder": "Vacía: la del plan ({quota})",
+            "quotaHelp": "Solo cuentan las consultas al proveedor. Geocerca, Plus Code, coordenadas, fuente interna y caché no consumen cuota.",
+            "onExhausted": "Al agotar la cuota",
+            "cancel": "Cancelar"
+          },
+          "errors": {
+            "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
+          },
+          "filters": {
+            "subscription": "Suscripción",
+            "subscribed": "Con suscripción",
+            "unsubscribed": "Sin suscripción",
+            "level": "Cuota",
+            "levelOk": "Normal",
+            "levelAlert": "En alerta",
+            "levelExhausted": "Agotada",
+            "mode": "Al agotarla",
+            "month": "Mes",
+            "sortLabel": "Ordenar",
+            "sort": {
+              "USAGE_DESC": "Más usadas",
+              "NAME_ASC": "Nombre (A-Z)",
+              "COST_DESC": "Mayor costo",
+              "CHARGE_DESC": "Mayor cobro"
+            }
+          }
         },
         "plan": {
           "title": "Plan de asientos",
@@ -2442,6 +2588,7 @@
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
         "trips": "Viajes",
+        "geocoding": "Geocodificación",
         "communications": "Comunicaciones",
         "gps": "GPS",
         "symptomTemplates": "Plantillas de síntomas",
@@ -2661,6 +2808,14 @@
             "name": "WhatsApp",
             "description": "El token de acceso de una app de Meta, para el canal de WhatsApp."
           },
+          "mapbox": {
+            "name": "Mapbox",
+            "description": "Un token de acceso de Mapbox, para ubicar direcciones (geocoding)."
+          },
+          "googleMaps": {
+            "name": "Google Maps",
+            "description": "Una clave API de Google Maps Platform, para ubicar direcciones (geocoding)."
+          },
           "basic": {
             "name": "Autenticación básica",
             "description": "Usuario y contraseña enviados como HTTP basic."
@@ -2783,6 +2938,14 @@
           "resendEditTitle": "Editar clave de Resend",
           "resendSubtitle": "La clave con la que el canal de correo envía. Basta una clave de solo envío.",
           "resendTokenHelp": "Empieza con re_. Se guarda cifrada y nunca se devuelve.",
+          "mapboxAddTitle": "Nuevo token de Mapbox",
+          "mapboxEditTitle": "Editar token de Mapbox",
+          "mapboxSubtitle": "El token con el que la plataforma consulta el geocoding de Mapbox.",
+          "mapboxTokenHelp": "Crea un token solo para el servidor, sin scopes ni restricción de URL: el geocoding no los necesita. Se guarda cifrado y nunca se devuelve.",
+          "googleMapsAddTitle": "Nueva clave de Google Maps",
+          "googleMapsEditTitle": "Editar clave de Google Maps",
+          "googleMapsSubtitle": "La clave API con la que la plataforma consulta la Geocoding API de Google.",
+          "googleMapsTokenHelp": "Empieza con AIza. Restríngela a la Geocoding API. Se guarda cifrada y nunca se devuelve.",
           "whatsappAddTitle": "Nuevo token de WhatsApp",
           "whatsappEditTitle": "Editar token de WhatsApp",
           "whatsappSubtitle": "El token de acceso con el que el canal de WhatsApp llama a la API de Meta.",
@@ -3206,6 +3369,10 @@
         "pageTitle": "Viajes",
         "pageDescription": "Cómo entran y avanzan los viajes de la organización.",
         "menuTitle": "Secciones",
+        "groups": {
+          "trips": "Viajes",
+          "geocoding": "Geocodificación"
+        },
         "sections": {
           "monitors": {
             "label": "Monitores",
@@ -3222,6 +3389,14 @@
           "feeds": {
             "label": "Feeds",
             "description": "Fuentes externas que envían los viajes"
+          },
+          "geocodingReview": {
+            "label": "Por revisar",
+            "description": "Ubicaciones sin punto confiable"
+          },
+          "geocodingUsage": {
+            "label": "Uso del mes",
+            "description": "Consultas contra la cuota"
           }
         },
         "title": "Monitores de viajes",
@@ -3397,6 +3572,119 @@
           "assigned": "Equipo asignado",
           "save": "Guardar equipos",
           "saved": "Equipos guardados"
+        }
+      },
+      "geocoding": {
+        "pageTitle": "Geocodificación",
+        "pageDescription": "Ubica las direcciones de los viajes: lo que queda por revisar y lo consumido en el mes dentro de la cuota.",
+        "menuTitle": "Geocodificación",
+        "sections": {
+          "review": {
+            "label": "Por revisar",
+            "description": "Ubicaciones que no se pudieron ubicar solas"
+          },
+          "usage": {
+            "label": "Uso mensual",
+            "description": "Llamadas al proveedor, cuota y cargo"
+          }
+        },
+        "review": {
+          "title": "Por revisar",
+          "description": "Ubicaciones cuyo punto no se encontró o cayó fuera de su distrito. Marca el punto en el mapa o ingresa un Plus Code; al validarlo se crea la geocerca.",
+          "search": "Buscar por nombre, código o dirección",
+          "count": "{count} por revisar",
+          "loading": "Cargando…",
+          "empty": "No hay ubicaciones por revisar.",
+          "noMatches": "Ninguna ubicación coincide con la búsqueda.",
+          "location": "Ubicación",
+          "address": "Dirección",
+          "district": "Distrito",
+          "reason": "Motivo",
+          "type": "Tipo",
+          "noReason": "Sin motivo",
+          "placeAction": "Ubicar",
+          "rejectAction": "Rechazar",
+          "cancel": "Cancelar",
+          "place": {
+            "title": "Ubicar {name}",
+            "help": "Haz clic en el mapa o arrastra el marcador. Si ingresas un Plus Code, se usa en lugar del punto del mapa.",
+            "map": "Mapa para marcar el punto",
+            "point": "Punto",
+            "noPoint": "Sin punto: haz clic en el mapa",
+            "plusCode": "Plus Code (opcional)",
+            "save": "Validar y crear geocerca"
+          },
+          "reject": {
+            "title": "Rechazar {name}",
+            "note": "Por qué no se puede ubicar",
+            "confirm": "Rechazar"
+          },
+          "types": {
+            "plant": "Planta",
+            "port": "Puerto",
+            "distribution_center": "Centro de distribución",
+            "customer": "Cliente",
+            "zone": "Zona"
+          }
+        },
+        "usage": {
+          "title": "Uso mensual",
+          "description": "Cada llamada al proveedor cuenta para la cuota del mes (UTC). La caché, la fuente interna, las geocercas, los Plus Codes y las coordenadas no cuentan.",
+          "previousMonth": "Mes anterior",
+          "nextMonth": "Mes siguiente",
+          "loadError": "No se pudo cargar el uso de geocodificación.",
+          "forbidden": "Solo un dueño de la organización puede ver el uso de geocodificación.",
+          "notEnforced": "La cuota aún no se aplica: no se rechaza ninguna llamada, pero el uso se registra.",
+          "noSubscriptionEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor requieren una suscripción asignada cuando se aplican las cuotas. Un dueño de la plataforma administra las suscripciones.",
+          "noSubscriptionNotEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor están permitidas porque las cuotas están desactivadas; no se calcula un cargo del plan. Un dueño de la plataforma administra las suscripciones.",
+          "quota": {
+            "unavailable": "No hay una cuota registrada para este período.",
+            "title": "Cuota",
+            "description": "Llamadas al proveedor en el mes",
+            "unit": "llamadas",
+            "remaining": "Quedan {count}",
+            "onExhausted": {
+              "review": "al agotarse, las ubicaciones van a revisión",
+              "overage": "al agotarse, cada llamada se cobra como excedente"
+            }
+          },
+          "resolutions": {
+            "title": "Resoluciones",
+            "description": "Ubicaciones resueltas por cualquier fuente",
+            "cacheHits": "{count} desde la caché ({rate})"
+          },
+          "charge": {
+            "unavailable": "No hay un cargo del plan registrado para este período.",
+            "title": "Cargo del plan",
+            "description": "Lo que se cobra a la organización según su plan",
+            "monthly": "Plan mensual",
+            "overage": "Excedente",
+            "total": "Total del mes: {total}",
+            "overageCalls": "{count} llamadas sobre la cuota a {price} cada una"
+          },
+          "bySource": {
+            "title": "Por fuente y resultado",
+            "empty": "Sin resoluciones en este mes.",
+            "source": "Fuente",
+            "result": "Resultado",
+            "resolutions": "Resoluciones",
+            "cacheHits": "Caché",
+            "providerCalls": "Llamadas"
+          },
+          "sources": {
+            "geofence": "Geocerca",
+            "plus_code": "Plus Code",
+            "coordinates": "Coordenadas",
+            "internal": "Fuente interna",
+            "provider": "Proveedor",
+            "manual": "Manual",
+            "none": "Ninguna"
+          },
+          "results": {
+            "resolved": "Resuelta",
+            "needs_review": "Por revisar",
+            "rejected": "Rechazada"
+          }
         }
       },
       "symptomCatalog": {
@@ -4774,6 +5062,9 @@
         "templates": "Plantillas",
         "postgrest": "Fuente de datos para dashboards: se prueba con su credencial y luego eliges qué funciones exponer.",
         "bigquery": "Fuente de datos para dashboards: SQL de BigQuery con una cuenta de servicio de Google.",
+        "managedGeocoding": "Geocoding · proveedor de la plataforma",
+        "managedGeocodingHelp": "Ubica direcciones con el proveedor que contrata la plataforma, dentro del plan de la organización. Solo dueños de la plataforma.",
+        "platformGeocodingHelp": "Configura el proveedor que contrata la plataforma: proveedor, credencial y costo por consulta. Las organizaciones lo usan con su conexión administrada.",
         "managedBigquery": "BigQuery · cuenta de la plataforma",
         "managedBigqueryHelp": "Solo dueños de plataforma. La organización consulta como su propia cuenta de servicio, sin llave, y ve solo los datos que le publiques."
       },
@@ -4790,6 +5081,9 @@
         "testOk": "Conexión probada correctamente",
         "testFailed": "La prueba de conexión falló",
         "connectionDeleted": "Conexión eliminada",
+        "managedGeocodingCreating": "Conectando el geocoding de la plataforma…",
+        "managedGeocodingCreated": "Geocoding de la plataforma conectado",
+        "platformGeocodingSaved": "Proveedor de geocoding de la plataforma guardado",
         "managedBigqueryCreating": "Creando la conexión BigQuery de la organización…",
         "managedBigqueryCreated": "Conexión BigQuery creada"
       },
@@ -4934,6 +5228,11 @@
         "copyJson": "Copiar JSON",
         "conflict": "Otra persona guardó esta consulta. Recárgala para ver su versión.",
         "failed": "La solicitud falló"
+      },
+      "managedGeocodingSetup": {
+        "title": "Proveedor de geocoding de la plataforma",
+        "body": "La plataforma aún no tiene proveedor. Elige su credencial y configúralo aquí: se guarda una sola vez para la plataforma y luego se conecta esta organización.",
+        "platformBody": "El proveedor que usan todas las organizaciones. Elige la credencial Mapbox o Google Maps de la Plataforma y nuestro costo por consulta."
       }
     },
     "calendar": {
@@ -5507,6 +5806,7 @@
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
         "trips": "Viajes",
+        "geocoding": "Geocodificación",
         "communications": "Comunicaciones",
         "gps": "GPS",
         "fleet": "Flota"

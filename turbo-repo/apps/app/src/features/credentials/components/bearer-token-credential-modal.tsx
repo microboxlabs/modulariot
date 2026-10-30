@@ -8,6 +8,12 @@ import { SettingsFormField } from "@/features/settings-admin/components/settings
 import {
   BearerTokenCredentialEditSchema,
   BearerTokenCredentialSchema,
+  GOOGLE_MAPS_PROVIDER,
+  GoogleMapsCredentialEditSchema,
+  GoogleMapsCredentialSchema,
+  MAPBOX_PROVIDER,
+  MapboxCredentialEditSchema,
+  MapboxCredentialSchema,
   RESEND_PROVIDER,
   ResendCredentialEditSchema,
   ResendCredentialSchema,
@@ -53,6 +59,24 @@ const WHATSAPP_CHROME: CredentialFormChrome = {
   logoAltKey: "types.whatsapp.name",
 };
 
+const MAPBOX_CHROME: CredentialFormChrome = {
+  typeId: "MAPBOX",
+  idPrefix: "mapbox",
+  addTitleKey: "modal.mapboxAddTitle",
+  editTitleKey: "modal.mapboxEditTitle",
+  subtitleKey: "modal.mapboxSubtitle",
+  logoAltKey: "types.mapbox.name",
+};
+
+const GOOGLE_MAPS_CHROME: CredentialFormChrome = {
+  typeId: "GOOGLE_MAPS",
+  idPrefix: "google-maps",
+  addTitleKey: "modal.googleMapsAddTitle",
+  editTitleKey: "modal.googleMapsEditTitle",
+  subtitleKey: "modal.googleMapsSubtitle",
+  logoAltKey: "types.googleMaps.name",
+};
+
 interface TokenVariant {
   readonly chrome: CredentialFormChrome;
   readonly provider?: string;
@@ -63,7 +87,9 @@ interface TokenVariant {
   readonly helpKey:
     | "modal.tokenHelp"
     | "modal.resendTokenHelp"
-    | "modal.whatsappTokenHelp";
+    | "modal.whatsappTokenHelp"
+    | "modal.mapboxTokenHelp"
+    | "modal.googleMapsTokenHelp";
 }
 
 const BEARER: TokenVariant = {
@@ -90,6 +116,22 @@ const WHATSAPP: TokenVariant = {
   helpKey: "modal.whatsappTokenHelp",
 };
 
+const MAPBOX: TokenVariant = {
+  chrome: MAPBOX_CHROME,
+  provider: MAPBOX_PROVIDER,
+  schema: MapboxCredentialSchema,
+  editSchema: MapboxCredentialEditSchema,
+  helpKey: "modal.mapboxTokenHelp",
+};
+
+const GOOGLE_MAPS: TokenVariant = {
+  chrome: GOOGLE_MAPS_CHROME,
+  provider: GOOGLE_MAPS_PROVIDER,
+  schema: GoogleMapsCredentialSchema,
+  editSchema: GoogleMapsCredentialEditSchema,
+  helpKey: "modal.googleMapsTokenHelp",
+};
+
 /** Create/edit form for a static bearer token. The token is write-only. */
 export function BearerTokenCredentialModal(
   props: CredentialModalProps<BearerTokenFormData>
@@ -109,6 +151,20 @@ export function WhatsAppCredentialModal(
   props: CredentialModalProps<BearerTokenFormData>
 ) {
   return <TokenCredentialModal {...props} variant={WHATSAPP} />;
+}
+
+/** Create/edit form for a Mapbox access token: a bearer token tagged as Mapbox. */
+export function MapboxCredentialModal(
+  props: CredentialModalProps<BearerTokenFormData>
+) {
+  return <TokenCredentialModal {...props} variant={MAPBOX} />;
+}
+
+/** Create/edit form for a Google Maps Platform API key: a bearer token tagged as Google Maps. */
+export function GoogleMapsCredentialModal(
+  props: CredentialModalProps<BearerTokenFormData>
+) {
+  return <TokenCredentialModal {...props} variant={GOOGLE_MAPS} />;
 }
 
 function TokenCredentialModal(

@@ -54,7 +54,7 @@ class PgGeocodingBillingHistoryTest {
             assertNotNull(originalPlan);
             assertNotNull(originalSubscription);
             assertEquals(0, BigDecimal.TEN.compareTo(originalPlan.monthlyPriceUsd()));
-            repository.setPlan(new BigDecimal("30"), 500, new BigDecimal("0.7"), 80, "synthetic-owner");
+            repository.setPlan(new BigDecimal("30"), 500, new BigDecimal("0.7"), 80, true, "synthetic-owner");
             repository.saveSubscription("synthetic-org", 80, "review", "synthetic-owner");
             repository.saveSubscription("synthetic-new", null, "overage", "synthetic-owner");
             assertEquals(originalPlan, repository.planAt(completedPeriodEnd));

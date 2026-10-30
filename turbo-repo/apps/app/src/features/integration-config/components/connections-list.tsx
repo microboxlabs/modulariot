@@ -18,6 +18,7 @@ import {
   connectionMark,
   connectionState,
   connectionTypeName,
+  isPlatformManaged,
 } from "../connection-catalog";
 import type {
   IntegrationConnection,
@@ -38,8 +39,12 @@ interface ConnectionsListProps {
   readonly templates: readonly IntegrationTemplate[];
   readonly credentials: readonly CredentialListItem[];
   readonly onOpen: (connection: IntegrationConnection) => void;
+  /** Opens a platform-managed connection; absent where it cannot be opened. */
+  readonly onOpenManaged?: () => void;
   readonly onTest: (connection: IntegrationConnection) => void;
   readonly onDelete: (connection: IntegrationConnection) => void;
+  /** A platform owner may remove a connection the platform manages. */
+  readonly canRemoveManaged?: boolean;
   /** Pick the functions a PostgREST connection exposes to dashboards. */
   readonly onFunctions: (connection: IntegrationConnection) => void;
   /** Write the SQL queries a BigQuery connection offers to dashboards. */
@@ -60,8 +65,10 @@ export function ConnectionsList({
   templates,
   credentials,
   onOpen,
+  onOpenManaged,
   onTest,
   onDelete,
+  canRemoveManaged = false,
   onFunctions,
   onQueries,
   testing,
@@ -73,27 +80,32 @@ export function ConnectionsList({
     return <EmptyRow message={emptyMessage} />;
   }
 
-  const items = connections.map((connection) => ({
-    connection,
-    typeName: connectionTypeName(connection, templates),
-    credentialName:
-      credentials.find(
-        (credential) => credential.id === connection.credentialProfileId
-      )?.name ?? null,
-    actions: {
-      onOpen: () => onOpen(connection),
-      onTest: () => onTest(connection),
-      onDelete: () => onDelete(connection),
-      onFunctions:
-        connection.providerType === "POSTGREST"
-          ? () => onFunctions(connection)
+  const items = connections.map((connection) => {
+    const managed = isPlatformManaged(connection);
+    return {
+      connection,
+      typeName: connectionTypeName(connection, templates),
+      credentialName:
+        credentials.find(
+          (credential) => credential.id === connection.credentialProfileId
+        )?.name ?? null,
+      actions: {
+        onOpen: managed ? onOpenManaged : () => onOpen(connection),
+        // A managed connection is tested through the platform's provider, so it stays read-only.
+        onTest: () => onTest(connection),
+        onDelete:
+          managed && !canRemoveManaged ? undefined : () => onDelete(connection),
+        onFunctions:
+          connection.providerType === "POSTGREST"
+            ? () => onFunctions(connection)
+            : undefined,
+        onQueries: isBigQueryConnection(connection)
+          ? () => onQueries(connection)
           : undefined,
-      onQueries: isBigQueryConnection(connection)
-        ? () => onQueries(connection)
-        : undefined,
-    },
-    testing: testing === connection.id,
-  }));
+      },
+      testing: testing === connection.id,
+    };
+  });
 
   if (layout === "list") {
     return (
@@ -122,10 +134,11 @@ export function ConnectionsList({
   );
 }
 
+/** An action is left out when the connection does not allow it. */
 interface ConnectionActions {
-  readonly onOpen: () => void;
-  readonly onTest: () => void;
-  readonly onDelete: () => void;
+  readonly onOpen?: () => void;
+  readonly onTest?: () => void;
+  readonly onDelete?: () => void;
   readonly onFunctions?: () => void;
   readonly onQueries?: () => void;
 }
@@ -152,13 +165,17 @@ function ConnectionCard({
       <div className="flex items-start gap-3 px-4 pt-4">
         <ConnectionLogo connection={connection} typeName={typeName} size={40} />
         <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={actions.onOpen}
-            className={CARD_BUTTON}
-          >
-            {connection.name}
-          </button>
+          {actions.onOpen ? (
+            <button
+              type="button"
+              onClick={actions.onOpen}
+              className={CARD_BUTTON}
+            >
+              {connection.name}
+            </button>
+          ) : (
+            <span className={CARD_BUTTON}>{connection.name}</span>
+          )}
           <div className={SUBLINE}>{typeName}</div>
         </div>
         <div className="relative shrink-0">
@@ -201,13 +218,19 @@ function ConnectionRow({
             size={24}
           />
           <div className="min-w-0">
-            <button
-              type="button"
-              onClick={actions.onOpen}
-              className="cursor-pointer truncate text-left text-sm font-medium text-gray-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-400"
-            >
-              {connection.name}
-            </button>
+            {actions.onOpen ? (
+              <button
+                type="button"
+                onClick={actions.onOpen}
+                className="cursor-pointer truncate text-left text-sm font-medium text-gray-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-400"
+              >
+                {connection.name}
+              </button>
+            ) : (
+              <span className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                {connection.name}
+              </span>
+            )}
             <div className={`${SUBLINE} font-mono`}>{connection.baseUrl}</div>
           </div>
         </div>
@@ -261,14 +284,19 @@ function ConnectionMenu({
       </span>
     );
   }
+  if (!actions.onOpen && !actions.onTest && !actions.onDelete) return null;
   return (
     <RowMenu dict={dict}>
-      <DropdownItem icon={HiPencil} onClick={actions.onOpen}>
-        {tr("common.edit", dict)}
-      </DropdownItem>
-      <DropdownItem icon={HiPlay} onClick={actions.onTest}>
-        {tr("connections.test", dict)}
-      </DropdownItem>
+      {actions.onOpen && (
+        <DropdownItem icon={HiPencil} onClick={actions.onOpen}>
+          {tr("common.edit", dict)}
+        </DropdownItem>
+      )}
+      {actions.onTest && (
+        <DropdownItem icon={HiPlay} onClick={actions.onTest}>
+          {tr("connections.test", dict)}
+        </DropdownItem>
+      )}
       {actions.onFunctions && (
         <DropdownItem icon={HiOutlineDatabase} onClick={actions.onFunctions}>
           {tr("postgrest.functions", dict)}
@@ -279,9 +307,11 @@ function ConnectionMenu({
           {tr("bigquery.queries", dict)}
         </DropdownItem>
       )}
-      <DropdownItem icon={HiTrash} onClick={actions.onDelete}>
-        {tr("common.delete", dict)}
-      </DropdownItem>
+      {actions.onDelete && (
+        <DropdownItem icon={HiTrash} onClick={actions.onDelete}>
+          {tr("common.delete", dict)}
+        </DropdownItem>
+      )}
     </RowMenu>
   );
 }

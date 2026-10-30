@@ -22,7 +22,6 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -31,8 +30,8 @@ import org.jboss.logging.Logger;
  * exhaustion gets no more provider calls; one with overage goes on and is charged the overage price per call. When
  * the calls reach the plan's alert share of the quota, the organization is warned once that month.
  *
- * <p>With {@code miot.geocoding.plan.enforce} off, provider calls are never refused; usage is still recorded, shown
- * and alerted on.
+ * <p>While the plan is not enforced, provider calls are never refused; usage is still recorded, shown and alerted
+ * on. The platform owner turns it on in Settings › Plataforma.
  *
  * <p>Validation throws {@link IllegalArgumentException}, which the resources map to 400.
  */
@@ -51,28 +50,20 @@ public class GeocodingPlanService {
     private final GeocodingPlanRepository repository;
     private final GeocodingEvents events;
     private final GeocodingMetrics metrics;
-    private final boolean enforced;
     private final Clock clock;
 
     @Inject
     public GeocodingPlanService(GeocodingPlanRepository repository, GeocodingEvents events,
-                                GeocodingMetrics metrics,
-                                @ConfigProperty(name = "miot.geocoding.plan.enforce", defaultValue = "false")
-                                boolean enforced) {
-        this(repository, events, metrics, enforced, Clock.systemUTC());
+                                GeocodingMetrics metrics) {
+        this(repository, events, metrics, Clock.systemUTC());
     }
 
     GeocodingPlanService(GeocodingPlanRepository repository, GeocodingEvents events, GeocodingMetrics metrics,
-                         boolean enforced, Clock clock) {
+                         Clock clock) {
         this.repository = repository;
         this.events = events;
         this.metrics = metrics;
-        this.enforced = enforced;
         this.clock = clock;
-    }
-
-    public boolean enforced() {
-        return enforced;
     }
 
     public Plan plan() {
@@ -91,8 +82,9 @@ public class GeocodingPlanService {
         if (alertPct < 1 || alertPct > 100) {
             throw new IllegalArgumentException("alertPct must be from 1 to 100");
         }
+        boolean enforced = req.enforced() == null ? repository.plan().enforced() : req.enforced();
         return repository.setPlan(req.monthlyPriceUsd(), req.resolutionsPerMonth(), req.overagePriceUsd(), alertPct,
-                actor);
+                enforced, actor);
     }
 
     public Subscription setSubscription(String organization, SetSubscriptionRequest req, String actor) {
@@ -116,7 +108,7 @@ public class GeocodingPlanService {
         Plan terms = planFor(period);
         Subscription subscription = subscriptionFor(organization, period);
         return new OrgPlanResponse(terms == null ? repository.plan() : terms, subscription,
-                usage(organization, terms, subscription, period).withoutProviderCost(), enforced);
+                usage(organization, terms, subscription, period).withoutProviderCost(), repository.plan().enforced());
     }
 
     /** Every organization with a subscription or with usage in the month, with the platform's provider cost. */
@@ -134,14 +126,15 @@ public class GeocodingPlanService {
      * refuses it.
      */
     public Refusal checkProviderCall(String organization) {
-        if (!enforced) {
+        Plan plan = repository.plan();
+        if (!plan.enforced()) {
             return null;
         }
         Subscription subscription = organization == null ? null : repository.subscription(organization);
         if (subscription == null) {
             return refuse(NO_SUBSCRIPTION, "the organization has no geocoding plan");
         }
-        int quota = quota(repository.plan(), subscription);
+        int quota = quota(plan, subscription);
         YearMonth month = YearMonth.now(clock);
         long used = repository.providerCalls(organization, start(month), start(month.plusMonths(1)));
         metrics.quota(organization, used, quota);

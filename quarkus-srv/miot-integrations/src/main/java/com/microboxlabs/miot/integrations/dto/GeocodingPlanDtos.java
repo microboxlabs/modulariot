@@ -13,21 +13,25 @@ public final class GeocodingPlanDtos {
     /**
      * The plan every organization subscribes to. {@code resolutionsPerMonth} is the quota of provider calls of a
      * subscription without its own; {@code alertPct} is the share of the quota at which the organization is warned.
+     * {@code enforced} applies the quotas; off, no provider call is refused.
      */
     public record Plan(
             BigDecimal monthlyPriceUsd,
             int resolutionsPerMonth,
             BigDecimal overagePriceUsd,
             int alertPct,
+            boolean enforced,
             String updatedBy,
             OffsetDateTime updatedAt) {
     }
 
+    /** {@code alertPct} null is 80; {@code enforced} null keeps the plan's. */
     public record SetPlanRequest(
             BigDecimal monthlyPriceUsd,
             Integer resolutionsPerMonth,
             BigDecimal overagePriceUsd,
-            Integer alertPct) {
+            Integer alertPct,
+            Boolean enforced) {
     }
 
     /**

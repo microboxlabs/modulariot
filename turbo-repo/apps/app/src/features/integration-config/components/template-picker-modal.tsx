@@ -10,7 +10,11 @@ import {
 } from "flowbite-react";
 import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
 import { BrandLogo } from "@/features/common/components/brand-logo";
-import { BIGQUERY_LOGO, POSTGREST_LOGO } from "../connection-catalog";
+import {
+  BIGQUERY_LOGO,
+  GEOCODING_LOGO,
+  POSTGREST_LOGO,
+} from "../connection-catalog";
 import type { ReactNode } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -27,6 +31,10 @@ interface TemplatePickerModalProps {
   readonly onSelect: (template: IntegrationTemplate) => void;
   /** A built-in provider, created without a template. */
   readonly onSelectNative: (provider: NativeProvider) => void;
+  /** Offered to platform owners: geocoding through the platform's provider. */
+  readonly onSelectManagedGeocoding?: () => void;
+  /** In the Plataforma scope the option sets the provider itself. */
+  readonly managedGeocodingInPlatform?: boolean;
   /** Offered to platform owners: BigQuery as the organization's own service account. */
   readonly onSelectManagedBigQuery?: () => void;
   readonly dict: I18nRecord;
@@ -46,6 +54,8 @@ export function TemplatePickerModal({
   onClose,
   onSelect,
   onSelectNative,
+  onSelectManagedGeocoding,
+  managedGeocodingInPlatform = false,
   onSelectManagedBigQuery,
   dict,
 }: Readonly<TemplatePickerModalProps>) {
@@ -103,6 +113,25 @@ export function TemplatePickerModal({
             }
             onSelect={() => onSelectNative("BIGQUERY")}
           />
+          {onSelectManagedGeocoding && (
+            <NativeOption
+              title={tr("picker.managedGeocoding", dict)}
+              description={
+                managedGeocodingInPlatform
+                  ? tr("picker.platformGeocodingHelp", dict)
+                  : tr("picker.managedGeocodingHelp", dict)
+              }
+              icon={
+                <BrandLogo
+                  logo={GEOCODING_LOGO}
+                  alt="Geocoding"
+                  keyline="circle"
+                  size={48}
+                />
+              }
+              onSelect={onSelectManagedGeocoding}
+            />
+          )}
           {onSelectManagedBigQuery && (
             <NativeOption
               title={tr("picker.managedBigquery", dict)}

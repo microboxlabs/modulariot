@@ -21,7 +21,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
  * The geocoding provider the platform contracts for every organization. Only a platform owner reads or changes it.
- * The token is write-only: responses carry a preview.
+ * Responses identify the linked credential without exposing its token.
  */
 @Path("/api/v1/platform/geocoding-provider")
 @Produces(MediaType.APPLICATION_JSON)
@@ -48,15 +48,15 @@ public class PlatformGeocodingResource {
 
     @PUT
     @Operation(summary = "Set the platform geocoding provider",
-            description = "The token is required the first time; leave it blank to keep the stored one."
+            description = "credentialProfileId is required the first time; omit it to keep the linked credential."
                     + " costPerRequestUsd is the platform's cost of one call.")
     public Uni<Response> put(SetPlatformGeocodingRequest body) {
-        return endpoints.put(actor -> service.put(body, actor));
+        return endpoints.put(ignored -> service.put(body));
     }
 
     @DELETE
-    @Operation(summary = "Remove the platform geocoding provider and its token")
+    @Operation(summary = "Remove the platform geocoding provider, keeping its credential")
     public Uni<Response> delete() {
-        return endpoints.delete(service::delete);
+        return endpoints.delete(ignored -> service.delete());
     }
 }

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.event.OperationalEvent;
@@ -44,7 +45,7 @@ class GeocodingPlanServiceTest {
 
     /** In-memory storage; provider calls and usage by source are set per test. */
     static final class Plans extends GeocodingPlanRepository {
-        Plan plan = new Plan(new BigDecimal("0.00"), 1000, new BigDecimal("0.005"), 80, null, null);
+        Plan plan = new Plan(new BigDecimal("0.00"), 1000, new BigDecimal("0.005"), 80, false, null, null);
         final Map<String, Subscription> subscriptions = new HashMap<>();
         final Set<String> alerted = new HashSet<>();
         long used;
@@ -79,8 +80,8 @@ class GeocodingPlanServiceTest {
 
         @Override
         public Plan setPlan(BigDecimal monthlyPriceUsd, int resolutionsPerMonth, BigDecimal overagePriceUsd,
-                            int alertPct, String actor) {
-            plan = new Plan(monthlyPriceUsd, resolutionsPerMonth, overagePriceUsd, alertPct, actor, null);
+                            int alertPct, boolean enforced, String actor) {
+            plan = new Plan(monthlyPriceUsd, resolutionsPerMonth, overagePriceUsd, alertPct, enforced, actor, null);
             return plan;
         }
 
@@ -126,11 +127,15 @@ class GeocodingPlanServiceTest {
     private final List<OperationalEvent> events = new ArrayList<>();
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
 
+    /** The plan is enforced or not as given; its other values stay. */
     private GeocodingPlanService service(boolean enforced) {
+        Plan p = plans.plan;
+        plans.plan = new Plan(p.monthlyPriceUsd(), p.resolutionsPerMonth(), p.overagePriceUsd(), p.alertPct(), enforced,
+                p.updatedBy(), p.updatedAt());
         return new GeocodingPlanService(plans, new GeocodingEvents(e -> {
             events.add(e);
             return CompletableFuture.completedFuture(null);
-        }), new GeocodingMetrics(meters), enforced, CLOCK);
+        }), new GeocodingMetrics(meters), CLOCK);
     }
 
     private void subscribe(Integer quota, String onExhausted) {
@@ -146,7 +151,7 @@ class GeocodingPlanServiceTest {
         plans.historicalSubscriptions.put(ORG, plans.subscriptions.get(ORG));
         GeocodingPlanService service = service(false);
         var before = service.orgPlan(ORG, YearMonth.of(2026, 9));
-        service.setPlan(new SetPlanRequest(new BigDecimal("99"), 20, new BigDecimal("2"), 80), "owner");
+        service.setPlan(new SetPlanRequest(new BigDecimal("99"), 20, new BigDecimal("2"), 80, null), "owner");
         service.setSubscription(ORG, new SetSubscriptionRequest(1, "review"), "owner");
         var after = service.orgPlan(ORG, YearMonth.of(2026, 9));
         assertEquals(before.usage(), after.usage());
@@ -257,7 +262,7 @@ class GeocodingPlanServiceTest {
 
     @Test
     void theAlertShareComesFromThePlan() {
-        plans.plan = new Plan(BigDecimal.ZERO, 1000, BigDecimal.ZERO, 50, null, null);
+        plans.plan = new Plan(BigDecimal.ZERO, 1000, BigDecimal.ZERO, 50, false, null, null);
         subscribe(10, "review");
         plans.used = 5;
 
@@ -302,7 +307,7 @@ class GeocodingPlanServiceTest {
     @Test
     void theProviderCostIsShownOnlyToThePlatform() {
         subscribe(100, "overage");
-        plans.plan = new Plan(new BigDecimal("49.00"), 1000, new BigDecimal("0.004"), 80, null, null);
+        plans.plan = new Plan(new BigDecimal("49.00"), 1000, new BigDecimal("0.004"), 80, false, null, null);
         plans.bySource = List.of(new SourceUse("provider", "resolved", 120, 10, 110, new BigDecimal("0.55")));
 
         OrgPlanResponse org = service(false).orgPlan(ORG, YearMonth.of(2026, 9));
@@ -348,15 +353,24 @@ class GeocodingPlanServiceTest {
     void thePlanIsValidated() {
         GeocodingPlanService service = service(false);
         assertThrows(IllegalArgumentException.class, () -> service.setPlan(null, "owner"));
-        SetPlanRequest negative = new SetPlanRequest(BigDecimal.ONE, -1, BigDecimal.ONE, null);
-        SetPlanRequest invalidAlert = new SetPlanRequest(BigDecimal.ONE, 10, BigDecimal.ONE, 0);
+        SetPlanRequest negative = new SetPlanRequest(BigDecimal.ONE, -1, BigDecimal.ONE, null, null);
+        SetPlanRequest invalidAlert = new SetPlanRequest(BigDecimal.ONE, 10, BigDecimal.ONE, 0, null);
         assertThrows(IllegalArgumentException.class, () -> service.setPlan(negative, "owner"));
         assertThrows(IllegalArgumentException.class, () -> service.setPlan(invalidAlert, "owner"));
 
-        Plan plan = service.setPlan(new SetPlanRequest(new BigDecimal("49.00"), 5000, new BigDecimal("0.004"), null),
-                "owner");
+        Plan plan = service.setPlan(new SetPlanRequest(new BigDecimal("49.00"), 5000, new BigDecimal("0.004"), null,
+                null), "owner");
         assertEquals(80, plan.alertPct());
         assertEquals(5000, plan.resolutionsPerMonth());
+        assertFalse(plan.enforced());
+
+        plan = service.setPlan(new SetPlanRequest(new BigDecimal("49.00"), 5000, new BigDecimal("0.004"), null, true),
+                "owner");
+        assertTrue(plan.enforced());
+        assertTrue(service.orgPlan(ORG, null).enforced());
+        plan = service.setPlan(new SetPlanRequest(new BigDecimal("49.00"), 5000, new BigDecimal("0.004"), null, null),
+                "owner");
+        assertTrue(plan.enforced());
     }
 
     @Test

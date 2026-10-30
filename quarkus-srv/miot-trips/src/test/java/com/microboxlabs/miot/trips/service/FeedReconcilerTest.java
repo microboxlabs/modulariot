@@ -124,6 +124,23 @@ class FeedReconcilerTest {
     }
 
     @Test
+    void sitesChangeTheHashOnlyWhenSent() throws Exception {
+        FeedServiceRequest plain = desired(null, List.of());
+        FeedServiceRequest.Site site = new FeedServiceRequest.Site("Av. Larco 101", "PE", "150122", null, null,
+                null, null);
+        FeedServiceRequest withSite = new FeedServiceRequest(plain.orderType(), plain.orderRef(), "CD-01", null,
+                plain.plannedStart(), plain.plannedEnd(), null, null, null, plain.resources(), null, null, null,
+                null, site, null);
+        FeedServiceRequest withoutSite = new FeedServiceRequest(plain.orderType(), plain.orderRef(), "CD-01", null,
+                plain.plannedStart(), plain.plannedEnd(), null, null, null, plain.resources(), null, null, null,
+                null);
+
+        assertFalse(json.writeValueAsString(withoutSite).contains("Site"));
+        assertNotEquals(reconciler.hash(withoutSite), reconciler.hash(withSite));
+        assertEquals(site, json.readValue(json.writeValueAsString(withSite), FeedServiceRequest.class).originSite());
+    }
+
+    @Test
     void recheckReadsTheStateOnlyAfterEnteringTheTransaction() throws Exception {
         send(desired(null, List.of()));
         FeedService previous = feeds.saved;

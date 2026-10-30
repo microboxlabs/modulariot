@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.Plan;
 import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.Subscription;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingEvents;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingMetrics;
@@ -38,6 +39,7 @@ import com.microboxlabs.miot.trips.store.InMemoryFleet;
 import com.microboxlabs.miot.trips.store.InMemoryGeocodeCache;
 import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import jakarta.ws.rs.core.Response;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,10 +62,15 @@ class OrgLocationsResourceTest {
     private static GeocodingPlanService noPlan() {
         return new GeocodingPlanService(new GeocodingPlanRepository(null) {
             @Override
+            public Plan plan() {
+                return new Plan(BigDecimal.ZERO, 1000, BigDecimal.ZERO, 80, false, null, null);
+            }
+
+            @Override
             public Subscription subscription(String organization) {
                 return null;
             }
-        }, new GeocodingEvents(e -> CompletableFuture.completedFuture(null)), GeocodingMetrics.NONE, false);
+        }, new GeocodingEvents(e -> CompletableFuture.completedFuture(null)), GeocodingMetrics.NONE);
     }
 
     private OrgLocationsResource resource() {

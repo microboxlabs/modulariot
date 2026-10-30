@@ -20,7 +20,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class GoogleGeocoding implements GeocodingProvider {
 
-    public static final String NAME = "google";
+    public static final String PROVIDER_NAME = "google";
     private static final Set<String> ADDRESS_TYPES = Set.of("street_address", "premise", "subpremise");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -38,7 +38,7 @@ public class GoogleGeocoding implements GeocodingProvider {
 
     @Override
     public String name() {
-        return NAME;
+        return PROVIDER_NAME;
     }
 
     @Override

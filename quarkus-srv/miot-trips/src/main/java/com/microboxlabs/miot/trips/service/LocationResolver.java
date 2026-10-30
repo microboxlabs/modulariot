@@ -179,17 +179,8 @@ public class LocationResolver {
      */
     private ByAddress fromAddress(String organization, String tenantCode, String country, Boundary b,
             String address) {
-        if (addresses.supports(country)) {
-            var street = Addresses.street(address);
-            if (street.isPresent()) {
-                var match = addresses.find(country, Addresses.spellings(b.name(), false),
-                        Addresses.spellings(street.get().name(), true), street.get().number());
-                if (match.isPresent()) {
-                    return new ByAddress(new Found(new Point(match.get().lon(), match.get().lat()), INTERNAL, null,
-                            null), null, Usage.NONE);
-                }
-            }
-        }
+        Found internal = fromInternal(country, b, address);
+        if (internal != null) return new ByAddress(internal, null, Usage.NONE);
         String key = b.code() + "|" + Addresses.key(address, b.name());
         var cached = cache.find(key, country);
         metrics.cacheLookup(cached.isPresent());
@@ -211,8 +202,11 @@ public class LocationResolver {
         }
         List<Candidate> exact = r.candidates().stream().filter(Candidate::addressLevel).toList();
         if (exact.isEmpty()) {
-            String type = r.candidates().isEmpty() ? null : r.candidates().get(0).type();
-            String best = r.candidates().isEmpty() ? "nothing" : "only " + (type == null ? "a coarser place" : type);
+            String best = "nothing";
+            if (!r.candidates().isEmpty()) {
+                String type = r.candidates().get(0).type();
+                best = "only " + (type == null ? "a coarser place" : type);
+            }
             return new ByAddress(null, r.provider() + " found " + best + ", not an address", usage);
         }
         Candidate pick = exact.stream().filter(c -> inside(b, new Point(c.lon(), c.lat()))).findFirst()
@@ -220,6 +214,20 @@ public class LocationResolver {
         Point p = new Point(pick.lon(), pick.lat());
         if (inside(b, p)) cacheResult(key, country, p, r.provider());
         return new ByAddress(new Found(p, PROVIDER, null, null), null, usage);
+    }
+
+    private Found fromInternal(String country, Boundary boundary, String address) {
+        if (addresses.supports(country)) {
+            var street = Addresses.street(address);
+            if (street.isPresent()) {
+                var match = addresses.find(country, Addresses.spellings(boundary.name(), false),
+                        Addresses.spellings(street.get().name(), true), street.get().number());
+                if (match.isPresent()) {
+                    return new Found(new Point(match.get().lon(), match.get().lat()), INTERNAL, null, null);
+                }
+            }
+        }
+        return null;
     }
 
     private void cacheResult(String key, String country, Point point, String provider) {

@@ -77,7 +77,7 @@ public class PlatformGeocodingService {
     public PlatformGeocodingView put(SetPlatformGeocodingRequest body, String actor) {
         if (body == null) throw new IllegalArgumentException("Request body is required");
         String name = body.provider() == null || body.provider().isBlank()
-                ? MapboxGeocoding.NAME : body.provider().strip().toLowerCase(java.util.Locale.ROOT);
+                ? MapboxGeocoding.PROVIDER_NAME : body.provider().strip().toLowerCase(java.util.Locale.ROOT);
         GeocodingProvider provider = providers.stream().filter(p -> p.name().equals(name)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("unknown geocoding provider " + name));
         String token = body.token() == null ? "" : body.token().strip();
@@ -86,9 +86,9 @@ public class PlatformGeocodingService {
             throw new IllegalArgumentException(GeocodingConnection.COST + " cannot be negative");
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put(GeocodingConnection.PROVIDER, provider.name());
-        if (MapboxGeocoding.NAME.equals(provider.name())) {
-            metadata.put(GeocodingConnection.PERMANENT, body.permanent() == null || body.permanent());
+        metadata.put(GeocodingConnection.PROVIDER_KEY, provider.name());
+        if (MapboxGeocoding.PROVIDER_NAME.equals(provider.name())) {
+            metadata.put(GeocodingConnection.PERMANENT_KEY, body.permanent() == null || body.permanent());
         }
         if (cost != null) {
             metadata.put(GeocodingConnection.COST, cost.toPlainString());
@@ -98,12 +98,12 @@ public class PlatformGeocodingService {
             if (token.isEmpty()) {
                 throw new IllegalArgumentException("token is required");
             }
-            store.create(AuthType.BEARER_TOKEN, Map.of(), Map.of(GeocodingConnection.TOKEN, token),
+            store.create(AuthType.BEARER_TOKEN, Map.of(), Map.of(GeocodingConnection.TOKEN_KEY, token),
                     provider.baseUrl(), metadata, actor);
             return get();
         }
         if (!token.isEmpty()) {
-            store.rotateSecret(existing, Map.of(GeocodingConnection.TOKEN, token));
+            store.rotateSecret(existing, Map.of(GeocodingConnection.TOKEN_KEY, token));
         }
         connections.updateConnection(PLATFORM_TENANT, existing.id(), new UpdateIntegrationConnectionRequest(
                 null, provider.baseUrl(), metadata, null, null));
@@ -117,12 +117,12 @@ public class PlatformGeocodingService {
 
     private PlatformGeocodingView view(IntegrationConnection connection) {
         Map<String, Object> metadata = connection.metadata() == null ? Map.of() : connection.metadata();
-        Object provider = metadata.get(GeocodingConnection.PROVIDER);
-        Object permanent = metadata.get(GeocodingConnection.PERMANENT);
+        Object provider = metadata.get(GeocodingConnection.PROVIDER_KEY);
+        Object permanent = metadata.get(GeocodingConnection.PERMANENT_KEY);
         Object cost = metadata.get(GeocodingConnection.COST);
-        String name = provider instanceof String s && !s.isBlank() ? s : MapboxGeocoding.NAME;
+        String name = provider instanceof String s && !s.isBlank() ? s : MapboxGeocoding.PROVIDER_NAME;
         return new PlatformGeocodingView(true, connection.id(), name,
-                MapboxGeocoding.NAME.equals(name) ? permanent == null || Boolean.parseBoolean(permanent.toString())
+                MapboxGeocoding.PROVIDER_NAME.equals(name) ? permanent == null || Boolean.parseBoolean(permanent.toString())
                         : null,
                 cost == null || cost.toString().isBlank() ? null : new BigDecimal(cost.toString().strip()),
                 store.secretPreview(connection));

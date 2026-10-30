@@ -52,8 +52,9 @@ class CredentialProfileServiceTest {
         CredentialProfileService service = service();
         CredentialProfile profile = service.createManaged(TENANT, ACTOR, "Synthetic geocoding", AuthType.BEARER_TOKEN, Map.of());
         Map<String, Object> secret = Map.of("token", "synthetic-token");
-        assertThrows(IllegalArgumentException.class, () -> service.mergeSecret(TENANT, profile.id(), secret));
-        assertThrows(IllegalArgumentException.class, () -> service.rotateSecret(TENANT, profile.id(), secret));
+        String id = profile.id();
+        assertThrows(IllegalArgumentException.class, () -> service.mergeSecret(TENANT, id, secret));
+        assertThrows(IllegalArgumentException.class, () -> service.rotateSecret(TENANT, id, secret));
         assertEquals(profile.encryptedSecretJson(), credentials.findByTenantAndId(TENANT, profile.id()).encryptedSecretJson());
     }
 
@@ -156,21 +157,20 @@ class CredentialProfileServiceTest {
 
     @Test
     void aManagedCredentialHasNoSecretAndCannotBeEditedOrTested() {
-        CredentialProfile managed = service().createManaged(TENANT, ACTOR, "Geocoding", AuthType.BEARER_TOKEN,
-                Map.of());
-
+        CredentialProfileService service = service();
+        CredentialProfile managed = service.createManaged(TENANT, ACTOR, "Geocoding", AuthType.BEARER_TOKEN, Map.of());
+        String id = managed.id();
         assertEquals(Map.of("managed", true), managed.publicConfig());
         assertEquals("none", managed.secretPreview());
-        IllegalArgumentException edit = assertThrows(IllegalArgumentException.class,
-                () -> service().update(TENANT, ACTOR, managed.id(), new UpdateCredentialProfileRequest(
-                        null, null, null, Map.of("token", "mine"))));
+        UpdateCredentialProfileRequest update = new UpdateCredentialProfileRequest(null, null, null, Map.of("token", "mine"));
+        IllegalArgumentException edit = assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, ACTOR, id, update));
         assertEquals("This credential is managed by the platform", edit.getMessage());
-        CredentialTestResponse test = service().test(TENANT, managed.id());
-        assertFalse(test.success());
-        assertEquals("This credential is managed by the platform", test.message());
+        CredentialTestResponse result = service.test(TENANT, id);
+        assertFalse(result.success());
+        assertEquals("This credential is managed by the platform", result.message());
         assertNull(credentials.recordedTestResult);
-        assertThrows(IllegalArgumentException.class, () -> service().testConfig(new CredentialTestRequest(
-                CredentialType.BEARER_TOKEN, Map.of("managed", true), Map.of("token", "x"))));
+        CredentialTestRequest request = new CredentialTestRequest(CredentialType.BEARER_TOKEN, Map.of("managed", true), Map.of("token", "x"));
+        assertThrows(IllegalArgumentException.class, () -> service.testConfig(request));
     }
 
     @Test

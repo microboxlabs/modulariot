@@ -31,6 +31,8 @@ Luego vincule el filtro a un parámetro de consulta en **Consultas guardadas**:
 { "vehicle_id": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true } }
 ```
 
+`omitWhenEmpty` deja fuera el parámetro mientras el filtro está vacío. Úselo con funciones de PostgREST. Con BigQuery use `"defaultValue": ""`: una consulta de BigQuery falla si le falta un parámetro. Ejemplos en [Consultas para widgets](/es/products/dashboards/tutorials/queries-for-widgets#filtros-como-parámetros).
+
 <Callout type="warning">
 Cambiar el nombre de la clave de un filtro no actualiza las consultas que la leen. Actualice sus vínculos en la misma edición.
 </Callout>

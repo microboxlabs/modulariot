@@ -31,6 +31,8 @@ Then bind the filter to a query parameter in **Saved queries**:
 { "vehicle_id": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true } }
 ```
 
+`omitWhenEmpty` leaves the parameter out while the filter is empty. Use it with PostgREST functions. With BigQuery, use `"defaultValue": ""`: a BigQuery query fails when a parameter is missing. Examples in [Queries for widgets](/en/products/dashboards/tutorials/queries-for-widgets#filters-as-parameters).
+
 <Callout type="warning">
 Renaming a filter key does not update the queries that read it. Update their bindings in the same edit.
 </Callout>

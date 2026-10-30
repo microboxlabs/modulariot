@@ -99,10 +99,8 @@ Un Stacked Stat lee **una sola fila**: la primera que devuelve la consulta. Cada
 
 Solo se pueden guardar consultas `SELECT`. Bajo el editor, **Leerá** indica cuántos bytes leerá la consulta. Una consulta guardada aquí aparece de inmediato como **Operación** de esa conexión en los dashboards de la organización.
 
-<details>
-<summary>Probar sin una tabla propia</summary>
-
-Reemplace el `FROM` por esta tabla de ejemplo. Genera 49 solicitudes y lee 0 bytes:
+<Callout type="info">
+**Probar sin una tabla propia.** Reemplace el `FROM` por esta tabla de ejemplo. Genera 49 solicitudes y lee 0 bytes:
 
 ```sql
 WITH solicitudes AS (
@@ -122,8 +120,7 @@ FROM solicitudes
 ```
 
 Use el mismo `WITH solicitudes AS (…)` al inicio de la consulta de detalle del paso 5.
-
-</details>
+</Callout>
 
 ### Conectar el widget a la consulta
 
@@ -155,15 +152,14 @@ El widget muestra los números reales. `{{columna}}` se reemplaza por el valor d
 **Cuidado:** si el widget muestra **Error: No se pudieron cargar los resultados** justo después de agregar la consulta guardada, recargue la página. El servidor ejecuta la consulta desde el dashboard guardado, y el guardado automático tarda unos segundos.
 </Callout>
 
-<details>
-<summary>Opciones de Fuente de Datos</summary>
+<Callout type="info">
+**Opciones de Fuente de Datos:**
 
 | Opción | El widget lee |
 | --- | --- |
 | **Planificador** | Una consulta guardada del dashboard, elegida en **Variable** |
 | **Estático (JSON)** | Datos escritos en el propio widget |
-
-</details>
+</Callout>
 
 ### Agregar la tabla de detalle
 

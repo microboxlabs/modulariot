@@ -99,10 +99,8 @@ A Stacked Stat reads **one row**: the first row the query returns. Each category
 
 Only `SELECT` queries can be saved. Under the editor, **Will read** shows how many bytes the query will read. A query saved here appears right away as an **Operation** of that connection in the organization's dashboards.
 
-<details>
-<summary>Try it without your own table</summary>
-
-Replace the `FROM` with this sample table. It generates 49 requests and reads 0 bytes:
+<Callout type="info">
+**Try it without your own table.** Replace the `FROM` with this sample table. It generates 49 requests and reads 0 bytes:
 
 ```sql
 WITH solicitudes AS (
@@ -122,8 +120,7 @@ FROM solicitudes
 ```
 
 Use the same `WITH solicitudes AS (…)` at the start of the detail query in step 5.
-
-</details>
+</Callout>
 
 ### Connect the widget to the query
 
@@ -155,15 +152,14 @@ The widget shows the real numbers. `{{column}}` is replaced by that column's val
 **Pitfall:** if the widget shows **Error: Could not load query results** right after you add the saved query, reload the page. The server runs the query from the saved dashboard, and autosave takes a few seconds.
 </Callout>
 
-<details>
-<summary>Data Source options</summary>
+<Callout type="info">
+**Data Source options:**
 
 | Option | The widget reads |
 | --- | --- |
 | **Planner** | A saved query of the dashboard, chosen in **Variable** |
 | **Static (JSON)** | Data typed into the widget itself |
-
-</details>
+</Callout>
 
 ### Add the detail table
 

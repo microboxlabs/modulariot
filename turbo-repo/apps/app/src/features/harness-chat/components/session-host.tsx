@@ -15,7 +15,10 @@ import {
 } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
-import type { PendingAttachment } from "../context/harness-chat-context";
+import type {
+  PendingAttachment,
+  PendingHarnessConversation,
+} from "../context/harness-chat-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { HarnessForkProvider } from "../context/harness-fork-context";
 import { HarnessModelProvider } from "../context/harness-model-context";
@@ -40,6 +43,7 @@ import { useThreadModel } from "../hooks/use-thread-model";
 import type { FirstExchange } from "../session-title";
 import { Thread } from "../thread";
 import { ActiveRunResumer } from "./active-run-resumer";
+import { InitialConversationSeeder } from "./initial-conversation-seeder";
 import { InitialMessageSender } from "./initial-message-sender";
 import { PendingAttachmentReceiver } from "./pending-attachment-receiver";
 import { PromptSender } from "./prompt-sender";
@@ -53,6 +57,7 @@ export const SessionHost: FC<{
   active: boolean;
   shouldFocus: boolean;
   initialMessage: string | null;
+  initialConversation: PendingHarnessConversation | null;
   pendingAttachment: PendingAttachment | null;
   onAttachmentConsumed: () => void;
   pendingPrompt: string | null;
@@ -70,6 +75,7 @@ export const SessionHost: FC<{
   active,
   shouldFocus,
   initialMessage,
+  initialConversation,
   pendingAttachment,
   onAttachmentConsumed,
   pendingPrompt,
@@ -87,13 +93,22 @@ export const SessionHost: FC<{
   // chat sessions. The session id is handed over as the AG-UI threadId, which
   // is what the chat route falls back to for the harness conversation id: the
   // same value survives a reload, so a reopened thread continues its
-  // conversation instead of starting a new one.
+  // conversation instead of starting a new one. A spotlight "Take to chat"
+  // handoff instead seeds the specific conversation id its answer came from,
+  // so the user's next message continues that conversation server-side.
   const agent = useMemo(
     () =>
       new HarnessRunAgent({
         url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream`,
         threadId: sessionId,
+        ...(initialConversation?.conversationId && {
+          initialState: {
+            harnessConversationId: initialConversation.conversationId,
+          },
+        }),
       }),
+    // `initialConversation` is read once at session creation, same as sessionId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sessionId]
   );
   useEffect(() => {
@@ -195,6 +210,9 @@ export const SessionHost: FC<{
                       agent={agent}
                     />
                     <InitialMessageSender initialMessage={initialMessage} />
+                    <InitialConversationSeeder
+                      conversation={initialConversation}
+                    />
                     <PromptSender
                       prompt={pendingPrompt}
                       onSent={onPromptSent}

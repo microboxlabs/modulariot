@@ -1,0 +1,98 @@
+import { Callout } from 'nextra/components'
+
+# Elegir un widget
+
+**Para:** implementadores.
+
+<Callout type="info">
+**Aprenderá a:**
+
+- encontrar el widget que corresponde a un diseño;
+- saber si un widget lee una fila o todas las filas de su consulta;
+- elegir entre Stacked Stat y un gráfico de torta o de barras.
+</Callout>
+
+## Del diseño al widget
+
+Busque en la primera columna lo que muestra su diseño.
+
+| El diseño muestra | Widget | `componentId` |
+| --- | --- | --- |
+| Un número grande, con un ícono o un título | Stat Card | `stat_icon` |
+| Un número con un estado de color (verde, amarillo, rojo) | Status Card | `stat_status` |
+| Un KPI por estado y una barra 100 % dividida por estado | Stacked Stat, tipo **Barra** | `stat_stacked` |
+| Lo mismo, como dona | Stacked Stat, tipo **Dona** | `stat_stacked` |
+| Avance hacia una meta | Progress Stat, Progress o Circular Stat | `stat_progress`, `percentage_value`, `stat_circular` |
+| Un número con su tendencia en una línea pequeña | Sparkline Stat | `stat_sparkline` |
+| Un número comparado con el período anterior | Detailed Stat | `stat_detailed` |
+| Barras por categoría, con ejes | Chart v2, familia **Cartesiano**, representación barra | `chart_v2` |
+| Un ranking: los N con más eventos | Chart v2, **Barras Horizontales** | `chart_v2` |
+| Una tendencia por día o por mes | Chart v2, representación línea, **El Eje X es una Fecha** | `chart_v2` |
+| Barras apiladas por mes y estado | Chart v2, varias representaciones barra con **Apilado** | `chart_v2` |
+| Barras y una línea con otra unidad | Chart v2, barra + línea, **Doble eje Y** | `chart_v2` |
+| Una torta con la distribución por categoría | Chart v2, familia **Torta** | `chart_v2` |
+| Un valor dentro de un rango (velocímetro) | Chart v2, familia **Indicador** | `chart_v2` |
+| Una lista para revisar fila por fila | Tabla de Datos V2 | `data_table_v2` |
+| Una tarjeta por fila, con insignias | Lista de Datos | `data_list` |
+| Texto o un título de sección | Text Card | `text_card` |
+| Hacer clic en un gráfico y filtrar una tabla | No existe. Use un filtro de selección del dashboard | — |
+
+Los nombres son los de la interfaz de ModularIoT. El `componentId` es el que se guarda en el documento y el que usan otras configuraciones.
+
+## Una fila o todas las filas
+
+Cada widget lee su consulta de una de dos formas. Esto decide cómo escribe la consulta.
+
+| Lee | Widgets | La consulta devuelve |
+| --- | --- | --- |
+| **Solo la primera fila** | Text Card, Info Card, todos los Stat, Progress, Stacked Stat, Chart v2 **Indicador** | Una fila. Una columna por cada número que muestra el widget. |
+| **Todas las filas** | Tabla de Datos, Tabla de Datos V2, Lista de Datos, Chart v2 **Cartesiano** y **Torta** | Una fila por elemento: una fila por fila de tabla, por barra o por porción. |
+
+Los widgets de la primera fila usan plantillas: `{{pendiente}}` se reemplaza por el valor de la columna `pendiente` en la primera fila. Si la consulta devuelve más filas, el widget las ignora.
+
+<Callout type="warning">
+**Cuidado:** si una consulta devuelve una fila por estado (`estado`, `cantidad`), un Stacked Stat solo ve el primer estado. Escriba la consulta con una columna por estado. [Consultas para widgets](/es/products/dashboards/tutorials/queries-for-widgets) muestra cómo.
+</Callout>
+
+## Stacked Stat, torta o barras
+
+Los tres muestran partes de un total. Se diferencian en de dónde salen las categorías y los colores.
+
+| | Stacked Stat | Chart v2 Torta | Chart v2 Barras |
+| --- | --- | --- | --- |
+| Categorías | Fijas, escritas en los ajustes | Una por fila de la consulta | Una por fila de la consulta |
+| Color de cada categoría | Fijo, uno por categoría | De la lista de colores, en el orden de las filas | Uno por serie; las barras de una serie comparten color |
+| Forma de la consulta | Una fila, una columna por categoría | Una fila por categoría: columna de nombre + columna de valor | Una fila por categoría: columna del eje X + una columna por serie |
+| Barra 100 % | Sí. Cada parte es su valor sobre la suma | No | No. Para 100 %, calcule porcentajes en la consulta |
+| KPI visible por categoría | Sí, en la leyenda | Al pasar el cursor, o con etiquetas | Con **Etiquetas** en la representación |
+| Clic filtra otro widget | No | No | No |
+
+Use Stacked Stat cuando conoce los estados de antemano y cada uno tiene un color fijo. Use la torta o las barras cuando las categorías cambian con los datos.
+
+<details>
+<summary>Colores por categoría en Chart v2</summary>
+
+Chart v2 asigna colores por **serie**, no por categoría:
+
+| Gráfico | Qué recibe un color |
+| --- | --- |
+| Barras o líneas | Cada representación (serie). El color de una serie es `customColors[i]`, donde `i` es su posición; si falta, el color de la paleta. |
+| Torta | Cada porción, en el orden de las filas, de la lista de colores del gráfico: `customColors` si tiene colores, si no la paleta por defecto. |
+| Cualquiera, con reglas de color | Un punto o una porción cuyo **valor numérico** cumple la regla. La regla no compara el nombre de la categoría. |
+
+En la configuración de ModularIoT, el selector de color de cada representación escribe `customColors[i]`. Una torta tiene una sola representación:
+
+| Si usted | La torta muestra |
+| --- | --- |
+| No toca el color de la representación | Cada porción con un color de la paleta por defecto, en el orden de las filas |
+| Elige un color para la representación | **Todas las porciones con ese color** |
+
+Para fijar un color por estado en una torta, edite el documento: exporte el dashboard, escriba en `customColors` un color por porción en el orden de las filas e impórtelo ([Importar y exportar](/es/products/dashboards/how-to/import-export)). Ordene las filas en la consulta con un orden fijo. Si un estado no tiene filas, los colores se corren.
+
+Para barras con un color por estado: devuelva una columna por estado y cree una representación por columna, cada una con su color. Vea [Consultas para widgets](/es/products/dashboards/tutorials/queries-for-widgets#un-color-por-estado-en-barras).
+
+</details>
+
+## Siguiente
+
+[Consultas para widgets](/es/products/dashboards/tutorials/queries-for-widgets): la forma exacta de la consulta para cada widget.

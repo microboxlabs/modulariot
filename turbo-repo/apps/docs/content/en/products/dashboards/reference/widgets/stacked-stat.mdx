@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Stacked Stat
 
-**For:** implementers. **`componentId`:** `stat_stacked`. **Setup:** setting labels are the ModularIoT ones.
+**For:** implementers. **`componentId`:** `stat_stacked`. **Setup:** setting names match the ModularIoT web app.
 
 Shows the parts of a total as a 100% bar or a donut, with a legend that gives each part's value. Use it for "a KPI per state + a 100% bar".
 
@@ -33,8 +33,8 @@ If your query returns one row per state, turn it into columns: [Pivot](/en/produ
 
 | Variant | Settings | Query shape | Screenshot |
 | --- | --- | --- | --- |
-| Bar | **Chart Type**: Bar | One row, one column per category | [Bar](#bar) |
-| Donut | **Chart Type**: Donut | The same | [Donut](#donut) |
+| Bar | **Chart Type**: Bar, **Unit** empty | One row, one column per category | [Bar](#bar) |
+| Donut | **Chart Type**: Donut, **Unit** empty | The same | [Donut](#donut) |
 | No header | **Show Header** off | The same | [No header](#no-header) |
 | Percentages | **Unit**: `%`, values `{{pendiente_pct}}` | One row with percentages computed in the query | [Percentages](#percentages) |
 | Templated title | **Title**: `Requests by state ({{total}})` | One row with a `total` column | [Templated title](#templated-title) |
@@ -72,7 +72,7 @@ The query computes the percentages. See [Percentages](/en/products/dashboards/tu
 | Visualization | **Categories** | `items[]`: `label`, `value`, `color` | One part per category. `color` in hex without `#` |
 | Visualization | **Thresholds** | `thresholds` | Saved, but the widget does not use it |
 | Data Provider | **Data Source**, **Variable** | `dataMode`, `plannerVariableName` | `planner` reads a saved query |
-| Panel footer | **Auto-Refresh** | `refreshInterval` | Seconds between reloads. Empty: the dashboard setting |
+| Panel footer | **Auto-Refresh** | `refreshInterval` | Seconds between reloads. **Use dashboard setting** removes the key |
 
 ## How the bar is computed
 
@@ -84,7 +84,7 @@ The query computes the percentages. See [Percentages](/en/products/dashboards/tu
 | Every value 0 | The bar is grey |
 | Color that is not a 6-digit hex | Grey (`9ca3af`) |
 
-Hovering a part shows `Label: value (percentage)`.
+Hovering a part shows the label, the value with the unit and the percentage with one decimal: `Pendiente: 12 (24.5%)`.
 
 ## Full example
 
@@ -110,14 +110,15 @@ Hovering a part shows `Label: value (percentage)`.
 ## Limits
 
 <Callout type="warning">
-**Pitfall:** in the ModularIoT setup, category templates resolve only with **Data Source: Planner**. With **Static (JSON)**, `{{pendiente}}` shows as 0. The title and unit resolve in both modes.
+**Pitfall:** in the ModularIoT setup, category templates resolve only when **Data Source** is **Planner**. With static data (only possible by importing a document with `staticData`) or a query with no rows, `{{pendiente}}` shows as 0. The title and unit always resolve.
 </Callout>
 
 | Limit | Alternative |
 | --- | --- |
 | Reads only the first row | Pivot the query: one column per category |
-| Categories are fixed; a new state does not appear on its own | Add the column and the category |
-| The legend is a list; there are no cards per category | Add a Stat Card per state with the same query |
+| Categories are fixed. A new state does not appear on its own | Add the column and the category |
+| The legend is a list. There are no cards per category | Add a Stat Card per state with the same variable and **Value** `{{pendiente}}` |
 | Clicking a part does not filter other widgets | Use a dashboard select filter |
 | The Data Provider tab has no static JSON editor | Use a saved query |
+| `color` is hex without `#` (`eab308`) | In Chart v2, `customColors` takes `#` |
 | Category templates do not read `{{filter.…}}` | Put the filter value in the title |

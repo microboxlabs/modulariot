@@ -13,7 +13,7 @@ Los campos de texto de un widget aceptan plantillas entre llaves dobles. Una pla
 | `{{pendiente}}` | La columna `pendiente` de la primera fila |
 | `{{row.pendiente}}` | Lo mismo |
 | `{{filter.estado}}` | El valor actual del filtro `estado`. Vacío si no tiene valor |
-| `{{data_provider.clave}}` | Un valor definido en la configuración del widget |
+| `{{data_provider.clave}}` | Un par clave/valor escrito en la sección **Proveedor de datos** del widget, en los widgets que la tienen |
 
 Los widgets de un valor (Stat, Stacked Stat, Text Card) leen la primera fila. En una tabla, `{{row.columna}}` lee la fila de cada celda.
 
@@ -47,12 +47,16 @@ Las plantillas usan Handlebars. Estas funciones están disponibles en todos los 
 | `{{formatDate creada_en format="relative"}}` | `5m`, `3h`, `2d` |
 | `{{formatDate creada_en timezone="America/Lima"}}` | La fecha en otra zona horaria |
 | `{{datePart creada_en "weekday"}}` | `viernes` |
-| `{{timeAgo creada_en}}` | `3h ago` |
+| `{{timeAgo creada_en}}` | `3h ago` (siempre en inglés) |
 
 `datePart` acepta `year`, `month`, `day`, `hour`, `minute` y `weekday`. La zona horaria por defecto es `America/Santiago` y el idioma, `es-CL`.
 
 <Callout type="warning">
-**Cuidado:** `formatDate` necesita una fecha que JavaScript pueda leer, como `2026-10-30T14:05:00Z` o `2026-10-30 14:05`. Una columna `TIMESTAMP` de BigQuery llega como número de segundos (`1.7933364E9`), y `formatDate` no la reconoce: muestra `-`. Convierta la fecha en la consulta con `FORMAT_TIMESTAMP`.
+**Cuidado:** `formatDate` necesita una fecha ISO con zona horaria, como `2026-10-30T17:05:00Z`. Una columna `TIMESTAMP` de BigQuery llega como segundos en notación científica (`1.7933364E9`) y `formatDate` muestra `-`. En la consulta, use `FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', creada_en)`. Una fecha sin zona (`2026-10-30 14:05`) se lee en la zona del navegador de quien ve el dashboard.
+</Callout>
+
+<Callout type="warning">
+**Cuidado:** las llaves dobles escapan el HTML. Un valor con `&`, `<` o `"` se muestra como `&amp;`, `&lt;` o `&quot;`. Para mostrarlo tal cual, use llaves triples: `{{{responsable}}}`.
 </Callout>
 
 ## Ejemplos
@@ -60,7 +64,7 @@ Las plantillas usan Handlebars. Estas funciones están disponibles en todos los 
 | Campo | Plantilla | Resultado |
 | --- | --- | --- |
 | Título de un Stacked Stat | `Solicitudes por estado ({{total}})` | `Solicitudes por estado (49)` |
-| Valor de un Stat | `{{formatNumber monto prefix="$"}}` | `$1.250.000` |
+| Valor de un Status Card | `{{formatNumber monto prefix="$"}}` | `$1.250.000` |
 | Título que sigue a un filtro | `Detalle: {{filter.estado}}` | `Detalle: en_curso` |
 | Celda de una tabla | `{{row.responsable}} · {{formatDate row.creada_en format="date"}}` | `Equipo sur · 30-10-2026` |
 

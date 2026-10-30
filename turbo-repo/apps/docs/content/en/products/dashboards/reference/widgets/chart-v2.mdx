@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Chart v2
 
-**For:** implementers. **`componentId`:** `chart_v2`. **Setup:** setting labels are the ModularIoT ones.
+**For:** implementers. **`componentId`:** `chart_v2`. **Setup:** setting names match the ModularIoT web app.
 
 Bar, line, scatter, pie and gauge charts. One chart can mix bars and lines, stack series and use two Y axes.
 
@@ -27,7 +27,7 @@ The chart does not sort or group rows: use `ORDER BY` and `GROUP BY` in the quer
 | Bars + line, dual axis | **Dual Y-Axis**; the line on axis **R** | `mes, solicitudes, horas` | [Dual axis](#dual-axis) |
 | Pie | **Pie** family | `estado, cantidad` | [Pie](#pie) |
 | Gauge | **Gauge** family | One row: `cerradas_pct` | [Gauge](#gauge) |
-| One color per state | One representation per state, all with **Stacked** and their own color | One row per state; only its state's column has a value | [One color per state](#one-color-per-state) |
+| One color per state | **X-Axis Column** `estado`. One representation per state, all with **Stacked**, **Labels** and their own color. **Show Legend** off | One row per state. Only its state's column has a value | [One color per state](#one-color-per-state) |
 | Color rules | **Colors & Rules**: greater than 10 → red, up to 10 → green | `responsable, atrasadas` | [Color rules](#color-rules) |
 | Palette | `colorPalette: "warm"` (document only) | `mes` + three columns | [Palette](#palette) |
 
@@ -51,7 +51,7 @@ Stacked bars show counts. For 100% bars, compute percentages in the query.
 
 ![Smoothed line by day with the buttons Todo, 7D, 30D, 3M, 6M, 1A](/dashboards/chart_v2/line.png)
 
-With **X-Axis is a Date**, the chart shows buttons to filter by range (All, 7D, 30D, 3M, 6M, 1Y). Labels show as `dd-mm-yyyy`.
+With **X-Axis is a Date**, the chart shows buttons to filter by range (All, 7D, 30D, 3M, 6M, 1Y; in Spanish Todo … 1A). Labels show as `dd-mm-yyyy`. The axis is still a category axis: it does not sort or fill days.
 
 ### Dual axis
 
@@ -59,7 +59,7 @@ With **X-Axis is a Date**, the chart shows buttons to filter by range (All, 7D, 
 
 ### Pie
 
-![Pie with Pendiente, En curso and Cerrada](/dashboards/chart_v2/pie.png)
+![Pie (donut) with Pendiente, En curso and Cerrada](/dashboards/chart_v2/pie.png)
 
 ### Gauge
 
@@ -79,9 +79,12 @@ SELECT
   IF(estado = 'cerrada',   COUNT(*), NULL) AS cerrada
 FROM `my-project.operations.solicitudes`
 GROUP BY estado
+ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
 ```
 
-With **Stacked**, each bar is centered on its category.
+With **Stacked**, each bar is centered on its category. Colors follow the representation order: the first color belongs to the first representation.
+
+To show `In progress` instead of `en_curso`, convert it in the query: `CASE estado WHEN 'en_curso' THEN 'In progress' … END AS estado`.
 
 ### Color rules
 
@@ -112,7 +115,7 @@ The UI has no palette selector and always saves `colorPalette: "custom"`. A name
 | Appearance | **Show Legend** | `showLegend` | Legend at the bottom |
 | Appearance | **Horizontal Bars** | `horizontal` | Only when every representation is a bar |
 | Appearance | **Dual Y-Axis** | `dualYAxis` | Second axis on the right |
-| Appearance | **X-Axis is a Date** | `xAxisDateFormat` (`month`) | Shows the range buttons |
+| Appearance | **X-Axis is a Date** | `xAxisDateFormat` | The switch saves `month`. It only turns on the date axis and the range buttons |
 | Colors & Rules | **Value Color Rules** | `valueColorRules.rules[]` | Color of a point by its value |
 | Tooltip | Template | `tooltipTemplate` | Text on hover. Uses `{{row.column}}` |
 | Data Provider | **Data Source**: Planner or Static | `dataMode`, `plannerVariableName`, `rows` | In static mode, rows go in `rows` |
@@ -121,7 +124,7 @@ The UI has no palette selector and always saves `colorPalette: "custom"`. A name
 
 | What | Color |
 | --- | --- |
-| A series (bars or lines) | `customColors[i]`. If missing, the chart's color list at that position |
+| A series (bars or lines) | `customColors[i]`, with `#`. If missing, the chart's color list at that position |
 | A pie slice | The chart's color list, in row order |
 | A point that matches a rule | The rule's color |
 
@@ -129,15 +132,15 @@ The UI has no palette selector and always saves `colorPalette: "custom"`. A name
 **Pitfall:** in a pie, if you pick a color for its only representation, **every slice** takes that color. Do not pick a color in a pie. For a fixed color per state, use [One color per state](#one-color-per-state) or a Stacked Stat.
 </Callout>
 
-Once a representation has a color, the chart's color list becomes `customColors`. Give every representation a color; otherwise the ones without a color repeat others' colors.
+Once a representation has a color, the chart's color list becomes `customColors`. Give every representation a color. The ones without a color repeat others' colors.
 
-### Color rules
+### Rule operators
 
 | Field | Values |
 | --- | --- |
 | Operator | `=`, `!=`, `contains`, `!contains`, `>`, `<`, `>=`, `<=` |
 | Value | Number or text |
-| Color | Hex |
+| Color | Hex without `#` |
 
 Rules compare **each point's numeric value**, not the category name or another column. `>` and `>=` rules are checked from highest to lowest value, then `<` and `<=` from lowest to highest. The first match wins. On a line, the rule colors the point, not the stroke.
 
@@ -177,7 +180,7 @@ The template has no access to the series name or to filters.
 }
 ```
 
-Always include `customColors`, even as `[]`: without that key, the widget fails.
+In a Cartesian chart, always include `customColors`, even as `[]`: without that key, the widget fails.
 
 ## Limits
 
@@ -187,6 +190,6 @@ Always include `customColors`, even as `[]`: without that key, the widget fails.
 | No color per category in the pie | [One color per state](#one-color-per-state) or Stacked Stat |
 | The gauge goes from 0 to 100 | Send a percentage |
 | The date axis does not sort or fill days without data | Sort and fill the days in the query |
-| A date without time (`2026-01-01`) shows one day earlier in Chile | Send the date with a time: `2026-01-01T12:00:00` |
+| A date without time (`2026-01-01`) is read as UTC midnight and shows one day earlier in time zones west of UTC, such as `America/Santiago` | Send the date with a time: `2026-01-01T12:00:00` |
 | The palette and the initial range (`defaultDateRange`) are lost when you save the settings in the UI | Import them again in the document |
-| The value label of the longest bar can be cut off at the edge | None for now |
+| The value label of the longest bar can be cut off at the edge | — |

@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Chart v2
 
-**Para:** implementadores. **`componentId`:** `chart_v2`. **Configuración:** las etiquetas de los ajustes son las de ModularIoT.
+**Para:** implementadores. **`componentId`:** `chart_v2`. **Configuración:** los nombres de los ajustes son los de la aplicación web de ModularIoT.
 
 Gráficos de barras, líneas, dispersión, torta e indicador. En un mismo gráfico puede mezclar barras y líneas, apilar series y usar dos ejes Y.
 
@@ -27,7 +27,7 @@ El gráfico no ordena ni agrupa filas: use `ORDER BY` y `GROUP BY` en la consult
 | Barras + línea, doble eje | **Doble eje Y**; la línea en el eje **R** | `mes, solicitudes, horas` | [Doble eje](#doble-eje) |
 | Torta | Familia **Torta** | `estado, cantidad` | [Torta](#torta) |
 | Indicador | Familia **Indicador** | Una fila: `cerradas_pct` | [Indicador](#indicador) |
-| Un color por estado | Una representación por estado, todas con **Apilado** y su color | Una fila por estado; solo la columna de su estado tiene valor | [Un color por estado](#un-color-por-estado) |
+| Un color por estado | **Columna Eje X** `estado`. Una representación por estado, todas con **Apilado**, **Etiquetas** y su color. **Mostrar Leyenda** apagado | Una fila por estado. Solo la columna de su estado tiene valor | [Un color por estado](#un-color-por-estado) |
 | Reglas de color | **Colores y reglas**: mayor que 10 → rojo, hasta 10 → verde | `responsable, atrasadas` | [Reglas de color](#reglas-de-color) |
 | Paleta | `colorPalette: "warm"` (solo en el documento) | `mes` + tres columnas | [Paleta](#paleta) |
 
@@ -51,7 +51,7 @@ Las barras apiladas muestran cantidades. Para barras 100 %, calcule porcentajes 
 
 ![Línea suavizada por día con los botones Todo, 7D, 30D, 3M, 6M, 1A](/dashboards/chart_v2/line.png)
 
-Con **El Eje X es una Fecha**, el gráfico muestra botones para filtrar por rango (Todo, 7D, 30D, 3M, 6M, 1A). Las etiquetas se muestran como `dd-mm-aaaa`.
+Con **El Eje X es una Fecha**, el gráfico muestra botones para filtrar por rango (Todo, 7D, 30D, 3M, 6M, 1A). Las etiquetas se muestran como `dd-mm-aaaa`. El eje sigue siendo de categorías: no ordena ni rellena días.
 
 ### Doble eje
 
@@ -59,7 +59,7 @@ Con **El Eje X es una Fecha**, el gráfico muestra botones para filtrar por rang
 
 ### Torta
 
-![Torta con Pendiente, En curso y Cerrada](/dashboards/chart_v2/pie.png)
+![Torta (dona) con Pendiente, En curso y Cerrada](/dashboards/chart_v2/pie.png)
 
 ### Indicador
 
@@ -79,9 +79,12 @@ SELECT
   IF(estado = 'cerrada',   COUNT(*), NULL) AS cerrada
 FROM `mi-proyecto.operaciones.solicitudes`
 GROUP BY estado
+ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
 ```
 
-Con **Apilado**, cada barra queda centrada en su categoría.
+Con **Apilado**, cada barra queda centrada en su categoría. Los colores siguen el orden de las representaciones: el primer color es el de la primera representación.
+
+Para mostrar `En curso` en lugar de `en_curso`, conviértalo en la consulta: `CASE estado WHEN 'en_curso' THEN 'En curso' … END AS estado`.
 
 ### Reglas de color
 
@@ -112,7 +115,7 @@ La interfaz no tiene selector de paleta y guarda siempre `colorPalette: "custom"
 | Apariencia | **Mostrar Leyenda** | `showLegend` | Leyenda abajo |
 | Apariencia | **Barras Horizontales** | `horizontal` | Solo si todas las representaciones son barras |
 | Apariencia | **Doble eje Y** | `dualYAxis` | Segundo eje a la derecha |
-| Apariencia | **El Eje X es una Fecha** | `xAxisDateFormat` (`month`) | Muestra los botones de rango |
+| Apariencia | **El Eje X es una Fecha** | `xAxisDateFormat` | El interruptor guarda `month`. Solo activa el eje de fecha y los botones de rango |
 | Colores y reglas | **Reglas de Color por Valor** | `valueColorRules.rules[]` | Color de un punto según su valor |
 | Tooltip | Plantilla | `tooltipTemplate` | Texto al pasar el cursor. Usa `{{row.columna}}` |
 | Proveedor de Datos | **Fuente de Datos**: Planificador o Estático | `dataMode`, `plannerVariableName`, `rows` | En modo estático, las filas van en `rows` |
@@ -121,7 +124,7 @@ La interfaz no tiene selector de paleta y guarda siempre `colorPalette: "custom"
 
 | Qué | Color |
 | --- | --- |
-| Una serie (barras o líneas) | `customColors[i]`. Si falta, el color de la lista del gráfico en esa posición |
+| Una serie (barras o líneas) | `customColors[i]`, con `#`. Si falta, el color de la lista del gráfico en esa posición |
 | Una porción de la torta | La lista del gráfico, en el orden de las filas |
 | Un punto que cumple una regla | El color de la regla |
 
@@ -129,15 +132,15 @@ La interfaz no tiene selector de paleta y guarda siempre `colorPalette: "custom"
 **Cuidado:** en una torta, si elige un color para su única representación, **todas las porciones** toman ese color. No elija color en una torta. Para un color fijo por estado, use [Un color por estado](#un-color-por-estado) o un Stacked Stat.
 </Callout>
 
-Cuando una representación tiene color, la lista del gráfico pasa a ser `customColors`. Dé color a todas las representaciones; si no, las que no tienen color repiten los de otras.
+Cuando una representación tiene color, la lista del gráfico pasa a ser `customColors`. Dé color a todas las representaciones. Las que no tienen color repiten los de otras.
 
-### Reglas de color
+### Operadores de las reglas
 
 | Campo | Valores |
 | --- | --- |
 | Operador | `=`, `!=`, `contains`, `!contains`, `>`, `<`, `>=`, `<=` |
 | Valor | Número o texto |
-| Color | Hexadecimal |
+| Color | Hexadecimal sin `#` |
 
 Las reglas comparan **el valor numérico de cada punto**, no el nombre de la categoría ni otra columna. Las reglas `>` y `>=` se evalúan de mayor a menor valor, luego `<` y `<=` de menor a mayor. Gana la primera que se cumple. En una línea, la regla colorea el punto, no el trazo.
 
@@ -177,7 +180,7 @@ La plantilla no tiene acceso al nombre de la serie ni a los filtros.
 }
 ```
 
-Incluya siempre `customColors`, aunque sea `[]`: sin esa clave, el widget falla.
+En un gráfico Cartesiano, incluya siempre `customColors`, aunque sea `[]`: sin esa clave, el widget falla.
 
 ## Límites
 
@@ -187,6 +190,6 @@ Incluya siempre `customColors`, aunque sea `[]`: sin esa clave, el widget falla.
 | No hay color por categoría en la torta | [Un color por estado](#un-color-por-estado) o Stacked Stat |
 | El indicador va de 0 a 100 | Envíe un porcentaje |
 | El eje de fecha no ordena ni rellena días sin datos | Ordene y complete los días en la consulta |
-| Una fecha sin hora (`2026-01-01`) se muestra un día antes en Chile | Envíe la fecha con hora: `2026-01-01T12:00:00` |
+| Una fecha sin hora (`2026-01-01`) se lee como medianoche UTC y se muestra un día antes en zonas al oeste de UTC, como `America/Santiago` | Envíe la fecha con hora: `2026-01-01T12:00:00` |
 | La paleta y el rango inicial (`defaultDateRange`) se pierden al guardar los ajustes en la interfaz | Vuelva a importarlos en el documento |
-| La etiqueta de valor de la barra más larga puede quedar cortada en el borde | Ninguna por ahora |
+| La etiqueta de valor de la barra más larga puede quedar cortada en el borde | — |

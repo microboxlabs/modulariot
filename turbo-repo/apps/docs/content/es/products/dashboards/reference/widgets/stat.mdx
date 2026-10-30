@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Stat (un valor)
 
-**Para:** implementadores. **Configuración:** las etiquetas de los ajustes son las de ModularIoT.
+**Para:** implementadores. **Configuración:** los nombres de los ajustes son los de la aplicación web de ModularIoT.
 
 Widgets que muestran un número, con color según su valor o su avance hacia una meta. Todos leen **la primera fila** de su consulta.
 
@@ -26,7 +26,8 @@ SELECT
   COUNTIF(estado = 'cerrada')  AS cerradas,
   COUNT(*)                     AS total,
   40                           AS meta,
-  ROUND(AVG(horas), 0)         AS horas_promedio
+  ROUND(AVG(horas), 0)         AS horas_promedio,
+  'Operativo'                  AS estado
 FROM `mi-proyecto.operaciones.solicitudes`
 ```
 
@@ -34,7 +35,7 @@ Cada campo de texto del widget nombra una columna con una plantilla: `{{cerradas
 
 ## Variantes
 
-| Variante | Widget | Ajustes | Consulta | Captura |
+| Variante | Widget | Ajustes | Forma de la consulta | Captura |
 | --- | --- | --- | --- | --- |
 | Número simple | Stat Card | **Valor** `{{abiertas}}` | `abiertas` | [Número simple](#número-simple) |
 | Verde, amarillo, rojo | Stat Card | **Reglas de Color por Valor**: `>` 48 rojo, `>` 24 amarillo, `<=` 24 verde; objetivo Texto e Ícono | `horas_promedio` | [Verde, amarillo, rojo](#verde-amarillo-rojo) |
@@ -75,7 +76,9 @@ Cada campo de texto del widget nombra una columna con una plantilla: `{{cerradas
 
 | Widget | Ajuste | Clave | Efecto |
 | --- | --- | --- | --- |
-| Todos | **Título**, **Valor**, **Unidad** | `title`, `value`, `unit` | Aceptan plantillas |
+| Stat Card, Progress Stat, Circular Stat | **Título**, **Valor**, **Unidad** (en Circular Stat: **Unit**) | `title`, `value`, `unit` | Aceptan plantillas |
+| Status Card | **Título**, **Valor**, **Subtitle** | `title`, `value`, `subtitle` | Aceptan plantillas. El valor se muestra como texto |
+| Progress | **Título**, **Valor**, **Máx** | `title`, `value`, `max` | Aceptan plantillas |
 | Stat Card | **Subtítulo** | `subtitle` | Texto bajo el valor; acepta Markdown |
 | Stat Card | **Diseño de Tarjeta**: Horizontal / Vertical | `cardVariant` | Ícono a la izquierda o arriba |
 | Stat Card | **Ícono**, **Fondo**, **Color del valor**, **Texto secundario** | `showIcon`, `icon`, `iconColor`, `showBgColor`, `bgColor`, `showValueColor`, `valueColor`, … | Colores fijos |
@@ -84,6 +87,7 @@ Cada campo de texto del widget nombra una columna con una plantilla: `{{cerradas
 | Status Card | **Icon** | `icon` | `check`, `warning`, `clock`, `truck`, … |
 | Progress Stat | **Objetivo** | `target` | Meta. La barra muestra `valor / objetivo` |
 | Progress Stat | **Umbrales** | `thresholds`: `field`, `applyTo`, `rules[]` | Color de la barra (Background) y del valor (Text) |
+| Progress Stat | **Reglas de Color de la Barra** | `barColorRules` | Color de la barra según el valor. Gana a los umbrales |
 | Progress | **Máx**, **Color de la Barra**, **Reglas de Color de la Barra** | `max`, `barColor`, `barColorRules` | Las reglas comparan el porcentaje o el valor (botones **%** / **Conteo**) |
 | Circular Stat | **Max**, **Color del Anillo**, **Reglas de Color del Anillo** | `maxValue`, `ringColor`, `ringColorRules` | Anillo de 0 a 100 % |
 
@@ -91,13 +95,13 @@ Cada campo de texto del widget nombra una columna con una plantilla: `{{cerradas
 
 | Operador | Compara |
 | --- | --- |
-| `=`, `!=` | Como número si los dos lados son números; si no, como texto sin distinguir mayúsculas |
+| `=`, `!=` | Si los dos lados contienen un número, compara solo los números (quita los demás caracteres). Si no, como texto sin distinguir mayúsculas |
 | `contains`, `!contains` | Texto, sin distinguir mayúsculas |
 | `>`, `<`, `>=`, `<=` | Como número. Quita del valor lo que no es dígito |
 
 | Tipo | Orden de evaluación |
 | --- | --- |
-| **Reglas de Color por Valor** | `>` y `>=` de mayor a menor valor, luego `<` y `<=` de menor a mayor. Gana la primera que se cumple |
+| **Reglas de Color por Valor** | `>` y `>=` de mayor a menor valor, luego `<` y `<=` de menor a mayor. `=`, `!=` y `contains` mantienen su lugar en la lista. Cada objetivo (Texto, Fondo, Ícono) toma la primera regla que se cumple |
 | **Umbrales** (Progress Stat) | En el orden de la lista. Gana la primera que se cumple |
 
 En un Stat Card, las reglas comparan el número del valor. Un valor de texto ("OK") se convierte en 0. Para estados con texto, use un Status Card.
@@ -139,6 +143,6 @@ En un Stat Card, las reglas comparan el número del valor. Un valor de texto ("O
 | --- | --- |
 | Leen solo la primera fila | Una columna por número en la consulta |
 | Stat Card convierte un valor que no es número en 0 | Use un Status Card para texto |
-| El valor se muestra sin separador de miles | `{{formatNumber total}}` en el campo Valor |
+| El valor se muestra sin separador de miles | En un Status Card, use `{{formatNumber total}}`. Stat Card, Progress Stat, Progress y Circular Stat leen el valor como número: con texto formateado (`12.500`) muestran otro número o 0 |
 | Status Card y Circular Stat borran el JSON estático al guardar sus ajustes | Use una consulta guardada |
 | En widgets angostos, el título de un Stat Card se corta | Use un título corto o un ancho mayor |

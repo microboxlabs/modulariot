@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Tabla de Datos V2
 
-**Para:** implementadores. **`componentId`:** `data_table_v2`. **Configuración:** las etiquetas de los ajustes son las de ModularIoT.
+**Para:** implementadores. **`componentId`:** `data_table_v2`. **Configuración:** los nombres de los ajustes son los de la aplicación web de ModularIoT.
 
 Muestra filas en una tabla. Quien ve el dashboard puede filtrar y ordenar columnas, cambiar su ancho y exportar a CSV.
 
@@ -41,7 +41,17 @@ Al elegir la consulta en **Variable**, las columnas de la tabla se reemplazan po
 
 ![Columna Estado con insignias amarilla y azul](/dashboards/data_table_v2/column-color-rules.png)
 
-En la columna Estado: escriba `badge` en el primer campo bajo la clave, active el pincel y agregue una regla por estado (`=` `pendiente` → amarillo, y así).
+1. Elija primero la consulta en **Variable**. Elegirla después reemplaza las columnas y borra sus colores.
+2. En la tarjeta de la columna Estado, escriba `badge` en el primer campo bajo la clave.
+3. Active el pincel y agregue una regla por estado:
+
+   | Operador | Valor | Color |
+   | --- | --- | --- |
+   | `=` | `pendiente` | `eab308` (amarillo) |
+   | `=` | `en_curso` | `3b82f6` (azul) |
+   | `=` | `cerrada` | `22c55e` (verde) |
+
+Las reglas comparan el texto que muestra la celda. Si la consulta convierte `en_curso` en `En curso` con `CASE`, escriba `En curso` en la regla.
 
 ### Filas de color
 
@@ -66,7 +76,7 @@ El enlace acepta plantillas: `/app/es/solicitudes/{{row.id}}`. Solo se permiten 
 
 | Sección | Ajuste | Clave en el documento | Efecto |
 | --- | --- | --- | --- |
-| General | **Título** | `title` | Texto fijo; no acepta plantillas. Es también el nombre del archivo CSV |
+| General | **Título** | `title` | Texto fijo. No acepta plantillas. Es también el nombre del archivo CSV |
 | General | **Cantidad de filas** | `showRowCount` | "12 elementos". Cuenta las filas después de los filtros |
 | General | **Divisores de columnas** | `showColumnDividers` | Líneas entre columnas |
 | General | **Mostrar exportación** | `showExport` | Botón de descarga a CSV |
@@ -89,7 +99,7 @@ El enlace acepta plantillas: `/app/es/solicitudes/{{row.id}}`. Solo se permiten 
 | --- | --- |
 | `text` | Texto. Si el valor tiene un salto de línea, la primera línea va en negrita |
 | `badge` | Insignia. Toma el color de la regla que se cumple |
-| `signed` | Número en rojo si es negativo, naranjo de 0 a 999, verde desde 1000 |
+| `signed` | Número en rojo si es negativo, naranja de 0 a 999, verde desde 1000 |
 | `progress` | Barra de 0 a 100 con el número |
 
 Para formatear números o fechas use funciones de plantilla en la clave: `{{formatNumber row.monto prefix="$"}}`. Vea [Plantillas](/es/products/dashboards/reference/templates).
@@ -106,7 +116,7 @@ Para formatear números o fechas use funciones de plantilla en la clave: `{{form
 El CSV contiene las filas visibles después de filtros y orden, separadas por `;`, en UTF-8.
 
 <Callout type="info">
-Filtrar y ordenar funciona cuando la clave de la columna es `{{row.columna}}`. Con una función (`{{formatDate row.fecha}}`) la columna no se filtra ni se ordena. Formatee en la consulta si necesita las dos cosas.
+Filtrar y ordenar funciona cuando la clave de la columna es `{{row.columna}}`. Con una función (`{{formatDate row.fecha}}`), el embudo y el orden de esa columna no tienen efecto. Formatee en la consulta si necesita las dos cosas.
 </Callout>
 
 ## Ejemplo completo
@@ -151,5 +161,5 @@ Filtrar y ordenar funciona cuando la clave de la columna es `{{row.columna}}`. C
 | Las columnas ordenables no se eligen en la interfaz | Escriba `sort.columns` en el documento |
 | Elegir la consulta reemplaza las columnas y borra colores, sufijos y descripciones | Elija la consulta antes de configurar las columnas |
 | Las reglas de **Coloración** agregadas en la interfaz no se aplican | `"enabled": true` en el documento |
-| Un `TIMESTAMP` de BigQuery se muestra como `1.79E9` | `FORMAT_TIMESTAMP` en la consulta |
-| En modo estático, los valores deben ser texto (`"30"`, no `30`) | Use comillas en `rows` |
+| Un `TIMESTAMP` de BigQuery se muestra como segundos en notación científica (`1.7933364E9`) | `FORMAT_TIMESTAMP` en la consulta |
+| Los valores deben ser texto (`"30"`, no `30`) para filtrar y ordenar | Use comillas en `rows`. Las consultas guardadas ya entregan texto |

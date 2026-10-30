@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Stat (single value)
 
-**For:** implementers. **Setup:** setting labels are the ModularIoT ones.
+**For:** implementers. **Setup:** setting names match the ModularIoT web app.
 
 Widgets that show one number, with a color by value or progress toward a goal. All of them read **the first row** of their query.
 
@@ -26,7 +26,8 @@ SELECT
   COUNTIF(estado = 'cerrada')  AS cerradas,
   COUNT(*)                     AS total,
   40                           AS meta,
-  ROUND(AVG(horas), 0)         AS horas_promedio
+  ROUND(AVG(horas), 0)         AS horas_promedio,
+  'Operativo'                  AS estado
 FROM `my-project.operations.solicitudes`
 ```
 
@@ -34,7 +35,7 @@ Each text field of the widget names a column with a template: `{{cerradas}}` or 
 
 ## Variants
 
-| Variant | Widget | Settings | Query | Screenshot |
+| Variant | Widget | Settings | Query shape | Screenshot |
 | --- | --- | --- | --- | --- |
 | Plain number | Stat Card | **Value** `{{abiertas}}` | `abiertas` | [Plain number](#plain-number) |
 | Green, yellow, red | Stat Card | **Value Color Rules**: `>` 48 red, `>` 24 yellow, `<=` 24 green; target Text and Icon | `horas_promedio` | [Green, yellow, red](#green-yellow-red) |
@@ -75,7 +76,9 @@ Each text field of the widget names a column with a template: `{{cerradas}}` or 
 
 | Widget | Setting | Key | Effect |
 | --- | --- | --- | --- |
-| All | **Title**, **Value**, **Unit** | `title`, `value`, `unit` | Accept templates |
+| Stat Card, Progress Stat, Circular Stat | **Title**, **Value**, **Unit** | `title`, `value`, `unit` | Accept templates |
+| Status Card | **Title**, **Value**, **Subtitle** | `title`, `value`, `subtitle` | Accept templates. The value shows as text |
+| Progress | **Title**, **Value**, **Max** | `title`, `value`, `max` | Accept templates |
 | Stat Card | **Subtitle** | `subtitle` | Text under the value; accepts Markdown |
 | Stat Card | **Card Layout**: Horizontal / Vertical | `cardVariant` | Icon on the left or on top |
 | Stat Card | **Icon**, **Background**, **Value Color**, **Secondary Text** | `showIcon`, `icon`, `iconColor`, `showBgColor`, `bgColor`, `showValueColor`, `valueColor`, … | Fixed colors |
@@ -84,6 +87,7 @@ Each text field of the widget names a column with a template: `{{cerradas}}` or 
 | Status Card | **Icon** | `icon` | `check`, `warning`, `clock`, `truck`, … |
 | Progress Stat | **Target** | `target` | Goal. The bar shows `value / target` |
 | Progress Stat | **Thresholds** | `thresholds`: `field`, `applyTo`, `rules[]` | Bar color (Background) and value color (Text) |
+| Progress Stat | **Bar Color Rules** | `barColorRules` | Bar color by value. Wins over thresholds |
 | Progress | **Max**, **Bar Color**, **Bar Color Rules** | `max`, `barColor`, `barColorRules` | Rules compare the percentage or the value (buttons **%** / **Count**) |
 | Circular Stat | **Max**, **Ring Color**, **Ring Color Rules** | `maxValue`, `ringColor`, `ringColorRules` | Ring from 0 to 100% |
 
@@ -91,13 +95,13 @@ Each text field of the widget names a column with a template: `{{cerradas}}` or 
 
 | Operator | Compares |
 | --- | --- |
-| `=`, `!=` | As numbers when both sides are numbers; otherwise as case-insensitive text |
+| `=`, `!=` | When both sides contain a number, only the numbers are compared (other characters are removed). Otherwise, case-insensitive text |
 | `contains`, `!contains` | Text, case-insensitive |
 | `>`, `<`, `>=`, `<=` | As numbers. Strips non-digit characters from the value |
 
 | Type | Evaluation order |
 | --- | --- |
-| **Value Color Rules** | `>` and `>=` from highest to lowest value, then `<` and `<=` from lowest to highest. The first match wins |
+| **Value Color Rules** | `>` and `>=` from highest to lowest value, then `<` and `<=` from lowest to highest. `=`, `!=` and `contains` keep their list position. Each target (Text, Background, Icon) takes the first matching rule |
 | **Thresholds** (Progress Stat) | List order. The first match wins |
 
 In a Stat Card, rules compare the value's number. A text value ("OK") becomes 0. For text states, use a Status Card.
@@ -139,6 +143,6 @@ In a Stat Card, rules compare the value's number. A text value ("OK") becomes 0.
 | --- | --- |
 | Read only the first row | One column per number in the query |
 | Stat Card turns a non-numeric value into 0 | Use a Status Card for text |
-| The value has no thousands separator | `{{formatNumber total}}` in the Value field |
+| The value has no thousands separator | In a Status Card, use `{{formatNumber total}}`. Stat Card, Progress Stat, Progress and Circular Stat read the value as a number: with formatted text (`12.500`) they show another number or 0 |
 | Status Card and Circular Stat drop the static JSON when you save their settings | Use a saved query |
 | On narrow widgets, a Stat Card title is cut off | Use a short title or a wider widget |

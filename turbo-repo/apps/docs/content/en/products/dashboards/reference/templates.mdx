@@ -13,7 +13,7 @@ Widget text fields accept templates in double braces. A template is replaced by 
 | `{{pendiente}}` | The `pendiente` column of the first row |
 | `{{row.pendiente}}` | The same |
 | `{{filter.estado}}` | The current value of the `estado` filter. Empty when it has no value |
-| `{{data_provider.key}}` | A value defined in the widget configuration |
+| `{{data_provider.key}}` | A key/value pair written in the widget's **Data provider** section, in widgets that have it |
 
 Single-value widgets (Stat, Stacked Stat, Text Card) read the first row. In a table, `{{row.column}}` reads each cell's row.
 
@@ -47,12 +47,16 @@ Templates use Handlebars. These functions are available in every widget. When th
 | `{{formatDate creada_en format="relative"}}` | `5m`, `3h`, `2d` |
 | `{{formatDate creada_en timezone="America/Lima"}}` | The date in another time zone |
 | `{{datePart creada_en "weekday"}}` | `viernes` |
-| `{{timeAgo creada_en}}` | `3h ago` |
+| `{{timeAgo creada_en}}` | `3h ago` (always in English) |
 
 `datePart` accepts `year`, `month`, `day`, `hour`, `minute` and `weekday`. The default time zone is `America/Santiago` and the default locale is `es-CL`.
 
 <Callout type="warning">
-**Pitfall:** `formatDate` needs a date JavaScript can read, such as `2026-10-30T14:05:00Z` or `2026-10-30 14:05`. A BigQuery `TIMESTAMP` column arrives as a number of seconds (`1.7933364E9`), and `formatDate` does not recognize it: it shows `-`. Convert the date in the query with `FORMAT_TIMESTAMP`.
+**Pitfall:** `formatDate` needs an ISO date with a time zone, such as `2026-10-30T17:05:00Z`. A BigQuery `TIMESTAMP` column arrives as seconds in scientific notation (`1.7933364E9`) and `formatDate` shows `-`. In the query, use `FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', creada_en)`. A date without a zone (`2026-10-30 14:05`) is read in the viewer's browser time zone.
+</Callout>
+
+<Callout type="warning">
+**Pitfall:** double braces escape HTML. A value with `&`, `<` or `"` shows as `&amp;`, `&lt;` or `&quot;`. To show it as is, use triple braces: `{{{responsable}}}`.
 </Callout>
 
 ## Examples
@@ -60,7 +64,7 @@ Templates use Handlebars. These functions are available in every widget. When th
 | Field | Template | Result |
 | --- | --- | --- |
 | Stacked Stat title | `Requests by state ({{total}})` | `Requests by state (49)` |
-| Stat value | `{{formatNumber amount prefix="$"}}` | `$1.250.000` |
+| Status Card value | `{{formatNumber amount prefix="$"}}` | `$1.250.000` |
 | Title that follows a filter | `Detail: {{filter.estado}}` | `Detail: en_curso` |
 | Table cell | `{{row.responsable}} · {{formatDate row.creada_en format="date"}}` | `South team · 30-10-2026` |
 

@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Data Table V2
 
-**For:** implementers. **`componentId`:** `data_table_v2`. **Setup:** setting labels are the ModularIoT ones.
+**For:** implementers. **`componentId`:** `data_table_v2`. **Setup:** setting names match the ModularIoT web app.
 
 Shows rows in a table. Viewers can filter and sort columns, change their width and export to CSV.
 
@@ -41,7 +41,17 @@ When you choose the query in **Variable**, the table columns are replaced by the
 
 ![Estado column with yellow and blue badges](/dashboards/data_table_v2/column-color-rules.png)
 
-On the Estado column: type `badge` in the first field under the key, turn on the paintbrush and add one rule per state (`=` `pendiente` → yellow, and so on).
+1. Choose the query in **Variable** first. Choosing it later replaces the columns and drops their colors.
+2. On the Estado column card, type `badge` in the first field under the key.
+3. Turn on the paintbrush and add one rule per state:
+
+   | Operator | Value | Color |
+   | --- | --- | --- |
+   | `=` | `pendiente` | `eab308` (yellow) |
+   | `=` | `en_curso` | `3b82f6` (blue) |
+   | `=` | `cerrada` | `22c55e` (green) |
+
+Rules compare the text the cell shows. If the query turns `en_curso` into `In progress` with `CASE`, write `In progress` in the rule.
 
 ### Colored rows
 
@@ -66,7 +76,7 @@ The link accepts templates: `/app/en/requests/{{row.id}}`. Only `http`, `https`,
 
 | Section | Setting | Document key | Effect |
 | --- | --- | --- | --- |
-| General | **Title** | `title` | Plain text; no templates. Also the CSV file name |
+| General | **Title** | `title` | Plain text. No templates. Also the CSV file name |
 | General | **Row count** | `showRowCount` | "12 items". Counts rows after filters |
 | General | **Column dividers** | `showColumnDividers` | Lines between columns |
 | General | **Show export** | `showExport` | CSV download button |
@@ -106,7 +116,7 @@ To format numbers or dates, use template functions in the key: `{{formatNumber r
 The CSV holds the visible rows after filters and sort, separated by `;`, in UTF-8.
 
 <Callout type="info">
-Filtering and sorting work when the column key is `{{row.column}}`. With a function (`{{formatDate row.date}}`), the column cannot be filtered or sorted. Format in the query if you need both.
+Filtering and sorting work when the column key is `{{row.column}}`. With a function (`{{formatDate row.date}}`), that column's filter and sort have no effect. Format in the query if you need both.
 </Callout>
 
 ## Full example
@@ -151,5 +161,5 @@ Filtering and sorting work when the column key is `{{row.column}}`. With a funct
 | Sortable columns cannot be chosen in the UI | Write `sort.columns` in the document |
 | Choosing the query replaces the columns and drops colors, suffixes and descriptions | Choose the query before setting up the columns |
 | **Coloring** rules added in the UI are not applied | `"enabled": true` in the document |
-| A BigQuery `TIMESTAMP` shows as `1.79E9` | `FORMAT_TIMESTAMP` in the query |
-| In static mode, values must be text (`"30"`, not `30`) | Quote the values in `rows` |
+| A BigQuery `TIMESTAMP` shows as seconds in scientific notation (`1.7933364E9`) | `FORMAT_TIMESTAMP` in the query |
+| Values must be text (`"30"`, not `30`) for filtering and sorting | Quote the values in `rows`. Saved queries already return text |

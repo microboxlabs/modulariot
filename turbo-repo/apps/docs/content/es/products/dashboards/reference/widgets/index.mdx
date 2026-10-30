@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Catálogo de widgets
 
-Cada tipo de widget tiene un `componentId`, guardado en el documento, y una función de registro en la biblioteca de UI que le enseña a una página a dibujarlo. Una página dibuja solo los tipos cuyos registros incluye.
+Cada tipo de widget tiene un `componentId`, guardado en el documento, y una función de registro en la biblioteca de UI que la página necesita para dibujarlo. Una página dibuja solo los tipos cuyos registros incluye.
 
 ## Páginas por widget
 
@@ -60,7 +60,7 @@ Los usuarios pueden filtrar, ordenar y redimensionar de forma local. Sus cambios
 | `chart` | Gráficos de líneas, barras, dispersión, torta e indicador | `createChartRegistry` |
 | `chart_v2` | Lo mismo, con series mixtas y doble eje | `createChartRegistry` |
 
-Los gráficos necesitan ECharts 6, que su página carga y entrega mediante `createEngine`. Importe `createChartRegistry` desde `@microboxlabs/miot-dashboard-ui/react-charts` en React, o desde `/browser-charts` en lugar de `/browser` en HTML simple. El build por defecto para navegador excluye los gráficos para mantener un tamaño pequeño.
+Los gráficos necesitan ECharts 6, que su página carga y entrega mediante `createEngine`. Importe `createChartRegistry` desde `@microboxlabs/miot-dashboard-ui/react-charts` en React, o desde `/browser-charts` en lugar de `/browser` en HTML simple. El build por defecto para navegador no incluye los gráficos.
 
 ## Widgets del host
 
@@ -80,7 +80,7 @@ Cada widget con datos lee `staticData` o el resultado de una consulta guardada, 
 { "dataMode": "planner", "plannerVariableName": "trips" }
 ```
 
-Los widgets de un solo valor usan la primera fila. Las tablas, listas y gráficos usan todas las filas. Los ajustes de texto aceptan [plantillas](/es/products/dashboards/concepts/documents-and-widgets#plantillas).
+Los widgets de un solo valor usan la primera fila. Las tablas, listas y gráficos usan todas las filas. Los ajustes de texto aceptan [plantillas](/es/products/dashboards/reference/templates).
 
 ## Registrar widgets
 

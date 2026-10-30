@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # Stacked Stat
 
-**Para:** implementadores. **`componentId`:** `stat_stacked`. **Configuración:** las etiquetas de los ajustes son las de ModularIoT.
+**Para:** implementadores. **`componentId`:** `stat_stacked`. **Configuración:** los nombres de los ajustes son los de la aplicación web de ModularIoT.
 
 Muestra las partes de un total como una barra 100 % o una dona, con una leyenda que da el valor de cada parte. Úselo para un "KPI por estado + barra 100 %".
 
@@ -33,8 +33,8 @@ Si su consulta devuelve una fila por estado, conviértala en columnas: [Pivotar]
 
 | Variante | Ajustes | Forma de la consulta | Captura |
 | --- | --- | --- | --- |
-| Barra | **Tipo de gráfico**: Barra | Una fila, una columna por categoría | [Barra](#barra) |
-| Dona | **Tipo de gráfico**: Dona | Igual | [Dona](#dona) |
+| Barra | **Tipo de gráfico**: Barra, **Unidad** vacía | Una fila, una columna por categoría | [Barra](#barra) |
+| Dona | **Tipo de gráfico**: Dona, **Unidad** vacía | Igual | [Dona](#dona) |
 | Sin encabezado | **Show Header** apagado | Igual | [Sin encabezado](#sin-encabezado) |
 | Porcentajes | **Unidad**: `%`, valores `{{pendiente_pct}}` | Una fila con porcentajes calculados en la consulta | [Porcentajes](#porcentajes) |
 | Título con plantilla | **Título**: `Solicitudes por estado ({{total}})` | Una fila con una columna `total` | [Título con plantilla](#título-con-plantilla) |
@@ -72,7 +72,7 @@ La consulta calcula los porcentajes. Vea [Porcentajes](/es/products/dashboards/t
 | Visualización | **Categories** | `items[]`: `label`, `value`, `color` | Una parte por categoría. `color` en hexadecimal sin `#` |
 | Visualización | **Umbrales** | `thresholds` | Se guarda pero el widget no lo usa |
 | Proveedor de Datos | **Fuente de Datos**, **Variable** | `dataMode`, `plannerVariableName` | `planner` lee una consulta guardada |
-| Pie del panel | **Auto-Actualización** | `refreshInterval` | Segundos entre recargas. Vacío: usa la del dashboard |
+| Pie del panel | **Auto-Actualización** | `refreshInterval` | Segundos entre recargas. **Usar configuración del dashboard** quita la clave |
 
 ## Cómo calcula la barra
 
@@ -84,7 +84,7 @@ La consulta calcula los porcentajes. Vea [Porcentajes](/es/products/dashboards/t
 | Todos los valores en 0 | La barra queda gris |
 | Color que no es hexadecimal de 6 dígitos | Gris (`9ca3af`) |
 
-Al pasar el cursor por una parte, el texto muestra `Etiqueta: valor (porcentaje)`.
+Al pasar el cursor por una parte, el texto muestra la etiqueta, el valor con la unidad y el porcentaje con un decimal: `Pendiente: 12 (24.5%)`.
 
 ## Ejemplo completo
 
@@ -110,14 +110,15 @@ Al pasar el cursor por una parte, el texto muestra `Etiqueta: valor (porcentaje)
 ## Límites
 
 <Callout type="warning">
-**Cuidado:** en la configuración de ModularIoT, las plantillas de las categorías solo se resuelven con **Fuente de Datos: Planificador**. Con **Estático (JSON)**, `{{pendiente}}` se muestra como 0. El título y la unidad sí se resuelven en los dos modos.
+**Cuidado:** en la configuración de ModularIoT, las plantillas de las categorías se resuelven solo cuando **Fuente de Datos** es **Planificador**. Con datos estáticos (solo posibles al importar un documento con `staticData`) o con una consulta sin filas, `{{pendiente}}` se muestra como 0. El título y la unidad se resuelven siempre.
 </Callout>
 
 | Límite | Alternativa |
 | --- | --- |
 | Lee solo la primera fila | Pivote la consulta: una columna por categoría |
-| Las categorías son fijas; un estado nuevo no aparece solo | Agregue la columna y la categoría |
-| La leyenda es una lista; no hay tarjetas por categoría | Agregue un Stat Card por estado con la misma consulta |
+| Las categorías son fijas. Un estado nuevo no aparece solo | Agregue la columna y la categoría |
+| La leyenda es una lista. No hay tarjetas por categoría | Agregue un Stat Card por estado con la misma variable y **Valor** `{{pendiente}}` |
 | Hacer clic en una parte no filtra otros widgets | Use un filtro de selección del dashboard |
 | La pestaña Proveedor de Datos no tiene editor de JSON estático | Use una consulta guardada |
+| `color` va en hexadecimal sin `#` (`eab308`) | En Chart v2, `customColors` lleva `#` |
 | Las plantillas de las categorías no leen `{{filter.…}}` | Ponga el valor del filtro en el título |

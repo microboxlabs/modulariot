@@ -28,7 +28,9 @@ vi.mock("@/features/runtime-config/runtime-config-context", () => ({
   useRuntimeConfig: () => ({}),
 }));
 import { toast } from "sonner";
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+}));
 import { usePlacesWorkspace } from "./use-places-workspace";
 
 beforeEach(() => {
@@ -143,7 +145,9 @@ describe("Places browser-only creation", () => {
     state.org = "demo-org-a";
     rerender();
     vi.useFakeTimers();
-    act(() => { expect(result.current.restaurarBorrador()).toBe(true); });
+    act(() => {
+      expect(result.current.restaurarBorrador()).toBe(true);
+    });
     vi.clearAllTimers();
     vi.useRealTimers();
   });

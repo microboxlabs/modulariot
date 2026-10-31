@@ -147,3 +147,15 @@ export function leerBorrador(
 
 export const hayBorrador = (ambito: AmbitoBorrador, scope: string | null) =>
   leerBorrador(ambito, scope) !== null;
+
+/** Reconfirm road routes whose calculation was interrupted by a page reload. */
+export function prepararTrayectoRestaurado(
+  b: BorradorTrayecto
+): BorradorTrayecto {
+  if (b.tray.kind !== "vial" || !b.tray.confirmado || b.pathAjustado) return b;
+  return {
+    ...b,
+    tray: { ...b.tray, confirmado: false, ajustado: false },
+    paso: "recorrido",
+  };
+}

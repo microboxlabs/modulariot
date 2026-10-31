@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -8,10 +9,17 @@ vi.mock("flowbite-react", () => ({
   Tooltip: ({
     content,
     children,
+    className,
   }: {
     content: string;
     children: ReactNode;
-  }) => <div data-tooltip={content}>{children}</div>,
+    className?: string;
+  }) => (
+    <>
+      <div data-tooltip={content} className={className} />
+      {children}
+    </>
+  ),
 }));
 vi.mock("./screenshot", () => ({ default: () => null }));
 vi.mock("./map-selector", () => ({ default: () => null }));
@@ -49,13 +57,36 @@ describe("ToolBar geofences panel", () => {
 
     fireEvent.click(button());
     expect(panel).not.toHaveClass("hidden");
-    expect(tooltip()).toBeNull();
+    expect(tooltip()).toHaveClass("hidden");
     expect(
       screen.getByRole("radio", { name: "Solo geocercas del viaje" })
     ).toHaveAttribute("aria-checked", "true");
 
     fireEvent.click(button());
     expect(panel).toHaveClass("hidden");
-    expect(tooltip()).not.toBeNull();
+    expect(tooltip()).not.toHaveClass("hidden");
   });
 });
+
+it.each(["{Enter}", " "])(
+  "opens geofence choices with the keyboard (%s)",
+  async (key) => {
+    render(
+      <ToolBar
+        positions={[]}
+        display_position={{ displayPosition: 0, setDisplayPosition: vi.fn() }}
+        geofences_mode={{ geofencesMode: "trip", setGeofencesMode: vi.fn() }}
+        allow_screenshot={false}
+        dictionary={dict}
+      />
+    );
+    const button = screen.getByRole("button", { name: "Geocercas" });
+    button.focus();
+    expect(button).toHaveFocus();
+    await userEvent.setup().keyboard(key);
+    expect(button).toHaveFocus();
+    expect(document.querySelector("[data-geofences-panel]")).not.toHaveClass(
+      "hidden"
+    );
+  }
+);

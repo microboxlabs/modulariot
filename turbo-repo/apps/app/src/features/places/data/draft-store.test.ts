@@ -158,6 +158,6 @@ describe("draft identity isolation", () => {
     expect(
       localStorage.getItem("miot.places.draft.v1.geografico")
     ).not.toBeNull();
-    expect(localStorage.length).toBe(4);
+    expect(localStorage).toHaveLength(4);
   });
 });

@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FORM_VACIO } from "../places.types";
+import { FORM_VACIO, TRAY_VACIO, type LatLon } from "../places.types";
 import { lugarDesdeForm } from "../data/local-store";
 import { placesStorageKey } from "../data/storage-key";
 
@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   org: "demo-org-a" as string | null,
   user: "demo-user-a" as string | null,
   swr: vi.fn(),
+  token: "",
 }));
 vi.mock("swr", () => ({ default: state.swr }));
 vi.mock("next-auth/react", () => ({
@@ -25,18 +26,23 @@ vi.mock("@/features/auth/hooks/use-carrier-mode", () => ({
   useCarrierMode: () => ({ carrierMode: true }),
 }));
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
-  useRuntimeConfig: () => ({}),
+  useRuntimeConfig: () => ({ MAPBOX_API_KEY: state.token }),
 }));
-import { toast } from "sonner";
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }));
+import type { MapMouseEvent } from "react-map-gl";
+import { recorridoDesdePts } from "../routes/recorrido";
+import { guardarBorrador } from "../data/draft-store";
+import { usePlacesEnMapa } from "./use-places-en-mapa";
+vi.mock("../map/place-name-layer", () => ({ capasNombresGeocercas: () => [] }));
 import { usePlacesWorkspace } from "./use-places-workspace";
 
 beforeEach(() => {
   globalThis.localStorage.clear();
   state.org = "demo-org-a";
   state.user = "demo-user-a";
+  state.token = "";
   state.swr.mockReset().mockReturnValue({ data: undefined, mutate: vi.fn() });
 });
 
@@ -152,3 +158,173 @@ describe("Places browser-only creation", () => {
     vi.useRealTimers();
   });
 });
+
+it("restores the selected organization's own draft after clearing the old editor", () => {
+  vi.useFakeTimers();
+  for (const org of ["demo-org-a", "demo-org-b"]) {
+    guardarBorrador("geografico", JSON.stringify([state.user, org]), {
+      tipo: "lugar",
+      form: { ...FORM_VACIO, name: org, lat: 1, lon: 1 },
+      paso: "geocerca",
+      original: null,
+      inicial: null,
+    });
+  }
+  const { result, rerender, unmount } = renderHook(() =>
+    usePlacesEnMapa(
+      { current: null },
+      { editando: true, mapStyle: "streets", zoom: 2 }
+    )
+  );
+  expect(result.current.ws.form.name).toBe("demo-org-a");
+  state.org = "demo-org-b";
+  rerender();
+  expect(result.current.ws.form.name).toBe("demo-org-b");
+  unmount();
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
+
+it("invalidates in-flight Directions when switching organization", async () => {
+  state.token = "demo-token";
+  let finish!: (value: unknown) => void;
+  const fetch = vi.fn(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+  );
+  vi.stubGlobal("fetch", fetch);
+  const points: LatLon[] = [
+    [1, 1],
+    [2, 2],
+  ];
+  const { result, rerender } = renderHook(() =>
+    usePlacesWorkspace({ current: null })
+  );
+  act(() => {
+    result.current.setModo("trayecto");
+    result.current.setTray({
+      ...TRAY_VACIO,
+      name: "Demo old route",
+      recorrido: recorridoDesdePts(points),
+    });
+  });
+  act(() => result.current.confirmarTrayecto());
+  expect(result.current.guardando).toBe(true);
+  state.org = "demo-org-b";
+  rerender();
+  expect(result.current.guardando).toBe(false);
+  act(() => {
+    result.current.setModo("trayecto");
+    result.current.setTray({ ...TRAY_VACIO, name: "Demo new route" });
+  });
+  await act(async () => {
+    finish({
+      ok: true,
+      json: async () => ({
+        routes: [
+          {
+            geometry: {
+              coordinates: [
+                [10, 10],
+                [11, 11],
+              ],
+            },
+            legs: [{ steps: [{ name: "Demo old street" }] }],
+          },
+        ],
+      }),
+    });
+  });
+  expect(result.current.trayPathAjustado).toBeNull();
+  expect(result.current.tray.vias).toEqual([]);
+  expect(result.current.tray.name).toBe("Demo new route");
+});
+
+it("clears the previous organization's place context menu and hover", () => {
+  const { result, rerender } = renderHook(() =>
+    usePlacesWorkspace({ current: null })
+  );
+  const place = lugarDesdeForm(
+    { ...FORM_VACIO, name: "Demo old place", lat: 1, lon: 1 },
+    [],
+    "local-demo-context"
+  );
+  act(() => {
+    result.current.local.saveLugar(place);
+  });
+  const item = {
+    id: place.place_id,
+    name: place.name,
+    color: "#000000",
+    icon: "",
+    ancla: [1, 1] as LatLon,
+    lugar: place,
+  };
+  act(() => {
+    result.current.onHoverNombre(item);
+    result.current.onHoverBadge({ item, miembros: [item] }, { x: 1, y: 1 });
+    result.current.onMapContextMenu({
+      originalEvent: { preventDefault: vi.fn() },
+      point: { x: 1, y: 1 },
+      lngLat: { lat: 1, lng: 1 },
+    } as unknown as MapMouseEvent);
+  });
+  expect(result.current.menuLugar?.lugar.name).toBe(place.name);
+  expect(result.current.tooltipBadge).not.toBeNull();
+  state.org = "demo-org-b";
+  rerender();
+  expect(result.current.menuLugar).toBeNull();
+  expect(result.current.tooltipBadge).toBeNull();
+  act(() => result.current.configurarDesdeMenu());
+  expect(result.current.form.name).toBe("");
+});
+
+it.each([
+  ["vial", null, false],
+  [
+    "vial",
+    [
+      [1, 1],
+      [2, 2],
+    ],
+    true,
+  ],
+  ["interno", null, true],
+] as const)(
+  "requires confirmation when a recovered %s route has lost its calculated path",
+  (kind, path, confirmed) => {
+    vi.useFakeTimers();
+    const points: LatLon[] = [
+      [1, 1],
+      [2, 2],
+    ];
+    guardarBorrador("geografico", JSON.stringify([state.user, state.org]), {
+      tipo: "trayecto",
+      tray: {
+        ...TRAY_VACIO,
+        name: "Demo route",
+        kind,
+        confirmado: true,
+        pts: points,
+        recorrido: recorridoDesdePts(points),
+      },
+      paso: "datos",
+      original: null,
+      inicial: null,
+      pathAjustado: path ? path.map(([a, b]) => [a, b]) : null,
+    });
+    const { result, unmount } = renderHook(() =>
+      usePlacesWorkspace({ current: null })
+    );
+    act(() => {
+      expect(result.current.restaurarBorrador()).toBe(true);
+    });
+    expect(result.current.tray.confirmado).toBe(confirmed);
+    if (!confirmed) expect(result.current.pasoTrayecto).toBe("recorrido");
+    unmount();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
+);

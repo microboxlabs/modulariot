@@ -64,6 +64,7 @@ export function usePlacesEnMapa(
   useEffect(() => {
     if (
       !editando ||
+      ws.modo !== "ver" ||
       !ws.puedeEditar ||
       !ws.storageScope ||
       borradorVisto.current === ws.storageScope
@@ -72,7 +73,7 @@ export function usePlacesEnMapa(
     borradorVisto.current = ws.storageScope;
     ws.restaurarBorrador();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editando, ws.puedeEditar, ws.storageScope]);
+  }, [editando, ws.puedeEditar, ws.storageScope, ws.modo]);
 
   // deck.gl vuelve a crear la capa de nombres cada vez que se abre el editor
   const generacion = useRef(0);

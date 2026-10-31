@@ -144,6 +144,7 @@ import {
   borrarBorrador,
   guardarBorrador,
   leerBorrador,
+  prepararTrayectoRestaurado,
   type AmbitoBorrador,
   type Borrador,
 } from "../data/draft-store";
@@ -633,6 +634,8 @@ export function usePlacesWorkspace(
   const confirmar = (titulo: string, nombre: string, accion: () => void) =>
     setConfirmacion({ titulo, nombre, accion });
   const [guardando, setGuardando] = useState(false);
+  // Invalidate late Directions results when the route or identity changes.
+  const rutaSeq = useRef(0);
   // versionado: cómo estaba el elemento al abrirlo, para listar qué cambió
   const versiones = useVersionesPlaces(storageScope);
   const formOriginal = useRef<FormLugar | null>(null);
@@ -1122,6 +1125,8 @@ export function usePlacesWorkspace(
   const seguirPoligono = useCallback(() => setForm(seguirDibujando), []);
   const cancelarPoligono = useCallback(() => setForm(cancelarDibujo), []);
   const cerrarForm = () => {
+    rutaSeq.current++;
+    setGuardando(false);
     formOriginal.current = null;
     trayOriginal.current = null;
     inicialLugar.current = null;
@@ -1194,6 +1199,12 @@ export function usePlacesWorkspace(
   useEffect(() => {
     if (enabled && workspaceScope.current === storageScope) return;
     workspaceScope.current = storageScope;
+    rutaSeq.current++;
+    setGuardando(false);
+    salidaPendiente.current = null;
+    badgeHover.current = null;
+    setMenuLugar(null);
+    setTooltipBadge(null);
     formOriginal.current = null;
     trayOriginal.current = null;
     inicialLugar.current = null;
@@ -1305,10 +1316,11 @@ export function usePlacesWorkspace(
     } else {
       trayOriginal.current = b.original;
       inicialTray.current = b.inicial;
-      setTray(b.tray);
-      setTrayPathAjustado(b.pathAjustado);
+      const recovered = prepararTrayectoRestaurado(b);
+      setTray(recovered.tray);
+      setTrayPathAjustado(recovered.pathAjustado);
       setPuntoMapaId(null);
-      setPasoTrayecto(b.paso);
+      setPasoTrayecto(recovered.paso);
       setModo("trayecto");
     }
     // la forma a la vista (el mapa recién cargado está en su vista inicial)
@@ -1710,10 +1722,6 @@ export function usePlacesWorkspace(
       duration: 800,
     });
   };
-
-  // Las respuestas de Directions pueden llegar fuera de orden: solo vale la
-  // de la última petición.
-  const rutaSeq = useRef(0);
 
   // el nombre lo escribe el usuario: trazar no lo completa
   const trazarRuta = async (

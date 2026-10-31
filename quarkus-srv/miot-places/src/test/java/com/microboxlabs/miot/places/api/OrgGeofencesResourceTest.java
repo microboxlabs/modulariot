@@ -26,7 +26,7 @@ class OrgGeofencesResourceTest {
     private static final String SQUARE = "{\"type\":\"Polygon\",\"coordinates\":[[[-70,-33],[-70,-32],[-69,-32],[-70,-33]]]}";
 
     private final List<String> tenants = new ArrayList<>();
-    private boolean sourceAllowed = true;
+    private Boolean sourceAllowed = true;
 
     private OrgGeofencesResource resource(GeofenceStore store) {
         OrganizationContext org = new OrganizationContext();
@@ -89,6 +89,8 @@ class OrgGeofencesResourceTest {
     @Test
     void aSharedClientSubAccountIsDeniedBeforeReadingGps() {
         sourceAllowed = false;
+        assertEquals(403, call(resource.list(ORG, null, null, null)).getStatus());
+        sourceAllowed = null;
         assertEquals(403, call(resource.list(ORG, null, null, null)).getStatus());
         assertEquals(List.of(), tenants);
     }

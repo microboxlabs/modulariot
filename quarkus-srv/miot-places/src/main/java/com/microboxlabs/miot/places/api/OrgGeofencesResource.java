@@ -64,7 +64,7 @@ public class OrgGeofencesResource extends OrgResourceSupport {
             @QueryParam("size") String size, @QueryParam("page") String page) {
         String tenant = tenantCode(organizationId);
         return sourceScope.allows(organizationId).flatMap(allowed -> {
-            if (!allowed) {
+            if (!Boolean.TRUE.equals(allowed)) {
                 return Uni.createFrom().item(error(Response.Status.FORBIDDEN,
                         "The sub-account has no organization-specific geofence source"));
             }

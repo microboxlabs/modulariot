@@ -32,10 +32,10 @@ async function importReleaseNotes(
 export default function ReleaseNotes({
   version,
   audience = "coordinator",
-}: {
+}: Readonly<{
   version: string;
   audience?: "platform" | "coordinator";
-}) {
+}>) {
   const [ReleaseNotesComponent, setReleaseNotesComponent] =
     useState<ComponentType | null>(null);
   const [loading, setLoading] = useState(true);

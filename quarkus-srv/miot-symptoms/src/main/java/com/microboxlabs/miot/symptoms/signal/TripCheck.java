@@ -54,7 +54,16 @@ public record TripCheck(
             @Schema(title = "Emisor", description = "The client that sends the vehicle's frames") String sender,
             @Schema(title = "Volvió la señal") Boolean returned,
             @Schema(title = "Volvió con relleno", description = "Frames from inside the silence arrived after it")
-            Boolean backfill) {
+            Boolean backfill,
+            @Schema(title = "Zona de baja cobertura", description = "The shadow map says frames arrive delayed in "
+                    + "the last position's cell")
+            @JsonProperty("low_coverage_zone") Boolean lowCoverageZone,
+            @Schema(title = "Pérdida en grupo", description = "Many of the sender's vehicles are lost at once, "
+                    + "against its usual count")
+            @JsonProperty("cohort_outage") Boolean cohortOutage,
+            @Schema(title = "Unidades cercanas reportando", description = "Vehicles that reported in the last "
+                    + "10 min within 10 km of the last position")
+            @JsonProperty("nearby_reporting") Double nearbyReporting) {
     }
 
     /** The newest frame before the silence. */
@@ -78,9 +87,9 @@ public record TripCheck(
         GpsSignal.Trip trip = new GpsSignal.Trip(true, false, "T-1", null, "v", "in_transit", 240.0, -15.0, null,
                 null, null, null, null, null, null);
         TripCheck lost = new TripCheck(null, null, 6.0, trip, new Loss(360.0, 120.0, 3.0,
-                new Last("2026-01-01T12:00:00Z", -23.6, -70.4, 82.0, true), "sender-1", false, false));
+                new Last("2026-01-01T12:00:00Z", -23.6, -70.4, 82.0, true), "sender-1", false, false, false, false, 4.0));
         TripCheck back = new TripCheck(null, null, 0.5, trip, new Loss(30.0, 120.0, 0.25,
-                new Last("2026-01-01T12:40:00Z", -23.7, -70.3, 60.0, true), "sender-1", true, true));
+                new Last("2026-01-01T12:40:00Z", -23.7, -70.3, 60.0, true), "sender-1", true, true, true, false, 2.0));
         return List.of(sample(lost), sample(back));
     }
 

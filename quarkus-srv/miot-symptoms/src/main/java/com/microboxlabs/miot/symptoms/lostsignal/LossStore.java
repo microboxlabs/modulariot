@@ -13,11 +13,24 @@ public interface LossStore {
      *
      * @param vehicle null for a vehicle never seen; {@code sender} null for a sender never seen or unknown
      */
-    record Profiles(VehicleProfile vehicle, SenderProfile sender, CheckState check) {
+    record Profiles(VehicleProfile vehicle, SenderProfile sender, CheckState check, Coverage bySender,
+            Coverage byAll) {
 
         public Profiles(VehicleProfile vehicle, SenderProfile sender) {
-            this(vehicle, sender, null);
+            this(vehicle, sender, null, null, null);
         }
+    }
+
+    /**
+     * What a frame adds to the shadow map, and where the vehicle reports for nearby-unit counts.
+     *
+     * @param latitude null when the frame does not count as reporting (late or a replay)
+     */
+    record Cells(String cell, Coverage bySender, Coverage byAll, Double latitude, Double longitude) {
+    }
+
+    /** Around a lost vehicle's last position: its cell in the shadow map and the vehicles still reporting. */
+    record Around(Coverage bySender, Coverage byAll, int nearby) {
     }
 
     /**
@@ -57,16 +70,21 @@ public interface LossStore {
     }
 
     /** @param sender null when the frame names none */
-    Profiles load(String assetId, String sender);
+    default Profiles load(String assetId, String sender) {
+        return load(assetId, sender, null);
+    }
+
+    /** @param cell the frame's cell in the shadow map, null without a position */
+    Profiles load(String assetId, String sender, String cell);
 
     /** @param senderProfile ignored when {@code sender} is null */
     default void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile) {
-        save(assetId, vehicle, sender, senderProfile, Schedule.KEEP, null);
+        save(assetId, vehicle, sender, senderProfile, Schedule.KEEP, null, null);
     }
 
     /** @param mark null when the vehicle is not lost or the frame tells nothing about its loss */
     void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile, Schedule schedule,
-            Mark mark);
+            Mark mark, Cells cells);
 
     /** The vehicles whose deadline is at or before {@code now}, earliest first. */
     List<String> due(Instant now, int limit);
@@ -78,6 +96,22 @@ public interface LossStore {
      * meanwhile; {@code next} null drops it. A state that is not lost clears the loss's marks.
      */
     void checked(String assetId, CheckState check, Instant next);
+
+    /**
+     * @param cell   null without a last position
+     * @param radius how far from the last position a vehicle that reported in the last 10 min counts as nearby
+     */
+    Around around(String sender, String cell, Double latitude, Double longitude, String assetId, Instant now,
+            double radiusKm);
+
+    /** Adds the vehicle to its sender's lost set, or removes it; returns how many of the sender's are lost. */
+    int lost(String sender, String assetId, boolean lost);
+
+    SenderProfile sender(String sender);
+
+    Cohort cohort(String sender);
+
+    void cohort(String sender, Cohort cohort);
 
     /** Takes or keeps the ticker's lease; false while another replica holds it. */
     boolean lease(String owner, Duration ttl);

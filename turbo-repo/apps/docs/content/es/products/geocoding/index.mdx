@@ -16,7 +16,7 @@ Con geocodificación:
 | --- | --- |
 | Cada lugar nuevo espera a que alguien dibuje su geocerca | El lugar se ubica solo al llegar el viaje |
 | Una dirección mal escrita deja el viaje sin seguimiento y nadie se entera | El lugar queda en **Por revisar** con el motivo |
-| Cada consulta a un servicio de mapas cuesta, y nadie sabe cuántas se hacen | Cada resolución queda registrada con su fuente y su costo |
+| Cada consulta a un servicio de mapas cuesta, y nadie sabe cuántas se hacen | Cada resolución automática queda registrada con su fuente y su costo |
 
 ## Cómo ubica un lugar
 
@@ -44,6 +44,8 @@ Solo cuenta una consulta al proveedor. Las geocercas, los Plus Codes, las coorde
 | Costo por consulta que el proveedor cobra a la plataforma | El contrato con el proveedor | Ajustes › Conexiones, en el ámbito Plataforma |
 | Precio mensual del plan, consultas incluidas y precio por consulta excedente | El dueño de la plataforma | Ajustes › Plataforma › Geocodificación › Plan |
 | Cuota de cada organización y qué pasa al agotarla | El dueño de la plataforma | Ajustes › Plataforma › Geocodificación › Organizaciones |
+| Si las cuotas se aplican (**Aplicar las cuotas**) | El dueño de la plataforma | Ajustes › Plataforma › Geocodificación › Plan |
+| Qué organizaciones pueden consultar al proveedor | El dueño de la plataforma | Ajustes › Conexiones de cada organización: la conexión **Geocoding · proveedor de la plataforma** |
 
 Un lugar se ubica una sola vez. Los viajes siguientes al mismo lugar usan su geocerca y no consultan de nuevo. Por eso el costo por viaje baja con el tiempo:
 
@@ -54,7 +56,7 @@ Un lugar se ubica una sola vez. Los viajes siguientes al mismo lugar usan su geo
 | Destino nuevo con una dirección que nadie consultó antes | 1 |
 | Origen y destino nuevos, ambos con direcciones nuevas | 2 |
 
-Cada organización ve su consumo del mes en **Ajustes › Viajes › Uso del mes**. Detalle en [Uso, costo y monitoreo](/es/products/geocoding/concepts/usage-and-cost).
+El dueño de cada organización ve su consumo del mes en **Ajustes › Viajes › Uso del mes**. Detalle en [Uso, costo y monitoreo](/es/products/geocoding/concepts/usage-and-cost).
 
 ## Qué depende del país
 

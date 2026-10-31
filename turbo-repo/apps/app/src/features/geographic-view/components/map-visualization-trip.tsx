@@ -12,7 +12,11 @@ import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import wkx, { Geometry } from "wkx";
+import type { Geometry } from "geojson";
+import {
+  geofenceGeometry,
+  geofencePinPosition,
+} from "../utils/geofence-geometry";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
@@ -43,11 +47,7 @@ import {
   zoomToVehicle,
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
-import {
-  ringCentroid,
-  estimateEtaHours,
-  formatEtaHours,
-} from "../utils/vehicle-origin";
+import { estimateEtaHours, formatEtaHours } from "../utils/vehicle-origin";
 import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
@@ -64,7 +64,7 @@ type Zone = {
   location_type: any;
   id: string;
   name: string;
-  location: string;
+  location: string | GeoJSON.Geometry;
 };
 
 type GeofenceData = {
@@ -330,13 +330,11 @@ export default function MapVisualizationTrip({
       const features = geofence_data?.data
         ?.filter((item: GeofenceData) => item.zone.location !== null)
         .map((item: GeofenceData) => {
-          const wkbHexString = item.zone.location;
-          const wkbBuffer = Buffer.from(wkbHexString, "hex");
-          const geometry = wkx.Geometry.parse(wkbBuffer);
+          const geometry = geofenceGeometry(item.zone.location);
 
           return {
             type: "Feature",
-            geometry: geometry.toGeoJSON(),
+            geometry,
             properties: {
               id: item.zone.id,
               name: item.zone.name,
@@ -364,15 +362,7 @@ export default function MapVisualizationTrip({
     const origin = processedGeofence?.features.find(
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
-    const geometry = origin?.geometry as
-      | { type?: string; coordinates?: LngLat[][] }
-      | undefined;
-    // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
-    // MultiPolygon (or malformed payload) would make ringCentroid throw.
-    if (geometry?.type !== "Polygon") return null;
-    const ring = geometry.coordinates?.[0];
-    if (!Array.isArray(ring)) return null;
-    return ringCentroid(ring);
+    return origin ? geofencePinPosition(origin.geometry) : null;
   }, [processedGeofence]);
 
   const vehicle =

@@ -57,7 +57,7 @@ public class GeocodingConnectionTester implements ConnectionTester {
         try {
             platform = GeocodingConnection.of(resolver.resolve(PLATFORM_TENANT, ProviderType.GEOCODING));
         } catch (ConnectionNotConfiguredException e) {
-            return fail("The platform has no geocoding provider; set it in the Plataforma scope");
+            return fail("The platform has no geocoding provider; set it in Settings › Connections, under the Platform scope");
         } catch (ConnectionResolutionException | IllegalArgumentException e) {
             return fail("The platform's geocoding connection cannot be read: " + e.getMessage());
         }

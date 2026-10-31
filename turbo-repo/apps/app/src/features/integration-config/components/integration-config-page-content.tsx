@@ -20,8 +20,17 @@ import SectionMenu, {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import { connectManagedBigQuery } from "@/features/settings-admin/platform/org-service-account";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import {
+  connectManagedGeocoding,
+  removeManagedGeocoding,
+} from "@/features/settings-admin/platform/org-geocoding-connection";
+import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
+import { ManagedGeocodingProviderModal } from "./managed-geocoding-provider-modal";
 import {
   connectionTypeName,
+  isPlatformManaged,
   DEFAULT_CONNECTION_FILTERS,
   DEFAULT_CONNECTION_SORT,
   filterConnections,
@@ -90,6 +99,7 @@ export function IntegrationConfigPageContent({
 }: Readonly<IntegrationConfigPageContentProps>) {
   const { activeOrg } = useOrgScopes();
   const orgSlug = activeOrg?.slug ?? null;
+  const inPlatformScope = orgSlug === PLATFORM_SCOPE_SLUG;
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -149,13 +159,16 @@ export function IntegrationConfigPageContent({
     removeConnection,
     testInstance,
     testDraft,
+    refresh,
   } = useIntegrationConfig(orgSlug);
+  const { isPlatformOwner } = useIsPlatformOwner();
 
   const [templateModal, setTemplateModal] = useState<{
     open: boolean;
     template?: IntegrationTemplate;
   }>({ open: false });
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [providerSetupOpen, setProviderSetupOpen] = useState(false);
   const [connectionModal, setConnectionModal] = useState<{
     open: boolean;
     connection?: IntegrationConnection;
@@ -212,6 +225,70 @@ export function IntegrationConfigPageContent({
     setConnectionModal({ open: true, providerType });
   }
 
+  /**
+   * Creates the organization's connection to the platform's geocoding provider, once.
+   * Without a platform provider (409) it asks for one first.
+   */
+  async function handleManagedGeocoding() {
+    if (!orgSlug) return;
+    setPickerOpen(false);
+    // The Plataforma scope holds the provider itself, not a managed connection to it.
+    if (inPlatformScope) {
+      setProviderSetupOpen(true);
+      return;
+    }
+    const pending = toast.loading(tr("toast.managedGeocodingCreating", dict));
+    try {
+      await connectManagedGeocoding(orgSlug);
+      refresh();
+      toast.success(tr("toast.managedGeocodingCreated", dict), { id: pending });
+    } catch (cause) {
+      if ((cause as { status?: number }).status === 409) {
+        toast.dismiss(pending);
+        setProviderSetupOpen(true);
+        return;
+      }
+      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
+        id: pending,
+      });
+    }
+  }
+
+  async function handleProviderSaved() {
+    setProviderSetupOpen(false);
+    if (inPlatformScope) {
+      refresh();
+      toast.success(tr("toast.platformGeocodingSaved", dict));
+      return;
+    }
+    await handleManagedGeocoding();
+  }
+
+  /** Creates the organization's account if missing and the BigQuery connection that queries as it. */
+  async function handleManagedBigQuery() {
+    if (!orgSlug) return;
+    setPickerOpen(false);
+    const pending = toast.loading(tr("toast.managedBigqueryCreating", dict));
+    try {
+      const created = await connectManagedBigQuery(orgSlug);
+      refresh();
+      if (created.tested) {
+        toast.success(tr("toast.managedBigqueryCreated", dict), {
+          id: pending,
+          description: created.testMessage ?? undefined,
+        });
+      } else {
+        toast.error(created.testMessage ?? tr("toast.testFailed", dict), {
+          id: pending,
+        });
+      }
+    } catch (cause) {
+      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
+        id: pending,
+      });
+    }
+  }
+
   function handleEditConnection(connection: IntegrationConnection) {
     setConnectionModal({
       open: true,
@@ -247,7 +324,16 @@ export function IntegrationConfigPageContent({
   async function handleDeleteConnection() {
     if (!deletingConnection) return;
     try {
-      await removeConnection(deletingConnection.id);
+      if (
+        !inPlatformScope &&
+        isPlatformManaged(deletingConnection) &&
+        orgSlug
+      ) {
+        await removeManagedGeocoding(orgSlug);
+        refresh();
+      } else {
+        await removeConnection(deletingConnection.id);
+      }
       toast.success(tr("toast.connectionDeleted", dict));
       setDeletingConnection(null);
     } catch (cause) {
@@ -275,6 +361,30 @@ export function IntegrationConfigPageContent({
       toast.error(messageOf(cause, tr("toast.testFailed", dict)));
     } finally {
       setTesting(null);
+    }
+  }
+
+  function openManagedProvider() {
+    setProviderSetupOpen(true);
+  }
+
+  function selectManagedGeocoding() {
+    void handleManagedGeocoding();
+  }
+
+  function selectManagedBigQuery() {
+    void handleManagedBigQuery();
+  }
+
+  function deleteConnectionFromModal() {
+    if (connectionModal.connection) {
+      handleDeleteConnectionFromModal(connectionModal.connection);
+    }
+  }
+
+  function deleteTemplateFromModal() {
+    if (templateModal.template) {
+      handleDeleteTemplateFromModal(templateModal.template);
     }
   }
 
@@ -385,8 +495,10 @@ export function IntegrationConfigPageContent({
               templates={templates}
               credentials={credentials}
               onOpen={handleEditConnection}
+              onOpenManaged={inPlatformScope ? openManagedProvider : undefined}
               onTest={handleTest}
               onDelete={setDeletingConnection}
+              canRemoveManaged={isPlatformOwner}
               onFunctions={setFunctionsFor}
               onQueries={(connection) =>
                 navigate("bigquery", { source: connection.id })
@@ -427,11 +539,7 @@ export function IntegrationConfigPageContent({
         template={templateModal.template}
         onClose={() => setTemplateModal({ open: false })}
         onSave={saveTemplate}
-        onDelete={
-          templateModal.template
-            ? () => handleDeleteTemplateFromModal(templateModal.template!)
-            : undefined
-        }
+        onDelete={templateModal.template ? deleteTemplateFromModal : undefined}
         saving={saving}
         dict={dict}
       />
@@ -442,8 +550,26 @@ export function IntegrationConfigPageContent({
         onClose={() => setPickerOpen(false)}
         onSelect={handleTemplatePicked}
         onSelectNative={handleNativePicked}
+        onSelectManagedGeocoding={
+          isPlatformOwner ? selectManagedGeocoding : undefined
+        }
+        managedGeocodingInPlatform={inPlatformScope}
+        onSelectManagedBigQuery={
+          isPlatformOwner ? selectManagedBigQuery : undefined
+        }
         dict={dict}
       />
+
+      {isPlatformOwner && (
+        <ManagedGeocodingProviderModal
+          isOpen={providerSetupOpen}
+          mode={inPlatformScope ? "platform" : "organization"}
+          dict={dict}
+          providerDict={platformGeocodingDict(rootDict)}
+          onClose={() => setProviderSetupOpen(false)}
+          onSaved={handleProviderSaved}
+        />
+      )}
 
       <ConnectionFormModal
         show={connectionModal.open}
@@ -454,9 +580,7 @@ export function IntegrationConfigPageContent({
         onClose={() => setConnectionModal({ open: false })}
         onSave={saveConnection}
         onDelete={
-          connectionModal.connection
-            ? () => handleDeleteConnectionFromModal(connectionModal.connection!)
-            : undefined
+          connectionModal.connection ? deleteConnectionFromModal : undefined
         }
         onTest={testInstance}
         onTestDraft={testDraft}
@@ -515,6 +639,13 @@ function templateInUseWarning(
 }
 
 /** The API's own reason when it gave one, so a 409 names what blocked it. */
+function platformGeocodingDict(rootDict: I18nRecord): I18nRecord {
+  const pages = rootDict.pages as I18nRecord | undefined;
+  const settings = pages?.userSettings as I18nRecord | undefined;
+  const platform = settings?.platform as I18nRecord | undefined;
+  return (platform?.geocoding as I18nRecord) ?? {};
+}
+
 function messageOf(cause: unknown, fallback: string): string {
   const message = cause instanceof Error ? cause.message : "";
   return message || fallback;

@@ -170,7 +170,7 @@ public class FeedReconciler {
                 desired.origin(), desired.destination(), utc(desired.plannedStart()), utc(desired.plannedEnd()),
                 utc(desired.actualStart()), utc(desired.actualArrival()), utc(desired.actualEnd()),
                 desired.resourcesOrEmpty(), null, reports(desired.milestones()), desired.slaMinutes(),
-                desired.cargo());
+                desired.cargo(), desired.originSite(), desired.destinationSite());
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
                     json.writeValueAsString(compared).getBytes(StandardCharsets.UTF_8)));
@@ -262,6 +262,12 @@ public class FeedReconciler {
 
     public FeedResult recheck(String tenantCode, String feedKey, String externalCode) {
         return recheck(tenantCode, "feed:" + feedKey + ":clock", feedKey, externalCode);
+    }
+
+    /** The service's latest desired state, or null when there is none. */
+    public FeedServiceRequest desired(String tenantCode, String feedKey, String externalCode) {
+        return feeds.service(tenantCode, feedKey, externalCode).map(FeedService::desired).map(this::readOrNull)
+                .orElse(null);
     }
 
     private record Attempt(FeedResult result, RuntimeException failure) {

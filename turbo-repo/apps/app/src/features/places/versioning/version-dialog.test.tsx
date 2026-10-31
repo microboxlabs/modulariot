@@ -99,8 +99,40 @@ describe("VersionDialog", () => {
 describe("places versions store", () => {
   beforeEach(() => globalThis.localStorage.clear());
 
+  it("isolates history by account and organization, and refuses unscoped writes", () => {
+    const { result, rerender } = renderHook(
+      ({ scope }: { scope: string | null }) => useVersionesPlaces(scope),
+      { initialProps: { scope: "demo-user-a:org-a" as string | null } }
+    );
+    act(() => {
+      result.current.registrar("lugar", "demo-id", {
+        version: "1.1.0",
+        bump: "MINOR",
+        descripcion: "Demo private change",
+        cambios: [],
+      });
+    });
+    rerender({ scope: "demo-user-a:org-b" });
+    expect(result.current.historialDe("lugar", "demo-id")).toEqual([]);
+    rerender({ scope: "demo-user-b:org-a" });
+    expect(result.current.historialDe("lugar", "demo-id")).toEqual([]);
+    rerender({ scope: null });
+    act(() =>
+      expect(
+        result.current.registrar("lugar", "demo-id", {
+          version: "2.0.0",
+          bump: "MAJOR",
+          descripcion: "Not saved",
+          cambios: [],
+        })
+      ).toBe(false)
+    );
+    rerender({ scope: "demo-user-a:org-a" });
+    expect(result.current.versionDe("lugar", "demo-id")).toBe("1.1.0");
+  });
+
   it("starts at 1.0.0 and keeps each saved version in the history", () => {
-    const { result } = renderHook(() => useVersionesPlaces());
+    const { result } = renderHook(() => useVersionesPlaces("demo-user:org"));
     expect(result.current.versionDe("lugar", "p1")).toBe("1.0.0");
     expect(result.current.versionDe("lugar", null)).toBeNull();
     act(() => {
@@ -115,7 +147,7 @@ describe("places versions store", () => {
     // trayectos keep their own history, even with the same id
     expect(result.current.versionDe("trayecto", "p1")).toBe("1.0.0");
     // and it is still there on the next visit
-    const otra = renderHook(() => useVersionesPlaces());
+    const otra = renderHook(() => useVersionesPlaces("demo-user:org"));
     const [entrada] = otra.result.current.historialDe("lugar", "p1");
     expect(entrada).toMatchObject({
       version: "1.1.0",

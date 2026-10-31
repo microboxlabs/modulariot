@@ -13,6 +13,7 @@ import type {
   Trayecto,
 } from "../places.types";
 import { metadataParaGuardar } from "../places.types";
+import { placesStorageKey } from "./storage-key";
 import { categoriasUbicadas, tiposUbicados } from "../routes/recorrido";
 
 const STORAGE_KEY = "miot.settings.places.local.v1";
@@ -26,9 +27,11 @@ export const isLocalId = (id: string | null | undefined): boolean =>
 
 export const newLocalId = (): string => `${LOCAL_PREFIX}${crypto.randomUUID()}`;
 
-export function readLocal(): LocalData {
+export function readLocal(scope: string | null): LocalData {
+  const key = placesStorageKey(STORAGE_KEY, scope);
+  if (!key) return EMPTY;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as Partial<LocalData>;
     return {
@@ -40,9 +43,11 @@ export function readLocal(): LocalData {
   }
 }
 
-function writeLocal(data: LocalData): boolean {
+function writeLocal(scope: string | null, data: LocalData): boolean {
+  const key = placesStorageKey(STORAGE_KEY, scope);
+  if (!key) return false;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    window.localStorage.setItem(key, JSON.stringify(data));
     return true;
   } catch {
     return false;
@@ -52,42 +57,46 @@ function writeLocal(data: LocalData): boolean {
 const upsert = <T>(xs: T[], x: T, same: (a: T) => boolean): T[] =>
   xs.some(same) ? xs.map((a) => (same(a) ? x : a)) : [...xs, x];
 
-export function useLocalPlaces() {
-  const [data, setData] = useState<LocalData>(EMPTY);
+export function useLocalPlaces(scope: string | null) {
+  const [stored, setStored] = useState({ scope, data: EMPTY });
+  const data = stored.scope === scope ? stored.data : EMPTY;
 
-  // localStorage solo existe en el cliente: cargar después de montar
-  useEffect(() => setData(readLocal()), []);
+  useEffect(() => setStored({ scope, data: readLocal(scope) }), [scope]);
 
-  const commit = useCallback((next: LocalData) => {
-    setData(next);
-    return writeLocal(next);
-  }, []);
+  const commit = useCallback(
+    (next: LocalData) => {
+      if (!writeLocal(scope, next)) return false;
+      setStored({ scope, data: next });
+      return true;
+    },
+    [scope]
+  );
 
   const saveLugar = useCallback(
     (l: Lugar) => {
-      const cur = readLocal();
+      const cur = readLocal(scope);
       return commit({
         ...cur,
         lugares: upsert(cur.lugares, l, (a) => a.place_id === l.place_id),
       });
     },
-    [commit]
+    [commit, scope]
   );
 
   const deleteLugar = useCallback(
     (id: string) => {
-      const cur = readLocal();
+      const cur = readLocal(scope);
       return commit({
         ...cur,
         lugares: cur.lugares.filter((a) => a.place_id !== id),
       });
     },
-    [commit]
+    [commit, scope]
   );
 
   const saveTrayecto = useCallback(
     (t: Trayecto) => {
-      const cur = readLocal();
+      const cur = readLocal(scope);
       return commit({
         ...cur,
         trayectos: upsert(
@@ -97,18 +106,18 @@ export function useLocalPlaces() {
         ),
       });
     },
-    [commit]
+    [commit, scope]
   );
 
   const deleteTrayecto = useCallback(
     (id: string) => {
-      const cur = readLocal();
+      const cur = readLocal(scope);
       return commit({
         ...cur,
         trayectos: cur.trayectos.filter((a) => a.trayecto_id !== id),
       });
     },
-    [commit]
+    [commit, scope]
   );
 
   return {

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   esArchivoImport,
+  MAX_IMPORT_BYTES,
+  parsearArchivoLugares,
   filasCsv,
   filasDeLotes,
   filasGeoJson,
@@ -11,6 +13,7 @@ import {
   verticesDesdeAnillo,
   type LoteImport,
 } from "./import-places";
+import JSZip from "jszip";
 import { FORM_VACIO } from "../places.types";
 import {
   EJEMPLO_CSV,
@@ -20,6 +23,86 @@ import {
 } from "./import-places.fixtures";
 
 describe("import places geometry", () => {
+  it("bounds compressed and expanded imports before retaining oversized content", async () => {
+    const tooLarge = new File(
+      [new Uint8Array(MAX_IMPORT_BYTES + 1)],
+      "demo.kml"
+    );
+    await expect(parsearArchivoLugares(tooLarge)).rejects.toThrow("8 MiB");
+    const zip = new JSZip();
+    zip.file("demo.kml", "x".repeat(MAX_IMPORT_BYTES + 1));
+    const data = await zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+    });
+    const compressed = new File([data], "demo.kmz");
+    Object.defineProperty(compressed, "arrayBuffer", {
+      value: async () => data.buffer,
+    });
+    expect(compressed.size).toBeLessThan(MAX_IMPORT_BYTES);
+    await expect(parsearArchivoLugares(compressed)).rejects.toThrow("8 MiB");
+  });
+
+  it("reads a valid compressed KML through the bounded stream", async () => {
+    const zip = new JSZip();
+    zip.file("demo.kml", EJEMPLO_KML);
+    const data = await zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+    });
+    const file = new File([data], "demo.kmz");
+    Object.defineProperty(file, "arrayBuffer", {
+      value: async () => data.buffer,
+    });
+    expect((await parsearArchivoLugares(file)).filas).toHaveLength(3);
+  });
+  it("reads quoted CSV names and addresses without shifting coordinates", () => {
+    const rows = filasCsv(
+      'name,lat,lon,address\n"Demo, Site",-33,-70,"Demo avenue, 12"'
+    );
+    expect(rows).toMatchObject([
+      { name: "Demo, Site", lat: -33, lon: -70, address: "Demo avenue, 12" },
+    ]);
+  });
+
+  it("does not invent zero coordinates for missing CSV values", () => {
+    expect(
+      filasCsv(
+        "name,lat,lon\nMissing latitude,,-70\nMissing longitude,-33,\nValid origin,0,0"
+      )
+    ).toMatchObject([{ name: "Valid origin", lat: 0, lon: 0 }]);
+  });
+
+  it.each(["null", "3", '"text"', "[]"])(
+    "ignores non-object GeoJSON %s",
+    (input) => {
+      expect(filasGeoJson(input)).toEqual([]);
+    }
+  );
+
+  it("refuses out-of-range coordinates in CSV and GeoJSON", () => {
+    expect(
+      filasCsv("name,lat,lon\nBad latitude,91,0\nBad longitude,0,181")
+    ).toEqual([]);
+    expect(
+      filasGeoJson(JSON.stringify({ type: "Point", coordinates: [181, 0] }))
+    ).toEqual([]);
+    expect(
+      filasGeoJson(
+        JSON.stringify({
+          type: "Polygon",
+          coordinates: [
+            [
+              [0, 0],
+              [181, 0],
+              [0, 1],
+              [0, 0],
+            ],
+          ],
+        })
+      )
+    ).toEqual([]);
+  });
   it("turns a bbox into a 4-vertex polygon", () => {
     expect(poligonoDesdeBbox(-70.735, -33.362, -70.732, -33.36)).toEqual([
       [-33.362, -70.735],

@@ -597,8 +597,9 @@ public class InMemoryTripsWorld {
         }
 
         @Override
-        public List<Location> list(String tenantCode, String q, String type, int page, int size) {
+        public List<Location> list(String tenantCode, String q, String type, String status, int page, int size) {
             return locations.values().stream().filter(l -> l.tenantCode().equals(tenantCode))
+                    .filter(l -> status == null || status.equals(l.placement().status()))
                     .skip((long) page * size).limit(size).toList();
         }
 
@@ -608,10 +609,23 @@ public class InMemoryTripsWorld {
                 return Optional.empty();
             }
             Location updated = new Location(l.id(), l.tenantCode(), l.name(), l.type(), l.externalCode(),
-                    l.geomGeojson(), locations.get(l.id()).geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy());
+                    l.geomGeojson(), locations.get(l.id()).geofenceId(), l.createdAt(), l.createdBy(), now(), l.updatedBy(),
+                    locations.get(l.id()).placement());
             locations.put(l.id(), updated);
             return Optional.of(updated);
         }
+
+        @Override
+        public Optional<Location> setPlacement(String tenantCode, UUID id, Location.Placement placement,
+                Integer geofenceId, String actor) {
+            return find(tenantCode, id).map(location -> {
+                Location updated = location.withPlacement(placement,
+                        geofenceId == null ? location.geofenceId() : geofenceId, actor);
+                locations.put(location.id(), updated);
+                return updated;
+            });
+        }
+
         @Override
         public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
             return find(tenantCode, id).map(location -> {

@@ -5,6 +5,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -326,8 +327,8 @@ public class IntegrationConnectionRepository {
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
-    private Pool client() {
-        return clientInstance.get();
+    private SqlClient client() {
+        return ManagedProvisioningTransaction.client(clientInstance.get());
     }
 
     private IntegrationConnection mapRow(Row row) {

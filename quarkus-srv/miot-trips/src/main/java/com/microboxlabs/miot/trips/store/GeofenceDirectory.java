@@ -17,6 +17,27 @@ public interface GeofenceDirectory {
 
     Optional<Geofence> find(String tenantCode, int id);
 
+    /**
+     * The tenant's geofences whose code equals {@code code}, then those whose name equals {@code name} ignoring
+     * case; at most {@code limit}. Either may be null.
+     */
+    List<Geofence> matching(String tenantCode, String code, String name, int limit);
+
+    /**
+     * The tenant's geofences whose area covers the point, lowest id first; at most {@code limit}.
+     * Excludes location-owned geofences keyed by the location id, whose areas can move with that location.
+     */
+    List<Geofence> containing(String tenantCode, double lon, double lat, int limit);
+
+    /**
+     * Creates a geofence of the tenant with that code, or returns the one it already has; {@code area} is a GeoJSON
+     * polygon, {@code properties} a JSON object. Empty when the GPS database is not configured.
+     */
+    Optional<Geofence> create(String tenantCode, String code, String name, String area, String properties);
+
+    /** Creates or moves a location-owned manual geofence, keyed by its UUID; external/shared areas stay untouched. */
+    Optional<Geofence> place(String tenantCode, String locationId, String name, String area, String properties);
+
     /** The areas of these geofences as GeoJSON, by id; missing ids are left out. */
     Map<Integer, String> shapes(Collection<Integer> ids);
 }

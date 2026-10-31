@@ -1,5 +1,5 @@
 export default {
+  'choose-a-setup': 'Elegir su camino',
   quickstart: 'Inicio rápido',
-  installation: 'Instalación',
-  'choose-a-setup': 'Elegir una configuración'
+  installation: 'Instalación'
 }

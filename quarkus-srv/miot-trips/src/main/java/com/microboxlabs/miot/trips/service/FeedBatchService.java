@@ -10,6 +10,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,8 @@ public class FeedBatchService {
     public static final String EXTERNAL_CODE = "externalCode";
     public static final String ACTOR = "actor";
     public static final String BATCH_ID = "batchId";
+    /** The organization whose geocoding quota locating the service's sites uses. */
+    public static final String ORGANIZATION = "organization";
     static final int MAX_SERVICES = 500;
 
     private final FeedReconciler reconciler;
@@ -42,6 +45,11 @@ public class FeedBatchService {
     }
 
     public FeedBatchResult send(String tenantCode, String actor, String feedKey, FeedBatchRequest body) {
+        return send(null, tenantCode, actor, feedKey, body);
+    }
+
+    public FeedBatchResult send(String organization, String tenantCode, String actor, String feedKey,
+            FeedBatchRequest body) {
         reconciler.profile(tenantCode, feedKey);
         List<FeedBatchRequest.Item> items = items(body);
         if (items.size() > MAX_SERVICES) {
@@ -62,7 +70,7 @@ public class FeedBatchService {
                 FeedServiceRequest desired = item == null ? null : item.desired();
                 boolean settled = firstSettled(seen, digests, code, desired);
                 boolean enqueued = !settled && queue.acceptAndQueue(tenantCode, feedKey,
-                        spec(feedKey, code, actor, batchId),
+                        spec(feedKey, code, actor, batchId, organization),
                         () -> reconciler.accept(tenantCode, feedKey, code, desired));
                 if (enqueued) {
                     queued.add(code);
@@ -113,10 +121,17 @@ public class FeedBatchService {
 
     /** The job of one service: no chain (a failed job must not hold back the next state); one per batch. */
     static AsyncJobSpec spec(String feedKey, String code, String actor, String batchId) {
+        return spec(feedKey, code, actor, batchId, null);
+    }
+
+    static AsyncJobSpec spec(String feedKey, String code, String actor, String batchId, String organization) {
+        Map<String, Object> payload = new HashMap<>(Map.of(FEED_KEY, feedKey, EXTERNAL_CODE, code, ACTOR,
+                actor == null ? "feed:" + feedKey : actor, BATCH_ID, batchId));
+        if (organization != null) {
+            payload.put(ORGANIZATION, organization);
+        }
         return new AsyncJobSpec(JOB_TYPE, ModulithJobHandler.EXECUTOR, code, null, null,
                 "trips-feed:" + feedKey + ":" + code.replace("%", "%25").replace(":", "%3A") + ":" + batchId,
-                Map.of(FEED_KEY, feedKey, EXTERNAL_CODE, code, ACTOR, actor == null ? "feed:" + feedKey : actor,
-                        BATCH_ID, batchId),
-                null);
+                Map.copyOf(payload), null);
     }
 }

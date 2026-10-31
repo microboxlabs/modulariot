@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Spinner } from "flowbite-react";
+import { useCallback, useState, type ReactNode } from "react";
+import { Button, Spinner } from "flowbite-react";
 import {
   HiOutlineChartBar,
   HiOutlineChip,
   HiOutlineCreditCard,
+  HiOutlineGlobeAlt,
   HiOutlineKey,
+  HiOutlineMap,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
   HiOutlineTruck,
+  HiPlus,
   HiServer,
 } from "react-icons/hi";
 import SettingsPageShell from "@/features/common/components/settings-page-shell";
@@ -22,6 +25,16 @@ import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
+import GeocodingPlanSection from "./geocoding-plan-section";
+import GeocodingTenantsSection from "./geocoding-tenants-section";
+import GeocodingTenantsToolbar from "./geocoding-tenants-toolbar";
+import {
+  DEFAULT_TENANT_SORT,
+  NO_TENANT_FILTERS,
+  type TenantFilters,
+  type TenantSort,
+} from "./geocoding-tenants-view";
+import { monthOf } from "@/features/geocoding/geocoding-plan-view";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
@@ -33,6 +46,8 @@ import type { PlatformSection } from "./platform.types";
 interface PlatformPageContentProps {
   /** `pages.userSettings` subtree. */
   readonly dict: I18nRecord;
+  /** The whole dictionary; the filter badges translate their shared rows from it. */
+  readonly rootDict: I18nRecord;
   readonly lang: string;
 }
 
@@ -54,6 +69,7 @@ interface PlatformPageContentProps {
  */
 export default function PlatformPageContent({
   dict,
+  rootDict,
   lang,
 }: PlatformPageContentProps) {
   const platformDict = (dict?.platform as I18nRecord) ?? {};
@@ -61,6 +77,9 @@ export default function PlatformPageContent({
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
+  const geocodingPlanDict = (platformDict?.geocodingPlan as I18nRecord) ?? {};
+  const geocodingTenantsDict =
+    (platformDict?.geocodingTenants as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
@@ -69,6 +88,20 @@ export default function PlatformPageContent({
 
   const { isPlatformOwner, isLoading } = useIsPlatformOwner();
   const [selected, setSelected] = useState<PlatformSection>("branding");
+  const [tenantFilters, setTenantFilters] =
+    useState<TenantFilters>(NO_TENANT_FILTERS);
+  const [tenantSort, setTenantSort] = useState<TenantSort>(DEFAULT_TENANT_SORT);
+  const [tenantMonth, setTenantMonth] = useState(() => monthOf(new Date()));
+  const [assigning, setAssigning] = useState(false);
+  const assignDone = useCallback(() => setAssigning(false), []);
+  const onTenants = selected === "geocodingTenants";
+
+  const group = {
+    brand: tr("groups.brand", platformDict),
+    access: tr("groups.access", platformDict),
+    ai: tr("groups.ai", platformDict),
+    geocoding: tr("groups.geocoding", platformDict),
+  };
 
   const sections: readonly PlatformSectionEntry[] = [
     {
@@ -76,48 +109,70 @@ export default function PlatformPageContent({
       label: tr("title", brandingDict),
       description: tr("menuHint", brandingDict),
       icon: HiOutlinePhotograph,
-    },
-    {
-      id: "superusers",
-      label: tr("title", superusersDict),
-      description: tr("menuHint", superusersDict),
-      icon: HiOutlineKey,
-    },
-    {
-      id: "models",
-      label: tr("title", modelsDict),
-      description: tr("menuHint", modelsDict),
-      icon: HiOutlineChip,
+      group: group.brand,
     },
     {
       id: "vehicleImages",
       label: tr("title", vehicleImagesDict),
       description: tr("menuHint", vehicleImagesDict),
       icon: HiOutlineTruck,
-    },
-    {
-      id: "sharing",
-      label: tr("title", sharingDict),
-      description: tr("menuHint", sharingDict),
-      icon: HiOutlineShare,
+      group: group.brand,
     },
     {
       id: "templates",
       label: tr("title", templatesDict),
       description: tr("menuHint", templatesDict),
       icon: HiOutlineTemplate,
+      group: group.brand,
+    },
+    {
+      id: "superusers",
+      label: tr("title", superusersDict),
+      description: tr("menuHint", superusersDict),
+      icon: HiOutlineKey,
+      group: group.access,
+    },
+    {
+      id: "sharing",
+      label: tr("title", sharingDict),
+      description: tr("menuHint", sharingDict),
+      icon: HiOutlineShare,
+      group: group.access,
+    },
+    {
+      id: "models",
+      label: tr("title", modelsDict),
+      description: tr("menuHint", modelsDict),
+      icon: HiOutlineChip,
+      group: group.ai,
     },
     {
       id: "plan",
       label: tr("title", planDict),
       description: tr("menuHint", planDict),
       icon: HiOutlineCreditCard,
+      group: group.ai,
     },
     {
       id: "usage",
       label: tr("title", usageDict),
       description: tr("menuHint", usageDict),
       icon: HiOutlineChartBar,
+      group: group.ai,
+    },
+    {
+      id: "geocodingTenants",
+      label: tr("menuTitle", geocodingTenantsDict),
+      description: tr("menuHint", geocodingTenantsDict),
+      icon: HiOutlineGlobeAlt,
+      group: group.geocoding,
+    },
+    {
+      id: "geocodingPlan",
+      label: tr("menuTitle", geocodingPlanDict),
+      description: tr("menuHint", geocodingPlanDict),
+      icon: HiOutlineMap,
+      group: group.geocoding,
     },
   ];
 
@@ -126,6 +181,18 @@ export default function PlatformPageContent({
     superusers: <PlatformOwnersCard dict={superusersDict} />,
     models: <ModelProvidersSection dict={modelsDict} />,
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
+    geocodingPlan: <GeocodingPlanSection dict={geocodingPlanDict} />,
+    geocodingTenants: (
+      <GeocodingTenantsSection
+        dict={geocodingTenantsDict}
+        lang={lang}
+        filters={tenantFilters}
+        sort={tenantSort}
+        month={tenantMonth}
+        assigning={assigning}
+        onAssignDone={assignDone}
+      />
+    ),
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
@@ -142,6 +209,29 @@ export default function PlatformPageContent({
       icon={HiServer}
       title={tr("title", platformDict)}
       description={tr("description", platformDict)}
+      filters={
+        onTenants && (
+          <GeocodingTenantsToolbar
+            filters={tenantFilters}
+            onFiltersChange={setTenantFilters}
+            sort={tenantSort}
+            onSortChange={setTenantSort}
+            month={tenantMonth}
+            onMonthChange={setTenantMonth}
+            dict={geocodingTenantsDict}
+            rootDict={rootDict}
+            lang={lang}
+          />
+        )
+      }
+      actions={
+        onTenants && (
+          <Button color="blue" size="sm" onClick={() => setAssigning(true)}>
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("assign", geocodingTenantsDict)}
+          </Button>
+        )
+      }
     >
       {isLoading && <Spinner size="md" />}
 

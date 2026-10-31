@@ -107,6 +107,7 @@ export default function MapTooltip({
     if (!centrarVertical || !el || !mapa) return;
     const top = Math.max(0, (mapa.clientHeight - el.offsetHeight) / 2);
     setPosition((p) => ({ ...p, top }));
+    setWasOpen(true);
     // solo al abrir: después manda el arrastre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

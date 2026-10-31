@@ -1450,6 +1450,12 @@
         "title": "Platform",
         "description": "Settings that belong to no organization: they apply across every domain and account.",
         "listTitle": "Platform settings",
+        "groups": {
+          "brand": "Brand and content",
+          "access": "Access",
+          "ai": "AI",
+          "geocoding": "Geocoding"
+        },
         "notOwnerTitle": "You don't have access to this section",
         "notOwnerBody": "Only platform administrators can see and change these settings.",
         "branding": {
@@ -1650,6 +1656,146 @@
           "statusOk": "Working",
           "statusFailed": "Test failed",
           "statusUntested": "Not tested"
+        },
+        "geocoding": {
+          "title": "Geocoding",
+          "menuTitle": "Provider",
+          "menuHint": "Provider the platform contracts",
+          "description": "The platform contracts and pays the geocoding provider. An organization uses it, within its plan's quota, once a platform owner adds the \"Geocoding · platform provider\" connection in Connections. No organization sets up its own provider.",
+          "provider": "Provider",
+          "providerHelp": {
+            "mapbox": "Mapbox Geocoding v6. Results are kept in the cache when permanent mode is on.",
+            "google": "Google Geocoding. Its terms do not allow keeping results in the cache."
+          },
+          "credential": "Credential",
+          "credentialPick": "Choose a credential",
+          "credentialHelp": "A Mapbox or Google Maps credential of the Platform scope, kept in Credentials.",
+          "credentialNone": "The Platform has no credential for this provider. Switch to the Platform scope and create a Mapbox or Google Maps credential in Credentials.",
+          "credentialRequired": "Choose the credential that holds the provider's token.",
+          "permanent": "Permanent mode",
+          "permanentHelp": "Allows keeping results. Mapbox charges it separately.",
+          "cost": "Our cost per call (USD)",
+          "costHelp": "What the provider charges the platform per call. Copied into each usage row. It is not what the organization pays, which comes from its plan.",
+          "costInvalid": "Enter a number, for example 0.005",
+          "save": "Save",
+          "remove": "Remove",
+          "saved": "Provider saved.",
+          "saveError": "Could not save the provider.",
+          "removed": "Provider removed.",
+          "removeError": "Could not remove the provider.",
+          "loadError": "Could not load the provider.",
+          "removeTitle": "Remove the geocoding provider",
+          "removeBody": "Addresses that are not in the cache or the internal source will go to review in every connected organization.",
+          "statusNone": "Not set",
+          "statusConfigured": "Set"
+        },
+        "geocodingPlan": {
+          "title": "Geocoding plan",
+          "menuTitle": "Plan",
+          "menuHint": "Default quota, prices and whether they apply",
+          "description": "How many provider calls the plan includes each month and what they cost. Only provider calls count.",
+          "providerHint": "The provider is a connection: Connections, in the Platform scope.",
+          "enforced": "Apply the quotas",
+          "enforcedOn": "An organization without a subscription does not call the provider. Once its quota is used, its subscription decides.",
+          "enforcedOff": "No call is refused. Usage is still recorded, shown and alerted on.",
+          "resolutions": "Default monthly quota (calls)",
+          "alertPct": "Alert at (% of the quota)",
+          "monthlyPrice": "Monthly price (USD)",
+          "overagePrice": "Price per call over the quota (USD)",
+          "countHelp": "Geofences, Plus Codes, coordinates, the internal source and the cache use no quota.",
+          "save": "Save",
+          "saving": "Saving…",
+          "saved": "The plan was saved.",
+          "saveError": "Could not save.",
+          "loadError": "Could not load.",
+          "errors": {
+            "monthlyPrice": "The monthly price must be a number of zero or more.",
+            "resolutions": "The quota must be a whole number of zero or more.",
+            "overagePrice": "The overage price must be a number of zero or more.",
+            "alertPct": "The alert must be from 1 to 100.",
+            "quota": "The quota must be a whole number of zero or more, or empty."
+          }
+        },
+        "geocodingTenants": {
+          "menuTitle": "Organizations",
+          "menuHint": "Each organization's usage and quota",
+          "search": "Search by name, identifier or tax id",
+          "assign": "Assign quota",
+          "kpi": {
+            "subscribed": "Subscribed",
+            "withUsage": "{count} with a subscription or usage",
+            "providerCalls": "Provider calls",
+            "resolutions": "{count} resolutions in all",
+            "cache": "Answered by the cache",
+            "margin": "Month's charge",
+            "providerCost": "Provider cost: {cost}"
+          },
+          "columns": {
+            "organization": "Organization",
+            "quota": "Used / quota",
+            "cache": "Cache",
+            "providerCost": "Provider cost",
+            "charge": "Charge",
+            "onExhausted": "When used up"
+          },
+          "fromPlan": "plan's",
+          "noSubscription": "No subscription",
+          "empty": "No organization has a subscription or usage this month.",
+          "noMatches": "No organization matches the search.",
+          "page": "Page {page} of {pages} · {count} organizations",
+          "previous": "Previous",
+          "next": "Next",
+          "edit": "Edit quota",
+          "save": "Save",
+          "saveError": "Could not save.",
+          "loadError": "Could not load the usage.",
+          "modes": {
+            "review": {
+              "label": "Send to review",
+              "help": "Stops calling the provider; sites wait for review."
+            },
+            "overage": {
+              "label": "Charge overage",
+              "help": "Keeps calling and charges each call over the quota at the plan's price."
+            }
+          },
+          "modal": {
+            "addTitle": "Assign quota",
+            "addSubtitle": "Gives an organization its geocoding quota.",
+            "editTitle": "Edit quota",
+            "organization": "Organization",
+            "searchOrganization": "Search by name, identifier or tax id",
+            "alreadySubscribed": "Already has a quota; edit it in the table",
+            "noMatches": "No organization matches.",
+            "refine": "{count} more; type to narrow.",
+            "pickFirst": "Pick an organization.",
+            "quota": "Monthly quota (provider calls)",
+            "quotaPlaceholder": "Empty: the plan's ({quota})",
+            "quotaHelp": "Only provider calls count. Geofences, Plus Codes, coordinates, the internal source and the cache use no quota.",
+            "onExhausted": "When the quota is used up",
+            "cancel": "Cancel"
+          },
+          "errors": {
+            "quota": "The quota must be a whole number of zero or more, or empty."
+          },
+          "filters": {
+            "subscription": "Subscription",
+            "subscribed": "Subscribed",
+            "unsubscribed": "No subscription",
+            "level": "Quota",
+            "levelOk": "Normal",
+            "levelAlert": "On alert",
+            "levelExhausted": "Used up",
+            "mode": "When used up",
+            "month": "Month",
+            "sortLabel": "Sort",
+            "sort": {
+              "USAGE_DESC": "Most used",
+              "NAME_ASC": "Name (A-Z)",
+              "COST_DESC": "Highest cost",
+              "CHARGE_DESC": "Highest charge"
+            }
+          }
         },
         "plan": {
           "title": "Seat plan",
@@ -1909,6 +2055,25 @@
           "owners": "Owners",
           "noOwners": "This organization has no owner yet. Until a platform owner assigns one, nobody can manage its members.",
           "ownersError": "Could not load the owners."
+        },
+        "serviceAccount": {
+          "title": "Service account",
+          "description": "This organization's Google identity. It has no key: the platform acts as it when the organization queries published data.",
+          "loadError": "Could not load the service account.",
+          "notConfigured": "Service accounts are not configured on this platform.",
+          "none": "None yet. It is created when you add the \"BigQuery · platform account\" connection in this organization's Settings › Connections.",
+          "email": "Account",
+          "active": "Active",
+          "disabled": "Disabled",
+          "createdBy": "Created by",
+          "updatedBy": "Last change",
+          "check": "Test access",
+          "checking": "Testing…",
+          "checkOk": "The platform can act as this account. It got a token valid until {until}.",
+          "checkDisabled": "The account is disabled: nothing can act as it.",
+          "disable": "Disable",
+          "enable": "Enable",
+          "actionError": "The action could not be completed."
         },
         "parentAccount": "Primary account",
         "noSelection": "Select an organization to view details.",
@@ -2424,6 +2589,7 @@
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
         "trips": "Trips",
+        "geocoding": "Geocoding",
         "communications": "Communications",
         "gps": "GPS",
         "symptomTemplates": "Symptom templates",
@@ -2644,6 +2810,14 @@
             "name": "WhatsApp",
             "description": "A Meta app's access token, for the WhatsApp channel."
           },
+          "mapbox": {
+            "name": "Mapbox",
+            "description": "A Mapbox access token, for locating addresses (geocoding)."
+          },
+          "googleMaps": {
+            "name": "Google Maps",
+            "description": "A Google Maps Platform API key, for locating addresses (geocoding)."
+          },
           "basic": {
             "name": "Basic auth",
             "description": "Username and password sent as HTTP basic authentication."
@@ -2766,6 +2940,14 @@
           "resendEditTitle": "Edit Resend key",
           "resendSubtitle": "The key the email channel sends with. A send-only key is enough.",
           "resendTokenHelp": "Starts with re_. Stored encrypted and never returned.",
+          "mapboxAddTitle": "New Mapbox token",
+          "mapboxEditTitle": "Edit Mapbox token",
+          "mapboxSubtitle": "The token the platform uses for Mapbox geocoding.",
+          "mapboxTokenHelp": "Create a server-only token with no scopes and no URL restriction: geocoding needs neither. Stored encrypted and never returned.",
+          "googleMapsAddTitle": "New Google Maps key",
+          "googleMapsEditTitle": "Edit Google Maps key",
+          "googleMapsSubtitle": "The API key the platform uses for Google's Geocoding API.",
+          "googleMapsTokenHelp": "Starts with AIza. Restrict it to the Geocoding API. Stored encrypted and never returned.",
           "whatsappAddTitle": "New WhatsApp token",
           "whatsappEditTitle": "Edit WhatsApp token",
           "whatsappSubtitle": "The access token the WhatsApp channel calls the Meta API with.",
@@ -3189,6 +3371,10 @@
         "pageTitle": "Trips",
         "pageDescription": "How the organization's trips come in and move forward.",
         "menuTitle": "Sections",
+        "groups": {
+          "trips": "Trips",
+          "geocoding": "Geocoding"
+        },
         "sections": {
           "monitors": {
             "label": "Monitors",
@@ -3205,6 +3391,14 @@
           "feeds": {
             "label": "Feeds",
             "description": "External sources that send the trips"
+          },
+          "geocodingReview": {
+            "label": "To review",
+            "description": "Locations without a reliable point"
+          },
+          "geocodingUsage": {
+            "label": "Monthly usage",
+            "description": "Calls against the quota"
           }
         },
         "title": "Trip monitors",
@@ -3380,6 +3574,119 @@
           "assigned": "Assigned team",
           "save": "Save teams",
           "saved": "Teams saved"
+        }
+      },
+      "geocoding": {
+        "pageTitle": "Geocoding",
+        "pageDescription": "Places trip addresses: what is left to review and the month's use against the quota.",
+        "menuTitle": "Geocoding",
+        "sections": {
+          "review": {
+            "label": "To review",
+            "description": "Locations that could not be placed on their own"
+          },
+          "usage": {
+            "label": "Monthly usage",
+            "description": "Provider calls, quota and charge"
+          }
+        },
+        "review": {
+          "title": "To review",
+          "description": "Locations whose point was not found or fell outside their district. Set the point on the map or enter a Plus Code; validating it creates the geofence.",
+          "search": "Search by name, code or address",
+          "count": "{count} to review",
+          "loading": "Loading…",
+          "empty": "No locations to review.",
+          "noMatches": "No location matches the search.",
+          "location": "Location",
+          "address": "Address",
+          "district": "District",
+          "reason": "Reason",
+          "type": "Type",
+          "noReason": "No reason",
+          "placeAction": "Place",
+          "rejectAction": "Reject",
+          "cancel": "Cancel",
+          "place": {
+            "title": "Place {name}",
+            "help": "Click the map or drag the marker. A Plus Code, when entered, is used instead of the map point.",
+            "map": "Map to set the point",
+            "point": "Point",
+            "noPoint": "No point: click the map",
+            "plusCode": "Plus Code (optional)",
+            "save": "Validate and create geofence"
+          },
+          "reject": {
+            "title": "Reject {name}",
+            "note": "Why it cannot be located",
+            "confirm": "Reject"
+          },
+          "types": {
+            "plant": "Plant",
+            "port": "Port",
+            "distribution_center": "Distribution center",
+            "customer": "Customer",
+            "zone": "Zone"
+          }
+        },
+        "usage": {
+          "title": "Monthly usage",
+          "description": "Each provider call counts toward the month's quota (UTC). The cache, the internal source, geofences, Plus Codes and coordinates do not count.",
+          "previousMonth": "Previous month",
+          "nextMonth": "Next month",
+          "loadError": "The geocoding usage could not be loaded.",
+          "forbidden": "Only an owner of the organization can see the geocoding usage.",
+          "notEnforced": "The quota is not enforced yet: no call is refused, but usage is recorded.",
+          "noSubscriptionEnforced": "No subscription is recorded for this period. Provider calls require an assigned subscription while quotas are enforced. A platform owner manages subscriptions.",
+          "noSubscriptionNotEnforced": "No subscription is recorded for this period. Provider calls are currently allowed because quotas are off; no plan charge is calculated. A platform owner manages subscriptions.",
+          "quota": {
+            "unavailable": "No quota is recorded for this period.",
+            "title": "Quota",
+            "description": "Provider calls this month",
+            "unit": "calls",
+            "remaining": "{count} left",
+            "onExhausted": {
+              "review": "once used up, locations go to review",
+              "overage": "once used up, each call is charged as overage"
+            }
+          },
+          "resolutions": {
+            "title": "Resolutions",
+            "description": "Locations resolved by any source",
+            "cacheHits": "{count} from the cache ({rate})"
+          },
+          "charge": {
+            "unavailable": "No plan charge is recorded for this period.",
+            "title": "Plan charge",
+            "description": "What the organization is charged from its plan",
+            "monthly": "Monthly plan",
+            "overage": "Overage",
+            "total": "Month total: {total}",
+            "overageCalls": "{count} calls over the quota at {price} each"
+          },
+          "bySource": {
+            "title": "By source and result",
+            "empty": "No resolutions this month.",
+            "source": "Source",
+            "result": "Result",
+            "resolutions": "Resolutions",
+            "cacheHits": "Cache",
+            "providerCalls": "Calls"
+          },
+          "sources": {
+            "geofence": "Geofence",
+            "plus_code": "Plus Code",
+            "coordinates": "Coordinates",
+            "internal": "Internal source",
+            "provider": "Provider",
+            "manual": "Manual",
+            "none": "None"
+          },
+          "results": {
+            "resolved": "Resolved",
+            "needs_review": "To review",
+            "rejected": "Rejected"
+          }
         }
       },
       "symptomCatalog": {
@@ -4756,7 +5063,12 @@
         "native": "Built-in",
         "templates": "Templates",
         "postgrest": "Data source for dashboards: tested with its credential, then you choose which functions to expose.",
-        "bigquery": "Dashboard data source: BigQuery SQL with a Google service account."
+        "bigquery": "Dashboard data source: BigQuery SQL with a Google service account.",
+        "managedGeocoding": "Geocoding · platform provider",
+        "managedGeocodingHelp": "Locates addresses with the provider the platform contracts, within the organization's plan. Platform owners only.",
+        "platformGeocodingHelp": "Set the provider the platform contracts: provider, credential and cost per call. Organizations use it through their managed connection.",
+        "managedBigquery": "BigQuery · platform account",
+        "managedBigqueryHelp": "Platform owners only. The organization queries as its own service account, with no key, and sees only the data you publish to it."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -4770,7 +5082,12 @@
         "actionFailed": "Could not complete the action",
         "testOk": "Connection tested successfully",
         "testFailed": "Connection test failed",
-        "connectionDeleted": "Connection deleted"
+        "connectionDeleted": "Connection deleted",
+        "managedGeocodingCreating": "Connecting the platform geocoding…",
+        "managedGeocodingCreated": "Platform geocoding connected",
+        "platformGeocodingSaved": "Platform geocoding provider saved",
+        "managedBigqueryCreating": "Creating the organization's BigQuery connection…",
+        "managedBigqueryCreated": "BigQuery connection created"
       },
       "template": {
         "form": {
@@ -4913,6 +5230,11 @@
         "copyJson": "Copy JSON",
         "conflict": "Someone else saved this query. Reload it to see their version.",
         "failed": "The request failed"
+      },
+      "managedGeocodingSetup": {
+        "title": "Platform geocoding provider",
+        "body": "The platform has no provider yet. Choose its credential and set it here: it is saved once for the platform, then this organization is connected.",
+        "platformBody": "The provider every organization uses. Choose the Platform's Mapbox or Google Maps credential and our cost per call."
       }
     },
     "calendar": {
@@ -5487,6 +5809,7 @@
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
         "trips": "Trips",
+        "geocoding": "Geocoding",
         "communications": "Communications",
         "gps": "GPS",
         "fleet": "Fleet"

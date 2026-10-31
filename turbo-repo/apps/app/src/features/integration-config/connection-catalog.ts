@@ -20,6 +20,7 @@ export interface ConnectionMark {
 
 const PROVIDER_LABELS: Record<string, string> = {
   CAR_IMAGES: "CarImages",
+  GEOCODING: "Geocoding",
   POSTGREST: "PostgREST",
   RESEND: "Resend",
   WHATSAPP: "WhatsApp",
@@ -34,9 +35,17 @@ export const BIGQUERY_LOGO: BrandLogoSources = {
   light: "/credential-logos/bigquery-light.svg",
   dark: "/credential-logos/bigquery-dark.svg",
 };
+export const GEOCODING_LOGO: BrandLogoSources = {
+  light: "/credential-logos/geocoding-light.svg",
+  dark: "/credential-logos/geocoding-dark.svg",
+};
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
+  GEOCODING: {
+    logo: GEOCODING_LOGO,
+    keyline: "circle",
+  },
   // Taller than wide: the round keyline gives it the height the square one takes away.
   POSTGREST: {
     logo: POSTGREST_LOGO,
@@ -57,6 +66,16 @@ const CHANNEL_TEMPLATES: Record<string, string> = {
   "Slack de comunicaciones": "slack",
   "Teams de comunicaciones": "teams",
 };
+
+/**
+ * A connection the platform creates and manages: an organization's geocoding
+ * connection, or the platform's own provider. It is not edited through the
+ * connection form; its test runs through the platform's provider, and only a
+ * platform owner removes it.
+ */
+export function isPlatformManaged(connection: IntegrationConnection): boolean {
+  return connection.providerType === "GEOCODING";
+}
 
 export function providerLabel(providerType: string): string {
   return PROVIDER_LABELS[providerType] ?? providerType;

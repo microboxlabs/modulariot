@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,7 +11,9 @@ import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
+import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
+import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import java.net.URI;
@@ -78,12 +81,63 @@ class IntegrationConnectionManagementTest {
         assertEquals(Map.of("app_secret", "example-signing-key"), credentials.updates);
     }
 
+    @Test
+    void anOrganizationCannotCreateAGeocodingConnection() {
+        IntegrationConnectionService service = service();
+        CreateIntegrationConnectionRequest request = new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, "cred-1", Map.of(), null);
+        PlatformOnlyProviderException error = assertThrows(PlatformOnlyProviderException.class, () -> service.createConnection(TENANT, request));
+        assertTrue(error.getMessage().startsWith("GEOCODING connections are managed by the platform"));
+        assertNull(connections.created);
+    }
+
+    @Test
+    void anOrganizationCannotChangeAGeocodingConnection() {
+        connections.providerType = ProviderType.GEOCODING;
+        IntegrationConnectionService service = service();
+        UpdateIntegrationConnectionRequest request = new UpdateIntegrationConnectionRequest(null, null, Map.of("costPerRequestUsd", "0"), null, null);
+        assertThrows(PlatformOnlyProviderException.class, () -> service.updateConnection(TENANT, "conn-1", request));
+        assertNull(connections.updatedCredentialId);
+    }
+
+    @Test
+    void anOrganizationCannotDeleteOrTestAGeocodingConnection() {
+        connections.providerType = ProviderType.GEOCODING;
+        IntegrationConnectionService service = service();
+        CreateIntegrationConnectionRequest request = new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, null, null, null);
+        assertThrows(PlatformOnlyProviderException.class, () -> service.deleteConnection(TENANT, "conn-1"));
+        assertThrows(PlatformOnlyProviderException.class, () -> service.testConnection(TENANT, "conn-1", null));
+        assertThrows(PlatformOnlyProviderException.class, () -> service.testDraft(TENANT, request));
+        assertFalse(connections.softDeleted);
+    }
+
+    @Test
+    void thePlatformManagesAnOrganizationGeocodingConnection() {
+        IntegrationConnection created = service().createPlatformManaged(TENANT, new CreateIntegrationConnectionRequest(
+                "Geocoding", ProviderType.GEOCODING, null, "cred-1", Map.of(), null));
+        connections.providerType = ProviderType.GEOCODING;
+
+        assertEquals(TENANT, created.tenantCode());
+        assertTrue(service().deletePlatformManaged(TENANT, "conn-1"));
+        assertTrue(connections.softDeleted);
+    }
+
+    @Test
+    void thePlatformCreatesItsGeocodingConnection() {
+        IntegrationConnection created = service().createConnection(PlatformMailService.PLATFORM_TENANT,
+                new CreateIntegrationConnectionRequest("Mapbox", ProviderType.GEOCODING, null, "cred-1", Map.of(),
+                        null));
+
+        assertEquals(ProviderType.GEOCODING, created.providerType());
+    }
+
     /* ---- fakes ---- */
 
     private static final class FakeConnections extends IntegrationConnectionRepository {
         private boolean present = true;
         private boolean softDeleted;
         private String updatedCredentialId;
+        private IntegrationConnection created;
+        private ProviderType providerType = ProviderType.CUSTOM_HTTP;
 
         private FakeConnections() {
             super(null);
@@ -91,7 +145,13 @@ class IntegrationConnectionManagementTest {
 
         @Override
         public IntegrationConnection findByTenantAndId(String tenantCode, String connectionId) {
-            return present ? stub() : null;
+            return present ? stub(providerType) : null;
+        }
+
+        @Override
+        public IntegrationConnection create(IntegrationConnection connection) {
+            created = connection;
+            return connection;
         }
 
         @Override
@@ -99,7 +159,7 @@ class IntegrationConnectionManagementTest {
                 String tenantCode, String connectionId, String name, String baseUrl,
                 String credentialProfileId, Map<String, Object> metadata) {
             updatedCredentialId = credentialProfileId;
-            return stub();
+            return stub(providerType);
         }
 
         @Override
@@ -108,9 +168,9 @@ class IntegrationConnectionManagementTest {
             return present;
         }
 
-        private static IntegrationConnection stub() {
+        private static IntegrationConnection stub(ProviderType providerType) {
             return new IntegrationConnection(
-                    "conn-1", TENANT, "Partner QA", ProviderType.CUSTOM_HTTP,
+                    "conn-1", TENANT, "Partner QA", providerType,
                     URI.create("https://qa.example.com"), "cred-old", ConnectionStatus.ACTIVE,
                     null, null, Map.of(), "tmpl-1");
         }

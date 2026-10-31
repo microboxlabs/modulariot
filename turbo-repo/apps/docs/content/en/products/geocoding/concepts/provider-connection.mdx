@@ -32,7 +32,7 @@ When an organization needs the provider:
 
 ## If an organization brings its own credential
 
-Not possible today. An organization geocoding connection that is not the managed one is refused (`geocoding: this organization's geocoding connection is not managed by the platform`), and connecting the managed one deletes it. The organization always uses the platform's provider and its quota.
+Not possible. The cache is shared and reuses results across organizations, so the provider is always the platform's. An organization geocoding connection that is not the managed one is refused (`geocoding: this organization's geocoding connection is not managed by the platform`), and connecting the managed one deletes it.
 
 ## The credential's cost
 

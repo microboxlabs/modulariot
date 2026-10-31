@@ -49,6 +49,27 @@ class SignalBuilderTest {
         return s.trips() == null ? null : s.trips().get(SENDER);
     }
 
+    private static String withEvents(String... types) {
+        String events = String.join(",", java.util.Arrays.stream(types)
+                .map(t -> "{\"event_type\":\"" + t + "\"}").toList());
+        return frame("ABCD12", 0, false).replace("\"sensors\":", "\"events\":[" + events + "],\"sensors\":");
+    }
+
+    @Test
+    void powerAndJammingEventsAreDerivedFromTheFramesEvents() {
+        ReferenceCache refs = refs(List.of(), List.of());
+
+        assertEquals(false, build(refs, frame("ABCD12", 0, false)).derived().powerDisconnected());
+        assertEquals(true, build(refs, withEvents("ALIMENTACION BATERIA DESCONECTADA")).derived().powerDisconnected());
+        assertEquals(true, build(refs, withEvents("EVENTO_SMDP_ALIMENTACION_EXTERNA_DESCONECTADA")).derived()
+                .powerDisconnected());
+        assertEquals(true, build(refs, withEvents("External power disconnected")).derived().powerDisconnected());
+        assertEquals(false, build(refs, withEvents("ALIMENTACION BATERIA", "fullbatt")).derived().powerDisconnected(),
+                "on battery is not a disconnection by itself");
+        assertEquals(true, build(refs, withEvents("GpsJammingDetected")).derived().jamming());
+        assertEquals(false, build(refs, withEvents("panic.per")).derived().jamming());
+    }
+
     @Test
     void carriesTheFrameAndWhatTheBuilderAdds() {
         GpsSignal s = build(refs(List.of(), List.of()), frame("ABCD12", 42.5, true));

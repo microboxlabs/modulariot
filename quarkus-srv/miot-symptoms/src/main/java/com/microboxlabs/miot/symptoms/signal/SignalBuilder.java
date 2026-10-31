@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.signal;
 
 import cl.streamhub.gps.model.AssetTrackingData;
 import cl.streamhub.gps.model.EnvelopedMessage;
+import cl.streamhub.gps.model.Event;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Builds {@link GpsSignal}s from GPS frames and the reference cache. What it
@@ -21,6 +23,14 @@ public class SignalBuilder {
     /** Above this speed the vehicle is moving, as in the GPS database's signal function (2.78 m/s). */
     static final double MOVING_KMH = 10;
     private static final String M2M_SUFFIX = "@clients";
+    /**
+     * Device event types of external power disconnected, as GPS providers name them: "ALIMENTACION BATERIA
+     * DESCONECTADA", "EVENTO_SMDP_ALIMENTACION_EXTERNA_DESCONECTADA", "power disconnected", "power cut".
+     */
+    static final Pattern POWER_DISCONNECTED = Pattern.compile(
+            "(?i).*(alimentaci[oó]n.*desconectad|power.*(disconnect|cut)).*");
+    /** GNSS or GSM jamming events ("GpsJammingDetected", "GSM jamming", "JAMMING"). */
+    static final Pattern JAMMING = Pattern.compile("(?i).*jamm.*");
 
     private final ReferenceCache refs;
     private final ZoneId zone;
@@ -44,8 +54,16 @@ public class SignalBuilder {
         Map<String, GpsSignal.Trip> trips = new LinkedHashMap<>();
         refs.tripsAt(assetId, at, clients).forEach((client, t) -> trips.put(client, trip(t, at)));
         Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
-        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, clients, sender, trips.isEmpty() ? null : trips,
-                null, null, null, null, at.atZone(zone).getHour(), new GpsSignal.Derived(moving, null), frame));
+        GpsSignal.Derived derived = new GpsSignal.Derived(moving, null, event(frame, POWER_DISCONNECTED),
+                event(frame, JAMMING));
+        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, clients, sender,
+                trips.isEmpty() ? null : trips, null, null, null, null, at.atZone(zone).getHour(), derived, frame));
+    }
+
+    /** True when one of the frame's events matches, false otherwise: a rule reads it without {@code has()}. */
+    static boolean event(AssetTrackingData frame, Pattern type) {
+        return frame.getEvents() != null && frame.getEvents().stream().map(Event::getEventType)
+                .anyMatch(t -> t != null && type.matcher(t.replace('_', ' ')).matches());
     }
 
     /** The trip in progress as the signal carries it, timed against the frame. */

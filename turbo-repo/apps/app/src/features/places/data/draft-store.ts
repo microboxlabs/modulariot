@@ -2,6 +2,7 @@
 // recargar la página se puede seguir donde se quedó. Cada mapa (vista
 // geográfica, mapa del viaje) guarda el suyo. Se borra al cerrar o guardar.
 import { z } from "zod";
+import { placesStorageKey } from "./storage-key";
 import {
   FORM_VACIO,
   TRAY_VACIO,
@@ -63,7 +64,8 @@ const borradorSchema = z.object({
   ]),
 });
 
-const clave = (ambito: AmbitoBorrador) => `${PREFIJO}${ambito}`;
+const clave = (ambito: AmbitoBorrador, scope: string | null) =>
+  placesStorageKey(`${PREFIJO}${ambito}`, scope);
 
 /** Lo guardado sobre los valores por defecto: tolera campos nuevos. */
 const conLugar = (f: Record<string, unknown>) =>
@@ -71,10 +73,16 @@ const conLugar = (f: Record<string, unknown>) =>
 const conTrayecto = (t: Record<string, unknown>) =>
   ({ ...TRAY_VACIO, ...t }) as FormTrayecto;
 
-export function guardarBorrador(ambito: AmbitoBorrador, borrador: Borrador) {
+export function guardarBorrador(
+  ambito: AmbitoBorrador,
+  scope: string | null,
+  borrador: Borrador
+) {
+  const key = clave(ambito, scope);
+  if (!key) return;
   try {
     window.localStorage.setItem(
-      clave(ambito),
+      key,
       JSON.stringify({ guardadoEn: Date.now(), borrador })
     );
   } catch {
@@ -82,9 +90,11 @@ export function guardarBorrador(ambito: AmbitoBorrador, borrador: Borrador) {
   }
 }
 
-export function borrarBorrador(ambito: AmbitoBorrador) {
+export function borrarBorrador(ambito: AmbitoBorrador, scope: string | null) {
+  const key = clave(ambito, scope);
+  if (!key) return;
   try {
-    window.localStorage.removeItem(clave(ambito));
+    window.localStorage.removeItem(key);
   } catch {
     // sin acceso: no hay nada que borrar
   }
@@ -92,11 +102,14 @@ export function borrarBorrador(ambito: AmbitoBorrador) {
 
 export function leerBorrador(
   ambito: AmbitoBorrador,
+  scope: string | null,
   ahora = Date.now()
 ): Borrador | null {
+  const key = clave(ambito, scope);
+  if (!key) return null;
   let raw: string | null;
   try {
-    raw = window.localStorage.getItem(clave(ambito));
+    raw = window.localStorage.getItem(key);
   } catch {
     return null;
   }
@@ -105,11 +118,11 @@ export function leerBorrador(
   try {
     parsed = borradorSchema.parse(JSON.parse(raw));
   } catch {
-    borrarBorrador(ambito);
+    borrarBorrador(ambito, scope);
     return null;
   }
   if (ahora - parsed.guardadoEn > VIGENCIA_MS) {
-    borrarBorrador(ambito);
+    borrarBorrador(ambito, scope);
     return null;
   }
   const b = parsed.borrador;
@@ -132,5 +145,5 @@ export function leerBorrador(
   };
 }
 
-export const hayBorrador = (ambito: AmbitoBorrador) =>
-  leerBorrador(ambito) !== null;
+export const hayBorrador = (ambito: AmbitoBorrador, scope: string | null) =>
+  leerBorrador(ambito, scope) !== null;

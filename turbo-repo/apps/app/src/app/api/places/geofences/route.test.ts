@@ -5,6 +5,10 @@ import { NextResponse } from "next/server";
 vi.mock("server-only", () => ({}));
 
 const requireAuthMock = vi.fn();
+const resolveScopeMock = vi.fn();
+vi.mock("@/app/api/utils/tenant-scope", () => ({
+  resolveTenantScope: () => resolveScopeMock(),
+}));
 const fetchClientGeofencesMock = vi.fn();
 
 vi.mock("@/app/api/utils/alfresco-crud-client", () => ({
@@ -40,14 +44,18 @@ describe("GET /api/places/geofences", () => {
     vi.clearAllMocks();
     vi.stubEnv("STREAMHUB_CLIENT_ID", "app-client");
     requireAuthMock.mockResolvedValue({ authenticated: true });
+    resolveScopeMock.mockResolvedValue({
+      resolved: true,
+      scope: { activeOrg: { modules: [] }, effectiveTaxIds: [] },
+    });
   });
 
   it("returns the app client's geofences as places", async () => {
     fetchClientGeofencesMock.mockResolvedValue([
       {
         geofence_id: 7,
-        client_geofence_id: "SCL",
-        geofence_name: "SITRANS SANTIAGO",
+        client_geofence_id: "DEMO-7",
+        geofence_name: "Demo depot",
         polygon_type: "polygonal",
         coordinates: ewkb(cuadrado),
         properties: null,
@@ -69,8 +77,8 @@ describe("GET /api/places/geofences", () => {
     expect(body).toHaveLength(1);
     expect(body[0]).toMatchObject({
       place_id: "streamhub-7",
-      name: "SITRANS SANTIAGO",
-      external_id: "SCL",
+      name: "Demo depot",
+      external_id: "DEMO-7",
       geometry_type: "polygon",
     });
     expect(body[0].polygon).toHaveLength(4);
@@ -98,4 +106,30 @@ describe("GET /api/places/geofences", () => {
     fetchClientGeofencesMock.mockRejectedValue(new Error("pgrest down"));
     expect((await GET()).status).toBe(500);
   });
+});
+
+it("does not expose the configured tower client to carrier organizations", async () => {
+  requireAuthMock.mockResolvedValue({ authenticated: true });
+  resolveScopeMock.mockResolvedValue({
+    resolved: true,
+    scope: {
+      activeOrg: { modules: ["CARRIER_PORTAL"] },
+      effectiveTaxIds: ["demo-tax-id"],
+    },
+  });
+  fetchClientGeofencesMock.mockClear();
+  const { GET } = await import("./route");
+  expect((await GET()).status).toBe(403);
+  expect(fetchClientGeofencesMock).not.toHaveBeenCalled();
+});
+it("does not fetch a global source when tenant resolution fails", async () => {
+  requireAuthMock.mockResolvedValue({ authenticated: true });
+  resolveScopeMock.mockResolvedValue({
+    resolved: false,
+    response: NextResponse.json({ error: "Unavailable" }, { status: 502 }),
+  });
+  fetchClientGeofencesMock.mockClear();
+  const { GET } = await import("./route");
+  expect((await GET()).status).toBe(502);
+  expect(fetchClientGeofencesMock).not.toHaveBeenCalled();
 });

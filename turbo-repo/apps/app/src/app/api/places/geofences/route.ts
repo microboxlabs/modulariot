@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+import { isCarrierOrg } from "@/app/api/utils/carrier-scope";
 import { requireAuth } from "@/app/api/utils/alfresco-crud-client";
 import {
   decodeEwkbOuterRing,
@@ -19,6 +21,16 @@ import { logger } from "@/lib/logger";
 export async function GET() {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
+  const scope = await resolveTenantScope();
+  if (!scope.resolved) return scope.response;
+  // The configured client is tower-wide, not an organization mapping.
+  // A carrier must never inherit that unfiltered source.
+  if (isCarrierOrg(scope.scope)) {
+    return NextResponse.json(
+      { error: "Organization geofence source is not configured" },
+      { status: 403 }
+    );
+  }
 
   const clientId = process.env.STREAMHUB_CLIENT_ID;
   if (!clientId) {

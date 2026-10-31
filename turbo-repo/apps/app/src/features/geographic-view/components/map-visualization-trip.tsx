@@ -338,15 +338,6 @@ export default function MapVisualizationTrip({
     setLugaresAbierto(abierto);
     onLugaresChange?.(abierto);
   };
-  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
-  // (el editor retoma el borrador al abrirse)
-  const borradorRevisado = useRef(false);
-  useEffect(() => {
-    if (!puedeEditarLugares || borradorRevisado.current) return;
-    borradorRevisado.current = true;
-    if (!lugaresAbierto && hayBorrador("viaje")) cambiarLugares(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeEditarLugares]);
   const [zoom, setZoom] = useState(2);
   const alCambioZoom = (z: number) => {
     const next = Math.round((z || 2) * 10) / 10;
@@ -371,6 +362,21 @@ export default function MapVisualizationTrip({
     zoom,
     ambito: "viaje",
   });
+  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
+  // (el editor retoma el borrador al abrirse)
+  const borradorRevisado = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !lugares.ws.storageScope ||
+      !puedeEditarLugares ||
+      borradorRevisado.current === lugares.ws.storageScope
+    )
+      return;
+    borradorRevisado.current = lugares.ws.storageScope;
+    if (!lugaresAbierto && hayBorrador("viaje", lugares.ws.storageScope))
+      cambiarLugares(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeEditarLugares, lugares.ws.storageScope]);
 
   // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
   const alternarLugares = () => {

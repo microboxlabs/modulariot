@@ -178,7 +178,10 @@ function placesReadKey(
   endpoint: string
 ): [string, string] | null {
   if (!enabled || !scope) return null;
-  return [endpoint.startsWith("/") ? endpoint : `/app/api/atc/rpc/${endpoint}`, scope];
+  return [
+    endpoint.startsWith("/") ? endpoint : `/app/api/atc/rpc/${endpoint}`,
+    scope,
+  ];
 }
 // Como post, pero null cuando el backend no responde (red caída o HTTP != 2xx):
 // el llamador cae al respaldo local.
@@ -1187,8 +1190,16 @@ export function usePlacesWorkspace(
     setPasoLugar("geocerca");
   };
 
+  const workspaceScope = useRef(storageScope);
   useEffect(() => {
-    if (enabled) return;
+    if (enabled && workspaceScope.current === storageScope) return;
+    workspaceScope.current = storageScope;
+    formOriginal.current = null;
+    trayOriginal.current = null;
+    inicialLugar.current = null;
+    inicialTray.current = null;
+    setCierrePendiente(false);
+    setVersionPendiente(null);
     setForm({ ...FORM_VACIO });
     setPasoLugar("geocerca");
     setTray({ ...TRAY_VACIO });
@@ -1202,16 +1213,22 @@ export function usePlacesWorkspace(
     setConfirmacion(null);
     setHoveredPlaceId(null);
     setModo("ver");
-  }, [enabled]);
+  }, [enabled, storageScope]);
   // Abrir, cerrar o guardar un formulario desmonta la lista bajo el mouse (su
   // mouseleave no llega): la geocerca que estaba resaltada deja de estarlo.
   useEffect(() => setHoveredPlaceId(null), [modo]);
   // Borrador: lo abierto se guarda con cada cambio, así al recargar se sigue
   // ahí. Cerrar o guardar (volver a "ver" desde un formulario) lo borra.
   const modoAntes = useRef(modo);
+  const draftScope = useRef(storageScope);
   useEffect(() => {
+    if (draftScope.current !== storageScope) {
+      draftScope.current = storageScope;
+      modoAntes.current = "ver";
+      return;
+    }
     if (modo === "lugar") {
-      guardarBorrador(ambito, {
+      guardarBorrador(ambito, storageScope, {
         tipo: "lugar",
         form,
         paso: pasoLugar,
@@ -1219,7 +1236,7 @@ export function usePlacesWorkspace(
         inicial: inicialLugar.current,
       });
     } else if (modo === "trayecto") {
-      guardarBorrador(ambito, {
+      guardarBorrador(ambito, storageScope, {
         tipo: "trayecto",
         tray,
         paso: pasoTrayecto,
@@ -1231,10 +1248,19 @@ export function usePlacesWorkspace(
       modoAntes.current === "lugar" ||
       modoAntes.current === "trayecto"
     ) {
-      borrarBorrador(ambito);
+      borrarBorrador(ambito, storageScope);
     }
     modoAntes.current = modo;
-  }, [ambito, modo, form, pasoLugar, tray, pasoTrayecto, trayPathAjustado]);
+  }, [
+    ambito,
+    storageScope,
+    modo,
+    form,
+    pasoLugar,
+    tray,
+    pasoTrayecto,
+    trayPathAjustado,
+  ]);
 
   /** Tras recargar el mapa puede no estar montado aún: se espera (≤ 5 s). */
   const cuandoHayaMapa = (accion: () => void, intentos = 50) => {
@@ -1267,7 +1293,7 @@ export function usePlacesWorkspace(
    */
   const restaurarBorrador = (): boolean => {
     if (!puedeEditar || modo !== "ver") return false;
-    const b = leerBorrador(ambito);
+    const b = leerBorrador(ambito, storageScope);
     if (!b) return false;
     setMsg(null);
     if (b.tipo === "lugar") {
@@ -2328,6 +2354,7 @@ export function usePlacesWorkspace(
   };
 
   return {
+    storageScope,
     MAPBOX_TOKEN,
     carrierMode,
     mapStyle,

@@ -28,8 +28,7 @@ vi.mock("@/features/runtime-config/runtime-config-context", () => ({
   useRuntimeConfig: () => ({}),
 }));
 import { toast } from "sonner";
-import { nuevoInner } from "../geofences/inner-geofences";
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 import { usePlacesWorkspace } from "./use-places-workspace";
 
 beforeEach(() => {
@@ -85,62 +84,67 @@ describe("Places workspace identity", () => {
     }
     expect(
       fetch.mock.calls.every(
-        ([url]) =>
-          typeof url === "string" && url.startsWith("/app/api/atc/rpc/")
+        ([url]) => typeof url === "string" && url.startsWith("/app/api/")
       )
     ).toBe(true);
   });
 });
 
-describe("Places partial save failures", () => {
-  it.each(["http", "rejected", "validity"])(
-    "keeps the saved parent and pending edits after %s failure",
-    async (failure) => {
-      vi.mocked(toast.success).mockClear();
-      vi.mocked(toast.error).mockClear();
-      const fetch = vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ ok: true, place_id: "demo-parent" }),
-        })
-        .mockResolvedValue({
-          ok: failure === "rejected",
-          json: async () => ({ ok: false, error: "demo failure" }),
-        });
-      vi.stubGlobal("fetch", fetch);
-      const { result } = renderHook(() =>
-        usePlacesWorkspace({ current: null })
-      );
-      act(() => {
-        result.current.setModo("lugar");
-        result.current.setForm({
-          ...FORM_VACIO,
-          name: "Demo parent",
-          lat: 1,
-          lon: 1,
-          active_from: failure === "validity" ? "2026-11-01" : "",
-          inners:
-            failure === "validity"
-              ? []
-              : [
-                  {
-                    ...nuevoInner(),
-                    name: "Demo inner",
-                    lat: 1,
-                    lon: 1,
-                  },
-                ],
-        });
+describe("Places browser-only creation", () => {
+  it("stores new places locally and never writes to StreamHub or PT4", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const { result, rerender } = renderHook(() =>
+      usePlacesWorkspace({ current: null })
+    );
+    act(() => {
+      result.current.setModo("lugar");
+      result.current.setForm({
+        ...FORM_VACIO,
+        name: "Demo draft",
+        lat: 1,
+        lon: 1,
       });
-      await act(async () => {
-        await result.current.guardarLugar();
+    });
+    await act(async () => {
+      await result.current.guardarLugar();
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.todosLugares.map((place) => place.name)).toEqual([
+      "Demo draft",
+    ]);
+    state.org = "demo-org-b";
+    rerender();
+    expect(result.current.todosLugares).toEqual([]);
+  });
+
+  it("does not copy the open form into a newly selected organization's draft", () => {
+    const { result, rerender } = renderHook(() =>
+      usePlacesWorkspace({ current: null })
+    );
+    act(() => {
+      result.current.setModo("lugar");
+      result.current.setForm({
+        ...FORM_VACIO,
+        name: "Demo private draft",
+        lat: 1,
+        lon: 1,
       });
-      expect(toast.success).not.toHaveBeenCalled();
-      expect(toast.error).toHaveBeenCalled();
-      expect(result.current.form.place_id).toBe("demo-parent");
-      expect(result.current.modo).toBe("lugar");
-      expect(result.current.guardando).toBe(false);
-    }
-  );
+    });
+    state.org = "demo-org-b";
+    rerender();
+    expect(result.current.form.name).toBe("");
+    expect(result.current.modo).toBe("ver");
+    const key = placesStorageKey(
+      "miot.places.draft.v1.geografico",
+      JSON.stringify([state.user, state.org])
+    )!;
+    expect(localStorage.getItem(key)).toBeNull();
+    state.org = "demo-org-a";
+    rerender();
+    vi.useFakeTimers();
+    act(() => { expect(result.current.restaurarBorrador()).toBe(true); });
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
 });

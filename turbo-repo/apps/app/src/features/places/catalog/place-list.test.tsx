@@ -66,12 +66,12 @@ describe("PlaceList", () => {
   it("has no edit/delete menu on StreamHub geofences (read-only)", () => {
     setup({
       lugares: [
-        lugar({ place_id: "streamhub-7", name: "SITRANS SANTIAGO" }),
+        lugar({ place_id: "streamhub-7", name: "Demo depot" }),
         lugar({ place_id: "local-x", name: "Bodega" }),
       ],
     });
-    expect(screen.getByText("SITRANS SANTIAGO")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Opciones de SITRANS SANTIAGO")).toBeNull();
+    expect(screen.getByText("Demo depot")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Opciones de Demo depot")).toBeNull();
     // a test place created here keeps its menu
     expect(screen.getByLabelText("Opciones de Bodega")).toBeInTheDocument();
   });

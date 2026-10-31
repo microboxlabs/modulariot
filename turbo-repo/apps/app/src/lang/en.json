@@ -2580,6 +2580,7 @@
         "organizations": "Organizations",
         "team": "Team",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
@@ -2718,6 +2719,7 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "selectables": "Selectables",
         "contactBook": "Contact book",
@@ -5774,6 +5776,7 @@
         "organizations": "Organizations",
         "team": "Team",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
@@ -7313,6 +7316,44 @@
       "decodeError": "Error decoding image",
       "downloadSuccess": "Image downloaded",
       "downloadError": "Error downloading image"
+    },
+    "profiles": {
+      "label": "Profile",
+      "admin": "Admin",
+      "other": "Other",
+      "comingSoon": "coming soon"
+    },
+    "notch": {
+      "label": "Map views",
+      "places": "Places of interest"
+    },
+    "places": {
+      "title": "Places of interest",
+      "hint": "Search the catalog or import. Right-click the map to create a place or a route.",
+      "hint_read_only": "Read only: search the catalog or download. Creating, editing or importing needs the “Places editor” permission."
+    },
+    "places_permission_debug": {
+      "title": "Debug · Places editor",
+      "hint": "Try the view with and without the permission. This browser only.",
+      "real": "From roles",
+      "on": "Force on",
+      "off": "Force off",
+      "granted": "Your roles grant it",
+      "denied": "Your roles don't grant it",
+      "active": "On",
+      "inactive": "Off"
+    },
+    "trip_geofences": {
+      "title": "Trip geofences",
+      "origin": "Trip origin",
+      "destination": "Trip destination",
+      "other": "Trip geofence"
+    },
+    "layers": {
+      "title": "Layers",
+      "vehiculos": "Vehicles",
+      "geocercas": "Geofences",
+      "trayectos": "Routes"
     }
   },
   "release": {

@@ -2580,6 +2580,7 @@
         "organizations": "Organizaciones",
         "team": "Equipo",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",
@@ -2718,6 +2719,7 @@
         "title": "Ajustes",
         "general": "General",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
@@ -5778,6 +5780,7 @@
         "organizations": "Organizaciones",
         "team": "Equipo",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",
@@ -7313,6 +7316,44 @@
       "decodeError": "Error al decodificar imagen",
       "downloadSuccess": "Imagen descargada",
       "downloadError": "Error al descargar imagen"
+    },
+    "profiles": {
+      "label": "Perfil",
+      "admin": "Admin",
+      "other": "Otro",
+      "comingSoon": "próximamente"
+    },
+    "notch": {
+      "label": "Vistas del mapa",
+      "places": "Lugares de interés"
+    },
+    "places": {
+      "title": "Lugares de interés",
+      "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto.",
+      "hint_read_only": "Solo lectura: busca en el catálogo o descarga. Crear, editar o importar necesita el permiso «Editor de lugares»."
+    },
+    "places_permission_debug": {
+      "title": "Debug · Editor de lugares",
+      "hint": "Prueba la vista con y sin el permiso. Solo en este navegador.",
+      "real": "Según roles",
+      "on": "Forzar activo",
+      "off": "Forzar inactivo",
+      "granted": "Tus roles lo tienen",
+      "denied": "Tus roles no lo tienen",
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "trip_geofences": {
+      "title": "Geocercas del viaje",
+      "origin": "Origen del viaje",
+      "destination": "Destino del viaje",
+      "other": "Geocerca del viaje"
+    },
+    "layers": {
+      "title": "Capas",
+      "vehiculos": "Vehículos",
+      "geocercas": "Geocercas",
+      "trayectos": "Trayectos"
     }
   },
   "release": {

@@ -57,6 +57,8 @@ export interface AsyncJob {
   readonly chainSequence: number;
   readonly dedupeKey: string | null;
   readonly payload: Record<string, unknown>;
+  /** What the handler reported when it finished, such as the sites a trips feed located. */
+  readonly result?: Record<string, unknown> | null;
   readonly state: JobState;
   readonly attempts: number;
   readonly maxAttempts: number;
@@ -248,7 +250,9 @@ export function shortJobId(id: string): string {
  * than as its declared type: a non-array, or entries that are not objects, read
  * as "no timeline" instead of crashing the panel.
  */
-export function readAttemptExchanges(entry: AsyncJobAttempt): JobHttpExchange[] {
+export function readAttemptExchanges(
+  entry: AsyncJobAttempt
+): JobHttpExchange[] {
   if (!Array.isArray(entry.http)) return [];
   return entry.http.filter(
     (exchange): exchange is JobHttpExchange =>
@@ -269,9 +273,12 @@ export function exchangePath(url: string | undefined): string {
 
 /** Tailwind classes for a status pill: 2xx ok, 4xx caller's fault, else bad. */
 export function exchangeStatusTone(status: number | undefined): string {
-  if (status === undefined) return "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
-  if (status < 300) return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300";
-  if (status < 500) return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
+  if (status === undefined)
+    return "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
+  if (status < 300)
+    return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300";
+  if (status < 500)
+    return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
   return "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
 }
 
@@ -313,7 +320,10 @@ export function formatClock(value: unknown): string {
 }
 
 /** "now", "42s", "7m", "3h", "2d" — compact relative age. */
-export function relativeAge(value: unknown, nowMs: number = Date.now()): string {
+export function relativeAge(
+  value: unknown,
+  nowMs: number = Date.now()
+): string {
   const ms = toEpochMs(value);
   if (ms == null) return "—";
   const seconds = Math.round((nowMs - ms) / 1000);
@@ -327,7 +337,10 @@ export function relativeAge(value: unknown, nowMs: number = Date.now()): string 
 }
 
 /** "in 12s" / "in 3m" / "due now" — countdown to a future instant. */
-export function countdownTo(value: unknown, nowMs: number = Date.now()): string {
+export function countdownTo(
+  value: unknown,
+  nowMs: number = Date.now()
+): string {
   const ms = toEpochMs(value);
   if (ms == null) return "—";
   const seconds = Math.round((ms - nowMs) / 1000);
@@ -345,10 +358,16 @@ export function countdownTo(value: unknown, nowMs: number = Date.now()): string 
 export function jobDurationMs(job: AsyncJob): number | null {
   const finished = [...job.attemptHistory]
     .reverse()
-    .find((entry) => entry.outcome === "SUCCEEDED" || entry.outcome === "FAILED" || entry.outcome === "SKIPPED");
+    .find(
+      (entry) =>
+        entry.outcome === "SUCCEEDED" ||
+        entry.outcome === "FAILED" ||
+        entry.outcome === "SKIPPED"
+    );
   const startedAt = toEpochMs(job.createdAt);
   const finishedAt = toEpochMs(finished?.at);
-  if (startedAt == null || finishedAt == null || finishedAt < startedAt) return null;
+  if (startedAt == null || finishedAt == null || finishedAt < startedAt)
+    return null;
   return finishedAt - startedAt;
 }
 
@@ -359,7 +378,10 @@ export function formatDurationMs(ms: number): string {
 }
 
 /** One line of context for the table's detail column. */
-export function jobContextLine(job: AsyncJob, nowMs: number = Date.now()): string {
+export function jobContextLine(
+  job: AsyncJob,
+  nowMs: number = Date.now()
+): string {
   switch (job.state) {
     case "RUNNING":
       return job.lockedBy ? `running · ${job.lockedBy}` : "running";
@@ -373,7 +395,9 @@ export function jobContextLine(job: AsyncJob, nowMs: number = Date.now()): strin
       return `queued · ${job.enqueuedBy}`;
     case "SUCCEEDED": {
       const duration = jobDurationMs(job);
-      return duration != null ? `completed in ${formatDurationMs(duration)}` : "completed";
+      return duration != null
+        ? `completed in ${formatDurationMs(duration)}`
+        : "completed";
     }
     case "FAILED":
       return job.lastError ?? "failed";
@@ -384,7 +408,11 @@ export function jobContextLine(job: AsyncJob, nowMs: number = Date.now()): strin
 
 /** Whether the console can offer a manual retry (mirrors the backend rule). */
 export function canRetry(job: AsyncJob): boolean {
-  return job.state === "FAILED" || job.state === "CANCELLED" || (job.state === "PENDING" && job.nextRetryAt != null);
+  return (
+    job.state === "FAILED" ||
+    job.state === "CANCELLED" ||
+    (job.state === "PENDING" && job.nextRetryAt != null)
+  );
 }
 
 /** Sort chain members for the drawer's chain tab. */

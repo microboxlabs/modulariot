@@ -12,8 +12,11 @@ import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import { Geometry } from "wkx";
-import { geofenceGeometry } from "../utils/geofence-geometry";
+import type { Geometry } from "geojson";
+import {
+  geofenceGeometry,
+  geofencePinPosition,
+} from "../utils/geofence-geometry";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
@@ -44,11 +47,7 @@ import {
   zoomToVehicle,
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
-import {
-  ringCentroid,
-  estimateEtaHours,
-  formatEtaHours,
-} from "../utils/vehicle-origin";
+import { estimateEtaHours, formatEtaHours } from "../utils/vehicle-origin";
 import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
@@ -363,15 +362,7 @@ export default function MapVisualizationTrip({
     const origin = processedGeofence?.features.find(
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
-    const geometry = origin?.geometry as
-      | { type?: string; coordinates?: LngLat[][] }
-      | undefined;
-    // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
-    // MultiPolygon (or malformed payload) would make ringCentroid throw.
-    if (geometry?.type !== "Polygon") return null;
-    const ring = geometry.coordinates?.[0];
-    if (!Array.isArray(ring)) return null;
-    return ringCentroid(ring);
+    return origin ? geofencePinPosition(origin.geometry) : null;
   }, [processedGeofence]);
 
   const vehicle =

@@ -225,14 +225,16 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @GET
     @Path("/trips/{tripId}/geofences")
     @Operation(operationId = "listMapTripGeofences", summary = "The owning engine's trip geofences")
-    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+    @PermissionsAllowed(value = {ControlTowerAccessCatalog.VIEW, "trips:view"}, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> tripGeofences(@PathParam("organizationId") String organizationId,
             @PathParam("tripId") String tripId) {
         String tenant = tenantCode(organizationId);
         var moduleTrip = TripWindows.tripsModuleId(tripId);
         if (moduleTrip.isEmpty()) {
-            return answer(() -> treatments.tripGeofences(clientIds(), tripId));
+            return access(organizationId).flatMap(access -> access.can(ControlTowerAccessCatalog.VIEW)
+                    ? answer(() -> treatments.tripGeofences(clientIds(), tripId))
+                    : Uni.createFrom().item(error(Response.Status.FORBIDDEN, "Control Tower view permission required")));
         }
         return answer(() -> Uni.createFrom().item(() -> tripGeofences.isUnsatisfied()
                 ? (JsonNode) JsonNodeFactory.instance.arrayNode()

@@ -17,8 +17,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.ServiceAccountTokenIssuer.IssuedToken;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
 import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
 import com.microboxlabs.miot.symptoms.map.GpsRpcApi;
@@ -33,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -75,12 +80,24 @@ class OrgControlTowerMapResourceTest {
     private final List<Map<String, String>> sentFilters = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
-        Roles() {
+        private final Set<String> permissions;
+
+        Roles(Set<String> permissions) {
             super(null, null, null);
+            this.permissions = permissions;
+        }
+
+        @Override
+        public Uni<Access> access(String organizationSlug, Caller caller) {
+            return Uni.createFrom().item(new Access(1L, organizationSlug, BaseRole.MEMBER, Set.of(), permissions));
         }
     }
 
     private OrgControlTowerMapResource resource(Optional<String> url) {
+        return resource(url, Set.of(ControlTowerAccessCatalog.VIEW));
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail("member@example.com");
@@ -91,7 +108,7 @@ class OrgControlTowerMapResourceTest {
             return Uni.createFrom().item(new IssuedToken("t", Instant.now().plusSeconds(3600)));
         }, url, () -> rpc);
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
-        return new OrgControlTowerMapResource(tenant, org, new Roles(), null, map,
+        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null, map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
                         (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
@@ -199,6 +216,22 @@ class OrgControlTowerMapResourceTest {
         Response answer = resource(Optional.empty()).tripGeofences(ORG, "123").await().atMost(WAIT);
         assertEquals(200, answer.getStatus());
         assertEquals("123", ((JsonNode) answer.getEntity()).get(0).path("trip_id").asText());
+    }
+
+    @Test
+    void tripsViewerReadsModuleGeofences() {
+        var resource = resource(Optional.empty(), Set.of("trips:view"));
+        resource.tripGeofences = geofences((tenant, trip) -> JSON.createArrayNode()
+                .add(JSON.createObjectNode().put("trip_id", trip.toString())));
+        Response answer = call(resource.tripGeofences(ORG, DEPARTED.toString()));
+        assertEquals(200, answer.getStatus());
+        assertEquals(DEPARTED.toString(), ((JsonNode) answer.getEntity()).get(0).path("trip_id").asText());
+    }
+
+    @Test
+    void tripsViewerCannotReadLegacyGeofences() {
+        var resource = resource(Optional.empty(), Set.of("trips:view"));
+        assertEquals(403, call(resource.tripGeofences(ORG, "123")).getStatus());
     }
 
     @Test

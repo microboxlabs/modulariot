@@ -44,14 +44,16 @@ public class ControlTowerAccessCatalog implements AccessCatalog {
      * {@link #permissions()}, so it is not in the catalog, the base roles do not include it and no role grants it; the
      * app then hides the places editor for every user. To turn it back on:
      * <ol>
-     *   <li>uncomment its {@code PermissionDef} in {@link #permissions()}. Owners and Admins get it from that alone;</li>
+     *   <li>in {@link #permissions()}, replace the preceding {@code ));} with {@code ),}, then uncomment its
+     *       {@code PermissionDef}. Owners and Admins get it from that alone;</li>
      *   <li>add it back to the role that should grant it (it was {@link #MAINTAINER}, see the comment there) and
      *       mention it in that role's description;</li>
      *   <li>in {@code ControlTowerPermissionsTest}, replace {@code placesEditIsDisabled} with checks that the role
      *       grants it and that the other roles do not;</li>
      *   <li>add it back to the tables in {@code docs/control-tower-api.md}.</li>
      * </ol>
-     * Until then, to work on the editor locally, uncomment the {@code PermissionDef} on your machine only: as an Owner
+     * Until then, to work on the editor locally, make the terminator change above and uncomment the
+     * {@code PermissionDef} on your machine only: as an Owner
      * you then hold it.
      */
     public static final String PLACES_EDIT = "controltower:places.edit";

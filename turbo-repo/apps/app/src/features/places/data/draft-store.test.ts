@@ -84,7 +84,7 @@ describe("draft store", () => {
         guardadoEn: Date.now(),
         borrador: {
           tipo: "lugar",
-          form: { name: "Viejo" },
+          form: { name: "Viejo", futureField: { enabled: true } },
           paso: "geocerca",
           original: null,
           inicial: null,
@@ -95,6 +95,7 @@ describe("draft store", () => {
     expect(b?.tipo === "lugar" && b.form).toEqual({
       ...FORM_VACIO,
       name: "Viejo",
+      futureField: { enabled: true },
     });
   });
 
@@ -161,3 +162,63 @@ describe("draft identity isolation", () => {
     expect(localStorage).toHaveLength(4);
   });
 });
+
+it.each([
+  ["lugar", "vertices", "invalid"],
+  ["lugar", "inners", {}],
+  [
+    "lugar",
+    "inners",
+    [
+      {
+        id: "demo",
+        name: "Demo",
+        geom: "circle",
+        lat: 1,
+        lon: 1,
+        radius_m: 2,
+        vertices: "invalid",
+        cerrado: false,
+        color: "#000000",
+      },
+    ],
+  ],
+  ["lugar", "metadata", [null]],
+  ["lugar", "pasado", [false]],
+  ["trayecto", "pts", "invalid"],
+  ["trayecto", "recorrido", null],
+  [
+    "trayecto",
+    "recorrido",
+    [{ id: "demo", texto: "Demo", punto: ["invalid", 1] }],
+  ],
+  ["trayecto", "pasado", [[{}]]],
+  ["trayecto", "vias", {}],
+] as const)(
+  "drops malformed %s %s fields instead of restoring a crashing editor",
+  (tipo, field, value) => {
+    localStorage.clear();
+    const key = `miot.places.draft.v1.geografico:${encodeURIComponent(SCOPE)}`;
+    const payload =
+      tipo === "lugar"
+        ? {
+            tipo,
+            form: { ...FORM_VACIO, [field]: value },
+            paso: "geocerca",
+            original: null,
+          }
+        : {
+            tipo,
+            tray: { ...TRAY_VACIO, [field]: value },
+            paso: "recorrido",
+            original: null,
+            pathAjustado: null,
+          };
+    localStorage.setItem(
+      key,
+      JSON.stringify({ guardadoEn: Date.now(), borrador: payload })
+    );
+    expect(leerBorrador("geografico", SCOPE)).toBeNull();
+    expect(localStorage.getItem(key)).toBeNull();
+  }
+);

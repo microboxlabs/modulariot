@@ -16,7 +16,7 @@ import { logger } from "@/lib/logger";
  * The geofences Lugares draws, read from the streamhub `geofences` table and
  * shaped like PT4 places (`Lugar[]`). Read-only: create/update/delete are not
  * wired to streamhub yet. Scoped to the app's own streamhub client
- * (`client_id` = STREAMHUB_CLIENT_ID) until orgs are mapped to client ids.
+ * (`client_id` = STREAMHUB_CLIENT_ID) only for explicitly allow-listed tower organizations until orgs are mapped to client ids.
  */
 export async function GET() {
   const authResult = await requireAuth();
@@ -25,7 +25,14 @@ export async function GET() {
   if (!scope.resolved) return scope.response;
   // The configured client is tower-wide, not an organization mapping.
   // A carrier must never inherit that unfiltered source.
-  if (isCarrierOrg(scope.scope)) {
+  const allowedTowerIds = (process.env.STREAMHUB_GEOFENCE_TOWER_ORG_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => /^[1-9]\d*$/.test(id));
+  if (
+    isCarrierOrg(scope.scope) ||
+    !allowedTowerIds.includes(String(scope.scope.activeOrg.id))
+  ) {
     return NextResponse.json(
       { error: "Organization geofence source is not configured" },
       { status: 403 }

@@ -43,10 +43,11 @@ describe("GET /api/places/geofences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("STREAMHUB_CLIENT_ID", "app-client");
+    vi.stubEnv("STREAMHUB_GEOFENCE_TOWER_ORG_IDS", "1");
     requireAuthMock.mockResolvedValue({ authenticated: true });
     resolveScopeMock.mockResolvedValue({
       resolved: true,
-      scope: { activeOrg: { modules: [] }, effectiveTaxIds: [] },
+      scope: { activeOrg: { id: 1, modules: [] }, effectiveTaxIds: [] },
     });
   });
 
@@ -109,11 +110,12 @@ describe("GET /api/places/geofences", () => {
 });
 
 it("does not expose the configured tower client to carrier organizations", async () => {
+  vi.stubEnv("STREAMHUB_GEOFENCE_TOWER_ORG_IDS", "1");
   requireAuthMock.mockResolvedValue({ authenticated: true });
   resolveScopeMock.mockResolvedValue({
     resolved: true,
     scope: {
-      activeOrg: { modules: ["CARRIER_PORTAL"] },
+      activeOrg: { id: 1, modules: ["CARRIER_PORTAL"] },
       effectiveTaxIds: ["demo-tax-id"],
     },
   });
@@ -133,3 +135,19 @@ it("does not fetch a global source when tenant resolution fails", async () => {
   expect((await GET()).status).toBe(502);
   expect(fetchClientGeofencesMock).not.toHaveBeenCalled();
 });
+
+it.each(["", "2", "invalid, 2"])(
+  "denies non-carrier scopes absent from the tower organization allow-list (%s)",
+  async (allowlist) => {
+    requireAuthMock.mockResolvedValue({ authenticated: true });
+    vi.stubEnv("STREAMHUB_GEOFENCE_TOWER_ORG_IDS", allowlist);
+    resolveScopeMock.mockResolvedValue({
+      resolved: true,
+      scope: { activeOrg: { id: 1, modules: [] }, effectiveTaxIds: [] },
+    });
+    fetchClientGeofencesMock.mockClear();
+    const { GET } = await import("./route");
+    expect((await GET()).status).toBe(403);
+    expect(fetchClientGeofencesMock).not.toHaveBeenCalled();
+  }
+);

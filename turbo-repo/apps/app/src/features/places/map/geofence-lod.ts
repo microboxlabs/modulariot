@@ -2,8 +2,8 @@ import { distanciaM } from "../geofences/geofence-editor";
 import { centroide } from "./map-handles";
 import type { Lugar } from "../places.types";
 
-/** Metros por píxel en el ecuador a zoom 0 (Web Mercator). */
-const M_POR_PX_Z0 = 156_543.03392804097;
+/** Metros por píxel en el ecuador a zoom 0 (Web Mercator, mundo de 512 px). */
+const M_POR_PX_Z0 = 78_271.51696402048;
 /** Evita que cos(lat) se vaya a 0 cerca de los polos. */
 const COS_MIN = 0.05;
 

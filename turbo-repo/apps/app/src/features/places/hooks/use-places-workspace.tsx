@@ -158,12 +158,14 @@ const fetcher = (url: string) =>
     return r.json();
   });
 const scopedFetcher = ([url]: readonly [string, string]) => fetcher(url);
-const post = (fn: string, body: Record<string, unknown>) =>
-  fetch(`/app/api/atc/rpc/${fn}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  }).then((r) => r.json());
+function placesReadKey(
+  enabled: boolean,
+  scope: string | null,
+  fn: string
+): [string, string] | null {
+  if (!enabled || !scope) return null;
+  return [`/app/api/atc/rpc/${fn}`, scope];
+}
 // Como post, pero null cuando el backend no responde (red caída o HTTP != 2xx):
 // el llamador cae al respaldo local.
 const tryPost = async (fn: string, body: Record<string, unknown>) => {
@@ -620,36 +622,26 @@ export function usePlacesWorkspace(
   >(null);
 
   const { data: propios, mutate: refP } = useSWR<Lugar[]>(
-    enabled && storageScope
-      ? ["/app/api/atc/rpc/fn_pt4_places", storageScope]
-      : null,
+    placesReadKey(enabled, storageScope, "fn_pt4_places"),
     scopedFetcher
   );
   const { data: globales } = useSWR<Lugar[]>(
-    enabled && storageScope && carrierMode
-      ? ["/app/api/atc/rpc/fn_pt4_places_global", storageScope]
-      : null,
+    placesReadKey(enabled && carrierMode, storageScope, "fn_pt4_places_global"),
     scopedFetcher
   );
   const { data: trayectos, mutate: refT } = useSWR<Trayecto[]>(
-    enabled && storageScope
-      ? ["/app/api/atc/rpc/fn_pt4_trayectos", storageScope]
-      : null,
+    placesReadKey(enabled, storageScope, "fn_pt4_trayectos"),
     scopedFetcher
   );
   const { data: cats } = useSWR<Categoria[]>(
-    enabled && storageScope
-      ? ["/app/api/atc/rpc/fn_pt4_categorias", storageScope]
-      : null,
+    placesReadKey(enabled, storageScope, "fn_pt4_categorias"),
     scopedFetcher
   );
   const { data: cuotas, mutate: refQ } = useSWR<{
     lugares: Cuota;
     trayectos: Cuota;
   }>(
-    enabled && storageScope && carrierMode
-      ? ["/app/api/atc/rpc/fn_pt4_quota_status", storageScope]
-      : null,
+    placesReadKey(enabled && carrierMode, storageScope, "fn_pt4_quota_status"),
     scopedFetcher
   );
   const local = useLocalPlaces(storageScope);
@@ -1321,14 +1313,21 @@ export function usePlacesWorkspace(
     }
     const pid = form.place_id ?? res?.place_id;
     if (pid && (form.active_from || form.active_until)) {
-      await post("fn_pt4_set_validity", {
+      const validity = await tryPost("fn_pt4_set_validity", {
         p_place_id: pid,
         p_active_from: form.active_from || null,
         p_active_until: form.active_until || null,
         p_actor: "app-settings",
       });
+      if (!borradoOk(validity)) {
+        conservarGuardadoParcial(pid);
+        return;
+      }
     }
-    if (pid) await persistirHijosServidor(pid, innersOk);
+    if (pid && !(await persistirHijosServidor(pid, innersOk))) {
+      conservarGuardadoParcial(pid);
+      return;
+    }
     anotarVersion(version);
     setGuardando(false);
     setMsg(null);
@@ -1340,6 +1339,15 @@ export function usePlacesWorkspace(
     setForm({ ...FORM_VACIO });
     setPasoLugar("geocerca");
     setModo("ver");
+    refrescarTodo();
+  };
+
+  const conservarGuardadoParcial = (placeId: string) => {
+    setGuardando(false);
+    setForm((current) => ({ ...current, place_id: placeId }));
+    toast.error(
+      "Lugar guardado parcialmente. No se guardaron todos los cambios; conserva la edición para reintentar."
+    );
     refrescarTodo();
   };
 
@@ -1362,19 +1370,22 @@ export function usePlacesWorkspace(
     const quitadas = idsHijosDe(parentId, todosLugares).filter(
       (id) => !keep.has(id)
     );
-    await enSerie(quitadas, async (id) => {
-      await tryPost("fn_pt4_delete_place", {
+    const deleted = await enSerie(quitadas, async (id) => {
+      const response = await tryPost("fn_pt4_delete_place", {
         p_place_id: id,
         p_actor: "app-settings",
       });
-      local.deleteLugar(id);
+      if (borradoOk(response)) local.deleteLugar(id);
+      return response;
     });
-    await enSerie(innersOk, (inner) => {
+    if (!deleted.every(borradoOk)) return false;
+    const saved = await enSerie(innersOk, (inner) => {
       const body = payloadInner(inner, parentId, form);
       return isLocalId(inner.id)
         ? tryPost("fn_pt4_create_place", body)
         : tryPost("fn_pt4_update_place", { p_place_id: inner.id, ...body });
     });
+    return saved.every(borradoOk);
   };
 
   const guardarLugarLocal = (

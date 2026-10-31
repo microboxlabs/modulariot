@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import BentoMediaSection from "./bento-media-section";
@@ -26,6 +26,11 @@ vi.mock(
   () => ({ default: () => <div data-testid="multimedia">multimedia</div> })
 );
 
+const viewport = vi.hoisted(() => ({ desktop: true }));
+vi.mock("@/features/layout/hooks/use-media-query", () => ({
+  useMediaQuery: () => viewport.desktop,
+}));
+
 const task = {
   mintral_serviceCode: "S1",
   mintral_truckLicensePlate: "AB1234",
@@ -33,6 +38,24 @@ const task = {
 const dict = {} as I18nDictionary;
 
 describe("BentoMediaSection", () => {
+  beforeEach(() => {
+    viewport.desktop = true;
+  });
+  it("keeps multimedia available when an open Places map becomes hidden on mobile", () => {
+    const { rerender } = render(<BentoMediaSection task={task} dict={dict} />);
+    fireEvent.click(screen.getByRole("button", { name: "abrir lugares" }));
+    const mediaColumn = () =>
+      screen.getByTestId("multimedia").parentElement!.parentElement!;
+    expect(mediaColumn()).toHaveAttribute("inert");
+    viewport.desktop = false;
+    rerender(<BentoMediaSection task={task} dict={dict} />);
+    expect(mediaColumn()).not.toHaveAttribute("inert");
+    expect(mediaColumn()).toHaveAttribute("aria-hidden", "false");
+    expect(mediaColumn().style.opacity).not.toBe("0");
+    expect(screen.getByTestId("multimedia").parentElement!.style.width).toBe(
+      "100%"
+    );
+  });
   it("gives the map the whole width while Lugares is open", () => {
     render(<BentoMediaSection task={task} dict={dict} />);
     const columnaMapa = () =>

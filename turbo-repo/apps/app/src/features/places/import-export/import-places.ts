@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { parse as parseCsv } from "csv-parse/browser/esm/sync";
 import { DOMParser, type Element as NodoXml } from "@xmldom/xmldom";
 import { z } from "zod";
 import {
@@ -11,6 +12,12 @@ import {
 import { MAX_PUNTOS } from "../routes/recorrido";
 
 export const MAX_FILAS_IMPORT = 500;
+export const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
+
+function checkImportSize(bytes: number) {
+  if (bytes > MAX_IMPORT_BYTES)
+    throw new RangeError("Import exceeds the 8 MiB limit");
+}
 export const ACCEPT_IMPORT = ".csv,.kml,.kmz,.geojson,.json";
 
 const EXTS_IMPORT = ACCEPT_IMPORT.split(",").map((e) => e.trim());
@@ -90,13 +97,24 @@ function centroDe(vertices: LatLon[]): LatLon {
   ];
 }
 
+function validCoordinates(lat: unknown, lon: unknown): boolean {
+  return (
+    typeof lat === "number" &&
+    typeof lon === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lon) <= 180
+  );
+}
+
 function filaCirculo(
   name: string,
   lat: number,
   lon: number,
   extra: Partial<FilaImport> = {}
 ): FilaImport | null {
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (!validCoordinates(lat, lon)) return null;
   return { name, lat, lon, geometry_type: "circle", ...extra };
 }
 
@@ -105,7 +123,11 @@ function filaPoligono(
   vertices: LatLon[],
   extra: Partial<FilaImport> = {}
 ): FilaImport | null {
-  if (vertices.length < 3) return null;
+  if (
+    vertices.length < 3 ||
+    vertices.some(([lat, lon]) => !validCoordinates(lat, lon))
+  )
+    return null;
   const [lat, lon] = centroDe(vertices);
   return {
     name,
@@ -139,10 +161,10 @@ export function poligonoDesdeBbox(
 export function verticesDesdeAnillo(coords: number[][]): LatLon[] {
   const vs: LatLon[] = [];
   for (const c of coords) {
+    if (!Array.isArray(c)) return [];
     const lon = c[0];
     const lat = c[1];
-    if (lat == null || lon == null) continue;
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    if (lat == null || lon == null || !validCoordinates(lat, lon)) return [];
     const p: LatLon = [lat, lon];
     const prev = vs.at(-1);
     if (prev && mismoPunto(prev, p)) continue;
@@ -190,11 +212,15 @@ const tiposSchema = z.array(z.enum(["parada", "desvio"]));
 const categoriasSchema = z.array(z.string().nullable());
 
 /** [lon, lat] (GeoJSON/KML) → [lat, lon] del sistema. */
-const aLatLon = (pares: number[][]): LatLon[] =>
-  pares.flatMap((p) => {
-    const [lon, lat] = p;
-    return lon == null || lat == null ? [] : [[lat, lon] as LatLon];
-  });
+function aLatLon(pares: number[][]): LatLon[] {
+  if (
+    pares.some(
+      (pair) => !Array.isArray(pair) || !validCoordinates(pair[1], pair[0])
+    )
+  )
+    return [];
+  return pares.map(([lon, lat]) => [lat!, lon!]);
+}
 
 /** Lee un valor que puede venir como arreglo o como texto JSON (KML). */
 function leerJson<T>(v: ValorJson | undefined, schema: z.ZodType<T>): T | null {
@@ -421,7 +447,7 @@ function filasDesdeGeometria(
       filasDesdeGeometria(g, `${nombre} ${i + 1}`, extra, bbox, props)
     );
   }
-  const type = geom?.type ?? "";
+  const type = typeof geom?.type === "string" ? geom.type : "";
   const coords = geom?.coordinates;
   if (type === "Point") return filaDePunto(coords, nombre, extra);
   if (type === "LineString")
@@ -439,6 +465,8 @@ function filasDesdeGeometria(
 }
 
 function filasDesdeFeature(feat: GeoLoose, fallback: string): FilaImport[] {
+  if (feat === null || typeof feat !== "object" || Array.isArray(feat))
+    return [];
   const nombre = nombreDeProps(feat.properties, feat.name ?? fallback);
   const extra = extraDeProps(feat.properties);
   return filasDesdeGeometria(
@@ -457,6 +485,8 @@ export function filasGeoJson(texto: string): FilaImport[] {
   } catch {
     return [];
   }
+  if (data === null || typeof data !== "object" || Array.isArray(data))
+    return [];
   if (data.type === "FeatureCollection" && Array.isArray(data.features)) {
     return acotar(
       data.features.flatMap((f, i) => filasDesdeFeature(f, `Lugar ${i + 1}`))
@@ -567,13 +597,43 @@ export function filasKml(xml: string): FilaImport[] {
   return acotar(filas);
 }
 
+// JSZip documents this browser streaming API, but omits it from JSZipObject's types.
+type StreamingZipObject = JSZip.JSZipObject & {
+  internalStream(type: "uint8array"): JSZip.JSZipStreamHelper<Uint8Array>;
+};
+
+function readKmlEntry(entry: JSZip.JSZipObject): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stream = (entry as StreamingZipObject).internalStream("uint8array");
+    const decoder = new TextDecoder();
+    const parts: string[] = [];
+    let size = 0;
+    let stopped = false;
+    stream.on("data", (chunk) => {
+      if (stopped) return;
+      size += chunk.length;
+      try {
+        checkImportSize(size);
+        parts.push(decoder.decode(chunk, { stream: true }));
+      } catch (error) {
+        stopped = true;
+        stream.pause();
+        reject(error);
+      }
+    });
+    stream.on("error", reject);
+    stream.on("end", () => resolve(parts.join("") + decoder.decode()));
+    stream.resume();
+  });
+}
+
 async function filasKmz(file: File): Promise<FilaImport[]> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
   const entry = Object.values(zip.files).find((f) =>
     f.name.toLowerCase().endsWith(".kml")
   );
   if (!entry) return [];
-  return filasKml(await entry.async("text"));
+  return filasKml(await readKmlEntry(entry));
 }
 
 function col(head: string[], row: string[], ...names: string[]): string | null {
@@ -686,21 +746,37 @@ function filaDesdeCsv(valor: ValorCsv): FilaImport | null {
       extra
     );
   }
-  const lat = Number(valor("lat", "latitud"));
-  const lon = Number(valor("lon", "lng", "longitud"));
+  const latRaw = valor("lat", "latitud");
+  const lonRaw = valor("lon", "lng", "longitud");
+  if (latRaw === null || lonRaw === null) return null;
+  const lat = Number(latRaw);
+  const lon = Number(lonRaw);
   const radioRaw = valor("radius_m", "radio");
   if (radioRaw) extra.radius_m = Number(radioRaw);
   return filaCirculo(name, lat, lon, extra);
 }
 
 export function filasCsv(texto: string): FilaImport[] {
-  const lineas = texto.split(/\r?\n/).filter((x) => x.trim());
-  const sep = lineas[0]?.includes(";") ? ";" : ",";
-  const head = (lineas[0] ?? "").split(sep).map((h) => h.trim().toLowerCase());
-  const filas = lineas.slice(1).flatMap((ln) => {
-    const r = ln.split(sep);
-    return comoFilas(filaDesdeCsv((...names) => col(head, r, ...names)));
-  });
+  const first = texto.split(/\r?\n/, 1)[0] ?? "";
+  const sep = first.includes(";") ? ";" : ",";
+  let rows: string[][];
+  try {
+    rows = parseCsv(texto, {
+      delimiter: sep,
+      bom: true,
+      trim: true,
+      skip_empty_lines: true,
+      relax_column_count: true,
+    }) as string[][];
+  } catch {
+    return [];
+  }
+  const head = (rows[0] ?? []).map((name) => name.toLowerCase());
+  const filas = rows
+    .slice(1)
+    .flatMap((row) =>
+      comoFilas(filaDesdeCsv((...names) => col(head, row, ...names)))
+    );
   return acotar(filas);
 }
 
@@ -708,6 +784,7 @@ export function parsearTextoLugares(
   nombre: string,
   texto: string
 ): { formato: string; filas: FilaImport[] } {
+  checkImportSize(texto.length);
   const ext = extensionDe(nombre);
   if (ext === "kml") return { formato: "kml", filas: filasKml(texto) };
   if (ext === "geojson" || ext === "json")
@@ -718,6 +795,7 @@ export function parsearTextoLugares(
 export async function parsearArchivoLugares(
   file: File
 ): Promise<{ formato: string; filas: FilaImport[] }> {
+  checkImportSize(file.size);
   if (extensionDe(file.name) === "kmz") {
     return { formato: "kmz", filas: await filasKmz(file) };
   }

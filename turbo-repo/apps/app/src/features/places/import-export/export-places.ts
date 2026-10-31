@@ -155,8 +155,14 @@ export function exportarKml(lugares: Lugar[], trayectos: Trayecto[]) {
 
 /** Separador ";": la columna wkt lleva comas. */
 const SEP = ";";
-const celda = (v: string | number | null | undefined) =>
-  v == null ? "" : String(v).replace(/[;\r\n]+/g, " ");
+function celda(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  let text = String(value);
+  // Spreadsheet formula prefixes are data, not executable cells; coordinates stay numeric.
+  if (typeof value === "string" && /^[=+@\-\t\r]/.test(text.trimStart()))
+    text = "'" + text;
+  return /[;"\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
 
 export function exportarCsv(lugares: Lugar[]) {
   const head = [

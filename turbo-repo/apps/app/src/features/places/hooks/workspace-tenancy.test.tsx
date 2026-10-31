@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FORM_VACIO } from "../places.types";
 import { lugarDesdeForm } from "../data/local-store";
@@ -27,6 +27,9 @@ vi.mock("@/features/auth/hooks/use-carrier-mode", () => ({
 vi.mock("@/features/runtime-config/runtime-config-context", () => ({
   useRuntimeConfig: () => ({}),
 }));
+import { toast } from "sonner";
+import { nuevoInner } from "../geofences/inner-geofences";
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { usePlacesWorkspace } from "./use-places-workspace";
 
 beforeEach(() => {
@@ -87,4 +90,57 @@ describe("Places workspace identity", () => {
       )
     ).toBe(true);
   });
+});
+
+describe("Places partial save failures", () => {
+  it.each(["http", "rejected", "validity"])(
+    "keeps the saved parent and pending edits after %s failure",
+    async (failure) => {
+      vi.mocked(toast.success).mockClear();
+      vi.mocked(toast.error).mockClear();
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ ok: true, place_id: "demo-parent" }),
+        })
+        .mockResolvedValue({
+          ok: failure === "rejected",
+          json: async () => ({ ok: false, error: "demo failure" }),
+        });
+      vi.stubGlobal("fetch", fetch);
+      const { result } = renderHook(() =>
+        usePlacesWorkspace({ current: null })
+      );
+      act(() => {
+        result.current.setModo("lugar");
+        result.current.setForm({
+          ...FORM_VACIO,
+          name: "Demo parent",
+          lat: 1,
+          lon: 1,
+          active_from: failure === "validity" ? "2026-11-01" : "",
+          inners:
+            failure === "validity"
+              ? []
+              : [
+                  {
+                    ...nuevoInner(),
+                    name: "Demo inner",
+                    lat: 1,
+                    lon: 1,
+                  },
+                ],
+        });
+      });
+      await act(async () => {
+        await result.current.guardarLugar();
+      });
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalled();
+      expect(result.current.form.place_id).toBe("demo-parent");
+      expect(result.current.modo).toBe("lugar");
+      expect(result.current.guardando).toBe(false);
+    }
+  );
 });

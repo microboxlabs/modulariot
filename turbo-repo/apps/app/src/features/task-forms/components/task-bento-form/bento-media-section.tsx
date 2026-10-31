@@ -9,6 +9,7 @@ import {
   ErrorBoundary,
   ErrorFallbackProps,
 } from "@/features/common/components/error-boundary/error-boundary";
+import { useMediaQuery } from "@/features/layout/hooks/use-media-query";
 import Geographic from "@/features/shipping/components/geographic";
 import FileImages from "./components/side-data/multimedia-manager.tsx/gallery/file-images";
 
@@ -58,6 +59,8 @@ export default function BentoMediaSection({
   // Lugares abierto en el mapa: el visor multimedia se pliega y el mapa
   // toma todo el ancho
   const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const hideMedia = lugaresAbierto && desktop;
   const anchoMapa = lugaresAbierto ? "100%" : "66.666%";
   // al plegarse, el visor sale hacia la derecha: su contenido queda fijo a
   // su ancho de antes y va pegado al borde IZQUIERDO de la columna, que es
@@ -118,12 +121,15 @@ export default function BentoMediaSection({
           // plegado mientras Lugares usa todo el ancho del mapa. Sin tocar
           // flex-grow: así llena siempre lo que deja el mapa y su borde
           // derecho no se mueve; se cierra hacia la derecha.
-          ...(lugaresAbierto ? { borderWidth: 0, opacity: 0 } : {}),
+          ...(hideMedia ? { borderWidth: 0, opacity: 0 } : {}),
         }}
-        aria-hidden={lugaresAbierto}
-        inert={lugaresAbierto}
+        aria-hidden={hideMedia}
+        inert={hideMedia}
       >
-        <div className="h-full shrink-0" style={{ width: anchoFijo ?? "100%" }}>
+        <div
+          className="h-full shrink-0"
+          style={{ width: desktop ? (anchoFijo ?? "100%") : "100%" }}
+        >
           <ErrorBoundary fallback={<MediaPanelErrorFallback dict={dict} />}>
             <FileImages
               task={task}

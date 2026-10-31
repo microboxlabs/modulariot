@@ -42,8 +42,9 @@ function leer(scope: string | null): Historiales {
 
 function escribir(scope: string | null, h: Historiales): boolean {
   const key = placesStorageKey(STORAGE_KEY, scope);
-  if (!key || !globalThis.localStorage) return false;
+  if (!key) return false;
   try {
+    if (!globalThis.localStorage) return false;
     globalThis.localStorage.setItem(key, JSON.stringify(h));
     return true;
   } catch {

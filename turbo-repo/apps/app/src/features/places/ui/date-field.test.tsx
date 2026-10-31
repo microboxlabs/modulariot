@@ -3,6 +3,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import DateField from "./date-field";
 
 describe("DateField", () => {
+  it.each(["Enter", " "])("opens the calendar with %j", (key) => {
+    render(<DateField label="Keyboard date" value="" onChange={vi.fn()} />);
+    fireEvent.keyDown(screen.getByLabelText("Keyboard date"), { key });
+    expect(screen.getByRole("button", { name: "Hoy" })).toBeInTheDocument();
+  });
   it("shows the date as dd/mm/yyyy", () => {
     render(<DateField label="Desde" value="2026-10-05" onChange={vi.fn()} />);
     expect(screen.getByLabelText("Desde")).toHaveValue("05/10/2026");

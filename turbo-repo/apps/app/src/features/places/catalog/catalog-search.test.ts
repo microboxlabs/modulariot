@@ -37,6 +37,30 @@ const trayecto = (over: Partial<Trayecto>): Trayecto => ({
 });
 
 describe("filtrarLugares", () => {
+  it("includes the same whole family regardless of sibling ordering", () => {
+    const parent = lugar({ place_id: "parent", name: "Demo parent" });
+    const other = lugar({
+      place_id: "other",
+      name: "Other",
+      metadata: { [PARENT_KEY]: "parent" },
+    });
+    const match = lugar({
+      place_id: "match",
+      name: "Matching demo",
+      metadata: { [PARENT_KEY]: "parent" },
+    });
+    for (const ordered of [
+      [parent, other, match],
+      [parent, match, other],
+      [match, other, parent],
+    ]) {
+      expect(
+        filtrarLugares(ordered, "matching")
+          .map((place) => place.place_id)
+          .sort()
+      ).toEqual(["match", "other", "parent"]);
+    }
+  });
   it("keeps parent and children when the query matches either", () => {
     const xs = [
       lugar({ place_id: "park", name: "Estacionamiento" }),

@@ -72,6 +72,13 @@ export default function DateField({
         placeholder="dd/mm/aaaa"
         value={value ? dayjs(value).format("DD/MM/YYYY") : ""}
         onClick={() => (pos ? setPos(null) : abrir())}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (pos) setPos(null);
+            else abrir();
+          }
+        }}
         className="cursor-pointer [&_input]:cursor-pointer"
       />
       {pos &&

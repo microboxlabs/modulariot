@@ -27,6 +27,15 @@ const lugar = (over: Partial<Lugar>): Lugar => ({
 });
 
 describe("geofence lod", () => {
+  it("fits the requested pixel radius in Mapbox's 512-pixel world", () => {
+    const radius = 250;
+    const latitude = -33;
+    const zoom = zoomParaTamanoPx(radius, latitude, 140);
+    const metersPerPixel =
+      (40075016.68557849 * Math.cos((latitude * Math.PI) / 180)) /
+      (512 * 2 ** zoom);
+    expect(radius / metersPerPixel).toBeCloseTo(140, 4);
+  });
   it("uses the circle radius or the polygon envelope", () => {
     expect(radioLugarM(lugar({ radius_m: 400 }))).toBe(400);
     expect(

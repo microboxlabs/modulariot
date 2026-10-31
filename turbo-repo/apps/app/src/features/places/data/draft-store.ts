@@ -40,41 +40,37 @@ export type BorradorTrayecto = {
 
 export type Borrador = BorradorLugar | BorradorTrayecto;
 
-const finite = z.number().finite();
+const finite = z.number();
 const latLon = z.tuple([finite, finite]);
 const latLons = z.array(latLon);
 const geometry = z.enum(["circle", "polygon"]);
 const polyBase = z.enum(["libre", "rect", "tri"]);
-const innerSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    geom: geometry,
-    lat: finite.nullable(),
-    lon: finite.nullable(),
-    radius_m: finite,
-    vertices: latLons,
-    cerrado: z.boolean(),
-    color: z.string(),
-    polyBase: z.enum(["libre", "rect", "tri", "cuadro"]).optional(),
-    rectVinculado: z.boolean().optional(),
-    rect_w_m: finite.optional(),
-    rect_h_m: finite.optional(),
-  })
-  .passthrough();
-const pointSchema = z
-  .object({
-    id: z.string(),
-    texto: z.string(),
-    punto: latLon.nullable(),
-    tipo: z.enum(["parada", "desvio"]).optional(),
-    categoria: z.string().optional(),
-  })
-  .passthrough();
+const innerSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  geom: geometry,
+  lat: finite.nullable(),
+  lon: finite.nullable(),
+  radius_m: finite,
+  vertices: latLons,
+  cerrado: z.boolean(),
+  color: z.string(),
+  polyBase: z.enum(["libre", "rect", "tri", "cuadro"]).optional(),
+  rectVinculado: z.boolean().optional(),
+  rect_w_m: finite.optional(),
+  rect_h_m: finite.optional(),
+});
+const pointSchema = z.looseObject({
+  id: z.string(),
+  texto: z.string(),
+  punto: latLon.nullable(),
+  tipo: z.enum(["parada", "desvio"]).optional(),
+  categoria: z.string().optional(),
+});
 const points = z.array(pointSchema);
 // Partial schemas keep older drafts readable; unknown future fields are retained.
 const placeSchema = z
-  .object({
+  .looseObject({
     place_id: z.string().nullable(),
     name: z.string(),
     icon: z.string(),
@@ -103,10 +99,9 @@ const placeSchema = z
     busqueda: z.string(),
     ubicadoEn: z.string().nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial();
 const routeSchema = z
-  .object({
+  .looseObject({
     id: z.string().nullable(),
     name: z.string(),
     icon: z.string(),
@@ -122,8 +117,7 @@ const routeSchema = z
     pasado: z.array(points),
     futuro: z.array(points),
   })
-  .partial()
-  .passthrough();
+  .partial();
 
 const borradorSchema = z.object({
   guardadoEn: z.number(),

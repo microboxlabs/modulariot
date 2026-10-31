@@ -1661,7 +1661,7 @@
           "title": "Geocoding",
           "menuTitle": "Provider",
           "menuHint": "Provider the platform contracts",
-          "description": "The platform contracts and pays the geocoding provider. An organization uses it, within its plan's quota, once a platform owner adds the \"Geocoding · platform provider\" connection in Connections. No organization sets up its own provider.",
+          "description": "The platform contracts and pays the geocoding provider. An organization uses it, within its plan's quota, once a platform owner adds the \"Geocoding · platform provider\" connection in Connections; it is named \"Geocoding · ModularIoT\". No organization sets up its own provider.",
           "provider": "Provider",
           "providerHelp": {
             "mapbox": "Mapbox Geocoding v6. Results are kept in the cache when permanent mode is on.",

@@ -16,13 +16,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * The lost-signal state in Redis, every key expiring {@code ttl} after its last write:
  * <ul>
- * <li>{@code symptoms:veh:<asset>}, a hash: {@code p} the vehicle's profile, {@code w} its watch (written by
- * frames), {@code c} its check state (written by the ticker);</li>
+ * <li>{@code symptoms:veh:<asset>}, a hash: {@code p} the vehicle's profile, {@code w} its watch, {@code r} and
+ * {@code b} the return and backfill marks of its loss ({@code <lost ms>:<arrival ms>}, {@code <lost ms>}), all
+ * written by frames; {@code c} its check state, written by the ticker;</li>
  * <li>{@code symptoms:snd:<sender>}: the sender's profile;</li>
  * <li>{@code symptoms:deadlines}: a sorted set of vehicles by deadline (epoch ms);</li>
  * <li>{@code symptoms:lost-signal:lease}: the ticker's owner; {@code symptoms:ingest}: one heartbeat per replica.</li>
@@ -39,6 +39,8 @@ public class RedisLossStore implements LossStore {
     static final String PROFILE = "p";
     static final String WATCH = "w";
     static final String CHECK = "c";
+    static final String RETURNED = "r";
+    static final String BACKFILL = "b";
     static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     /** Takes the lease when free, renews it when held: ARGV owner, ttl ms. */
@@ -87,12 +89,12 @@ public class RedisLossStore implements LossStore {
 
     @Override
     public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
-            Schedule schedule) {
-        batch(saveRequests(assetId, vehicle, sender, senderProfile, schedule, ttl));
+            Schedule schedule, Mark mark) {
+        batch(saveRequests(assetId, vehicle, sender, senderProfile, schedule, mark, ttl));
     }
 
     static List<Request> saveRequests(String assetId, VehicleProfile vehicle, String sender,
-            SenderProfile senderProfile, Schedule schedule, Duration ttl) {
+            SenderProfile senderProfile, Schedule schedule, Mark mark, Duration ttl) {
         String seconds = Long.toString(ttl.toSeconds());
         String key = vehicleKey(assetId);
         List<Request> writes = new ArrayList<>();
@@ -101,6 +103,14 @@ public class RedisLossStore implements LossStore {
             hset.arg(WATCH).arg(write(schedule.watch()));
         }
         writes.add(hset);
+        if (mark != null && mark.returnedAt() != null) {
+            // NX: the first frame after the loss is the return; a later one for the same loss keeps it.
+            writes.add(Request.cmd(Command.HSETNX).arg(key).arg(RETURNED)
+                    .arg(mark.lostSince().toEpochMilli() + ":" + mark.returnedAt().toEpochMilli()));
+        }
+        if (mark != null && mark.backfill()) {
+            writes.add(Request.cmd(Command.HSET).arg(key).arg(BACKFILL).arg(mark.lostSince().toEpochMilli()));
+        }
         if (schedule.kind() == Schedule.Kind.DROP) {
             writes.add(Request.cmd(Command.HDEL).arg(key).arg(WATCH));
             writes.add(Request.cmd(Command.ZREM).arg(DEADLINES).arg(assetId));
@@ -131,9 +141,21 @@ public class RedisLossStore implements LossStore {
     @Override
     public Vehicle vehicle(String assetId) {
         Response fields = batch(List.of(Request.cmd(Command.HMGET).arg(vehicleKey(assetId)).arg(PROFILE).arg(WATCH)
-                .arg(CHECK))).get(0);
-        return new Vehicle(read(fields.get(0), VehicleProfile.class), read(fields.get(1), Watch.class),
-                read(fields.get(2), CheckState.class));
+                .arg(CHECK).arg(RETURNED).arg(BACKFILL))).get(0);
+        CheckState check = read(fields.get(2), CheckState.class);
+        String lost = check == null || !check.lost() ? null : Long.toString(check.lostSince().toEpochMilli());
+        return new Vehicle(read(fields.get(0), VehicleProfile.class), read(fields.get(1), Watch.class), check,
+                returnedAt(lost, fields.get(3)), lost != null && fields.get(4) != null
+                        && lost.equals(fields.get(4).toString()));
+    }
+
+    /** The return mark's arrival when it belongs to the current loss. */
+    static Instant returnedAt(String lost, Response mark) {
+        if (lost == null || mark == null) {
+            return null;
+        }
+        String[] parts = mark.toString().split(":");
+        return parts.length == 2 && parts[0].equals(lost) ? Instant.ofEpochMilli(Long.parseLong(parts[1])) : null;
     }
 
     @Override
@@ -144,12 +166,11 @@ public class RedisLossStore implements LossStore {
     static List<Request> checkedRequests(String assetId, CheckState check, Instant next, Duration ttl) {
         String key = vehicleKey(assetId);
         List<Request> writes = new ArrayList<>();
-        if (CheckState.NONE.equals(check)) {
-            writes.add(Request.cmd(Command.HDEL).arg(key).arg(CHECK));
-        } else {
-            writes.add(Request.cmd(Command.HSET).arg(key).arg(CHECK).arg(write(check)));
-            writes.add(Request.cmd(Command.EXPIRE).arg(key).arg(ttl.toSeconds()));
+        writes.add(Request.cmd(Command.HSET).arg(key).arg(CHECK).arg(write(check)));
+        if (!check.lost()) {
+            writes.add(Request.cmd(Command.HDEL).arg(key).arg(RETURNED).arg(BACKFILL));
         }
+        writes.add(Request.cmd(Command.EXPIRE).arg(key).arg(ttl.toSeconds()));
         // XX: a frame that dropped the vehicle meanwhile (its trip ended) is not undone.
         writes.add(next == null ? Request.cmd(Command.ZREM).arg(DEADLINES).arg(assetId)
                 : Request.cmd(Command.ZADD).arg(DEADLINES).arg("XX").arg(next.toEpochMilli()).arg(assetId));
@@ -182,13 +203,13 @@ public class RedisLossStore implements LossStore {
         return out;
     }
 
-    static Optional<Heartbeat> heartbeat(String owner, String value) {
+    static java.util.Optional<Heartbeat> heartbeat(String owner, String value) {
         String[] parts = value.split(":");
         try {
-            return Optional.of(new Heartbeat(owner, Instant.ofEpochMilli(Long.parseLong(parts[0])),
+            return java.util.Optional.of(new Heartbeat(owner, Instant.ofEpochMilli(Long.parseLong(parts[0])),
                     Duration.ofMillis(Long.parseLong(parts[1]))));
         } catch (RuntimeException e) {
-            return Optional.empty();
+            return java.util.Optional.empty();
         }
     }
 

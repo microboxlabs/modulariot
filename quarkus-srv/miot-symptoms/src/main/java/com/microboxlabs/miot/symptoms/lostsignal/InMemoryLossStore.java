@@ -17,6 +17,7 @@ public class InMemoryLossStore implements LossStore {
     private final Map<String, CheckState> checks = new ConcurrentHashMap<>();
     private final Map<String, Instant> deadlines = new ConcurrentHashMap<>();
     private final Map<String, Heartbeat> beats = new ConcurrentHashMap<>();
+    private final Map<String, Mark> marks = new ConcurrentHashMap<>();
     private final Clock clock;
     private String leaseOwner;
     private Instant leaseUntil = Instant.MIN;
@@ -36,7 +37,12 @@ public class InMemoryLossStore implements LossStore {
 
     @Override
     public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
-            Schedule schedule) {
+            Schedule schedule, Mark mark) {
+        if (mark != null) {
+            marks.merge(assetId, mark, (old, m) -> !old.lostSince().equals(m.lostSince()) ? m
+                    : new Mark(m.lostSince(), old.returnedAt() != null ? old.returnedAt() : m.returnedAt(),
+                            old.backfill() || m.backfill()));
+        }
         vehicles.put(assetId, vehicle);
         if (sender != null) {
             senders.put(sender, senderProfile);
@@ -63,15 +69,18 @@ public class InMemoryLossStore implements LossStore {
 
     @Override
     public Vehicle vehicle(String assetId) {
-        return new Vehicle(vehicles.get(assetId), watches.get(assetId), checks.get(assetId));
+        CheckState c = checks.get(assetId);
+        Mark m = marks.get(assetId);
+        boolean current = c != null && c.lost() && m != null && m.lostSince().equals(c.lostSince());
+        return new Vehicle(vehicles.get(assetId), watches.get(assetId), c, current ? m.returnedAt() : null,
+                current && m.backfill());
     }
 
     @Override
     public void checked(String assetId, CheckState check, Instant next) {
-        if (CheckState.NONE.equals(check)) {
-            checks.remove(assetId);
-        } else {
-            checks.put(assetId, check);
+        checks.put(assetId, check);
+        if (!check.lost()) {
+            marks.remove(assetId);
         }
         if (next == null) {
             deadlines.remove(assetId);

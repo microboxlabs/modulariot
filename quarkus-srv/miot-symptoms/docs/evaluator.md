@@ -68,6 +68,7 @@ Each new transition, and an operator's close, is published in-process as an `Ope
 | `symptom.case.level_changed` | LEVEL_CHANGED transition |
 | `symptom.case.closed` | CLOSED transition, or `POST …/treatments/{id}/close` (`closedBy` set) |
 | `symptom.case.sla_expired` | The SLA timer, see below |
+| `symptom.case.signal_returned` | The lost-signal detector: the vehicle of an open `trip_check` case reports again (`signalReturnedAt`, `backfill`); the case stays open. An ACTIVE case also gets a `case.signal_returned` audit entry ([lost-signal.md](lost-signal.md)) |
 
 `source` is `miot-symptoms`, `context` is `{kind: "symptom_case", key: "<symptom id>"}` (the negated OPENED id), `data` is `SymptomCaseData`. TEST symptoms publish with `test: true`. `SymptomEventCatalog` lists the types and the payload class.
 

@@ -1,0 +1,87 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Set up the provider
+
+**For:** platform owners. **Setup:** ModularIoT (the web application at modulariot.com/app).
+
+The platform contracts a geocoding provider and pays for it. Each organization uses it through a connection that a platform owner creates. This guide gets the provider ready and connects an organization.
+
+| Step | Where | Selector scope |
+| --- | --- | --- |
+| 1. Store the provider's token | Settings › Credentials | **Platform** |
+| 2. Choose the provider | Settings › Connections | **Platform** |
+| 3. Connect the organization | Settings › Connections | The organization |
+| 4. Give it a quota | Settings › Platform › Geocoding | Any |
+
+You change the scope in the organization selector, at the top right. **Platform** is the first option in the list and only platform owners see it.
+
+<Steps>
+
+### Store the provider's token
+
+1. Change the selector to **Platform**.
+2. Open **Settings › Credentials** and click **Add credential**.
+3. Search for `map` and choose **Mapbox** or **Google Maps**.
+4. Paste the token and save.
+
+![Mapbox and Google Maps credential types](/geocoding/credential-types.png)
+
+Use a Mapbox server token, without URL restrictions, with permanent mode enabled in your Mapbox account. The token is not shown again.
+
+### Choose the provider
+
+1. With the selector on **Platform**, open **Settings › Connections**.
+2. If the **Platform geocoding** card exists, click its three dots and **Edit**. If not, click **New connection** and choose **Geocoding · platform provider**.
+3. Fill in the form and click **Save**.
+
+![Platform geocoding provider form](/geocoding/platform-provider.png)
+
+| Field | What to enter |
+| --- | --- |
+| Provider | **Mapbox** |
+| Credential | The one from step 1 |
+| Permanent mode | On. Without it, no provider result is used: all go to review |
+| Our cost per call (USD) | What the provider charges per call in permanent mode, under its contract, for example `0.005`. It is copied into each usage row. It is not what the organization pays |
+
+<Callout type="warning">
+**Pitfall:** with **Google Maps** as the provider, each call is charged and the place goes to review, because the platform does not store Google results (default setting, pending a review of its terms). Use Mapbox with permanent mode.
+</Callout>
+
+The card can still show **Draft · Never tested** after saving. That status does not block calls. **Test** checks the token: with Mapbox, at no cost; with Google, it geocodes an address and the provider charges for it.
+
+### Connect the organization
+
+1. Change the selector to the organization.
+2. Open **Settings › Connections** and click **New connection**.
+3. Choose **Geocoding · platform provider**.
+
+![New connection picker with the geocoding option](/geocoding/new-connection-picker.png)
+
+The **Geocoding · ModularIoT** card appears, active:
+
+![Geocoding · ModularIoT connection card in an organization](/geocoding/org-connection-card.png)
+
+The connection stores no token: it uses the platform's. Repeating the step does not create another one. If the organization had another geocoding connection, it is deleted.
+
+Without this connection, the organization still resolves by geofence, Plus Code, coordinates, internal addresses and cache. The only thing it does not do is call the provider: those places go to review with `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones`.
+
+To remove it, click its three dots and **Delete**.
+
+### Give it a quota
+
+If the quotas apply, the organization needs a subscription. Follow [Assign an organization's quota](/en/products/geocoding/how-to/assign-quota).
+
+</Steps>
+
+## Check
+
+Resolve an address that is not in the internal addresses or in the cache (see [Your first location](/en/products/geocoding/tutorials/first-location)) and open **Settings › Trips › Monthly usage**. The **Quota** card must add one call. If the provider did not find the address, the call appears in the **None** or **Provider** row with the result **To review**.
+
+## Through the API
+
+| Step | Call |
+| --- | --- |
+| 2 | `PUT /api/v1/platform/geocoding-provider` with `provider`, `credentialProfileId`, `permanent`, `costPerRequestUsd` |
+| 3 | `POST /api/v1/platform/orgs/{slug}/geocoding-connection` |
+
+Details in [Plan, usage and provider API](/en/products/geocoding/reference/plan-api).

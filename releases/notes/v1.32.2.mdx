@@ -4,9 +4,9 @@
 
 **Objetivo**: Mejorar la gestión de geocercas para que cada organización consulte sus propios datos desde el modulith. Esta versión incorpora el cambio OSS del milestone MIOT-0.6.2.
 
-## 🚀 Evolutivos
+## 🐛 Correcciones
 
-- **📍 Geocercas por organización** *(integración OSS: MIOT-0.6.2)*
+- **🐛 Geocercas por organización** ([#2309](https://github.com/microboxlabs/modulariot/issues/2309)) _(integración OSS: MIOT-0.6.2)_
   - **Punto clave**: Lugares consulta las geocercas y sus formas GeoJSON para la organización activa.
   - **Detalle técnico**: La solicitud reenvía la sesión del usuario al endpoint `miot-places`; el modulith autoriza la organización y lee los datos directamente de la base GPS, reemplazando la llamada global a StreamHub M2M/PostgREST y la lista manual de organizaciones.
 

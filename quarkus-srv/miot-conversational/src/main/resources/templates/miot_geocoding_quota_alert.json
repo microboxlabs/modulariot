@@ -1,0 +1,16 @@
+{
+  "name": "miot_geocoding_quota_alert",
+  "language": "es",
+  "category": "UTILITY",
+  "header": null,
+  "body": "Geocodificación de {{organization}}: {{used}} / {{quota}} llamadas ({{pct}}%). {{next_step}} Revisa el consumo en /app/es/users/settings/geocoding.",
+  "footer": null,
+  "buttons": [],
+  "examples": {
+    "organization": "Organización de ejemplo (2026-10)",
+    "used": "1000",
+    "quota": "1000",
+    "pct": "100",
+    "next_step": "Las nuevas direcciones pasan a revisión hasta el próximo mes o hasta que se aumente la cuota."
+  }
+}

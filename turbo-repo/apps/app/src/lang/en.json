@@ -1699,6 +1699,8 @@
           "enforcedOn": "An organization without a subscription does not call the provider. Once its quota is used, its subscription decides.",
           "enforcedOff": "No call is refused. Usage is still recorded, shown and alerted on.",
           "resolutions": "Default monthly quota (calls)",
+          "whatsAppRecipients": "Platform WhatsApp recipients",
+          "whatsAppRecipientsHelp": "Optional: up to 20 E.164 numbers, one per line (for example, +15550000001). Uses the platform WhatsApp connection; delivery is skipped if it is absent.",
           "alertPct": "Alert at (% of the quota)",
           "monthlyPrice": "Monthly price (USD)",
           "overagePrice": "Price per call over the quota (USD)",
@@ -1709,6 +1711,7 @@
           "saveError": "Could not save.",
           "loadError": "Could not load.",
           "errors": {
+            "whatsAppRecipients": "Use up to 20 E.164 numbers with + and country code.",
             "monthlyPrice": "The monthly price must be a number of zero or more.",
             "resolutions": "The quota must be a whole number of zero or more.",
             "overagePrice": "The overage price must be a number of zero or more.",
@@ -1768,6 +1771,8 @@
             "alreadySubscribed": "Already has a quota; edit it in the table",
             "noMatches": "No organization matches.",
             "refine": "{count} more; type to narrow.",
+            "whatsAppRecipients": "Organization WhatsApp recipients",
+            "whatsAppRecipientsHelp": "Optional: up to 20 E.164 numbers, one per line. Uses this organization’s WhatsApp connection.",
             "pickFirst": "Pick an organization.",
             "quota": "Monthly quota (provider calls)",
             "quotaPlaceholder": "Empty: the plan's ({quota})",
@@ -1776,6 +1781,7 @@
             "cancel": "Cancel"
           },
           "errors": {
+            "whatsAppRecipients": "Use up to 20 E.164 numbers with + and country code.",
             "quota": "The quota must be a whole number of zero or more, or empty."
           },
           "filters": {
@@ -3636,6 +3642,8 @@
           "nextMonth": "Next month",
           "loadError": "The geocoding usage could not be loaded.",
           "forbidden": "Only an owner of the organization can see the geocoding usage.",
+          "quotaExhaustedReview": "Geocoding quota exhausted. New addresses go to review until next month or until the quota is increased.",
+          "quotaExhaustedOverage": "Geocoding quota exhausted. Calls continue and additional calls are charged at the overage price.",
           "notEnforced": "The quota is not enforced yet: no call is refused, but usage is recorded.",
           "noSubscriptionEnforced": "No subscription is recorded for this period. Provider calls require an assigned subscription while quotas are enforced. A platform owner manages subscriptions.",
           "noSubscriptionNotEnforced": "No subscription is recorded for this period. Provider calls are currently allowed because quotas are off; no plan charge is calculated. A platform owner manages subscriptions.",

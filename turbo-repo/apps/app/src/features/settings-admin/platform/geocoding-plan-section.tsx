@@ -6,6 +6,7 @@ import {
   Label,
   Spinner,
   TextInput,
+  Textarea,
   ToggleSwitch,
 } from "flowbite-react";
 import { HiOutlineMap } from "react-icons/hi";
@@ -23,7 +24,7 @@ import { useGeocodingPlan } from "./use-geocoding-plan";
 
 /** Bounds of each number field; prices go to a hundredth of a cent. */
 const NUMBER_LIMITS: Record<
-  keyof Omit<GeocodingPlanDraft, "enforced">,
+  keyof Omit<GeocodingPlanDraft, "enforced" | "whatsAppRecipients">,
   { min: number; max?: number; step: number }
 > = {
   resolutionsPerMonth: { min: 0, step: 1 },
@@ -79,7 +80,7 @@ export default function GeocodingPlanSection({
 
   const field = (
     id: string,
-    key: keyof Omit<GeocodingPlanDraft, "enforced">,
+    key: keyof Omit<GeocodingPlanDraft, "enforced" | "whatsAppRecipients">,
     label: string
   ) =>
     draft && (
@@ -153,6 +154,23 @@ export default function GeocodingPlanSection({
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {tr("countHelp", dict)}
           </p>
+
+          <div className="mt-4">
+            <Label htmlFor="geo-plan-whatsapp">
+              {tr("whatsAppRecipients", dict)}
+            </Label>
+            <Textarea
+              id="geo-plan-whatsapp"
+              value={draft.whatsAppRecipients}
+              onChange={(e) =>
+                setDraft({ ...draft, whatsAppRecipients: e.target.value })
+              }
+              rows={3}
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {tr("whatsAppRecipientsHelp", dict)}
+            </p>
+          </div>
 
           {problem && (
             <p className="mt-3 text-sm text-red-600 dark:text-red-400">

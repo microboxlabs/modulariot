@@ -51,6 +51,20 @@ uv run miot-harness demo "Tell me the story of delivery compliance this month an
 
 ## Contributing
 
+### Stack artifacts and releases
+
+Merge certified PRs into `trunk` as usual. **MIOT Stack Builds** builds images,
+validates matching component CI, and publishes an immutable stack manifest.
+Pushes, completed component builds, the nightly schedule and manual builds can
+publish snapshots. **MIOT Release Train** publishes tagged releases and their
+manifests.
+
+Both workflows send a neutral `miot-stack-available` notification to the private
+artifact receiver. The notification contains the source commit, version and
+image digests. Deployment selection, timing and execution belong entirely to
+the private deployment repository. Publishing a snapshot or release does not
+start a workload deployment.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md). For security issues, see our [Security Policy](SECURITY.md).
 
 ## Community

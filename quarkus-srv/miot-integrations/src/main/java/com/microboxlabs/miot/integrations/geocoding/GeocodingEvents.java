@@ -31,7 +31,13 @@ public class GeocodingEvents {
     }
 
     public void quotaThreshold(String tenantCode, GeocodingQuotaData data) {
-        OperationalEvent event = new OperationalEvent(GeocodingEventCatalog.QUOTA_THRESHOLD,
+        quotaLevel(tenantCode, data, GeocodingQuotaNotification.THRESHOLD);
+    }
+
+    public void quotaLevel(String tenantCode, GeocodingQuotaData data, String level) {
+        String type = GeocodingQuotaNotification.EXHAUSTED.equals(level)
+                ? GeocodingEventCatalog.QUOTA_EXHAUSTED : GeocodingEventCatalog.QUOTA_THRESHOLD;
+        OperationalEvent event = new OperationalEvent(type,
                 GeocodingEventCatalog.EVENT_SOURCE, tenantCode, Instant.now(),
                 new EventContext(GeocodingEventCatalog.CONTEXT_KIND, data.organization()), data, false);
         try {

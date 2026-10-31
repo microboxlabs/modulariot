@@ -110,6 +110,7 @@ export default function GeocodingTenantsSection({
         name: row.displayName,
         ownQuota: row.ownQuota,
         onExhausted: row.onExhausted,
+        whatsAppRecipients: row.whatsAppRecipients,
       }
     );
     setShowModal(true);

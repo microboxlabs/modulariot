@@ -10,6 +10,8 @@ import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.SourceUse;
 import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.Subscription;
 import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.Usage;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingEvents;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingQuotaNotification;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingQuotaNotifications;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingMetrics;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingQuotaData;
 import com.microboxlabs.miot.integrations.persistence.GeocodingPlanRepository;
@@ -22,6 +24,7 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.jboss.logging.Logger;
 
 /**
@@ -51,19 +54,31 @@ public class GeocodingPlanService {
     private final GeocodingEvents events;
     private final GeocodingMetrics metrics;
     private final Clock clock;
+    private final GeocodingQuotaNotifications notifications;
+    private static final Pattern E164 = Pattern.compile("\\+[1-9][0-9]{6,14}");
 
-    @Inject
-    public GeocodingPlanService(GeocodingPlanRepository repository, GeocodingEvents events,
-                                GeocodingMetrics metrics) {
-        this(repository, events, metrics, Clock.systemUTC());
+    public GeocodingPlanService(GeocodingPlanRepository repository, GeocodingEvents events, GeocodingMetrics metrics) {
+        this(repository, events, metrics, Clock.systemUTC(), null);
     }
 
     GeocodingPlanService(GeocodingPlanRepository repository, GeocodingEvents events, GeocodingMetrics metrics,
-                         Clock clock) {
+            Clock clock) {
+        this(repository, events, metrics, clock, null);
+    }
+
+    @Inject
+    public GeocodingPlanService(GeocodingPlanRepository repository, GeocodingEvents events,
+                                GeocodingMetrics metrics, GeocodingQuotaNotifications notifications) {
+        this(repository, events, metrics, Clock.systemUTC(), notifications);
+    }
+
+    GeocodingPlanService(GeocodingPlanRepository repository, GeocodingEvents events, GeocodingMetrics metrics,
+                         Clock clock, GeocodingQuotaNotifications notifications) {
         this.repository = repository;
         this.events = events;
         this.metrics = metrics;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     public Plan plan() {
@@ -84,7 +99,7 @@ public class GeocodingPlanService {
         }
         boolean enforced = req.enforced() == null ? repository.plan().enforced() : req.enforced();
         return repository.setPlan(req.monthlyPriceUsd(), req.resolutionsPerMonth(), req.overagePriceUsd(), alertPct,
-                enforced, actor);
+                enforced, actor, validateRecipients(req.whatsAppRecipients(), repository.plan().whatsAppRecipients()));
     }
 
     public Subscription setSubscription(String organization, SetSubscriptionRequest req, String actor) {
@@ -98,7 +113,9 @@ public class GeocodingPlanService {
         if (!ON_EXHAUSTED.contains(onExhausted)) {
             throw new IllegalArgumentException("onExhausted must be review or overage");
         }
-        repository.saveSubscription(organization, req.monthlyQuota(), onExhausted, actor);
+        Subscription current = repository.subscription(organization);
+        repository.saveSubscription(organization, req.monthlyQuota(), onExhausted, actor,
+                validateRecipients(req.whatsAppRecipients(), current == null ? List.of() : current.whatsAppRecipients()));
         return repository.subscription(organization);
     }
 
@@ -107,7 +124,7 @@ public class GeocodingPlanService {
         YearMonth period = or(month);
         Plan terms = planFor(period);
         Subscription subscription = subscriptionFor(organization, period);
-        return new OrgPlanResponse(terms == null ? repository.plan() : terms, subscription,
+        return new OrgPlanResponse((terms == null ? repository.plan() : terms).withoutPlatformRecipients(), subscription,
                 usage(organization, terms, subscription, period).withoutProviderCost(), repository.plan().enforced());
     }
 
@@ -126,6 +143,10 @@ public class GeocodingPlanService {
      * refuses it.
      */
     public Refusal checkProviderCall(String organization) {
+        return checkProviderCall(organization, null);
+    }
+
+    public Refusal checkProviderCall(String organization, String tenantCode) {
         Plan plan = repository.plan();
         if (!plan.enforced()) {
             return null;
@@ -138,6 +159,9 @@ public class GeocodingPlanService {
         YearMonth month = YearMonth.now(clock);
         long used = repository.providerCalls(organization, start(month), start(month.plusMonths(1)));
         metrics.quota(organization, used, quota);
+        if (used >= quota) {
+            notifyLevels(organization, tenantCode, subscription, plan, quota, month, used);
+        }
         if (used >= quota && REVIEW.equals(subscription.onExhausted())) {
             return refuse(QUOTA_EXHAUSTED, "the organization used its " + quota
                     + " geocoding resolutions for this month");
@@ -145,7 +169,7 @@ public class GeocodingPlanService {
         return null;
     }
 
-    /** After a recorded provider call: updates the quota gauge and warns once a month at the alert share. */
+    /** After a recorded provider call: updates the quota gauge and notifies each monthly quota level. */
     public void afterProviderCall(String organization, String tenantCode) {
         if (organization == null) {
             return;
@@ -159,17 +183,48 @@ public class GeocodingPlanService {
         YearMonth month = YearMonth.now(clock);
         long used = repository.providerCalls(organization, start(month), start(month.plusMonths(1)));
         metrics.quota(organization, used, quota);
-        if (quota == 0 || used * 100 < (long) plan.alertPct() * quota) {
-            return;
+        notifyLevels(organization, tenantCode, subscription, plan, quota, month, used);
+    }
+
+    private void notifyLevels(String organization, String tenantCode, Subscription subscription, Plan plan,
+            int quota, YearMonth month, long used) {
+        int pct = quota == 0 ? 100 : (int) Math.min(Integer.MAX_VALUE, used * 100 / quota);
+        if (quota > 0 && used * 100 >= (long) plan.alertPct() * quota) {
+            notifyLevel(organization, tenantCode, subscription, plan, quota, month, used, pct,
+                    GeocodingQuotaNotification.THRESHOLD);
         }
-        if (!repository.claimAlert(organization, month.atDay(1))) {
-            return;
+        if (used >= quota) {
+            notifyLevel(organization, tenantCode, subscription, plan, quota, month, used, pct,
+                    GeocodingQuotaNotification.EXHAUSTED);
         }
-        int pct = (int) (used * 100 / quota);
-        LOG.warnf("Geocoding quota: %s used %d of %d provider calls in %s (%d%%)", organization, used, quota, month,
-                pct);
-        events.quotaThreshold(tenantCode, new GeocodingQuotaData(organization, month.toString(), used, quota, pct,
-                subscription.onExhausted()));
+    }
+
+    private void notifyLevel(String organization, String tenantCode, Subscription subscription, Plan plan,
+            int quota, YearMonth month, long used, int pct, String level) {
+        try {
+            if (!notifications.enqueue(organization, month, level, used, quota, pct, plan, subscription)) {
+                return;
+            }
+            LOG.warnf("Geocoding quota %s: %s used %d of %d provider calls in %s (%d%%)", level,
+                    organization, used, quota, month, pct);
+            var data = new GeocodingQuotaData(organization, month.toString(), used, quota, pct, subscription.onExhausted());
+            if (tenantCode != null) {
+                events.quotaLevel(tenantCode, data, level);
+            }
+        } catch (RuntimeException e) {
+            LOG.warnf("Geocoding quota %s notification could not be enqueued for %s (%s)", level,
+                    organization, e.getClass().getSimpleName());
+        }
+    }
+
+    static List<String> validateRecipients(List<String> recipients, List<String> current) {
+        if (recipients == null) {
+            return current;
+        }
+        if (recipients.size() > 20 || recipients.stream().anyMatch(p -> p == null || !E164.matcher(p).matches())) {
+            throw new IllegalArgumentException("whatsAppRecipients must contain at most 20 E.164 numbers");
+        }
+        return recipients.stream().distinct().toList();
     }
 
     private Usage usage(String organization, Plan plan, Subscription subscription, YearMonth month) {

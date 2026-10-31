@@ -12,8 +12,11 @@ public class GeocodingEventCatalog implements EventTypeCatalog {
     public static final String CONTEXT_KIND = "geocoding_quota";
     public static final String QUOTA_THRESHOLD = "geocoding.quota.threshold";
 
+    public static final String QUOTA_EXHAUSTED = "geocoding.quota.exhausted";
+
     private static final List<EventType> TYPES = List.of(new EventType(QUOTA_THRESHOLD,
-            "The organization used the alert share of its monthly geocoding quota", GeocodingQuotaData.class));
+            "The organization used the alert share of its monthly geocoding quota", GeocodingQuotaData.class), new EventType(QUOTA_EXHAUSTED,
+            "The organization used its monthly geocoding quota", GeocodingQuotaData.class));
 
     @Override
     public String source() {

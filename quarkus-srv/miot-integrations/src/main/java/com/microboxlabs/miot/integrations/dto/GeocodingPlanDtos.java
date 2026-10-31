@@ -22,7 +22,21 @@ public final class GeocodingPlanDtos {
             int alertPct,
             boolean enforced,
             String updatedBy,
-            OffsetDateTime updatedAt) {
+            OffsetDateTime updatedAt,
+            List<String> whatsAppRecipients) {
+        public Plan {
+            whatsAppRecipients = whatsAppRecipients == null ? List.of() : List.copyOf(whatsAppRecipients);
+        }
+
+        public Plan withoutPlatformRecipients() {
+            return new Plan(monthlyPriceUsd, resolutionsPerMonth, overagePriceUsd, alertPct, enforced,
+                    updatedBy, updatedAt, List.of());
+        }
+
+        public Plan(BigDecimal monthlyPriceUsd, int resolutionsPerMonth, BigDecimal overagePriceUsd,
+                int alertPct, boolean enforced, String updatedBy, OffsetDateTime updatedAt) {
+            this(monthlyPriceUsd, resolutionsPerMonth, overagePriceUsd, alertPct, enforced, updatedBy, updatedAt, List.of());
+        }
     }
 
     /** {@code alertPct} null is 80; {@code enforced} null keeps the plan's. */
@@ -31,7 +45,12 @@ public final class GeocodingPlanDtos {
             Integer resolutionsPerMonth,
             BigDecimal overagePriceUsd,
             Integer alertPct,
-            Boolean enforced) {
+            Boolean enforced,
+            List<String> whatsAppRecipients) {
+        public SetPlanRequest(BigDecimal monthlyPriceUsd, Integer resolutionsPerMonth, BigDecimal overagePriceUsd,
+                Integer alertPct, Boolean enforced) {
+            this(monthlyPriceUsd, resolutionsPerMonth, overagePriceUsd, alertPct, enforced, null);
+        }
     }
 
     /**
@@ -42,10 +61,21 @@ public final class GeocodingPlanDtos {
             Integer monthlyQuota,
             String onExhausted,
             String updatedBy,
-            OffsetDateTime updatedAt) {
+            OffsetDateTime updatedAt,
+            List<String> whatsAppRecipients) {
+        public Subscription {
+            whatsAppRecipients = whatsAppRecipients == null ? List.of() : List.copyOf(whatsAppRecipients);
+        }
+
+        public Subscription(Integer monthlyQuota, String onExhausted, String updatedBy, OffsetDateTime updatedAt) {
+            this(monthlyQuota, onExhausted, updatedBy, updatedAt, List.of());
+        }
     }
 
-    public record SetSubscriptionRequest(Integer monthlyQuota, String onExhausted) {
+    public record SetSubscriptionRequest(Integer monthlyQuota, String onExhausted, List<String> whatsAppRecipients) {
+        public SetSubscriptionRequest(Integer monthlyQuota, String onExhausted) {
+            this(monthlyQuota, onExhausted, null);
+        }
     }
 
     /**

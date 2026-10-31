@@ -18,6 +18,7 @@ export interface TenantRow extends SwitcherOrg {
   quota: number;
   subscribed: boolean;
   onExhausted: OnExhausted;
+  whatsAppRecipients: readonly string[];
   used: number;
   resolutions: number;
   cacheHits: number;
@@ -57,6 +58,7 @@ export function tenantRows(
       quota: u.usage.quota ?? plan.resolutionsPerMonth,
       subscribed: u.subscription !== null,
       onExhausted: u.subscription?.onExhausted ?? "review",
+      whatsAppRecipients: u.subscription?.whatsAppRecipients ?? [],
       used: u.usage.used,
       resolutions: u.usage.resolutions,
       cacheHits: u.usage.cacheHits,

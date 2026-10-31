@@ -13,6 +13,7 @@ export interface GeocodingPlanDraft {
   overagePriceUsd: string;
   alertPct: string;
   enforced: boolean;
+  whatsAppRecipients: string;
 }
 
 /** Keys under `errors` in the dictionary. */
@@ -21,7 +22,8 @@ export type GeocodingPlanError =
   | "resolutions"
   | "overagePrice"
   | "alertPct"
-  | "quota";
+  | "quota"
+  | "whatsAppRecipients";
 
 export type DraftResult<T> =
   | { ok: true; value: T }
@@ -36,6 +38,7 @@ export function geocodingPlanDraftFrom(
     overagePriceUsd: String(plan.overagePriceUsd),
     alertPct: String(plan.alertPct),
     enforced: plan.enforced,
+    whatsAppRecipients: (plan.whatsAppRecipients ?? []).join("\n"),
   };
 }
 
@@ -49,6 +52,17 @@ function number(value: string): number | undefined {
 function wholeCount(value: string): number | undefined {
   const n = number(value);
   return n !== undefined && Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
+function recipients(value: string): string[] | undefined {
+  const phones = value.split(/[\s,;]+/).filter(Boolean);
+  if (
+    phones.length > 20 ||
+    phones.some((phone) => !/^\+[1-9][0-9]{6,14}$/.test(phone))
+  ) {
+    return undefined;
+  }
+  return [...new Set(phones)];
 }
 
 /** The request body for a draft, or the first problem with it. */
@@ -71,6 +85,10 @@ export function toGeocodingPlanRequest(
   if (alertPct === undefined || alertPct < 1 || alertPct > 100) {
     return { ok: false, error: "alertPct" };
   }
+  const whatsAppRecipients = recipients(draft.whatsAppRecipients);
+  if (whatsAppRecipients === undefined) {
+    return { ok: false, error: "whatsAppRecipients" };
+  }
   return {
     ok: true,
     value: {
@@ -79,6 +97,7 @@ export function toGeocodingPlanRequest(
       overagePriceUsd,
       alertPct,
       enforced: draft.enforced,
+      whatsAppRecipients,
     },
   };
 }
@@ -87,6 +106,7 @@ export function toGeocodingPlanRequest(
 export interface SubscriptionDraft {
   monthlyQuota: string;
   onExhausted: OnExhausted;
+  whatsAppRecipients: string;
 }
 
 export function subscriptionDraftFrom(
@@ -98,21 +118,33 @@ export function subscriptionDraftFrom(
         ? ""
         : String(subscription.monthlyQuota),
     onExhausted: subscription?.onExhausted ?? "review",
+    whatsAppRecipients: (subscription?.whatsAppRecipients ?? []).join("\n"),
   };
 }
 
 export function toSubscriptionRequest(
   draft: SubscriptionDraft
 ): DraftResult<SetGeocodingSubscription> {
+  const whatsAppRecipients = recipients(draft.whatsAppRecipients);
+  if (whatsAppRecipients === undefined) {
+    return { ok: false, error: "whatsAppRecipients" };
+  }
   if (draft.monthlyQuota.trim() === "") {
     return {
       ok: true,
-      value: { monthlyQuota: null, onExhausted: draft.onExhausted },
+      value: {
+        monthlyQuota: null,
+        onExhausted: draft.onExhausted,
+        whatsAppRecipients,
+      },
     };
   }
   const monthlyQuota = wholeCount(draft.monthlyQuota);
   if (monthlyQuota === undefined) {
     return { ok: false, error: "quota" };
   }
-  return { ok: true, value: { monthlyQuota, onExhausted: draft.onExhausted } };
+  return {
+    ok: true,
+    value: { monthlyQuota, onExhausted: draft.onExhausted, whatsAppRecipients },
+  };
 }

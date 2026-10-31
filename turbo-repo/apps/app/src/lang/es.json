@@ -1699,6 +1699,8 @@
           "enforcedOn": "Una organización sin suscripción no consulta al proveedor. Al agotar su cuota se aplica lo que dice su suscripción.",
           "enforcedOff": "No se rechaza ninguna consulta. El uso igual se registra, se muestra y se alerta.",
           "resolutions": "Cuota mensual por defecto (consultas)",
+          "whatsAppRecipients": "Destinatarios de WhatsApp de la plataforma",
+          "whatsAppRecipientsHelp": "Opcional: hasta 20 números E.164, uno por línea (por ejemplo, +15550000001). Se usa la conexión WhatsApp de la plataforma; si no existe, se omiten estos envíos.",
           "alertPct": "Alerta al (% de la cuota)",
           "monthlyPrice": "Precio mensual (USD)",
           "overagePrice": "Precio por consulta excedente (USD)",
@@ -1709,6 +1711,7 @@
           "saveError": "No se pudo guardar.",
           "loadError": "No se pudo cargar.",
           "errors": {
+            "whatsAppRecipients": "Usa hasta 20 números E.164 con + y código de país.",
             "monthlyPrice": "El precio mensual debe ser un número mayor o igual a cero.",
             "resolutions": "La cuota debe ser un número entero mayor o igual a cero.",
             "overagePrice": "El precio excedente debe ser un número mayor o igual a cero.",
@@ -1768,6 +1771,8 @@
             "alreadySubscribed": "Ya tiene cuota; edítala en la tabla",
             "noMatches": "Ninguna organización coincide.",
             "refine": "{count} más; escribe para acotar.",
+            "whatsAppRecipients": "Destinatarios de WhatsApp de la organización",
+            "whatsAppRecipientsHelp": "Opcional: hasta 20 números E.164, uno por línea. Se usa la conexión WhatsApp de esta organización.",
             "pickFirst": "Elige una organización.",
             "quota": "Cuota mensual (consultas al proveedor)",
             "quotaPlaceholder": "Vacía: la del plan ({quota})",
@@ -1776,6 +1781,7 @@
             "cancel": "Cancelar"
           },
           "errors": {
+            "whatsAppRecipients": "Usa hasta 20 números E.164 con + y código de país.",
             "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
           },
           "filters": {
@@ -3636,6 +3642,8 @@
           "nextMonth": "Mes siguiente",
           "loadError": "No se pudo cargar el uso de geocodificación.",
           "forbidden": "Solo un dueño de la organización puede ver el uso de geocodificación.",
+          "quotaExhaustedReview": "Cuota de geocodificación agotada. Las nuevas direcciones pasan a revisión hasta el próximo mes o hasta que se aumente la cuota.",
+          "quotaExhaustedOverage": "Cuota de geocodificación agotada. Las llamadas continúan y las adicionales se cobran al precio de excedente.",
           "notEnforced": "La cuota aún no se aplica: no se rechaza ninguna llamada, pero el uso se registra.",
           "noSubscriptionEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor requieren una suscripción asignada cuando se aplican las cuotas. Un dueño de la plataforma administra las suscripciones.",
           "noSubscriptionNotEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor están permitidas porque las cuotas están desactivadas; no se calcula un cargo del plan. Un dueño de la plataforma administra las suscripciones.",

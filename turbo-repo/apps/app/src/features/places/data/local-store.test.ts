@@ -99,7 +99,7 @@ describe("local-store", () => {
   });
 
   it("persists, updates and deletes places in localStorage", () => {
-    const { result } = renderHook(() => useLocalPlaces());
+    const { result } = renderHook(() => useLocalPlaces("demo-user:org"));
     const l = lugarDesdeForm(
       { ...FORM_VACIO, name: "A", lat: 1, lon: 1 },
       [],
@@ -107,18 +107,58 @@ describe("local-store", () => {
     );
 
     act(() => void result.current.saveLugar(l));
-    expect(readLocal().lugares).toHaveLength(1);
+    expect(readLocal("demo-user:org").lugares).toHaveLength(1);
 
     act(() => void result.current.saveLugar({ ...l, name: "B" }));
     expect(result.current.lugares.map((x) => x.name)).toEqual(["B"]);
 
     act(() => void result.current.deleteLugar("local-a"));
-    expect(readLocal().lugares).toHaveLength(0);
+    expect(readLocal("demo-user:org").lugares).toHaveLength(0);
+  });
+
+  it("keeps local drafts isolated when the active identity changes", () => {
+    const { result, rerender } = renderHook(
+      ({ scope }) => useLocalPlaces(scope),
+      { initialProps: { scope: "demo-user-a:org-a" } }
+    );
+    const draft = lugarDesdeForm(
+      { ...FORM_VACIO, name: "Demo private draft", lat: 1, lon: 1 },
+      [],
+      "local-demo"
+    );
+    act(() => void result.current.saveLugar(draft));
+    rerender({ scope: "demo-user-a:org-b" });
+    expect(result.current.lugares).toEqual([]);
+    rerender({ scope: "demo-user-b:org-a" });
+    expect(result.current.lugares).toEqual([]);
+    rerender({ scope: "demo-user-a:org-a" });
+    expect(result.current.lugares.map((place) => place.name)).toEqual([
+      "Demo private draft",
+    ]);
+  });
+
+  it("does not expose ambiguous legacy drafts or persist without a resolved scope", () => {
+    const draft = lugarDesdeForm(
+      { ...FORM_VACIO, name: "Legacy demo", lat: 1, lon: 1 },
+      [],
+      "local-legacy"
+    );
+    window.localStorage.setItem(
+      "miot.settings.places.local.v1",
+      JSON.stringify({ lugares: [draft], trayectos: [] })
+    );
+    const { result } = renderHook(() => useLocalPlaces(null));
+    expect(result.current.lugares).toEqual([]);
+    act(() => expect(result.current.saveLugar(draft)).toBe(false));
+    expect(readLocal("demo-user:org").lugares).toEqual([]);
   });
 
   it("ignores corrupt storage", () => {
-    window.localStorage.setItem("miot.settings.places.local.v1", "{nope");
-    expect(readLocal()).toEqual({ lugares: [], trayectos: [] });
+    window.localStorage.setItem(
+      "miot.settings.places.local.v1:demo-user%3Aorg",
+      "{nope"
+    );
+    expect(readLocal("demo-user:org")).toEqual({ lugares: [], trayectos: [] });
   });
 
   it("local copies replace the server version with the same id", () => {

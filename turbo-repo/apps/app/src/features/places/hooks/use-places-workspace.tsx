@@ -13,6 +13,8 @@ import useSWR from "swr";
 import type { MapRef, MapMouseEvent } from "react-map-gl";
 import type { Feature, FeatureCollection, Polygon, LineString } from "geojson";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import { useSession } from "next-auth/react";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
 import { anclaLugar, itemsDesdeFC, type ItemNombre } from "../map/place-labels";
 import type { BadgeMapa } from "../map/place-name-layer";
@@ -155,6 +157,7 @@ const fetcher = (url: string) =>
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
   });
+const scopedFetcher = ([url]: readonly [string, string]) => fetcher(url);
 const post = (fn: string, body: Record<string, unknown>) =>
   fetch(`/app/api/atc/rpc/${fn}`, {
     method: "POST",
@@ -534,6 +537,12 @@ export function usePlacesWorkspace(
   const runtimeConfig = useRuntimeConfig();
   const MAPBOX_TOKEN = runtimeConfig?.MAPBOX_API_KEY;
   const { carrierMode } = useCarrierMode();
+  const { activeOrg } = useOrgScopes();
+  const { data: session } = useSession();
+  const storageScope =
+    activeOrg?.slug && session?.user?.id
+      ? JSON.stringify([session.user.id, activeOrg.slug])
+      : null;
   const [mapStyle, setMapStyle] = useState<MapStyleName>("streets");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -603,7 +612,7 @@ export function usePlacesWorkspace(
     setConfirmacion({ titulo, nombre, accion });
   const [guardando, setGuardando] = useState(false);
   // versionado: cómo estaba el elemento al abrirlo, para listar qué cambió
-  const versiones = useVersionesPlaces();
+  const versiones = useVersionesPlaces(storageScope);
   const formOriginal = useRef<FormLugar | null>(null);
   const trayOriginal = useRef<FormTrayecto | null>(null);
   const [versionPendiente, setVersionPendiente] = useState<
@@ -611,29 +620,39 @@ export function usePlacesWorkspace(
   >(null);
 
   const { data: propios, mutate: refP } = useSWR<Lugar[]>(
-    enabled ? "/app/api/atc/rpc/fn_pt4_places" : null,
-    fetcher
+    enabled && storageScope
+      ? ["/app/api/atc/rpc/fn_pt4_places", storageScope]
+      : null,
+    scopedFetcher
   );
   const { data: globales } = useSWR<Lugar[]>(
-    enabled && carrierMode ? "/app/api/atc/rpc/fn_pt4_places_global" : null,
-    fetcher
+    enabled && storageScope && carrierMode
+      ? ["/app/api/atc/rpc/fn_pt4_places_global", storageScope]
+      : null,
+    scopedFetcher
   );
   const { data: trayectos, mutate: refT } = useSWR<Trayecto[]>(
-    enabled ? "/app/api/atc/rpc/fn_pt4_trayectos" : null,
-    fetcher
+    enabled && storageScope
+      ? ["/app/api/atc/rpc/fn_pt4_trayectos", storageScope]
+      : null,
+    scopedFetcher
   );
   const { data: cats } = useSWR<Categoria[]>(
-    enabled ? "/app/api/atc/rpc/fn_pt4_categorias" : null,
-    fetcher
+    enabled && storageScope
+      ? ["/app/api/atc/rpc/fn_pt4_categorias", storageScope]
+      : null,
+    scopedFetcher
   );
   const { data: cuotas, mutate: refQ } = useSWR<{
     lugares: Cuota;
     trayectos: Cuota;
   }>(
-    enabled && carrierMode ? "/app/api/atc/rpc/fn_pt4_quota_status" : null,
-    fetcher
+    enabled && storageScope && carrierMode
+      ? ["/app/api/atc/rpc/fn_pt4_quota_status", storageScope]
+      : null,
+    scopedFetcher
   );
-  const local = useLocalPlaces();
+  const local = useLocalPlaces(storageScope);
   const todosLugares = useMemo(
     () => fusionarPorId(propios ?? [], local.lugares, (l) => l.place_id),
     [propios, local.lugares]
@@ -1457,7 +1476,7 @@ export function usePlacesWorkspace(
   const centroMapa = useCallback((): [number, number] | null => {
     const c = mapRef.current?.getCenter();
     return c ? [c.lat, c.lng] : null;
-  }, []);
+  }, [mapRef]);
 
   const encuadrarRuta = (pts: [number, number][]) => {
     const map = mapRef.current;

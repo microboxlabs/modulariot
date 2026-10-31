@@ -1,0 +1,95 @@
+import { Callout } from 'nextra/components'
+
+# Uso, costo y monitoreo
+
+**Para:** responsables del producto, clientes y dueños de la plataforma.
+
+## Qué se cobra
+
+Solo una consulta al proveedor tiene costo. Todo lo demás es gratis y no consume cuota.
+
+| Fuente | Costo | Consume cuota |
+| --- | --- | --- |
+| Geocerca, Plus Code, coordenadas | Ninguno | No |
+| Direcciones internas | Ninguno | No |
+| Caché | Ninguno | No |
+| Proveedor | Una consulta | Sí |
+| Ubicar a mano, rechazar | Ninguno | No |
+
+Una consulta se cobra cuando el proveedor responde, aunque el lugar quede en revisión.
+
+## Dos precios distintos
+
+| Precio | Quién paga a quién | Dónde se fija |
+| --- | --- | --- |
+| Costo por llamada | La plataforma al proveedor | Conexión **Platform geocoding** |
+| Plan: precio mensual, consultas incluidas, precio por consulta excedente | La organización a la plataforma | Ajustes › Plataforma › Geocodificación › Plan |
+
+Cobro de una organización en un mes:
+
+```text
+cobro = precio mensual + (consultas sobre la cuota × precio excedente)
+```
+
+El excedente solo se cobra si la suscripción dice **Cobrar excedente**. Con **Enviar a revisión** y **Aplicar las cuotas** activo, al agotar la cuota la plataforma deja de consultar y los lugares nuevos van a revisión.
+
+Con **Aplicar las cuotas** inactivo, ninguna consulta se rechaza. Una organización en **Enviar a revisión** sigue consultando sobre su cuota: esas consultas no se le cobran, pero el proveedor sí las cobra a la plataforma.
+
+## Costo por viaje
+
+Un lugar se ubica una vez. Los viajes siguientes al mismo lugar usan su geocerca. El costo depende de cuántos lugares nuevos aparecen, no de cuántos viajes hay.
+
+Ejemplo con valores supuestos:
+
+| Supuesto | Valor |
+| --- | --- |
+| Viajes por mes | 3.000 |
+| Lugares nuevos el primer mes | 200 |
+| De ellos, resueltos por geocerca, Plus Code, direcciones internas o caché | 120 |
+| Lugares nuevos los meses siguientes | 20, de los que 8 van al proveedor |
+| Costo por llamada | US$ 0,005 |
+
+| Mes | Consultas al proveedor | Costo del proveedor | Costo del proveedor por viaje (lo paga la plataforma) |
+| --- | --- | --- | --- |
+| Primero | 80 | US$ 0,40 | US$ 0,00013 |
+| Siguientes | 8 | US$ 0,04 | US$ 0,000013 |
+
+Lo que más baja el costo: geocercas ya dibujadas para los lugares frecuentes, Plus Code en la planilla y direcciones escritas como en las fuentes internas.
+
+## Dónde se ve
+
+| Quién | Dónde | Qué ve |
+| --- | --- | --- |
+| Dueño de la organización | Ajustes › Viajes › Uso del mes (página **Uso mensual**) | Consultas contra la cuota, resoluciones por fuente y resultado, aciertos de caché, cargo del plan |
+| Dueño de la plataforma | Ajustes › Plataforma › Geocodificación › Organizaciones | Por organización: usadas / cuota, caché, costo del proveedor, cobro, modo al agotar |
+| Operación | Ajustes › Viajes › Por revisar | Lugares sin punto confiable y el motivo |
+| Equipo técnico | Métricas `geocoding.*` | Resoluciones, caché, latencia y errores del proveedor, rechazos por cuota |
+
+![Uso del mes de una organización](/geocoding/org-monthly-usage.png)
+
+## Alertas
+
+Cuando una organización con suscripción y cuota mayor que cero llega al porcentaje de alerta del plan (por defecto 80 %), la plataforma publica el evento `geocoding.quota.threshold`, una vez por mes.
+
+<Callout type="warning">
+**Cuidado:** el evento no envía mensajes por sí solo. Para que alguien reciba el aviso, cree una regla sobre ese evento en la organización. El dueño de la plataforma no recibe aviso; revise la tabla de Organizaciones con el filtro **En alerta** o **Agotada**.
+</Callout>
+
+## Auditoría
+
+| Registro | Qué responde |
+| --- | --- |
+| Uso de geocodificación | Cuántas resoluciones, de qué fuente, cuántas al proveedor y a qué costo, por organización y mes |
+| Auditoría de Viajes | Quién resolvió, ubicó a mano o rechazó cada lugar, y con qué fuente y geocerca |
+| Trabajos del feed (Integraciones › Consola de trabajos) | Qué lugares intentó ubicar cada servicio de un feed |
+| Historial de términos | Qué plan y qué cuota regían en cada mes |
+
+Detalle de tablas y métricas en [Datos y métricas](/es/products/geocoding/reference/data-and-metrics).
+
+## Riesgos por país
+
+| País | Riesgo | Mitigación |
+| --- | --- | --- |
+| Chile | Bajo para direcciones con número en comunas con datos internos | Escribir calle y número como en el registro oficial |
+| Perú | Alto: el proveedor no está certificado; muchas direcciones van a revisión o caen en otro distrito | Plus Code o coordenadas en la planilla; geocercas dibujadas |
+| Otros | Todo queda en revisión: no hay límites administrativos cargados | [Certificar el país](/es/products/geocoding/how-to/certify-a-country) antes de ofrecerlo |

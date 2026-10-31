@@ -148,48 +148,6 @@ export function decodeEwkbOuterRing(
   }
 }
 
-/** A row of the streamhub `geofences` table, as read for the places map. */
-export interface StreamhubGeofenceRow {
-  geofence_id: number;
-  client_geofence_id: string | null;
-  geofence_name: string | null;
-  polygon_type: string | null;
-  /** EWKB hex (Multi)Polygon; circles are stored already as polygons. */
-  coordinates: string | null;
-  /** Free-form JSON: `category`, `address`, `radius_meters`, … */
-  properties: Record<string, unknown> | null;
-  /** The geofence's category. Absent while the column is not deployed. */
-  geofence_category?: string | null;
-}
-
-/**
- * Every geofence of one streamhub client (`client_id`, the Auth0 M2M client
- * that owns it). Read-only: the places map loads them, nothing writes back.
- */
-export async function fetchClientGeofences(
-  clientId: string
-): Promise<StreamhubGeofenceRow[]> {
-  const token = await bearerToken();
-  // `*` rather than naming `geofence_category`: naming a column the database
-  // does not have yet fails the whole request (42703)
-  const url = `${pgrestBaseUrl()}/geofences?select=*&client_id=eq.${encodeURIComponent(
-    clientId
-  )}&order=geofence_name.asc`;
-  const response = await pgrestFetch(url, {
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(
-      `pgrest GET geofences failed: ${response.status} ${response.statusText}`
-    );
-  }
-  return (await response.json()) as StreamhubGeofenceRow[];
-}
-
 export interface GeofenceCentroid {
   /** The geofence's client id — matches a service's origen/destino code. */
   code: string;

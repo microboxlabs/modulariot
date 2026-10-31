@@ -30,6 +30,10 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-places</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-integrations</artifactId>
             <!-- pulsar-client 4.x breaks quarkus-messaging-pulsar (Pulsar 3.3 original).
                  Symptoms uses the Quarkus connector; retransmit stays unused in this process. -->

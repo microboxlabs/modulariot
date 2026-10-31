@@ -59,6 +59,15 @@ class LocationResolverTest {
     }
 
     @Test
+    void aShortPlusCodeWithAnAmbiguousDistrictSaysTheDistrictIsAmbiguous() {
+        Outcome out = resolver.resolve(ORG, TENANT,
+                new Site("CD-01", "CD", null, "PE", null, "Miraflores", "VXHC+H4", null, null));
+
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertEquals("district Miraflores is ambiguous in PE; send its code", out.placement().note());
+    }
+
+    @Test
     void aPointInAnotherDistrictNeedsReviewAndSaysWhere() {
         // Plaza de Armas, Santiago, declared in Providencia
         Outcome out = resolver.resolve(ORG, TENANT,

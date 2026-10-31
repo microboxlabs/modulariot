@@ -129,7 +129,7 @@ public class Geocoder {
         try {
             own = resolver.resolve(tenantCode, ProviderType.GEOCODING);
         } catch (ConnectionNotConfiguredException e) {
-            return "this organization has no geocoding connection; a platform owner adds it in Conexiones";
+            return "this organization has no geocoding connection; a platform owner adds it in Settings › Connections";
         } catch (ConnectionResolutionException e) {
             LOG.warnf("The geocoding connection of %s cannot be read: %s", tenantCode, e.getMessage());
             return "this organization's geocoding connection cannot be read";

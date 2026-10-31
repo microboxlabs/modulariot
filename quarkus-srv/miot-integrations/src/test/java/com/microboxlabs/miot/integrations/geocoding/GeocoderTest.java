@@ -216,7 +216,7 @@ class GeocoderTest {
 
         assertNull(r.provider());
         assertFalse(r.called());
-        assertEquals("this organization has no geocoding connection; a platform owner adds it in Conexiones",
+        assertEquals("this organization has no geocoding connection; a platform owner adds it in Settings › Connections",
                 r.error());
         assertTrue(requests.isEmpty());
     }

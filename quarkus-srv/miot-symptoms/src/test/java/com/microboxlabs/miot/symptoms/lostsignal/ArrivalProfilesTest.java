@@ -118,10 +118,11 @@ class ArrivalProfilesTest {
                 RedisLossStore.JSON.convertValue(a.vehicle(), Map.class), VehicleProfile.class));
         assertTrue(json.contains("\"at\":1767225660000"), "times in epoch ms");
         List<Request> writes = RedisLossStore.saveRequests("V1", a.vehicle(), "S1", a.sender(),
-                Duration.ofDays(7));
+                LossStore.Schedule.KEEP, Duration.ofDays(7));
         assertEquals(List.of("HSET", "EXPIRE", "SET"),
                 writes.stream().map(r -> r.command().toString().toUpperCase(java.util.Locale.ROOT)).toList());
-        assertEquals(2, RedisLossStore.saveRequests("V1", a.vehicle(), null, a.sender(), Duration.ofDays(7))
+        assertEquals(2, RedisLossStore.saveRequests("V1", a.vehicle(), null, a.sender(), LossStore.Schedule.KEEP,
+                Duration.ofDays(7))
                 .size());
     }
 

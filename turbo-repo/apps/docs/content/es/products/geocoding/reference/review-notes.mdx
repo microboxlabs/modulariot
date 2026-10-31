@@ -2,7 +2,7 @@
 
 **Para:** desarrolladores e implementadores.
 
-Cuando un sitio queda en `needs_review`, `resolutionNote` dice por qué. Las notas están en inglés y se cortan a 255 caracteres. En estas tablas, `X`, `CC` y `N` son valores del caso.
+Cuando un sitio queda en `needs_review`, `resolutionNote` dice por qué. Las notas de la API están en inglés y se cortan a 255 caracteres. La lista **Por revisar** las muestra traducidas. En estas tablas, `X`, `CC` y `N` son valores del caso.
 
 Si un sitio no trae ningún punto, la nota es la de la falta de fuente, aunque también falte el país. Si una fuente da un punto, la nota es la de la comprobación de la comuna.
 
@@ -26,7 +26,7 @@ Si un sitio no trae ningún punto, la nota es la de la falta de fuente, aunque t
 | `no geofence, plus code or coordinates` | Ninguna fuente de punto y sin dirección utilizable |
 | `an address needs a district with a boundary to be geocoded` | Hay dirección, pero la comuna no se encontró o no tiene polígono |
 | `plus code X is not valid` | Plus Code inválido y ninguna fuente posterior respondió |
-| `a short plus code needs a district with a boundary` | Plus Code corto sin comuna encontrada. También aparece cuando el nombre de la comuna es ambiguo |
+| `a short plus code needs a district with a boundary` | Plus Code corto sin comuna declarada. Si se declaró una comuna que no se pudo usar, la nota es la de la comuna |
 | `latitude and longitude go together` | Solo una de las dos |
 | `coordinates out of range` | Fuera de rango, no finitas, o `0, 0` |
 
@@ -47,7 +47,7 @@ Las notas que empiezan con `geocoding:` significan que no se consultó al provee
 | --- | --- | --- |
 | `geocoding: the organization has no geocoding plan` | Las cuotas se aplican y la organización no tiene suscripción | Dueño de la plataforma: Plataforma › Geocodificación › Organizaciones |
 | `geocoding: the organization used its N geocoding resolutions for this month` | Cuota agotada con **Enviar a revisión** | Dueño de la plataforma, o esperar al mes siguiente (UTC) |
-| `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones` | La organización no tiene la conexión de geocodificación | Dueño de la plataforma: Conexiones de la organización |
+| `geocoding: this organization has no geocoding connection; a platform owner adds it in Settings › Connections` | La organización no tiene la conexión de geocodificación | Dueño de la plataforma: Conexiones de la organización |
 | `geocoding: this organization's geocoding connection is not managed by the platform` | La organización tiene una conexión de geocodificación propia | Dueño de la plataforma: reemplazarla por la administrada |
 | `geocoding: this organization's geocoding connection cannot be read` | Error al leer la conexión | Soporte |
 | `geocoding: the platform has no geocoding provider` | La plataforma no tiene proveedor | Dueño de la plataforma: Conexiones, ámbito Plataforma |

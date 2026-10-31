@@ -70,7 +70,7 @@ Each service in a feed batch is a `trips_feed_service` job, with the service cod
 { "action": "create", "tripId": "…", "located": ["GEO-PROV-ORIGEN-2: resolved"], "errors": [], "warnings": [] }
 ```
 
-Each element is `code: status`, or `code: could not resolve site` if it failed. Without sites tried, `located` does not appear. An error while locating does not fail the job. You see the jobs in **Integrations › Job console**; you read the `result` through the jobs API.
+Each element is `code: status`, or `code: could not resolve site` if it failed. Without sites tried, `located` does not appear. An error while locating does not fail the job. You see the jobs in **Integrations › Job console**; the `result` is in the **Payload** tab.
 
 ## Metrics
 

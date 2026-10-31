@@ -23,7 +23,10 @@ public interface GeofenceDirectory {
      */
     List<Geofence> matching(String tenantCode, String code, String name, int limit);
 
-    /** The tenant's geofences whose area covers the point, lowest id first; at most {@code limit}. */
+    /**
+     * The tenant's geofences whose area covers the point, lowest id first; at most {@code limit}.
+     * Excludes location-owned geofences keyed by the location id, whose areas can move with that location.
+     */
     List<Geofence> containing(String tenantCode, double lon, double lat, int limit);
 
     /**

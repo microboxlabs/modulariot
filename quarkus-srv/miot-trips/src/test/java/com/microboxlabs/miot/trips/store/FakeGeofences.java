@@ -67,6 +67,7 @@ public class FakeGeofences implements GeofenceDirectory {
     @Override
     public List<Geofence> containing(String tenantCode, double lon, double lat, int limit) {
         return of(tenantCode).stream()
+                .filter(g -> !owners.containsKey(g.id()) || !owners.get(g.id()).equals(g.code()))
                 .filter(g -> shapes.containsKey(g.id()) && GeoShape.parse(shapes.get(g.id())).contains(lon, lat))
                 .sorted(Comparator.comparingInt(Geofence::id)).limit(limit).toList();
     }

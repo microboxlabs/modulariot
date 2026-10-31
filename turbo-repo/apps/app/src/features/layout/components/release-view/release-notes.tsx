@@ -1,8 +1,43 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 
-export default function ReleaseNotes({ version }: { version: string }) {
-  const [ReleaseNotesComponent, setReleaseNotesComponent] = useState<any>(null);
+async function importReleaseNotes(
+  version: string,
+  audience: "platform" | "coordinator"
+) {
+  try {
+    const releaseModule =
+      audience === "platform"
+        ? await import(`@/releases/platform/${version}.mdx`)
+        : await import(`@/releases/${version}.mdx`);
+    return {
+      Component: releaseModule.default as ComponentType,
+      warning: undefined,
+    };
+  } catch (error) {
+    console.error(
+      `Failed to load release notes for version ${version}:`,
+      error
+    );
+    // Platform notes must never fall back to the independent Coordinator series.
+    if (audience === "platform") throw error;
+    const fallbackModule = await import(`@/releases/v1.1.0.mdx`);
+    return {
+      Component: fallbackModule.default as ComponentType,
+      warning: `Version ${version} not found. Showing v1.1.0 instead.`,
+    };
+  }
+}
+
+export default function ReleaseNotes({
+  version,
+  audience = "coordinator",
+}: {
+  version: string;
+  audience?: "platform" | "coordinator";
+}) {
+  const [ReleaseNotesComponent, setReleaseNotesComponent] =
+    useState<ComponentType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -10,33 +45,25 @@ export default function ReleaseNotes({ version }: { version: string }) {
     const loadReleaseNotes = async () => {
       setLoading(true);
       setError(null);
+      setReleaseNotesComponent(null);
 
       try {
-        // Dynamically import the MDX file based on the version
-        const releaseModule = await import(`@/releases/${version}.mdx`);
-        setReleaseNotesComponent(() => releaseModule.default);
-      } catch (error) {
-        console.error(
-          `Failed to load release notes for version ${version}:`,
-          error
+        const { Component, warning } = await importReleaseNotes(
+          version,
+          audience
         );
-
-        try {
-          // Fallback to v1.1 if the requested version doesn't exist
-          const fallbackModule = await import(`@/releases/v1.1.0.mdx`);
-          setReleaseNotesComponent(() => fallbackModule.default);
-          setError(`Version ${version} not found. Showing v1.1.0 instead.`);
-        } catch (fallbackError) {
-          setError("Failed to load release notes.");
-          console.error("Fallback also failed:", fallbackError);
-        }
+        setReleaseNotesComponent(() => Component);
+        setError(warning ?? null);
+      } catch (error) {
+        setError("Failed to load release notes.");
+        console.error("Failed to load release notes:", error);
       } finally {
         setLoading(false);
       }
     };
 
     loadReleaseNotes();
-  }, [version]);
+  }, [version, audience]);
 
   if (loading) {
     return (
@@ -99,7 +126,7 @@ export default function ReleaseNotes({ version }: { version: string }) {
       )}
 
       <article className="prose prose-gray prose-lg max-w-none">
-        <ReleaseNotesComponent />
+        {ReleaseNotesComponent && <ReleaseNotesComponent />}
       </article>
 
       <style jsx global>{`

@@ -1,8 +1,16 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
+import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
+import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
+import com.microboxlabs.miot.symptoms.evaluator.RedisEpisodes;
+import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
+import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
+import com.microboxlabs.miot.symptoms.lostsignal.LossStore.Mark;
 import com.microboxlabs.miot.symptoms.lostsignal.LossStore.Schedule;
+import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -22,7 +30,8 @@ import org.jboss.logging.Logger;
 /**
  * The lost-signal detector. Every signal the evaluator reads updates the arrival profiles
  * ({@link ArrivalProfiles}) and, for a vehicle on a trip, moves its deadline to arrival + expected silence. A
- * ticker in one replica checks the vehicles whose deadline expired ({@link LossTicker}). Off unless
+ * ticker in one replica checks the vehicles whose deadline expired ({@link LossTicker}) and runs the
+ * organizations' {@code trip_check} versions on them ({@link TripChecks}). Off unless
  * {@code miot.symptoms.lost-signal.enabled}; a failure is counted ({@code miot.symptoms.lost_signal.failed}) and
  * never redelivers the signal.
  */
@@ -32,23 +41,30 @@ public class LostSignalDetector {
 
     private static final Logger LOG = Logger.getLogger(LostSignalDetector.class);
     private static final Duration HEARTBEAT_EVERY = Duration.ofSeconds(1);
+    /** A frame from inside the silence this much later than it was taken, or the sender's usual delay, is backfill. */
+    static final Duration BACKFILL_DELAY = Duration.ofMinutes(2);
 
     private final boolean enabled;
     private final ArrivalProfiles profiles;
     private final LossStore store;
     private final LossTicker ticker;
+    private final TripChecks trips;
     private final String owner;
     private final MeterRegistry meters;
     private final Clock clock;
     private final AtomicLong lastBeat = new AtomicLong();
 
-    /** How the ticker runs. */
+    /**
+     * How the ticker runs.
+     *
+     * @param returnGrace how long a return without backfill waits for it before its check
+     */
     public record TickerSettings(Duration recheck, Duration maxSilence, Duration leaseTtl, int batch,
-            IngestHealth ingest) {
+            IngestHealth ingest, Duration returnGrace) {
 
         public static TickerSettings defaults() {
             return new TickerSettings(Duration.ofMinutes(1), Duration.ofDays(1), Duration.ofSeconds(15), 500,
-                    new IngestHealth(Duration.ofMinutes(2), Duration.ofMinutes(2)));
+                    new IngestHealth(Duration.ofMinutes(2), Duration.ofMinutes(2)), Duration.ofMinutes(1));
         }
     }
 
@@ -63,12 +79,18 @@ public class LostSignalDetector {
             @ConfigProperty(name = "miot.symptoms.lost-signal.max-silence", defaultValue = "P1D") Duration maxSilence,
             @ConfigProperty(name = "miot.symptoms.lost-signal.ingest-stale-after", defaultValue = "PT2M") Duration staleAfter,
             @ConfigProperty(name = "miot.symptoms.lost-signal.ingest-max-lag", defaultValue = "PT2M") Duration maxLag,
-            EvaluatorRedis redis, MeterRegistry meters) {
+            @ConfigProperty(name = "miot.symptoms.lost-signal.return-grace", defaultValue = "PT1M") Duration returnGrace,
+            @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration episodeTtl,
+            EvaluatorRedis redis, EvaluatorCatalog catalog, TransitionLog transitionLog, SymptomEvents events,
+            AuditService audit, MeterRegistry meters) {
         this(enabled, redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
                 .orElseGet(InMemoryLossStore::new),
                 settings(profileTtl, minSamples, gapMargin, delayQuantile, maxDelay),
                 new TickerSettings(recheck, maxSilence, Duration.ofSeconds(15), 500,
-                        new IngestHealth(staleAfter, maxLag)),
+                        new IngestHealth(staleAfter, maxLag), returnGrace),
+                // The evaluator's episodes: an operator's close drops them for both.
+                new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
+                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters),
                 meters, Clock.systemUTC());
         if (enabled) {
             LOG.infof("Lost-signal detector: on, state in %s", redis.client().isPresent() ? "Redis" : "memory");
@@ -83,21 +105,22 @@ public class LostSignalDetector {
     }
 
     public LostSignalDetector(boolean enabled, LossStore store, LossSettings settings, TickerSettings ticker,
-            MeterRegistry meters, Clock clock) {
+            TripChecks trips, MeterRegistry meters, Clock clock) {
         this.enabled = enabled;
+        this.trips = trips;
         this.store = store;
         this.profiles = new ArrivalProfiles(store, settings);
         this.owner = UUID.randomUUID().toString();
         this.meters = meters;
         this.clock = clock;
-        this.ticker = new LossTicker(store, new MarkLost(store, ticker.recheck(), ticker.maxSilence(), meters),
-                ticker.ingest(), owner, ticker.leaseTtl(), ticker.batch(), meters, clock);
+        this.ticker = new LossTicker(store, new MarkLost(store, trips, ticker.recheck(), ticker.maxSilence(),
+                ticker.returnGrace(), meters), ticker.ingest(), owner, ticker.leaseTtl(), ticker.batch(), meters, clock);
     }
 
     /** A detector that does nothing. */
     public static LostSignalDetector off() {
         return new LostSignalDetector(false, new InMemoryLossStore(), LossSettings.defaults(),
-                TickerSettings.defaults(), new SimpleMeterRegistry(), Clock.systemUTC());
+                TickerSettings.defaults(), null, new SimpleMeterRegistry(), Clock.systemUTC());
     }
 
     /**
@@ -121,7 +144,23 @@ public class LostSignalDetector {
     private void record(Frame f, Map<String, Object> signal) {
         LossStore.Profiles before = store.load(f.assetId(), f.sender());
         ArrivalProfiles.Arrival a = profiles.apply(before, f);
-        store.save(f.assetId(), a.vehicle(), f.sender(), a.sender(), schedule(a, before.check(), f, signal));
+        store.save(f.assetId(), a.vehicle(), f.sender(), a.sender(), schedule(a, before.check(), f, signal),
+                mark(a, before.check(), f, profiles.settings()));
+    }
+
+    /**
+     * For a lost vehicle, a frame from inside the silence: the first one on time is its return, and one that
+     * arrives late or delayed past {@link #BACKFILL_DELAY} and the sender's usual delay is backfill.
+     */
+    static Mark mark(ArrivalProfiles.Arrival a, CheckState check, Frame f, LossSettings settings) {
+        if (check == null || !check.lost() || !f.at().isAfter(check.lostSince())) {
+            return null;
+        }
+        Duration usual = a.sender().deliveryDelay(settings);
+        double backfillAfter = Math.max(BACKFILL_DELAY.toSeconds(), usual.toSeconds());
+        boolean backfill = a.late() || f.delaySeconds() > backfillAfter;
+        Instant returned = a.late() || a.replay() ? null : f.arrivedAt();
+        return backfill || returned != null ? new Mark(check.lostSince(), returned, backfill) : null;
     }
 
     /**
@@ -177,6 +216,13 @@ public class LostSignalDetector {
         } catch (RuntimeException e) {
             // The deadlines stay: the next tick takes them.
             LOG.warnf("Lost-signal ticker: tick failed (%s)", e.getClass().getSimpleName());
+        }
+    }
+
+    /** An operator closed the symptom's case for the vehicle. */
+    public void forget(String tenant, String assetId, UUID definitionId) {
+        if (enabled) {
+            trips.forget(tenant, assetId, definitionId);
         }
     }
 

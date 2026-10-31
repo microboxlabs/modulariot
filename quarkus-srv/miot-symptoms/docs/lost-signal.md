@@ -58,8 +58,8 @@ Every `tick-every`, the replica holding the lease takes the vehicles whose deadl
 |---|---|
 | No watch (trip ended or keys expired) | Dropped from the deadlines |
 | Deadline not passed (a frame moved it meanwhile) | Moved to the new deadline |
-| Silent | Lost since its newest frame; checked again every `recheck-every` |
-| A frame newer than the loss | Returned: lost cleared, deadline back to arrival + expected silence. A frame from a lost vehicle sets its deadline to now, so the return is checked on the next tick |
+| Silent | Lost since its newest frame; its `trip_check` check runs, then again every `recheck-every` |
+| A frame newer than the loss | Returned (see below): lost cleared, deadline back to arrival + expected silence. A frame from a lost vehicle sets its deadline to now, so the return is checked on the next tick |
 | Silent past `max-silence` | Dropped from the deadlines; still lost, so a later frame returns it |
 
 A check reschedules with `ZADD XX`, so a vehicle a frame dropped meanwhile stays dropped, and a lease that moves to another replica repeats nothing. Counters: `miot.symptoms.lost_signal.checks` (tag `outcome`), `check_failed`, `paused` (tag `reason`).
@@ -73,3 +73,40 @@ Ingest-health guard: the ticker pauses when no replica read a signal for `ingest
 | `MIOT_SYMPTOMS_LOST_SIGNAL_MAX_SILENCE` | When a lost vehicle stops being checked | `P1D` |
 | `MIOT_SYMPTOMS_LOST_SIGNAL_INGEST_STALE_AFTER` | No signal read for this long pauses the ticker; `0` turns the guard off | `PT2M` |
 | `MIOT_SYMPTOMS_LOST_SIGNAL_INGEST_MAX_LAG` | A replica reading further behind pauses the ticker | `PT2M` |
+
+## The `trip_check` source
+
+Each check runs the organization's TEST and ACTIVE `trip_check` versions with the evaluator's `SignalEvaluator`, episodes (`symptoms:ep:<tenant>:<asset>`, its own watermark `wm:trip_check`), transition log and case events (`TripChecks`). The fields are declared in code, `signal/TripCheck`, read by `SignalFields` the way `GpsSignal` is.
+
+| Field | Meaning |
+|---|---|
+| `check.trip.*` | The trip as the vehicle's newest signal carried it, same fields as `signal.trip.*` (driver included) |
+| `check.signal_lost_minutes` | `silence_s / 60` |
+| `check.loss.silence_s` | Now minus the newest frame's time |
+| `check.loss.expected_s` | Expected gap + delivery delay when the newest frame arrived |
+| `check.loss.ratio` | `silence_s / expected_s`; at least 1 on a lost check |
+| `check.loss.last.lat`, `.lon`, `.speed`, `.engine` | The newest frame |
+| `check.loss.sender` | The client that sends the frames |
+| `check.loss.returned`, `check.loss.backfill` | Only on the return check |
+| `check.driving_minutes`, `check.resting_minutes` | Declared for the continuous-driving rules, not computed (`x-engine: false`, TEST only) |
+
+The case's trip, driver and position are the trip's and the newest frame's.
+
+### Return
+
+A frame from inside the silence (taken after the newest frame before it) tells about the return: the first one on time is the return (`r` in the vehicle's hash, kept once set), and one that arrives late, or delayed by more than 2 min and the sender's usual delay, is backfill (`b`). A return without backfill waits `return-grace` (1 min) for late frames. Then one check runs with `returned: true`, and every open case the checks opened for the vehicle gets `symptom.case.signal_returned` with the return time and whether backfill came; an ACTIVE case also gets the audit entry `case.signal_returned`. The detector never closes a case.
+
+### Platform template (V0.12.4)
+
+"Pérdida de señal" 2.0.0 reads the check:
+
+| Part | Rule |
+|---|---|
+| Activation | `check.trip.active && check.loss.ratio >= 1 && !check.loss.returned` |
+| Measure | `check.loss.silence_s / 60.0`, minutes |
+| Level 1 | `check.loss.silence_s < 1800` |
+| Level 2 | `check.loss.silence_s >= 1800 && measure < 120`: L = 1800 s, after which the loss is validated |
+| Level 3, 4 | 120 and 180 min |
+| Close | `case.closed_by_operator`, as panic |
+
+An organization changes L by editing the level-2 rule. Symptoms copied from 1.0.0 keep their rules.

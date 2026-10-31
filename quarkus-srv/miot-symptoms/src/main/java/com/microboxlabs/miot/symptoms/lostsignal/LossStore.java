@@ -20,8 +20,25 @@ public interface LossStore {
         }
     }
 
-    /** What a check reads; any part may be null. */
-    record Vehicle(VehicleProfile profile, Watch watch, CheckState check) {
+    /**
+     * What a check reads; any part may be null.
+     *
+     * @param returnedAt when the first frame after the loss arrived, null before
+     * @param backfill   frames from inside the silence arrived after it
+     */
+    record Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant returnedAt, boolean backfill) {
+
+        public Vehicle(VehicleProfile profile, Watch watch, CheckState check) {
+            this(profile, watch, check, null, false);
+        }
+    }
+
+    /**
+     * What a frame tells about the vehicle's current loss: the first frame after it arrived ({@code returnedAt},
+     * kept once set), or a frame from inside the silence arrived ({@code backfill}). Both belong to the loss that
+     * started at {@code lostSince} and are ignored for any other.
+     */
+    record Mark(Instant lostSince, Instant returnedAt, boolean backfill) {
     }
 
     /** What a frame does to the vehicle's next check: nothing, drop it (no trip), or move it. */
@@ -44,10 +61,12 @@ public interface LossStore {
 
     /** @param senderProfile ignored when {@code sender} is null */
     default void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile) {
-        save(assetId, vehicle, sender, senderProfile, Schedule.KEEP);
+        save(assetId, vehicle, sender, senderProfile, Schedule.KEEP, null);
     }
 
-    void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile, Schedule schedule);
+    /** @param mark null when the vehicle is not lost or the frame tells nothing about its loss */
+    void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile, Schedule schedule,
+            Mark mark);
 
     /** The vehicles whose deadline is at or before {@code now}, earliest first. */
     List<String> due(Instant now, int limit);
@@ -56,7 +75,7 @@ public interface LossStore {
 
     /**
      * Writes what a check found and moves the vehicle's deadline to {@code next}, unless a frame dropped it
-     * meanwhile; {@code next} null drops it. {@link CheckState#NONE} clears the check's state.
+     * meanwhile; {@code next} null drops it. A state that is not lost clears the loss's marks.
      */
     void checked(String assetId, CheckState check, Instant next);
 

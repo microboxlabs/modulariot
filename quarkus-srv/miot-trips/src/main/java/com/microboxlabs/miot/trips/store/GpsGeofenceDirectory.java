@@ -79,6 +79,21 @@ public class GpsGeofenceDirectory implements GeofenceDirectory {
     }
 
     @Override
+    public List<Geofence> containing(String tenantCode, double lon, double lat, int limit) {
+        if (!gps.configured()) {
+            return List.of();
+        }
+        List<Geofence> out = new ArrayList<>();
+        gps.readPool().preparedQuery(SELECT_COLUMNS + """
+                 FROM geofences
+                WHERE client_id = $1 AND ST_Covers(coordinates, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography)
+                ORDER BY geofence_id LIMIT $4""")
+                .execute(Tuple.of(tenantCode, lon, lat, limit)).await().atMost(TIMEOUT)
+                .forEach(r -> out.add(geofence(r)));
+        return out;
+    }
+
+    @Override
     public Optional<Geofence> create(String tenantCode, String code, String name, String area, String properties) {
         if (tenantCode == null || tenantCode.isBlank()) {
             throw new IllegalArgumentException("a geofence needs the tenant's client id");

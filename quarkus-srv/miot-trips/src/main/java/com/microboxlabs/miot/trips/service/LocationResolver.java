@@ -30,7 +30,8 @@ import java.util.Set;
 /**
  * Finds a site's point. Sources, first that applies: a geofence of the tenant with the site's code or name, a Plus
  * Code (a short one is recovered from the district's centroid), the caller's coordinates, the internal address
- * table (Chile), the shared geocode cache, then the geocoding provider through the tenant's own connection. The
+ * table (Chile), the shared geocode cache, then the geocoding provider through the tenant's own connection. A
+ * resolved point from any source but a manual one is linked to the tenant's geofence that contains it. The
  * address sources need a district with a boundary, and the provider counts only address-level results. The provider
  * is asked only when the {@link GeocodingGate} allows it; when the organization's quota is used up the site needs
  * review. The point must fall in the declared district, or
@@ -156,8 +157,16 @@ public class LocationResolver {
                     .orElse("the point is outside " + country);
             return review(declared, p, source, where + ", not in " + b.name() + " (" + b.code() + ")", usage);
         }
+        Integer geofenceId = found.geofenceId() != null || manual ? found.geofenceId() : covering(tenantCode, p);
         return new Outcome(declared.withResult(plusCode(p), p.lat(), p.lon(), source, Location.RESOLVED, null),
-                found.geofenceId(), usage);
+                geofenceId, usage);
+    }
+
+    /** The first geofence of the tenant that contains the point; which one wins among several is not decided yet. */
+    private Integer covering(String tenantCode, Point p) {
+        if (tenantCode == null) return null;
+        return geofences.containing(tenantCode, p.lon(), p.lat(), 1).stream().findFirst().map(Geofence::id)
+                .orElse(null);
     }
 
     private static String nothingNote(Site site, Boundary b) {

@@ -1,7 +1,9 @@
 package com.microboxlabs.miot.trips.store;
 
+import com.microboxlabs.miot.trips.geo.GeoShape;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -60,6 +62,13 @@ public class FakeGeofences implements GeofenceDirectory {
         List<Geofence> out = new ArrayList<>(mine.stream().filter(g -> code != null && code.equals(g.code())).toList());
         mine.stream().filter(g -> name != null && name.equalsIgnoreCase(g.name()) && !out.contains(g)).forEach(out::add);
         return out.stream().limit(limit).toList();
+    }
+
+    @Override
+    public List<Geofence> containing(String tenantCode, double lon, double lat, int limit) {
+        return of(tenantCode).stream()
+                .filter(g -> shapes.containsKey(g.id()) && GeoShape.parse(shapes.get(g.id())).contains(lon, lat))
+                .sorted(Comparator.comparingInt(Geofence::id)).limit(limit).toList();
     }
 
     @Override

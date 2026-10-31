@@ -1,0 +1,109 @@
+# Data and metrics
+
+**For:** developers and platform owners.
+
+Where each resolution is stored and what you can measure.
+
+## Tables
+
+| Table | One row per | What it stores |
+| --- | --- | --- |
+| `miot_trips.location` | Location | What was declared (`address`, `country`, `district_code`, `district_name`), the point (`latitude`, `longitude`, `plus_code`), `resolution_source`, `resolution_status`, `resolution_note` and `geofence_id` |
+| `miot_trips.geocode_cache` | Address, district and country | The point, the source and the provider. Shared by all organizations. No organization, place name or provider response |
+| `miot_integrations.geocode_usage` | Resolution by `POST /resolve` or by a feed site | Organization, user, source, result, provider, whether it was a cache hit, whether the provider was called and its cost |
+| `miot_integrations.geocoding_plan` | (one row) | The plan |
+| `miot_integrations.geocoding_subscriptions` | Subscribed organization | Own quota, what happens when it runs out and the last month alerted |
+| `miot_integrations.geocoding_billing_history` | Change to the plan or to a subscription | Copy of the terms with the date they take effect |
+| `miot_trips.audit_event` | Change to a location | Who, which action and the details |
+| `miot_integrations.async_jobs` | Feed service | The job that applied the service and, in `result.located`, which locations it tried |
+
+### `geocode_usage`
+
+| Column | Value |
+| --- | --- |
+| `organization` | Identifier of the organization whose quota was used |
+| `tenant_id` | Tenant of the organization's GPS data |
+| `user_id` | User, service account or `feed:<feedKey>` |
+| `source` | `geofence`, `plus_code`, `coordinates`, `internal`, `provider`, or `null` if no source gave a point |
+| `result` | `resolved` or `needs_review` |
+| `provider` | `mapbox` or `google`: the provider called (even if the call failed) or the cache's provider |
+| `cache_hit` | `true` if the cache answered |
+| `provider_called` | `true` if the provider answered. This is what counts toward the quota |
+| `cost_usd` | The platform connection's `costPerRequestUsd` at that moment, only if `provider_called` |
+| `recorded_at` | Date |
+
+Placing by hand (`PUT /point`) and rejecting write no rows.
+
+A month's usage by source:
+
+```sql
+SELECT source, result,
+       count(*)                                 AS resolutions,
+       count(*) FILTER (WHERE cache_hit)        AS cache_hits,
+       count(*) FILTER (WHERE provider_called)  AS provider_calls,
+       sum(cost_usd)                            AS provider_cost_usd
+  FROM miot_integrations.geocode_usage
+ WHERE organization = 'demo'
+   AND recorded_at >= '2026-10-01' AND recorded_at < '2026-11-01'
+ GROUP BY 1, 2
+ ORDER BY 1, 2;
+```
+
+### `audit_event`
+
+| `action` | When | `details` |
+| --- | --- | --- |
+| `location.created` | A location is created (through the API, by `/resolve` or by a feed) | `name`, `type` |
+| `location.resolved` | A resolution or a manual point ends resolved | `status`, `source`, `geofenceId` |
+| `location.needs_review` | A resolution ends in review | `status`, `source`, `geofenceId` |
+| `location.rejected` | Someone rejects the location | |
+| `location.updated` | `PATCH` of the location | |
+| `location.geofence_linked` | Someone links a geofence by hand | `geofenceId` |
+
+`entity_type` is `location` and `entity_id` is the location's `id`. `actor` is the user, the service account or `feed:<feedKey>`.
+
+### `async_jobs`
+
+Each service in a feed batch is a `trips_feed_service` job, with the service code in `correlation_key`. After applying the service, the job locates the origin and the destination and leaves the result in `result.located`:
+
+```json
+{ "action": "create", "tripId": "…", "located": ["GEO-PROV-ORIGEN-2: resolved"], "errors": [], "warnings": [] }
+```
+
+Each element is `code: status`, or `code: could not resolve site` if it failed. Without sites tried, `located` does not appear. An error while locating does not fail the job. You see the jobs in **Integrations › Job console**; you read the `result` through the jobs API.
+
+## Metrics
+
+The platform publishes these metrics (Micrometer). In Prometheus the dots become `_` and counters end in `_total`.
+
+| Metric | Type | Tags | Measures |
+| --- | --- | --- | --- |
+| `geocoding.resolutions` | Counter | `source` (`none` if none), `result` | Resolutions |
+| `geocoding.cache.lookups` | Counter | `result`: `hit`, `miss` | Cache lookups |
+| `geocoding.provider.latency` | Timer (in Prometheus, `geocoding_provider_latency_seconds_count`, `_sum`, `_max`) | `provider`, `outcome`: `found`, `empty` | Duration of each provider call |
+| `geocoding.provider.errors` | Counter | `provider`, `reason`: `no_connection`, `config`, `io`, `interrupted` | Calls that were not made or failed |
+| `geocoding.quota.refusals` | Counter | `code`: `geocoding_no_subscription`, `geocoding_quota_exhausted` | Calls refused by the quota |
+| `geocoding.quota.used` | Gauge | `organization` | The month's calls, at the last calculation |
+| `geocoding.quota.limit` | Gauge | `organization` | The month's quota |
+
+Example, cache hit rate in the last hour:
+
+```text
+sum(increase(geocoding_cache_lookups_total{result="hit"}[1h]))
+  / sum(increase(geocoding_cache_lookups_total[1h]))
+```
+
+## Quota event
+
+When an organization reaches the `alertPct` of its quota, the platform publishes the `geocoding.quota.threshold` event once per month (source `miot-integrations`, context `geocoding_quota`):
+
+| Field | Example |
+| --- | --- |
+| `organization` | `demo` |
+| `month` | `2026-10` |
+| `used` | `800` |
+| `quota` | `1000` |
+| `usedPct` | `80` |
+| `onExhausted` | `review` |
+
+The event does not send messages on its own. To receive an alert, create a conversation rule on that event in the organization.

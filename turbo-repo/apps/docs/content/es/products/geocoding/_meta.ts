@@ -1,4 +1,5 @@
 export default {
   index: 'Resumen',
-  tutorials: 'Aprender'
+  tutorials: 'Aprender',
+  reference: 'Referencia'
 }

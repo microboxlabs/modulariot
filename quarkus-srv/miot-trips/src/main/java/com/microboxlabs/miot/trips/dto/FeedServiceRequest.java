@@ -19,7 +19,8 @@ import java.util.Map;
  * n-th item is the mandate's n-th unit. Without cargo the units are left as they are.
  * {@code source} is the original record (a spreadsheet row), kept for audit and not compared.
  * {@code originSite} and {@code destinationSite} say where each place is; a location that is not resolved yet is
- * located from them after the service is applied (see {@link Site}).
+ * located from them after the service is applied (see {@link Site}). Without a site, address and Plus Code cells
+ * use the feed's country; a full Plus Code can be located without one.
  */
 @RegisterForReflection
 public record FeedServiceRequest(

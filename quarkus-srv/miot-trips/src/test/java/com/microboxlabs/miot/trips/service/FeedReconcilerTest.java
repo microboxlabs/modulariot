@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -205,16 +206,60 @@ class FeedReconcilerTest {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
         List<FeedProfile.StagePlan> stagePlan = List.of(new FeedProfile.StagePlan(" preparation ", " ADDED "),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
-        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", stagePlan,
+        FeedProfile saved = profiles.save("test", "test", "test-feed", new FeedProfileRequest("Test", null, stagePlan,
                 "closing", List.of(), null, true));
         assertEquals("preparation", saved.stages().get(0).stageType());
         assertEquals("ADDED", saved.stages().get(0).serviceStatus());
-        FeedProfileRequest invalid = new FeedProfileRequest("Test", stagePlan, "transit", List.of(), null, true);
+        FeedProfileRequest invalid = new FeedProfileRequest("Test", null, stagePlan, "transit", List.of(), null, true);
         assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", invalid));
-        FeedProfileRequest nullResource = new FeedProfileRequest("Test", stagePlan, saved.arrivalStage(),
+        FeedProfileRequest nullResource = new FeedProfileRequest("Test", null, stagePlan, saved.arrivalStage(),
                 java.util.Collections.singletonList(null), null, true);
         assertThrows(IllegalArgumentException.class,
                 () -> profiles.save("test", "test", "test-feed", nullResource));
+    }
+
+    @Test
+    void profileCountryIsOptionalUppercaseAndTwoAsciiLetters() {
+        FeedProfileService profiles = new FeedProfileService(feeds, audit);
+        var stages = List.of(new FeedProfile.StagePlan("transit", "SCHEDULED"));
+        FeedProfile saved = profiles.save("test", "test", "test-feed",
+                new FeedProfileRequest("Test", " cl ", stages, "transit", List.of(), null, true));
+        assertEquals("CL", saved.country());
+        assertEquals("CL", com.microboxlabs.miot.trips.dto.FeedProfileView.of(saved, 0).country());
+        for (String country : List.of("C", "CHL", "C1", "12", "éé", "ıı")) {
+            var request = new FeedProfileRequest("Test", country, stages, "transit", List.of(), null, true);
+            assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", request));
+        }
+        for (String country : java.util.Arrays.asList(null, "", " ")) {
+            FeedProfile cleared = profiles.save("test", "test", "test-feed",
+                    new FeedProfileRequest("Test", country, stages, "transit", List.of(), null, true));
+            assertNull(cleared.country());
+        }
+    }
+
+    @Test
+    void feedJobsPassTheCountryAndKeepLocatedStatusInTheResult() {
+        FeedProfile p = feeds.profile;
+        new FeedProfileService(feeds, audit).save("test", "test", "test-feed", new FeedProfileRequest(
+                p.name(), "CL", p.stages(), p.arrivalStage(), List.of(), false, true));
+        FeedServiceRequest request = new FeedServiceRequest("service", "ref", "Av Providencia 1234", "SCL",
+                OffsetDateTime.now().plusHours(2), OffsetDateTime.now().plusHours(5), null, null);
+        send(request);
+        FeedSites sites = new FeedSites(null, null) {
+            @Override public List<String> locate(String organization, String tenant, String actor, String country,
+                    FeedServiceRequest desired) {
+                assertEquals("org-test", organization);
+                assertEquals("test", tenant);
+                assertEquals("feed:test-feed", actor);
+                assertEquals("CL", country);
+                assertEquals(request.origin(), desired.origin());
+                return List.of("Av Providencia 1234: resolved");
+            }
+        };
+        var handler = new FeedServiceJobHandler(reconciler, sites, json, feeds);
+        var outcome = handler.handle("test", Map.of(FeedBatchService.FEED_KEY, "test-feed",
+                FeedBatchService.EXTERNAL_CODE, "S-TEST", FeedBatchService.ORGANIZATION, "org-test"));
+        assertEquals(List.of("Av Providencia 1234: resolved"), outcome.result().get("located"));
     }
 
     @Test
@@ -301,14 +346,14 @@ class FeedReconcilerTest {
 
         private FeedService saved;
         private boolean requireTransaction;
-        private final FeedProfile profile = new FeedProfile("test", "test-feed", "Test feed",
+        private FeedProfile profile = new FeedProfile("test", "test-feed", "Test feed", null,
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
                 "closing", Set.of(), false, true, null, "test", null, "test");
         public Optional<FeedProfile> profile(String tenant, String key) { return Optional.of(profile); }
         public List<FeedProfile> profiles(String tenant) { return List.of(profile); }
-        public FeedProfile saveProfile(FeedProfile value) { return value; }
+        public FeedProfile saveProfile(FeedProfile value) { profile = value; return value; }
         public Optional<FeedProfile> createProfile(FeedProfile value) {
             throw new UnsupportedOperationException("not used by reconciler tests");
         }

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.store;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -116,7 +117,8 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.23__validate_monitor_scopes.sql",
             "/db/migration/trips/V0.10.24__feed_registers_resources.sql",
             "/db/migration/trips/V0.10.25__location_resolution.sql",
-            "/db/migration/trips/V0.10.26__geocode_cache.sql"};
+            "/db/migration/trips/V0.10.26__geocode_cache.sql",
+            "/db/migration/trips/V0.10.27__feed_country.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -312,7 +314,7 @@ class PgTripsStoresTest {
     void aFeedKeepsItsProfileAndTheLastStateOfEachService() {
         String tenant = tenant();
         PgFeedStore feeds = new PgFeedStore(() -> pool);
-        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios",
+        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios", null,
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
@@ -322,7 +324,7 @@ class PgTripsStoresTest {
         assertEquals(List.of("preparation", "transit", "closing"),
                 saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
-        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
+        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2", null,
                 saved.stages(), "closing", saved.requiredResources(), true, true, null, ACTOR, null, ACTOR));
         assertEquals("Servicios v2", renamed.name());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
@@ -340,15 +342,41 @@ class PgTripsStoresTest {
     }
 
     @Test
+    void feedCountryCanBeCreatedReadUpdatedAndCleared() {
+        String tenant = tenant();
+        PgFeedStore feeds = new PgFeedStore(() -> pool);
+        FeedProfile profile = new FeedProfile(tenant, "country-feed", "Country feed", "CL",
+                List.of(new FeedProfile.StagePlan("transit", "SCHEDULED")), "transit", Set.of(),
+                true, true, null, ACTOR, null, ACTOR);
+        assertEquals("CL", feeds.createProfile(profile).orElseThrow().country());
+        assertEquals("CL", feeds.profile(tenant, profile.feedKey()).orElseThrow().country());
+        assertEquals("CL", feeds.profiles(tenant).getFirst().country());
+        assertTrue(feeds.profile(tenant(), profile.feedKey()).isEmpty());
+        for (String country : java.util.Arrays.asList("PE", null)) {
+            FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, profile.feedKey(), profile.name(), country,
+                    profile.stages(), profile.arrivalStage(), profile.requiredResources(), true, true,
+                    null, ACTOR, null, ACTOR));
+            assertEquals(country, saved.country());
+            assertEquals(country, feeds.profile(tenant, profile.feedKey()).orElseThrow().country());
+        }
+        for (String country : List.of("cl", "C1", "C", "CHL")) {
+            assertThrows(RuntimeException.class, () -> pool.preparedQuery("""
+                    UPDATE miot_trips.feed_profile SET country = $1 WHERE tenant_code = $2
+                    """).execute(io.vertx.mutiny.sqlclient.Tuple.of(country, tenant)).await().atMost(WAIT));
+        }
+    }
+
+    @Test
     void feedAuditActorsAndJsonTypesArePreserved() {
         String tenant = tenant();
         PgFeedStore feeds = new PgFeedStore(() -> pool);
-        FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed",
+        FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed", null,
                 List.of(new FeedProfile.StagePlan("preparacion", "ADDED")),
                 "preparacion", Set.of(), true, true, null, "creator", null, null);
         FeedProfile created = feeds.saveProfile(profile);
+        assertNull(created.country());
         assertEquals("creator", created.createdBy());
-        FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed",
+        FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed", null,
                 profile.stages(), "preparacion", Set.of(), true, true,
                 null, "ignored-creator", null, "updater"));
         assertEquals("creator", updated.createdBy());

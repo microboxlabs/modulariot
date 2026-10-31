@@ -20,6 +20,7 @@ export type FeedResource = (typeof FEED_RESOURCES)[number];
 export interface Feed {
   feedKey: string;
   name: string;
+  country: string | null;
   stages: StagePlan[];
   arrivalStage: string;
   requiredResources: FeedResource[];
@@ -35,6 +36,7 @@ export interface Feed {
 export type FeedBody = Pick<
   Feed,
   | "name"
+  | "country"
   | "stages"
   | "arrivalStage"
   | "requiredResources"

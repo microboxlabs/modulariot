@@ -27,7 +27,7 @@ vi.mock("@/features/symptoms/components/map-view/timeline", () => ({
   default: () => null,
 }));
 
-const dict = {
+const dict: I18nRecord = {
   symptoms: {
     geofences: "Geocercas",
     geofencesMode: {
@@ -36,7 +36,7 @@ const dict = {
       none: "Sin geocercas",
     },
   },
-} as unknown as I18nRecord;
+};
 
 describe("ToolBar geofences panel", () => {
   it("hides the hover tooltip while its panel is open", () => {

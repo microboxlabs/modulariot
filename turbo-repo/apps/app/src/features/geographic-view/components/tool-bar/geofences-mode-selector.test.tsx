@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import GeofencesModeSelector from "./geofences-mode-selector";
 
-const dict = {
+const dict: I18nRecord = {
   symptoms: {
     geofences: "Geocercas",
     geofencesMode: {
@@ -12,7 +12,7 @@ const dict = {
       none: "Sin geocercas",
     },
   },
-} as unknown as I18nRecord;
+};
 
 describe("GeofencesModeSelector", () => {
   it("marks the current mode and picks another", () => {

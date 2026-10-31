@@ -58,9 +58,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final EngineCaseService cases;
     private final TreatmentService caseTreatments;
     private final TripWindows tripWindows;
-
-    @Inject
-    Instance<TripGeofences> tripGeofences;
+    private final Instance<TripGeofences> tripGeofences;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -72,7 +70,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             ControlTowerTreatmentService treatments,
             EngineCaseService cases,
             TreatmentService caseTreatments,
-            TripWindows tripWindows) {
+            TripWindows tripWindows,
+            Instance<TripGeofences> tripGeofences) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
@@ -80,6 +79,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         this.cases = cases;
         this.caseTreatments = caseTreatments;
         this.tripWindows = tripWindows;
+        this.tripGeofences = tripGeofences;
     }
 
     @GET

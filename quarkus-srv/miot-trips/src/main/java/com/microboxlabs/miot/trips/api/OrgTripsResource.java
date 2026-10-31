@@ -48,9 +48,7 @@ public class OrgTripsResource extends OrgResourceSupport {
     private static final String ORG = "organizationId";
 
     private final TripService trips;
-
-    @Inject
-    TripGeofenceService geofences;
+    private final TripGeofenceService geofences;
 
     @Inject
     public OrgTripsResource(
@@ -58,9 +56,11 @@ public class OrgTripsResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            TripService trips) {
+            TripService trips,
+            TripGeofenceService geofences) {
         super(tenantContext, organizationContext, roleService, identity);
         this.trips = trips;
+        this.geofences = geofences;
     }
 
     @GET

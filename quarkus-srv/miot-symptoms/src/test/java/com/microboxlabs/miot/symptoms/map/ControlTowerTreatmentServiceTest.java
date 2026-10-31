@@ -88,8 +88,8 @@ class ControlTowerTreatmentServiceTest {
     @Test
     void legacyGeofencesUseTheOrganizationsClientIds() {
         assertEquals("123", await(service.tripGeofences(CLIENTS, "123")).get(0).path("trip_id").asText());
-        assertThrows(NoSuchElementException.class,
-                () -> await(service.tripGeofences(List.of("client-a"), "123")));
+        Uni<JsonNode> missing = service.tripGeofences(List.of("client-a"), "123");
+        assertThrows(NoSuchElementException.class, () -> await(missing));
     }
 
     @Test

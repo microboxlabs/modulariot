@@ -98,6 +98,11 @@ class OrgControlTowerMapResourceTest {
     }
 
     private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions) {
+        return resource(url, permissions, null);
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
+            com.microboxlabs.miot.core.trips.TripGeofences tripGeofences) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail("member@example.com");
@@ -114,7 +119,8 @@ class OrgControlTowerMapResourceTest {
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
                         new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
-                        Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)));
+                        Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
+                geofences(tripGeofences));
     }
 
     private static final Instant NOW = Instant.parse("2026-10-26T12:00:00Z");
@@ -193,45 +199,41 @@ class OrgControlTowerMapResourceTest {
 
     @Test
     void disabledTripsModuleHasNoGeofences() {
-        var resource = resource(Optional.empty());
-        resource.tripGeofences = geofences(null);
-        Response answer = resource.tripGeofences(ORG, DEPARTED.toString()).await().atMost(WAIT);
+        Response answer = call(resource(Optional.empty()).tripGeofences(ORG, DEPARTED.toString()));
         assertEquals(200, answer.getStatus());
         assertEquals(0, ((JsonNode) answer.getEntity()).size());
     }
 
     @Test
     void moduleGeofencesAreReadAsTheActiveTenantAndNotFoundIs404() {
-        var resource = resource(Optional.empty());
-        resource.tripGeofences = geofences((tenant, trip) -> {
+        var subject = resource(Optional.empty(), Set.of(ControlTowerAccessCatalog.VIEW), (tenant, trip) -> {
             assertEquals("client-a", tenant);
             assertEquals(DEPARTED, trip);
             throw new java.util.NoSuchElementException("trip not found");
         });
-        assertEquals(404, resource.tripGeofences(ORG, DEPARTED.toString()).await().atMost(WAIT).getStatus());
+        assertEquals(404, call(subject.tripGeofences(ORG, DEPARTED.toString())).getStatus());
     }
 
     @Test
     void legacyGeofencesUseTheLegacyReader() {
-        Response answer = resource(Optional.empty()).tripGeofences(ORG, "123").await().atMost(WAIT);
+        Response answer = call(resource(Optional.empty()).tripGeofences(ORG, "123"));
         assertEquals(200, answer.getStatus());
         assertEquals("123", ((JsonNode) answer.getEntity()).get(0).path("trip_id").asText());
     }
 
     @Test
     void tripsViewerReadsModuleGeofences() {
-        var resource = resource(Optional.empty(), Set.of("trips:view"));
-        resource.tripGeofences = geofences((tenant, trip) -> JSON.createArrayNode()
+        var subject = resource(Optional.empty(), Set.of("trips:view"), (tenant, trip) -> JSON.createArrayNode()
                 .add(JSON.createObjectNode().put("trip_id", trip.toString())));
-        Response answer = call(resource.tripGeofences(ORG, DEPARTED.toString()));
+        Response answer = call(subject.tripGeofences(ORG, DEPARTED.toString()));
         assertEquals(200, answer.getStatus());
         assertEquals(DEPARTED.toString(), ((JsonNode) answer.getEntity()).get(0).path("trip_id").asText());
     }
 
     @Test
     void tripsViewerCannotReadLegacyGeofences() {
-        var resource = resource(Optional.empty(), Set.of("trips:view"));
-        assertEquals(403, call(resource.tripGeofences(ORG, "123")).getStatus());
+        var subject = resource(Optional.empty(), Set.of("trips:view"));
+        assertEquals(403, call(subject.tripGeofences(ORG, "123")).getStatus());
     }
 
     @Test

@@ -129,6 +129,8 @@ public class PgTreatmentReads implements TreatmentReads {
                                WHERE p."timestamp" >= t.start_time AND p."timestamp" <= t.end_time
                                ORDER BY t.pick, t.start_time DESC LIMIT 1)""") + ")::text AS positions";
 
+    private static final String ANSWER = "answer";
+
     private final Supplier<Pool> pool;
 
     public PgTreatmentReads(Supplier<Pool> pool) {
@@ -138,13 +140,13 @@ public class PgTreatmentReads implements TreatmentReads {
     @Override
     public Uni<Optional<JsonNode>> treatment(String clientId, long symptomId) {
         return asClient(clientId, TREATMENT, Tuple.of(clientId, symptomId))
-                .map(row -> row.map(r -> parse(r.getString("answer"))));
+                .map(row -> row.map(r -> parse(r.getString(ANSWER))));
     }
 
     @Override
     public Uni<Optional<JsonNode>> signals(String clientId, long symptomId) {
         return asClient(clientId, SIGNALS, Tuple.of(clientId, symptomId))
-                .map(row -> row.map(r -> parse(r.getString("answer"))));
+                .map(row -> row.map(r -> parse(r.getString(ANSWER))));
     }
 
     @Override
@@ -161,7 +163,7 @@ public class PgTreatmentReads implements TreatmentReads {
                         OR EXISTS (SELECT 1 FROM public.symptoms s WHERE s.trip_id = t.trip_id
                             AND s.asset_id = t.asset_id AND s.client_id = public.api_request_symptoms_client_id())))
                 """, Tuple.of(tripId, clientId))
-                .map(row -> row.map(r -> parse(r.getString("answer"))));
+                .map(row -> row.map(r -> parse(r.getString(ANSWER))));
     }
 
     @Override

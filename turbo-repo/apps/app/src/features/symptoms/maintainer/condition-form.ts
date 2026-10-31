@@ -36,8 +36,45 @@ export interface ConditionForm {
 
 const ORDER_OPS: ConditionOp[] = [">", ">=", "<", "<="];
 const NUMBER = /^-?\d+(\.\d+)?$/;
-const STRING = /^"(?:[^"\\]|\\.)*"$/;
+const STRING = /^"(?:[^"\\]|\\.)*"$|^'(?:[^'\\]|\\.)*'$/;
 const COMPARISON = /^([A-Za-z_][\w.]*)\s*(==|!=|>=|<=|>|<)/;
+const HAS = /^has\(\s*([A-Za-z_][\w.]*)\s*\)$/;
+const OPTIONAL_BOOL = /^([A-Za-z_][\w.?]*)\s*==\s*(TRUE|FALSE)$/;
+
+/** The frame as the device sent it: the device may leave out any of its parts. */
+const DEVICE_FRAME = "signal.frame";
+
+/**
+ * The paths a rule tests with has() before reading this field, outermost
+ * first: each level below the frame, since the device may leave any out.
+ * None for fields outside the frame.
+ */
+export function guardsFor(path: string): string[] {
+  if (!path.startsWith(`${DEVICE_FRAME}.`)) return [];
+  const parts = path.slice(DEVICE_FRAME.length + 1).split(".");
+  return parts.map(
+    (_, i) => `${DEVICE_FRAME}.${parts.slice(0, i + 1).join(".")}`
+  );
+}
+
+/** A frame field read with `.?` on each level below the frame: `signal.frame.?sensors.?panic_button`. */
+export function optionalPath(path: string): string {
+  const parts = path.slice(DEVICE_FRAME.length + 1).split(".");
+  return DEVICE_FRAME + parts.map((p) => `.?${p}`).join("");
+}
+
+/** A yes/no condition on the frame, written `optionalPath == TRUE` or `== FALSE` instead of with has(). */
+function readsOptional(c: Condition): boolean {
+  return (
+    c.path.startsWith(`${DEVICE_FRAME}.`) &&
+    (c.op === "is_true" || c.op === "is_false")
+  );
+}
+
+/** The has() tests the form writes for a condition. */
+function guardsOf(c: Condition): string[] {
+  return readsOptional(c) ? [] : guardsFor(c.path);
+}
 
 let nextId = 0;
 export const newId = () => `cond-${++nextId}`;
@@ -110,19 +147,20 @@ type Join = "&&" | "||";
 
 /** Where a scan of a rule stands: inside a string, and how many parentheses deep. */
 interface Scan {
-  quoted: boolean;
+  /** The quote that opened the string the scan is in; empty outside strings. */
+  quote: string;
   depth: number;
 }
 
 /** Moves the scan past the character at i; returns how many characters that took. */
 function advance(rule: string, i: number, scan: Scan): number {
   const c = rule[i];
-  if (scan.quoted) {
+  if (scan.quote) {
     if (c === "\\") return 2;
-    if (c === '"') scan.quoted = false;
+    if (c === scan.quote) scan.quote = "";
     return 1;
   }
-  if (c === '"') scan.quoted = true;
+  if (c === '"' || c === "'") scan.quote = c;
   else if (c === "(") scan.depth++;
   else if (c === ")") scan.depth--;
   return 1;
@@ -130,7 +168,7 @@ function advance(rule: string, i: number, scan: Scan): number {
 
 /** The && or || at i when it is outside parentheses and strings. */
 function topLevelJoin(rule: string, i: number, scan: Scan): Join | null {
-  if (scan.quoted || scan.depth !== 0) return null;
+  if (scan.quote || scan.depth !== 0) return null;
   const pair = rule.slice(i, i + 2);
   return pair === "&&" || pair === "||" ? pair : null;
 }
@@ -138,7 +176,7 @@ function topLevelJoin(rule: string, i: number, scan: Scan): Join | null {
 /** Splits a rule on one operator at the top level, outside parentheses and strings; null when both appear. */
 function split(rule: string): { op: Join | null; parts: string[] } | null {
   const parts: string[] = [];
-  const scan: Scan = { quoted: false, depth: 0 };
+  const scan: Scan = { quote: "", depth: 0 };
   let op: Join | null = null;
   let start = 0;
   let i = 0;
@@ -154,7 +192,7 @@ function split(rule: string): { op: Join | null; parts: string[] } | null {
       i += advance(rule, i, scan);
     }
   }
-  if (scan.depth !== 0 || scan.quoted) return null;
+  if (scan.depth !== 0 || scan.quote) return null;
   parts.push(rule.slice(start).trim());
   return { op, parts };
 }
@@ -162,10 +200,10 @@ function split(rule: string): { op: Join | null; parts: string[] } | null {
 /** The text inside one pair of parentheses around the whole term, or null. */
 function unwrap(term: string): string | null {
   if (!term.startsWith("(") || !term.endsWith(")")) return null;
-  const scan: Scan = { quoted: false, depth: 0 };
+  const scan: Scan = { quote: "", depth: 0 };
   let i = 0;
   while (i < term.length - 1) {
-    const closes = !scan.quoted && term[i] === ")";
+    const closes = !scan.quote && term[i] === ")";
     i += advance(term, i, scan);
     if (closes && scan.depth === 0) return null;
   }
@@ -186,6 +224,11 @@ function boolRow(term: string, field: SourceField): Condition | null {
 
 /** A CEL string literal's text; null for escapes the form does not write (\\x, \\', octal). */
 function unquote(raw: string): string | null {
+  // CEL also quotes with '; the form reads those only without escapes and writes them back with ".
+  if (raw.startsWith("'")) {
+    const text = raw.slice(1, -1);
+    return text.includes("\\") ? null : text;
+  }
   try {
     const value: unknown = JSON.parse(raw);
     return typeof value === "string" ? value : null;
@@ -229,6 +272,8 @@ export function parseCondition(
 ): Condition | null {
   const term = clause.trim();
   const byPath = new Map(fields.map((f) => [f.path, f]));
+  const optional = OPTIONAL_BOOL.exec(term);
+  if (optional) return optionalRow(optional[1] ?? "", optional[2], byPath);
   const bare = byPath.get(term.replace(/^!\s*/, ""));
   if (bare?.type === "bool") return boolRow(term.replace(/^!\s*/, "!"), bare);
   const m = COMPARISON.exec(term);
@@ -240,6 +285,41 @@ export function parseCondition(
   return comparisonRow(path, op, raw, field);
 }
 
+/** `signal.frame.?a.?b == TRUE` as a yes/no row on `signal.frame.a.b`. */
+function optionalRow(
+  read: string,
+  constant: string | undefined,
+  byPath: Map<string, SourceField>
+): Condition | null {
+  const path = read.replaceAll("?", "");
+  if (byPath.get(path)?.type !== "bool" || read !== optionalPath(path))
+    return null;
+  const op = constant === "TRUE" ? "is_true" : "is_false";
+  return { id: newId(), path, op, value: null };
+}
+
+/** The path a has() term tests, or null. */
+function hasPath(term: string): string | null {
+  return HAS.exec(term.trim())?.[1] ?? null;
+}
+
+/** A condition, or one written with its has() tests: `(has(a) && has(a.b) && a.b > 1)`. */
+function parseGuarded(term: string, fields: SourceField[]): Condition | null {
+  const row = parseCondition(term, fields);
+  if (row) return row;
+  const inner = unwrap(term.trim());
+  const s = inner === null ? null : split(inner);
+  if (s?.op !== "&&") return null;
+  const last = parseCondition(s.parts.at(-1) ?? "", fields);
+  if (!last) return null;
+  const guards = s.parts.slice(0, -1).map(hasPath);
+  const expected = guardsFor(last.path);
+  return guards.length === expected.length &&
+    guards.every((g, i) => g === expected[i])
+    ? last
+    : null;
+}
+
 function parseGroup(
   term: string,
   fields: SourceField[]
@@ -249,7 +329,7 @@ function parseGroup(
   if (inner === null) return null;
   const s = split(inner);
   if (!s) return null;
-  const rows = s.parts.map((p) => parseCondition(p, fields));
+  const rows = s.parts.map((p) => parseGuarded(p, fields));
   if (rows.includes(null)) return null;
   let match: Match = s.op === "||" ? "any" : "all";
   if (negated) {
@@ -276,8 +356,14 @@ export function parseConditions(
   if (!top) return null;
   const rows: Condition[] = [];
   const groups: ConditionGroup[] = [];
+  const guards: string[] = [];
   for (const part of top.parts) {
-    const row = parseCondition(part, fields);
+    const guard = hasPath(part);
+    if (guard && top.op !== "||") {
+      guards.push(guard);
+      continue;
+    }
+    const row = parseGuarded(part, fields);
     if (row) {
       rows.push(row);
       continue;
@@ -286,6 +372,9 @@ export function parseConditions(
     if (!group || top.op === "||") return null;
     groups.push(group);
   }
+  // A has() at the top is shown with the condition it protects; the form writes it back.
+  const needed = new Set(rows.flatMap((r) => guardsFor(r.path)));
+  if (guards.some((g) => !needed.has(g))) return null;
   const form: ConditionForm = {
     match: top.op === "||" ? "any" : "all",
     rows,
@@ -392,30 +481,46 @@ export function formatRule(rule: string): string {
 
 /** One condition as CEL. */
 export function compileCondition(c: Condition): string {
+  if (readsOptional(c))
+    return `${optionalPath(c.path)} == ${c.op === "is_true" ? "TRUE" : "FALSE"}`;
   if (c.op === "is_true") return c.path;
   if (c.op === "is_false") return `!${c.path}`;
   return `${c.path} ${c.op} ${literal(c)}`;
 }
 
+const hasTest = (path: string) => `has(${path})`;
+
+/** One condition with its has() tests, in parentheses when it has any. */
+function compileGuarded(c: Condition): string {
+  const guards = guardsOf(c);
+  if (guards.length === 0) return compileCondition(c);
+  const terms = [...guards.map(hasTest), compileCondition(c)];
+  return `(${terms.join(" && ")})`;
+}
+
 function compileGroup(g: ConditionGroup): string | null {
   if (g.rows.length === 0) return null;
   const join = g.match === "all" ? " && " : " || ";
-  const inner = g.rows.map(compileCondition).join(join);
+  const inner = g.rows.map(compileGuarded).join(join);
   return g.match === "none" ? `!(${inner})` : `(${inner})`;
 }
 
-/** The activation rule for a form: the conditions, then each group joined with "y". */
+/**
+ * The activation rule for a form: the conditions, then each group joined with "y".
+ * When all conditions must hold, their has() tests go first, each once. A
+ * yes/no frame field is read with `.?` and needs none.
+ */
 export function compileConditions(form: ConditionForm): string {
   const parts: string[] = [];
   if (form.rows.length > 0) {
     const rows = form.rows.map(compileCondition);
-    if (form.match === "all" || rows.length === 1) parts.push(...rows);
-    else
-      parts.push(
-        form.groups.some((g) => g.rows.length > 0)
-          ? `(${rows.join(" || ")})`
-          : rows.join(" || ")
-      );
+    if (form.match === "all" || rows.length === 1) {
+      const guards = new Set(form.rows.flatMap(guardsOf));
+      parts.push(...[...guards].map(hasTest), ...rows);
+    } else {
+      const any = form.rows.map(compileGuarded).join(" || ");
+      parts.push(form.groups.some((g) => g.rows.length > 0) ? `(${any})` : any);
+    }
   }
   for (const g of form.groups) {
     const clause = compileGroup(g);

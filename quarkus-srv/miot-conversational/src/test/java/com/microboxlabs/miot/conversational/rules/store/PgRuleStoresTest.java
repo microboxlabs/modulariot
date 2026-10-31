@@ -1,0 +1,538 @@
+package com.microboxlabs.miot.conversational.rules.store;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.conversational.domain.ContextKind;
+import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
+import com.microboxlabs.miot.conversational.persistence.MessageRepository;
+import com.microboxlabs.miot.conversational.rules.ConvTemplate;
+import com.microboxlabs.miot.conversational.rules.Rule;
+import com.microboxlabs.miot.conversational.rules.RuleBump;
+import com.microboxlabs.miot.conversational.rules.RuleVersion;
+import com.microboxlabs.miot.conversational.rules.Run;
+import com.microboxlabs.miot.conversational.rules.StoredEvent;
+import com.microboxlabs.miot.conversational.rules.Invocation;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.pgclient.PgBuilder;
+import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.core.json.JsonObject;
+import io.vertx.pgclient.PgConnectOptions;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+
+/**
+ * The rule, template and run stores against a real database. Skipped unless
+ * {@code -Dmiot.conversational.test.pg-url=...} is set; the {@code miot_conversational} and {@code miot_core}
+ * schemas are dropped and re-created, so use a scratch database.
+ */
+@EnabledIfSystemProperty(named = PgRuleStoresTest.URL_PROPERTY, matches = ".+")
+class PgRuleStoresTest {
+
+    static final String URL_PROPERTY = "miot.conversational.test.pg-url";
+    private static final Duration WAIT = Duration.ofSeconds(10);
+    private static final List<String> MIGRATIONS = List.of("V0.7.0__create_conversational_schema.sql",
+            "V0.7.1__fork_conversation_per_service.sql", "V0.9.6__conversation_by_context_and_participant.sql",
+            "V0.9.8__conversation_rules.sql", "V0.10.1__rule_semantic_versions.sql",
+            "V0.10.2__platform_message_templates.sql", "V0.11.0__connection_channel_messages.sql",
+            "V0.11.1__whatsapp_outbound_by_address.sql",
+            // This constraint change is independent of 0.11.3, which needs the integrations schema.
+            "V0.11.4__trip_conversations.sql", "V0.11.5__run_invocations.sql");
+    private static final Instant T0 = Instant.parse("2026-10-23T12:00:00Z");
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private static Vertx vertx;
+    private static Pool pool;
+
+    private final PgRuleStore rules = new PgRuleStore(() -> pool);
+    private final PgTemplateStore templates = new PgTemplateStore(() -> pool);
+    private final PgRunStore runs = new PgRunStore(() -> pool);
+
+    @BeforeAll
+    static void migrate() throws IOException {
+        vertx = Vertx.vertx();
+        pool = PgBuilder.pool()
+                .connectingTo(PgConnectOptions.fromUri(System.getProperty(URL_PROPERTY)))
+                .using(vertx).build();
+        pool.query("DROP SCHEMA IF EXISTS miot_conversational CASCADE").execute().await().atMost(WAIT);
+        pool.query("DROP SCHEMA IF EXISTS miot_integrations CASCADE").execute().await().atMost(WAIT);
+        pool.query("DROP SCHEMA IF EXISTS miot_core CASCADE").execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA miot_core; CREATE TABLE miot_core.tenants (id BIGSERIAL PRIMARY KEY)")
+                .execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA miot_integrations").execute().await().atMost(WAIT);
+        try (InputStream in = PgRuleStoresTest.class.getResourceAsStream(
+                "/db/migration/integrations/V0.6.1__create_async_jobs.sql")) {
+            pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+        }
+        for (String file : MIGRATIONS) {
+            try (InputStream in = PgRuleStoresTest.class
+                    .getResourceAsStream("/db/migration/conversational/" + file)) {
+                pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
+            }
+        }
+    }
+
+    @AfterAll
+    static void close() {
+        pool.close().await().atMost(WAIT);
+        vertx.close().await().atMost(WAIT);
+    }
+
+    @Test
+    void tripConversationsAreAcceptedByTheMigratedConstraint() {
+        String tripId = UUID.randomUUID().toString();
+        Row created = pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation
+                    (id, tenant_code, participant_address, context_kind, context_key)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING context_kind, context_key
+                """).execute(Tuple.of(UUID.randomUUID(), "test-" + UUID.randomUUID(), "+56900000000",
+                        ContextKind.TRIP.dbValue(), tripId)).await().atMost(WAIT).iterator().next();
+        assertEquals(ContextKind.TRIP.dbValue(), created.getString("context_kind"));
+        assertEquals(tripId, created.getString("context_key"));
+    }
+
+    @Test
+    void outboundProviderIdAndConversationTouchCommitTogether() throws Exception {
+        UUID conversation = UUID.randomUUID();
+        String providerId = "test-" + UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation (id, tenant_code, participant_address)
+                VALUES ($1, $2, 'recipient@example.invalid')
+                """).execute(Tuple.of(conversation, "test-" + UUID.randomUUID())).await().atMost(WAIT);
+
+        String sql = sql("INSERT_OUTBOUND_AND_TOUCH");
+        assertThrows(Exception.class, () -> pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, null, "trip-test"))
+                .await().atMost(WAIT), "an invalid context pair must roll back the message insert");
+        assertEquals(0, countProviderId(providerId));
+
+        var inserted = pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, "trip", "trip-test"))
+                .await().atMost(WAIT);
+        assertEquals(1, inserted.size());
+        assertEquals(1, countProviderId(providerId));
+        Row touched = pool.preparedQuery("""
+                SELECT context_kind, context_key, last_message_preview
+                FROM miot_conversational.wa_conversation WHERE id = $1
+                """).execute(Tuple.of(conversation)).await().atMost(WAIT).iterator().next();
+        assertEquals("trip", touched.getString("context_kind"));
+        assertEquals("trip-test", touched.getString("context_key"));
+        assertEquals("Test subject", touched.getString("last_message_preview"));
+
+        assertEquals(0, pool.preparedQuery(sql)
+                .execute(outboundParams(conversation, providerId, "trip", "trip-test"))
+                .await().atMost(WAIT).size());
+        assertEquals(1, countProviderId(providerId));
+    }
+
+    @Test
+    void queuedMessageIsMarkedSentOnceWithItsProviderAndConnection() throws Exception {
+        UUID conversation = UUID.randomUUID();
+        UUID message = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation (id, tenant_code, participant_address)
+                VALUES ($1, $2, '+56900000000')
+                """).execute(Tuple.of(conversation, "test-" + UUID.randomUUID())).await().atMost(WAIT);
+        String insert = sql("INSERT_QUEUED");
+        Tuple queued = Tuple.tuple().addUUID(message).addUUID(conversation)
+                .addString("OUTBOUND").addString("SYSTEM").addString("TEMPLATE")
+                .addString("Test body").addString("test-template")
+                .addString(null).addString(null).addString(null).addString(null)
+                .addString("PENDING").addString(null).addString(null).addString(null).addString(null)
+                .addJsonObject(new JsonObject(Map.of("existing", "value")))
+                .addOffsetDateTime(null).addOffsetDateTime(null).addOffsetDateTime(null)
+                .addOffsetDateTime(T0.atOffset(ZoneOffset.UTC)).addString("whatsapp")
+                .addString("+56900000000").addUUID(null).addUUID(null).addInteger(0);
+        assertEquals(1, pool.preparedQuery(insert).execute(queued).await().atMost(WAIT).size());
+        assertEquals(0, pool.preparedQuery(insert).execute(queued).await().atMost(WAIT).size(),
+                "replaying a leased step must not create another message");
+
+        String providerId = "wamid.test-" + UUID.randomUUID();
+        String sql = sql("MARK_SENT");
+        var rows = pool.preparedQuery(sql).execute(Tuple.of(message, providerId,
+                new JsonObject(Map.of("connectionTenant", "test-platform")).encode(),
+                T0.atOffset(ZoneOffset.UTC))).await().atMost(WAIT);
+        assertEquals(1, rows.size());
+        Row sent = rows.iterator().next();
+        assertEquals("SENT", sent.getString("status"));
+        assertEquals("value", sent.getJsonObject("metadata").getString("existing"));
+        assertEquals("test-platform", sent.getJsonObject("metadata").getString("connectionTenant"));
+        assertEquals(T0.atOffset(ZoneOffset.UTC), sent.getOffsetDateTime("sent_at"));
+        assertEquals(0, pool.preparedQuery(sql).execute(Tuple.of(message, "wamid.other", "{}",
+                T0.atOffset(ZoneOffset.UTC))).await().atMost(WAIT).size());
+        assertEquals(providerId, pool.preparedQuery("""
+                SELECT provider_message_id FROM miot_conversational.wa_message WHERE id = $1
+                """).execute(Tuple.of(message)).await().atMost(WAIT).iterator().next()
+                .getString("provider_message_id"));
+    }
+
+    private static int countProviderId(String providerId) {
+        return pool.preparedQuery("""
+                SELECT count(*) AS count FROM miot_conversational.wa_message
+                WHERE channel = 'email' AND provider_message_id = $1
+                """).execute(Tuple.of(providerId)).await().atMost(WAIT).iterator().next().getLong("count").intValue();
+    }
+
+    private static Tuple outboundParams(UUID conversation, String providerId, String contextKind, String contextKey) {
+        var at = T0.atOffset(ZoneOffset.UTC);
+        return Tuple.tuple()
+                .addUUID(UUID.randomUUID()).addUUID(conversation).addString("OUTBOUND").addString("SYSTEM")
+                .addString("TEXT").addString("Test body").addString(null).addString(null).addString(null)
+                .addString(null).addString(providerId).addString("SENT").addString(null).addString(null)
+                .addString(null).addString(null).addJsonObject(new JsonObject()).addOffsetDateTime(at)
+                .addOffsetDateTime(null).addOffsetDateTime(null).addOffsetDateTime(at).addString("email")
+                .addString("recipient@example.invalid").addUUID(null).addUUID(null).addInteger(1)
+                .addString(null).addString(null).addString(null).addString(null).addOffsetDateTime(at)
+                .addString("Test subject").addString(contextKind).addString(contextKey);
+    }
+
+    private static RuleStore.Publication pub(String from, String version, RuleBump bump, String reason,
+            String actor) {
+        return new RuleStore.Publication(from, version, bump, reason, actor, T0);
+    }
+
+    private Rule rule(String tenant, String key) {
+        return rules.create(new Rule(UUID.randomUUID().toString(), tenant, key, "Pánico", Rule.State.OFF, null, T0,
+                T0));
+    }
+
+    @Test
+    void draftsPublishAsNumberedVersions() throws Exception {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        assertThrows(IllegalStateException.class, () -> rule(tenant, "panic"));
+
+        rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[]}"), "a@example.com", T0);
+        RuleVersion draft = rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[{\"template\":\"x\"}]}"),
+                "b@example.com", T0);
+        assertEquals(RuleVersion.Status.DRAFT, draft.status());
+        assertNull(draft.version());
+        assertEquals(1, rules.versions(rule.id()).size());
+
+        assertTrue(rules.publish(rule.id(), JSON.readTree("{\"steps\":[]}"),
+                pub(null, "0.1.0", RuleBump.MINOR, "stale", "b@example.com")).isEmpty(),
+                "the draft changed after this spec was validated");
+        RuleVersion v1 = rules.publish(rule.id(), draft.spec(), pub(null, "0.1.0", RuleBump.MINOR, "first", "b@example.com")).orElseThrow();
+        assertEquals("0.1.0", v1.version());
+        assertEquals(RuleBump.MINOR, v1.bump());
+        assertEquals("x", v1.spec().path("steps").get(0).path("template").asText());
+        assertTrue(rules.publish(rule.id(), draft.spec(), pub("0.1.0", "0.1.1", RuleBump.PATCH, "none", "b@example.com")).isEmpty());
+
+        RuleVersion second = rules.saveDraft(rule.id(), JSON.readTree("{\"steps\":[]}"), "c@example.com", T0);
+        assertTrue(rules.publish(rule.id(), second.spec(), pub(null, "0.1.1", RuleBump.PATCH, "behind", "c@example.com")).isEmpty(), "another publish moved the current version");
+        assertEquals("0.1.1", rules.publish(rule.id(), second.spec(), pub("0.1.0", "0.1.1", RuleBump.PATCH, "second", "c@example.com"))
+                .orElseThrow().version());
+        rules.saveDraft(rule.id(), JSON.readTree("{}"), "c@example.com", T0);
+
+        List<RuleVersion> versions = rules.versions(rule.id());
+        assertEquals(List.of(RuleVersion.Status.DRAFT, RuleVersion.Status.PUBLISHED, RuleVersion.Status.PUBLISHED),
+                versions.stream().map(RuleVersion::status).toList());
+        assertEquals("0.1.1", rules.find(tenant, rule.id()).orElseThrow().currentVersion());
+        assertEquals("first", rules.version(rule.id(), "0.1.0").orElseThrow().reason());
+        assertEquals(List.of("0.1.1", "DRAFT"), rules.liveVersions(List.of(rule.id())).stream()
+                .map(v -> v.version() == null ? "DRAFT" : v.version()).sorted().toList(),
+                "the draft and the version in force, not 0.1.0");
+        assertTrue(rules.liveVersions(List.of()).isEmpty());
+
+        assertTrue(rules.inForce(tenant).isEmpty());
+        rules.updateState(tenant, rule.id(), Rule.State.TEST, T0);
+        List<RuleStore.InForce> inForce = rules.inForce(tenant);
+        assertEquals(1, inForce.size());
+        assertEquals("0.1.1", inForce.get(0).version().version());
+        assertTrue(rules.find("other", rule.id()).isEmpty());
+        assertTrue(rules.find(tenant, "not-a-uuid").isEmpty());
+    }
+
+    @Test
+    void templatesUpsertByKey() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        ConvTemplate first = templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check",
+                "Pánico", "Hola {{nombre}}", new ConvTemplate.WhatsApp("miot_panic_check_v1", "es_CL",
+                        List.of("nombre", "patente")), null, T0, T0, "a@example.com", "0.1.0"), null).orElseThrow();
+        ConvTemplate second = templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check",
+                "Pánico 2", null, null, new ConvTemplate.Email("Asunto", "Cuerpo"), T0, T0.plusSeconds(5),
+                "b@example.com", "0.2.0"), "0.1.0").orElseThrow();
+        assertTrue(templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check", "Stale",
+                null, null, new ConvTemplate.Email("A", "B"), T0, T0, "c@example.com", "0.1.1"), "0.1.0").isEmpty(),
+                "a save from a version that is no longer stored");
+        assertTrue(templates.upsert(new ConvTemplate(UUID.randomUUID().toString(), tenant, "panic-check", "Twice",
+                null, null, new ConvTemplate.Email("A", "B"), T0, T0, "c@example.com", "0.1.0"), null).isEmpty(),
+                "a second create of the same key");
+
+        assertEquals(first.id(), second.id());
+        ConvTemplate read = templates.find(tenant, "panic-check").orElseThrow();
+        assertEquals("Pánico 2", read.name());
+        assertNull(read.whatsapp());
+        assertEquals("Asunto", read.email().subject());
+        assertEquals(List.of("nombre", "patente"), first.whatsapp().params());
+        assertEquals(1, templates.list(tenant).size());
+        assertEquals("0.2.0", templates.find(tenant, "panic-check").orElseThrow().version());
+    }
+
+    @Test
+    void runsAreClaimedOnceAndOnlyWaitingRunsChange() throws Exception {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "miot-symptoms", "symptom_case", "-7",
+                Map.of("symptomKey", "panic-button", "symptomName", "Botón de pánico", "level", 4, "assetId",
+                        "ABCD12", "latitude", -33.4), false, T0, T0));
+        assertEquals(4, ((Number) runs.event(event.id()).orElseThrow().data().get("level")).intValue());
+
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0));
+
+        List<Run> claimed = runs.claimDue(T0.plusSeconds(1), Duration.ofMinutes(2), 10);
+        assertTrue(claimed.stream().anyMatch(r -> r.id().equals(run.id())));
+        assertTrue(runs.claimDue(T0.plusSeconds(2), Duration.ofMinutes(2), 10).stream()
+                .noneMatch(r -> r.id().equals(run.id())));
+
+        assertTrue(runs.updateIfWaiting(run.advanced(Run.Status.WAITING, 1, T0.plusSeconds(300), "x", T0)));
+        assertEquals(1, runs.waiting(tenant, "symptom_case", "-7").size());
+
+        String conversation = conversationWithRunMessage(tenant, run.id(), "SENT");
+        assertEquals(run.id(), runs.waitingOnConversation(tenant, conversation).orElseThrow().id());
+        assertEquals(run.id(), waitingRunFromInboundLookup(tenant));
+
+        List<RunStore.RunRow> rows = runs.list(tenant, rule.id(), Run.Status.WAITING, 10);
+        assertEquals(1, rows.size());
+        assertEquals("Pánico", rows.get(0).ruleName());
+        assertEquals("symptom.case.opened", rows.get(0).eventType());
+        assertEquals("Botón de pánico", rows.get(0).symptomName());
+        assertEquals("ABCD12", rows.get(0).assetId());
+        List<RunStore.RunMessage> messages = runs.messages(List.of(run.id()));
+        assertEquals(1, messages.size());
+        assertEquals("SENT", messages.get(0).status());
+        assertEquals("Conductor", messages.get(0).toName());
+
+        assertTrue(runs.updateIfWaiting(run.advanced(Run.Status.REPLIED, 1, null, null, T0)));
+        assertFalse(runs.updateIfWaiting(run.advanced(Run.Status.DONE, 2, null, null, T0)));
+        assertEquals(Run.Status.REPLIED, runs.find(run.id()).orElseThrow().status());
+        assertTrue(runs.waiting(tenant, "symptom_case", "-7").isEmpty());
+        assertTrue(runs.list(tenant, null, Run.Status.WAITING, 10).isEmpty());
+        assertEquals(1, runs.list(tenant, null, null, 10).size());
+    }
+
+    @Test
+    void parkingAQueuedMessageAndRecordingItsRunIsAtomicAndTenantScoped() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "send");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "test", "symptom_case", "-7", Map.of(), false, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0));
+        String conversation = conversationWithRunMessage(tenant, run.id(), "PENDING");
+        String messageId = pool.preparedQuery("""
+                SELECT id FROM miot_conversational.wa_message WHERE conversation_id = $1
+                """).execute(Tuple.of(UUID.fromString(conversation))).await().atMost(WAIT)
+                .iterator().next().getUUID("id").toString();
+
+        assertFalse(runs.failQueuedMessage("other-tenant", messageId, "refused", T0));
+        assertTrue(runs.failQueuedMessage(tenant, messageId, "refused", T0));
+        assertEquals("+56900000000: refused", runs.find(run.id()).orElseThrow().lastError());
+        Row failed = pool.preparedQuery("""
+                SELECT status, error_message FROM miot_conversational.wa_message WHERE id = $1
+                """).execute(Tuple.of(UUID.fromString(messageId))).await().atMost(WAIT).iterator().next();
+        assertEquals("FAILED", failed.getString("status"));
+        assertEquals("refused", failed.getString("error_message"));
+        assertTrue(runs.failQueuedMessage(tenant, messageId, "retry refused", T0));
+        assertEquals("retry refused", pool.preparedQuery("""
+                SELECT error_message FROM miot_conversational.wa_message WHERE id = $1
+                """).execute(Tuple.of(UUID.fromString(messageId))).await().atMost(WAIT)
+                .iterator().next().getString("error_message"));
+    }
+
+    @Test
+    void aFailedJobWithAnUnmarkedMessageIsReconciled() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "reconcile");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "test", "symptom_case", "-7", Map.of(), false, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0));
+        String conversation = conversationWithRunMessage(tenant, run.id(), "PENDING");
+        String messageId = pool.preparedQuery("""
+                SELECT id FROM miot_conversational.wa_message WHERE conversation_id = $1
+                """).execute(Tuple.of(UUID.fromString(conversation))).await().atMost(WAIT)
+                .iterator().next().getUUID("id").toString();
+        pool.preparedQuery("""
+                INSERT INTO miot_integrations.async_jobs
+                    (tenant_code, source_instance, executor, job_type, payload, state, last_error)
+                VALUES ($1, 'test', 'modulith', 'whatsapp.send', $2::text::jsonb, 'FAILED', 'refused')
+                """).execute(Tuple.of(tenant, new JsonObject(Map.of("messageId", messageId)).encode()))
+                .await().atMost(WAIT);
+
+        assertEquals(1, runs.reconcileFailedSends(100, T0));
+        assertEquals(0, runs.reconcileFailedSends(100, T0));
+        assertEquals("+56900000000: refused", runs.find(run.id()).orElseThrow().lastError());
+    }
+
+    @Test
+    void anInvokedRunKeepsItsRecipientsAndItsKeyStartsItOnce() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", Invocation.SOURCE, "symptom_case", "-7", Map.of(), true, T0, T0));
+        Map<String, List<Invocation.Person>> to = new LinkedHashMap<>();
+        to.put("rule", List.of(new Invocation.Person("Tester", "tester@example.com", null)));
+        to.put("unchanged", null);
+        Run first = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, to, "k-1"));
+        Run again = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), Invocation.DRAFT,
+                event.id(), "symptom_case", "-7", false, Run.Status.WAITING, 0, T0, null, T0, T0, null, "k-1"));
+
+        assertEquals(first.id(), again.id());
+        assertEquals(to, runs.find(first.id()).orElseThrow().recipients());
+        assertEquals(first.id(), runs.invoked(rule.id(), "k-1").orElseThrow().id());
+        assertTrue(runs.invoked(rule.id(), "k-2").isEmpty());
+
+        runs.updateIfWaiting(first.advanced(Run.Status.WAITING, 0, T0, "older error", T0));
+        Run stale = runs.find(first.id()).orElseThrow();
+        pool.preparedQuery("""
+                UPDATE miot_conversational.conv_run SET last_error = $2 WHERE id = $1
+                """).execute(Tuple.of(UUID.fromString(first.id()), "tester@example.com: refused"))
+                .await().atMost(WAIT);
+        runs.updateIfWaiting(stale.advanced(Run.Status.WAITING, 1, T0, null, T0));
+        assertEquals("tester@example.com: refused", runs.find(first.id()).orElseThrow().lastError(),
+                "an update without an error keeps the one a send job wrote");
+    }
+
+    @Test
+    void aTestRunAndASimulatedMessageTakeNoRealReply() throws Exception {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "miot-symptoms", "symptom_case", "-7", Map.of(), true, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", true, Run.Status.WAITING, 1, T0, null, T0, T0));
+
+        String conversation = conversationWithRunMessage(tenant, run.id(), "SIMULATED");
+
+        assertTrue(runs.waitingOnConversation(tenant, conversation).isEmpty());
+        assertNull(waitingRunFromInboundLookup(tenant));
+    }
+
+    @Test
+    void aReplyOnThePlatformNumberFindsTheNewestPlatformSendToThePhone() throws Exception {
+        String tenantA = "tenant-" + UUID.randomUUID();
+        String tenantB = "tenant-" + UUID.randomUUID();
+        String phone = "+5690" + ThreadLocalRandom.current().nextInt(1_000_000, 9_999_999);
+        Rule rule = rule(tenantA, "panic");
+        StoredEvent event = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenantA,
+                "symptom.case.opened", "miot-symptoms", "symptom_case", "-7", Map.of(), false, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenantA, rule.id(), "0.1.0", event.id(),
+                "symptom_case", "-7", false, Run.Status.WAITING, 1, T0, null, T0, T0));
+        UUID a = conversation(tenantA, phone);
+        UUID b = conversation(tenantB, phone);
+        UUID waitingSend = platformSend(a, phone, run.id(), "SENT", "_platform", T0);
+        UUID newest = platformSend(b, phone, null, "DELIVERED", "_platform", T0.plusSeconds(60));
+        platformSend(b, phone, null, "FAILED", "_platform", T0.plusSeconds(120));
+        platformSend(b, phone, null, "SENT", null, T0.plusSeconds(180));
+
+        Row any = latestOutboundVia("SELECT_LATEST_OUTBOUND_VIA_ANY", phone);
+        assertEquals(newest, any.getUUID("id"));
+        assertEquals(tenantB, any.getString("tenant_code"));
+        Row waiting = latestOutboundVia("SELECT_LATEST_OUTBOUND_VIA_WAITING", phone);
+        assertEquals(waitingSend, waiting.getUUID("id"));
+        assertEquals(a, waiting.getUUID("conversation_id"));
+        assertEquals(tenantA, waiting.getString("tenant_code"));
+        assertEquals(UUID.fromString(run.id()), waiting.getUUID("run_id"));
+        assertNull(latestOutboundVia("SELECT_LATEST_OUTBOUND_VIA_ANY", "+56900000009"));
+
+        String explain = "EXPLAIN " + sql("SELECT_LATEST_OUTBOUND_VIA_ANY");
+        String plan = pool.withTransaction(conn -> conn.query("SET LOCAL enable_seqscan = off").execute()
+                .flatMap(ignored -> conn.preparedQuery(explain)
+                        .execute(Tuple.of(phone, "_platform"))))
+                .await().atMost(WAIT).stream().map(r -> r.getString(0)).reduce("", String::concat);
+        assertTrue(plan.contains("idx_wa_message_whatsapp_outbound_address"), plan);
+    }
+
+    private static UUID conversation(String tenant, String phone) {
+        UUID id = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation
+                    (id, tenant_code, phone_e164, participant_address, context_kind, context_key)
+                VALUES ($1, $2, $3, $3, 'symptom_case', '-7')
+                """).execute(Tuple.of(id, tenant, phone)).await().atMost(WAIT);
+        return id;
+    }
+
+    private static UUID platformSend(UUID conversation, String phone, String runId, String status,
+            String connectionTenant, Instant at) {
+        UUID id = UUID.randomUUID();
+        io.vertx.core.json.JsonObject metadata = new io.vertx.core.json.JsonObject().put("connectionId", "c-1");
+        if (connectionTenant != null) {
+            metadata.put("connectionTenant", connectionTenant);
+        }
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_message
+                    (id, conversation_id, direction, role, msg_type, body, status, channel, address, run_id, step,
+                     metadata, created_at)
+                VALUES ($1, $2, 'OUTBOUND', 'SYSTEM', 'TEMPLATE', 'Hola', $3, 'whatsapp', $4, $5, 0, $6, $7)
+                """).execute(Tuple.tuple().addUUID(id).addUUID(conversation).addString(status).addString(phone)
+                        .addUUID(runId == null ? null : UUID.fromString(runId)).addJsonObject(metadata)
+                        .addOffsetDateTime(at.atOffset(java.time.ZoneOffset.UTC)))
+                .await().atMost(WAIT);
+        return id;
+    }
+
+    private static Row latestOutboundVia(String constant, String phone) throws Exception {
+        var rows = pool.preparedQuery(sql(constant)).execute(Tuple.of(phone, "_platform")).await().atMost(WAIT)
+                .iterator();
+        return rows.hasNext() ? rows.next() : null;
+    }
+
+    private static String sql(String constant) throws Exception {
+        Field f = MessageRepository.class.getDeclaredField(constant);
+        f.setAccessible(true);
+        return (String) f.get(null);
+    }
+
+    /** A conversation with one message of the run to +56900000000, in the given status. */
+    private static String conversationWithRunMessage(String tenant, String runId, String status) {
+        UUID conversation = UUID.randomUUID();
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_conversation
+                    (id, tenant_code, phone_e164, participant_address, context_kind, context_key, display_name)
+                VALUES ($1, $2, '+56900000000', '+56900000000', 'symptom_case', '-7', 'Conductor')
+                """).execute(Tuple.of(conversation, tenant)).await().atMost(WAIT);
+        pool.preparedQuery("""
+                INSERT INTO miot_conversational.wa_message
+                    (id, conversation_id, direction, role, msg_type, body, status, channel, address, run_id, step)
+                VALUES ($1, $2, 'OUTBOUND', 'SYSTEM', 'TEMPLATE', 'Hola', $4, 'whatsapp', '+56900000000',
+                        $3, 0)
+                """).execute(Tuple.of(UUID.randomUUID(), conversation, UUID.fromString(runId), status))
+                .await().atMost(WAIT);
+        return conversation.toString();
+    }
+
+    /** Runs the inbound attachment's waiting-run query, as {@link ConversationRepository} does. */
+    private static String waitingRunFromInboundLookup(String tenant) throws Exception {
+        Field f = ConversationRepository.class.getDeclaredField("SELECT_WITH_WAITING_RUN");
+        f.setAccessible(true);
+        var rows = pool.preparedQuery((String) f.get(null)).execute(Tuple.of(tenant, "+56900000000"))
+                .await().atMost(WAIT).iterator();
+        return rows.hasNext() ? rows.next().getUUID("run_id").toString() : null;
+    }
+}

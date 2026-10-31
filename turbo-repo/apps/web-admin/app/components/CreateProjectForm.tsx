@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { Button, TextInput, Select, Spinner, Accordion, AccordionPanel, AccordionTitle, AccordionContent } from "flowbite-react";
 import { Eye, EyeOff, Shield, Settings } from "lucide-react";
 import { CTAButton } from "@modulariot/ui/cta-button";

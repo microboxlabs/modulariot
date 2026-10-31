@@ -10,6 +10,8 @@ const ENV_KEYS = [
   "ENABLE_STORYTELLING",
   "SYMPTOMS_PROTOTYPE_DISABLE_API",
   "SYMPTOMS_PAST_FORMS",
+  "BOARD_MODULE",
+  "DASHBOARD_MODULE",
 ] as const;
 
 describe("runtime config route", () => {
@@ -28,6 +30,8 @@ describe("runtime config route", () => {
     process.env[ENV_KEYS[5]] = "true";
     process.env[ENV_KEYS[6]] = "true";
     process.env[ENV_KEYS[7]] = "true";
+    process.env[ENV_KEYS[8]] = "trips";
+    process.env[ENV_KEYS[9]] = "server";
 
     const response = GET();
     const data = await response.json();
@@ -41,6 +45,8 @@ describe("runtime config route", () => {
       ENABLE_STORYTELLING: "true",
       SYMPTOMS_PROTOTYPE_DISABLE_API: "true",
       SYMPTOMS_PAST_FORMS: "true",
+      BOARD_MODULE: "trips",
+      DASHBOARD_MODULE: "server",
     });
   });
 
@@ -54,5 +60,6 @@ describe("runtime config route", () => {
 
     expect(Object.keys(data).sort()).toEqual([...ENV_KEYS].sort());
     expect(data.MAPBOX_API_KEY).toBe("");
+    expect(data.BOARD_MODULE).toBe("");
   });
 });

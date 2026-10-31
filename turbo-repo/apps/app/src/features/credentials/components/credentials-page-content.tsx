@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Alert, Button, Spinner } from "flowbite-react";
 import { HiKey, HiPlus } from "react-icons/hi";
 import { toast } from "sonner";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -31,6 +34,9 @@ import { AzureEntraCredentialModal } from "./azure-entra-credential-modal";
 import {
   BearerTokenCredentialModal,
   ResendCredentialModal,
+  WhatsAppCredentialModal,
+  MapboxCredentialModal,
+  GoogleMapsCredentialModal,
 } from "./bearer-token-credential-modal";
 import { CredentialDeleteDialog } from "./credential-delete-dialog";
 import { CredentialTypePickerModal } from "./credential-type-picker-modal";
@@ -45,6 +51,9 @@ const AUTH0 = "AUTH0_M2M" as const;
 const GOOGLE = "GOOGLE_SERVICE_ACCOUNT" as const;
 const BEARER = "BEARER_TOKEN" as const;
 const RESEND = "RESEND" as const;
+const WHATSAPP = "WHATSAPP" as const;
+const MAPBOX = "MAPBOX" as const;
+const GOOGLE_MAPS = "GOOGLE_MAPS" as const;
 
 interface CredentialsPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -99,6 +108,7 @@ export default function CredentialsPageContent({
 
   const [filters, setFilters] = useState<CredentialFilters>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<CredentialSort>(DEFAULT_SORT);
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
   const types = useMemo(
     () => [...new Set(credentials.map((credential) => credential.typeId))],
     [credentials]
@@ -115,8 +125,13 @@ export default function CredentialsPageContent({
   const [formType, setFormType] = useState<CredentialTypeId>(ENTRA);
   const [editing, setEditing] = useState<CredentialListItem | null>(null);
   const [deleting, setDeleting] = useState<CredentialListItem | null>(null);
+  /** The form values of the last dry run that passed, while creating. */
+  const passedDraft = useRef<string | null>(null);
+  const submitting = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   function handleAdd() {
+    passedDraft.current = null;
     setEditing(null);
     setPickerOpen(true);
   }
@@ -136,18 +151,32 @@ export default function CredentialsPageContent({
   }
 
   async function handleSubmit(form: CredentialFormData) {
+    if (submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
     try {
+      let createdToTest: string | null = null;
       if (editing) {
         await update(editing.id, form);
         toast.success(tr("toast.updated", credentialsDict));
       } else {
-        await create(formType, form);
+        const created = await create(formType, form);
         toast.success(tr("toast.created", credentialsDict));
+        // A dry run leaves no result on the badge; repeat it on the saved
+        // credential when it passed with exactly these values.
+        if (passedDraft.current === JSON.stringify(form)) {
+          createdToTest = created.id;
+        }
       }
+      passedDraft.current = null;
       setFormOpen(false);
       setEditing(null);
+      if (createdToTest) await test(createdToTest).catch(() => undefined);
     } catch (cause) {
       toast.error(messageOf(cause, tr("toast.saveFailed", credentialsDict)));
+    } finally {
+      submitting.current = false;
+      setSaving(false);
     }
   }
 
@@ -167,9 +196,10 @@ export default function CredentialsPageContent({
     form: CredentialFormData
   ): Promise<CredentialTestResult> {
     try {
-      return editing
-        ? await test(editing.id)
-        : await testConfig(formType, form);
+      if (editing) return await test(editing.id);
+      const result = await testConfig(formType, form);
+      passedDraft.current = result.success ? JSON.stringify(form) : null;
+      return result;
     } catch (cause) {
       return {
         success: false,
@@ -203,56 +233,20 @@ export default function CredentialsPageContent({
     onSubmit: handleSubmit,
     onTest: handleFormTest,
     onDelete: editing ? () => handleDeleteFromModal(editing) : undefined,
-    loading: actionLoading,
+    loading: actionLoading || saving,
     environments,
     dict: credentialsDict,
   };
 
   return (
-    // Same shell as Settings > Data sources: a full-width breadcrumb bar
-    // (outside the scroll container, so it never moves — including during
-    // rubber-band overscroll) over a capped, independently-scrolling
-    // content column, so a wide monitor doesn't strand the row actions far
-    // from the names they belong to.
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "credentials"]}
-          disableLinks
-        />
-      </div>
-
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <HiKey className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", credentialsDict)}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("description", credentialsDict)}
-              </p>
-            </div>
-          </div>
-          <Button color="blue" onClick={handleAdd} disabled={!orgSlug}>
-            <HiPlus className="mr-2 h-4 w-4" />
-            {tr("addButton", credentialsDict)}
-          </Button>
-        </div>
-
-        {error && (
-          <Alert color="failure">
-            <span className="text-sm">
-              {isForbidden(error)
-                ? tr("errors.forbidden", credentialsDict)
-                : tr("errors.loadFailed", credentialsDict)}
-            </span>
-          </Alert>
-        )}
-
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "credentials"]}
+      icon={HiKey}
+      title={tr("title", credentialsDict)}
+      description={tr("description", credentialsDict)}
+      filters={
         <CredentialsToolbar
           filters={filters}
           onFiltersChange={setFilters}
@@ -263,6 +257,39 @@ export default function CredentialsPageContent({
           dict={credentialsDict}
           rootDict={rootDict}
         />
+      }
+      actions={
+        <div className="flex shrink-0 items-center gap-2">
+          <LayoutToggle
+            layout={layout}
+            labels={{
+              cards: tr("viewCards", credentialsDict),
+              list: tr("viewList", credentialsDict),
+            }}
+            onLayout={setLayout}
+          />
+          <Button
+            size="sm"
+            color="blue"
+            onClick={handleAdd}
+            disabled={!orgSlug}
+          >
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("addButton", credentialsDict)}
+          </Button>
+        </div>
+      }
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-1">
+        {error && (
+          <Alert color="failure">
+            <span className="text-sm">
+              {isForbidden(error)
+                ? tr("errors.forbidden", credentialsDict)
+                : tr("errors.loadFailed", credentialsDict)}
+            </span>
+          </Alert>
+        )}
 
         <div>
           {isLoading ? (
@@ -279,6 +306,7 @@ export default function CredentialsPageContent({
                   ? tr("filters.noMatches", credentialsDict)
                   : tr("list.empty", credentialsDict)
               }
+              layout={layout}
               dict={credentialsDict}
             />
           )}
@@ -305,6 +333,9 @@ export default function CredentialsPageContent({
       />
       <BearerTokenCredentialModal show={shown(BEARER)} {...formProps} />
       <ResendCredentialModal show={shown(RESEND)} {...formProps} />
+      <WhatsAppCredentialModal show={shown(WHATSAPP)} {...formProps} />
+      <MapboxCredentialModal show={shown(MAPBOX)} {...formProps} />
+      <GoogleMapsCredentialModal show={shown(GOOGLE_MAPS)} {...formProps} />
 
       <CredentialDeleteDialog
         credential={deleting}
@@ -314,7 +345,7 @@ export default function CredentialsPageContent({
         loading={actionLoading}
         dict={credentialsDict}
       />
-    </div>
+    </SettingsPageShell>
   );
 }
 

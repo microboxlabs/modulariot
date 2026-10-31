@@ -4,13 +4,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.event.OperationalEvent;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
+import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
+import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
+import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
@@ -19,6 +24,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +33,10 @@ class EvaluatorStreamTest {
     private static final String DEMO = "tenant-demo";
     private static final String OTHER = "tenant-without-symptoms";
 
-    private final List<Transition> recorded = new ArrayList<>();
+    private final InMemoryTransitionLog log = new InMemoryTransitionLog();
+    private final List<Transition> recorded = log.recorded;
+    private final List<OperationalEvent> fired = new ArrayList<>();
+    private SymptomEvents events;
     private final SignalSamples samples = SignalSamples.inMemory();
     private SymptomCatalogService catalog;
     private EvaluatorCatalog evaluatorCatalog;
@@ -35,6 +44,10 @@ class EvaluatorStreamTest {
     @BeforeEach
     void setUp() {
         InMemoryCatalog store = new InMemoryCatalog();
+        events = new SymptomEvents(e -> {
+            fired.add(e);
+            return CompletableFuture.completedFuture(e);
+        }, store::findDefinition, Clock.systemUTC());
         DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         evaluatorCatalog = new EvaluatorCatalog(catalog, sources);
@@ -68,8 +81,9 @@ class EvaluatorStreamTest {
     }
 
     private EvaluatorStream stream() {
-        return new EvaluatorStream(true, evaluatorCatalog, (tenant, t, place) -> recorded.addAll(t),
-                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
+        return new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
     }
 
     private static String signal(String at, Boolean panic, String... clients) {
@@ -111,8 +125,9 @@ class EvaluatorStreamTest {
 
     @Test
     void doesNothingWhenOff() {
-        EvaluatorStream off = new EvaluatorStream(false, evaluatorCatalog, (t, x, place) -> recorded.addAll(x),
-                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
+        EvaluatorStream off = new EvaluatorStream(false, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
 
         assertEquals(0, off.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)));
     }
@@ -165,15 +180,102 @@ class EvaluatorStreamTest {
                 memory.forget(tenantCode, assetId, definitionId);
             }
         };
-        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog, (t, x, place) -> recorded.addAll(x),
-                new SimpleMeterRegistry(), Clock.systemUTC(), failing, samples);
+        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog,
+                new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
+                Clock.systemUTC(), failing, samples);
         List<String> outcomes = new ArrayList<>();
 
         s.onSignal(message(signal("2026-10-22T03:00:30Z", true, DEMO), outcomes));
+        s.onSignal(message(signal("2026-10-22T03:00:30Z", true, DEMO), outcomes));
         s.onSignal(message("not json", outcomes));
 
-        assertEquals(List.of("nack", "ack"), outcomes);
+        assertEquals(List.of("nack", "nack", "ack"), outcomes);
         assertEquals(1, recorded.size(), "the transition is written before the episode");
+        assertEquals(1, fired.size(), "the redelivered signal publishes nothing again");
+    }
+
+    @Test
+    void aTestSymptomPublishesItsOpeningAsATestEvent() {
+        stream().evaluate(signal("2026-10-22T03:00:30Z", true, DEMO));
+
+        assertEquals(1, fired.size());
+        OperationalEvent e = fired.get(0);
+        assertEquals("symptom.case.opened", e.type());
+        assertEquals("miot-symptoms", e.source());
+        assertEquals(DEMO, e.tenantCode());
+        assertEquals(java.time.Instant.parse("2026-10-22T03:00:30Z"), e.at());
+        assertEquals("symptom_case", e.context().kind());
+        assertEquals("-1", e.context().key());
+        assertTrue(e.test());
+        SymptomCaseData data = (SymptomCaseData) e.data();
+        assertEquals(-1, data.symptomId());
+        assertEquals("panic-button", data.symptomKey());
+        assertEquals("Botón de pánico", data.symptomName());
+        assertEquals(4, data.level());
+        assertEquals(0, data.previousLevel());
+        assertEquals("DEMO01", data.assetId());
+        assertEquals(0.0, data.speedKmh());
+    }
+
+    @Test
+    void anActiveCaseOpeningRisingAndClosingPublishesThreeEvents() {
+        String tenant = "tenant-speed";
+        SymptomSpec spec = new SymptomSpec("gps_signal", "signal.frame.gps.speed > 0",
+                new SymptomSpec.Measure("signal.frame.gps.speed", "Velocidad", "km/h"),
+                Specs.levels("measure > 0 && measure < 80", "measure >= 80 && measure < 100",
+                        "measure >= 100 && measure < 120", "measure >= 120"),
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 0"), null);
+        var id = catalog.create(tenant, "owner@example.com", new CreateRequest("speed-band", "Velocidad", null,
+                null, null, "gps_signal", null, spec)).definition().id();
+        catalog.publish(tenant, "owner@example.com", id, "Primera versión", null, SymptomState.ACTIVE);
+        EvaluatorStream s = stream();
+
+        s.evaluate(moving("2026-10-22T03:00:00Z", 50, tenant));
+        s.evaluate(moving("2026-10-22T03:00:30Z", 90, tenant));
+        s.evaluate(moving("2026-10-22T03:01:00Z", 0, tenant));
+
+        assertEquals(List.of("symptom.case.opened", "symptom.case.level_changed", "symptom.case.closed"),
+                fired.stream().map(OperationalEvent::type).toList());
+        assertTrue(fired.stream().noneMatch(OperationalEvent::test));
+        assertTrue(fired.stream().allMatch(e -> e.context().key().equals("-1")), "one case");
+        SymptomCaseData rose = (SymptomCaseData) fired.get(1).data();
+        assertEquals(2, rose.level());
+        assertEquals(1, rose.previousLevel());
+        assertEquals(90.0, rose.measure());
+        assertEquals(90.0, rose.speedKmh());
+        assertEquals(id, rose.definitionId());
+        assertEquals("T-9", rose.tripId());
+        assertEquals("D-7", rose.driverId());
+        assertEquals("speed-band", rose.symptomKey());
+        assertEquals("Velocidad", rose.symptomName());
+        SymptomCaseData closed = (SymptomCaseData) fired.get(2).data();
+        assertEquals(2, closed.level());
+        assertEquals(null, closed.closedBy());
+    }
+
+    private static String moving(String at, double speed, String client) {
+        return """
+                {"schema":"miot.gps.signal@1","asset_id":"DEMO01","at":"%s","clients":["%s"],
+                 "trips":{"%s":{"id":"T-9","active":true,"double_driver":false,
+                                "driver":{"id":"D-7","registered":true}}},
+                 "local_hour":9,"derived":{"moving":true},
+                 "frame":{"asset_id":"DEMO01","gps":{"speed":%s,"latitude":-33.4,"longitude":-70.6},"sensors":{}}}
+                """.formatted(at, client, client, speed);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void eachOrganizationReadsOnlyItsOwnTrip() {
+        Map<String, Object> signal = Map.of("asset_id", "DEMO01", "clients", List.of(DEMO, OTHER),
+                "trips", Map.of(DEMO, Map.of("id", "T-1", "active", true)));
+
+        Map<String, Object> demo = EvaluatorStream.forTenant(signal, DEMO);
+        Map<String, Object> other = EvaluatorStream.forTenant(signal, OTHER);
+
+        assertEquals("T-1", ((Map<String, Object>) demo.get("trip")).get("id"));
+        assertEquals(Map.of("active", false, "double_driver", false), other.get("trip"));
+        assertFalse(demo.containsKey("trips"));
+        assertFalse(other.containsKey("trips"));
     }
 
     private static org.eclipse.microprofile.reactive.messaging.Message<byte[]> message(String body,

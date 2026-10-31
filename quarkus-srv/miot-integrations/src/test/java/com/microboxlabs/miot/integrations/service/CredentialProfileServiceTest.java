@@ -17,6 +17,8 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.dto.CredentialTestRequest;
+import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.CredentialTestResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
@@ -44,6 +46,17 @@ class CredentialProfileServiceTest {
 
     private final FakeCredentials credentials = new FakeCredentials();
     private final FakeConnections connections = new FakeConnections();
+
+    @Test
+    void managedSecretsCannotBeMutatedThroughConnectionHelpers() {
+        CredentialProfileService service = service();
+        CredentialProfile profile = service.createManaged(TENANT, ACTOR, "Synthetic geocoding", AuthType.BEARER_TOKEN, Map.of());
+        Map<String, Object> secret = Map.of("token", "synthetic-token");
+        String id = profile.id();
+        assertThrows(IllegalArgumentException.class, () -> service.mergeSecret(TENANT, id, secret));
+        assertThrows(IllegalArgumentException.class, () -> service.rotateSecret(TENANT, id, secret));
+        assertEquals(profile.encryptedSecretJson(), credentials.findByTenantAndId(TENANT, profile.id()).encryptedSecretJson());
+    }
 
     @Test
     void createsAnEntraCredentialWithTheActorAndTheDerivedAuthType() {
@@ -129,6 +142,37 @@ class CredentialProfileServiceTest {
         assertEquals(AuthType.API_KEY_QUERY, created.authType());
     }
 
+    /** Only the platform creates a managed credential; through this API it could name any account. */
+    @Test
+    void refusesAManagedGoogleCredential() {
+        CredentialProfileService service = service();
+        CreateCredentialProfileRequest request = new CreateCredentialProfileRequest(
+                "Forged", CredentialType.GOOGLE_SERVICE_ACCOUNT, null, null,
+                Map.of("managed", true, "clientEmail", "t-other@tenants.iam.gserviceaccount.com"),
+                Map.of("privateKey", "x"));
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> service.create(TENANT, ACTOR, request));
+        assertEquals("Managed credentials are created by the platform", error.getMessage());
+    }
+
+    @Test
+    void aManagedCredentialHasNoSecretAndCannotBeEditedOrTested() {
+        CredentialProfileService service = service();
+        CredentialProfile managed = service.createManaged(TENANT, ACTOR, "Geocoding", AuthType.BEARER_TOKEN, Map.of());
+        String id = managed.id();
+        assertEquals(Map.of("managed", true), managed.publicConfig());
+        assertEquals("none", managed.secretPreview());
+        UpdateCredentialProfileRequest update = new UpdateCredentialProfileRequest(null, null, null, Map.of("token", "mine"));
+        IllegalArgumentException edit = assertThrows(IllegalArgumentException.class, () -> service.update(TENANT, ACTOR, id, update));
+        assertEquals("This credential is managed by the platform", edit.getMessage());
+        CredentialTestResponse result = service.test(TENANT, id);
+        assertFalse(result.success());
+        assertEquals("This credential is managed by the platform", result.message());
+        assertNull(credentials.recordedTestResult);
+        CredentialTestRequest request = new CredentialTestRequest(CredentialType.BEARER_TOKEN, Map.of("managed", true), Map.of("token", "x"));
+        assertThrows(IllegalArgumentException.class, () -> service.testConfig(request));
+    }
+
     @Test
     void refusesToCreateACredentialWithNoSecret() {
         IllegalArgumentException error = assertThrows(
@@ -199,14 +243,24 @@ class CredentialProfileServiceTest {
     @Test
     void reportsWhichConnectionsUseACredential() {
         CredentialProfileResponse created = service().create(TENANT, ACTOR, entraRequest("Partner API", "QA"));
-        connections.rows.add(connection("WhatsApp Cloud", ProviderType.WHATSAPP, created.id()));
+        connections.rows.add(connection("WhatsApp Cloud", ProviderType.WHATSAPP, created.id(),
+                Map.of("phone_number_id", "100000000000001")));
+        connections.rows.add(connection("Correo", ProviderType.RESEND, created.id(),
+                Map.of("from", "Avisos <avisos@example.test>")));
         connections.rows.add(connection("Partner API connection", ProviderType.CUSTOM_HTTP, created.id()));
 
         List<CredentialProfileResponse> listed = service().list(TENANT);
 
-        assertEquals(2, listed.get(0).usedBy().size());
-        assertEquals(CredentialUsageKind.CHANNEL, listed.get(0).usedBy().get(0).kind());
-        assertEquals(CredentialUsageKind.INTEGRATION, listed.get(0).usedBy().get(1).kind());
+        List<CredentialUsageResponse> usedBy = listed.get(0).usedBy();
+        assertEquals(3, usedBy.size());
+        assertEquals(CredentialUsageKind.CHANNEL, usedBy.get(0).kind());
+        assertEquals(ProviderType.WHATSAPP, usedBy.get(0).providerType());
+        assertEquals("100000000000001", usedBy.get(0).detail());
+        assertEquals(ProviderType.RESEND, usedBy.get(1).providerType());
+        assertEquals("Avisos <avisos@example.test>", usedBy.get(1).detail());
+        assertEquals(CredentialUsageKind.INTEGRATION, usedBy.get(2).kind());
+        assertEquals(ProviderType.CUSTOM_HTTP, usedBy.get(2).providerType());
+        assertEquals("https://example.test", usedBy.get(2).detail());
     }
 
     @Test
@@ -268,6 +322,75 @@ class CredentialProfileServiceTest {
         assertEquals("tokenUrl must not point to an internal address", response.message());
     }
 
+    @Test
+    void mergingASecretKeepsTheOtherKeys() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(), Map.of("token", "access")));
+
+        service().mergeSecret(TENANT, created.id(), Map.of("app_secret", "signing"));
+
+        Map<String, Object> secret = new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                .decrypt(credentials.storedSecret);
+        assertEquals(Map.of("token", "access", "app_secret", "signing"), secret);
+    }
+
+    @Test
+    void credentialsScreenRotationKeepsWhatsAppWebhookKeys() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "old", "app_secret", "signing", "verify_token", "verify")));
+
+        service().update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(
+                null, null, null, Map.of("token", "new")));
+
+        assertEquals(Map.of("token", "new", "app_secret", "signing", "verify_token", "verify"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
+    @Test
+    void credentialsScreenCanChangeOnlyAWebhookKey() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "access", "app_secret", "old", "verify_token", "verify")));
+
+        service().update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(
+                null, null, null, Map.of("app_secret", "new")));
+
+        assertEquals(Map.of("token", "access", "app_secret", "new", "verify_token", "verify"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
+    @Test
+    void mergingSecretsRetriesAfterAConcurrentRotation() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "old", "app_secret", "old-signing")));
+        credentials.concurrentSecret = Map.of("token", "new-access", "app_secret", "old-signing");
+
+        service().mergeSecret(TENANT, created.id(), Map.of("app_secret", "new-signing"));
+
+        assertEquals(Map.of("token", "new-access", "app_secret", "new-signing"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
+    @Test
+    void credentialsScreenRotationRetriesAndPreservesAConcurrentWebhookKey() {
+        CredentialProfileResponse created = service().create(TENANT, ACTOR, new CreateCredentialProfileRequest(
+                "WhatsApp", null, AuthType.BEARER_TOKEN, null, Map.of(),
+                Map.of("token", "old", "app_secret", "old-signing")));
+        credentials.concurrentSecret = Map.of("token", "old", "app_secret", "new-signing");
+
+        service().update(TENANT, ACTOR, created.id(), new UpdateCredentialProfileRequest(
+                null, null, null, Map.of("token", "new-access")));
+
+        assertEquals(Map.of("token", "new-access", "app_secret", "new-signing"),
+                new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                        .decrypt(credentials.storedSecret));
+    }
+
     private CredentialProfileService service() {
         return new CredentialProfileService(
                 credentials,
@@ -297,10 +420,15 @@ class CredentialProfileServiceTest {
     }
 
     private static IntegrationConnection connection(String name, ProviderType type, String credentialId) {
+        return connection(name, type, credentialId, Map.of());
+    }
+
+    private static IntegrationConnection connection(String name, ProviderType type, String credentialId,
+            Map<String, Object> metadata) {
         return new IntegrationConnection(
                 UUID.randomUUID().toString(), TENANT, name, type,
                 URI.create("https://example.test"), credentialId,
-                ConnectionStatus.ACTIVE, null, null, Map.of());
+                ConnectionStatus.ACTIVE, null, null, metadata);
     }
 
     /** In-memory stand-in; the repository's own SQL is covered by the integrity test. */
@@ -308,6 +436,8 @@ class CredentialProfileServiceTest {
 
         final List<CredentialProfile> rows = new ArrayList<>();
         UpdateCredentialProfileParams lastUpdate;
+        String storedSecret;
+        Map<String, Object> concurrentSecret;
         OffsetDateTime recordedTestedAt;
         Boolean recordedTestResult;
         boolean deleted;
@@ -336,6 +466,64 @@ class CredentialProfileServiceTest {
         public CredentialProfile update(UpdateCredentialProfileParams params) {
             lastUpdate = params;
             return findByTenantAndId(params.tenantCode(), params.id());
+        }
+
+        @Override
+        public CredentialProfile updateIfVersion(UpdateCredentialProfileParams params, int expectedVersion) {
+            lastUpdate = params;
+            if (simulateConcurrentWrite(params.tenantCode(), params.id())) {
+                return null;
+            }
+            CredentialProfile current = findByTenantAndId(params.tenantCode(), params.id());
+            if (current == null || current.secretVersion() != expectedVersion) {
+                return null;
+            }
+            storedSecret = params.encryptedSecretJson();
+            return replaceSecret(current, storedSecret, params.secretPreview());
+        }
+
+        @Override
+        public CredentialProfile updateSecret(
+                String tenantCode, String id, String encryptedSecretJson, String secretPreview) {
+            storedSecret = encryptedSecretJson;
+            return findByTenantAndId(tenantCode, id);
+        }
+
+        @Override
+        public CredentialProfile updateSecretIfVersion(
+                String tenantCode, String id, int expectedVersion,
+                String encryptedSecretJson, String secretPreview) {
+            if (simulateConcurrentWrite(tenantCode, id)) {
+                return null;
+            }
+            CredentialProfile current = findByTenantAndId(tenantCode, id);
+            if (current == null || current.secretVersion() != expectedVersion) {
+                return null;
+            }
+            storedSecret = encryptedSecretJson;
+            return replaceSecret(current, storedSecret, secretPreview);
+        }
+
+        private boolean simulateConcurrentWrite(String tenantCode, String id) {
+            if (concurrentSecret == null) {
+                return false;
+            }
+            CredentialProfile current = findByTenantAndId(tenantCode, id);
+            Map<String, Object> replacement = concurrentSecret;
+            concurrentSecret = null;
+            replaceSecret(current, new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key")
+                    .encrypt(replacement), "****");
+            return true;
+        }
+
+        private CredentialProfile replaceSecret(CredentialProfile current, String encrypted, String preview) {
+            CredentialProfile updated = new CredentialProfile(current.id(), current.tenantCode(),
+                    current.displayName(), current.credentialType(), current.authType(), current.environment(),
+                    current.publicConfig(), encrypted, preview, current.secretVersion() + 1,
+                    current.lastTestedAt(), current.lastTestResult(), current.createdAt(), current.updatedAt(),
+                    current.createdBy(), current.updatedBy());
+            rows.set(rows.indexOf(current), updated);
+            return updated;
         }
 
         @Override

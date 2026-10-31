@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   judgedCurrentVersion,
+  mergeLoadedStatuses,
   splitByVersion,
   statusForCurrentVersion,
   versionOf,
@@ -159,5 +160,18 @@ describe("versionOf", () => {
     expect(versionOf({ properties: {} })).toBeNull();
     expect(versionOf({})).toBeNull();
     expect(versionOf(undefined)).toBeNull();
+  });
+});
+
+describe("loaded review resets", () => {
+  it("replaces a cached decision when the current source resets a document", () => {
+    const old = new Map([["doc", "approved" as const]]);
+    const loaded = new Map([["doc", "pending" as const]]);
+    expect(mergeLoadedStatuses(old, loaded, true).get("doc")).toBe("pending");
+  });
+  it("preserves a legacy local decision over an absent pending projection", () => {
+    const old = new Map([["doc", "approved" as const]]);
+    const loaded = new Map([["doc", "pending" as const]]);
+    expect(mergeLoadedStatuses(old, loaded, false).get("doc")).toBe("approved");
   });
 });

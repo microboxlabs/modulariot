@@ -22,9 +22,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +44,7 @@ class WhatsAppConnectionTesterTest {
     private HttpServer server;
     private final AtomicReference<String> seenAuthHeader = new AtomicReference<>();
     private final AtomicReference<String> seenPath = new AtomicReference<>();
+    private final AtomicReference<String> seenQuery = new AtomicReference<>();
 
     @AfterEach
     void tearDown() {
@@ -60,6 +64,46 @@ class WhatsAppConnectionTesterTest {
         assertTrue(response.message().contains("OK"));
         assertEquals("Bearer " + TOKEN, seenAuthHeader.get());
         assertEquals("/" + PHONE_NUMBER_ID, seenPath.get());
+    }
+
+    @Test
+    void provesTheAppSecretAndReportsTheWebhookKeys() throws Exception {
+        startServer(200, "{\"id\":\"" + PHONE_NUMBER_ID + "\"}");
+        IntegrationConnection connection = connection(URI.create(baseUrl()), Map.of("phone_number_id", PHONE_NUMBER_ID));
+
+        ConnectionTestResponse response = tester.test(connection,
+                credential(Map.of("token", TOKEN, "app_secret", "signing", "verify_token", "verify")),
+                new ConnectionTestRequest("GET", null));
+
+        assertTrue(response.success());
+        assertEquals("appsecret_proof=" + hmac("signing", TOKEN), seenQuery.get());
+        assertTrue(response.message().contains("App secret OK; verify token saved."));
+    }
+
+    @Test
+    void failsWhenTheAppSecretIsNotTheTokensApp() throws IOException {
+        startServer(400, "{\"error\":{\"message\":\"Invalid appsecret_proof provided in the API argument\"}}");
+        IntegrationConnection connection = connection(URI.create(baseUrl()), Map.of("phone_number_id", PHONE_NUMBER_ID));
+
+        ConnectionTestResponse response = tester.test(connection,
+                credential(Map.of("token", TOKEN, "app_secret", "wrong")), new ConnectionTestRequest("GET", null));
+
+        assertFalse(response.success());
+        assertTrue(response.message().contains("App secret does not belong"));
+    }
+
+    @Test
+    void saysWhichWebhookKeysAreMissing() throws IOException {
+        startServer(200, "{\"id\":\"" + PHONE_NUMBER_ID + "\"}");
+        IntegrationConnection connection = connection(URI.create(baseUrl()), Map.of("phone_number_id", PHONE_NUMBER_ID));
+
+        ConnectionTestResponse response = tester.test(connection, bearerCredential(TOKEN),
+                new ConnectionTestRequest("GET", null));
+
+        assertTrue(response.success());
+        assertEquals(null, seenQuery.get());
+        assertTrue(response.message().contains("App secret not set"));
+        assertTrue(response.message().contains("verify token not set"));
     }
 
     @Test
@@ -105,6 +149,7 @@ class WhatsAppConnectionTesterTest {
         server.createContext("/", exchange -> {
             seenAuthHeader.set(exchange.getRequestHeaders().getFirst("Authorization"));
             seenPath.set(exchange.getRequestURI().getPath());
+            seenQuery.set(exchange.getRequestURI().getQuery());
             byte[] payload = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, payload.length);
@@ -118,8 +163,18 @@ class WhatsAppConnectionTesterTest {
         return "http://127.0.0.1:" + server.getAddress().getPort();
     }
 
+    private static String hmac(String key, String value) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return HexFormat.of().formatHex(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
+    }
+
     private CredentialProfile bearerCredential(String token) {
-        String encrypted = cipher.encrypt(Map.of("token", token));
+        return credential(Map.of("token", token));
+    }
+
+    private CredentialProfile credential(Map<String, Object> secret) {
+        String encrypted = cipher.encrypt(secret);
         assertNotNull(encrypted);
         OffsetDateTime now = OffsetDateTime.now();
         return new CredentialProfile(

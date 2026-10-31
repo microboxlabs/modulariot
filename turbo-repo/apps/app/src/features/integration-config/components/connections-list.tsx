@@ -2,197 +2,337 @@
 
 import { Badge, DropdownItem, Spinner } from "flowbite-react";
 import {
+  HiOutlineChartBar,
   HiOutlineDatabase,
-  HiOutlineLink,
   HiPencil,
   HiPlay,
   HiTrash,
 } from "react-icons/hi";
+import { BrandLogo } from "@/features/common/components/brand-logo";
+import CatalogTable from "@/features/common/components/catalog-table";
+import type { CatalogLayout } from "@/features/common/components/layout-toggle";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { CredentialListItem } from "@/features/credentials/credential.types";
+import {
+  connectionMark,
+  connectionState,
+  connectionTypeName,
+  isPlatformManaged,
+} from "../connection-catalog";
 import type {
   IntegrationConnection,
   IntegrationTemplate,
 } from "../integration-config.types";
 import {
+  CARD,
+  CARD_BUTTON,
   EmptyRow,
-  ROW,
-  ROW_BUTTON,
-  RowIcon,
   RowMenu,
   SUBLINE,
 } from "./integration-row";
+import { isBigQueryConnection } from "../bigquery-query";
 
 interface ConnectionsListProps {
   readonly connections: readonly IntegrationConnection[];
-  /** Resolve each row's template name and credential label. */
+  /** Resolve each connection's type name and credential label. */
   readonly templates: readonly IntegrationTemplate[];
   readonly credentials: readonly CredentialListItem[];
   readonly onOpen: (connection: IntegrationConnection) => void;
+  /** Opens a platform-managed connection; absent where it cannot be opened. */
+  readonly onOpenManaged?: () => void;
   readonly onTest: (connection: IntegrationConnection) => void;
   readonly onDelete: (connection: IntegrationConnection) => void;
+  /** A platform owner may remove a connection the platform manages. */
+  readonly canRemoveManaged?: boolean;
   /** Pick the functions a PostgREST connection exposes to dashboards. */
   readonly onFunctions: (connection: IntegrationConnection) => void;
+  /** Write the SQL queries a BigQuery connection offers to dashboards. */
+  readonly onQueries: (connection: IntegrationConnection) => void;
   /** Id of the connection currently being exercised, if any. */
   readonly testing: string | null;
   readonly emptyMessage: string;
+  readonly layout: CatalogLayout;
   readonly dict: I18nRecord;
 }
 
 /**
- * List view for connections — the instances.
- *
- * Same row grammar as Settings › Credentials: identity on the left, state in the
- * middle, the credential it carries on the right, actions in the kebab.
+ * Connections as cards or as a table, like Settings › Credentials. Clicking a
+ * connection opens it; the kebab tests, edits or deletes it without opening.
  */
 export function ConnectionsList({
   connections,
   templates,
   credentials,
   onOpen,
+  onOpenManaged,
   onTest,
   onDelete,
+  canRemoveManaged = false,
   onFunctions,
+  onQueries,
   testing,
   emptyMessage,
+  layout,
   dict,
 }: Readonly<ConnectionsListProps>) {
   if (connections.length === 0) {
     return <EmptyRow message={emptyMessage} />;
   }
 
+  const items = connections.map((connection) => {
+    const managed = isPlatformManaged(connection);
+    return {
+      connection,
+      typeName: connectionTypeName(connection, templates),
+      credentialName:
+        credentials.find(
+          (credential) => credential.id === connection.credentialProfileId
+        )?.name ?? null,
+      actions: {
+        onOpen: managed ? onOpenManaged : () => onOpen(connection),
+        // A managed connection is tested through the platform's provider, so it stays read-only.
+        onTest: () => onTest(connection),
+        onDelete:
+          managed && !canRemoveManaged ? undefined : () => onDelete(connection),
+        onFunctions:
+          connection.providerType === "POSTGREST"
+            ? () => onFunctions(connection)
+            : undefined,
+        onQueries: isBigQueryConnection(connection)
+          ? () => onQueries(connection)
+          : undefined,
+      },
+      testing: testing === connection.id,
+    };
+  });
+
+  if (layout === "list") {
+    return (
+      <CatalogTable
+        columns={[
+          tr("list.colConnection", dict),
+          tr("list.colType", dict),
+          tr("list.colStatus", dict),
+          tr("list.colCredential", dict),
+          "",
+        ]}
+      >
+        {items.map((item) => (
+          <ConnectionRow key={item.connection.id} {...item} dict={dict} />
+        ))}
+      </CatalogTable>
+    );
+  }
+
   return (
-    <ul className="flex flex-col gap-2">
-      {connections.map((connection) => (
-        <li key={connection.id}>
-          <ConnectionRow
-            connection={connection}
-            templateName={
-              templates.find(
-                (template) => template.id === connection.templateId
-              )?.name ?? providerLabel(connection.providerType)
-            }
-            credentialName={
-              credentials.find(
-                (credential) => credential.id === connection.credentialProfileId
-              )?.name ?? null
-            }
-            onOpen={() => onOpen(connection)}
-            onTest={() => onTest(connection)}
-            onDelete={() => onDelete(connection)}
-            onFunctions={
-              connection.providerType === "POSTGREST"
-                ? () => onFunctions(connection)
-                : undefined
-            }
-            testing={testing === connection.id}
-            dict={dict}
-          />
-        </li>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      {items.map((item) => (
+        <ConnectionCard key={item.connection.id} {...item} dict={dict} />
       ))}
-    </ul>
+    </div>
   );
 }
 
-interface ConnectionRowProps {
-  readonly connection: IntegrationConnection;
-  readonly templateName: string;
-  readonly credentialName: string | null;
-  readonly onOpen: () => void;
-  readonly onTest: () => void;
-  readonly onDelete: () => void;
+/** An action is left out when the connection does not allow it. */
+interface ConnectionActions {
+  readonly onOpen?: () => void;
+  readonly onTest?: () => void;
+  readonly onDelete?: () => void;
   readonly onFunctions?: () => void;
+  readonly onQueries?: () => void;
+}
+
+interface ConnectionItemProps {
+  readonly connection: IntegrationConnection;
+  readonly typeName: string;
+  readonly credentialName: string | null;
+  readonly actions: ConnectionActions;
   readonly testing: boolean;
   readonly dict: I18nRecord;
 }
 
-function ConnectionRow({
+function ConnectionCard({
   connection,
-  templateName,
+  typeName,
   credentialName,
-  onOpen,
-  onTest,
-  onDelete,
-  onFunctions,
+  actions,
   testing,
   dict,
-}: Readonly<ConnectionRowProps>) {
+}: ConnectionItemProps) {
   return (
-    <div className={ROW}>
-      <RowIcon>
-        <HiOutlineLink className="h-5 w-5" />
-      </RowIcon>
-
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-medium text-gray-900 dark:text-white">
-          <button type="button" onClick={onOpen} className={ROW_BUTTON}>
-            {connection.name}
-          </button>
+    <div className={CARD}>
+      <div className="flex items-start gap-3 px-4 pt-4">
+        <ConnectionLogo connection={connection} typeName={typeName} size={40} />
+        <div className="min-w-0 flex-1">
+          {actions.onOpen ? (
+            <button
+              type="button"
+              onClick={actions.onOpen}
+              className={CARD_BUTTON}
+            >
+              {connection.name}
+            </button>
+          ) : (
+            <span className={CARD_BUTTON}>{connection.name}</span>
+          )}
+          <div className={SUBLINE}>{typeName}</div>
         </div>
-        <div className={SUBLINE}>
-          {templateName}
-          {" · "}
-          <span className="font-mono">{connection.baseUrl}</span>
+        <div className="relative shrink-0">
+          <ConnectionMenu actions={actions} testing={testing} dict={dict} />
         </div>
       </div>
-
-      <div className="hidden w-52 shrink-0 flex-col gap-1 sm:flex">
-        <div className="flex items-center gap-2">
-          <StatusBadge connection={connection} dict={dict} />
-        </div>
-        <div className={SUBLINE}>{testLine(connection, dict)}</div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 px-4">
+        <StatusBadge connection={connection} dict={dict} />
+        <span className={SUBLINE}>{testLine(connection, dict)}</span>
       </div>
-
-      <div className="hidden w-40 shrink-0 text-right md:block">
-        <div className="truncate text-sm text-gray-700 dark:text-gray-300">
+      <p className="mt-2 truncate px-4 font-mono text-xs text-gray-600 dark:text-gray-300">
+        {connection.baseUrl}
+      </p>
+      <div className="min-h-3 flex-1" />
+      <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500 dark:border-gray-700/60 dark:text-gray-400">
+        <span className="shrink-0">{tr("connections.credential", dict)}</span>
+        <span className="truncate text-gray-700 dark:text-gray-300">
           {credentialName ?? tr("connections.noCredential", dict)}
-        </div>
-        <div className={SUBLINE}>{tr("connections.credential", dict)}</div>
-      </div>
-
-      <div className="relative shrink-0">
-        {testing ? (
-          <span className="flex h-8 w-8 items-center justify-center">
-            <Spinner size="sm" aria-label={tr("connections.test", dict)} />
-          </span>
-        ) : (
-          <RowMenu dict={dict}>
-            <DropdownItem icon={HiPencil} onClick={onOpen}>
-              {tr("common.edit", dict)}
-            </DropdownItem>
-            <DropdownItem icon={HiPlay} onClick={onTest}>
-              {tr("connections.test", dict)}
-            </DropdownItem>
-            {onFunctions && (
-              <DropdownItem icon={HiOutlineDatabase} onClick={onFunctions}>
-                {tr("postgrest.functions", dict)}
-              </DropdownItem>
-            )}
-            <DropdownItem icon={HiTrash} onClick={onDelete}>
-              {tr("common.delete", dict)}
-            </DropdownItem>
-          </RowMenu>
-        )}
+        </span>
       </div>
     </div>
   );
 }
 
+function ConnectionRow({
+  connection,
+  typeName,
+  credentialName,
+  actions,
+  testing,
+  dict,
+}: ConnectionItemProps) {
+  return (
+    <tr className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/40">
+      <td className="max-w-96 px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <ConnectionLogo
+            connection={connection}
+            typeName={typeName}
+            size={24}
+          />
+          <div className="min-w-0">
+            {actions.onOpen ? (
+              <button
+                type="button"
+                onClick={actions.onOpen}
+                className="cursor-pointer truncate text-left text-sm font-medium text-gray-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-400"
+              >
+                {connection.name}
+              </button>
+            ) : (
+              <span className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                {connection.name}
+              </span>
+            )}
+            <div className={`${SUBLINE} font-mono`}>{connection.baseUrl}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-2.5">{typeName}</td>
+      <td className="px-4 py-2.5">
+        <StatusBadge connection={connection} dict={dict} />
+        <div className={`${SUBLINE} mt-1`}>{testLine(connection, dict)}</div>
+      </td>
+      <td className="max-w-48 truncate px-4 py-2.5">
+        {credentialName ?? tr("connections.noCredential", dict)}
+      </td>
+      <td className="px-2 py-2.5 text-right">
+        <ConnectionMenu actions={actions} testing={testing} dict={dict} />
+      </td>
+    </tr>
+  );
+}
+
+function ConnectionLogo({
+  connection,
+  typeName,
+  size,
+}: Readonly<{
+  connection: IntegrationConnection;
+  typeName: string;
+  size: number;
+}>) {
+  return (
+    <BrandLogo
+      {...connectionMark(connection, typeName)}
+      alt={typeName}
+      size={size}
+    />
+  );
+}
+
+function ConnectionMenu({
+  actions,
+  testing,
+  dict,
+}: Readonly<{
+  actions: ConnectionActions;
+  testing: boolean;
+  dict: I18nRecord;
+}>) {
+  if (testing) {
+    return (
+      <span className="inline-flex h-8 w-8 items-center justify-center">
+        <Spinner size="sm" aria-label={tr("connections.test", dict)} />
+      </span>
+    );
+  }
+  if (!actions.onOpen && !actions.onTest && !actions.onDelete) return null;
+  return (
+    <RowMenu dict={dict}>
+      {actions.onOpen && (
+        <DropdownItem icon={HiPencil} onClick={actions.onOpen}>
+          {tr("common.edit", dict)}
+        </DropdownItem>
+      )}
+      {actions.onTest && (
+        <DropdownItem icon={HiPlay} onClick={actions.onTest}>
+          {tr("connections.test", dict)}
+        </DropdownItem>
+      )}
+      {actions.onFunctions && (
+        <DropdownItem icon={HiOutlineDatabase} onClick={actions.onFunctions}>
+          {tr("postgrest.functions", dict)}
+        </DropdownItem>
+      )}
+      {actions.onQueries && (
+        <DropdownItem icon={HiOutlineChartBar} onClick={actions.onQueries}>
+          {tr("bigquery.queries", dict)}
+        </DropdownItem>
+      )}
+      {actions.onDelete && (
+        <DropdownItem icon={HiTrash} onClick={actions.onDelete}>
+          {tr("common.delete", dict)}
+        </DropdownItem>
+      )}
+    </RowMenu>
+  );
+}
+
+const STATE_TONE = {
+  active: "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400",
+  failed: "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400",
+  draft: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
+} as const;
+
+/** Same colours as the credential test badge: green connected, red failed, gray draft. */
 function StatusBadge({
   connection,
   dict,
 }: Readonly<{ connection: IntegrationConnection; dict: I18nRecord }>) {
-  if (connection.status === "ACTIVE" || connection.lastTestResult === true) {
-    return <Badge color="success">{tr("status.active", dict)}</Badge>;
-  }
-  if (
-    connection.status === "TEST_FAILED" ||
-    connection.lastTestResult === false
-  ) {
-    return <Badge color="failure">{tr("status.failed", dict)}</Badge>;
-  }
-  return <Badge color="gray">{tr("status.draft", dict)}</Badge>;
+  const state = connectionState(connection);
+  return (
+    <Badge color="gray" size="xs" className={`w-fit ${STATE_TONE[state]}`}>
+      {trDynamic(`status.${state}`, dict)}
+    </Badge>
+  );
 }
 
 /** When it was last exercised — one nobody ever tested says so plainly. */
@@ -201,15 +341,4 @@ function testLine(connection: IntegrationConnection, dict: I18nRecord): string {
   return tr("connections.testedOn", dict, {
     date: new Date(connection.lastTestedAt).toLocaleDateString(),
   });
-}
-
-const PROVIDER_LABELS: Record<string, string> = {
-  CAR_IMAGES: "CarImages",
-  POSTGREST: "PostgREST",
-  RESEND: "Resend",
-  WHATSAPP: "WhatsApp",
-};
-
-function providerLabel(providerType: string): string {
-  return PROVIDER_LABELS[providerType] ?? providerType;
 }

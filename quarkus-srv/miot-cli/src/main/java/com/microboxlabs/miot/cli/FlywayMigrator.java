@@ -38,6 +38,9 @@ public class FlywayMigrator {
     @ConfigProperty(name = "miot.component.symptoms.enabled", defaultValue = "false")
     boolean symptomsEnabled;
 
+    @ConfigProperty(name = "miot.component.trips.enabled", defaultValue = "false")
+    boolean tripsEnabled;
+
     @ConfigProperty(name = "quarkus.datasource.active", defaultValue = "true")
     boolean dataSourceActive;
 
@@ -46,7 +49,7 @@ public class FlywayMigrator {
         // Skip migration entirely when no DB-dependent component is active
         // to avoid connecting to (or validating against) a database that isn't needed.
         if (!fleetEnabled && !trackingEnabled && !integrationsEnabled
-                && !conversationalEnabled && !symptomsEnabled) {
+                && !conversationalEnabled && !symptomsEnabled && !tripsEnabled) {
             LOG.debug("No DB-dependent components enabled — skipping Flyway");
             return;
         }
@@ -63,7 +66,8 @@ public class FlywayMigrator {
 
         List<String> locations = new ArrayList<>(baseLocations);
 
-        if (fleetEnabled) {
+        // trips reads miot_fleet's resources through FleetResources
+        if (fleetEnabled || tripsEnabled) {
             locations.add("db/migration/fleet");
         }
         if (trackingEnabled) {
@@ -77,6 +81,9 @@ public class FlywayMigrator {
         }
         if (symptomsEnabled) {
             locations.add("db/migration/symptoms");
+        }
+        if (tripsEnabled) {
+            locations.add("db/migration/trips");
         }
 
         LOG.infof("Flyway locations: %s", locations);

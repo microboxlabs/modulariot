@@ -6,7 +6,7 @@
 
     <groupId>com.microboxlabs.miot</groupId>
     <artifactId>miot-parent</artifactId>
-    <version>0.5.38</version>
+    <version>0.5.39</version>
     <packaging>pom</packaging>
 
     <name>ModularIoT — Parent</name>
@@ -15,11 +15,13 @@
     <modules>
         <module>miot-gps-model</module>
         <module>miot-core</module>
+        <module>miot-content-gcs</module>
         <module>miot-integrations</module>
         <module>miot-conversational</module>
         <module>miot-fleet</module>
         <module>miot-tracking</module>
         <module>miot-symptoms</module>
+        <module>miot-trips</module>
         <module>miot-gateway</module>
         <module>miot-cli</module>
     </modules>
@@ -50,6 +52,12 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- cel-java 0.13 is generated with protobuf 4.33.4 and refuses an older runtime than the Quarkus BOM's. -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>4.33.5</version>
+            </dependency>
             <!-- Stay on Pulsar 3.3 while removing its legacy Commons Lang usage. -->
             <dependency>
                 <groupId>org.apache.pulsar</groupId>
@@ -134,6 +142,11 @@
             </dependency>
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-content-gcs</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-fleet</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -155,6 +168,11 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-symptoms</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-trips</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

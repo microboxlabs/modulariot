@@ -2,7 +2,7 @@ import { requireAuth } from "../../utils/alfresco-crud-client";
 import { updateTaskServiceCategory } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const PatchBodySchema = z.object({
   taskId: z.string(),

@@ -2,10 +2,13 @@
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import { guardedRequestTreatment } from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
+import {
+  guardedRequestTreatment,
+  type EngineTreatmentProgress,
+} from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Select, Textarea } from "flowbite-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TiDelete } from "react-icons/ti";
 import { useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -33,6 +36,7 @@ export default function IgnoreCondition({
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
 }) {
+  const engineProgress = useRef<EngineTreatmentProgress>({});
   const [durationLocal, setDurationLocal] = useState(duration);
   const [motivo, setMotivo] = useState("");
   const [nota, setNota] = useState("");
@@ -60,14 +64,18 @@ export default function IgnoreCondition({
           v_symptom_treatment_time: duration,
           status: "active",
         });
-        await guardedRequestTreatment({
-          ...treatmentRequest,
-          status: "active",
-          treatment_type: "ignorar condicion",
-          v_symptom_treatment_time: duration,
-          description:
-            `Motivo: ${motivoLabel}` + (nota.trim() ? ` · Nota: ${nota.trim()}` : ""),
-        });
+        await guardedRequestTreatment(
+          {
+            ...treatmentRequest,
+            status: "active",
+            treatment_type: "ignorar condicion",
+            v_symptom_treatment_time: duration,
+            description:
+              `Motivo: ${motivoLabel}` +
+              (nota.trim() ? ` · Nota: ${nota.trim()}` : ""),
+          },
+          { progress: engineProgress.current }
+        );
         setIsMenuOpen(false);
         router.push("/symptoms");
         ShowNotification({

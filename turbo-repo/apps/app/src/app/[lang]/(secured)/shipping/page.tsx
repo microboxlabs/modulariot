@@ -10,8 +10,10 @@ import {
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import { guardPage } from "@/features/auth/access/server-access";
+import { requireBoard } from "@/features/layout/services/board-guard";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function ShippingPage(params: ParamsWithLang) {
+  requireBoard("kanban");
   await guardPage(ACCESS_RULES.kanban, "/shipping");
   try {
     const { lang } = await params.params;

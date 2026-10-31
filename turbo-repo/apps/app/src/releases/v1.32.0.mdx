@@ -1,0 +1,125 @@
+# 🔔 Release Notes v1.32.0 — ModularIoT
+
+### Fecha: 31/10/2026
+
+**Objetivo**: Ampliar las capacidades del Coordinador para gestionar viajes, comunicaciones, permisos y análisis de datos mediante la integración OSS del milestone `MIOT-0.6.0`. Esta nota recoge los cambios aportados para el alcance de `Release 1.32.0`; los datos suministrados no incluyen incidencias privadas.
+
+## 🚀 Evolutivos
+
+- **📍 Tablero y ficha de viajes** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Vistas de Planificación, Despachos, Entregas y Finalizados, con carriles, filtros, contadores, hitos y avisos de atraso. La ficha reúne carga, conductores, recursos, etapas, historial, alertas y documentos multimedia.
+  - **Detalle técnico**: Tablero y ficha reciben actualizaciones por eventos del servidor, con consulta periódica cada 30 segundos como alternativa. Los documentos de viaje admiten tipos, versiones y rondas de revisión.
+
+- **🧭 Monitores e hitos de viaje** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Creación de monitores con etapas, parámetros, reglas CEL, borradores y versiones publicadas; definición del alcance de viajes y validación de conflictos entre monitores.
+  - **Detalle técnico**: Los monitores evalúan eventos y temporizadores y registran transiciones. Los hitos incorporan presentación, validación y evidencias; la salida requiere una validación reportada. Se incorporan entregas con comprobante de entrega, ciclo configurable y finalización del viaje.
+
+- **✅ Confirmación humana y equipos responsables** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Detecciones pendientes de salida, llegada y cierre pueden confirmarse o rechazarse desde Ajustes, la ficha del viaje o una respuesta al aviso correspondiente.
+  - **Detalle técnico**: Cada monitor puede asignar un equipo confirmador por hito. Las respuestas tardías solo afectan la detección que originó el aviso, sin modificar detecciones posteriores.
+
+- **🚚 Alimentación de viajes y recursos de flota** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Gestión de perfiles de alimentación, procesamiento asíncrono por servicio cambiado, búsqueda de recursos por patente o documento y registro de transportistas, camiones, remolques y conductores faltantes.
+  - **Detalle técnico**: El perfil declara el plan y el monitor dirige las etapas, sustituyendo el avance automático por reloj. La alimentación incorpora hitos desde tiempos reales, regulariza servicios terminados y reporta cambios en viajes cerrados. Los servicios cerrados sin cambios se omiten mediante una lectura por lote.
+
+- **🌍 Resolución de ubicaciones y geocodificación** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Resolución de puntos sin proveedor externo, cola de revisión por organización, consulta de consumo mensual y administración de proveedores, credenciales y planes.
+  - **Detalle técnico**: Adaptadores Mapbox y Google gestionados por la plataforma, conexiones `GEOCODING` por organización, fuente interna OpenAddresses, caché, seguimiento de uso, cuotas y restricciones por plan.
+
+- **💬 Reglas de comunicación y seguimiento de respuestas** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Reglas, plantillas y actividad en Comunicaciones; versiones semánticas, gestión de borradores, grupos de destinatarios y escalamiento editables también como JSON.
+  - **Detalle técnico**: Las condiciones CEL seleccionan contactos mediante datos del contacto y del evento. Los viajes publican alertas, hitos y decisiones después de confirmar la transacción; las respuestas generan `conversation.reply_received` conservando el contexto original.
+
+- **👥 Libreta de contactos y administración de equipos** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Contactos con empresa, correo, teléfono, identificación tributaria y reglas que los alcanzan; soporte de documentos personales y empresariales, incluidos DNI, CE y RUC.
+  - **Detalle técnico**: Búsqueda y filtros mediante API, paginación de 100 contactos y prevención de miembros duplicados. Los equipos disponen de páginas para miembros, roles por módulo y permisos efectivos, con un selector de miembros mejorado.
+
+- **📊 Consultas BigQuery y paneles** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Editor GoogleSQL en Ajustes › Conexiones para escribir, probar y guardar consultas, explorar esquemas, estimar ejecución y previsualizar resultados con parámetros.
+  - **Detalle técnico**: La biblioteca de paneles comparte `QueryWorkbench` con el servidor independiente y ModularIoT. Incluye comprobaciones de revisión, parámetros tipados, límite de bytes facturados, resaltado y sugerencias SQL. Los paneles del servidor se crean por nombre con control de duplicados.
+
+- **🔎 Evaluación y edición de síntomas** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Casos del motor en la Torre de Control, previsualización de reglas sobre señales GPS recientes, plantillas de plataforma versionadas y edición de severidad y respuesta por niveles.
+  - **Detalle técnico**: Las señales incorporan datos del viaje y conductor registrado. Las reglas admiten lecturas opcionales con `TRUE`, `FALSE` y `NONE`, y condiciones protegidas mediante `has()`. La ficha del viaje integra síntomas y posiciones del camión.
+
+- **📚 Documentación práctica de paneles** *(Integración OSS — MIOT-0.6.0)*
+  - **Funcionalidad**: Orientación por audiencia, guía del primer panel, selección de widgets, consultas, referencias por widget y plantillas con capturas por variante.
+  - **Detalle técnico**: Guías en español e inglés para integración en Phoenix LiveView y recetas de indicadores por estado, filtros de tablas, barras horizontales y colores por estado, manteniendo las URL existentes.
+
+## 🔧 Integraciones
+
+- **🔐 IAM y membresía nativa del Coordinador** *(Integración OSS — MIOT-0.6.0)*
+  - **Alcance**: Catálogo de permisos y roles por módulo; aplicación y modulith deciden acceso mediante IAM. La membresía pasa a gestión nativa, con importación de grupos Alfresco, asignaciones desde el proveedor de identidad y incorporación por dominio de correo verificado sin roles de módulo iniciales.
+  - **Compatibilidad**: Alfresco recibe la proyección de miembros y roles para ECM y BPM, con cambios encolados transaccionalmente y reconciliación periódica. Tras iniciar sesión, cada persona accede a una página permitida o a una pantalla sin acceso.
+
+- **🏢 Ámbito de plataforma y cuentas de comunicación** *(Integración OSS — MIOT-0.6.0)*
+  - **Alcance**: Ámbito `_platform` para propietarios, catálogos centrales de plantillas de síntomas y mensajes, y cuentas de canal en Comunicaciones. Cada organización puede elegir cuentas propias o de plataforma para WhatsApp y correo; las organizaciones consultan el catálogo de mensajes en modo de solo lectura.
+
+- **🔌 Credenciales y conexiones verificables** *(Integración OSS — MIOT-0.6.0)*
+  - **Alcance**: Cuenta de servicio Google por organización sin claves mediante Workload Identity o suplantación, conexión BigQuery administrada y endpoints de autoría conectados al servidor de paneles.
+  - **Configuración**: Pruebas de conexiones antes de guardar, con verificación real de BigQuery y comprobación de PostgREST. El formulario Google puede leer localmente un archivo JSON y usa el alcance BigQuery por defecto.
+
+- **📨 WhatsApp y trabajos de integración** *(Integración OSS — MIOT-0.6.0)*
+  - **Alcance**: URL y claves de webhook por conexión, aislando números y mensajes de cada organización. Los eventos entrantes y los envíos de reglas se procesan como trabajos de integración; los envíos admiten reintentos.
+  - **Operación**: La consola está disponible en el ámbito de plataforma y recibe transiciones del modulith mediante PostgreSQL y un relevo autenticado, sin depender de un servicio externo de eventos ECM. La prueba WhatsApp valida el secreto de Meta e informa las claves de webhook almacenadas.
+
+- **🛰️ Compartición GPS y señales de geocercas** *(Integración OSS — MIOT-0.6.0)*
+  - **Alcance**: Los propietarios de plataforma crean y revocan acceso a activos GPS por organización, criterios o lista fija, con vigencia, motivo y origen. Las organizaciones receptoras no pueden volver a compartir lo recibido.
+  - **Activación**: La sincronización GPS permanece deshabilitada por defecto y requiere la migración `V1.61.0` de db-writer y credenciales de escritura. Las entradas y salidas de geocercas pueden generar señales de viaje; esta capacidad también está deshabilitada por defecto mediante `MIOT_TRIPS_GEOFENCES_ENABLED`.
+
+- **⚙️ Configuración, almacenamiento y publicación del stack** *(Integración OSS — MIOT-0.6.0)*
+  - **Alcance**: `BOARD_MODULE` selecciona el tablero kanban o de viajes y sus secciones asociadas; `DASHBOARD_MODULE` permite paneles heredados, del servidor o ambos. Las rutas ocultas devuelven 404. El almacén de contenido incorpora controladores de sistema de archivos y Google Cloud Storage.
+  - **Publicación**: Los flujos públicos publican imágenes y manifiestos y emiten la notificación neutral `miot-stack-available` con referencias inmutables, separando la disponibilidad de artefactos de la selección de destinos y el despliegue privado.
+
+## 🐛 Correcciones
+
+- **🐛 Tratamientos y visualización de casos del motor** *(Integración OSS — MIOT-0.6.0)*
+  - **Impacto**: Los casos con identificadores negativos fallaban con error 500 al registrar llamadas, ignorarlos o invalidarlos; también había inconsistencias en mapas, estadísticas e historial.
+  - **Solución**: Los tratamientos utilizan la API de la Torre de Control y aparecen en la cronología y el historial. Se corrigen los recuentos del evaluador, el tiempo activo, los mapas sin viaje y la lectura de señales desde el modulith.
+
+- **🐛 Publicación y estabilidad de editores** *(Integración OSS — MIOT-0.6.0)*
+  - **Impacto**: El editor de síntomas podía conservar un borrador después de publicar, y la lista de plantillas cambiaba de tamaño durante la previsualización.
+  - **Solución**: Se muestra la versión publicada sin borrador residual; la lista mantiene altura fija y la vista previa desplaza su contenido internamente.
+
+- **🐛 Envíos y credenciales de comunicaciones** *(Integración OSS — MIOT-0.6.0)*
+  - **Impacto**: Las respuestas manuales podían salir desde otro número, la edición parcial podía eliminar secretos guardados y los reintentos de correo podían duplicar envíos.
+  - **Solución**: Las respuestas usan el número de la conversación, se conservan secretos omitidos y los correos reintentados se deduplican mediante el identificador del proveedor. Se refuerzan las comprobaciones de conexiones y plantillas al publicar o copiar.
+
+- **🐛 Compatibilidad de migraciones de viajes** *(Integración OSS — MIOT-0.6.0)*
+  - **Impacto**: Cambios de nombre o contenido en migraciones ya aplicadas podían bloquear Flyway por tablas existentes o sumas de comprobación distintas.
+  - **Solución**: Se restauran la versión aplicada de la migración de hitos y el contenido original de `V0.10.22`, preservando la compatibilidad con las bases existentes.
+
+- **🐛 Carga de organizaciones y presentación de accesos** *(Integración OSS — MIOT-0.6.0)*
+  - **Impacto**: La consulta de ámbitos de propietarios de plataforma escalaba por organización y podía provocar tiempos de espera; los controles de roles también se recortaban en la interfaz.
+  - **Solución**: Se optimiza la resolución de ámbitos para evitar consultas repetidas por organización y se ajusta la presentación de roles y botones de acceso.
+
+- **🐛 Base Node.js actualizada** *(Integración OSS — MIOT-0.6.0)*
+  - **Impacto**: Docker y la integración continua necesitaban una base Node.js parcheada y consistente.
+  - **Solución**: Se estandarizan ambos entornos en Node.js 24 parcheado.
+
+## 📊 Beneficios
+
+- Coordinación de viajes desde planificación hasta cierre, con evidencias y responsables de confirmación.
+- Seguimiento actualizado de viajes, alertas y trabajos de integración.
+- Permisos coherentes por módulo y membresía administrada desde IAM.
+- Comunicaciones contextualizadas, con reintentos y aislamiento por organización.
+- Consultas BigQuery con estimaciones, parámetros y reutilización en paneles.
+- Menor procesamiento de servicios cerrados sin cambios y búsquedas de contactos paginadas.
+- Publicación de artefactos separada del despliegue y documentación práctica para implementadores.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.6.0`.
+- **Aplicación**: `app@v0.6.0` — con cambios.
+- **Documentación**: `docs@v0.6.0` — con cambios.
+- **Web**: `web@v0.6.0` — con cambios.
+- **Modulith**: `modulith@v0.5.39` — con cambios.
+- **Harness**: `harness@v0.1.14` — con cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el archivo `stack-manifest.json` adjunto a la publicación.
+
+## 📌 Conclusión
+
+La versión 1.32.0 integra el milestone OSS `MIOT-0.6.0` para reforzar el Coordinador: viajes gobernados por monitores, confirmaciones trazables, comunicaciones vinculadas a eventos y análisis mediante BigQuery y paneles.
+
+La transición a IAM y membresía nativa unifica las decisiones de acceso sin eliminar la integración con Alfresco. Las capacidades opcionales de sincronización GPS y señales de geocercas conservan sus requisitos de activación, mientras la publicación del stack queda separada de las operaciones privadas de despliegue.

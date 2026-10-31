@@ -12,6 +12,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SpecRulesTest {
@@ -124,8 +125,9 @@ class SpecRulesTest {
                 new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
                 new Level(4, true, "measure >= 21", Specs.response(true, null))));
 
-        assertEquals("Si interviene un operador, el nivel necesita un SLA.",
-                SpecValidator.validate(noSla, Specs.gpsSignal()).findings().get(0).message());
+        SpecValidator.Finding finding = SpecValidator.validate(noSla, Specs.gpsSignal()).findings().get(0);
+        assertEquals("Si interviene un operador, el nivel necesita un SLA.", finding.message());
+        assertEquals("levels.4.response", finding.section());
     }
 
     @Test
@@ -141,6 +143,68 @@ class SpecRulesTest {
                 .map(SpecValidator.Finding::message).toList();
 
         assertEquals(List.of("El paso 2 no dice a quién contactar.", "El paso 2 necesita minutos."), messages);
+    }
+
+    @Test
+    void findingsCarryACodeAndItsParametersForTheApp() throws Exception {
+        SymptomSpec.Response withSteps = new SymptomSpec.Response(true, 5, List.of(
+                new SymptomSpec.Step(" ", "call", 2, null)), List.of(), List.of(), true);
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), List.of(
+                new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
+                new Level(4, true, "measure >= 21", withSteps)));
+
+        SpecValidator.Finding finding = SpecValidator.validate(spec, Specs.gpsSignal()).findings().get(0);
+        Map<?, ?> json = new ObjectMapper().readValue(new ObjectMapper().writeValueAsString(finding), Map.class);
+
+        assertEquals("stepNoContact", json.get("code"));
+        assertEquals(Map.of("n", "1"), json.get("params"));
+        assertEquals("El paso 1 no dice a quién contactar.", json.get("message"));
+        assertEquals("levels.4.response", json.get("section"));
+        assertFalse(json.containsKey("text"));
+    }
+
+    @Test
+    void aBlankMeasureIsNoMeasure() {
+        SymptomSpec speeding = Specs.speeding();
+        SymptomSpec blank = new SymptomSpec(speeding.source(), speeding.activation(),
+                new SymptomSpec.Measure("  ", "Tiempo en viaje", "min"), List.of(
+                        new Level(1, false, null, null), new Level(2, false, null, null),
+                        new Level(3, false, null, null), new Level(4, true, "held_s >= 60", null)),
+                speeding.lifecycle(), speeding.recurrence());
+
+        assertNull(blank.measure());
+        assertTrue(SpecValidator.validate(blank, Specs.gpsSignal()).findings().stream()
+                .noneMatch(f -> f.section().equals("measure")));
+    }
+
+    @Test
+    void aLevelOnTheMeasureNeedsAMeasure() {
+        SymptomSpec speeding = Specs.speeding();
+        SymptomSpec noMeasure = new SymptomSpec(speeding.source(), speeding.activation(), null, List.of(
+                new Level(1, true, "measure >= 3", null), new Level(2, false, "measure > 0", null),
+                new Level(3, true, "size(\"measure\") == 7 && held_s >= 30", null),
+                new Level(4, true, "held_s >= 60", null)),
+                speeding.lifecycle(), speeding.recurrence());
+
+        List<SpecValidator.Finding> missing = SpecValidator.validate(noMeasure, Specs.gpsSignal()).findings()
+                .stream().filter(f -> f.code().equals("measureMissing")).toList();
+
+        assertEquals(List.of("levels.1"), missing.stream().map(SpecValidator.Finding::section).toList());
+    }
+
+    @Test
+    void overlappingLevelsAreNamedByNumber() {
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), List.of(
+                new Level(1, false, null, null), new Level(2, false, null, null),
+                new Level(3, true, "measure >= 10", null), new Level(4, true, "measure >= 20", null)));
+
+        SpecValidator.Finding overlap = SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
+                .filter(f -> f.code().equals("levelsOverlap")).findFirst().orElseThrow();
+
+        assertEquals("3", overlap.params().get("levelA"));
+        assertEquals("4", overlap.params().get("levelB"));
+        assertTrue(overlap.message().startsWith("Crítica y Código negro se solapan"));
+        assertFalse(Double.parseDouble(overlap.params().get("held")) < 0, "a case never held a negative time");
     }
 
     @Test

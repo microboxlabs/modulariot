@@ -24,7 +24,7 @@
     "husky": "^9.1.7",
     "patch-package": "^8.0.1",
     "prettier": "^3.5.3",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "turbo": "^2.9.18",
     "typescript": "5.8.2"
   },
@@ -40,11 +40,12 @@
     "@luma.gl/shadertools": "9.3.6",
     "@luma.gl/webgl": "9.3.6",
     "esbuild": "0.28.1",
-    "postcss": "8.5.23",
+    "postcss": "8.5.32",
     "sharp": "$sharp"
   },
   "packageManager": "npm@10.2.4",
   "dependencies": {
-    "handlebars": "^4.7.9"
+    "handlebars": "^4.7.10",
+    "zod": "^4.6.6"
   }
 }

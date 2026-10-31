@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createAlfrescoSource, MediaSourceProvider } from "../../media-source";
 import { DeleteConfirmModal } from "./delete-confirm-modal";
 
 const dictionary = {
@@ -7,6 +8,7 @@ const dictionary = {
     multimedia: {
       delete_modal_title: "Eliminar archivo",
       delete_modal_desc: "Esto moverá el archivo a la papelera.",
+      delete_modal_desc_permanent: "Este borrado es permanente.",
       btn_cancel: "Cancelar",
       btn_delete: "Eliminar",
     },
@@ -31,6 +33,26 @@ describe("DeleteConfirmModal", () => {
     expect(screen.getByText("foto.jpg")).toBeInTheDocument();
   });
 
+  it("preserves the permanent-delete warning for irrecoverable media", () => {
+    render(
+      <MediaSourceProvider
+        value={{ ...createAlfrescoSource(undefined), recoverableDelete: false }}
+      >
+        <DeleteConfirmModal
+          show
+          onClose={vi.fn()}
+          onConfirm={vi.fn()}
+          fileName="demo.jpg"
+          dictionary={dictionary}
+        />
+      </MediaSourceProvider>
+    );
+    expect(screen.getByText("Este borrado es permanente.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Esto moverá el archivo a la papelera.")
+    ).toBeNull();
+  });
+
   it("takes another title and description for other items", () => {
     const onConfirm = vi.fn();
     render(
@@ -38,7 +60,7 @@ describe("DeleteConfirmModal", () => {
         show
         onClose={vi.fn()}
         onConfirm={onConfirm}
-        fileName="Planta Quilicura"
+        fileName="Demo Site"
         dictionary={dictionary}
         title="Eliminar lugar"
         description="Se retira su geocerca."
@@ -57,7 +79,7 @@ describe("DeleteConfirmModal", () => {
         show
         onClose={vi.fn()}
         onConfirm={vi.fn()}
-        fileName="Planta Quilicura"
+        fileName="Demo Site"
         dictionary={dictionary}
         title="Eliminar lugar"
         description={null}

@@ -2,15 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
-import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
+import {
+  SETTINGS_SECTION_LABEL,
+  useSidebarContext,
+} from "@/features/sidebar/context/sidebar-context";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
 import { pathNameWithoutLanguage, isSegmentPrefix } from "../../utils/utils";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import IconBarItem from "./icon-bar-item";
-
-const SETTINGS_SECTION_LABEL = "settings";
 
 function isItemActive(item: SidebarItem, pathname: string): boolean {
   if (item.href && isSegmentPrefix(item.href, pathname)) return true;

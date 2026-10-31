@@ -1,5 +1,5 @@
 import type { TimeWindowRequest } from "@microboxlabs/miot-calendar-client";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { TimeSlot, TimeWindowColor } from "../components/planning/time-window";
 import dayjs from "dayjs";
 

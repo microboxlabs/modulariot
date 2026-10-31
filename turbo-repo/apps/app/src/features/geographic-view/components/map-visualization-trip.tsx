@@ -2,13 +2,21 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import { FlyToInterpolator, LinearInterpolator } from "deck.gl";
+import {
+  FlyToInterpolator,
+  LinearInterpolator,
+  ScatterplotLayer,
+} from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import wkx, { Geometry } from "wkx";
+import type { Geometry } from "geojson";
+import {
+  geofenceGeometry,
+  geofencePinPosition,
+} from "../utils/geofence-geometry";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
@@ -44,7 +52,6 @@ import PlacesToggle from "./places-overlay/places-toggle";
 import MapControlsFrame from "./map-controls-frame";
 import { usePermisoEditorLugares } from "../profiles/places-permission";
 import {
-  center_in_bounds,
   flyTo,
   panTo,
   toLngLat,
@@ -52,10 +59,11 @@ import {
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
-  ringCentroid,
   estimateEtaHours,
   formatEtaHours,
+  ringCentroid,
 } from "../utils/vehicle-origin";
+import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -71,7 +79,7 @@ type Zone = {
   location_type: any;
   id: string;
   name: string;
-  location: string;
+  location: string | GeoJSON.Geometry;
 };
 
 type GeofenceData = {
@@ -144,7 +152,11 @@ type MapVisualizationProps = {
    * lado (la línea de tiempo, el visor multimedia) para darle todo el ancho.
    */
   onLugaresChange?: (abierto: boolean) => void;
+  /** Where a case without a trip opened, marked on the map. */
+  casePoint?: CasePoint | null;
 };
+
+export type CasePoint = { longitude: number; latitude: number };
 
 type GeometryFeature = {
   type: string;
@@ -287,6 +299,7 @@ export default function MapVisualizationTrip({
   minimized = false,
   licensePlate,
   onLugaresChange,
+  casePoint = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -367,13 +380,35 @@ export default function MapVisualizationTrip({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera_movement, displayPosition]);
 
+  const caseLng = casePoint?.longitude;
+  const caseLat = casePoint?.latitude;
+  const [mapReady, setMapReady] = useState(false);
+
+  // Fits the track, or flies to its single position or to the case point.
+  // Waits for the map, so data that arrives first is not lost.
   useEffect(() => {
-    if (mapRef.current) {
-      center_in_bounds(positions || [], mapRef.current, isLoading);
+    if (!mapRef.current || isLoading) return;
+    const point =
+      caseLng != null && caseLat != null
+        ? { longitude: caseLng, latitude: caseLat }
+        : null;
+    const camera = tripCamera(positions, point);
+    if (camera?.kind === "bounds") {
+      mapRef.current.fitBounds(camera.bounds, {
+        padding: BOUNDS_PADDING,
+        duration: 1000,
+        maxZoom: camera.maxZoom,
+        pitch: camera.pitch,
+        bearing: camera.bearing,
+      });
+    } else if (camera?.kind === "point") {
+      flyTo(mapRef.current, camera.target, camera.zoom);
     }
-  }, [positions]);
+  }, [positions, isLoading, caseLng, caseLat, mapReady]);
 
   useEffect(() => {
+    // A case without a trip is framed by its point and its track instead.
+    if (caseLng != null) return;
     const first = filteredLocationData?.features[0];
     const coordinates = first
       ? toLngLat(first.longitude, first.latitude)
@@ -381,7 +416,7 @@ export default function MapVisualizationTrip({
     if (coordinates && mapRef.current) {
       flyTo(mapRef.current, coordinates, 6.5);
     }
-  }, [filteredLocationData]);
+  }, [filteredLocationData, caseLng]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -433,7 +468,9 @@ export default function MapVisualizationTrip({
 
     setSelectedPulse(Array.from(matchingIndices));
 
-    if (matchingIndices.size > 0) {
+    // A case without a trip has one opening point, not a span of signals to
+    // summarise, so its popup waits for the user to pick a pulse.
+    if (matchingIndices.size > 0 && caseLng == null) {
       setHoverInfo({
         x: 10,
         y: 10,
@@ -443,7 +480,7 @@ export default function MapVisualizationTrip({
         },
       } as PickingInfo<PulseListType>);
     }
-  }, [filteredLocationData, positions]);
+  }, [filteredLocationData, positions, caseLng]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
@@ -459,13 +496,11 @@ export default function MapVisualizationTrip({
       const features = geofence_data?.data
         ?.filter((item: GeofenceData) => item.zone.location !== null)
         .map((item: GeofenceData) => {
-          const wkbHexString = item.zone.location;
-          const wkbBuffer = Buffer.from(wkbHexString, "hex");
-          const geometry = wkx.Geometry.parse(wkbBuffer);
+          const geometry = geofenceGeometry(item.zone.location);
 
           return {
             type: "Feature",
-            geometry: geometry.toGeoJSON(),
+            geometry,
             properties: {
               id: item.zone.id,
               name: item.zone.name,
@@ -503,15 +538,7 @@ export default function MapVisualizationTrip({
     const origin = processedGeofence?.features.find(
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
-    const geometry = origin?.geometry as
-      | { type?: string; coordinates?: LngLat[][] }
-      | undefined;
-    // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
-    // MultiPolygon (or malformed payload) would make ringCentroid throw.
-    if (geometry?.type !== "Polygon") return null;
-    const ring = geometry.coordinates?.[0];
-    if (!Array.isArray(ring)) return null;
-    return ringCentroid(ring);
+    return origin ? geofencePinPosition(origin.geometry) : null;
   }, [processedGeofence]);
 
   const vehicle =
@@ -654,8 +681,28 @@ export default function MapVisualizationTrip({
       );
     }
 
+    if (caseLng != null && caseLat != null) {
+      baseLayers.push(
+        new ScatterplotLayer<CasePoint>({
+          id: "case-point",
+          data: [{ longitude: caseLng, latitude: caseLat }],
+          getPosition: (d) => [d.longitude, d.latitude],
+          getRadius: 9,
+          radiusUnits: "pixels",
+          getFillColor: [220, 38, 38, 230],
+          getLineColor: [255, 255, 255, 255],
+          getLineWidth: 3,
+          lineWidthUnits: "pixels",
+          stroked: true,
+          parameters: { depthCompare: "always" },
+        })
+      );
+    }
+
     return baseLayers;
   }, [
+    caseLng,
+    caseLat,
     geoJson,
     positions,
     processedGeofence,
@@ -750,6 +797,7 @@ export default function MapVisualizationTrip({
           rounded={editandoLugares ? "left" : true}
           onZoomChange={alCambioZoom}
           minZoom={TRIP_MAP_MIN_ZOOM}
+          onMapLoad={() => setMapReady(true)}
           {...lugares.propsMapa}
         >
           {(editandoLugares || verGeocercas) && (
@@ -783,7 +831,7 @@ export default function MapVisualizationTrip({
           topCenter={
             // un solo lugar arriba al centro: mientras carga o no hay datos,
             // el aviso; con datos, la distancia y el ETA al origen
-            isLoading || positions?.length === 0 ? (
+            isLoading || showsNoData(isLoading, positions, casePoint) ? (
               <EstadoDelViaje dict={dict} cargando={isLoading} />
             ) : (
               !minimized &&

@@ -42,7 +42,15 @@ export function useSourceSamples(
 ): Preview["samples"] {
   const [cached, setCached] = useState(preview);
   if (preview && preview !== cached) setCached(preview);
-  return cached?.source === source ? cached.samples : [];
+  return cached && cached.source === source ? cached.samples : [];
+}
+
+/** The first sample that opens a case, so the preview starts where the rule holds; else the first. */
+export function firstOpening(samples: Preview["samples"]): number {
+  return Math.max(
+    0,
+    samples.findIndex((s) => s.activates === true)
+  );
 }
 
 /** "LDKF17 · Ruta 5 Norte · 21:31": plate, route and time of the sample, when it has them. */
@@ -253,6 +261,8 @@ export default function SampleTree({
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(new Set());
   const sample = samples[index];
   if (!sample) return null;
+  // held_s is not a field of the source: the engine computes it per level, so it is shown, not inserted.
+  const { held_s: held, ...fields } = sample;
   const position = tr("sampleOf", d, {
     n: String(index + 1),
     total: String(samples.length),
@@ -269,6 +279,14 @@ export default function SampleTree({
     <div className="relative lg:min-h-80">
       <div className="flex max-h-80 flex-col rounded-lg border border-gray-200 lg:absolute lg:inset-0 lg:max-h-none dark:border-gray-700">
         <div className="flex items-center justify-end gap-2 border-b border-gray-200 px-2 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+          {typeof held === "number" && (
+            <span
+              className="mr-auto rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
+              title={tr("sampleHeldHelp", d)}
+            >
+              {tr("sampleHeld", d, { seconds: String(held) })}
+            </span>
+          )}
           <button
             type="button"
             aria-label={tr("previousSample", d)}
@@ -293,7 +311,7 @@ export default function SampleTree({
         </div>
         <div className="overflow-auto p-2 font-mono text-xs">
           <Entries
-            value={sample}
+            value={fields}
             path=""
             flipped={flipped}
             notInEngine={notInEngine}

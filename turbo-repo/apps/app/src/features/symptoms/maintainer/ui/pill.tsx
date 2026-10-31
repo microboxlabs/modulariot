@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CHANGED } from "./changed";
+import Select from "./select";
 
 const PILL =
   "inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5 font-medium text-gray-900 hover:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white";
@@ -32,6 +33,7 @@ export function PillSelect({
   disabled,
   ariaLabel,
   className,
+  icon,
 }: Readonly<{
   value: string;
   options: PillOption[];
@@ -40,15 +42,19 @@ export function PillSelect({
   disabled?: boolean;
   ariaLabel?: string;
   className?: string;
+  /** Shown before the selected text, inside the pill. */
+  icon?: ReactNode;
 }>) {
   return (
     <Pill changed={changed} className={className}>
-      <select
+      {icon}
+      <Select
         aria-label={ariaLabel}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        className={`${BARE} pr-1`}
+        inline
+        className={BARE}
       >
         {options.map((o) => (
           <option
@@ -59,7 +65,7 @@ export function PillSelect({
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     </Pill>
   );
 }

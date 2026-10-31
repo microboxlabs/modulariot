@@ -156,7 +156,7 @@ export function SecuredNavbar({
   return (
     <Navbar
       fluid
-      className="fixed h-16 top-0 z-30 w-full border-b border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-700 dark:bg-gray-800"
+      className="fixed h-16 top-0 z-40 w-full border-b border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="w-full p-3">
         <div className="flex flex-row gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] items-center">

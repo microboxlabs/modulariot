@@ -9,6 +9,7 @@ const ALLOWED = new Set([
   "@microboxlabs/miot-dashboard-contract/schema",
   "@microboxlabs/miot-dashboard-contract/roles",
   "zod",
+  "zod/v3",
 ]);
 
 function hasRuntimeEchartsImport(source, file) {
@@ -52,6 +53,14 @@ function packageAllowed(specifier, origin, scope) {
     return true;
   if (scope.isTemplates && specifier === "handlebars") return true;
   if (
+    scope.isAuthoring &&
+    (specifier === "react" ||
+      specifier === "@microboxlabs/miot-dashboard-contract/authoring" ||
+      specifier.startsWith("@codemirror/") ||
+      specifier === "@lezer/highlight")
+  )
+    return true;
+  if (
     origin === "react/chart-registry.tsx" &&
     specifier === "@microboxlabs/miot-dashboard-ui/react"
   )
@@ -93,6 +102,7 @@ export function importProblems(source, file, root = SOURCE) {
     isWebComponent:
       origin === "web-component.ts" || origin.startsWith("web-component/"),
     isEmbed: origin === "embed.ts" || origin.startsWith("embed/"),
+    isAuthoring: origin === "authoring.ts" || origin.startsWith("authoring/"),
     isReact:
       origin === "react.ts" ||
       origin === "react-charts.ts" ||

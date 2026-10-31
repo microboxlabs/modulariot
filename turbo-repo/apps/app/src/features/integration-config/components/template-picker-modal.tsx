@@ -1,8 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Modal, ModalBody, ModalFooter, TextInput } from "flowbite-react";
-import { HiOutlineDatabase, HiOutlineTemplate, HiSearch } from "react-icons/hi";
+import {
+  Button,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  TextInput,
+} from "flowbite-react";
+import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
+import { BrandLogo } from "@/features/common/components/brand-logo";
+import {
+  BIGQUERY_LOGO,
+  GEOCODING_LOGO,
+  POSTGREST_LOGO,
+} from "../connection-catalog";
+import type { ReactNode } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -18,6 +31,12 @@ interface TemplatePickerModalProps {
   readonly onSelect: (template: IntegrationTemplate) => void;
   /** A built-in provider, created without a template. */
   readonly onSelectNative: (provider: NativeProvider) => void;
+  /** Offered to platform owners: geocoding through the platform's provider. */
+  readonly onSelectManagedGeocoding?: () => void;
+  /** In the Plataforma scope the option sets the provider itself. */
+  readonly managedGeocodingInPlatform?: boolean;
+  /** Offered to platform owners: BigQuery as the organization's own service account. */
+  readonly onSelectManagedBigQuery?: () => void;
   readonly dict: I18nRecord;
 }
 
@@ -35,6 +54,9 @@ export function TemplatePickerModal({
   onClose,
   onSelect,
   onSelectNative,
+  onSelectManagedGeocoding,
+  managedGeocodingInPlatform = false,
+  onSelectManagedBigQuery,
   dict,
 }: Readonly<TemplatePickerModalProps>) {
   const [query, setQuery] = useState("");
@@ -64,23 +86,68 @@ export function TemplatePickerModal({
         <p className="mt-4 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
           {tr("picker.native", dict)}
         </p>
-        <button
-          type="button"
-          onClick={() => onSelectNative("POSTGREST")}
-          className="mt-2 flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-gray-700"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-            <HiOutlineDatabase className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              PostgREST
-            </span>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {tr("picker.postgrest", dict)}
-            </p>
-          </div>
-        </button>
+        <div className="mt-2 flex flex-col gap-2">
+          <NativeOption
+            title="PostgREST"
+            description={tr("picker.postgrest", dict)}
+            icon={
+              <BrandLogo
+                logo={POSTGREST_LOGO}
+                alt="PostgREST"
+                keyline="circle"
+                size={48}
+              />
+            }
+            onSelect={() => onSelectNative("POSTGREST")}
+          />
+          <NativeOption
+            title="BigQuery"
+            description={tr("picker.bigquery", dict)}
+            icon={
+              <BrandLogo
+                logo={BIGQUERY_LOGO}
+                alt="BigQuery"
+                keyline="circle"
+                size={48}
+              />
+            }
+            onSelect={() => onSelectNative("BIGQUERY")}
+          />
+          {onSelectManagedGeocoding && (
+            <NativeOption
+              title={tr("picker.managedGeocoding", dict)}
+              description={
+                managedGeocodingInPlatform
+                  ? tr("picker.platformGeocodingHelp", dict)
+                  : tr("picker.managedGeocodingHelp", dict)
+              }
+              icon={
+                <BrandLogo
+                  logo={GEOCODING_LOGO}
+                  alt="Geocoding"
+                  keyline="circle"
+                  size={48}
+                />
+              }
+              onSelect={onSelectManagedGeocoding}
+            />
+          )}
+          {onSelectManagedBigQuery && (
+            <NativeOption
+              title={tr("picker.managedBigquery", dict)}
+              description={tr("picker.managedBigqueryHelp", dict)}
+              icon={
+                <BrandLogo
+                  logo={BIGQUERY_LOGO}
+                  alt="BigQuery"
+                  keyline="circle"
+                  size={48}
+                />
+              }
+              onSelect={onSelectManagedBigQuery}
+            />
+          )}
+        </div>
         <p className="mt-4 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
           {tr("picker.templates", dict)}
         </p>
@@ -141,6 +208,39 @@ function TemplateOption({ template, dict, onSelect }: TemplateOptionProps) {
         </p>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           {tr("templates.fields", dict, { count: String(fields) })}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+/** A built-in provider: created without a template. */
+function NativeOption({
+  title,
+  description,
+  icon,
+  onSelect,
+}: Readonly<{
+  title: string;
+  description: string;
+  icon: ReactNode;
+  onSelect: () => void;
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-gray-700"
+    >
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {title}
+        </span>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {description}
         </p>
       </div>
     </button>

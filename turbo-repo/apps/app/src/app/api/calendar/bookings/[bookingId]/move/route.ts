@@ -7,7 +7,7 @@ import { requirePermission } from "@/features/auth/access/server-access";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { extractCalendarBindingPayload } from "../../binding-extractor";
 import { runCalendarBinding } from "../../binding-helpers";
 import {

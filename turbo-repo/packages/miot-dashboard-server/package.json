@@ -87,7 +87,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@microboxlabs/miot-dashboard-contract": "^0.6.0"
+    "@microboxlabs/miot-dashboard-contract": "^0.6.0",
+    "zod": "^4.6.6"
   },
   "peerDependencies": {
     "jose": "^6.0.0",

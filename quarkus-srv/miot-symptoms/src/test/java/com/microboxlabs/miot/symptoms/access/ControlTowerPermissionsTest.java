@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.access;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -53,6 +54,8 @@ class ControlTowerPermissionsTest {
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
             Map.entry("OrgControlTowerAuditResource.list", VIEW),
             Map.entry("OrgControlTowerContactsResource.list", VIEW),
+            Map.entry("OrgControlTowerContactsResource.page", VIEW),
+            Map.entry("OrgControlTowerContactsResource.facets", VIEW),
             Map.entry("OrgControlTowerContactsResource.get", VIEW),
             Map.entry("OrgControlTowerContactsResource.create", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.importContacts", CONTACT_WRITE),
@@ -64,7 +67,10 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerMapResource.symptoms", VIEW),
             Map.entry("OrgControlTowerMapResource.symptom", VIEW),
             Map.entry("OrgControlTowerMapResource.symptomSignals", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptomPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.tripGeofences", VIEW + " | trips:view"),
             Map.entry("OrgControlTowerMapResource.tripPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.assetPositions", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),
@@ -111,8 +117,8 @@ class ControlTowerPermissionsTest {
                 assertNotNull(allowed, name + " has no @PermissionsAllowed");
                 assertEquals(OrgPermission.class, allowed.permission(), name);
                 assertArrayEquals(new String[] {"organizationId"}, allowed.params(), name);
-                assertEquals(1, allowed.value().length, name);
-                actual.put(name, allowed.value()[0]);
+                assertFalse(allowed.inclusive(), name + " unexpectedly requires all listed permissions");
+                actual.put(name, String.join(" | ", allowed.value()));
             }
         }
         assertEquals(EXPECTED, actual);

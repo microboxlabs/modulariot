@@ -12,7 +12,16 @@ import {
 import { MapPosition } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { mapLogger } from "@/lib/logger";
-import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  forwardControlTowerMap,
+  positionsAsEvents,
+  SSE_HEADERS,
+} from "@/app/api/utils/control-tower-map";
+import {
+  isEngineCaseId,
+  isTripsModuleTripId,
+  tripIdOf,
+} from "@/features/symptoms/model/treatment-link";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -23,19 +32,24 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
-const SSE_HEADERS = {
-  "Content-Type": "text/event-stream",
-  "Cache-Control": "no-cache, no-transform",
-  Connection: "keep-alive",
-};
-
 export async function GET(req: NextRequest) {
   const session = await auth();
 
   if (!session)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const tripId = req.nextUrl.searchParams.get("tripId");
+  const tripId = tripIdOf(req.nextUrl.searchParams.get("tripId"));
+  const symptomId = req.nextUrl.searchParams.get("symptomId")?.trim() ?? "";
+
+  // An evaluator's case without a trip: the modulith picks its vehicle and time range.
+  if (!tripId && isEngineCaseId(symptomId)) {
+    return positionsAsEvents(
+      await forwardControlTowerMap(
+        `symptoms/${encodeURIComponent(symptomId)}/positions`
+      )
+    );
+  }
+
   if (!tripId)
     return NextResponse.json({ error: "Missing tripId" }, { status: 400 });
 
@@ -43,18 +57,15 @@ export async function GET(req: NextRequest) {
   if (!assetId)
     return NextResponse.json({ error: "Missing assetId" }, { status: 400 });
 
-  // Without the AVL API, the modulith reads the trip as the active organization.
-  if (!process.env.STREAMHUB_IOT_URL) {
-    const response = await forwardControlTowerMap(
-      `trips/${encodeURIComponent(tripId)}/positions`,
-      `?assetId=${encodeURIComponent(assetId)}`
+  // The AVL API knows only the GPS database's trips; the modulith reads a
+  // trips-module trip, and any trip when there is no AVL API.
+  if (!process.env.STREAMHUB_IOT_URL || isTripsModuleTripId(tripId)) {
+    return positionsAsEvents(
+      await forwardControlTowerMap(
+        `trips/${encodeURIComponent(tripId)}/positions`,
+        `?assetId=${encodeURIComponent(assetId)}`
+      )
     );
-    if (!response.ok) return response;
-    const positions = (await response.json()) as MapPosition[];
-    const events = positions
-      .map((position) => `data: ${JSON.stringify(position)}\n\n`)
-      .join("");
-    return new Response(events, { headers: SSE_HEADERS });
   }
 
   // Create a TransformStream for CSV processing

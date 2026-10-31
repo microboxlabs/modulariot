@@ -3,6 +3,7 @@ import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { memo } from "react";
+import { tripIdOfSignal } from "./utils/signal-legs";
 
 type PulseDetailViewProps = {
   pulse: HistoricSignal;
@@ -31,9 +32,7 @@ const PulseDetailView = memo(function PulseDetailView({
       <div className="text-sm text-gray-600 dark:text-gray-300">
         {tr("signal_historic.tripid", dict)}:{" "}
         <span className="font-light">
-          {pulse.tripid !== "null" && pulse.tripid
-            ? pulse.tripid
-            : tr("signal_historic.no_trip", dict)}
+          {tripIdOfSignal(pulse.tripid) ?? tr("signal_historic.no_trip", dict)}
         </span>
       </div>
       <hr className="my-2 border-gray-200 dark:border-gray-700" />

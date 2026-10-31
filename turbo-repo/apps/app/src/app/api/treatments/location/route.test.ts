@@ -70,6 +70,27 @@ describe("GET /api/treatments/location", () => {
     });
   });
 
+  it("reads a case without a trip through the modulith", async () => {
+    vi.stubEnv("STREAMHUB_URL", "http://pgrest");
+    const res = await GET(
+      new Request("http://x/l?symptom_name=Panic&symptom_id=-9")
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms/-9/signals",
+      { method: "GET", sessionOnly: true }
+    );
+    expect((await res.json()).features[0].latitude).toBe(-33.25);
+  });
+
+  it("refuses a GPS database symptom without a trip", async () => {
+    vi.stubEnv("STREAMHUB_URL", "");
+    const res = await GET(
+      new Request("http://x/l?symptom_name=S&symptom_id=7")
+    );
+    expect(res.status).toBe(400);
+    expect(forwardMock).not.toHaveBeenCalled();
+  });
+
   it("passes a modulith error through", async () => {
     vi.stubEnv("STREAMHUB_URL", "");
     forwardMock.mockImplementation(async () =>

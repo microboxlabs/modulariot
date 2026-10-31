@@ -67,6 +67,7 @@ describe("GET /api/symptoms/table", () => {
       condition: "critical",
       licensePlate: "AB12",
       status: "",
+      time: "1 min",
     });
     expect(body.pagination).toEqual({
       total_rows: 1,

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.domain.MessageType;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -36,6 +37,19 @@ class WhatsAppInboundServiceTest {
         assertTrue(WhatsAppInboundService.advances(MessageStatus.PENDING, MessageStatus.FAILED));
         assertFalse(WhatsAppInboundService.advances(MessageStatus.DELIVERED, MessageStatus.FAILED));
         assertFalse(WhatsAppInboundService.advances(MessageStatus.FAILED, MessageStatus.DELIVERED));
+    }
+
+    @Test
+    void theUpdateAppliesOnlyFromTheStatusesItAdvances() {
+        for (MessageStatus next : MessageStatus.values()) {
+            Set<MessageStatus> from = WhatsAppInboundService.advancesFrom(next);
+            for (MessageStatus current : MessageStatus.values()) {
+                assertEquals(WhatsAppInboundService.advances(current, next), from.contains(current),
+                        current + " -> " + next);
+            }
+        }
+        // A DELIVERED that lost the race to a READ finds the message READ and leaves it.
+        assertFalse(WhatsAppInboundService.advancesFrom(MessageStatus.DELIVERED).contains(MessageStatus.READ));
     }
 
     @Test

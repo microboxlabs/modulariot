@@ -138,7 +138,11 @@ export default function RuleDescription({
 
   let body: ReactNode;
   if (failed)
-    body = <span className="text-gray-500">{tr("describeFailed", d)}</span>;
+    body = (
+      <span className="text-gray-500 dark:text-gray-400">
+        {tr("describeFailed", d)}
+      </span>
+    );
   else if (html === null)
     body = <span className="text-gray-400">{tr("describing", d)}</span>;
   else body = renderDescription(html);

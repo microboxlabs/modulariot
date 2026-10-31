@@ -13,7 +13,7 @@ import {
   bracketMatching,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { forceLinting, linter, type Diagnostic } from "@codemirror/lint";
+import { linter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -49,6 +49,12 @@ const FUNCTIONS = [
   "all",
 ];
 
+/** Methods of an optional, offered after a `.?` read: `signal.frame.?gps.?speed.orValue(0.0)`. */
+const OPTIONAL_METHODS = ["orValue", "hasValue"];
+
+/** Optional constants a `.?` read is compared with: `signal.frame.?sensors.?panic_button == TRUE`. */
+const CONSTANTS = ["TRUE", "FALSE", "NONE"];
+
 const cel = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
@@ -59,11 +65,11 @@ const cel = StreamLanguage.define({
     )
       return "string";
     if (stream.match(/^\d+(\.\d+)?([eE][+-]?\d+)?u?/)) return "number";
-    if (stream.match(/^(true|false|null)\b/)) return "atom";
+    if (stream.match(/^(true|false|null|TRUE|FALSE|NONE)\b/)) return "atom";
     if (stream.match(/^in\b/)) return "keyword";
     if (stream.match(/^(&&|\|\||==|!=|>=|<=|[<>!+\-*/%?:])/)) return "operator";
     if (stream.match(/^\.?[A-Za-z_]\w*(?=\()/)) return "builtin";
-    if (stream.match(/^\.[A-Za-z_]\w*/)) return "property";
+    if (stream.match(/^\.\??[A-Za-z_]\w*/)) return "property";
     if (stream.match(/^[A-Za-z_]\w*/)) return "variable";
     stream.next();
     return null;
@@ -89,9 +95,10 @@ const highlight = HighlightStyle.define([
   { tag: tags.comment, class: "italic text-gray-400" },
 ]);
 
-function completions(fields: () => CelField[]) {
+export function completions(fields: () => CelField[]) {
   return (ctx: CompletionContext) => {
-    const word = ctx.matchBefore(/[A-Za-z_][\w.]*/);
+    // `?` only right after a dot, so a ternary's `?` ends the word.
+    const word = ctx.matchBefore(/[A-Za-z_](?:\w|\.\??)*/);
     if (!word || (word.from === word.to && !ctx.explicit)) return null;
     const text = word.text;
     const dot = text.lastIndexOf(".");
@@ -102,6 +109,7 @@ function completions(fields: () => CelField[]) {
         from: word.from,
         options: [
           ...roots.map((r) => ({ label: r, type: "variable" })),
+          ...CONSTANTS.map((c) => ({ label: c, type: "constant" })),
           ...FUNCTIONS.map((f) => ({
             label: f,
             type: "function",
@@ -110,10 +118,12 @@ function completions(fields: () => CelField[]) {
         ],
       };
     }
-    const prefix = text.slice(0, dot + 1);
+    // A `.?` read completes like a plain one: `signal.frame.?se` offers `sensors`.
+    const prefix = text.slice(0, dot + 1).replaceAll("?", "");
+    const optional = text.charAt(dot + 1) === "?" ? 1 : 0;
     const seen = new Map<
       string,
-      { label: string; type: string; detail?: string }
+      { label: string; type: string; detail?: string; apply?: string }
     >();
     for (const f of all) {
       if (!f.path.startsWith(prefix)) continue;
@@ -127,7 +137,14 @@ function completions(fields: () => CelField[]) {
           : { label: segment, type: "property", detail: f.detail }
       );
     }
-    return { from: word.from + dot + 1, options: [...seen.values()] };
+    if (text.includes(".?") && optional === 0) {
+      for (const m of OPTIONAL_METHODS)
+        seen.set(`${m}()`, { label: m, type: "method", apply: `${m}()` });
+    }
+    return {
+      from: word.from + dot + 1 + optional,
+      options: [...seen.values()],
+    };
   };
 }
 
@@ -164,24 +181,9 @@ export default function CelEditor({
 
   useEffect(() => {
     if (!host.current) return;
-    const lint = linter(
-      (v) => {
-        const length = v.state.doc.length;
-        return latest.current.problems.map((p): Diagnostic => {
-          const from = Math.max(
-            0,
-            Math.min(p.position, Math.max(0, length - 1))
-          );
-          return {
-            from,
-            to: Math.min(length, from + 1),
-            severity: p.severity,
-            message: p.message,
-          };
-        });
-      },
-      { delay: 50 }
-    );
+    const lint = linter((v) => diagnostics(v, latest.current.problems), {
+      delay: 50,
+    });
     const extensions = [
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -256,10 +258,16 @@ export default function CelEditor({
     }
   }, [value]);
 
+  // Callers build problems on every render; marks are replaced only when they or the text change.
+  const marked = useRef<string | null>(null);
   useEffect(() => {
-    // Re-run the linter so new server problems show at once.
-    if (view.current) forceLinting(view.current);
-  }, [problems]);
+    const v = view.current;
+    if (!v) return;
+    const key = JSON.stringify([value, problems]);
+    if (key === marked.current) return;
+    marked.current = key;
+    v.dispatch(setDiagnostics(v.state, diagnostics(v, problems)));
+  }, [value, problems]);
 
   return (
     <div
@@ -267,6 +275,20 @@ export default function CelEditor({
       className={`rounded-md border border-gray-300 text-gray-900 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 ${singleLine ? "bg-white" : "bg-gray-50"}`}
     />
   );
+}
+
+/** The server's problems as marks one character wide, kept inside the text. */
+function diagnostics(v: EditorView, problems: CelProblem[]): Diagnostic[] {
+  const length = v.state.doc.length;
+  return problems.map((p): Diagnostic => {
+    const from = Math.max(0, Math.min(p.position, Math.max(0, length - 1)));
+    return {
+      from,
+      to: Math.min(length, from + 1),
+      severity: p.severity,
+      message: p.message,
+    };
+  });
 }
 
 /** Inserts text at the cursor of the editor used last, for the field tree. */

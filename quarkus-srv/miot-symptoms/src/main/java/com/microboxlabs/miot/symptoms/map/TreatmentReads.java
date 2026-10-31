@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.smallrye.mutiny.Uni;
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -22,9 +23,17 @@ public interface TreatmentReads {
      */
     Uni<Optional<JsonNode>> signals(String clientId, long symptomId);
 
+    Uni<Optional<JsonNode>> tripGeofences(String tripId, String clientId);
+
     /**
      * The asset's positions during the trip, oldest first, at most {@code limit}, sampled evenly over the trip. Empty
      * when the trip does not exist for that asset or the client may not see it.
      */
     Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit);
+
+    /**
+     * The asset's positions from {@code from} to {@code to}, oldest first, at most {@code limit}, sampled evenly. Only
+     * the positions sent while the asset was mapped to the client; an empty array when there are none.
+     */
+    Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit);
 }

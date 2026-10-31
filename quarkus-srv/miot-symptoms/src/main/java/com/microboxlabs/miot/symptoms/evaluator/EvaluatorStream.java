@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -14,6 +15,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -27,7 +29,8 @@ import org.jboss.logging.Logger;
  * Runs the published symptom versions on each GPS signal ({@code gps-signals-in},
  * {@code miot.gps.signal@1}) for every organization the vehicle belongs to,
  * keeps the episodes in Redis (in memory when no Redis URL is set), records
- * the case changes in {@code miot_symptoms.signal_transitions} and keeps
+ * the case changes in {@code miot_symptoms.signal_transitions}, publishes each new
+ * one as a {@code symptom.case.*} event ({@link SymptomEvents}) and keeps
  * recent signals for rule previews ({@link SignalSamples}). On wherever the
  * symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
  */
@@ -47,6 +50,7 @@ public class EvaluatorStream {
     private final Clock clock;
     private final EpisodeRepository episodes;
     private final SignalSamples samples;
+    private final SymptomEvents events;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -56,8 +60,8 @@ public class EvaluatorStream {
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters) {
-        this(enabled, catalog, transitionLog, meters, Clock.systemUTC(),
+            MeterRegistry meters, SymptomEvents events) {
+        this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
@@ -68,12 +72,17 @@ public class EvaluatorStream {
         }
     }
 
-    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters, Clock clock, EpisodeRepository episodes, SignalSamples samples) {
+    /** Where the evaluator writes: the transition log, the case events and the metrics. */
+    record Sinks(TransitionLog transitionLog, SymptomEvents events, MeterRegistry meters) {
+    }
+
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
+            SignalSamples samples) {
         this.enabled = enabled;
         this.catalog = catalog;
-        this.transitionLog = transitionLog;
-        this.meters = meters;
+        this.transitionLog = sinks.transitionLog();
+        this.events = sinks.events();
+        this.meters = sinks.meters();
         this.clock = clock;
         this.episodes = episodes;
         this.samples = samples;
@@ -124,10 +133,21 @@ public class EvaluatorStream {
         int recorded = 0;
         for (Object client : clients) {
             if (client instanceof String tenant) {
-                recorded += evaluate(tenant, assetId, instant, signal);
+                recorded += evaluate(tenant, assetId, instant, forTenant(signal, tenant));
             }
         }
         return recorded;
+    }
+
+    private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
+
+    /** The signal as the organization's rules read it: its own trip as {@code trip}, none of the others. */
+    static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
+        Map<String, Object> out = new LinkedHashMap<>(signal);
+        Object trips = out.remove("trips");
+        Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
+        out.put("trip", trip != null ? trip : NO_TRIP);
+        return out;
     }
 
     private int evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {
@@ -141,7 +161,9 @@ public class EvaluatorStream {
                 .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
         // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
         if (!result.transitions().isEmpty()) {
-            transitionLog.append(tenant, result.transitions(), place(signal));
+            TransitionLog.Place place = place(signal);
+            // Only the changes new to the log: a replayed signal publishes nothing twice.
+            events.transitions(tenant, transitionLog.append(tenant, result.transitions(), place), place);
         }
         episodes.save(state);
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
@@ -160,12 +182,15 @@ public class EvaluatorStream {
         episodes.forget(tenant, assetId, definitionId);
     }
 
-    /** The trip and position of the signal, as far as it has them. */
+    /** The trip, position and driver of the signal, as far as it has them. */
     static TransitionLog.Place place(Map<String, Object> signal) {
-        Object trip = path(signal, "trip", "id");
-        return new TransitionLog.Place(trip instanceof String id ? id : null,
+        return new TransitionLog.Place(text(path(signal, "trip", "id")),
                 number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
-                number(path(signal, "frame", "gps", "speed")));
+                number(path(signal, "frame", "gps", "speed")), text(path(signal, "trip", "driver", "id")));
+    }
+
+    private static String text(Object value) {
+        return value instanceof String s ? s : null;
     }
 
     private static Object path(Map<String, Object> root, String... keys) {

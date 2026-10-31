@@ -107,6 +107,10 @@ value you have confirmed; never emit a literal placeholder.
 | `/shipping` | shipping, embarque, despacho (kanban) | Services in shipping | kanban params |
 | `/delivery` | delivery, entrega, reparto (kanban) | Services in delivery | kanban params |
 | `/finished` | finished, finalizados, completados (kanban) | Completed services | kanban params |
+| `/trips/planning` | trip planning, planificación de viajes | Trips being planned, assigned, or awaiting departure confirmation | `q` |
+| `/trips/dispatch` | trip dispatch, despacho de viajes, viajes en tránsito | Trips in transit or awaiting arrival confirmation | `q` |
+| `/trips/delivery` | trip delivery, entrega de viajes | Trips unloading or awaiting closure confirmation | `q` |
+| `/trips/finished` | finished trips, viajes finalizados, viajes cancelados | Completed, regularized, or cancelled trips | `q`, `date_range_from`/`date_range_to` |
 | `/mytasks` | my tasks, mis tareas, tareas | The user's tasks | `status=pending\|finished` + kanban params; a task opens at `/task/edit/{taskId}` |
 | `/geographic-view` | map, mapa, geographic view, posición, GPS, where is, dónde está | Live map of assets/vehicles | `licensePlate` |
 | `/fleet` | fleet, flota, assets, trucks, camiones, tractos, trailers, ramplas, remolques, documentos, acreditación, horas de motor, kilómetros | The organization's assets with their carrier, trips, documents and indicators (one asset at `/fleet/{assetId}`) | — |
@@ -127,7 +131,9 @@ value you have confirmed; never emit a literal placeholder.
 | `/users/settings/team` | team, equipo, members, miembros, invitations, invitaciones, roles, permissions, permisos, API keys, claves API, service accounts, cuentas de servicio | Who belongs to the organization, their base role and module roles, invitations, teams and service accounts with API keys | — |
 | `/users/settings/credentials` | credentials, credenciales, API credentials, credenciales API | Reusable organization credentials for data sources, integrations, and jobs | — |
 | `/users/settings/connections` | integration connections, conexiones de integración, integration templates, plantillas de integración, integration types | Integration templates (types) and the connections created from them | — |
+| `/users/settings/trips` | trip monitors, monitores de viajes, reglas de viajes, trip rules, etapas, stages | Trip monitors: stage plans, conditions, actions, drafts, published versions, and the selector that chooses a monitor | — |
 | `/users/settings/symptoms` | síntomas, symptoms, mantenedor de síntomas, reglas de síntomas, umbrales, niveles ICU, versiones de síntomas | The organization's symptoms: what each detects, its ICU levels, drafts and versions | — |
+| `/users/settings/communications` | comunicaciones, communications, reglas de comunicación, communication rules, avisos automáticos, plantillas de mensajes, message templates, WhatsApp, correo, email, actividad de mensajes | Reglas que envían WhatsApp y correo cuando pasa algo, sus plantillas y la actividad de mensajes | — |
 | `/users/settings/contact-book` | contact book, libreta de contactos, contactos, contacts, directorio | Contacts the Control Tower calls: people, tags and contact channels | — |
 | `/users/settings/selectables` | selectables, seleccionables, option lists, listas de opciones, dropdown options, opciones de selección | Organization option lists that form fields offer: values, labels per language, groups, and system or connection sources | — |
 | `/users/settings/platform` | platform settings, ajustes de plataforma, branding, marca, logo, logotipo, logo por dominio, superusers, superusuarios, platform administrators, administradores de la plataforma | Platform-scope settings: per-domain logos and the superusers who may set them (platform administrators only) | — |

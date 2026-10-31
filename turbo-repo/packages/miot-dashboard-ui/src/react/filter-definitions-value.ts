@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { dashboardFilterParamSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 const key = z
   .string()

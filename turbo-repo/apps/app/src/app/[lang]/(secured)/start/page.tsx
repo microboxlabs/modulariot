@@ -8,6 +8,12 @@ import { homePath } from "@/features/common/providers/alfresco-api/ecm-config";
 /** Where `/app` and sign-in land: the first module page the caller may open, or the no-access page. */
 export default async function StartPage({ params }: ParamsWithLang) {
   const { lang } = await params;
-  const page = firstAllowedPage(await currentPermissions(), homePath());
+  const page = firstAllowedPage(
+    await currentPermissions(),
+    homePath(),
+    process.env.BOARD_MODULE,
+    process.env.DASHBOARD_MODULE,
+    process.env.ENABLE_DASHBOARD_SERVER === "true"
+  );
   redirect(`/${lang}${page ?? "/no-access"}`);
 }

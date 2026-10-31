@@ -8,7 +8,7 @@ import {
   HiRefresh,
   HiViewGridAdd,
 } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -90,47 +90,33 @@ export default function SelectablesPageContent({
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "selectables"]}
-          disableLinks
-        />
-      </div>
-
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-10 dark:bg-gray-900">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <IconTile icon={HiOutlineViewList} />
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("title", d)}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("description", d)}
-              </p>
-            </div>
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "selectables"]}
+      icon={HiOutlineViewList}
+      title={tr("title", d)}
+      description={tr("description", d)}
+      actions={
+        isOwner && (
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              color="alternative"
+              size="sm"
+              onClick={() => setConfirm({ kind: "reset" })}
+            >
+              <HiRefresh className="mr-1.5 h-4 w-4" />
+              {tr("resetSeed", d)}
+            </Button>
+            <Button color="blue" size="sm" onClick={() => open(null)}>
+              <HiPlus className="mr-1.5 h-4 w-4" />
+              {tr("newSelectable", d)}
+            </Button>
           </div>
-          {isOwner && (
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                color="alternative"
-                size="sm"
-                onClick={() => setConfirm({ kind: "reset" })}
-              >
-                <HiRefresh className="mr-1.5 h-4 w-4" />
-                {tr("resetSeed", d)}
-              </Button>
-              <Button color="blue" size="sm" onClick={() => open(null)}>
-                <HiPlus className="mr-1.5 h-4 w-4" />
-                {tr("newSelectable", d)}
-              </Button>
-            </div>
-          )}
-        </div>
-
+        )
+      }
+    >
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-4">
         {hydrated && selectables.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-16 text-center dark:border-gray-700">
             <IconTile icon={HiViewGridAdd} />
@@ -184,6 +170,6 @@ export default function SelectablesPageContent({
         isProcessing={busy}
         {...confirmTexts(confirm, d, lang)}
       />
-    </div>
+    </SettingsPageShell>
   );
 }

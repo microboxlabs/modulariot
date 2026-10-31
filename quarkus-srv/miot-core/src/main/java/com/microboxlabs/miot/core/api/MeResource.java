@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.api;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
@@ -95,7 +96,7 @@ public class MeResource {
             if (user != null && !"ACTIVE".equals(user.status)) {
                 return Uni.createFrom().item(List.of());
             }
-            return directory.signedIn(email)
+            return directory.signedIn(email, resolveName())
                     .onFailure().recoverWithItem(e -> {
                         LOG.warnf("Could not record sign-in of %s: %s", email, e.getMessage());
                         return null;
@@ -112,7 +113,7 @@ public class MeResource {
                 .filter(org -> org.parent != null && org.taxId != null)
                 .collect(Collectors.groupingBy(org -> org.parent.id,
                         Collectors.mapping(org -> org.taxId, Collectors.toList())));
-        return orgs.stream().map(org -> new OrganizationScopeDto(
+        List<OrganizationScopeDto> scopes = new ArrayList<>(orgs.stream().map(org -> new OrganizationScopeDto(
                         org.id,
                         org.slug,
                         org.displayName != null ? org.displayName : org.name,
@@ -121,8 +122,14 @@ public class MeResource {
                         org.parent == null,
                         org.parent == null ? childTaxIds.getOrDefault(org.id, List.of()) : ownTaxId(org),
                         modulesByOrg.getOrDefault(org.id, List.of())))
-                .toList();
+                .toList());
+        scopes.add(PLATFORM_SCOPE);
+        return scopes;
     }
+
+    /** The platform as a scope; only platform owners get it, after their organizations. */
+    static final OrganizationScopeDto PLATFORM_SCOPE = new OrganizationScopeDto(PlatformScope.ORGANIZATION_ID,
+            PlatformScope.SLUG, PlatformScope.DISPLAY_NAME, null, PlatformScope.ROLE, false, List.of(), List.of());
 
     private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email) {
         // Sequential chain: Phase 1 uses the stub client so this is effectively free.
@@ -157,7 +164,7 @@ public class MeResource {
         if (org.parent != null) {
             return Uni.createFrom().voidItem();
         }
-        return directory.signedIn(email)
+        return directory.signedIn(email, resolveName())
                 .onFailure().recoverWithItem(e -> {
                     LOG.warnf("Could not record sign-in of %s in %s: %s", email, org.slug, e.getMessage());
                     return null;
@@ -194,6 +201,13 @@ public class MeResource {
 
     private static List<String> ownTaxId(Organization org) {
         return org.taxId != null ? List.of(org.taxId) : List.of();
+    }
+
+    /** The {@code name} claim, when the token carries one. */
+    private String resolveName() {
+        return securityIdentity != null && securityIdentity.getPrincipal() instanceof JsonWebToken jwt
+                ? jwt.getClaim("name")
+                : null;
     }
 
     private String resolveEmail(HttpHeaders headers) {

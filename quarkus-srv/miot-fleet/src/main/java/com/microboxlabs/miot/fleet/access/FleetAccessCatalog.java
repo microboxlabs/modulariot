@@ -19,6 +19,10 @@ public class FleetAccessCatalog implements AccessCatalog {
     public static final String ASSETS_VIEW = "fleet:assets.view";
     public static final String ASSETS_EDIT = "fleet:assets.edit";
 
+    public static final String RESOURCES_VIEW = "fleet:resources.view";
+    public static final String RESOURCES_WRITE = "fleet:resources.write";
+    public static final String ACCREDITATION_WRITE = "fleet:accreditation.write";
+
     public static final String VIEWER = "FLEET_VIEWER";
     public static final String MANAGER = "FLEET_MANAGER";
 
@@ -27,16 +31,20 @@ public class FleetAccessCatalog implements AccessCatalog {
     public List<PermissionDef> permissions() {
         return List.of(
                 PermissionDef.of(ASSETS_VIEW, "Ver la flota", "View the fleet").explicit(),
-                PermissionDef.of(ASSETS_EDIT, "Editar los datos de la flota", "Edit fleet data").explicit());
+                PermissionDef.of(ASSETS_EDIT, "Editar los datos de la flota", "Edit fleet data").explicit(),
+                PermissionDef.of(RESOURCES_VIEW, "Ver el directorio de recursos", "View the resource directory").explicit(),
+                PermissionDef.of(RESOURCES_WRITE, "Mantener el directorio de recursos", "Maintain the resource directory").explicit(),
+                PermissionDef.of(ACCREDITATION_WRITE, "Mantener la acreditación de recursos", "Maintain resource accreditation").explicit());
     }
 
     @Override
     public List<RoleDef> roles() {
         return List.of(
-                RoleDef.of(VIEWER, MODULE, "Lector", "Viewer", Set.of(ASSETS_VIEW))
+                RoleDef.of(VIEWER, MODULE, "Lector", "Viewer", Set.of(ASSETS_VIEW, RESOURCES_VIEW))
                         .describedAs("Ve los assets, sus viajes e indicadores.",
                                 "Sees the assets, their trips and indicators."),
-                RoleDef.of(MANAGER, MODULE, "Administrador de flota", "Fleet manager", Set.of(ASSETS_VIEW, ASSETS_EDIT))
+                RoleDef.of(MANAGER, MODULE, "Administrador de flota", "Fleet manager",
+                                Set.of(ASSETS_VIEW, ASSETS_EDIT, RESOURCES_VIEW, RESOURCES_WRITE, ACCREDITATION_WRITE))
                         .describedAs("Además edita los datos, documentos y sugerencias de cada asset.",
                                 "Also edits each asset's data, documents and suggestions."));
     }

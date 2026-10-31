@@ -5,6 +5,10 @@ import cl.streamhub.gps.model.EnvelopedMessage;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -35,11 +39,12 @@ public class SignalBuilder {
         }
         String assetId = frame.getAssetId();
         Instant at = frame.getTimestamp().toInstant();
-        GpsSignal.Trip trip = refs.tripAt(assetId, at).map(t -> trip(t, at)).orElse(GpsSignal.Trip.none());
+        List<String> clients = refs.clientsAt(assetId, sender(message.getClientId()), at);
+        Map<String, GpsSignal.Trip> trips = new LinkedHashMap<>();
+        refs.tripsAt(assetId, at, clients).forEach((client, t) -> trips.put(client, trip(t, at)));
         Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
-        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at,
-                refs.clientsAt(assetId, sender(message.getClientId()), at), trip, null, null, null,
-                at.atZone(zone).getHour(), new GpsSignal.Derived(moving, null), frame));
+        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, clients, trips.isEmpty() ? null : trips,
+                null, null, null, null, at.atZone(zone).getHour(), new GpsSignal.Derived(moving, null), frame));
     }
 
     /** The trip in progress as the signal carries it, timed against the frame. */
@@ -49,29 +54,34 @@ public class SignalBuilder {
                 : new GpsSignal.Origin(d.originId(), d.originLabel(), d.originVisited(), d.originInternal());
         GpsSignal.Destination destination = d.destinationId() == null && d.destinationLabel() == null ? null
                 : new GpsSignal.Destination(d.destinationId(), d.destinationLabel(), d.destinationVisited());
-        GpsSignal.Carrier carrier = d.carrierId() == null && d.carrierName() == null ? null
-                : new GpsSignal.Carrier(d.carrierId(), d.carrierName());
+        GpsSignal.Carrier carrier = d.carrierTaxId() == null && d.carrierName() == null ? null
+                : new GpsSignal.Carrier(d.carrierTaxId(), d.carrierName());
         Integer currentZone = d.currentGeofenceId() == null || d.currentGeofenceId() == 0 ? null : d.currentGeofenceId();
-        return new GpsSignal.Trip(true, t.doubleDriver(), t.tripId(), t.tripType(), minutes(t.startTime(), at),
-                minutes(d.eta(), at), origin, destination, currentZone, carrier, d.loadType(), d.trailerPlate(),
-                driver(d, at));
+        return new GpsSignal.Trip(true, t.doubleDriver(), t.tripId(), d.code(), t.tripType(), t.status(),
+                minutes(t.startTime(), at), minutes(d.eta(), at), origin, destination, currentZone, carrier,
+                d.loadType(), d.trailerPlate(), driver(d, at));
     }
 
-    /** Registry id, status and license of the trip's driver; whether they are registered only once it is loaded. */
-    private GpsSignal.Driver driver(ReferenceCache.TripDetails d, Instant at) {
-        // Checked before the lookup: once loaded the registry is never unloaded, so the lookup sees it too.
-        if (d.driverNationalId() == null || d.driverNationalId().isBlank() || !refs.driversLoaded()) {
+    /** The fleet's id, status and license of the trip's driver; null when the trip names none. */
+    private static GpsSignal.Driver driver(ReferenceCache.TripDetails d, Instant at) {
+        if (!d.driverAssigned()) {
             return null;
         }
-        return refs.driver(d.driverNationalId(), d.createdBy())
-                .map(r -> new GpsSignal.Driver(r.id(), true, status(r.status()),
-                        r.licenseExpires() == null ? null : r.licenseExpires().isBefore(at)))
-                .orElse(new GpsSignal.Driver(null, false, null, null));
+        if (d.driverId() == null) {
+            return new GpsSignal.Driver(null, false, null, null);
+        }
+        return new GpsSignal.Driver(d.driverId(), true, status(d.driverStatus()),
+                d.driverLicenseExpires() == null ? null : d.driverLicenseExpires().isBefore(at));
     }
 
+    /** The fleet writes {@code active} and {@code inactive}. */
     private static GpsSignal.DriverStatus status(String status) {
+        if (status == null) {
+            return null;
+        }
+        String s = status.trim().toUpperCase(Locale.ROOT);
         try {
-            return status == null ? null : GpsSignal.DriverStatus.valueOf(status);
+            return "INACTIVE".equals(s) ? GpsSignal.DriverStatus.DEACTIVATED : GpsSignal.DriverStatus.valueOf(s);
         } catch (IllegalArgumentException e) {
             return null;
         }

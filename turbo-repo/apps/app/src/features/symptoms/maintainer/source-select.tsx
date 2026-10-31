@@ -3,6 +3,7 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { DataSource } from "./maintainer-api";
+import Select from "./ui/select";
 
 const KIND_LABEL: Record<DataSource["kind"], string> = {
   SIGNAL: "sourceKindSignal",
@@ -32,10 +33,10 @@ export function SourceSelect({
 }>) {
   const known = sources.some((s) => s.key === value);
   return (
-    <span className="flex items-center gap-2 text-xs text-gray-500">
+    <span className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
       <label className="flex items-center gap-1">
         <span>{tr("sourceLabel", d)}</span>
-        <select
+        <Select
           className="rounded-md border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
           disabled={readOnly}
           value={value ?? ""}
@@ -47,7 +48,7 @@ export function SourceSelect({
               {s.name}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <button
         type="button"
@@ -75,7 +76,9 @@ export function SourceHelp({
           {source.cadence ? ` · ${source.cadence}` : ""}
         </p>
       )}
-      <p className="mt-0.5 text-gray-500">{tr("sourceHelpText", d)}</p>
+      <p className="mt-0.5 text-gray-500 dark:text-gray-400">
+        {tr("sourceHelpText", d)}
+      </p>
     </div>
   );
 }

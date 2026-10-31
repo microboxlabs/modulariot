@@ -30,6 +30,8 @@ export type TableItemType = {
   trip: string;
   driver: string;
   date: string;
+  // When it closed; absent while it is open.
+  endDate?: string | null;
   service: string;
   alertType: string;
   status: string | null;

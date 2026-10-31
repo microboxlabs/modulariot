@@ -59,6 +59,11 @@ public interface TreatmentStore {
     /** Call statistics per tenant contact, derived from CALL actions. */
     List<ContactCallStats> contactStats(String tenantCode);
 
+    /** Statistics for one page of contacts. Persistent stores should bound the query by these ids. */
+    default List<ContactCallStats> contactStats(String tenantCode, List<String> contactIds) {
+        return contactStats(tenantCode).stream().filter(s -> contactIds.contains(s.contactId())).toList();
+    }
+
     /** When an operator first took each of these cases; cases nobody took are left out. */
     Map<Long, OffsetDateTime> firstOpenedAt(String tenantCode, Collection<Long> symptomIds);
 }

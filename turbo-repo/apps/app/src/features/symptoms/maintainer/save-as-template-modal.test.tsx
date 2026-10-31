@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ControlTowerError } from "../control-tower/control-tower-api";
-import type { SymptomDefinition, SymptomSummary } from "./maintainer-api";
+import type { SymptomDefinition, SymptomTemplate } from "./maintainer-api";
 
 const api = vi.hoisted(() => ({
   saveAsTemplate: vi.fn(),
-  usePlatformTemplates: vi.fn(),
+  useSymptomTemplates: vi.fn(),
 }));
 vi.mock("./maintainer-api", () => api);
 
@@ -35,13 +35,10 @@ const def = {
 } as SymptomDefinition;
 
 const speeding = {
-  definition: {
-    id: "t1",
-    key: "speeding",
-    name: "Exceso de velocidad (plantilla)",
-    currentVersion: "1.0.0",
-  },
-} as SymptomSummary;
+  key: "speeding",
+  name: "Exceso de velocidad (plantilla)",
+  version: "1.0.0",
+} as SymptomTemplate;
 
 function open(symptom: SymptomDefinition) {
   const onSaved = vi.fn();
@@ -61,7 +58,7 @@ function open(symptom: SymptomDefinition) {
 describe("SaveAsTemplateModal", () => {
   beforeEach(() => {
     api.saveAsTemplate.mockReset();
-    api.usePlatformTemplates.mockReturnValue({ data: [speeding] });
+    api.useSymptomTemplates.mockReturnValue({ data: [speeding] });
   });
 
   it("creates a new template from the version on screen", async () => {

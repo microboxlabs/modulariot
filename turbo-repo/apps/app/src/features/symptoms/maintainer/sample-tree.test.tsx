@@ -72,6 +72,20 @@ describe("SampleTree", () => {
     expect(screen.getByText("AB1234 · Ruta 5")).toBeTruthy();
   });
 
+  it("shows held_s in the header without offering it as a field", () => {
+    render(
+      <SampleTree
+        samples={[{ signal: { trip: { active: true } }, held_s: 75 }]}
+        index={0}
+        readOnly={false}
+        d={{ ...d, sampleHeld: "Sostenida {seconds} s" }}
+        onIndex={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Sostenida 75 s")).toBeTruthy();
+    expect(screen.queryByLabelText("Insertar held_s")).toBeNull();
+  });
+
   it("starts with nested objects closed, opens a branch and changes sample", () => {
     const onIndex = vi.fn();
     render(

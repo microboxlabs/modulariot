@@ -4,6 +4,7 @@ import {
   requireCarrierData,
 } from "@/app/api/utils/carrier-scope";
 import { auth } from "@/auth";
+import { requirePermission } from "@/features/auth/access/server-access";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -53,7 +54,10 @@ async function carrierOrgId(): Promise<{
   orgId: string | null;
 }> {
   const scopeResult = await resolveTenantScope();
-  if (!scopeResult.resolved || !isCarrierOrg(scopeResult.scope)) {
+  if (!scopeResult.resolved) {
+    return { deny: scopeResult.response, orgId: null };
+  }
+  if (!isCarrierOrg(scopeResult.scope)) {
     return { deny: null, orgId: null };
   }
   const guard = requireCarrierData(scopeResult.scope);
@@ -79,6 +83,7 @@ export async function GET(
   if (deny) return deny;
 
   const params = new URLSearchParams(req.nextUrl.searchParams);
+  params.delete("p_org_id");
   if (orgId && TENANT_PARAM_FNS.has(fn)) params.set("p_org_id", orgId);
 
   const response = await fetch(
@@ -109,12 +114,28 @@ export async function POST(
       { status: 403 }
     );
   }
+  const access = await requirePermission(
+    { requiredPermissions: ["controltower:places.edit"] },
+    "/api/atc/rpc"
+  );
+  if (!access.authorized) return access.response;
   const { deny, orgId } = await carrierOrgId();
   if (deny) return deny;
 
   let payload: Record<string, unknown>;
   try {
-    payload = (await req.json()) as Record<string, unknown>;
+    const parsed = await req.json();
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      return NextResponse.json(
+        { error: "JSON body must be an object" },
+        { status: 400 }
+      );
+    }
+    payload = parsed as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }

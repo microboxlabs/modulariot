@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService.ImportResult;
 import com.microboxlabs.miot.symptoms.catalog.service.EngineRuleTranslator.Translation;
-import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.engine.EngineRule;
+import com.microboxlabs.miot.symptoms.engine.SymptomEngine;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
@@ -22,6 +22,23 @@ class EngineImportTest {
 
     private static EngineRule rule(int id, String name, String trigger, Map<String, Object> pattern) {
         return new EngineRule(id, name, trigger, new LinkedHashMap<>(pattern), true, List.of(), false);
+    }
+
+    /** An engine that runs only the speeding rule. */
+    private static SymptomEngine speedingEngine() {
+        return new SymptomEngine() {
+            @Override
+            public boolean available() {
+                return true;
+            }
+
+            @Override
+            public List<EngineRule> rules(String tenantCode) {
+                return List.of(new EngineRule(9, "Speed Limit Standard", "signal",
+                        Map.of("in_trip", 1, "cooldown_seconds", 120, "maxspeed_infraction_osm", 1), true,
+                        List.of("Invalidated"), false));
+            }
+        };
     }
 
     private static SpecValidator.Report check(Translation t, DataSourceService sources) {
@@ -95,7 +112,7 @@ class EngineImportTest {
         DataSourceService withEngine = new DataSourceService(store, SignalSamples.inMemory());
         SymptomCatalogService catalog = new SymptomCatalogService(store, withEngine,
                 new AuditService(new InMemoryAuditStore()));
-        EngineImportService importer = new EngineImportService(new DemoSymptomEngine(), catalog);
+        EngineImportService importer = new EngineImportService(speedingEngine(), catalog);
 
         ImportResult first = importer.importRules("tenant-a", "owner@example.com");
         ImportResult again = importer.importRules("tenant-a", "owner@example.com");

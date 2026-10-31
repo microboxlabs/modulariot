@@ -81,6 +81,44 @@ class RuleLanguageTest {
     }
 
     @Test
+    void numbersCompareForEqualityWithWholeNumbers() {
+        RuleSchema level = SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES);
+
+        assertTrue(RuleLanguage.check(level, "measure == 0", Expect.CONDITION).ok());
+        assertEquals(true, RuleLanguage.evaluate(level, "measure == 0", Map.of("measure", 0.0)).value());
+        assertEquals(true, RuleLanguage.evaluate(level, "-3 != measure", Map.of("measure", 0.0)).value());
+        assertTrue(RuleLanguage.check(level, "size(\"ab == 1\") == 2", Expect.CONDITION).ok(),
+                "a rule that compiles as written keeps its integers");
+        String mixed = "size(\"ab\") == 2 && measure == 0";
+        assertTrue(RuleLanguage.check(level, mixed, Expect.CONDITION).ok(),
+                "only the comparison CEL rejected gets a double");
+        assertEquals(true, RuleLanguage.evaluate(level, mixed, Map.of("measure", 0.0)).value());
+    }
+
+    @Test
+    void aMeasureSubtractsADouble() {
+        assertTrue(RuleLanguage.check(SIGNAL, "signal.frame.gps.speed - 90.0", Expect.NUMBER).ok());
+        assertFalse(RuleLanguage.check(SIGNAL, "signal.frame.gps.speed - 90", Expect.NUMBER).ok(),
+                "the app writes whole offsets as doubles");
+    }
+
+    @Test
+    void anErrorAfterAWrittenIntegerPointsAtTheRuleAsWritten() {
+        RuleSchema level = SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES);
+        String rule = "measure == 0 && nope > 1";
+
+        assertEquals(rule.indexOf("nope"),
+                RuleLanguage.check(level, rule, Expect.CONDITION).issues().get(0).position());
+    }
+
+    @Test
+    void equalityLiteralsSkipStringsNamesAndDecimals() {
+        assertEquals("a == 1.0 && \"x == 2\" == b && c2 == 3.5 && d != 4.0",
+                EqualityLiterals.of("a == 1 && \"x == 2\" == b && c2 == 3.5 && d != 4").text());
+        assertEquals("x > 1", EqualityLiterals.of("x > 1").text());
+    }
+
+    @Test
     void lifecycleReadsTheCase() {
         assertTrue(RuleLanguage.check(RuleSchema.CASE, "case.normal_s >= 120 || case.age_h >= 12",
                 Expect.CONDITION).ok());
@@ -128,5 +166,49 @@ class RuleLanguageTest {
                 RuleLanguage.check(SIGNAL, "signal.frame.gps.speed >", Expect.CONDITION).issues().get(0).message());
         assertEquals("La expresión está vacía.",
                 RuleLanguage.check(SIGNAL, " ", Expect.CONDITION).issues().get(0).message());
+    }
+
+    private static final RuleSchema FRAME = new RuleSchema("signal", Map.of(
+            "signal.trip.active", "bool",
+            "signal.frame.sensors.panic_button", "bool",
+            "signal.frame.gps.speed", "number"), Map.of());
+
+    private static Object run(String rule, Map<String, Object> signal) {
+        assertTrue(RuleLanguage.check(FRAME, rule, Expect.CONDITION).ok(), rule);
+        RuleResult r = RuleLanguage.evaluate(FRAME, rule, Map.of("signal", signal));
+        assertTrue(r.ok(), r.error());
+        return r.value();
+    }
+
+    @Test
+    void optionalReadsCompareWithTrueFalseAndNone() {
+        String pressed = "signal.frame.?sensors.?panic_button == TRUE";
+        Map<String, Object> on = Map.of("frame", Map.of("sensors", Map.of("panic_button", true)));
+        Map<String, Object> off = Map.of("frame", Map.of("sensors", Map.of("panic_button", false)));
+        Map<String, Object> noButton = Map.of("frame", Map.of("sensors", Map.of()));
+        Map<String, Object> noSensors = Map.of("frame", Map.of());
+
+        assertEquals(true, run(pressed, on));
+        assertEquals(false, run(pressed, off));
+        assertEquals(false, run(pressed, noButton), "a missing field is no error");
+        assertEquals(false, run(pressed, noSensors), "nor a missing parent");
+        assertEquals(true, run("signal.frame.?sensors.?panic_button == FALSE", off));
+        assertEquals(true, run("signal.frame.?sensors.?panic_button == NONE", noSensors));
+        assertEquals(false, run("signal.frame.?sensors.?panic_button == NONE", off));
+        assertEquals(true, run("signal.frame.?gps.?speed.orValue(0.0) > 90.0",
+                Map.of("frame", Map.of("gps", Map.of("speed", 112.0)))));
+    }
+
+    @Test
+    void optionalsCannotBeUsedAsConditionsDirectly() {
+        assertFalse(RuleLanguage.check(FRAME, "signal.frame.?sensors.?panic_button", Expect.CONDITION).ok());
+    }
+
+    @Test
+    void optionalReadsAreFieldsOfTheRule() {
+        String rule = "signal.trip.active && signal.frame.?sensors.?panic_button == TRUE";
+        assertEquals(java.util.Set.of("signal.trip.active", "signal.frame.sensors.panic_button"),
+                RuleText.fieldPaths(rule));
+        assertEquals(RuleText.canonical(rule), RuleText.canonical("signal.trip.active&&signal.frame.?sensors.?panic_button==TRUE"));
     }
 }

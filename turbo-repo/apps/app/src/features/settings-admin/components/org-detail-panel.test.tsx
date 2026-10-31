@@ -13,9 +13,12 @@ vi.mock("../gps-webhooks/gps-webhook-card", () => ({
 vi.mock("../whatsapp/whatsapp-channel-card", () => ({
   default: () => <div data-testid="whatsapp-channel" />,
 }));
+vi.mock("../platform/org-service-account-card", () => ({
+  default: () => <div data-testid="service-account" />,
+}));
 
 describe("OrgDetailPanel", () => {
-  it("shows channel settings to an owner", () => {
+  it("shows GPS webhooks to an owner; WhatsApp and email are in Comunicaciones", () => {
     render(
       <OrgDetailPanel
         organization={{
@@ -27,10 +30,12 @@ describe("OrgDetailPanel", () => {
           isParent: true,
         }}
         dict={{}}
+        lang="es"
+        isPlatformOwner={false}
       />
     );
 
-    expect(screen.getByTestId("whatsapp-channel")).toBeInTheDocument();
+    expect(screen.queryByTestId("whatsapp-channel")).toBeNull();
     expect(screen.getByTestId("gps-webhooks")).toBeInTheDocument();
   });
 
@@ -46,11 +51,43 @@ describe("OrgDetailPanel", () => {
           isParent: true,
         }}
         dict={{}}
+        lang="es"
+        isPlatformOwner={false}
       />
     );
 
     expect(screen.queryByTestId("whatsapp-channel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("gps-webhooks")).not.toBeInTheDocument();
+  });
+
+  it("shows the service account only to a platform owner", () => {
+    const organization = {
+      id: 1,
+      slug: "mintral",
+      displayName: "Mintral",
+      taxId: null,
+      role: "MEMBER" as const,
+      isParent: true,
+    };
+    const { rerender } = render(
+      <OrgDetailPanel
+        organization={organization}
+        dict={{}}
+        lang="es"
+        isPlatformOwner={false}
+      />
+    );
+    expect(screen.queryByTestId("service-account")).not.toBeInTheDocument();
+
+    rerender(
+      <OrgDetailPanel
+        organization={organization}
+        dict={{}}
+        lang="es"
+        isPlatformOwner
+      />
+    );
+    expect(screen.getByTestId("service-account")).toBeInTheDocument();
   });
 
   it("does not treat an Alfresco site role as application ownership", () => {
@@ -65,6 +102,8 @@ describe("OrgDetailPanel", () => {
           isParent: true,
         }}
         dict={{}}
+        lang="es"
+        isPlatformOwner={false}
       />
     );
 

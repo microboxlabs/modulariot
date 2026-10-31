@@ -1,13 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Spinner } from "flowbite-react";
-import { HiOutlineLink, HiPlus } from "react-icons/hi";
+import {
+  HiOutlineDatabase,
+  HiOutlineLink,
+  HiOutlineTemplate,
+  HiPlus,
+} from "react-icons/hi";
 import { toast } from "sonner";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
+import SectionMenu, {
+  type SectionMenuEntry,
+} from "@/features/common/components/section-menu";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import { connectManagedBigQuery } from "@/features/settings-admin/platform/org-service-account";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import {
+  connectManagedGeocoding,
+  removeManagedGeocoding,
+} from "@/features/settings-admin/platform/org-geocoding-connection";
+import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
+import { ManagedGeocodingProviderModal } from "./managed-geocoding-provider-modal";
+import {
+  connectionTypeName,
+  isPlatformManaged,
+  DEFAULT_CONNECTION_FILTERS,
+  DEFAULT_CONNECTION_SORT,
+  filterConnections,
+  hasActiveConnectionFilters,
+  sortConnections,
+  type ConnectionFilters,
+  type ConnectionSort,
+} from "../connection-catalog";
 import { useIntegrationConfig } from "../use-integration-config";
 import type {
   IntegrationConnection,
@@ -15,18 +46,34 @@ import type {
   NativeProvider,
 } from "../integration-config.types";
 import { ConnectionsList } from "./connections-list";
+import { ConnectionsToolbar } from "./connections-toolbar";
 import { TemplatesList } from "./templates-list";
 import { TemplateFormModal } from "./template-form-modal";
 import { TemplatePickerModal } from "./template-picker-modal";
 import { ConnectionFormModal } from "./connection-form-modal";
 import { IntegrationDeleteDialog } from "./integration-delete-dialog";
 import { PostgrestFunctionsModal } from "./postgrest-functions-modal";
+import { QueryEditorSection } from "./query-editor-section";
+
+type ConnectionsSection = "connections" | "templates" | "bigquery";
+const SECTIONS: readonly ConnectionsSection[] = [
+  "connections",
+  "templates",
+  "bigquery",
+];
+
+function sectionOf(params: URLSearchParams): ConnectionsSection {
+  const value = params.get("section");
+  return SECTIONS.find((section) => section === value) ?? "connections";
+}
 
 interface IntegrationConfigPageContentProps {
   /** `pages.integrationConnections` subtree. */
   readonly dict: I18nRecord;
   /** `pages.userSettings.breadcrumb` — the trail is shared with the other settings pages. */
   readonly breadcrumbDict: I18nRecord;
+  /** Root dictionary — the shared filter badges translate from it. */
+  readonly rootDict: I18nRecord;
   readonly lang: string;
 }
 
@@ -47,10 +94,58 @@ interface IntegrationConfigPageContentProps {
 export function IntegrationConfigPageContent({
   dict,
   breadcrumbDict,
+  rootDict,
   lang,
 }: Readonly<IntegrationConfigPageContentProps>) {
   const { activeOrg } = useOrgScopes();
   const orgSlug = activeOrg?.slug ?? null;
+  const inPlatformScope = orgSlug === PLATFORM_SCOPE_SLUG;
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const section = sectionOf(params);
+  const sectionsDict = dict?.sections as I18nRecord;
+  // The dashboard server lets organization owners save queries; admins read and run them.
+  const canSaveQueries =
+    activeOrg?.role === "OWNER" || activeOrg?.role === "PLATFORM_OWNER";
+
+  /** Writes the section and its own parameters to the URL, dropping the others. */
+  function navigate(
+    next: ConnectionsSection,
+    extra: Record<string, string | null> = {}
+  ) {
+    const query = new URLSearchParams();
+    if (next !== "connections") query.set("section", next);
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) query.set(key, value);
+    }
+    const search = query.toString();
+    router.replace(search ? `${pathname}?${search}` : pathname, {
+      scroll: false,
+    });
+  }
+
+  const sections: SectionMenuEntry<ConnectionsSection>[] = [
+    {
+      id: "connections",
+      label: tr("connections", sectionsDict),
+      description: tr("connectionsHelp", sectionsDict),
+      icon: HiOutlineLink,
+    },
+    {
+      id: "templates",
+      label: tr("templates", sectionsDict),
+      description: tr("templatesHelp", sectionsDict),
+      icon: HiOutlineTemplate,
+    },
+    {
+      id: "bigquery",
+      label: tr("bigquery", sectionsDict),
+      description: tr("bigqueryHelp", sectionsDict),
+      icon: HiOutlineDatabase,
+      group: tr("editors", sectionsDict),
+    },
+  ];
   const {
     templates,
     connections,
@@ -63,13 +158,17 @@ export function IntegrationConfigPageContent({
     saveConnection,
     removeConnection,
     testInstance,
+    testDraft,
+    refresh,
   } = useIntegrationConfig(orgSlug);
+  const { isPlatformOwner } = useIsPlatformOwner();
 
   const [templateModal, setTemplateModal] = useState<{
     open: boolean;
     template?: IntegrationTemplate;
   }>({ open: false });
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [providerSetupOpen, setProviderSetupOpen] = useState(false);
   const [connectionModal, setConnectionModal] = useState<{
     open: boolean;
     connection?: IntegrationConnection;
@@ -83,6 +182,28 @@ export function IntegrationConfigPageContent({
   const [deletingConnection, setDeletingConnection] =
     useState<IntegrationConnection | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ConnectionFilters>(
+    DEFAULT_CONNECTION_FILTERS
+  );
+  const [sort, setSort] = useState<ConnectionSort>(DEFAULT_CONNECTION_SORT);
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
+
+  const types = useMemo(
+    () =>
+      [
+        ...new Set(
+          connections.map((connection) =>
+            connectionTypeName(connection, templates)
+          )
+        ),
+      ].sort((a, b) => a.localeCompare(b)),
+    [connections, templates]
+  );
+  const visible = useMemo(
+    () =>
+      sortConnections(filterConnections(connections, templates, filters), sort),
+    [connections, templates, filters, sort]
+  );
 
   const instanceCount = (templateId: string) =>
     connections.filter((connection) => connection.templateId === templateId)
@@ -102,6 +223,70 @@ export function IntegrationConfigPageContent({
   function handleNativePicked(providerType: NativeProvider) {
     setPickerOpen(false);
     setConnectionModal({ open: true, providerType });
+  }
+
+  /**
+   * Creates the organization's connection to the platform's geocoding provider, once.
+   * Without a platform provider (409) it asks for one first.
+   */
+  async function handleManagedGeocoding() {
+    if (!orgSlug) return;
+    setPickerOpen(false);
+    // The Plataforma scope holds the provider itself, not a managed connection to it.
+    if (inPlatformScope) {
+      setProviderSetupOpen(true);
+      return;
+    }
+    const pending = toast.loading(tr("toast.managedGeocodingCreating", dict));
+    try {
+      await connectManagedGeocoding(orgSlug);
+      refresh();
+      toast.success(tr("toast.managedGeocodingCreated", dict), { id: pending });
+    } catch (cause) {
+      if ((cause as { status?: number }).status === 409) {
+        toast.dismiss(pending);
+        setProviderSetupOpen(true);
+        return;
+      }
+      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
+        id: pending,
+      });
+    }
+  }
+
+  async function handleProviderSaved() {
+    setProviderSetupOpen(false);
+    if (inPlatformScope) {
+      refresh();
+      toast.success(tr("toast.platformGeocodingSaved", dict));
+      return;
+    }
+    await handleManagedGeocoding();
+  }
+
+  /** Creates the organization's account if missing and the BigQuery connection that queries as it. */
+  async function handleManagedBigQuery() {
+    if (!orgSlug) return;
+    setPickerOpen(false);
+    const pending = toast.loading(tr("toast.managedBigqueryCreating", dict));
+    try {
+      const created = await connectManagedBigQuery(orgSlug);
+      refresh();
+      if (created.tested) {
+        toast.success(tr("toast.managedBigqueryCreated", dict), {
+          id: pending,
+          description: created.testMessage ?? undefined,
+        });
+      } else {
+        toast.error(created.testMessage ?? tr("toast.testFailed", dict), {
+          id: pending,
+        });
+      }
+    } catch (cause) {
+      toast.error(messageOf(cause, tr("toast.actionFailed", dict)), {
+        id: pending,
+      });
+    }
   }
 
   function handleEditConnection(connection: IntegrationConnection) {
@@ -139,7 +324,16 @@ export function IntegrationConfigPageContent({
   async function handleDeleteConnection() {
     if (!deletingConnection) return;
     try {
-      await removeConnection(deletingConnection.id);
+      if (
+        !inPlatformScope &&
+        isPlatformManaged(deletingConnection) &&
+        orgSlug
+      ) {
+        await removeManagedGeocoding(orgSlug);
+        refresh();
+      } else {
+        await removeConnection(deletingConnection.id);
+      }
       toast.success(tr("toast.connectionDeleted", dict));
       setDeletingConnection(null);
     } catch (cause) {
@@ -170,107 +364,174 @@ export function IntegrationConfigPageContent({
     }
   }
 
+  function openManagedProvider() {
+    setProviderSetupOpen(true);
+  }
+
+  function selectManagedGeocoding() {
+    void handleManagedGeocoding();
+  }
+
+  function selectManagedBigQuery() {
+    void handleManagedBigQuery();
+  }
+
+  function deleteConnectionFromModal() {
+    if (connectionModal.connection) {
+      handleDeleteConnectionFromModal(connectionModal.connection);
+    }
+  }
+
+  function deleteTemplateFromModal() {
+    if (templateModal.template) {
+      handleDeleteTemplateFromModal(templateModal.template);
+    }
+  }
+
   return (
-    // Same shell as Settings › Credentials: a full-width breadcrumb bar
-    // (outside the scroll container, so it never moves — including during
-    // rubber-band overscroll) over a capped, independently-scrolling
-    // content column, so a wide monitor doesn't strand the row actions far
-    // from the names they belong to.
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "connections"]}
-          disableLinks
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "connections"]}
+      icon={HiOutlineLink}
+      title={tr("page.title", dict)}
+      description={tr("page.subtitle", dict)}
+      filters={
+        section === "connections" && (
+          <ConnectionsToolbar
+            filters={filters}
+            onFiltersChange={setFilters}
+            sort={sort}
+            onSortChange={setSort}
+            types={types}
+            dict={dict}
+            rootDict={rootDict}
+          />
+        )
+      }
+      actions={
+        section !== "bigquery" && (
+          <div className="flex shrink-0 items-center gap-2">
+            <LayoutToggle
+              layout={layout}
+              labels={{
+                cards: tr("viewCards", dict),
+                list: tr("viewList", dict),
+              }}
+              onLayout={setLayout}
+            />
+            {section === "connections" ? (
+              <Button
+                size="sm"
+                color="blue"
+                className="shrink-0 whitespace-nowrap"
+                onClick={handleAddConnection}
+                disabled={!orgSlug}
+              >
+                <HiPlus className="mr-1 h-4 w-4" />
+                {tr("connections.new", dict)}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                color="blue"
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => setTemplateModal({ open: true })}
+                disabled={!orgSlug}
+              >
+                <HiPlus className="mr-1 h-4 w-4" />
+                {tr("templates.new", dict)}
+              </Button>
+            )}
+          </div>
+        )
+      }
+    >
+      {/* Below md the menu and the detail stack and scroll together; from md only the detail scrolls. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 max-md:overflow-y-auto md:grid-cols-[320px_1fr]">
+        <SectionMenu
+          title={tr("title", sectionsDict)}
+          sections={sections}
+          selected={section}
+          onSelect={(next) => navigate(next)}
         />
-      </div>
+        <div className="-m-1 flex min-h-0 flex-col gap-4 p-1 md:overflow-y-auto">
+          {error && section !== "bigquery" && (
+            <Alert color="failure">
+              <span className="text-sm">
+                {isForbidden(error)
+                  ? tr("errors.forbidden", dict)
+                  : tr("errors.loadFailed", dict)}
+              </span>
+            </Alert>
+          )}
 
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <HiOutlineLink className="h-6 w-6 shrink-0 text-gray-500 dark:text-gray-400" />
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {tr("page.title", dict)}
-              </h1>
-              {/* Capped, so the description wraps at a readable measure instead of
-                  running the full width of a wide monitor. */}
-              <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-                {tr("page.subtitle", dict)}
-              </p>
+          {section === "bigquery" && orgSlug && (
+            <QueryEditorSection
+              orgSlug={orgSlug}
+              sourceId={params.get("source") ?? undefined}
+              planId={params.get("query")}
+              canWrite={canSaveQueries}
+              lang={lang}
+              dict={dict?.queryEditor as I18nRecord}
+              onSourceChange={(source) => navigate("bigquery", { source })}
+              onPlanChange={(query, source) =>
+                navigate("bigquery", {
+                  source: source ?? params.get("source"),
+                  query,
+                })
+              }
+            />
+          )}
+
+          {section !== "bigquery" && isLoading && (
+            <div className="flex justify-center py-10">
+              <Spinner aria-label={tr("list.loading", dict)} />
             </div>
-          </div>
-          {/* shrink-0: the description is the flexible side of this row. Without it a
-              long one squeezes the button until its label breaks across lines. */}
-          <Button
-            color="blue"
-            className="shrink-0 whitespace-nowrap"
-            onClick={handleAddConnection}
-            disabled={!orgSlug}
-          >
-            <HiPlus className="mr-2 h-4 w-4" />
-            {tr("connections.new", dict)}
-          </Button>
-        </div>
-
-        {error && (
-          <Alert color="failure">
-            <span className="text-sm">
-              {isForbidden(error)
-                ? tr("errors.forbidden", dict)
-                : tr("errors.loadFailed", dict)}
-            </span>
-          </Alert>
-        )}
-
-        {isLoading ? (
-          <div className="flex justify-center py-10">
-            <Spinner aria-label={tr("list.loading", dict)} />
-          </div>
-        ) : (
-          <>
+          )}
+          {section === "connections" && !isLoading && (
             <ConnectionsList
-              connections={connections}
+              connections={visible}
               templates={templates}
               credentials={credentials}
               onOpen={handleEditConnection}
+              onOpenManaged={inPlatformScope ? openManagedProvider : undefined}
               onTest={handleTest}
               onDelete={setDeletingConnection}
+              canRemoveManaged={isPlatformOwner}
               onFunctions={setFunctionsFor}
-              testing={testing}
-              emptyMessage={tr("connections.empty", dict)}
-              dict={dict}
-            />
-
-            {/* The types behind the list above. Second, because most visits are here to
-                point an existing type somewhere new, not to define a new one. */}
-            <SectionHeader
-              title={tr("templates.title", dict)}
-              help={tr("templates.help", dict)}
-              action={
-                <Button
-                  size="sm"
-                  color="light"
-                  className="shrink-0 whitespace-nowrap"
-                  onClick={() => setTemplateModal({ open: true })}
-                  disabled={!orgSlug}
-                >
-                  <HiPlus className="mr-2 h-4 w-4" />
-                  {tr("templates.new", dict)}
-                </Button>
+              onQueries={(connection) =>
+                navigate("bigquery", { source: connection.id })
               }
-            />
-            <TemplatesList
-              templates={templates}
-              instanceCount={instanceCount}
-              onOpen={(template) => setTemplateModal({ open: true, template })}
-              onDelete={setDeletingTemplate}
-              emptyMessage={tr("templates.empty", dict)}
+              testing={testing}
+              emptyMessage={
+                hasActiveConnectionFilters(filters)
+                  ? tr("filters.noMatches", dict)
+                  : tr("connections.empty", dict)
+              }
+              layout={layout}
               dict={dict}
             />
-          </>
-        )}
+          )}
+          {section === "templates" && !isLoading && (
+            <>
+              <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
+                {tr("templates.help", dict)}
+              </p>
+              <TemplatesList
+                templates={templates}
+                instanceCount={instanceCount}
+                onOpen={(template) =>
+                  setTemplateModal({ open: true, template })
+                }
+                onDelete={setDeletingTemplate}
+                emptyMessage={tr("templates.empty", dict)}
+                layout={layout}
+                dict={dict}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       <TemplateFormModal
@@ -278,11 +539,7 @@ export function IntegrationConfigPageContent({
         template={templateModal.template}
         onClose={() => setTemplateModal({ open: false })}
         onSave={saveTemplate}
-        onDelete={
-          templateModal.template
-            ? () => handleDeleteTemplateFromModal(templateModal.template!)
-            : undefined
-        }
+        onDelete={templateModal.template ? deleteTemplateFromModal : undefined}
         saving={saving}
         dict={dict}
       />
@@ -293,8 +550,26 @@ export function IntegrationConfigPageContent({
         onClose={() => setPickerOpen(false)}
         onSelect={handleTemplatePicked}
         onSelectNative={handleNativePicked}
+        onSelectManagedGeocoding={
+          isPlatformOwner ? selectManagedGeocoding : undefined
+        }
+        managedGeocodingInPlatform={inPlatformScope}
+        onSelectManagedBigQuery={
+          isPlatformOwner ? selectManagedBigQuery : undefined
+        }
         dict={dict}
       />
+
+      {isPlatformOwner && (
+        <ManagedGeocodingProviderModal
+          isOpen={providerSetupOpen}
+          mode={inPlatformScope ? "platform" : "organization"}
+          dict={dict}
+          providerDict={platformGeocodingDict(rootDict)}
+          onClose={() => setProviderSetupOpen(false)}
+          onSaved={handleProviderSaved}
+        />
+      )}
 
       <ConnectionFormModal
         show={connectionModal.open}
@@ -305,15 +580,10 @@ export function IntegrationConfigPageContent({
         onClose={() => setConnectionModal({ open: false })}
         onSave={saveConnection}
         onDelete={
-          connectionModal.connection
-            ? () => handleDeleteConnectionFromModal(connectionModal.connection!)
-            : undefined
+          connectionModal.connection ? deleteConnectionFromModal : undefined
         }
-        onTest={
-          connectionModal.connection
-            ? () => testInstance(connectionModal.connection!.id)
-            : undefined
-        }
+        onTest={testInstance}
+        onTestDraft={testDraft}
         saving={saving}
         dict={dict}
       />
@@ -346,31 +616,11 @@ export function IntegrationConfigPageContent({
         loading={saving}
         dict={dict}
       />
-    </div>
+    </SettingsPageShell>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-
-function SectionHeader({
-  title,
-  help,
-  action,
-}: Readonly<{ title: string; help: string; action: React.ReactNode }>) {
-  return (
-    <div className="flex items-end justify-between gap-4 border-t border-gray-200 pt-5 dark:border-gray-700">
-      <div className="min-w-0">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {title}
-        </h2>
-        <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-          {help}
-        </p>
-      </div>
-      {action}
-    </div>
-  );
-}
 
 /**
  * The API refuses to delete a template that connections still instance. Saying so in the
@@ -389,6 +639,13 @@ function templateInUseWarning(
 }
 
 /** The API's own reason when it gave one, so a 409 names what blocked it. */
+function platformGeocodingDict(rootDict: I18nRecord): I18nRecord {
+  const pages = rootDict.pages as I18nRecord | undefined;
+  const settings = pages?.userSettings as I18nRecord | undefined;
+  const platform = settings?.platform as I18nRecord | undefined;
+  return (platform?.geocoding as I18nRecord) ?? {};
+}
+
 function messageOf(cause: unknown, fallback: string): string {
   const message = cause instanceof Error ? cause.message : "";
   return message || fallback;

@@ -1,6 +1,9 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
+import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -24,25 +27,36 @@ public class IntegrationConnectionResolver {
     private final IntegrationConnectionRepository connectionRepository;
     private final CredentialProfileRepository credentialProfileRepository;
     private final IntegrationSecretCipher secretCipher;
+    private final ManagedGoogleIdentity managed;
 
     @Inject
     public IntegrationConnectionResolver(
             IntegrationConnectionRepository connectionRepository,
             CredentialProfileRepository credentialProfileRepository,
-            IntegrationSecretCipher secretCipher) {
+            IntegrationSecretCipher secretCipher,
+            ManagedGoogleIdentity managed) {
         this.connectionRepository = connectionRepository;
         this.credentialProfileRepository = credentialProfileRepository;
         this.secretCipher = secretCipher;
+        this.managed = managed;
+    }
+
+    public IntegrationConnectionResolver(
+            IntegrationConnectionRepository connectionRepository,
+            CredentialProfileRepository credentialProfileRepository,
+            IntegrationSecretCipher secretCipher) {
+        this(connectionRepository, credentialProfileRepository, secretCipher, ManagedGoogleIdentity.NONE);
     }
 
     /**
-     * @throws ConnectionResolutionException if no usable connection of {@code providerType}
-     *         is configured for {@code tenantCode}, or its credential cannot be read.
+     * @throws ConnectionNotConfiguredException if no connection of {@code providerType} is configured for
+     *         {@code tenantCode}
+     * @throws ConnectionResolutionException if its credential cannot be read
      */
     public ResolvedConnection resolve(String tenantCode, ProviderType providerType) {
         IntegrationConnection connection = connectionRepository.findActiveByProvider(tenantCode, providerType);
         if (connection == null) {
-            throw new ConnectionResolutionException(
+            throw new ConnectionNotConfiguredException(
                     "No usable " + providerType + " connection is configured for this organization");
         }
         return withCredential(tenantCode, connection, providerType.toString());
@@ -69,6 +83,11 @@ public class IntegrationConnectionResolver {
                     "Connection " + connectionId + " does not exist for this organization");
         }
         return withCredential(tenantCode, connection, "connection " + connectionId);
+    }
+
+    /** Resolves a connection already in hand, such as one being tested before it is saved. */
+    public ResolvedConnection resolve(String tenantCode, IntegrationConnection connection) {
+        return withCredential(tenantCode, connection, "connection");
     }
 
     /** Resolves one ACTIVE tenant-owned snapshot for dashboard execution. */
@@ -114,7 +133,20 @@ public class IntegrationConnectionResolver {
                 secret,
                 credential.authType(),
                 credential.credentialType(),
-                credential.publicConfig());
+                publicConfig(tenantCode, credential, label));
+    }
+
+    /** A managed Google credential always names this tenant's own account, whatever it stored. */
+    private Map<String, Object> publicConfig(String tenantCode, CredentialProfile credential, String label) {
+        if (credential.authType() != AuthType.GOOGLE_SERVICE_ACCOUNT
+                || !ManagedGoogleIdentity.isManaged(credential.publicConfig())) {
+            return credential.publicConfig();
+        }
+        try {
+            return managed.bind(tenantCode, credential.publicConfig());
+        } catch (ManagedGoogleIdentityUnavailableException e) {
+            throw new ConnectionResolutionException(e.getMessage() + " (" + label + ")");
+        }
     }
 
     /**
@@ -133,5 +165,29 @@ public class IntegrationConnectionResolver {
             return Optional.empty();
         }
         return Optional.of(new InboundChannelRef(connection.tenantCode(), connection.id()));
+    }
+
+    /**
+     * The webhook keys of the active WHATSAPP connection {@code connectionId}, of any tenant. Empty when there is
+     * no such connection or its credential cannot be read, so the webhook refuses the request.
+     */
+    public Optional<WhatsAppWebhookKeys> whatsAppWebhookKeys(String connectionId) {
+        IntegrationConnection connection = connectionRepository.findActiveWhatsAppById(connectionId);
+        if (connection == null) {
+            return Optional.empty();
+        }
+        ResolvedConnection resolved;
+        try {
+            resolved = withCredential(connection.tenantCode(), connection, "WhatsApp connection");
+        } catch (ConnectionResolutionException e) {
+            return Optional.empty();
+        }
+        return Optional.of(new WhatsAppWebhookKeys(connection.tenantCode(), connection.id(),
+                blankIfNull(resolved.secretString(WhatsAppWebhookKeys.APP_SECRET)),
+                blankIfNull(resolved.secretString(WhatsAppWebhookKeys.VERIFY_TOKEN))));
+    }
+
+    private static String blankIfNull(String value) {
+        return value == null ? "" : value;
     }
 }

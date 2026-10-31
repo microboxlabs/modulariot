@@ -17,10 +17,12 @@ import {
   publishDraft,
   publishPlan,
   type PublishPlan,
+  type SymptomVersion,
   type VersionBump,
 } from "./maintainer-api";
 import { useSymptomScope } from "./symptom-scope";
 import { BumpBadge } from "./ui/badges";
+import Select from "./ui/select";
 
 const BUMPS: VersionBump[] = ["PATCH", "MINOR", "MAJOR"];
 
@@ -68,7 +70,7 @@ export default function PublishDialog({
   open: boolean;
   d: I18nRecord;
   onClose: () => void;
-  onPublished: () => void;
+  onPublished: (version: SymptomVersion) => void;
 }>) {
   const scope = useSymptomScope();
   const [plan, setPlan] = useState<PublishPlan | null>(null);
@@ -102,8 +104,9 @@ export default function PublishDialog({
     setBusy(true);
     setError(null);
     try {
-      await publishDraft(id, { reason: reason.trim(), bump }, scope);
-      onPublished();
+      onPublished(
+        await publishDraft(id, { reason: reason.trim(), bump }, scope)
+      );
     } catch (e) {
       setError(publishError(e, d));
     } finally {
@@ -119,13 +122,13 @@ export default function PublishDialog({
         <span className="block">{tr("publishOf", d, { name })}</span>
         {plan?.bump && bump && (
           <span className="mt-1 flex flex-wrap items-center gap-2 text-sm font-normal">
-            <span className="font-mono text-gray-500">
+            <span className="font-mono text-gray-500 dark:text-gray-400">
               {current ?? tr("unpublishedShort", d)}
             </span>
             <span aria-hidden>→</span>
             <span className="font-mono font-semibold">{target}</span>
             <BumpBadge bump={bump} d={d} />
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {trDynamic(BUMP_WHY[bump], d)}
             </span>
           </span>
@@ -152,7 +155,7 @@ export default function PublishDialog({
             {higher.length > 0 && (
               <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                 <span>{tr("raiseTo", d)}</span>
-                <select
+                <Select
                   className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
                   value={raise ?? ""}
                   onChange={(e) =>
@@ -165,7 +168,7 @@ export default function PublishDialog({
                       {trDynamic(BUMP_LABEL[b], d)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             {errors > 0 && (
@@ -188,7 +191,9 @@ export default function PublishDialog({
                 placeholder={tr("reasonPlaceholder", d)}
               />
             </div>
-            <p className="text-[11px] text-gray-500">{tr("versionsNote", d)}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              {tr("versionsNote", d)}
+            </p>
           </div>
         )}
         {error && (

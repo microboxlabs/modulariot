@@ -12,7 +12,9 @@ import jakarta.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -34,7 +36,8 @@ import org.jboss.logging.Logger;
  *       in a topology where nothing kicks.</li>
  * </ul>
  *
- * <p>Off by default ({@code miot.integrations.modulith-worker.enabled}). Per-handler
+ * <p>On by default; {@code miot.integrations.modulith-worker.enabled=false} keeps a local modulith that shares a
+ * deployed database from running its jobs. Per-handler
  * readiness (e.g. a downstream base URL) is the handler's own concern via
  * {@link ModulithJobHandler#isReady()}.
  */
@@ -55,7 +58,7 @@ public class ModulithJobWorker {
     ModulithJobWorker(
             AsyncJobService jobService,
             Instance<ModulithJobHandler> handlers,
-            @ConfigProperty(name = "miot.integrations.modulith-worker.enabled", defaultValue = "false")
+            @ConfigProperty(name = "miot.integrations.modulith-worker.enabled", defaultValue = "true")
                     boolean enabled,
             @ConfigProperty(name = "miot.integrations.modulith-worker.claim-limit", defaultValue = "20")
                     int claimLimit,
@@ -107,6 +110,15 @@ public class ModulithJobWorker {
         }
     }
 
+    /** Reject internal job types even on instances where the optional handler is not loaded. */
+    public boolean isInternalOnly(String jobType) {
+        if (InternalJobTypes.contains(jobType)) {
+            return true;
+        }
+        ModulithJobHandler handler = jobType == null ? null : handlers.get(jobType);
+        return handler != null && handler.internalOnly();
+    }
+
     boolean hasHandledLaneJob(EnqueueJobsResponse response) {
         if (response == null || response.created() == null) {
             return false;
@@ -126,9 +138,14 @@ public class ModulithJobWorker {
         }
         int remaining = Math.max(claimLimit, 1);
         while (remaining-- > 0) {
+            Set<String> readyTypes = readyJobTypes();
+            if (readyTypes.isEmpty()) {
+                return;
+            }
             List<AsyncJob> batch;
             try {
-                batch = jobService.claimForExecutor(ModulithJobHandler.EXECUTOR, workerId, 1, leaseSeconds);
+                batch = jobService.claimForExecutor(ModulithJobHandler.EXECUTOR, readyTypes, workerId, 1,
+                        leaseSeconds);
             } catch (Exception e) {
                 LOG.error("modulith-worker claim failed — reconciler will retry", e);
                 return;
@@ -146,6 +163,13 @@ public class ModulithJobWorker {
             LOG.warn("modulith-worker enabled but no handler is ready (downstream config missing) — skipping");
         }
         return ready;
+    }
+
+    private Set<String> readyJobTypes() {
+        return handlers.entrySet().stream()
+                .filter(entry -> entry.getValue().isReady())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
     }
 
     private void executeAndReport(AsyncJob job) {

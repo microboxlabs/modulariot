@@ -30,11 +30,14 @@ import {
 import { familyLabel, stateLabel } from "./symptom-labels";
 import { isTemplateScope, useSymptomScope } from "./symptom-scope";
 import { MUTED, Tile } from "./ui/card";
+import FilterStrip from "@/features/common/components/filter-strip";
+import LayoutToggle, {
+  type CatalogLayout,
+} from "@/features/common/components/layout-toggle";
 import { FilterChip } from "./ui/filter-chip";
 import { STATES } from "./ui/state";
 
 type Filters = Record<CatalogFilterKey, string>;
-type Layout = "cards" | "list";
 
 const EMPTY: Filters = {
   family: "",
@@ -99,7 +102,7 @@ export default function SymptomCatalog({
   const { isPlatformOwner } = useIsPlatformOwner();
   const isOwner = template ? isPlatformOwner : canMaintain;
   const [filters, setFilters] = useState<Filters>(EMPTY);
-  const [layout, setLayout] = useState<Layout>("cards");
+  const [layout, setLayout] = useState<CatalogLayout>("cards");
   const [creating, setCreating] = useState(false);
   const [editingTeam, setEditingTeam] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -188,16 +191,12 @@ export default function SymptomCatalog({
         <Breadcrumb
           dict={dict?.breadcrumb as I18nRecord}
           lang={lang}
-          path={
-            template
-              ? ["user", "settings", "platform", "symptomTemplates"]
-              : ["user", "settings", "symptomCatalog"]
-          }
+          path={["user", "settings", "symptomCatalog"]}
           disableLinks
         />
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
+      <FilterStrip>
         {filterDefs.map((f) => (
           <FilterChip
             key={f.key}
@@ -208,7 +207,7 @@ export default function SymptomCatalog({
             onChange={(v) => setFilters({ ...filters, [f.key]: v })}
           />
         ))}
-      </div>
+      </FilterStrip>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
@@ -236,23 +235,11 @@ export default function SymptomCatalog({
               </p>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <div className="flex rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
-                {(["cards", "list"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    aria-pressed={layout === v}
-                    onClick={() => setLayout(v)}
-                    className={`rounded-md px-2.5 py-1 text-xs ${
-                      layout === v
-                        ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
-                        : MUTED
-                    }`}
-                  >
-                    {v === "cards" ? tr("viewCards", d) : tr("viewList", d)}
-                  </button>
-                ))}
-              </div>
+              <LayoutToggle
+                layout={layout}
+                labels={{ cards: tr("viewCards", d), list: tr("viewList", d) }}
+                onLayout={setLayout}
+              />
               {isOwner && (
                 <button
                   type="button"

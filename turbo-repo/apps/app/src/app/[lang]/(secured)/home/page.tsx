@@ -6,8 +6,10 @@ import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { DashboardLanding } from "@/features/dashboard/components/dashboard-landing/dashboard-landing";
 import { guardPage } from "@/features/auth/access/server-access";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
+import { requireDashboards } from "@/features/layout/services/dashboard-guard";
 
 export default async function HomePage(props: ParamsWithLang) {
+  requireDashboards("legacy");
   await guardPage(ACCESS_RULES.dashboards, "/home");
   const { lang } = await props.params;
 

@@ -9,6 +9,7 @@ import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.pgclient.PgConnectOptions;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -73,6 +74,7 @@ class PgTreatmentReadsTest {
                 + "end_time timestamptz, PRIMARY KEY (trip_id, asset_id))");
         run("CREATE TABLE public.historical_trip (trip_id varchar, asset_id varchar, start_time timestamptz, "
                 + "end_time timestamptz, closed_timestamp timestamptz, PRIMARY KEY (trip_id, asset_id))");
+        run("CREATE VIEW public.v_trips AS SELECT trip_id, asset_id, start_time FROM public.live_trip UNION ALL SELECT trip_id, asset_id, start_time FROM public.historical_trip");
         run("CREATE TABLE public.asset_client_map (asset_id text, shared_client_id text, active boolean, "
                 + "valid_from timestamptz, valid_to timestamptz, PRIMARY KEY (asset_id, shared_client_id))");
         run("CREATE TABLE public.asset_data (asset_id varchar, \"timestamp\" timestamptz, speed float8, "
@@ -82,6 +84,11 @@ class PgTreatmentReadsTest {
                 CREATE FUNCTION public.api_request_symptoms_client_id() RETURNS varchar LANGUAGE sql STABLE AS $$
                     SELECT CASE c WHEN 'org-a' THEN 'stored-a' ELSE c END
                     FROM (SELECT nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub' AS c) x $$""");
+        run("""
+                CREATE FUNCTION public.api_modular_treatments_geofences_service(p_trip_id varchar)
+                RETURNS jsonb LANGUAGE sql AS $$
+                    SELECT jsonb_build_object('status', 200, 'data', jsonb_build_array(jsonb_build_object(
+                        'trip_id', p_trip_id, 'client', public.api_request_symptoms_client_id()))) $$""");
         run("""
                 CREATE FUNCTION public.api_modular_treatments_info_general(p_client_id varchar, p_symptom_id int,
                         p_dev_env int) RETURNS jsonb LANGUAGE sql AS $$
@@ -115,7 +122,10 @@ class PgTreatmentReadsTest {
                     ('EF56', 'org-b', true, null, null),
                     ('GH78', 'stored-a', true, now() - interval '10 days', null),
                     ('IJ90', 'org-b', true, null, null),
-                    ('KL12', 'org-b', true, null, null)""");
+                    ('KL12', 'org-b', true, null, null),
+                    ('MN34', 'org-b', true, now() - interval '1 hour', null),
+                    ('OP56', 'org-c', true, null, now() - interval '30 minutes'),
+                    ('OP56', 'org-b', true, now() - interval '30 minutes', null)""");
         run("""
                 INSERT INTO public.asset_data
                 SELECT 'AB12', now() - interval '2 days' + i * interval '1 hour', 50, 90, public.miot_test_point(-70, -33)
@@ -128,6 +138,11 @@ class PgTreatmentReadsTest {
                 INSERT INTO public.asset_data VALUES
                     ('KL12', now() - interval '19 days', 1, 0, public.miot_test_point(-70, -33)),
                     ('KL12', now() - interval '10 days', 2, 0, public.miot_test_point(-70, -33))""");
+        run("""
+                INSERT INTO public.asset_data VALUES
+                    ('MN34', now() - interval '1 hour' - interval '2 seconds', 1, 0, public.miot_test_point(-70, -33)),
+                    ('OP56', now() - interval '40 minutes', 1, 0, public.miot_test_point(-70, -33)),
+                    ('OP56', now() - interval '20 minutes', 2, 0, public.miot_test_point(-70, -33))""");
     }
 
     @AfterAll
@@ -138,6 +153,8 @@ class PgTreatmentReadsTest {
     }
 
     private static void dropAll() {
+        run("DROP VIEW IF EXISTS public.v_trips");
+        run("DROP FUNCTION IF EXISTS public.api_modular_treatments_geofences_service(varchar)");
         for (String table : new String[] {"symptoms", "live_trip", "historical_trip", "asset_client_map",
                 "asset_data"}) {
             run("DROP TABLE IF EXISTS public." + table);
@@ -166,6 +183,14 @@ class PgTreatmentReadsTest {
 
     private Optional<JsonNode> positions(String trip, String asset, String client) {
         return await(reads.tripPositions(trip, asset, client, ControlTowerTreatmentService.MAX_POSITIONS));
+    }
+
+    @Test
+    void legacyGeofencesRequireTheTripAssetsTenant() {
+        var own = reads.tripGeofences("T5", "org-a").await().atMost(WAIT).orElseThrow();
+        assertEquals("T5", own.path("data").get(0).path("trip_id").asText());
+        assertTrue(reads.tripGeofences("T5", "org-b").await().atMost(WAIT).isEmpty());
+        assertTrue(reads.tripGeofences("T1", "org-a").await().atMost(WAIT).isPresent());
     }
 
     @Test
@@ -235,5 +260,34 @@ class PgTreatmentReadsTest {
         JsonNode points = positions("T7", "KL12", "org-b").orElseThrow();
         assertEquals(1, points.size());
         assertEquals(1, points.get(0).path("speed").asInt());
+    }
+
+    @Test
+    void anAssetsPositionsInARangeAreSampledOldestFirst() {
+        Instant now = Instant.now();
+        JsonNode window = await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-b", 10));
+        assertTrue(window.size() <= 10 && window.size() >= 8, "size " + window.size());
+        assertEquals(1, window.get(0).path("speed").asInt());
+        assertEquals(25, window.get(window.size() - 1).path("speed").asInt());
+        assertEquals("T6", window.get(0).path("tripid").asText(), "sent during trip T6");
+        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(1)), now, "org-b", 10)).size());
+        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-x", 10)).size(),
+                "the asset is not mapped to org-x");
+    }
+
+    @Test
+    void aNewVehiclesFirstSignalBeforeItsMappingCounts() {
+        Instant now = Instant.now();
+        JsonNode first = await(reads.assetPositions("MN34", now.minus(Duration.ofHours(2)), now, "org-b", 10));
+        assertEquals(1, first.size(), "sent two seconds before the mapping was written");
+    }
+
+    @Test
+    void aSignalWhileAnotherClientHadTheVehicleDoesNotCount() {
+        Instant now = Instant.now();
+        JsonNode points = await(reads.assetPositions("OP56", now.minus(Duration.ofHours(1)), now, "org-b", 10));
+        assertEquals(1, points.size());
+        assertEquals(2, points.get(0).path("speed").asInt());
+        assertTrue(points.get(0).path("tripid").isNull(), "no trip");
     }
 }

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.persistence;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.core.db.PgTx;
 import com.microboxlabs.miot.integrations.domain.JobLedgerFacets;
 import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.domain.JobState;
@@ -14,6 +15,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,13 +88,16 @@ public class AsyncJobRepository {
      * runnability + chain-head + lease semantics to {@link #CLAIM}, minus the
      * {@code tenant_code} filter, so one worker drains the executor's lane
      * across all tenants. Chain scoping stays per-tenant (the NOT EXISTS still
-     * joins {@code p.tenant_code = j.tenant_code}).
+     * joins {@code p.tenant_code = j.tenant_code}). Only the job types in $5 are
+     * claimed, so an instance without a type's handler leaves its jobs for one
+     * that has it.
      */
     private static final String CLAIM_ANY_TENANT = """
             WITH runnable AS (
                 SELECT j.id AS job_id
                 FROM miot_integrations.async_jobs j
                 WHERE j.executor = $1
+                  AND j.job_type = ANY($5::varchar[])
                   AND j.attempts < j.max_attempts
                   AND (
                       (j.state = 'PENDING' AND (j.next_retry_at IS NULL OR j.next_retry_at <= now()))
@@ -235,7 +240,7 @@ public class AsyncJobRepository {
                 .addJsonObject(toJson(job.payload()))
                 .addInteger(job.maxAttempts())
                 .addString(job.enqueuedBy());
-        RowSet<Row> rows = client().preparedQuery(INSERT)
+        RowSet<Row> rows = PgTx.client(client()).preparedQuery(INSERT)
                 .execute(params)
                 .await().indefinitely();
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
@@ -258,13 +263,18 @@ public class AsyncJobRepository {
                 .toList();
     }
 
-    /** Tenant-agnostic lane claim for in-process workers. See {@link #CLAIM_ANY_TENANT}. */
-    public List<AsyncJob> claimForExecutor(String executor, String workerId, int limit, int leaseSeconds) {
+    /**
+     * Tenant-agnostic lane claim for in-process workers, of the {@code jobTypes} the worker can run. See
+     * {@link #CLAIM_ANY_TENANT}.
+     */
+    public List<AsyncJob> claimForExecutor(String executor, Collection<String> jobTypes, String workerId,
+            int limit, int leaseSeconds) {
         Tuple params = Tuple.tuple()
                 .addString(executor)
                 .addInteger(limit)
                 .addString(workerId)
-                .addInteger(leaseSeconds);
+                .addInteger(leaseSeconds)
+                .addArrayOfString(jobTypes.toArray(String[]::new));
         return client().preparedQuery(CLAIM_ANY_TENANT)
                 .execute(params)
                 .await().indefinitely()

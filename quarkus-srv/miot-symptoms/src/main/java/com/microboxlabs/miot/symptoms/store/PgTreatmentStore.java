@@ -99,6 +99,8 @@ public class PgTreatmentStore implements TreatmentStore {
             FROM miot_symptoms.treatment_action
             WHERE tenant_code = $1 AND kind = 'CALL' AND contact_id IS NOT NULL
             GROUP BY contact_id""";
+    private static final String PAGE_CONTACT_STATS = CONTACT_STATS.replace(
+            "GROUP BY contact_id", "AND contact_id = ANY($2) GROUP BY contact_id");
 
     private static final String FIRST_OPENED = """
             SELECT symptom_id, min(opened_at) AS opened_at FROM miot_symptoms.treatment
@@ -224,7 +226,20 @@ public class PgTreatmentStore implements TreatmentStore {
 
     @Override
     public List<ContactCallStats> contactStats(String tenantCode) {
-        return query(pool.get(), CONTACT_STATS, Tuple.of(tenantCode)).stream()
+        return stats(query(pool.get(), CONTACT_STATS, Tuple.of(tenantCode)));
+    }
+
+    @Override
+    public List<ContactCallStats> contactStats(String tenantCode, List<String> contactIds) {
+        UUID[] ids = contactIds.stream().map(PgIds::parse).filter(Objects::nonNull).toArray(UUID[]::new);
+        if (ids.length == 0) {
+            return List.of();
+        }
+        return stats(query(pool.get(), PAGE_CONTACT_STATS, Tuple.of(tenantCode, ids)));
+    }
+
+    private static List<ContactCallStats> stats(RowSet<Row> rows) {
+        return rows.stream()
                 .map(r -> new ContactCallStats(text(r.getUUID("contact_id")), PgJson.time(r, "last_called_at"),
                         r.getLong("answered"), r.getLong("missed")))
                 .toList();

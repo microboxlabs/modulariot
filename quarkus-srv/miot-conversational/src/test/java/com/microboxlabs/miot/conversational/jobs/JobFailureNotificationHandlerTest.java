@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.conversational.domain.Channel;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageDirection;
 import com.microboxlabs.miot.conversational.domain.MessageRole;
@@ -144,7 +145,7 @@ class JobFailureNotificationHandlerTest {
         RuntimeException throwFirst;
 
         FakeMessaging() {
-            super(null, null, null, null);
+            super(null, null, null, null, null);
         }
 
         @Override
@@ -166,7 +167,8 @@ class JobFailureNotificationHandlerTest {
                     failed ? null : "wamid.test",
                     failed ? MessageStatus.FAILED : MessageStatus.SENT,
                     failed ? "Meta 400" : null,
-                    "job-failure-notifier", null, null, Map.of(), null, null, null, null);
+                    "job-failure-notifier", null, null, Map.of(), null, null, null, null,
+                    Channel.WHATSAPP, request.to(), null, null, null);
         }
     }
 }

@@ -1,6 +1,12 @@
 import { auth } from "@/auth";
 import { NextResponse, NextRequest } from "next/server";
 
+import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  isTripsModuleTripId,
+  tripIdOf,
+} from "@/features/symptoms/model/treatment-link";
+
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_treatments_geofences_service`;
 
 import {
@@ -26,11 +32,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const tripId = tripIdOf(req.nextUrl.searchParams.get("tripId"));
+    if (!tripId)
+      return NextResponse.json({ error: "Missing tripId" }, { status: 400 });
+
+    if (!process.env.STREAMHUB_IOT_URL || isTripsModuleTripId(tripId)) {
+      const response = await forwardControlTowerMap(
+        `trips/${encodeURIComponent(tripId)}/geofences`
+      );
+      if (!response.ok) return response;
+      return NextResponse.json({ data: await response.json() });
+    }
+
     const token = await authToken.getToken();
-
-    const tripId = req.nextUrl.searchParams.get("tripId");
-
-    if (!tripId) return NextResponse.error();
 
     const response = await fetch(SYMPTOMS_API_URL + "?p_trip_id=" + tripId, {
       headers: {
@@ -43,7 +57,7 @@ export async function GET(req: NextRequest) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const apiData = await response.json();
+    const apiData = response.status === 204 ? [] : await response.json();
 
     return NextResponse.json(apiData);
   } catch (error) {

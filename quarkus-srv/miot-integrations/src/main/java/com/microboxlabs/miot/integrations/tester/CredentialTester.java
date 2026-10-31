@@ -18,6 +18,11 @@ public interface CredentialTester {
 
     boolean supports(CredentialType type);
 
+    /** For a tester that only handles a tagged variant of a type, such as a provider's bearer token. */
+    default boolean supports(CredentialType type, Map<String, Object> publicConfig) {
+        return supports(type);
+    }
+
     /**
      * @param secretConfig the decrypted secret half — never logged, never echoed back
      */

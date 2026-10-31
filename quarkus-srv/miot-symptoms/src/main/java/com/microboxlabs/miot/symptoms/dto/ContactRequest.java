@@ -23,11 +23,29 @@ public record ContactRequest(
         ContactChannels channels,
         List<String> tags,
         String memberUserId,
-        Boolean provisional) {
+        Boolean provisional,
+        String companyRut,
+        String companyTaxIdType) {
+
+    /** A request whose company tax id, when sent, is read as its current type. */
+    public ContactRequest(String name, String role, String phone, List<CallMethod> methods, Boolean active,
+            String notes, String nationalId, String nationalIdType, String company, String position,
+            ContactChannels channels, List<String> tags, String memberUserId, Boolean provisional, String companyRut) {
+        this(name, role, phone, methods, active, notes, nationalId, nationalIdType, company, position, channels, tags,
+                memberUserId, provisional, companyRut, null);
+    }
+
+    /** A request without the company's RUT. */
+    public ContactRequest(String name, String role, String phone, List<CallMethod> methods, Boolean active,
+            String notes, String nationalId, String nationalIdType, String company, String position,
+            ContactChannels channels, List<String> tags, String memberUserId, Boolean provisional) {
+        this(name, role, phone, methods, active, notes, nationalId, nationalIdType, company, position, channels, tags,
+                memberUserId, provisional, null, null);
+    }
 
     /** A request with only the original fields. */
     public ContactRequest(
             String name, String role, String phone, List<CallMethod> methods, Boolean active, String notes) {
-        this(name, role, phone, methods, active, notes, null, null, null, null, null, null, null, null);
+        this(name, role, phone, methods, active, notes, null, null, null, null, null, null, null, null, null, null);
     }
 }

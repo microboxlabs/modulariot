@@ -64,7 +64,8 @@ describe("PublishDialog", () => {
 
   it("offers only higher bumps and publishes the one chosen", async () => {
     api.publishPlan.mockResolvedValue(plan());
-    api.publishDraft.mockResolvedValue({});
+    const version = { version: "1.0.0", status: "PUBLISHED" };
+    api.publishDraft.mockResolvedValue(version);
     const onPublished = open("0.3.0");
 
     const raise = (await screen.findByLabelText(
@@ -86,7 +87,7 @@ describe("PublishDialog", () => {
     expect(publish).toBeEnabled();
     fireEvent.click(publish);
 
-    await waitFor(() => expect(onPublished).toHaveBeenCalled());
+    await waitFor(() => expect(onPublished).toHaveBeenCalledWith(version));
     expect(api.publishDraft).toHaveBeenCalledWith(
       "s1",
       { reason: "Acuerdo", bump: "MAJOR" },

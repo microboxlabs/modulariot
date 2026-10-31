@@ -3,7 +3,10 @@
 import { ApiError } from "@/features/settings-admin/data/json-client";
 import {
   AUTH0_M2M_PROVIDER,
+  GOOGLE_MAPS_PROVIDER,
+  MAPBOX_PROVIDER,
   RESEND_PROVIDER,
+  WHATSAPP_PROVIDER,
   buildAuth0TokenUrl,
   type Auth0M2MFormData,
   type AzureEntraFormData,
@@ -98,9 +101,17 @@ async function sendJson<T>(
  */
 function toApiCredentialType(typeId: CredentialTypeId): CredentialTypeId {
   if (typeId === "AUTH0_M2M") return "OAUTH2_CLIENT_CREDENTIALS";
-  if (typeId === "RESEND") return "BEARER_TOKEN";
+  if (TAGGED_BEARER_TYPES.has(typeId)) return "BEARER_TOKEN";
   return typeId;
 }
+
+/** Bearer tokens told apart only by `publicConfig.provider`. */
+const TAGGED_BEARER_TYPES = new Map<CredentialTypeId, string>([
+  ["RESEND", RESEND_PROVIDER],
+  ["WHATSAPP", WHATSAPP_PROVIDER],
+  ["MAPBOX", MAPBOX_PROVIDER],
+  ["GOOGLE_MAPS", GOOGLE_MAPS_PROVIDER],
+]);
 
 function fromApiCredentialType(
   response: CredentialProfileResponse
@@ -111,11 +122,10 @@ function fromApiCredentialType(
   ) {
     return "AUTH0_M2M";
   }
-  if (
-    response.credentialType === "BEARER_TOKEN" &&
-    response.publicConfig?.provider === RESEND_PROVIDER
-  ) {
-    return "RESEND";
+  if (response.credentialType === "BEARER_TOKEN") {
+    for (const [typeId, provider] of TAGGED_BEARER_TYPES) {
+      if (response.publicConfig?.provider === provider) return typeId;
+    }
   }
   return response.credentialType;
 }
@@ -174,16 +184,31 @@ function isBearerForm(form: CredentialFormData): form is BearerTokenFormData {
   return "token" in form;
 }
 
-/**
- * The secret half. A service account's secret is its private key, a bearer
- * credential's is the token; every OAuth2 flavour carries a client secret.
- */
+/** The token and, on a WhatsApp credential, the webhook keys that were filled in. */
+function bearerSecret(
+  form: BearerTokenFormData
+): Record<string, string> | undefined {
+  const entries: [string, string | undefined][] = [["token", form.token]];
+  if (form.provider === WHATSAPP_PROVIDER) {
+    entries.push(
+      ["app_secret", form.appSecret],
+      ["verify_token", form.verifyToken]
+    );
+  }
+  const secret: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    const trimmed = value?.trim();
+    if (trimmed) secret[key] = trimmed;
+  }
+  return Object.keys(secret).length > 0 ? secret : undefined;
+}
+
+/** The secret half. A service account uses its private key; OAuth2 uses a client secret. */
 function toSecretConfig(
   form: CredentialFormData
 ): Record<string, string> | undefined {
   if (isBearerForm(form)) {
-    const token = form.token?.trim();
-    return token ? { token } : undefined;
+    return bearerSecret(form);
   }
   const secret = (
     isGoogleForm(form) ? form.privateKey : form.clientSecret

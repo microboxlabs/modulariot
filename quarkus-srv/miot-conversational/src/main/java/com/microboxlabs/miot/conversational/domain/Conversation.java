@@ -1,14 +1,17 @@
 package com.microboxlabs.miot.conversational.domain;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 /**
- * One WhatsApp conversation per SERVICE (a "service thread") — a driver runs one service at a time
- * (presentDriver → confirmArrival → delivery tail), so {@code contextServiceCode} is the thread's
- * immutable identity, not a moving pointer. A phone hosts many service threads over time; inbound
- * replies attach to the newest thread for that phone. A thread with a null service is "unassigned"
- * (cold inbound before a service claims the number) and is adopted by the next trip-tied send.
- * Carries 24h-window state so the interaction history per service is recoverable.
+ * One conversation per context and participant. {@code contextKind} / {@code contextKey} say what
+ * it is about (for example a service code), both null for a conversation without context.
+ * {@code participantAddress} is the other side's phone (E.164) or email. Two people messaged
+ * about one service have two conversations.
+ *
+ * <p>{@code contextServiceCode} repeats {@code contextKey} for service conversations, and
+ * {@code phoneE164} / {@code waContactName} stay for WhatsApp readers. The WhatsApp 24 h window
+ * is {@code sessionExpiresAt}; {@code channelState} holds state of other channels.
  */
 public record Conversation(
         String id,
@@ -27,5 +30,14 @@ public record Conversation(
         String lastMessagePreview,
         int unreadCount,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {
+        OffsetDateTime updatedAt,
+        ContextKind contextKind,
+        String contextKey,
+        String participantAddress,
+        String participantContactId,
+        String participantRole,
+        String displayName,
+        Map<String, Object> channelState) {
+
+    public static final String ROLE_DRIVER = "driver";
 }

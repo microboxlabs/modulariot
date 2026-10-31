@@ -9,8 +9,7 @@ const level = (icu: number, when: string) => ({
   response: null,
 });
 
-const spec = (levels: ReturnType<typeof level>[]) =>
-  ({ levels }) as unknown as SymptomSpec;
+const spec = (levels: unknown[]) => ({ levels }) as unknown as SymptomSpec;
 
 describe("changedLevels", () => {
   it("marks the level whose rule changed", () => {
@@ -28,6 +27,18 @@ describe("changedLevels", () => {
       ),
     ]).toEqual([2]);
     expect([...changedLevels(spec([level(3, "c")]), published)]).toEqual([1]);
+  });
+
+  it("does not mark a level switched on and off again", () => {
+    const off = (icu: number, when: string | null) => ({
+      ...level(icu, when ?? ""),
+      applies: false,
+      when,
+    });
+    const published = spec([off(3, null), level(4, "true")]);
+    const draft = spec([off(3, "measure > 0"), level(4, "true")]);
+    expect(changedLevels(draft, published).size).toBe(0);
+    expect(changedLevels(spec([level(4, "true")]), published).size).toBe(0);
   });
 
   it("marks nothing when equal or before the first version", () => {

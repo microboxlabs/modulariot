@@ -52,11 +52,11 @@ export type PlatformSection =
   | "branding"
   | "superusers"
   | "models"
-  | "mail"
   | "vehicleImages"
+  | "geocodingPlan"
+  | "geocodingTenants"
   | "sharing"
   | "templates"
-  | "symptomTemplates"
   | "plan"
   | "usage";
 

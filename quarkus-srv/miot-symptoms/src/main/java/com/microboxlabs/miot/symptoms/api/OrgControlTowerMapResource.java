@@ -4,6 +4,7 @@ import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -11,12 +12,16 @@ import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
 import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
+import com.microboxlabs.miot.symptoms.map.TripWindows;
+import com.microboxlabs.miot.symptoms.service.TreatmentService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.PermissionsAllowed;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
+import jakarta.enterprise.inject.Instance;
+import com.microboxlabs.miot.core.trips.TripGeofences;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -51,6 +56,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final ControlTowerMapService map;
     private final ControlTowerTreatmentService treatments;
     private final EngineCaseService cases;
+    private final TreatmentService caseTreatments;
+    private final TripWindows tripWindows;
+    private final Instance<TripGeofences> tripGeofences;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -60,12 +68,18 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             SecurityIdentity identity,
             ControlTowerMapService map,
             ControlTowerTreatmentService treatments,
-            EngineCaseService cases) {
+            EngineCaseService cases,
+            TreatmentService caseTreatments,
+            TripWindows tripWindows,
+            Instance<TripGeofences> tripGeofences) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
         this.treatments = treatments;
         this.cases = cases;
+        this.caseTreatments = caseTreatments;
+        this.tripWindows = tripWindows;
+        this.tripGeofences = tripGeofences;
     }
 
     @GET
@@ -91,15 +105,35 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @GET
     @Path("/conditions")
     @Operation(operationId = "countSymptomConditions", summary = "Symptom counts by condition",
-            description = "Active symptoms, or with from and to (ISO-8601) the symptoms created in that range.")
+            description = "Active symptoms, with the evaluator's open cases, or with from and to (ISO-8601) the "
+                    + "symptoms created in that range.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> conditions(
             @PathParam("organizationId") String organizationId,
             @QueryParam("from") String from,
             @QueryParam("to") String to) {
-        tenantCode(organizationId);
-        return answer(() -> map.conditions(tenantContext.getClientId(), from, to));
+        String tenant = tenantCode(organizationId);
+        return answer(() -> {
+            Uni<JsonNode> gps = map.conditions(tenantContext.getClientId(), from, to);
+            if (notBlank(from) || notBlank(to)) {
+                return gps;
+            }
+            // As in the symptom list: the open cases count even when the GPS database cannot be read.
+            return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .emitOn(Infrastructure.getDefaultWorkerPool())
+                    .map(counts -> {
+                        JsonNode out = cases.withOpenCaseCounts(tenant, counts);
+                        if (counts == null && out.isEmpty()) {
+                            throw new ControlTowerMapService.UnavailableException("GPS data is not available");
+                        }
+                        return out;
+                    });
+        });
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     @GET
@@ -117,14 +151,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         String tenant = tenantCode(organizationId);
         return answer(() -> {
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
-            if (!EngineCaseService.showsOpenCases(filters)) {
+            if (!EngineCaseService.showsCases(filters)) {
                 return gps;
             }
-            // The evaluator's open cases go first; they still show when the GPS database cannot be read.
+            // The evaluator's cases go first; they still show when the GPS database cannot be read.
             return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
                     .emitOn(Infrastructure.getDefaultWorkerPool())
                     .map(page -> {
-                        JsonNode out = cases.withOpenCases(tenant, page);
+                        JsonNode out = cases.withCases(tenant, filters, page);
                         if (page == null && out.path("data").isEmpty()) {
                             throw new ControlTowerMapService.UnavailableException("GPS data is not available");
                         }
@@ -143,7 +177,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             @PathParam("symptomId") String symptomId) {
         String tenant = tenantCode(organizationId);
         if (engineCase(symptomId)) {
-            return answer(() -> blocking(() -> cases.header(tenant, Long.parseLong(symptomId.trim()))));
+            long id = Long.parseLong(symptomId.trim());
+            return answer(() -> blocking(() -> EngineCaseService.withTreatments(cases.header(tenant, id),
+                    caseTreatments.listForSymptom(tenant, id))));
         }
         return answer(() -> treatments.treatment(clientIds(), symptomId));
     }
@@ -164,16 +200,84 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     }
 
     @GET
+    @Path("/symptoms/{symptomId}/positions")
+    @Operation(operationId = "listMapSymptomPositions",
+            summary = "The vehicle's positions around one of the evaluator's cases",
+            description = "From an hour before the case opened, or from the vehicle's previous case when nearer, until "
+                    + "the case closed or now; oldest first, at most 20000. Only for the evaluator's cases (negative "
+                    + "ids): a symptom with a trip reads the trip's positions. 404 when the case is not the "
+                    + "organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomPositions(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId)) {
+            return Uni.createFrom().item(error(Response.Status.BAD_REQUEST,
+                    "Only the evaluator's cases have positions here; read the trip's"));
+        }
+        long id = Long.parseLong(symptomId.trim());
+        return answer(() -> Uni.createFrom().item(() -> cases.signalWindow(tenant, id))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .flatMap(w -> treatments.assetPositions(clientIds(), w.assetId(), w.from(), w.to())));
+    }
+
+    @GET
+    @Path("/trips/{tripId}/geofences")
+    @Operation(operationId = "listMapTripGeofences", summary = "The owning engine's trip geofences")
+    @PermissionsAllowed(value = {ControlTowerAccessCatalog.VIEW, "trips:view"}, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> tripGeofences(@PathParam("organizationId") String organizationId,
+            @PathParam("tripId") String tripId) {
+        String tenant = tenantCode(organizationId);
+        var moduleTrip = TripWindows.tripsModuleId(tripId);
+        if (moduleTrip.isEmpty()) {
+            return access(organizationId).flatMap(access -> access.can(ControlTowerAccessCatalog.VIEW)
+                    ? answer(() -> treatments.tripGeofences(clientIds(), tripId))
+                    : Uni.createFrom().item(error(Response.Status.FORBIDDEN, "Control Tower view permission required")));
+        }
+        return answer(() -> Uni.createFrom().item(() -> tripGeofences.isUnsatisfied()
+                ? (JsonNode) JsonNodeFactory.instance.arrayNode()
+                : tripGeofences.get().geofences(tenant, moduleTrip.get()))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool()));
+    }
+
+    @GET
     @Path("/trips/{tripId}/positions")
     @Operation(operationId = "listMapTripPositions", summary = "The asset's positions during a trip, oldest first",
-            description = "At most 20000, sampled evenly over the trip. 404 when the trip does not exist for the "
-                    + "asset or the asset was not the organization's when the trip started.")
+            description = "At most 20000, sampled evenly over the trip. A UUID is a trips-module trip: the truck's "
+                    + "positions from its departure until it ended or now, at most 7 days, none before it departs. "
+                    + "Any other id is a GPS database trip. 404 when the trip does not exist for the asset or the "
+                    + "asset was not the organization's when the trip started.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> tripPositions(@PathParam("organizationId") String organizationId,
             @PathParam("tripId") String tripId, @QueryParam("assetId") String assetId) {
+        String tenant = tenantCode(organizationId);
+        var moduleTrip = TripWindows.tripsModuleId(tripId);
+        if (moduleTrip.isEmpty()) {
+            return answer(() -> treatments.tripPositions(clientIds(), tripId, assetId));
+        }
+        return answer(() -> Uni.createFrom().item(() -> tripWindows.find(tenant, moduleTrip.get(), assetId)
+                        .orElseThrow(() -> new NoSuchElementException("Trip not found")))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .flatMap(w -> w.from() == null
+                        ? Uni.createFrom().item((JsonNode) JsonNodeFactory.instance.arrayNode())
+                        : treatments.assetPositions(clientIds(), assetId.trim(), w.from(), w.to())));
+    }
+
+    @GET
+    @Path("/assets/{assetId}/positions")
+    @Operation(operationId = "listMapAssetPositions", summary = "The asset's positions in a time range, oldest first",
+            description = "from and to are ISO-8601 date-times with an offset, from before to, at most 7 days apart "
+                    + "(400 otherwise). At most 20000, sampled evenly. Only the signals sent while the asset was the "
+                    + "organization's; an empty array when there are none or the asset is not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> assetPositions(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId, @QueryParam("from") String from, @QueryParam("to") String to) {
         tenantCode(organizationId);
-        return answer(() -> treatments.tripPositions(clientIds(), tripId, assetId));
+        return answer(() -> treatments.rangePositions(clientIds(), assetId, from, to));
     }
 
     /** The client id the symptom list reads as, so the treatment page shows the symptoms the list shows. */
@@ -198,6 +302,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return Uni.createFrom().item(error(Response.Status.BAD_REQUEST, e.getMessage()));
         }
         return data.map(body -> Response.ok(body).build())
+                .onFailure(IllegalArgumentException.class)
+                .recoverWithItem(e -> error(Response.Status.BAD_REQUEST, e.getMessage()))
                 .onFailure(NoSuchElementException.class)
                 .recoverWithItem(e -> error(Response.Status.NOT_FOUND, e.getMessage()))
                 .onFailure(ControlTowerMapService.UnavailableException.class)

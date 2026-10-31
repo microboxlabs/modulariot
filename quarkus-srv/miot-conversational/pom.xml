@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.38</version>
+        <version>0.5.39</version>
     </parent>
 
     <artifactId>miot-conversational</artifactId>
@@ -34,6 +34,17 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <!-- The scan of due conversation runs (rules.RunScheduler). -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
+        <dependency>
+            <!-- CEL, the language of a rule's trigger condition; the same version as miot-symptoms. -->
+            <groupId>dev.cel</groupId>
+            <artifactId>cel</artifactId>
+            <version>0.13.1</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

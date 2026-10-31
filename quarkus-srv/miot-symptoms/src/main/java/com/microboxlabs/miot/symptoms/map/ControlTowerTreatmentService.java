@@ -8,6 +8,10 @@ import com.microboxlabs.miot.symptoms.map.ControlTowerMapService.UnavailableExce
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -26,6 +30,7 @@ public class ControlTowerTreatmentService {
     private static final Logger LOG = Logger.getLogger(ControlTowerTreatmentService.class);
     private static final String FEATURES = "features";
     static final int MAX_POSITIONS = 20_000;
+    static final Duration MAX_RANGE = Duration.ofDays(7);
 
     private final TreatmentReads reads;
 
@@ -68,6 +73,14 @@ public class ControlTowerTreatmentService {
                 }));
     }
 
+    public Uni<JsonNode> tripGeofences(List<String> clientIds, String tripId) {
+        return guarded(() -> firstFound(clientIds, client -> reads.tripGeofences(tripId, client), "Trip not found")
+                .map(answer -> {
+                    JsonNode data = checked(answer).path("data");
+                    return data.isArray() ? data : JsonNodeFactory.instance.arrayNode();
+                }));
+    }
+
     /** The asset's positions during the trip, oldest first, sampled down to at most {@value #MAX_POSITIONS}. */
     public Uni<JsonNode> tripPositions(List<String> clientIds, String tripId, String assetId) {
         if (tripId == null || tripId.isBlank() || assetId == null || assetId.isBlank()) {
@@ -77,6 +90,54 @@ public class ControlTowerTreatmentService {
         String asset = assetId.trim();
         return guarded(() -> firstFound(clientIds, client -> reads.tripPositions(trip, asset, client, MAX_POSITIONS),
                 "Trip not found"));
+    }
+
+    /**
+     * The asset's positions from {@code from} to {@code to}, oldest first, at most {@value #MAX_POSITIONS}: those of
+     * the first client id that had the asset mapped, else none.
+     */
+    public Uni<JsonNode> assetPositions(List<String> clientIds, String assetId, Instant from, Instant to) {
+        if (assetId == null || assetId.isBlank() || from == null || to == null) {
+            throw new IllegalArgumentException("assetId, from and to are required");
+        }
+        String asset = assetId.trim();
+        return guarded(() -> {
+            Uni<JsonNode> found = Uni.createFrom().item(JsonNodeFactory.instance.arrayNode());
+            for (String client : clientIds) {
+                found = found.flatMap(previous -> previous.isEmpty()
+                        ? reads.assetPositions(asset, from, to, client, MAX_POSITIONS)
+                        : Uni.createFrom().item(previous));
+            }
+            return found;
+        });
+    }
+
+    /**
+     * The asset's positions in a range the caller picked: {@code from} and {@code to} are ISO-8601 instants or
+     * offset date-times, {@code from} before {@code to}, at most {@link #MAX_RANGE} apart. An asset that was not the
+     * organization's has none.
+     */
+    public Uni<JsonNode> rangePositions(List<String> clientIds, String assetId, String from, String to) {
+        Instant start = instant("from", from);
+        Instant end = instant("to", to);
+        if (!start.isBefore(end)) {
+            throw new IllegalArgumentException("from must be before to");
+        }
+        if (Duration.between(start, end).compareTo(MAX_RANGE) > 0) {
+            throw new IllegalArgumentException("The range may span at most " + MAX_RANGE.toDays() + " days");
+        }
+        return assetPositions(clientIds, assetId, start, end);
+    }
+
+    private static Instant instant(String name, String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException(name + " is required");
+        }
+        try {
+            return OffsetDateTime.parse(raw.trim()).toInstant();
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException(name + " must be an ISO-8601 date-time with an offset");
+        }
     }
 
     /** The first client id, in order and one at a time, for which {@code read} finds something. */

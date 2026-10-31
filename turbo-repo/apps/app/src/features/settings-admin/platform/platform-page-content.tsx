@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Spinner } from "flowbite-react";
+import { useCallback, useState, type ReactNode } from "react";
+import { Button, Spinner } from "flowbite-react";
 import {
   HiOutlineChartBar,
   HiOutlineChip,
   HiOutlineCreditCard,
+  HiOutlineGlobeAlt,
   HiOutlineKey,
-  HiOutlineLightningBolt,
-  HiOutlineMail,
+  HiOutlineMap,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
   HiOutlineTruck,
+  HiPlus,
   HiServer,
 } from "react-icons/hi";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import SettingsPageShell from "@/features/common/components/settings-page-shell";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import MailTemplateEditor from "../mail-templates/mail-template-editor";
@@ -23,11 +24,19 @@ import BrandingSection from "./branding-section";
 import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
-import PlatformMailSection from "./platform-mail-section";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
+import GeocodingPlanSection from "./geocoding-plan-section";
+import GeocodingTenantsSection from "./geocoding-tenants-section";
+import GeocodingTenantsToolbar from "./geocoding-tenants-toolbar";
+import {
+  DEFAULT_TENANT_SORT,
+  NO_TENANT_FILTERS,
+  type TenantFilters,
+  type TenantSort,
+} from "./geocoding-tenants-view";
+import { monthOf } from "@/features/geocoding/geocoding-plan-view";
 import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
-import SymptomTemplatesSection from "./symptom-templates-section";
 import PlatformSectionList, {
   type PlatformSectionEntry,
 } from "./platform-section-list";
@@ -37,6 +46,8 @@ import type { PlatformSection } from "./platform.types";
 interface PlatformPageContentProps {
   /** `pages.userSettings` subtree. */
   readonly dict: I18nRecord;
+  /** The whole dictionary; the filter badges translate their shared rows from it. */
+  readonly rootDict: I18nRecord;
   readonly lang: string;
 }
 
@@ -58,24 +69,39 @@ interface PlatformPageContentProps {
  */
 export default function PlatformPageContent({
   dict,
+  rootDict,
   lang,
 }: PlatformPageContentProps) {
   const platformDict = (dict?.platform as I18nRecord) ?? {};
   const brandingDict = (platformDict?.branding as I18nRecord) ?? {};
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
-  const mailDict = (platformDict?.mail as I18nRecord) ?? {};
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
+  const geocodingPlanDict = (platformDict?.geocodingPlan as I18nRecord) ?? {};
+  const geocodingTenantsDict =
+    (platformDict?.geocodingTenants as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
-  const symptomTemplatesDict =
-    (platformDict?.symptomTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
 
   const { isPlatformOwner, isLoading } = useIsPlatformOwner();
   const [selected, setSelected] = useState<PlatformSection>("branding");
+  const [tenantFilters, setTenantFilters] =
+    useState<TenantFilters>(NO_TENANT_FILTERS);
+  const [tenantSort, setTenantSort] = useState<TenantSort>(DEFAULT_TENANT_SORT);
+  const [tenantMonth, setTenantMonth] = useState(() => monthOf(new Date()));
+  const [assigning, setAssigning] = useState(false);
+  const assignDone = useCallback(() => setAssigning(false), []);
+  const onTenants = selected === "geocodingTenants";
+
+  const group = {
+    brand: tr("groups.brand", platformDict),
+    access: tr("groups.access", platformDict),
+    ai: tr("groups.ai", platformDict),
+    geocoding: tr("groups.geocoding", platformDict),
+  };
 
   const sections: readonly PlatformSectionEntry[] = [
     {
@@ -83,60 +109,70 @@ export default function PlatformPageContent({
       label: tr("title", brandingDict),
       description: tr("menuHint", brandingDict),
       icon: HiOutlinePhotograph,
-    },
-    {
-      id: "superusers",
-      label: tr("title", superusersDict),
-      description: tr("menuHint", superusersDict),
-      icon: HiOutlineKey,
-    },
-    {
-      id: "models",
-      label: tr("title", modelsDict),
-      description: tr("menuHint", modelsDict),
-      icon: HiOutlineChip,
-    },
-    {
-      id: "mail",
-      label: tr("title", mailDict),
-      description: tr("menuHint", mailDict),
-      icon: HiOutlineMail,
+      group: group.brand,
     },
     {
       id: "vehicleImages",
       label: tr("title", vehicleImagesDict),
       description: tr("menuHint", vehicleImagesDict),
       icon: HiOutlineTruck,
-    },
-    {
-      id: "sharing",
-      label: tr("title", sharingDict),
-      description: tr("menuHint", sharingDict),
-      icon: HiOutlineShare,
+      group: group.brand,
     },
     {
       id: "templates",
       label: tr("title", templatesDict),
       description: tr("menuHint", templatesDict),
       icon: HiOutlineTemplate,
+      group: group.brand,
     },
     {
-      id: "symptomTemplates",
-      label: tr("title", symptomTemplatesDict),
-      description: tr("menuHint", symptomTemplatesDict),
-      icon: HiOutlineLightningBolt,
+      id: "superusers",
+      label: tr("title", superusersDict),
+      description: tr("menuHint", superusersDict),
+      icon: HiOutlineKey,
+      group: group.access,
+    },
+    {
+      id: "sharing",
+      label: tr("title", sharingDict),
+      description: tr("menuHint", sharingDict),
+      icon: HiOutlineShare,
+      group: group.access,
+    },
+    {
+      id: "models",
+      label: tr("title", modelsDict),
+      description: tr("menuHint", modelsDict),
+      icon: HiOutlineChip,
+      group: group.ai,
     },
     {
       id: "plan",
       label: tr("title", planDict),
       description: tr("menuHint", planDict),
       icon: HiOutlineCreditCard,
+      group: group.ai,
     },
     {
       id: "usage",
       label: tr("title", usageDict),
       description: tr("menuHint", usageDict),
       icon: HiOutlineChartBar,
+      group: group.ai,
+    },
+    {
+      id: "geocodingTenants",
+      label: tr("menuTitle", geocodingTenantsDict),
+      description: tr("menuHint", geocodingTenantsDict),
+      icon: HiOutlineGlobeAlt,
+      group: group.geocoding,
+    },
+    {
+      id: "geocodingPlan",
+      label: tr("menuTitle", geocodingPlanDict),
+      description: tr("menuHint", geocodingPlanDict),
+      icon: HiOutlineMap,
+      group: group.geocoding,
     },
   ];
 
@@ -144,70 +180,81 @@ export default function PlatformPageContent({
     branding: <BrandingSection dict={brandingDict} lang={lang} />,
     superusers: <PlatformOwnersCard dict={superusersDict} />,
     models: <ModelProvidersSection dict={modelsDict} />,
-    mail: <PlatformMailSection dict={mailDict} />,
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
+    geocodingPlan: <GeocodingPlanSection dict={geocodingPlanDict} />,
+    geocodingTenants: (
+      <GeocodingTenantsSection
+        dict={geocodingTenantsDict}
+        lang={lang}
+        filters={tenantFilters}
+        sort={tenantSort}
+        month={tenantMonth}
+        assigning={assigning}
+        onAssignDone={assignDone}
+      />
+    ),
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
-    ),
-    symptomTemplates: (
-      <SymptomTemplatesSection dict={symptomTemplatesDict} lang={lang} />
     ),
     plan: <HarnessPlanSection dict={planDict} />,
     usage: <ModelUsageCard dict={usageDict} lang={lang} />,
   };
 
   return (
-    // Same shell as Settings > Organizations: a full-width breadcrumb bar
-    // outside the scroll container, so it never moves — including during
-    // rubber-band overscroll — above a capped content column whose list and
-    // detail panels scroll internally.
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
-        <Breadcrumb
-          dict={breadcrumbDict}
-          lang={lang}
-          path={["user", "settings", "platform"]}
-          disableLinks
-        />
-      </div>
+    <SettingsPageShell
+      breadcrumbDict={breadcrumbDict}
+      lang={lang}
+      path={["user", "settings", "platform"]}
+      icon={HiServer}
+      title={tr("title", platformDict)}
+      description={tr("description", platformDict)}
+      filters={
+        onTenants && (
+          <GeocodingTenantsToolbar
+            filters={tenantFilters}
+            onFiltersChange={setTenantFilters}
+            sort={tenantSort}
+            onSortChange={setTenantSort}
+            month={tenantMonth}
+            onMonthChange={setTenantMonth}
+            dict={geocodingTenantsDict}
+            rootDict={rootDict}
+            lang={lang}
+          />
+        )
+      }
+      actions={
+        onTenants && (
+          <Button color="blue" size="sm" onClick={() => setAssigning(true)}>
+            <HiPlus className="mr-1 h-4 w-4" />
+            {tr("assign", geocodingTenantsDict)}
+          </Button>
+        )
+      }
+    >
+      {isLoading && <Spinner size="md" />}
 
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 px-4 pt-2 pb-6 dark:bg-gray-900">
-        <div className="flex items-center gap-3">
-          <HiServer className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {tr("title", platformDict)}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("description", platformDict)}
-            </p>
+      {!isLoading && !isPlatformOwner && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-medium">{tr("notOwnerTitle", platformDict)}</p>
+          <p className="mt-1">{tr("notOwnerBody", platformDict)}</p>
+        </div>
+      )}
+
+      {!isLoading && isPlatformOwner && (
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
+          <PlatformSectionList
+            sections={sections}
+            selected={selected}
+            onSelect={setSelected}
+            dict={platformDict}
+          />
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+            {panels[selected]}
           </div>
         </div>
-
-        {isLoading && <Spinner size="md" />}
-
-        {!isLoading && !isPlatformOwner && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-            <p className="font-medium">{tr("notOwnerTitle", platformDict)}</p>
-            <p className="mt-1">{tr("notOwnerBody", platformDict)}</p>
-          </div>
-        )}
-
-        {!isLoading && isPlatformOwner && (
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
-            <PlatformSectionList
-              sections={sections}
-              selected={selected}
-              onSelect={setSelected}
-              dict={platformDict}
-            />
-            <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-              {panels[selected]}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </SettingsPageShell>
   );
 }

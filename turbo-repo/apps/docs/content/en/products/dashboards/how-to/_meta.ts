@@ -9,5 +9,9 @@ export default {
   'store-credentials': 'Store datasource credentials',
   'render-with-react': 'Render with React',
   'use-web-component': 'Use the Web Component',
-  'migrate-planner-dashboards': 'Migrate planner dashboards'
+  'migrate-planner-dashboards': 'Migrate planner dashboards',
+  'recipe-status-breakdown': 'Recipe: KPI per state and a 100% bar',
+  'recipe-filter-table': 'Recipe: filter a table by state',
+  'recipe-top-n': 'Recipe: top N as a horizontal bar',
+  'recipe-colors-per-state': 'Recipe: one color per state'
 }

@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.38</version>
+        <version>0.5.39</version>
     </parent>
 
     <artifactId>miot-cli</artifactId>
@@ -19,6 +19,10 @@
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-content-gcs</artifactId>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
@@ -53,6 +57,10 @@
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-symptoms</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-trips</artifactId>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>

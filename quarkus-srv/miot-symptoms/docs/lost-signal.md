@@ -110,3 +110,28 @@ A frame from inside the silence (taken after the newest frame before it) tells a
 | Close | `case.closed_by_operator`, as panic |
 
 An organization changes L by editing the level-2 rule. Symptoms copied from 1.0.0 keep their rules.
+
+## Shadow map, group outage and nearby units
+
+Every frame with a position adds to its grid cell (0.05°, about 5 km) of the shadow map, late frames too: they carry the real position of a silence. A frame is delayed when it arrives later than max(2 min, 3 × its sender's median delay), so a sender that forwards in batches is not read as poor coverage everywhere. Counters fade with a 7-day half-life.
+
+| Key | Content |
+|---|---|
+| `symptoms:cov:<sender>`, `symptoms:cov:*` | Per cell: frames, delayed frames and the last update (`{"f","d","t"}`), per sender and for all senders; TTL 30 days |
+| `symptoms:geo:<5 min bucket>` | Where vehicles reported (GEO set, `GEOADD`), only frames newer than the vehicle's newest; TTL 15 min |
+| `symptoms:lost:<sender>` | The sender's lost vehicles (set); TTL 1 day |
+| `symptoms:cohort:<sender>` | How many of the sender's vehicles are usually lost at once; time-weighted, 6 h half-life |
+
+| Field | Rule |
+|---|---|
+| `check.loss.low_coverage_zone` | The last position's cell has at least 20 frames and a delayed share ≥ max(0.3, 2 × the sender's own share everywhere), or ≥ 0.3 for all senders together |
+| `check.loss.cohort_outage` | The sender has at least 3 vehicles lost and at least 3 × its usual count |
+| `check.loss.nearby_reporting` | Vehicles that reported in the last two GEO buckets within 10 km of the last position (`GEORADIUS`, which older Redis also has) |
+
+The frame reads and writes the cells in the same pipelined round trips as the profiles. The return check carries `false` and `0` for the three.
+
+Template 2.1.0 (V0.12.5): while `cohort_outage` or `low_coverage_zone` holds, the case stays at level 1 until 180 min, when it reaches level 4 anyway.
+
+### First load
+
+`scripts/coverage-seed/` builds an initial 30-day map outside the runtime: `export.sql` exports one day of frames read-only, `seed.py` turns them into `HSET` commands in the detector's format. Review the output before piping it to `redis-cli`; it has not been run against any environment.

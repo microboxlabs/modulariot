@@ -47,7 +47,7 @@ Use a Mapbox server token, without URL restrictions, with permanent mode enabled
 **Pitfall:** with **Google Maps** as the provider, each call is charged and the place goes to review, because the platform does not store Google results (default setting, pending a review of its terms). Use Mapbox with permanent mode.
 </Callout>
 
-The card can still show **Draft · Never tested** after saving. That status does not block calls. **Test** checks the token: with Mapbox, at no cost; with Google, it geocodes an address and the provider charges for it.
+With Mapbox, saving checks the token at no cost and the card turns **Active**. Google is not tested on save: **Test** geocodes an address and the provider charges for it. The card's status does not block calls.
 
 ### Connect the organization
 
@@ -63,7 +63,7 @@ The **Geocoding · ModularIoT** card appears, active:
 
 The connection stores no token: it uses the platform's. Repeating the step does not create another one. If the organization had another geocoding connection, it is deleted.
 
-Without this connection, the organization still resolves by geofence, Plus Code, coordinates, internal addresses and cache. The only thing it does not do is call the provider: those places go to review with `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones`.
+Without this connection, the organization still resolves by geofence, Plus Code, coordinates, internal addresses and cache. The only thing it does not do is call the provider: those places go to review with `geocoding: this organization has no geocoding connection; a platform owner adds it in Settings › Connections`.
 
 To remove it, click its three dots and **Delete**.
 

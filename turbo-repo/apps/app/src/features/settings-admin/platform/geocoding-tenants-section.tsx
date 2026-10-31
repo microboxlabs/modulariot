@@ -126,7 +126,7 @@ export default function GeocodingTenantsSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <KpiStat
           icon={{ icon: HiOutlineOfficeBuilding }}
           title={{ text: tr("kpi.subscribed", dict), className: "text-xs" }}

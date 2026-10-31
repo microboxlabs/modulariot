@@ -70,7 +70,7 @@ A short code is completed with the center of the declared district. The platform
 ```
 
 <Callout type="warning">
-**Pitfall:** Peru has two districts named Miraflores (Lima and Arequipa). With `"district": "Miraflores"` and no `districtCode`, the district cannot be chosen and the place needs review with the note `a short plus code needs a district with a boundary`. Send the code: `"districtCode": "150122"`.
+**Pitfall:** Peru has two districts named Miraflores (Lima and Arequipa). With `"district": "Miraflores"` and no `districtCode`, the district cannot be chosen and the place needs review with the note `district Miraflores is ambiguous in PE; send its code`. Send the code: `"districtCode": "150122"`.
 </Callout>
 
 An invalid Plus Code does not stop the search: the platform moves on to the coordinates and then to the address. If no later source responds, the note is `plus code … is not valid`.
@@ -157,7 +157,7 @@ If none of the above responded, the platform calls the platform's provider (Mapb
 | Check | If it fails |
 | --- | --- |
 | With **Apply the quotas** on: the organization has a subscription and quota left, or its plan says **Charge overage** | It does not call the provider. Note `geocoding: the organization has no geocoding plan` or `geocoding: the organization used its N geocoding resolutions for this month` |
-| The organization has the **Geocoding · ModularIoT** connection in Connections | It does not call the provider. Note `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones` |
+| The organization has the **Geocoding · ModularIoT** connection in Connections | It does not call the provider. Note `geocoding: this organization has no geocoding connection; a platform owner adds it in Settings › Connections` |
 
 With **Apply the quotas** off, the quota is not checked. How to set up both in [Set up the provider](/en/products/geocoding/how-to/set-up-provider).
 

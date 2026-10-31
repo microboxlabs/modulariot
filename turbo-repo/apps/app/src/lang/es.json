@@ -1661,7 +1661,7 @@
           "title": "Geocodificación",
           "menuTitle": "Proveedor",
           "menuHint": "Proveedor que contrata la plataforma",
-          "description": "La plataforma contrata y paga el proveedor de geocodificación. Una organización lo usa, dentro de la cuota de su plan, cuando un dueño de la plataforma le agrega la conexión «Geocoding · proveedor de la plataforma» en Conexiones. Ninguna configura un proveedor propio.",
+          "description": "La plataforma contrata y paga el proveedor de geocodificación. Una organización lo usa, dentro de la cuota de su plan, cuando un dueño de la plataforma le agrega en Conexiones la conexión «Geocoding · proveedor de la plataforma», que queda con el nombre «Geocoding · ModularIoT». Ninguna configura un proveedor propio.",
           "provider": "Proveedor",
           "providerHelp": {
             "mapbox": "Mapbox Geocoding v6. Los resultados se guardan en la caché si el modo permanente está activo.",
@@ -1674,8 +1674,8 @@
           "credentialRequired": "Elige la credencial con el token del proveedor.",
           "permanent": "Modo permanente",
           "permanentHelp": "Permite guardar los resultados. Mapbox lo cobra aparte.",
-          "cost": "Nuestro costo por llamada (US$)",
-          "costHelp": "Lo que el proveedor cobra a la plataforma por llamada. Se copia en cada registro de uso. No es lo que paga la organización, que sale de su plan.",
+          "cost": "Nuestro costo por consulta (US$)",
+          "costHelp": "Lo que el proveedor cobra a la plataforma por consulta. Se copia en cada registro de uso. No es lo que paga la organización, que sale de su plan.",
           "costInvalid": "Ingresa un número, por ejemplo 0.005",
           "save": "Guardar",
           "remove": "Quitar",
@@ -1694,7 +1694,7 @@
           "menuTitle": "Plan",
           "menuHint": "Cuota por defecto, precios y si se aplican",
           "description": "Cuántas consultas al proveedor incluye el plan cada mes y cuánto cuestan. Solo cuentan las consultas al proveedor.",
-          "providerHint": "El proveedor es una conexión: Conexiones, en el scope Plataforma.",
+          "providerHint": "El proveedor es una conexión: Conexiones, en el ámbito Plataforma.",
           "enforced": "Aplicar las cuotas",
           "enforcedOn": "Una organización sin suscripción no consulta al proveedor. Al agotar su cuota se aplica lo que dice su suscripción.",
           "enforcedOff": "No se rechaza ninguna consulta. El uso igual se registra, se muestra y se alerta.",
@@ -3587,7 +3587,7 @@
           },
           "usage": {
             "label": "Uso mensual",
-            "description": "Llamadas al proveedor, cuota y cargo"
+            "description": "Consultas al proveedor, cuota y cargo"
           }
         },
         "review": {
@@ -3614,7 +3614,8 @@
             "point": "Punto",
             "noPoint": "Sin punto: haz clic en el mapa",
             "plusCode": "Plus Code (opcional)",
-            "save": "Validar y crear geocerca"
+            "save": "Validar y crear geocerca",
+            "mapUnavailable": "Este navegador no puede mostrar el mapa. Escriba el Plus Code del punto."
           },
           "reject": {
             "title": "Rechazar {name}",
@@ -3627,27 +3628,52 @@
             "distribution_center": "Centro de distribución",
             "customer": "Cliente",
             "zone": "Zona"
+          },
+          "notes": {
+            "pointInOtherDistrict": "El punto está en {found} ({foundCode}), no en {declared} ({declaredCode})",
+            "pointOutsideCountry": "El punto está fuera de {country}, no en {declared} ({declaredCode})",
+            "countryRequired": "Falta el país para comprobar la comuna",
+            "countryWithoutBoundaries": "{country} no tiene límites de comunas o distritos cargados",
+            "districtRequired": "Falta la comuna o distrito",
+            "districtCodeNotFound": "No existe el código de comuna {district} en {country}",
+            "districtAmbiguous": "Hay más de una comuna llamada {district} en {country}; envíe su código",
+            "districtNotFound": "No existe la comuna {district} en {country}",
+            "districtWithoutBoundary": "La comuna {district} no tiene límite para comprobar el punto",
+            "noSource": "Sin geocerca, Plus Code ni coordenadas",
+            "addressNeedsDistrict": "Para ubicar una dirección falta una comuna con límite",
+            "shortPlusCodeNeedsDistrict": "Un Plus Code corto necesita una comuna con límite",
+            "plusCodeInvalid": "El Plus Code {plusCode} no es válido",
+            "latitudeLongitudeTogether": "Latitud y longitud van juntas",
+            "coordinatesOutOfRange": "Coordenadas fuera de rango",
+            "geofenceCheckFailed": "No se pudieron revisar las geocercas del punto",
+            "gpsNotConfigured": "La base GPS no está configurada",
+            "quotaUsed": "La organización usó sus {quota} consultas de geocodificación del mes",
+            "noPlan": "La organización no tiene plan de geocodificación",
+            "noConnection": "La organización no tiene conexión de geocodificación; la agrega un dueño de la plataforma en Conexiones",
+            "notStorable": "La configuración del proveedor no permite guardar sus resultados",
+            "providerFoundNothing": "{provider} no encontró la dirección",
+            "providerFoundCoarser": "{provider} solo encontró {type}, no la dirección"
           }
         },
         "usage": {
-          "title": "Uso mensual",
-          "description": "Cada llamada al proveedor cuenta para la cuota del mes (UTC). La caché, la fuente interna, las geocercas, los Plus Codes y las coordenadas no cuentan.",
+          "title": "Uso del mes",
+          "description": "Cada consulta al proveedor cuenta para la cuota del mes (UTC). La caché, la fuente interna, las geocercas, los Plus Codes y las coordenadas no cuentan.",
           "previousMonth": "Mes anterior",
           "nextMonth": "Mes siguiente",
           "loadError": "No se pudo cargar el uso de geocodificación.",
           "forbidden": "Solo un dueño de la organización puede ver el uso de geocodificación.",
-          "notEnforced": "La cuota aún no se aplica: no se rechaza ninguna llamada, pero el uso se registra.",
-          "noSubscriptionEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor requieren una suscripción asignada cuando se aplican las cuotas. Un dueño de la plataforma administra las suscripciones.",
-          "noSubscriptionNotEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor están permitidas porque las cuotas están desactivadas; no se calcula un cargo del plan. Un dueño de la plataforma administra las suscripciones.",
+          "notEnforced": "La cuota aún no se aplica: no se rechaza ninguna consulta, pero el uso se registra.",
+          "noSubscriptionEnforced": "No hay una suscripción registrada para este período. Las consultas al proveedor requieren una suscripción asignada cuando se aplican las cuotas. Un dueño de la plataforma administra las suscripciones.",
+          "noSubscriptionNotEnforced": "No hay una suscripción registrada para este período. Las consultas al proveedor están permitidas porque las cuotas están desactivadas; no se calcula un cargo del plan. Un dueño de la plataforma administra las suscripciones.",
           "quota": {
             "unavailable": "No hay una cuota registrada para este período.",
             "title": "Cuota",
-            "description": "Llamadas al proveedor en el mes",
-            "unit": "llamadas",
+            "description": "Consultas al proveedor en el mes",
+            "unit": "consultas",
             "remaining": "Quedan {count}",
             "onExhausted": {
               "review": "al agotarse, las ubicaciones van a revisión",
-              "overage": "al agotarse, cada llamada se cobra como excedente"
+              "overage": "al agotarse, cada consulta se cobra como excedente"
             }
           },
           "resolutions": {
@@ -3662,7 +3688,7 @@
             "monthly": "Plan mensual",
             "overage": "Excedente",
             "total": "Total del mes: {total}",
-            "overageCalls": "{count} llamadas sobre la cuota a {price} cada una"
+            "overageCalls": "{count} consultas sobre la cuota a {price} cada una"
           },
           "bySource": {
             "title": "Por fuente y resultado",
@@ -3671,7 +3697,7 @@
             "result": "Resultado",
             "resolutions": "Resoluciones",
             "cacheHits": "Caché",
-            "providerCalls": "Llamadas"
+            "providerCalls": "Consultas"
           },
           "sources": {
             "geofence": "Geocerca",

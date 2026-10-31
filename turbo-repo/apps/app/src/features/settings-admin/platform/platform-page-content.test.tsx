@@ -2,9 +2,34 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { membership } = vi.hoisted(() => ({
+const { membership, nav } = vi.hoisted(() => ({
   membership: { isPlatformOwner: false, isLoading: false },
+  nav: { query: "", listeners: new Set<() => void>() },
 }));
+
+vi.mock("next/navigation", async () => {
+  const React = await import("react");
+  return {
+    usePathname: () => "/en/users/settings/platform",
+    useSearchParams: () =>
+      new URLSearchParams(
+        React.useSyncExternalStore(
+          (listener) => {
+            nav.listeners.add(listener);
+            return () => nav.listeners.delete(listener);
+          },
+          () => nav.query
+        )
+      ),
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: (url: string) => {
+        nav.query = url.split("?")[1] ?? "";
+        nav.listeners.forEach((listener) => listener());
+      },
+    }),
+  };
+});
 
 vi.mock("./use-platform-membership", () => ({
   useIsPlatformOwner: () => membership,
@@ -35,6 +60,7 @@ const dict = {
 };
 
 beforeEach(() => {
+  nav.query = "";
   membership.isPlatformOwner = false;
   membership.isLoading = false;
 });
@@ -51,6 +77,14 @@ describe("PlatformPageContent", () => {
     );
     expect(screen.getByText("branding section")).toBeInTheDocument();
     expect(screen.queryByText("superusers section")).not.toBeInTheDocument();
+  });
+
+  it("opens the section named in the address", () => {
+    membership.isPlatformOwner = true;
+    nav.query = "section=superusers";
+    render(<PlatformPageContent dict={dict} rootDict={{}} lang="en" />);
+
+    expect(screen.getByText("superusers section")).toBeInTheDocument();
   });
 
   it("swaps the right column when another section is picked", async () => {

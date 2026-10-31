@@ -43,7 +43,7 @@ public class ManagedGeocodingConnections {
     /** There is no platform provider to connect to. */
     public static class NoPlatformProviderException extends IllegalStateException {
         NoPlatformProviderException() {
-            super("Set the platform's geocoding provider in Settings › Plataforma first");
+            super("Set the platform's geocoding provider in Settings › Connections, under the Platform scope, first");
         }
     }
 

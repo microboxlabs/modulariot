@@ -83,7 +83,7 @@ public class OrgLocationsResource extends OrgResourceSupport {
     @POST
     @Path("/resolve")
     @Operation(operationId = "resolveLocations",
-            summary = "Locates one site (an object) or several (an array) without an external provider")
+            summary = "Locates one site (an object) or several (an array of at most 200): geofence, Plus Code, coordinates, internal addresses, cache, then the geocoding provider")
     @PermissionsAllowed(value = TripsAccessCatalog.LOCATION_WRITE, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> resolve(@PathParam(ORG) String organizationId, JsonNode body) {

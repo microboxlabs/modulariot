@@ -26,7 +26,11 @@ import {
   type AsyncJobAttempt,
   type JobHttpExchange,
 } from "../integration-job.types";
-import { useIntegrationJob, useIntegrationJobChain, useRetryJob } from "../use-integration-jobs";
+import {
+  useIntegrationJob,
+  useIntegrationJobChain,
+  useRetryJob,
+} from "../use-integration-jobs";
 import JobStateBadge from "./job-state-badge";
 
 type DetailTab = "overview" | "attempts" | "payload" | "chain";
@@ -51,7 +55,9 @@ function Stat({
 }) {
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 min-w-0">
-      <div className="text-[11px] text-gray-500 dark:text-gray-400">{label}</div>
+      <div className="text-[11px] text-gray-500 dark:text-gray-400">
+        {label}
+      </div>
       <div
         className={`mt-0.5 truncate text-gray-900 dark:text-white ${
           mono ? "font-mono text-xs" : "text-sm font-semibold"
@@ -89,10 +95,14 @@ function HttpExchangeRow({
 }) {
   if (exchange.note) {
     return (
-      <li className="py-1 text-[11px] italic text-gray-400 dark:text-gray-500">{exchange.note}</li>
+      <li className="py-1 text-[11px] italic text-gray-400 dark:text-gray-500">
+        {exchange.note}
+      </li>
     );
   }
-  const hasBody = Boolean(exchange.requestBody || exchange.responseBody || exchange.error);
+  const hasBody = Boolean(
+    exchange.requestBody || exchange.responseBody || exchange.error
+  );
   const status = exchange.status;
   return (
     <li className="border-t border-gray-100 py-1.5 first:border-t-0 dark:border-gray-700/60">
@@ -129,10 +139,16 @@ function HttpExchangeRow({
               </div>
             )}
             {exchange.requestBody && (
-              <Body label={tr("timeline.httpRequest", dict)} value={exchange.requestBody} />
+              <Body
+                label={tr("timeline.httpRequest", dict)}
+                value={exchange.requestBody}
+              />
             )}
             {exchange.responseBody && (
-              <Body label={tr("timeline.httpResponse", dict)} value={exchange.responseBody} />
+              <Body
+                label={tr("timeline.httpResponse", dict)}
+                value={exchange.responseBody}
+              />
             )}
           </div>
         </details>
@@ -141,7 +157,13 @@ function HttpExchangeRow({
   );
 }
 
-function Body({ label, value }: { readonly label: string; readonly value: string }) {
+function Body({
+  label,
+  value,
+}: {
+  readonly label: string;
+  readonly value: string;
+}) {
   return (
     <div>
       <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
@@ -162,11 +184,16 @@ function historyDotClass(outcome: string): string {
 
 function chainBadgeClass(memberState: string, isCurrent: boolean): string {
   if (memberState === "SUCCEEDED") return "bg-green-500 text-white";
-  if (isCurrent) return "bg-gray-900 text-white dark:bg-white dark:text-gray-900";
+  if (isCurrent)
+    return "bg-gray-900 text-white dark:bg-white dark:text-gray-900";
   return "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
 }
 
-function timelineNodes(job: AsyncJob, dict: I18nRecord, nowMs: number): TimelineNode[] {
+function timelineNodes(
+  job: AsyncJob,
+  dict: I18nRecord,
+  nowMs: number
+): TimelineNode[] {
   const nodes: TimelineNode[] = [
     {
       key: "enqueued",
@@ -182,11 +209,18 @@ function timelineNodes(job: AsyncJob, dict: I18nRecord, nowMs: number): Timeline
     nodes.push({
       key: `h-${index}`,
       dotClass: historyDotClass(outcome),
-      title: isManual ? tr("timeline.manualRetry", dict) : `${tr("timeline.report", dict)} — ${outcome.toLowerCase()}`,
-      meta: [entry.by, entry.at ? formatClock(entry.at) : null, entry.at ? relativeAge(entry.at, nowMs) : null]
+      title: isManual
+        ? tr("timeline.manualRetry", dict)
+        : `${tr("timeline.report", dict)} — ${outcome.toLowerCase()}`,
+      meta: [
+        entry.by,
+        entry.at ? formatClock(entry.at) : null,
+        entry.at ? relativeAge(entry.at, nowMs) : null,
+      ]
         .filter(Boolean)
         .join(" · "),
-      error: isFailure && typeof entry.detail === "string" ? entry.detail : null,
+      error:
+        isFailure && typeof entry.detail === "string" ? entry.detail : null,
       exchanges: readAttemptExchanges(entry),
     });
   });
@@ -244,7 +278,10 @@ export default function JobDetailPanel({
     ["payload", tr("detail.payload", dict)],
   ];
   if (chainMembers.length > 1) {
-    tabs.push(["chain", `${tr("detail.chain", dict)} · ${chainMembers.length}`]);
+    tabs.push([
+      "chain",
+      `${tr("detail.chain", dict)} · ${chainMembers.length}`,
+    ]);
   }
   const stateLabel = tr(`states.${job.state}`, dict);
   const nodes = timelineNodes(job, dict, nowMs);
@@ -261,11 +298,16 @@ export default function JobDetailPanel({
               </span>
               <JobStateBadge state={job.state} label={stateLabel} />
             </div>
-            <div className="mt-1 truncate font-mono text-[11px] text-gray-400 dark:text-gray-500" title={job.id}>
+            <div
+              className="mt-1 truncate font-mono text-[11px] text-gray-400 dark:text-gray-500"
+              title={job.id}
+            >
               {job.id}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-              {job.correlationKey && <span className="font-mono">{job.correlationKey}</span>}
+              {job.correlationKey && (
+                <span className="font-mono">{job.correlationKey}</span>
+              )}
               <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300">
                 {job.executor}
               </span>
@@ -292,7 +334,7 @@ export default function JobDetailPanel({
                 "-mb-px border-b-2 px-2.5 py-2 text-xs font-medium",
                 tab === key
                   ? "border-gray-900 text-gray-900 dark:border-white dark:text-white"
-                  : "border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300",
+                  : "border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
               )}
             >
               {label}
@@ -309,11 +351,16 @@ export default function JobDetailPanel({
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">
                   {tr("detail.lastError", dict)}
                 </div>
-                <div className="mt-0.5 text-xs text-red-700 dark:text-red-300">{job.lastError}</div>
+                <div className="mt-0.5 text-xs text-red-700 dark:text-red-300">
+                  {job.lastError}
+                </div>
               </div>
             )}
             <div className="grid grid-cols-2 gap-2">
-              <Stat label={tr("detail.attemptsLabel", dict)} value={`${job.attempts} / ${job.maxAttempts}`} />
+              <Stat
+                label={tr("detail.attemptsLabel", dict)}
+                value={`${job.attempts} / ${job.maxAttempts}`}
+              />
               <Stat label={tr("detail.lane", dict)} value={job.executor} mono />
               <Stat
                 label={`${tr("detail.created", dict)} · ${relativeAge(job.createdAt, nowMs)}`}
@@ -326,7 +373,10 @@ export default function JobDetailPanel({
                 mono
               />
               {jobDurationMs(job) != null && (
-                <Stat label={tr("detail.duration", dict)} value={formatDurationMs(jobDurationMs(job) as number)} />
+                <Stat
+                  label={tr("detail.duration", dict)}
+                  value={formatDurationMs(jobDurationMs(job) as number)}
+                />
               )}
               {job.nextRetryAt && (
                 <Stat
@@ -336,12 +386,30 @@ export default function JobDetailPanel({
                 />
               )}
               {job.state === "RUNNING" && job.lockedBy && (
-                <Stat label={tr("detail.lease", dict)} value={job.lockedBy} mono />
+                <Stat
+                  label={tr("detail.lease", dict)}
+                  value={job.lockedBy}
+                  mono
+                />
               )}
-              <Stat label={tr("detail.source", dict)} value={job.sourceInstance} mono />
-              <Stat label={tr("detail.tenant", dict)} value={job.tenantCode} mono />
+              <Stat
+                label={tr("detail.source", dict)}
+                value={job.sourceInstance}
+                mono
+              />
+              <Stat
+                label={tr("detail.tenant", dict)}
+                value={job.tenantCode}
+                mono
+              />
             </div>
-            {job.dedupeKey && <Stat label={tr("detail.dedupe", dict)} value={job.dedupeKey} mono />}
+            {job.dedupeKey && (
+              <Stat
+                label={tr("detail.dedupe", dict)}
+                value={job.dedupeKey}
+                mono
+              />
+            )}
             {job.chainKey && (
               <Stat
                 label={`${tr("detail.chain", dict)} · ${tr("detail.step", dict)} ${job.chainSequence}`}
@@ -359,11 +427,17 @@ export default function JobDetailPanel({
                 {index < nodes.length - 1 && (
                   <span className="absolute left-[5px] top-4 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
                 )}
-                <span className={`mt-1 h-3 w-3 flex-shrink-0 rounded-full ${node.dotClass}`} />
+                <span
+                  className={`mt-1 h-3 w-3 flex-shrink-0 rounded-full ${node.dotClass}`}
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-gray-900 dark:text-white">{node.title}</div>
+                  <div className="text-xs font-semibold text-gray-900 dark:text-white">
+                    {node.title}
+                  </div>
                   {node.meta && (
-                    <div className="font-mono text-[11px] text-gray-400 dark:text-gray-500">{node.meta}</div>
+                    <div className="font-mono text-[11px] text-gray-400 dark:text-gray-500">
+                      {node.meta}
+                    </div>
                   )}
                   {node.error && (
                     <div className="mt-1 rounded bg-red-50 px-2 py-1 text-[11px] text-red-700 dark:bg-red-900/20 dark:text-red-300">
@@ -397,6 +471,16 @@ export default function JobDetailPanel({
                 {JSON.stringify(job.payload, null, 2)}
               </pre>
             </div>
+            {job.result && (
+              <div>
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  result · jsonb
+                </div>
+                <pre className="overflow-auto rounded-lg bg-gray-900 p-3 font-mono text-[11px] leading-relaxed text-gray-200">
+                  {JSON.stringify(job.result, null, 2)}
+                </pre>
+              </div>
+            )}
             {job.attemptHistory.length > 0 && (
               <div>
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -416,17 +500,24 @@ export default function JobDetailPanel({
               {job.chainKey}
             </div>
             {chainMembers.map((member, index) => (
-              <div key={member.id} className="relative flex gap-3 pb-3 last:pb-0">
+              <div
+                key={member.id}
+                className="relative flex gap-3 pb-3 last:pb-0"
+              >
                 {index < chainMembers.length - 1 && (
                   <span className="absolute left-[10px] top-6 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
                 )}
                 <span
                   className={twMerge(
                     "mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
-                    chainBadgeClass(member.state, member.id === job.id),
+                    chainBadgeClass(member.state, member.id === job.id)
                   )}
                 >
-                  {member.state === "SUCCEEDED" ? <HiCheck className="h-3 w-3" /> : member.chainSequence}
+                  {member.state === "SUCCEEDED" ? (
+                    <HiCheck className="h-3 w-3" />
+                  ) : (
+                    member.chainSequence
+                  )}
                 </span>
                 <button
                   type="button"
@@ -435,7 +526,7 @@ export default function JobDetailPanel({
                     "flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 py-2 text-left",
                     member.id === job.id
                       ? "border-gray-900 dark:border-white"
-                      : "border-gray-200 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-500",
+                      : "border-gray-200 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-500"
                   )}
                 >
                   <span className="min-w-0 flex-1">
@@ -444,10 +535,14 @@ export default function JobDetailPanel({
                     </span>
                     <span className="block truncate font-mono text-[10px] text-gray-400 dark:text-gray-500">
                       {shortJobId(member.id)}
-                      {member.correlationKey ? ` · ${member.correlationKey}` : ""}
+                      {member.correlationKey
+                        ? ` · ${member.correlationKey}`
+                        : ""}
                     </span>
                   </span>
-                  <span className={`h-2 w-2 flex-shrink-0 rounded-full ${JOB_STATE_DOT[member.state]}`} />
+                  <span
+                    className={`h-2 w-2 flex-shrink-0 rounded-full ${JOB_STATE_DOT[member.state]}`}
+                  />
                 </button>
               </div>
             ))}
@@ -461,7 +556,10 @@ export default function JobDetailPanel({
       {canRetry(job) && (
         <div className="flex items-center gap-2 border-t border-gray-100 p-3 dark:border-gray-700">
           {retryError && (
-            <span className="min-w-0 flex-1 truncate text-xs text-red-600 dark:text-red-400" title={retryError.message}>
+            <span
+              className="min-w-0 flex-1 truncate text-xs text-red-600 dark:text-red-400"
+              title={retryError.message}
+            >
               {retryError.message}
             </span>
           )}
@@ -473,7 +571,9 @@ export default function JobDetailPanel({
             onClick={handleRetry}
           >
             <HiLightningBolt className="mr-1 h-3.5 w-3.5" />
-            {job.state === "PENDING" ? tr("detail.runNow", dict) : tr("detail.retry", dict)}
+            {job.state === "PENDING"
+              ? tr("detail.runNow", dict)
+              : tr("detail.retry", dict)}
           </Button>
         </div>
       )}

@@ -339,6 +339,7 @@ function StatusBadge({
 function testLine(connection: IntegrationConnection, dict: I18nRecord): string {
   if (!connection.lastTestedAt) return tr("connections.neverTested", dict);
   return tr("connections.testedOn", dict, {
-    date: new Date(connection.lastTestedAt).toLocaleDateString(),
+    // YYYY-MM-DD reads the same in every language; the browser's locale may not be the page's.
+    date: connection.lastTestedAt.slice(0, 10),
   });
 }

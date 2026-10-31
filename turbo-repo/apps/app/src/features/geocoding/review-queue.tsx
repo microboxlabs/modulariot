@@ -10,6 +10,7 @@ import { useTripsPermission } from "@/features/trips/monitors/monitors-api";
 import { LOCATION_WRITE } from "@/features/trips/locations/locations-api";
 import PlaceLocationModal from "./place-location-modal";
 import RejectLocationModal from "./reject-location-modal";
+import { reviewNote } from "./review-note";
 import { useReviewQueue, type PlacedLocation } from "./review-api";
 
 type Action = { kind: "place" | "reject"; location: PlacedLocation };
@@ -43,7 +44,9 @@ function ReviewRow({
       </td>
       <td className="px-4 py-2.5">
         <Badge color="warning" className="w-fit whitespace-normal">
-          {l.resolutionNote ?? tr("noReason", d)}
+          {l.resolutionNote
+            ? reviewNote(l.resolutionNote, d.notes as I18nRecord | undefined)
+            : tr("noReason", d)}
         </Badge>
       </td>
       <td className="px-4 py-2.5">

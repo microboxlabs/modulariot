@@ -47,7 +47,7 @@ Use un token de Mapbox de servidor, sin restricción de URL, con el modo permane
 **Cuidado:** con **Google Maps** como proveedor, cada consulta se cobra y el lugar queda en revisión, porque la plataforma no guarda resultados de Google (configuración por defecto, pendiente de revisar sus términos). Use Mapbox con modo permanente.
 </Callout>
 
-La tarjeta puede seguir mostrando **Borrador · Sin probar** después de guardar. Ese estado no impide las consultas. **Probar** comprueba el token: con Mapbox, sin costo; con Google, geocodifica una dirección y el proveedor la cobra.
+Con Mapbox, al guardar se comprueba el token sin costo y la tarjeta queda **Activa**. Con Google no se prueba al guardar: **Probar** geocodifica una dirección y el proveedor la cobra. El estado de la tarjeta no impide las consultas.
 
 ### Conectar la organización
 
@@ -63,7 +63,7 @@ Aparece la tarjeta **Geocoding · ModularIoT**, activa:
 
 La conexión no guarda ningún token: usa el de la plataforma. Repetir el paso no crea otra. Si la organización tenía otra conexión de geocodificación, se borra.
 
-Sin esta conexión, la organización igual resuelve por geocerca, Plus Code, coordenadas, direcciones internas y caché. Lo único que no hace es consultar al proveedor: esos lugares van a revisión con `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones`.
+Sin esta conexión, la organización igual resuelve por geocerca, Plus Code, coordenadas, direcciones internas y caché. Lo único que no hace es consultar al proveedor: esos lugares van a revisión con `geocoding: this organization has no geocoding connection; a platform owner adds it in Settings › Connections`.
 
 Para quitarla, pulse sus tres puntos y **Eliminar**.
 
@@ -75,7 +75,7 @@ Si las cuotas se aplican, la organización necesita una suscripción. Siga [Asig
 
 ## Comprobar
 
-Resuelva una dirección que no esté en las direcciones internas ni en la caché (ver [Su primera ubicación](/es/products/geocoding/tutorials/first-location)) y abra **Ajustes › Viajes › Uso del mes** (página **Uso mensual**). La tarjeta **Cuota** debe sumar una llamada. Si el proveedor no encontró la dirección, la llamada aparece en la fila **Ninguna** o **Proveedor** con resultado **Por revisar**.
+Resuelva una dirección que no esté en las direcciones internas ni en la caché (ver [Su primera ubicación](/es/products/geocoding/tutorials/first-location)) y abra **Ajustes › Viajes › Uso del mes**. La tarjeta **Cuota** debe sumar una llamada. Si el proveedor no encontró la dirección, la llamada aparece en la fila **Ninguna** o **Proveedor** con resultado **Por revisar**.
 
 ## Por API
 

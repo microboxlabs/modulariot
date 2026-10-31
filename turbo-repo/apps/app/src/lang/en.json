@@ -1661,7 +1661,7 @@
           "title": "Geocoding",
           "menuTitle": "Provider",
           "menuHint": "Provider the platform contracts",
-          "description": "The platform contracts and pays the geocoding provider. An organization uses it, within its plan's quota, once a platform owner adds the \"Geocoding · platform provider\" connection in Connections. No organization sets up its own provider.",
+          "description": "The platform contracts and pays the geocoding provider. An organization uses it, within its plan's quota, once a platform owner adds the \"Geocoding · platform provider\" connection in Connections; it is named \"Geocoding · ModularIoT\". No organization sets up its own provider.",
           "provider": "Provider",
           "providerHelp": {
             "mapbox": "Mapbox Geocoding v6. Results are kept in the cache when permanent mode is on.",
@@ -3614,7 +3614,8 @@
             "point": "Point",
             "noPoint": "No point: click the map",
             "plusCode": "Plus Code (optional)",
-            "save": "Validate and create geofence"
+            "save": "Validate and create geofence",
+            "mapUnavailable": "This browser cannot show the map. Type the point's Plus Code."
           },
           "reject": {
             "title": "Reject {name}",
@@ -3627,6 +3628,31 @@
             "distribution_center": "Distribution center",
             "customer": "Customer",
             "zone": "Zone"
+          },
+          "notes": {
+            "pointInOtherDistrict": "The point is in {found} ({foundCode}), not in {declared} ({declaredCode})",
+            "pointOutsideCountry": "The point is outside {country}, not in {declared} ({declaredCode})",
+            "countryRequired": "The country is needed to check the district",
+            "countryWithoutBoundaries": "{country} has no district boundaries loaded",
+            "districtRequired": "The district is missing",
+            "districtCodeNotFound": "District code {district} does not exist in {country}",
+            "districtAmbiguous": "More than one district is called {district} in {country}; send its code",
+            "districtNotFound": "District {district} does not exist in {country}",
+            "districtWithoutBoundary": "District {district} has no boundary to check the point",
+            "noSource": "No geofence, Plus Code or coordinates",
+            "addressNeedsDistrict": "An address needs a district with a boundary to be located",
+            "shortPlusCodeNeedsDistrict": "A short Plus Code needs a district with a boundary",
+            "plusCodeInvalid": "Plus Code {plusCode} is not valid",
+            "latitudeLongitudeTogether": "Latitude and longitude go together",
+            "coordinatesOutOfRange": "Coordinates out of range",
+            "geofenceCheckFailed": "The geofences of the point could not be checked",
+            "gpsNotConfigured": "The GPS database is not configured",
+            "quotaUsed": "The organization used its {quota} geocoding calls for the month",
+            "noPlan": "The organization has no geocoding plan",
+            "noConnection": "The organization has no geocoding connection; a platform owner adds it in Connections",
+            "notStorable": "The provider's configuration does not allow storing its results",
+            "providerFoundNothing": "{provider} did not find the address",
+            "providerFoundCoarser": "{provider} only found {type}, not the address"
           }
         },
         "usage": {

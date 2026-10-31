@@ -225,4 +225,73 @@ class LocationResolverTest {
         assertEquals("010101", BOUNDARIES.normalizeCode("PE", "10101"));
         assertNull(BOUNDARIES.normalizeCode("PE", "15O122"));
     }
+
+    /** Av. Presidente Jorge Alessandri Rodríguez 10700, San Bernardo, as the internal table spells it. */
+    private static final double SB_LON = -70.69898;
+    private static final double SB_LAT = -33.55113;
+
+    private LocationResolver withAddresses(FakeAddresses table) {
+        return new LocationResolver(geofences, BOUNDARIES, table, new InMemoryGeocodeCache(), StubGeocoding.none());
+    }
+
+    private static FakeAddresses sanBernardo() {
+        return new FakeAddresses().add("SAN BERNARDO", "PRESIDENTE JORGE ALESSANDRI RODRÍGUEZ", "10700", SB_LON, SB_LAT)
+                .add("SAN BERNARDO", "LOS AROMOS", "10700", -70.70, -33.60);
+    }
+
+    private static Site written(String address) {
+        return new Site(address, null, address, "CL", null, null, null, null, null);
+    }
+
+    @Test
+    void anAddressWithoutTitleOrAccentsMatchesTheInternalStreetByWords() {
+        Outcome out = withAddresses(sanBernardo()).resolve(ORG, TENANT,
+                new Site("SITE", null, "Av. Jorge Alessandri Rodriguez 10700", "CL", "13401", null, null, null, null));
+
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals(LocationResolver.INTERNAL, out.placement().source());
+        assertEquals(SB_LAT, out.placement().latitude(), 1e-9);
+    }
+
+    @Test
+    void anAddressAloneTakesTheCommuneItNames() {
+        Outcome out = withAddresses(sanBernardo()).resolve(ORG, TENANT,
+                written("Av. Jorge Alessandri 10700, San Bernardo"));
+
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals(LocationResolver.INTERNAL, out.placement().source());
+        assertEquals("13401", out.placement().districtCode());
+    }
+
+    @Test
+    void anAddressAloneWithoutCommuneIsFoundAcrossTheCountry() {
+        Outcome out = withAddresses(sanBernardo()).resolve(ORG, TENANT, written("Pdte J. Alessandri R. 10700"));
+
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals(LocationResolver.INTERNAL, out.placement().source());
+        assertEquals("13401", out.placement().districtCode());
+    }
+
+    @Test
+    void theSameStreetAndNumberInTwoCommunesNeedsTheCommune() {
+        FakeAddresses table = sanBernardo()
+                .add("MAIPÚ", "PRESIDENTE JORGE ALESSANDRI RODRÍGUEZ", "10700", -70.75, -33.51);
+
+        Outcome out = withAddresses(table).resolve(ORG, TENANT, written("Jorge Alessandri 10700"));
+
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertEquals("the address names no district and is not in the internal addresses", out.placement().note());
+        assertEquals(Location.RESOLVED, withAddresses(table).resolve(ORG, TENANT,
+                written("Jorge Alessandri 10700, Maipú")).placement().status());
+    }
+
+    @Test
+    void anAddressAloneInsideAGeofenceLinksIt() {
+        geofences.add(TENANT, 1205, "SCL", "Patio").square(1205, SB_LON, SB_LAT, 0.003);
+
+        Outcome out = withAddresses(sanBernardo()).resolve(ORG, TENANT,
+                written("Av. Jorge Alessandri 10700, San Bernardo"));
+
+        assertEquals(1205, out.geofenceId());
+    }
 }

@@ -25,6 +25,11 @@ public final class Addresses {
     private static final Pattern NUMBER_MARK = Pattern.compile(
             "\\s*(?:#|N[°º.]?|NRO\\.?|NUM\\.?|NUMERO)\\s*$", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Set<String> PREFIXES = Set.of("AV", "AVDA", "AVENIDA", "CALLE", "PASAJE", "PJE", "PSJE");
+    /** Titles the official street names carry and people often leave out, or abbreviate. */
+    private static final Set<String> TITLES = Set.of("PRESIDENTE", "PDTE", "PTE", "GENERAL", "GRAL", "CAPITAN",
+            "CAP", "TENIENTE", "TTE", "CORONEL", "CNEL", "COMANDANTE", "CMDTE", "SARGENTO", "SGTO", "ALMIRANTE", "ALM",
+            "DOCTOR", "DR", "PROFESOR", "PROF", "MONSEÑOR", "MONS", "INGENIERO", "ING", "OBISPO");
+    private static final Set<String> CONNECTORS = Set.of("DE", "DEL", "LA", "LAS", "LOS", "EL", "Y");
 
     private Addresses() {
     }
@@ -75,5 +80,56 @@ public final class Addresses {
         }
         out.remove("");
         return List.copyOf(out);
+    }
+
+    /** The text after the house number: the rest of the first part and every part after the first comma. */
+    public static String afterNumber(String address) {
+        if (address == null) {
+            return "";
+        }
+        String[] parts = address.split(",", 2);
+        Matcher m = NUMBERED.matcher(UNIT.matcher(parts[0].strip()).replaceFirst(""));
+        String tail = m.matches() ? m.group(0).substring(m.end(2)) : "";
+        return (tail + " " + (parts.length > 1 ? parts[1] : "")).strip();
+    }
+
+    /** The words that identify a street: folded, without its type, titles or connecting words. */
+    public static List<String> streetTokens(String name) {
+        return java.util.Arrays.stream(fold(name).split(" "))
+                .filter(w -> !w.isEmpty() && !PREFIXES.contains(w) && !TITLES.contains(w) && !CONNECTORS.contains(w))
+                .toList();
+    }
+
+    /**
+     * How well a street name matches a candidate's, from 0 to 1. Every word of the shorter one must match a different
+     * word of the other, equal or as its initial; the score is the matched words over the longer one's. 0 when not.
+     */
+    public static double streetScore(List<String> name, List<String> candidate) {
+        if (name.isEmpty() || candidate.isEmpty()) {
+            return 0;
+        }
+        List<String> shorter = name.size() <= candidate.size() ? name : candidate;
+        List<String> longer = new java.util.ArrayList<>(shorter == name ? candidate : name);
+        for (String word : shorter) {
+            int i = indexOfMatch(longer, word);
+            if (i < 0) {
+                return 0;
+            }
+            longer.set(i, null);
+        }
+        return (double) shorter.size() / Math.max(name.size(), candidate.size());
+    }
+
+    private static int indexOfMatch(List<String> words, String word) {
+        int initial = -1;
+        for (int i = 0; i < words.size(); i++) {
+            String w = words.get(i);
+            if (w == null) continue;
+            if (w.equals(word)) return i;
+            if (initial < 0 && (w.length() == 1 && word.startsWith(w) || word.length() == 1 && w.startsWith(word))) {
+                initial = i;
+            }
+        }
+        return initial;
     }
 }

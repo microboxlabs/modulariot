@@ -157,7 +157,15 @@ public class LocationResolver {
                     .orElse("the point is outside " + country);
             return review(declared, p, source, where + ", not in " + b.name() + " (" + b.code() + ")", usage);
         }
-        Integer geofenceId = found.geofenceId() != null || manual ? found.geofenceId() : covering(tenantCode, p);
+        Integer geofenceId = found.geofenceId();
+        if (geofenceId == null && !manual) {
+            try {
+                geofenceId = covering(tenantCode, p);
+            } catch (RuntimeException e) {
+                LOG.warn("Geofence containment lookup failed", e);
+                return review(declared, p, source, "could not check geofences for the point", usage);
+            }
+        }
         return new Outcome(declared.withResult(plusCode(p), p.lat(), p.lon(), source, Location.RESOLVED, null),
                 geofenceId, usage);
     }

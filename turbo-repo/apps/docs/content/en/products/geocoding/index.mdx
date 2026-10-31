@@ -16,7 +16,7 @@ With geocoding:
 | --- | --- |
 | Each new place waits for someone to draw its geofence | The place is located when the trip arrives |
 | A misspelled address leaves the trip untracked and nobody notices | The place goes to **To review** with the reason |
-| Each call to a map service costs money, and nobody knows how many are made | Each resolution is recorded with its source and its cost |
+| Each call to a map service costs money, and nobody knows how many are made | Each automatic resolution is recorded with its source and its cost |
 
 ## How a place is located
 
@@ -44,6 +44,8 @@ Only a call to the provider counts. Geofences, Plus Codes, coordinates, internal
 | Cost per call that the provider charges the platform | The contract with the provider | Settings › Connections, in the Platform scope |
 | Monthly plan price, included calls and price per call over the quota | The platform owner | Settings › Platform › Geocoding › Plan |
 | Each organization's quota and what happens when it runs out | The platform owner | Settings › Platform › Geocoding › Organizations |
+| Whether the quotas apply (**Apply the quotas**) | The platform owner | Settings › Platform › Geocoding › Plan |
+| Which organizations can call the provider | The platform owner | Each organization's Settings › Connections: the **Geocoding · platform provider** connection |
 
 A place is located once. Later trips to the same place use its geofence and make no new call. So the cost per trip goes down over time:
 
@@ -54,7 +56,7 @@ A place is located once. Later trips to the same place use its geofence and make
 | New destination with an address nobody looked up before | 1 |
 | New origin and destination, both with new addresses | 2 |
 
-Each organization sees its month's usage in **Settings › Trips › Monthly usage**. Details in [Usage, cost and monitoring](/en/products/geocoding/concepts/usage-and-cost).
+The owner of each organization sees its month's usage in **Settings › Trips › Monthly usage**. Details in [Usage, cost and monitoring](/en/products/geocoding/concepts/usage-and-cost).
 
 ## What depends on the country
 

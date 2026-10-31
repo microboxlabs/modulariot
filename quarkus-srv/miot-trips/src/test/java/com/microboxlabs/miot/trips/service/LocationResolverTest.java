@@ -140,6 +140,50 @@ class LocationResolverTest {
     }
 
     @Test
+    void aPlusCodeInsideAGeofenceOfTheTenantLinksIt() {
+        geofences.add(TENANT, 8, "PARQUE", "Parque Kennedy").square(8, -77.0297, -12.1211, 0.001);
+
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("57V4VXHC+H4", null, null));
+
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals(LocationResolver.PLUS_CODE, out.placement().source());
+        assertEquals(-12.1211, out.placement().latitude(), 0.0002);
+        assertEquals(8, out.geofenceId());
+    }
+
+    @Test
+    void coordinatesInsideSeveralGeofencesLinkTheLowestId() {
+        geofences.add(TENANT, 9, "GRANDE", "Zona").square(9, -77.0297, -12.1211, 0.01);
+        geofences.add(TENANT, 8, "PARQUE", "Parque Kennedy").square(8, -77.0297, -12.1211, 0.001);
+        geofences.add(TENANT, 5, "LEJOS", "Otra").square(5, -70.65, -33.44, 0.001);
+
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores(null, -12.1211, -77.0297));
+
+        assertEquals(LocationResolver.COORDINATES, out.placement().source());
+        assertEquals(8, out.geofenceId());
+    }
+
+    @Test
+    void aPointInsideAnotherTenantsGeofenceLinksNothing() {
+        geofences.add("client-b", 7, "PARQUE", "Parque Kennedy").square(7, -77.0297, -12.1211, 0.001);
+
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("57V4VXHC+H4", null, null));
+
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertNull(out.geofenceId());
+    }
+
+    @Test
+    void aPointInsideAGeofenceButOutsideTheDistrictLinksNothing() {
+        geofences.add(TENANT, 8, "CENTRO", "Lima centro").square(8, -77.0298, -12.0464, 0.01);
+
+        Outcome out = resolver.resolve(ORG, TENANT, miraflores("57V4XX34+CV", null, null));
+
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertNull(out.geofenceId());
+    }
+
+    @Test
     void aPointJustOutsideASimplifiedBorderStillResolves() {
         // Providencia's centroid, nudged 200 m past the district's border is still within the slack
         AdminBoundaries.Boundary providencia = BOUNDARIES.byCode("CL", "13123").orElseThrow();
@@ -158,6 +202,7 @@ class LocationResolverTest {
     @Test
     void aManualPointSkipsGeofencesAndIsTaggedManual() {
         geofences.add(TENANT, 8, "CD-01", "CD Miraflores").square(8, -77.0297, -12.1211, 0.001);
+        geofences.add(TENANT, 9, "PARQUE", "Parque Kennedy").square(9, -77.0297, -12.1211, 0.001);
 
         Outcome out = resolver.place(miraflores(null, -12.1211, -77.0297));
 

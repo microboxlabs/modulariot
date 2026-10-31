@@ -9,10 +9,29 @@ import {
 import type { Lugar } from "@/features/places/places.types";
 import { logger } from "@/lib/logger";
 
-/** The most geofences miot-places serves in one page. */
-const MAX_GEOCERCAS = 2000;
+/** Read every page so the map and its local search include the whole catalog. */
+const PAGE_SIZE = 2000;
 
 const geocercasSchema = z.array(geocercaModulithSchema);
+
+async function leerPagina(org: string, page: number) {
+  const upstream = await forwardToQuarkus(
+    `/api/v1/orgs/${org}/places/geofences?size=${PAGE_SIZE}&page=${page}`
+  );
+  if (!upstream.ok) return upstream;
+  const parsed = geocercasSchema.safeParse(
+    await upstream.json().catch(() => null)
+  );
+  if (parsed.success) return parsed.data;
+  logger.error(
+    { err: parsed.error },
+    "miot-places answered geofences in an unexpected shape"
+  );
+  return NextResponse.json(
+    { error: "Failed to load geofences" },
+    { status: 502 }
+  );
+}
 
 /**
  * GET /app/api/places/geofences
@@ -28,41 +47,22 @@ export async function GET() {
   if (!scope.resolved) return scope.response;
 
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
-  const upstream = await forwardToQuarkus(
-    `/api/v1/orgs/${org}/places/geofences?size=${MAX_GEOCERCAS}`
-  );
-  if (!upstream.ok) return upstream;
-
-  const parsed = geocercasSchema.safeParse(
-    await upstream.json().catch(() => null)
-  );
-  if (!parsed.success) {
-    logger.error(
-      { err: parsed.error },
-      "miot-places answered geofences in an unexpected shape"
-    );
-    return NextResponse.json(
-      { error: "Failed to load geofences" },
-      { status: 502 }
-    );
-  }
-
-  const geocercas = parsed.data;
   const lugares: Lugar[] = [];
-  for (const geocerca of geocercas) {
-    const lugar = lugarDesdeGeofence(geocerca);
-    if (lugar) lugares.push(lugar);
+  let total = 0;
+  for (let page = 0; ; page++) {
+    const geocercas = await leerPagina(org, page);
+    if (geocercas instanceof NextResponse) return geocercas;
+    total += geocercas.length;
+    for (const geocerca of geocercas) {
+      const lugar = lugarDesdeGeofence(geocerca);
+      if (lugar) lugares.push(lugar);
+    }
+    if (geocercas.length < PAGE_SIZE) break;
   }
-  if (lugares.length < geocercas.length) {
+  if (lugares.length < total) {
     logger.warn(
-      { total: geocercas.length, usable: lugares.length },
+      { total, usable: lugares.length },
       "Some streamhub geofences have no usable polygon"
-    );
-  }
-  if (geocercas.length === MAX_GEOCERCAS) {
-    logger.warn(
-      { limit: MAX_GEOCERCAS },
-      "The organization has more geofences than one page: some are not shown"
     );
   }
   return NextResponse.json(lugares);

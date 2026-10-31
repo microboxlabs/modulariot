@@ -8,6 +8,7 @@ import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.places.access.PlacesAccessCatalog;
 import com.microboxlabs.miot.places.dto.GeofenceView;
 import com.microboxlabs.miot.places.service.GeofenceService;
+import com.microboxlabs.miot.places.service.GeofenceOrganizationScope;
 import com.microboxlabs.miot.places.store.GeofencesUnavailableException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -40,6 +41,7 @@ public class OrgGeofencesResource extends OrgResourceSupport {
     private static final String ORG = "organizationId";
 
     private final GeofenceService geofences;
+    private final GeofenceOrganizationScope sourceScope;
 
     @Inject
     public OrgGeofencesResource(
@@ -47,19 +49,28 @@ public class OrgGeofencesResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            GeofenceService geofences) {
+            GeofenceService geofences,
+            GeofenceOrganizationScope sourceScope) {
         super(tenantContext, organizationContext, roleService, identity);
         this.geofences = geofences;
+        this.sourceScope = sourceScope;
     }
 
     @GET
     @Operation(operationId = "listGeofences", summary = "The organization's geofences with their shapes")
-    @PermissionsAllowed(value = PlacesAccessCatalog.VIEW, permission = OrgPermission.class, params = "organizationId")
+    @PermissionsAllowed(value = {PlacesAccessCatalog.VIEW, PlacesAccessCatalog.CONTROL_TOWER_VIEW},
+            permission = OrgPermission.class, params = "organizationId")
     public Uni<Response> list(@PathParam(ORG) String organizationId, @QueryParam("q") String q,
-            @QueryParam("size") String size) {
+            @QueryParam("size") String size, @QueryParam("page") String page) {
         String tenant = tenantCode(organizationId);
-        return work(() -> Response.ok(
-                geofences.list(tenant, q, integer(size, "size")).stream().map(GeofenceView::of).toList()).build());
+        return sourceScope.allows(organizationId).flatMap(allowed -> {
+            if (!allowed) {
+                return Uni.createFrom().item(error(Response.Status.FORBIDDEN,
+                        "The sub-account has no organization-specific geofence source"));
+            }
+            return work(() -> Response.ok(geofences.list(tenant, q, integer(size, "size"), integer(page, "page"))
+                    .stream().map(GeofenceView::of).toList()).build());
+        });
     }
 
     @Override

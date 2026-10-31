@@ -2,6 +2,7 @@ package com.microboxlabs.miot.places.access;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,7 +36,7 @@ class PlacesPermissionsTest {
 
     /** Every endpoint and the permission it needs. A new endpoint without an entry here fails the test. */
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
-            Map.entry("OrgGeofencesResource.list", VIEW)));
+            Map.entry("OrgGeofencesResource.list", VIEW + " | " + PlacesAccessCatalog.CONTROL_TOWER_VIEW)));
 
     @Test
     void everyEndpointDeclaresItsOrganizationPermission() {
@@ -50,7 +51,8 @@ class PlacesPermissionsTest {
                 assertNotNull(allowed, name + " has no @PermissionsAllowed");
                 assertEquals(OrgPermission.class, allowed.permission(), name);
                 assertArrayEquals(new String[] {"organizationId"}, allowed.params(), name);
-                actual.put(name, String.join(" + ", allowed.value()));
+                assertFalse(allowed.inclusive(), name + " must accept either read permission");
+                actual.put(name, String.join(" | ", allowed.value()));
             }
         }
         assertEquals(EXPECTED, actual);

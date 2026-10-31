@@ -33,14 +33,14 @@ public class GpsGeofenceStore implements GeofenceStore {
     }
 
     @Override
-    public List<Geofence> list(String tenantCode, String q, int limit) {
+    public List<Geofence> list(String tenantCode, String q, int limit, long offset) {
         if (!gps.configured()) {
             throw new GeofencesUnavailableException("The GPS database is not configured");
         }
         String sql = "SELECT " + COLUMNS + " FROM geofences g WHERE client_id = $1"
-                + (q == null ? "" : " AND (geofence_name ILIKE $3 OR client_geofence_id ILIKE $3)")
-                + " ORDER BY geofence_name, geofence_id LIMIT $2";
-        Tuple params = Tuple.of(tenantCode, limit);
+                + (q == null ? "" : " AND (geofence_name ILIKE $4 OR client_geofence_id ILIKE $4)")
+                + " ORDER BY geofence_name, geofence_id LIMIT $2 OFFSET $3";
+        Tuple params = Tuple.of(tenantCode, limit, offset);
         if (q != null) {
             params.addString("%" + q + "%");
         }

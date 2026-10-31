@@ -15,9 +15,9 @@ public interface GeofenceStore {
     }
 
     /**
-     * By name or code when {@code q} is set, at most {@code limit}.
+     * By name or code when {@code q} is set, at most {@code limit}, starting at {@code offset}.
      *
      * @throws GeofencesUnavailableException when the GPS database is not configured
      */
-    List<Geofence> list(String tenantCode, String q, int limit);
+    List<Geofence> list(String tenantCode, String q, int limit, long offset);
 }

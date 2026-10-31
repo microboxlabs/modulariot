@@ -7,6 +7,7 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.places.dto.GeofenceView;
 import com.microboxlabs.miot.places.service.GeofenceService;
+import com.microboxlabs.miot.places.service.GeofenceOrganizationScope;
 import com.microboxlabs.miot.places.store.GeofenceStore;
 import com.microboxlabs.miot.places.store.GeofencesUnavailableException;
 import io.smallrye.mutiny.Uni;
@@ -25,6 +26,7 @@ class OrgGeofencesResourceTest {
     private static final String SQUARE = "{\"type\":\"Polygon\",\"coordinates\":[[[-70,-33],[-70,-32],[-69,-32],[-70,-33]]]}";
 
     private final List<String> tenants = new ArrayList<>();
+    private boolean sourceAllowed = true;
 
     private OrgGeofencesResource resource(GeofenceStore store) {
         OrganizationContext org = new OrganizationContext();
@@ -33,14 +35,19 @@ class OrgGeofencesResourceTest {
         TenantContext tenant = new TenantContext();
         tenant.setClientId("acme-client");
         tenant.setTenantCode("acme-client");
-        GeofenceStore recording = (tenantCode, q, limit) -> {
+        GeofenceStore recording = (tenantCode, q, limit, offset) -> {
             tenants.add(tenantCode);
-            return store.list(tenantCode, q, limit);
+            return store.list(tenantCode, q, limit, offset);
         };
-        return new OrgGeofencesResource(tenant, org, null, null, new GeofenceService(recording));
+        return new OrgGeofencesResource(tenant, org, null, null, new GeofenceService(recording), new GeofenceOrganizationScope() {
+            @Override
+            public Uni<Boolean> allows(String organizationId) {
+                return Uni.createFrom().item(sourceAllowed);
+            }
+        });
     }
 
-    private final OrgGeofencesResource resource = resource((tenantCode, q, limit) -> List.of(
+    private final OrgGeofencesResource resource = resource((tenantCode, q, limit, offset) -> List.of(
             new GeofenceStore.Geofence(7, "ARI", "Arica", "polygonal", "terminal", SQUARE, "{\"address\":\"Ruta 5\"}")));
 
     private static Response call(Uni<Response> uni) {
@@ -49,7 +56,7 @@ class OrgGeofencesResourceTest {
 
     @Test
     void listsTheOrganizationsGeofencesAsViews() {
-        Response ok = call(resource.list(ORG, null, null));
+        Response ok = call(resource.list(ORG, null, null, null));
         assertEquals(200, ok.getStatus());
         assertEquals(List.of("acme-client"), tenants);
 
@@ -66,33 +73,46 @@ class OrgGeofencesResourceTest {
     @Test
     void anotherOrganizationInThePathIsForbidden() {
         WebApplicationException e = assertThrows(WebApplicationException.class,
-                () -> resource.list("other", null, null));
+                () -> resource.list("other", null, null, null));
         assertEquals(403, e.getResponse().getStatus());
         assertEquals(List.of(), tenants);
     }
 
     @Test
     void aBadSizeIsABadRequest() {
-        assertEquals(400, call(resource.list(ORG, null, "abc")).getStatus());
-        assertEquals(400, call(resource.list(ORG, null, "0")).getStatus());
-        assertEquals(400, call(resource.list(ORG, null, String.valueOf(GeofenceService.MAX_PAGE_SIZE + 1)))
+        assertEquals(400, call(resource.list(ORG, null, "abc", null)).getStatus());
+        assertEquals(400, call(resource.list(ORG, null, "0", null)).getStatus());
+        assertEquals(400, call(resource.list(ORG, null, String.valueOf(GeofenceService.MAX_PAGE_SIZE + 1), null))
                 .getStatus());
     }
 
     @Test
+    void aSharedClientSubAccountIsDeniedBeforeReadingGps() {
+        sourceAllowed = false;
+        assertEquals(403, call(resource.list(ORG, null, null, null)).getStatus());
+        assertEquals(List.of(), tenants);
+    }
+
+    @Test
+    void anInvalidPageIsABadRequest() {
+        assertEquals(400, call(resource.list(ORG, null, null, "-1")).getStatus());
+        assertEquals(400, call(resource.list(ORG, null, null, "abc")).getStatus());
+    }
+
+    @Test
     void anUnconfiguredGpsDatabaseIsServiceUnavailable() {
-        OrgGeofencesResource unavailable = resource((tenantCode, q, limit) -> {
+        OrgGeofencesResource unavailable = resource((tenantCode, q, limit, offset) -> {
             throw new GeofencesUnavailableException("The GPS database is not configured");
         });
-        assertEquals(503, call(unavailable.list(ORG, null, null)).getStatus());
+        assertEquals(503, call(unavailable.list(ORG, null, null, null)).getStatus());
     }
 
     @Test
     void anUnexpectedFailureIsNotHidden() {
-        OrgGeofencesResource failing = resource((tenantCode, q, limit) -> {
+        OrgGeofencesResource failing = resource((tenantCode, q, limit, offset) -> {
             throw new UnsupportedOperationException("boom");
         });
-        Uni<Response> response = failing.list(ORG, null, null);
+        Uni<Response> response = failing.list(ORG, null, null, null);
         assertThrows(UnsupportedOperationException.class, () -> call(response));
     }
 }

@@ -85,7 +85,7 @@ class PgGpsGeofenceStoreTest {
         geofence("acme-client", "A", "Arica", null);
         geofence("other-client", "X", "Ajena", null);
 
-        List<GeofenceStore.Geofence> out = store.list("acme-client", null, 10);
+        List<GeofenceStore.Geofence> out = store.list("acme-client", null, 10, 0);
         assertEquals(List.of("Arica", "Bodega"), out.stream().map(GeofenceStore.Geofence::name).toList());
         assertEquals(AREA.replace(" ", ""), out.get(0).shapeGeojson().replace(" ", ""));
         assertNull(out.get(0).propertiesJson());
@@ -99,20 +99,25 @@ class PgGpsGeofenceStoreTest {
         geofence("acme-client", "ARI-02", "Arica norte", null);
 
         assertEquals(List.of("SCL-01"),
-                store.list("acme-client", "scl", 10).stream().map(GeofenceStore.Geofence::code).toList());
+                store.list("acme-client", "scl", 10, 0).stream().map(GeofenceStore.Geofence::code).toList());
         assertEquals(List.of("Arica", "Arica norte"),
-                store.list("acme-client", "arica", 10).stream().map(GeofenceStore.Geofence::name).toList());
-        assertEquals(1, store.list("acme-client", null, 1).size());
+                store.list("acme-client", "arica", 10, 0).stream().map(GeofenceStore.Geofence::name).toList());
+        assertEquals(1, store.list("acme-client", null, 1, 0).size());
+        geofence("other-client", "X", "Arica ajena", null);
+        assertEquals(List.of("Arica norte"), store.list("acme-client", "arica", 1, 1).stream()
+                .map(GeofenceStore.Geofence::name).toList());
+        assertEquals(List.of(), store.list("acme-client", "arica", 1, 2));
+        assertEquals(List.of(), store.list("acme-client", null, 1, 3));
     }
 
     @Test
     void theCategoryIsNullWithoutTheColumnAndReadWithIt() {
         geofence("acme-client", "A", "Arica", null);
-        assertNull(store.list("acme-client", null, 10).get(0).category());
+        assertNull(store.list("acme-client", null, 10, 0).get(0).category());
 
         sql("ALTER TABLE geofences ADD COLUMN geofence_category TEXT");
         sql("UPDATE geofences SET geofence_category = 'terminal'");
-        assertEquals("terminal", store.list("acme-client", null, 10).get(0).category());
+        assertEquals("terminal", store.list("acme-client", null, 10, 0).get(0).category());
     }
 
     @Test

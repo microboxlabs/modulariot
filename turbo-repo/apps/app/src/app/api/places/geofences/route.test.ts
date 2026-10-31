@@ -39,6 +39,7 @@ const geocerca = (over: Record<string, unknown> = {}) => ({
 describe("GET /api/places/geofences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    forwardToQuarkusMock.mockReset();
     resolveTenantScopeMock.mockResolvedValue({
       resolved: true,
       scope: { activeOrg: { slug: "acme corp" } },
@@ -56,7 +57,7 @@ describe("GET /api/places/geofences", () => {
     const { GET } = await import("./route");
     const res = await GET();
     expect(forwardToQuarkusMock).toHaveBeenCalledWith(
-      "/api/v1/orgs/acme%20corp/places/geofences?size=2000"
+      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=0"
     );
     const body = await res.json();
     expect(body).toHaveLength(1);
@@ -108,5 +109,38 @@ describe("GET /api/places/geofences", () => {
     );
     const { GET } = await import("./route");
     expect((await GET()).status).toBe(502);
+  });
+
+  it("loads the catalog past the first 2000 geofences", async () => {
+    forwardToQuarkusMock
+      .mockResolvedValueOnce(
+        NextResponse.json(
+          Array.from({ length: 2000 }, (_, id) => geocerca({ id }))
+        )
+      )
+      .mockResolvedValueOnce(NextResponse.json([geocerca({ id: 2000 })]));
+    const { GET } = await import("./route");
+    const res = await GET();
+    const body = await res.json();
+    expect(body).toHaveLength(2001);
+    expect(body.at(-1).place_id).toBe("streamhub-2000");
+    expect(forwardToQuarkusMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/orgs/acme%20corp/places/geofences?size=2000&page=1"
+    );
+  });
+
+  it("does not present a partial catalog when a later page fails", async () => {
+    forwardToQuarkusMock
+      .mockResolvedValueOnce(
+        NextResponse.json(
+          Array.from({ length: 2000 }, (_, id) => geocerca({ id }))
+        )
+      )
+      .mockResolvedValueOnce(
+        NextResponse.json({ error: "unavailable" }, { status: 503 })
+      );
+    const { GET } = await import("./route");
+    expect((await GET()).status).toBe(503);
   });
 });

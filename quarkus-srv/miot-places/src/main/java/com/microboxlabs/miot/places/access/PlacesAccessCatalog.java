@@ -26,6 +26,8 @@ public class PlacesAccessCatalog implements AccessCatalog {
     public static final String MODULE = "places";
 
     public static final String VIEW = "places:view";
+    /** Existing map readers retain read access without a new role assignment. */
+    public static final String CONTROL_TOWER_VIEW = "controltower:view";
     public static final String GEOFENCE_WRITE = "places:geofence.write";
 
     public static final String VIEWER = "PLACES_VIEWER";

@@ -11,6 +11,6 @@ class GpsGeofenceStoreTest {
     @Test
     void anUnconfiguredGpsDatabaseIsUnavailable() {
         GpsGeofenceStore store = new GpsGeofenceStore(PlacesTestGpsDatabase.notConfigured());
-        assertThrows(GeofencesUnavailableException.class, () -> store.list("acme-client", null, 10));
+        assertThrows(GeofencesUnavailableException.class, () -> store.list("acme-client", null, 10, 0));
     }
 }

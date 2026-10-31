@@ -6,6 +6,7 @@ import Map, {
   type MapMouseEvent,
   type MarkerDragEvent,
 } from "react-map-gl";
+import { useEffect, useState } from "react";
 import { Spinner } from "flowbite-react";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -15,21 +16,40 @@ interface Point {
   readonly longitude: number;
 }
 
-/** A Mapbox map where a click or a drag of the marker sets the point. */
+function hasWebGL(): boolean {
+  const canvas = document.createElement("canvas");
+  return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
+}
+
+/**
+ * A Mapbox map where a click or a drag of the marker sets the point. Without WebGL the map cannot draw, so it
+ * shows `unavailable` instead.
+ */
 export default function PointPicker({
   center,
   point,
   onPoint,
   label,
+  unavailable,
 }: Readonly<{
   center: Point;
   point: Point | null;
   onPoint: (point: Point) => void;
   label: string;
+  unavailable: string;
 }>) {
   const runtimeConfig = useRuntimeConfig();
   const token = runtimeConfig?.MAPBOX_API_KEY?.trim() ?? "";
-  if (!token) {
+  const [webgl, setWebgl] = useState<boolean | null>(null);
+  useEffect(() => setWebgl(hasWebGL()), []);
+  if (webgl === false) {
+    return (
+      <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 p-6 text-center text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-300">
+        {unavailable}
+      </div>
+    );
+  }
+  if (!token || webgl === null) {
     return (
       <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-900">
         <Spinner />

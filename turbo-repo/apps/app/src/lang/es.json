@@ -3614,7 +3614,8 @@
             "point": "Punto",
             "noPoint": "Sin punto: haz clic en el mapa",
             "plusCode": "Plus Code (opcional)",
-            "save": "Validar y crear geocerca"
+            "save": "Validar y crear geocerca",
+            "mapUnavailable": "Este navegador no puede mostrar el mapa. Escriba el Plus Code del punto."
           },
           "reject": {
             "title": "Rechazar {name}",
@@ -3627,6 +3628,31 @@
             "distribution_center": "Centro de distribución",
             "customer": "Cliente",
             "zone": "Zona"
+          },
+          "notes": {
+            "pointInOtherDistrict": "El punto está en {found} ({foundCode}), no en {declared} ({declaredCode})",
+            "pointOutsideCountry": "El punto está fuera de {country}, no en {declared} ({declaredCode})",
+            "countryRequired": "Falta el país para comprobar la comuna",
+            "countryWithoutBoundaries": "{country} no tiene límites de comunas o distritos cargados",
+            "districtRequired": "Falta la comuna o distrito",
+            "districtCodeNotFound": "No existe el código de comuna {district} en {country}",
+            "districtAmbiguous": "Hay más de una comuna llamada {district} en {country}; envíe su código",
+            "districtNotFound": "No existe la comuna {district} en {country}",
+            "districtWithoutBoundary": "La comuna {district} no tiene límite para comprobar el punto",
+            "noSource": "Sin geocerca, Plus Code ni coordenadas",
+            "addressNeedsDistrict": "Para ubicar una dirección falta una comuna con límite",
+            "shortPlusCodeNeedsDistrict": "Un Plus Code corto necesita una comuna con límite",
+            "plusCodeInvalid": "El Plus Code {plusCode} no es válido",
+            "latitudeLongitudeTogether": "Latitud y longitud van juntas",
+            "coordinatesOutOfRange": "Coordenadas fuera de rango",
+            "geofenceCheckFailed": "No se pudieron revisar las geocercas del punto",
+            "gpsNotConfigured": "La base GPS no está configurada",
+            "quotaUsed": "La organización usó sus {quota} consultas de geocodificación del mes",
+            "noPlan": "La organización no tiene plan de geocodificación",
+            "noConnection": "La organización no tiene conexión de geocodificación; la agrega un dueño de la plataforma en Conexiones",
+            "notStorable": "La configuración del proveedor no permite guardar sus resultados",
+            "providerFoundNothing": "{provider} no encontró la dirección",
+            "providerFoundCoarser": "{provider} solo encontró {type}, no la dirección"
           }
         },
         "usage": {

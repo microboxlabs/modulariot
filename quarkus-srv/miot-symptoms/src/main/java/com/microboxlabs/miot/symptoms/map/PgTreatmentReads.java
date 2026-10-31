@@ -148,6 +148,23 @@ public class PgTreatmentReads implements TreatmentReads {
     }
 
     @Override
+    public Uni<Optional<JsonNode>> tripGeofences(String tripId, String clientId) {
+        return asClient(clientId, """
+                SELECT public.api_modular_treatments_geofences_service(p_trip_id := $1::varchar)::text AS answer
+                WHERE EXISTS (
+                    SELECT 1 FROM public.v_trips t
+                    WHERE t.trip_id = $1 AND (
+                        EXISTS (SELECT 1 FROM public.asset_client_map m WHERE m.asset_id = t.asset_id
+                            AND m.shared_client_id IN ($2::text, public.api_request_symptoms_client_id()::text)
+                            AND (m.valid_from IS NULL OR m.valid_from <= t.start_time)
+                            AND (m.valid_to IS NULL OR m.valid_to >= t.start_time))
+                        OR EXISTS (SELECT 1 FROM public.symptoms s WHERE s.trip_id = t.trip_id
+                            AND s.asset_id = t.asset_id AND s.client_id = public.api_request_symptoms_client_id())))
+                """, Tuple.of(tripId, clientId))
+                .map(row -> row.map(r -> parse(r.getString("answer"))));
+    }
+
+    @Override
     public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit) {
         if (limit < 2) {
             throw new IllegalArgumentException("limit must be at least 2");

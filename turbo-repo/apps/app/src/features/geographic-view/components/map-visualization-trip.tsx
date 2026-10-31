@@ -12,7 +12,8 @@ import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import wkx, { Geometry } from "wkx";
+import { Geometry } from "wkx";
+import { geofenceGeometry } from "../utils/geofence-geometry";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
@@ -64,7 +65,7 @@ type Zone = {
   location_type: any;
   id: string;
   name: string;
-  location: string;
+  location: string | GeoJSON.Geometry;
 };
 
 type GeofenceData = {
@@ -330,13 +331,11 @@ export default function MapVisualizationTrip({
       const features = geofence_data?.data
         ?.filter((item: GeofenceData) => item.zone.location !== null)
         .map((item: GeofenceData) => {
-          const wkbHexString = item.zone.location;
-          const wkbBuffer = Buffer.from(wkbHexString, "hex");
-          const geometry = wkx.Geometry.parse(wkbBuffer);
+          const geometry = geofenceGeometry(item.zone.location);
 
           return {
             type: "Feature",
-            geometry: geometry.toGeoJSON(),
+            geometry,
             properties: {
               id: item.zone.id,
               name: item.zone.name,

@@ -23,6 +23,8 @@ public interface TreatmentReads {
      */
     Uni<Optional<JsonNode>> signals(String clientId, long symptomId);
 
+    Uni<Optional<JsonNode>> tripGeofences(String tripId, String clientId);
+
     /**
      * The asset's positions during the trip, oldest first, at most {@code limit}, sampled evenly over the trip. Empty
      * when the trip does not exist for that asset or the client may not see it.

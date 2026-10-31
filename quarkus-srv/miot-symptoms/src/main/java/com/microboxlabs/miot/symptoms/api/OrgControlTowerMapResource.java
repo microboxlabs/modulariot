@@ -20,6 +20,8 @@ import io.quarkus.security.PermissionsAllowed;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
+import jakarta.enterprise.inject.Instance;
+import com.microboxlabs.miot.core.trips.TripGeofences;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -56,6 +58,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final EngineCaseService cases;
     private final TreatmentService caseTreatments;
     private final TripWindows tripWindows;
+
+    @Inject
+    Instance<TripGeofences> tripGeofences;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -215,6 +220,24 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         return answer(() -> Uni.createFrom().item(() -> cases.signalWindow(tenant, id))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .flatMap(w -> treatments.assetPositions(clientIds(), w.assetId(), w.from(), w.to())));
+    }
+
+    @GET
+    @Path("/trips/{tripId}/geofences")
+    @Operation(operationId = "listMapTripGeofences", summary = "The owning engine's trip geofences")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> tripGeofences(@PathParam("organizationId") String organizationId,
+            @PathParam("tripId") String tripId) {
+        String tenant = tenantCode(organizationId);
+        var moduleTrip = TripWindows.tripsModuleId(tripId);
+        if (moduleTrip.isEmpty()) {
+            return answer(() -> treatments.tripGeofences(clientIds(), tripId));
+        }
+        return answer(() -> Uni.createFrom().item(() -> tripGeofences.isUnsatisfied()
+                ? (JsonNode) JsonNodeFactory.instance.arrayNode()
+                : tripGeofences.get().geofences(tenant, moduleTrip.get()))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool()));
     }
 
     @GET

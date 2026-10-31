@@ -1,0 +1,54 @@
+# 🔔 Release Notes v1.32.1 — ModularIoT
+
+### Fecha: 31/10/2026
+
+**Objetivo**: Esta versión incorpora mejoras de mapas y viajes, y organiza las notas de versión de la plataforma y del Coordinador. También integra el milestone OSS `MIOT-0.6.1`, con documentación de geocodificación en español e inglés.
+
+## 🚀 Evolutivos
+
+- **📍 Espacio de trabajo Places** — Integración OSS del milestone `MIOT-0.6.1` ( #2277 ).
+  - **Punto clave**: Permite gestionar geocercas y áreas interiores, editar rutas, buscar en el catálogo e importar y exportar datos; incluye historial de versiones local en el navegador.
+  - **Detalle técnico**: Las escrituras requieren `controltower:places.edit` y el servidor determina el alcance del tenant.
+
+- **🗺️ Geocercas en mapas de viajes** — Integración OSS del milestone `MIOT-0.6.1` ( #2270 ).
+  - **Punto clave**: Los mapas muestran las geocercas del motor propietario del viaje.
+  - **Detalle técnico**: Los viajes con UUID usan Modulith; los viajes numéricos usan RPC heredado cuando está configurada la API AVL. El renderizador admite polígonos y multipolígonos GeoJSON y WKB.
+
+- **🔗 Asociación de puntos de viaje con geocercas existentes** — Integración OSS del milestone `MIOT-0.6.1` ( #2275 ).
+  - **Punto clave**: Un punto resuelto desde Plus Code, coordenadas o dirección se vincula a la geocerca GPS del tenant que lo contiene, en vez de crear un círculo nuevo de 200 m.
+  - **Detalle técnico**: Si varias geocercas contienen el punto, se elige la de menor `geofence_id`.
+
+- **🧭 Notas de versión separadas para plataforma y Coordinador** — Integración OSS del milestone `MIOT-0.6.1` ( #2272 ).
+  - **Punto clave**: Las notas de plataforma usan la versión del stack y el milestone OSS exacto; las del Coordinador conservan `release_notes_version`.
+  - **Detalle técnico**: Ambos catálogos se incluyen en la imagen de la app, una configuración de audiencia determina cuáles se muestran y el documento de plataforma se publica como cuerpo del GitHub Release del stack.
+
+## 🔧 Integraciones
+
+- **📚 Documentación de geocodificación** — Integración OSS del milestone `MIOT-0.6.1` ( #2294, #2295, #2296, #2297, #2298 ).
+  - **Alcance**: Guías en español e inglés sobre conceptos, configuración del proveedor como conexión, cuotas, ubicaciones pendientes, selección de fuente, geocercas, certificación de países, API de ubicaciones, uso, costos, monitoreo y métricas. Incluye la guía del producto y navegación relacionada.
+
+## 📊 Beneficios
+
+- Facilita la edición y organización de lugares y rutas desde un espacio de trabajo dedicado.
+- Evita crear geocercas redundantes cuando un punto ya pertenece a una geocerca del tenant.
+- Presenta en los mapas las geocercas del motor correspondiente al viaje.
+- Hace más claras y consistentes las notas de plataforma y del Coordinador.
+- Ofrece documentación de geocodificación en español e inglés para distintos perfiles y tareas.
+- Mantiene las operaciones de Places bajo permisos y alcance de tenant determinados por el servidor.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.1`
+- App: `app@v0.6.1` — actualizado
+- Docs: `docs@v0.6.1` — actualizado
+- Web: `web@v0.6.1` — actualizado
+- Modulith: `modulith@v0.5.40` — actualizado
+- Harness: `harness@v0.1.14` — sin cambios
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build de la app y en el artefacto `stack-manifest.json` del release.
+
+## 📌 Conclusión
+
+La versión 1.32.1 reúne mejoras prácticas para gestionar lugares y visualizar geocercas en viajes, junto con una separación más clara de las notas de plataforma y del Coordinador.
+
+La documentación de geocodificación del milestone `MIOT-0.6.1` complementa esos cambios y facilita la configuración, el uso y el seguimiento de esta capacidad.

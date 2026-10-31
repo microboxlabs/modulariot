@@ -7093,6 +7093,11 @@
     "pulse": "Pulse",
     "stops": "Stops",
     "geofences": "Geofences",
+    "geofencesMode": {
+      "all": "All geofences",
+      "trip": "Trip geofences only",
+      "none": "No geofences"
+    },
     "cameraMovement": "Camera tracking",
     "watch": "Watch",
     "types": {
@@ -7300,6 +7305,9 @@
     "accumulated_resting_time": "Accumulated resting time",
     "zone_names": "Zone names",
     "gps_provider": "GPS provider",
+    "vehicle_model": "Model",
+    "vehicle_no_model": "No model",
+    "vehicle_year": "Year",
     "median_report_interval": "Median report interval",
     "accumulated_time": "Driving time",
     "show_stops": "Show stops",
@@ -7330,7 +7338,20 @@
     "places": {
       "title": "Places of interest",
       "hint": "Search the catalog or import. Right-click the map to create a place or a route.",
-      "hint_read_only": "Read only: search the catalog or download. Creating, editing or importing needs the “Places editor” permission."
+      "hint_read_only": "Read only: search the catalog or download. Creating, editing or importing needs the “Places editor” permission.",
+      "search": {
+        "placeholder": "Search by name or category…",
+        "min_characters": "Type at least 2 characters",
+        "loading": "Searching…",
+        "no_results": "No geofence matches",
+        "no_results_for": "for",
+        "no_results_tags": "No geofence matches the chosen filters.",
+        "remove_tag": "Remove {tag}",
+        "field": {
+          "name": "Name",
+          "category": "Category"
+        }
+      }
     },
     "places_permission_debug": {
       "title": "Debug · Places editor",

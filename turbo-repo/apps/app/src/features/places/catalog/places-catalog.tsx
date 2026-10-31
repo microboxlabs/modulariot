@@ -1,10 +1,24 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 import { Button, ButtonGroup } from "flowbite-react";
 import { MdOutlineFileUpload } from "react-icons/md";
 import { twMerge } from "tailwind-merge";
-import { filtrarLugares, filtrarTrayectos } from "./catalog-search";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import {
+  filtrarLugares,
+  filtrarPorEtiquetas,
+  filtrarTrayectos,
+  type EtiquetaBusqueda,
+} from "./catalog-search";
+import CatalogSearchBar, { type ItemBusqueda } from "./catalog-search-bar";
 import { ListCard } from "./list-card";
 import PlaceList from "./place-list";
 import { TrayectoList } from "./route-lists";
@@ -22,7 +36,7 @@ import {
   type AccionesImport,
 } from "../import-export/import-conflict-table";
 import type { PlacesWorkspace } from "../hooks/use-places-workspace";
-import type { GeocercaExterna } from "../places.types";
+import type { GeocercaExterna, Lugar } from "../places.types";
 
 export function PlacesImportCard({
   ws,
@@ -240,31 +254,97 @@ function accionesEditables(
   };
 }
 
+/** Lo que compara la barra: las geocercas y las de solo lectura. */
+function itemsDeBusqueda(
+  lugares: Lugar[],
+  externas: GeocercaExterna[]
+): ItemBusqueda[] {
+  return [
+    ...lugares.map((l) => ({
+      id: l.place_id,
+      name: l.name,
+      category: l.category,
+    })),
+    ...externas.map((g) => ({
+      id: `ext-${g.id}`,
+      name: g.nombre,
+      category: null,
+    })),
+  ];
+}
+
+/**
+ * Las geocercas de solo lectura que quedan: no tienen categoría, así que un
+ * filtro de categoría las saca; los de nombre las filtran como a las demás.
+ */
+function externasVisibles(
+  items: GeocercaExterna[],
+  busca: string,
+  etiquetas: EtiquetaBusqueda[]
+): GeocercaExterna[] {
+  if (etiquetas.some((e) => e.matchType === "category")) return [];
+  const nombres = etiquetas.map((e) => e.value.trim().toLowerCase());
+  return filtrarExternas(items, busca).filter(
+    (g) =>
+      nombres.length === 0 ||
+      nombres.some((q) => g.nombre.toLowerCase().includes(q))
+  );
+}
+
+function textoSinResultados(
+  busca: string,
+  etiquetas: EtiquetaBusqueda[],
+  dict: I18nRecord
+): string {
+  if (etiquetas.length > 0)
+    return tr("geographic_view.places.search.no_results_tags", dict);
+  return `Sin resultados para «${busca.trim()}».`;
+}
+
 export function PlacesCatalogLists({
   ws,
   externas,
   className,
+  dict = {},
 }: Readonly<{
   ws: PlacesWorkspace;
   /** Otra sección de solo lectura (p. ej. las geocercas del viaje). */
   externas?: { titulo: string; items: GeocercaExterna[] };
   className?: string;
+  /** Textos de la barra de búsqueda. */
+  dict?: I18nRecord;
 }>) {
   // sin el permiso "Editor de lugares": solo listar, buscar y descargar
   const editable = ws.puedeEditar !== false;
-  const hayBusca = ws.busca.trim().length > 0;
-  const lugares = filtrarLugares(ws.todosLugares ?? ws.lugares, ws.busca);
-  const trayectos = filtrarTrayectos(ws.todosTrayectos ?? [], ws.busca);
-  const verLugares = !hayBusca || lugares.length > 0;
-  const verTrayectos = !hayBusca || trayectos.length > 0;
-  const externasFiltradas = filtrarExternas(externas?.items ?? [], ws.busca);
-  const verExternas = !!externas && (!hayBusca || externasFiltradas.length > 0);
-  const sinResultados =
-    hayBusca && !verLugares && !verTrayectos && !verExternas;
-  const sel = useSeleccionLista(
-    ws.todosLugares ?? ws.lugares,
-    ws.todosTrayectos ?? []
+  const todosLugares = ws.todosLugares ?? ws.lugares;
+  // los filtros elegidos en la barra («Categoría: planta», «Nombre: norte»)
+  const [etiquetas, setEtiquetas] = useState<EtiquetaBusqueda[]>([]);
+  const itemsBusqueda = useMemo(
+    () => itemsDeBusqueda(todosLugares, externas?.items ?? []),
+    [todosLugares, externas?.items]
   );
+  // con filtros solo quedan geocercas: los trayectos no tienen categoría
+  const filtrando = ws.busca.trim().length > 0 || etiquetas.length > 0;
+  const lugares = filtrarPorEtiquetas(
+    filtrarLugares(todosLugares, ws.busca),
+    etiquetas
+  );
+  const trayectos =
+    etiquetas.length > 0
+      ? []
+      : filtrarTrayectos(ws.todosTrayectos ?? [], ws.busca);
+  const verLugares = !filtrando || lugares.length > 0;
+  const verTrayectos = !filtrando || trayectos.length > 0;
+  const externasFiltradas = externasVisibles(
+    externas?.items ?? [],
+    ws.busca,
+    etiquetas
+  );
+  const verExternas =
+    !!externas && (!filtrando || externasFiltradas.length > 0);
+  const sinResultados =
+    filtrando && !verLugares && !verTrayectos && !verExternas;
+  const sel = useSeleccionLista(todosLugares, ws.todosTrayectos ?? []);
   const todosVisibles =
     lugares.length + trayectos.length > 0 &&
     lugares.every((l) => sel.marcasLugares.marcados.has(l.place_id)) &&
@@ -279,32 +359,35 @@ export function PlacesCatalogLists({
 
   return (
     <div className={twMerge("flex min-h-0 flex-1 flex-col gap-2", className)}>
-      <div className="flex shrink-0 gap-1.5">
-        <input
-          className={inputCls}
-          placeholder="Buscar por nombre, dirección o external_id…"
-          value={ws.busca}
-          onChange={(e) => ws.setBusca(e.target.value)}
-        />
-        {/* importar crea lugares: solo con el permiso */}
-        {editable && (
-          <button
-            type="button"
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${
-              ws.modo === "import"
-                ? "bg-blue-600 text-white"
-                : "border border-gray-300 text-gray-900 dark:border-gray-600 dark:text-white"
-            }`}
-            onClick={ws.abrirImport}
-          >
-            Importar
-          </button>
-        )}
-        <ExportButton
-          lugares={ws.todosLugares ?? []}
-          trayectos={ws.todosTrayectos ?? []}
-        />
-      </div>
+      <CatalogSearchBar
+        items={itemsBusqueda}
+        etiquetas={etiquetas}
+        onEtiquetas={setEtiquetas}
+        onBusca={ws.setBusca}
+        dict={dict}
+        acciones={
+          <>
+            {/* importar crea lugares: solo con el permiso */}
+            {editable && (
+              <button
+                type="button"
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${
+                  ws.modo === "import"
+                    ? "bg-blue-600 text-white"
+                    : "border border-gray-300 text-gray-900 dark:border-gray-600 dark:text-white"
+                }`}
+                onClick={ws.abrirImport}
+              >
+                Importar
+              </button>
+            )}
+            <ExportButton
+              lugares={ws.todosLugares ?? []}
+              trayectos={ws.todosTrayectos ?? []}
+            />
+          </>
+        }
+      />
 
       {/* agregar, a todo el ancho bajo la búsqueda: solo con el permiso */}
       {editable && (
@@ -327,7 +410,7 @@ export function PlacesCatalogLists({
         <ListCard>
           {sinResultados ? (
             <p className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
-              {`Sin resultados para «${ws.busca.trim()}».`}
+              {textoSinResultados(ws.busca, etiquetas, dict)}
             </p>
           ) : (
             <>

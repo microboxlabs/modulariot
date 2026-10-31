@@ -24,7 +24,29 @@ vi.mock("@/features/common/providers/client-api.provider", () => ({
 vi.mock("../hooks/use-timelapse", () => ({
   useTimelapse: () => ({ timelapse: null }),
 }));
-vi.mock("./tool-bar/tool-bar", () => ({ default: () => null }));
+// la barra expone el modo de geocercas como botones para poder cambiarlo
+vi.mock("./tool-bar/tool-bar", () => ({
+  default: ({
+    geofences_mode,
+  }: {
+    geofences_mode?: {
+      geofencesMode: string;
+      setGeofencesMode: (m: "all" | "trip" | "none") => void;
+    };
+  }) => (
+    <div data-testid="modo-geocercas" data-modo={geofences_mode?.geofencesMode}>
+      {(["all", "trip", "none"] as const).map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => geofences_mode?.setGeofencesMode(m)}
+        >
+          {`modo-${m}`}
+        </button>
+      ))}
+    </div>
+  ),
+}));
 vi.mock("./places-overlay/places-floating-overlay", () => ({
   default: ({ externas }: { externas?: { titulo: string } }) =>
     externas ? <span data-testid="externas">{externas.titulo}</span> : null,
@@ -37,8 +59,10 @@ vi.mock("@/features/places", async () => ({
   PlaceBadgeTooltip: () => null,
   PlacesEditorOverlays: () => null,
   PlacesMapLayers: () => <span data-testid="capas-lugares" />,
+  hayBorrador: () => false,
   usePlacesEnMapa: () => ({
-    ws: { tooltipBadge: null },
+    // sin cambios sin guardar: salir de Lugares sigue de inmediato
+    ws: { tooltipBadge: null, pedirSalir: (seguir: () => void) => seguir() },
     capasNombres: [],
     propsMapa: {},
   }),
@@ -139,9 +163,30 @@ describe("MapVisualizationTrip controls", () => {
 
   it("has no Capas pill: places geofences follow the map's own toolbar", () => {
     renderViaje({ positions: [] });
-    // the toolbar's geofence toggle (on by default) already covers this
+    // the toolbar's geofence mode already covers this
     expect(document.querySelector("[data-capa]")).toBeNull();
+  });
+
+  it("shows only the trip's geofences by default", () => {
+    renderViaje({ positions: [] });
+    expect(screen.getByTestId("modo-geocercas")).toHaveAttribute(
+      "data-modo",
+      "trip"
+    );
+    expect(screen.queryByTestId("capas-lugares")).toBeNull();
+  });
+
+  it("shows every places geofence with 'all' and none with 'none'", () => {
+    renderViaje({ positions: [] });
+    fireEvent.click(screen.getByRole("button", { name: "modo-all" }));
     expect(screen.getByTestId("capas-lugares")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "modo-none" }));
+    expect(screen.queryByTestId("capas-lugares")).toBeNull();
+  });
+
+  it("shows the places geofences while the editor is open, whatever the mode", () => {
+    renderViaje({ positions: [] });
+    fireEvent.click(screen.getByRole("button", { name: "modo-none" }));
     fireEvent.click(screen.getByRole("button", { name: "Lugares de interés" }));
     expect(screen.getByTestId("capas-lugares")).toBeInTheDocument();
   });
@@ -175,6 +220,25 @@ describe("MapVisualizationTrip controls", () => {
     expect(screen.getByTestId("externas")).toHaveTextContent(
       "Geocercas del viaje"
     );
+  });
+});
+
+describe("trip map layer order", () => {
+  it("draws the geofence names on top only while the editor is open", async () => {
+    const { capasDelMapa } = await import("./map-visualization-trip");
+    // stand-ins for deck.gl layers: only the order matters here
+    const capa = (id: string) => ({ id }) as never;
+    const [pulsos, pin, nombres] = [capa("pulsos"), capa("pin"), capa("n")];
+    expect(capasDelMapa([pulsos, pin], [nombres], false)).toEqual([
+      nombres,
+      pulsos,
+      pin,
+    ]);
+    expect(capasDelMapa([pulsos, pin], [nombres], true)).toEqual([
+      pulsos,
+      pin,
+      nombres,
+    ]);
   });
 });
 

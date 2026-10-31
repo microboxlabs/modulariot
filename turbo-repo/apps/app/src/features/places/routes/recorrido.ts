@@ -8,9 +8,8 @@ import type { FormTrayecto, LatLon, Parada, TipoPunto } from "../places.types";
 export const MAX_PUNTOS = 25;
 export const MIN_PUNTOS = 2;
 
-let secuencia = 0;
 export const nuevoPunto = (): Parada => ({
-  id: `punto-${++secuencia}`,
+  id: `punto-${crypto.randomUUID()}`,
   texto: "",
   punto: null,
 });

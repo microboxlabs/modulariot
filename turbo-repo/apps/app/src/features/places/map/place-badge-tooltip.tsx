@@ -103,7 +103,7 @@ function GrupoCluster({
       </p>
       <ul className="space-y-0.5 pl-4.5 text-[11px] text-gray-700 dark:text-gray-300">
         {nombres.slice(0, MAX_NOMBRES_CLUSTER).map((n, i) => (
-          <li key={`${n}-${i}`} className="truncate">
+          <li key={`${n}-${i}`} className="break-words">
             {n}
           </li>
         ))}

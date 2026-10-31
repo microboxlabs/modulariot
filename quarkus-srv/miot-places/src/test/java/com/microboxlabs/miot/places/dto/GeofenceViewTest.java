@@ -32,6 +32,7 @@ class GeofenceViewTest {
 
     @Test
     void unreadableJsonIsAnError() {
-        assertThrows(IllegalStateException.class, () -> GeofenceView.of(geofence("{not json", null)));
+        GeofenceStore.Geofence invalid = geofence("{not json", null);
+        assertThrows(IllegalStateException.class, () -> GeofenceView.of(invalid));
     }
 }

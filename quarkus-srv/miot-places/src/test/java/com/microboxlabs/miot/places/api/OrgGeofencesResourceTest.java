@@ -92,6 +92,7 @@ class OrgGeofencesResourceTest {
         OrgGeofencesResource failing = resource((tenantCode, q, limit) -> {
             throw new UnsupportedOperationException("boom");
         });
-        assertThrows(UnsupportedOperationException.class, () -> call(failing.list(ORG, null, null)));
+        Uni<Response> response = failing.list(ORG, null, null);
+        assertThrows(UnsupportedOperationException.class, () -> call(response));
     }
 }

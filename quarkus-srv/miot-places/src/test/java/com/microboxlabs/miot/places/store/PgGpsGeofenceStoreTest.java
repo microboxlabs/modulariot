@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.core.gps.PlacesTestGpsDatabase;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -88,7 +89,7 @@ class PgGpsGeofenceStoreTest {
         assertEquals(List.of("Arica", "Bodega"), out.stream().map(GeofenceStore.Geofence::name).toList());
         assertEquals(AREA.replace(" ", ""), out.get(0).shapeGeojson().replace(" ", ""));
         assertNull(out.get(0).propertiesJson());
-        assertEquals("Ruta 5", out.get(1).propertiesJson().replaceAll(".*\"address\": ?\"([^\"]+)\".*", "$1"));
+        assertEquals("Ruta 5", new JsonObject(out.get(1).propertiesJson()).getString("address"));
     }
 
     @Test
@@ -116,7 +117,8 @@ class PgGpsGeofenceStoreTest {
 
     @Test
     void readsInAReadOnlySession() {
-        assertThrows(RuntimeException.class, () -> reads.query("INSERT INTO geofences (client_id,"
-                + " client_geofence_id) VALUES ('acme-client', 'Z')").execute().await().atMost(TIMEOUT));
+        var insertion = reads.query("INSERT INTO geofences (client_id,"
+                + " client_geofence_id) VALUES ('acme-client', 'Z')").execute().await();
+        assertThrows(RuntimeException.class, () -> insertion.atMost(TIMEOUT));
     }
 }

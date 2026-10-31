@@ -1,0 +1,221 @@
+import { Callout, Steps, Tabs } from 'nextra/components'
+
+# Su primera ubicación
+
+**Para:** desarrolladores.
+
+<Callout type="info">
+**Aprenderá a:**
+
+- ubicar un lugar por coordenadas con una llamada a la API;
+- leer la respuesta: qué fuente lo ubicó, en qué estado quedó y qué geocerca tiene;
+- repetir la llamada sin crear un lugar duplicado;
+- ubicar varios lugares en una sola llamada.
+</Callout>
+
+## Antes de empezar
+
+| Necesita | Por qué |
+| --- | --- |
+| La URL de la API de su instalación, en `MIOT_API` | Todas las llamadas van a `$MIOT_API/api/v1/orgs/{org}/trips/...` |
+| El identificador de su organización, en `MIOT_ORG` | Es el `{org}` de la ruta |
+| Un token en `MIOT_TOKEN`: una clave de cuenta de servicio (`miot_sk_...`) o el token de sesión de un usuario | La API lo recibe en `Authorization: Bearer` |
+| El permiso `trips:location.write` | Lo tiene el rol **Mantenedor** de Viajes |
+
+Una clave de cuenta de servicio se crea en **Ajustes › Equipo › Claves API**. Asígnele el rol Mantenedor de Viajes.
+
+<Steps>
+
+### Ubicar un lugar por coordenadas
+
+Envíe un sitio con su código, su país, su comuna y sus coordenadas. El ejemplo es la Plaza de Armas de Santiago, comuna 13101.
+
+<Tabs items={['curl', 'TypeScript']}>
+<Tabs.Tab>
+```bash
+curl -s -w '\nHTTP %{http_code}\n' -X POST "$MIOT_API/api/v1/orgs/$MIOT_ORG/trips/locations/resolve" \
+  -H "Authorization: Bearer $MIOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalCode": "DOC-GEO-COORD",
+    "name": "Plaza de Armas",
+    "type": "distribution_center",
+    "country": "CL",
+    "districtCode": "13101",
+    "latitude": -33.4378,
+    "longitude": -70.6505
+  }'
+```
+</Tabs.Tab>
+<Tabs.Tab>
+```ts
+const api = process.env.MIOT_API
+const org = process.env.MIOT_ORG
+const token = process.env.MIOT_TOKEN
+
+const res = await fetch(`${api}/api/v1/orgs/${org}/trips/locations/resolve`, {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    externalCode: 'DOC-GEO-COORD',
+    name: 'Plaza de Armas',
+    type: 'distribution_center',
+    country: 'CL',
+    districtCode: '13101',
+    latitude: -33.4378,
+    longitude: -70.6505
+  })
+})
+if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
+const location = await res.json()
+console.log(location.resolutionStatus, location.geofenceId)
+```
+</Tabs.Tab>
+</Tabs>
+
+La API responde `200` con la ubicación:
+
+```json
+{
+  "id": "064b623b-1b79-4988-90a7-c71805e5e29d",
+  "name": "Plaza de Armas",
+  "type": "distribution_center",
+  "externalCode": "DOC-GEO-COORD",
+  "geomGeojson": null,
+  "geofenceId": 1209,
+  "address": null,
+  "country": "CL",
+  "districtCode": "13101",
+  "district": "Santiago",
+  "plusCode": "47RFH86X+VR",
+  "latitude": -33.4378,
+  "longitude": -70.6505,
+  "resolutionSource": "coordinates",
+  "resolutionStatus": "resolved",
+  "resolutionNote": null,
+  "createdAt": "2026-10-31T11:30:54.074282Z",
+  "updatedAt": "2026-10-31T11:30:54.074282Z"
+}
+```
+
+### Leer la respuesta
+
+Tres campos dicen qué pasó:
+
+| Campo | Valor | Qué significa |
+| --- | --- | --- |
+| `resolutionSource` | `coordinates` | Las coordenadas dieron el punto |
+| `resolutionStatus` | `resolved` | El punto cae en la comuna declarada y el lugar tiene geocerca |
+| `geofenceId` | `1209` | La geocerca GPS que usarán los viajes |
+
+La plataforma también completó datos:
+
+| Campo | Lo que envió | Lo que guardó |
+| --- | --- | --- |
+| `district` | nada | `Santiago`, el nombre de la comuna 13101 |
+| `plusCode` | nada | `47RFH86X+VR`, el Plus Code completo del punto |
+
+La geocerca 1209 es un círculo de 300 m alrededor del punto, porque el tipo es `distribution_center`. Los radios por tipo están en [Del punto a la geocerca](/es/products/geocoding/tutorials/point-to-geofence).
+
+### Repetir la llamada
+
+Envíe la misma llamada otra vez. La API encuentra la ubicación por `externalCode` y la vuelve a resolver. La respuesta trae el mismo `id` y la misma geocerca 1209. Cambia la fuente:
+
+```json
+{ "id": "064b623b-1b79-4988-90a7-c71805e5e29d", "geofenceId": 1209,
+  "resolutionSource": "geofence", "resolutionStatus": "resolved" }
+```
+
+La geocerca 1209 tiene como código el `externalCode` del lugar. En la segunda llamada, la primera fuente (geocerca por código) ya la encuentra. Por eso repetir la llamada no crea otra ubicación ni otra geocerca.
+
+| Campo de la petición | Qué ubicación usa |
+| --- | --- |
+| `locationId` | Esa ubicación. Si no existe, `404` |
+| `externalCode`, sin `locationId` | La ubicación con ese código. Si no existe, la crea |
+| Ninguno de los dos | Una ubicación nueva cada vez, con el `name` |
+
+Los datos de ubicación que la petición no envía (dirección, país, comuna, punto) conservan lo que la ubicación ya tiene. `name` y `type` solo se usan al crear la ubicación; para cambiarlos use `PATCH /trips/locations/{id}`.
+
+Para corregir solo la comuna, envíe el código y la comuna. El punto guardado se vuelve a comprobar contra la comuna nueva:
+
+```json
+{ "externalCode": "DOC-GEO-OTRA-COMUNA", "districtCode": "13101" }
+```
+
+<Callout type="warning">
+**Cuidado:** si la ubicación ya tiene un punto guardado, una nueva resolución usa ese punto (como Plus Code) y no vuelve a geocodificar la dirección. Corregir solo la dirección no cambia el punto. Envíe el punto nuevo o ubíquelo a mano ([Ubicaciones por revisar](/es/products/geocoding/tutorials/needs-review)).
+</Callout>
+
+<Callout type="warning">
+**Cuidado:** sin `externalCode` ni `locationId`, cada llamada crea una ubicación nueva. Envíe siempre el código del lugar en su sistema.
+</Callout>
+
+### Ver un lugar que queda en revisión
+
+Envíe las mismas coordenadas, pero declare la comuna de Providencia (13123):
+
+```json
+{
+  "externalCode": "DOC-GEO-OTRA-COMUNA",
+  "name": "Plaza de Armas en Providencia",
+  "type": "customer",
+  "country": "CL",
+  "districtCode": "13123",
+  "latitude": -33.4378,
+  "longitude": -70.6505
+}
+```
+
+La respuesta también es `200`, pero el lugar queda en revisión y sin geocerca:
+
+```json
+{
+  "externalCode": "DOC-GEO-OTRA-COMUNA",
+  "geofenceId": null,
+  "districtCode": "13123",
+  "district": "Providencia",
+  "plusCode": "47RFH86X+VR",
+  "latitude": -33.4378,
+  "longitude": -70.6505,
+  "resolutionSource": "coordinates",
+  "resolutionStatus": "needs_review",
+  "resolutionNote": "the point is in Santiago (13101), not in Providencia (13123)"
+}
+```
+
+Un lugar en revisión no es un error de la API. El punto se guarda, pero no se crea la geocerca. El motivo queda en `resolutionNote`, y el lugar aparece en **Ajustes › Viajes › Por revisar**.
+
+### Ubicar varios lugares en una llamada
+
+Envíe un arreglo en vez de un objeto, con hasta 200 sitios. Cada sitio se resuelve por separado: si uno falla, los demás siguen.
+
+```json
+[
+  { "externalCode": "DOC-GEO-PC-FULL", "name": "Parque Kennedy", "type": "customer",
+    "country": "PE", "districtCode": "150122", "plusCode": "57V4VXHC+H4" },
+  { "name": "Sin datos", "locationId": "no-es-un-uuid" }
+]
+```
+
+La respuesta es un arreglo con un resultado por sitio, en el mismo orden. `index` es la posición del sitio en la petición:
+
+```json
+[
+  { "index": 0, "location": { "externalCode": "DOC-GEO-PC-FULL", "resolutionStatus": "resolved", "...": "..." }, "error": null },
+  { "index": 1, "location": null, "error": "locationId must be a UUID" }
+]
+```
+
+</Steps>
+
+## Resumen
+
+- `POST /trips/locations/resolve` recibe un sitio o un arreglo de sitios.
+- `resolutionSource` dice qué fuente dio el punto. `resolutionStatus` dice si quedó resuelto o en revisión.
+- `externalCode` hace que repetir la llamada sea seguro.
+- Un lugar en revisión responde `200`. Revise `resolutionStatus`, no el código HTTP.
+
+Siguiente: [Cómo se elige la fuente](/es/products/geocoding/tutorials/resolution-order), con un ejemplo por fuente.

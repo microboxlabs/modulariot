@@ -1,0 +1,39 @@
+# Genérico y específico de cada puesta a punto
+
+**Para:** todos.
+
+La geocodificación tiene una parte igual para todos y una parte que se ajusta a cada país y a cada cliente. Saber cuál es cuál dice qué hay que preparar al sumar un cliente o un país.
+
+## Lo genérico
+
+Es igual en toda instalación y no se configura por cliente.
+
+| Pieza | Qué es |
+| --- | --- |
+| El orden de las fuentes | Geocerca, Plus Code, coordenadas, direcciones internas, caché, proveedor ([detalle](/es/products/geocoding/tutorials/resolution-order)) |
+| La comprobación de la comuna | El punto debe caer en la comuna declarada, con 500 m de tolerancia |
+| La elección de la geocerca | La que contiene el punto, o un círculo nuevo |
+| La caché | Compartida por todas las organizaciones. Guarda la dirección normalizada, su comuna y su punto; no guarda organización, nombre del lugar ni cliente |
+| La cuota y el registro de uso | Por organización y por mes |
+| El contrato de la API | `POST /trips/locations/resolve`, los sitios del feed, la revisión |
+| La revisión | Por revisar, ubicar a mano, rechazar |
+
+## Lo específico
+
+| Pieza | Depende de | Dónde se define |
+| --- | --- | --- |
+| Límites administrativos | El país | Datos de la plataforma. Hoy: Chile y Perú |
+| Direcciones internas | El país | Datos de la plataforma. Hoy: Chile |
+| El proveedor y su certificación | El país | Conexión de la plataforma; [Certificar un país nuevo](/es/products/geocoding/how-to/certify-a-country) |
+| El país de cada sitio | El feed | Cada sitio trae `country`; la integración lo fija por planilla |
+| Los tipos de lugar y sus radios | El negocio del cliente | Tipo de cada ubicación. Los radios son fijos por tipo: puerto 1000 m, planta 500 m, centro de distribución 300 m, zona 200 m, cliente 150 m |
+| Cómo escribe el cliente sus lugares | El cliente | La planilla y la integración que la lee ([Enviar sitios desde un feed](/es/products/geocoding/how-to/feed-sites)) |
+| La cuota y qué pasa al agotarla | El contrato con el cliente | Ajustes › Plataforma › Geocodificación |
+
+## Qué preparar
+
+| Al sumar | Prepare |
+| --- | --- |
+| Un cliente en un país ya cargado | Su conexión de geocodificación, su cuota, el tipo de cada lugar y las columnas de su planilla |
+| Un país nuevo | Sus límites administrativos, sus fuentes de direcciones si existen, y la certificación del proveedor |
+| Un proveedor nuevo | Su adaptador en la plataforma y la revisión de sus términos (si permiten guardar el punto) |

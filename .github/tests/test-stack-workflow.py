@@ -49,7 +49,7 @@ class WorkflowFixture:
     def execute(self, step, env=None):
         values = {key: interpolate(value, self.context) for key, value in step.get('env', {}).items()}
         script = interpolate(step['run'], self.context)
-        for name in ('resolve-nightly-image.sh', 'notify-stack.sh'):
+        for name in ('resolve-nightly-image.sh', 'notify-stack.sh', 'prepare-release-notes.js', 'write-release-notes.js'):
             script = script.replace(f'.github/scripts/{name}', str(ROOT / '.github/scripts' / name))
         return subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', script], cwd=self.cwd,
                               env={**self.env, **values, **(env or {})}, text=True, capture_output=True)
@@ -115,6 +115,66 @@ class PublicationTest(WorkflowFixture, unittest.TestCase):
 
 
 class ReleasePublicationTest(WorkflowFixture, unittest.TestCase):
+    def test_workflow_prepares_two_valid_prompts_with_isolated_milestones(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/app-release-train.yml').read_text())
+        step = next(step for step in workflow['jobs']['prepare']['steps'] if step.get('name') == 'Build release notes prompts')
+        metadata = step['env']['RELEASE_NOTES_METADATA']
+        for key in re.findall(r'\$\{\{\s*(.*?)\s*\}\}', metadata):
+            self.context.setdefault(key, 'test')
+        self.context.update({'steps.version.outputs.release_version': '0.6.0',
+                             'steps.version.outputs.release_notes_version': '1.32.0',
+                             'steps.version.outputs.private_milestone': 'Release 1.32.0',
+                             'steps.version.outputs.oss_milestone': 'MIOT-0.6.0'})
+        prompt_path = Path('.github/prompts/app-release-notes.prompt.yml')
+        (self.cwd / prompt_path.parent).mkdir(parents=True)
+        (self.cwd / prompt_path).write_text((ROOT / prompt_path).read_text())
+        (self.cwd / 'release-issues.json').write_text(json.dumps([
+            {'source': 'release', 'milestone': 'Release 1.32.0', 'title': 'Client feature'},
+            {'source': 'oss', 'milestone': 'MIOT-0.6.0', 'title': 'Platform feature'},
+        ]))
+        result = self.execute(step)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for audience, version in [('platform', '0.6.0'), ('coordinator', '1.32.0')]:
+            prompt = yaml.safe_load((self.cwd / f'release-notes-{audience}.prompt.yml').read_text())
+            content = prompt['messages'][1]['content']
+            self.assertIn(f'Release version: {version}', content)
+            self.assertIn('Platform feature', content)
+            if audience == 'platform':
+                self.assertNotIn('Client feature', content)
+                self.assertNotIn('1.32.0', content)
+            else:
+                self.assertIn('Client feature', content)
+
+    def test_note_files_are_written_in_separate_versioned_catalogs(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/app-release-train.yml').read_text())
+        step = next(step for step in workflow['jobs']['prepare']['steps'] if step.get('name') == 'Write release notes')
+        self.context['steps.version.outputs.release_version'] = '0.6.0'
+        self.context['steps.version.outputs.release_notes_version'] = '1.32.0'
+        for audience, version in [('platform', '0.6.0'), ('coordinator', '1.32.0')]:
+            (self.cwd / f'release-notes-{audience}.response.mdx').write_text(
+                f'```mdx\n# 🔔 Release Notes v{version} — ModularIoT\n\n{audience}\n```\n')
+        result = self.execute(step)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for archive, app, version in [('releases/platform', 'src/releases/platform', '0.6.0'),
+                                      ('releases/notes', 'src/releases', '1.32.0')]:
+            content = (self.cwd / archive / f'v{version}.mdx').read_text()
+            packaged = self.cwd / 'turbo-repo/apps/app' / app / f'v{version}.mdx'
+            self.assertEqual(content, packaged.read_text())
+            self.assertTrue(content.startswith(f'# 🔔 Release Notes v{version} —'))
+        self.context.update({'github.token': 'test', 'needs.prepare.outputs.release_version': '0.6.0',
+                             'needs.prepare.outputs.stack_tag': 'miot-stack@v0.6.0'})
+        for component in ('app', 'docs', 'web', 'modulith', 'harness'):
+            self.context[f'needs.prepare.outputs.{component}_changed'] = 'false'
+            self.context[f'needs.prepare.outputs.{component}_tag'] = 'unused'
+        release_step = next(step for step in workflow['jobs']['tag']['steps'] if step.get('name') == 'Create GitHub releases')
+        self.command('gh', 'while [[ $# -gt 0 ]]; do\n  if [[ "$1" == "--notes-file" ]]; then cp "$2" published-notes.mdx; fi\n  shift\ndone\n')
+        self.assertEqual(self.execute(release_step).returncode, 0)
+        self.assertIn('Release Notes v0.6.0', (self.cwd / 'published-notes.mdx').read_text())
+        self.assertNotIn('coordinator', (self.cwd / 'published-notes.mdx').read_text())
+        (self.cwd / 'release-notes-platform.response.mdx').write_text(
+            '# 🔔 Release Notes v1.32.0 — wrong audience/version\n')
+        self.assertNotEqual(self.execute(step).returncode, 0)
+
     def test_release_train_also_publishes_only_availability(self):
         workflow = yaml.safe_load((ROOT / '.github/workflows/app-release-train.yml').read_text())
         job = workflow['jobs']['publish']

@@ -8,6 +8,8 @@ const ENV_KEYS = [
   "MIOT_BUILD_INFO_JSON",
   "RELEASE_VERSION",
   "RELEASE_NOTES_VERSION",
+  "RELEASE_NOTES_AUDIENCE",
+  "PLATFORM_RELEASE_NOTES_VERSION",
   "BUILD_CHANNEL",
   "STACK_TAG",
   "GIT_SHA",
@@ -29,6 +31,69 @@ describe("build info route", () => {
     process.env = { ...originalEnv };
     process.chdir(originalCwd);
   });
+
+  it.each([
+    ["platform", "v0.6.0"],
+    ["coordinator", "v1.32.0"],
+  ])(
+    "selects %s notes from the same packaged image",
+    async (audience, version) => {
+      process.env.RELEASE_NOTES_AUDIENCE = audience;
+      process.env.MIOT_BUILD_INFO_JSON = JSON.stringify({
+        release_version: "0.6.0",
+        release_notes_version: "v1.32.0",
+        platform_release_notes_version: "v0.6.0",
+      });
+      expect(await (await GET()).json()).toMatchObject({
+        releaseVersion: "0.6.0",
+        releaseNotesVersion: version,
+      });
+    }
+  );
+
+  it("does not show coordinator notes when platform metadata is unavailable", async () => {
+    process.env.RELEASE_NOTES_AUDIENCE = "platform";
+    process.env.MIOT_BUILD_INFO_JSON = JSON.stringify({
+      release_version: "0.6.0",
+      release_notes_version: "v1.32.0",
+    });
+    expect((await (await GET()).json()).releaseNotesVersion).toBeUndefined();
+  });
+
+  it.each([
+    ["platform", "v0.6.0"],
+    ["coordinator", "v1.32.0"],
+  ])(
+    "retains packaged %s notes with runtime deployment metadata",
+    async (audience, version) => {
+      for (const key of ENV_KEYS) delete process.env[key];
+      const directory = fs.mkdtempSync(
+        path.join(os.tmpdir(), "miot-notes-build-")
+      );
+      const publicDirectory = path.join(directory, "public");
+      fs.mkdirSync(publicDirectory);
+      fs.writeFileSync(
+        path.join(publicDirectory, "build-info.json"),
+        JSON.stringify({
+          release_version: "0.6.0",
+          release_notes_version: "v1.32.0",
+          platform_release_notes_version: "v0.6.0",
+        })
+      );
+      try {
+        process.chdir(directory);
+        process.env.RELEASE_NOTES_AUDIENCE = audience;
+        process.env.RELEASE_VERSION = "0.6.0";
+        expect(await (await GET()).json()).toMatchObject({
+          releaseVersion: "0.6.0",
+          releaseNotesVersion: version,
+        });
+      } finally {
+        process.chdir(originalCwd);
+        fs.rmSync(directory, { recursive: true, force: true });
+      }
+    }
+  );
 
   it("normalizes manifest JSON from deployment payloads", async () => {
     process.env.MIOT_BUILD_INFO_JSON = JSON.stringify({

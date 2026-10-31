@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       release_notes_version:
-        description: "Private release-notes semver without v prefix. Leave blank to bump the latest release note patch."
+        description: "Coordinator notes semver without v prefix. Platform notes always use release_version."
         required: false
         type: string
 permissions:
@@ -158,6 +158,8 @@ jobs:
         run: |
           git checkout "$GITHUB_SHA" -- \
             .github/scripts/resolve-stack-release-plan.js \
+            .github/scripts/prepare-release-notes.js \
+            .github/scripts/write-release-notes.js \
             .github/prompts/app-release-notes.prompt.yml \
             turbo-repo/generative_ai/tools/sh/fetch-release-issues.sh \
             turbo-repo/generative_ai/tools/sh/bump-app-version.sh
@@ -279,79 +281,63 @@ jobs:
       - name: Install Copilot CLI
         run: npm install -g @github/copilot
 
-      - name: Build release notes prompt
-        run: |
-          node - <<'NODE'
-          const fs = require("fs");
-          const prompt = fs.readFileSync(".github/prompts/app-release-notes.prompt.yml", "utf8");
-          const issues = fs.readFileSync("release-issues.json", "utf8");
-          const indentedIssues = issues.split("\n").join("\n      ");
-          const body = prompt
-            .replaceAll("{{release_version}}", "${{ steps.version.outputs.release_notes_version }}")
-            .replaceAll("{{release_date}}", "${{ steps.release_date.outputs.date }}")
-            .replaceAll("{{stack_version}}", "${{ steps.version.outputs.release_version }}")
-            .replaceAll("{{private_milestone}}", "${{ steps.version.outputs.private_milestone }}")
-            .replaceAll("{{oss_milestone}}", "${{ steps.version.outputs.oss_milestone }}")
-            .replaceAll("{{stack_tag}}", "${{ steps.plan.outputs.stack_tag }}")
-            .replaceAll("{{app_tag}}", "${{ steps.plan.outputs.app_tag }}")
-            .replaceAll("{{app_changed}}", "${{ steps.plan.outputs.app_changed }}")
-            .replaceAll("{{docs_tag}}", "${{ steps.plan.outputs.docs_tag }}")
-            .replaceAll("{{docs_changed}}", "${{ steps.plan.outputs.docs_changed }}")
-            .replaceAll("{{web_tag}}", "${{ steps.plan.outputs.web_tag }}")
-            .replaceAll("{{web_changed}}", "${{ steps.plan.outputs.web_changed }}")
-            .replaceAll("{{modulith_tag}}", "${{ steps.plan.outputs.modulith_tag }}")
-            .replaceAll("{{modulith_changed}}", "${{ steps.plan.outputs.modulith_changed }}")
-            .replaceAll("{{harness_tag}}", "${{ steps.plan.outputs.harness_tag }}")
-            .replaceAll("{{harness_changed}}", "${{ steps.plan.outputs.harness_changed }}")
-            .replaceAll("{{release_issues}}", indentedIssues);
-          fs.writeFileSync("release-notes.prompt.yml", body);
-          NODE
+      - name: Build release notes prompts
+        env:
+          RELEASE_NOTES_METADATA: |
+            {
+              "release_version": "${{ steps.version.outputs.release_version }}",
+              "release_notes_version": "${{ steps.version.outputs.release_notes_version }}",
+              "release_date": "${{ steps.release_date.outputs.date }}",
+              "stack_version": "${{ steps.version.outputs.release_version }}",
+              "private_milestone": "${{ steps.version.outputs.private_milestone }}",
+              "oss_milestone": "${{ steps.version.outputs.oss_milestone }}",
+              "stack_tag": "${{ steps.plan.outputs.stack_tag }}",
+              "app_tag": "${{ steps.plan.outputs.app_tag }}",
+              "app_changed": "${{ steps.plan.outputs.app_changed }}",
+              "docs_tag": "${{ steps.plan.outputs.docs_tag }}",
+              "docs_changed": "${{ steps.plan.outputs.docs_changed }}",
+              "web_tag": "${{ steps.plan.outputs.web_tag }}",
+              "web_changed": "${{ steps.plan.outputs.web_changed }}",
+              "modulith_tag": "${{ steps.plan.outputs.modulith_tag }}",
+              "modulith_changed": "${{ steps.plan.outputs.modulith_changed }}",
+              "harness_tag": "${{ steps.plan.outputs.harness_tag }}",
+              "harness_changed": "${{ steps.plan.outputs.harness_changed }}"
+            }
+        run: node .github/scripts/prepare-release-notes.js
 
       - name: Generate release notes with Copilot CLI
-        id: release_notes_ai
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
         run: |
           copilot --version
-          ruby -ryaml -e '
-            prompt = YAML.load_file("release-notes.prompt.yml")
-            text = prompt.fetch("messages").map do |message|
-              "#{message.fetch("role").upcase}:\n#{message.fetch("content")}"
-            end.join("\n\n")
-            File.write("release-notes.prompt.txt", text)
-          '
-          copilot \
-            --prompt "$(cat release-notes.prompt.txt)" \
-            --silent \
-            --no-ask-user \
-            --model "${{ env.RELEASE_NOTES_MODEL }}" \
-            --context "${{ env.RELEASE_NOTES_CONTEXT }}" \
-            > release-notes.response.mdx
-          echo "response-file=release-notes.response.mdx" >> "$GITHUB_OUTPUT"
+          for audience in coordinator platform; do
+            ruby -ryaml -e '
+              prompt = YAML.load_file(ARGV[0])
+              text = prompt.fetch("messages").map do |message|
+                "#{message.fetch("role").upcase}:\n#{message.fetch("content")}"
+              end.join("\n\n")
+              File.write(ARGV[1], text)
+            ' "release-notes-$audience.prompt.yml" "release-notes-$audience.prompt.txt"
+            copilot \
+              --prompt "$(cat "release-notes-$audience.prompt.txt")" \
+              --silent \
+              --no-ask-user \
+              --model "${{ env.RELEASE_NOTES_MODEL }}" \
+              --context "${{ env.RELEASE_NOTES_CONTEXT }}" \
+              > "release-notes-$audience.response.mdx"
+          done
 
       - name: Write release notes
-        run: |
-          release_file="releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx"
-          app_release_file="turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx"
-          mkdir -p "$(dirname "$release_file")"
-          mkdir -p "$(dirname "$app_release_file")"
-          node - "${{ steps.release_notes_ai.outputs['response-file'] }}" "$release_file" <<'NODE'
-          const fs = require("fs");
-          const [source, target] = process.argv.slice(2);
-          let content = fs.readFileSync(source, "utf8").trim();
-          content = content.replace(/^```(?:mdx|markdown|md)?\s*/i, "").replace(/\s*```$/i, "").trim();
-          if (!content.startsWith("# 🔔 Release Notes")) {
-            throw new Error("AI response did not start with the expected release-notes heading.");
-          }
-          fs.writeFileSync(target, `${content}\n`);
-          NODE
-          cp "$release_file" "$app_release_file"
+        env:
+          STACK_VERSION: ${{ steps.version.outputs.release_version }}
+          NOTES_VERSION: ${{ steps.version.outputs.release_notes_version }}
+        run: node .github/scripts/write-release-notes.js
 
       - name: Commit release prep
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/apps/docs/package.json turbo-repo/apps/web/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml miot-harness/uv.lock
+          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/platform/v${{ steps.version.outputs.release_version }}.mdx turbo-repo/apps/app/src/releases/platform/v${{ steps.version.outputs.release_version }}.mdx releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/apps/docs/package.json turbo-repo/apps/web/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml miot-harness/uv.lock
           if git diff --cached --quiet; then
             echo "No release prep changes to commit."
           else
@@ -365,7 +351,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
           cat > release-pr-body.md <<'EOF'
-          Prepares ${{ steps.plan.outputs.stack_tag }} from milestone ${{ steps.version.outputs.oss_milestone }}, with release notes v${{ steps.version.outputs.release_notes_version }}.
+          Prepares ${{ steps.plan.outputs.stack_tag }} from milestone ${{ steps.version.outputs.oss_milestone }}, with platform notes v${{ steps.version.outputs.release_version }} and Coordinator notes v${{ steps.version.outputs.release_notes_version }}.
 
           Components:
           - App: ${{ steps.plan.outputs.app_tag }} (changed: ${{ steps.plan.outputs.app_changed }})
@@ -376,7 +362,7 @@ jobs:
 
           Milestones: ${{ steps.version.outputs.private_milestone }}, ${{ steps.version.outputs.oss_milestone }}.
 
-          Approve and merge this PR, then approve the protected release job to tag changed components, resolve component images, and deploy the stack manifest.
+          Approve and merge this PR, then approve the protected release job to tag changed components, resolve component images, and publish the stack manifest.
           EOF
 
           url="$(gh pr list \
@@ -518,6 +504,14 @@ jobs:
             fi
           fi
 
+          for platform_note in "releases/platform/v${{ needs.prepare.outputs.release_version }}.mdx" \
+            "turbo-repo/apps/app/src/releases/platform/v${{ needs.prepare.outputs.release_version }}.mdx"; do
+            if [[ ! -f "$platform_note" ]]; then
+              echo "Missing platform release notes: $platform_note" >&2
+              exit 1
+            fi
+          done
+
           if [[ ! -f "$release_file" ]]; then
             echo "Missing release notes file on trunk: $release_file" >&2
             echo "Merge the release PR before approving/tagging." >&2
@@ -576,7 +570,7 @@ jobs:
         run: |
           gh release create "${{ needs.prepare.outputs.stack_tag }}" \
             --title "${{ needs.prepare.outputs.stack_tag }}" \
-            --generate-notes \
+            --notes-file "releases/platform/v${{ needs.prepare.outputs.release_version }}.mdx" \
             --latest
           if [[ "${{ needs.prepare.outputs.app_changed }}" == "true" ]]; then
             gh release create "${{ needs.prepare.outputs.app_tag }}" \
@@ -840,6 +834,7 @@ jobs:
               product: "ModularIoT",
               release_version: $release_version,
               release_notes_version: $release_notes_version,
+              platform_release_notes_version: ("v" + $release_version),
               channel: "release",
               stack_tag: $stack_tag,
               git_sha: $git_sha,

@@ -7,6 +7,11 @@ import java.util.Map;
 public record Frame(String assetId, String sender, Instant at, Instant arrivedAt, Double latitude,
         Double longitude, Double speedKmh, Boolean engineOn) {
 
+    /** The same frame read at another time. */
+    Frame at(Instant time) {
+        return new Frame(assetId, sender, time, arrivedAt, latitude, longitude, speedKmh, engineOn);
+    }
+
     public Motion motion() {
         return Motion.of(speedKmh, engineOn);
     }

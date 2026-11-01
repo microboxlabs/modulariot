@@ -82,13 +82,16 @@ public record TripCheck(
         return TripCheck.class.getAnnotation(Schema.class).title();
     }
 
-    /** Two checks with the source's whole shape: a vehicle lost at speed, and one whose signal came back. */
+    /**
+     * Two checks with the source's whole shape: a vehicle lost at speed, and one whose signal came back. They keep
+     * synthetic driving and resting minutes so the continuous-driving templates still preview in the editor.
+     */
     public static List<Map<String, Object>> samples() {
         GpsSignal.Trip trip = new GpsSignal.Trip(true, false, "T-1", null, "v", "in_transit", 240.0, -15.0, null,
                 null, null, null, null, null, null);
-        TripCheck lost = new TripCheck(null, null, 6.0, trip, new Loss(360.0, 120.0, 3.0,
+        TripCheck lost = new TripCheck(312.0, 0.0, 6.0, trip, new Loss(360.0, 120.0, 3.0,
                 new Last("2026-01-01T12:00:00Z", -23.6, -70.4, 82.0, true), "sender-1", false, false, false, false, 4.0));
-        TripCheck back = new TripCheck(null, null, 0.5, trip, new Loss(30.0, 120.0, 0.25,
+        TripCheck back = new TripCheck(40.0, 0.0, 0.5, trip, new Loss(30.0, 120.0, 0.25,
                 new Last("2026-01-01T12:40:00Z", -23.7, -70.3, 60.0, true), "sender-1", true, true, true, false, 2.0));
         return List.of(sample(lost), sample(back));
     }

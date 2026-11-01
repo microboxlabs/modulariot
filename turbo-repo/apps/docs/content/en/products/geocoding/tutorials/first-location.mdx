@@ -1,0 +1,221 @@
+import { Callout, Steps, Tabs } from 'nextra/components'
+
+# Your first location
+
+**For:** developers.
+
+<Callout type="info">
+**You will learn to:**
+
+- locate a place by coordinates with one API call;
+- read the response: which source located it, what status it has and which geofence it has;
+- repeat the call without creating a duplicate place;
+- locate several places in one call.
+</Callout>
+
+## Before you start
+
+| You need | Why |
+| --- | --- |
+| Your installation's API URL, in `MIOT_API` | Every call goes to `$MIOT_API/api/v1/orgs/{org}/trips/...` |
+| Your organization's identifier, in `MIOT_ORG` | It is the `{org}` in the path |
+| A token in `MIOT_TOKEN`: a service account key (`miot_sk_...`) or a user's session token | The API receives it in `Authorization: Bearer` |
+| The `trips:location.write` permission | The Trips **Maintainer** role has it |
+
+You create a service account key in **Settings › Team › API keys**. Assign it the Trips Maintainer role.
+
+<Steps>
+
+### Locate a place by coordinates
+
+Send a site with its code, its country, its district and its coordinates. The example is the Plaza de Armas in Santiago, district 13101.
+
+<Tabs items={['curl', 'TypeScript']}>
+<Tabs.Tab>
+```bash
+curl -s -w '\nHTTP %{http_code}\n' -X POST "$MIOT_API/api/v1/orgs/$MIOT_ORG/trips/locations/resolve" \
+  -H "Authorization: Bearer $MIOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalCode": "DOC-GEO-COORD",
+    "name": "Plaza de Armas",
+    "type": "distribution_center",
+    "country": "CL",
+    "districtCode": "13101",
+    "latitude": -33.4378,
+    "longitude": -70.6505
+  }'
+```
+</Tabs.Tab>
+<Tabs.Tab>
+```ts
+const api = process.env.MIOT_API
+const org = process.env.MIOT_ORG
+const token = process.env.MIOT_TOKEN
+
+const res = await fetch(`${api}/api/v1/orgs/${org}/trips/locations/resolve`, {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    externalCode: 'DOC-GEO-COORD',
+    name: 'Plaza de Armas',
+    type: 'distribution_center',
+    country: 'CL',
+    districtCode: '13101',
+    latitude: -33.4378,
+    longitude: -70.6505
+  })
+})
+if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
+const location = await res.json()
+console.log(location.resolutionStatus, location.geofenceId)
+```
+</Tabs.Tab>
+</Tabs>
+
+The API responds `200` with the location:
+
+```json
+{
+  "id": "064b623b-1b79-4988-90a7-c71805e5e29d",
+  "name": "Plaza de Armas",
+  "type": "distribution_center",
+  "externalCode": "DOC-GEO-COORD",
+  "geomGeojson": null,
+  "geofenceId": 1209,
+  "address": null,
+  "country": "CL",
+  "districtCode": "13101",
+  "district": "Santiago",
+  "plusCode": "47RFH86X+VR",
+  "latitude": -33.4378,
+  "longitude": -70.6505,
+  "resolutionSource": "coordinates",
+  "resolutionStatus": "resolved",
+  "resolutionNote": null,
+  "createdAt": "2026-10-31T11:30:54.074282Z",
+  "updatedAt": "2026-10-31T11:30:54.074282Z"
+}
+```
+
+### Read the response
+
+Three fields say what happened:
+
+| Field | Value | What it means |
+| --- | --- | --- |
+| `resolutionSource` | `coordinates` | The coordinates gave the point |
+| `resolutionStatus` | `resolved` | The point falls in the declared district and the place has a geofence |
+| `geofenceId` | `1209` | The GPS geofence that trips will use |
+
+The platform also filled in data:
+
+| Field | What you sent | What it stored |
+| --- | --- | --- |
+| `district` | nothing | `Santiago`, the name of district 13101 |
+| `plusCode` | nothing | `47RFH86X+VR`, the full Plus Code of the point |
+
+Geofence 1209 is a 300 m circle around the point, because the type is `distribution_center`. The radius for each type is in [From point to geofence](/en/products/geocoding/tutorials/point-to-geofence).
+
+### Repeat the call
+
+Send the same call again. The API finds the location by `externalCode` and resolves it again. The response has the same `id` and the same geofence 1209. The source changes:
+
+```json
+{ "id": "064b623b-1b79-4988-90a7-c71805e5e29d", "geofenceId": 1209,
+  "resolutionSource": "geofence", "resolutionStatus": "resolved" }
+```
+
+Geofence 1209 has the place's `externalCode` as its code. On the second call, the first source (geofence by code) finds it. So repeating the call does not create another location or another geofence.
+
+| Request field | Which location it uses |
+| --- | --- |
+| `locationId` | That location. If it does not exist, `404` |
+| `externalCode`, without `locationId` | The location with that code. If it does not exist, it creates it |
+| Neither | A new location each time, with the `name` |
+
+Location data the request does not send (address, country, district, point) keeps what the location already has. `name` and `type` are used only when the location is created; to change them, use `PATCH /trips/locations/{id}`.
+
+To correct only the district, send the code and the district. The stored point is checked again against the new district:
+
+```json
+{ "externalCode": "DOC-GEO-OTRA-COMUNA", "districtCode": "13101" }
+```
+
+<Callout type="warning">
+**Pitfall:** if the location already has a stored point, a new resolution uses that point (as a Plus Code) and does not geocode the address again. Correcting only the address does not change the point. Send the new point or place it by hand ([Locations that need review](/en/products/geocoding/tutorials/needs-review)).
+</Callout>
+
+<Callout type="warning">
+**Pitfall:** without `externalCode` or `locationId`, each call creates a new location. Always send the place's code in your system.
+</Callout>
+
+### See a place that needs review
+
+Send the same coordinates, but declare the district of Providencia (13123):
+
+```json
+{
+  "externalCode": "DOC-GEO-OTRA-COMUNA",
+  "name": "Plaza de Armas en Providencia",
+  "type": "customer",
+  "country": "CL",
+  "districtCode": "13123",
+  "latitude": -33.4378,
+  "longitude": -70.6505
+}
+```
+
+The response is also `200`, but the place needs review and has no geofence:
+
+```json
+{
+  "externalCode": "DOC-GEO-OTRA-COMUNA",
+  "geofenceId": null,
+  "districtCode": "13123",
+  "district": "Providencia",
+  "plusCode": "47RFH86X+VR",
+  "latitude": -33.4378,
+  "longitude": -70.6505,
+  "resolutionSource": "coordinates",
+  "resolutionStatus": "needs_review",
+  "resolutionNote": "the point is in Santiago (13101), not in Providencia (13123)"
+}
+```
+
+A place that needs review is not an API error. The point is stored, but no geofence is created. The reason is in `resolutionNote`, and the place appears in **Settings › Trips › To review**.
+
+### Locate several places in one call
+
+Send an array instead of an object, with up to 200 sites. Each site is resolved separately: if one fails, the others continue.
+
+```json
+[
+  { "externalCode": "DOC-GEO-PC-FULL", "name": "Parque Kennedy", "type": "customer",
+    "country": "PE", "districtCode": "150122", "plusCode": "57V4VXHC+H4" },
+  { "name": "No data", "locationId": "not-a-uuid" }
+]
+```
+
+The response is an array with one result per site, in the same order. `index` is the site's position in the request:
+
+```json
+[
+  { "index": 0, "location": { "externalCode": "DOC-GEO-PC-FULL", "resolutionStatus": "resolved", "...": "..." }, "error": null },
+  { "index": 1, "location": null, "error": "locationId must be a UUID" }
+]
+```
+
+</Steps>
+
+## Summary
+
+- `POST /trips/locations/resolve` receives one site or an array of sites.
+- `resolutionSource` says which source gave the point. `resolutionStatus` says whether the place is resolved or needs review.
+- `externalCode` makes repeating the call safe.
+- A place that needs review responds `200`. Check `resolutionStatus`, not the HTTP code.
+
+Next: [How the source is chosen](/en/products/geocoding/tutorials/resolution-order), with one example per source.

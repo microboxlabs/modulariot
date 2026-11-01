@@ -1,0 +1,208 @@
+import { Callout } from 'nextra/components'
+
+# How the source is chosen
+
+**For:** developers and implementers.
+
+<Callout type="info">
+**You will learn:**
+
+- in what order the six sources are tried and which one responds;
+- what each source needs to give a point;
+- why an address was resolved for free or cost one call;
+- how to read `resolutionSource`.
+</Callout>
+
+## The idea
+
+A site can carry several pieces of data at once: a code, a Plus Code, coordinates and an address. The platform does not combine them. It tries the sources in a fixed order and uses the first one that gives a point. Then it checks that point against the declared district.
+
+| Order | Source | Needs | `resolutionSource` |
+| --- | --- | --- | --- |
+| 1 | Customer geofence | A geofence with the place's code or name | `geofence` |
+| 2 | Plus Code | `plusCode`. A short one also needs the district | `plus_code` |
+| 3 | Coordinates | `latitude` and `longitude` | `coordinates` |
+| 4 | Internal addresses | `address`, a district with a boundary, a country with an internal source | `internal` |
+| 5 | Cache | `address` and a district with a boundary | `provider` |
+| 6 | Provider | The same, and available quota | `provider` |
+
+Sources 1 to 3 give a point without looking up the address. If one of them responds, the address is not used. So a site with coordinates and an address is located by the coordinates, even if the address is a different place.
+
+The cache and the provider share the value `provider`: the cache stores provider results. The usage record tells one case from the other (see [Usage, cost and monitoring](/en/products/geocoding/concepts/usage-and-cost)).
+
+Before trying the sources, the platform looks up the declared district. If the country is missing or has no administrative boundaries, the place needs review even if a source gives a point. The full rule is in [From point to geofence](/en/products/geocoding/tutorials/point-to-geofence).
+
+## 1. Customer geofence
+
+The platform searches your organization's GPS geofences for one whose code is the place's code (`externalCode`) or whose name is the place's name (case-insensitive). The code wins over the name. If two geofences have the same name and neither has the code, the source does not respond.
+
+The point is the center of the geofence.
+
+```json
+{ "externalCode": "ANF", "country": "CL", "district": "Antofagasta" }
+```
+
+```json
+{ "externalCode": "ANF", "geofenceId": 1204, "plusCode": "578F6MGR+4J",
+  "resolutionSource": "geofence", "resolutionStatus": "resolved" }
+```
+
+Geofences of other organizations are never used.
+
+## 2. Plus Code
+
+A [Plus Code](https://maps.google.com/pluscodes/) (Open Location Code) describes a small area. The point is the center of that area.
+
+| Form | Example | Needs |
+| --- | --- | --- |
+| Full | `57V4VXHC+H4` | Nothing else |
+| Short | `VXHC+H4` | The district, by `districtCode` or by `district` |
+
+A short code is completed with the center of the declared district. The platform reads only the first word of `plusCode`. In `VXHC+H4 Miraflores`, the text `Miraflores` is not used: the district comes from `districtCode` or `district`.
+
+```json
+{ "externalCode": "DOC-GEO-PC-SHORT", "country": "PE", "districtCode": "150122", "plusCode": "VXHC+H4" }
+```
+
+```json
+{ "plusCode": "57V4VXHC+H4", "district": "MIRAFLORES", "latitude": -12.1210625, "longitude": -77.0296875,
+  "resolutionSource": "plus_code", "resolutionStatus": "resolved" }
+```
+
+<Callout type="warning">
+**Pitfall:** Peru has two districts named Miraflores (Lima and Arequipa). With `"district": "Miraflores"` and no `districtCode`, the district cannot be chosen and the place needs review with the note `a short plus code needs a district with a boundary`. Send the code: `"districtCode": "150122"`.
+</Callout>
+
+An invalid Plus Code does not stop the search: the platform moves on to the coordinates and then to the address. If no later source responds, the note is `plus code … is not valid`.
+
+## 3. Coordinates
+
+`latitude` and `longitude` go together, in decimal degrees (WGS 84). These cases give no point; if the site has an address, the search continues with it:
+
+| Case | Note |
+| --- | --- |
+| Only one of the two | `latitude and longitude go together` |
+| Out of range, or exactly `0, 0` | `coordinates out of range` |
+
+```json
+{ "externalCode": "DOC-GEO-COORD", "country": "CL", "districtCode": "13101",
+  "latitude": -33.4378, "longitude": -70.6505 }
+```
+
+```json
+{ "plusCode": "47RFH86X+VR", "district": "Santiago",
+  "resolutionSource": "coordinates", "resolutionStatus": "resolved" }
+```
+
+## 4. Internal addresses
+
+Internal addresses are a table of addresses with their point, loaded in the GPS database. Today there is one for Chile, with data from OpenAddresses. Looking it up costs nothing.
+
+The platform splits the address into street and number:
+
+| Rule | Example |
+| --- | --- |
+| Uses the text before the first comma | `Camino Lo Boza 120, Pudahuel` → `Camino Lo Boza 120` |
+| Removes everything from `Of`, `Ofic`, `Oficina`, `Depto`, `Dpto`, `Dep`, `Local`, `Bodega`, `Piso` or `Lote` to the end | `Av. Apoquindo 3000 Of 501` → `Av. Apoquindo 3000` |
+| Removes `#`, `N°`, `Nro.` before the number | `Calle Uno N° 45` → `Calle Uno 45` |
+| The last number of 1 to 5 digits is the house number | `Ruta 5 Sur 1234` → street `Ruta 5 Sur`, number `1234` |
+
+It tries three forms of the street: as written, without accents or punctuation, and without the street type (`Av`, `Avda`, `Avenida`, `Calle`, `Pasaje`, `Pje`, `Psje`). One of them, and the number, must match the table in the declared district.
+
+| Address sent (district San Bernardo) | Result |
+| --- | --- |
+| `Presidente Jorge Alessandri Rodríguez 10700` | `internal`: the name matches the table |
+| `Av. Jorge Alessandri Rodriguez 10700` | No match: the official name includes `Presidente`. Moves on to the cache and the provider |
+
+```json
+{ "externalCode": "DOC-GEO-INTERNA", "type": "plant", "country": "CL", "district": "San Bernardo",
+  "address": "Presidente Jorge Alessandri Rodríguez 10700" }
+```
+
+```json
+{ "districtCode": "13401", "plusCode": "47RFC8X2+GC",
+  "resolutionSource": "internal", "resolutionStatus": "resolved" }
+```
+
+## 5. Cache
+
+When the provider gives a point that falls in the declared district, the platform stores it in a cache shared by all organizations. The cache stores the normalized address, the country, the point and the provider's name. It does not store the organization, the place's name or the provider's response.
+
+The key is the district code plus the address without accents or punctuation, with the district name at the end if the address does not include it. These two addresses have the same key in Pudahuel (13124):
+
+| Address | Key |
+| --- | --- |
+| `Camino Lo Boza 120, Pudahuel` | `13124\|CAMINO LO BOZA 120 PUDAHUEL` |
+| `camino lo boza 120` | `13124\|CAMINO LO BOZA 120 PUDAHUEL` |
+
+A cache hit uses no quota. The response says `provider`, because the point came from the provider in another lookup.
+
+| Provider result | What happens |
+| --- | --- |
+| Mapbox with permanent mode, inside the district | It is used and stored in the cache |
+| Mapbox with permanent mode, outside the district | It is not stored. The place needs review |
+| Mapbox without permanent mode | It is not used. The place needs review |
+| Google | It is not used. The place needs review |
+
+In the last two cases the note is `geocoding results cannot be stored with this provider configuration`, and the call is charged. The terms of Google and of Mapbox without permanent mode do not allow storing the point, and the platform stores the point of each location.
+
+<Callout type="warning">
+**Pitfall:** with Google as the provider, no address is resolved by the provider. Use Mapbox with permanent mode.
+</Callout>
+
+## 6. Provider
+
+If none of the above responded, the platform calls the platform's provider (Mapbox or Google). First it checks two things:
+
+| Check | If it fails |
+| --- | --- |
+| With **Apply the quotas** on: the organization has a subscription and quota left, or its plan says **Charge overage** | It does not call the provider. Note `geocoding: the organization has no geocoding plan` or `geocoding: the organization used its N geocoding resolutions for this month` |
+| The organization has the **Geocoding · ModularIoT** connection in Connections | It does not call the provider. Note `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones` |
+
+With **Apply the quotas** off, the quota is not checked. How to set up both in [Set up the provider](/en/products/geocoding/how-to/set-up-provider).
+
+The call carries the address, the district and the country:
+
+| Data sent to the provider | Example |
+| --- | --- |
+| Text | `Av. Libertador Bernardo O'Higgins 1058, Santiago` |
+| Country (filter) | `cl` |
+
+From the results, the platform accepts only address-level ones: with Mapbox, `feature_type` equal to `address`; with Google, `street_address`, `premise` or `subpremise`. A street, a neighborhood, a business or a city does not count. Among the accepted ones, it chooses the first that falls in the district. If none does, it uses the first one, and the district check sends it to review.
+
+```json
+{ "externalCode": "DOC-GEO-PROVEEDOR", "country": "CL", "districtCode": "13101",
+  "address": "Av. Libertador Bernardo O'Higgins 1058" }
+```
+
+```json
+{ "plusCode": "47RFH84X+6J", "latitude": -33.444441, "longitude": -70.650967,
+  "resolutionSource": "provider", "resolutionStatus": "resolved" }
+```
+
+An address the provider does not know can come back in another district:
+
+```json
+{ "externalCode": "DOC-GEO-SIN-NUMERO", "country": "CL", "districtCode": "13101",
+  "address": "Calle Inexistente Doc 123" }
+```
+
+```json
+{ "resolutionSource": "provider", "resolutionStatus": "needs_review",
+  "resolutionNote": "the point is in Quilicura (13125), not in Santiago (13101)" }
+```
+
+That call is charged anyway: the provider responded.
+
+## Summary
+
+| If the site carries | Responds | Cost |
+| --- | --- | --- |
+| The code of an existing geofence | `geofence` | Free |
+| A full Plus Code, or a short one with the district | `plus_code` | Free |
+| Coordinates | `coordinates` | Free |
+| A Chilean address written as in the table | `internal` | Free |
+| An address the provider already located in that district | `provider` (cache) | Free |
+| A new address | `provider` | One call |
+
+Next: [From point to geofence](/en/products/geocoding/tutorials/point-to-geofence).

@@ -11,6 +11,16 @@ export type UseKeyboardShortcutOptions = {
   onTrigger: () => void;
   /** Set to false to stop listening without unmounting. @default true */
   enabled?: boolean;
+  /**
+   * Require Shift held (true) or not held (false); undefined ignores it.
+   * Lets ⌘Z and ⌘⇧Z be two different shortcuts.
+   */
+  shift?: boolean;
+  /**
+   * Skip events this returns true for (e.g. typing in a text field, where
+   * ⌘Z must undo the text, not the app action).
+   */
+  ignore?: (e: KeyboardEvent) => boolean;
 };
 
 /**
@@ -23,10 +33,14 @@ export function useKeyboardShortcut({
   withModifier = true,
   onTrigger,
   enabled = true,
+  shift,
+  ignore,
 }: UseKeyboardShortcutOptions) {
   const [modifierHeld, setModifierHeld] = useState(false);
   const [justTriggered, setJustTriggered] = useState(false);
-  const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -34,15 +48,20 @@ export function useKeyboardShortcut({
     const onKeyDown = (e: KeyboardEvent) => {
       if (withModifier && (e.metaKey || e.ctrlKey)) setModifierHeld(true);
 
+      if (ignore?.(e)) return;
       const modifierOk = !withModifier || e.metaKey || e.ctrlKey;
-      if (modifierOk && e.key.toLowerCase() === key.toLowerCase()) {
+      const shiftOk = shift === undefined || e.shiftKey === shift;
+      if (modifierOk && shiftOk && e.key.toLowerCase() === key.toLowerCase()) {
         // The app owns this chord — swallow it so the browser's own binding
         // for the same combination doesn't fire alongside the toggle.
         e.preventDefault();
         onTrigger();
         clearTimeout(pulseTimeoutRef.current);
         setJustTriggered(true);
-        pulseTimeoutRef.current = setTimeout(() => setJustTriggered(false), 150);
+        pulseTimeoutRef.current = setTimeout(
+          () => setJustTriggered(false),
+          150
+        );
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -60,7 +79,7 @@ export function useKeyboardShortcut({
       globalThis.removeEventListener("blur", onBlur);
       clearTimeout(pulseTimeoutRef.current);
     };
-  }, [key, withModifier, onTrigger, enabled]);
+  }, [key, withModifier, onTrigger, enabled, shift, ignore]);
 
   return { modifierHeld, justTriggered };
 }

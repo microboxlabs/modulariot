@@ -1,0 +1,92 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Certify a new country
+
+**For:** implementers and product owners.
+
+Before you promise geocoding by address in a country, measure what share of the customers' real addresses the system locates correctly. This guide describes what is needed, what is measured and how the decision is made.
+
+## What a country needs
+
+| Piece | What for | Required | Today |
+| --- | --- | --- | --- |
+| Administrative boundaries (communes, districts) with code, name and polygon | The district check. Without them, every place in the country needs review | Yes | Chile (communes, CUT code), Peru (districts, ubigeo) |
+| Internal addresses (street, number, district, point) | Locate addresses at no cost | No | Chile (OpenAddresses) |
+| A certified provider | Locate the addresses that are not in the internal sources | No, but without it addresses go to review | Chile: Mapbox in use, with no measurement published here. Peru: none certified |
+| How the customer writes its addresses | Choose the spreadsheet columns | Yes | Per customer |
+
+The boundaries and the internal addresses are country data loaded into the platform. The rest of the system (source order, cache, quota, API) does not change.
+
+<Steps>
+
+### Gather the test addresses
+
+Take real addresses, in the format the customer writes them. Split them into groups that behave differently:
+
+| Group | Example category |
+| --- | --- |
+| Capital, street and number | `Av. Arequipa 1234, Lince` |
+| Provinces, street and number | A secondary city |
+| No number | `S/N`, `Km 12 Carretera Central` |
+| Block and lot | `Mz. B Lt. 4` |
+| Named places | A port, an industrial park |
+
+Each group needs its own result: a good average can hide a group where nothing works. Weight the result by the share of each group in the customer's real trips.
+
+### Get the true point of each address
+
+For each address, get its correct point: from the internal addresses, from the customer, from a GPS route that ended there, or marked by hand. Without a correct point, an address cannot be used to measure.
+
+### Measure
+
+The measurement is done outside the platform, with a script that calls the provider's API: the platform does not expose the candidates and, without permanent mode, sends everything to review. Call without storing results (Mapbox with `permanent=false`) and store only the metrics.
+
+| Metric | What it says |
+| --- | --- |
+| Usable | The result is address-level, falls in the correct district (checked with the polygon) and is a short distance from the correct point |
+| Median distance to the correct point | How far off the geofence ends up |
+| Result level | How often it returns only a street, a neighborhood or a city |
+| Would go to review | How many would go to **To review** with the system's rules |
+
+Before measuring, define what percentage of usable results and what distance the customer accepts. That is the certification threshold.
+
+<Callout type="warning">
+**Pitfall:** compare the district by polygon, not by the name the provider returns. Some providers leave out the district in metropolitan areas, and comparing by name gives a false result.
+</Callout>
+
+### Validate in production
+
+Before certifying, resolve a batch of pilot addresses in the customer's organization, with a limited quota, and check **To review** and **Monthly usage**. What happens there decides.
+
+### Decide
+
+| Result | What to offer |
+| --- | --- |
+| Certified | Addresses by spreadsheet, with review of the cases that fail |
+| Not certified | Plus Code or coordinates in the spreadsheet, existing geofences, and manual review |
+
+</Steps>
+
+## Example: Peru
+
+Measurement of 2026-10-29: 440 addresses in Peru, grouped by type, with the district checked by polygon (INEI boundaries). No provider was certified:
+
+| Group | Mapbox usable | Google usable |
+| --- | --- | --- |
+| Lima, street and number | 55% | 68% |
+| Provinces | 5% | 45% |
+| Block and lot, kilometer, no number | less than 15% | less than 15% |
+| Total, weighted by the share of each group | 22% | 39% |
+
+The addresses from the pilot trips are still missing; they decide the certification.
+
+In Peru, the recommendation is to ask for Plus Code or coordinates in the spreadsheet, or to use geofences already drawn. Addresses that still arrive go through the cache and the provider, and those that fail go to review.
+
+## Known pitfalls
+
+| Pitfall | Effect |
+| --- | --- |
+| Asking for results in a language (`language=es` in Mapbox) | Makes results worse in Peru. The platform does not send it |
+| Measuring with permanent mode | Costs more and stores results. Measure without it |
+| Using only addresses from the capital | Overestimates the result |
+| A district name that repeats in the country | The system asks for the code. The spreadsheet must carry the code or a unique name |

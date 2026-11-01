@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -9,6 +10,7 @@ import java.time.Instant;
  * delayed when it arrives later than its sender usually does ({@link CoverageMap#delayed}): the GPS kept fixing
  * where the cellular network did not, so delayed frames mark where coverage is poor.
  */
+@RegisterForReflection
 public record Coverage(@JsonProperty("f") double frames, @JsonProperty("d") double delayed,
         @JsonProperty("t") Instant at) {
 
@@ -16,9 +18,15 @@ public record Coverage(@JsonProperty("f") double frames, @JsonProperty("d") doub
         if (old == null) {
             return new Coverage(1, delayed ? 1 : 0, now);
         }
-        double keep = Math.pow(0.5, Math.max(0, Duration.between(old.at(), now).toMillis())
+        Coverage aged = old.at(now, halfLife);
+        return new Coverage(round(aged.frames() + 1), round(aged.delayed() + (delayed ? 1 : 0)), now);
+    }
+
+    /** The counts faded to {@code now}, without a new frame. */
+    Coverage at(Instant now, Duration halfLife) {
+        double keep = Math.pow(0.5, Math.max(0, Duration.between(at, now).toMillis())
                 / (double) halfLife.toMillis());
-        return new Coverage(round(old.frames() * keep + 1), round(old.delayed() * keep + (delayed ? 1 : 0)), now);
+        return new Coverage(frames * keep, delayed * keep, now);
     }
 
     double share() {

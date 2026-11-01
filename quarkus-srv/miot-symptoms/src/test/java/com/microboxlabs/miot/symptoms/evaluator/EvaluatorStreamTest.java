@@ -143,6 +143,25 @@ class EvaluatorStreamTest {
     }
 
     @Test
+    void aFailingLateHookIsCountedAndTheSignalStillAcknowledged() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(log, events, meters),
+                Clock.systemUTC(), new InMemoryEpisodeRepository(), samples,
+                (tenant, asset, at, newest, signal) -> {
+                    throw new IllegalStateException("hook down");
+                }, com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.off());
+        List<String> outcomes = new ArrayList<>();
+
+        s.onSignal(message(signal("2026-10-22T03:00:30Z", false, DEMO), outcomes));
+        s.onSignal(message(signal("2026-10-22T03:00:00Z", true, DEMO), outcomes));
+
+        assertEquals(List.of("ack", "ack"), outcomes, "a failed hook is not redelivered");
+        assertEquals(List.of(), recorded, "the late pressed button opens nothing");
+        assertEquals(1.0, meters.counter("miot.symptoms.evaluator.late_hook_failed").count());
+        assertEquals(1.0, meters.counter("miot.symptoms.evaluator.late", "sender", "none").count());
+    }
+
+    @Test
     void theLateCounterIsTaggedWithTheSendersPrefix() {
         assertEquals("abcdefgh", EvaluatorStream.senderTag("abcdefgh-long-m2m-id"));
         assertEquals("short", EvaluatorStream.senderTag("short"));

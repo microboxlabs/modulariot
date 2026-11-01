@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 
 /**
@@ -33,11 +34,16 @@ public record CoverageMap(Duration halfLife, int minFrames, double minShare, dou
         return f.delaySeconds() > Math.max(DELAYED.toSeconds(), 3 * median);
     }
 
-    /** @param senderShare the sender's delayed share everywhere */
-    boolean lowCoverage(Coverage bySender, double senderShare, Coverage byAll) {
-        boolean sender = bySender != null && bySender.frames() >= minFrames
-                && bySender.share() >= Math.max(minShare, overSender * senderShare);
-        boolean all = byAll != null && byAll.frames() >= minFrames && byAll.share() >= minShare;
+    /**
+     * @param senderShare the sender's delayed share everywhere
+     * @param now         the check: the cells' counts fade to it first, so a cell nobody crossed lately stops counting
+     */
+    boolean lowCoverage(Coverage bySender, double senderShare, Coverage byAll, Instant now) {
+        Coverage s = bySender == null ? null : bySender.at(now, halfLife);
+        Coverage a = byAll == null ? null : byAll.at(now, halfLife);
+        boolean sender = s != null && s.frames() >= minFrames
+                && s.share() >= Math.max(minShare, overSender * senderShare);
+        boolean all = a != null && a.frames() >= minFrames && a.share() >= minShare;
         return sender || all;
     }
 }

@@ -40,15 +40,24 @@ public class ArrivalProfiles {
         return a;
     }
 
+    /** A frame stamped later than this past its arrival is read at its arrival, so it cannot freeze the profile. */
+    static final Duration MAX_FUTURE = Duration.ofMinutes(10);
+
     /** The profiles after the frame. */
-    public Arrival apply(LossStore.Profiles before, Frame f) {
+    public Arrival apply(LossStore.Profiles before, Frame frame) {
+        Frame f = frame.at().isAfter(frame.arrivedAt().plus(MAX_FUTURE)) ? frame.at(frame.arrivedAt()) : frame;
         VehicleProfile old = before.vehicle();
+        if (old != null && old.seen() != null
+                && Duration.between(old.seen(), f.arrivedAt()).compareTo(settings.profileTtl()) > 0) {
+            old = null; // back after longer than a profile lives: starts over, in memory as in Redis
+        }
         boolean late = old != null && f.at().isBefore(old.at());
         boolean replay = old != null && f.at().equals(old.at());
         VehicleProfile vehicle = old == null ? VehicleProfile.first(f) : old.with(f, settings);
         SenderProfile sender = before.sender() == null ? SenderProfile.empty() : before.sender();
         boolean delayed = CoverageMap.delayed(f, sender);
-        if (f.sender() != null && !replay) {
+        // A replay still counts for the sender: two senders can report the same frame time.
+        if (f.sender() != null) {
             sender = sender.with(f, settings, delayed);
         }
         return new Arrival(late, replay, vehicle, sender, expected(vehicle, sender), delayed);

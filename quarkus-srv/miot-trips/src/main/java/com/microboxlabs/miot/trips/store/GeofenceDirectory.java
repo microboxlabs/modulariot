@@ -24,6 +24,12 @@ public interface GeofenceDirectory {
     List<Geofence> matching(String tenantCode, String code, String name, int limit);
 
     /**
+     * The tenant's geofences whose area covers the point, lowest id first; at most {@code limit}.
+     * Excludes location-owned geofences keyed by the location id, whose areas can move with that location.
+     */
+    List<Geofence> containing(String tenantCode, double lon, double lat, int limit);
+
+    /**
      * Creates a geofence of the tenant with that code, or returns the one it already has; {@code area} is a GeoJSON
      * polygon, {@code properties} a JSON object. Empty when the GPS database is not configured.
      */

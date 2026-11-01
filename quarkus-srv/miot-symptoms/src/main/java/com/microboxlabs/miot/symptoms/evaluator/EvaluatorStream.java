@@ -3,11 +3,13 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.common.annotation.Blocking;
+import io.smallrye.reactive.messaging.pulsar.PulsarIncomingMessageMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -34,7 +36,8 @@ import org.jboss.logging.Logger;
  * one as a {@code symptom.case.*} event ({@link SymptomEvents}) and keeps
  * recent signals for rule previews ({@link SignalSamples}). A signal older than
  * the organization's watermark is counted ({@code miot.symptoms.evaluator.late})
- * and handed to {@link LateFrames}; the symptoms do not run on it. On wherever
+ * and handed to {@link LateFrames}; the symptoms do not run on it. Every signal
+ * also goes to the {@link LostSignalDetector}. On wherever
  * the symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
  */
 @ApplicationScoped
@@ -57,6 +60,7 @@ public class EvaluatorStream {
     private final SignalSamples samples;
     private final SymptomEvents events;
     private final LateFrames lateFrames;
+    private final LostSignalDetector lostSignal;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -66,12 +70,12 @@ public class EvaluatorStream {
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames) {
+            MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames, LostSignalDetector lostSignal) {
         this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
-                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE);
+                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal);
         if (enabled) {
             LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
@@ -84,12 +88,14 @@ public class EvaluatorStream {
 
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
             SignalSamples samples) {
-        this(enabled, catalog, sinks, clock, episodes, samples, LateFrames.NONE);
+        this(enabled, catalog, sinks, clock, episodes, samples, LateFrames.NONE, LostSignalDetector.off());
     }
 
+    @SuppressWarnings("java:S107") // The collaborators above, plus the two hooks, for tests.
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
-            SignalSamples samples, LateFrames lateFrames) {
+            SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal) {
         this.lateFrames = lateFrames;
+        this.lostSignal = lostSignal;
         this.enabled = enabled;
         this.catalog = catalog;
         this.transitionLog = sinks.transitionLog();
@@ -104,7 +110,7 @@ public class EvaluatorStream {
     @Blocking
     public CompletionStage<Void> onSignal(Message<byte[]> in) {
         try {
-            evaluate(new String(in.getPayload(), StandardCharsets.UTF_8));
+            evaluate(new String(in.getPayload(), StandardCharsets.UTF_8), arrivedAt(in));
         } catch (IllegalArgumentException e) {
             meters.counter("miot.symptoms.evaluator.failed").increment();
             LOG.warnf("Symptom evaluator: signal skipped (%s)", e.getClass().getSimpleName());
@@ -118,8 +124,18 @@ public class EvaluatorStream {
         return in.ack();
     }
 
-    /** Evaluates one signal for every organization it belongs to; returns the transitions recorded. */
+    /** When the signal builder published the signal, or now when the message does not say. */
+    private Instant arrivedAt(Message<byte[]> in) {
+        return in.getMetadata(PulsarIncomingMessageMetadata.class).map(PulsarIncomingMessageMetadata::getPublishTime)
+                .filter(ms -> ms > 0).map(Instant::ofEpochMilli).orElseGet(clock::instant);
+    }
+
     int evaluate(String json) {
+        return evaluate(json, clock.instant());
+    }
+
+    /** Evaluates one signal for every organization it belongs to; returns the transitions recorded. */
+    int evaluate(String json, Instant arrivedAt) {
         if (!enabled) {
             return 0;
         }
@@ -142,6 +158,8 @@ public class EvaluatorStream {
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("not a signal time", e);
         }
+        // Before the organizations: a failing catalog or log must not keep the frame out of the profiles.
+        lostSignal.frame(assetId, instant, arrivedAt, signal);
         int recorded = 0;
         boolean late = false;
         for (Object client : clients) {

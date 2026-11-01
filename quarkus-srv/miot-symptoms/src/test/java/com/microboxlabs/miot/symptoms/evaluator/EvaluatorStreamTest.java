@@ -129,7 +129,8 @@ class EvaluatorStreamTest {
         List<String> late = new ArrayList<>();
         EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(log, events, meters),
                 Clock.systemUTC(), new InMemoryEpisodeRepository(), samples,
-                (tenant, asset, at, newest, signal) -> late.add(tenant + " " + asset + " " + at + " < " + newest));
+                (tenant, asset, at, newest, signal) -> late.add(tenant + " " + asset + " " + at + " < " + newest),
+                com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.off());
 
         s.evaluate(signal("2026-10-22T03:00:30Z", false, DEMO));
         assertEquals(0, s.evaluate(signal("2026-10-22T03:00:00Z", true, DEMO, OTHER)));
@@ -148,7 +149,7 @@ class EvaluatorStreamTest {
                 Clock.systemUTC(), new InMemoryEpisodeRepository(), samples,
                 (tenant, asset, at, newest, signal) -> {
                     throw new IllegalStateException("hook down");
-                });
+                }, com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.off());
         List<String> outcomes = new ArrayList<>();
 
         s.onSignal(message(signal("2026-10-22T03:00:30Z", false, DEMO), outcomes));

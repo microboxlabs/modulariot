@@ -33,7 +33,7 @@ public class ArrivalProfiles {
     }
 
     /** Loads the profiles, applies the frame and saves them. */
-    public Arrival record(Frame f) {
+    public Arrival observe(Frame f) {
         Arrival a = apply(store.load(f.assetId(), f.sender()), f);
         store.save(f.assetId(), a.vehicle(), f.sender(), a.sender());
         return a;

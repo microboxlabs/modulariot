@@ -117,7 +117,7 @@ public class LostSignalDetector {
             return;
         }
         try {
-            record(Frame.of(signal, assetId, at, arrivedAt), signal);
+            observe(Frame.of(signal, assetId, at, arrivedAt), signal);
             beat(arrivedAt);
         } catch (RuntimeException e) {
             skipUntil = System.currentTimeMillis() + BACKOFF_MS;
@@ -126,7 +126,7 @@ public class LostSignalDetector {
         }
     }
 
-    private void record(Frame f, Map<String, Object> signal) {
+    private void observe(Frame f, Map<String, Object> signal) {
         LossStore.Profiles before = store.load(f.assetId(), f.sender());
         ArrivalProfiles.Arrival a = profiles.apply(before, f);
         store.save(f.assetId(), a.vehicle(), f.sender(), a.sender(), schedule(a, before.check(), f, signal));

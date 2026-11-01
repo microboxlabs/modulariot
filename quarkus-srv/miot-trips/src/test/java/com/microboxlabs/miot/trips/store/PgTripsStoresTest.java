@@ -363,8 +363,9 @@ class PgTripsStoresTest {
                 UPDATE miot_trips.feed_profile SET country = $1 WHERE tenant_code = $2
                 """);
         for (String country : List.of("cl", "C1", "C", "CHL")) {
-            var execution = update.execute(io.vertx.mutiny.sqlclient.Tuple.of(country, tenant));
-            assertThrows(RuntimeException.class, () -> execution.await().atMost(WAIT));
+            // Nothing runs until atMost: the Uni and its await are lazy.
+            var execution = update.execute(io.vertx.mutiny.sqlclient.Tuple.of(country, tenant)).await();
+            assertThrows(RuntimeException.class, () -> execution.atMost(WAIT));
         }
     }
 

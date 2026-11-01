@@ -6,7 +6,7 @@
 
     <groupId>com.microboxlabs.miot</groupId>
     <artifactId>miot-parent</artifactId>
-    <version>0.5.39</version>
+    <version>0.5.41</version>
     <packaging>pom</packaging>
 
     <name>ModularIoT — Parent</name>
@@ -21,6 +21,7 @@
         <module>miot-fleet</module>
         <module>miot-tracking</module>
         <module>miot-symptoms</module>
+        <module>miot-places</module>
         <module>miot-trips</module>
         <module>miot-gateway</module>
         <module>miot-cli</module>
@@ -143,6 +144,11 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-content-gcs</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-places</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

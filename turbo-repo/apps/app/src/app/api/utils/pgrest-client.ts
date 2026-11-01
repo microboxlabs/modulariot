@@ -100,9 +100,35 @@ export function decodeEwkbPoint(
 export function decodeEwkbPolygonCentroid(
   hex: string | null | undefined
 ): DecodedPoint | null {
+  const ring = decodeEwkbOuterRing(hex);
+  if (!ring || ring.length === 0) return null;
+  let lng = 0;
+  let lat = 0;
+  for (const [x, y] of ring) {
+    lng += x;
+    lat += y;
+  }
+  const longitude = lng / ring.length;
+  const latitude = lat / ring.length;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude };
+}
+
+/**
+ * Outer ring of an EWKB-hex (Multi)Polygon as `[lon, lat]` pairs (a Z value,
+ * if any, is dropped). MultiPolygon → its first polygon. Returns null on
+ * malformed input instead of throwing.
+ */
+export function decodeEwkbOuterRing(
+  hex: string | null | undefined
+): [number, number][] | null {
   if (!hex) return null;
   const clean = hex.replace(/^(\\x|0x)/i, "");
-  if (clean.length === 0 || clean.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(clean))
+  if (
+    clean.length === 0 ||
+    clean.length % 2 !== 0 ||
+    !/^[0-9a-f]+$/i.test(clean)
+  )
     return null;
   try {
     const geo = wkx.Geometry.parse(Buffer.from(clean, "hex")).toGeoJSON() as {
@@ -115,17 +141,8 @@ export function decodeEwkbPolygonCentroid(
         ? (geo.coordinates[0] as number[][][])[0]
         : (geo.coordinates as number[][][])[0]
     ) as number[][] | undefined;
-    if (!ring || ring.length === 0) return null;
-    let lng = 0;
-    let lat = 0;
-    for (const [x, y] of ring) {
-      lng += x;
-      lat += y;
-    }
-    const longitude = lng / ring.length;
-    const latitude = lat / ring.length;
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-    return { latitude, longitude };
+    if (!ring) return null;
+    return ring.map(([x, y]) => [x, y] as [number, number]);
   } catch {
     return null;
   }

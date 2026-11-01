@@ -16,10 +16,15 @@ import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** The platform templates the V0.9.3 migration seeds, read from the migration itself, with the rules as later migrations leave them. */
+/**
+ * The platform templates the V0.9.3 migration seeds, read from the migration itself, with the rules as later
+ * migrations leave them: the V0.9.4 and V0.9.5 rewrites, then the new versions of {@link #UPGRADES}.
+ */
 public final class SeedTemplates {
 
     static final String MIGRATION = "/db/migration/symptoms/V0.9.3__platform_symptom_templates.sql";
+    /** Later migrations that seed new templates in the same shape. */
+    static final List<String> MORE = List.of("/db/migration/symptoms/V0.12.6__gps_sabotage_template.sql");
 
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
@@ -34,6 +39,18 @@ public final class SeedTemplates {
                     + "has\\(\\s*signal\\.frame\\.sensors\\.panic_button\\s*\\)(\\s|\\\\+n)*&&(\\s|\\\\+n)*"
                     + "signal\\.frame\\.sensors\\.panic_button(\\s*==\\s*true)?\\b",
                     "signal.frame.?sensors.?panic_button == TRUE"));
+    /** Migrations that publish a new version of one template: its key and version, and the file. */
+    private static final List<Upgrade> UPGRADES = List.of(
+            new Upgrade("signal-loss", "2.0.0",
+                    "/db/migration/symptoms/V0.12.4__signal_loss_template_reads_detector.sql"),
+            new Upgrade("signal-loss", "2.1.0",
+                    "/db/migration/symptoms/V0.12.5__signal_loss_template_coverage_cohort.sql"));
+    private static final Pattern UPGRADE_SPEC = Pattern.compile("'(\\{\"source\".*?)'::jsonb", Pattern.DOTALL);
+    private static final Pattern UPGRADE_DESCRIPTION = Pattern.compile("description = " + TEXT);
+
+    private record Upgrade(String key, String version, String file) {
+    }
+
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final List<SymptomTemplate> ALL = load();
@@ -51,13 +68,25 @@ public final class SeedTemplates {
     }
 
     private static List<SymptomTemplate> load() {
-        String sql = read();
         List<SymptomTemplate> out = new ArrayList<>();
-        Matcher m = ROW.matcher(sql);
+        List<String> files = new ArrayList<>(List.of(MIGRATION));
+        files.addAll(MORE);
+        Matcher m = ROW.matcher(String.join("\n", files.stream().map(SeedTemplates::read).toList()));
         while (m.find()) {
             String icon = m.group(5) == null ? null : unquote(m.group(5));
             out.add(new SymptomTemplate(unquote(m.group(1)), unquote(m.group(2)), unquote(m.group(3)), icon,
                     unquote(m.group(6)), "1.0.0", spec(unquote(m.group(8))).withState(null)));
+        }
+        for (Upgrade u : UPGRADES) {
+            String upgrade = read(u.file());
+            Matcher spec = UPGRADE_SPEC.matcher(upgrade);
+            Matcher description = UPGRADE_DESCRIPTION.matcher(upgrade);
+            if (!spec.find() || !description.find()) {
+                throw new IllegalStateException("no spec or description in " + u.file());
+            }
+            out.replaceAll(t -> t.key().equals(u.key()) ? new SymptomTemplate(t.key(), t.name(), t.family(),
+                    t.icon(), unquote(description.group(1)), u.version(), spec(unquote(spec.group(1))).withState(null))
+                    : t);
         }
         return List.copyOf(out);
     }
@@ -78,10 +107,10 @@ public final class SeedTemplates {
         }
     }
 
-    private static String read() {
-        try (InputStream in = SeedTemplates.class.getResourceAsStream(MIGRATION)) {
+    private static String read(String file) {
+        try (InputStream in = SeedTemplates.class.getResourceAsStream(file)) {
             if (in == null) {
-                throw new IllegalStateException("missing " + MIGRATION);
+                throw new IllegalStateException("missing " + file);
             }
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {

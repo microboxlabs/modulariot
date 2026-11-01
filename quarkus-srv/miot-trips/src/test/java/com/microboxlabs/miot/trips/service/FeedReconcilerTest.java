@@ -221,18 +221,18 @@ class FeedReconcilerTest {
     @Test
     void profileCountryIsOptionalUppercaseAndTwoAsciiLetters() {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
-        var stages = List.of(new FeedProfile.StagePlan("transit", "SCHEDULED"));
+        var plan = List.of(new FeedProfile.StagePlan("transit", "SCHEDULED"));
         FeedProfile saved = profiles.save("test", "test", "test-feed",
-                new FeedProfileRequest("Test", " cl ", stages, "transit", List.of(), null, true));
+                new FeedProfileRequest("Test", " cl ", plan, "transit", List.of(), null, true));
         assertEquals("CL", saved.country());
         assertEquals("CL", com.microboxlabs.miot.trips.dto.FeedProfileView.of(saved, 0).country());
         for (String country : List.of("C", "CHL", "C1", "12", "éé", "ıı")) {
-            var request = new FeedProfileRequest("Test", country, stages, "transit", List.of(), null, true);
+            var request = new FeedProfileRequest("Test", country, plan, "transit", List.of(), null, true);
             assertThrows(IllegalArgumentException.class, () -> profiles.save("test", "test", "test-feed", request));
         }
         for (String country : java.util.Arrays.asList(null, "", " ")) {
             FeedProfile cleared = profiles.save("test", "test", "test-feed",
-                    new FeedProfileRequest("Test", country, stages, "transit", List.of(), null, true));
+                    new FeedProfileRequest("Test", country, plan, "transit", List.of(), null, true));
             assertNull(cleared.country());
         }
     }

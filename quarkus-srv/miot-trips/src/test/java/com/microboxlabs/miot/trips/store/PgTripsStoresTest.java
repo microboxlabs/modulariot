@@ -359,10 +359,12 @@ class PgTripsStoresTest {
             assertEquals(country, saved.country());
             assertEquals(country, feeds.profile(tenant, profile.feedKey()).orElseThrow().country());
         }
+        var update = pool.preparedQuery("""
+                UPDATE miot_trips.feed_profile SET country = $1 WHERE tenant_code = $2
+                """);
         for (String country : List.of("cl", "C1", "C", "CHL")) {
-            assertThrows(RuntimeException.class, () -> pool.preparedQuery("""
-                    UPDATE miot_trips.feed_profile SET country = $1 WHERE tenant_code = $2
-                    """).execute(io.vertx.mutiny.sqlclient.Tuple.of(country, tenant)).await().atMost(WAIT));
+            var execution = update.execute(io.vertx.mutiny.sqlclient.Tuple.of(country, tenant));
+            assertThrows(RuntimeException.class, () -> execution.await().atMost(WAIT));
         }
     }
 

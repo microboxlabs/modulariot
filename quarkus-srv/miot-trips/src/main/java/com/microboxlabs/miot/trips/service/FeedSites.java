@@ -66,7 +66,7 @@ public class FeedSites {
             return;
         }
         try {
-            Location l = locations.byCode(tenantCode, code.trim()).orElse(null);
+            Location l = locations.byCode(tenantCode, code).orElse(null);
             if (l == null || !due(l, site)) {
                 return;
             }
@@ -83,10 +83,11 @@ public class FeedSites {
     private static Site cellSite(String text, String country) {
         String plusCode = text.split("\\s+")[0].toUpperCase(Locale.ROOT);
         if (OpenLocationCode.isValidCode(plusCode)) {
-            if (country == null && new OpenLocationCode(plusCode).isShort()) {
+            boolean shortCode = new OpenLocationCode(plusCode).isShort();
+            if (country == null && shortCode) {
                 return null;
             }
-            return new Site(null, country, null, null, plusCode, null, null);
+            return new Site(null, shortCode ? country : null, null, null, plusCode, null, null);
         }
         if (country != null && text.codePoints().anyMatch(Character::isWhitespace)
                 && text.codePoints().anyMatch(Character::isLetter) && text.codePoints().anyMatch(Character::isDigit)) {

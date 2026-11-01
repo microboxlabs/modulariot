@@ -5,11 +5,21 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.openlocationcode.OpenLocationCode;
+import com.microboxlabs.miot.core.db.Transactions;
+import com.microboxlabs.miot.integrations.geocoding.GeocodingMetrics;
+import com.microboxlabs.miot.integrations.service.GeocodeUsageService;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Location.Placement;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest.Site;
 import com.microboxlabs.miot.trips.dto.LocationResolveRequest;
+import com.microboxlabs.miot.trips.geo.AdminBoundaries;
+import com.microboxlabs.miot.trips.store.FakeAddresses;
+import com.microboxlabs.miot.trips.store.FakeGeofences;
+import com.microboxlabs.miot.trips.store.InMemoryFleet;
+import com.microboxlabs.miot.trips.store.InMemoryGeocodeCache;
+import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -112,11 +122,12 @@ class FeedSitesTest {
     @Test
     void addressCellsUseTheFeedCountryWithoutADistrict() {
         Capture capture = new Capture();
-        var desired = row("  Avenida Providencia 1234  ", "Ñuble 456", null, null);
+        var desired = row("  Alpha 123  ", "Beta 456", null, null);
 
-        assertEquals(List.of("Avenida Providencia 1234: resolved", "Ñuble 456: resolved"),
+        assertEquals(List.of("Alpha 123: resolved", "Beta 456: resolved"),
                 capture.locate("CL", desired));
-        assertEquals(List.of("Avenida Providencia 1234", "Ñuble 456"),
+        assertEquals(List.of("  Alpha 123  ", "Beta 456"), capture.lookupCodes);
+        assertEquals(List.of("Alpha 123", "Beta 456"),
                 capture.calls.stream().map(LocationResolveRequest::address).toList());
         for (LocationResolveRequest request : capture.calls) {
             assertEquals("CL", request.country());
@@ -127,13 +138,13 @@ class FeedSitesTest {
     }
 
     @Test
-    void fullAndShortPlusCodeCellsUseTheFeedCountry() {
+    void onlyShortPlusCodeCellsUseTheFeedCountry() {
         for (String code : List.of("57X8+QJ", "57x8+qj Miraflores", "57V45Q7F+9V")) {
             Capture capture = new Capture();
             assertEquals(List.of(code + ": resolved"), capture.locate("PE", row(code, "SCL", null, null)));
             LocationResolveRequest request = capture.calls.getFirst();
             assertEquals(code.split(" ")[0].toUpperCase(java.util.Locale.ROOT), request.plusCode());
-            assertEquals("PE", request.country());
+            assertEquals(new OpenLocationCode(request.plusCode()).isShort() ? "PE" : null, request.country());
             assertNull(request.address());
             assertNull(request.districtCode());
             assertNull(request.district());
@@ -195,6 +206,43 @@ class FeedSitesTest {
         assertTrue(capture.calls.isEmpty());
     }
 
+    @Test
+    void unchangedShortCodesDoNotRepeatPlacementOrAuditAfterRealResolution() {
+        InMemoryTripsWorld world = new InMemoryTripsWorld();
+        FakeGeofences geofences = new FakeGeofences();
+        TripLiveProjector live = world.projector(new InMemoryFleet());
+        AuditService audit = new AuditService(world.auditStore);
+        LocationService locations = new LocationService(world.locationStore, geofences, world.tripStore,
+                live, audit, Transactions.none());
+        LocationResolver resolver = new LocationResolver(geofences, new AdminBoundaries(), new FakeAddresses(),
+                new InMemoryGeocodeCache(), StubGeocoding.none());
+        GeocodeUsageService usage = new GeocodeUsageService(null, null, GeocodingMetrics.NONE) {
+            @Override public void recordResolution(Resolution resolution) {
+                // This test checks placement and audit writes.
+            }
+        };
+        LocationResolutionService resolution = new LocationResolutionService(world.locationStore, locations,
+                resolver, geofences, world.tripStore, live, audit, Transactions.none(), usage);
+        FeedSites sites = new FeedSites(locations, resolution);
+        String code = "57X8+QJ";
+        locations.resolve("client-a", "feed:test", code);
+        FeedServiceRequest desired = row(code, null, null, null);
+
+        assertEquals(List.of(code + ": needs_review"), sites.locate("org-a", "client-a", "feed:test", "PE", desired));
+        Location saved = locations.byCode("client-a", code).orElseThrow();
+        assertEquals(code, saved.placement().plusCode());
+        assertEquals(Location.NEEDS_REVIEW, saved.placement().status());
+        assertNull(saved.placement().latitude());
+        assertNull(saved.placement().longitude());
+        int writes = world.auditTrail().size();
+
+        assertEquals(List.of(), sites.locate("org-a", "client-a", "feed:test", "PE", desired));
+        assertEquals(writes, world.auditTrail().size());
+        assertEquals(saved, locations.byCode("client-a", code).orElseThrow());
+        assertEquals(List.of(code + ": needs_review"), sites.locate("org-a", "client-a", "feed:test", "CL", desired));
+        assertEquals(writes + 1, world.auditTrail().size());
+    }
+
     private static FeedServiceRequest row(String origin, String destination, Site originSite, Site destinationSite) {
         return new FeedServiceRequest("service", "ref", origin, destination, null, null, null, null, null,
                 null, null, null, null, null, originSite, destinationSite);
@@ -204,10 +252,12 @@ class FeedSitesTest {
         private final List<LocationResolveRequest> calls = new ArrayList<>();
         private Location saved = location(null, Placement.NONE);
         private int lookups;
+        private final List<String> lookupCodes = new ArrayList<>();
         private final LocationService locations = new LocationService(null, null, null, null, null, null) {
             @Override public Optional<Location> byCode(String tenant, String code) {
                 assertEquals("client-a", tenant);
                 lookups++;
+                lookupCodes.add(code);
                 return Optional.of(saved);
             }
         };

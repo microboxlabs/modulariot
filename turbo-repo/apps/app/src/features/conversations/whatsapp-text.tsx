@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { fillText } from "./rule-model";
 
 /** A run of WhatsApp text: plain, or wrapped in one of its format marks. */
@@ -82,20 +82,31 @@ export function plainText(text: string): string {
   return unformatted(parseWhatsApp(text));
 }
 
+/** The text cut around its `{{name}}` placeholders, each piece with its offset in the text. */
+function placeholderPieces(text: string): { at: number; piece: string }[] {
+  const out: { at: number; piece: string }[] = [];
+  let at = 0;
+  for (const piece of text.split(/(\{\{[\w.]+\}\})/g)) {
+    if (piece) out.push({ at, piece });
+    at += piece.length;
+  }
+  return out;
+}
+
 /** `{{name}}` left in a filled text: a variable without a value. */
 function Placeholders({ text }: Readonly<{ text: string }>) {
   return (
     <>
-      {text.split(/(\{\{[\w.]+\}\})/g).map((s, i) =>
-        /^\{\{[\w.]+\}\}$/.test(s) ? (
+      {placeholderPieces(text).map(({ at, piece }) =>
+        /^\{\{[\w.]+\}\}$/.test(piece) ? (
           <span
-            key={i}
+            key={at}
             className="rounded bg-amber-100 px-1 font-mono text-[0.85em] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
           >
-            {s}
+            {piece}
           </span>
         ) : (
-          s
+          <Fragment key={at}>{piece}</Fragment>
         )
       )}
     </>

@@ -51,7 +51,7 @@ export function metaSync(
   templates: MetaTemplate[]
 ): { sync: MetaSync; meta: MetaTemplate | null } {
   const meta = findMetaTemplate(templates, variant.metaName, variant.language);
-  if (!meta || meta.language !== variant.language)
+  if (meta?.language !== variant.language)
     return { sync: "create", meta: null };
   if (metaTemplateLock(meta)) return { sync: null, meta };
   if (meta.status === "REJECTED") return { sync: "update", meta };

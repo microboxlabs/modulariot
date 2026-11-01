@@ -37,6 +37,7 @@ public record GpsSignal(
         @JsonProperty("asset_id") String assetId,
         @Schema(hidden = true) Instant at,
         @Schema(hidden = true) List<String> clients,
+        @Schema(hidden = true) String sender,
         @Schema(hidden = true) Map<String, Trip> trips,
         Trip trip,
         Vehicle vehicle,

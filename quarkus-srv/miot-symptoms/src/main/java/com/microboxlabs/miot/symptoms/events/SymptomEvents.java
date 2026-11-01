@@ -106,6 +106,7 @@ public class SymptomEvents {
      *
      * @param caseId the id of the case's OPENED transition
      */
+    @SuppressWarnings("java:S107") // The case, where the vehicle was, and how the signal came back.
     public void signalReturned(String tenantCode, long caseId, UUID definitionId, String version,
             SymptomState state, int level, String assetId, Place place, Instant returnedAt, boolean backfill) {
         Name n = name(tenantCode, definitionId);

@@ -84,8 +84,9 @@ public final class SeedTemplates {
             if (!spec.find() || !description.find()) {
                 throw new IllegalStateException("no spec or description in " + u.file());
             }
-            out.replaceAll(t -> !t.key().equals(u.key()) ? t : new SymptomTemplate(t.key(), t.name(), t.family(),
-                    t.icon(), unquote(description.group(1)), u.version(), spec(unquote(spec.group(1))).withState(null)));
+            out.replaceAll(t -> t.key().equals(u.key()) ? new SymptomTemplate(t.key(), t.name(), t.family(),
+                    t.icon(), unquote(description.group(1)), u.version(), spec(unquote(spec.group(1))).withState(null))
+                    : t);
         }
         return List.copyOf(out);
     }

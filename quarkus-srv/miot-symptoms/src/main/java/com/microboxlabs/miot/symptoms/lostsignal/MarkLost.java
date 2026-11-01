@@ -65,16 +65,7 @@ public class MarkLost implements LossTicker.DueCheck {
         VehicleProfile p = v.profile();
         Instant deadline = p.arrival().plusSeconds(v.watch().expectedS());
         if (c.lost() && p.at().isAfter(c.lostSince())) {
-            Instant back = v.returnedAt() != null ? v.returnedAt() : p.arrival();
-            if (!v.backfill() && now.isBefore(back.plus(returnGrace))) {
-                store.checked(assetId, seen, c, back.plus(returnGrace));
-                return Outcome.RETURNING;
-            }
-            Map<String, OpenCase> open = trips.check(assetId, v, c.cases(), at(seen, now),
-                    new Return(back, v.backfill()), TripChecks.Area.NONE);
-            commit(assetId, seen, new CheckState(null, now, open), deadline);
-            leaves(sender, assetId, c, now);
-            return Outcome.RETURNED;
+            return returned(assetId, v, c, sender, now, deadline);
         }
         if (!c.lost() && now.isBefore(deadline)) {
             store.checked(assetId, seen, c, deadline);
@@ -89,6 +80,22 @@ public class MarkLost implements LossTicker.DueCheck {
                 area(assetId, v, sender, now));
         commit(assetId, seen, new CheckState(c.lost() ? c.lostSince() : p.at(), now, open), now.plus(recheck));
         return c.lost() ? Outcome.STILL_LOST : Outcome.LOST;
+    }
+
+    /** A frame newer than the loss arrived: wait the grace for backfill, then check the return once. */
+    private Outcome returned(String assetId, LossStore.Vehicle v, CheckState c, String sender, Instant now,
+            Instant deadline) {
+        Instant seen = v.deadline();
+        Instant back = v.returnedAt() != null ? v.returnedAt() : v.profile().arrival();
+        if (!v.backfill() && now.isBefore(back.plus(returnGrace))) {
+            store.checked(assetId, seen, c, back.plus(returnGrace));
+            return Outcome.RETURNING;
+        }
+        Map<String, OpenCase> open = trips.check(assetId, v, c.cases(), at(seen, now),
+                new Return(back, v.backfill()), TripChecks.Area.NONE);
+        commit(assetId, seen, new CheckState(null, now, open), deadline);
+        leaves(sender, assetId, c, now);
+        return Outcome.RETURNED;
     }
 
     /**

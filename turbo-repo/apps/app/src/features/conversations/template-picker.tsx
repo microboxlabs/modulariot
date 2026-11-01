@@ -17,7 +17,7 @@ import type { ConversationTemplate, MetaTemplate } from "./conversations-types";
 import { findMetaTemplate } from "./meta-template-combobox";
 import MetaTemplatePreview from "./meta-template-preview";
 import { fillText } from "./rule-model";
-import { SAMPLE_VALUES } from "./template-editor";
+import { htmlToText, SAMPLE_VALUES } from "./template-model";
 
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -77,7 +77,14 @@ function EmailPreview({
         <Filled text={email?.subject || template.name} />
       </p>
       <p className="whitespace-pre-wrap break-words px-3 py-2">
-        <Filled text={email?.body || template.baseText || "—"} />
+        <Filled
+          text={
+            email?.body ||
+            htmlToText(email?.html ?? "") ||
+            template.baseText ||
+            "—"
+          }
+        />
       </p>
     </div>
   );

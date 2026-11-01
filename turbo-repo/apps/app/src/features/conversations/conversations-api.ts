@@ -16,6 +16,7 @@ import type {
   ConversationRule,
   ConversationTemplate,
   DraftResult,
+  EmailPreview,
   EventTypeInfo,
   MetaTemplate,
   MetaTemplateDraft,
@@ -91,10 +92,14 @@ export function useConversationTemplate(key: string | null) {
   );
 }
 
-/** The templates on the WABA, read live from Meta; every 30 s while one is under review. */
+/**
+ * The templates on the WABA, read live from Meta. Meta changes their status on its own, so the list is read
+ * again when the tab regains focus, and every 30 s while one is under review.
+ */
 export function useMetaTemplates(enabled = true) {
   return useSWR<MetaTemplate[]>(enabled ? orgMetaTemplatesKey : null, fetcher, {
     ...quiet,
+    revalidateOnFocus: true,
     refreshInterval: (list) =>
       list?.some((t) => t.status === "PENDING") ? 30_000 : 0,
   });
@@ -198,6 +203,18 @@ export function invokeRule(
   return request<unknown>(`${ruleKey(id)}/invoke`, { method: "POST", body });
 }
 
+/** An unsaved email variant written with these values, inside the ModularIoT layout. */
+export function previewTemplateEmail(
+  subject: string,
+  html: string,
+  values: Record<string, string>
+) {
+  return request<EmailPreview>(`${templatesKey}/email-preview`, {
+    method: "POST",
+    body: { subject, html, values },
+  });
+}
+
 /** Saves a template; only platform owners, in the platform scope, may. */
 export function saveTemplate(key: string, body: TemplateBody) {
   return request<ConversationTemplate>(templateKey(key), {
@@ -290,13 +307,7 @@ export async function setChannelAccountMode(
   return saved;
 }
 
-export function useOrgMetaTemplates(enabled = true) {
-  return useSWR<MetaTemplate[]>(
-    enabled ? orgMetaTemplatesKey : null,
-    fetcher,
-    quiet
-  );
-}
+export const useOrgMetaTemplates = useMetaTemplates;
 
 /** Submits the platform's WhatsApp templates to the organization's WABA; Meta reviews each one. */
 export async function copyPlatformTemplates() {

@@ -283,7 +283,7 @@ class GeocodingPlanServiceTest {
                 events.stream().map(OperationalEvent::type).toList());
         GeocodingQuotaData exhausted = (GeocodingQuotaData) events.get(2).data();
         assertEquals("Example Org", exhausted.company());
-        assertEquals("https://app.example.test/app/es/users/settings/geocoding", exhausted.link());
+        assertEquals("https://app.example.test/app/es/users/settings/trips?section=geocodingUsage", exhausted.link());
         assertEquals(100, exhausted.pct());
         assertEquals("Las direcciones nuevas pasan a revisión hasta el próximo mes o hasta que se aumente la cuota.",
                 exhausted.action());

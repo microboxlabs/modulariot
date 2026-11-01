@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.geocoding;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.event.ContactDirectory;
 import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
@@ -64,13 +65,17 @@ public class GeocodingParticipants implements ParticipantResolver {
             return owners.get().stream().map(e -> new Participant(e, EMAIL, e, null, PLATFORM_OWNERS)).toList();
         }
         if (ORGANIZATION_ADMINS.equals(wanted) && contextKey != null) {
-            return organizationAdmins(contextKey);
+            return organizationAdmins(tenantCode, contextKey);
         }
         return List.of();
     }
 
-    private List<Participant> organizationAdmins(String organization) {
+    private List<Participant> organizationAdmins(String tenantCode, String organization) {
         NotificationRecipients.OrganizationAudience audience = admins.apply(organization);
+        if (!PlatformScope.TENANT.equals(tenantCode)
+                && (tenantCode == null || !tenantCode.equals(audience.tenantCode()))) {
+            return List.of();
+        }
         List<ContactDirectory.Entry> book = audience.tenantCode() == null ? List.of()
                 : contacts.apply(audience.tenantCode());
         List<Participant> out = new ArrayList<>();

@@ -41,6 +41,22 @@ class PlatformTemplatesTest {
     }
 
     @Test
+    void htmlEmailConditionsAreVersionedAsInputVariables() {
+        ConvTemplate base = template(null, null,
+                new ConvTemplate.Email("{{#if company}}Quota{{/if}}", null, "{{#if link}}Review{{/if}}"));
+        ConvTemplate otherBodyInput = template(null, null,
+                new ConvTemplate.Email(base.email().subject(), null, "{{#if quota}}Review{{/if}}"));
+        ConvTemplate otherSubjectInput = template(null, null,
+                new ConvTemplate.Email("{{#if used}}Quota{{/if}}", null, base.email().html()));
+        ConvTemplate otherHelper = template(null, null,
+                new ConvTemplate.Email(base.email().subject(), null, "{{#unless link}}Review{{/unless}}"));
+
+        assertEquals(RuleBump.MAJOR, TemplateBump.between(base, otherBodyInput));
+        assertEquals(RuleBump.MAJOR, TemplateBump.between(base, otherSubjectInput));
+        assertEquals(RuleBump.PATCH, TemplateBump.between(base, otherHelper));
+    }
+
+    @Test
     void savesGoToThePlatformAndRaiseTheVersion() {
         RulesFixture f = new RulesFixture();
         TemplateView first = f.templates.save("welcome", new TemplateRequest("Bienvenida", "Hola {{nombre}}", null,
@@ -68,8 +84,9 @@ class PlatformTemplatesTest {
         ConvTemplate.Email html = new ConvTemplate.Email("Cupo de {{company}}", null, "<p>{{company}}: {{used}}</p>");
         assertEquals("0.1.0", f.templates.save("quota", new TemplateRequest("Cupo", null, null, html),
                 "owner@example.com").version());
-        assertThrows(IllegalArgumentException.class, () -> f.templates.save("quota-bad", new TemplateRequest("Cupo",
-                null, null, new ConvTemplate.Email("s", null, "<p>{{{company}}}</p>")), "owner@example.com"),
+        TemplateRequest unescaped = new TemplateRequest("Cupo", null, null,
+                new ConvTemplate.Email("s", null, "<p>{{{company}}}</p>"));
+        assertThrows(IllegalArgumentException.class, () -> f.templates.save("quota-bad", unescaped, "owner@example.com"),
                 "a value written without escaping");
 
         TemplatesService.EmailPreview preview = f.templates.previewEmail(new TemplatesService.EmailPreviewRequest(

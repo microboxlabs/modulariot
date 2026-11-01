@@ -90,25 +90,36 @@ public final class StepMessages {
         if (step.template() != null && template.isEmpty()) {
             return new Plan(List.of(), List.of(), List.of(TEMPLATE + step.template() + " no existe"));
         }
+        try {
+            return new Plan(List.of(), List.of(connectionMessage(kind, step, event, template)), List.of());
+        } catch (IllegalArgumentException e) {
+            return new Plan(List.of(), List.of(),
+                    List.of(TEMPLATE + step.template() + " no se pudo escribir: " + e.getMessage()));
+        }
+    }
+
+    private static Planned connectionMessage(ConnectionChannel kind, Step step, StoredEvent event,
+            Optional<ConvTemplate> template) {
         String subject = null;
         String text = null;
         if (template.isPresent()) {
             ConvTemplate t = template.get();
             Map<String, String> vars = TemplateVariables.of(event.data(), event.at(), null);
             boolean email = t.email() != null;
-            subject = email ? TemplateVariables.render(t.email().subject(), vars) : t.name();
+            Rendered rendered = email && t.email().hasHtml()
+                    ? NotificationMail.body(t.email().subject(), t.email().html(), vars) : null;
+            subject = connectionSubject(t, vars, rendered);
             // A plain-text email body is the fuller text; an HTML one gives way to the short text.
             if (email && !t.email().hasHtml()) {
                 text = TemplateVariables.render(t.email().body(), vars);
             } else if (t.baseText() != null && !t.baseText().isBlank()) {
                 text = TemplateVariables.render(t.baseText(), vars);
-            } else if (email) {
-                text = htmlText(t.email(), vars);
+            } else if (rendered != null) {
+                text = rendered.text();
             }
         }
         Participant to = new Participant(step.connection(), kind.key(), null, null, null);
-        return new Plan(List.of(), List.of(new Planned(kind.key(), to, template.orElse(null), Map.of(),
-                subject, text)), List.of());
+        return new Planned(kind.key(), to, template.orElse(null), Map.of(), subject, text);
     }
 
     /** The message on this channel, or empty when the template has no variant for it. */
@@ -128,13 +139,11 @@ public final class StepMessages {
         return Optional.empty();
     }
 
-    /** The HTML email's body as text, or null when it does not render. */
-    private static String htmlText(ConvTemplate.Email email, Map<String, String> vars) {
-        try {
-            return NotificationMail.body(email.subject(), email.html(), vars).text();
-        } catch (IllegalArgumentException e) {
-            return null;
+    private static String connectionSubject(ConvTemplate template, Map<String, String> vars, Rendered rendered) {
+        if (rendered != null) {
+            return rendered.subject();
         }
+        return template.email() == null ? template.name() : TemplateVariables.render(template.email().subject(), vars);
     }
 
     private static Map<String, String> params(ConvTemplate.WhatsApp whatsapp, Map<String, String> vars) {

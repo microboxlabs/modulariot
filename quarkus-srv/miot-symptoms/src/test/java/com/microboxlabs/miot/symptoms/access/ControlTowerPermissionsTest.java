@@ -48,6 +48,7 @@ class ControlTowerPermissionsTest {
     private static final String EDIT = ControlTowerAccessCatalog.SYMPTOM_EDIT;
     private static final String PUBLISH = ControlTowerAccessCatalog.SYMPTOM_PUBLISH;
     private static final String SETTINGS = ControlTowerAccessCatalog.SETTINGS_UPDATE;
+    private static final String PLACES = ControlTowerAccessCatalog.PLACES_EDIT;
 
     /** Every endpoint and the permission it needs. A new endpoint without an entry here fails the test. */
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
@@ -134,6 +135,22 @@ class ControlTowerPermissionsTest {
         assertTrue(operator.containsAll(Set.of(VIEW, TREAT, CONTACT_WRITE)) && !operator.contains(EDIT));
         assertTrue(maintainer.containsAll(Set.of(VIEW, TREAT, CONTACT_WRITE, CONTACT_DELETE, EDIT, PUBLISH,
                 SETTINGS)));
+    }
+
+    /** Disabled until the places editor ships, see {@link ControlTowerAccessCatalog#PLACES_EDIT}. */
+    @Test
+    void placesEditIsDisabled() {
+        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new ControlTowerAccessCatalog()));
+        assertTrue(registry.permissions().stream().noneMatch(p -> p.key().equals(PLACES)), "not declared");
+        for (String role : List.of(ControlTowerAccessCatalog.VIEWER, ControlTowerAccessCatalog.OPERATOR,
+                ControlTowerAccessCatalog.MAINTAINER)) {
+            assertTrue(!grant(registry, role).contains(PLACES), role);
+        }
+        for (BaseRole base : BaseRole.values()) {
+            Set<String> granted = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
+                    new AccessRules.Facts(base, false, Set.of()), registry).permissions();
+            assertTrue(!granted.contains(PLACES), base.name());
+        }
     }
 
     @Test

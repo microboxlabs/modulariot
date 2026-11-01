@@ -445,12 +445,13 @@ export function useSymptomsIcu(condition?: string) {
   };
 }
 
-export function useMapPositions() {
+export function useMapPositions(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, error, isLoading, mutate } = useSWR<
     MapPosition[],
     FetcherError
   >(
-    "/app/api/map",
+    enabled ? "/app/api/map" : null,
     async (url: string) => {
       const response = await fetch(url);
       const data = await safeJsonParse<MapPosition[]>(response);
@@ -485,12 +486,13 @@ export function useMapPositions() {
   };
 }
 
-export function useMapPositionsResume() {
+export function useMapPositionsResume(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, error, isLoading, mutate } = useSWR<
     MapPositionResume,
     FetcherError
   >(
-    "/app/api/map/resume",
+    enabled ? "/app/api/map/resume" : null,
     async (url: string) => {
       const response = await fetch(url);
       return safeJsonParse<MapPositionResume>(response);

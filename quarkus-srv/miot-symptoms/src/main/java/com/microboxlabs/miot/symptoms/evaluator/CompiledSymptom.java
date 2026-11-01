@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
@@ -21,7 +22,8 @@ import java.util.UUID;
  * @param measure   null for a symptom whose levels do not read a measure
  * @param levels  the levels that apply, by ICU, lowest first
  * @param state     TEST runs in shadow, ACTIVE runs live; OFF versions are not compiled
- * @param levelDown an open case's level follows the measure down
+ * @param levelDown   an open case's level follows the measure down
+ * @param eventDriven its activation reads a device event ({@link #EVENT_FIELDS}), so a late frame still runs it
  */
 public record CompiledSymptom(
         UUID definitionId,
@@ -33,12 +35,20 @@ public record CompiledSymptom(
         Map<Integer, PreparedRule> levels,
         PreparedRule open,
         PreparedRule close,
-        boolean levelDown) {
+        boolean levelDown,
+        boolean eventDriven) {
+
+    /**
+     * Device events: a device stores them while it cannot reach the network and delivers them late, often after
+     * a newer fix, so a symptom that reads one is also run on frames older than the watermark.
+     */
+    static final List<String> EVENT_FIELDS = List.of("signal.frame.sensors.panic_button",
+            "signal.derived.power_disconnected", "signal.derived.jamming");
 
     /** The same rules under another state, as when the symptom is switched between test and active. */
     public CompiledSymptom withState(SymptomState next) {
         return new CompiledSymptom(definitionId, version, next, sourceKey, activation, measure, levels, open,
-                close, levelDown);
+                close, levelDown, eventDriven);
     }
 
     public static CompiledSymptom compile(UUID definitionId, String version, SymptomState state, SymptomSpec spec,
@@ -63,6 +73,12 @@ public record CompiledSymptom(
                 RuleLanguage.prepare(schema, spec.activation()),
                 measure, Collections.unmodifiableMap(levels),
                 RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().open()),
-                RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().close()), spec.lifecycle().levelDown());
+                RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().close()), spec.lifecycle().levelDown(),
+                readsEvents(spec.activation()));
+    }
+
+    /** Whether the activation reads a device event field, optional selectors ({@code .?}) included. */
+    static boolean readsEvents(String activation) {
+        return activation != null && RuleText.fieldPaths(activation).stream().anyMatch(EVENT_FIELDS::contains);
     }
 }

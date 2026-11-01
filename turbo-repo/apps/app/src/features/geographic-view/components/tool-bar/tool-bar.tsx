@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MapPosition } from "../../types/map";
 import { ViewStateType } from "../map-visualization-trip";
 import { MdGpsFixed, MdGpsNotFixed, MdOutlineTimeline } from "react-icons/md";
@@ -15,6 +15,9 @@ import { tr } from "@/features/i18n/tr.service";
 import { twMerge } from "tailwind-merge";
 import TimeRangeSelector from "./time-range-selector";
 import TimelineComponent from "@/features/symptoms/components/map-view/timeline";
+import GeofencesModeSelector, {
+  type GeofencesMode,
+} from "./geofences-mode-selector";
 
 type ToolBarProps = {
   positions: MapPosition[] | null;
@@ -34,9 +37,9 @@ type ToolBarProps = {
     showStops: boolean;
     setShowStops: (showStops: boolean) => void;
   };
-  show_geofences?: {
-    showGeofences: boolean;
-    setShowGeofences: (showGeofences: boolean) => void;
+  geofences_mode?: {
+    geofencesMode: GeofencesMode;
+    setGeofencesMode: (geofencesMode: GeofencesMode) => void;
   };
   show_pulse?: {
     showPulse: boolean;
@@ -54,7 +57,7 @@ export default function ToolBar({
   selected_style,
   camera_movement,
   show_stops,
-  show_geofences,
+  geofences_mode,
   show_pulse,
   allow_screenshot = true,
   dictionary,
@@ -65,8 +68,22 @@ export default function ToolBar({
   const setSelectedStyle = selected_style?.setSelectedStyle ?? (() => {});
   const [open, setOpen] = useState(defaultOpenTimeline ?? false);
   const [selectedTool, setSelectedTool] = useState<
-    "timeline" | "mapSelection" | null
+    "timeline" | "mapSelection" | "geofences" | null
   >(defaultOpenTimeline == true ? "timeline" : null);
+  // the geofences panel opens centred over its button; the button row clips
+  // its overflow, so the panel lives in the area above and is placed by hand
+  const panelAreaRef = useRef<HTMLDivElement>(null);
+  const geofencesButtonRef = useRef<HTMLButtonElement>(null);
+  const [geofencesPanelLeft, setGeofencesPanelLeft] = useState(0);
+
+  const toggleGeofencesPanel = () => {
+    const area = panelAreaRef.current?.getBoundingClientRect();
+    const button = geofencesButtonRef.current?.getBoundingClientRect();
+    if (area && button) {
+      setGeofencesPanelLeft(button.left + button.width / 2 - area.left);
+    }
+    setSelectedTool(selectedTool === "geofences" ? null : "geofences");
+  };
 
   useEffect(() => {
     if (!open) {
@@ -90,9 +107,36 @@ export default function ToolBar({
     ? "light"
     : "dark";
 
+  const geofencesPanelOpen = selectedTool === "geofences";
+  const geofencesInactiveText = mapstyles.find(
+    (style) => style.value === selectedStyle
+  )?.isDark
+    ? "text-gray-500"
+    : "text-gray-300";
+  const geofencesModeClass =
+    geofences_mode?.geofencesMode === "none"
+      ? geofencesInactiveText
+      : "bg-blue-500 text-white ";
+  const geofencesButton = geofences_mode && (
+    <button
+      type="button"
+      aria-label={tr("symptoms.geofences", dictionary)}
+      aria-expanded={geofencesPanelOpen}
+      ref={geofencesButtonRef}
+      data-geofences-button
+      className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${geofencesModeClass} ${geofencesPanelOpen ? "border-blue-500" : ""}`}
+      onClick={toggleGeofencesPanel}
+    >
+      <FaMapPin size={20} />
+    </button>
+  );
+
   return (
     <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none p-5">
-      <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none relative">
+      <div
+        ref={panelAreaRef}
+        className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none relative"
+      >
         <div
           className={twMerge(
             "absolute bottom-0 left-0",
@@ -111,6 +155,36 @@ export default function ToolBar({
             setSelectedStyle={setSelectedStyle}
           />
         </div>
+        {geofences_mode && (
+          <div
+            data-geofences-panel
+            style={{ left: geofencesPanelLeft }}
+            className={twMerge(
+              "absolute bottom-0 -translate-x-1/2",
+              "p-2",
+              "rounded-lg shadow-lg pointer-events-auto",
+              "transition-all duration-300",
+              geofencesPanelOpen
+                ? "animate-fade-in-fast"
+                : "hidden animate-fade-out-fast",
+              style_bg
+            )}
+          >
+            {/* arrow pointing down to the geofences button */}
+            <span
+              aria-hidden
+              className={twMerge(
+                "absolute left-1/2 -bottom-1.5 h-3 w-3 -translate-x-1/2 rotate-45",
+                style_bg
+              )}
+            />
+            <GeofencesModeSelector
+              mode={geofences_mode.geofencesMode}
+              setMode={geofences_mode.setGeofencesMode}
+              dictionary={dictionary}
+            />
+          </div>
+        )}
         {timelineComponent && (
           <div
             className={twMerge(
@@ -178,7 +252,7 @@ export default function ToolBar({
             </div>
           )}
           {/* Map toggles */}
-          {(show_pulse || show_stops || show_geofences) && (
+          {(show_pulse || show_stops || geofences_mode) && (
             <div className="flex flex-row gap-1">
               {show_pulse && (
                 <Tooltip
@@ -211,21 +285,13 @@ export default function ToolBar({
                 </Tooltip>
               )}
 
-              {show_geofences && (
+              {geofencesButton && (
                 <Tooltip
                   content={tr("symptoms.geofences", dictionary)}
                   style={style_theme}
+                  className={geofencesPanelOpen ? "hidden" : undefined}
                 >
-                  <div
-                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_geofences.showGeofences ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                    onClick={() =>
-                      show_geofences.setShowGeofences(
-                        !show_geofences.showGeofences
-                      )
-                    }
-                  >
-                    <FaMapPin size={20} />
-                  </div>
+                  {geofencesButton}
                 </Tooltip>
               )}
             </div>

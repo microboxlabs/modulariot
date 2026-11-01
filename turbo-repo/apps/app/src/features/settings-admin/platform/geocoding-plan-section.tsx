@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -47,6 +49,7 @@ const SECTION =
 export default function GeocodingPlanSection({
   dict,
 }: GeocodingPlanSectionProps) {
+  const { lang } = useParams<{ lang: string }>();
   const { plan, isLoading, error, save } = useGeocodingPlan();
   const [draft, setDraft] = useState<GeocodingPlanDraft | null>(null);
   const [problem, setProblem] = useState<GeocodingPlanError | null>(null);
@@ -152,6 +155,15 @@ export default function GeocodingPlanSection({
           </div>
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {tr("countHelp", dict)}
+          </p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {tr("alertsHint", dict)}{" "}
+            <Link
+              href={`/${lang}/users/settings/communications?section=rules`}
+              className="font-medium text-blue-600 hover:underline dark:text-blue-500"
+            >
+              {tr("alertsLink", dict)}
+            </Link>
           </p>
 
           {problem && (

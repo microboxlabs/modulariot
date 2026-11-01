@@ -46,6 +46,17 @@ export const EMPTY_META_DRAFT: MetaTemplateDraft = {
   examples: {},
 };
 
+/** Why the app cannot edit a template on Meta. */
+export function metaTemplateLock(t: MetaTemplate | null): string | null {
+  if (!t) return null;
+  if (t.status === "PENDING") return "metaLockedPending";
+  if (t.category === "AUTHENTICATION") return "metaLockedAuthentication";
+  if (t.headerFormat && t.headerFormat !== "TEXT") return "metaLockedMedia";
+  if (t.parameterFormat !== "NAMED" && t.params.length > 0)
+    return "metaLockedPositional";
+  return null;
+}
+
 /** The editor's draft for a template on Meta; a new one starts empty. */
 export function draftOf(t: MetaTemplate | null): MetaTemplateDraft {
   if (!t) return EMPTY_META_DRAFT;

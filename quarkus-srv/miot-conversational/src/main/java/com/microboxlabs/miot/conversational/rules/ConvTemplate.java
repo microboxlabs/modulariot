@@ -26,6 +26,18 @@ public record ConvTemplate(String id, String tenantCode, String key, String name
         }
     }
 
-    public record Email(String subject, String body) {
+    /**
+     * @param body plain text, for a template written before HTML; null when {@code html} is set
+     * @param html the body in HTML, inside the ModularIoT layout when sent; its values are escaped
+     */
+    public record Email(String subject, String body, String html) {
+
+        public Email(String subject, String body) {
+            this(subject, body, null);
+        }
+
+        public boolean hasHtml() {
+            return html != null && !html.isBlank();
+        }
     }
 }

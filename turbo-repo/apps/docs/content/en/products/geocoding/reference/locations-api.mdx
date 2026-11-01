@@ -1,0 +1,182 @@
+import { Callout } from 'nextra/components'
+
+# Locations API
+
+**For:** developers.
+
+Base: `/api/v1/orgs/{org}/trips/locations`. `{org}` is the organization's identifier. Every route receives and returns JSON and requires `Authorization: Bearer <token>`: a user's session token or a service account key (`miot_sk_...`).
+
+| Method | Path | Permission | What it does |
+| --- | --- | --- | --- |
+| `GET` | `/` | `trips:view` | Lists locations |
+| `POST` | `/resolve` | `trips:location.write` | Locates one or several sites |
+| `PUT` | `/{id}/point` | `trips:location.write` | Sets the point by hand |
+| `POST` | `/{id}/reject` | `trips:location.write` | Marks the location as impossible to locate |
+| `POST` | `/` | `trips:location.write` | Creates a location without locating it |
+| `PATCH` | `/{id}` | `trips:location.write` | Changes name, type or code |
+| `PUT` | `/{id}/geofence` | `trips:location.write` | Links an existing geofence, or none |
+| `GET` | `/geofences` | `trips:view` | Searches the organization's GPS geofences |
+
+`trips:location.write` is in the Trips **Maintainer** role.
+
+## `POST /resolve`
+
+Locates one site (an object) or several (an array of up to 200). See the source order in [How the source is chosen](/en/products/geocoding/tutorials/resolution-order).
+
+### Body
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `locationId` | string (UUID) | Existing location to resolve. If it does not exist: `404` |
+| `externalCode` | string, up to 128 | The place's code in your system. Looks up the location with that code; if it does not exist, creates it |
+| `name` | string, up to 255 | Name, only on creation. Defaults to `externalCode` |
+| `type` | `plant`, `port`, `distribution_center`, `customer`, `zone` | Type, only on creation. Defaults to `zone`. Sets the geofence radius |
+| `address` | string | Address: street and number before the first comma |
+| `country` | string | ISO 3166-1 alpha-2 (`CL`, `PE`) |
+| `districtCode` | string, up to 16 | Chile: commune code (CUT). Peru: ubigeo |
+| `district` | string, up to 255 | Name of the commune or district. If both are sent, `districtCode` wins |
+| `plusCode` | string | Full Plus Code, or a short one with the district |
+| `latitude`, `longitude` | number | Decimal degrees, WGS 84. They go together |
+
+The first matching location is used: `locationId`, then `externalCode`, then a new one. Location fields that are not sent (`address`, `country`, `districtCode`, `district`, `plusCode`, `latitude`, `longitude`) take the stored value. An unknown field is an error.
+
+<Callout type="warning">
+**Pitfall:** if the location has a stored point and the request has no `plusCode`, `latitude` or `longitude`, the stored Plus Code is used (after searching for a geofence by code or name). The source becomes `plus_code` and the address is not looked up again.
+</Callout>
+
+### Response to an object
+
+`200` with a [location](#the-location). A site that needs review also responds `200`: check `resolutionStatus`.
+
+### Response to an array
+
+`200` with one result per site, in the same order:
+
+| Field | Description |
+| --- | --- |
+| `index` | Position of the site in the request, from 0 |
+| `location` | The location, or `null` if the site failed |
+| `error` | The reason, or `null` |
+
+A site that fails does not stop the others. An unexpected error on a site gives `error: "could not resolve site"`.
+
+### Errors
+
+| Code | `error` | When |
+| --- | --- | --- |
+| `400` | `a site must be a JSON object` | An array element, or the body, is not an object |
+| `400` | `a site is not valid: …` | An unknown field or a field of the wrong type |
+| `400` | `sites are required` | Empty array |
+| `400` | `at most 200 sites per request` | More than 200 sites |
+| `400` | `locationId must be a UUID` | |
+| `400` | `name is required` | New location without `name` or `externalCode` |
+| `400` | `type must be one of plant, port, distribution_center, customer, zone` | |
+| `400` | `location must be at most 128 characters` | `externalCode` longer than 128 characters |
+| `404` | `location not found` | `locationId` that does not exist |
+| `401`, `403` | | No token, or no `trips:location.write` |
+| `500` | | Unexpected error while resolving an object. In an array, that site gives `could not resolve site` |
+
+In an array, these errors come in each site's `error`, except the array size errors.
+
+### Idempotency
+
+Repeating a request with the same `externalCode` does not create new locations or geofences. The created geofence has the `externalCode` as its code (or the `id` if there is no code), and creation uses that code: if two requests for the same place arrive at the same time, the second one finds the first one's geofence.
+
+Two simultaneous requests with an `externalCode` that does not exist yet can collide when the location is created. Send the new sites of the same place one after another.
+
+Each site that reaches resolution writes a usage row; an earlier `400` or `404` does not. If a repeated request reaches the provider, it is charged again. An address the provider already resolved comes from the cache and is not charged.
+
+A resolved location that is resolved again and ends in `needs_review` keeps its previous `geofenceId`.
+
+## `PUT /{id}/point`
+
+Sets the point by hand. It is checked against the district, with the same 500 m tolerance. It does not search for existing geofences: it creates or moves the place's own geofence, with the location's `id` as its code. The source is `manual`.
+
+| Field | Description |
+| --- | --- |
+| `plusCode` | Plus Code of the point |
+| `latitude`, `longitude` | Coordinates of the point |
+| `country`, `districtCode`, `district` | To change the country or the district together with the point |
+
+Send a Plus Code or coordinates. If you send both, the Plus Code wins; if it is invalid, the coordinates are used. Without a point in the request, the stored point is used.
+
+| Code | When |
+| --- | --- |
+| `200` | The location, with `resolutionStatus: "resolved"` and `resolutionSource: "manual"` |
+| `400` | The point does not pass the check. The `error` is the note, for example `the point is in Quilicura (13125), not in Santiago (13101)`, or `no geofence, plus code or coordinates` without a point |
+| `400` | `the geofence is managed outside this location`: a geofence with the location's `id` as its code already exists, and this location did not create it |
+| `400` | `id must be a UUID`, `body is required` |
+| `404` | `location not found` |
+| `409` | `the GPS database is not configured`. The location is stored in `needs_review` with that note |
+
+It writes no usage row.
+
+## `POST /{id}/reject`
+
+| Field | Description |
+| --- | --- |
+| `note` | Reason, up to 255 characters. Optional |
+
+Responds `200` with the location in `resolutionStatus: "rejected"`. The point and the geofence do not change. The feed does not try a rejected location again. It writes no usage row.
+
+| `400` / `404` | When |
+| --- | --- |
+| `note must be at most 255 characters` | |
+| `id must be a UUID` | |
+| `location not found` | |
+
+## `GET /`
+
+| Parameter | Description |
+| --- | --- |
+| `q` | Text in name or code |
+| `type` | Place type |
+| `status` | `resolved`, `needs_review` or `rejected` |
+| `page` | Page, from 0 |
+| `size` | 1 to 200. Default 50 |
+
+Responds `200` with an array of locations. `400` with `size must be between 1 and 200`, `page must be an integer`, `size must be an integer` or `status must be one of resolved, needs_review, rejected`.
+
+## `POST /` and `PATCH /{id}`
+
+| Field | Description |
+| --- | --- |
+| `name` | Up to 255. Required on creation |
+| `type` | `plant`, `port`, `distribution_center`, `customer`, `zone`. Required on creation |
+| `externalCode` | Up to 128. In `PATCH`, empty deletes it |
+| `geomGeojson` | Own shape, GeoJSON |
+
+`POST` responds `201`, `PATCH` responds `200`. Neither locates the place or creates a geofence.
+
+Radius of the geofence that a resolution creates, by type: `port` 1000 m, `plant` 500 m, `distribution_center` 300 m, `zone` 200 m, `customer` 150 m.
+
+## `PUT /{id}/geofence`
+
+Links the location to an existing geofence of the organization, without locating it: `{ "geofenceId": 1205 }`. With `null` or `{}` it unlinks it. A geofence that does not exist gives `400` with `geofence 1205 not found`; a location that does not exist, `404`. It does not change `resolutionStatus`. It records `location.geofence_linked`.
+
+## `GET /geofences`
+
+| Parameter | Description |
+| --- | --- |
+| `q` | Text in the geofence name or code |
+| `size` | 1 to 200. Default 50 |
+
+Responds `[{ "id": 1205, "code": "SCL", "name": "…" }]`. Without a configured GPS database, it responds `[]`.
+
+## The location
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | UUID | |
+| `name`, `type`, `externalCode` | string | |
+| `geomGeojson` | object or `null` | The location's own shape, if it was loaded on creation |
+| `geofenceId` | integer or `null` | GPS geofence that trips use |
+| `address` | string or `null` | As declared |
+| `country` | string or `null` | In uppercase |
+| `districtCode`, `district` | string or `null` | Official code and name if the district was found. If not, what was sent |
+| `plusCode` | string or `null` | Full Plus Code of the point found |
+| `latitude`, `longitude` | number or `null` | Point found, also when it needs review |
+| `resolutionSource` | string or `null` | `geofence`, `plus_code`, `coordinates`, `internal`, `provider` or `manual` |
+| `resolutionStatus` | string or `null` | `resolved`, `needs_review`, `rejected`. `null` if never tried |
+| `resolutionNote` | string or `null` | Reason for review or rejection. See [Review reasons](/en/products/geocoding/reference/review-notes) |
+| `createdAt`, `updatedAt` | ISO 8601 date | |

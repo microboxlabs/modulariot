@@ -157,6 +157,8 @@ public class EvaluatorStream {
         } catch (DateTimeParseException e) {
             throw new IllegalArgumentException("not a signal time", e);
         }
+        // Before the organizations: a failing catalog or log must not keep the frame out of the profiles.
+        lostSignal.frame(assetId, instant, arrivedAt, signal);
         int recorded = 0;
         boolean late = false;
         for (Object client : clients) {
@@ -169,7 +171,6 @@ public class EvaluatorStream {
         if (late) {
             meters.counter("miot.symptoms.evaluator.late", "sender", senderTag(signal.get("sender"))).increment();
         }
-        lostSignal.frame(assetId, instant, arrivedAt, signal);
         return recorded;
     }
 

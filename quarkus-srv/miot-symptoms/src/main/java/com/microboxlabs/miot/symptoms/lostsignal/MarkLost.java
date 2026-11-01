@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.symptoms.lostsignal.CheckState.OpenCase;
 import com.microboxlabs.miot.symptoms.lostsignal.TripChecks.Return;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
@@ -52,10 +53,13 @@ public class MarkLost implements LossTicker.DueCheck {
     Outcome run(String assetId, Instant now) {
         LossStore.Vehicle v = store.vehicle(assetId);
         CheckState c = v.check() == null ? CheckState.NONE : v.check();
+        Instant seen = v.deadline();
         String sender = v.watch() == null ? null : v.watch().sender();
-        if (v.profile() == null || v.watch() == null) {
-            store.checked(assetId, c, null);
-            leaves(sender, assetId, c);
+        if (v.profile() == null || v.watch() == null || v.watch().trips().isEmpty()) {
+            // Off every trip: the loss ends; the cases it opened stay until an operator closes them.
+            store.checked(assetId, seen, c.cases().isEmpty() ? CheckState.NONE : new CheckState(null, now, c.cases()),
+                    null);
+            leaves(sender, assetId, c, now);
             return Outcome.NO_TRIP;
         }
         VehicleProfile p = v.profile();
@@ -63,27 +67,47 @@ public class MarkLost implements LossTicker.DueCheck {
         if (c.lost() && p.at().isAfter(c.lostSince())) {
             Instant back = v.returnedAt() != null ? v.returnedAt() : p.arrival();
             if (!v.backfill() && now.isBefore(back.plus(returnGrace))) {
-                store.checked(assetId, c, back.plus(returnGrace));
+                store.checked(assetId, seen, c, back.plus(returnGrace));
                 return Outcome.RETURNING;
             }
-            Map<String, Long> open = trips.check(assetId, v, c.cases(), now, new Return(back, v.backfill()),
-                    TripChecks.Area.NONE);
-            store.checked(assetId, new CheckState(null, now, open), deadline);
-            leaves(sender, assetId, c);
+            Map<String, OpenCase> open = trips.check(assetId, v, c.cases(), at(seen, now),
+                    new Return(back, v.backfill()), TripChecks.Area.NONE);
+            commit(assetId, seen, new CheckState(null, now, open), deadline);
+            leaves(sender, assetId, c, now);
             return Outcome.RETURNED;
         }
         if (!c.lost() && now.isBefore(deadline)) {
-            store.checked(assetId, c, deadline);
+            store.checked(assetId, seen, c, deadline);
             return Outcome.NOT_DUE;
         }
         if (Duration.between(p.at(), now).compareTo(maxSilence) > 0) {
-            store.checked(assetId, c, null);
-            leaves(sender, assetId, c);
+            store.checked(assetId, seen, c, null);
+            leaves(sender, assetId, c, now);
             return Outcome.GAVE_UP;
         }
-        Map<String, Long> open = trips.check(assetId, v, c.cases(), now, null, area(assetId, v, sender, now));
-        store.checked(assetId, new CheckState(c.lost() ? c.lostSince() : p.at(), now, open), now.plus(recheck));
+        Map<String, OpenCase> open = trips.check(assetId, v, c.cases(), at(seen, now), null,
+                area(assetId, v, sender, now));
+        commit(assetId, seen, new CheckState(c.lost() ? c.lostSince() : p.at(), now, open), now.plus(recheck));
         return c.lost() ? Outcome.STILL_LOST : Outcome.LOST;
+    }
+
+    /**
+     * The checks run at the deadline they were due, not at the tick: a check retried after a failed write
+     * evaluates the same moment, so the transition log recognises what it already holds.
+     */
+    static Instant at(Instant seen, Instant now) {
+        return seen != null && seen.isBefore(now) ? seen : now;
+    }
+
+    /**
+     * Writes a check that evaluated the symptoms. When a frame moved the deadline meanwhile, the state is still
+     * written, under the frame's deadline, so the cases the check opened are not lost; the next tick reads both.
+     */
+    private void commit(String assetId, Instant seen, CheckState state, Instant next) {
+        if (!store.checked(assetId, seen, state, next)) {
+            Instant moved = store.vehicle(assetId).deadline();
+            store.checked(assetId, moved, state, moved);
+        }
     }
 
     private TripChecks.Area area(String assetId, LossStore.Vehicle v, String sender, Instant now) {
@@ -91,7 +115,7 @@ public class MarkLost implements LossTicker.DueCheck {
         Double lat = last == null ? null : last.latitude();
         Double lon = last == null ? null : last.longitude();
         LossStore.Around around = store.around(sender, CoverageMap.cell(lat, lon), lat, lon, assetId, now, NEARBY_KM);
-        boolean low = coverage.lowCoverage(around.bySender(), senderShare(sender), around.byAll());
+        boolean low = coverage.lowCoverage(around.bySender(), senderShare(sender), around.byAll(), now);
         boolean outage = false;
         if (sender != null) {
             int lost = store.lost(sender, assetId, true);
@@ -111,10 +135,11 @@ public class MarkLost implements LossTicker.DueCheck {
         return p == null ? 0 : p.delayedShare();
     }
 
-    /** A vehicle no longer lost leaves its sender's lost set. */
-    private void leaves(String sender, String assetId, CheckState c) {
+    /** A vehicle no longer lost leaves its sender's lost set, and the sender's usual count sees the drop. */
+    private void leaves(String sender, String assetId, CheckState c, Instant now) {
         if (sender != null && c.lost()) {
-            store.lost(sender, assetId, false);
+            int lost = store.lost(sender, assetId, false);
+            store.cohort(sender, Cohort.with(store.cohort(sender), lost, now));
         }
     }
 }

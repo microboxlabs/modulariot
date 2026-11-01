@@ -17,8 +17,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.ServiceAccountTokenIssuer.IssuedToken;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
 import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
 import com.microboxlabs.miot.symptoms.map.GpsRpcApi;
@@ -33,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -75,12 +80,29 @@ class OrgControlTowerMapResourceTest {
     private final List<Map<String, String>> sentFilters = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
-        Roles() {
+        private final Set<String> permissions;
+
+        Roles(Set<String> permissions) {
             super(null, null, null);
+            this.permissions = permissions;
+        }
+
+        @Override
+        public Uni<Access> access(String organizationSlug, Caller caller) {
+            return Uni.createFrom().item(new Access(1L, organizationSlug, BaseRole.MEMBER, Set.of(), permissions));
         }
     }
 
     private OrgControlTowerMapResource resource(Optional<String> url) {
+        return resource(url, Set.of(ControlTowerAccessCatalog.VIEW));
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions) {
+        return resource(url, permissions, null);
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
+            com.microboxlabs.miot.core.trips.TripGeofences tripGeofences) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail("member@example.com");
@@ -91,13 +113,14 @@ class OrgControlTowerMapResourceTest {
             return Uni.createFrom().item(new IssuedToken("t", Instant.now().plusSeconds(3600)));
         }, url, () -> rpc);
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
-        return new OrgControlTowerMapResource(tenant, org, new Roles(), null, map,
+        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null, map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
                         (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
                         new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
-                        Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)));
+                        Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
+                geofences(tripGeofences));
     }
 
     private static final Instant NOW = Instant.parse("2026-10-26T12:00:00Z");
@@ -133,6 +156,14 @@ class OrgControlTowerMapResourceTest {
         }
 
         @Override
+        public Uni<Optional<JsonNode>> tripGeofences(String tripId, String clientId) {
+            return Uni.createFrom().item("123".equals(tripId) && "client-a".equals(clientId)
+                    ? Optional.of(JSON.createObjectNode().put("status", 200).set("data",
+                            JSON.createArrayNode().add(JSON.createObjectNode().put("trip_id", tripId))))
+                    : Optional.empty());
+        }
+
+        @Override
         public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit) {
             treatmentClients.add(clientId);
             JsonNode positions = JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId));
@@ -150,6 +181,59 @@ class OrgControlTowerMapResourceTest {
 
     private static Response call(Uni<Response> uni) {
         return uni.await().atMost(WAIT);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static jakarta.enterprise.inject.Instance<com.microboxlabs.miot.core.trips.TripGeofences> geofences(
+            com.microboxlabs.miot.core.trips.TripGeofences service) {
+        return (jakarta.enterprise.inject.Instance<com.microboxlabs.miot.core.trips.TripGeofences>)
+                java.lang.reflect.Proxy.newProxyInstance(OrgControlTowerMapResourceTest.class.getClassLoader(),
+                        new Class<?>[] {jakarta.enterprise.inject.Instance.class}, (proxy, method, args) -> {
+                            return switch (method.getName()) {
+                                case "isUnsatisfied" -> service == null;
+                                case "get" -> service;
+                                default -> throw new UnsupportedOperationException(method.getName());
+                            };
+                        });
+    }
+
+    @Test
+    void disabledTripsModuleHasNoGeofences() {
+        Response answer = call(resource(Optional.empty()).tripGeofences(ORG, DEPARTED.toString()));
+        assertEquals(200, answer.getStatus());
+        assertEquals(0, ((JsonNode) answer.getEntity()).size());
+    }
+
+    @Test
+    void moduleGeofencesAreReadAsTheActiveTenantAndNotFoundIs404() {
+        var subject = resource(Optional.empty(), Set.of(ControlTowerAccessCatalog.VIEW), (tenant, trip) -> {
+            assertEquals("client-a", tenant);
+            assertEquals(DEPARTED, trip);
+            throw new java.util.NoSuchElementException("trip not found");
+        });
+        assertEquals(404, call(subject.tripGeofences(ORG, DEPARTED.toString())).getStatus());
+    }
+
+    @Test
+    void legacyGeofencesUseTheLegacyReader() {
+        Response answer = call(resource(Optional.empty()).tripGeofences(ORG, "123"));
+        assertEquals(200, answer.getStatus());
+        assertEquals("123", ((JsonNode) answer.getEntity()).get(0).path("trip_id").asText());
+    }
+
+    @Test
+    void tripsViewerReadsModuleGeofences() {
+        var subject = resource(Optional.empty(), Set.of("trips:view"), (tenant, trip) -> JSON.createArrayNode()
+                .add(JSON.createObjectNode().put("trip_id", trip.toString())));
+        Response answer = call(subject.tripGeofences(ORG, DEPARTED.toString()));
+        assertEquals(200, answer.getStatus());
+        assertEquals(DEPARTED.toString(), ((JsonNode) answer.getEntity()).get(0).path("trip_id").asText());
+    }
+
+    @Test
+    void tripsViewerCannotReadLegacyGeofences() {
+        var subject = resource(Optional.empty(), Set.of("trips:view"));
+        assertEquals(403, call(subject.tripGeofences(ORG, "123")).getStatus());
     }
 
     @Test

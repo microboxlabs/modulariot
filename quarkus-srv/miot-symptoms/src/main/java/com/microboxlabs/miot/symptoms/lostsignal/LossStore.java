@@ -38,11 +38,13 @@ public interface LossStore {
      *
      * @param returnedAt when the first frame after the loss arrived, null before
      * @param backfill   frames from inside the silence arrived after it
+     * @param deadline   the vehicle's deadline when read: its check writes only while it is unchanged
      */
-    record Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant returnedAt, boolean backfill) {
+    record Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant returnedAt, boolean backfill,
+            Instant deadline) {
 
         public Vehicle(VehicleProfile profile, Watch watch, CheckState check) {
-            this(profile, watch, check, null, false);
+            this(profile, watch, check, null, false, null);
         }
     }
 
@@ -54,11 +56,14 @@ public interface LossStore {
     record Mark(Instant lostSince, Instant returnedAt, boolean backfill) {
     }
 
-    /** What a frame does to the vehicle's next check: nothing, drop it (no trip), or move it. */
+    /**
+     * What a frame does to the vehicle's next check: nothing, drop it (no trip), move it, or, for a lost vehicle
+     * that left its trips, empty the watch's trips and check it once at {@code at} so the check clears its state.
+     */
     record Schedule(Kind kind, Instant at, Watch watch) {
 
         public enum Kind {
-            KEEP, DROP, AT
+            KEEP, DROP, AT, CLEAR
         }
 
         public static final Schedule KEEP = new Schedule(Kind.KEEP, null, null);
@@ -66,6 +71,11 @@ public interface LossStore {
 
         public static Schedule at(Instant at, Watch watch) {
             return new Schedule(Kind.AT, at, watch);
+        }
+
+        /** @param watch the vehicle's watch without trips: it keeps the sender, so the check can leave its lost set */
+        public static Schedule clear(Instant at, Watch watch) {
+            return new Schedule(Kind.CLEAR, at, watch);
         }
     }
 
@@ -92,10 +102,14 @@ public interface LossStore {
     Vehicle vehicle(String assetId);
 
     /**
-     * Writes what a check found and moves the vehicle's deadline to {@code next}, unless a frame dropped it
-     * meanwhile; {@code next} null drops it. A state that is not lost clears the loss's marks.
+     * Writes what a check found and moves the vehicle's deadline to {@code next}, only while the deadline is still
+     * {@code seen}, the one the check read: a frame that moved or dropped it meanwhile wins, and the next tick
+     * reads the new state. {@code next} null drops it. A state that is not lost clears the loss's marks;
+     * {@link CheckState#NONE} clears the check's state.
+     *
+     * @return false when a frame changed the deadline and nothing was written
      */
-    void checked(String assetId, CheckState check, Instant next);
+    boolean checked(String assetId, Instant seen, CheckState check, Instant next);
 
     /**
      * @param cell   null without a last position

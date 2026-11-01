@@ -1714,7 +1714,9 @@
             "overagePrice": "The overage price must be a number of zero or more.",
             "alertPct": "The alert must be from 1 to 100.",
             "quota": "The quota must be a whole number of zero or more, or empty."
-          }
+          },
+          "alertsHint": "Who gets the quota alerts is set in the platform's Communications rules.",
+          "alertsLink": "Go to the rules"
         },
         "geocodingTenants": {
           "menuTitle": "Organizations",
@@ -3636,6 +3638,8 @@
           "nextMonth": "Next month",
           "loadError": "The geocoding usage could not be loaded.",
           "forbidden": "Only an owner of the organization can see the geocoding usage.",
+          "quotaExhaustedReview": "Geocoding quota exhausted. New addresses go to review until next month or until the quota is increased.",
+          "quotaExhaustedOverage": "Geocoding quota exhausted. Calls continue and additional calls are charged at the overage price.",
           "notEnforced": "The quota is not enforced yet: no call is refused, but usage is recorded.",
           "noSubscriptionEnforced": "No subscription is recorded for this period. Provider calls require an assigned subscription while quotas are enforced. A platform owner manages subscriptions.",
           "noSubscriptionNotEnforced": "No subscription is recorded for this period. Provider calls are currently allowed because quotas are off; no plan charge is calculated. A platform owner manages subscriptions.",
@@ -4730,7 +4734,10 @@
         "findingStepUnknownGroup": "Step {n} writes to group {id}, which does not exist.",
         "menuTemplates": "What every organization's rules send",
         "menuTemplatesOrg": "What rules can send; the platform edits them",
-        "menuMeta": "The approved templates of the platform's account"
+        "menuMeta": "The approved templates of the platform's account",
+        "eventGeocodingQuotaThreshold": "Quota at the alert share",
+        "eventGeocodingQuotaExhausted": "Quota used up",
+        "eventGroupGeocoding": "Geocoding"
       },
       "gps": {
         "title": "GPS integration",

@@ -312,6 +312,17 @@ function Notices({
           </p>
         </div>
       )}
+      {data.enforced &&
+        data.subscription &&
+        data.usage.quota !== null &&
+        data.usage.used >= data.usage.quota &&
+        data.usage.periodStart.slice(0, 7) === monthOf(new Date()) && (
+          <output className="block rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
+            {data.subscription.onExhausted === "overage"
+              ? tr("quotaExhaustedOverage", d)
+              : tr("quotaExhaustedReview", d)}
+          </output>
+        )}
       {data.subscription === null && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300">
           {data.enforced

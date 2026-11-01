@@ -1714,7 +1714,9 @@
             "overagePrice": "El precio excedente debe ser un número mayor o igual a cero.",
             "alertPct": "La alerta debe estar entre 1 y 100.",
             "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
-          }
+          },
+          "alertsHint": "Quién recibe las alertas de cuota se configura en las reglas de Comunicaciones de la plataforma.",
+          "alertsLink": "Ir a las reglas"
         },
         "geocodingTenants": {
           "menuTitle": "Organizaciones",
@@ -3636,6 +3638,8 @@
           "nextMonth": "Mes siguiente",
           "loadError": "No se pudo cargar el uso de geocodificación.",
           "forbidden": "Solo un dueño de la organización puede ver el uso de geocodificación.",
+          "quotaExhaustedReview": "Cuota de geocodificación agotada. Las nuevas direcciones pasan a revisión hasta el próximo mes o hasta que se aumente la cuota.",
+          "quotaExhaustedOverage": "Cuota de geocodificación agotada. Las llamadas continúan y las adicionales se cobran al precio de excedente.",
           "notEnforced": "La cuota aún no se aplica: no se rechaza ninguna llamada, pero el uso se registra.",
           "noSubscriptionEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor requieren una suscripción asignada cuando se aplican las cuotas. Un dueño de la plataforma administra las suscripciones.",
           "noSubscriptionNotEnforced": "No hay una suscripción registrada para este período. Las llamadas al proveedor están permitidas porque las cuotas están desactivadas; no se calcula un cargo del plan. Un dueño de la plataforma administra las suscripciones.",
@@ -4730,7 +4734,10 @@
         "findingStepUnknownGroup": "El paso {n} escribe al grupo {id}, que no existe.",
         "menuTemplates": "Lo que envían las reglas de todas las organizaciones",
         "menuTemplatesOrg": "Lo que pueden enviar las reglas; las edita la plataforma",
-        "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma"
+        "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma",
+        "eventGeocodingQuotaThreshold": "Cuota en el porcentaje de alerta",
+        "eventGeocodingQuotaExhausted": "Cuota agotada",
+        "eventGroupGeocoding": "Geocodificación"
       },
       "gps": {
         "title": "Integración GPS",

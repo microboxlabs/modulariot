@@ -68,6 +68,11 @@ class SignalBuilderTest {
                 "on battery is not a disconnection by itself");
         assertEquals(true, build(refs, withEvents("GpsJammingDetected")).derived().jamming());
         assertEquals(false, build(refs, withEvents("panic.per")).derived().jamming());
+        assertEquals(true, build(refs, withEvents("ALIMENTACIÓN BATERIA DESCONECTADA")).derived()
+                .powerDisconnected(), "an accented capital is folded too");
+        assertEquals(true, build(refs, frame("ABCD12", 0, false).replace("\"sensors\":",
+                "\"events\":[null,{\"event_type\":\"GSM jamming\"}],\"sensors\":")).derived().jamming(),
+                "a null event is skipped, not the frame");
     }
 
     @Test

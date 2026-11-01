@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -28,9 +29,9 @@ public class SignalBuilder {
      * DESCONECTADA", "EVENTO_SMDP_ALIMENTACION_EXTERNA_DESCONECTADA", "power disconnected", "power cut".
      */
     static final Pattern POWER_DISCONNECTED = Pattern.compile(
-            "(?i).*(alimentaci[oó]n.*desconectad|power.*(disconnect|cut)).*");
+            "(?iu).*(alimentaci[oó]n.*desconectad|power.*(disconnect|cut)).*");
     /** GNSS or GSM jamming events ("GpsJammingDetected", "GSM jamming", "JAMMING"). */
-    static final Pattern JAMMING = Pattern.compile("(?i).*jamm.*");
+    static final Pattern JAMMING = Pattern.compile("(?iu).*jamm.*");
 
     private final ReferenceCache refs;
     private final ZoneId zone;
@@ -62,7 +63,7 @@ public class SignalBuilder {
 
     /** True when one of the frame's events matches, false otherwise: a rule reads it without {@code has()}. */
     static boolean event(AssetTrackingData frame, Pattern type) {
-        return frame.getEvents() != null && frame.getEvents().stream().map(Event::getEventType)
+        return frame.getEvents() != null && frame.getEvents().stream().filter(Objects::nonNull).map(Event::getEventType)
                 .anyMatch(t -> t != null && type.matcher(t.replace('_', ' ')).matches());
     }
 

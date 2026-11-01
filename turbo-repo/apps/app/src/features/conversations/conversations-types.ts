@@ -170,7 +170,17 @@ export interface WhatsAppVariant {
 
 export interface EmailVariant {
   subject: string;
-  body: string;
+  /** Plain text, for templates written before HTML; null once `html` is set. */
+  body: string | null;
+  /** The body in HTML, sent inside the ModularIoT layout; values are escaped. */
+  html?: string | null;
+}
+
+/** An email variant written with sample values, inside the layout. */
+export interface EmailPreview {
+  subject: string;
+  html: string;
+  text: string;
 }
 
 export interface TemplateBody {
@@ -194,6 +204,8 @@ export interface ConversationTemplate extends TemplateBody {
     key: string;
     name: string;
     state: RuleState;
+    /** The event type the rule listens to. */
+    event?: string;
     tenantCode?: string;
   }[];
 }

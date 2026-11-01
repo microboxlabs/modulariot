@@ -60,8 +60,9 @@ import java.util.UUID;
  * their checks, the board and the audit apply as for any API call. A step that fails undoes the whole service. The
  * feed declares the plan; the trip's monitor starts and closes its stages and closes the mandate. The actual
  * departure, arrival and closure the feed sends confirm those milestones of the trip. A service that already ended
- * and carries its actual departure and closure is recorded as a regularized trip, without a monitor. A closed trip
- * is not changed: a change to it is reported.
+ * and carries its actual departure and closure is recorded as a regularized trip, without a monitor. One that departed
+ * and has not closed is created running, even past its planned end. A closed trip is not changed: a change to it is
+ * reported.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
@@ -342,7 +343,9 @@ public class FeedReconciler {
         Place origin = place(tenantCode, d.origin());
         Place destination = place(tenantCode, d.destination());
 
-        OffsetDateTime endedAt = d.actualEnd() != null ? d.actualEnd() : d.plannedEnd();
+        // A service that departed and has not closed is running, however late it is against its planned end.
+        OffsetDateTime endedAt = d.actualEnd() != null ? d.actualEnd()
+                : d.actualStart() != null ? null : d.plannedEnd();
         boolean ended = endedAt != null && !endedAt.isAfter(now);
 
         PlanningContext context = new PlanningContext(tenantCode, actor, profile, d, trip == null && ended);

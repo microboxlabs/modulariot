@@ -214,10 +214,13 @@ public class RedisLossStore implements LossStore {
 
     @Override
     public Vehicle vehicle(String assetId) {
-        List<Response> r = batch(List.of(Request.cmd(Command.HMGET).arg(vehicleKey(assetId)).arg(PROFILE).arg(WATCH)
-                .arg(CHECK).arg(RETURNED).arg(BACKFILL), Request.cmd(Command.ZSCORE).arg(DEADLINES).arg(assetId)));
-        Response fields = r.get(0);
-        Response score = r.get(1);
+        // The deadline first: a frame writes its profile before its deadline, so a deadline read here never comes
+        // with an older profile, and a newer profile with the older deadline fails the check's compare-and-set.
+        List<Response> r = batch(List.of(Request.cmd(Command.ZSCORE).arg(DEADLINES).arg(assetId),
+                Request.cmd(Command.HMGET).arg(vehicleKey(assetId)).arg(PROFILE).arg(WATCH).arg(CHECK).arg(RETURNED)
+                        .arg(BACKFILL)));
+        Response score = r.get(0);
+        Response fields = r.get(1);
         CheckState check = read(fields.get(2), CheckState.class);
         String lost = check == null || !check.lost() ? null : Long.toString(check.lostSince().toEpochMilli());
         return new Vehicle(read(fields.get(0), VehicleProfile.class), read(fields.get(1), Watch.class), check,

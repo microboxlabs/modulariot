@@ -32,8 +32,8 @@ class CoverageAndCohortTest {
                     LossSettings.defaults(), false);
         }
 
-        assertTrue(CoverageMap.delayed(late, onTime));
-        assertFalse(CoverageMap.delayed(late, batching), "10 min is usual for a sender that forwards in batches");
+        assertTrue(CoverageMap.isDelayed(late, onTime));
+        assertFalse(CoverageMap.isDelayed(late, batching), "10 min is usual for a sender that forwards in batches");
     }
 
     @Test

@@ -269,17 +269,20 @@ public class RedisLossStore implements LossStore {
             }
         }
         List<Response> r = batch(reads);
+        return new Around(cell == null || sender == null ? null : read(r.get(0), Coverage.class),
+                cell == null ? null : read(r.get(1), Coverage.class), nearby(r.subList(2, r.size()), assetId));
+    }
+
+    /** The distinct vehicles in the GEO results, without the one being checked. */
+    private static int nearby(List<Response> buckets, String assetId) {
         Set<String> near = new HashSet<>();
-        if (located) {
-            for (int i = 2; i < r.size(); i++) {
-                if (r.get(i) != null) {
-                    r.get(i).forEach(m -> near.add(m.toString()));
-                }
+        for (Response bucket : buckets) {
+            if (bucket != null) {
+                bucket.forEach(m -> near.add(m.toString()));
             }
         }
         near.remove(assetId);
-        return new Around(cell == null || sender == null ? null : read(r.get(0), Coverage.class),
-                cell == null ? null : read(r.get(1), Coverage.class), near.size());
+        return near.size();
     }
 
     @Override

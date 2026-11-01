@@ -60,9 +60,7 @@ public class InMemoryLossStore implements LossStore {
             reportedAt.put(assetId, vehicle.arrival());
         }
         if (mark != null) {
-            marks.merge(assetId, mark, (old, m) -> !old.lostSince().equals(m.lostSince()) ? m
-                    : new Mark(m.lostSince(), old.returnedAt() != null ? old.returnedAt() : m.returnedAt(),
-                            old.backfill() || m.backfill()));
+            marks.merge(assetId, mark, InMemoryLossStore::merged);
         }
         vehicles.put(assetId, vehicle);
         if (sender != null) {
@@ -85,6 +83,15 @@ public class InMemoryLossStore implements LossStore {
                 // a late frame or a replay leaves the deadline and the watch
             }
         }
+    }
+
+    /** A mark of the same loss keeps the first return and any backfill; a mark of a new loss replaces it. */
+    private static Mark merged(Mark old, Mark m) {
+        if (!old.lostSince().equals(m.lostSince())) {
+            return m;
+        }
+        Instant returned = old.returnedAt() == null ? m.returnedAt() : old.returnedAt();
+        return new Mark(m.lostSince(), returned, old.backfill() || m.backfill());
     }
 
     @Override

@@ -33,6 +33,7 @@ public class TripChecks {
 
     static final String SOURCE = TripCheck.KEY;
     static final String SIGNAL_RETURNED = "case.signal_returned";
+    private static final String BACKFILL = "backfill";
     private static final Duration VERSIONS_TTL = Duration.ofSeconds(30);
 
     private final EvaluatorCatalog catalog;
@@ -114,7 +115,7 @@ public class TripChecks {
             Area area) {
         VehicleProfile p = v.profile();
         double silence = Math.max(0, (now.toEpochMilli() - p.at().toEpochMilli()) / 1000.0);
-        double expected = Math.max(1, v.watch().expectedS());
+        double expected = Math.max(1.0, (double) v.watch().expectedS());
         Map<String, Object> loss = new LinkedHashMap<>();
         loss.put("silence_s", silence);
         loss.put("expected_s", expected);
@@ -124,7 +125,7 @@ public class TripChecks {
             loss.put("sender", v.watch().sender());
         }
         loss.put("returned", back != null);
-        loss.put("backfill", back != null && back.backfill());
+        loss.put(BACKFILL, back != null && back.backfill());
         loss.put("low_coverage_zone", area.lowCoverage());
         loss.put("cohort_outage", area.cohortOutage());
         loss.put("nearby_reporting", (double) area.nearby());
@@ -193,11 +194,11 @@ public class TripChecks {
         if (c.state() == SymptomState.ACTIVE) {
             Map<String, Object> details = new LinkedHashMap<>();
             details.put("returnedAt", back.at().toString());
-            details.put("backfill", back.backfill());
+            details.put(BACKFILL, back.backfill());
             audit.log(tenant, "lost-signal-detector", SIGNAL_RETURNED, "symptom_case", String.valueOf(-caseId),
                     -caseId, details);
         }
-        meters.counter("miot.symptoms.lost_signal.returned_facts", "backfill", String.valueOf(back.backfill()))
+        meters.counter("miot.symptoms.lost_signal.returned_facts", BACKFILL, String.valueOf(back.backfill()))
                 .increment();
     }
 

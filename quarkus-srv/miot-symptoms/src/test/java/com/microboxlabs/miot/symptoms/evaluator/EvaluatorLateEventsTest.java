@@ -39,7 +39,7 @@ class EvaluatorLateEventsTest {
     @BeforeEach
     void setUp() {
         InMemoryCatalog store = new InMemoryCatalog();
-        SymptomEvents events = new SymptomEvents(e -> CompletableFuture.completedFuture(e), store::findDefinition,
+        SymptomEvents events = new SymptomEvents(CompletableFuture::completedFuture, store::findDefinition,
                 Clock.systemUTC());
         DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
@@ -115,9 +115,36 @@ class EvaluatorLateEventsTest {
     }
 
     @Test
+    void aReplayedLateOpeningAfterTheOperatorClosedItKeepsNoEpisode() {
+        stream.evaluate(signal("2026-01-01T12:10:00Z", false, false));
+        stream.evaluate(signal("2026-01-01T12:05:00Z", false, true));
+        stream.forget(TENANT, "V1", sabotage);
+
+        stream.evaluate(signal("2026-01-01T12:05:00Z", false, true));
+        stream.evaluate(signal("2026-01-01T12:20:00Z", true, false));
+
+        assertEquals(2, opened(sabotage).size(), "the replay adds nothing; the next real event opens a new case");
+    }
+
+    @Test
+    void aLateEventThatDoesNotOpenLeavesNoHoldTimeBehind() {
+        UUID held = publish("held-jamming", Specs.withLevels(SeedTemplates.get("gps-sabotage").spec(),
+                Specs.levels("held_s >= 60", "false", "false", "false")));
+        stream.evaluate(signal("2026-01-01T12:10:00Z", false, false));
+
+        stream.evaluate(signal("2026-01-01T12:05:00Z", false, true));
+        stream.evaluate(signal("2026-01-01T12:10:30Z", false, true));
+
+        assertTrue(opened(held).isEmpty(), "the 12:05 event seeded nothing: 12:10:30 starts its own hold");
+    }
+
+    @Test
     void theEventDrivenSymptomsAreThoseWhoseActivationReadsADeviceEvent() {
         assertTrue(CompiledSymptom.readsEvents(SeedTemplates.get("gps-sabotage").spec().activation()));
         assertTrue(CompiledSymptom.readsEvents(SeedTemplates.get("panic-button").spec().activation()));
+        assertTrue(CompiledSymptom.readsEvents("signal.derived. jamming == true"), "selectors, not spelling");
         assertFalse(CompiledSymptom.readsEvents("signal.trip.active && signal.local_hour >= 21"));
+        assertFalse(CompiledSymptom.readsEvents("signal.trip.id == 'signal.derived.jamming'"),
+                "a string is not a field");
     }
 }

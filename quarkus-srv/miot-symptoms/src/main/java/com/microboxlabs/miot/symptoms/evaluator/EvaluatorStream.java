@@ -227,7 +227,15 @@ public class EvaluatorStream {
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);
             // Only the changes new to the log: a replayed signal publishes nothing twice.
-            events.transitions(tenant, transitionLog.append(tenant, result.transitions(), place), place);
+            List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place);
+            events.transitions(tenant, recorded, place);
+            if (late) {
+                // A late opening the log already holds is a replay of a case that may be closed since: it keeps no
+                // episode, or that episode would block the next real event.
+                result.transitions().stream()
+                        .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
+                        .forEach(t -> state.delete(tenant, assetId, t.definitionId()));
+            }
         }
         episodes.save(state);
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
@@ -78,7 +79,6 @@ public record CompiledSymptom(
 
     /** Whether the activation reads a device event field, optional selectors ({@code .?}) included. */
     static boolean readsEvents(String activation) {
-        String plain = activation == null ? "" : activation.replace(".?", ".");
-        return EVENT_FIELDS.stream().anyMatch(plain::contains);
+        return activation != null && RuleText.fieldPaths(activation).stream().anyMatch(EVENT_FIELDS::contains);
     }
 }

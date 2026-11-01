@@ -96,8 +96,9 @@ public class SignalEvaluator {
 
     /**
      * A frame older than the watermark, for the event-driven symptoms only: each one whose activation holds and
-     * that has no open case takes the frame as a normal step, so a buffered event opens its case. Neither the
-     * watermark nor any other episode moves, and an open case opens nothing new.
+     * that has no open case takes the frame as a normal step, so a buffered event opens its case. A step that
+     * does not open the case is undone, so an older frame never seeds hold-time state; neither the watermark nor
+     * any other episode moves, and an open case opens nothing new.
      */
     public Result evaluateLate(String tenantCode, String assetId, Instant at, Map<String, Object> root,
             List<CompiledSymptom> symptoms) {
@@ -110,7 +111,15 @@ public class SignalEvaluator {
             }
             try {
                 if (condition(s.activation(), root, "activation")) {
-                    step(tenantCode, assetId, at, root, s).ifPresent(transitions::add);
+                    Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
+                    Optional<Transition> t = step(tenantCode, assetId, at, root, s)
+                            .filter(x -> x.kind() == Transition.Kind.OPENED);
+                    if (t.isPresent()) {
+                        transitions.add(t.get());
+                    } else {
+                        before.ifPresentOrElse(e -> store.save(tenantCode, e),
+                                () -> store.delete(tenantCode, assetId, s.definitionId()));
+                    }
                 }
             } catch (RuleFailure f) {
                 errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));

@@ -343,9 +343,7 @@ public class FeedReconciler {
         Place origin = place(tenantCode, d.origin());
         Place destination = place(tenantCode, d.destination());
 
-        // A service that departed and has not closed is running, however late it is against its planned end.
-        OffsetDateTime endedAt = d.actualEnd() != null ? d.actualEnd()
-                : d.actualStart() != null ? null : d.plannedEnd();
+        OffsetDateTime endedAt = endedAt(d);
         boolean ended = endedAt != null && !endedAt.isAfter(now);
 
         PlanningContext context = new PlanningContext(tenantCode, actor, profile, d, trip == null && ended);
@@ -922,6 +920,17 @@ public class FeedReconciler {
             return departed;
         }
         return arrived;
+    }
+
+    /**
+     * When the service ended: its actual closure, or its planned end when it never departed. A service that departed
+     * and has not closed is running, however late it is against its planned end.
+     */
+    private static OffsetDateTime endedAt(FeedServiceRequest d) {
+        if (d.actualEnd() != null) {
+            return d.actualEnd();
+        }
+        return d.actualStart() != null ? null : d.plannedEnd();
     }
 
     private static boolean chronologicalActuals(FeedServiceRequest desired) {

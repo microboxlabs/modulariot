@@ -44,6 +44,7 @@ A part the builder does not know is left out. `frame` is always present. A rule 
 | Part | How it is built |
 |---|---|
 | `clients` | The sending client (without `@clients`), then the clients of the vehicle's active `asset_client_map` rows valid at the frame time |
+| `sender` | The sending client (without `@clients`); hidden from rules, read by the evaluator's late counter and the lost-signal detector |
 | `trips` | For each client, its `trip_live` row in progress on the vehicle at the frame time (departed, not ended); `v` trips before `ote`/`otr`, then the latest start. The evaluator gives each organization its own as `trip`, or `{"active": false}`; rules never read `trips` |
 | `trip.age_min`, `trip.late_min` | Minutes from the trip start and from `estimated_arrival_time` to the frame time; `late_min` is negative before the estimated arrival |
 | `trip.current_zone_id` | `current_geofence_id`; 0 is left out |

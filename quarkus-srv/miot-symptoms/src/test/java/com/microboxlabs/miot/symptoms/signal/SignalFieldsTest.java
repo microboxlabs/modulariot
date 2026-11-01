@@ -109,7 +109,7 @@ class SignalFieldsTest {
     @Test
     void everyFieldIsAPathOfTheSerializedSignal() throws Exception {
         AssetTrackingData frame = JSON.readValue(FRAME, AssetTrackingData.class);
-        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, List.of("client-1"), null,
+        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, List.of("client-1"), "client-1", null,
                 new GpsSignal.Trip(true, false, "T-1", "SVC-1", "v", "in_transit", 30.0, -5.0, new GpsSignal.Origin(32, "ANF", true, true),
                         new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),

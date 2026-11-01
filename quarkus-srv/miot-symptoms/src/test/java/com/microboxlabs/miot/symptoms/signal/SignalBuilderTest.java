@@ -57,6 +57,7 @@ class SignalBuilderTest {
         assertEquals("ABCD12", s.assetId());
         assertEquals(AT, s.at());
         assertEquals(List.of(SENDER), s.clients(), "the M2M suffix is dropped");
+        assertEquals(SENDER, s.sender());
         assertEquals(42.5, s.frame().getGps().getSpeed());
         assertTrue(s.frame().getSensors().getEngineStatus());
         assertTrue(s.derived().moving());

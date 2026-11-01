@@ -45,16 +45,51 @@ describe("badge layout", () => {
     ]);
   });
 
-  it("merges groups that grow into each other", () => {
-    // a-b touch, b-c touch: all three end up together
+  it("clusters titles that come within a small margin of each other", () => {
+    // at zoom 10 on the equator, 1 px ≈ 1 / 1456.36 degrees of longitude
+    const px = (n: number) => n / ((512 * 2 ** 10) / 360);
+    const juntos = (separacionPx: number) =>
+      agruparSolapes(
+        [item("a", [0, 0], 1), item("b", [0, px(separacionPx)], 0)],
+        10,
+        medida,
+        (i) => i.prioridad
+      ).length === 1;
+    // 100 px wide titles plus a 24 px margin: 126 px apart stay apart
+    expect(juntos(126)).toBe(false);
+    // 120 px apart they would look cramped: one cluster
+    expect(juntos(120)).toBe(true);
+  });
+
+  it("puts a title touching two clusters in the closer one", () => {
+    const px = (n: number) => n / ((512 * 2 ** 10) / 360);
     const fila = [
       item("a", [0, 0], 3),
-      item("b", [0, 0.0004], 2),
-      item("c", [0, 0.0008], 1),
+      item("b", [0, px(220)], 2),
+      // touches both a (120 px away) and b (100 px away)
+      item("c", [0, px(120)], 1),
     ];
-    const grupos = agruparSolapes(fila, 16, medida, (i) => i.prioridad);
-    expect(grupos).toHaveLength(1);
-    expect(grupos[0]).toHaveLength(3);
+    const ids = (gs: Item[][]) => gs.map((g) => g.map((i) => i.id));
+    expect(ids(agruparSolapes(fila, 10, medida, (i) => i.prioridad))).toEqual([
+      ["a"],
+      ["b", "c"],
+    ]);
+  });
+
+  it("only clusters what touches the cluster's own badge, never in a chain", () => {
+    // a-b touch, b-c touch, but c does not reach a (where the cluster is
+    // drawn): c keeps its own badge instead of being dragged in through b
+    const fila = [
+      item("a", [0, 0], 3),
+      // at zoom 16, ~75 px apart each (titles are 100 px wide)
+      item("b", [0, 0.0008], 2),
+      item("c", [0, 0.0016], 1),
+    ];
+    const ids = (gs: Item[][]) => gs.map((g) => g.map((i) => i.id));
+    expect(ids(agruparSolapes(fila, 16, medida, (i) => i.prioridad))).toEqual([
+      ["a", "b"],
+      ["c"],
+    ]);
   });
 
   it("packs images in rows and starts a new atlas page when full", () => {

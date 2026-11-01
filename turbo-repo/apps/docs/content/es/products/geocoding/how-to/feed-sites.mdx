@@ -1,0 +1,90 @@
+import { Callout } from 'nextra/components'
+
+# Enviar sitios desde un feed
+
+**Para:** implementadores y desarrolladores.
+
+Un feed envía los viajes de un cliente en lotes: `POST /api/v1/orgs/{org}/trips/feeds/{feedKey}/batches`. Cada servicio nombra su origen y su destino con un código (`origin`, `destination`). Si el código no tiene geocerca, la plataforma solo puede ubicarlo si el servicio trae además dónde está: `originSite` y `destinationSite`.
+
+## El sitio
+
+```json
+{
+  "externalCode": "GEO-PROV-001",
+  "desired": {
+    "orderType": "TRASLADO",
+    "orderRef": "PRUEBA-GEO-PROVEEDOR-1",
+    "origin": "GEO-PROV-ORIGEN-1",
+    "destination": "ANF",
+    "plannedStart": "2026-11-01T12:00:00Z",
+    "plannedEnd": "2026-11-02T12:00:00Z",
+    "originSite": {
+      "address": "Camino Lo Boza 120, Pudahuel",
+      "country": "CL",
+      "district": "Pudahuel"
+    }
+  }
+}
+```
+
+| Campo del sitio | Igual que en `POST /resolve` |
+| --- | --- |
+| `address` | Calle y número |
+| `country` | ISO 3166-1 alfa-2 |
+| `districtCode` o `district` | Comuna o distrito |
+| `plusCode` | Plus Code completo, o corto con la comuna |
+| `latitude`, `longitude` | Coordenadas |
+
+El destino `ANF` no trae sitio: ya tiene geocerca.
+
+## Qué pasa al recibir el lote
+
+1. Cada servicio que cambió se encola como un trabajo `trips_feed_service`.
+2. El trabajo aplica el servicio: crea el mandato, el viaje y, si no existen, las ubicaciones `origin` y `destination` (tipo `zone`, con el código como nombre).
+3. Después, fuera de esa transacción, ubica el origen y el destino que traen sitio.
+4. El resultado del trabajo lista lo que intentó en `located`: `["GEO-PROV-ORIGEN-1: resolved"]`.
+
+Un error al ubicar no hace fallar el trabajo. La ubicación queda donde **Por revisar** la encuentra.
+
+El resultado del paso 2 puede traer el aviso `location GEO-PROV-ORIGEN-1 has no GPS geofence`. Es anterior al paso 3. Revise `located` para saber cómo terminó.
+
+La cuota que se usa es la de la organización de la ruta (`{org}`).
+
+## Cuándo se vuelve a intentar
+
+| Estado de la ubicación | El feed la ubica |
+| --- | --- |
+| Nunca intentada | Sí |
+| `needs_review`, y el sitio del servicio cambió (dirección, país, comuna, Plus Code o coordenadas) | Sí |
+| `needs_review`, con el mismo sitio | No |
+| `resolved`, `rejected`, o con geocerca enlazada | No |
+
+Si origen y destino tienen el mismo código, se ubica una vez.
+
+<Callout type="warning">
+**Cuidado:** si la ubicación ya tiene un punto guardado, un sitio con solo la dirección corregida vuelve a usar ese punto. Corrija el punto a mano en **Por revisar**.
+</Callout>
+
+## Preparar la planilla
+
+Cómo escribe el cliente sus lugares depende de cada puesta a punto. La integración (por ejemplo, un flujo que lee un Excel) traduce las columnas a `origin` y `originSite`. Estas columnas cubren los casos:
+
+| Columna | Va a | Ejemplo |
+| --- | --- | --- |
+| Origen | `origin` | `CD-SANTIAGO` |
+| Dirección origen | `originSite.address` | `Camino Lo Boza 120` |
+| Comuna origen | `originSite.district` | `Pudahuel` |
+| Plus Code origen | `originSite.plusCode` | `47RFJ69J+7C` |
+| (fijo por planilla) | `originSite.country` | `CL` |
+
+Lo mismo para el destino. Recomendaciones para el cliente:
+
+| Regla | Por qué |
+| --- | --- |
+| Use siempre el mismo código para el mismo lugar | Un lugar se ubica una vez; un código nuevo es un lugar nuevo |
+| Escriba calle y número antes de la primera coma | La plataforma lee el número de casa de esa parte |
+| Una comuna por columna, sin abreviar | El nombre se compara con la lista oficial |
+| Si conoce el punto, envíe el Plus Code | No cuesta y no depende de la dirección |
+| No ponga oficina ni local antes del número | `Av. Apoquindo 3000 Of 501` sirve; `Of 501 Av. Apoquindo 3000` no |
+
+Si el sitio no trae dirección, Plus Code ni coordenadas, la ubicación va a **Por revisar** con `no geofence, plus code or coordinates`. Para dejarla sin intentar, no envíe `originSite`. Después ubíquela por API o enlace su geocerca en **Ajustes › Viajes › Ubicaciones**.

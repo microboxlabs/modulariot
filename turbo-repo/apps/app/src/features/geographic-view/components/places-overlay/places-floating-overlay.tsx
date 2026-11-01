@@ -83,6 +83,7 @@ export default function PlacesFloatingOverlay({
                   ws={ws}
                   externas={externas}
                   className="min-h-0 flex-1"
+                  dict={dict}
                 />
               </>
             )}

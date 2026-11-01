@@ -58,9 +58,10 @@ function InnerGeofenceHandles({
 
 /**
  * Vista general (con los camiones): las formas de las geocercas se dibujan
- * desde este zoom; más lejos solo se ven sus badges.
+ * desde este zoom (nivel de ciudad, para ver también las grandes desde
+ * lejos); más lejos solo se ven sus badges.
  */
-export const ZOOM_FORMAS_VISTA_GENERAL = 13;
+export const ZOOM_FORMAS_VISTA_GENERAL = 10;
 
 export default function PlacesMapLayers({
   ws,

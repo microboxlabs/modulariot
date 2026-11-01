@@ -155,10 +155,23 @@ export function MapNotchBar({
   );
 }
 
-export default function MapNotch({ dict }: Readonly<{ dict: I18nRecord }>) {
+export default function MapNotch({
+  dict,
+  alSalirDeLugares,
+}: Readonly<{
+  dict: I18nRecord;
+  /**
+   * Antes de dejar Lugares (cerrarlo o cambiar de vista): puede preguntar
+   * por cambios sin guardar y llama a `seguir` solo si se sale.
+   */
+  alSalirDeLugares?: (seguir: () => void) => void;
+}>) {
   const { activeView, setActiveView, can } = useGeographicProfile();
   const toggleView = (id: GeographicMapViewId) => {
-    setActiveView(activeView === id ? null : id);
+    const siguiente = activeView === id ? null : id;
+    const seguir = () => setActiveView(siguiente);
+    if (activeView === "places" && alSalirDeLugares) alSalirDeLugares(seguir);
+    else seguir();
   };
   return (
     <MapNotchBar

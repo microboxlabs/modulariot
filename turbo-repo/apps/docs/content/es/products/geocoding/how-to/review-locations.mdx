@@ -1,0 +1,52 @@
+# Revisar ubicaciones pendientes
+
+**Para:** implementadores y operadores. **Configuración:** ModularIoT.
+
+Una rutina para dejar en cero la lista **Por revisar**. El detalle de cada salida está en [Ubicaciones por revisar](/es/products/geocoding/tutorials/needs-review).
+
+## Antes de empezar
+
+| Necesita | Dónde se obtiene |
+| --- | --- |
+| El rol **Mantenedor** de Viajes, o uno con `trips:location.write` | Ajustes › Equipo › Roles |
+| Saber dónde está cada lugar, o a quién preguntarle | El cliente o la operación |
+
+## La rutina
+
+1. Abra **Ajustes › Viajes** y, en el grupo **Geocodificación**, elija **Por revisar**. El número arriba a la derecha es cuántas quedan.
+2. Busque por nombre, código o dirección con el campo de búsqueda.
+3. Para cada fila, lea el **Motivo** y elija según esta tabla:
+
+| Motivo | Acción |
+| --- | --- |
+| `the point is in X, not in Y` y el lugar está de verdad en X | La comuna declarada está mal. Corríjala por API (`PUT /point` con `districtCode`); el diálogo **Ubicar** no la cambia |
+| `the point is in X, not in Y` y el lugar está en Y | El punto está mal. **Ubicar**: marque el punto o escriba su Plus Code |
+| `… found only street, not an address` o `… found nothing, not an address` | **Ubicar** |
+| `country is required to check the district` | Corrija el país en el origen, o por API |
+| `geocoding: the organization used its …` | La cuota se agotó. **Ubicar**, o pida más cuota al dueño de la plataforma |
+| `geocoding: this organization has no geocoding connection; …` | Pida al dueño de la plataforma la conexión ([Configurar el proveedor](/es/products/geocoding/how-to/set-up-provider)). Después resuelva de nuevo por API |
+| `geocoding: the organization has no geocoding plan` | Pida al dueño de la plataforma una cuota ([Asignar la cuota](/es/products/geocoding/how-to/assign-quota)) |
+| `geocoding results cannot be stored with this provider configuration` | El dueño de la plataforma debe usar Mapbox con modo permanente. Mientras tanto, **Ubicar** |
+| `district X not found in CL` o `district X is ambiguous …; send its code` | Corrija la comuna en el origen; envíe el código de comuna |
+| `an address needs a district with a boundary to be geocoded` | Agregue la comuna al sitio |
+| Un lugar de prueba o que ya no existe | **Rechazar**, con el motivo |
+
+4. Al validar un punto, la fila desaparece y el lugar recibe su geocerca. Los viajes abiertos en ese lugar la usan desde ese momento.
+
+## Para que la lista no crezca
+
+| Si se repite | Haga |
+| --- | --- |
+| Muchos lugares sin país | Que la integración fije `country` en cada sitio |
+| Muchos `not in` con la misma comuna | Revise cómo escribe el cliente esa comuna en la planilla |
+| Muchos `found only street` | Pida al cliente el número de casa o el Plus Code |
+| Muchos lugares sin dirección ni Plus Code | Pida esas columnas en la planilla ([Enviar sitios desde un feed](/es/products/geocoding/how-to/feed-sites)) |
+
+## Por API
+
+```bash
+curl -s "$MIOT_API/api/v1/orgs/$MIOT_ORG/trips/locations?status=needs_review&size=200" \
+  -H "Authorization: Bearer $MIOT_TOKEN"
+```
+
+Ver [API de ubicaciones](/es/products/geocoding/reference/locations-api).

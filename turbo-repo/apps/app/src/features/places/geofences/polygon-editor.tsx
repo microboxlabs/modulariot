@@ -25,6 +25,7 @@ import { HiTrash } from "react-icons/hi";
 import {
   MIN_VERTICES,
   eliminarVertice,
+  extremoOpuesto,
   insertarVertice,
   lados,
   marcarHistorial,
@@ -34,6 +35,7 @@ import {
   puntoMedio,
   reemplazarVertices,
   terminar,
+  unirExtremos,
 } from "./polygon-draw";
 import {
   aLatLon,
@@ -132,12 +134,17 @@ export function PolygonRubberBand({
 
 type SetForm = Dispatch<SetStateAction<FormLugar>>;
 
+/** Soltar un extremo a menos de esto (px) del otro los une. */
+const PX_UNIR = 14;
+
 function claseVertice(
   i: number,
   seleccionado: boolean,
-  cerrable: boolean
+  cerrable: boolean,
+  destinoUnion: number | null
 ): string {
   if (seleccionado) return handleSeleccionado;
+  if (i === destinoUnion) return handleCierre;
   if (i === 0 && cerrable) return handleCierre;
   return handleVertice;
 }
@@ -145,7 +152,7 @@ function claseVertice(
 function tituloVertice(i: number, cerrable: boolean): string {
   if (i === 0 && cerrable)
     return "Clic para unir con el inicio · clic derecho: opciones";
-  return "Arrastra para mover · clic para opciones";
+  return "Arrastra para mover (sobre el otro extremo, los une) · clic para opciones";
 }
 
 function VertexPopup({
@@ -272,7 +279,14 @@ export default function PolygonHandles({
   // el navegador dispara click al soltar un arrastre: ignorar ese click
   const recienArrastrado = useRef(false);
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
+  // extremo que se arrastra y dónde estaba: soltado sobre el otro, los une
+  const [arrastrado, setArrastrado] = useState<{
+    i: number;
+    previo: LatLon;
+  } | null>(null);
+  const { current: map } = useMap();
   const cerrable = puedeTerminar(form);
+  const destinoUnion = arrastrado ? extremoOpuesto(form, arrastrado.i) : null;
   const sel =
     seleccionado != null && form.vertices[seleccionado] ? seleccionado : null;
 
@@ -297,14 +311,29 @@ export default function PolygonHandles({
     setSeleccionado(null);
   };
 
-  const empezarArrastre = () => {
+  const empezarArrastre = (i: number) => {
     recienArrastrado.current = true;
     setSeleccionado(null);
+    const previo = form.vertices[i];
+    setArrastrado(previo ? { i, previo } : null);
     setForm(marcarHistorial);
   };
   const arrastrarVertice = (i: number, e: MarkerDragEvent) => {
     const p = aLatLon(e);
     setForm((f) => moverVertice(f, i, p));
+  };
+  /** Suelto a pocos píxeles del otro extremo: se unen y se cierra. */
+  const soltarVertice = (i: number, e: MarkerDragEvent) => {
+    const previo = arrastrado?.i === i ? arrastrado.previo : null;
+    setArrastrado(null);
+    const otro = extremoOpuesto(form, i);
+    const destino = otro == null ? undefined : form.vertices[otro];
+    const m = map?.getMap();
+    if (!previo || !destino || !m) return;
+    const a = m.project([e.lngLat.lng, e.lngLat.lat]);
+    const b = m.project([destino[1], destino[0]]);
+    if (Math.hypot(a.x - b.x, a.y - b.y) > PX_UNIR) return;
+    setForm((f) => unirExtremos(f, i, previo));
   };
 
   const empezarMover = (e: MarkerDragEvent) => {
@@ -346,12 +375,13 @@ export default function PolygonHandles({
           latitude={v[0]}
           draggable
           clickTolerance={TOLERANCIA_ARRASTRE}
-          onDragStart={empezarArrastre}
+          onDragStart={() => empezarArrastre(i)}
           onDrag={(e) => arrastrarVertice(i, e)}
+          onDragEnd={(e) => soltarVertice(i, e)}
           onClick={(e) => clicVertice(i, e)}
         >
           <span
-            className={claseVertice(i, sel === i, cerrable)}
+            className={claseVertice(i, sel === i, cerrable, destinoUnion)}
             title={tituloVertice(i, cerrable)}
             onContextMenu={(e) => menuContextual(i, e)}
           />

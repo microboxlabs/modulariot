@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   capasNombresGeocercas,
   altoCluster,
+  altoNombre,
   chipCluster,
+  lineasDeNombre,
   contarCluster,
   partesCluster,
   chipEtiqueta,
@@ -131,16 +133,31 @@ describe("place name deck layer", () => {
 
   it("joins overlapping places into one cluster", () => {
     mockCanvas();
-    // a parent and its inner at the same spot, zoomed out: one cluster
-    const [capa] = capas([padre, hijo], "n", "dark", 4);
+    // two places at the same spot, zoomed out: one cluster
+    const vecino = { ...padre, id: "park-2", radio_m: 100 };
+    const [capa] = capas([padre, vecino], "n", "dark", 4);
     expect(capa?.props.data).toHaveLength(1);
     const cluster = capa!.props.data[0]!;
-    expect(cluster.miembros.map((m) => m.id)).toEqual(["park", "lot"]);
+    expect(cluster.miembros.map((m) => m.id)).toEqual(["park", "park-2"]);
     // places far apart keep a badge each
     const otro = { ...padre, id: "far", ancla: lejos };
     expect(capas([padre, otro], "n", "dark", 14)[0]?.props.data).toHaveLength(
       2
     );
+  });
+
+  it("keeps inners inside their parent's badge until it opens", () => {
+    mockCanvas();
+    // zoomed out: the parent alone, not a cluster with its inner
+    const [lejosCapa] = capas([padre, hijo], "n", "dark", 4);
+    expect(
+      lejosCapa!.props.data.map((b) => b.miembros.map((m) => m.id))
+    ).toEqual([["park"]]);
+    // zoomed in: the inner takes the parent's place
+    const [cerca] = capas([padre, hijo], "n", "dark", 18);
+    expect(cerca!.props.data.map((b) => b.miembros.map((m) => m.id))).toEqual([
+      ["lot"],
+    ]);
   });
 
   it("opens a cluster on click instead of going to one of its places", () => {
@@ -202,7 +219,8 @@ describe("place name deck layer", () => {
     expect(altoCluster(2)).toBeGreaterThan(24);
     expect(altoCluster(1)).toBe(24);
     // the cluster badge sits where a parent badge would
-    const [capa] = capas([padre, hijo], "n", "dark", 4);
+    const vecino = { ...padre, id: "park-2" };
+    const [capa] = capas([padre, vecino], "n", "dark", 4);
     const cluster = capa!.props.data[0]!;
     expect(capa!.props.getIcon(cluster)).toBe("cluster|2|0|noche");
     expect(capa!.props.getPixelOffset(cluster)).toEqual([0, -18]);
@@ -248,6 +266,39 @@ describe("place name deck layer", () => {
     expect(chip.height).toBeGreaterThanOrEqual(48);
     expect(chip.width).toBeGreaterThan(chip.height);
     expect(chip.canvas).toBeInstanceOf(HTMLCanvasElement);
+  });
+
+  it("never cuts a name: a long one goes on to more lines", () => {
+    // 7 px per character, as the canvas mock measures
+    const ancho = (t: string) => t.length * 7;
+    expect(lineasDeNombre(ancho, "Mall Zofri Iqq")).toEqual(["Mall Zofri Iqq"]);
+    const largo = "SITIO DEL TRANSPORTISTA LUIS ALBERTO CORNEJO GUZMAN- TC";
+    const lineas = lineasDeNombre(ancho, largo);
+    expect(lineas.length).toBeGreaterThan(1);
+    expect(lineas.join(" ")).toBe(largo);
+    for (const l of lineas) expect(ancho(l)).toBeLessThanOrEqual(168);
+    // a single word wider than a line is split, still whole
+    const palabra = "X".repeat(40);
+    expect(lineasDeNombre(ancho, palabra).join("")).toBe(palabra);
+  });
+
+  it("draws a long name as a taller badge that grows away from its place", () => {
+    mockCanvas();
+    const largo = {
+      ...padre,
+      id: "largo",
+      name: "PREDIO TRANSPORTES HECTOR ARAYA SOTO",
+      ancla: lejos,
+    };
+    const chip = chipEtiqueta(largo, "noche");
+    expect(chip.size).toBe(altoNombre(2));
+    expect(chip.size).toBeGreaterThan(24);
+    const [capa] = capas([largo], "n", "dark", 14);
+    // the bottom edge stays where a one-line badge's would be
+    const extra = (chip.size - 24) / 2;
+    expect(capa!.props.getPixelOffset(solo(largo))).toEqual([0, -18 - extra]);
+    // a short name keeps the usual badge
+    expect(chipEtiqueta(padre, "noche").size).toBe(24);
   });
 
   it("puts the badge of a saved conflict below its shape", () => {

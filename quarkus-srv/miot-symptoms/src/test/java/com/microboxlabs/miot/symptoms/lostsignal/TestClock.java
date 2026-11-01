@@ -6,19 +6,19 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 
 /** A clock the test moves by hand. */
-final class TestClock extends Clock {
+public final class TestClock extends Clock {
 
     private Instant now;
 
-    TestClock(Instant start) {
+    public TestClock(Instant start) {
         this.now = start;
     }
 
-    void set(Instant at) {
+    public void set(Instant at) {
         now = at;
     }
 
-    void advance(long seconds) {
+    public void advance(long seconds) {
         now = now.plusSeconds(seconds);
     }
 

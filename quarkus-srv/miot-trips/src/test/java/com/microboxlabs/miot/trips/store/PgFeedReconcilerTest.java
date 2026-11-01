@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -372,6 +373,17 @@ class PgFeedReconcilerTest {
         assertEquals(FeedReconciler.SKIP, r.action());
         assertNull(r.tripId());
         assertFalse(feeds.service(tenant, FEED, "S-004").orElseThrow().open());
+    }
+
+    @Test
+    void aServiceThatDepartedAndHasNotClosedIsCreatedRunningPastItsArrivalTime() {
+        FeedResult r = send("S-038", withActuals(desired(-12, -5, "ABC-123", null, "10000001"), at(-11), null, null));
+
+        assertEquals(FeedReconciler.CREATE, r.action());
+        assertEquals(List.of(), r.errors());
+        assertEquals(TripMilestone.CONFIRMED, milestone(r.tripId(), TripMilestone.DEPARTURE).status());
+        assertNotEquals(Trip.DONE, trips.get(tenant, UUID.fromString(r.tripId())).status());
+        assertTrue(feeds.service(tenant, FEED, "S-038").orElseThrow().open());
     }
 
     @Test

@@ -23,7 +23,7 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.road` | `maxspeed_osm`, `maxspeed_custom` | road network, client limits |
 | `signal.geo` | `authorized_zone`, `zone` | geofences |
 | `signal.local_hour` | Hour in the client's time zone | calculated |
-| `signal.derived` | `moving`; `speed_avg_5m` (not evaluated yet) | calculated |
+| `signal.derived` | `moving`; `power_disconnected`, `jamming` from the frame's events; `speed_avg_5m` (not evaluated yet) | calculated, device |
 | `signal.frame` | The frame as the device sent it (`AssetTrackingData`), for example `signal.frame.gps.speed` (km/h), `signal.frame.sensors.engine_status`, `signal.frame.sensors.panic_button` | device |
 
 A part the builder does not know is left out. `frame` is always present. A rule that reads a missing field fails for that signal and is reported as a rule error. A rule reads an optional field with `.?`, which gives an optional value instead of an error, and compares it with `TRUE`, `FALSE` or `NONE` (`optional.of(true)`, `optional.of(false)`, `optional.none()`):
@@ -52,6 +52,7 @@ A part the builder does not know is left out. `frame` is always present. A rule 
 | `trip.driver` | The organization's fleet driver with the trip's `driver_id` (tax id), an `active` one first. `registered` is false when the fleet has no such driver; left out when the trip has no driver. Fleet `inactive` reads `DEACTIVATED`. The tax id, name and phones never reach the signal |
 | `derived.moving` | Frame speed above 10 km/h, as the GPS database's signal function; left out when the frame has no `gps` |
 | `local_hour` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
+| `derived.power_disconnected`, `derived.jamming` | One of the frame's `events` is of external power disconnected (`ALIMENTACION … DESCONECTADA`, `power … disconnect/cut`) or of GNSS/GSM jamming (`…jamm…`), `_` read as a space, ignoring case; false otherwise. "ALIMENTACION BATERIA" alone (running on battery) does not count |
 | `vehicle`, `road`, `geo`, `derived.speed_avg_5m` | Not built yet: left out |
 
 Trips are loaded from the modulith database and shares (`asset_client_map`) from the GPS database, at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min). Between loads, each change of a `trip_live` row sends a notice on the Postgres channel `miot_trips_live` (`{"tenant", "tripId"}`), and the builder reads that row again; shares follow their Debezium topic (a non-durable subscription, so a stopped replica leaves no backlog). Without a trips module the signal has no trips. Frames wait for the first load, which is retried until the databases answer. On wherever the symptoms Pulsar is wired (`MIOT_SYMPTOMS_CDC_ENABLED`, which follows the symptoms component); `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns it off. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.

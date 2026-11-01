@@ -135,3 +135,7 @@ Template 2.1.0 (V0.12.5): while `cohort_outage` or `low_coverage_zone` holds, th
 ### First load
 
 `scripts/coverage-seed/` builds an initial 30-day map outside the runtime: `export.sql` exports one day of frames read-only, `seed.py` turns them into `HSET` commands in the detector's format. Review the output before piping it to `redis-cli`; it has not been run against any environment.
+
+## GPS sabotage template
+
+"Desactivación o sabotaje de GPS" (`gps-sabotage`, V0.12.6) is a separate platform template on `gps_signal`, driven by device events instead of silence: on a trip, `signal.?derived.?power_disconnected == TRUE || signal.?derived.?jamming == TRUE` opens a level-4 case (operator, 2 min SLA) that only an operator closes, as panic. In the Mintral recon the power events were `ALIMENTACION BATERIA DESCONECTADA` (40 frames) and `EVENTO_SMDP_ALIMENTACION_EXTERNA_DESCONECTADA` (23); no jamming event appeared. A jammer that also blocks GSM delivers the event when the device reconnects, as a late frame.

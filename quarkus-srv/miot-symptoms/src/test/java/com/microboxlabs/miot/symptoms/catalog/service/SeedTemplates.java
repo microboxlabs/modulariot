@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 public final class SeedTemplates {
 
     static final String MIGRATION = "/db/migration/symptoms/V0.9.3__platform_symptom_templates.sql";
+    /** Later migrations that seed new templates in the same shape. */
+    static final List<String> MORE = List.of("/db/migration/symptoms/V0.12.6__gps_sabotage_template.sql");
 
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
@@ -66,9 +68,10 @@ public final class SeedTemplates {
     }
 
     private static List<SymptomTemplate> load() {
-        String sql = read(MIGRATION);
         List<SymptomTemplate> out = new ArrayList<>();
-        Matcher m = ROW.matcher(sql);
+        List<String> files = new ArrayList<>(List.of(MIGRATION));
+        files.addAll(MORE);
+        Matcher m = ROW.matcher(String.join("\n", files.stream().map(SeedTemplates::read).toList()));
         while (m.find()) {
             String icon = m.group(5) == null ? null : unquote(m.group(5));
             out.add(new SymptomTemplate(unquote(m.group(1)), unquote(m.group(2)), unquote(m.group(3)), icon,

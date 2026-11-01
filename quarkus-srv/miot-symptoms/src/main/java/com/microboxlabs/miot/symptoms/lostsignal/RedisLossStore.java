@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.jboss.logging.Logger;
 
 /**
  * The lost-signal state in Redis, every key expiring {@code ttl} after its last write:
@@ -32,6 +33,7 @@ import java.util.Optional;
  */
 public class RedisLossStore implements LossStore {
 
+    private static final Logger LOG = Logger.getLogger(RedisLossStore.class);
     static final String VEHICLE = "symptoms:veh:";
     static final String SENDER = "symptoms:snd:";
     static final String DEADLINES = "symptoms:deadlines";
@@ -259,6 +261,7 @@ public class RedisLossStore implements LossStore {
         }
     }
 
+    /** The stored value, or null when absent or unreadable (an older shape): the next save replaces it. */
     static <T> T read(Response r, Class<T> type) {
         if (r == null) {
             return null;
@@ -266,7 +269,8 @@ public class RedisLossStore implements LossStore {
         try {
             return JSON.readValue(r.toString(), type);
         } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            LOG.debugf("Lost-signal store: unreadable %s dropped", type.getSimpleName());
+            return null;
         }
     }
 }

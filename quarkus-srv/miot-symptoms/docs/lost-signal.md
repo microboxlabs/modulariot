@@ -1,6 +1,6 @@
 # Lost-signal detector
 
-Detects vehicles on a trip whose GPS stopped arriving. Design: `~/.miot/docs/control-tower-build/lost-signal-plan.html`. Code: `quarkus-srv/miot-symptoms`, package `lostsignal`.
+Detects vehicles on a trip whose GPS stopped arriving. Code: `quarkus-srv/miot-symptoms`, package `lostsignal`.
 
 **Status: off** (`MIOT_SYMPTOMS_LOST_SIGNAL_ENABLED`).
 

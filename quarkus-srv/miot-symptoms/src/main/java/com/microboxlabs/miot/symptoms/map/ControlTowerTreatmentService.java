@@ -73,6 +73,14 @@ public class ControlTowerTreatmentService {
                 }));
     }
 
+    public Uni<JsonNode> tripGeofences(List<String> clientIds, String tripId) {
+        return guarded(() -> firstFound(clientIds, client -> reads.tripGeofences(tripId, client), "Trip not found")
+                .map(answer -> {
+                    JsonNode data = checked(answer).path("data");
+                    return data.isArray() ? data : JsonNodeFactory.instance.arrayNode();
+                }));
+    }
+
     /** The asset's positions during the trip, oldest first, sampled down to at most {@value #MAX_POSITIONS}. */
     public Uni<JsonNode> tripPositions(List<String> clientIds, String tripId, String assetId) {
         if (tripId == null || tripId.isBlank() || assetId == null || assetId.isBlank()) {

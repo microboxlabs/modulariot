@@ -1,0 +1,139 @@
+import { Callout } from 'nextra/components'
+
+# Ubicaciones por revisar
+
+**Para:** implementadores y desarrolladores.
+
+<Callout type="info">
+**Aprenderá:**
+
+- qué estados tiene una ubicación y cuándo vuelve a intentarse;
+- las tres salidas de un lugar en revisión: corregir los datos, ubicarlo a mano o rechazarlo;
+- qué hacer cuando la comuna declarada está equivocada.
+</Callout>
+
+## Los estados
+
+| `resolutionStatus` | Significa | ¿El feed lo vuelve a intentar? |
+| --- | --- | --- |
+| `null` | Nunca se intentó | Sí, cuando el feed envía un sitio |
+| `resolved` | Tiene punto y geocerca | No |
+| `needs_review` | Falta un punto confiable. El motivo está en `resolutionNote` | Sí, si el feed envía un sitio distinto |
+| `rejected` | Alguien decidió que no se puede ubicar | No |
+
+Una ubicación con geocerca enlazada tampoco se vuelve a intentar desde el feed, aunque su estado sea otro. Una ubicación resuelta que vuelve a quedar en revisión conserva su geocerca anterior, y los viajes la siguen usando.
+
+Por API, `POST /trips/locations/resolve` resuelve el lugar siempre que se lo pida, en cualquier estado.
+
+## Dónde se ven
+
+En **Ajustes › Viajes › Por revisar** (grupo Geocodificación). La lista muestra el lugar, su dirección, su comuna (columna **Distrito**) y el motivo.
+
+![Lista Por revisar con tres ubicaciones y sus motivos](/geocoding/review-queue.png)
+
+Por API:
+
+```bash
+curl -s "$MIOT_API/api/v1/orgs/$MIOT_ORG/trips/locations?status=needs_review&size=50" \
+  -H "Authorization: Bearer $MIOT_TOKEN"
+```
+
+## Salida 1: corregir los datos y resolver de nuevo
+
+Si el motivo es la comuna, el país o un Plus Code corto sin comuna, corrija el dato en el origen y resuelva otra vez. Por API, envíe solo lo que cambia:
+
+```json
+{ "externalCode": "DOC-GEO-PC-SHORT", "districtCode": "150122", "plusCode": "VXHC+H4" }
+```
+
+El lugar pasa de `needs_review` a `resolved`. Si el lugar viene de un feed, corrija la planilla: el feed lo vuelve a intentar cuando el sitio cambia.
+
+<Callout type="warning">
+**Cuidado:** corregir solo la dirección no sirve si el lugar ya tiene un punto guardado. La nueva resolución usa el punto guardado como Plus Code y no consulta la dirección:
+
+```json
+{ "externalCode": "DOC-GEO-SIN-NUMERO", "address": "Av. Libertador Bernardo O'Higgins 1058" }
+```
+
+```json
+{ "resolutionSource": "plus_code", "resolutionStatus": "needs_review",
+  "resolutionNote": "the point is in Quilicura (13125), not in Santiago (13101)" }
+```
+
+En ese caso, ubique el punto a mano (salida 2).
+</Callout>
+
+## Salida 2: ubicarlo a mano
+
+Una persona marca el punto. En **Por revisar**, pulse **Ubicar**, marque el punto en el mapa o escriba un Plus Code, y pulse **Validar y crear geocerca**.
+
+La plataforma comprueba el punto contra la comuna del lugar, con la misma regla de 500 m. Si pasa, crea una geocerca con el radio del tipo de lugar y la fuente queda `manual`. Si no pasa, rechaza el punto y muestra el motivo.
+
+Por API:
+
+```bash
+curl -s -X PUT "$MIOT_API/api/v1/orgs/$MIOT_ORG/trips/locations/$LOCATION_ID/point" \
+  -H "Authorization: Bearer $MIOT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "plusCode": "47RFH86X+VR" }'
+```
+
+| Respuesta | Cuándo |
+| --- | --- |
+| `200` con la ubicación, `resolutionSource: "manual"` | El punto cae en la comuna |
+| `400` con `{"error": "the point is in Quilicura (13125), not in Santiago (13101)"}` | El punto cae fuera |
+| `404` | La ubicación no existe |
+| `400` con `the geofence is managed outside this location` | La geocerca con el código del lugar no la creó la revisión manual |
+| `400` con otra nota | Plus Code inválido, sin punto, o una de las notas de la comuna |
+| `409` con `the GPS database is not configured` | La organización no tiene base GPS |
+
+Un punto puesto a mano no se enlaza con otra geocerca: el lugar recibe una propia, con el `id` de la ubicación como código. Si alguien lo ubica de nuevo, esa misma geocerca se mueve.
+
+### Cuando la comuna declarada está equivocada
+
+El diálogo **Ubicar** no permite cambiar la comuna ni el país. Si el sitio declara Providencia y el lugar está en Santiago, cualquier punto correcto se rechaza:
+
+![Diálogo Ubicar que rechaza el punto porque cae en otra comuna](/geocoding/place-dialog-wrong-district.png)
+
+Corríjalo por API. Envíe la comuna correcta junto con el punto:
+
+```json
+{ "districtCode": "13101", "plusCode": "47RFH86X+VR" }
+```
+
+```json
+{ "district": "Santiago", "geofenceId": 1214,
+  "resolutionSource": "manual", "resolutionStatus": "resolved" }
+```
+
+Si la ubicación no tiene país, agregue `"country": "CL"` al cuerpo.
+
+## Salida 3: rechazarlo
+
+Si el lugar no se puede ubicar (un código de prueba, un lugar que ya no existe), rechácelo con una nota. En **Por revisar**, pulse **Rechazar** y escriba el motivo. Por API:
+
+```bash
+curl -s -X POST "$MIOT_API/api/v1/orgs/$MIOT_ORG/trips/locations/$LOCATION_ID/reject" \
+  -H "Authorization: Bearer $MIOT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "note": "Lugar de prueba sin país" }'
+```
+
+El estado pasa a `rejected` y el punto y la geocerca quedan como estaban. El feed no lo vuelve a intentar. Para volver a ubicarlo, use `POST /trips/locations/resolve` o `PUT /point`.
+
+## Motivos frecuentes
+
+| Motivo | Qué hacer |
+| --- | --- |
+| `country is required to check the district` | Agregue el país |
+| `district … is ambiguous in PE; send its code` | Envíe `districtCode` |
+| `the point is in X, not in Y` | Si la comuna está mal, corríjala. Si el punto está mal, ubíquelo a mano |
+| `mapbox found only street, not an address` | La dirección no tiene número o el proveedor no lo conoce. Ubíquelo a mano |
+| `geocoding: the organization used its 1000 geocoding resolutions for this month` | La cuota se agotó. Ubíquelo a mano o pida más cuota |
+| `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones` | Pida a un dueño de la plataforma la conexión de geocodificación |
+
+La lista completa está en [Motivos de revisión](/es/products/geocoding/reference/review-notes).
+
+## Resumen
+
+- `needs_review` guarda el punto, si lo hay, y el motivo. No crea geocerca, y no quita la que el lugar ya tenía.
+- Corrija el dato y resuelva de nuevo, ubique el punto a mano, o rechace el lugar.
+- Si la comuna declarada está mal, corríjala por API: el diálogo no la cambia.

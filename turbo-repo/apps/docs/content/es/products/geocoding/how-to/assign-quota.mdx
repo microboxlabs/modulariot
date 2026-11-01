@@ -1,0 +1,75 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Asignar la cuota de una organización
+
+**Para:** dueños de la plataforma. **Configuración:** ModularIoT.
+
+Solo cuentan las consultas al proveedor. Geocerca, Plus Code, coordenadas, direcciones internas y caché no consumen cuota.
+
+<Steps>
+
+### Revisar el plan
+
+Abra **Ajustes › Plataforma** y, en el grupo **Geocodificación** al final del menú, elija **Plan**.
+
+![Plan de geocodificación](/geocoding/platform-plan.png)
+
+| Campo | Qué define |
+| --- | --- |
+| Aplicar las cuotas | Activo: una organización sin suscripción no consulta al proveedor, y al agotar su cuota se aplica lo que dice su suscripción. Inactivo: no se rechaza ninguna consulta, pero el uso se registra y se muestra |
+| Cuota mensual por defecto (consultas) | Consultas incluidas para una suscripción sin cuota propia |
+| Alerta al (% de la cuota) | Porcentaje en que se publica el aviso, una vez por mes |
+| Precio mensual (USD) | Lo que paga cada organización suscrita por mes |
+| Precio por consulta excedente (USD) | Lo que paga cada consulta sobre la cuota, solo con **Cobrar excedente** |
+
+Un cambio vale para todo el mes en curso. Los meses cerrados conservan los términos que tenían al cierre.
+
+### Asignar la cuota
+
+Elija **Organizaciones** en el mismo grupo y pulse **Asignar cuota**.
+
+| Campo | Qué poner |
+| --- | --- |
+| Organización | Búsquela por nombre, identificador o RUT |
+| Cuota mensual | Vacía: la del plan. Un número: la propia de esa organización |
+| Al agotar la cuota | **Enviar a revisión**: deja de consultar y los lugares quedan por revisar. **Cobrar excedente**: sigue consultando y cobra cada consulta extra. Solo se aplica con **Aplicar las cuotas** activo |
+
+Para cambiarla después, pulse el lápiz de la fila.
+
+### Seguir el consumo
+
+La tabla muestra cada organización con suscripción o con uso en el mes:
+
+![Organizaciones con su uso del mes](/geocoding/platform-organizations.png)
+
+| Columna | Qué muestra |
+| --- | --- |
+| Usadas / cuota | Consultas al proveedor del mes y la cuota. Muestra **del plan** cuando la organización usa la cuota del plan |
+| Caché | Porcentaje de resoluciones que respondió la caché |
+| Costo proveedor | Suma del costo por llamada de las consultas del mes. Solo lo ve el dueño de la plataforma |
+| Cobro | Precio mensual más excedente |
+| Al agotarla | Lo que pasa al agotar la cuota |
+
+Los filtros de arriba eligen el mes, el estado de la cuota (normal, en alerta, agotada) y el modo.
+
+</Steps>
+
+<Callout type="info">
+El mes es el mes calendario en UTC. En Chile continental, el mes de geocodificación cambia a las 21:00 o 20:00 del último día, según el horario de verano o de invierno.
+</Callout>
+
+## Qué ve la organización
+
+El dueño de la organización ve su cuota, sus resoluciones y su cargo en **Ajustes › Viajes › Uso del mes** (página **Uso mensual**). No ve el costo del proveedor.
+
+![Uso del mes de una organización](/geocoding/org-monthly-usage.png)
+
+## Por API
+
+| Acción | Llamada |
+| --- | --- |
+| Cambiar el plan | `PUT /api/v1/platform/geocoding-plan` |
+| Asignar o cambiar la cuota | `PUT /api/v1/orgs/{org}/geocoding-plan` con `monthlyQuota` y `onExhausted` |
+| Uso de todas las organizaciones | `GET /api/v1/platform/geocoding-plan/usage?month=YYYY-MM` |
+
+Detalle en [API de plan, uso y proveedor](/es/products/geocoding/reference/plan-api).

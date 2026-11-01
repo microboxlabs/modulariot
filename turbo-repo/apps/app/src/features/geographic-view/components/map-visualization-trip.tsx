@@ -7,23 +7,28 @@ import {
   LinearInterpolator,
   ScatterplotLayer,
 } from "deck.gl";
-import type { PickingInfo } from "@deck.gl/core";
+import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import wkx, { Geometry } from "wkx";
+import type { Geometry } from "geojson";
+import {
+  geofenceGeometry,
+  geofencePinPosition,
+} from "../utils/geofence-geometry";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
 import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
-import MapTooltip from "./map-tooltip";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import MapTooltip from "./map-tooltip";
 import PulseTooltip, {
   PulseListType,
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import ToolBar from "./tool-bar/tool-bar";
+import type { GeofencesMode } from "./tool-bar/geofences-mode-selector";
 // import MapStyleSelector from "./map-style-selector";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 // import MapButton from "./map-button";
@@ -37,6 +42,18 @@ import PulseRange from "./tool-bar/pulse-range";
 import MapVisualization from "@/features/map-visualization/map-visualization";
 import { MapRef } from "react-map-gl";
 import {
+  PlaceBadgeTooltip,
+  PlacesEditorOverlays,
+  type GeocercaExterna,
+  PlacesMapLayers,
+  hayBorrador,
+  usePlacesEnMapa,
+} from "@/features/places";
+import PlacesFloatingOverlay from "./places-overlay/places-floating-overlay";
+import PlacesToggle from "./places-overlay/places-toggle";
+import MapControlsFrame from "./map-controls-frame";
+import { usePermisoEditorLugares } from "../profiles/places-permission";
+import {
   flyTo,
   panTo,
   toLngLat,
@@ -44,9 +61,9 @@ import {
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
-  ringCentroid,
   estimateEtaHours,
   formatEtaHours,
+  ringCentroid,
 } from "../utils/vehicle-origin";
 import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 
@@ -64,7 +81,7 @@ type Zone = {
   location_type: any;
   id: string;
   name: string;
-  location: string;
+  location: string | GeoJSON.Geometry;
 };
 
 type GeofenceData = {
@@ -132,6 +149,11 @@ type MapVisualizationProps = {
   setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
   minimized?: boolean;
   licensePlate?: string | null;
+  /**
+   * Avisa al abrir o cerrar Lugares: la página puede ocultar lo que tiene al
+   * lado (la línea de tiempo, el visor multimedia) para darle todo el ancho.
+   */
+  onLugaresChange?: (abierto: boolean) => void;
   /** Where a case without a trip opened, marked on the map. */
   casePoint?: CasePoint | null;
 };
@@ -149,6 +171,138 @@ type GeometryFeatureProperties = {
   name: string;
 };
 
+/** Píldora de arriba al centro del mapa de viaje (aviso o distancia). */
+const PILDORA_VIAJE =
+  "flex items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-900 shadow dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100";
+
+/** "Cargando" o "sin datos" del viaje, en el lugar de la distancia. */
+function EstadoDelViaje({
+  dict,
+  cargando,
+}: Readonly<{ dict: I18nRecord; cargando: boolean }>) {
+  return (
+    <div data-estado-viaje className={PILDORA_VIAJE}>
+      {cargando ? (
+        <Spinner size="sm" />
+      ) : (
+        <span className="text-gray-500 dark:text-gray-400">
+          {tr("geographic_view.no_data_found", dict)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Distancia del vehículo al origen y cuánto le falta (ETA). */
+function DistanciaAlOrigen({
+  dict,
+  km,
+  etaHoras,
+}: Readonly<{ dict: I18nRecord; km: number; etaHoras: number | null }>) {
+  return (
+    <div className={PILDORA_VIAJE}>
+      <span className="flex items-center gap-1">
+        <span className="font-semibold">
+          {tr("geographic_view.distance_to_origin", dict)}:
+        </span>
+        <span>
+          {km.toFixed(1)} {tr("geographic_view.km", dict)}
+        </span>
+      </span>
+      <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
+      <span className="flex items-center gap-1">
+        <span className="font-semibold">
+          {tr("geographic_view.eta_to_origin", dict)}:
+        </span>
+        <span>{etaHoras == null ? "—" : formatEtaHours(etaHoras)}</span>
+      </span>
+    </div>
+  );
+}
+
+/** El mismo margen que el marco de controles (p-5): 20 px. */
+const MARGEN_CONTROLES_PX = 20;
+
+/** Papel de una geocerca del viaje según su location_type (1 origen, 2 destino). */
+function papelGeocerca(locationType: unknown, dict: I18nRecord): string {
+  if (locationType === 1)
+    return tr("geographic_view.trip_geofences.origin", dict);
+  if (locationType === 2)
+    return tr("geographic_view.trip_geofences.destination", dict);
+  return tr("geographic_view.trip_geofences.other", dict);
+}
+
+/** El anillo exterior de un polígono (o del primero de un multipolígono). */
+function anilloExterior(geometry: {
+  type?: string;
+  coordinates?: unknown;
+}): LngLat[] | null {
+  const c = geometry.coordinates;
+  if (!Array.isArray(c)) return null;
+  if (geometry.type === "Polygon") return (c[0] as LngLat[]) ?? null;
+  if (geometry.type === "MultiPolygon")
+    return ((c[0] as LngLat[][] | undefined)?.[0] as LngLat[]) ?? null;
+  return null;
+}
+
+/** [lat, lon] para ir a la geocerca: centro del anillo o el punto mismo. */
+export function anclaDeGeometria(geometry: {
+  type?: string;
+  coordinates?: unknown;
+}): [number, number] | null {
+  const c = geometry.coordinates;
+  if (geometry.type === "Point" && Array.isArray(c)) {
+    const [lng, lat] = c as number[];
+    return typeof lat === "number" && typeof lng === "number"
+      ? [lat, lng]
+      : null;
+  }
+  const anillo = anilloExterior(geometry);
+  const centro = anillo ? ringCentroid(anillo) : null;
+  return centro ? [centro[1], centro[0]] : null;
+}
+
+/** Las geocercas del viaje como filas de solo lectura para la lista. */
+function geocercasDelViaje(
+  features: GeometryFeature[],
+  dict: I18nRecord
+): GeocercaExterna[] {
+  return features.flatMap((f, i) => {
+    const ancla = anclaDeGeometria(
+      f.geometry as unknown as { type?: string; coordinates?: unknown }
+    );
+    if (!ancla) return [];
+    const props = f.properties as {
+      id?: string;
+      name?: string;
+      location_type?: unknown;
+    };
+    const papel = papelGeocerca(props.location_type, dict);
+    return [
+      {
+        id: String(props.id ?? `viaje-${i}`),
+        nombre: props.name || papel,
+        detalle: papel,
+        ancla,
+      },
+    ];
+  });
+}
+
+/**
+ * Las capas de deck.gl en orden de dibujo (la última queda encima). Los
+ * nombres de las geocercas van bajo lo del viaje (pulsos, vehículo, banderas)
+ * salvo con el editor de Lugares abierto: ahí se pregunta por las geocercas,
+ * así que sus nombres pasan encima de todo.
+ */
+export function capasDelMapa(
+  delViaje: LayersList,
+  nombres: LayersList,
+  editando: boolean
+): LayersList {
+  return editando ? [...delViaje, ...nombres] : [...nombres, ...delViaje];
+}
+
 export default function MapVisualizationTrip({
   tripId,
   positions,
@@ -160,6 +314,7 @@ export default function MapVisualizationTrip({
   setSelectedTreatmentIndex,
   minimized = false,
   licensePlate,
+  onLugaresChange,
   casePoint = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
@@ -173,6 +328,61 @@ export default function MapVisualizationTrip({
   const [pictures_list, setPicturesList] = useState<string[]>([]);
 
   const mapRef = useRef<MapRef>(null);
+
+  // Lugares (para probar): el mismo editor de la vista geográfica, con su
+  // botón; sin el permiso "Editor de lugares" es de solo lectura
+  const puedeEditarLugares = usePermisoEditorLugares();
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const editandoLugares = lugaresAbierto;
+  const cambiarLugares = (abierto: boolean) => {
+    setLugaresAbierto(abierto);
+    onLugaresChange?.(abierto);
+  };
+  const [zoom, setZoom] = useState(2);
+  const alCambioZoom = (z: number) => {
+    const next = Math.round((z || 2) * 10) / 10;
+    setZoom((prev) => (prev === next ? prev : next));
+  };
+  const [showStops, setShowStops] = useState(true);
+  // qué geocercas se ven (botón "geocercas" de la barra de herramientas):
+  // todas, solo las del viaje (por defecto) o ninguna
+  const [geofencesMode, setGeofencesMode] = useState<GeofencesMode>("trip");
+  const [showPulse, setShowPulse] = useState(true);
+  const showGeofences = geofencesMode !== "none";
+  // las de Lugares, solo de lectura sobre el viaje, van con "todas"; con el
+  // editor abierto se ven siempre (son lo que se edita)
+  const verGeocercas = geofencesMode === "all" || editandoLugares;
+  const lugares = usePlacesEnMapa(mapRef, {
+    editando: editandoLugares,
+    verGeocercas,
+    puedeEditar: puedeEditarLugares,
+    // los trayectos se dibujan (y llevan badge) solo con Lugares abierto
+    nombres: { geocercas: verGeocercas, trayectos: editandoLugares },
+    mapStyle,
+    zoom,
+    ambito: "viaje",
+  });
+  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
+  // (el editor retoma el borrador al abrirse)
+  const borradorRevisado = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !lugares.ws.storageScope ||
+      !puedeEditarLugares ||
+      borradorRevisado.current === lugares.ws.storageScope
+    )
+      return;
+    borradorRevisado.current = lugares.ws.storageScope;
+    if (!lugaresAbierto && hayBorrador("viaje", lugares.ws.storageScope))
+      cambiarLugares(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeEditarLugares, lugares.ws.storageScope]);
+
+  // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
+  const alternarLugares = () => {
+    if (!lugaresAbierto) cambiarLugares(true);
+    else lugares.ws.pedirSalir(() => cambiarLugares(false));
+  };
 
   const { timelapse } = useTimelapse(
     licensePlate ?? null,
@@ -196,10 +406,6 @@ export default function MapVisualizationTrip({
       setDisplayPosition(positions.length - 1);
     }
   }, [positions?.length]);
-
-  const [showStops, setShowStops] = useState(true);
-  const [showGeofences, setShowGeofences] = useState(true);
-  const [showPulse, setShowPulse] = useState(true);
 
   // Follow mode: while the camera toggle is on, keep the vehicle centered
   // whenever its displayed position changes, without changing the zoom.
@@ -330,13 +536,11 @@ export default function MapVisualizationTrip({
       const features = geofence_data?.data
         ?.filter((item: GeofenceData) => item.zone.location !== null)
         .map((item: GeofenceData) => {
-          const wkbHexString = item.zone.location;
-          const wkbBuffer = Buffer.from(wkbHexString, "hex");
-          const geometry = wkx.Geometry.parse(wkbBuffer);
+          const geometry = geofenceGeometry(item.zone.location);
 
           return {
             type: "Feature",
-            geometry: geometry.toGeoJSON(),
+            geometry,
             properties: {
               id: item.zone.id,
               name: item.zone.name,
@@ -356,6 +560,16 @@ export default function MapVisualizationTrip({
     }
   }, [geofence_data]);
 
+  // las geocercas del viaje, como sección de solo lectura en Lugares: la
+  // misma lista en todo mapa de viaje (síntomas y bento)
+  const geocercasViaje = React.useMemo(
+    () => ({
+      titulo: tr("geographic_view.trip_geofences.title", dict),
+      items: geocercasDelViaje(processedGeofence?.features ?? [], dict),
+    }),
+    [processedGeofence, dict]
+  );
+
   // Distance + rough ETA from the current vehicle position to the ORIGIN
   // geofence centroid (location_type === 1). The origin/end flags themselves
   // are drawn by GeofencePinLayer; this surfaces "how far is the vehicle from
@@ -364,15 +578,7 @@ export default function MapVisualizationTrip({
     const origin = processedGeofence?.features.find(
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
-    const geometry = origin?.geometry as
-      | { type?: string; coordinates?: LngLat[][] }
-      | undefined;
-    // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
-    // MultiPolygon (or malformed payload) would make ringCentroid throw.
-    if (geometry?.type !== "Polygon") return null;
-    const ring = geometry.coordinates?.[0];
-    if (!Array.isArray(ring)) return null;
-    return ringCentroid(ring);
+    return origin ? geofencePinPosition(origin.geometry) : null;
   }, [processedGeofence]);
 
   const vehicle =
@@ -550,129 +756,159 @@ export default function MapVisualizationTrip({
     showPulse,
   ]);
 
+  /** Al cerrar la tarjeta de pulsos: soltar lo seleccionado. */
+  const cerrarPulsos = () => {
+    setSelectedPulse([]);
+    if (setSelectedTreatment && setSelectedTreatmentIndex) {
+      setSelectedTreatment(null);
+      setSelectedTreatmentIndex(null);
+    }
+  };
+
   return (
-    <div className="h-full w-full relative overflow-hidden">
-      {(pictures_list.length > 0 || timelapse) && !minimized ? (
-        <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
-          <ImageSelector
-            images={pictures_list}
+    // el mapa y, a su lado, la barra de Lugares (no encima): al abrirla el
+    // mapa se angosta y sus controles se mueven con su borde
+    <div className="flex h-full w-full overflow-hidden">
+      <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+        {(pictures_list.length > 0 || timelapse) && !minimized ? (
+          <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
+            <ImageSelector
+              images={pictures_list}
+              dictionary={dict}
+              timelapse={timelapse}
+            />
+          </div>
+        ) : null}
+        <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
+          <ToolBar
             dictionary={dict}
-            timelapse={timelapse}
+            positions={positions ?? []}
+            display_position={{
+              displayPosition,
+              setDisplayPosition,
+            }}
+            selected_style={{
+              selectedStyle: mapStyle,
+              setSelectedStyle: setMapStyle,
+            }}
+            camera_movement={{
+              camera_movement,
+              setCameraMovement,
+            }}
+            show_stops={{
+              showStops,
+              setShowStops,
+            }}
+            geofences_mode={{
+              geofencesMode,
+              setGeofencesMode,
+            }}
+            show_pulse={{
+              showPulse,
+              setShowPulse,
+            }}
+            timelineComponent={
+              <PulseRange
+                positions={positions ?? []}
+                displayPosition={displayPosition}
+                setDisplayPosition={setDisplayPosition}
+              />
+            }
           />
         </div>
-      ) : null}
-      <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
-        <ToolBar
-          dictionary={dict}
-          positions={positions ?? []}
-          display_position={{
-            displayPosition,
-            setDisplayPosition,
-          }}
-          selected_style={{
-            selectedStyle: mapStyle,
-            setSelectedStyle: setMapStyle,
-          }}
-          camera_movement={{
-            camera_movement,
-            setCameraMovement,
-          }}
-          show_stops={{
-            showStops,
-            setShowStops,
-          }}
-          show_geofences={{
-            showGeofences,
-            setShowGeofences,
-          }}
-          show_pulse={{
-            showPulse,
-            setShowPulse,
-          }}
-          timelineComponent={
-            <PulseRange
-              positions={positions ?? []}
-              displayPosition={displayPosition}
-              setDisplayPosition={setDisplayPosition}
+        <MapVisualization
+          mapStyle={
+            mapStyle as
+              | "satellite"
+              | "streets"
+              | "dark"
+              | "light"
+              | "outdoors"
+              | "hybrid"
+          }
+          layers={capasDelMapa(
+            layers,
+            verGeocercas ? lugares.capasNombres : [],
+            editandoLugares
+          )}
+          isLoading={false}
+          mapRef={mapRef}
+          // con la barra de Lugares al lado, el borde que la toca va recto
+          rounded={editandoLugares ? "left" : true}
+          onZoomChange={alCambioZoom}
+          minZoom={TRIP_MAP_MIN_ZOOM}
+          onMapLoad={() => setMapReady(true)}
+          {...lugares.propsMapa}
+        >
+          {verGeocercas && (
+            <PlacesMapLayers ws={lugares.ws} vistaGeneral={!editandoLugares} />
+          )}
+        </MapVisualization>
+
+        {/* resumen de los pulsos elegidos: arrastrable, abre a la izquierda
+            (20 px, como los demás controles) y centrada en el alto */}
+        {hoverInfo && (
+          <MapTooltip
+            left={MARGEN_CONTROLES_PX}
+            top={MARGEN_CONTROLES_PX}
+            centrarVertical
+            setHoverInfo={setHoverInfo}
+            onExitAction={cerrarPulsos}
+          >
+            <PulseTooltip
+              object={hoverInfo.object as PulseListType | PulseType}
+              dict={dict}
+            />
+          </MapTooltip>
+        )}
+        {/* mismos 20 px de margen que la barra de herramientas de abajo (p-5) */}
+        <MapControlsFrame
+          className="z-[760]"
+          topCenter={
+            // un solo lugar arriba al centro: mientras carga o no hay datos,
+            // el aviso; con datos, la distancia y el ETA al origen
+            isLoading || showsNoData(isLoading, positions, casePoint) ? (
+              <EstadoDelViaje dict={dict} cargando={isLoading} />
+            ) : (
+              !minimized &&
+              distanceToOriginKm != null && (
+                <DistanciaAlOrigen
+                  dict={dict}
+                  km={distanceToOriginKm}
+                  etaHoras={etaToOriginHours}
+                />
+              )
+            )
+          }
+          topRight={
+            <PlacesToggle
+              dict={dict}
+              abierto={lugaresAbierto}
+              onCambiar={alternarLugares}
             />
           }
         />
-      </div>
-      <MapVisualization
-        mapStyle={
-          mapStyle as
-            | "satellite"
-            | "streets"
-            | "dark"
-            | "light"
-            | "outdoors"
-            | "hybrid"
-        }
-        layers={layers}
-        isLoading={false}
-        mapRef={mapRef}
-        onZoomChange={() => {}}
-        minZoom={TRIP_MAP_MIN_ZOOM}
-        onMapLoad={() => setMapReady(true)}
-      />
-      {hoverInfo && (
-        <MapTooltip
-          start_right={true}
-          left={hoverInfo.x}
-          top={hoverInfo.y}
-          setHoverInfo={setHoverInfo}
-          onExitAction={() => {
-            setSelectedPulse([]);
-            if (setSelectedTreatment && setSelectedTreatmentIndex) {
-              setSelectedTreatment(null);
-              setSelectedTreatmentIndex(null);
-            }
-          }}
-        >
-          <PulseTooltip
-            object={hoverInfo.object as PulseListType | PulseType}
-            dict={dict}
+        {/* geocercas solo de lectura: nombre y categorías bajo el mouse */}
+        {!editandoLugares && lugares.ws.tooltipBadge && (
+          <PlaceBadgeTooltip
+            badge={lugares.ws.tooltipBadge.badge}
+            x={lugares.ws.tooltipBadge.x}
+            y={lugares.ws.tooltipBadge.y}
           />
-        </MapTooltip>
-      )}
-
-      <div className="absolute right-0 top-5 bg-white dark:bg-gray-800 rounded-l-full border-r border-y border-gray-400 dark:border-gray-700">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full p-2">
-            <Spinner />
+        )}
+        {/* menús y barras de dibujo de Lugares: sobre el mapa */}
+        {editandoLugares && (
+          <div className="contents [&>*]:z-[750]">
+            <PlacesEditorOverlays ws={lugares.ws} dict={dict} />
           </div>
-        ) : showsNoData(isLoading, positions, casePoint) ? (
-          <div className="flex items-center justify-center h-full p-2">
-            <p className="text-gray-500 dark:text-gray-400 font-light">
-              {tr("geographic_view.no_data_found", dict)}
-            </p>
-          </div>
-        ) : null}
+        )}
       </div>
-
-      {!minimized && distanceToOriginKm != null && (
-        <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-900 shadow dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100">
-          <span className="flex items-center gap-1">
-            <span className="font-semibold">
-              {tr("geographic_view.distance_to_origin", dict)}:
-            </span>
-            <span>
-              {distanceToOriginKm.toFixed(1)} {tr("geographic_view.km", dict)}
-            </span>
-          </span>
-          <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
-          <span className="flex items-center gap-1">
-            <span className="font-semibold">
-              {tr("geographic_view.eta_to_origin", dict)}:
-            </span>
-            <span>
-              {etaToOriginHours == null
-                ? "—"
-                : formatEtaHours(etaToOriginHours)}
-            </span>
-          </span>
-        </div>
-      )}
+      <PlacesFloatingOverlay
+        dict={dict}
+        ws={lugares.ws}
+        show={editandoLugares}
+        externas={geocercasViaje}
+      />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import type { SelectedOption } from "../../../types/side-info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
+import { lugaresLayout } from "../lugares-layout";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -64,6 +65,10 @@ function panelWidths(
   return isCallFormStep
     ? { side: "50%", map: "50%" }
     : { side: "33.3333%", map: "66.6667%" };
+}
+
+function contextRowClass(show: boolean): string {
+  return show ? "grid-rows-[1fr]" : "grid-rows-[0fr]";
 }
 
 /**
@@ -145,11 +150,13 @@ export default function PrototypeGeneralMap({
   const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
   // Past forms open as a fixed modal, so the side panel stays at its
   // resting width instead of morphing over the map.
-  const { side: sideWidth, map: mapWidth } = panelWidths(
+  const anchos = panelWidths(
     pastFormsEnabled ? false : isFormOpen,
     isCallDriver,
     isCallFormStep
   );
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const layout = lugaresLayout(lugaresAbierto, anchos);
 
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
@@ -314,11 +321,14 @@ export default function PrototypeGeneralMap({
           </div>
         </Card>
       </div>
-      <div className="flex flex-row gap-2 w-full h-full px-2 pb-2 overflow-hidden">
-        {/* Side information — grows when the inline form opens */}
+      <div className="flex flex-row w-full h-full px-2 pb-2 overflow-hidden">
+        {/* Side information — grows when the inline form opens; folds away
+            while Lugares is open on the map */}
         <div
-          className="h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-[width] duration-500 ease-in-out"
-          style={{ width: sideWidth }}
+          className="h-full rounded-lg shadow-md border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
+          style={layout.sideStyle}
+          aria-hidden={lugaresAbierto}
+          inert={lugaresAbierto}
         >
           <PrototypeSideInfo
             dict={dict}
@@ -338,7 +348,7 @@ export default function PrototypeGeneralMap({
             makes room for the symptom-context row below it when that's showing. */}
         <div
           className="flex h-full flex-col gap-2 transition-[width] duration-500 ease-in-out"
-          style={{ width: mapWidth }}
+          style={{ width: layout.mapWidth }}
         >
           <div className="min-h-0 flex-1 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
             <MapVisualizationTrip
@@ -352,6 +362,7 @@ export default function PrototypeGeneralMap({
               setSelectedTreatment={setSelectedTreatment}
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
+              onLugaresChange={setLugaresAbierto}
               casePoint={casePoint}
             />
           </div>
@@ -362,13 +373,9 @@ export default function PrototypeGeneralMap({
               pushes the map up; the grid-rows trick animates smoothly between
               0 and its natural height without a fixed height to guess at. */}
           <div
-            className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${
-              isFormOpen &&
-              selectedOption === "call_driver" &&
-              selectedTreatmentIndex
-                ? "grid-rows-[1fr]"
-                : "grid-rows-[0fr]"
-            }`}
+            className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${contextRowClass(
+              isFormOpen && isCallDriver && !!selectedTreatmentIndex
+            )}`}
           >
             <div className="overflow-hidden">
               {selectedTreatmentIndex && (

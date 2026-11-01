@@ -1,5 +1,11 @@
 import { IoClose } from "react-icons/io5";
-import React, { useState, MouseEvent, useEffect } from "react";
+import React, {
+  useState,
+  MouseEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { MdDragHandle } from "react-icons/md";
 
 type MapTooltipProps = {
@@ -11,6 +17,11 @@ type MapTooltipProps = {
   onExitAction?: () => void;
   start_right?: boolean;
   canExit?: boolean;
+  /**
+   * Abre centrada en el alto del mapa (ignora `top` al abrir); se puede
+   * arrastrar igual. Se mide antes de pintar: no salta.
+   */
+  centrarVertical?: boolean;
 };
 
 export default function MapTooltip({
@@ -22,7 +33,9 @@ export default function MapTooltip({
   onExitAction,
   start_right,
   canExit = true,
+  centrarVertical = false,
 }: MapTooltipProps) {
+  const tarjeta = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({
     left: initialLeft,
     top: initialTop,
@@ -86,6 +99,19 @@ export default function MapTooltip({
     }
   }, [initialLeft, initialTop, isDragging]);
 
+  // al abrir: a media altura del mapa, con su propia altura descontada
+  useLayoutEffect(() => {
+    const el = tarjeta.current;
+    // el padre es la capa que cubre todo el mapa
+    const mapa = el?.parentElement;
+    if (!centrarVertical || !el || !mapa) return;
+    const top = Math.max(0, (mapa.clientHeight - el.offsetHeight) / 2);
+    setPosition((p) => ({ ...p, top }));
+    setWasOpen(true);
+    // solo al abrir: después manda el arrastre
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!children) {
     return null;
   }
@@ -105,6 +131,7 @@ export default function MapTooltip({
       style={{ pointerEvents: "none" }}
     >
       <div
+        ref={tarjeta}
         className="absolute bg-white dark:bg-gray-800 border rounded-lg shadow-lg border-gray-200 dark:border-gray-700"
         style={{
           left: start_right ? undefined : position.left,

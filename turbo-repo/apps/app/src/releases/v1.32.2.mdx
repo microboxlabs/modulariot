@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.32.2 — ModularIoT
+
+### Fecha: 31/10/2026
+
+**Objetivo**: Mejorar la gestión de geocercas para que cada organización consulte sus propios datos desde el modulith. Esta versión incorpora el cambio OSS del milestone MIOT-0.6.2.
+
+## 🐛 Correcciones
+
+- **🐛 Geocercas por organización** ([#2309](https://github.com/microboxlabs/modulariot/issues/2309)) _(integración OSS: MIOT-0.6.2)_
+  - **Punto clave**: Lugares consulta las geocercas y sus formas GeoJSON para la organización activa.
+  - **Detalle técnico**: La solicitud reenvía la sesión del usuario al endpoint `miot-places`; el modulith autoriza la organización y lee los datos directamente de la base GPS, reemplazando la llamada global a StreamHub M2M/PostgREST y la lista manual de organizaciones.
+
+## 📊 Beneficios
+
+- Las organizaciones consultan sus propias geocercas según el contexto activo.
+- La autorización se realiza en el modulith usando la sesión del usuario.
+- Las formas GeoJSON se obtienen directamente de la base GPS.
+- Se elimina la dependencia de la llamada global a StreamHub M2M/PostgREST para geocercas.
+- Se reemplaza la lista manual de organizaciones permitidas.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.2`
+- App: `app@v0.6.2` — actualizado
+- Docs: `docs@v0.6.1` — sin cambios
+- Web: `web@v0.6.1` — sin cambios
+- Modulith: `modulith@v0.5.41` — actualizado
+- Harness: `harness@v0.1.14` — sin cambios
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión incorpora al stack el cambio OSS del milestone MIOT-0.6.2 para servir geocercas en el contexto de la organización activa.
+
+El uso de la sesión del usuario y la lectura directa desde la base GPS sustituyen el flujo global anterior y la lista manual de organizaciones.

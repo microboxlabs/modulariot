@@ -10,6 +10,7 @@ import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import com.microboxlabs.miot.symptoms.lostsignal.CheckState.OpenCase;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -65,14 +66,38 @@ public class TripChecks {
      * @param back null while the vehicle is silent
      * @return the cases open after it, by {@code tenant/symptom id}
      */
-    public Map<String, Long> check(String assetId, LossStore.Vehicle v, Map<String, Long> cases, Instant now,
-            Return back) {
-        Map<String, Long> open = new HashMap<>(cases);
+    public Map<String, OpenCase> check(String assetId, LossStore.Vehicle v, Map<String, OpenCase> cases,
+            Instant now, Return back) {
+        Map<String, OpenCase> open = new HashMap<>(cases);
         v.watch().trips().forEach((tenant, trip) -> {
             Map<String, Object> check = document(v, trip, now, back);
-            evaluate(tenant, assetId, now, check, trip, v.profile().last(), open, back);
+            evaluate(tenant, assetId, now, check, trip, v.profile().last(), open);
         });
+        if (back != null) {
+            returned(assetId, v, open, back);
+        }
         return open;
+    }
+
+    /**
+     * Tells every case the checks opened and that is still open that the signal came back, whether or not its
+     * organization's trip or symptom still runs: the case keeps the version and state it was opened with.
+     */
+    private void returned(String assetId, LossStore.Vehicle v, Map<String, OpenCase> open, Return back) {
+        Map<String, AssetEpisodes> byTenant = new HashMap<>();
+        for (Map.Entry<String, OpenCase> entry : List.copyOf(open.entrySet())) {
+            int slash = entry.getKey().indexOf('/');
+            String tenant = entry.getKey().substring(0, slash);
+            UUID definitionId = UUID.fromString(entry.getKey().substring(slash + 1));
+            Episode e = byTenant.computeIfAbsent(tenant, t -> episodes.load(t, assetId))
+                    .find(tenant, assetId, definitionId).orElse(null);
+            if (e == null || !e.open()) {
+                open.remove(entry.getKey());
+                continue;
+            }
+            Map<String, Object> trip = v.watch().trips().getOrDefault(tenant, Map.of());
+            returned(tenant, assetId, definitionId, entry.getValue(), e, place(trip, v.profile().last()), back);
+        }
     }
 
     /** The check as the organization's rules read it, under {@code check}. */
@@ -117,7 +142,7 @@ public class TripChecks {
     }
 
     private void evaluate(String tenant, String assetId, Instant now, Map<String, Object> check,
-            Map<String, Object> trip, VehicleProfile.Last last, Map<String, Long> open, Return back) {
+            Map<String, Object> trip, VehicleProfile.Last last, Map<String, OpenCase> open) {
         List<CompiledSymptom> symptoms = symptoms(tenant, now);
         if (symptoms.isEmpty()) {
             return;
@@ -129,7 +154,8 @@ public class TripChecks {
         if (!result.transitions().isEmpty()) {
             List<TransitionLog.Recorded> recorded = log.append(tenant, result.transitions(), place);
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
-                    .forEach(r -> open.put(key(tenant, r.transition().definitionId()), r.caseId()));
+                    .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
+                            new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));
             events.transitions(tenant, recorded, place);
         }
         episodes.save(state);
@@ -139,21 +165,19 @@ public class TripChecks {
             meters.counter("miot.symptoms.evaluator.rule_errors").increment(result.errors().size());
         }
         for (CompiledSymptom s : symptoms) {
-            String k = key(tenant, s.definitionId());
             Episode e = state.find(tenant, assetId, s.definitionId()).orElse(null);
             if (e == null || !e.open()) {
-                open.remove(k);
-            } else if (back != null && open.containsKey(k)) {
-                returned(tenant, assetId, s, e, open.get(k), place, back);
+                open.remove(key(tenant, s.definitionId()));
             }
         }
     }
 
-    private void returned(String tenant, String assetId, CompiledSymptom s, Episode e, long caseId,
+    private void returned(String tenant, String assetId, UUID definitionId, OpenCase c, Episode e,
             TransitionLog.Place place, Return back) {
-        events.signalReturned(tenant, caseId, s.definitionId(), s.version(), s.state(), e.level(), assetId, place,
+        long caseId = c.id();
+        events.signalReturned(tenant, caseId, definitionId, c.version(), c.state(), e.level(), assetId, place,
                 back.at(), back.backfill());
-        if (s.state() == SymptomState.ACTIVE) {
+        if (c.state() == SymptomState.ACTIVE) {
             Map<String, Object> details = new LinkedHashMap<>();
             details.put("returnedAt", back.at().toString());
             details.put("backfill", back.backfill());

@@ -132,6 +132,57 @@ class LossTickerTest {
     }
 
     @Test
+    void aCheckDoesNotOverwriteADeadlineAFrameMovedMeanwhile() {
+        frame(0, true);
+        clock.set(T0.plusSeconds(190));
+        LossStore.Vehicle read = store.vehicle("V1");
+        frame(185, true);
+        Instant moved = store.deadline("V1");
+
+        assertFalse(store.checked("V1", read.deadline(), new CheckState(T0, T0.plusSeconds(190), Map.of()),
+                T0.plusSeconds(250)), "the frame moved the deadline");
+        assertEquals(moved, store.deadline("V1"));
+        assertNull(store.vehicle("V1").check());
+        assertFalse(store.checked("V1", read.deadline(), CheckState.NONE, null), "nor drops it");
+        assertEquals(moved, store.deadline("V1"));
+    }
+
+    @Test
+    void aLostVehicleThatLeavesItsTripIsCheckedOnceMoreAndCleared() {
+        frame(0, true);
+        clock.set(T0.plusSeconds(190));
+        detector.tick();
+        assertTrue(store.vehicle("V1").check().lost());
+
+        frame(400, false);
+        assertNull(store.vehicle("V1").watch());
+        assertEquals(T0.plusSeconds(405), store.deadline("V1"), "one more check to clear the loss");
+        detector.tick();
+
+        assertEquals(1, checks("no_trip"));
+        assertNull(store.vehicle("V1").check());
+        assertNull(store.deadline("V1"));
+    }
+
+    @Test
+    void aLongBatchStopsOnceAnotherReplicaTookTheLease() {
+        frame(0, true);
+        LostSignalDetector.TickerSettings settings = new LostSignalDetector.TickerSettings(Duration.ofMinutes(1),
+                Duration.ofDays(1), Duration.ofSeconds(15), 500, new IngestHealth(Duration.ZERO, Duration.ZERO),
+                Duration.ZERO);
+        LossTicker slow = new LossTicker(store, (asset, now) -> {
+            clock.advance(16);
+            assertTrue(store.lease("other", Duration.ofSeconds(15)));
+        }, settings.ingest(), "mine", settings.leaseTtl(), settings.batch(), meters, clock);
+        store.save("V2", store.vehicle("V1").profile(), null, null,
+                Schedule.at(T0, store.vehicle("V1").watch()), null);
+        clock.set(T0.plusSeconds(190));
+
+        assertEquals(1, slow.tick(), "the second vehicle waits for the lease holder");
+        assertEquals(1, meters.counter("miot.symptoms.lost_signal.lease_lost").count());
+    }
+
+    @Test
     void theTickerPausesWhileOurIngestIsBehind() {
         IngestHealth health = new IngestHealth(Duration.ofMinutes(2), Duration.ofMinutes(2));
         Instant now = T0.plusSeconds(600);
@@ -165,8 +216,10 @@ class LossTickerTest {
                 null, Schedule.DROP, null, Duration.ofDays(7))));
         assertEquals(List.of("HSET", "HSETNX", "HSET", "EXPIRE"), commands(RedisLossStore.saveRequests("V1", v, null,
                 null, Schedule.KEEP, new LossStore.Mark(T0, T0, true), Duration.ofDays(7))));
-        assertEquals(List.of("HSET", "HDEL", "EXPIRE", "ZADD"), commands(RedisLossStore.checkedRequests("V1",
-                CheckState.NONE, T0, Duration.ofDays(7))));
+        assertEquals(List.of("HSET", "HDEL", "EXPIRE", "ZADD", "EXPIRE"), commands(RedisLossStore.saveRequests("V1",
+                v, null, null, Schedule.clear(T0), null, Duration.ofDays(7))));
+        assertEquals(List.of("EVAL"), commands(List.of(RedisLossStore.checkedRequest("V1", T0, CheckState.NONE, T0,
+                Duration.ofDays(7)))));
         assertEquals(Optional.of(new Heartbeat("a", T0, Duration.ofMillis(1500))),
                 RedisLossStore.heartbeat("a", T0.toEpochMilli() + ":1500"));
         assertEquals(Optional.empty(), RedisLossStore.heartbeat("a", "garbage"));

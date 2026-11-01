@@ -101,6 +101,22 @@ class TripChecksTest {
     }
 
     @Test
+    void aReturnReachesACaseWhoseSymptomWasSwitchedOffWithTheStateItOpenedWith() {
+        UUID id = template(SymptomState.ACTIVE);
+        frame(0, 5);
+        tickUntil(300);
+        engine.catalog.setState(TENANT, "owner@example.com", id, SymptomState.OFF);
+
+        frame(200, 600);
+        frame(590, 601);
+        tickUntil(610);
+
+        assertEquals(List.of("symptom.case.opened", "symptom.case.signal_returned"), engine.types());
+        assertFalse(engine.fired.get(1).test(), "still the ACTIVE case it was");
+        assertEquals(1, engine.audits.list(TENANT, null, null, -1L, null, null, 10).size());
+    }
+
+    @Test
     void aReturnWithoutBackfillWaitsTheGraceForLateFrames() {
         template(SymptomState.TEST);
         frame(0, 5);

@@ -1,0 +1,208 @@
+import { Callout } from 'nextra/components'
+
+# Cómo se elige la fuente
+
+**Para:** desarrolladores e implementadores.
+
+<Callout type="info">
+**Aprenderá:**
+
+- en qué orden se prueban las seis fuentes y cuál responde;
+- qué necesita cada fuente para dar un punto;
+- por qué una dirección se resolvió gratis o costó una consulta;
+- cómo leer `resolutionSource`.
+</Callout>
+
+## La idea
+
+Un sitio puede traer varios datos a la vez: un código, un Plus Code, coordenadas y una dirección. La plataforma no los combina. Prueba las fuentes en un orden fijo y usa la primera que da un punto. Después comprueba ese punto contra la comuna o distrito declarado.
+
+| Orden | Fuente | Necesita | `resolutionSource` |
+| --- | --- | --- | --- |
+| 1 | Geocerca del cliente | Una geocerca con el código o el nombre del lugar | `geofence` |
+| 2 | Plus Code | `plusCode`. Uno corto necesita además la comuna | `plus_code` |
+| 3 | Coordenadas | `latitude` y `longitude` | `coordinates` |
+| 4 | Direcciones internas | `address`, una comuna con límite, un país con fuente interna | `internal` |
+| 5 | Caché | `address` y una comuna con límite | `provider` |
+| 6 | Proveedor | Lo mismo, y cuota disponible | `provider` |
+
+Las fuentes 1 a 3 dan un punto sin buscar la dirección. Si alguna responde, la dirección no se usa. Por eso un sitio con coordenadas y dirección se ubica por las coordenadas, aunque la dirección sea otra.
+
+La caché y el proveedor comparten el valor `provider`: la caché guarda resultados del proveedor. El registro de uso distingue un caso del otro (ver [Uso, costo y monitoreo](/es/products/geocoding/concepts/usage-and-cost)).
+
+Antes de probar las fuentes, la plataforma busca la comuna declarada. Si el país falta o no tiene límites administrativos, el lugar queda en revisión aunque una fuente dé un punto. La regla completa está en [Del punto a la geocerca](/es/products/geocoding/tutorials/point-to-geofence).
+
+## 1. Geocerca del cliente
+
+La plataforma busca, entre las geocercas GPS de su organización, una cuyo código sea el código del lugar (`externalCode`) o cuyo nombre sea el nombre del lugar (sin distinguir mayúsculas). El código gana sobre el nombre. Si dos geocercas tienen el mismo nombre y ninguna tiene el código, la fuente no responde.
+
+El punto es el centro de la geocerca.
+
+```json
+{ "externalCode": "ANF", "country": "CL", "district": "Antofagasta" }
+```
+
+```json
+{ "externalCode": "ANF", "geofenceId": 1204, "plusCode": "578F6MGR+4J",
+  "resolutionSource": "geofence", "resolutionStatus": "resolved" }
+```
+
+Las geocercas de otras organizaciones nunca se usan.
+
+## 2. Plus Code
+
+Un [Plus Code](https://maps.google.com/pluscodes/) (Open Location Code) describe un área pequeña. El punto es el centro de esa área.
+
+| Forma | Ejemplo | Necesita |
+| --- | --- | --- |
+| Completo | `57V4VXHC+H4` | Nada más |
+| Corto | `VXHC+H4` | La comuna o distrito, por `districtCode` o por `district` |
+
+Un código corto se completa con el centro de la comuna declarada. La plataforma lee solo la primera palabra de `plusCode`. En `VXHC+H4 Miraflores`, el texto `Miraflores` no se usa: la comuna sale de `districtCode` o `district`.
+
+```json
+{ "externalCode": "DOC-GEO-PC-SHORT", "country": "PE", "districtCode": "150122", "plusCode": "VXHC+H4" }
+```
+
+```json
+{ "plusCode": "57V4VXHC+H4", "district": "MIRAFLORES", "latitude": -12.1210625, "longitude": -77.0296875,
+  "resolutionSource": "plus_code", "resolutionStatus": "resolved" }
+```
+
+<Callout type="warning">
+**Cuidado:** en Perú hay dos distritos llamados Miraflores (Lima y Arequipa). Con `"district": "Miraflores"` y sin `districtCode`, la comuna no se puede elegir y el lugar queda en revisión con la nota `a short plus code needs a district with a boundary`. Envíe el código: `"districtCode": "150122"`.
+</Callout>
+
+Un Plus Code inválido no detiene la búsqueda: la plataforma pasa a las coordenadas y después a la dirección. Si ninguna fuente posterior responde, la nota es `plus code … is not valid`.
+
+## 3. Coordenadas
+
+`latitude` y `longitude` van juntas, en grados decimales (WGS 84). Estos casos no dan punto; si el sitio trae dirección, la búsqueda sigue con ella:
+
+| Caso | Nota |
+| --- | --- |
+| Solo una de las dos | `latitude and longitude go together` |
+| Fuera de rango, o exactamente `0, 0` | `coordinates out of range` |
+
+```json
+{ "externalCode": "DOC-GEO-COORD", "country": "CL", "districtCode": "13101",
+  "latitude": -33.4378, "longitude": -70.6505 }
+```
+
+```json
+{ "plusCode": "47RFH86X+VR", "district": "Santiago",
+  "resolutionSource": "coordinates", "resolutionStatus": "resolved" }
+```
+
+## 4. Direcciones internas
+
+Las direcciones internas son una tabla de direcciones con su punto, cargada en la base GPS. Hoy existe una para Chile, con datos de OpenAddresses. Consultarla no cuesta.
+
+La plataforma separa la dirección en calle y número:
+
+| Regla | Ejemplo |
+| --- | --- |
+| Usa el texto antes de la primera coma | `Camino Lo Boza 120, Pudahuel` → `Camino Lo Boza 120` |
+| Quita desde `Of`, `Ofic`, `Oficina`, `Depto`, `Dpto`, `Dep`, `Local`, `Bodega`, `Piso` o `Lote` hasta el final | `Av. Apoquindo 3000 Of 501` → `Av. Apoquindo 3000` |
+| Quita `#`, `N°`, `Nro.` antes del número | `Calle Uno N° 45` → `Calle Uno 45` |
+| El último número de 1 a 5 cifras es el número de casa | `Ruta 5 Sur 1234` → calle `Ruta 5 Sur`, número `1234` |
+
+Prueba tres formas de la calle: como está escrita, sin tildes ni signos, y sin el tipo de vía (`Av`, `Avda`, `Avenida`, `Calle`, `Pasaje`, `Pje`, `Psje`). Una de ellas, y el número, deben coincidir con la tabla en la comuna declarada.
+
+| Dirección enviada (comuna San Bernardo) | Resultado |
+| --- | --- |
+| `Presidente Jorge Alessandri Rodríguez 10700` | `internal`: el nombre coincide con la tabla |
+| `Av. Jorge Alessandri Rodriguez 10700` | Sin coincidencia: el nombre oficial lleva `Presidente`. Pasa a la caché y al proveedor |
+
+```json
+{ "externalCode": "DOC-GEO-INTERNA", "type": "plant", "country": "CL", "district": "San Bernardo",
+  "address": "Presidente Jorge Alessandri Rodríguez 10700" }
+```
+
+```json
+{ "districtCode": "13401", "plusCode": "47RFC8X2+GC",
+  "resolutionSource": "internal", "resolutionStatus": "resolved" }
+```
+
+## 5. Caché
+
+Cuando el proveedor da un punto que cae en la comuna declarada, la plataforma lo guarda en una caché compartida por todas las organizaciones. La caché guarda la dirección normalizada, el país, el punto y el nombre del proveedor. No guarda la organización, el nombre del lugar ni la respuesta del proveedor.
+
+La clave es el código de la comuna más la dirección sin tildes ni signos, con el nombre de la comuna al final si la dirección no lo trae. Estas dos direcciones tienen la misma clave en Pudahuel (13124):
+
+| Dirección | Clave |
+| --- | --- |
+| `Camino Lo Boza 120, Pudahuel` | `13124\|CAMINO LO BOZA 120 PUDAHUEL` |
+| `camino lo boza 120` | `13124\|CAMINO LO BOZA 120 PUDAHUEL` |
+
+Un acierto en la caché no consume cuota. La respuesta dice `provider`, porque el punto vino del proveedor en otra consulta.
+
+| Resultado del proveedor | Qué pasa |
+| --- | --- |
+| Mapbox con modo permanente, dentro de la comuna | Se usa y se guarda en la caché |
+| Mapbox con modo permanente, fuera de la comuna | No se guarda. El lugar queda en revisión |
+| Mapbox sin modo permanente | No se usa. El lugar queda en revisión |
+| Google | No se usa. El lugar queda en revisión |
+
+En los dos últimos casos la nota es `geocoding results cannot be stored with this provider configuration`, y la consulta se cobra. Los términos de Google y de Mapbox sin modo permanente no permiten guardar el punto, y la plataforma guarda el punto de cada ubicación.
+
+<Callout type="warning">
+**Cuidado:** con Google como proveedor, ninguna dirección se resuelve por el proveedor. Use Mapbox con modo permanente.
+</Callout>
+
+## 6. Proveedor
+
+Si nada de lo anterior respondió, la plataforma consulta al proveedor de la plataforma (Mapbox o Google). Antes revisa dos cosas:
+
+| Revisión | Si falla |
+| --- | --- |
+| Con **Aplicar las cuotas** activo: la organización tiene suscripción y le queda cuota, o su plan dice **Cobrar excedente** | No consulta. Nota `geocoding: the organization has no geocoding plan` o `geocoding: the organization used its N geocoding resolutions for this month` |
+| La organización tiene la conexión **Geocoding · ModularIoT** en Conexiones | No consulta. Nota `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones` |
+
+Con **Aplicar las cuotas** inactivo, la cuota no se revisa. Cómo se configuran las dos cosas en [Configurar el proveedor](/es/products/geocoding/how-to/set-up-provider).
+
+La consulta lleva la dirección, la comuna y el país:
+
+| Dato enviado al proveedor | Ejemplo |
+| --- | --- |
+| Texto | `Av. Libertador Bernardo O'Higgins 1058, Santiago` |
+| País (filtro) | `cl` |
+
+De los resultados, la plataforma acepta solo los de nivel dirección: con Mapbox, `feature_type` igual a `address`; con Google, `street_address`, `premise` o `subpremise`. Una calle, un barrio, un comercio o una ciudad no sirven. Entre los aceptados, elige el primero que cae en la comuna. Si ninguno cae, usa el primero, y la comprobación de la comuna lo manda a revisión.
+
+```json
+{ "externalCode": "DOC-GEO-PROVEEDOR", "country": "CL", "districtCode": "13101",
+  "address": "Av. Libertador Bernardo O'Higgins 1058" }
+```
+
+```json
+{ "plusCode": "47RFH84X+6J", "latitude": -33.444441, "longitude": -70.650967,
+  "resolutionSource": "provider", "resolutionStatus": "resolved" }
+```
+
+Una dirección que el proveedor no conoce puede volver en otra comuna:
+
+```json
+{ "externalCode": "DOC-GEO-SIN-NUMERO", "country": "CL", "districtCode": "13101",
+  "address": "Calle Inexistente Doc 123" }
+```
+
+```json
+{ "resolutionSource": "provider", "resolutionStatus": "needs_review",
+  "resolutionNote": "the point is in Quilicura (13125), not in Santiago (13101)" }
+```
+
+Esa consulta se cobra igual: el proveedor respondió.
+
+## Resumen
+
+| Si el sitio trae | Responde | Costo |
+| --- | --- | --- |
+| El código de una geocerca existente | `geofence` | Gratis |
+| Un Plus Code completo, o corto con la comuna | `plus_code` | Gratis |
+| Coordenadas | `coordinates` | Gratis |
+| Una dirección de Chile escrita como en la tabla | `internal` | Gratis |
+| Una dirección que el proveedor ya ubicó en esa comuna | `provider` (caché) | Gratis |
+| Una dirección nueva | `provider` | Una consulta |
+
+Siguiente: [Del punto a la geocerca](/es/products/geocoding/tutorials/point-to-geofence).

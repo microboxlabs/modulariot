@@ -1,0 +1,72 @@
+# Review reasons
+
+**For:** developers and implementers.
+
+When a site goes to `needs_review`, `resolutionNote` says why. The notes are in English and are cut at 255 characters. In these tables, `X`, `CC` and `N` are values of the case.
+
+If a site carries no point at all, the note is the one for the missing source, even if the country is also missing. If a source gives a point, the note is the one from the district check.
+
+## The declared district
+
+| Note | Cause | What to do |
+| --- | --- | --- |
+| `country is required to check the district` | No `country`, or it is not a valid ISO code | Send `country` |
+| `country CC has no district boundaries` | The country has no boundaries loaded (today only `CL` and `PE`) | See [Certify a new country](/en/products/geocoding/how-to/certify-a-country) |
+| `district is required` | No `districtCode` or `district` | Send one of the two |
+| `district code X not found in CC` | The code does not exist in that country | Check the code |
+| `district X not found in CC` | The name does not exist in that country | Check the name or send the code |
+| `district X is ambiguous in CC; send its code` | The name repeats in the country | Send `districtCode` |
+| `district code is too long` / `district name is too long` | More than 16 / 255 characters | |
+| `district X has no boundary to check against` | The district has no polygon in the data | Placing it by hand does not work: the check also fails. Reject it or send another district |
+
+## The point sources
+
+| Note | Cause |
+| --- | --- |
+| `no geofence, plus code or coordinates` | No point source and no usable address |
+| `an address needs a district with a boundary to be geocoded` | There is an address, but the district was not found or has no polygon |
+| `plus code X is not valid` | Invalid Plus Code and no later source responded |
+| `a short plus code needs a district with a boundary` | Short Plus Code with no district found. It also appears when the district name is ambiguous |
+| `latitude and longitude go together` | Only one of the two |
+| `coordinates out of range` | Out of range, not finite, or `0, 0` |
+
+## The point check
+
+| Note | Cause |
+| --- | --- |
+| `the point is in X (code), not in Y (code)` | The point falls more than 500 m from the declared district |
+| `the point is outside CC, not in Y (code)` | The point falls outside the country |
+| `could not check geofences for the point` | The search for the geofence that contains the point failed |
+| `the GPS database is not configured` | The geofence could not be created |
+
+## The provider
+
+Notes that start with `geocoding:` mean that the provider was not called, or that the call failed.
+
+| Note | Cause | Who fixes it |
+| --- | --- | --- |
+| `geocoding: the organization has no geocoding plan` | The quotas apply and the organization has no subscription | Platform owner: Platform › Geocoding › Organizations |
+| `geocoding: the organization used its N geocoding resolutions for this month` | Quota used up with **Send to review** | Platform owner, or wait for the next month (UTC) |
+| `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones` | The organization does not have the geocoding connection | Platform owner: the organization's Connections |
+| `geocoding: this organization's geocoding connection is not managed by the platform` | The organization has its own geocoding connection | Platform owner: replace it with the managed one |
+| `geocoding: this organization's geocoding connection cannot be read` | Error reading the connection | Support |
+| `geocoding: the platform has no geocoding provider` | The platform has no provider | Platform owner: Connections, Platform scope |
+| `geocoding: unknown geocoding provider X` | `provider` is not `mapbox` or `google` | Platform owner |
+| `geocoding: the geocoding connection's credential has no token` | The credential has no token | Platform owner: Credentials |
+| `geocoding: the geocoding connection's costPerRequestUsd is not a number` | Cost written wrong in the connection | Platform owner |
+| `geocoding: the geocoding connection must use https://api.mapbox.com` | The connection URL is not the provider's | Platform owner |
+| `geocoding: Mapbox answered HTTP 401` (or another code) | The provider rejected the call | Platform owner: check the token |
+| `geocoding: Google answered REQUEST_DENIED` (or another status), `geocoding: Google answered HTTP 403` | Google rejected the call | Platform owner |
+| `geocoding: The geocoding provider did not answer: …` | Timeout or network error | Retry later |
+| `geocoding: interrupted` | The call was interrupted | Retry |
+| `geocoding: no organization to geocode for` | Internal call without an organization | Support |
+| `geocoding results cannot be stored with this provider configuration` | Google, or Mapbox without permanent mode | Platform owner: use Mapbox with permanent mode |
+| `mapbox found nothing, not an address` | The provider returned no results | Place it by hand |
+| `mapbox found only street, not an address` | The best result is a street (or `place`, `postcode`, …) | Place it by hand, or correct the address and send a point |
+| `mapbox found only a coarser place, not an address` | The result has no type | Place it by hand |
+
+With Google, the note starts with `google` instead of `mapbox`. Every call the provider answered is charged, even if the place needs review.
+
+## Rejection
+
+A location in `rejected` has in `resolutionNote` the note written by the person who rejected it.

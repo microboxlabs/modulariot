@@ -165,6 +165,8 @@ Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerA
 | `CONTROL_TOWER_OPERATOR` | view, case.treat, contact.write |
 | `CONTROL_TOWER_MAINTAINER` | all of the above plus contact.delete, symptom.edit, symptom.publish, settings.update |
 
+`controltower:places.edit` (the app's places editor) is disabled for now: it is not declared, so no one holds it, Owners and Admins included, and the app hides the editor. `ControlTowerAccessCatalog.PLACES_EDIT` lists the steps to turn it back on.
+
 With Alfresco membership, a member who holds no control tower role is an Operator, as before the roles existed. The organization's own M2M client is one too.
 
 `GET /access` returns the caller's `baseRole`, `roles` and `controltower:*` permissions; the app shows only the actions they allow. Memberships, base roles and role assignment are described in the core organization access API (`/api/v1/orgs/{org}/me/access`, `/api/v1/access/catalog`, `/api/v1/orgs/{org}/roles/{roleCode}`, `/api/v1/platform/orgs`).

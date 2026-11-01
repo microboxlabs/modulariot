@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Process-local lost-signal state, for tests and for one replica without Redis. */
@@ -36,7 +37,7 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
+    public synchronized void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
             Schedule schedule, Mark mark) {
         if (mark != null) {
             marks.merge(assetId, mark, (old, m) -> !old.lostSince().equals(m.lostSince()) ? m
@@ -56,6 +57,10 @@ public class InMemoryLossStore implements LossStore {
                 watches.put(assetId, schedule.watch());
                 deadlines.put(assetId, schedule.at());
             }
+            case CLEAR -> {
+                watches.remove(assetId);
+                deadlines.put(assetId, schedule.at());
+            }
             case KEEP -> {
             }
         }
@@ -68,17 +73,24 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public Vehicle vehicle(String assetId) {
+    public synchronized Vehicle vehicle(String assetId) {
         CheckState c = checks.get(assetId);
         Mark m = marks.get(assetId);
         boolean current = c != null && c.lost() && m != null && m.lostSince().equals(c.lostSince());
         return new Vehicle(vehicles.get(assetId), watches.get(assetId), c, current ? m.returnedAt() : null,
-                current && m.backfill());
+                current && m.backfill(), deadlines.get(assetId));
     }
 
     @Override
-    public void checked(String assetId, CheckState check, Instant next) {
-        checks.put(assetId, check);
+    public synchronized boolean checked(String assetId, Instant seen, CheckState check, Instant next) {
+        if (!Objects.equals(seen, deadlines.get(assetId))) {
+            return false;
+        }
+        if (CheckState.NONE.equals(check)) {
+            checks.remove(assetId);
+        } else {
+            checks.put(assetId, check);
+        }
         if (!check.lost()) {
             marks.remove(assetId);
         }
@@ -87,6 +99,7 @@ public class InMemoryLossStore implements LossStore {
         } else {
             deadlines.computeIfPresent(assetId, (k, old) -> next);
         }
+        return true;
     }
 
     /** The deadline of the vehicle, or null when it has none. */

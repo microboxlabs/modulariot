@@ -57,7 +57,16 @@ public class LossTicker {
         }
         List<String> due = store.due(now, batch);
         int checked = 0;
+        Instant renewed = clock.instant();
         for (String assetId : due) {
+            // A long batch renews the lease and stops once another replica took it.
+            if (Duration.between(renewed, clock.instant()).compareTo(leaseTtl.dividedBy(3)) > 0) {
+                if (!store.lease(owner, leaseTtl)) {
+                    meters.counter("miot.symptoms.lost_signal.lease_lost").increment();
+                    break;
+                }
+                renewed = clock.instant();
+            }
             try {
                 checks.check(assetId, now);
                 checked++;

@@ -25,10 +25,10 @@ class ArrivalProfilesTest {
 
     @Test
     void aLateFrameNeverMovesTheNewestFrameBack() {
-        profiles.record(frame("V1", "S1", 0, 1, 50, true));
-        profiles.record(frame("V1", "S1", 60, 61, 50, true));
-        Arrival late = profiles.record(frame("V1", "S1", 30, 300, 50, true));
-        Arrival replay = profiles.record(frame("V1", "S1", 60, 301, 50, true));
+        profiles.observe(frame("V1", "S1", 0, 1, 50, true));
+        profiles.observe(frame("V1", "S1", 60, 61, 50, true));
+        Arrival late = profiles.observe(frame("V1", "S1", 30, 300, 50, true));
+        Arrival replay = profiles.observe(frame("V1", "S1", 60, 301, 50, true));
 
         assertTrue(late.late());
         assertFalse(late.replay());
@@ -41,10 +41,10 @@ class ArrivalProfilesTest {
 
     @Test
     void gapsAreKeptByTheMotionOfTheFrameBeforeThem() {
-        profiles.record(frame("V1", "S1", 0, 1, 50, true));
-        profiles.record(frame("V1", "S1", 30, 31, 0, true));
-        profiles.record(frame("V1", "S1", 330, 331, 0, false));
-        Arrival a = profiles.record(frame("V1", "S1", 2130, 2131, 0, false));
+        profiles.observe(frame("V1", "S1", 0, 1, 50, true));
+        profiles.observe(frame("V1", "S1", 30, 31, 0, true));
+        profiles.observe(frame("V1", "S1", 330, 331, 0, false));
+        Arrival a = profiles.observe(frame("V1", "S1", 2130, 2131, 0, false));
 
         assertEquals(30, a.vehicle().gaps().get(Motion.MOVING).ewma());
         assertEquals(300, a.vehicle().gaps().get(Motion.STOPPED).ewma());
@@ -57,7 +57,7 @@ class ArrivalProfilesTest {
     void theExpectedSilenceIsTheVehiclesGapPlusTheSendersDelay() {
         Arrival a = null;
         for (int i = 0; i <= 40; i++) {
-            a = profiles.record(frame("V1", "S1", i * 30, i * 30 + 5, 80, true));
+            a = profiles.observe(frame("V1", "S1", i * 30, i * 30 + 5, 80, true));
         }
         // p95 of 30 s gaps is the 30 s bucket, times 1.5 is 45 s, under the 60 s floor; 5 s delays fall in their bucket.
         assertEquals(Duration.ofSeconds(60).plusSeconds(5), a.expected());
@@ -67,16 +67,16 @@ class ArrivalProfilesTest {
     void aSlowReporterExpectsItsOwnGap() {
         Arrival a = null;
         for (int i = 0; i <= 25; i++) {
-            a = profiles.record(frame("V2", "S1", i * 600, i * 600 + 2, 80, true));
+            a = profiles.observe(frame("V2", "S1", i * 600, i * 600 + 2, 80, true));
         }
         assertEquals(Duration.ofSeconds(900 + 2), a.expected());
     }
 
     @Test
     void aNewVehicleUsesTheMotionsDefaultUntilItHasEnoughGaps() {
-        Arrival moving = profiles.record(frame("V3", null, 0, 0, 80, true));
+        Arrival moving = profiles.observe(frame("V3", null, 0, 0, 80, true));
         assertEquals(Duration.ofMinutes(2).plus(SETTINGS.defaultDelay()), moving.expected());
-        Arrival off = profiles.record(frame("V3", null, 30, 30, 0, false));
+        Arrival off = profiles.observe(frame("V3", null, 30, 30, 0, false));
         assertEquals(Duration.ofHours(1).plus(SETTINGS.defaultDelay()), off.expected());
     }
 
@@ -84,11 +84,11 @@ class ArrivalProfilesTest {
     void aBatchForwardingSenderGetsItsOwnDelayUpToTheCap() {
         Arrival a = null;
         for (int i = 0; i <= 30; i++) {
-            a = profiles.record(frame("V4", "BATCH", i * 30, i * 30 + 1500, 80, true));
+            a = profiles.observe(frame("V4", "BATCH", i * 30, i * 30 + 1500, 80, true));
         }
         assertEquals(Duration.ofSeconds(1800), a.sender().deliveryDelay(SETTINGS));
         for (int i = 0; i <= 30; i++) {
-            a = profiles.record(frame("V5", "SLOW", i * 30, i * 30 + 20000, 80, true));
+            a = profiles.observe(frame("V5", "SLOW", i * 30, i * 30 + 20000, 80, true));
         }
         assertEquals(SETTINGS.maxDelay(), a.sender().deliveryDelay(SETTINGS));
     }
@@ -129,9 +129,9 @@ class ArrivalProfilesTest {
 
     @Test
     void aFrameFromTheFutureIsReadAtItsArrival() {
-        profiles.record(frame("V1", "S1", 0, 1, 50, true));
-        Arrival future = profiles.record(frame("V1", "S1", 86_400, 61, 50, true));
-        Arrival next = profiles.record(frame("V1", "S1", 90, 91, 50, true));
+        profiles.observe(frame("V1", "S1", 0, 1, 50, true));
+        Arrival future = profiles.observe(frame("V1", "S1", 86_400, 61, 50, true));
+        Arrival next = profiles.observe(frame("V1", "S1", 90, 91, 50, true));
 
         assertEquals(T0.plusSeconds(61), future.vehicle().at());
         assertFalse(next.late(), "normal frames are not stuck behind it");
@@ -140,8 +140,8 @@ class ArrivalProfilesTest {
 
     @Test
     void aReplayStillCountsForTheSender() {
-        profiles.record(frame("V1", "S1", 0, 1, 50, true));
-        Arrival other = profiles.record(frame("V1", "S2", 0, 40, 50, true));
+        profiles.observe(frame("V1", "S1", 0, 1, 50, true));
+        Arrival other = profiles.observe(frame("V1", "S2", 0, 40, 50, true));
 
         assertTrue(other.replay());
         assertEquals(1, other.sender().delay().count(), "the second sender's delay is sampled");
@@ -157,6 +157,7 @@ class ArrivalProfilesTest {
 
             @Override
             public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile) {
+                // never reached: load fails first
             }
         };
         io.micrometer.core.instrument.simple.SimpleMeterRegistry meters =
@@ -173,18 +174,18 @@ class ArrivalProfilesTest {
 
     @Test
     void aVehicleBackAfterTheProfileTtlStartsOver() {
-        profiles.record(frame("V1", "S1", 0, 1, 50, true));
-        profiles.record(frame("V1", "S1", 30, 31, 50, true));
+        profiles.observe(frame("V1", "S1", 0, 1, 50, true));
+        profiles.observe(frame("V1", "S1", 30, 31, 50, true));
         int later = (int) SETTINGS.profileTtl().toSeconds() + 3600;
-        Arrival back = profiles.record(frame("V1", "S1", later, later + 1, 50, true));
+        Arrival back = profiles.observe(frame("V1", "S1", later, later + 1, 50, true));
 
         assertTrue(back.vehicle().gaps().isEmpty(), "no gap across the absence");
     }
 
     @Test
     void profilesRoundTripThroughRedisJsonWithOneTtlPerKey() {
-        profiles.record(frame("V1", "S1", 0, 1, 50, true));
-        Arrival a = profiles.record(frame("V1", "S1", 60, 70, 0, null));
+        profiles.observe(frame("V1", "S1", 0, 1, 50, true));
+        Arrival a = profiles.observe(frame("V1", "S1", 60, 70, 0, null));
 
         String json = RedisLossStore.write(a.vehicle());
         assertEquals(a.vehicle(), RedisLossStore.JSON.convertValue(

@@ -78,7 +78,7 @@ public class LostSignalDetector {
             return;
         }
         try {
-            profiles.record(Frame.of(signal, assetId, at, arrivedAt));
+            profiles.observe(Frame.of(signal, assetId, at, arrivedAt));
         } catch (RuntimeException e) {
             skipUntil = System.currentTimeMillis() + BACKOFF_MS;
             meters.counter("miot.symptoms.lost_signal.failed").increment();

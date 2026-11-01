@@ -5,6 +5,7 @@ import type {
   EventTypeInfo,
   MetaTemplate,
   TemplateBody,
+  WhatsAppVariant,
 } from "./conversations-types";
 import { findMetaTemplate } from "./meta-template-combobox";
 import { eventVariables, textVariables } from "./rule-model";
@@ -123,7 +124,7 @@ export function sendParams(
     body.whatsapp.metaName,
     body.whatsapp.language
   );
-  if (meta && meta.language === body.whatsapp.language) return meta.params;
+  if (meta?.language === body.whatsapp.language) return meta.params;
   return textVariables(body.baseText);
 }
 
@@ -233,6 +234,29 @@ export function templateFindings({
   /** Undefined when the WhatsApp account could not be read. */
   metaTemplates: MetaTemplate[] | undefined;
 }): TemplateFinding[] {
+  return [
+    ...generalFindings(body, keyTaken),
+    ...variableFindings(body, variables),
+    ...(body.whatsapp
+      ? whatsappFindings(body.whatsapp, body.baseText, metaTemplates)
+      : []),
+    ...(body.email ? emailFindings(body.email) : []),
+    ...(body.whatsapp || body.email
+      ? []
+      : [
+          {
+            severity: "info",
+            section: "general",
+            key: "tplNoChannel",
+          } satisfies TemplateFinding,
+        ]),
+  ];
+}
+
+function generalFindings(
+  body: TemplateBody,
+  keyTaken: boolean
+): TemplateFinding[] {
   const out: TemplateFinding[] = [];
   if (!body.name.trim())
     out.push({ severity: "error", section: "general", key: "tplNoName" });
@@ -245,93 +269,93 @@ export function templateFindings({
   // WhatsApp sends the short text, and without an email Slack, Teams and webhooks have nothing else.
   if (!body.baseText.trim() && (body.whatsapp || !body.email))
     out.push({ severity: "error", section: "text", key: "tplNoText" });
+  return out;
+}
 
-  if (variables) {
-    const known = new Set(variables);
-    const texts = [
-      body.baseText,
-      body.email?.subject ?? "",
-      body.email?.body ?? "",
-      body.email?.html ?? "",
-    ];
-    const unknown = [...new Set(texts.flatMap((t) => textVariables(t)))].filter(
-      (v) => !known.has(v)
-    );
-    if (unknown.length > 0)
-      out.push({
-        severity: "warning",
-        section: "text",
-        key: "tplUnknownVariables",
-        values: { names: unknown.join(", ") },
-      });
-  }
+function variableFindings(
+  body: TemplateBody,
+  variables: string[] | null
+): TemplateFinding[] {
+  if (!variables) return [];
+  const known = new Set(variables);
+  const texts = [
+    body.baseText,
+    body.email?.subject ?? "",
+    body.email?.body ?? "",
+    body.email?.html ?? "",
+  ];
+  const unknown = [...new Set(texts.flatMap((t) => textVariables(t)))].filter(
+    (v) => !known.has(v)
+  );
+  if (unknown.length === 0) return [];
+  return [
+    {
+      severity: "warning",
+      section: "text",
+      key: "tplUnknownVariables",
+      values: { names: unknown.join(", ") },
+    },
+  ];
+}
 
-  if (body.whatsapp) {
-    const w = body.whatsapp;
-    const meta = findMetaTemplate(metaTemplates, w.metaName, w.language);
-    const onWaba = meta && meta.language === w.language;
-    if (!w.metaName.trim())
-      out.push({
-        severity: "error",
-        section: "whatsapp",
-        key: "tplNoMetaName",
-      });
-    else if (metaTemplates && !onWaba)
-      out.push({
-        severity: "warning",
-        section: "whatsapp",
-        key: "tplNotOnMeta",
-      });
-    else if (meta && onWaba) {
-      if (meta.status === "REJECTED")
-        out.push({
-          severity: "error",
-          section: "whatsapp",
-          key: "tplMetaRejected",
-          values: { reason: meta.rejectedReason ?? "—" },
-        });
-      else if (meta.status === "PENDING")
-        out.push({
-          severity: "info",
-          section: "whatsapp",
-          key: "tplMetaPending",
-        });
-      else if (meta.status !== "APPROVED")
-        out.push({
-          severity: "warning",
-          section: "whatsapp",
-          key: "metaNotApproved",
-        });
-      if (meta.status !== "PENDING" && meta.body !== body.baseText.trim())
-        out.push({
-          severity: "warning",
-          section: "whatsapp",
-          key: "tplMetaTextDiffers",
-        });
-      const headerParams = textVariables(meta.header ?? "");
-      if (headerParams.length > 0)
-        out.push({
-          severity: "error",
-          section: "whatsapp",
-          key: "metaHeaderParams",
-          values: { params: headerParams.join(", ") },
-        });
-      if (meta.parameterFormat === "POSITIONAL" && meta.params.length > 0)
-        out.push({
-          severity: "error",
-          section: "whatsapp",
-          key: "metaPositional",
-        });
-    }
-  }
+function whatsappFindings(
+  w: WhatsAppVariant,
+  baseText: string,
+  metaTemplates: MetaTemplate[] | undefined
+): TemplateFinding[] {
+  if (!w.metaName.trim())
+    return [{ severity: "error", section: "whatsapp", key: "tplNoMetaName" }];
+  const meta = findMetaTemplate(metaTemplates, w.metaName, w.language);
+  if (meta?.language === w.language) return metaFindings(meta, baseText);
+  if (metaTemplates)
+    return [{ severity: "warning", section: "whatsapp", key: "tplNotOnMeta" }];
+  return [];
+}
 
-  if (body.email) {
-    if (!body.email.subject.trim())
-      out.push({ severity: "error", section: "email", key: "tplNoSubject" });
-    if (!body.email.html?.trim() && !body.email.body?.trim())
-      out.push({ severity: "error", section: "email", key: "tplNoEmailBody" });
-  }
-  if (!body.whatsapp && !body.email)
-    out.push({ severity: "info", section: "general", key: "tplNoChannel" });
+function metaStatusFinding(meta: MetaTemplate): TemplateFinding | null {
+  if (meta.status === "REJECTED")
+    return {
+      severity: "error",
+      section: "whatsapp",
+      key: "tplMetaRejected",
+      values: { reason: meta.rejectedReason ?? "—" },
+    };
+  if (meta.status === "PENDING")
+    return { severity: "info", section: "whatsapp", key: "tplMetaPending" };
+  if (meta.status !== "APPROVED")
+    return { severity: "warning", section: "whatsapp", key: "metaNotApproved" };
+  return null;
+}
+
+/** What Meta's copy of the template says about sending this one. */
+function metaFindings(meta: MetaTemplate, baseText: string): TemplateFinding[] {
+  const out: TemplateFinding[] = [];
+  const status = metaStatusFinding(meta);
+  if (status) out.push(status);
+  if (meta.status !== "PENDING" && meta.body !== baseText.trim())
+    out.push({
+      severity: "warning",
+      section: "whatsapp",
+      key: "tplMetaTextDiffers",
+    });
+  const headerParams = textVariables(meta.header ?? "");
+  if (headerParams.length > 0)
+    out.push({
+      severity: "error",
+      section: "whatsapp",
+      key: "metaHeaderParams",
+      values: { params: headerParams.join(", ") },
+    });
+  if (meta.parameterFormat === "POSITIONAL" && meta.params.length > 0)
+    out.push({ severity: "error", section: "whatsapp", key: "metaPositional" });
+  return out;
+}
+
+function emailFindings(email: EmailVariant): TemplateFinding[] {
+  const out: TemplateFinding[] = [];
+  if (!email.subject.trim())
+    out.push({ severity: "error", section: "email", key: "tplNoSubject" });
+  if (!email.html?.trim() && !email.body?.trim())
+    out.push({ severity: "error", section: "email", key: "tplNoEmailBody" });
   return out;
 }

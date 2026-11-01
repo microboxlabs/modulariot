@@ -88,11 +88,11 @@ export function WhatsAppPhone({
             {values.hora ?? "14:05"}
           </p>
         </div>
-        {(meta?.buttons ?? []).map((b, i) => {
+        {(meta?.buttons ?? []).map((b) => {
           const Icon = BUTTON_ICON[b.type];
           return (
             <div
-              key={i}
+              key={`${b.type}:${b.text}:${b.url ?? b.phoneNumber ?? ""}`}
               className="flex max-w-[90%] items-center justify-center gap-1.5 self-start rounded-lg bg-white px-3 py-1.5 text-[14px] text-[#027eb5] shadow-sm dark:bg-[#202c33] dark:text-[#53bdeb]"
               style={{ minWidth: "60%" }}
             >

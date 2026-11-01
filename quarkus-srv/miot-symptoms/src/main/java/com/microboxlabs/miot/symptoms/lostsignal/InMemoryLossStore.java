@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Process-local lost-signal state, for tests and for one replica without Redis. */
@@ -35,7 +36,7 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
+    public synchronized void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
             Schedule schedule) {
         vehicles.put(assetId, vehicle);
         if (sender != null) {
@@ -50,6 +51,10 @@ public class InMemoryLossStore implements LossStore {
                 watches.put(assetId, schedule.watch());
                 deadlines.put(assetId, schedule.at());
             }
+            case CLEAR -> {
+                watches.remove(assetId);
+                deadlines.put(assetId, schedule.at());
+            }
             case KEEP -> {
             }
         }
@@ -62,12 +67,15 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public Vehicle vehicle(String assetId) {
-        return new Vehicle(vehicles.get(assetId), watches.get(assetId), checks.get(assetId));
+    public synchronized Vehicle vehicle(String assetId) {
+        return new Vehicle(vehicles.get(assetId), watches.get(assetId), checks.get(assetId), deadlines.get(assetId));
     }
 
     @Override
-    public void checked(String assetId, CheckState check, Instant next) {
+    public synchronized boolean checked(String assetId, Instant seen, CheckState check, Instant next) {
+        if (!Objects.equals(seen, deadlines.get(assetId))) {
+            return false;
+        }
         if (CheckState.NONE.equals(check)) {
             checks.remove(assetId);
         } else {
@@ -78,6 +86,7 @@ public class InMemoryLossStore implements LossStore {
         } else {
             deadlines.computeIfPresent(assetId, (k, old) -> next);
         }
+        return true;
     }
 
     /** The deadline of the vehicle, or null when it has none. */

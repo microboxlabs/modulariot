@@ -134,10 +134,12 @@ public class LostSignalDetector {
             return Schedule.KEEP;
         }
         Map<String, Map<String, Object>> trips = activeTrips(signal);
+        boolean lost = check != null && check.lost();
         if (trips.isEmpty()) {
-            return Schedule.DROP;
+            // A lost vehicle off its trips gets one more check, which clears its state.
+            return lost ? Schedule.clear(f.arrivedAt()) : Schedule.DROP;
         }
-        Instant deadline = check != null && check.lost() ? f.arrivedAt()
+        Instant deadline = lost ? f.arrivedAt()
                 : a.vehicle().arrival().plus(a.expected());
         return Schedule.at(deadline, new Watch(trips, a.expected().toSeconds(), f.sender()));
     }

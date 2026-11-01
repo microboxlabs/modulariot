@@ -49,6 +49,25 @@ public class RedisLossStore implements LossStore {
             return 0
             """;
 
+    /**
+     * A check's write, only while the deadline is the one the check read: KEYS vehicle, deadlines; ARGV asset,
+     * seen ms ("" none), check JSON ("" clears), next ms ("" drops), ttl s. XX: no deadline is created.
+     */
+    static final String CHECKED_SCRIPT = """
+            local s = redis.call('ZSCORE', KEYS[2], ARGV[1])
+            if ARGV[2] == '' then
+              if s then return 0 end
+            elseif not s or tonumber(s) ~= tonumber(ARGV[2]) then return 0 end
+            if ARGV[3] == '' then redis.call('HDEL', KEYS[1], 'c')
+            else redis.call('HSET', KEYS[1], 'c', ARGV[3]) redis.call('EXPIRE', KEYS[1], ARGV[5]) end
+            if ARGV[4] == '' then redis.call('ZREM', KEYS[2], ARGV[1])
+            else redis.call('ZADD', KEYS[2], 'XX', ARGV[4], ARGV[1]) end
+            return 1
+            """;
+
+    /** Heartbeats older than this are a replica that is gone and are pruned when read. */
+    static final Duration HEARTBEAT_RETIRED = Duration.ofHours(1);
+
     static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())
             .enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
             .disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)
@@ -101,8 +120,10 @@ public class RedisLossStore implements LossStore {
             hset.arg(WATCH).arg(write(schedule.watch()));
         }
         writes.add(hset);
-        if (schedule.kind() == Schedule.Kind.DROP) {
+        if (schedule.kind() == Schedule.Kind.DROP || schedule.kind() == Schedule.Kind.CLEAR) {
             writes.add(Request.cmd(Command.HDEL).arg(key).arg(WATCH));
+        }
+        if (schedule.kind() == Schedule.Kind.DROP) {
             writes.add(Request.cmd(Command.ZREM).arg(DEADLINES).arg(assetId));
         }
         writes.add(Request.cmd(Command.EXPIRE).arg(key).arg(seconds));
@@ -110,7 +131,7 @@ public class RedisLossStore implements LossStore {
             writes.add(Request.cmd(Command.SET).arg(senderKey(sender)).arg(write(senderProfile)).arg("EX")
                     .arg(seconds));
         }
-        if (schedule.kind() == Schedule.Kind.AT) {
+        if (schedule.kind() == Schedule.Kind.AT || schedule.kind() == Schedule.Kind.CLEAR) {
             writes.add(Request.cmd(Command.ZADD).arg(DEADLINES).arg(schedule.at().toEpochMilli()).arg(assetId));
             writes.add(Request.cmd(Command.EXPIRE).arg(DEADLINES).arg(seconds));
         }
@@ -130,30 +151,26 @@ public class RedisLossStore implements LossStore {
 
     @Override
     public Vehicle vehicle(String assetId) {
-        Response fields = batch(List.of(Request.cmd(Command.HMGET).arg(vehicleKey(assetId)).arg(PROFILE).arg(WATCH)
-                .arg(CHECK))).get(0);
+        List<Response> r = batch(List.of(Request.cmd(Command.HMGET).arg(vehicleKey(assetId)).arg(PROFILE).arg(WATCH)
+                .arg(CHECK), Request.cmd(Command.ZSCORE).arg(DEADLINES).arg(assetId)));
+        Response fields = r.get(0);
+        Response score = r.get(1);
         return new Vehicle(read(fields.get(0), VehicleProfile.class), read(fields.get(1), Watch.class),
-                read(fields.get(2), CheckState.class));
+                read(fields.get(2), CheckState.class),
+                score == null ? null : Instant.ofEpochMilli((long) Double.parseDouble(score.toString())));
     }
 
     @Override
-    public void checked(String assetId, CheckState check, Instant next) {
-        batch(checkedRequests(assetId, check, next, ttl));
+    public boolean checked(String assetId, Instant seen, CheckState check, Instant next) {
+        Response r = batch(List.of(checkedRequest(assetId, seen, check, next, ttl))).get(0);
+        return r != null && r.toInteger() == 1;
     }
 
-    static List<Request> checkedRequests(String assetId, CheckState check, Instant next, Duration ttl) {
-        String key = vehicleKey(assetId);
-        List<Request> writes = new ArrayList<>();
-        if (CheckState.NONE.equals(check)) {
-            writes.add(Request.cmd(Command.HDEL).arg(key).arg(CHECK));
-        } else {
-            writes.add(Request.cmd(Command.HSET).arg(key).arg(CHECK).arg(write(check)));
-            writes.add(Request.cmd(Command.EXPIRE).arg(key).arg(ttl.toSeconds()));
-        }
-        // XX: a frame that dropped the vehicle meanwhile (its trip ended) is not undone.
-        writes.add(next == null ? Request.cmd(Command.ZREM).arg(DEADLINES).arg(assetId)
-                : Request.cmd(Command.ZADD).arg(DEADLINES).arg("XX").arg(next.toEpochMilli()).arg(assetId));
-        return writes;
+    static Request checkedRequest(String assetId, Instant seen, CheckState check, Instant next, Duration ttl) {
+        return Request.cmd(Command.EVAL).arg(CHECKED_SCRIPT).arg(2).arg(vehicleKey(assetId)).arg(DEADLINES)
+                .arg(assetId).arg(seen == null ? "" : Long.toString(seen.toEpochMilli()))
+                .arg(CheckState.NONE.equals(check) ? "" : write(check))
+                .arg(next == null ? "" : Long.toString(next.toEpochMilli())).arg(ttl.toSeconds());
     }
 
     @Override
@@ -174,10 +191,22 @@ public class RedisLossStore implements LossStore {
     public List<Heartbeat> heartbeats() {
         Response all = batch(List.of(Request.cmd(Command.HGETALL).arg(INGEST))).get(0);
         List<Heartbeat> out = new ArrayList<>();
+        List<String> retired = new ArrayList<>();
+        Instant cutoff = Instant.now().minus(HEARTBEAT_RETIRED);
         if (all != null) {
             for (String owner : all.getKeys()) {
-                heartbeat(owner, all.get(owner).toString()).ifPresent(out::add);
+                Optional<Heartbeat> beat = heartbeat(owner, all.get(owner).toString());
+                if (beat.isEmpty() || beat.get().at().isBefore(cutoff)) {
+                    retired.add(owner);
+                } else {
+                    out.add(beat.get());
+                }
             }
+        }
+        if (!retired.isEmpty()) {
+            Request hdel = Request.cmd(Command.HDEL).arg(INGEST);
+            retired.forEach(hdel::arg);
+            batch(List.of(hdel));
         }
         return out;
     }

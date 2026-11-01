@@ -37,26 +37,27 @@ public class MarkLost implements LossTicker.DueCheck {
 
     Outcome run(String assetId, Instant now) {
         LossStore.Vehicle v = store.vehicle(assetId);
-        if (v == null || v.profile() == null || v.watch() == null) {
-            store.checked(assetId, CheckState.NONE, null);
+        Instant seen = v.deadline();
+        if (v.profile() == null || v.watch() == null) {
+            store.checked(assetId, seen, CheckState.NONE, null);
             return Outcome.NO_TRIP;
         }
         CheckState c = v.check() == null ? CheckState.NONE : v.check();
         VehicleProfile p = v.profile();
         Instant deadline = p.arrival().plusSeconds(v.watch().expectedS());
         if (c.lost() && p.at().isAfter(c.lostSince())) {
-            store.checked(assetId, CheckState.NONE, deadline);
+            store.checked(assetId, seen, CheckState.NONE, deadline);
             return Outcome.RETURNED;
         }
         if (!c.lost() && now.isBefore(deadline)) {
-            store.checked(assetId, c, deadline);
+            store.checked(assetId, seen, c, deadline);
             return Outcome.NOT_DUE;
         }
         if (Duration.between(p.at(), now).compareTo(maxSilence) > 0) {
-            store.checked(assetId, c, null);
+            store.checked(assetId, seen, c, null);
             return Outcome.GAVE_UP;
         }
-        store.checked(assetId, new CheckState(c.lost() ? c.lostSince() : p.at(), now), now.plus(recheck));
+        store.checked(assetId, seen, new CheckState(c.lost() ? c.lostSince() : p.at(), now), now.plus(recheck));
         return c.lost() ? Outcome.STILL_LOST : Outcome.LOST;
     }
 }

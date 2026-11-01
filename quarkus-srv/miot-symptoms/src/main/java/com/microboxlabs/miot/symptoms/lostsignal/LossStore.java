@@ -20,15 +20,22 @@ public interface LossStore {
         }
     }
 
-    /** What a check reads; any part may be null. */
-    record Vehicle(VehicleProfile profile, Watch watch, CheckState check) {
+    /**
+     * What a check reads; any part may be null.
+     *
+     * @param deadline the vehicle's deadline when read: its check writes only while it is unchanged
+     */
+    record Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant deadline) {
     }
 
-    /** What a frame does to the vehicle's next check: nothing, drop it (no trip), or move it. */
+    /**
+     * What a frame does to the vehicle's next check: nothing, drop it (no trip), move it, or, for a lost vehicle
+     * that left its trips, drop the watch and check it once at {@code at} so the check clears its state.
+     */
     record Schedule(Kind kind, Instant at, Watch watch) {
 
         public enum Kind {
-            KEEP, DROP, AT
+            KEEP, DROP, AT, CLEAR
         }
 
         public static final Schedule KEEP = new Schedule(Kind.KEEP, null, null);
@@ -36,6 +43,10 @@ public interface LossStore {
 
         public static Schedule at(Instant at, Watch watch) {
             return new Schedule(Kind.AT, at, watch);
+        }
+
+        public static Schedule clear(Instant at) {
+            return new Schedule(Kind.CLEAR, at, null);
         }
     }
 
@@ -55,10 +66,13 @@ public interface LossStore {
     Vehicle vehicle(String assetId);
 
     /**
-     * Writes what a check found and moves the vehicle's deadline to {@code next}, unless a frame dropped it
-     * meanwhile; {@code next} null drops it. {@link CheckState#NONE} clears the check's state.
+     * Writes what a check found and moves the vehicle's deadline to {@code next}, only while the deadline is still
+     * {@code seen}, the one the check read: a frame that moved or dropped it meanwhile wins, and the next tick
+     * reads the new state. {@code next} null drops it. {@link CheckState#NONE} clears the check's state.
+     *
+     * @return false when a frame changed the deadline and nothing was written
      */
-    void checked(String assetId, CheckState check, Instant next);
+    boolean checked(String assetId, Instant seen, CheckState check, Instant next);
 
     /** Takes or keeps the ticker's lease; false while another replica holds it. */
     boolean lease(String owner, Duration ttl);

@@ -51,9 +51,11 @@ public class GeocodingPlanRepository {
                     updated_at = now()""";
 
     /** Sets the month only when it is not already set, so one caller wins. */
-    private static final String CLAIM_ALERT = """
-            UPDATE miot_integrations.geocoding_subscriptions SET alerted_month = $2
-             WHERE organization = $1 AND alerted_month IS DISTINCT FROM $2
+    private static final String CLAIM_LEVEL = """
+            INSERT INTO miot_integrations.geocoding_quota_alerts (organization, month, level)
+            SELECT $1, $2, $3 WHERE EXISTS (
+                SELECT 1 FROM miot_integrations.geocoding_subscriptions WHERE organization = $1)
+            ON CONFLICT DO NOTHING
             RETURNING organization""";
 
     private static final String PROVIDER_CALLS = """
@@ -150,9 +152,12 @@ public class GeocodingPlanRepository {
         execute(UPSERT_SUBSCRIPTION, params);
     }
 
-    /** True for the one caller that marks the month as alerted; false when it already was, or no subscription. */
-    public boolean claimAlert(String organization, LocalDate month) {
-        return execute(CLAIM_ALERT, Tuple.of(organization, month)).iterator().hasNext();
+    /**
+     * True for the one caller that marks the level ({@code threshold} or {@code exhausted}) of the month as alerted;
+     * false when it already was, or the organization has no subscription.
+     */
+    public boolean claimLevel(String organization, LocalDate month, String level) {
+        return execute(CLAIM_LEVEL, Tuple.of(organization, month, level)).iterator().hasNext();
     }
 
     public long providerCalls(String organization, OffsetDateTime from, OffsetDateTime to) {

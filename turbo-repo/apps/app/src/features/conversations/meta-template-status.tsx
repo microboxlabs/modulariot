@@ -19,17 +19,22 @@ const LABEL: Record<string, string> = {
   IN_APPEAL: "metaStatusInAppeal",
 };
 
+/** A template's review state on Meta, in words. */
+export function metaStatusLabel(status: string, d: I18nRecord) {
+  const key = LABEL[status];
+  return key ? trDynamic(key, d) : status;
+}
+
 /** A template's review state on Meta as a chip. */
 export default function MetaStatusChip({
   status,
   d,
 }: Readonly<{ status: string; d: I18nRecord }>) {
-  const key = LABEL[status];
   return (
     <span
       className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${TONE[statusTone(status)]}`}
     >
-      {key ? trDynamic(key, d) : status}
+      {metaStatusLabel(status, d)}
     </span>
   );
 }

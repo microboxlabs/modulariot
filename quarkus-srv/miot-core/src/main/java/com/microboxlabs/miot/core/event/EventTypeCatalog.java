@@ -25,4 +25,9 @@ public interface EventTypeCatalog {
     }
 
     List<EventType> types();
+
+    /** True when the producer also publishes its events to the platform's tenant, for the platform's own rules. */
+    default boolean platform() {
+        return false;
+    }
 }

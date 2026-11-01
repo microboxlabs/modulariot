@@ -110,7 +110,8 @@ public class WhatsAppMessagingService {
             metaMessageId = dispatch(connection, phoneNumberId, token, request);
             status = MessageStatus.SENT;
         } catch (WhatsAppSendException e) {
-            LOG.warnf(e, "WhatsApp send failed for tenant %s to %s", tenantCode, maskPhone(request.to()));
+            LOG.warnf("WhatsApp send failed for tenant %s to %s (%s)", tenantCode, maskPhone(request.to()),
+                    e.getClass().getSimpleName());
             status = MessageStatus.FAILED;
             errorMessage = e.getMessage();
         }

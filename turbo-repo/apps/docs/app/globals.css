@@ -22,15 +22,13 @@
   }
 }
 
+/* `clip`, not `hidden`: `hidden` turns body into a scroll container and
+   breaks Nextra's sticky navbar, sidebar and TOC. Nextra paints the page
+   background and text color for its own light/dark theme. */
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
+  overflow-x: clip;
 }
 
 * {

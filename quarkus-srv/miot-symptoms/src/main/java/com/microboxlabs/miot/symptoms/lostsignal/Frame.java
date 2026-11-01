@@ -21,13 +21,15 @@ public record Frame(String assetId, String sender, Instant at, Instant arrivedAt
         return Math.max(0, (arrivedAt.toEpochMilli() - at.toEpochMilli()) / 1000.0);
     }
 
+    private static final String FRAME = "frame";
+
     /** The frame of a {@code miot.gps.signal@1} map. */
     static Frame of(Map<String, Object> signal, String assetId, Instant at, Instant arrivedAt) {
         Object sender = signal.get("sender");
         return new Frame(assetId, sender instanceof String s && !s.isBlank() ? s : null, at, arrivedAt,
-                number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
-                number(path(signal, "frame", "gps", "speed")),
-                path(signal, "frame", "sensors", "engine_status") instanceof Boolean b ? b : null);
+                number(path(signal, FRAME, "gps", "latitude")), number(path(signal, FRAME, "gps", "longitude")),
+                number(path(signal, FRAME, "gps", "speed")),
+                path(signal, FRAME, "sensors", "engine_status") instanceof Boolean b ? b : null);
     }
 
     static Object path(Map<String, Object> root, String... keys) {

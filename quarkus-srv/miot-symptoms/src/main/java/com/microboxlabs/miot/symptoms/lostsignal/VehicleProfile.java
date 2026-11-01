@@ -51,7 +51,7 @@ public record VehicleProfile(Instant at, Instant arrival, Instant seen, Motion m
         Sketch s = gaps.get(motion);
         double profiled = s == null || s.count() == 0 ? 0 : s.quantile(settings.gapQuantile()) * settings.gapMargin();
         double seconds = s != null && s.count() >= settings.minSamples() ? profiled
-                : Math.max(profiled, settings.defaultGap().getOrDefault(motion, settings.minGap()).toSeconds());
+                : Math.max(profiled, (double) settings.defaultGap().getOrDefault(motion, settings.minGap()).toSeconds());
         return Duration.ofSeconds(Math.max(settings.minGap().toSeconds(), Math.round(seconds)));
     }
 

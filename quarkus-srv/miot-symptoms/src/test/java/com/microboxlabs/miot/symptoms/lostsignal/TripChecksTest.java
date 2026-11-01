@@ -142,7 +142,7 @@ class TripChecksTest {
         CheckState lost = new CheckState(T0, T0, Map.of());
         ArrivalProfiles profiles = new ArrivalProfiles(new InMemoryLossStore(), LossSettings.defaults());
         Frame first = new Frame("V9", "S9", T0.plusSeconds(60), T0.plusSeconds(150), null, null, 0.0, true);
-        ArrivalProfiles.Arrival a = profiles.record(first);
+        ArrivalProfiles.Arrival a = profiles.observe(first);
 
         assertEquals(new LossStore.Mark(T0, T0.plusSeconds(150), false),
                 LostSignalDetector.mark(a, lost, first, LossSettings.defaults()));

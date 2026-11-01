@@ -88,9 +88,14 @@ public final class Addresses {
             return "";
         }
         String[] parts = address.split(",", 2);
-        Matcher m = NUMBERED.matcher(UNIT.matcher(parts[0].strip()).replaceFirst(""));
-        String tail = m.matches() ? m.group(0).substring(m.end(2)) : "";
-        return (tail + " " + (parts.length > 1 ? parts[1] : "")).strip();
+        String first = parts[0].strip();
+        Matcher m = NUMBERED.matcher(UNIT.matcher(first).replaceFirst(""));
+        String tail = m.matches() ? first.substring(m.end(2)).strip() : "";
+        if (parts.length == 1) {
+            return tail;
+        }
+        String rest = parts[1].strip();
+        return tail.isEmpty() ? rest : tail + ", " + rest;
     }
 
     /** The words that identify a street: folded, without its type, titles or connecting words. */
@@ -110,7 +115,9 @@ public final class Addresses {
         }
         List<String> shorter = name.size() <= candidate.size() ? name : candidate;
         List<String> longer = new java.util.ArrayList<>(shorter == name ? candidate : name);
-        for (String word : shorter) {
+        List<String> ordered = shorter.stream()
+                .sorted(java.util.Comparator.comparingInt(String::length).reversed()).toList();
+        for (String word : ordered) {
             int i = indexOfMatch(longer, word);
             if (i < 0) {
                 return 0;
@@ -126,10 +133,14 @@ public final class Addresses {
             String w = words.get(i);
             if (w == null) continue;
             if (w.equals(word)) return i;
-            if (initial < 0 && (w.length() == 1 && word.startsWith(w) || word.length() == 1 && w.startsWith(word))) {
+            if (initial < 0 && (isInitial(w) && word.startsWith(w) || isInitial(word) && w.startsWith(word))) {
                 initial = i;
             }
         }
         return initial;
+    }
+
+    private static boolean isInitial(String word) {
+        return word.length() == 1 && Character.isLetter(word.charAt(0));
     }
 }

@@ -65,19 +65,28 @@ public class AdminBoundaries {
     }
 
     /**
-     * The district the text names as whole words, the longest name when several appear; empty when none does or the
-     * longest name belongs to more than one district.
+     * The district named in the first comma-separated component with a match. Within a component, the longest
+     * whole name wins; empty when it is ambiguous or no component names a district.
      */
     public Optional<Boundary> namedIn(String country, String text) {
-        String t = " " + Addresses.fold(text) + " ";
-        if (t.isBlank()) {
+        if (text == null || text.isBlank()) {
             return Optional.empty();
         }
-        List<Boundary> named = all(country).stream().filter(b -> t.contains(" " + Addresses.fold(b.name()) + " "))
-                .toList();
-        int longest = named.stream().mapToInt(b -> Addresses.fold(b.name()).length()).max().orElse(0);
-        List<Boundary> best = named.stream().filter(b -> Addresses.fold(b.name()).length() == longest).toList();
-        return best.size() == 1 ? Optional.of(best.get(0)) : Optional.empty();
+        for (String component : text.split(",")) {
+            String t = " " + nameWords(component) + " ";
+            List<Boundary> named = all(country).stream()
+                    .filter(b -> t.contains(" " + nameWords(b.name()) + " ")).toList();
+            if (!named.isEmpty()) {
+                int longest = named.stream().mapToInt(b -> nameWords(b.name()).length()).max().orElseThrow();
+                List<Boundary> best = named.stream().filter(b -> nameWords(b.name()).length() == longest).toList();
+                return best.size() == 1 ? Optional.of(best.get(0)) : Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static String nameWords(String name) {
+        return Addresses.fold(fold(name));
     }
 
     public Optional<Boundary> containing(String country, double lon, double lat) {

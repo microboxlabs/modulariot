@@ -98,7 +98,7 @@ public class LocationResolver {
         }
     }
 
-    /** Internal addresses read per lookup; a house number repeats at most a few hundred times in one commune. */
+    /** Maximum candidates to compare; one extra row is read to detect an incomplete set. */
     private static final int ADDRESS_CANDIDATES = 1000;
 
     private final GeofenceDirectory geofences;
@@ -252,7 +252,7 @@ public class LocationResolver {
             return null;
         }
         var best = bestStreet(street.get().name(), addresses.numbered(country,
-                Addresses.spellings(boundary.name(), false), street.get().number(), ADDRESS_CANDIDATES));
+                Addresses.spellings(boundary.name(), false), street.get().number(), ADDRESS_CANDIDATES + 1));
         return best == null ? null : new Found(new Point(best.point().lon(), best.point().lat()), INTERNAL, null, null);
     }
 
@@ -272,7 +272,7 @@ public class LocationResolver {
         var street = Addresses.street(address);
         if (street.isPresent()) {
             var best = bestStreet(street.get().name(),
-                    addresses.numbered(country, List.of(), street.get().number(), ADDRESS_CANDIDATES));
+                    addresses.numbered(country, List.of(), street.get().number(), ADDRESS_CANDIDATES + 1));
             List<Boundary> commune = best == null ? List.of() : boundaries.byName(country, best.commune());
             if (commune.size() == 1) {
                 return new ByAddress(new Found(new Point(best.point().lon(), best.point().lat()), INTERNAL, null, null),
@@ -284,6 +284,9 @@ public class LocationResolver {
 
     /** The candidate whose street matches the name best; null when none does or two different streets tie. */
     private static InternalAddresses.Candidate bestStreet(String name, List<InternalAddresses.Candidate> candidates) {
+        if (candidates.size() > ADDRESS_CANDIDATES) {
+            return null;
+        }
         List<String> words = Addresses.streetTokens(name);
         InternalAddresses.Candidate best = null;
         double top = 0;
@@ -303,7 +306,7 @@ public class LocationResolver {
 
     private static boolean sameStreet(InternalAddresses.Candidate a, InternalAddresses.Candidate b) {
         return Addresses.fold(a.commune()).equals(Addresses.fold(b.commune()))
-                && Addresses.streetTokens(a.street()).equals(Addresses.streetTokens(b.street()));
+                && Addresses.fold(a.street()).equals(Addresses.fold(b.street()));
     }
 
     private void cacheResult(String key, String country, Point point, String provider) {

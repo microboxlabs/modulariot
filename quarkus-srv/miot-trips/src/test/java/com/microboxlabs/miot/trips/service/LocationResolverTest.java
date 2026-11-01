@@ -294,4 +294,54 @@ class LocationResolverTest {
 
         assertEquals(1205, out.geofenceId());
     }
+
+    @Test
+    void aCommuneAfterUnitDetailsDisambiguatesTheInternalStreet() {
+        FakeAddresses table = new FakeAddresses()
+                .add("SAN BERNARDO", "ALPHA", "123", SB_LON, SB_LAT)
+                .add("SANTIAGO", "ALPHA", "123", -70.6505, -33.4378);
+
+        Outcome out = withAddresses(table).resolve(ORG, TENANT, written("Alpha 123 Depto 2 San Bernardo"));
+
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals("13401", out.placement().districtCode());
+    }
+
+    @Test
+    void theNamedCommuneWinsOverTheTrailingCity() {
+        FakeAddresses table = new FakeAddresses()
+                .add("ÑUÑOA", "ALPHA", "123", -70.5976, -33.4569)
+                .add("SANTIAGO", "ALPHA", "123", -70.6505, -33.4378);
+
+        Outcome out = withAddresses(table).resolve(ORG, TENANT, written("Alpha 123, Nunoa, Santiago"));
+
+        assertEquals(Location.RESOLVED, out.placement().status());
+        assertEquals("13120", out.placement().districtCode());
+    }
+
+    @Test
+    void differentStreetTypesWithTheSameWordsAreAmbiguous() {
+        FakeAddresses table = new FakeAddresses()
+                .add("SAN BERNARDO", "CALLE ALPHA", "123", SB_LON, SB_LAT)
+                .add("SAN BERNARDO", "PASAJE ALPHA", "123", SB_LON + 0.001, SB_LAT);
+
+        assertEquals(Location.NEEDS_REVIEW, withAddresses(table).resolve(ORG, TENANT,
+                written("Alpha 123, San Bernardo")).placement().status());
+    }
+
+    @Test
+    void anIncompleteCandidateSetCannotResolveWithinACommuneOrAcrossTheCountry() {
+        FakeAddresses table = new FakeAddresses().add("SAN BERNARDO", "ALPHA", "123", SB_LON, SB_LAT);
+        for (int i = 0; i < 999; i++) {
+            table.add("SAN BERNARDO", "OTHER", "123", SB_LON, SB_LAT);
+        }
+        assertEquals(Location.RESOLVED, withAddresses(table).resolve(ORG, TENANT,
+                written("Alpha 123")).placement().status());
+        table.add("SAN BERNARDO", "CALLE ALPHA", "123", SB_LON + 0.001, SB_LAT);
+
+        for (String address : java.util.List.of("Alpha 123", "Alpha 123, San Bernardo")) {
+            assertEquals(Location.NEEDS_REVIEW, withAddresses(table).resolve(ORG, TENANT,
+                    written(address)).placement().status());
+        }
+    }
 }

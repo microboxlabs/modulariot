@@ -16,7 +16,7 @@ public record Sketch(@JsonProperty("e") double ewma, @JsonProperty("n") long cou
     static final double[] BOUNDS = { 1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 300, 450, 600, 900, 1200, 1800,
             2700, 3600, 5400, 7200, 10800, 21600 };
     /** The quantile of the bucket above the last bound until a value there is seen. */
-    static final double OVER = 2 * BOUNDS[BOUNDS.length - 1];
+    static final double OVERFLOW_GUESS = 2 * BOUNDS[BOUNDS.length - 1];
 
     public static Sketch empty() {
         return new Sketch(0, 0, new double[BOUNDS.length + 1], 0);
@@ -53,7 +53,7 @@ public record Sketch(@JsonProperty("e") double ewma, @JsonProperty("n") long cou
     }
 
     private double overflow() {
-        return over > 0 ? over : OVER;
+        return over > 0 ? over : OVERFLOW_GUESS;
     }
 
     static int bucket(double seconds) {

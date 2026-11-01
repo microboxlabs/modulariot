@@ -91,6 +91,7 @@ public class EvaluatorStream {
         this(enabled, catalog, sinks, clock, episodes, samples, LateFrames.NONE, LostSignalDetector.off());
     }
 
+    @SuppressWarnings("java:S107") // The collaborators above, plus the two hooks, for tests.
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
             SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal) {
         this.lateFrames = lateFrames;

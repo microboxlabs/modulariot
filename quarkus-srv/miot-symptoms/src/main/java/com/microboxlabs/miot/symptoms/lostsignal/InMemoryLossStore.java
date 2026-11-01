@@ -62,6 +62,7 @@ public class InMemoryLossStore implements LossStore {
                 deadlines.put(assetId, schedule.at());
             }
             case KEEP -> {
+                // a late frame or a replay leaves the deadline and the watch
             }
         }
     }

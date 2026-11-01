@@ -125,6 +125,11 @@ describe("textToHtml, withHtml and htmlToText", () => {
     );
   });
 
+  it("preserves incomplete tags without repeatedly scanning each opening bracket", () => {
+    const incomplete = "<".repeat(20_000);
+    expect(htmlToText(`Text ${incomplete}`)).toBe(`Text ${incomplete}`);
+  });
+
   it("does not ask for a short text when only the email sends", () => {
     expect(
       keys(
@@ -153,5 +158,7 @@ describe("changedFields and metaNameFrom", () => {
 
   it("turns a key into a Meta name", () => {
     expect(metaNameFrom("alerta-de-cuota")).toBe("alerta_de_cuota");
+    expect(metaNameFrom("___alerta__de_cuota___")).toBe("alerta__de_cuota");
+    expect(metaNameFrom("_".repeat(20_000))).toBe("");
   });
 });

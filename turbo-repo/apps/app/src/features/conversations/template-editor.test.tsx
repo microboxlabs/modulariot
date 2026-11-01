@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
@@ -239,6 +245,66 @@ describe("TemplateEditor with the WABA's templates", () => {
     expect(screen.getAllByText(d.tplMetaPending).length).toBeGreaterThan(0);
   });
 
+  it("uses the selected Meta template's category", async () => {
+    api.useMetaTemplates.mockReturnValue({
+      data: [META, { ...APPROVED, category: "MARKETING" }],
+    });
+    editor();
+    const input = screen.getByRole("combobox", { name: "Plantilla de Meta" });
+    await userEvent.clear(input);
+    await userEvent.type(input, "trip");
+    await userEvent.click(
+      screen.getByRole("option", { name: /trip_reminder/ })
+    );
+    expect(screen.getByLabelText(d.metaCategory)).toHaveProperty(
+      "value",
+      "MARKETING"
+    );
+  });
+
+  it("blocks Meta submission when the template has a local validation error", () => {
+    api.useMetaTemplates.mockReturnValue({ data: [] });
+    editor({ ...TEMPLATE, baseText: "Hola {{nombre}}." });
+    fireEvent.change(screen.getByLabelText("Nombre"), {
+      target: { value: "" },
+    });
+    const submit = screen.getByRole("button", { name: d.metaSubmitReview });
+    expect(submit).toHaveProperty("disabled", true);
+    fireEvent.click(submit);
+    expect(api.createMetaTemplate).not.toHaveBeenCalled();
+  });
+
+  it("freezes the editor and both save paths during Meta submission", async () => {
+    api.useMetaTemplates.mockReturnValue({ data: [] });
+    let complete: ((value: MetaTemplate) => void) | undefined;
+    api.createMetaTemplate.mockImplementation(
+      () =>
+        new Promise<MetaTemplate>((resolve) => {
+          complete = resolve;
+        })
+    );
+    api.saveTemplate.mockResolvedValue(TEMPLATE);
+    editor({ ...TEMPLATE, baseText: "Hola {{nombre}}." });
+    fireEvent.click(screen.getByRole("button", { name: d.metaSubmitReview }));
+    expect(messageText()).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: d.saving })).toHaveProperty(
+      "disabled",
+      true
+    );
+    expect(
+      screen.getByRole("button", { name: /\{\{nombre\}\}/ })
+    ).toHaveProperty("disabled", true);
+    expect(screen.getByLabelText(d.metaCategory)).toHaveProperty(
+      "disabled",
+      true
+    );
+    await act(async () => {
+      complete?.(META);
+    });
+    await waitFor(() => expect(api.saveTemplate).toHaveBeenCalledTimes(1));
+    expect(messageText()).toHaveProperty("disabled", false);
+  });
+
   it("picks a template from a searchable list and takes its language and parameters", async () => {
     editor();
     const input = screen.getByRole("combobox", { name: "Plantilla de Meta" });
@@ -287,6 +353,46 @@ describe("TemplateEditor with the WABA's templates", () => {
       )
     ).toBeTruthy();
     expect(screen.getByText(d.metaPositional)).toBeTruthy();
+  });
+
+  it("keeps a missing Meta name blocking the local save", () => {
+    api.useMetaTemplates.mockReturnValue({ data: undefined });
+    editor();
+    fireEvent.change(screen.getByLabelText(d.metaName), {
+      target: { value: "" },
+    });
+    expect(screen.getByText(d.tplNoMetaName)).toBeTruthy();
+    expect(screen.getByRole("button", { name: d.saveTemplate })).toHaveProperty(
+      "disabled",
+      true
+    );
+  });
+
+  it("blocks Meta submission when the email subject is missing", () => {
+    api.useMetaTemplates.mockReturnValue({ data: [] });
+    editor({
+      ...TEMPLATE,
+      baseText: "Hola {{nombre}}.",
+      email: { subject: "", body: null, html: "<p>Quota</p>" },
+    });
+    expect(
+      screen.getByRole("button", { name: d.metaSubmitReview })
+    ).toHaveProperty("disabled", true);
+    expect(api.createMetaTemplate).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the message field after the focused email field unmounts", () => {
+    editor({
+      ...TEMPLATE,
+      baseText: "Hola",
+      email: { subject: "Quota", body: null, html: "<p>Quota</p>" },
+    });
+    fireEvent.focus(screen.getByLabelText(d.tplEmailHtml));
+    fireEvent.click(
+      screen.getAllByRole("switch", { name: /Activo/, checked: true })[1]
+    );
+    fireEvent.click(screen.getByRole("button", { name: /\{\{nombre\}\}/ }));
+    expect(messageText().value).toBe("Hola{{nombre}}");
   });
 });
 

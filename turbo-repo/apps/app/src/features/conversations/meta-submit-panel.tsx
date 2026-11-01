@@ -11,6 +11,7 @@ import Select from "@/features/symptoms/maintainer/ui/select";
 import {
   createMetaTemplate,
   editMetaTemplate,
+  previewTemplateEmail,
   refreshMetaTemplates,
   refreshTemplates,
   saveTemplate,
@@ -29,6 +30,7 @@ import {
   META_CATEGORIES,
   draftParams,
   draftProblems,
+  metaTemplateLock,
 } from "./meta-template-model";
 
 const CATEGORY_LABEL: Record<(typeof META_CATEGORIES)[number], string> = {
@@ -51,7 +53,7 @@ export function metaSync(
   const meta = findMetaTemplate(templates, variant.metaName, variant.language);
   if (!meta || meta.language !== variant.language)
     return { sync: "create", meta: null };
-  if (meta.status === "PENDING") return { sync: null, meta };
+  if (metaTemplateLock(meta)) return { sync: null, meta };
   if (meta.status === "REJECTED") return { sync: "update", meta };
   return { sync: meta.body === baseText.trim() ? null : "update", meta };
 }
@@ -97,8 +99,11 @@ export default function MetaSubmitPanel({
   templates,
   examples,
   dirty,
+  busy,
+  blocked,
   d,
   onExamples,
+  onBusyChange,
   onSaved,
 }: Readonly<{
   templateKey: string;
@@ -108,17 +113,39 @@ export default function MetaSubmitPanel({
   examples: Record<string, string>;
   /** Unsaved changes: they are saved with the submission. */
   dirty: boolean;
+  busy: boolean;
+  blocked: boolean;
   d: I18nRecord;
   onExamples: (examples: Record<string, string>) => void;
+  onBusyChange: (busy: boolean) => void;
   onSaved: (saved: ConversationTemplate) => void;
 }>) {
   const { sync, meta } = metaSync(variant, body.baseText, templates);
-  const [category, setCategory] = useState<MetaTemplateCategory>(
-    meta?.category === "MARKETING" ? "MARKETING" : "UTILITY"
-  );
-  const [busy, setBusy] = useState(false);
+  const categoryKey = JSON.stringify([
+    variant.metaName,
+    variant.language,
+    meta?.category,
+  ]);
+  const [categoryChoice, setCategoryChoice] = useState<{
+    template: string;
+    value: MetaTemplateCategory;
+  } | null>(null);
+  const defaultCategory =
+    meta?.category === "MARKETING" ? "MARKETING" : "UTILITY";
+  const category =
+    categoryChoice?.template === categoryKey
+      ? categoryChoice.value
+      : defaultCategory;
   const [error, setError] = useState<string | null>(null);
-  if (!sync) return null;
+  const locked = metaTemplateLock(meta);
+  if (locked && locked !== "metaLockedPending")
+    return <p className={`text-xs ${MUTED}`}>{trDynamic(locked, d)}</p>;
+  if (!sync)
+    return error ? (
+      <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+        {error}
+      </p>
+    ) : null;
 
   const draft = draftFromTemplate(
     variant,
@@ -131,25 +158,31 @@ export default function MetaSubmitPanel({
   const problems = draftProblems(draft, sync === "create");
 
   const submit = async () => {
-    setBusy(true);
+    if (busy || blocked || problems.length > 0) return;
+    onBusyChange(true);
     setError(null);
     try {
-      if (meta) await editMetaTemplate(meta.id, draft);
-      else await createMetaTemplate(draft);
+      if (body.email?.html?.trim())
+        await previewTemplateEmail(
+          body.email.subject,
+          body.email.html,
+          examples
+        );
+      const submitted = meta
+        ? await editMetaTemplate(meta.id, draft)
+        : await createMetaTemplate(draft);
+      await refreshMetaTemplates(submitted);
       const saved = await saveTemplate(templateKey, {
         ...body,
         name: body.name.trim(),
         whatsapp: { ...variant, params },
       });
-      await Promise.all([
-        refreshMetaTemplates(),
-        refreshTemplates(templateKey),
-      ]);
+      await refreshTemplates(templateKey);
       onSaved(saved);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setBusy(false);
+      onBusyChange(false);
     }
   };
 
@@ -176,9 +209,13 @@ export default function MetaSubmitPanel({
           <Select
             aria-label={tr("metaCategory", d)}
             className={FIELD}
+            disabled={busy}
             value={category}
             onChange={(e) =>
-              setCategory(e.target.value as MetaTemplateCategory)
+              setCategoryChoice({
+                template: categoryKey,
+                value: e.target.value as MetaTemplateCategory,
+              })
             }
           >
             {META_CATEGORIES.map((c) => (
@@ -199,6 +236,7 @@ export default function MetaSubmitPanel({
                 <input
                   aria-label={tr("metaExampleFor", d, { name: p })}
                   className={FIELD}
+                  disabled={busy}
                   value={draft.examples[p]}
                   onChange={(e) =>
                     onExamples({ ...examples, [p]: e.target.value })
@@ -229,7 +267,7 @@ export default function MetaSubmitPanel({
         )}
         <Button
           size="sm"
-          disabled={busy || problems.length > 0}
+          disabled={busy || blocked || problems.length > 0}
           onClick={() => void submit()}
         >
           <HiOutlinePaperAirplane

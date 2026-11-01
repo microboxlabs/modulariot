@@ -12,6 +12,7 @@ import type {
 const api = vi.hoisted(() => ({
   createMetaTemplate: vi.fn(),
   editMetaTemplate: vi.fn(),
+  previewTemplateEmail: vi.fn(),
   refreshMetaTemplates: vi.fn(),
   refreshTemplates: vi.fn(),
   saveTemplate: vi.fn(),
@@ -97,23 +98,29 @@ describe("draftFromTemplate", () => {
 function Harness({
   templates,
   start,
+  body = BODY,
   onSaved,
 }: Readonly<{
   templates: MetaTemplate[];
   start: Record<string, string>;
+  body?: TemplateBody;
   onSaved: (saved: ConversationTemplate) => void;
 }>) {
   const [examples, setExamples] = useState(start);
+  const [busy, setBusy] = useState(false);
   return (
     <MetaSubmitPanel
       templateKey="quota_alert"
-      body={BODY}
+      body={body}
       variant={VARIANT}
       templates={templates}
       examples={examples}
       dirty={false}
+      busy={busy}
+      blocked={false}
       d={d}
       onExamples={setExamples}
+      onBusyChange={setBusy}
       onSaved={onSaved}
     />
   );
@@ -123,6 +130,11 @@ describe("MetaSubmitPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.createMetaTemplate.mockResolvedValue({ ...ON_META, status: "PENDING" });
+    api.previewTemplateEmail.mockResolvedValue({
+      subject: "Quota",
+      html: "<p>Quota</p>",
+      text: "Quota",
+    });
     api.saveTemplate.mockResolvedValue({
       key: "quota_alert",
     } as ConversationTemplate);
@@ -170,5 +182,89 @@ describe("MetaSubmitPanel", () => {
       <Harness templates={[ON_META]} start={{}} onSaved={vi.fn()} />
     );
     expect(container.innerHTML).toBe("");
+  });
+
+  it("validates HTML before submitting to Meta", async () => {
+    api.previewTemplateEmail.mockRejectedValue(
+      new Error("Invalid HTML template")
+    );
+    render(
+      <Harness
+        templates={[]}
+        start={ON_META.examples}
+        onSaved={vi.fn()}
+        body={{
+          ...BODY,
+          email: { subject: "Quota", body: null, html: "{{#if company}}open" },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: d.metaSubmitReview }));
+    expect(await screen.findByRole("alert")).toHaveProperty(
+      "textContent",
+      "Invalid HTML template"
+    );
+    expect(api.createMetaTemplate).not.toHaveBeenCalled();
+    expect(api.editMetaTemplate).not.toHaveBeenCalled();
+    expect(api.saveTemplate).not.toHaveBeenCalled();
+  });
+
+  it("keeps an accepted Meta submission when the local save fails", async () => {
+    const accepted = { ...ON_META, status: "PENDING" };
+    api.saveTemplate.mockImplementation(() => {
+      expect(api.refreshMetaTemplates).toHaveBeenCalledWith(accepted);
+      return Promise.reject(new Error("Local save failed"));
+    });
+    const onSaved = vi.fn();
+    const { rerender } = render(
+      <Harness templates={[]} start={ON_META.examples} onSaved={onSaved} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: d.metaSubmitReview }));
+    expect(await screen.findByRole("alert")).toHaveProperty(
+      "textContent",
+      "Local save failed"
+    );
+    rerender(
+      <Harness
+        templates={[accepted]}
+        start={ON_META.examples}
+        onSaved={onSaved}
+      />
+    );
+    expect(
+      screen.queryByRole("button", { name: d.metaSubmitReview })
+    ).toBeNull();
+    expect(screen.getByRole("alert")).toHaveProperty(
+      "textContent",
+      "Local save failed"
+    );
+    expect(api.createMetaTemplate).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it.each<{ patch: Partial<MetaTemplate>; notice: string }>([
+    {
+      patch: { category: "AUTHENTICATION" },
+      notice: d.metaLockedAuthentication,
+    },
+    { patch: { headerFormat: "IMAGE" }, notice: d.metaLockedMedia },
+    {
+      patch: { parameterFormat: "POSITIONAL" },
+      notice: d.metaLockedPositional,
+    },
+  ])("keeps the catalog's edit restriction: $notice", ({ patch, notice }) => {
+    render(
+      <Harness
+        templates={[{ ...ON_META, ...patch, body: "Different text" }]}
+        start={{}}
+        onSaved={vi.fn()}
+      />
+    );
+    expect(screen.getByText(notice)).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: d.metaSubmitReview })
+    ).toBeNull();
+    expect(api.createMetaTemplate).not.toHaveBeenCalled();
+    expect(api.editMetaTemplate).not.toHaveBeenCalled();
   });
 });

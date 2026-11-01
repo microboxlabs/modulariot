@@ -19,7 +19,7 @@ import type {
   MetaTemplate,
   TemplateBody,
 } from "./conversations-types";
-import WhatsAppText, { filled, plainText } from "./whatsapp-text";
+import WhatsAppText, { filled } from "./whatsapp-text";
 
 // Meta has more button types (COPY_CODE, FLOW, OTP…); those show without an icon.
 const BUTTON_ICON: Partial<Record<string, typeof HiReply>> = {
@@ -149,7 +149,7 @@ export function useEmailPreview(
       clearTimeout(timer);
     };
   }, [key]);
-  return state;
+  return email?.html?.trim() ? state : { key };
 }
 
 /** The email in a mail reader: subject, sender and recipient, then the HTML in an isolated frame. */
@@ -234,7 +234,7 @@ export function chatText(
   values: Record<string, string>,
   emailText: string | undefined
 ): string {
-  if (body.baseText.trim()) return plainText(filled(body.baseText, values));
+  if (body.baseText.trim()) return filled(body.baseText, values);
   return emailText ?? "";
 }
 

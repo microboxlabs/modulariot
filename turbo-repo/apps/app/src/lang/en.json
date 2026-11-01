@@ -4806,7 +4806,7 @@
         "tplEmailHtmlHint": "ModularIoT adds the logo and footer. Variable values are escaped; use {{#if link}}…{{/if}} for optional parts.",
         "tplSectionChats": "Slack, Teams and webhooks",
         "tplSectionChatsHint": "What chat connections and webhooks get",
-        "tplChatsUseWhatsapp": "They send the WhatsApp text, without the format marks.",
+        "tplChatsUseWhatsapp": "They send the WhatsApp text, including its format marks.",
         "tplChatText": "Text for chats",
         "tplChatTextFromEmail": "Empty: they send the email's text."
       },

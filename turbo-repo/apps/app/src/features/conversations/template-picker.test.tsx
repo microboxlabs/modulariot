@@ -79,6 +79,43 @@ describe("TemplatePreview", () => {
     expect(screen.queryByText(/Alerta en el viaje/)).toBeNull();
   });
 
+  it.each(["slack", "teams", "webhook"])(
+    "previews the short text before HTML for %s",
+    (channel) => {
+      render(
+        <TemplatePreview
+          template={{
+            ...ALERT,
+            baseText: "Short message",
+            email: { subject: "Quota", body: null, html: "<p>Full email</p>" },
+          }}
+          channel={channel}
+          meta={[]}
+          d={d}
+        />
+      );
+      expect(screen.getByText("Short message")).toBeTruthy();
+      expect(screen.queryByText("Full email")).toBeNull();
+    }
+  );
+
+  it("keeps the HTML body for an email channel", () => {
+    render(
+      <TemplatePreview
+        template={{
+          ...ALERT,
+          baseText: "Short message",
+          email: { subject: "Quota", body: null, html: "<p>Full email</p>" },
+        }}
+        channel="email"
+        meta={[]}
+        d={d}
+      />
+    );
+    expect(screen.getByText("Full email")).toBeTruthy();
+    expect(screen.queryByText("Short message")).toBeNull();
+  });
+
   it("says the message is not sent on a channel the template has no version for", () => {
     render(
       <TemplatePreview template={ALERT} channel="whatsapp" meta={[]} d={d} />

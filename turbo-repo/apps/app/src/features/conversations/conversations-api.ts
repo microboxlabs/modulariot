@@ -248,7 +248,21 @@ export function deleteMetaTemplate(name: string, id?: string) {
   );
 }
 
-export async function refreshMetaTemplates() {
+/** Keeps an accepted submission in the cache, or reloads the list when there is no submission. */
+export async function refreshMetaTemplates(submitted?: MetaTemplate) {
+  if (submitted) {
+    await mutate<MetaTemplate[]>(
+      orgMetaTemplatesKey,
+      (current = []) => [
+        ...current.filter(
+          (t) => t.name !== submitted.name || t.language !== submitted.language
+        ),
+        submitted,
+      ],
+      { revalidate: false }
+    );
+    return;
+  }
   await mutate(orgMetaTemplatesKey);
 }
 

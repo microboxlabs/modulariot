@@ -104,10 +104,12 @@ export function usedEvents(template: ConversationTemplate | null): string[] {
 
 /** A Meta template name: lowercase letters, digits and underscores. */
 export function metaNameFrom(key: string): string {
-  return key
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9_]+/g, "_")
-    .replaceAll(/^_+|_+$/g, "");
+  const normalized = key.toLowerCase().replaceAll(/[^a-z0-9_]+/g, "_");
+  let start = 0;
+  let end = normalized.length;
+  while (start < end && normalized[start] === "_") start++;
+  while (end > start && normalized[end - 1] === "_") end--;
+  return normalized.slice(start, end);
 }
 
 /** The parameters a WhatsApp send fills: Meta's when it has the template, else the text's. */
@@ -150,9 +152,26 @@ export function textToHtml(text: string): string {
 
 /** An HTML body's text, roughly: tags dropped, the common entities read, blank runs closed up. */
 export function htmlToText(html: string): string {
-  return html
-    .replaceAll(/<(br|\/p|\/h\d|\/tr|\/li)[^>]*>/gi, "\n")
-    .replaceAll(/<[^>]*>/g, "")
+  const parts: string[] = [];
+  let cursor = 0;
+  while (cursor < html.length) {
+    const open = html.indexOf("<", cursor);
+    if (open === -1) {
+      parts.push(html.slice(cursor));
+      break;
+    }
+    parts.push(html.slice(cursor, open));
+    const close = html.indexOf(">", open + 1);
+    if (close === -1) {
+      parts.push(html.slice(open));
+      break;
+    }
+    const tag = html.slice(open + 1, close);
+    if (/^(br|\/p|\/h\d|\/tr|\/li)\b/i.test(tag)) parts.push("\n");
+    cursor = close + 1;
+  }
+  return parts
+    .join("")
     .replaceAll("&nbsp;", " ")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")

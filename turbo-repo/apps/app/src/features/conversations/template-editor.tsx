@@ -309,7 +309,9 @@ export function TemplateEditor({
   });
   // Meta's state is outside the template: it does not stop a save.
   const blocking = findings.filter(
-    (f) => f.severity === "error" && f.section !== "whatsapp"
+    (f) =>
+      f.severity === "error" &&
+      (f.section !== "whatsapp" || f.key === "tplNoMetaName")
   ).length;
   const changes = changedFields(body, isNew ? EMPTY : stored);
   const dirty = changes.length > 0;
@@ -331,8 +333,12 @@ export function TemplateEditor({
     setBody((b) => (b.email ? { ...b, email: { ...b.email, ...patch } } : b));
   const focus = (i: Inserter) => {
     inserter.current = i;
+    return () => {
+      if (inserter.current === i) inserter.current = null;
+    };
   };
   const insert = (name: string) => {
+    if (!editable) return;
     const text = `{{${name}}}`;
     if (inserter.current) inserter.current(text);
     else setBody((b) => ({ ...b, baseText: `${b.baseText}${text}` }));
@@ -565,14 +571,18 @@ export function TemplateEditor({
                 )}
                 {canSubmit && metaTemplates && (
                   <MetaSubmitPanel
+                    key={`${body.whatsapp.metaName}:${body.whatsapp.language}`}
                     templateKey={key}
                     body={body}
                     variant={body.whatsapp}
                     templates={metaTemplates}
                     examples={examples}
                     dirty={dirty}
+                    busy={saving}
+                    blocked={blocking > 0}
                     d={d}
                     onExamples={setEdited}
+                    onBusyChange={setSaving}
                     onSaved={onSaved}
                   />
                 )}
@@ -686,6 +696,7 @@ export function TemplateEditor({
             variables={variables}
             examples={examples}
             eventPicked={Boolean(info)}
+            readOnly={!editable}
             d={d}
             onInsert={insert}
           />

@@ -4806,7 +4806,7 @@
         "tplEmailHtmlHint": "El logo y el pie los agrega ModularIoT. Los valores de las variables se escapan; usa {{#if link}}…{{/if}} para lo opcional.",
         "tplSectionChats": "Slack, Teams y webhooks",
         "tplSectionChatsHint": "Lo que reciben las conexiones de chat y los webhooks",
-        "tplChatsUseWhatsapp": "Envían el texto de WhatsApp, sin las marcas de formato.",
+        "tplChatsUseWhatsapp": "Envían el texto de WhatsApp, incluidas las marcas de formato.",
         "tplChatText": "Texto para chats",
         "tplChatTextFromEmail": "Vacío: envían el texto del correo."
       },

@@ -84,11 +84,14 @@ export default function TemplateTextField({
   mono?: boolean;
   placeholder?: string;
   hint?: string;
-  onFocusField?: (insert: Inserter) => void;
+  onFocusField?: (insert: Inserter) => () => void;
 }>) {
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const unregister = useRef<(() => void) | undefined>(undefined);
+
+  useEffect(() => () => unregister.current?.(), []);
 
   useEffect(() => {
     if (!menu) return;
@@ -214,7 +217,10 @@ export default function TemplateTextField({
           value={value}
           className={`${FIELD} block w-full !rounded-none !border-0 !bg-transparent px-3 py-2 leading-relaxed !ring-0 ${multiline ? "resize-y" : ""} ${mono ? "font-mono !text-xs" : ""}`}
           onChange={(e) => onChange(e.target.value)}
-          onFocus={() => onFocusField?.(insertVariable)}
+          onFocus={() => {
+            unregister.current?.();
+            unregister.current = onFocusField?.(insertVariable);
+          }}
         />
       </div>
       {(used.length > 0 || hint) && (

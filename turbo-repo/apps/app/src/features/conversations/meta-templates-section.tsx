@@ -46,6 +46,7 @@ import {
   draftOf,
   draftParams,
   draftProblems,
+  metaTemplateLock,
 } from "./meta-template-model";
 import MetaTemplatePreview from "./meta-template-preview";
 import MetaStatusChip, { metaStatusLabel } from "./meta-template-status";
@@ -74,17 +75,6 @@ function loadError(error: unknown, d: I18nRecord) {
   return error instanceof Error && error.message
     ? error.message
     : tr("loadFailed", d);
-}
-
-/** Why the app does not edit this template, or null when it does. */
-function lockedReason(t: MetaTemplate | null): string | null {
-  if (!t) return null;
-  if (t.status === "PENDING") return "metaLockedPending";
-  if (t.category === "AUTHENTICATION") return "metaLockedAuthentication";
-  if (t.headerFormat && t.headerFormat !== "TEXT") return "metaLockedMedia";
-  if (t.parameterFormat !== "NAMED" && t.params.length > 0)
-    return "metaLockedPositional";
-  return null;
 }
 
 function ButtonsEditor({
@@ -264,7 +254,7 @@ export function MetaTemplateEditor({
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const isNew = template === null;
-  const locked = lockedReason(template);
+  const locked = metaTemplateLock(template);
   const readOnly = !canWrite || locked !== null;
   const set = (patch: Partial<MetaTemplateDraft>) =>
     setDraft({ ...draft, ...patch });

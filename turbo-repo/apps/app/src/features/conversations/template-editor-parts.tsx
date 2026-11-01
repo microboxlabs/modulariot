@@ -78,12 +78,14 @@ export function TemplateVariablesPanel({
   variables,
   examples,
   eventPicked,
+  readOnly,
   d,
   onInsert,
 }: Readonly<{
   variables: EventField[];
   examples: Record<string, string>;
   eventPicked: boolean;
+  readOnly: boolean;
   d: I18nRecord;
   onInsert: (name: string) => void;
 }>) {
@@ -97,6 +99,7 @@ export function TemplateVariablesPanel({
           <li key={v.name}>
             <button
               type="button"
+              disabled={readOnly}
               title={v.description ?? undefined}
               className="flex w-full items-baseline gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
               onMouseDown={(e) => e.preventDefault()}

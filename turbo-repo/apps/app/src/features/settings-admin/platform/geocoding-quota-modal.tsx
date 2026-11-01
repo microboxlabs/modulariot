@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Label, Radio, TextInput, Textarea } from "flowbite-react";
+import { Label, Radio, TextInput } from "flowbite-react";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -20,7 +20,6 @@ export interface QuotaTarget {
   name: string;
   ownQuota: number | null;
   onExhausted: OnExhausted;
-  whatsAppRecipients: readonly string[];
 }
 
 interface GeocodingQuotaModalProps {
@@ -54,7 +53,6 @@ export default function GeocodingQuotaModal({
   const [slug, setSlug] = useState("");
   const [quota, setQuota] = useState("");
   const [mode, setMode] = useState<OnExhausted>("review");
-  const [whatsAppRecipients, setWhatsAppRecipients] = useState("");
   const [error, setError] = useState<Error | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -63,7 +61,6 @@ export default function GeocodingQuotaModal({
     setSlug(target?.slug ?? "");
     setQuota(target?.ownQuota == null ? "" : String(target.ownQuota));
     setMode(target?.onExhausted ?? "review");
-    setWhatsAppRecipients((target?.whatsAppRecipients ?? []).join("\n"));
     setError(null);
   }, [show, target]);
 
@@ -75,7 +72,6 @@ export default function GeocodingQuotaModal({
     const result = toSubscriptionRequest({
       monthlyQuota: quota,
       onExhausted: mode,
-      whatsAppRecipients,
     });
     if (!result.ok) {
       setError(new Error(trDynamic(`errors.${result.error}`, dict)));
@@ -172,20 +168,6 @@ export default function GeocodingQuotaModal({
               </div>
             ))}
           </fieldset>
-        </div>
-        <div>
-          <Label htmlFor="geo-quota-whatsapp">
-            {tr("modal.whatsAppRecipients", dict)}
-          </Label>
-          <Textarea
-            id="geo-quota-whatsapp"
-            value={whatsAppRecipients}
-            onChange={(e) => setWhatsAppRecipients(e.target.value)}
-            rows={3}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {tr("modal.whatsAppRecipientsHelp", dict)}
-          </p>
         </div>
       </div>
     </FormModal>

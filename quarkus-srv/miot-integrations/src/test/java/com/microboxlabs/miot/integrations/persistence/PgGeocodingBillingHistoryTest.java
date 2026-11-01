@@ -66,7 +66,7 @@ class PgGeocodingBillingHistoryTest {
             assertEquals(80, repository.subscription("synthetic-org").monthlyQuota());
             assertEquals(java.util.List.of("synthetic-org"), repository.organizations(completedPeriodEnd.minusMonths(1), completedPeriodEnd));
             long count = historyCount(pool, schema);
-            assertTrue(repository.claimAlert("synthetic-org", LocalDate.now(java.time.ZoneOffset.UTC).withDayOfMonth(1)));
+            assertTrue(repository.claimLevel("synthetic-org", LocalDate.now(java.time.ZoneOffset.UTC).withDayOfMonth(1), "threshold"));
             assertEquals(count, historyCount(pool, schema));
             pool.query("DELETE FROM " + schema + ".geocoding_subscriptions WHERE organization = 'synthetic-org'")
                     .execute().await().atMost(TIMEOUT);

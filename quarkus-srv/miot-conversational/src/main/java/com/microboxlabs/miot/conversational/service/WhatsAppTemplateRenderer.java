@@ -1,7 +1,6 @@
 package com.microboxlabs.miot.conversational.service;
 
 import java.util.Map;
-import com.microboxlabs.miot.integrations.geocoding.GeocodingQuotaNotification;
 import java.util.regex.Pattern;
 
 /**
@@ -61,8 +60,7 @@ public final class WhatsAppTemplateRenderer {
             "pod_approved_v1", POD_APPROVED_V1,
             "pod_image_unclear_v1", POD_IMAGE_UNCLEAR_V1,
             "trip_detention_alert_v1", TRIP_DETENTION_ALERT_V1,
-            "trip_arrival_pod_request_v1", TRIP_ARRIVAL_POD_REQUEST_V1,
-            GeocodingQuotaNotification.TEMPLATE_NAME, GeocodingQuotaNotification.TEMPLATE_BODY);
+            "trip_arrival_pod_request_v1", TRIP_ARRIVAL_POD_REQUEST_V1);
 
     private WhatsAppTemplateRenderer() {}
 

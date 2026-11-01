@@ -4,19 +4,20 @@ import com.microboxlabs.miot.core.event.EventTypeCatalog;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 
-/** The geocoding events: an organization reached the alert share of its monthly quota. */
+/** The geocoding events: an organization reached the alert share of its monthly quota, or used all of it. */
 @ApplicationScoped
 public class GeocodingEventCatalog implements EventTypeCatalog {
 
     public static final String EVENT_SOURCE = "miot-integrations";
     public static final String CONTEXT_KIND = "geocoding_quota";
     public static final String QUOTA_THRESHOLD = "geocoding.quota.threshold";
-
     public static final String QUOTA_EXHAUSTED = "geocoding.quota.exhausted";
 
-    private static final List<EventType> TYPES = List.of(new EventType(QUOTA_THRESHOLD,
-            "The organization used the alert share of its monthly geocoding quota", GeocodingQuotaData.class), new EventType(QUOTA_EXHAUSTED,
-            "The organization used its monthly geocoding quota", GeocodingQuotaData.class));
+    private static final List<EventType> TYPES = List.of(
+            new EventType(QUOTA_THRESHOLD, "The organization used the alert share of its monthly geocoding quota",
+                    GeocodingQuotaData.class),
+            new EventType(QUOTA_EXHAUSTED, "The organization used its monthly geocoding quota",
+                    GeocodingQuotaData.class));
 
     @Override
     public String source() {
@@ -31,5 +32,11 @@ public class GeocodingEventCatalog implements EventTypeCatalog {
     @Override
     public List<EventType> types() {
         return TYPES;
+    }
+
+    /** {@link GeocodingEvents} publishes each event to the platform's tenant too. */
+    @Override
+    public boolean platform() {
+        return true;
     }
 }

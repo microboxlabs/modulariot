@@ -42,6 +42,7 @@ public final class TemplateBump {
         if (t.email() != null) {
             collect(t.email().subject(), out);
             collect(t.email().body(), out);
+            collect(t.email().html(), out);
         }
         if (t.whatsapp() != null) {
             out.addAll(t.whatsapp().params());

@@ -1,8 +1,6 @@
 package com.microboxlabs.miot.integrations.email;
 
 import com.microboxlabs.miot.core.auth.PlatformScope;
-import com.microboxlabs.miot.core.mail.Mail;
-import com.microboxlabs.miot.core.mail.MailDelivery;
 import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -47,24 +45,13 @@ public class PlatformMailService {
     private final IntegrationConnectionService connections;
     private final PlatformConnectionStore store;
     private final ResendClient client;
-    private final ResendEmailSender sender;
 
     @Inject
     public PlatformMailService(IntegrationConnectionService connections, IntegrationConnectionRepository repository,
-            CredentialProfileService credentials, ResendClient client, ResendEmailSender sender) {
+            CredentialProfileService credentials, ResendClient client) {
         this.connections = connections;
         this.store = new PlatformConnectionStore(connections, repository, credentials, ProviderType.RESEND, NAME);
         this.client = client;
-        this.sender = sender;
-    }
-
-    public MailDelivery send(Mail mail, String idempotencyKey) {
-        if (!sender.configured(PLATFORM_TENANT)) {
-            return MailDelivery.notConfigured("No platform email sender");
-        }
-        SendResult result = sender.send(PLATFORM_TENANT,
-                new EmailMessage(null, mail.to(), mail.subject(), mail.text(), mail.html(), null), idempotencyKey);
-        return result.accepted() ? MailDelivery.sent() : MailDelivery.failed(result.error());
     }
 
     public PlatformMailView get() {

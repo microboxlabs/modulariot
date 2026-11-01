@@ -6,7 +6,6 @@ export interface GeocodingPlan {
   alertPct: number;
   /** Applies the quotas; off, no provider call is refused. */
   enforced: boolean;
-  whatsAppRecipients?: string[];
   updatedBy: string | null;
   updatedAt: string | null;
 }
@@ -18,14 +17,12 @@ export interface SetGeocodingPlan {
   overagePriceUsd: number;
   alertPct: number;
   enforced: boolean;
-  whatsAppRecipients: string[];
 }
 
 /** Mirrors `SetSubscriptionRequest`. `monthlyQuota` null uses the plan's. */
 export interface SetGeocodingSubscription {
   monthlyQuota: number | null;
   onExhausted: OnExhausted;
-  whatsAppRecipients: string[];
 }
 
 export type OnExhausted = "review" | "overage";
@@ -33,7 +30,6 @@ export type OnExhausted = "review" | "overage";
 export interface GeocodingSubscription {
   monthlyQuota: number | null;
   onExhausted: OnExhausted;
-  whatsAppRecipients?: string[];
   updatedBy: string | null;
   updatedAt: string | null;
 }

@@ -15,13 +15,21 @@ import java.util.Map;
  * @param params       WhatsApp: the template's NAMED parameters
  * @param subject      email only
  * @param body         the text stored on the message (WhatsApp: the template's base text, rendered)
+ * @param html         email with an HTML body: the body, rendered, without the layout; else null
  */
 public record ContextMessage(ContextKind contextKind, String contextKey, String to, String displayName,
         String role, String contactId, String templateName, String language, Map<String, String> params,
-        String subject, String body, String runId, Integer step) {
+        String subject, String body, String runId, Integer step, String html) {
 
     public ContextMessage {
         params = params == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(params));
+    }
+
+    public ContextMessage(ContextKind contextKind, String contextKey, String to, String displayName, String role,
+            String contactId, String templateName, String language, Map<String, String> params, String subject,
+            String body, String runId, Integer step) {
+        this(contextKind, contextKey, to, displayName, role, contactId, templateName, language, params, subject,
+                body, runId, step, null);
     }
 
     /** The recipient as a conversation participant; {@code phoneE164} is null for email. */

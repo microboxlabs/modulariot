@@ -1699,8 +1699,6 @@
           "enforcedOn": "Una organización sin suscripción no consulta al proveedor. Al agotar su cuota se aplica lo que dice su suscripción.",
           "enforcedOff": "No se rechaza ninguna consulta. El uso igual se registra, se muestra y se alerta.",
           "resolutions": "Cuota mensual por defecto (consultas)",
-          "whatsAppRecipients": "Destinatarios de WhatsApp de la plataforma",
-          "whatsAppRecipientsHelp": "Opcional: hasta 20 números E.164, uno por línea (por ejemplo, +15550000001). Se usa la conexión WhatsApp de la plataforma; si no existe, se omiten estos envíos.",
           "alertPct": "Alerta al (% de la cuota)",
           "monthlyPrice": "Precio mensual (USD)",
           "overagePrice": "Precio por consulta excedente (USD)",
@@ -1711,13 +1709,14 @@
           "saveError": "No se pudo guardar.",
           "loadError": "No se pudo cargar.",
           "errors": {
-            "whatsAppRecipients": "Usa hasta 20 números E.164 con + y código de país.",
             "monthlyPrice": "El precio mensual debe ser un número mayor o igual a cero.",
             "resolutions": "La cuota debe ser un número entero mayor o igual a cero.",
             "overagePrice": "El precio excedente debe ser un número mayor o igual a cero.",
             "alertPct": "La alerta debe estar entre 1 y 100.",
             "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
-          }
+          },
+          "alertsHint": "Quién recibe las alertas de cuota se configura en las reglas de Comunicaciones de la plataforma.",
+          "alertsLink": "Ir a las reglas"
         },
         "geocodingTenants": {
           "menuTitle": "Organizaciones",
@@ -1771,8 +1770,6 @@
             "alreadySubscribed": "Ya tiene cuota; edítala en la tabla",
             "noMatches": "Ninguna organización coincide.",
             "refine": "{count} más; escribe para acotar.",
-            "whatsAppRecipients": "Destinatarios de WhatsApp de la organización",
-            "whatsAppRecipientsHelp": "Opcional: hasta 20 números E.164, uno por línea. Se usa la conexión WhatsApp de esta organización.",
             "pickFirst": "Elige una organización.",
             "quota": "Cuota mensual (consultas al proveedor)",
             "quotaPlaceholder": "Vacía: la del plan ({quota})",
@@ -1781,7 +1778,6 @@
             "cancel": "Cancelar"
           },
           "errors": {
-            "whatsAppRecipients": "Usa hasta 20 números E.164 con + y código de país.",
             "quota": "La cuota debe ser un número entero mayor o igual a cero, o quedar vacía."
           },
           "filters": {
@@ -4738,7 +4734,10 @@
         "findingStepUnknownGroup": "El paso {n} escribe al grupo {id}, que no existe.",
         "menuTemplates": "Lo que envían las reglas de todas las organizaciones",
         "menuTemplatesOrg": "Lo que pueden enviar las reglas; las edita la plataforma",
-        "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma"
+        "menuMeta": "Las plantillas aprobadas de la cuenta de la plataforma",
+        "eventGeocodingQuotaThreshold": "Cuota en el porcentaje de alerta",
+        "eventGeocodingQuotaExhausted": "Cuota agotada",
+        "eventGroupGeocoding": "Geocodificación"
       },
       "gps": {
         "title": "Integración GPS",

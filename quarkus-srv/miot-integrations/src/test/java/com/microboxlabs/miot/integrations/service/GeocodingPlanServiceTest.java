@@ -6,10 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.event.OperationalEvent;
-import com.microboxlabs.miot.core.iam.NotificationRecipients;
-import com.microboxlabs.miot.integrations.geocoding.GeocodingQuotaNotifications;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.geocoding.GeocodingGate.Refusal;
 import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.OrgPlanResponse;
 import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.OrgUsage;
@@ -36,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -50,7 +49,6 @@ class GeocodingPlanServiceTest {
     static final class Plans extends GeocodingPlanRepository {
         Plan plan = new Plan(new BigDecimal("0.00"), 1000, new BigDecimal("0.005"), 80, false, null, null);
         final Map<String, Subscription> subscriptions = new HashMap<>();
-        final List<Map<String, Object>> notifications = new ArrayList<>();
         final Set<String> alerted = new HashSet<>();
         long used;
         OffsetDateTime usedFrom;
@@ -84,8 +82,8 @@ class GeocodingPlanServiceTest {
 
         @Override
         public Plan setPlan(BigDecimal monthlyPriceUsd, int resolutionsPerMonth, BigDecimal overagePriceUsd,
-                            int alertPct, boolean enforced, String actor, List<String> recipients) {
-            plan = new Plan(monthlyPriceUsd, resolutionsPerMonth, overagePriceUsd, alertPct, enforced, actor, null, recipients);
+                            int alertPct, boolean enforced, String actor) {
+            plan = new Plan(monthlyPriceUsd, resolutionsPerMonth, overagePriceUsd, alertPct, enforced, actor, null);
             return plan;
         }
 
@@ -99,23 +97,13 @@ class GeocodingPlanServiceTest {
         }
 
         @Override
-        public void saveSubscription(String organization, Integer monthlyQuota, String onExhausted, String actor, List<String> recipients) {
-            subscriptions.put(organization, new Subscription(monthlyQuota, onExhausted, actor, null, recipients));
+        public void saveSubscription(String organization, Integer monthlyQuota, String onExhausted, String actor) {
+            subscriptions.put(organization, new Subscription(monthlyQuota, onExhausted, actor, null));
         }
 
         @Override
-        public boolean notificationClaimed(String organization, LocalDate month, String level) {
-            return alerted.contains(organization + "@" + month + ":" + level);
-        }
-
-        @Override
-        public synchronized boolean claimNotification(String organization, LocalDate month, String level,
-                String tenant, String key, Map<String, Object> payload) {
-            if (!subscriptions.containsKey(organization) || !alerted.add(organization + "@" + month + ":" + level)) {
-                return false;
-            }
-            notifications.add(payload);
-            return true;
+        public boolean claimLevel(String organization, LocalDate month, String level) {
+            return subscriptions.containsKey(organization) && alerted.add(organization + "@" + month + "@" + level);
         }
 
         @Override
@@ -143,27 +131,13 @@ class GeocodingPlanServiceTest {
 
     /** The plan is enforced or not as given; its other values stay. */
     private GeocodingPlanService service(boolean enforced) {
-        return service(enforced, CLOCK);
-    }
-
-    private GeocodingPlanService service(boolean enforced, Clock clock) {
         Plan p = plans.plan;
         plans.plan = new Plan(p.monthlyPriceUsd(), p.resolutionsPerMonth(), p.overagePriceUsd(), p.alertPct(), enforced,
-                p.updatedBy(), p.updatedAt(), p.whatsAppRecipients());
+                p.updatedBy(), p.updatedAt());
         return new GeocodingPlanService(plans, new GeocodingEvents(e -> {
             events.add(e);
             return CompletableFuture.completedFuture(null);
-        }), new GeocodingMetrics(meters), clock, new GeocodingQuotaNotifications(new NotificationRecipients(null, null) {
-            @Override
-            public OrganizationAudience organizationAdmins(String slug) {
-                return new OrganizationAudience(1L, slug, "Example", TENANT, List.of("admin@example.com"));
-            }
-
-            @Override
-            public List<String> platformOwners() {
-                return List.of("owner@example.com");
-            }
-        }, plans, new ObjectMapper()));
+        }), new GeocodingMetrics(meters), CLOCK);
     }
 
     private void subscribe(Integer quota, String onExhausted) {
@@ -213,16 +187,16 @@ class GeocodingPlanServiceTest {
     void notEnforcedNeverRefuses() {
         plans.used = 5000;
 
-        assertNull(service(false).checkProviderCall(ORG));
-        assertNull(service(false).checkProviderCall(null));
+        assertNull(service(false).checkProviderCall(ORG, TENANT));
+        assertNull(service(false).checkProviderCall(null, TENANT));
     }
 
     @Test
     void enforcedRefusesWithoutASubscription() {
-        Refusal r = service(true).checkProviderCall(ORG);
+        Refusal r = service(true).checkProviderCall(ORG, TENANT);
 
         assertEquals(GeocodingPlanService.NO_SUBSCRIPTION, r.code());
-        assertEquals(GeocodingPlanService.NO_SUBSCRIPTION, service(true).checkProviderCall(null).code());
+        assertEquals(GeocodingPlanService.NO_SUBSCRIPTION, service(true).checkProviderCall(null, TENANT).code());
     }
 
     @Test
@@ -230,7 +204,7 @@ class GeocodingPlanServiceTest {
         subscribe(null, "review");
         plans.used = 999;
 
-        assertNull(service(true).checkProviderCall(ORG));
+        assertNull(service(true).checkProviderCall(ORG, TENANT));
         assertEquals(OffsetDateTime.parse("2026-10-01T00:00Z"), plans.usedFrom);
         assertEquals(OffsetDateTime.parse("2026-11-01T00:00Z"), plans.usedTo);
     }
@@ -240,7 +214,7 @@ class GeocodingPlanServiceTest {
         subscribe(null, "review");
         plans.used = 1000;
 
-        Refusal r = service(true).checkProviderCall(ORG);
+        Refusal r = service(true).checkProviderCall(ORG, TENANT);
 
         assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, r.code());
         assertTrue(r.message().contains("1000"), r.message());
@@ -255,7 +229,7 @@ class GeocodingPlanServiceTest {
         subscribe(10, "review");
         plans.used = 10;
 
-        assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, service(true).checkProviderCall(ORG).code());
+        assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, service(true).checkProviderCall(ORG, TENANT).code());
     }
 
     @Test
@@ -263,7 +237,7 @@ class GeocodingPlanServiceTest {
         subscribe(10, "overage");
         plans.used = 50;
 
-        assertNull(service(true).checkProviderCall(ORG));
+        assertNull(service(true).checkProviderCall(ORG, TENANT));
     }
 
     @Test
@@ -279,13 +253,62 @@ class GeocodingPlanServiceTest {
         plans.used = 81;
         service.afterProviderCall(ORG, TENANT);
 
-        assertEquals(1, events.size());
+        assertEquals(List.of(TENANT, PlatformScope.TENANT), events.stream().map(OperationalEvent::tenantCode).toList());
         OperationalEvent e = events.get(0);
         assertEquals(GeocodingEventCatalog.QUOTA_THRESHOLD, e.type());
-        assertEquals(TENANT, e.tenantCode());
         assertEquals(ORG, e.context().key());
-        assertEquals(new GeocodingQuotaData(ORG, "2026-10", 80, 100, 80, "review"), e.data());
-        assertTrue(plans.alerted.contains(ORG + "@2026-10-01:threshold"));
+        assertEquals(new GeocodingQuotaData(ORG, ORG, "2026-10", 80, 100, 80, "review",
+                "La cuota aún no se aplica: ninguna consulta se rechaza.", ""), e.data());
+        assertEquals(e.data(), events.get(1).data());
+        assertTrue(plans.alerted.contains(ORG + "@2026-10-01@threshold"));
+    }
+
+    @Test
+    void usingTheWholeQuotaWarnsOnceMoreThatMonth() {
+        subscribe(100, "review");
+        GeocodingPlanService service = new GeocodingPlanService(plans, new GeocodingEvents(e -> {
+            events.add(e);
+            return CompletableFuture.completedFuture(null);
+        }), new GeocodingMetrics(meters), CLOCK, slug -> "Example Org",
+                GeocodingPlanService.usageLink(Optional.of("https://app.example.test/app/")));
+        service(true);
+        plans.used = 100;
+
+        service.afterProviderCall(ORG, TENANT);
+        service.afterProviderCall(ORG, TENANT);
+        assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, service.checkProviderCall(ORG, TENANT).code());
+
+        assertEquals(List.of(GeocodingEventCatalog.QUOTA_THRESHOLD, GeocodingEventCatalog.QUOTA_THRESHOLD,
+                GeocodingEventCatalog.QUOTA_EXHAUSTED, GeocodingEventCatalog.QUOTA_EXHAUSTED),
+                events.stream().map(OperationalEvent::type).toList());
+        GeocodingQuotaData exhausted = (GeocodingQuotaData) events.get(2).data();
+        assertEquals("Example Org", exhausted.company());
+        assertEquals("https://app.example.test/app/es/users/settings/geocoding", exhausted.link());
+        assertEquals(100, exhausted.pct());
+        assertEquals("Las direcciones nuevas pasan a revisión hasta el próximo mes o hasta que se aumente la cuota.",
+                exhausted.action());
+    }
+
+    @Test
+    void aQuotaAlreadyUsedWarnsWhenTheCallIsRefused() {
+        subscribe(10, "review");
+        plans.used = 12;
+
+        service(true).checkProviderCall(ORG, TENANT);
+        service(true).checkProviderCall(ORG, TENANT);
+
+        assertEquals(2, events.size());
+        assertEquals(GeocodingEventCatalog.QUOTA_EXHAUSTED, events.get(0).type());
+    }
+
+    @Test
+    void theActionSaysWhatHappensNext() {
+        Plan enforced = new Plan(BigDecimal.TEN, 100, new BigDecimal("0.0050"), 80, true, null, null);
+        Subscription overage = new Subscription(null, "overage", null, null);
+        assertEquals("Las consultas siguen y cada una adicional se cobra a US$ 0.005.",
+                GeocodingPlanService.action(true, enforced, overage));
+        assertEquals("Al llegar al 100 %, las direcciones nuevas pasarán a revisión.",
+                GeocodingPlanService.action(false, enforced, new Subscription(null, "review", null, null)));
     }
 
     @Test
@@ -296,109 +319,18 @@ class GeocodingPlanServiceTest {
 
         service(false).afterProviderCall(ORG, TENANT);
 
-        assertEquals(1, events.size());
+        assertEquals(2, events.size());
     }
 
     @Test
-    void noAlertWithoutASubscriptionAndZeroQuotaOnlyAlertsExhaustion() {
+    void noAlertWithoutASubscriptionOrAQuota() {
         plans.used = 5000;
         service(false).afterProviderCall(ORG, TENANT);
         service(false).afterProviderCall(null, TENANT);
         subscribe(0, "review");
         service(false).afterProviderCall(ORG, TENANT);
 
-        assertEquals(1, events.size());
-        assertEquals(GeocodingEventCatalog.QUOTA_EXHAUSTED, events.get(0).type());
-    }
-
-    @Test
-    void bothLevelsAreIndependentAndOnlyClaimedOnceInAMonth() {
-        subscribe(100, "overage");
-        plans.used = 100;
-        var service = service(true);
-        service.afterProviderCall(ORG, TENANT);
-        service.afterProviderCall(ORG, TENANT);
-        service.checkProviderCall(ORG);
-        assertEquals(2, plans.notifications.size());
-        assertEquals(List.of("threshold", "exhausted"), plans.notifications.stream().map(p -> p.get("level")).toList());
-        assertEquals(2, events.size());
-    }
-
-    @Test
-    void eachLevelCanBeClaimedInTheNextMonth() {
-        subscribe(100, "review");
-        plans.used = 100;
-        service(true).afterProviderCall(ORG, TENANT);
-        service(true, Clock.fixed(Instant.parse("2026-11-01T00:00:00Z"), ZoneOffset.UTC)).afterProviderCall(ORG, TENANT);
-        assertEquals(4, plans.notifications.size());
-        assertEquals("2026-11", plans.notifications.get(3).get("month"));
-    }
-
-    @Test
-    void alertAt100StillHasTwoDistinctLevels() {
-        plans.plan = new Plan(BigDecimal.ZERO, 100, BigDecimal.ZERO, 100, true, null, null);
-        subscribe(null, "review");
-        plans.used = 99;
-        var service = service(true);
-        service.afterProviderCall(ORG, TENANT);
-        assertTrue(plans.notifications.isEmpty());
-        plans.used = 100;
-        service.afterProviderCall(ORG, TENANT);
-        assertEquals(2, plans.notifications.size());
-    }
-
-    @Test
-    void refusalAlsoQueuesAnExistingExhaustedOrZeroQuota() {
-        subscribe(0, "review");
-        var service = service(true);
-        assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, service.checkProviderCall(ORG).code());
-        service.checkProviderCall(ORG);
-        assertEquals(1, plans.notifications.size());
-        assertEquals(100, plans.notifications.get(0).get("usedPct"));
-    }
-
-    @Test
-    void validatesDeduplicatesAndPreservesOptionalRecipients() {
-        var service = service(true);
-        var phones = List.of("+15550000001", "+15550000001");
-        var subscription = service.setSubscription(ORG, new SetSubscriptionRequest(10, "review", phones), "owner");
-        assertEquals(List.of("+15550000001"), subscription.whatsAppRecipients());
-        assertEquals(subscription.whatsAppRecipients(), service.setSubscription(ORG,
-                new SetSubscriptionRequest(10, "review"), "owner").whatsAppRecipients());
-        assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG,
-                new SetSubscriptionRequest(10, "review", List.of("15550000001")), "owner"));
-        assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG,
-                new SetSubscriptionRequest(10, "review", java.util.Collections.nCopies(21, "+15550000001")), "owner"));
-        assertTrue(service.setSubscription(ORG, new SetSubscriptionRequest(10, "review", List.of()), "owner")
-                .whatsAppRecipients().isEmpty());
-    }
-
-    @Test
-    void platformRecipientsStayOutOfTheOrganizationPlanResponse() {
-        plans.plan = new Plan(BigDecimal.ZERO, 100, BigDecimal.ZERO, 80, true, null, null, List.of("+15550000001"));
-        assertEquals(List.of("+15550000001"), service(true).plan().whatsAppRecipients());
-        assertTrue(service(true).orgPlan(ORG, null).plan().whatsAppRecipients().isEmpty());
-    }
-
-    @Test
-    void notificationPayloadSnapshotsTermsAndRecipients() {
-        subscribe(100, "overage");
-        plans.subscriptions.put(ORG, new Subscription(100, "overage", null, null, List.of("+15550000002")));
-        plans.plan = new Plan(BigDecimal.ZERO, 1000, new BigDecimal("0.005"), 80, true, null, null, List.of("+15550000001"));
-        plans.used = 100;
-        service(true).afterProviderCall(ORG, TENANT);
-        var payload = plans.notifications.get(1);
-        assertEquals(ORG, payload.get("organization"));
-        assertEquals("Example", payload.get("organizationName"));
-        assertEquals(TENANT, payload.get("tenantCode"));
-        assertEquals("2026-10", payload.get("month"));
-        assertEquals(100L, payload.get("used"));
-        assertEquals(100, payload.get("quota"));
-        assertEquals(List.of("owner@example.com"), payload.get("platformEmails"));
-        assertEquals(List.of("admin@example.com"), payload.get("adminEmails"));
-        assertEquals(List.of("+15550000002"), payload.get("orgWhatsAppRecipients"));
-        assertEquals(List.of("+15550000001"), payload.get("platformWhatsAppRecipients"));
-        assertEquals("/app/es/users/settings/geocoding", payload.get("usagePath"));
+        assertTrue(events.isEmpty());
     }
 
     @Test

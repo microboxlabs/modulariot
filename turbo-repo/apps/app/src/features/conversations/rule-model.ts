@@ -46,6 +46,8 @@ const EVENT_LABEL: Record<string, string> = {
   "trip.milestone.conflict": "eventTripMilestoneConflict",
   "trip.feed.closed_changed": "eventTripFeedClosedChanged",
   "conversation.reply_received": "eventConversationReplyReceived",
+  "geocoding.quota.threshold": "eventGeocodingQuotaThreshold",
+  "geocoding.quota.exhausted": "eventGeocodingQuotaExhausted",
 };
 
 const SUMMARY_LEAD: Record<string, string> = {
@@ -59,6 +61,7 @@ const EVENT_GROUPS = [
   { prefix: "symptom.", label: "eventGroupSymptoms" },
   { prefix: "trip.", label: "eventGroupTrips" },
   { prefix: "conversation.", label: "eventGroupConversations" },
+  { prefix: "geocoding.", label: "eventGroupGeocoding" },
 ] as const;
 
 /** The event types under the module that publishes them, in catalog order; unknown prefixes go last. */

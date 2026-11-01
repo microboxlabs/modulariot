@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Button,
   Label,
   Spinner,
   TextInput,
-  Textarea,
   ToggleSwitch,
 } from "flowbite-react";
 import { HiOutlineMap } from "react-icons/hi";
@@ -24,7 +25,7 @@ import { useGeocodingPlan } from "./use-geocoding-plan";
 
 /** Bounds of each number field; prices go to a hundredth of a cent. */
 const NUMBER_LIMITS: Record<
-  keyof Omit<GeocodingPlanDraft, "enforced" | "whatsAppRecipients">,
+  keyof Omit<GeocodingPlanDraft, "enforced">,
   { min: number; max?: number; step: number }
 > = {
   resolutionsPerMonth: { min: 0, step: 1 },
@@ -48,6 +49,7 @@ const SECTION =
 export default function GeocodingPlanSection({
   dict,
 }: GeocodingPlanSectionProps) {
+  const { lang } = useParams<{ lang: string }>();
   const { plan, isLoading, error, save } = useGeocodingPlan();
   const [draft, setDraft] = useState<GeocodingPlanDraft | null>(null);
   const [problem, setProblem] = useState<GeocodingPlanError | null>(null);
@@ -80,7 +82,7 @@ export default function GeocodingPlanSection({
 
   const field = (
     id: string,
-    key: keyof Omit<GeocodingPlanDraft, "enforced" | "whatsAppRecipients">,
+    key: keyof Omit<GeocodingPlanDraft, "enforced">,
     label: string
   ) =>
     draft && (
@@ -154,23 +156,15 @@ export default function GeocodingPlanSection({
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {tr("countHelp", dict)}
           </p>
-
-          <div className="mt-4">
-            <Label htmlFor="geo-plan-whatsapp">
-              {tr("whatsAppRecipients", dict)}
-            </Label>
-            <Textarea
-              id="geo-plan-whatsapp"
-              value={draft.whatsAppRecipients}
-              onChange={(e) =>
-                setDraft({ ...draft, whatsAppRecipients: e.target.value })
-              }
-              rows={3}
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {tr("whatsAppRecipientsHelp", dict)}
-            </p>
-          </div>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {tr("alertsHint", dict)}{" "}
+            <Link
+              href={`/${lang}/users/settings/communications?section=rules`}
+              className="font-medium text-blue-600 hover:underline dark:text-blue-500"
+            >
+              {tr("alertsLink", dict)}
+            </Link>
+          </p>
 
           {problem && (
             <p className="mt-3 text-sm text-red-600 dark:text-red-400">

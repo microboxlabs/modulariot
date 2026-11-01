@@ -55,7 +55,7 @@ public class GeocodingPlanService {
     static final String THRESHOLD = "threshold";
     static final String EXHAUSTED = "exhausted";
     /** The organization's usage page, under the app's public URL. */
-    static final String USAGE_PAGE = "/es/users/settings/geocoding";
+    static final String USAGE_PAGE = "/es/users/settings/trips?section=geocodingUsage";
 
     private final GeocodingPlanRepository repository;
     private final GeocodingEvents events;
@@ -170,8 +170,7 @@ public class GeocodingPlanService {
         long used = repository.providerCalls(organization, start(month), start(month.plusMonths(1)));
         metrics.quota(organization, used, quota);
         if (quota > 0 && used >= quota) {
-            alert(GeocodingEventCatalog.QUOTA_EXHAUSTED, organization, tenantCode, plan, subscription, month, used,
-                    quota);
+            alert(GeocodingEventCatalog.QUOTA_EXHAUSTED, organization, tenantCode, plan, subscription, month, used);
         }
         if (used >= quota && REVIEW.equals(subscription.onExhausted())) {
             return refuse(QUOTA_EXHAUSTED, "the organization used its " + quota
@@ -195,22 +194,21 @@ public class GeocodingPlanService {
         long used = repository.providerCalls(organization, start(month), start(month.plusMonths(1)));
         metrics.quota(organization, used, quota);
         if (quota > 0 && used * 100 >= (long) plan.alertPct() * quota) {
-            alert(GeocodingEventCatalog.QUOTA_THRESHOLD, organization, tenantCode, plan, subscription, month, used,
-                    quota);
+            alert(GeocodingEventCatalog.QUOTA_THRESHOLD, organization, tenantCode, plan, subscription, month, used);
         }
         if (quota > 0 && used >= quota) {
-            alert(GeocodingEventCatalog.QUOTA_EXHAUSTED, organization, tenantCode, plan, subscription, month, used,
-                    quota);
+            alert(GeocodingEventCatalog.QUOTA_EXHAUSTED, organization, tenantCode, plan, subscription, month, used);
         }
     }
 
     private void alert(String type, String organization, String tenantCode, Plan plan, Subscription subscription,
-            YearMonth month, long used, int quota) {
+            YearMonth month, long used) {
         boolean exhausted = GeocodingEventCatalog.QUOTA_EXHAUSTED.equals(type);
         try {
             if (!repository.claimLevel(organization, month.atDay(1), exhausted ? EXHAUSTED : THRESHOLD)) {
                 return;
             }
+            int quota = quota(plan, subscription);
             int pct = (int) Math.min(Integer.MAX_VALUE, used * 100 / quota);
             LOG.warnf("Geocoding quota: %s used %d of %d provider calls in %s (%d%%)", organization, used, quota,
                     month, pct);

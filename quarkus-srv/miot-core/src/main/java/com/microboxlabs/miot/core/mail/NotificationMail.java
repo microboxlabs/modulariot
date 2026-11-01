@@ -19,7 +19,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 public class NotificationMail {
 
     static final String CONTENT = "<!-- content -->";
-    private static final String LAYOUT = "mail-templates/notification.hbs";
+    private static final String LAYOUT_RESOURCE = "mail-templates/notification.hbs";
 
     private static final MailTemplateEngine ENGINE = new MailTemplateEngine();
 
@@ -59,9 +59,9 @@ public class NotificationMail {
     }
 
     private static String resource() {
-        try (InputStream in = NotificationMail.class.getClassLoader().getResourceAsStream(LAYOUT)) {
+        try (InputStream in = NotificationMail.class.getClassLoader().getResourceAsStream(LAYOUT_RESOURCE)) {
             if (in == null) {
-                throw new IllegalStateException("Missing " + LAYOUT);
+                throw new IllegalStateException("Missing " + LAYOUT_RESOURCE);
             }
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {

@@ -59,4 +59,14 @@ class GeocodingParticipantsTest {
         assertTrue(participants.resolve("t", GeocodingEventCatalog.CONTEXT_KIND, null,
                 GeocodingParticipants.ORGANIZATION_ADMINS, Map.of()).isEmpty());
     }
+
+    @Test
+    void anOrganizationResolvesOnlyItsOwnAdministrators() {
+        assertEquals(3, participants.resolve("tenant-1", GeocodingEventCatalog.CONTEXT_KIND, "example-org",
+                GeocodingParticipants.ORGANIZATION_ADMINS, Map.of()).size());
+        assertTrue(participants.resolve("tenant-2", GeocodingEventCatalog.CONTEXT_KIND, "example-org",
+                GeocodingParticipants.ORGANIZATION_ADMINS, Map.of()).isEmpty());
+        assertTrue(participants.resolve(null, GeocodingEventCatalog.CONTEXT_KIND, "example-org",
+                GeocodingParticipants.ORGANIZATION_ADMINS, Map.of()).isEmpty());
+    }
 }

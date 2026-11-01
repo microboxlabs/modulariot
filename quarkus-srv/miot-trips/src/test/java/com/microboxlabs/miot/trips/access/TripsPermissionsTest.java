@@ -70,6 +70,7 @@ class TripsPermissionsTest {
             Map.entry("OrgTripsResource.list", VIEW),
             Map.entry("OrgTripsResource.create", TRIP_WRITE),
             Map.entry("OrgTripsResource.get", VIEW),
+            Map.entry("OrgTripsResource.geofences", VIEW),
             Map.entry("OrgTripsResource.update", TRIP_WRITE),
             Map.entry("OrgTripsResource.linkMandate", TRIP_WRITE),
             Map.entry("OrgTripsResource.unlinkMandate", TRIP_WRITE),

@@ -30,6 +30,10 @@ export default {
     title: 'Dashboards',
     href: '/es/products/dashboards'
   },
+  'products-geocoding': {
+    title: 'Geocodificación',
+    href: '/es/products/geocoding'
+  },
   products: {
     title: 'Productos',
     type: 'page',
@@ -40,6 +44,7 @@ export default {
     type: 'menu',
     items: {
       dashboards: { title: 'Dashboards', href: '/es/products/dashboards' },
+      geocoding: { title: 'Geocodificación', href: '/es/products/geocoding' },
       all: { title: 'Todos los productos', href: '/es/products' }
     }
   }

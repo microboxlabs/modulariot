@@ -1,0 +1,390 @@
+{
+  "stack_version": "0.6.1",
+  "stack_tag": "miot-stack@v0.6.1",
+  "milestone": "MIOT-0.6.1",
+  "pull_requests": [
+    {
+      "number": 1933,
+      "title": "Based/settings places",
+      "source_issues": [
+        {
+          "number": 2277,
+          "title": "Places settings workspace for geographic and trip maps"
+        }
+      ]
+    },
+    {
+      "number": 2227,
+      "title": "Based/enhancement of places setting",
+      "source_issues": [
+        {
+          "number": 2302,
+          "title": "Enhance Places settings editor and map controls"
+        }
+      ]
+    },
+    {
+      "number": 2262,
+      "title": "[trips] Draw trip map geofences from the owning engine",
+      "source_issues": [
+        {
+          "number": 2270,
+          "title": "[trips] Draw trip map geofences from the owning engine"
+        }
+      ]
+    },
+    {
+      "number": 2269,
+      "title": "feat(trips): link a resolved point to the tenant geofence that contains it",
+      "source_issues": [
+        {
+          "number": 2275,
+          "title": "Link a resolved trip point to the tenant geofence that contains it"
+        }
+      ]
+    },
+    {
+      "number": 2271,
+      "title": "[app] Separate platform and Coordinator release notes",
+      "source_issues": [
+        {
+          "number": 2272,
+          "title": "[app] Separate platform and Coordinator release notes"
+        }
+      ]
+    },
+    {
+      "number": 2288,
+      "title": "docs(geocoding): overview and navigation",
+      "source_issues": [
+        {
+          "number": 2294,
+          "title": "docs(geocoding): overview and navigation"
+        }
+      ]
+    },
+    {
+      "number": 2289,
+      "title": "docs(geocoding): Learn pages",
+      "source_issues": [
+        {
+          "number": 2295,
+          "title": "docs(geocoding): Learn pages"
+        }
+      ]
+    },
+    {
+      "number": 2290,
+      "title": "docs(geocoding): Reference pages",
+      "source_issues": [
+        {
+          "number": 2296,
+          "title": "docs(geocoding): Reference pages"
+        }
+      ]
+    },
+    {
+      "number": 2291,
+      "title": "docs(geocoding): how-to guides",
+      "source_issues": [
+        {
+          "number": 2297,
+          "title": "docs(geocoding): how-to guides"
+        }
+      ]
+    },
+    {
+      "number": 2292,
+      "title": "docs(geocoding): concepts",
+      "source_issues": [
+        {
+          "number": 2298,
+          "title": "docs(geocoding): concepts"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/prompts/app-release-notes.prompt.yml",
+    ".github/scripts/prepare-release-notes.js",
+    ".github/scripts/write-release-notes.js",
+    ".github/tests/release-notes.test.js",
+    ".github/tests/test-stack-workflow.py",
+    ".github/workflows/app-release-train.yml",
+    ".github/workflows/validate-stack-workflows.yml",
+    "README.md",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/trips/TripGeofences.java",
+    "quarkus-srv/miot-symptoms/docs/control-tower-api.md",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/access/ControlTowerAccessCatalog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/TreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermissionsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReadsTest.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/api/OrgTripsResource.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/LocationResolver.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/service/TripGeofenceService.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/GeofenceDirectory.java",
+    "quarkus-srv/miot-trips/src/main/java/com/microboxlabs/miot/trips/store/GpsGeofenceDirectory.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/access/OrgLocationsResourceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/access/TripsPermissionsTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/LocationGeocodingTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/LocationResolverTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/service/TripGeofenceServiceTest.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/FakeGeofences.java",
+    "quarkus-srv/miot-trips/src/test/java/com/microboxlabs/miot/trips/store/PostgisGeofenceDirectoryTest.java",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/geographic-view/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/release/[version]/page.tsx",
+    "turbo-repo/apps/app/src/app/api/atc/rpc/[fn]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/atc/rpc/[fn]/route.ts",
+    "turbo-repo/apps/app/src/app/api/build-info/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/build-info/route.ts",
+    "turbo-repo/apps/app/src/app/api/map/geofences/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/geofences/route.ts",
+    "turbo-repo/apps/app/src/app/api/places/geofences/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/places/geofences/route.ts",
+    "turbo-repo/apps/app/src/app/api/releases/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/releases/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/pgrest-client.ts",
+    "turbo-repo/apps/app/src/features/common/components/keyboard-shortcut-trigger/keyboard-shortcut-trigger.tsx",
+    "turbo-repo/apps/app/src/features/common/hooks/use-keyboard-shortcut.test.ts",
+    "turbo-repo/apps/app/src/features/common/hooks/use-keyboard-shortcut.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/client-map-starter.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/client-map-starter.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/filters.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/geofence_pin.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/geofence_pin.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/geographic-view-shell.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-controls-frame.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-controls-frame.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-layers-card.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-layers-card.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-notch/map-notch.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-notch/map-notch.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-style-selector.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-tooltip.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-overlay/panel-motion.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-overlay/panel-motion.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-overlay/places-floating-overlay.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-overlay/places-floating-overlay.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-overlay/places-toggle.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-overlay/places-toggle.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-permission-debug.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/places-permission-debug.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/side-bar/side-bar.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tool-bar/geofences-mode-selector.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tool-bar/geofences-mode-selector.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tool-bar/tool-bar.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tool-bar/tool-bar.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/pin-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/vehicle-description.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tooltips/vehicle-description.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/profiles/geographic-profile-context.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/profiles/geographic-profiles.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/profiles/geographic-profiles.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/profiles/places-permission.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/profiles/profile-dropdown.test.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/profiles/profile-dropdown.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/geofence-geometry.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/geofence-geometry.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/vehicle-origin.ts",
+    "turbo-repo/apps/app/src/features/layout/components/release-view/release-notes.tsx",
+    "turbo-repo/apps/app/src/features/layout/lib/release-notes-audience.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/map-visualization.test.tsx",
+    "turbo-repo/apps/app/src/features/map-visualization/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/add-button.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/catalog-search-bar.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/catalog-search.test.ts",
+    "turbo-repo/apps/app/src/features/places/catalog/catalog-search.ts",
+    "turbo-repo/apps/app/src/features/places/catalog/export-button.test.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/export-button.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/external-geofences-list.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/list-card.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/list-selection.test.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/list-selection.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/place-list.test.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/place-list.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/places-catalog.test.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/places-catalog.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/route-lists.test.tsx",
+    "turbo-repo/apps/app/src/features/places/catalog/route-lists.tsx",
+    "turbo-repo/apps/app/src/features/places/data/draft-store.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/draft-store.ts",
+    "turbo-repo/apps/app/src/features/places/data/en-serie.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/en-serie.ts",
+    "turbo-repo/apps/app/src/features/places/data/form-changes.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/form-changes.ts",
+    "turbo-repo/apps/app/src/features/places/data/geocoding.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/geocoding.ts",
+    "turbo-repo/apps/app/src/features/places/data/local-store.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/local-store.ts",
+    "turbo-repo/apps/app/src/features/places/data/plus-code.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/plus-code.ts",
+    "turbo-repo/apps/app/src/features/places/data/storage-key.ts",
+    "turbo-repo/apps/app/src/features/places/data/streamhub-geofences.test.ts",
+    "turbo-repo/apps/app/src/features/places/data/streamhub-geofences.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/geofence-color-picker.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/geofence-editor.test.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/geofence-editor.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/geom-icon-bar.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/inner-geofence-fields.test.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/inner-geofence-fields.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/inner-geofences.test.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/inner-geofences.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/place-form.test.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/place-form.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/place-validation.test.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/place-validation.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/poly-base-fields.test.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/poly-base-fields.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/polygon-draw-toolbar.test.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/polygon-draw-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/places/geofences/polygon-draw.test.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/polygon-draw.ts",
+    "turbo-repo/apps/app/src/features/places/geofences/polygon-editor.tsx",
+    "turbo-repo/apps/app/src/features/places/hooks/use-places-en-mapa.ts",
+    "turbo-repo/apps/app/src/features/places/hooks/use-places-workspace.tsx",
+    "turbo-repo/apps/app/src/features/places/hooks/workspace-tenancy.test.tsx",
+    "turbo-repo/apps/app/src/features/places/import-export/export-places.test.ts",
+    "turbo-repo/apps/app/src/features/places/import-export/export-places.ts",
+    "turbo-repo/apps/app/src/features/places/import-export/import-conflict-table.tsx",
+    "turbo-repo/apps/app/src/features/places/import-export/import-conflicts.test.ts",
+    "turbo-repo/apps/app/src/features/places/import-export/import-conflicts.ts",
+    "turbo-repo/apps/app/src/features/places/import-export/import-places.fixtures.ts",
+    "turbo-repo/apps/app/src/features/places/import-export/import-places.test.ts",
+    "turbo-repo/apps/app/src/features/places/import-export/import-places.ts",
+    "turbo-repo/apps/app/src/features/places/index.ts",
+    "turbo-repo/apps/app/src/features/places/map/badge-layout.test.ts",
+    "turbo-repo/apps/app/src/features/places/map/badge-layout.ts",
+    "turbo-repo/apps/app/src/features/places/map/cursors.ts",
+    "turbo-repo/apps/app/src/features/places/map/geofence-lod.test.ts",
+    "turbo-repo/apps/app/src/features/places/map/geofence-lod.ts",
+    "turbo-repo/apps/app/src/features/places/map/place-badge-menu.tsx",
+    "turbo-repo/apps/app/src/features/places/map/place-badge-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/places/map/place-name-layer.test.ts",
+    "turbo-repo/apps/app/src/features/places/map/place-name-layer.ts",
+    "turbo-repo/apps/app/src/features/places/map/places-editor-overlays.tsx",
+    "turbo-repo/apps/app/src/features/places/map/places-map-layers.tsx",
+    "turbo-repo/apps/app/src/features/places/places.types.ts",
+    "turbo-repo/apps/app/src/features/places/routes/recorrido.test.ts",
+    "turbo-repo/apps/app/src/features/places/routes/recorrido.ts",
+    "turbo-repo/apps/app/src/features/places/routes/trayecto-form.tsx",
+    "turbo-repo/apps/app/src/features/places/routes/trayecto-validation.test.ts",
+    "turbo-repo/apps/app/src/features/places/routes/trayecto-validation.ts",
+    "turbo-repo/apps/app/src/features/places/ui/category-dropdown.test.tsx",
+    "turbo-repo/apps/app/src/features/places/ui/category-dropdown.tsx",
+    "turbo-repo/apps/app/src/features/places/ui/meta-table.test.tsx",
+    "turbo-repo/apps/app/src/features/places/ui/meta-table.tsx",
+    "turbo-repo/apps/app/src/features/places/ui/unsaved-changes-dialog.test.tsx",
+    "turbo-repo/apps/app/src/features/places/ui/unsaved-changes-dialog.tsx",
+    "turbo-repo/apps/app/src/features/trips/sheet/trip-map.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/src/releases/platform/README.md",
+    "turbo-repo/apps/docs/content/en/_meta.ts",
+    "turbo-repo/apps/docs/content/en/index.mdx",
+    "turbo-repo/apps/docs/content/en/products/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/geocoding/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/geocoding/concepts/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/geocoding/concepts/generic-and-setup.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/concepts/provider-connection.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/concepts/usage-and-cost.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/assign-quota.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/certify-a-country.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/feed-sites.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/review-locations.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/how-to/set-up-provider.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/index.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/data-and-metrics.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/locations-api.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/plan-api.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/reference/review-notes.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/tutorials/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/geocoding/tutorials/first-location.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/tutorials/needs-review.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/tutorials/point-to-geofence.mdx",
+    "turbo-repo/apps/docs/content/en/products/geocoding/tutorials/resolution-order.mdx",
+    "turbo-repo/apps/docs/content/en/products/index.mdx",
+    "turbo-repo/apps/docs/content/es/_meta.ts",
+    "turbo-repo/apps/docs/content/es/index.mdx",
+    "turbo-repo/apps/docs/content/es/products/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/geocoding/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/geocoding/concepts/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/geocoding/concepts/generic-and-setup.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/concepts/provider-connection.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/concepts/usage-and-cost.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/assign-quota.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/certify-a-country.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/feed-sites.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/review-locations.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/how-to/set-up-provider.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/index.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/data-and-metrics.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/locations-api.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/plan-api.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/reference/review-notes.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/tutorials/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/geocoding/tutorials/first-location.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/tutorials/needs-review.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/tutorials/point-to-geofence.mdx",
+    "turbo-repo/apps/docs/content/es/products/geocoding/tutorials/resolution-order.mdx",
+    "turbo-repo/apps/docs/content/es/products/index.mdx",
+    "turbo-repo/apps/docs/plans/dashboards-docs-plan.md",
+    "turbo-repo/apps/docs/public/geocoding/credential-types.png",
+    "turbo-repo/apps/docs/public/geocoding/new-connection-picker.png",
+    "turbo-repo/apps/docs/public/geocoding/org-connection-card.png",
+    "turbo-repo/apps/docs/public/geocoding/org-monthly-usage.png",
+    "turbo-repo/apps/docs/public/geocoding/place-dialog-wrong-district.png",
+    "turbo-repo/apps/docs/public/geocoding/platform-organizations.png",
+    "turbo-repo/apps/docs/public/geocoding/platform-plan.png",
+    "turbo-repo/apps/docs/public/geocoding/platform-provider.png",
+    "turbo-repo/apps/docs/public/geocoding/review-queue.png",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.6.1",
+      "tag": "app@v0.6.1"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.6.0",
+      "version": "0.6.1",
+      "tag": "docs@v0.6.1"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.6.0",
+      "version": "0.6.1",
+      "tag": "web@v0.6.1"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.39",
+      "version": "0.5.40",
+      "tag": "modulith@v0.5.40"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.14",
+      "version": "0.1.14",
+      "tag": "harness@v0.1.14"
+    }
+  }
+}

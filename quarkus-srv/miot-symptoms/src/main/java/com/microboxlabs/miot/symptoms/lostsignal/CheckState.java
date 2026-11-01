@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Instant;
 
 /**
@@ -10,6 +11,7 @@ import java.time.Instant;
  * @param checkedAt the last check
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@RegisterForReflection
 public record CheckState(Instant lostSince, Instant checkedAt) {
 
     public static final CheckState NONE = new CheckState(null, null);

@@ -32,6 +32,8 @@ public class LostSignalDetector {
 
     private static final Logger LOG = Logger.getLogger(LostSignalDetector.class);
     private static final Duration HEARTBEAT_EVERY = Duration.ofSeconds(1);
+    /** After a failed frame the detector skips frames this long, so a stalled store does not hold the consumer. */
+    static final long BACKOFF_MS = 30_000;
 
     private final boolean enabled;
     private final ArrivalProfiles profiles;
@@ -51,6 +53,7 @@ public class LostSignalDetector {
                     new IngestHealth(Duration.ofMinutes(2), Duration.ofMinutes(2)));
         }
     }
+    private volatile long skipUntil;
 
     @Inject
     LostSignalDetector(@ConfigProperty(name = "miot.symptoms.lost-signal.enabled", defaultValue = "false") boolean enabled,
@@ -109,10 +112,15 @@ public class LostSignalDetector {
         if (!enabled) {
             return;
         }
+        if (System.currentTimeMillis() < skipUntil) {
+            meters.counter("miot.symptoms.lost_signal.skipped").increment();
+            return;
+        }
         try {
             record(Frame.of(signal, assetId, at, arrivedAt), signal);
             beat(arrivedAt);
         } catch (RuntimeException e) {
+            skipUntil = System.currentTimeMillis() + BACKOFF_MS;
             meters.counter("miot.symptoms.lost_signal.failed").increment();
             LOG.debugf("Lost-signal detector: frame not recorded (%s)", e.getClass().getSimpleName());
         }

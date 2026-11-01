@@ -51,6 +51,14 @@ class ControlTowerTreatmentServiceTest {
         }
 
         @Override
+        public Uni<Optional<JsonNode>> tripGeofences(String tripId, String clientId) {
+            return Uni.createFrom().item("123".equals(tripId) && "client-child".equals(clientId)
+                    ? Optional.of(JSON.createObjectNode().put("status", 200).set("data",
+                            JSON.createArrayNode().add(JSON.createObjectNode().put("trip_id", tripId))))
+                    : Optional.empty());
+        }
+
+        @Override
         public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit) {
             calls.add("positions " + tripId + " " + assetId + " " + clientId + " " + limit);
             if (!"T1".equals(tripId) || !"AB12".equals(assetId) || !"client-child".equals(clientId)) {
@@ -75,6 +83,13 @@ class ControlTowerTreatmentServiceTest {
 
     private static JsonNode await(Uni<JsonNode> call) {
         return call.await().indefinitely();
+    }
+
+    @Test
+    void legacyGeofencesUseTheOrganizationsClientIds() {
+        assertEquals("123", await(service.tripGeofences(CLIENTS, "123")).get(0).path("trip_id").asText());
+        Uni<JsonNode> missing = service.tripGeofences(List.of("client-a"), "123");
+        assertThrows(NoSuchElementException.class, () -> await(missing));
     }
 
     @Test

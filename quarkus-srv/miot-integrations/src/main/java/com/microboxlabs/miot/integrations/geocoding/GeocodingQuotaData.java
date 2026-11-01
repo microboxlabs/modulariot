@@ -2,13 +2,20 @@ package com.microboxlabs.miot.integrations.geocoding;
 
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
-/** The data of a {@code geocoding.quota.*} event. */
+/**
+ * The data of a {@code geocoding.quota.*} event. The component names are the template variables, and lower case
+ * so a WhatsApp template can use them as its named parameters.
+ */
 @Schema(title = "Cupo de geocoding")
 public record GeocodingQuotaData(
         @Schema(title = "Organización", description = "The organization slug") String organization,
+        @Schema(title = "Empresa", description = "The organization's name") String company,
         @Schema(title = "Mes", description = "The month, as 2026-10") String month,
         @Schema(title = "Usadas", description = "Provider calls this month") long used,
         @Schema(title = "Cupo", description = "Provider calls included in the month") int quota,
-        @Schema(title = "Porcentaje", description = "Share of the quota used, rounded down") int usedPct,
-        @Schema(title = "Al agotarse", description = "review or overage") String onExhausted) {
+        @Schema(title = "Porcentaje", description = "Share of the quota used, rounded down") int pct,
+        @Schema(title = "Al agotarse", description = "review or overage") String exhausted,
+        @Schema(title = "Qué pasa ahora", description = "What happens to new addresses, in Spanish") String action,
+        @Schema(title = "Enlace", description = "The organization's geocoding usage page; empty without the app's "
+                + "public URL") String link) {
 }

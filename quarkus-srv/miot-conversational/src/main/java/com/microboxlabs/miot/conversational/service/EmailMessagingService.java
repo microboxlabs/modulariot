@@ -10,6 +10,7 @@ import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.domain.MessageType;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
+import com.microboxlabs.miot.core.mail.NotificationMail;
 import com.microboxlabs.miot.integrations.email.EmailMessage;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
 import com.microboxlabs.miot.integrations.email.SendResult;
@@ -32,29 +33,41 @@ public class EmailMessagingService {
 
     private static final int PREVIEW_MAX = 280;
     static final String SUBJECT = "subject";
+    /** The rendered HTML body, without the layout; the text is the message's body. */
+    static final String HTML = "html";
 
     private final ResendEmailSender sender;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final ChannelAccountsService accounts;
+    private final NotificationMail layout;
 
     @Inject
     public EmailMessagingService(ResendEmailSender sender, ConversationRepository conversationRepository,
-            MessageRepository messageRepository, ChannelAccountsService accounts) {
+            MessageRepository messageRepository, ChannelAccountsService accounts, NotificationMail layout) {
         this.sender = sender;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.accounts = accounts;
+        this.layout = layout;
+    }
+
+    private static Map<String, Object> metadata(ContextMessage message) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (message.subject() != null) {
+            metadata.put(SUBJECT, message.subject());
+        }
+        if (message.html() != null) {
+            metadata.put(HTML, message.html());
+        }
+        return metadata;
     }
 
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
                 message.participant(null), now);
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        if (message.subject() != null) {
-            metadata.put(SUBJECT, message.subject());
-        }
+        Map<String, Object> metadata = metadata(message);
         MessageStatus status;
         String providerMessageId = null;
         String errorMessage = null;
@@ -81,10 +94,7 @@ public class EmailMessagingService {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
                 message.participant(null), now);
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        if (message.subject() != null) {
-            metadata.put(SUBJECT, message.subject());
-        }
+        Map<String, Object> metadata = metadata(message);
         Message stored = messageRepository.appendQueued(new Message(
                 QueuedMessageId.forStep(message, Channel.EMAIL), conversation.id(), MessageDirection.OUTBOUND,
                 MessageRole.SYSTEM, MessageType.TEXT, message.body(), message.templateName(), null, null, null, null,
@@ -111,9 +121,10 @@ public class EmailMessagingService {
             return message;
         }
         Object subject = message.metadata() == null ? null : message.metadata().get(SUBJECT);
+        Object html = message.metadata() == null ? null : message.metadata().get(HTML);
         SendResult result = deliver(tenantCode, new ContextMessage(null, null, message.address(), null, null, null,
                 message.templateName(), null, Map.of(), subject == null ? null : subject.toString(), message.body(),
-                message.runId(), message.step()));
+                message.runId(), message.step(), html == null ? null : html.toString()));
         if (!result.accepted()) {
             throw new SendFailure(result.error(), result.retryable());
         }
@@ -152,7 +163,8 @@ public class EmailMessagingService {
         }
         EmailMessage email;
         try {
-            email = new EmailMessage(null, message.to(), message.subject(), message.body(), null, null);
+            String html = message.html() == null ? null : layout.wrap(message.subject(), message.html());
+            email = new EmailMessage(null, message.to(), message.subject(), message.body(), html, null);
         } catch (IllegalArgumentException e) {
             return SendResult.failedPermanently(e.getMessage());
         }

@@ -44,10 +44,14 @@ class CoverageAndCohortTest {
         }
         assertEquals(0.5, c.share(), 0.01);
 
-        assertTrue(map.lowCoverage(c, 0.05, null));
-        assertFalse(map.lowCoverage(c, 0.3, null), "the sender is delayed everywhere: not the cell");
-        assertTrue(map.lowCoverage(null, 0.3, c), "every sender together is delayed there");
-        assertFalse(map.lowCoverage(Coverage.with(null, true, T0, Duration.ofDays(7)), 0, null), "too few frames");
+        Instant now = T0.plusSeconds(30);
+        assertTrue(map.lowCoverage(c, 0.05, null, now));
+        assertFalse(map.lowCoverage(c, 0.3, null, now), "the sender is delayed everywhere: not the cell");
+        assertTrue(map.lowCoverage(null, 0.3, c, now), "every sender together is delayed there");
+        assertFalse(map.lowCoverage(Coverage.with(null, true, T0, Duration.ofDays(7)), 0, null, now),
+                "too few frames");
+        assertFalse(map.lowCoverage(c, 0.05, null, T0.plus(Duration.ofDays(14))),
+                "nobody crossed it for two half-lives: 30 frames read as 7.5");
     }
 
     @Test
@@ -64,12 +68,16 @@ class CoverageAndCohortTest {
     void anOutageIsManyLostAgainstTheSendersUsualCount() {
         assertFalse(Cohort.outage(null, 2));
         assertTrue(Cohort.outage(null, 3));
-        Cohort usual = new Cohort(4, T0);
+        Cohort usual = new Cohort(4, T0, 12);
         assertFalse(Cohort.outage(usual, 6), "a sender that usually has 4 lost");
         assertTrue(Cohort.outage(usual, 12));
 
         Cohort moved = Cohort.with(usual, 12, T0.plus(Cohort.HALF_LIFE));
-        assertEquals(8, moved.baseline(), 0.001, "half way after one half-life");
+        assertEquals(8, moved.baseline(), 0.001, "12 held for one half-life: half way");
+
+        Cohort quiet = Cohort.with(new Cohort(4, T0, 0), 5, T0.plus(Cohort.HALF_LIFE));
+        assertEquals(2, quiet.baseline(), 0.001, "a quiet interval lowers the baseline before the new loss");
+        assertEquals(5, quiet.count());
     }
 
     @Test

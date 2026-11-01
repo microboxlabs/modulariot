@@ -1,0 +1,109 @@
+# Datos y métricas
+
+**Para:** desarrolladores y dueños de la plataforma.
+
+Dónde queda cada resolución y qué se puede medir.
+
+## Tablas
+
+| Tabla | Una fila por | Qué guarda |
+| --- | --- | --- |
+| `miot_trips.location` | Ubicación | Lo declarado (`address`, `country`, `district_code`, `district_name`), el punto (`latitude`, `longitude`, `plus_code`), `resolution_source`, `resolution_status`, `resolution_note` y `geofence_id` |
+| `miot_trips.geocode_cache` | Dirección, comuna y país | El punto, la fuente y el proveedor. Compartida por todas las organizaciones. Sin organización, nombre de lugar ni respuesta del proveedor |
+| `miot_integrations.geocode_usage` | Resolución por `POST /resolve` o por un sitio de feed | Organización, usuario, fuente, resultado, proveedor, si fue caché, si se llamó al proveedor y su costo |
+| `miot_integrations.geocoding_plan` | (una fila) | El plan |
+| `miot_integrations.geocoding_subscriptions` | Organización suscrita | Cuota propia, qué pasa al agotarla y el último mes avisado |
+| `miot_integrations.geocoding_billing_history` | Cambio del plan o de una suscripción | Copia de los términos con la fecha desde la que rigen |
+| `miot_trips.audit_event` | Cambio de una ubicación | Quién, qué acción y los detalles |
+| `miot_integrations.async_jobs` | Servicio de un feed | El trabajo que aplicó el servicio y, en `result.located`, qué ubicaciones intentó |
+
+### `geocode_usage`
+
+| Columna | Valor |
+| --- | --- |
+| `organization` | Identificador de la organización cuya cuota se usó |
+| `tenant_id` | Tenant de los datos GPS de la organización |
+| `user_id` | Usuario, cuenta de servicio o `feed:<feedKey>` |
+| `source` | `geofence`, `plus_code`, `coordinates`, `internal`, `provider`, o `null` si ninguna fuente dio punto |
+| `result` | `resolved` o `needs_review` |
+| `provider` | `mapbox` o `google`: el proveedor consultado (aunque la consulta fallara) o el de la caché |
+| `cache_hit` | `true` si respondió la caché |
+| `provider_called` | `true` si el proveedor respondió. Es lo que cuenta para la cuota |
+| `cost_usd` | El `costPerRequestUsd` de la conexión de la plataforma en ese momento, solo si `provider_called` |
+| `recorded_at` | Fecha |
+
+Ubicar a mano (`PUT /point`) y rechazar no escriben filas.
+
+Consumo de un mes por fuente:
+
+```sql
+SELECT source, result,
+       count(*)                                 AS resolutions,
+       count(*) FILTER (WHERE cache_hit)        AS cache_hits,
+       count(*) FILTER (WHERE provider_called)  AS provider_calls,
+       sum(cost_usd)                            AS provider_cost_usd
+  FROM miot_integrations.geocode_usage
+ WHERE organization = 'demo'
+   AND recorded_at >= '2026-10-01' AND recorded_at < '2026-11-01'
+ GROUP BY 1, 2
+ ORDER BY 1, 2;
+```
+
+### `audit_event`
+
+| `action` | Cuándo | `details` |
+| --- | --- | --- |
+| `location.created` | Se crea una ubicación (por API, por `/resolve` o por un feed) | `name`, `type` |
+| `location.resolved` | Una resolución o un punto a mano termina resuelto | `status`, `source`, `geofenceId` |
+| `location.needs_review` | Una resolución termina en revisión | `status`, `source`, `geofenceId` |
+| `location.rejected` | Alguien rechaza la ubicación | |
+| `location.updated` | `PATCH` de la ubicación | |
+| `location.geofence_linked` | Alguien enlaza una geocerca a mano | `geofenceId` |
+
+`entity_type` es `location` y `entity_id` el `id` de la ubicación. `actor` es el usuario, la cuenta de servicio o `feed:<feedKey>`.
+
+### `async_jobs`
+
+Cada servicio de un lote de feed es un trabajo `trips_feed_service`, con el código del servicio en `correlation_key`. Después de aplicar el servicio, el trabajo ubica el origen y el destino y deja el resultado en `result.located`:
+
+```json
+{ "action": "create", "tripId": "…", "located": ["GEO-PROV-ORIGEN-2: resolved"], "errors": [], "warnings": [] }
+```
+
+Cada elemento es `código: estado`, o `código: could not resolve site` si falló. Sin sitios intentados, `located` no aparece. Un error al ubicar no hace fallar el trabajo. Los trabajos se ven en **Integraciones › Consola de trabajos**; el `result` se lee por la API de trabajos.
+
+## Métricas
+
+La plataforma publica estas métricas (Micrometer). En Prometheus los puntos se vuelven `_` y los contadores terminan en `_total`.
+
+| Métrica | Tipo | Etiquetas | Mide |
+| --- | --- | --- | --- |
+| `geocoding.resolutions` | Contador | `source` (`none` si ninguna), `result` | Resoluciones |
+| `geocoding.cache.lookups` | Contador | `result`: `hit`, `miss` | Consultas a la caché |
+| `geocoding.provider.latency` | Temporizador (en Prometheus, `geocoding_provider_latency_seconds_count`, `_sum`, `_max`) | `provider`, `outcome`: `found`, `empty` | Duración de cada consulta al proveedor |
+| `geocoding.provider.errors` | Contador | `provider`, `reason`: `no_connection`, `config`, `io`, `interrupted` | Consultas que no se hicieron o fallaron |
+| `geocoding.quota.refusals` | Contador | `code`: `geocoding_no_subscription`, `geocoding_quota_exhausted` | Consultas negadas por la cuota |
+| `geocoding.quota.used` | Medidor | `organization` | Consultas del mes, al último cálculo |
+| `geocoding.quota.limit` | Medidor | `organization` | Cuota del mes |
+
+Ejemplo, tasa de aciertos de la caché en la última hora:
+
+```text
+sum(increase(geocoding_cache_lookups_total{result="hit"}[1h]))
+  / sum(increase(geocoding_cache_lookups_total[1h]))
+```
+
+## Evento de cuota
+
+Cuando una organización llega al `alertPct` de su cuota, la plataforma publica una vez por mes el evento `geocoding.quota.threshold` (fuente `miot-integrations`, contexto `geocoding_quota`):
+
+| Campo | Ejemplo |
+| --- | --- |
+| `organization` | `demo` |
+| `month` | `2026-10` |
+| `used` | `800` |
+| `quota` | `1000` |
+| `usedPct` | `80` |
+| `onExhausted` | `review` |
+
+El evento no envía mensajes por sí solo. Para recibir un aviso, cree una regla de conversación sobre ese evento en la organización.

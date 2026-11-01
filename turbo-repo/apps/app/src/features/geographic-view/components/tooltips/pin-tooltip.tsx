@@ -6,6 +6,7 @@ import {
   Symptom,
 } from "@/features/geographic-view/types/map";
 import { FormattedDate } from "@/features/common/components/formatted-date";
+import VehicleDescription from "./vehicle-description";
 
 export default function PinTooltip({
   object,
@@ -35,6 +36,7 @@ export default function PinTooltip({
         {(dict.symptoms as I18nRecord).license_plate as string}:{" "}
         {object?.properties.asset_id}
       </div>
+      <VehicleDescription assetId={object.properties.asset_id} dict={dict} />
       {object?.properties.trip_id && (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {(dict.geographic_view as I18nRecord).trip as string}:{" "}

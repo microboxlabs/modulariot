@@ -17,7 +17,7 @@ export function TripMap({
   return (
     <div className="h-full w-full flex-1 overflow-hidden bg-gray-100 dark:bg-gray-800">
       <MapVisualizationTrip
-        tripId={card.codes[0] ?? ""}
+        tripId={card.tripId}
         positions={positions}
         error={error}
         isLoading={isLoading}

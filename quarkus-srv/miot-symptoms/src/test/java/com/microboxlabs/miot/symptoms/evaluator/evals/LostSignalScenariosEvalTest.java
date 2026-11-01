@@ -69,13 +69,16 @@ class LostSignalScenariosEvalTest {
         double shadowLat = LAT + 0.52;
         double shadowLon = LON + 0.52;
         List<Frame> frames = new ArrayList<>();
-        // Other vehicles of two senders cross the cell: GPS keeps fixing, the cellular network does not.
+        // Other vehicles of two senders cross the cell: GPS keeps fixing, the cellular network does not. They are
+        // off any trip, so none of them is ever lost and the case can only stay low through low coverage.
         for (int v = 0; v < 6; v++) {
             String sender = v % 2 == 0 ? "ON-TIME" : "OTHER";
-            frames.addAll(LostSignalReplay.steady("PASS" + v, sender, 0, WARM, 30, 3, 80, true, LAT, LON));
+            List<Frame> pass = new ArrayList<>(LostSignalReplay.steady("PASS" + v, sender, 0, WARM, 30, 3, 80, true,
+                    LAT, LON));
             for (int t = WARM - 1800 + v * 60; t <= WARM - 900; t += 30) {
-                frames.add(new Frame("PASS" + v, sender, t, WARM - 600 + v, 80, true, shadowLat, shadowLon, true));
+                pass.add(new Frame("PASS" + v, sender, t, WARM - 600 + v, 80, true, shadowLat, shadowLon, true));
             }
+            pass.stream().map(LostSignalReplay::offTrip).forEach(frames::add);
         }
         frames.addAll(LostSignalReplay.steady("SHADOW", "ON-TIME", 0, WARM, 30, 3, 80, true, LAT, LON));
         int cut = WARM + 30;

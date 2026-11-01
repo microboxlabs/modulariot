@@ -4,6 +4,7 @@ export default {
     display: 'hidden'
   },
   dashboards: 'Dashboards',
+  geocoding: 'Geocoding',
   platform: {
     title: 'Platform docs',
     type: 'page',
@@ -14,6 +15,7 @@ export default {
     type: 'menu',
     items: {
       dashboards: { title: 'Dashboards', href: '/en/products/dashboards' },
+      geocoding: { title: 'Geocoding', href: '/en/products/geocoding' },
       all: { title: 'All products', href: '/en/products' }
     }
   }

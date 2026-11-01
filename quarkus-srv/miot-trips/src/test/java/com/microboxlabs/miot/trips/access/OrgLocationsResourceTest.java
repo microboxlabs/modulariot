@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.access;
 import com.microboxlabs.miot.trips.api.OrgLocationsResource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -307,6 +308,26 @@ class OrgLocationsResourceTest {
         double[] changed = com.microboxlabs.miot.trips.geo.GeoShape.parse(geofences.shape(third.geofenceId())).center();
         assertEquals(-70.6075, changed[0], 0.00001);
         assertEquals(-33.4320, changed[1], 0.00001);
+    }
+
+    @Test
+    void aResolvedPointDoesNotReuseAnAreaThatMovesWithAnotherLocation() {
+        LocationView first = (LocationView) await(resource.resolve(ORG, json("""
+                {"externalCode":"manual-owner","country":"CL","districtCode":"13123"}"""))).getEntity();
+        LocationView manual = (LocationView) await(resource.place(ORG, first.id(),
+                new LocationPointRequest(null, null, null, null, -33.4316, -70.6090))).getEntity();
+        LocationView other = (LocationView) await(resource.resolve(ORG, json("""
+                {"externalCode":"other-site","country":"CL","districtCode":"13123",
+                 "latitude":-33.4316,"longitude":-70.6090}"""))).getEntity();
+
+        assertEquals(Location.RESOLVED, other.resolutionStatus());
+        assertNotEquals(manual.geofenceId(), other.geofenceId());
+        String otherArea = geofences.shape(other.geofenceId());
+        LocationView moved = (LocationView) await(resource.place(ORG, first.id(),
+                new LocationPointRequest(null, null, null, null, -33.4330, -70.6080))).getEntity();
+
+        assertEquals(manual.geofenceId(), moved.geofenceId());
+        assertEquals(otherArea, geofences.shape(other.geofenceId()));
     }
 
     @Test

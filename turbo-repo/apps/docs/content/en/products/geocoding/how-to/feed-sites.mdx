@@ -1,0 +1,90 @@
+import { Callout } from 'nextra/components'
+
+# Send sites from a feed
+
+**For:** implementers and developers.
+
+A feed sends a customer's trips in batches: `POST /api/v1/orgs/{org}/trips/feeds/{feedKey}/batches`. Each service names its origin and its destination with a code (`origin`, `destination`). If the code has no geofence, the platform can only locate it if the service also says where it is: `originSite` and `destinationSite`.
+
+## The site
+
+```json
+{
+  "externalCode": "GEO-PROV-001",
+  "desired": {
+    "orderType": "TRASLADO",
+    "orderRef": "PRUEBA-GEO-PROVEEDOR-1",
+    "origin": "GEO-PROV-ORIGEN-1",
+    "destination": "ANF",
+    "plannedStart": "2026-11-01T12:00:00Z",
+    "plannedEnd": "2026-11-02T12:00:00Z",
+    "originSite": {
+      "address": "Camino Lo Boza 120, Pudahuel",
+      "country": "CL",
+      "district": "Pudahuel"
+    }
+  }
+}
+```
+
+| Site field | Same as in `POST /resolve` |
+| --- | --- |
+| `address` | Street and number |
+| `country` | ISO 3166-1 alpha-2 |
+| `districtCode` or `district` | Commune or district |
+| `plusCode` | Full Plus Code, or a short one with the district |
+| `latitude`, `longitude` | Coordinates |
+
+The destination `ANF` has no site: it already has a geofence.
+
+## What happens when the batch arrives
+
+1. Each service that changed is queued as a `trips_feed_service` job.
+2. The job applies the service: it creates the order, the trip and, if they do not exist, the `origin` and `destination` locations (type `zone`, with the code as the name).
+3. Then, outside that transaction, it locates the origin and the destination that carry a site.
+4. The job result lists what it tried in `located`: `["GEO-PROV-ORIGEN-1: resolved"]`.
+
+An error while locating does not fail the job. The location stays where **To review** finds it.
+
+The result of step 2 can carry the warning `location GEO-PROV-ORIGEN-1 has no GPS geofence`. It comes before step 3. Check `located` to see how it ended.
+
+The quota used is that of the organization in the path (`{org}`).
+
+## When it is tried again
+
+| Location status | The feed locates it |
+| --- | --- |
+| Never tried | Yes |
+| `needs_review`, and the service's site changed (address, country, district, Plus Code or coordinates) | Yes |
+| `needs_review`, with the same site | No |
+| `resolved`, `rejected`, or with a linked geofence | No |
+
+If origin and destination have the same code, it is located once.
+
+<Callout type="warning">
+**Pitfall:** if the location already has a stored point, a site with only the address corrected uses that point again. Correct the point by hand in **To review**.
+</Callout>
+
+## Prepare the spreadsheet
+
+How the customer writes its places depends on each setup. The integration (for example, a flow that reads an Excel file) translates the columns into `origin` and `originSite`. These columns cover the cases:
+
+| Column | Goes to | Example |
+| --- | --- | --- |
+| Origin | `origin` | `CD-SANTIAGO` |
+| Origin address | `originSite.address` | `Camino Lo Boza 120` |
+| Origin district | `originSite.district` | `Pudahuel` |
+| Origin Plus Code | `originSite.plusCode` | `47RFJ69J+7C` |
+| (fixed per spreadsheet) | `originSite.country` | `CL` |
+
+The same for the destination. Recommendations for the customer:
+
+| Rule | Why |
+| --- | --- |
+| Always use the same code for the same place | A place is located once; a new code is a new place |
+| Write street and number before the first comma | The platform reads the house number from that part |
+| One district per column, not abbreviated | The name is compared with the official list |
+| If you know the point, send the Plus Code | It costs nothing and does not depend on the address |
+| Do not put an office or unit before the number | `Av. Apoquindo 3000 Of 501` works; `Of 501 Av. Apoquindo 3000` does not |
+
+If the site has no address, Plus Code or coordinates, the location goes to **To review** with `no geofence, plus code or coordinates`. To leave it untried, do not send `originSite`. Then locate it through the API or link its geofence in **Settings › Trips › Locations**.

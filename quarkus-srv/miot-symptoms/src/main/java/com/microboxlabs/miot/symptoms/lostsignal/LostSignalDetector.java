@@ -43,6 +43,8 @@ public class LostSignalDetector {
     private static final Duration HEARTBEAT_EVERY = Duration.ofSeconds(1);
     /** A frame from inside the silence this much later than it was taken, or the sender's usual delay, is backfill. */
     static final Duration BACKFILL_DELAY = Duration.ofMinutes(2);
+    /** After a failed frame the detector skips frames this long, so a stalled store does not hold the consumer. */
+    static final long BACKOFF_MS = 30_000;
 
     private final boolean enabled;
     private final ArrivalProfiles profiles;
@@ -68,6 +70,7 @@ public class LostSignalDetector {
                     new IngestHealth(Duration.ofMinutes(2), Duration.ofMinutes(2)), Duration.ofMinutes(1));
         }
     }
+    private volatile long skipUntil;
 
     @Inject
     LostSignalDetector(@ConfigProperty(name = "miot.symptoms.lost-signal.enabled", defaultValue = "false") boolean enabled,
@@ -133,10 +136,15 @@ public class LostSignalDetector {
         if (!enabled) {
             return;
         }
+        if (System.currentTimeMillis() < skipUntil) {
+            meters.counter("miot.symptoms.lost_signal.skipped").increment();
+            return;
+        }
         try {
             record(Frame.of(signal, assetId, at, arrivedAt), signal);
             beat(arrivedAt);
         } catch (RuntimeException e) {
+            skipUntil = System.currentTimeMillis() + BACKOFF_MS;
             meters.counter("miot.symptoms.lost_signal.failed").increment();
             LOG.debugf("Lost-signal detector: frame not recorded (%s)", e.getClass().getSimpleName());
         }
@@ -190,10 +198,13 @@ public class LostSignalDetector {
             return Schedule.KEEP;
         }
         Map<String, Map<String, Object>> trips = activeTrips(signal);
+        boolean lost = check != null && check.lost();
         if (trips.isEmpty()) {
-            return Schedule.DROP;
+            // A lost vehicle off its trips gets one more check, which clears its state.
+            return lost ? Schedule.clear(f.arrivedAt(), new Watch(Map.of(), a.expected().toSeconds(), f.sender()))
+                    : Schedule.DROP;
         }
-        Instant deadline = check != null && check.lost() ? f.arrivedAt()
+        Instant deadline = lost ? f.arrivedAt()
                 : a.vehicle().arrival().plus(a.expected());
         return Schedule.at(deadline, new Watch(trips, a.expected().toSeconds(), f.sender()));
     }

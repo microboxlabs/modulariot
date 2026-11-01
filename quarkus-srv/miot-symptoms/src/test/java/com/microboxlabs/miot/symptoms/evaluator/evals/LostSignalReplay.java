@@ -86,6 +86,14 @@ final class LostSignalReplay {
             clock.set(T0.plusSeconds(now));
             detector.tick();
         }
+        // The detector swallows its failures into counters: a scenario that opens nothing must not pass on them.
+        for (String failure : List.of("miot.symptoms.lost_signal.failed", "miot.symptoms.lost_signal.skipped",
+                "miot.symptoms.lost_signal.check_failed", "miot.symptoms.evaluator.rule_errors")) {
+            double n = meters.counter(failure).count();
+            if (n > 0) {
+                throw new AssertionError(failure + " = " + n);
+            }
+        }
         List<Change> changes = engine.recorded.stream().map(t -> new Change(
                 (int) Duration.between(T0, t.at()).toSeconds(), t.assetId(), t.kind(), t.level())).toList();
         List<SymptomCaseData> returns = engine.fired.stream()

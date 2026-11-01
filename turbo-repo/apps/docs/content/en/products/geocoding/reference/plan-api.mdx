@@ -1,0 +1,148 @@
+# Plan, usage and provider API
+
+**For:** developers.
+
+Prices in USD. A month is a calendar month in UTC. Errors respond `{"error": "…"}`.
+
+| Method | Path | Who | What it does |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/orgs/{org}/geocoding-plan?month=YYYY-MM` | Organization owner or platform owner | Plan, subscription and the month's usage |
+| `PUT` | `/api/v1/orgs/{org}/geocoding-plan` | Platform owner | The organization's quota |
+| `GET` | `/api/v1/platform/geocoding-plan` | Platform owner | The plan |
+| `PUT` | `/api/v1/platform/geocoding-plan` | Platform owner | Changes the plan |
+| `GET` | `/api/v1/platform/geocoding-plan/usage?month=YYYY-MM` | Platform owner | Usage of each organization |
+| `GET` | `/api/v1/platform/geocoding-provider` | Platform owner | The platform's provider |
+| `PUT` | `/api/v1/platform/geocoding-provider` | Platform owner | Sets the provider |
+| `DELETE` | `/api/v1/platform/geocoding-provider` | Platform owner | Removes the provider and keeps the credential |
+| `GET` | `/api/v1/platform/orgs/{slug}/geocoding-connection` | Platform owner | The organization's connection |
+| `POST` | `/api/v1/platform/orgs/{slug}/geocoding-connection` | Platform owner | Connects the organization to the provider |
+| `DELETE` | `/api/v1/platform/orgs/{slug}/geocoding-connection` | Platform owner | Removes the connection |
+
+Without `month`, the current month is used. A malformed `month` gives `400` with `month must be YYYY-MM`.
+
+## The plan
+
+A single plan for the whole platform.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `monthlyPriceUsd` | number ≥ 0 | Monthly price per subscribed organization |
+| `resolutionsPerMonth` | integer ≥ 0 | Provider calls included, for a subscription without its own quota |
+| `overagePriceUsd` | number ≥ 0 | Price per call over the quota, only with `onExhausted: "overage"` |
+| `alertPct` | 1 to 100 | Percentage of the quota at which an alert is sent, once per month. Default 80 |
+| `enforced` | boolean | `true`: the quota applies. `false`: no call is refused |
+| `updatedBy`, `updatedAt` | | Read-only |
+
+`PUT /platform/geocoding-plan` requires `monthlyPriceUsd`, `resolutionsPerMonth` and `overagePriceUsd`. If `alertPct` is omitted, it is 80. If `enforced` is omitted, it keeps its value.
+
+| `400` | When |
+| --- | --- |
+| `monthlyPriceUsd, resolutionsPerMonth and overagePriceUsd are required` | |
+| `prices and resolutionsPerMonth cannot be negative` | |
+| `alertPct must be from 1 to 100` | |
+
+```bash
+curl -s -X PUT "$MIOT_API/api/v1/platform/geocoding-plan" \
+  -H "Authorization: Bearer $MIOT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "monthlyPriceUsd": 0, "resolutionsPerMonth": 1000, "overagePriceUsd": 0.005, "alertPct": 80, "enforced": true }'
+```
+
+Each change to the plan or to a subscription stores a version. The usage of a past month is calculated with the terms in force at the close of that month.
+
+## The subscription
+
+| Field | Description |
+| --- | --- |
+| `monthlyQuota` | Own quota. `null` uses the plan's `resolutionsPerMonth` |
+| `onExhausted` | `review` (default): when the quota runs out, the provider is not called and the site goes to review. `overage`: calls continue and each extra call is charged at `overagePriceUsd` |
+
+```bash
+curl -s -X PUT "$MIOT_API/api/v1/orgs/demo/geocoding-plan" \
+  -H "Authorization: Bearer $MIOT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "monthlyQuota": null, "onExhausted": "review" }'
+```
+
+Responds with the subscription: `monthlyQuota`, `onExhausted`, `updatedBy`, `updatedAt`.
+
+| `400` | When |
+| --- | --- |
+| `body is required` | |
+| `monthlyQuota cannot be negative` | |
+| `onExhausted must be review or overage` | |
+
+A quota of `0` with `review` refuses every provider call and publishes no alert. The quota alert is published even when **Apply the quotas** is off, only for organizations with a subscription.
+
+## A month's usage
+
+`GET /orgs/{org}/geocoding-plan` responds:
+
+```json
+{
+  "plan": { "monthlyPriceUsd": 0.00, "resolutionsPerMonth": 1000, "overagePriceUsd": 0.005000,
+            "alertPct": 80, "enforced": true, "updatedBy": "…", "updatedAt": "…" },
+  "subscription": { "monthlyQuota": null, "onExhausted": "review", "updatedBy": "…", "updatedAt": "…" },
+  "usage": {
+    "periodStart": "2026-10-01T00:00:00Z", "periodEnd": "2026-11-01T00:00:00Z",
+    "quota": 1000, "used": 4, "resolutions": 13, "cacheHits": 2,
+    "providerCostUsd": null, "overageCalls": 0, "overageUsd": 0, "chargeUsd": 0.00,
+    "bySource": [
+      { "source": "internal", "result": "resolved", "resolutions": 7, "cacheHits": 0, "providerCalls": 0, "providerCostUsd": null },
+      { "source": "provider", "result": "resolved", "resolutions": 5, "cacheHits": 2, "providerCalls": 3, "providerCostUsd": null },
+      { "source": "provider", "result": "needs_review", "resolutions": 1, "cacheHits": 0, "providerCalls": 1, "providerCostUsd": null }
+    ]
+  },
+  "enforced": true
+}
+```
+
+| `usage` field | Description |
+| --- | --- |
+| `quota` | The month's quota. `null` without a subscription |
+| `used` | Provider calls. This is what counts toward the quota |
+| `resolutions` | Resolutions from any source |
+| `cacheHits` | Resolutions answered by the cache |
+| `providerCostUsd` | What the provider charged the platform. `null` in the organization's view |
+| `overageCalls` | Calls over the quota |
+| `overageUsd` | `overageCalls × overagePriceUsd`, only with `onExhausted: "overage"` |
+| `chargeUsd` | `monthlyPriceUsd + overageUsd`. `null` without a subscription, or in a past month without stored terms (then `plan` shows the current plan) |
+| `bySource` | One row per source and result. `source` is `none` if no source gave a point |
+
+`GET /platform/geocoding-plan/usage` responds `{ "organizations": [ { "organization", "subscription", "usage" } ] }`, with each organization that has a subscription or usage in the month, and with `providerCostUsd`.
+
+## The platform's provider
+
+`PUT /platform/geocoding-provider`:
+
+| Field | Description |
+| --- | --- |
+| `provider` | `mapbox` (default) or `google` |
+| `credentialProfileId` | Token (bearer) credential in the Platform scope. If the credential is labeled with a provider, it must be the same one. Required the first time; when omitted, the current one is kept |
+| `permanent` | Mapbox only. When omitted, it is `true`. With `false`, no provider result is used |
+| `costPerRequestUsd` | What the provider charges the platform per call. It is copied into each usage row. It is not what the organization pays. When omitted, it is cleared |
+
+Each `PUT` replaces `provider`, `permanent` and `costPerRequestUsd`. Send all three.
+
+Responds with the view: `configured`, `connectionId`, `provider`, `permanent`, `costPerRequestUsd`, `credentialProfileId`, `credentialName`. The token is never returned.
+
+| `400` | When |
+| --- | --- |
+| `unknown geocoding provider X` | |
+| `costPerRequestUsd cannot be negative` | |
+| `credentialProfileId is required` | First time without a credential |
+| `Request body is required` | |
+| (the credential's reason) | The credential is not a platform credential, is not a token credential, is managed, or is for another provider |
+
+`GET` without a provider responds `200` with `configured: false`. `DELETE` without a provider responds `404` with `No platform geocoding provider`.
+
+## An organization's connection
+
+`POST /platform/orgs/{slug}/geocoding-connection` creates, once, a managed credential and the **Geocoding · ModularIoT** connection in the organization. Repeating it returns the same connection. If the organization had another geocoding connection, it deletes it. `DELETE` deletes the connection and its managed credential. `GET` without a connection responds `{ "connected": false }` with the rest in `null`.
+
+Responds `{ "connected": true, "connectionId": "…", "name": "Geocoding · ModularIoT", "status": "ACTIVE" }`.
+
+| Code | When |
+| --- | --- |
+| `404` | `Organization not found`, or `The organization has no geocoding connection` on `DELETE` |
+| `400` | `The platform uses its own geocoding provider connection`: the `slug` is the platform |
+| `409` | `Set the platform's geocoding provider in Settings › Plataforma first` |
+| `204` | Successful `DELETE`. From then on, the organization's sites that need the provider go to review |

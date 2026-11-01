@@ -1,0 +1,52 @@
+# Review pending locations
+
+**For:** implementers and operators. **Setup:** ModularIoT.
+
+A routine to bring the **To review** list to zero. The details of each way out are in [Locations that need review](/en/products/geocoding/tutorials/needs-review).
+
+## Before you start
+
+| You need | Where to get it |
+| --- | --- |
+| The Trips **Maintainer** role, or one with `trips:location.write` | Settings › Team › Roles |
+| To know where each place is, or whom to ask | The customer or operations |
+
+## The routine
+
+1. Open **Settings › Trips** and, in the **Geocoding** group, choose **To review**. The number at the top right is how many remain.
+2. Search by name, code or address with the search field.
+3. For each row, read the **Reason** and choose from this table:
+
+| Reason | Action |
+| --- | --- |
+| `the point is in X, not in Y` and the place is really in X | The declared district is wrong. Correct it through the API (`PUT /point` with `districtCode`); the **Place** dialog does not change it |
+| `the point is in X, not in Y` and the place is in Y | The point is wrong. **Place**: mark the point or type its Plus Code |
+| `… found only street, not an address` or `… found nothing, not an address` | **Place** |
+| `country is required to check the district` | Correct the country at the source, or through the API |
+| `geocoding: the organization used its …` | The quota is used up. **Place**, or ask the platform owner for more quota |
+| `geocoding: this organization has no geocoding connection; …` | Ask the platform owner for the connection ([Set up the provider](/en/products/geocoding/how-to/set-up-provider)). Then resolve again through the API |
+| `geocoding: the organization has no geocoding plan` | Ask the platform owner for a quota ([Assign the quota](/en/products/geocoding/how-to/assign-quota)) |
+| `geocoding results cannot be stored with this provider configuration` | The platform owner must use Mapbox with permanent mode. In the meantime, **Place** |
+| `district X not found in CL` or `district X is ambiguous …; send its code` | Correct the district at the source; send the district code |
+| `an address needs a district with a boundary to be geocoded` | Add the district to the site |
+| A test place or one that no longer exists | **Reject**, with the reason |
+
+4. When you validate a point, the row disappears and the place gets its geofence. Open trips at that place use it from that moment.
+
+## To keep the list from growing
+
+| If it repeats | Do |
+| --- | --- |
+| Many places without a country | Have the integration set `country` on each site |
+| Many `not in` with the same district | Check how the customer writes that district in the spreadsheet |
+| Many `found only street` | Ask the customer for the house number or the Plus Code |
+| Many places without an address or Plus Code | Ask for those columns in the spreadsheet ([Send sites from a feed](/en/products/geocoding/how-to/feed-sites)) |
+
+## Through the API
+
+```bash
+curl -s "$MIOT_API/api/v1/orgs/$MIOT_ORG/trips/locations?status=needs_review&size=200" \
+  -H "Authorization: Bearer $MIOT_TOKEN"
+```
+
+See [Locations API](/en/products/geocoding/reference/locations-api).

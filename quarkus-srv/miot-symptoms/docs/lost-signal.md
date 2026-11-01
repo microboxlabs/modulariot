@@ -2,7 +2,7 @@
 
 Detects vehicles on a trip whose GPS stopped arriving. Code: `quarkus-srv/miot-symptoms`, package `lostsignal`.
 
-**Status: off** (`MIOT_SYMPTOMS_LOST_SIGNAL_ENABLED`).
+On wherever the evaluator is (`miot.symptoms.evaluator.enabled`). It only opens cases in organizations with a `trip_check` version in TEST or ACTIVE.
 
 ## Arrival profiles
 
@@ -31,7 +31,6 @@ Each profile is a decayed histogram on fixed bounds (1 s to 6 h) plus an EWMA (`
 
 | Setting | Meaning | Default |
 |---|---|---|
-| `MIOT_SYMPTOMS_LOST_SIGNAL_ENABLED` | Update the profiles, the deadlines and run the ticker | `false` |
 | `MIOT_SYMPTOMS_LOST_SIGNAL_PROFILE_TTL` | How long a profile lives after its last frame | `P7D` |
 | `MIOT_SYMPTOMS_LOST_SIGNAL_MIN_SAMPLES` | Gaps or delays before a profile replaces the default | `20` |
 | `MIOT_SYMPTOMS_LOST_SIGNAL_GAP_MARGIN` | Factor on the p95 gap | `1.5` |

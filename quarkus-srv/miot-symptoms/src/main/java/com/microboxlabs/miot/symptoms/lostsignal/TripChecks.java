@@ -51,6 +51,15 @@ public class TripChecks {
     public record Return(Instant at, boolean backfill) {
     }
 
+    /**
+     * Around the last position: the shadow map says coverage is poor there, many of the sender's vehicles are
+     * lost at once, and how many vehicles still report nearby.
+     */
+    public record Area(boolean lowCoverage, boolean cohortOutage, int nearby) {
+
+        public static final Area NONE = new Area(false, false, 0);
+    }
+
     public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
             AuditService audit, MeterRegistry meters) {
         this.catalog = catalog;
@@ -68,10 +77,10 @@ public class TripChecks {
      * @return the cases open after it, by {@code tenant/symptom id}
      */
     public Map<String, OpenCase> check(String assetId, LossStore.Vehicle v, Map<String, OpenCase> cases,
-            Instant now, Return back) {
+            Instant now, Return back, Area area) {
         Map<String, OpenCase> open = new HashMap<>(cases);
         v.watch().trips().forEach((tenant, trip) -> {
-            Map<String, Object> check = document(v, trip, now, back);
+            Map<String, Object> check = document(v, trip, now, back, area);
             evaluate(tenant, assetId, now, check, trip, v.profile().last(), open);
         });
         if (back != null) {
@@ -102,7 +111,8 @@ public class TripChecks {
     }
 
     /** The check as the organization's rules read it, under {@code check}. */
-    static Map<String, Object> document(LossStore.Vehicle v, Map<String, Object> trip, Instant now, Return back) {
+    static Map<String, Object> document(LossStore.Vehicle v, Map<String, Object> trip, Instant now, Return back,
+            Area area) {
         VehicleProfile p = v.profile();
         double silence = Math.max(0, (now.toEpochMilli() - p.at().toEpochMilli()) / 1000.0);
         double expected = Math.max(1.0, (double) v.watch().expectedS());
@@ -116,6 +126,9 @@ public class TripChecks {
         }
         loss.put("returned", back != null);
         loss.put(BACKFILL, back != null && back.backfill());
+        loss.put("low_coverage_zone", area.lowCoverage());
+        loss.put("cohort_outage", area.cohortOutage());
+        loss.put("nearby_reporting", (double) area.nearby());
         Map<String, Object> check = new LinkedHashMap<>();
         check.put("signal_lost_minutes", silence / 60);
         check.put("trip", trip);

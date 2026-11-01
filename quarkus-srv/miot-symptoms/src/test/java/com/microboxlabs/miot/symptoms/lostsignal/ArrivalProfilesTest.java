@@ -151,7 +151,7 @@ class ArrivalProfilesTest {
     void aFailingStoreMakesTheDetectorSkipFramesForAWhile() {
         LossStore down = new InMemoryLossStore() {
             @Override
-            public Profiles load(String assetId, String sender) {
+            public Profiles load(String assetId, String sender, String cell) {
                 throw new IllegalStateException("Redis down");
             }
         };

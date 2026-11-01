@@ -18,9 +18,10 @@ public class ArrivalProfiles {
      * @param replay   the same time as the newest frame
      * @param expected how long a silence after the newest frame is normal: the vehicle's expected gap plus the
      *                 sender's delivery delay
+     * @param delayed  the frame arrived later than its sender usually does ({@link CoverageMap#delayed})
      */
     public record Arrival(boolean late, boolean replay, VehicleProfile vehicle, SenderProfile sender,
-            Duration expected) {
+            Duration expected, boolean delayed) {
     }
 
     public ArrivalProfiles(LossStore store, LossSettings settings) {
@@ -54,11 +55,12 @@ public class ArrivalProfiles {
         boolean replay = old != null && f.at().equals(old.at());
         VehicleProfile vehicle = old == null ? VehicleProfile.first(f) : old.with(f, settings);
         SenderProfile sender = before.sender() == null ? SenderProfile.empty() : before.sender();
+        boolean delayed = CoverageMap.isDelayed(f, sender);
         // A replay still counts for the sender: two senders can report the same frame time.
         if (f.sender() != null) {
-            sender = sender.with(f, settings);
+            sender = sender.with(f, settings, delayed);
         }
-        return new Arrival(late, replay, vehicle, sender, expected(vehicle, sender));
+        return new Arrival(late, replay, vehicle, sender, expected(vehicle, sender), delayed);
     }
 
     public Duration expected(VehicleProfile vehicle, SenderProfile sender) {

@@ -50,7 +50,8 @@ class LostSignalCatalogImpactTest {
         double minutes = ((Number) check.get("signal_lost_minutes")).doubleValue();
         boolean lost = Boolean.TRUE.equals(check.get("signal_lost"));
         check.put("loss", Map.of("silence_s", minutes * 60, "expected_s", 300.0, "ratio", lost ? 2.0 : 0.5,
-                "returned", false, "backfill", false));
+                "returned", false, "backfill", false, "low_coverage_zone", false, "cohort_outage", false,
+                "nearby_reporting", 0.0));
         return new Signal(s.at(), Map.of("check", check));
     }
 }

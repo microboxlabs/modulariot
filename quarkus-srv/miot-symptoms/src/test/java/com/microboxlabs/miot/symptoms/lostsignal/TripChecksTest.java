@@ -156,17 +156,19 @@ class TripChecksTest {
                 true));
         LossStore.Vehicle v = new LossStore.Vehicle(p, new Watch(Map.of(), 180, "S1"), CheckState.NONE);
 
-        Map<String, Object> check = TripChecks.document(v, Map.of("active", true), T0.plusSeconds(360), null);
+        Map<String, Object> check = TripChecks.document(v, Map.of("active", true), T0.plusSeconds(360), null,
+                new TripChecks.Area(true, false, 3));
 
         assertEquals(6.0, check.get("signal_lost_minutes"));
         assertEquals(Map.of("silence_s", 360.0, "expected_s", 180.0, "ratio", 2.0, "sender", "S1",
-                "returned", false, "backfill", false,
-                "last", Map.of("at", "2026-01-01T00:00:00Z", "lat", -33.0, "lon", -71.0, "speed", 80.0,
+                "returned", false, "backfill", false, "low_coverage_zone", true, "cohort_outage", false,
+                "nearby_reporting", 3.0, "last", Map.of("at", "2026-01-01T00:00:00Z", "lat", -33.0, "lon", -71.0, "speed", 80.0,
                         "engine", true)), check.get("loss"));
         DataSource source = engine.sources.get(TENANT, "trip_check");
         List<String> paths = source.fields().stream().map(SourceField::path).toList();
         for (String path : List.of("check.loss.silence_s", "check.loss.expected_s", "check.loss.ratio",
                 "check.loss.last.speed", "check.loss.last.engine", "check.loss.returned", "check.loss.backfill",
+                "check.loss.low_coverage_zone", "check.loss.cohort_outage", "check.loss.nearby_reporting",
                 "check.trip.active", "check.trip.double_driver", "check.trip.driver.id", "check.signal_lost_minutes",
                 "check.driving_minutes")) {
             assertTrue(paths.contains(path), path);

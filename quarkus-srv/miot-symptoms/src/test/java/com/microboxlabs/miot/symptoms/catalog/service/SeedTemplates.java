@@ -38,8 +38,11 @@ public final class SeedTemplates {
                     + "signal\\.frame\\.sensors\\.panic_button(\\s*==\\s*true)?\\b",
                     "signal.frame.?sensors.?panic_button == TRUE"));
     /** Migrations that publish a new version of one template: its key and version, and the file. */
-    private static final List<Upgrade> UPGRADES = List.of(new Upgrade("signal-loss", "2.0.0",
-            "/db/migration/symptoms/V0.12.4__signal_loss_template_reads_detector.sql"));
+    private static final List<Upgrade> UPGRADES = List.of(
+            new Upgrade("signal-loss", "2.0.0",
+                    "/db/migration/symptoms/V0.12.4__signal_loss_template_reads_detector.sql"),
+            new Upgrade("signal-loss", "2.1.0",
+                    "/db/migration/symptoms/V0.12.5__signal_loss_template_coverage_cohort.sql"));
     private static final Pattern UPGRADE_SPEC = Pattern.compile("'(\\{\"source\".*?)'::jsonb", Pattern.DOTALL);
     private static final Pattern UPGRADE_DESCRIPTION = Pattern.compile("description = " + TEXT);
 

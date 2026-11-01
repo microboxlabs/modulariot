@@ -51,6 +51,7 @@ public class LostSignalDetector {
     private final LossStore store;
     private final LossTicker ticker;
     private final TripChecks trips;
+    private final CoverageMap coverage = CoverageMap.defaults();
     private final String owner;
     private final MeterRegistry meters;
     private final Clock clock;
@@ -116,8 +117,8 @@ public class LostSignalDetector {
         this.owner = UUID.randomUUID().toString();
         this.meters = meters;
         this.clock = clock;
-        this.ticker = new LossTicker(store, new MarkLost(store, trips, ticker.recheck(), ticker.maxSilence(),
-                ticker.returnGrace(), meters), ticker.ingest(), owner, ticker.leaseTtl(), ticker.batch(), meters, clock);
+        this.ticker = new LossTicker(store, new MarkLost(store, trips, coverage, ticker.recheck(),
+                ticker.maxSilence(), ticker.returnGrace(), meters), ticker.ingest(), owner, ticker.leaseTtl(), ticker.batch(), meters, clock);
     }
 
     /** A detector that does nothing. */
@@ -150,10 +151,26 @@ public class LostSignalDetector {
     }
 
     private void observe(Frame f, Map<String, Object> signal) {
-        LossStore.Profiles before = store.load(f.assetId(), f.sender());
+        String cell = CoverageMap.cell(f.latitude(), f.longitude());
+        LossStore.Profiles before = store.load(f.assetId(), f.sender(), cell);
         ArrivalProfiles.Arrival a = profiles.apply(before, f);
         store.save(f.assetId(), a.vehicle(), f.sender(), a.sender(), schedule(a, before.check(), f, signal),
-                mark(a, before.check(), f, profiles.settings()));
+                mark(a, before.check(), f, profiles.settings()), cells(cell, before, a, f));
+    }
+
+    /**
+     * Every frame with a position adds to its cell of the shadow map, late ones too: they carry the real position
+     * of a silence. Only a frame newer than the newest counts the vehicle as reporting there.
+     */
+    private LossStore.Cells cells(String cell, LossStore.Profiles before, ArrivalProfiles.Arrival a, Frame f) {
+        if (cell == null || a.replay()) {
+            return null;
+        }
+        Instant now = f.arrivedAt();
+        boolean reporting = !a.late();
+        return new LossStore.Cells(cell, Coverage.with(before.bySender(), a.delayed(), now, coverage.halfLife()),
+                Coverage.with(before.byAll(), a.delayed(), now, coverage.halfLife()),
+                reporting ? f.latitude() : null, reporting ? f.longitude() : null);
     }
 
     /**
@@ -184,7 +201,8 @@ public class LostSignalDetector {
         boolean lost = check != null && check.lost();
         if (trips.isEmpty()) {
             // A lost vehicle off its trips gets one more check, which clears its state.
-            return lost ? Schedule.clear(f.arrivedAt()) : Schedule.DROP;
+            return lost ? Schedule.clear(f.arrivedAt(), new Watch(Map.of(), a.expected().toSeconds(), f.sender()))
+                    : Schedule.DROP;
         }
         Instant deadline = lost ? f.arrivedAt()
                 : a.vehicle().arrival().plus(a.expected());

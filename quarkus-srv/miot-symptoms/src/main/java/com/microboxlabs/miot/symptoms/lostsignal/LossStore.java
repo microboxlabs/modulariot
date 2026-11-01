@@ -13,11 +13,24 @@ public interface LossStore {
      *
      * @param vehicle null for a vehicle never seen; {@code sender} null for a sender never seen or unknown
      */
-    record Profiles(VehicleProfile vehicle, SenderProfile sender, CheckState check) {
+    record Profiles(VehicleProfile vehicle, SenderProfile sender, CheckState check, Coverage bySender,
+            Coverage byAll) {
 
         public Profiles(VehicleProfile vehicle, SenderProfile sender) {
-            this(vehicle, sender, null);
+            this(vehicle, sender, null, null, null);
         }
+    }
+
+    /**
+     * What a frame adds to the shadow map, and where the vehicle reports for nearby-unit counts.
+     *
+     * @param latitude null when the frame does not count as reporting (late or a replay)
+     */
+    record Cells(String cell, Coverage bySender, Coverage byAll, Double latitude, Double longitude) {
+    }
+
+    /** Around a lost vehicle's last position: its cell in the shadow map and the vehicles still reporting. */
+    record Around(Coverage bySender, Coverage byAll, int nearby) {
     }
 
     /**
@@ -45,7 +58,7 @@ public interface LossStore {
 
     /**
      * What a frame does to the vehicle's next check: nothing, drop it (no trip), move it, or, for a lost vehicle
-     * that left its trips, drop the watch and check it once at {@code at} so the check clears its state.
+     * that left its trips, empty the watch's trips and check it once at {@code at} so the check clears its state.
      */
     record Schedule(Kind kind, Instant at, Watch watch) {
 
@@ -60,22 +73,28 @@ public interface LossStore {
             return new Schedule(Kind.AT, at, watch);
         }
 
-        public static Schedule clear(Instant at) {
-            return new Schedule(Kind.CLEAR, at, null);
+        /** @param watch the vehicle's watch without trips: it keeps the sender, so the check can leave its lost set */
+        public static Schedule clear(Instant at, Watch watch) {
+            return new Schedule(Kind.CLEAR, at, watch);
         }
     }
 
     /** @param sender null when the frame names none */
-    Profiles load(String assetId, String sender);
+    default Profiles load(String assetId, String sender) {
+        return load(assetId, sender, null);
+    }
+
+    /** @param cell the frame's cell in the shadow map, null without a position */
+    Profiles load(String assetId, String sender, String cell);
 
     /** @param senderProfile ignored when {@code sender} is null */
     default void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile) {
-        save(assetId, vehicle, sender, senderProfile, Schedule.KEEP, null);
+        save(assetId, vehicle, sender, senderProfile, Schedule.KEEP, null, null);
     }
 
     /** @param mark null when the vehicle is not lost or the frame tells nothing about its loss */
     void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile, Schedule schedule,
-            Mark mark);
+            Mark mark, Cells cells);
 
     /** The vehicles whose deadline is at or before {@code now}, earliest first. */
     List<String> due(Instant now, int limit);
@@ -91,6 +110,22 @@ public interface LossStore {
      * @return false when a frame changed the deadline and nothing was written
      */
     boolean checked(String assetId, Instant seen, CheckState check, Instant next);
+
+    /**
+     * @param cell   null without a last position
+     * @param radius how far from the last position a vehicle that reported in the last 10 min counts as nearby
+     */
+    Around around(String sender, String cell, Double latitude, Double longitude, String assetId, Instant now,
+            double radiusKm);
+
+    /** Adds the vehicle to its sender's lost set, or removes it; returns how many of the sender's are lost. */
+    int lost(String sender, String assetId, boolean lost);
+
+    SenderProfile sender(String sender);
+
+    Cohort cohort(String sender);
+
+    void cohort(String sender, Cohort cohort);
 
     /** Takes or keeps the ticker's lease; false while another replica holds it. */
     boolean lease(String owner, Duration ttl);

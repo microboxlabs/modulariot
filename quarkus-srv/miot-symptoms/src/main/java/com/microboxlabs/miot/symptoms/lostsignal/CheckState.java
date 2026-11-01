@@ -14,12 +14,17 @@ import java.util.Map;
  * @param checkedAt the last check
  * @param cases     the open {@code trip_check} cases the checks opened, by {@code tenant/symptom id}; kept after
  *                  a return, since only an operator closes them
+ * @param lostWith  the sender whose lost set holds the vehicle, so it leaves that one even if its sender changed
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 @RegisterForReflection
-public record CheckState(Instant lostSince, Instant checkedAt, Map<String, OpenCase> cases) {
+public record CheckState(Instant lostSince, Instant checkedAt, Map<String, OpenCase> cases, String lostWith) {
 
     public static final CheckState NONE = new CheckState(null, null, Map.of());
+
+    public CheckState(Instant lostSince, Instant checkedAt, Map<String, OpenCase> cases) {
+        this(lostSince, checkedAt, cases, null);
+    }
 
     /** A case as it was opened: the return is reported with its version and state, whatever the symptom is now. */
     @RegisterForReflection

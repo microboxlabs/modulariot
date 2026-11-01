@@ -158,7 +158,7 @@ class ArrivalProfilesTest {
         io.micrometer.core.instrument.simple.SimpleMeterRegistry meters =
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
         LostSignalDetector detector = new LostSignalDetector(true, down, SETTINGS,
-                LostSignalDetector.TickerSettings.defaults(), meters, java.time.Clock.systemUTC());
+                LostSignalDetector.TickerSettings.defaults(), null, meters, java.time.Clock.systemUTC());
         Map<String, Object> signal = Map.of("sender", "S1", "frame", Map.of("gps", Map.of("speed", 50.0)));
 
         detector.frame("V1", T0, T0, signal);
@@ -188,11 +188,11 @@ class ArrivalProfilesTest {
                 RedisLossStore.JSON.convertValue(a.vehicle(), Map.class), VehicleProfile.class));
         assertTrue(json.contains("\"at\":1767225660000"), "times in epoch ms");
         List<Request> writes = RedisLossStore.saveRequests("V1", a.vehicle(), "S1", a.sender(),
-                LossStore.Schedule.KEEP, Duration.ofDays(7));
+                LossStore.Schedule.KEEP, null, Duration.ofDays(7));
         assertEquals(List.of("HSET", "EXPIRE", "SET"),
                 writes.stream().map(r -> r.command().toString().toUpperCase(java.util.Locale.ROOT)).toList());
         assertEquals(2, RedisLossStore.saveRequests("V1", a.vehicle(), null, a.sender(), LossStore.Schedule.KEEP,
-                Duration.ofDays(7))
+                null, Duration.ofDays(7))
                 .size());
     }
 

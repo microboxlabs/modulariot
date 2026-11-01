@@ -25,11 +25,12 @@ class LossTickerTest {
     private final TestClock clock = new TestClock(T0);
     private final InMemoryLossStore store = new InMemoryLossStore(clock);
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
-    /** Without the ingest guard, which has its own test. */
+    private final TripChecks trips = new TestEngine(clock).trips(meters);
+    /** Without the ingest guard, which has its own test, and without waiting for backfill. */
     private final LostSignalDetector detector = new LostSignalDetector(true, store, LossSettings.defaults(),
             new LostSignalDetector.TickerSettings(Duration.ofMinutes(1), Duration.ofDays(1), Duration.ofSeconds(15),
-                    500, new IngestHealth(Duration.ZERO, Duration.ZERO)),
-            meters, clock);
+                    500, new IngestHealth(Duration.ZERO, Duration.ZERO), Duration.ZERO),
+            trips, meters, clock);
 
     private static Map<String, Object> signal(boolean onTrip) {
         return Map.of("sender", "S1", "trips", onTrip ? Map.of(TENANT, Map.of("active", true, "id", "T-1")) : Map.of(),
@@ -67,7 +68,7 @@ class LossTickerTest {
         clock.set(T0.plusSeconds(190));
         assertEquals(1, detector.tick());
         assertEquals(1, checks("lost"));
-        assertEquals(new CheckState(T0, T0.plusSeconds(190)), store.vehicle("V1").check());
+        assertEquals(new CheckState(T0, T0.plusSeconds(190), Map.of()), store.vehicle("V1").check());
         assertEquals(T0.plusSeconds(250), store.deadline("V1"), "checked again in a minute");
 
         clock.set(T0.plusSeconds(250));
@@ -86,7 +87,7 @@ class LossTickerTest {
         detector.tick();
 
         assertEquals(1, checks("returned"));
-        assertNull(store.vehicle("V1").check());
+        assertFalse(store.vehicle("V1").check().lost());
         // The 400 s gap is in the moving profile now: 400 s bucket 450 × 1.5 + 60 s delay.
         assertEquals(735, store.vehicle("V1").watch().expectedS());
         assertEquals(T0.plusSeconds(405 + 735), store.deadline("V1"));
@@ -138,7 +139,7 @@ class LossTickerTest {
         frame(185, true);
         Instant moved = store.deadline("V1");
 
-        assertFalse(store.checked("V1", read.deadline(), new CheckState(T0, T0.plusSeconds(190)),
+        assertFalse(store.checked("V1", read.deadline(), new CheckState(T0, T0.plusSeconds(190), Map.of()),
                 T0.plusSeconds(250)), "the frame moved the deadline");
         assertEquals(moved, store.deadline("V1"));
         assertNull(store.vehicle("V1").check());
@@ -167,13 +168,14 @@ class LossTickerTest {
     void aLongBatchStopsOnceAnotherReplicaTookTheLease() {
         frame(0, true);
         LostSignalDetector.TickerSettings settings = new LostSignalDetector.TickerSettings(Duration.ofMinutes(1),
-                Duration.ofDays(1), Duration.ofSeconds(15), 500, new IngestHealth(Duration.ZERO, Duration.ZERO));
+                Duration.ofDays(1), Duration.ofSeconds(15), 500, new IngestHealth(Duration.ZERO, Duration.ZERO),
+                Duration.ZERO);
         LossTicker slow = new LossTicker(store, (asset, now) -> {
             clock.advance(16);
             assertTrue(store.lease("other", Duration.ofSeconds(15)));
         }, settings.ingest(), "mine", settings.leaseTtl(), settings.batch(), meters, clock);
         store.save("V2", store.vehicle("V1").profile(), null, null,
-                Schedule.at(T0, store.vehicle("V1").watch()));
+                Schedule.at(T0, store.vehicle("V1").watch()), null);
         clock.set(T0.plusSeconds(190));
 
         assertEquals(1, slow.tick(), "the second vehicle waits for the lease holder");
@@ -195,7 +197,7 @@ class LossTickerTest {
         assertEquals(Optional.empty(), new IngestHealth(Duration.ZERO, Duration.ZERO).pause(List.of(), now));
 
         LostSignalDetector guarded = new LostSignalDetector(true, store, LossSettings.defaults(),
-                LostSignalDetector.TickerSettings.defaults(), meters, clock);
+                LostSignalDetector.TickerSettings.defaults(), trips, meters, clock);
         clock.set(T0.plusSeconds(5));
         guarded.frame("V1", T0, T0.plusSeconds(5), signal(true));
         clock.set(T0.plusSeconds(600));
@@ -209,11 +211,13 @@ class LossTickerTest {
         Watch w = new Watch(Map.of(TENANT, Map.of("active", true)), 180, "S1");
 
         assertEquals(List.of("HSET", "EXPIRE", "SET", "ZADD", "EXPIRE"), commands(RedisLossStore.saveRequests("V1",
-                v, "S1", SenderProfile.empty(), Schedule.at(T0, w), Duration.ofDays(7))));
+                v, "S1", SenderProfile.empty(), Schedule.at(T0, w), null, Duration.ofDays(7))));
         assertEquals(List.of("HSET", "HDEL", "ZREM", "EXPIRE"), commands(RedisLossStore.saveRequests("V1", v, null,
-                null, Schedule.DROP, Duration.ofDays(7))));
+                null, Schedule.DROP, null, Duration.ofDays(7))));
+        assertEquals(List.of("HSET", "HSETNX", "HSET", "EXPIRE"), commands(RedisLossStore.saveRequests("V1", v, null,
+                null, Schedule.KEEP, new LossStore.Mark(T0, T0, true), Duration.ofDays(7))));
         assertEquals(List.of("HSET", "HDEL", "EXPIRE", "ZADD", "EXPIRE"), commands(RedisLossStore.saveRequests("V1",
-                v, null, null, Schedule.clear(T0), Duration.ofDays(7))));
+                v, null, null, Schedule.clear(T0), null, Duration.ofDays(7))));
         assertEquals(List.of("EVAL"), commands(List.of(RedisLossStore.checkedRequest("V1", T0, CheckState.NONE, T0,
                 Duration.ofDays(7)))));
         assertEquals(Optional.of(new Heartbeat("a", T0, Duration.ofMillis(1500))),

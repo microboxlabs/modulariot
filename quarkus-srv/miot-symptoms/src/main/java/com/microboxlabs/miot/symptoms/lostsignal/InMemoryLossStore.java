@@ -18,6 +18,7 @@ public class InMemoryLossStore implements LossStore {
     private final Map<String, CheckState> checks = new ConcurrentHashMap<>();
     private final Map<String, Instant> deadlines = new ConcurrentHashMap<>();
     private final Map<String, Heartbeat> beats = new ConcurrentHashMap<>();
+    private final Map<String, Mark> marks = new ConcurrentHashMap<>();
     private final Clock clock;
     private String leaseOwner;
     private Instant leaseUntil = Instant.MIN;
@@ -37,7 +38,10 @@ public class InMemoryLossStore implements LossStore {
 
     @Override
     public synchronized void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
-            Schedule schedule) {
+            Schedule schedule, Mark mark) {
+        if (mark != null) {
+            marks.merge(assetId, mark, InMemoryLossStore::merged);
+        }
         vehicles.put(assetId, vehicle);
         if (sender != null) {
             senders.put(sender, senderProfile);
@@ -61,6 +65,15 @@ public class InMemoryLossStore implements LossStore {
         }
     }
 
+    /** A mark of the same loss keeps the first return and any backfill; a mark of a new loss replaces it. */
+    private static Mark merged(Mark old, Mark m) {
+        if (!old.lostSince().equals(m.lostSince())) {
+            return m;
+        }
+        Instant returned = old.returnedAt() == null ? m.returnedAt() : old.returnedAt();
+        return new Mark(m.lostSince(), returned, old.backfill() || m.backfill());
+    }
+
     @Override
     public List<String> due(Instant now, int limit) {
         return deadlines.entrySet().stream().filter(e -> !e.getValue().isAfter(now))
@@ -69,7 +82,11 @@ public class InMemoryLossStore implements LossStore {
 
     @Override
     public synchronized Vehicle vehicle(String assetId) {
-        return new Vehicle(vehicles.get(assetId), watches.get(assetId), checks.get(assetId), deadlines.get(assetId));
+        CheckState c = checks.get(assetId);
+        Mark m = marks.get(assetId);
+        boolean current = c != null && c.lost() && m != null && m.lostSince().equals(c.lostSince());
+        return new Vehicle(vehicles.get(assetId), watches.get(assetId), c, current ? m.returnedAt() : null,
+                current && m.backfill(), deadlines.get(assetId));
     }
 
     @Override
@@ -81,6 +98,9 @@ public class InMemoryLossStore implements LossStore {
             checks.remove(assetId);
         } else {
             checks.put(assetId, check);
+        }
+        if (!check.lost()) {
+            marks.remove(assetId);
         }
         if (next == null) {
             deadlines.remove(assetId);

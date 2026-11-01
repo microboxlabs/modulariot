@@ -237,6 +237,7 @@ public class EvaluatorStream {
      */
     public void forget(String tenant, String assetId, java.util.UUID definitionId) {
         episodes.forget(tenant, assetId, definitionId);
+        lostSignal.forget(tenant, assetId, definitionId);
     }
 
     /** The trip, position and driver of the signal, as far as it has them. */

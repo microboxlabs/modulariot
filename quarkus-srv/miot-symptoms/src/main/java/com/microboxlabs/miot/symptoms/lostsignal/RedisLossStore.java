@@ -22,8 +22,9 @@ import org.jboss.logging.Logger;
 /**
  * The lost-signal state in Redis, every key expiring {@code ttl} after its last write:
  * <ul>
- * <li>{@code symptoms:veh:<asset>}, a hash: {@code p} the vehicle's profile, {@code w} its watch (written by
- * frames), {@code c} its check state (written by the ticker);</li>
+ * <li>{@code symptoms:veh:<asset>}, a hash: {@code p} the vehicle's profile, {@code w} its watch, {@code r} and
+ * {@code b} the return and backfill marks of its loss ({@code <lost ms>:<arrival ms>}, {@code <lost ms>}), all
+ * written by frames; {@code c} its check state, written by the ticker;</li>
  * <li>{@code symptoms:snd:<sender>}: the sender's profile;</li>
  * <li>{@code symptoms:deadlines}: a sorted set of vehicles by deadline (epoch ms);</li>
  * <li>{@code symptoms:lost-signal:lease}: the ticker's owner; {@code symptoms:ingest}: one heartbeat per replica.</li>
@@ -41,6 +42,8 @@ public class RedisLossStore implements LossStore {
     static final String PROFILE = "p";
     static final String WATCH = "w";
     static final String CHECK = "c";
+    static final String RETURNED = "r";
+    static final String BACKFILL = "b";
     static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     /** Takes the lease when free, renews it when held: ARGV owner, ttl ms. */
@@ -53,7 +56,8 @@ public class RedisLossStore implements LossStore {
 
     /**
      * A check's write, only while the deadline is the one the check read: KEYS vehicle, deadlines; ARGV asset,
-     * seen ms ("" none), check JSON ("" clears), next ms ("" drops), ttl s. XX: no deadline is created.
+     * seen ms ("" none), check JSON ("" clears), next ms ("" drops), ttl s, "1" to clear the loss's marks.
+     * XX: no deadline is created.
      */
     static final String CHECKED_SCRIPT = """
             local s = redis.call('ZSCORE', KEYS[2], ARGV[1])
@@ -62,6 +66,7 @@ public class RedisLossStore implements LossStore {
             elseif not s or tonumber(s) ~= tonumber(ARGV[2]) then return 0 end
             if ARGV[3] == '' then redis.call('HDEL', KEYS[1], 'c')
             else redis.call('HSET', KEYS[1], 'c', ARGV[3]) redis.call('EXPIRE', KEYS[1], ARGV[5]) end
+            if ARGV[6] == '1' then redis.call('HDEL', KEYS[1], 'r', 'b') end
             if ARGV[4] == '' then redis.call('ZREM', KEYS[2], ARGV[1])
             else redis.call('ZADD', KEYS[2], 'XX', ARGV[4], ARGV[1]) end
             return 1
@@ -108,12 +113,12 @@ public class RedisLossStore implements LossStore {
 
     @Override
     public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
-            Schedule schedule) {
-        batch(saveRequests(assetId, vehicle, sender, senderProfile, schedule, ttl));
+            Schedule schedule, Mark mark) {
+        batch(saveRequests(assetId, vehicle, sender, senderProfile, schedule, mark, ttl));
     }
 
     static List<Request> saveRequests(String assetId, VehicleProfile vehicle, String sender,
-            SenderProfile senderProfile, Schedule schedule, Duration ttl) {
+            SenderProfile senderProfile, Schedule schedule, Mark mark, Duration ttl) {
         String seconds = Long.toString(ttl.toSeconds());
         String key = vehicleKey(assetId);
         List<Request> writes = new ArrayList<>();
@@ -122,6 +127,14 @@ public class RedisLossStore implements LossStore {
             hset.arg(WATCH).arg(write(schedule.watch()));
         }
         writes.add(hset);
+        if (mark != null && mark.returnedAt() != null) {
+            // NX: the first frame after the loss is the return; a later one for the same loss keeps it.
+            writes.add(Request.cmd(Command.HSETNX).arg(key).arg(RETURNED)
+                    .arg(mark.lostSince().toEpochMilli() + ":" + mark.returnedAt().toEpochMilli()));
+        }
+        if (mark != null && mark.backfill()) {
+            writes.add(Request.cmd(Command.HSET).arg(key).arg(BACKFILL).arg(mark.lostSince().toEpochMilli()));
+        }
         if (schedule.kind() == Schedule.Kind.DROP || schedule.kind() == Schedule.Kind.CLEAR) {
             writes.add(Request.cmd(Command.HDEL).arg(key).arg(WATCH));
         }
@@ -156,12 +169,25 @@ public class RedisLossStore implements LossStore {
         // The deadline first: a frame writes its profile before its deadline, so a deadline read here never comes
         // with an older profile, and a newer profile with the older deadline fails the check's compare-and-set.
         List<Response> r = batch(List.of(Request.cmd(Command.ZSCORE).arg(DEADLINES).arg(assetId),
-                Request.cmd(Command.HMGET).arg(vehicleKey(assetId)).arg(PROFILE).arg(WATCH).arg(CHECK)));
+                Request.cmd(Command.HMGET).arg(vehicleKey(assetId)).arg(PROFILE).arg(WATCH).arg(CHECK).arg(RETURNED)
+                        .arg(BACKFILL)));
         Response score = r.get(0);
         Response fields = r.get(1);
-        return new Vehicle(read(fields.get(0), VehicleProfile.class), read(fields.get(1), Watch.class),
-                read(fields.get(2), CheckState.class),
+        CheckState check = read(fields.get(2), CheckState.class);
+        String lost = check == null || !check.lost() ? null : Long.toString(check.lostSince().toEpochMilli());
+        return new Vehicle(read(fields.get(0), VehicleProfile.class), read(fields.get(1), Watch.class), check,
+                returnedAt(lost, fields.get(3)), lost != null && fields.get(4) != null
+                        && lost.equals(fields.get(4).toString()),
                 score == null ? null : Instant.ofEpochMilli((long) Double.parseDouble(score.toString())));
+    }
+
+    /** The return mark's arrival when it belongs to the current loss. */
+    static Instant returnedAt(String lost, Response mark) {
+        if (lost == null || mark == null) {
+            return null;
+        }
+        String[] parts = mark.toString().split(":");
+        return parts.length == 2 && parts[0].equals(lost) ? Instant.ofEpochMilli(Long.parseLong(parts[1])) : null;
     }
 
     @Override
@@ -174,7 +200,8 @@ public class RedisLossStore implements LossStore {
         return Request.cmd(Command.EVAL).arg(CHECKED_SCRIPT).arg(2).arg(vehicleKey(assetId)).arg(DEADLINES)
                 .arg(assetId).arg(seen == null ? "" : Long.toString(seen.toEpochMilli()))
                 .arg(CheckState.NONE.equals(check) ? "" : write(check))
-                .arg(next == null ? "" : Long.toString(next.toEpochMilli())).arg(ttl.toSeconds());
+                .arg(next == null ? "" : Long.toString(next.toEpochMilli())).arg(ttl.toSeconds())
+                .arg(check.lost() ? "" : "1");
     }
 
     @Override
@@ -215,13 +242,13 @@ public class RedisLossStore implements LossStore {
         return out;
     }
 
-    static Optional<Heartbeat> heartbeat(String owner, String value) {
+    static java.util.Optional<Heartbeat> heartbeat(String owner, String value) {
         String[] parts = value.split(":");
         try {
-            return Optional.of(new Heartbeat(owner, Instant.ofEpochMilli(Long.parseLong(parts[0])),
+            return java.util.Optional.of(new Heartbeat(owner, Instant.ofEpochMilli(Long.parseLong(parts[0])),
                     Duration.ofMillis(Long.parseLong(parts[1]))));
         } catch (RuntimeException e) {
-            return Optional.empty();
+            return java.util.Optional.empty();
         }
     }
 

@@ -105,7 +105,80 @@ class ArrivalProfilesTest {
         }
         assertEquals(600, s.quantile(0.5));
         assertTrue(s.ewma() > 499 && s.ewma() < 501);
-        assertEquals(Sketch.OVER, Sketch.empty().add(1e6, 0.1).quantile(0.5));
+        assertEquals(86_400, Sketch.empty().add(86_400, 0.1).add(86_400, 0.1).quantile(0.95),
+                "above the last bound: the longest value seen, not a fixed guess");
+    }
+
+    @Test
+    void aSmallWeightKeepsFadingAtTheSendersMemory() {
+        Sketch s = Sketch.empty().add(5, 1.0 / 5000);
+        for (int i = 0; i < 20_000; i++) {
+            s = s.add(60, 1.0 / 5000);
+        }
+        assertTrue(s.weights()[Sketch.bucket(5)] < 0.05, "the first value faded");
+    }
+
+    @Test
+    void theDefaultDelayIsCappedToo() {
+        LossSettings capped = new LossSettings(SETTINGS.profileTtl(), SETTINGS.vehicleMemory(),
+                SETTINGS.senderMemory(), SETTINGS.minSamples(), SETTINGS.gapQuantile(), SETTINGS.gapMargin(),
+                SETTINGS.defaultGap(), SETTINGS.minGap(), SETTINGS.delayQuantile(), SETTINGS.defaultDelay(),
+                Duration.ofSeconds(20));
+        assertEquals(Duration.ofSeconds(20), SenderProfile.empty().deliveryDelay(capped));
+    }
+
+    @Test
+    void aFrameFromTheFutureIsReadAtItsArrival() {
+        profiles.record(frame("V1", "S1", 0, 1, 50, true));
+        Arrival future = profiles.record(frame("V1", "S1", 86_400, 61, 50, true));
+        Arrival next = profiles.record(frame("V1", "S1", 90, 91, 50, true));
+
+        assertEquals(T0.plusSeconds(61), future.vehicle().at());
+        assertFalse(next.late(), "normal frames are not stuck behind it");
+        assertEquals(T0.plusSeconds(90), next.vehicle().at());
+    }
+
+    @Test
+    void aReplayStillCountsForTheSender() {
+        profiles.record(frame("V1", "S1", 0, 1, 50, true));
+        Arrival other = profiles.record(frame("V1", "S2", 0, 40, 50, true));
+
+        assertTrue(other.replay());
+        assertEquals(1, other.sender().delay().count(), "the second sender's delay is sampled");
+    }
+
+    @Test
+    void aFailingStoreMakesTheDetectorSkipFramesForAWhile() {
+        LossStore down = new LossStore() {
+            @Override
+            public Profiles load(String assetId, String sender) {
+                throw new IllegalStateException("Redis down");
+            }
+
+            @Override
+            public void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile) {
+            }
+        };
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry meters =
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        LostSignalDetector detector = new LostSignalDetector(true, new ArrivalProfiles(down, SETTINGS), meters);
+        Map<String, Object> signal = Map.of("sender", "S1", "frame", Map.of("gps", Map.of("speed", 50.0)));
+
+        detector.frame("V1", T0, T0, signal);
+        detector.frame("V1", T0.plusSeconds(30), T0.plusSeconds(30), signal);
+
+        assertEquals(1, meters.counter("miot.symptoms.lost_signal.failed").count());
+        assertEquals(1, meters.counter("miot.symptoms.lost_signal.skipped").count(), "no wait on a stalled store");
+    }
+
+    @Test
+    void aVehicleBackAfterTheProfileTtlStartsOver() {
+        profiles.record(frame("V1", "S1", 0, 1, 50, true));
+        profiles.record(frame("V1", "S1", 30, 31, 50, true));
+        int later = (int) SETTINGS.profileTtl().toSeconds() + 3600;
+        Arrival back = profiles.record(frame("V1", "S1", later, later + 1, 50, true));
+
+        assertTrue(back.vehicle().gaps().isEmpty(), "no gap across the absence");
     }
 
     @Test

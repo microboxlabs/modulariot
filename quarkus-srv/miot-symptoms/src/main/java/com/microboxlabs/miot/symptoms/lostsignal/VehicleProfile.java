@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.lostsignal;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
@@ -16,11 +17,13 @@ import java.util.Map;
  * @param seen    when any frame of the vehicle last arrived, late ones included
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@RegisterForReflection
 public record VehicleProfile(Instant at, Instant arrival, Instant seen, Motion motion, Map<Motion, Sketch> gaps,
         Last last) {
 
     /** The newest frame as the check reads it. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @RegisterForReflection
     public record Last(Instant at, @JsonProperty("lat") Double latitude, @JsonProperty("lon") Double longitude,
             Double speed, Boolean engine) {
     }

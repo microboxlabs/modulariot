@@ -22,10 +22,13 @@ import org.jboss.logging.Logger;
 public class LostSignalDetector {
 
     private static final Logger LOG = Logger.getLogger(LostSignalDetector.class);
+    /** After a failed frame the detector skips frames this long, so a stalled store does not hold the consumer. */
+    static final long BACKOFF_MS = 30_000;
 
     private final boolean enabled;
     private final ArrivalProfiles profiles;
     private final MeterRegistry meters;
+    private volatile long skipUntil;
 
     @Inject
     LostSignalDetector(@ConfigProperty(name = "miot.symptoms.lost-signal.enabled", defaultValue = "false") boolean enabled,
@@ -70,9 +73,14 @@ public class LostSignalDetector {
         if (!enabled) {
             return;
         }
+        if (System.currentTimeMillis() < skipUntil) {
+            meters.counter("miot.symptoms.lost_signal.skipped").increment();
+            return;
+        }
         try {
             profiles.record(Frame.of(signal, assetId, at, arrivedAt));
         } catch (RuntimeException e) {
+            skipUntil = System.currentTimeMillis() + BACKOFF_MS;
             meters.counter("miot.symptoms.lost_signal.failed").increment();
             LOG.debugf("Lost-signal detector: frame not recorded (%s)", e.getClass().getSimpleName());
         }

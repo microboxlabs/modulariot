@@ -32,6 +32,7 @@ public class LossTicker {
     private final MeterRegistry meters;
     private final Clock clock;
 
+    @SuppressWarnings("java:S107") // The lease and batch settings, plus the meters and clock for tests.
     public LossTicker(LossStore store, DueCheck checks, IngestHealth ingest, String owner, Duration leaseTtl,
             int batch, MeterRegistry meters, Clock clock) {
         this.store = store;

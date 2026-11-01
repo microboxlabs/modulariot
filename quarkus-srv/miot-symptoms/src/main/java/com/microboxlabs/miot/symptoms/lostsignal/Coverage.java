@@ -7,7 +7,7 @@ import java.time.Instant;
 
 /**
  * Frames and delayed frames seen in one grid cell, by one sender or all of them, fading with time. A frame is
- * delayed when it arrives later than its sender usually does ({@link CoverageMap#delayed}): the GPS kept fixing
+ * delayed when it arrives later than its sender usually does ({@link CoverageMap#isDelayed}): the GPS kept fixing
  * where the cellular network did not, so delayed frames mark where coverage is poor.
  */
 @RegisterForReflection

@@ -2,15 +2,20 @@
 
 Reads CSV rows (sender, latitude, longitude, frame time, arrival time) from stdin, as export.sql writes them, and
 prints HSET commands for symptoms:cov:<sender> and symptoms:cov:* in the detector's format (CoverageMap,
-Coverage). Delayed: arrival later than max(2 min, 3 x the sender's median delay). Weights fade with a 7-day
-half-life to the newest frame. Review the output, then pipe it to redis-cli by hand; never against prod
-without a deliberate decision.
+Coverage). Delayed: arrival later than max(2 min, 3 x the sender's median delay); the median here is exact, while the
+runtime reads it from a bucketed sketch, so the first map is an approximation the frames then correct. Weights
+fade with a 7-day half-life to the newest arrival, as the runtime ages cells by arrival.
+
+Only for an empty map, with the detector off: HSET replaces whole cells, so a map the detector already writes
+would lose its counts. Review the output, then pipe it to redis-cli by hand; never against prod without a
+deliberate decision.
 
     cat frames-*.csv | python3 -I seed.py > coverage.redis
 """
 import csv
 import json
 import math
+import shlex
 import statistics
 import sys
 from datetime import datetime
@@ -31,7 +36,7 @@ def main():
         lat, lon = float(lat), float(lon)
         if lat == 0 and lon == 0:
             continue
-        rows.append((sender, lat, lon, ts(at), max(0.0, ts(arrived) - ts(at))))
+        rows.append((sender, lat, lon, ts(arrived), max(0.0, ts(arrived) - ts(at))))
     if not rows:
         return
     medians = {}
@@ -39,9 +44,9 @@ def main():
         medians[sender] = statistics.median(r[4] for r in rows if r[0] == sender)
     newest = max(r[3] for r in rows)
     cells = {}
-    for sender, lat, lon, at, delay in rows:
+    for sender, lat, lon, arrived, delay in rows:
         cell = f"{math.floor(lat / CELL)}:{math.floor(lon / CELL)}"
-        weight = 0.5 ** ((newest - at) / HALF_LIFE_S)
+        weight = 0.5 ** ((newest - arrived) / HALF_LIFE_S)
         delayed = delay > max(DELAYED_S, 3 * medians[sender])
         for key in (sender, "*"):
             f, d = cells.get((key, cell), (0.0, 0.0))
@@ -49,9 +54,9 @@ def main():
     at_ms = int(newest * 1000)
     for (key, cell), (f, d) in sorted(cells.items()):
         value = json.dumps({"f": round(f, 3), "d": round(d, 3), "t": at_ms}, separators=(",", ":"))
-        print(f"HSET symptoms:cov:{key} {cell} '{value}'")
+        print(f"HSET {shlex.quote('symptoms:cov:' + key)} {cell} {shlex.quote(value)}")
     for key in sorted({k for k, _ in cells}):
-        print(f"EXPIRE symptoms:cov:{key} {TTL_S}")
+        print(f"EXPIRE {shlex.quote('symptoms:cov:' + key)} {TTL_S}")
 
 
 if __name__ == "__main__":

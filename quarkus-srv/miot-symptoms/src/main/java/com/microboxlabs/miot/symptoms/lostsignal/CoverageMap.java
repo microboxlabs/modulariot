@@ -29,9 +29,9 @@ public record CoverageMap(Duration halfLife, int minFrames, double minShare, dou
                 (long) Math.floor(lon / CELL_DEGREES));
     }
 
-    static boolean delayed(Frame f, SenderProfile sender) {
+    static boolean isDelayed(Frame f, SenderProfile sender) {
         double median = sender == null || sender.delay().count() == 0 ? 0 : sender.delay().quantile(0.5);
-        return f.delaySeconds() > Math.max(DELAYED.toSeconds(), 3 * median);
+        return f.delaySeconds() > Math.max((double) DELAYED.toSeconds(), 3 * median);
     }
 
     /**

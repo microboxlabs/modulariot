@@ -55,7 +55,7 @@ public class ArrivalProfiles {
         boolean replay = old != null && f.at().equals(old.at());
         VehicleProfile vehicle = old == null ? VehicleProfile.first(f) : old.with(f, settings);
         SenderProfile sender = before.sender() == null ? SenderProfile.empty() : before.sender();
-        boolean delayed = CoverageMap.delayed(f, sender);
+        boolean delayed = CoverageMap.isDelayed(f, sender);
         // A replay still counts for the sender: two senders can report the same frame time.
         if (f.sender() != null) {
             sender = sender.with(f, settings, delayed);

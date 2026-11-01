@@ -68,7 +68,7 @@ class LossTickerTest {
         clock.set(T0.plusSeconds(190));
         assertEquals(1, detector.tick());
         assertEquals(1, checks("lost"));
-        assertEquals(new CheckState(T0, T0.plusSeconds(190), Map.of()), store.vehicle("V1").check());
+        assertEquals(new CheckState(T0, T0.plusSeconds(190), Map.of(), "S1"), store.vehicle("V1").check());
         assertEquals(T0.plusSeconds(250), store.deadline("V1"), "checked again in a minute");
 
         clock.set(T0.plusSeconds(250));

@@ -6,7 +6,7 @@ import java.time.Duration;
 /**
  * One sender's delivery delays: arrival minus frame time, on time and late frames alike.
  *
- * @param delayedShare the EWMA share of its frames delayed beyond its usual delay ({@link CoverageMap#delayed})
+ * @param delayedShare the EWMA share of its frames delayed beyond its usual delay ({@link CoverageMap#isDelayed})
  */
 @RegisterForReflection
 public record SenderProfile(Sketch delay, double delayedShare) {

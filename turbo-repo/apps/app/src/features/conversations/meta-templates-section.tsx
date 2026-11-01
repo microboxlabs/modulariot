@@ -8,7 +8,11 @@ import {
   ModalFooter,
   ModalHeader,
 } from "flowbite-react";
-import { HiPlus, HiRefresh, HiTrash, HiX } from "react-icons/hi";
+import { HiPlus, HiTrash, HiX } from "react-icons/hi";
+import { BrandLogo } from "@/features/common/components/brand-logo";
+import CatalogTable from "@/features/common/components/catalog-table";
+import { findCredentialType } from "@/features/credentials/credential.types";
+import type { CatalogLayout } from "@/features/common/components/layout-toggle";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
@@ -42,9 +46,10 @@ import {
   draftOf,
   draftParams,
   draftProblems,
+  metaTemplateLock,
 } from "./meta-template-model";
 import MetaTemplatePreview from "./meta-template-preview";
-import MetaStatusChip from "./meta-template-status";
+import MetaStatusChip, { metaStatusLabel } from "./meta-template-status";
 
 const BUTTON_LABEL: Record<MetaButtonType, string> = {
   QUICK_REPLY: "metaButtonQuickReply",
@@ -70,17 +75,6 @@ function loadError(error: unknown, d: I18nRecord) {
   return error instanceof Error && error.message
     ? error.message
     : tr("loadFailed", d);
-}
-
-/** Why the app does not edit this template, or null when it does. */
-function lockedReason(t: MetaTemplate | null): string | null {
-  if (!t) return null;
-  if (t.status === "PENDING") return "metaLockedPending";
-  if (t.category === "AUTHENTICATION") return "metaLockedAuthentication";
-  if (t.headerFormat && t.headerFormat !== "TEXT") return "metaLockedMedia";
-  if (t.parameterFormat !== "NAMED" && t.params.length > 0)
-    return "metaLockedPositional";
-  return null;
 }
 
 function ButtonsEditor({
@@ -260,7 +254,7 @@ export function MetaTemplateEditor({
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const isNew = template === null;
-  const locked = lockedReason(template);
+  const locked = metaTemplateLock(template);
   const readOnly = !canWrite || locked !== null;
   const set = (patch: Partial<MetaTemplateDraft>) =>
     setDraft({ ...draft, ...patch });
@@ -489,113 +483,261 @@ export function MetaTemplateEditor({
   );
 }
 
-/** "WhatsApp en Meta": the WABA's templates beside the selected one's editor. */
+export type MetaFilters = {
+  status: string;
+  category: string;
+  template: string;
+};
+
+export const NO_META_FILTERS: MetaFilters = {
+  status: "",
+  category: "",
+  template: "",
+};
+
+/** How the template filter names a template: two languages can share a name. */
+export function metaTemplateLabel(t: MetaTemplate) {
+  return `${t.name} · ${t.language}`;
+}
+
+function metaPasses(t: MetaTemplate, f: MetaFilters, d: I18nRecord) {
+  if (f.status && metaStatusLabel(t.status, d) !== f.status) return false;
+  return !f.category || categoryLabel(t.category, d) === f.category;
+}
+
+/** The header filters: state and category narrow the list, and the template filter opens one. */
+export function metaFilterDefs(
+  templates: MetaTemplate[],
+  f: MetaFilters,
+  d: I18nRecord
+): { key: keyof MetaFilters; label: string; options: string[] }[] {
+  return [
+    {
+      key: "status",
+      label: tr("filterState", d),
+      options: [...new Set(templates.map((t) => metaStatusLabel(t.status, d)))],
+    },
+    {
+      key: "category",
+      label: tr("metaCategory", d),
+      options: [...new Set(templates.map((t) => categoryLabel(t.category, d)))],
+    },
+    {
+      key: "template",
+      label: tr("colTemplate", d),
+      options: templates
+        .filter((t) => metaPasses(t, f, d))
+        .map(metaTemplateLabel),
+    },
+  ];
+}
+
+/** The header action that starts a new template. */
+export function NewMetaTemplateButton({
+  d,
+  onNew,
+}: Readonly<{ d: I18nRecord; onNew: () => void }>) {
+  return (
+    <Button size="sm" color="blue" onClick={onNew}>
+      <HiPlus className="mr-1 h-4 w-4" />
+      {tr("metaNewTemplate", d)}
+    </Button>
+  );
+}
+
+const CARD =
+  "flex flex-col rounded-lg border border-gray-200 bg-white text-left transition hover:border-blue-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500";
+
+const WHATSAPP = findCredentialType("WHATSAPP");
+
+/** WhatsApp's mark as Credenciales and Conexiones draw it: 40 px on a card, 24 px in a row. */
+function WhatsAppMark({ size }: Readonly<{ size: number }>) {
+  return (
+    <BrandLogo
+      logo={WHATSAPP?.logo}
+      icon={WHATSAPP?.icon}
+      keyline={WHATSAPP?.keyline}
+      alt="WhatsApp"
+      size={size}
+    />
+  );
+}
+
+/** A template laid out like the message template cards: name, language, body, and the status at the foot. */
+function MetaTemplateCard({
+  template,
+  d,
+  onOpen,
+}: Readonly<{
+  template: MetaTemplate;
+  d: I18nRecord;
+  onOpen: (t: MetaTemplate) => void;
+}>) {
+  return (
+    <button type="button" className={CARD} onClick={() => onOpen(template)}>
+      <div className="flex w-full items-start gap-3 px-4 pt-4">
+        <WhatsAppMark size={40} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-mono font-semibold text-gray-900 dark:text-white">
+            {template.name}
+          </div>
+          <div className={`truncate text-xs ${MUTED}`}>
+            {categoryLabel(template.category, d)}
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 line-clamp-2 h-8 px-4 text-xs text-gray-600 dark:text-gray-300">
+        {template.body || "—"}
+      </p>
+      {template.status === "REJECTED" && template.rejectedReason && (
+        <p className="mt-2 px-4 text-xs text-red-600 dark:text-red-400">
+          {template.rejectedReason}
+        </p>
+      )}
+      {/* Keeps the footers of a row of cards on one line. */}
+      <div className="min-h-3 flex-1" />
+      <div className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-xs dark:border-gray-700/60">
+        <span className={`font-mono ${MUTED}`}>{template.language}</span>
+        <span className="ml-auto">
+          <MetaStatusChip status={template.status} d={d} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function MetaTemplatesTable({
+  templates,
+  d,
+  onOpen,
+}: Readonly<{
+  templates: MetaTemplate[];
+  d: I18nRecord;
+  onOpen: (t: MetaTemplate) => void;
+}>) {
+  return (
+    <CatalogTable
+      columns={[
+        tr("colTemplate", d),
+        tr("metaLanguage", d),
+        tr("metaCategory", d),
+        tr("filterState", d),
+      ]}
+    >
+      {templates.map((t) => (
+        <tr
+          key={t.id}
+          className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+        >
+          <td className="px-4 py-2.5">
+            <div className="flex items-center gap-3">
+              <WhatsAppMark size={24} />
+              <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onOpen(t)}
+                  className="text-left font-mono text-sm font-medium text-gray-900 hover:underline dark:text-white"
+                >
+                  {t.name}
+                </button>
+                <div className="line-clamp-1 max-w-xl text-xs text-gray-600 dark:text-gray-300">
+                  {t.body || "—"}
+                </div>
+                {t.status === "REJECTED" && t.rejectedReason && (
+                  <div className="text-xs text-red-600 dark:text-red-400">
+                    {t.rejectedReason}
+                  </div>
+                )}
+              </div>
+            </div>
+          </td>
+          <td className={`whitespace-nowrap px-4 py-2.5 font-mono ${MUTED}`}>
+            {t.language}
+          </td>
+          <td className="whitespace-nowrap px-4 py-2.5">
+            {categoryLabel(t.category, d)}
+          </td>
+          <td className="px-4 py-2.5">
+            <MetaStatusChip status={t.status} d={d} />
+          </td>
+        </tr>
+      ))}
+    </CatalogTable>
+  );
+}
+
+/**
+ * "WhatsApp en Meta": the WABA's templates as cards or a table, narrowed by the header filters. Picking one in
+ * the template filter, or in the catalog, opens its editor.
+ */
 export default function MetaTemplatesSection({
   canWrite,
   d,
-}: Readonly<{ canWrite: boolean; d: I18nRecord }>) {
-  const {
-    data: templates,
-    error,
-    isLoading,
-    isValidating,
-  } = useMetaTemplates();
-  // A template id, "new", or null for the first one.
-  const [selected, setSelected] = useState<string | null>(null);
-  const current = selected ?? templates?.[0]?.id ?? null;
+  filters,
+  layout,
+  creating,
+  onOpen,
+}: Readonly<{
+  canWrite: boolean;
+  d: I18nRecord;
+  filters: MetaFilters;
+  layout: CatalogLayout;
+  /** True while a new template is being written. */
+  creating: boolean;
+  /** Opens a template's editor; null goes back to the catalog. */
+  onOpen: (template: MetaTemplate | null) => void;
+}>) {
+  const { data: templates, error, isLoading } = useMetaTemplates();
   const shown =
-    selected === "new"
-      ? null
-      : (templates?.find((t) => t.id === current) ?? null);
+    templates?.find((t) => metaTemplateLabel(t) === filters.template) ?? null;
 
+  if (creating || shown) {
+    return (
+      <MetaTemplateEditor
+        key={creating ? "new" : shown?.id}
+        template={creating ? null : shown}
+        canWrite={canWrite}
+        d={d}
+        onSaved={onOpen}
+        onDeleted={() => onOpen(null)}
+      />
+    );
+  }
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        {loadError(error, d)}
+      </p>
+    );
+  }
+  if (isLoading)
+    return <p className={`text-sm ${MUTED}`}>{tr("loading", d)}</p>;
+  if (templates?.length === 0) {
+    return (
+      <p className={`py-10 text-center text-sm ${MUTED}`}>
+        {tr("metaNoTemplates", d)}
+      </p>
+    );
+  }
+  const visible = (templates ?? []).filter((t) => metaPasses(t, filters, d));
+  if (visible.length === 0) {
+    return (
+      <p className={`py-10 text-center text-sm ${MUTED}`}>
+        {tr("templatesEmptyFiltered", d)}
+      </p>
+    );
+  }
+  if (layout === "list") {
+    return <MetaTemplatesTable templates={visible} d={d} onOpen={onOpen} />;
+  }
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <nav
-        aria-label={tr("metaTemplatesList", d)}
-        className="flex flex-col gap-1 self-start rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800"
-      >
-        <div className="flex items-center gap-1">
-          {canWrite && (
-            <button
-              type="button"
-              className="flex flex-1 items-center gap-1.5 rounded-md px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-gray-700"
-              onClick={() => setSelected("new")}
-            >
-              <HiPlus aria-hidden className="h-4 w-4" />
-              {tr("metaNewTemplate", d)}
-            </button>
-          )}
-          <button
-            type="button"
-            aria-label={tr("metaRefresh", d)}
-            title={tr("metaRefresh", d)}
-            className={`${ICON_BUTTON} ml-auto`}
-            disabled={isValidating}
-            onClick={() => void refreshMetaTemplates()}
-          >
-            <HiRefresh
-              className={`h-4 w-4 ${isValidating ? "animate-spin" : ""}`}
-            />
-          </button>
-        </div>
-        {error && (
-          <p
-            role="alert"
-            className="px-3 py-2 text-sm text-red-600 dark:text-red-400"
-          >
-            {loadError(error, d)}
-          </p>
-        )}
-        {isLoading && (
-          <p className={`px-3 py-2 text-sm ${MUTED}`}>{tr("loading", d)}</p>
-        )}
-        {templates?.length === 0 && (
-          <p className={`px-3 py-2 text-sm ${MUTED}`}>
-            {tr("metaNoTemplates", d)}
-          </p>
-        )}
-        {(templates ?? []).map((t) => {
-          const active = t.id === current && selected !== "new";
-          return (
-            <button
-              key={t.id}
-              type="button"
-              aria-current={active ? "true" : undefined}
-              onClick={() => setSelected(t.id)}
-              className={`flex flex-col gap-1 rounded-md px-3 py-2 text-left text-sm ${
-                active
-                  ? "bg-blue-50 text-blue-700 dark:bg-gray-700 dark:text-white"
-                  : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate font-mono font-medium">
-                  {t.name}
-                </span>
-                <MetaStatusChip status={t.status} d={d} />
-              </span>
-              <span className={`text-xs ${MUTED}`}>
-                {t.language} · {categoryLabel(t.category, d)}
-              </span>
-              {t.status === "REJECTED" && t.rejectedReason && (
-                <span className="text-xs text-red-600 dark:text-red-400">
-                  {t.rejectedReason}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-      {(shown || selected === "new") && (
-        <MetaTemplateEditor
-          key={selected === "new" ? "new" : shown?.id}
-          template={shown}
-          canWrite={canWrite}
-          d={d}
-          onSaved={(saved) => setSelected(saved.id)}
-          onDeleted={() => setSelected(null)}
-        />
-      )}
-    </div>
+    <section
+      aria-label={tr("metaTemplatesList", d)}
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3"
+    >
+      {visible.map((t) => (
+        <MetaTemplateCard key={t.id} template={t} d={d} onOpen={onOpen} />
+      ))}
+    </section>
   );
 }

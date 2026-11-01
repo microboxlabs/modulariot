@@ -29,9 +29,9 @@ public class SignalBuilder {
      * DESCONECTADA", "EVENTO_SMDP_ALIMENTACION_EXTERNA_DESCONECTADA", "power disconnected", "power cut".
      */
     static final Pattern POWER_DISCONNECTED = Pattern.compile(
-            "(?iu).*(alimentaci[oó]n.*desconectad|power.*(disconnect|cut)).*");
+            "(?iu)alimentaci[oó]n[^\\n]*desconectad|power[^\\n]*(disconnect|cut)");
     /** GNSS or GSM jamming events ("GpsJammingDetected", "GSM jamming", "JAMMING"). */
-    static final Pattern JAMMING = Pattern.compile("(?iu).*jamm.*");
+    static final Pattern JAMMING = Pattern.compile("(?iu)jamm");
 
     private final ReferenceCache refs;
     private final ZoneId zone;
@@ -64,7 +64,7 @@ public class SignalBuilder {
     /** True when one of the frame's events matches, false otherwise: a rule reads it without {@code has()}. */
     static boolean event(AssetTrackingData frame, Pattern type) {
         return frame.getEvents() != null && frame.getEvents().stream().filter(Objects::nonNull).map(Event::getEventType)
-                .anyMatch(t -> t != null && type.matcher(t.replace('_', ' ')).matches());
+                .anyMatch(t -> t != null && type.matcher(t.replace('_', ' ')).find());
     }
 
     /** The trip in progress as the signal carries it, timed against the frame. */

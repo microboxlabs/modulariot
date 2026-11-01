@@ -31,9 +31,8 @@ import org.jboss.logging.Logger;
  * The lost-signal detector. Every signal the evaluator reads updates the arrival profiles
  * ({@link ArrivalProfiles}) and, for a vehicle on a trip, moves its deadline to arrival + expected silence. A
  * ticker in one replica checks the vehicles whose deadline expired ({@link LossTicker}) and runs the
- * organizations' {@code trip_check} versions on them ({@link TripChecks}). Off unless
- * {@code miot.symptoms.lost-signal.enabled}; a failure is counted ({@code miot.symptoms.lost_signal.failed}) and
- * never redelivers the signal.
+ * organizations' {@code trip_check} versions on them ({@link TripChecks}). On wherever the evaluator is; a
+ * failure is counted ({@code miot.symptoms.lost_signal.failed}) and never redelivers the signal.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -73,7 +72,7 @@ public class LostSignalDetector {
     private volatile long skipUntil;
 
     @Inject
-    LostSignalDetector(@ConfigProperty(name = "miot.symptoms.lost-signal.enabled", defaultValue = "false") boolean enabled,
+    LostSignalDetector(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.lost-signal.profile-ttl", defaultValue = "P7D") Duration profileTtl,
             @ConfigProperty(name = "miot.symptoms.lost-signal.min-samples", defaultValue = "20") int minSamples,
             @ConfigProperty(name = "miot.symptoms.lost-signal.gap-margin", defaultValue = "1.5") double gapMargin,

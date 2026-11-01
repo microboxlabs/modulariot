@@ -34,6 +34,7 @@ const KEY = /^[a-z0-9][a-z0-9-]*$/;
 
 const NEW_FEED: FeedBody = {
   name: "",
+  country: null,
   stages: [],
   arrivalStage: "",
   requiredResources: ["truck", "driver"],
@@ -44,6 +45,7 @@ const NEW_FEED: FeedBody = {
 function bodyOf(f: Feed): FeedBody {
   return {
     name: f.name,
+    country: f.country ?? null,
     stages: f.stages,
     arrivalStage: f.arrivalStage,
     requiredResources: f.requiredResources,
@@ -92,9 +94,12 @@ function FeedModal({
     ? body.arrivalStage
     : "";
   const keyProblem = creating && (!KEY.test(key) || taken.includes(key));
+  const country = body.country?.trim().toUpperCase() || null;
+  const countryProblem = country !== null && !/^[A-Z]{2}$/.test(country);
   const invalid =
     !body.name.trim() ||
     keyProblem ||
+    countryProblem ||
     body.stages.length === 0 ||
     !arrival ||
     (creating && !listReady);
@@ -113,7 +118,7 @@ function FeedModal({
     try {
       await saveFeed(
         key,
-        { ...body, name: body.name.trim(), arrivalStage: arrival },
+        { ...body, name: body.name.trim(), country, arrivalStage: arrival },
         creating
       );
       onClose();
@@ -165,6 +170,30 @@ function FeedModal({
                   : tr("keyHint", d)}
               </p>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1 sm:w-1/2">
+            <Label htmlFor="feed-country">{tr("country", d)}</Label>
+            <TextInput
+              id="feed-country"
+              sizing="sm"
+              disabled={busy}
+              value={body.country ?? ""}
+              placeholder="CL"
+              maxLength={2}
+              color={countryProblem ? "failure" : undefined}
+              aria-invalid={countryProblem}
+              aria-describedby="feed-country-hint"
+              onChange={(e) =>
+                change({ country: e.target.value.toUpperCase() || null })
+              }
+            />
+            <p
+              id="feed-country-hint"
+              className="text-xs text-gray-500 dark:text-gray-400"
+            >
+              {tr("countryHint", d)}
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">

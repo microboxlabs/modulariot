@@ -52,10 +52,24 @@ class LocationResolverTest {
     @Test
     void aShortPlusCodeWithoutADistrictNeedsReview() {
         Outcome out = resolver.resolve(ORG, TENANT,
-                new Site("CD-01", "CD", null, "PE", null, null, "VXHC+H4", null, null));
+                new Site("CD-01", "CD", null, "PE", null, null, " vxhc+h4 ", null, null));
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals("a short plus code needs a district with a boundary", out.placement().note());
+        assertEquals("VXHC+H4", out.placement().plusCode());
+        assertNull(out.placement().latitude());
+        assertNull(out.placement().longitude());
+    }
+
+    @Test
+    void anInvalidPlusCodeIsNotRetainedAsAnAttemptedPoint() {
+        Outcome out = resolver.resolve(ORG, TENANT,
+                new Site("test-site", null, null, "PE", null, null, "INVALID", null, null));
+
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertNull(out.placement().plusCode());
+        assertNull(out.placement().latitude());
+        assertNull(out.placement().longitude());
     }
 
     @Test

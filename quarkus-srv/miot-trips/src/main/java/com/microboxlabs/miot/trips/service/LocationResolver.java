@@ -144,11 +144,12 @@ public class LocationResolver {
         Placement declared = new Placement(site.address(), country,
                 b != null ? b.code() : bounded(site.districtCode(), 16),
                 b != null ? b.name() : bounded(site.districtName(), 255),
-                null, null, null, null, null, null);
+                unrecoveredPlusCode(site.plusCode()), null, null, null, null, null);
         ByAddress selected = fromSources(organization, tenantCode, site, manual, b, country);
         if (b == null && selected.district() != null) {
             b = selected.district();
-            declared = new Placement(site.address(), country, b.code(), b.name(), null, null, null, null, null, null);
+            declared = new Placement(site.address(), country, b.code(), b.name(), declared.plusCode(),
+                    null, null, null, null, null);
         }
         Found found = selected.found();
         Usage usage = selected.usage();
@@ -412,7 +413,7 @@ public class LocationResolver {
     }
 
     private static Found fromPlusCode(String raw, Boundary district) {
-        String code = raw.strip().split("\\s+")[0].toUpperCase(Locale.ROOT);
+        String code = inputPlusCode(raw);
         if (!OpenLocationCode.isValidCode(code)) {
             return new Found(null, PLUS_CODE, null, "plus code " + code + " is not valid");
         }
@@ -427,6 +428,18 @@ public class LocationResolver {
         return new Found(new Point(area.getCenterLongitude(), area.getCenterLatitude()), PLUS_CODE, null, null);
     }
 
+    private static String inputPlusCode(String raw) {
+        return raw.strip().split("\\s+")[0].toUpperCase(Locale.ROOT);
+    }
+
+    private static String unrecoveredPlusCode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String code = inputPlusCode(raw);
+        return OpenLocationCode.isValidCode(code) && new OpenLocationCode(code).isShort() ? code : null;
+    }
+
     private static Found fromCoordinates(Double lat, Double lon) {
         if (lat == null || lon == null) {
             return new Found(null, COORDINATES, null, "latitude and longitude go together");
@@ -439,7 +452,7 @@ public class LocationResolver {
     }
 
     private static Outcome review(Placement declared, Point p, String source, String note, Usage usage) {
-        return new Outcome(declared.withResult(p == null ? null : plusCode(p), p == null ? null : p.lat(),
+        return new Outcome(declared.withResult(p == null ? declared.plusCode() : plusCode(p), p == null ? null : p.lat(),
                 p == null ? null : p.lon(), source, Location.NEEDS_REVIEW, note), null, usage);
     }
 

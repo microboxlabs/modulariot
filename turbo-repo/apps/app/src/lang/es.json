@@ -3305,6 +3305,8 @@
         "editFeed": "Editar «{name}»",
         "feed": "Feed",
         "name": "Nombre",
+        "country": "País",
+        "countryHint": "Código de país opcional de dos letras (ISO 3166-1 alfa-2), como CL. Se usa para direcciones y Plus Codes cortos en las celdas de origen y destino.",
         "key": "Clave",
         "keyHint": "Va en la URL de envío: …/trips/feeds/<clave>/services. No se puede cambiar después.",
         "keyTaken": "Ya existe un feed con esa clave.",

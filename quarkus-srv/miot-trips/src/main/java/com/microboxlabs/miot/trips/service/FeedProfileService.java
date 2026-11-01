@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -84,7 +85,7 @@ public class FeedProfileService {
             throw new IllegalArgumentException("requiredResources must be among " + RESOURCES);
         }
         FeedProfile profile = new FeedProfile(tenantCode, key,
-                Check.required(body.name(), "name", 255), stages, arrival, required,
+                Check.required(body.name(), "name", 255), country(body.country()), stages, arrival, required,
                 body.registersResources() == null || body.registersResources(),
                 body.active() == null || body.active(), null, actor, null, actor);
         FeedProfile saved = createOnly ? feeds.createProfile(profile)
@@ -93,6 +94,18 @@ public class FeedProfileService {
         audit.log(tenantCode, actor, "feed.profile_saved", "feed", key, null, Map.of(STAGES, types.toString()));
         return saved;
     }
+
+    private static String country(String value) {
+        String country = Check.limitedOrNull(value, "country", 2);
+        if (country == null) {
+            return null;
+        }
+        if (!country.matches("[A-Za-z]{2}")) {
+            throw new IllegalArgumentException("country must be two letters (ISO 3166-1 alpha-2)");
+        }
+        return country.toUpperCase(Locale.ROOT);
+    }
+
     private static List<FeedProfile.StagePlan> normalizedStages(List<FeedProfile.StagePlan> requested) {
         List<FeedProfile.StagePlan> stages = requested == null ? List.of() : requested;
         List<FeedProfile.StagePlan> normalized = new ArrayList<>();

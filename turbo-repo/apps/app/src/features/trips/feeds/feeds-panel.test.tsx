@@ -37,6 +37,7 @@ vi.mock("./feeds-api", async (importOriginal) => ({
 const feed: Feed = {
   feedKey: "test-feed",
   name: "Test feed",
+  country: "CL",
   stages: [
     { stageType: "preparation", serviceStatus: "ADDED" },
     { stageType: "transit", serviceStatus: "SCHEDULED" },
@@ -78,6 +79,7 @@ describe("FeedsPanel", () => {
     );
     fireEvent.click(screen.getByText("edit"));
     expect(screen.getByLabelText("key")).toBeDisabled();
+    expect(screen.getByLabelText("country")).toHaveValue("CL");
     fireEvent.change(screen.getByLabelText("name"), {
       target: { value: "Renamed feed" },
     });
@@ -87,12 +89,36 @@ describe("FeedsPanel", () => {
         "test-feed",
         {
           name: "Renamed feed",
+          country: "CL",
           stages: feed.stages,
           arrivalStage: "transit",
           requiredResources: ["truck", "driver"],
           registersResources: true,
           active: false,
         },
+        false
+      )
+    );
+  });
+
+  it("validates, uppercases and clears the optional country", async () => {
+    render(
+      <FeedsPanel creating={false} onCreatingDone={() => {}} d={{}} md={{}} />
+    );
+    fireEvent.click(screen.getByText("edit"));
+    const country = screen.getByLabelText("country");
+    fireEvent.change(country, { target: { value: "C1" } });
+    expect(screen.getByText("save")).toBeDisabled();
+    expect(country).toHaveAttribute("aria-invalid", "true");
+    fireEvent.change(country, { target: { value: "pe" } });
+    expect(country).toHaveValue("PE");
+    expect(screen.getByText("save")).toBeEnabled();
+    fireEvent.change(country, { target: { value: "" } });
+    fireEvent.click(screen.getByText("save"));
+    await waitFor(() =>
+      expect(api.save).toHaveBeenCalledWith(
+        "test-feed",
+        expect.objectContaining({ country: null }),
         false
       )
     );
@@ -122,6 +148,7 @@ describe("FeedsPanel", () => {
     fireEvent.click(screen.getByText("save"));
     const name = screen.getByLabelText("name");
     expect(name).toBeDisabled();
+    expect(screen.getByLabelText("country")).toBeDisabled();
     expect(screen.getByLabelText("arrivalStage")).toBeDisabled();
     expect(screen.getByLabelText("resources.truck")).toBeDisabled();
     expect(screen.getByRole("switch", { name: "activeLabel" })).toBeDisabled();

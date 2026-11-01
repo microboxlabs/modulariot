@@ -165,7 +165,7 @@ public class LostSignalDetector {
             return null;
         }
         Duration usual = a.sender().deliveryDelay(settings);
-        double backfillAfter = Math.max(BACKFILL_DELAY.toSeconds(), usual.toSeconds());
+        double backfillAfter = (double) Math.max(BACKFILL_DELAY.toSeconds(), usual.toSeconds());
         boolean backfill = a.late() || f.delaySeconds() > backfillAfter;
         Instant returned = a.late() || a.replay() ? null : f.arrivedAt();
         return backfill || returned != null ? new Mark(check.lostSince(), returned, backfill) : null;

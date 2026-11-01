@@ -32,7 +32,9 @@ import java.util.Set;
  * Code (a short one is recovered from the district's centroid), the caller's coordinates, the internal address
  * table (Chile), the shared geocode cache, then the geocoding provider through the tenant's own connection. A
  * resolved point from any source but a manual one is linked to the tenant's geofence that contains it. The
- * address sources need a district with a boundary, and the provider counts only address-level results. The provider
+ * address sources need a district with a boundary: the declared one, the one the address names after its house
+ * number, or the one of the internal address that matches it across the country. The internal table is matched by
+ * street words (see {@link Addresses#streetScore}), and the provider counts only address-level results. The provider
  * is asked only when the {@link GeocodingGate} allows it; when the organization's quota is used up the site needs
  * review. The point must fall in the declared district, or
  * within {@link #BORDER_METERS} of it, to resolve; otherwise, or with no source, the site needs review.
@@ -88,9 +90,16 @@ public class LocationResolver {
     private record District(Boundary boundary, String note) {
     }
 
-    /** What the address sources found: a point, or a note on why not. */
-    private record ByAddress(Found found, String note, Usage usage) {
+    /** What the address sources found: a point, or a note on why not; {@code district} when the address named it. */
+    private record ByAddress(Found found, String note, Usage usage, Boundary district) {
+
+        ByAddress(Found found, String note, Usage usage) {
+            this(found, note, usage, null);
+        }
     }
+
+    /** Maximum candidates to compare; one extra row is read to detect an incomplete set. */
+    private static final int ADDRESS_CANDIDATES = 1000;
 
     private final GeofenceDirectory geofences;
     private final AdminBoundaries boundaries;
@@ -137,6 +146,10 @@ public class LocationResolver {
                 b != null ? b.name() : bounded(site.districtName(), 255),
                 null, null, null, null, null, null);
         ByAddress selected = fromSources(organization, tenantCode, site, manual, b, country);
+        if (b == null && selected.district() != null) {
+            b = selected.district();
+            declared = new Placement(site.address(), country, b.code(), b.name(), null, null, null, null, null, null);
+        }
         Found found = selected.found();
         Usage usage = selected.usage();
         if (found == null || found.point() == null) {
@@ -234,17 +247,66 @@ public class LocationResolver {
     }
 
     private Found fromInternal(String country, Boundary boundary, String address) {
-        if (addresses.supports(country)) {
-            var street = Addresses.street(address);
-            if (street.isPresent()) {
-                var match = addresses.find(country, Addresses.spellings(boundary.name(), false),
-                        Addresses.spellings(street.get().name(), true), street.get().number());
-                if (match.isPresent()) {
-                    return new Found(new Point(match.get().lon(), match.get().lat()), INTERNAL, null, null);
-                }
+        var street = Addresses.street(address);
+        if (!addresses.supports(country) || street.isEmpty()) {
+            return null;
+        }
+        var best = bestStreet(street.get().name(), addresses.numbered(country,
+                Addresses.spellings(boundary.name(), false), street.get().number(), ADDRESS_CANDIDATES + 1));
+        return best == null ? null : new Found(new Point(best.point().lon(), best.point().lat()), INTERNAL, null, null);
+    }
+
+    /**
+     * An address with no district declared: the district it names after the house number, then the internal table
+     * across the country, whose row gives the district.
+     */
+    private ByAddress fromAddressAlone(String organization, String tenantCode, String country, String address) {
+        var named = boundaries.namedIn(country, Addresses.afterNumber(address)).filter(n -> n.shape() != null);
+        if (named.isPresent()) {
+            ByAddress r = fromAddress(organization, tenantCode, country, named.get(), address);
+            return new ByAddress(r.found(), r.note(), r.usage(), named.get());
+        }
+        if (!addresses.supports(country)) {
+            return new ByAddress(null, "an address needs a district with a boundary to be geocoded", Usage.NONE);
+        }
+        var street = Addresses.street(address);
+        if (street.isPresent()) {
+            var best = bestStreet(street.get().name(),
+                    addresses.numbered(country, List.of(), street.get().number(), ADDRESS_CANDIDATES + 1));
+            List<Boundary> commune = best == null ? List.of() : boundaries.byName(country, best.commune());
+            if (commune.size() == 1) {
+                return new ByAddress(new Found(new Point(best.point().lon(), best.point().lat()), INTERNAL, null, null),
+                        null, Usage.NONE, commune.get(0));
             }
         }
-        return null;
+        return new ByAddress(null, "the address names no district and is not in the internal addresses", Usage.NONE);
+    }
+
+    /** The candidate whose street matches the name best; null when none does or two different streets tie. */
+    private static InternalAddresses.Candidate bestStreet(String name, List<InternalAddresses.Candidate> candidates) {
+        if (candidates.size() > ADDRESS_CANDIDATES) {
+            return null;
+        }
+        List<String> words = Addresses.streetTokens(name);
+        InternalAddresses.Candidate best = null;
+        double top = 0;
+        boolean tie = false;
+        for (var c : candidates) {
+            double score = Addresses.streetScore(words, Addresses.streetTokens(c.street()));
+            if (score > top) {
+                best = c;
+                top = score;
+                tie = false;
+            } else if (score > 0 && score == top && !sameStreet(best, c)) {
+                tie = true;
+            }
+        }
+        return tie ? null : best;
+    }
+
+    private static boolean sameStreet(InternalAddresses.Candidate a, InternalAddresses.Candidate b) {
+        return Addresses.fold(a.commune()).equals(Addresses.fold(b.commune()))
+                && Addresses.fold(a.street()).equals(Addresses.fold(b.street()));
     }
 
     private void cacheResult(String key, String country, Point point, String provider) {
@@ -259,9 +321,14 @@ public class LocationResolver {
     private ByAddress fromSources(String organization, String tenantCode, Site site, boolean manual, Boundary district, String country) {
         Found point = fromPointSources(tenantCode, site, manual, district);
         if (point.point() != null) return new ByAddress(point, null, Usage.NONE);
-        if (!manual && blankToNull(site.address()) != null && district != null && district.shape() != null) {
-            ByAddress address = fromAddress(organization, tenantCode, country, district, site.address());
-            return new ByAddress(address.found(), address.note(), address.usage());
+        if (!manual && blankToNull(site.address()) != null) {
+            if (district != null && district.shape() != null) {
+                return fromAddress(organization, tenantCode, country, district, site.address());
+            }
+            boolean undeclared = blankToNull(site.districtCode()) == null && blankToNull(site.districtName()) == null;
+            if (district == null && country != null && undeclared) {
+                return fromAddressAlone(organization, tenantCode, country, site.address());
+            }
         }
         return new ByAddress(null, point.note() != null ? point.note() : nothingNote(site, district), Usage.NONE);
     }

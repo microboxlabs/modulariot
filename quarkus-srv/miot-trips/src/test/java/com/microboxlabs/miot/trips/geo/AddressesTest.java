@@ -38,4 +38,51 @@ class AddressesTest {
         assertEquals(List.of("ÑUÑOA"), Addresses.spellings("Ñuñoa", false));
         assertEquals(List.of("IRARRÁZAVAL", "IRARRAZAVAL"), Addresses.spellings("Irarrázaval", true));
     }
+
+    private static final List<String> OFFICIAL = List.of("JORGE", "ALESSANDRI", "RODRIGUEZ");
+
+    @Test
+    void streetTokensDropTypeTitlesAndConnectingWords() {
+        assertEquals(OFFICIAL, Addresses.streetTokens("PRESIDENTE JORGE ALESSANDRI RODRÍGUEZ"));
+        assertEquals(List.of("JORGE", "ALESSANDRI", "RODRIGUEZ"),
+                Addresses.streetTokens("Av. Pdte. Jorge Alessandri Rodriguez"));
+        assertEquals(List.of("10", "JULIO"), Addresses.streetTokens("Calle 10 de Julio"));
+    }
+
+    @Test
+    void theScoreIsTheShareOfWordsMatchedWhenTheShorterNameMatchesWhole() {
+        assertEquals(1.0, Addresses.streetScore(Addresses.streetTokens("Av. Jorge Alessandri Rodriguez"), OFFICIAL));
+        assertEquals(1.0, Addresses.streetScore(Addresses.streetTokens("J. Alessandri R."), OFFICIAL));
+        assertEquals(2.0 / 3, Addresses.streetScore(Addresses.streetTokens("Jorge Alessandri"), OFFICIAL), 1e-9);
+        assertEquals(0.0, Addresses.streetScore(Addresses.streetTokens("Arturo Alessandri"), OFFICIAL));
+        assertEquals(0.0, Addresses.streetScore(Addresses.streetTokens("Avenida"), OFFICIAL));
+    }
+
+    @Test
+    void afterTheNumberIsWhereAnAddressNamesItsCommune() {
+        assertEquals("San Bernardo", Addresses.afterNumber("Av. Jorge Alessandri 10700, San Bernardo"));
+        assertEquals("San Bernardo", Addresses.afterNumber("Pdte Jorge Alessandri Rodríguez 10700 San Bernardo"));
+        assertEquals("", Addresses.afterNumber("Av. Providencia 1234"));
+    }
+
+    @Test
+    void initialsDoNotConsumeTheMatchOfAFullWord() {
+        assertEquals(1.0, Addresses.streetScore(List.of("A", "ALPHA"), List.of("ALPHA", "AMBER")));
+        assertEquals(1.0, Addresses.streetScore(List.of("ALPHA", "A"), List.of("ALPHA", "AMBER")));
+        assertEquals(1.0, Addresses.streetScore(List.of("ALPHA", "AMBER"), List.of("A", "ALPHA")));
+        assertEquals(0.0, Addresses.streetScore(List.of("ALPHA", "BETA"), List.of("A", "AMBER")));
+    }
+
+    @Test
+    void numberedStreetNamesMustMatchExactly() {
+        assertEquals(0.0, Addresses.streetScore(List.of("1", "NORTH"), List.of("10", "NORTH")));
+        assertEquals(0.0, Addresses.streetScore(List.of("10", "NORTH"), List.of("1", "NORTH")));
+        assertEquals(1.0, Addresses.streetScore(List.of("1", "NORTH"), List.of("1", "NORTH")));
+    }
+
+    @Test
+    void addressTailKeepsTheTextAfterUnitDetails() {
+        assertEquals("Depto 2 District", Addresses.afterNumber("Alpha 123 Depto 2 District"));
+        assertEquals("Depto 2, District, Region", Addresses.afterNumber("Alpha 123 Depto 2, District, Region"));
+    }
 }

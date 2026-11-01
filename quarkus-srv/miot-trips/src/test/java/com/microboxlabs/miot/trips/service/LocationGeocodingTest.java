@@ -5,18 +5,25 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.core.geocoding.AllowAllGeocodingGate;
 import com.microboxlabs.miot.core.geocoding.GeocodingGate;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingConnection;
 import com.microboxlabs.miot.integrations.geocoding.GeocodingMetrics;
+import com.microboxlabs.miot.integrations.service.GeocodeUsageService;
+import com.microboxlabs.miot.integrations.service.GeocodeUsageService.Resolution;
 import com.microboxlabs.miot.trips.domain.Location;
+import com.microboxlabs.miot.trips.dto.LocationResolveRequest;
 import com.microboxlabs.miot.trips.geo.AdminBoundaries;
 import com.microboxlabs.miot.trips.service.LocationResolver.Outcome;
 import com.microboxlabs.miot.trips.service.LocationResolver.Site;
 import com.microboxlabs.miot.trips.store.FakeAddresses;
 import com.microboxlabs.miot.trips.store.FakeGeofences;
 import com.microboxlabs.miot.trips.store.GeocodeCache;
+import com.microboxlabs.miot.trips.store.GeofenceDirectory.Geofence;
+import com.microboxlabs.miot.trips.store.InMemoryFleet;
 import com.microboxlabs.miot.trips.store.InMemoryGeocodeCache;
+import com.microboxlabs.miot.trips.store.InMemoryTripsWorld;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -101,6 +108,45 @@ class LocationGeocodingTest {
         assertEquals(Location.RESOLVED, out.placement().status());
         assertTrue(out.usage().called());
         assertEquals(new BigDecimal("0.00075"), out.usage().costUsd());
+    }
+
+    @Test
+    void aGeofenceLookupFailureKeepsThePaidProviderUsage() {
+        stub.answer(StubGeocoding.features("address", LARCO_LON, LARCO_LAT));
+        FakeGeofences unavailable = new FakeGeofences() {
+            @Override
+            public List<Geofence> containing(String tenantCode, double lon, double lat, int limit) {
+                throw new IllegalStateException("synthetic lookup failure");
+            }
+        };
+        LocationResolver resolver = new LocationResolver(unavailable, BOUNDARIES, addresses, cache, stub.geocoder());
+        InMemoryTripsWorld world = new InMemoryTripsWorld();
+        TripLiveProjector live = world.projector(new InMemoryFleet());
+        AuditService audit = new AuditService(world.auditStore);
+        LocationService locations = new LocationService(world.locationStore, unavailable, world.tripStore, live,
+                audit, Transactions.none());
+        List<Resolution> recorded = new ArrayList<>();
+        GeocodeUsageService usage = new GeocodeUsageService(null, null, GeocodingMetrics.NONE) {
+            @Override
+            public void recordResolution(Resolution resolution) {
+                recorded.add(resolution);
+            }
+        };
+        LocationResolutionService service = new LocationResolutionService(world.locationStore, locations, resolver,
+                unavailable, world.tripStore, live, audit, Transactions.none(), usage);
+
+        Location out = service.resolve(ORG, TENANT, "test", new LocationResolveRequest(null, "test-site",
+                "Test site", "zone", "Synthetic street 101", "PE", "150122", null, null, null, null));
+
+        assertEquals(Location.NEEDS_REVIEW, out.placement().status());
+        assertEquals("could not check geofences for the point", out.placement().note());
+        assertEquals(LocationResolver.PROVIDER, out.placement().source());
+        assertEquals(LARCO_LAT, out.placement().latitude());
+        assertEquals(LARCO_LON, out.placement().longitude());
+        assertNull(out.geofenceId());
+        assertEquals(1, stub.queries.size());
+        assertEquals(List.of(new Resolution(ORG, TENANT, "test", LocationResolver.PROVIDER, Location.NEEDS_REVIEW,
+                "mapbox", false, true, new BigDecimal("0.00075"))), recorded);
     }
 
     @Test

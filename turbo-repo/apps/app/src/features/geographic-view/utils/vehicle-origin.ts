@@ -9,9 +9,8 @@
 import type { LngLat } from "@/features/calendar/utils/distance";
 
 /**
- * Average position of a polygon ring of `[lng, lat]` points — mirrors
- * `GeofencePinLayer.calculateAveragePosition`, so the distance is measured to
- * the same spot the origin flag is drawn. Returns null for an empty ring.
+ * Average position of a polygon ring of `[lng, lat]` points, shared by the
+ * geofence pins and vehicle distance readout. Returns null for an empty ring.
  */
 export function ringCentroid(ring: LngLat[]): LngLat | null {
   if (ring.length === 0) return null;

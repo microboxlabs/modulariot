@@ -1,0 +1,87 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Configurar el proveedor
+
+**Para:** dueños de la plataforma. **Configuración:** ModularIoT (la aplicación web en modulariot.com/app).
+
+La plataforma contrata un proveedor de geocodificación y lo paga. Cada organización lo usa a través de una conexión que crea un dueño de la plataforma. Esta guía deja el proveedor listo y conecta una organización.
+
+| Paso | Dónde | Ámbito del selector |
+| --- | --- | --- |
+| 1. Guardar el token del proveedor | Ajustes › Credenciales | **Plataforma** |
+| 2. Elegir el proveedor | Ajustes › Conexiones | **Plataforma** |
+| 3. Conectar la organización | Ajustes › Conexiones | La organización |
+| 4. Darle cuota | Ajustes › Plataforma › Geocodificación | Cualquiera |
+
+El ámbito se cambia en el selector de organización, arriba a la derecha. **Plataforma** es la primera opción de la lista y solo la ven los dueños de la plataforma.
+
+<Steps>
+
+### Guardar el token del proveedor
+
+1. Cambie el selector a **Plataforma**.
+2. Abra **Ajustes › Credenciales** y pulse **Agregar credencial**.
+3. Busque `map` y elija **Mapbox** o **Google Maps**.
+4. Pegue el token y guarde.
+
+![Tipos de credencial Mapbox y Google Maps](/geocoding/credential-types.png)
+
+Use un token de Mapbox de servidor, sin restricción de URL, con el modo permanente habilitado en su cuenta de Mapbox. El token no vuelve a mostrarse.
+
+### Elegir el proveedor
+
+1. Con el selector en **Plataforma**, abra **Ajustes › Conexiones**.
+2. Si la tarjeta **Platform geocoding** existe, pulse sus tres puntos y **Editar**. Si no, pulse **Nueva conexión** y elija **Geocoding · proveedor de la plataforma**.
+3. Complete el formulario y pulse **Guardar**.
+
+![Formulario del proveedor de geocodificación de la plataforma](/geocoding/platform-provider.png)
+
+| Campo | Qué poner |
+| --- | --- |
+| Proveedor | **Mapbox** |
+| Credencial | La del paso 1 |
+| Modo permanente | Activo. Sin él, ningún resultado del proveedor se usa: todos van a revisión |
+| Nuestro costo por llamada (US$) | Lo que el proveedor cobra por consulta en modo permanente, según su contrato, por ejemplo `0.005`. Se copia en cada fila de uso. No es lo que paga la organización |
+
+<Callout type="warning">
+**Cuidado:** con **Google Maps** como proveedor, cada consulta se cobra y el lugar queda en revisión, porque la plataforma no guarda resultados de Google (configuración por defecto, pendiente de revisar sus términos). Use Mapbox con modo permanente.
+</Callout>
+
+La tarjeta puede seguir mostrando **Borrador · Sin probar** después de guardar. Ese estado no impide las consultas. **Probar** comprueba el token: con Mapbox, sin costo; con Google, geocodifica una dirección y el proveedor la cobra.
+
+### Conectar la organización
+
+1. Cambie el selector a la organización.
+2. Abra **Ajustes › Conexiones** y pulse **Nueva conexión**.
+3. Elija **Geocoding · proveedor de la plataforma**.
+
+![Selector de nueva conexión con la opción de geocodificación](/geocoding/new-connection-picker.png)
+
+Aparece la tarjeta **Geocoding · ModularIoT**, activa:
+
+![Tarjeta de la conexión Geocoding · ModularIoT en una organización](/geocoding/org-connection-card.png)
+
+La conexión no guarda ningún token: usa el de la plataforma. Repetir el paso no crea otra. Si la organización tenía otra conexión de geocodificación, se borra.
+
+Sin esta conexión, la organización igual resuelve por geocerca, Plus Code, coordenadas, direcciones internas y caché. Lo único que no hace es consultar al proveedor: esos lugares van a revisión con `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones`.
+
+Para quitarla, pulse sus tres puntos y **Eliminar**.
+
+### Darle cuota
+
+Si las cuotas se aplican, la organización necesita una suscripción. Siga [Asignar la cuota de una organización](/es/products/geocoding/how-to/assign-quota).
+
+</Steps>
+
+## Comprobar
+
+Resuelva una dirección que no esté en las direcciones internas ni en la caché (ver [Su primera ubicación](/es/products/geocoding/tutorials/first-location)) y abra **Ajustes › Viajes › Uso del mes** (página **Uso mensual**). La tarjeta **Cuota** debe sumar una llamada. Si el proveedor no encontró la dirección, la llamada aparece en la fila **Ninguna** o **Proveedor** con resultado **Por revisar**.
+
+## Por API
+
+| Paso | Llamada |
+| --- | --- |
+| 2 | `PUT /api/v1/platform/geocoding-provider` con `provider`, `credentialProfileId`, `permanent`, `costPerRequestUsd` |
+| 3 | `POST /api/v1/platform/orgs/{slug}/geocoding-connection` |
+
+Detalle en [API de plan, uso y proveedor](/es/products/geocoding/reference/plan-api).

@@ -76,9 +76,13 @@ public class MarkLost implements LossTicker.DueCheck {
             leaves(sender, assetId, c, now);
             return Outcome.GAVE_UP;
         }
+        if (c.lostWith() != null && !c.lostWith().equals(sender)) {
+            leaves(c.lostWith(), assetId, c, now); // its sender changed during the loss
+        }
         Map<String, OpenCase> open = trips.check(assetId, v, c.cases(), at(seen, now), null,
                 area(assetId, v, sender, now));
-        commit(assetId, seen, new CheckState(c.lost() ? c.lostSince() : p.at(), now, open), now.plus(recheck));
+        commit(assetId, seen, new CheckState(c.lost() ? c.lostSince() : p.at(), now, open, sender),
+                now.plus(recheck));
         return c.lost() ? Outcome.STILL_LOST : Outcome.LOST;
     }
 
@@ -143,7 +147,8 @@ public class MarkLost implements LossTicker.DueCheck {
     }
 
     /** A vehicle no longer lost leaves its sender's lost set, and the sender's usual count sees the drop. */
-    private void leaves(String sender, String assetId, CheckState c, Instant now) {
+    private void leaves(String current, String assetId, CheckState c, Instant now) {
+        String sender = c.lostWith() != null ? c.lostWith() : current;
         if (sender != null && c.lost()) {
             int lost = store.lost(sender, assetId, false);
             store.cohort(sender, Cohort.with(store.cohort(sender), lost, now));

@@ -124,7 +124,7 @@ class EvaluatorStreamTest {
     }
 
     @Test
-    void aLateSignalIsCountedAndHandedToTheHookWithoutRunningTheSymptoms() {
+    void aLateSignalIsCountedAndHandedToTheHookAndRunsOnlyEventSymptoms() {
         SimpleMeterRegistry meters = new SimpleMeterRegistry();
         List<String> late = new ArrayList<>();
         EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog, new EvaluatorStream.Sinks(log, events, meters),
@@ -133,12 +133,13 @@ class EvaluatorStreamTest {
                 com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector.off());
 
         s.evaluate(signal("2026-10-22T03:00:30Z", false, DEMO));
-        assertEquals(0, s.evaluate(signal("2026-10-22T03:00:00Z", true, DEMO, OTHER)));
+        assertEquals(1, s.evaluate(signal("2026-10-22T03:00:00Z", true, DEMO, OTHER)), "a buffered panic press");
         assertEquals(0, s.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)), "a replay is not late");
 
         assertEquals(List.of(DEMO + " DEMO01 2026-10-22T03:00:00Z < 2026-10-22T03:00:30Z"), late,
                 "only the organization with symptoms has a watermark");
-        assertEquals(List.of(), recorded, "the pressed button in the late signal opens nothing");
+        assertEquals(List.of(Kind.OPENED), recorded.stream().map(Transition::kind).toList(),
+                "panic reads a device event: the late press opens its case");
         assertEquals(1.0, meters.counter("miot.symptoms.evaluator.late", "sender", "none").count());
     }
 
@@ -156,7 +157,7 @@ class EvaluatorStreamTest {
         s.onSignal(message(signal("2026-10-22T03:00:00Z", true, DEMO), outcomes));
 
         assertEquals(List.of("ack", "ack"), outcomes, "a failed hook is not redelivered");
-        assertEquals(List.of(), recorded, "the late pressed button opens nothing");
+        assertEquals(1, recorded.size(), "the late press still opens the panic case");
         assertEquals(1.0, meters.counter("miot.symptoms.evaluator.late_hook_failed").count());
         assertEquals(1.0, meters.counter("miot.symptoms.evaluator.late", "sender", "none").count());
     }

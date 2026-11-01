@@ -205,17 +205,24 @@ public class EvaluatorStream {
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
         Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
-        if (newest != null && at.isBefore(newest)) {
+        boolean late = newest != null && at.isBefore(newest);
+        if (late) {
             try {
                 lateFrames.late(tenant, assetId, at, newest, signal);
             } catch (RuntimeException e) {
-                // The symptoms skip it anyway: a failed hook is not worth a redelivery.
+                // A failed hook is not worth a redelivery.
                 meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
             }
-            return new Evaluated(0, true);
+            if (symptoms.stream().noneMatch(CompiledSymptom::eventDriven)) {
+                return new Evaluated(0, true);
+            }
         }
-        SignalEvaluator.Result result = new SignalEvaluator(state)
-                .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
+        // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
+        // sabotage event still opens its case); the others keep skipping it.
+        SignalEvaluator evaluator = new SignalEvaluator(state);
+        Map<String, Object> root = Map.of(SignalFields.ROOT, signal);
+        SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
+                : evaluator.evaluate(tenant, assetId, at, root, symptoms);
         // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);
@@ -228,7 +235,7 @@ public class EvaluatorStream {
         if (!result.errors().isEmpty()) {
             meters.counter("miot.symptoms.evaluator.rule_errors").increment(result.errors().size());
         }
-        return new Evaluated(result.transitions().size(), false);
+        return new Evaluated(result.transitions().size(), late);
     }
 
     /**

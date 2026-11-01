@@ -257,13 +257,15 @@ class OrgConversationsResourceTest {
         assertEquals("0.1.0", t.path("version").asText());
         assertEquals(set("metaName", "language", "params"), keys(t.path("whatsapp")));
         assertTrue(t.path("email").isNull());
-        assertEquals(set("id", "key", "name", "state"), keys(t.path("usedBy").get(0)),
+        assertEquals(set("id", "key", "name", "state", "event"), keys(t.path("usedBy").get(0)),
                 "an organization does not see whose rules they are");
+        assertEquals("symptom.case.opened", t.path("usedBy").get(0).path("event").asText());
         assertEquals(id, t.path("usedBy").get(0).path("id").asText());
 
         assertEquals(2, body(call(member.listTemplates(ORG))).size());
         JsonNode tower = body(call(member.getTemplate(ORG, "panic-tower")));
-        assertEquals(set("subject", "body"), keys(tower.path("email")));
+        assertEquals(set("subject", "body", "html"), keys(tower.path("email")));
+        assertTrue(tower.path("email").path("html").isNull(), "a plain-text email has no HTML");
         assertEquals(404, call(member.getTemplate(ORG, "nope")).getStatus());
     }
 

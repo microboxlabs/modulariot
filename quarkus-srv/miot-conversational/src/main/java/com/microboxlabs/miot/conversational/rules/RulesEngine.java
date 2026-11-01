@@ -324,7 +324,7 @@ public class RulesEngine {
                     m.to().role(), m.to().contactId(),
                     isWhatsApp ? m.template().whatsapp().metaName() : m.template().key(),
                     isWhatsApp ? m.template().whatsapp().language() : null, m.params(), m.subject(), m.text(),
-                    run.id(), run.step());
+                    run.id(), run.step(), m.html());
             queueOrSimulate(run, message, isWhatsApp, jobs);
         }
         if (!jobs.isEmpty()) {

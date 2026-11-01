@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { Button } from "flowbite-react";
-import { HiOutlineDuplicate, HiRefresh } from "react-icons/hi";
-import { mutate } from "swr";
+import { HiOutlineDuplicate } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
-import { ICON_BUTTON } from "./audience-list";
 import {
   copyPlatformTemplates,
-  orgMetaTemplatesKey,
   useOrgMetaTemplates,
 } from "./conversations-api";
 import type { TemplateCopyResult } from "./conversations-types";
@@ -25,12 +22,7 @@ function count(results: TemplateCopyResult[], status: string) {
  * templates by name, so the account needs them approved before it can send.
  */
 export default function OwnTemplatesPanel({ d }: Readonly<{ d: I18nRecord }>) {
-  const {
-    data: templates,
-    error,
-    isLoading,
-    isValidating,
-  } = useOrgMetaTemplates();
+  const { data: templates, error, isLoading } = useOrgMetaTemplates();
   const [copying, setCopying] = useState(false);
   const [results, setResults] = useState<TemplateCopyResult[] | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -58,18 +50,6 @@ export default function OwnTemplatesPanel({ d }: Readonly<{ d: I18nRecord }>) {
             {tr("channelOwnTemplatesHint", d)}
           </p>
         </div>
-        <button
-          type="button"
-          aria-label={tr("metaRefresh", d)}
-          title={tr("metaRefresh", d)}
-          className={ICON_BUTTON}
-          disabled={isValidating}
-          onClick={() => void mutate(orgMetaTemplatesKey)}
-        >
-          <HiRefresh
-            className={`h-4 w-4 ${isValidating ? "animate-spin" : ""}`}
-          />
-        </button>
         <Button size="sm" color="light" disabled={copying} onClick={copy}>
           <HiOutlineDuplicate className="mr-1 h-4 w-4" />
           {tr("channelCopyTemplates", d)}

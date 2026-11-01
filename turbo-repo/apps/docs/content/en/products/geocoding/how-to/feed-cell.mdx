@@ -1,0 +1,49 @@
+import { Callout } from 'nextra/components'
+
+# Write the Origin or Destination as an address or Plus Code
+
+**For:** implementers.
+
+A feed may send no `originSite` or `destinationSite`: only the text of the Origin or Destination cell (`origin`, `destination`). If that text is not a geofence code, the platform reads it as an address or a Plus Code, with the feed's country.
+
+## The feed's country
+
+Each feed has an optional two-letter country (ISO 3166-1 alpha-2). Set it in **Settings › Trips › Feeds**, when you create or edit the feed, in the **Country** field. Through the API, it is the feed's `country` field.
+
+## How the cell is read
+
+The cell is read only if the service sends no site for that place and the location with that code has no geofence.
+
+| Cell text | Read as | Country |
+| --- | --- | --- |
+| A full Plus Code: `47RFH86X+VR` | `plusCode` | The feed's, if it has one |
+| A short Plus Code: `H86X+VR` | `plusCode` | The feed's. If the feed has no country, the cell is ignored |
+| Text with spaces, letters and digits: `Av. Jorge Alessandri 10700, San Bernardo` | `address` | The feed's. If the feed has no country, the cell is ignored |
+| Anything else: `SCL`, `CD-NORTE-1` | Nothing: it is only a code | |
+
+A site the feed sends (`originSite`, `destinationSite`) wins over the cell. The retry rules are the same: a location that is resolved, rejected or has a geofence is not tried again.
+
+The feed job's result lists the cell like any other site: `"located": ["Av. Jorge Alessandri 10700, San Bernardo: resolved"]`.
+
+## What resolves and what does not
+
+The cell has no district. The result depends on that:
+
+| Cell | Chile | Peru |
+| --- | --- | --- |
+| Address with the district after the number: `Camino Lo Boza 120, Pudahuel` | Resolves: the district comes from the text | Resolves if the named district is unique in the country |
+| Address without a district: `Jorge Alessandri 10700` | The number is looked up in the internal addresses of the whole country. If the street matches, the district is that address's | Needs review |
+| Full or short Plus Code | Needs review, with no declared district (`district is required`, or `a short plus code needs a district with a boundary`) | Same |
+
+<Callout type="warning">
+**Pitfall:** today a Plus Code in the cell always needs review, because the platform requires a declared district. To locate by Plus Code from a spreadsheet, send the district in `originSite` / `destinationSite`, or use the Plus Code column with its district ([Send sites from a feed](/en/products/geocoding/how-to/feed-sites)).
+</Callout>
+
+## Spreadsheet recommendations
+
+| Rule | Example |
+| --- | --- |
+| If the place has a geofence, write its code | `SCL` |
+| If not, write street, number and district, separated by commas | `Camino Lo Boza 120, Pudahuel` |
+| Do not mix the place name and the address in the cell | `Bodega Norte - Camino Lo Boza 120` does not read well |
+| Always the same text for the same place | The text is the location's code: different text is a different location |

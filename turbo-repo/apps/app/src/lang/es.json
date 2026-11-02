@@ -7420,6 +7420,7 @@
     "call_center_new_save_error": "No se pudo guardar el contacto en la libreta. La llamada sigue solo con este número."
   },
   "geographic_view": {
+    "arrival_delay": "Retraso de llegada",
     "speed": "Velocidad",
     "speed_limit": "Exceso de límite de velocidad",
     "date_and_time": "Fecha y hora",

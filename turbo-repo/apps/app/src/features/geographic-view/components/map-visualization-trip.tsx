@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import {
   FlyToInterpolator,
+  LineLayer,
   LinearInterpolator,
   ScatterplotLayer,
 } from "deck.gl";
@@ -70,6 +71,12 @@ import {
   type CaseSpan,
   pointLevel,
 } from "@/features/symptoms/model/level-reason";
+import {
+  dashSegments,
+  frameDelay,
+  isLate,
+  silenceGap,
+} from "../utils/frame-delays";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -164,6 +171,8 @@ type MapVisualizationProps = {
   casePoint?: CasePoint | null;
   /** The page's symptom intervals: its frames take the symptom's level color. */
   caseSpans?: CaseSpan[];
+  /** A lost signal's last frame before the silence: the silence is drawn dashed. */
+  lostSince?: string | null;
 };
 
 export type CasePoint = { longitude: number; latitude: number };
@@ -325,6 +334,7 @@ export default function MapVisualizationTrip({
   onLugaresChange,
   casePoint = null,
   caseSpans = NO_SPANS,
+  lostSince = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -490,6 +500,7 @@ export default function MapVisualizationTrip({
               longitude: item.longitude,
               speed: item.speed,
               timestamp: item.timestamp,
+              delay_s: frameDelay(item),
             },
           };
         }) || [],
@@ -732,6 +743,42 @@ export default function MapVisualizationTrip({
       );
     }
 
+    if (showPulse && positions?.length) {
+      const gap = silenceGap(positions, lostSince);
+      if (gap) {
+        baseLayers.push(
+          new LineLayer({
+            id: "silence-gap",
+            data: dashSegments(gap.from, gap.to),
+            getSourcePosition: (d) => d.from,
+            getTargetPosition: (d) => d.to,
+            getColor: [255, 255, 255, 230],
+            getWidth: 3,
+            widthUnits: "pixels",
+            parameters: { depthCompare: "always" },
+          })
+        );
+      }
+      const late = geoJson.features.filter((_, i) => isLate(positions[i]));
+      if (late.length) {
+        baseLayers.push(
+          new ScatterplotLayer({
+            id: "late-frames",
+            data: late,
+            getPosition: (d) => d.geometry.coordinates as [number, number],
+            getRadius: 10,
+            radiusUnits: "pixels",
+            filled: false,
+            stroked: true,
+            getLineColor: [245, 158, 11, 255],
+            getLineWidth: 2,
+            lineWidthUnits: "pixels",
+            parameters: { depthCompare: "always" },
+          })
+        );
+      }
+    }
+
     if (caseLng != null && caseLat != null) {
       baseLayers.push(
         new ScatterplotLayer<CasePoint>({
@@ -754,6 +801,7 @@ export default function MapVisualizationTrip({
   }, [
     caseLng,
     caseLat,
+    lostSince,
     geoJson,
     positions,
     processedGeofence,

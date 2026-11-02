@@ -14,12 +14,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 import org.jboss.logging.Logger;
 
 /**
  * Locates the origin and destination a feed declares, after the service is applied and outside its transaction. A
  * missing site is inferred from an address or Plus Code cell using the feed's country. A location is located when
  * it was never tried, or when it waits for review and the feed now sends a different site.
+ * A site that names one of the organization's geofences links the location to it and resolves it there; one that
+ * names another geofence falls back to its other parts.
  * A resolved or rejected location, or one already linked to a geofence, is left as it is. A failure is logged and
  * does not fail the service: the location stays where review finds it.
  */
@@ -61,6 +64,10 @@ public class FeedSites {
         if (code == null || code.isBlank()) {
             return;
         }
+        if (declared != null && declared.geofenceId() != null
+                && useGeofence(organization, tenantCode, actor, code, declared.geofenceId(), done)) {
+            return;
+        }
         Site site = declared == null ? cellSite(code.strip(), country) : declared;
         if (site == null) {
             return;
@@ -78,6 +85,37 @@ public class FeedSites {
             LOG.warnf("Feed site %s of %s not located: %s", code, tenantCode, e.getMessage());
             done.add(code.trim() + ": could not resolve site");
         }
+    }
+
+    /**
+     * Links the location to the geofence the feed declared. False when that geofence cannot be used, so the site's
+     * other parts are tried.
+     */
+    private boolean useGeofence(String organization, String tenantCode, String actor, String code, int geofenceId,
+            List<String> done) {
+        try {
+            Location l = locations.byCode(tenantCode, code).orElse(null);
+            if (l == null || !geofenceDue(l)) {
+                return true;
+            }
+            Location linked = resolution.useGeofence(organization, tenantCode, actor, UUID.fromString(l.id()),
+                    geofenceId);
+            done.add(code.trim() + ": " + linked.placement().status());
+            return true;
+        } catch (IllegalArgumentException e) {
+            done.add(code.trim() + ": " + e.getMessage());
+            return false;
+        } catch (RuntimeException e) {
+            LOG.warnf("Feed geofence %s of %s not linked: %s", code, tenantCode, e.getMessage());
+            done.add(code.trim() + ": could not resolve site");
+            return true;
+        }
+    }
+
+    /** A location already linked, resolved or rejected keeps what it has. */
+    static boolean geofenceDue(Location l) {
+        String status = l.placement().status();
+        return l.geofenceId() == null && !Location.RESOLVED.equals(status) && !Location.REJECTED.equals(status);
     }
 
     private static Site cellSite(String text, String country) {

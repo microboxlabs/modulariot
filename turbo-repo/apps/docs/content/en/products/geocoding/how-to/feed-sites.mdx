@@ -34,8 +34,22 @@ A feed sends a customer's trips in batches: `POST /api/v1/orgs/{org}/trips/feeds
 | `districtCode` or `district` | Commune or district |
 | `plusCode` | Full Plus Code, or a short one with the district |
 | `latitude`, `longitude` | Coordinates |
+| `geofenceId` | The organization's GPS geofence that is this place. Feed only |
 
 The destination `ANF` has no site: it already has a geofence.
+
+## When the source already knows the geofence
+
+If the source system keeps each place's geofence, send its id in `geofenceId`:
+
+```json
+"origin": "NORTH WAREHOUSE",
+"originSite": { "geofenceId": 4512 }
+```
+
+The location is linked to that geofence and `resolved` at its center, with no district check: the geofence is the organization's own. Open trips at that location start getting its entry and exit signals.
+
+If the geofence is not the organization's, `located` says so (`NORTH WAREHOUSE: geofence 4512 is not the organization's`) and the feed tries the rest of the site. A location already linked, `resolved` or `rejected` does not change.
 
 ## What happens when the batch arrives
 

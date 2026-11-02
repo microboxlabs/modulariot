@@ -33,4 +33,11 @@ public interface LocationStore {
     /** Replaces the placement; the geofence link changes only when {@code geofenceId} is not null. */
     Optional<Location> setPlacement(String tenantCode, UUID id, Location.Placement placement, Integer geofenceId,
             String actor);
+
+    /**
+     * Replaces the placement and links {@code geofenceId}, only while the location has no geofence and is neither
+     * resolved nor rejected; empty otherwise.
+     */
+    Optional<Location> setPlacementIfOpen(String tenantCode, UUID id, Location.Placement placement, int geofenceId,
+            String actor);
 }

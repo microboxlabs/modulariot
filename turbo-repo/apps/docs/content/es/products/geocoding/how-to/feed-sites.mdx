@@ -34,8 +34,22 @@ Un feed envía los viajes de un cliente en lotes: `POST /api/v1/orgs/{org}/trips
 | `districtCode` o `district` | Comuna o distrito |
 | `plusCode` | Plus Code completo, o corto con la comuna |
 | `latitude`, `longitude` | Coordenadas |
+| `geofenceId` | Geocerca GPS de la organización que es este lugar. Solo en el feed |
 
 El destino `ANF` no trae sitio: ya tiene geocerca.
+
+## Cuando el origen ya sabe la geocerca
+
+Si el sistema de origen guarda la geocerca de cada lugar, envíe su id en `geofenceId`:
+
+```json
+"origin": "BODEGA NORTE",
+"originSite": { "geofenceId": 4512 }
+```
+
+La ubicación queda enlazada a esa geocerca y `resolved` en su centro, sin revisar la comuna: la geocerca es de la propia organización. Los viajes abiertos en esa ubicación empiezan a recibir las señales de entrada y salida.
+
+Si la geocerca no es de la organización, `located` lo dice (`BODEGA NORTE: geofence 4512 is not the organization's`) y el feed intenta con el resto del sitio. Una ubicación ya enlazada, `resolved` o `rejected` no cambia.
 
 ## Qué pasa al recibir el lote
 

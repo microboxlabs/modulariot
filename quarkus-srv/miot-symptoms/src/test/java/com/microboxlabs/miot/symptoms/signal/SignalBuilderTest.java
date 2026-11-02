@@ -82,6 +82,7 @@ class SignalBuilderTest {
         assertEquals(GpsSignal.SCHEMA_ID, s.schema());
         assertEquals("ABCD12", s.assetId());
         assertEquals(AT, s.at());
+        assertEquals(Instant.parse("2026-10-21T12:00:01Z"), s.receivedAt(), "the envelope's gateway time");
         assertEquals(List.of(SENDER), s.clients(), "the M2M suffix is dropped");
         assertEquals(SENDER, s.sender());
         assertEquals(42.5, s.frame().getGps().getSpeed());

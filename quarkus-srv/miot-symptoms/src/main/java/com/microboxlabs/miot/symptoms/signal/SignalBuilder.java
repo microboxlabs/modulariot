@@ -57,7 +57,8 @@ public class SignalBuilder {
         Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
         GpsSignal.Derived derived = new GpsSignal.Derived(moving, null, event(frame, POWER_DISCONNECTED),
                 event(frame, JAMMING));
-        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, clients, sender,
+        // The time the platform's gateway received the frame (X-Request-Timestamp), carried by the envelope.
+        return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at, message.getTimestamp(), clients, sender,
                 trips.isEmpty() ? null : trips, null, null, null, null, at.atZone(zone).getHour(), derived, frame));
     }
 

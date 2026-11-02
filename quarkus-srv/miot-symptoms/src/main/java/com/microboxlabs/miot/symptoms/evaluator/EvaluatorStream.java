@@ -222,16 +222,8 @@ public class EvaluatorStream {
         if (late && reconcile) {
             return new Evaluated(0, false);
         }
-        if (late) {
-            try {
-                lateFrames.late(tenant, assetId, at, newest, signal);
-            } catch (RuntimeException e) {
-                // A failed hook is not worth a redelivery.
-                meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
-            }
-            if (symptoms.stream().noneMatch(CompiledSymptom::eventDriven)) {
-                return new Evaluated(0, true);
-            }
+        if (late && !lateRuns(tenant, assetId, at, newest, signal, symptoms)) {
+            return new Evaluated(0, true);
         }
         // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
         // sabotage event still opens its case); the others keep skipping it.
@@ -244,7 +236,26 @@ public class EvaluatorStream {
             result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
                     : evaluator.evaluate(tenant, assetId, at, root, symptoms);
         }
-        // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
+        record(tenant, assetId, signal, state, result, late);
+        return new Evaluated(result.transitions().size(), late);
+    }
+
+    /** Hands a late frame to the late hook; true when an event-driven symptom still has to run on it. */
+    private boolean lateRuns(String tenant, String assetId, Instant at, Instant newest, Map<String, Object> signal,
+            List<CompiledSymptom> symptoms) {
+        try {
+            lateFrames.late(tenant, assetId, at, newest, signal);
+        } catch (RuntimeException e) {
+            // A failed hook is not worth a redelivery.
+            meters.counter("miot.symptoms.evaluator.late_hook_failed").increment();
+        }
+        return symptoms.stream().anyMatch(CompiledSymptom::eventDriven);
+    }
+
+    /** Writes the result: transitions first, since a failed episode write replays the signal and the log skips
+     * what it already holds; then the episodes and the counters. */
+    private void record(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
+            SignalEvaluator.Result result, boolean late) {
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);
             // Only the changes new to the log: a replayed signal publishes nothing twice.
@@ -264,7 +275,6 @@ public class EvaluatorStream {
         if (!result.errors().isEmpty()) {
             meters.counter("miot.symptoms.evaluator.rule_errors").increment(result.errors().size());
         }
-        return new Evaluated(result.transitions().size(), late);
     }
 
     /**

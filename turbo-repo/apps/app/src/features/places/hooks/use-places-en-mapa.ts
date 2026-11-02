@@ -60,13 +60,20 @@ export function usePlacesEnMapa(
 
   // la primera vez que el editor se abre (p. ej. tras recargar), se retoma
   // el formulario que quedó sin guardar
-  const borradorVisto = useRef(false);
+  const borradorVisto = useRef<string | null>(null);
   useEffect(() => {
-    if (!editando || !ws.puedeEditar || borradorVisto.current) return;
-    borradorVisto.current = true;
+    if (
+      !editando ||
+      ws.modo !== "ver" ||
+      !ws.puedeEditar ||
+      !ws.storageScope ||
+      borradorVisto.current === ws.storageScope
+    )
+      return;
+    borradorVisto.current = ws.storageScope;
     ws.restaurarBorrador();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editando, ws.puedeEditar]);
+  }, [editando, ws.puedeEditar, ws.storageScope, ws.modo]);
 
   // deck.gl vuelve a crear la capa de nombres cada vez que se abre el editor
   const generacion = useRef(0);

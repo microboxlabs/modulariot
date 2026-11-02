@@ -1,0 +1,316 @@
+import { Callout } from 'nextra/components'
+
+# Consultas para widgets
+
+**Para:** implementadores. **Configuración:** los nombres de ajustes son los de ModularIoT; las consultas valen para cualquier configuración.
+
+<Callout type="info">
+**Aprenderá a:**
+
+- escribir la consulta de una tabla, de un widget de un valor y de un gráfico;
+- convertir filas en columnas (pivotar) para un Stat o un Stacked Stat;
+- calcular porcentajes en la consulta;
+- dar un color propio a cada estado en un gráfico de barras;
+- recibir los valores de los filtros como parámetros.
+</Callout>
+
+Los ejemplos usan SQL de BigQuery y una tabla `solicitudes` con las columnas `id`, `estado`, `responsable` y `creada_en`. Con PostgreSQL, escriba la misma forma de consulta en SQL de PostgreSQL (por ejemplo `COUNT(*) FILTER (WHERE …)`, `NULLIF`, `to_char`) dentro de una función que publica PostgREST.
+
+## Una fila o todas las filas
+
+Cada widget lee su consulta de una de dos formas:
+
+| Familia | Lee | La consulta devuelve |
+| --- | --- | --- |
+| Tablas y listas | Todas las filas | Una fila por fila de la tabla |
+| Un valor: Stat, Progress, Stacked Stat, Text Card, Chart v2 Indicador | **Solo la primera fila** | Una fila, una columna por número |
+| Gráficos: Chart v2 Cartesiano y Torta | Todas las filas | Una fila por categoría del eje X: la columna del eje X y una columna por serie |
+
+Los nombres de las columnas son los nombres que usa el widget. Escriba un alias corto con `AS`, sin espacios ni tildes: `AS en_curso`.
+
+## Tablas: muchas filas
+
+```sql
+SELECT
+  id, estado, responsable,
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M', creada_en, 'America/Santiago') AS creada_en
+FROM `mi-proyecto.operaciones.solicitudes`
+ORDER BY creada_en DESC
+LIMIT 500
+```
+
+| Ajuste del widget | Valor |
+| --- | --- |
+| Fuente de Datos | Planificador |
+| Variable | el nombre del resultado, por ejemplo `detalle` |
+| Columnas | se completan con las columnas de la consulta |
+
+Convierta las fechas en texto con `FORMAT_TIMESTAMP`. Una columna `TIMESTAMP` llega a la tabla como un número (`1.7933364E9`).
+
+Escriba `ORDER BY` y `LIMIT` en la consulta. El ordenamiento y los filtros por columna de la tabla trabajan solo sobre las filas que devolvió la consulta.
+
+## Un valor: la primera fila
+
+Un Stat muestra un valor de la primera fila. El widget lo nombra con una plantilla:
+
+```sql
+SELECT COUNT(*) AS abiertas
+FROM `mi-proyecto.operaciones.solicitudes`
+WHERE estado != 'cerrada'
+```
+
+| Ajuste del widget | Valor |
+| --- | --- |
+| Título | `Solicitudes abiertas` |
+| Valor | `{{abiertas}}` |
+
+`{{abiertas}}` y `{{row.abiertas}}` son lo mismo. Las dos leen la columna `abiertas` de la primera fila.
+
+### Pivotar: una columna por estado
+
+Una consulta con `GROUP BY estado` devuelve una fila por estado:
+
+| estado | cantidad |
+| --- | --- |
+| pendiente | 12 |
+| en_curso | 7 |
+| cerrada | 30 |
+
+Un widget de un valor solo ve la primera fila (`pendiente`, `12`). Para mostrar los tres estados, la consulta devuelve **una fila con una columna por estado**:
+
+```sql
+SELECT
+  COUNT(*) AS total,
+  SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) AS pendiente,
+  SUM(CASE WHEN estado = 'en_curso'  THEN 1 ELSE 0 END) AS en_curso,
+  SUM(CASE WHEN estado = 'cerrada'   THEN 1 ELSE 0 END) AS cerrada
+FROM `mi-proyecto.operaciones.solicitudes`
+```
+
+| total | pendiente | en_curso | cerrada |
+| --- | --- | --- | --- |
+| 49 | 12 | 7 | 30 |
+
+En BigQuery, `COUNTIF(estado = 'pendiente')` hace lo mismo que `SUM(CASE …)`, salvo con una tabla vacía: `SUM` devuelve `NULL` y `COUNTIF` devuelve 0.
+
+Un Stacked Stat con esta consulta usa una categoría por columna:
+
+| Etiqueta | Valor | Color |
+| --- | --- | --- |
+| `Pendiente` | `{{pendiente}}` | amarillo |
+| `En curso` | `{{en_curso}}` | azul |
+| `Cerrada` | `{{cerrada}}` | verde |
+
+El widget dibuja cada parte como su valor sobre la suma de los valores positivos. La barra llena el 100 % cuando al menos un valor es mayor que 0. La leyenda muestra los valores.
+
+<Callout type="warning">
+**Cuidado:** los estados se escriben en la consulta y en los ajustes. Si aparece un estado nuevo en los datos, no se muestra hasta que agregue su columna y su categoría.
+</Callout>
+
+### Porcentajes
+
+Para mostrar porcentajes en lugar de cantidades, calcúlelos en la consulta:
+
+```sql
+WITH c AS (
+  SELECT
+    COUNT(*) AS total,
+    COUNTIF(estado = 'pendiente') AS pendiente,
+    COUNTIF(estado = 'en_curso')  AS en_curso,
+    COUNTIF(estado = 'cerrada')   AS cerrada
+  FROM `mi-proyecto.operaciones.solicitudes`
+)
+SELECT
+  total,
+  ROUND(100 * SAFE_DIVIDE(pendiente, total), 1) AS pendiente_pct,
+  ROUND(100 * SAFE_DIVIDE(en_curso,  total), 1) AS en_curso_pct,
+  ROUND(100 * SAFE_DIVIDE(cerrada,   total), 1) AS cerrada_pct
+FROM c
+```
+
+En el Stacked Stat, use `{{pendiente_pct}}` como valor y `%` como **Unit**. `SAFE_DIVIDE` devuelve `NULL` en lugar de un error cuando `total` es 0. El widget muestra 0.
+
+Para redondear dentro del widget, use una función de plantilla: `{{toFixed pendiente_pct 0}}`.
+
+## Gráficos: columna X + una columna por serie
+
+Chart v2 dibuja una categoría del eje X por fila. Cada representación (serie) lee una columna.
+
+### Barras por estado
+
+```sql
+SELECT estado, COUNT(*) AS cantidad
+FROM `mi-proyecto.operaciones.solicitudes`
+GROUP BY estado
+ORDER BY cantidad DESC
+```
+
+| Ajuste | Valor |
+| --- | --- |
+| Familia de gráfico | Cartesiano |
+| Columna Eje X | `estado` |
+| Representaciones | una barra, columna `cantidad` |
+
+Todas las barras tienen el color de la serie `cantidad`.
+
+### Los N primeros en barra horizontal
+
+```sql
+SELECT responsable, COUNT(*) AS cantidad
+FROM `mi-proyecto.operaciones.solicitudes`
+GROUP BY responsable
+ORDER BY cantidad DESC
+LIMIT 10
+```
+
+Active **Barras Horizontales**. La primera fila queda arriba.
+
+![Top 5 en barras horizontales](/dashboards/chart_v2/bar-horizontal.png)
+
+### Barras apiladas por mes y estado
+
+Una serie por estado, una fila por mes:
+
+```sql
+SELECT
+  FORMAT_DATE('%Y-%m', DATE(creada_en)) AS mes,
+  COUNTIF(estado = 'pendiente') AS pendiente,
+  COUNTIF(estado = 'en_curso')  AS en_curso,
+  COUNTIF(estado = 'cerrada')   AS cerrada
+FROM `mi-proyecto.operaciones.solicitudes`
+GROUP BY mes
+ORDER BY mes
+```
+
+| Ajuste | Valor |
+| --- | --- |
+| Columna Eje X | `mes` |
+| Representaciones | tres barras: `pendiente`, `en_curso`, `cerrada`, cada una con **Apilado** y su color |
+
+Las barras apiladas muestran cantidades. Para barras 100 %, devuelva porcentajes por mes, como en [Porcentajes](#porcentajes).
+
+### Un color por estado en barras
+
+Un gráfico de barras colorea por serie. Para dar a cada estado su color, devuelva una columna por estado. Deje vacías las demás:
+
+```sql
+SELECT
+  estado,
+  IF(estado = 'pendiente', COUNT(*), NULL) AS pendiente,
+  IF(estado = 'en_curso',  COUNT(*), NULL) AS en_curso,
+  IF(estado = 'cerrada',   COUNT(*), NULL) AS cerrada
+FROM `mi-proyecto.operaciones.solicitudes`
+GROUP BY estado
+```
+
+| estado | pendiente | en_curso | cerrada |
+| --- | --- | --- | --- |
+| pendiente | 12 | | |
+| en_curso | | 7 | |
+| cerrada | | | 30 |
+
+![Barras amarilla, azul y verde, una por estado](/dashboards/chart_v2/colors-per-state.png)
+
+Cree tres representaciones de barra, una por columna. Dé a cada una su color. Active **Apilado** en las tres. Con **Apilado**, cada barra queda centrada en su categoría. Sin él, el gráfico reserva espacio para las tres series en cada categoría.
+
+<Callout type="info">
+Las reglas de color de Chart v2 comparan solo el valor numérico (por ejemplo, "mayor que 20 → rojo"). No pueden elegir un color por el nombre de la categoría.
+</Callout>
+
+### Torta
+
+```sql
+SELECT estado, COUNT(*) AS cantidad
+FROM `mi-proyecto.operaciones.solicitudes`
+GROUP BY estado
+ORDER BY CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_curso' THEN 2 ELSE 3 END
+```
+
+| Ajuste | Valor |
+| --- | --- |
+| Familia de gráfico | Torta |
+| Columna de Categoría | `estado` |
+| Representaciones | una, columna `cantidad` |
+
+Las porciones toman los colores en el orden de las filas. Un `ORDER BY` fijo mantiene el mismo color para cada estado mientras todos los estados tengan filas. Detalles en [Elegir un widget](/es/products/dashboards/tutorials/choose-a-widget).
+
+### Indicador
+
+El indicador lee la primera fila, como un Stat:
+
+```sql
+SELECT ROUND(100 * SAFE_DIVIDE(COUNTIF(estado = 'cerrada'), COUNT(*)), 1) AS cerradas_pct
+FROM `mi-proyecto.operaciones.solicitudes`
+```
+
+| Ajuste | Valor |
+| --- | --- |
+| Familia de gráfico | Indicador |
+| Representaciones | una, columna `cerradas_pct` |
+
+## Filtros como parámetros
+
+Un filtro del dashboard llega a la consulta como un parámetro. En BigQuery, un parámetro se escribe `@nombre` y se declara con un tipo en el editor de consultas.
+
+Vincule los filtros a los parámetros en la consulta guardada del dashboard, en **Parámetros (JSON)**:
+
+```json
+{
+  "estado": { "kind": "filter", "key": "estado", "defaultValue": "" },
+  "desde": { "kind": "filter", "key": "fecha_from", "defaultValue": "" },
+  "hasta": { "kind": "filter", "key": "fecha_to", "defaultValue": "" }
+}
+```
+
+La clave del objeto (`estado`, `desde`) es el nombre del parámetro en la consulta. `key` es la clave del filtro en el dashboard.
+
+| Tipo de filtro | Valores que entrega | Ejemplo de valor |
+| --- | --- | --- |
+| Texto | `<clave>`. En ModularIoT, varios valores separados por coma | `norte` o `norte,sur` |
+| Rango de fechas | `<clave>_from` y `<clave>_to` | `2026-10-01 00:00:00` y `2026-10-31 23:59:59` |
+| Selección, una opción | `<clave>` | `en_curso` |
+| Selección, varias opciones | `<clave>`, valores separados por coma (configuración de ModularIoT) | `pendiente,en_curso` |
+
+En la configuración de ModularIoT, todos los valores llegan como texto. Declare los parámetros como `STRING` y conviértalos en la consulta:
+
+```sql
+SELECT id, estado, responsable, creada_en
+FROM `mi-proyecto.operaciones.solicitudes`
+WHERE (IFNULL(@estado, '') = '' OR estado IN UNNEST(SPLIT(@estado, ',')))
+  AND (IFNULL(@desde, '') = '' OR creada_en >= TIMESTAMP(@desde, 'America/Santiago'))
+  AND (IFNULL(@hasta, '') = '' OR creada_en <= TIMESTAMP(@hasta, 'America/Santiago'))
+ORDER BY creada_en DESC
+LIMIT 500
+```
+
+| Parte | Hace |
+| --- | --- |
+| `IFNULL(@estado, '') = ''` | Sin filtro, deja pasar todas las filas. El editor envía `NULL` cuando el valor de prueba está vacío. El dashboard envía `defaultValue`. |
+| `SPLIT(@estado, ',')` | Acepta una opción o varias |
+| `TIMESTAMP(@desde, 'America/Santiago')` | Lee la fecha en la zona horaria indicada. Use la suya. |
+
+<Callout type="warning">
+**Cuidado:** con BigQuery, cada parámetro declarado debe recibir un valor. Use `defaultValue`. Con `omitWhenEmpty`, el parámetro se omite cuando el filtro está vacío y la consulta falla. `omitWhenEmpty` sirve para funciones de PostgREST cuyos parámetros tienen un valor por defecto.
+</Callout>
+
+Un filtro no cambia un widget si la consulta del widget no vincula ese filtro. Para que el Stacked Stat y la tabla respondan al mismo filtro, vincule el filtro en las dos consultas.
+
+## Límites
+
+| Límite | Valor por defecto |
+| --- | --- |
+| Filas por consulta | 5.000 |
+| Columnas por fila | 100 |
+| Tamaño del resultado | 2 MiB de JSON |
+| Tiempo | 20 segundos |
+| Texto por valor | 2.048 caracteres |
+
+Un resultado que supera un límite hace fallar la consulta. Las filas no se recortan.
+
+Los valores deben ser texto, números, verdadero/falso o `NULL`. Con BigQuery, una columna `ARRAY`, `STRUCT` o `RECORD` hace fallar la consulta: conviértala con `TO_JSON_STRING` o seleccione sus campos. `NULL` llega al widget como texto vacío. Una columna `TIMESTAMP` llega como número: conviértala con `FORMAT_TIMESTAMP`.
+
+## Siguiente
+
+- Probar estas consultas en un dashboard: [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
+- Todos los tipos de filtro: [Agregar filtros](/es/products/dashboards/how-to/add-filters).
+- Cómo se ejecuta una consulta: [Consultas y conexiones](/es/products/dashboards/concepts/queries-and-connections).

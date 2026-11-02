@@ -1,13 +1,18 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentityUnavailableException;
+import com.microboxlabs.miot.integrations.auth.AuthResolutionException;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthContext;
 import com.microboxlabs.miot.integrations.auth.CredentialAuthRegistry;
 import com.microboxlabs.miot.integrations.auth.ResolvedAuth;
+import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
+import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.secret.IntegrationSecretCipher;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.Map;
 
 /**
  * Turns a stored credential into the auth a caller should send, without
@@ -22,15 +27,25 @@ public class CredentialAuthResolver {
     private final CredentialProfileRepository credentialProfileRepository;
     private final IntegrationSecretCipher secretCipher;
     private final CredentialAuthRegistry authRegistry;
+    private final ManagedGoogleIdentity managed;
 
     @Inject
     public CredentialAuthResolver(
             CredentialProfileRepository credentialProfileRepository,
             IntegrationSecretCipher secretCipher,
-            CredentialAuthRegistry authRegistry) {
+            CredentialAuthRegistry authRegistry,
+            ManagedGoogleIdentity managed) {
         this.credentialProfileRepository = credentialProfileRepository;
         this.secretCipher = secretCipher;
         this.authRegistry = authRegistry;
+        this.managed = managed;
+    }
+
+    public CredentialAuthResolver(
+            CredentialProfileRepository credentialProfileRepository,
+            IntegrationSecretCipher secretCipher,
+            CredentialAuthRegistry authRegistry) {
+        this(credentialProfileRepository, secretCipher, authRegistry, ManagedGoogleIdentity.NONE);
     }
 
     /**
@@ -50,7 +65,20 @@ public class CredentialAuthResolver {
         return authRegistry.resolve(new CredentialAuthContext(
                 profile.authType(),
                 profile.credentialType(),
-                profile.publicConfig(),
+                publicConfig(tenantCode, profile),
                 secretCipher.decrypt(profile.encryptedSecretJson())));
+    }
+
+    /** A managed Google credential always names this tenant's own account. */
+    private Map<String, Object> publicConfig(String tenantCode, CredentialProfile profile) {
+        if (profile.authType() != AuthType.GOOGLE_SERVICE_ACCOUNT
+                || !ManagedGoogleIdentity.isManaged(profile.publicConfig())) {
+            return profile.publicConfig();
+        }
+        try {
+            return managed.bind(tenantCode, profile.publicConfig());
+        } catch (ManagedGoogleIdentityUnavailableException e) {
+            throw new AuthResolutionException(e.getMessage());
+        }
     }
 }

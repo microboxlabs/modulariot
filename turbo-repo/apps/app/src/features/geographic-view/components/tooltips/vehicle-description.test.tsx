@@ -28,13 +28,13 @@ vi.mock("@/features/fleet/fleet-api", async (importOriginal) => {
   };
 });
 
-const dict = {
+const dict: I18nRecord = {
   geographic_view: {
     vehicle_model: "Modelo",
     vehicle_no_model: "Sin modelo",
     vehicle_year: "Año",
   },
-} as unknown as I18nRecord;
+};
 
 function detalle(fields: Record<string, string | null>) {
   return {

@@ -122,7 +122,7 @@ public class OrgFeedsResource extends OrgResourceSupport {
             FeedBatchRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.accepted(batches.send(tenant, actor, feedKey, body)).build());
+        return work(() -> Response.accepted(batches.send(organizationId, tenant, actor, feedKey, body)).build());
     }
 
     @PUT

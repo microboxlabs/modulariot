@@ -7,7 +7,6 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
@@ -170,7 +169,6 @@ export function SidebarNavigationProvider({
   isHarnessSettingsEnabled,
   isDashboardServerEnabled,
 }: Readonly<SidebarNavigationProviderProps>) {
-  const router = useRouter();
   const { data, error } = useMyTasksCount();
   const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
@@ -191,12 +189,6 @@ export function SidebarNavigationProvider({
   const { data: tripCounts } = useTripsBoardCounts(
     can("trips:view") && pages.some((p) => p.label === "trips")
   );
-
-  useEffect(() => {
-    if (error && (error.status === 401 || error.status === 403)) {
-      router.push("/sign-in");
-    }
-  }, [error, router]);
 
   const contextValue = useMemo(() => {
     const totals: Record<string, number | string> = {};

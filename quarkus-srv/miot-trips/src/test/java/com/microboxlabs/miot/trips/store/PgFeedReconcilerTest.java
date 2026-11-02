@@ -2,6 +2,7 @@ package com.microboxlabs.miot.trips.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,6 +48,7 @@ import com.microboxlabs.miot.trips.service.FeedBatchService;
 import com.microboxlabs.miot.trips.service.FeedProfileService;
 import com.microboxlabs.miot.trips.service.FeedReconciler;
 import com.microboxlabs.miot.trips.service.FeedServiceJobHandler;
+import com.microboxlabs.miot.trips.service.FeedSites;
 import com.microboxlabs.miot.trips.service.LocationService;
 import com.microboxlabs.miot.trips.service.MandateService;
 import com.microboxlabs.miot.trips.dto.MonitorRequest;
@@ -173,7 +175,7 @@ class PgFeedReconcilerTest {
     }
 
     private FeedProfile profile(List<String> stageTypes) {
-        return new FeedProfile(tenant, FEED, "Servicios", stageTypes.stream()
+        return new FeedProfile(tenant, FEED, "Servicios", null, stageTypes.stream()
                 .map(t -> new FeedProfile.StagePlan(t, t.toUpperCase())).toList(), "closing",
                 new LinkedHashSet<>(List.of("truck", "driver")), false, true, null, ACTOR, null, ACTOR);
     }
@@ -181,11 +183,11 @@ class PgFeedReconcilerTest {
     @Test
     void creatingAFeedCannotOverwriteAnExistingProfile() {
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
-        FeedProfileRequest original = new FeedProfileRequest("Original", List.of(
+        FeedProfileRequest original = new FeedProfileRequest("Original", null, List.of(
                 new FeedProfile.StagePlan("preparation", "READY")), "preparation", List.of("truck"), null, true);
         profiles.createView(tenant, ACTOR, "create-key", original);
         FeedProfile before = feeds.profile(tenant, "create-key").orElseThrow();
-        FeedProfileRequest replacement = new FeedProfileRequest("Replacement", List.of(
+        FeedProfileRequest replacement = new FeedProfileRequest("Replacement", null, List.of(
                 new FeedProfile.StagePlan("closing", "CLOSED")), "closing", List.of(), null, false);
 
         assertThrows(IllegalStateException.class,
@@ -197,10 +199,10 @@ class PgFeedReconcilerTest {
 
     @Test
     void onlyOneConcurrentCreatorCanClaimAFeedKey() throws Exception {
-        FeedProfile first = new FeedProfile(tenant, "racing-feed", "First", List.of(
+        FeedProfile first = new FeedProfile(tenant, "racing-feed", "First", null, List.of(
                 new FeedProfile.StagePlan("preparation", null)), "preparation", Set.of(), true, true,
                 null, ACTOR, null, ACTOR);
-        FeedProfile second = new FeedProfile(tenant, first.feedKey(), "Second", first.stages(), first.arrivalStage(),
+        FeedProfile second = new FeedProfile(tenant, first.feedKey(), "Second", null, first.stages(), first.arrivalStage(),
                 first.requiredResources(), true, true, null, ACTOR, null, ACTOR);
         var a = CompletableFuture.supplyAsync(() -> feeds.createProfile(first));
         var b = CompletableFuture.supplyAsync(() -> feeds.createProfile(second));
@@ -331,7 +333,7 @@ class PgFeedReconcilerTest {
                 new MonitorScope(List.of(FEED), List.of(), List.of(), List.of())));
         monitors.publish(tenant, ACTOR, "direct");
         FeedProfileService profiles = new FeedProfileService(feeds, audit);
-        profiles.save(tenant, ACTOR, FEED, new FeedProfileRequest("Servicios", List.of(
+        profiles.save(tenant, ACTOR, FEED, new FeedProfileRequest("Servicios", null, List.of(
                 new FeedProfile.StagePlan("preparation", "ADDED"), new FeedProfile.StagePlan("closing", "FINISHED")),
                 "closing", null, null, null));
 
@@ -371,6 +373,17 @@ class PgFeedReconcilerTest {
         assertEquals(FeedReconciler.SKIP, r.action());
         assertNull(r.tripId());
         assertFalse(feeds.service(tenant, FEED, "S-004").orElseThrow().open());
+    }
+
+    @Test
+    void aServiceThatDepartedAndHasNotClosedIsCreatedRunningPastItsArrivalTime() {
+        FeedResult r = send("S-038", withActuals(desired(-12, -5, "ABC-123", null, "10000001"), at(-11), null, null));
+
+        assertEquals(FeedReconciler.CREATE, r.action());
+        assertEquals(List.of(), r.errors());
+        assertEquals(TripMilestone.CONFIRMED, milestone(r.tripId(), TripMilestone.DEPARTURE).status());
+        assertNotEquals(Trip.DONE, trips.get(tenant, UUID.fromString(r.tripId())).status());
+        assertTrue(feeds.service(tenant, FEED, "S-038").orElseThrow().open());
     }
 
     @Test
@@ -454,7 +467,7 @@ class PgFeedReconcilerTest {
         assertThrows(java.util.NoSuchElementException.class, () -> reconciler.reconcile(tenant, ACTOR, "otro",
                 "S-1", request, true));
         FeedProfile on = feeds.profile(tenant, FEED).orElseThrow();
-        feeds.saveProfile(new FeedProfile(tenant, FEED, on.name(), on.stages(), on.arrivalStage(),
+        feeds.saveProfile(new FeedProfile(tenant, FEED, on.name(), null, on.stages(), on.arrivalStage(),
                 on.requiredResources(), true, false, null, ACTOR, null, ACTOR));
         IllegalStateException off = assertThrows(IllegalStateException.class, () -> reconciler.reconcile(tenant,
                 ACTOR, FEED, "S-1", request, true));
@@ -500,7 +513,7 @@ class PgFeedReconcilerTest {
     void aBatchQueuesOnlyChangedServicesAndTheJobAppliesTheLatestState() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
-        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
+        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, new FeedSites(null, null), json, feeds);
         FeedBatchRequest first = new FeedBatchRequest("b1", List.of(
                 new FeedBatchRequest.Item("S-001", desired(2, 10, "ABC-123", "DEF-456", "10000001")),
                 new FeedBatchRequest.Item(" ", desired(2, 10, "ABC-123", null, "10000001")),
@@ -565,7 +578,7 @@ class PgFeedReconcilerTest {
     void aJobForAServiceThatCannotBeCreatedFailsWithoutRetry() {
         List<AsyncJobSpec> queued = new ArrayList<>();
         FeedBatchService batches = new FeedBatchService(reconciler, (t, f, specs) -> queued.addAll(specs));
-        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, json);
+        FeedServiceJobHandler handler = new FeedServiceJobHandler(reconciler, new FeedSites(null, null), json, feeds);
         batches.send(tenant, ACTOR, FEED, new FeedBatchRequest(null, List.of(
                 new FeedBatchRequest.Item("S-005", desired(1, 6, "JKL-000", null, "10000001")))));
 
@@ -580,13 +593,13 @@ class PgFeedReconcilerTest {
         List<FeedProfile.StagePlan> plan = List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                 new FeedProfile.StagePlan("closing", "FINISHED"));
 
-        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", plan, "transit", null, null, null);
+        FeedProfileRequest missingArrival = new FeedProfileRequest("Nuevo", null, plan, "transit", null, null, null);
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "nuevo", missingArrival),
                 "the arrival stage must be in the plan");
-        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", plan, "closing", null, null, null);
+        FeedProfileRequest valid = new FeedProfileRequest("Nuevo", null, plan, "closing", null, null, null);
         assertThrows(IllegalArgumentException.class, () -> profiles.save(tenant, ACTOR, "Con Mayusculas", valid));
         FeedProfile saved = profiles.save(tenant, ACTOR, "nuevo",
-                new FeedProfileRequest("Nuevo", plan, "closing", List.of("truck"), null, null));
+                new FeedProfileRequest("Nuevo", null, plan, "closing", List.of("truck"), null, null));
         assertTrue(saved.active());
     }
 
@@ -675,7 +688,7 @@ class PgFeedReconcilerTest {
                         List.of(new TripMonitor.Action("alert", "ordered")), 10, true)), MonitorScope.ANY));
         monitors.publish(tenant, ACTOR, "reports");
         new FeedProfileService(feeds, audit).save(tenant, ACTOR, FEED,
-                new FeedProfileRequest("Reports", List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
+                new FeedProfileRequest("Reports", null, List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")), "closing", null, null, null));
         FeedServiceRequest row = withReports(desired(1, 5, "ABC-123", null, "10000001"), Map.of(
                 "arrival", new FeedServiceRequest.MilestoneReport(at(0), Map.of()),
@@ -804,7 +817,7 @@ class PgFeedReconcilerTest {
         assertNull(outOfOrder.mandateId());
 
         FeedProfile current = feeds.profile(tenant, FEED).orElseThrow();
-        feeds.saveProfile(new FeedProfile(tenant, FEED, current.name(),
+        feeds.saveProfile(new FeedProfile(tenant, FEED, current.name(), null,
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED")), "preparation",
                 current.requiredResources(), true, true, null, ACTOR, null, ACTOR));
         FeedResult noClosing = send("S-035", withActuals(ended, at(-11), null, at(-6)));
@@ -1017,7 +1030,7 @@ class PgFeedReconcilerTest {
 
     private void registering() {
         FeedProfile base = feeds.profile(tenant, FEED).orElseThrow();
-        feeds.saveProfile(new FeedProfile(tenant, FEED, base.name(), base.stages(), base.arrivalStage(),
+        feeds.saveProfile(new FeedProfile(tenant, FEED, base.name(), null, base.stages(), base.arrivalStage(),
                 base.requiredResources(), true, true, null, ACTOR, null, ACTOR));
     }
 

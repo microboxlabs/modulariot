@@ -10,6 +10,7 @@ import com.microboxlabs.miot.trips.dto.LinkMandateRequest;
 import com.microboxlabs.miot.trips.dto.TripRequest;
 import com.microboxlabs.miot.trips.dto.TripView;
 import com.microboxlabs.miot.trips.service.TripService;
+import com.microboxlabs.miot.trips.service.TripGeofenceService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.PermissionsAllowed;
@@ -47,6 +48,7 @@ public class OrgTripsResource extends OrgResourceSupport {
     private static final String ORG = "organizationId";
 
     private final TripService trips;
+    private final TripGeofenceService geofences;
 
     @Inject
     public OrgTripsResource(
@@ -54,9 +56,11 @@ public class OrgTripsResource extends OrgResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            TripService trips) {
+            TripService trips,
+            TripGeofenceService geofences) {
         super(tenantContext, organizationContext, roleService, identity);
         this.trips = trips;
+        this.geofences = geofences;
     }
 
     @GET
@@ -88,6 +92,15 @@ public class OrgTripsResource extends OrgResourceSupport {
         String actor = actor();
         return work(() -> Response.status(Response.Status.CREATED)
                 .entity(trips.create(tenant, actor, body)).build());
+    }
+
+    @GET
+    @Path("/{id}/geofences")
+    @Operation(operationId = "getTripGeofences", summary = "The trip's origin, destination and stop geofences")
+    @PermissionsAllowed(value = TripsAccessCatalog.VIEW, permission = OrgPermission.class, params = "organizationId")
+    public Uni<Response> geofences(@PathParam(ORG) String organizationId, @PathParam("id") String id) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(geofences.geofences(tenant, uuid(id, "id"))).build());
     }
 
     @GET

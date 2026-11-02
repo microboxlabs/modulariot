@@ -16,7 +16,8 @@ interface PlatformSettingStatus {
 
 interface PlatformSettingApi<B> {
   save: (body: B) => Promise<void>;
-  test: () => Promise<{ success: boolean; message: string | null }>;
+  /** Absent for a setting the modulith cannot check. */
+  test?: () => Promise<{ success: boolean; message: string | null }>;
   remove: () => Promise<void>;
 }
 
@@ -57,6 +58,7 @@ export function usePlatformSettingActions<B>(
 
   const check = () =>
     run(async () => {
+      if (!test) return;
       try {
         const result = await test();
         if (result.success) toast.success(tr("testOk", dict));
@@ -114,7 +116,8 @@ interface PlatformSettingButtonsProps {
   readonly canSave: boolean;
   readonly configured: boolean;
   readonly onSave: () => void;
-  readonly onTest: () => void;
+  /** No Test button without it. */
+  readonly onTest?: () => void;
   readonly onRemove: () => void;
 }
 
@@ -140,14 +143,16 @@ export function PlatformSettingButtons({
       </Button>
       {configured && (
         <>
-          <Button
-            color="alternative"
-            size="sm"
-            disabled={busy}
-            onClick={onTest}
-          >
-            {tr("test", dict)}
-          </Button>
+          {onTest && (
+            <Button
+              color="alternative"
+              size="sm"
+              disabled={busy}
+              onClick={onTest}
+            >
+              {tr("test", dict)}
+            </Button>
+          )}
           <Button
             color="alternative"
             size="sm"

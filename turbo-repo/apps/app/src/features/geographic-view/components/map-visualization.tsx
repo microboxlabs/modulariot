@@ -88,12 +88,18 @@ export default function MapVisualization({
 
   // tras recargar con un lugar o trayecto a medio editar: volver a Lugares
   // (el editor retoma el borrador al abrirse)
-  const borradorRevisado = useRef(false);
+  const borradorRevisado = useRef<string | null>(null);
   useEffect(() => {
-    if (!puedeEditarLugares || borradorRevisado.current) return;
-    borradorRevisado.current = true;
-    if (!placesMode && hayBorrador("geografico")) setActiveView("places");
-  }, [puedeEditarLugares, placesMode, setActiveView]);
+    if (
+      !places.storageScope ||
+      !puedeEditarLugares ||
+      borradorRevisado.current === places.storageScope
+    )
+      return;
+    borradorRevisado.current = places.storageScope;
+    if (!placesMode && hayBorrador("geografico", places.storageScope))
+      setActiveView("places");
+  }, [puedeEditarLugares, placesMode, setActiveView, places.storageScope]);
 
   useEffect(() => {
     if (placesMode) {

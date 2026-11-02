@@ -35,6 +35,8 @@ import {
   BearerTokenCredentialModal,
   ResendCredentialModal,
   WhatsAppCredentialModal,
+  MapboxCredentialModal,
+  GoogleMapsCredentialModal,
 } from "./bearer-token-credential-modal";
 import { CredentialDeleteDialog } from "./credential-delete-dialog";
 import { CredentialTypePickerModal } from "./credential-type-picker-modal";
@@ -50,6 +52,8 @@ const GOOGLE = "GOOGLE_SERVICE_ACCOUNT" as const;
 const BEARER = "BEARER_TOKEN" as const;
 const RESEND = "RESEND" as const;
 const WHATSAPP = "WHATSAPP" as const;
+const MAPBOX = "MAPBOX" as const;
+const GOOGLE_MAPS = "GOOGLE_MAPS" as const;
 
 interface CredentialsPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -330,6 +334,8 @@ export default function CredentialsPageContent({
       <BearerTokenCredentialModal show={shown(BEARER)} {...formProps} />
       <ResendCredentialModal show={shown(RESEND)} {...formProps} />
       <WhatsAppCredentialModal show={shown(WHATSAPP)} {...formProps} />
+      <MapboxCredentialModal show={shown(MAPBOX)} {...formProps} />
+      <GoogleMapsCredentialModal show={shown(GOOGLE_MAPS)} {...formProps} />
 
       <CredentialDeleteDialog
         credential={deleting}

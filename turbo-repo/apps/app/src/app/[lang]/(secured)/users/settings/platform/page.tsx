@@ -13,7 +13,11 @@ export default async function PlatformSettingsPage({ params }: ParamsWithLang) {
 
   return (
     <RouteGuard path="/users/settings/platform">
-      <PlatformPageContent dict={userSettings} lang={lang} />
+      <PlatformPageContent
+        dict={userSettings}
+        rootDict={dictionary as unknown as I18nRecord}
+        lang={lang}
+      />
     </RouteGuard>
   );
 }

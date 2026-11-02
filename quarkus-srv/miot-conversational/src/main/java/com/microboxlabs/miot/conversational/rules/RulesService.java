@@ -245,6 +245,11 @@ public class RulesService {
         return catalog().types();
     }
 
+    /** The platform's tenant gets only the events published to it. */
+    public List<EventCatalog.EventTypeView> events(String tenantCode) {
+        return catalog().types(ConvTemplate.PLATFORM_TENANT.equals(tenantCode));
+    }
+
     private EventCatalog catalog() {
         return new EventCatalog(catalogs.get());
     }

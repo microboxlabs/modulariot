@@ -123,6 +123,22 @@ describe("MapVisualizationTrip controls", () => {
     expect(esquina()).toHaveClass("left-1/2");
   });
 
+  it("does not show no data when a case has a point but no trip positions", () => {
+    render(
+      <MapVisualizationTrip
+        tripId="demo-case"
+        positions={[]}
+        casePoint={{ longitude: -70, latitude: -33 }}
+        isLoading={false}
+        error={null}
+        filteredLocationData={null}
+        dict={dict}
+        selectedTreatmentIndex={null}
+      />
+    );
+    expect(document.querySelector("[data-estado-viaje]")).toBeNull();
+  });
+
   it("drops the status once positions have loaded", () => {
     render(
       <MapVisualizationTrip

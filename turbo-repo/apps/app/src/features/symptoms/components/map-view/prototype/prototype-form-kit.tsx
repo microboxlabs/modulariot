@@ -290,7 +290,8 @@ export const dropdownTriggerBaseClass =
 /** Default resting border — kept separate so a caller can override just the
  *  color (e.g. to flag the field as filled by an automated pass) without
  *  restating the rest of the trigger's styling. */
-export const dropdownDefaultBorderClass = "border-gray-300 dark:border-gray-600";
+export const dropdownDefaultBorderClass =
+  "border-gray-300 dark:border-gray-600";
 
 /**
  * A Flowbite dropdown (not a native `<select>`) over an explicit list of
@@ -432,6 +433,10 @@ export function SelectableDropdown({
         }))}
         selectedValues={selectedIds}
         onSelectionChange={(ids) => {
+          if (ids.length === 0 && onClear) {
+            onClear();
+            return;
+          }
           const primary = options.find((o) => o.id === ids[0]);
           onSelect({
             id: ids.join(","),

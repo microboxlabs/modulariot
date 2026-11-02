@@ -1,5 +1,6 @@
 import { CompositeLayer, IconLayer, Layer } from "deck.gl";
 import pin_atlas from "@assets/icons/map/pin-atlas.png";
+import { geofencePinPosition } from "../utils/geofence-geometry";
 
 export const icon_definition = {
   base_pin: {
@@ -45,30 +46,14 @@ type GeofencePinData = {
 export class GeofencePinLayer extends CompositeLayer<any> {
   static readonly layerName = "GeofencePinLayer";
 
-  calculateAveragePosition(coordinates: number[][]): [number, number] {
-    let sumLng = 0;
-    let sumLat = 0;
-    let count = 0;
-
-    // Sum up all coordinates
-    for (const coord of coordinates) {
-      sumLng += coord[0];
-      sumLat += coord[1];
-      count++;
-    }
-
-    // Calculate average
-    return [sumLng / count, sumLat / count];
-  }
-
   renderLayers(): Layer[] {
-    let processedData: GeofencePinData[] = [];
+    const processedData: GeofencePinData[] = [];
 
     for (const feature of this.props.data.features) {
-      const coordinates = feature.geometry.coordinates[0];
-      const avgPosition = this.calculateAveragePosition(coordinates);
+      const position = geofencePinPosition(feature.geometry);
+      if (!position) continue;
       processedData.push({
-        coordinates: avgPosition,
+        coordinates: position,
         location_type: feature.properties.location_type,
       });
     }

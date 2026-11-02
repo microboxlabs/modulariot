@@ -37,6 +37,7 @@ public record GpsSignal(
         @JsonProperty("asset_id") String assetId,
         @Schema(hidden = true) Instant at,
         @Schema(hidden = true) List<String> clients,
+        @Schema(hidden = true) String sender,
         @Schema(hidden = true) Map<String, Trip> trips,
         Trip trip,
         Vehicle vehicle,
@@ -181,6 +182,16 @@ public record GpsSignal(
             @Schema(title = "Velocidad promedio 5 min", extensions = {
                     @Extension(name = "x-unit", value = "km/h"), @Extension(name = "x-origin", value = "CALCULATED"),
                     @Extension(name = "x-engine", value = "false") })
-            @JsonProperty("speed_avg_5m") Double speedAvg5m) {
+            @JsonProperty("speed_avg_5m") Double speedAvg5m,
+            @Schema(title = "Alimentación del GPS desconectada", description = "The frame carries a device event "
+                    + "of external power disconnected", extensions = @Extension(name = "x-origin", value = "DEVICE"))
+            @JsonProperty("power_disconnected") Boolean powerDisconnected,
+            @Schema(title = "Inhibición de señal (jamming)", description = "The frame carries a device event of "
+                    + "GNSS or GSM jamming", extensions = @Extension(name = "x-origin", value = "DEVICE"))
+            Boolean jamming) {
+
+        public Derived(Boolean moving, Double speedAvg5m) {
+            this(moving, speedAvg5m, null, null);
+        }
     }
 }

@@ -5,10 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
 import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
+import com.microboxlabs.miot.trips.domain.FeedProfile;
 import com.microboxlabs.miot.trips.dto.FeedResult;
+import com.microboxlabs.miot.trips.store.FeedStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -25,12 +29,16 @@ public class FeedServiceJobHandler implements ModulithJobHandler {
     };
 
     private final FeedReconciler reconciler;
+    private final FeedSites sites;
     private final ObjectMapper json;
+    private final FeedStore feeds;
 
     @Inject
-    public FeedServiceJobHandler(FeedReconciler reconciler, ObjectMapper json) {
+    public FeedServiceJobHandler(FeedReconciler reconciler, FeedSites sites, ObjectMapper json, FeedStore feeds) {
         this.reconciler = reconciler;
+        this.sites = sites;
         this.json = json;
+        this.feeds = feeds;
     }
 
     @Override
@@ -59,8 +67,14 @@ public class FeedServiceJobHandler implements ModulithJobHandler {
         if (!result.errors().isEmpty()) {
             throw new NonRetryableJobException(String.join("; ", result.errors()));
         }
-        return JobOutcome.succeeded(result.action() + ": " + result.operations().size() + " step(s)",
-                json.convertValue(result, MAP));
+        Map<String, Object> out = new LinkedHashMap<>(json.convertValue(result, MAP));
+        String country = feeds.profile(tenantCode, feedKey).map(FeedProfile::country).orElse(null);
+        List<String> located = sites.locate(text(payload, FeedBatchService.ORGANIZATION), tenantCode,
+                actor == null ? "feed:" + feedKey : actor, country, reconciler.desired(tenantCode, feedKey, code));
+        if (!located.isEmpty()) {
+            out.put("located", located);
+        }
+        return JobOutcome.succeeded(result.action() + ": " + result.operations().size() + " step(s)", out);
     }
 
     private static String text(Map<String, Object> payload, String key) {

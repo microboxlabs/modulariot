@@ -5,10 +5,12 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { PlatformOrganizationListItem } from "../platform/platform.types";
 import { useOrganizationOwners } from "../platform/use-platform-organizations";
+import OrgServiceAccountCard from "../platform/org-service-account-card";
 
 interface PlatformOrgDetailPanelProps {
   readonly organization: PlatformOrganizationListItem;
   readonly dict: I18nRecord;
+  readonly lang: string;
 }
 
 interface FactProps {
@@ -76,6 +78,7 @@ function ownersTitle(
 export default function PlatformOrgDetailPanel({
   organization,
   dict,
+  lang,
 }: PlatformOrgDetailPanelProps) {
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
@@ -111,6 +114,7 @@ export default function PlatformOrgDetailPanel({
         </h3>
         <Owners organization={organization} dict={dict} />
       </section>
+      <OrgServiceAccountCard slug={organization.slug} dict={dict} lang={lang} />
     </div>
   );
 }

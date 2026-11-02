@@ -2,6 +2,7 @@
 // recargar la página se puede seguir donde se quedó. Cada mapa (vista
 // geográfica, mapa del viaje) guarda el suyo. Se borra al cerrar o guardar.
 import { z } from "zod";
+import { placesStorageKey } from "./storage-key";
 import {
   FORM_VACIO,
   TRAY_VACIO,
@@ -39,42 +40,129 @@ export type BorradorTrayecto = {
 
 export type Borrador = BorradorLugar | BorradorTrayecto;
 
-const objeto = z.record(z.string(), z.unknown());
-const latLons = z.array(z.tuple([z.number(), z.number()]));
+const finite = z.number();
+const latLon = z.tuple([finite, finite]);
+const latLons = z.array(latLon);
+const geometry = z.enum(["circle", "polygon"]);
+const polyBase = z.enum(["libre", "rect", "tri"]);
+const innerSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  geom: geometry,
+  lat: finite.nullable(),
+  lon: finite.nullable(),
+  radius_m: finite,
+  vertices: latLons,
+  cerrado: z.boolean(),
+  color: z.string(),
+  polyBase: z.enum(["libre", "rect", "tri", "cuadro"]).optional(),
+  rectVinculado: z.boolean().optional(),
+  rect_w_m: finite.optional(),
+  rect_h_m: finite.optional(),
+});
+const pointSchema = z.looseObject({
+  id: z.string(),
+  texto: z.string(),
+  punto: latLon.nullable(),
+  tipo: z.enum(["parada", "desvio"]).optional(),
+  categoria: z.string().optional(),
+});
+const points = z.array(pointSchema);
+// Partial schemas keep older drafts readable; unknown future fields are retained.
+const placeSchema = z
+  .looseObject({
+    place_id: z.string().nullable(),
+    name: z.string(),
+    icon: z.string(),
+    color: z.string(),
+    category_id: z.string(),
+    categorias: z.array(z.string()),
+    address: z.string(),
+    external_id: z.string(),
+    radius_m: finite,
+    lat: finite.nullable(),
+    lon: finite.nullable(),
+    geom: geometry,
+    polyBase,
+    rectVinculado: z.boolean(),
+    rect_w_m: finite,
+    rect_h_m: finite,
+    vertices: latLons,
+    cerrado: z.boolean(),
+    pasado: z.array(latLons),
+    futuro: z.array(latLons),
+    metadata: z.array(z.object({ k: z.string(), v: z.string() })),
+    active_from: z.string(),
+    active_until: z.string(),
+    inners: z.array(innerSchema),
+    innerEditId: z.string().nullable(),
+    busqueda: z.string(),
+    ubicadoEn: z.string().nullable(),
+  })
+  .partial();
+const routeSchema = z
+  .looseObject({
+    id: z.string().nullable(),
+    name: z.string(),
+    icon: z.string(),
+    kind: z.enum(["vial", "interno"]),
+    width_m: finite,
+    external_id: z.string(),
+    pts: latLons,
+    ajustado: z.boolean(),
+    vias: z.array(z.string()),
+    recorrido: points,
+    categorias: z.array(z.string()),
+    confirmado: z.boolean(),
+    pasado: z.array(points),
+    futuro: z.array(points),
+  })
+  .partial();
 
 const borradorSchema = z.object({
   guardadoEn: z.number(),
   borrador: z.discriminatedUnion("tipo", [
     z.object({
       tipo: z.literal("lugar"),
-      form: objeto,
+      form: placeSchema,
       paso: z.enum(["geocerca", "interiores"]),
-      original: objeto.nullable(),
-      inicial: objeto.nullable().optional(),
+      original: placeSchema.nullable(),
+      inicial: placeSchema.nullable().optional(),
     }),
     z.object({
       tipo: z.literal("trayecto"),
-      tray: objeto,
+      tray: routeSchema,
       paso: z.enum(["recorrido", "datos"]),
-      original: objeto.nullable(),
-      inicial: objeto.nullable().optional(),
+      original: routeSchema.nullable(),
+      inicial: routeSchema.nullable().optional(),
       pathAjustado: latLons.nullable(),
     }),
   ]),
 });
 
-const clave = (ambito: AmbitoBorrador) => `${PREFIJO}${ambito}`;
+const clave = (ambito: AmbitoBorrador, scope: string | null) =>
+  placesStorageKey(`${PREFIJO}${ambito}`, scope);
 
 /** Lo guardado sobre los valores por defecto: tolera campos nuevos. */
-const conLugar = (f: Record<string, unknown>) =>
-  ({ ...FORM_VACIO, ...f }) as FormLugar;
-const conTrayecto = (t: Record<string, unknown>) =>
-  ({ ...TRAY_VACIO, ...t }) as FormTrayecto;
+const conLugar = (f: z.infer<typeof placeSchema>): FormLugar => ({
+  ...FORM_VACIO,
+  ...f,
+});
+const conTrayecto = (t: z.infer<typeof routeSchema>): FormTrayecto => ({
+  ...TRAY_VACIO,
+  ...t,
+});
 
-export function guardarBorrador(ambito: AmbitoBorrador, borrador: Borrador) {
+export function guardarBorrador(
+  ambito: AmbitoBorrador,
+  scope: string | null,
+  borrador: Borrador
+) {
+  const key = clave(ambito, scope);
+  if (!key) return;
   try {
     window.localStorage.setItem(
-      clave(ambito),
+      key,
       JSON.stringify({ guardadoEn: Date.now(), borrador })
     );
   } catch {
@@ -82,9 +170,11 @@ export function guardarBorrador(ambito: AmbitoBorrador, borrador: Borrador) {
   }
 }
 
-export function borrarBorrador(ambito: AmbitoBorrador) {
+export function borrarBorrador(ambito: AmbitoBorrador, scope: string | null) {
+  const key = clave(ambito, scope);
+  if (!key) return;
   try {
-    window.localStorage.removeItem(clave(ambito));
+    window.localStorage.removeItem(key);
   } catch {
     // sin acceso: no hay nada que borrar
   }
@@ -92,11 +182,14 @@ export function borrarBorrador(ambito: AmbitoBorrador) {
 
 export function leerBorrador(
   ambito: AmbitoBorrador,
+  scope: string | null,
   ahora = Date.now()
 ): Borrador | null {
+  const key = clave(ambito, scope);
+  if (!key) return null;
   let raw: string | null;
   try {
-    raw = window.localStorage.getItem(clave(ambito));
+    raw = window.localStorage.getItem(key);
   } catch {
     return null;
   }
@@ -105,11 +198,11 @@ export function leerBorrador(
   try {
     parsed = borradorSchema.parse(JSON.parse(raw));
   } catch {
-    borrarBorrador(ambito);
+    borrarBorrador(ambito, scope);
     return null;
   }
   if (ahora - parsed.guardadoEn > VIGENCIA_MS) {
-    borrarBorrador(ambito);
+    borrarBorrador(ambito, scope);
     return null;
   }
   const b = parsed.borrador;
@@ -132,5 +225,17 @@ export function leerBorrador(
   };
 }
 
-export const hayBorrador = (ambito: AmbitoBorrador) =>
-  leerBorrador(ambito) !== null;
+export const hayBorrador = (ambito: AmbitoBorrador, scope: string | null) =>
+  leerBorrador(ambito, scope) !== null;
+
+/** Reconfirm road routes whose calculation was interrupted by a page reload. */
+export function prepararTrayectoRestaurado(
+  b: BorradorTrayecto
+): BorradorTrayecto {
+  if (b.tray.kind !== "vial" || !b.tray.confirmado || b.pathAjustado) return b;
+  return {
+    ...b,
+    tray: { ...b.tray, confirmado: false, ajustado: false },
+    paso: "recorrido",
+  };
+}

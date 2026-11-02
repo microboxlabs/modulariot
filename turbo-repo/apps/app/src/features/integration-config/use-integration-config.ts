@@ -150,6 +150,7 @@ export function useIntegrationConfig(orgSlug: string | null) {
     refresh: () => {
       void templates.mutate();
       void connections.mutate();
+      void credentials.mutate();
     },
   };
 }

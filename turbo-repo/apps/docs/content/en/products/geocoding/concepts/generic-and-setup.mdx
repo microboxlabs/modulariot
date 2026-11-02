@@ -1,0 +1,39 @@
+# Generic and setup-specific
+
+**For:** everyone.
+
+Geocoding has a part that is the same for everyone and a part that is adjusted to each country and each customer. Knowing which is which tells you what to prepare when you add a customer or a country.
+
+## The generic part
+
+It is the same in every installation and is not configured per customer.
+
+| Piece | What it is |
+| --- | --- |
+| The source order | Geofence, Plus Code, coordinates, internal addresses, cache, provider ([details](/en/products/geocoding/tutorials/resolution-order)) |
+| The district check | The point must fall in the declared district, with 500 m of tolerance |
+| The choice of geofence | The one that contains the point, or a new circle |
+| The cache | Shared by all organizations. It stores the normalized address, its district and its point; it does not store the organization, the place name or the customer |
+| The quota and the usage record | Per organization and per month |
+| The API contract | `POST /trips/locations/resolve`, the feed sites, the review |
+| The review | To review, place by hand, reject |
+
+## The specific part
+
+| Piece | Depends on | Where it is defined |
+| --- | --- | --- |
+| Administrative boundaries | The country | Platform data. Today: Chile and Peru |
+| Internal addresses | The country | Platform data. Today: Chile |
+| The provider and its certification | The country | Platform connection; [Certify a new country](/en/products/geocoding/how-to/certify-a-country) |
+| The country of each site | The feed | Each site carries `country`; the integration sets it per spreadsheet |
+| Place types and their radii | The customer's business | Type of each location. The radii are fixed per type: port 1000 m, plant 500 m, distribution center 300 m, zone 200 m, customer 150 m |
+| How the customer writes its places | The customer | The spreadsheet and the integration that reads it ([Send sites from a feed](/en/products/geocoding/how-to/feed-sites)) |
+| The quota and what happens when it runs out | The contract with the customer | Settings › Platform › Geocoding |
+
+## What to prepare
+
+| When adding | Prepare |
+| --- | --- |
+| A customer in a country already loaded | Its geocoding connection, its quota, the type of each place and its spreadsheet columns |
+| A new country | Its administrative boundaries, its address sources if they exist, and the provider certification |
+| A new provider | Its adapter in the platform and a review of its terms (whether they allow storing the point) |

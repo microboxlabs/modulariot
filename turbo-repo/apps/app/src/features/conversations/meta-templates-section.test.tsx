@@ -5,6 +5,8 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { useState } from "react";
+import type { CatalogLayout } from "@/features/common/components/layout-toggle";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { MetaTemplate } from "./conversations-types";
@@ -43,9 +45,44 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("./conversations-api", () => api);
 
-import MetaTemplatesSection from "./meta-templates-section";
+import MetaTemplatesSection, {
+  type MetaFilters,
+  metaFilterDefs,
+  metaTemplateLabel,
+  NewMetaTemplateButton,
+  NO_META_FILTERS,
+} from "./meta-templates-section";
 
 const d = es.pages.userSettings.communications;
+
+/** The header actions and the section, wired the way the Comunicaciones page wires them. */
+function Section({
+  canWrite = true,
+  layout = "cards",
+}: Readonly<{ canWrite?: boolean; layout?: CatalogLayout }>) {
+  const [filters, setFilters] = useState<MetaFilters>(NO_META_FILTERS);
+  const [creating, setCreating] = useState(false);
+  return (
+    <>
+      {canWrite && (
+        <NewMetaTemplateButton d={d} onNew={() => setCreating(true)} />
+      )}
+      <MetaTemplatesSection
+        canWrite={canWrite}
+        d={d}
+        filters={filters}
+        layout={layout}
+        creating={creating}
+        onOpen={(t) => {
+          setCreating(false);
+          setFilters({ ...filters, template: t ? metaTemplateLabel(t) : "" });
+        }}
+      />
+    </>
+  );
+}
+
+const open = (name: string) => fireEvent.click(screen.getByText(name));
 
 describe("MetaTemplatesSection", () => {
   beforeEach(() => {
@@ -57,9 +94,18 @@ describe("MetaTemplatesSection", () => {
     });
   });
 
-  it("lists the templates with their status and the rejection reason", () => {
-    render(<MetaTemplatesSection canWrite d={d} />);
-    const list = screen.getByRole("navigation", {
+  it("shows the templates as a table in the list layout", () => {
+    render(<Section layout="list" />);
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Idioma")).toBeTruthy();
+    expect(within(table).getByText("INVALID_FORMAT")).toBeTruthy();
+    fireEvent.click(within(table).getByText("panic_check"));
+    expect(screen.getByLabelText("Cuerpo")).toBeTruthy();
+  });
+
+  it("shows the templates as cards with their status and the rejection reason", () => {
+    render(<Section />);
+    const list = screen.getByRole("region", {
       name: "Plantillas de WhatsApp en Meta",
     });
     expect(within(list).getByText("Aprobada")).toBeTruthy();
@@ -70,15 +116,9 @@ describe("MetaTemplatesSection", () => {
     expect(screen.getByText("Meta la rechazó: INVALID_FORMAT")).toBeTruthy();
   });
 
-  it("refreshes the statuses from Meta", () => {
-    render(<MetaTemplatesSection canWrite d={d} />);
-    fireEvent.click(screen.getByRole("button", { name: "Actualizar estados" }));
-    expect(api.refreshMetaTemplates).toHaveBeenCalled();
-  });
-
   it("previews and submits a new template with an example per parameter", async () => {
     api.createMetaTemplate.mockResolvedValue({ ...APPROVED, id: "903" });
-    render(<MetaTemplatesSection canWrite d={d} />);
+    render(<Section />);
     fireEvent.click(
       screen.getByRole("button", { name: "Nueva plantilla de WhatsApp" })
     );
@@ -129,7 +169,8 @@ describe("MetaTemplatesSection", () => {
     api.editMetaTemplate.mockRejectedValue(
       new Error("Meta: Too many edits: Try again tomorrow.")
     );
-    render(<MetaTemplatesSection canWrite d={d} />);
+    render(<Section />);
+    open("panic_check");
     fireEvent.click(
       screen.getByRole("button", { name: "Guardar y enviar a revisión" })
     );
@@ -144,7 +185,8 @@ describe("MetaTemplatesSection", () => {
 
   it("deletes after confirming", async () => {
     api.deleteMetaTemplate.mockResolvedValue(undefined);
-    render(<MetaTemplatesSection canWrite d={d} />);
+    render(<Section />);
+    open("panic_check");
     fireEvent.click(screen.getByRole("button", { name: "Eliminar plantilla" }));
     expect(api.deleteMetaTemplate).not.toHaveBeenCalled();
     const dialog = await screen.findByRole("dialog");
@@ -154,6 +196,11 @@ describe("MetaTemplatesSection", () => {
     await waitFor(() =>
       expect(api.deleteMetaTemplate).toHaveBeenCalledWith("panic_check", "901")
     );
+    expect(
+      await screen.findByRole("region", {
+        name: "Plantillas de WhatsApp en Meta",
+      })
+    ).toBeTruthy();
   });
 
   it("does not edit a template under review nor offer writes to readers", () => {
@@ -162,7 +209,8 @@ describe("MetaTemplatesSection", () => {
       isLoading: false,
       isValidating: false,
     });
-    render(<MetaTemplatesSection canWrite={false} d={d} />);
+    render(<Section canWrite={false} />);
+    open("panic_check");
     expect(screen.getByText(d.metaLockedPending)).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Eliminar plantilla" })
@@ -173,5 +221,25 @@ describe("MetaTemplatesSection", () => {
     expect(
       (screen.getByLabelText("Cuerpo") as HTMLTextAreaElement).disabled
     ).toBe(true);
+  });
+});
+
+describe("metaFilterDefs", () => {
+  it("offers the states and categories, and only the templates that pass them", () => {
+    const status = (f: MetaFilters) =>
+      metaFilterDefs([APPROVED, REJECTED], f, d);
+    const all = status(NO_META_FILTERS);
+    expect(all.map((f) => f.label)).toEqual([
+      "Estado",
+      "Categoría",
+      "Plantilla",
+    ]);
+    expect(all[0].options).toEqual(["Aprobada", "Rechazada"]);
+    expect(all[2].options).toEqual([
+      "panic_check · es_CL",
+      "trip_reminder · es_CL",
+    ]);
+    const rejected = status({ ...NO_META_FILTERS, status: "Rechazada" });
+    expect(rejected[2].options).toEqual(["trip_reminder · es_CL"]);
   });
 });

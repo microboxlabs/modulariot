@@ -108,6 +108,8 @@ async function buscarEnMapbox(
   const params = new URLSearchParams({
     q: texto,
     country: PAIS,
+    // Selected coordinates/addresses are saved as Places, so request storable results.
+    permanent: "true",
     language: "es",
     limit: "5",
     autocomplete: "true",
@@ -135,6 +137,8 @@ export async function direccionDesdePunto(
     longitude: String(punto[1]),
     latitude: String(punto[0]),
     country: PAIS,
+    // Selected coordinates/addresses are saved as Places, so request storable results.
+    permanent: "true",
     language: "es",
     limit: "1",
     access_token: token,

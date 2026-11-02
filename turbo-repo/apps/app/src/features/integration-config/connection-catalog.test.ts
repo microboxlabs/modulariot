@@ -9,6 +9,7 @@ import {
   connectionState,
   connectionTypeName,
   filterConnections,
+  isPlatformManaged,
   sortConnections,
 } from "./connection-catalog";
 import type {
@@ -121,5 +122,15 @@ describe("filterConnections and sortConnections", () => {
       "2",
       "1",
     ]);
+  });
+});
+
+describe("isPlatformManaged", () => {
+  it("marks the organization's geocoding connection, named Geocoding", () => {
+    const geocoding = connection({ providerType: "GEOCODING" });
+
+    expect(isPlatformManaged(geocoding)).toBe(true);
+    expect(connectionTypeName(geocoding, [])).toBe("Geocoding");
+    expect(isPlatformManaged(connection({}))).toBe(false);
   });
 });

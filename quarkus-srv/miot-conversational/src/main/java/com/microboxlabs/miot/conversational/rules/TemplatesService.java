@@ -5,6 +5,8 @@ import static com.microboxlabs.miot.conversational.rules.ConvTemplate.PLATFORM_T
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.microboxlabs.miot.conversational.rules.store.RuleStore;
 import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
+import com.microboxlabs.miot.core.mail.MailTemplateEngine.Rendered;
+import com.microboxlabs.miot.core.mail.NotificationMail;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -27,8 +29,12 @@ import java.util.stream.Collectors;
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class TemplatesService {
 
-    /** {@code tenantCode} names the rule's organization for the platform, and is left out for an organization. */
+    /**
+     * {@code event} is the event type the rule listens to, for the variables a template editor offers.
+     * {@code tenantCode} names the rule's organization for the platform, and is left out for an organization.
+     */
     public record RuleRef(String id, String key, String name, Rule.State state,
+            @JsonInclude(JsonInclude.Include.NON_NULL) String event,
             @JsonInclude(JsonInclude.Include.NON_NULL) String tenantCode) {
     }
 
@@ -44,19 +50,49 @@ public class TemplatesService {
     private record Usage(RuleRef rule, List<String> templateKeys) {
     }
 
+    /** An unsaved email variant and the values to write it with. */
+    public record EmailPreviewRequest(String subject, String html, Map<String, String> values) {
+    }
+
+    /** The email as sent: subject, the whole HTML with the layout, and its text. */
+    public record EmailPreview(String subject, String html, String text) {
+    }
+
     private final RuleStore rules;
     private final TemplateStore templates;
     private final Clock clock;
+    private final NotificationMail layout;
 
     @Inject
-    TemplatesService(RuleStore rules, TemplateStore templates) {
-        this(rules, templates, Clock.systemUTC());
+    TemplatesService(RuleStore rules, TemplateStore templates, NotificationMail layout) {
+        this(rules, templates, Clock.systemUTC(), layout);
     }
 
     public TemplatesService(RuleStore rules, TemplateStore templates, Clock clock) {
+        this(rules, templates, clock, null);
+    }
+
+    TemplatesService(RuleStore rules, TemplateStore templates, Clock clock, NotificationMail layout) {
         this.rules = rules;
         this.templates = templates;
         this.clock = clock;
+        this.layout = layout;
+    }
+
+    /**
+     * Writes an email variant with the given values, inside the layout.
+     *
+     * @throws IllegalArgumentException when the subject or the HTML does not parse
+     */
+    public EmailPreview previewEmail(EmailPreviewRequest request) {
+        if (request == null || blank(request.html())) {
+            throw new IllegalArgumentException("html is required");
+        }
+        String subject = request.subject() == null ? "" : request.subject();
+        Rendered r = NotificationMail.body(subject, request.html(),
+                request.values() == null ? Map.of() : request.values());
+        return new EmailPreview(r.subject(), layout == null ? r.html() : layout.wrap(r.subject(), r.html()),
+                r.text());
     }
 
     /** The platform's templates, each with the organization's rules that use it. */
@@ -88,8 +124,13 @@ public class TemplatesService {
         if (body.whatsapp() != null && blank(body.whatsapp().metaName())) {
             throw new IllegalArgumentException("whatsapp.metaName is required");
         }
-        if (body.email() != null && (blank(body.email().subject()) || blank(body.email().body()))) {
-            throw new IllegalArgumentException("email.subject and email.body are required");
+        if (body.email() != null && (blank(body.email().subject())
+                || (blank(body.email().body()) && blank(body.email().html())))) {
+            throw new IllegalArgumentException("email.subject and email.html are required");
+        }
+        if (body.email() != null && body.email().hasHtml()) {
+            // Fails here, not on the first send, when the HTML or the subject does not parse.
+            NotificationMail.body(body.email().subject(), body.email().html(), Map.of());
         }
         Instant now = clock.instant();
         Optional<ConvTemplate> existing = templates.find(PLATFORM_TENANT, key);
@@ -122,13 +163,19 @@ public class TemplatesService {
         for (Rule r : list) {
             List<RuleVersion> versions = live.getOrDefault(r.id(), List.of());
             List<String> keys = new ArrayList<>();
-            for (RuleVersion v : new RuleVersion[] {RulesService.current(r, versions), RulesService.draft(versions)}) {
+            String event = null;
+            // The draft first: its event is the one the rule will listen to next.
+            for (RuleVersion v : new RuleVersion[] {RulesService.draft(versions), RulesService.current(r, versions)}) {
                 if (v != null) {
-                    RuleSpec.read(v.spec()).steps().forEach(s -> keys.add(s.template()));
+                    RuleSpec spec = RuleSpec.read(v.spec());
+                    spec.steps().forEach(s -> keys.add(s.template()));
+                    if (event == null && spec.trigger() != null) {
+                        event = spec.trigger().event();
+                    }
                 }
             }
-            out.add(new Usage(new RuleRef(r.id(), r.key(), r.name(), r.state(), withTenant ? r.tenantCode() : null),
-                    keys));
+            out.add(new Usage(new RuleRef(r.id(), r.key(), r.name(), r.state(), event,
+                    withTenant ? r.tenantCode() : null), keys));
         }
         return out;
     }

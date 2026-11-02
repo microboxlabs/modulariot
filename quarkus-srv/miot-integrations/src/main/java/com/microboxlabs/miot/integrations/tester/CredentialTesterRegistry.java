@@ -23,14 +23,14 @@ public class CredentialTesterRegistry {
     }
 
     public boolean isTestable(CredentialType type) {
-        return find(type) != null;
+        return find(type, Map.of()) != null;
     }
 
     public CredentialTestResponse test(
             CredentialType type,
             Map<String, Object> publicConfig,
             Map<String, Object> secretConfig) {
-        CredentialTester tester = find(type);
+        CredentialTester tester = find(type, publicConfig == null ? Map.of() : publicConfig);
         if (tester == null) {
             return CredentialTestResponse.failure(
                     "Credentials of type " + type + " cannot be verified on their own");
@@ -38,9 +38,9 @@ public class CredentialTesterRegistry {
         return tester.test(type, publicConfig, secretConfig);
     }
 
-    private CredentialTester find(CredentialType type) {
+    private CredentialTester find(CredentialType type, Map<String, Object> publicConfig) {
         for (CredentialTester tester : testers) {
-            if (tester.supports(type)) {
+            if (tester.supports(type, publicConfig)) {
                 return tester;
             }
         }

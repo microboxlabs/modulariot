@@ -15,7 +15,9 @@ import {
   TextInput,
 } from "flowbite-react";
 import {
+  HiOutlineChartBar,
   HiOutlineClipboardCheck,
+  HiOutlineExclamationCircle,
   HiOutlineInboxIn,
   HiOutlineLocationMarker,
   HiOutlineMap,
@@ -33,6 +35,9 @@ import SectionMenu, {
 } from "@/features/common/components/section-menu";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import GeocodingUsage from "@/features/geocoding/geocoding-usage";
+import ReviewQueue from "@/features/geocoding/review-queue";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import LocationsPanel from "../locations/locations-panel";
 import PendingPanel from "../milestones/pending-panel";
 import FeedsPanel from "../feeds/feeds-panel";
@@ -238,13 +243,26 @@ function MonitorCard({
   );
 }
 
-type TripsSection = "monitors" | "pending" | "locations" | "feeds";
+type TripsSection =
+  | "monitors"
+  | "pending"
+  | "locations"
+  | "feeds"
+  | "geocodingReview"
+  | "geocodingUsage";
 const SECTIONS: readonly TripsSection[] = [
   "monitors",
   "pending",
   "locations",
   "feeds",
+  "geocodingReview",
+  "geocodingUsage",
 ];
+/** Sections listed under the Geocodificación heading; the rest under Viajes. */
+const GEOCODING: ReadonlySet<TripsSection> = new Set([
+  "geocodingReview",
+  "geocodingUsage",
+]);
 
 /** The section in `?section=`; Monitores when absent or unknown. */
 export function tripsSectionOf(params: URLSearchParams): TripsSection {
@@ -260,6 +278,8 @@ const SECTION_ICONS: Record<
   pending: HiOutlineClipboardCheck,
   locations: HiOutlineLocationMarker,
   feeds: HiOutlineInboxIn,
+  geocodingReview: HiOutlineExclamationCircle,
+  geocodingUsage: HiOutlineChartBar,
 };
 
 function MonitorsSection({
@@ -360,7 +380,8 @@ function MonitorsSection({
 
 /**
  * Settings › Viajes, laid out like Comunicaciones: a menu of sections beside the chosen one.
- * Monitores (each with the trips it takes), Por confirmar, Ubicaciones and Feeds.
+ * Monitores (each with the trips it takes), Por confirmar, Ubicaciones and Feeds; under
+ * Geocodificación, the locations to place by hand and the month's usage against the quota.
  */
 export default function MonitorList({
   dict,
@@ -381,6 +402,8 @@ export default function MonitorList({
   const [state, setState] = useState("");
   const [placeQ, setPlaceQ] = useState("");
   const [geofence, setGeofence] = useState("");
+  const [reviewQ, setReviewQ] = useState("");
+  const { activeOrg } = useOrgScopes();
   const [layout, setLayout] = useState<CatalogLayout>("cards");
   const monitors = data ?? [];
   const needle = q.trim().toLowerCase();
@@ -398,6 +421,8 @@ export default function MonitorList({
       (!state || states[state]?.(m))
   );
   const ld = dict?.tripLocations as I18nRecord;
+  const gd = dict?.geocoding as I18nRecord;
+  const rd = gd?.review as I18nRecord;
   const open = (key: string) =>
     router.push(
       `/${lang}/users/settings/trips/monitors/${encodeURIComponent(key)}`
@@ -415,6 +440,9 @@ export default function MonitorList({
     label: tr(`sections.${id}.label`, d),
     description: tr(`sections.${id}.description`, d),
     icon: SECTION_ICONS[id],
+    group: GEOCODING.has(id)
+      ? tr("groups.geocoding", d)
+      : tr("groups.trips", d),
   }));
 
   return (
@@ -459,6 +487,14 @@ export default function MonitorList({
               onChange={setGeofence}
             />
           </>
+        )) ||
+        (section === "geocodingReview" && (
+          <FilterSearch
+            value={reviewQ}
+            onChange={setReviewQ}
+            label={tr("search", rd)}
+            placeholder={tr("search", rd)}
+          />
         ))
       }
       actions={
@@ -524,6 +560,14 @@ export default function MonitorList({
               onCreatingDone={() => setCreatingFeed(false)}
               d={dict?.tripFeeds as I18nRecord}
               md={d}
+            />
+          )}
+          {section === "geocodingReview" && <ReviewQueue q={reviewQ} d={rd} />}
+          {section === "geocodingUsage" && (
+            <GeocodingUsage
+              orgSlug={activeOrg?.slug ?? null}
+              lang={lang}
+              d={gd?.usage as I18nRecord}
             />
           )}
         </div>

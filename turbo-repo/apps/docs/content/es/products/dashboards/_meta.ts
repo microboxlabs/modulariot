@@ -1,7 +1,7 @@
 export default {
   index: 'Resumen',
   'getting-started': 'Primeros pasos',
-  tutorials: 'Tutoriales',
+  tutorials: 'Aprender',
   'how-to': 'Guías prácticas',
   concepts: 'Conceptos',
   deployment: 'Despliegue',

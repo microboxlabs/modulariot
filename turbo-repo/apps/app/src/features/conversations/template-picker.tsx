@@ -17,7 +17,7 @@ import type { ConversationTemplate, MetaTemplate } from "./conversations-types";
 import { findMetaTemplate } from "./meta-template-combobox";
 import MetaTemplatePreview from "./meta-template-preview";
 import { fillText } from "./rule-model";
-import { SAMPLE_VALUES } from "./template-editor";
+import { htmlToText, SAMPLE_VALUES } from "./template-model";
 
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -69,18 +69,29 @@ function Filled({ text }: Readonly<{ text: string }>) {
 
 function EmailPreview({
   template,
-}: Readonly<{ template: ConversationTemplate }>) {
+  connection = false,
+}: Readonly<{ template: ConversationTemplate; connection?: boolean }>) {
   const email = template.email;
+  const text = connection
+    ? connectionPreviewText(template)
+    : email?.body || htmlToText(email?.html ?? "") || template.baseText || "—";
   return (
     <div className="min-w-0 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
       <p className="border-b border-gray-200 px-3 py-2 font-medium text-gray-900 dark:border-gray-700 dark:text-white">
         <Filled text={email?.subject || template.name} />
       </p>
       <p className="whitespace-pre-wrap break-words px-3 py-2">
-        <Filled text={email?.body || template.baseText || "—"} />
+        <Filled text={text || "—"} />
       </p>
     </div>
   );
+}
+
+function connectionPreviewText(template: ConversationTemplate): string {
+  const email = template.email;
+  if (email && !email.html?.trim()) return email.body ?? "";
+  if (template.baseText?.trim()) return template.baseText;
+  return htmlToText(email?.html ?? "");
 }
 
 function WhatsAppPreview({
@@ -149,11 +160,14 @@ export function TemplatePreview({
   d: I18nRecord;
 }>) {
   const parts = previewParts(template, channel);
+  const connection = !["email", "whatsapp", "preferred"].includes(channel);
   return (
     <div className="flex flex-col gap-3">
       {parts.map((p) => (
         <div key={p} className="flex items-start gap-2">
-          {p !== "base" && <ChannelIcon channel={p} size={6} />}
+          {p !== "base" && (
+            <ChannelIcon channel={connection ? channel : p} size={6} />
+          )}
           <div className="min-w-0 flex-1">
             {p !== "base" && template[p] === null && (
               <p className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
@@ -166,7 +180,7 @@ export function TemplatePreview({
               <WhatsAppPreview template={template} meta={meta} d={d} />
             )}
             {p === "email" && template.email && (
-              <EmailPreview template={template} />
+              <EmailPreview template={template} connection={connection} />
             )}
             {p === "base" && (
               <p className="whitespace-pre-wrap break-words rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">

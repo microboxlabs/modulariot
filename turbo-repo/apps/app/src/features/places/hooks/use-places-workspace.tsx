@@ -13,6 +13,8 @@ import useSWR from "swr";
 import type { MapRef, MapMouseEvent } from "react-map-gl";
 import type { Feature, FeatureCollection, Polygon, LineString } from "geojson";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import { useSession } from "next-auth/react";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
 import { anclaLugar, itemsDesdeFC, type ItemNombre } from "../map/place-labels";
 import type { BadgeMapa } from "../map/place-name-layer";
@@ -142,6 +144,7 @@ import {
   borrarBorrador,
   guardarBorrador,
   leerBorrador,
+  prepararTrayectoRestaurado,
   type AmbitoBorrador,
   type Borrador,
 } from "../data/draft-store";
@@ -169,12 +172,18 @@ const fetcher = (url: string) =>
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
   });
-const post = (fn: string, body: Record<string, unknown>) =>
-  fetch(`/app/api/atc/rpc/${fn}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  }).then((r) => r.json());
+const scopedFetcher = ([url]: readonly [string, string]) => fetcher(url);
+function placesReadKey(
+  enabled: boolean,
+  scope: string | null,
+  endpoint: string
+): [string, string] | null {
+  if (!enabled || !scope) return null;
+  return [
+    endpoint.startsWith("/") ? endpoint : `/app/api/atc/rpc/${endpoint}`,
+    scope,
+  ];
+}
 // Como post, pero null cuando el backend no responde (red caída o HTTP != 2xx):
 // el llamador cae al respaldo local.
 const tryPost = async (fn: string, body: Record<string, unknown>) => {
@@ -551,6 +560,12 @@ export function usePlacesWorkspace(
   const runtimeConfig = useRuntimeConfig();
   const MAPBOX_TOKEN = runtimeConfig?.MAPBOX_API_KEY;
   const { carrierMode } = useCarrierMode();
+  const { activeOrg } = useOrgScopes();
+  const { data: session } = useSession();
+  const storageScope =
+    activeOrg?.slug && session?.user?.id
+      ? JSON.stringify([session.user.id, activeOrg.slug])
+      : null;
   const [mapStyle, setMapStyle] = useState<MapStyleName>("streets");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -619,8 +634,10 @@ export function usePlacesWorkspace(
   const confirmar = (titulo: string, nombre: string, accion: () => void) =>
     setConfirmacion({ titulo, nombre, accion });
   const [guardando, setGuardando] = useState(false);
+  // Invalidate late Directions results when the route or identity changes.
+  const rutaSeq = useRef(0);
   // versionado: cómo estaba el elemento al abrirlo, para listar qué cambió
-  const versiones = useVersionesPlaces();
+  const versiones = useVersionesPlaces(storageScope);
   const formOriginal = useRef<FormLugar | null>(null);
   const trayOriginal = useRef<FormTrayecto | null>(null);
   // cómo estaba el formulario al abrirse (nuevo o editado): ¿hay cambios?
@@ -635,31 +652,30 @@ export function usePlacesWorkspace(
   // geocercas: de StreamHub (antes fn_pt4_places); trayectos, categorías y
   // cuotas siguen en PT4
   const { data: propios, mutate: refP } = useSWR<Lugar[]>(
-    enabled ? URL_GEOCERCAS : null,
-    fetcher
+    placesReadKey(enabled, storageScope, URL_GEOCERCAS),
+    scopedFetcher
   );
   const { data: globales } = useSWR<Lugar[]>(
-    enabled && carrierMode ? "/app/api/atc/rpc/fn_pt4_places_global" : null,
-    fetcher
+    placesReadKey(enabled && carrierMode, storageScope, "fn_pt4_places_global"),
+    scopedFetcher
   );
   const { data: trayectos, mutate: refT } = useSWR<Trayecto[]>(
-    enabled ? "/app/api/atc/rpc/fn_pt4_trayectos" : null,
-    fetcher
+    placesReadKey(enabled, storageScope, "fn_pt4_trayectos"),
+    scopedFetcher
   );
   const { data: cats } = useSWR<Categoria[]>(
-    enabled ? "/app/api/atc/rpc/fn_pt4_categorias" : null,
-    fetcher
+    placesReadKey(enabled, storageScope, "fn_pt4_categorias"),
+    scopedFetcher
   );
   const { data: cuotas, mutate: refQ } = useSWR<{
     lugares: Cuota;
     trayectos: Cuota;
   }>(
-    enabled && carrierMode ? "/app/api/atc/rpc/fn_pt4_quota_status" : null,
-    fetcher
+    placesReadKey(enabled && carrierMode, storageScope, "fn_pt4_quota_status"),
+    scopedFetcher
   );
-  const local = useLocalPlaces();
-  // las geocercas de StreamHub (solo lectura) y los lugares de prueba que se
-  // crean aquí, guardados en el navegador
+  const local = useLocalPlaces(storageScope);
+  // StreamHub is read-only; newly created places stay in this browser.
   const todosLugares = useMemo(
     () => fusionarPorId(propios ?? [], local.lugares, (l) => l.place_id),
     [propios, local.lugares]
@@ -1109,6 +1125,8 @@ export function usePlacesWorkspace(
   const seguirPoligono = useCallback(() => setForm(seguirDibujando), []);
   const cancelarPoligono = useCallback(() => setForm(cancelarDibujo), []);
   const cerrarForm = () => {
+    rutaSeq.current++;
+    setGuardando(false);
     formOriginal.current = null;
     trayOriginal.current = null;
     inicialLugar.current = null;
@@ -1177,8 +1195,22 @@ export function usePlacesWorkspace(
     setPasoLugar("geocerca");
   };
 
+  const workspaceScope = useRef(storageScope);
   useEffect(() => {
-    if (enabled) return;
+    if (enabled && workspaceScope.current === storageScope) return;
+    workspaceScope.current = storageScope;
+    rutaSeq.current++;
+    setGuardando(false);
+    salidaPendiente.current = null;
+    badgeHover.current = null;
+    setMenuLugar(null);
+    setTooltipBadge(null);
+    formOriginal.current = null;
+    trayOriginal.current = null;
+    inicialLugar.current = null;
+    inicialTray.current = null;
+    setCierrePendiente(false);
+    setVersionPendiente(null);
     setForm({ ...FORM_VACIO });
     setPasoLugar("geocerca");
     setTray({ ...TRAY_VACIO });
@@ -1192,16 +1224,22 @@ export function usePlacesWorkspace(
     setConfirmacion(null);
     setHoveredPlaceId(null);
     setModo("ver");
-  }, [enabled]);
+  }, [enabled, storageScope]);
   // Abrir, cerrar o guardar un formulario desmonta la lista bajo el mouse (su
   // mouseleave no llega): la geocerca que estaba resaltada deja de estarlo.
   useEffect(() => setHoveredPlaceId(null), [modo]);
   // Borrador: lo abierto se guarda con cada cambio, así al recargar se sigue
   // ahí. Cerrar o guardar (volver a "ver" desde un formulario) lo borra.
   const modoAntes = useRef(modo);
+  const draftScope = useRef(storageScope);
   useEffect(() => {
+    if (draftScope.current !== storageScope) {
+      draftScope.current = storageScope;
+      modoAntes.current = "ver";
+      return;
+    }
     if (modo === "lugar") {
-      guardarBorrador(ambito, {
+      guardarBorrador(ambito, storageScope, {
         tipo: "lugar",
         form,
         paso: pasoLugar,
@@ -1209,7 +1247,7 @@ export function usePlacesWorkspace(
         inicial: inicialLugar.current,
       });
     } else if (modo === "trayecto") {
-      guardarBorrador(ambito, {
+      guardarBorrador(ambito, storageScope, {
         tipo: "trayecto",
         tray,
         paso: pasoTrayecto,
@@ -1221,10 +1259,19 @@ export function usePlacesWorkspace(
       modoAntes.current === "lugar" ||
       modoAntes.current === "trayecto"
     ) {
-      borrarBorrador(ambito);
+      borrarBorrador(ambito, storageScope);
     }
     modoAntes.current = modo;
-  }, [ambito, modo, form, pasoLugar, tray, pasoTrayecto, trayPathAjustado]);
+  }, [
+    ambito,
+    storageScope,
+    modo,
+    form,
+    pasoLugar,
+    tray,
+    pasoTrayecto,
+    trayPathAjustado,
+  ]);
 
   /** Tras recargar el mapa puede no estar montado aún: se espera (≤ 5 s). */
   const cuandoHayaMapa = (accion: () => void, intentos = 50) => {
@@ -1257,7 +1304,7 @@ export function usePlacesWorkspace(
    */
   const restaurarBorrador = (): boolean => {
     if (!puedeEditar || modo !== "ver") return false;
-    const b = leerBorrador(ambito);
+    const b = leerBorrador(ambito, storageScope);
     if (!b) return false;
     setMsg(null);
     if (b.tipo === "lugar") {
@@ -1269,10 +1316,11 @@ export function usePlacesWorkspace(
     } else {
       trayOriginal.current = b.original;
       inicialTray.current = b.inicial;
-      setTray(b.tray);
-      setTrayPathAjustado(b.pathAjustado);
+      const recovered = prepararTrayectoRestaurado(b);
+      setTray(recovered.tray);
+      setTrayPathAjustado(recovered.pathAjustado);
       setPuntoMapaId(null);
-      setPasoTrayecto(b.paso);
+      setPasoTrayecto(recovered.paso);
       setModo("trayecto");
     }
     // la forma a la vista (el mapa recién cargado está en su vista inicial)
@@ -1480,14 +1528,21 @@ export function usePlacesWorkspace(
     }
     const pid = form.place_id ?? res?.place_id;
     if (pid && (form.active_from || form.active_until)) {
-      await post("fn_pt4_set_validity", {
+      const validity = await tryPost("fn_pt4_set_validity", {
         p_place_id: pid,
         p_active_from: form.active_from || null,
         p_active_until: form.active_until || null,
         p_actor: "app-settings",
       });
+      if (!borradoOk(validity)) {
+        conservarGuardadoParcial(pid);
+        return;
+      }
     }
-    if (pid) await persistirHijosServidor(pid, innersOk);
+    if (pid && !(await persistirHijosServidor(pid, innersOk))) {
+      conservarGuardadoParcial(pid);
+      return;
+    }
     anotarVersion(version);
     setGuardando(false);
     setMsg(null);
@@ -1499,6 +1554,15 @@ export function usePlacesWorkspace(
     setForm({ ...FORM_VACIO });
     setPasoLugar("geocerca");
     setModo("ver");
+    refrescarTodo();
+  };
+
+  const conservarGuardadoParcial = (placeId: string) => {
+    setGuardando(false);
+    setForm((current) => ({ ...current, place_id: placeId }));
+    toast.error(
+      "Lugar guardado parcialmente. No se guardaron todos los cambios; conserva la edición para reintentar."
+    );
     refrescarTodo();
   };
 
@@ -1521,19 +1585,22 @@ export function usePlacesWorkspace(
     const quitadas = idsHijosDe(parentId, todosLugares).filter(
       (id) => !keep.has(id)
     );
-    await enSerie(quitadas, async (id) => {
-      await tryPost("fn_pt4_delete_place", {
+    const deleted = await enSerie(quitadas, async (id) => {
+      const response = await tryPost("fn_pt4_delete_place", {
         p_place_id: id,
         p_actor: "app-settings",
       });
-      local.deleteLugar(id);
+      if (borradoOk(response)) local.deleteLugar(id);
+      return response;
     });
-    await enSerie(innersOk, (inner) => {
+    if (!deleted.every(borradoOk)) return false;
+    const saved = await enSerie(innersOk, (inner) => {
       const body = payloadInner(inner, parentId, form);
       return isLocalId(inner.id)
         ? tryPost("fn_pt4_create_place", body)
         : tryPost("fn_pt4_update_place", { p_place_id: inner.id, ...body });
     });
+    return saved.every(borradoOk);
   };
 
   const guardarLugarLocal = (
@@ -1636,7 +1703,7 @@ export function usePlacesWorkspace(
   const centroMapa = useCallback((): [number, number] | null => {
     const c = mapRef.current?.getCenter();
     return c ? [c.lat, c.lng] : null;
-  }, []);
+  }, [mapRef]);
 
   const encuadrarRuta = (pts: [number, number][]) => {
     const map = mapRef.current;
@@ -1655,10 +1722,6 @@ export function usePlacesWorkspace(
       duration: 800,
     });
   };
-
-  // Las respuestas de Directions pueden llegar fuera de orden: solo vale la
-  // de la última petición.
-  const rutaSeq = useRef(0);
 
   // el nombre lo escribe el usuario: trazar no lo completa
   const trazarRuta = async (
@@ -2299,6 +2362,7 @@ export function usePlacesWorkspace(
   };
 
   return {
+    storageScope,
     MAPBOX_TOKEN,
     carrierMode,
     mapStyle,

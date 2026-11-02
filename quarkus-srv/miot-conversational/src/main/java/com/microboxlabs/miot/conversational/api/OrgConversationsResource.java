@@ -17,6 +17,7 @@ import com.microboxlabs.miot.conversational.rules.RuleInvocations;
 import com.microboxlabs.miot.conversational.rules.RuleSimulator.SampleEvent;
 import com.microboxlabs.miot.conversational.rules.RunsService;
 import com.microboxlabs.miot.conversational.rules.TemplatesService;
+import com.microboxlabs.miot.conversational.rules.TemplatesService.EmailPreviewRequest;
 import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateRequest;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplateDraft;
 import com.microboxlabs.miot.conversational.service.WhatsAppTemplatesService;
@@ -319,6 +320,15 @@ public class OrgConversationsResource {
                 .build());
     }
 
+    @POST
+    @Path("/templates/email-preview")
+    @Operation(operationId = "previewConversationTemplateEmail",
+            summary = "An unsaved email variant, written with the given values inside the ModularIoT layout")
+    public Uni<Response> previewTemplateEmail(@PathParam(ORG) String organizationId, EmailPreviewRequest body) {
+        tenantCode(organizationId);
+        return work(() -> Response.ok(templates.previewEmail(body)).build());
+    }
+
     @PUT
     @Path("/templates/{key}")
     @Operation(operationId = "saveConversationTemplate",
@@ -462,8 +472,8 @@ public class OrgConversationsResource {
     @Operation(operationId = "conversationEventCatalog",
             summary = "The event types rules can start on, with their fields and template variables")
     public Uni<Response> catalog(@PathParam(ORG) String organizationId) {
-        tenantCode(organizationId);
-        return work(() -> Response.ok(service.events()).build());
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(service.events(tenant)).build());
     }
 
     @GET

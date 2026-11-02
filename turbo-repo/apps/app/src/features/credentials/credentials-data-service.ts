@@ -3,6 +3,8 @@
 import { ApiError } from "@/features/settings-admin/data/json-client";
 import {
   AUTH0_M2M_PROVIDER,
+  GOOGLE_MAPS_PROVIDER,
+  MAPBOX_PROVIDER,
   RESEND_PROVIDER,
   WHATSAPP_PROVIDER,
   buildAuth0TokenUrl,
@@ -99,9 +101,17 @@ async function sendJson<T>(
  */
 function toApiCredentialType(typeId: CredentialTypeId): CredentialTypeId {
   if (typeId === "AUTH0_M2M") return "OAUTH2_CLIENT_CREDENTIALS";
-  if (typeId === "RESEND" || typeId === "WHATSAPP") return "BEARER_TOKEN";
+  if (TAGGED_BEARER_TYPES.has(typeId)) return "BEARER_TOKEN";
   return typeId;
 }
+
+/** Bearer tokens told apart only by `publicConfig.provider`. */
+const TAGGED_BEARER_TYPES = new Map<CredentialTypeId, string>([
+  ["RESEND", RESEND_PROVIDER],
+  ["WHATSAPP", WHATSAPP_PROVIDER],
+  ["MAPBOX", MAPBOX_PROVIDER],
+  ["GOOGLE_MAPS", GOOGLE_MAPS_PROVIDER],
+]);
 
 function fromApiCredentialType(
   response: CredentialProfileResponse
@@ -112,17 +122,10 @@ function fromApiCredentialType(
   ) {
     return "AUTH0_M2M";
   }
-  if (
-    response.credentialType === "BEARER_TOKEN" &&
-    response.publicConfig?.provider === RESEND_PROVIDER
-  ) {
-    return "RESEND";
-  }
-  if (
-    response.credentialType === "BEARER_TOKEN" &&
-    response.publicConfig?.provider === WHATSAPP_PROVIDER
-  ) {
-    return "WHATSAPP";
+  if (response.credentialType === "BEARER_TOKEN") {
+    for (const [typeId, provider] of TAGGED_BEARER_TYPES) {
+      if (response.publicConfig?.provider === provider) return typeId;
+    }
   }
   return response.credentialType;
 }

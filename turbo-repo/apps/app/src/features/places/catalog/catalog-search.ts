@@ -14,9 +14,11 @@ function conFamilia(lugares: Lugar[], cumple: (l: Lugar) => boolean) {
   for (const l of lugares) {
     const padre = parentPlaceId(l);
     if (padre && hit.has(l.place_id)) hit.add(padre);
-    if (padre && hit.has(padre)) hit.add(l.place_id);
   }
-  return lugares.filter((l) => hit.has(l.place_id));
+  return lugares.filter((l) => {
+    const parent = parentPlaceId(l);
+    return hit.has(l.place_id) || (parent !== null && hit.has(parent));
+  });
 }
 
 export function filtrarLugares(lugares: Lugar[], busca: string): Lugar[] {

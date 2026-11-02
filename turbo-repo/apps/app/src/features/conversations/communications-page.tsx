@@ -42,8 +42,18 @@ import {
   sectionOf,
   sectionsFor,
 } from "./communications-sections";
-import { useConversationRules, useEventCatalog } from "./conversations-api";
-import MetaTemplatesSection from "./meta-templates-section";
+import {
+  useConversationRules,
+  useEventCatalog,
+  useMetaTemplates,
+} from "./conversations-api";
+import MetaTemplatesSection, {
+  type MetaFilters,
+  metaFilterDefs,
+  metaTemplateLabel,
+  NewMetaTemplateButton,
+  NO_META_FILTERS,
+} from "./meta-templates-section";
 import MessageTemplatesPanel, {
   NEW_TEMPLATE,
   platformTemplateHref,
@@ -93,6 +103,9 @@ export default function CommunicationsPage({
     useState<ActivityFilters>(NO_ACTIVITY_FILTERS);
   const [layout, setLayout] = useState<RulesLayout>("cards");
   const [templateChannel, setTemplateChannel] = useState("");
+  const { data: metaTemplates } = useMetaTemplates(section === "meta");
+  const [metaFilters, setMetaFilters] = useState<MetaFilters>(NO_META_FILTERS);
+  const [metaNew, setMetaNew] = useState(false);
   const [newRule, setNewRule] = useState<NewRulePrefill | null>(null);
   // A link from a symptom's Respuesta tab opens the modal already filled in.
   const linked = prefillFrom(params);
@@ -193,10 +206,23 @@ export default function CommunicationsPage({
         set: (_, v) => setTemplateChannel(v),
       };
     }
+    if (section === "meta") {
+      return {
+        defs: metaFilterDefs(metaTemplates ?? [], metaFilters, d),
+        value: (k) => metaFilters[k as keyof MetaFilters],
+        set: (k, v) => {
+          setMetaNew(false);
+          setMetaFilters({ ...metaFilters, [k]: v });
+        },
+      };
+    }
     return null;
   };
   const bar = filterBar();
-  const catalogLayout = section === "rules" || section === "templates";
+  // The Meta section shows its catalog until a template is open.
+  const metaCatalog = section === "meta" && !metaNew && !metaFilters.template;
+  const catalogLayout =
+    section === "rules" || section === "templates" || metaCatalog;
   // Until the scope is known (still loading, or the read failed), render nothing rather than the organization's sections.
   if (!activeOrg) return null;
 
@@ -240,6 +266,15 @@ export default function CommunicationsPage({
               {tr("newRule", d)}
             </Button>
           )}
+          {section === "meta" && (
+            <NewMetaTemplateButton
+              d={d}
+              onNew={() => {
+                setMetaFilters({ ...metaFilters, template: "" });
+                setMetaNew(true);
+              }}
+            />
+          )}
           {section === "templates" && platformScope && (
             <Link
               href={platformTemplateHref(lang, NEW_TEMPLATE)}
@@ -276,7 +311,22 @@ export default function CommunicationsPage({
               readOnly={!platformScope}
             />
           )}
-          {section === "meta" && <MetaTemplatesSection canWrite d={d} />}
+          {section === "meta" && (
+            <MetaTemplatesSection
+              canWrite
+              d={d}
+              layout={layout}
+              filters={metaFilters}
+              creating={metaNew}
+              onOpen={(t) => {
+                setMetaNew(false);
+                setMetaFilters({
+                  ...metaFilters,
+                  template: t ? metaTemplateLabel(t) : "",
+                });
+              }}
+            />
+          )}
           {channel && isConnectionChannel(channel.key) && (
             <ConnectionChannelPanel
               channelKey={channel.key}

@@ -30,6 +30,10 @@ export default {
     title: 'Dashboards',
     href: '/en/products/dashboards'
   },
+  'products-geocoding': {
+    title: 'Geocoding',
+    href: '/en/products/geocoding'
+  },
   products: {
     title: 'Products',
     type: 'page',
@@ -40,6 +44,7 @@ export default {
     type: 'menu',
     items: {
       dashboards: { title: 'Dashboards', href: '/en/products/dashboards' },
+      geocoding: { title: 'Geocoding', href: '/en/products/geocoding' },
       all: { title: 'All products', href: '/en/products' }
     }
   }

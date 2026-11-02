@@ -1,0 +1,49 @@
+# 🔔 Release Notes v0.6.1 — ModularIoT
+
+### Fecha: 31/10/2026
+
+**Objetivo**: Mejorar la gestión de lugares y mapas de viajes, y facilitar la adopción de geocodificación con documentación en español e inglés. Esta versión también separa las notas de la plataforma de las del Coordinator y limita el contenido de la plataforma al milestone OSS correspondiente.
+
+## 🚀 Evolutivos
+
+- **📍 Espacio de trabajo de Places y edición de mapas** (#2277, #2302)
+  - **Punto clave**: Incorpora un espacio para administrar geocercas, áreas interiores y rutas, con búsqueda en el catálogo, importación y exportación e historial local de versiones. El editor añade validación, gestión de cambios sin guardar, borradores reanudables y etiquetas para geocercas de StreamHub en modo de solo lectura.
+  - **Detalle técnico**: Los cambios requieren `controltower:places.edit`; el ámbito del tenant se determina en el servidor. Borradores y cachés se aíslan por usuario y organización activa.
+
+- **🗺️ Asociación de puntos y geocercas en mapas de viajes** (#2275, #2270)
+  - **Punto clave**: Los puntos de viaje resueltos se asocian a una geocerca GPS existente del tenant cuando están dentro de ella, en lugar de crear un círculo nuevo. Los mapas muestran las geocercas del motor propietario del viaje.
+  - **Detalle técnico**: Para varios contenedores se elige el menor `geofence_id`. Los viajes UUID usan Modulith; los viajes numéricos usan RPC heredado cuando está configurada la API AVL. El renderizador admite polígonos y multipolígonos GeoJSON y WKB.
+
+- **📚 Documentación de geocodificación** (#2294, #2295, #2296, #2297, #2298)
+  - **Punto clave**: Se añade documentación en español e inglés con una guía del producto, conceptos, tutoriales y páginas de referencia.
+  - **Detalle técnico**: Cubre proveedores y configuración, cuotas de organización, ubicaciones pendientes de revisión, fuentes de datos, geocercas, APIs, uso, costes y métricas.
+
+- **🧾 Notas de versión de plataforma y Coordinator** (#2272)
+  - **Punto clave**: Las notas de plataforma usan la versión del stack y el milestone exacto `MIOT-<versión>`, sin mezclar cambios de clientes. Las notas del Coordinator conservan su propia versión.
+  - **Detalle técnico**: Ambas colecciones se incluyen en la imagen de la app; una configuración de audiencia selecciona cuáles mostrar y el documento de plataforma se publica en el GitHub Release del stack.
+
+## 📊 Beneficios
+
+- Edición de lugares y rutas más segura, con validación y borradores que se pueden reanudar.
+- Geocercas existentes reutilizadas al resolver ubicaciones, evitando crear círculos superpuestos.
+- Mapas de viajes coherentes con el motor que administra cada viaje.
+- Documentación de geocodificación disponible para equipos hispanohablantes y angloparlantes.
+- Mayor claridad sobre configuración, cuotas, revisión y monitorización del uso de geocodificación.
+- Notas de plataforma centradas en cambios OSS, separadas de las notas del Coordinator y de clientes.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.6.1`
+- App: `app@v0.6.1` (cambios)
+- Docs: `docs@v0.6.1` (cambios)
+- Web: `web@v0.6.1` (cambios)
+- Modulith: `modulith@v0.5.40` (cambios)
+- Harness: `harness@v0.1.14` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la app y en el asset `stack-manifest.json` del release.
+
+## 📌 Conclusión
+
+La versión 0.6.1 fortalece el flujo de gestión geográfica de ModularIoT: facilita la edición de Places, conecta mejor las ubicaciones con las geocercas existentes y representa los datos de acuerdo con el motor responsable de cada viaje.
+
+La documentación bilingüe y la separación de las notas de plataforma y Coordinator hacen más accesibles las capacidades de geocodificación y más claro el alcance de cada release.

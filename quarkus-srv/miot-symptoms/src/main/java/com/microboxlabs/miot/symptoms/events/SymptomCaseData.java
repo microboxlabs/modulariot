@@ -30,5 +30,10 @@ public record SymptomCaseData(
         @Schema(title = "SLA (min)", description = "The level's SLA in minutes; on sla_expired only")
         Integer slaMinutes,
         @Schema(title = "En el nivel desde", description = "When the case reached its level; on sla_expired only")
-        Instant levelSince) {
+        Instant levelSince,
+        @Schema(title = "Volvió la señal", description = "When the vehicle's signal returned; on signal_returned only")
+        Instant signalReturnedAt,
+        @Schema(title = "Volvió con relleno", description = "Frames from inside the silence arrived after it; on "
+                + "signal_returned only")
+        Boolean backfill) {
 }

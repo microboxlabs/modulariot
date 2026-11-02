@@ -242,7 +242,8 @@ public final class RuleSpecValidator {
     private static void variant(List<Finding> out, String section, Step s, ConvTemplate t, String channel) {
         boolean missing = switch (channel == null ? "" : channel) {
             case RuleSpec.WHATSAPP -> t.whatsapp() == null || t.whatsapp().metaName() == null;
-            case RuleSpec.EMAIL -> t.email() == null || t.email().subject() == null || t.email().body() == null;
+            case RuleSpec.EMAIL -> t.email() == null || t.email().subject() == null
+                    || (t.email().body() == null && !t.email().hasHtml());
             case RuleSpec.PREFERRED -> t.whatsapp() == null && t.email() == null;
             default -> false;
         };

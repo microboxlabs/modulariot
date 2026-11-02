@@ -1,0 +1,95 @@
+import { Callout } from 'nextra/components'
+
+# Usage, cost and monitoring
+
+**For:** product owners, customers and platform owners.
+
+## What is charged
+
+Only a provider call has a cost. Everything else is free and uses no quota.
+
+| Source | Cost | Uses quota |
+| --- | --- | --- |
+| Geofence, Plus Code, coordinates | None | No |
+| Internal addresses | None | No |
+| Cache | None | No |
+| Provider | One call | Yes |
+| Place by hand, reject | None | No |
+
+A call is charged when the provider responds, even if the place needs review.
+
+## Two different prices
+
+| Price | Who pays whom | Where it is set |
+| --- | --- | --- |
+| Cost per call | The platform pays the provider | **Platform geocoding** connection |
+| Plan: monthly price, included calls, price per call over the quota | The organization pays the platform | Settings › Platform › Geocoding › Plan |
+
+An organization's charge in a month:
+
+```text
+charge = monthly price + (calls over the quota × overage price)
+```
+
+Overage is charged only if the subscription says **Charge overage**. With **Send to review** and **Apply the quotas** on, when the quota runs out the platform stops calling and new places go to review.
+
+With **Apply the quotas** off, no call is refused. An organization on **Send to review** keeps calling over its quota: those calls are not charged to it, but the provider charges them to the platform.
+
+## Cost per trip
+
+A place is located once. Later trips to the same place use its geofence. The cost depends on how many new places appear, not on how many trips there are.
+
+Example with assumed values:
+
+| Assumption | Value |
+| --- | --- |
+| Trips per month | 3,000 |
+| New places in the first month | 200 |
+| Of those, resolved by geofence, Plus Code, internal addresses or cache | 120 |
+| New places in later months | 20, of which 8 go to the provider |
+| Cost per call | US$0.005 |
+
+| Month | Provider calls | Provider cost | Provider cost per trip (paid by the platform) |
+| --- | --- | --- | --- |
+| First | 80 | US$0.40 | US$0.00013 |
+| Later | 8 | US$0.04 | US$0.000013 |
+
+What lowers the cost most: geofences already drawn for frequent places, Plus Code in the spreadsheet and addresses written as in the internal sources.
+
+## Where to see it
+
+| Who | Where | What they see |
+| --- | --- | --- |
+| Organization owner | Settings › Trips › Monthly usage | Calls against the quota, resolutions by source and result, cache hits, plan charge |
+| Platform owner | Settings › Platform › Geocoding › Organizations | Per organization: used / quota, cache, provider cost, charge, mode when used up |
+| Operations | Settings › Trips › To review | Places without a reliable point and the reason |
+| Technical team | `geocoding.*` metrics | Resolutions, cache, provider latency and errors, quota refusals |
+
+![An organization's monthly usage](/geocoding/org-monthly-usage.png)
+
+## Alerts
+
+When an organization with a subscription and a quota greater than zero reaches the plan's alert percentage (80 % by default), the platform publishes the `geocoding.quota.threshold` event, once per month.
+
+<Callout type="warning">
+**Pitfall:** the event does not send messages on its own. For someone to receive the alert, create a rule on that event in the organization. The platform owner receives no alert; check the Organizations table with the **On alert** or **Used up** filter.
+</Callout>
+
+## Audit
+
+| Record | What it answers |
+| --- | --- |
+| Geocoding usage | How many resolutions, from which source, how many to the provider and at what cost, per organization and month |
+| Trips audit | Who resolved, placed by hand or rejected each place, and with which source and geofence |
+| Feed jobs (Integrations › Job console) | Which places each feed service tried to locate |
+| Terms history | Which plan and which quota applied in each month |
+
+Details of tables and metrics in [Data and metrics](/en/products/geocoding/reference/data-and-metrics).
+
+## Risks by country
+
+| Country | Risk | Mitigation |
+| --- | --- | --- |
+| Chile | Low for addresses with a number in districts with internal data | Write street and number as in the official register |
+| Peru | High: the provider is not certified; many addresses go to review or fall in another district | Plus Code or coordinates in the spreadsheet; drawn geofences |
+| Others | Everything goes to review: no administrative boundaries are loaded | [Certify the country](/en/products/geocoding/how-to/certify-a-country) before offering it |

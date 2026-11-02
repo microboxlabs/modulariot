@@ -12,7 +12,11 @@ import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import wkx, { Geometry } from "wkx";
+import type { Geometry } from "geojson";
+import {
+  geofenceGeometry,
+  geofencePinPosition,
+} from "../utils/geofence-geometry";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
@@ -57,9 +61,9 @@ import {
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
-  ringCentroid,
   estimateEtaHours,
   formatEtaHours,
+  ringCentroid,
 } from "../utils/vehicle-origin";
 import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
 
@@ -77,7 +81,7 @@ type Zone = {
   location_type: any;
   id: string;
   name: string;
-  location: string;
+  location: string | GeoJSON.Geometry;
 };
 
 type GeofenceData = {
@@ -334,15 +338,6 @@ export default function MapVisualizationTrip({
     setLugaresAbierto(abierto);
     onLugaresChange?.(abierto);
   };
-  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
-  // (el editor retoma el borrador al abrirse)
-  const borradorRevisado = useRef(false);
-  useEffect(() => {
-    if (!puedeEditarLugares || borradorRevisado.current) return;
-    borradorRevisado.current = true;
-    if (!lugaresAbierto && hayBorrador("viaje")) cambiarLugares(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeEditarLugares]);
   const [zoom, setZoom] = useState(2);
   const alCambioZoom = (z: number) => {
     const next = Math.round((z || 2) * 10) / 10;
@@ -367,6 +362,21 @@ export default function MapVisualizationTrip({
     zoom,
     ambito: "viaje",
   });
+  // tras recargar con un lugar o trayecto a medio editar: reabrir Lugares
+  // (el editor retoma el borrador al abrirse)
+  const borradorRevisado = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !lugares.ws.storageScope ||
+      !puedeEditarLugares ||
+      borradorRevisado.current === lugares.ws.storageScope
+    )
+      return;
+    borradorRevisado.current = lugares.ws.storageScope;
+    if (!lugaresAbierto && hayBorrador("viaje", lugares.ws.storageScope))
+      cambiarLugares(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeEditarLugares, lugares.ws.storageScope]);
 
   // cerrar Lugares con cambios sin guardar: igual que el ✕ del formulario
   const alternarLugares = () => {
@@ -526,13 +536,11 @@ export default function MapVisualizationTrip({
       const features = geofence_data?.data
         ?.filter((item: GeofenceData) => item.zone.location !== null)
         .map((item: GeofenceData) => {
-          const wkbHexString = item.zone.location;
-          const wkbBuffer = Buffer.from(wkbHexString, "hex");
-          const geometry = wkx.Geometry.parse(wkbBuffer);
+          const geometry = geofenceGeometry(item.zone.location);
 
           return {
             type: "Feature",
-            geometry: geometry.toGeoJSON(),
+            geometry,
             properties: {
               id: item.zone.id,
               name: item.zone.name,
@@ -570,15 +578,7 @@ export default function MapVisualizationTrip({
     const origin = processedGeofence?.features.find(
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
-    const geometry = origin?.geometry as
-      | { type?: string; coordinates?: LngLat[][] }
-      | undefined;
-    // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
-    // MultiPolygon (or malformed payload) would make ringCentroid throw.
-    if (geometry?.type !== "Polygon") return null;
-    const ring = geometry.coordinates?.[0];
-    if (!Array.isArray(ring)) return null;
-    return ringCentroid(ring);
+    return origin ? geofencePinPosition(origin.geometry) : null;
   }, [processedGeofence]);
 
   const vehicle =

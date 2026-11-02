@@ -44,8 +44,16 @@ public final class EventCatalog {
     }
 
     public List<EventTypeView> types() {
+        return types(false);
+    }
+
+    /** {@code platform}: only the types that reach the platform's tenant ({@link EventTypeCatalog#platform()}). */
+    public List<EventTypeView> types(boolean platform) {
         List<EventTypeView> out = new ArrayList<>();
         for (EventTypeCatalog c : catalogs) {
+            if (platform && !c.platform()) {
+                continue;
+            }
             for (EventTypeCatalog.EventType t : c.types()) {
                 List<Field> fields = fields(t.data());
                 out.add(new EventTypeView(t.type(), c.source(), t.description(), c.contextKind(), fields,

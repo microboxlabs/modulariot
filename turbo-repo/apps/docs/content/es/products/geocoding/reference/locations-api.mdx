@@ -1,0 +1,182 @@
+import { Callout } from 'nextra/components'
+
+# API de ubicaciones
+
+**Para:** desarrolladores.
+
+Base: `/api/v1/orgs/{org}/trips/locations`. `{org}` es el identificador de la organización. Todas las rutas reciben y devuelven JSON y piden `Authorization: Bearer <token>`: el token de sesión de un usuario o una clave de cuenta de servicio (`miot_sk_...`).
+
+| Método | Ruta | Permiso | Qué hace |
+| --- | --- | --- | --- |
+| `GET` | `/` | `trips:view` | Lista ubicaciones |
+| `POST` | `/resolve` | `trips:location.write` | Ubica uno o varios sitios |
+| `PUT` | `/{id}/point` | `trips:location.write` | Fija el punto a mano |
+| `POST` | `/{id}/reject` | `trips:location.write` | Marca la ubicación como imposible de ubicar |
+| `POST` | `/` | `trips:location.write` | Crea una ubicación sin ubicarla |
+| `PATCH` | `/{id}` | `trips:location.write` | Cambia nombre, tipo o código |
+| `PUT` | `/{id}/geofence` | `trips:location.write` | Enlaza una geocerca existente, o ninguna |
+| `GET` | `/geofences` | `trips:view` | Busca geocercas GPS de la organización |
+
+`trips:location.write` está en el rol **Mantenedor** de Viajes.
+
+## `POST /resolve`
+
+Ubica un sitio (un objeto) o varios (un arreglo de hasta 200). Ver el orden de las fuentes en [Cómo se elige la fuente](/es/products/geocoding/tutorials/resolution-order).
+
+### Cuerpo
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `locationId` | string (UUID) | Ubicación existente a resolver. Si no existe: `404` |
+| `externalCode` | string, hasta 128 | Código del lugar en su sistema. Busca la ubicación con ese código; si no existe, la crea |
+| `name` | string, hasta 255 | Nombre, solo al crear. Por defecto, `externalCode` |
+| `type` | `plant`, `port`, `distribution_center`, `customer`, `zone` | Tipo, solo al crear. Por defecto, `zone`. Define el radio de la geocerca |
+| `address` | string | Dirección: calle y número antes de la primera coma |
+| `country` | string | ISO 3166-1 alfa-2 (`CL`, `PE`) |
+| `districtCode` | string, hasta 16 | Chile: código de comuna (CUT). Perú: ubigeo |
+| `district` | string, hasta 255 | Nombre de la comuna o distrito. Si se envían los dos, gana `districtCode` |
+| `plusCode` | string | Plus Code completo, o corto con la comuna |
+| `latitude`, `longitude` | número | Grados decimales, WGS 84. Van juntos |
+
+Se usa la primera ubicación que aplique: `locationId`, después `externalCode`, después una nueva. Los campos de ubicación que no se envían (`address`, `country`, `districtCode`, `district`, `plusCode`, `latitude`, `longitude`) toman el valor guardado. Un campo desconocido es un error.
+
+<Callout type="warning">
+**Cuidado:** si la ubicación tiene un punto guardado y la petición no trae `plusCode`, `latitude` ni `longitude`, se usa el Plus Code guardado (después de buscar una geocerca por código o nombre). La fuente pasa a `plus_code` y la dirección no se vuelve a consultar.
+</Callout>
+
+### Respuesta a un objeto
+
+`200` con una [ubicación](#la-ubicación). Un sitio que queda en revisión también responde `200`: revise `resolutionStatus`.
+
+### Respuesta a un arreglo
+
+`200` con un resultado por sitio, en el mismo orden:
+
+| Campo | Descripción |
+| --- | --- |
+| `index` | Posición del sitio en la petición, desde 0 |
+| `location` | La ubicación, o `null` si el sitio falló |
+| `error` | El motivo, o `null` |
+
+Un sitio que falla no detiene a los demás. Un error inesperado de un sitio da `error: "could not resolve site"`.
+
+### Errores
+
+| Código | `error` | Cuándo |
+| --- | --- | --- |
+| `400` | `a site must be a JSON object` | Un elemento del arreglo, o el cuerpo, no es un objeto |
+| `400` | `a site is not valid: …` | Un campo desconocido o de otro tipo |
+| `400` | `sites are required` | Arreglo vacío |
+| `400` | `at most 200 sites per request` | Más de 200 sitios |
+| `400` | `locationId must be a UUID` | |
+| `400` | `name is required` | Ubicación nueva sin `name` ni `externalCode` |
+| `400` | `type must be one of plant, port, distribution_center, customer, zone` | |
+| `400` | `location must be at most 128 characters` | `externalCode` de más de 128 caracteres |
+| `404` | `location not found` | `locationId` que no existe |
+| `401`, `403` | | Sin token, o sin `trips:location.write` |
+| `500` | | Error inesperado al resolver un objeto. En un arreglo, ese sitio da `could not resolve site` |
+
+En un arreglo, estos errores salen en el `error` de cada sitio, salvo los de tamaño del arreglo.
+
+### Idempotencia
+
+Repetir una petición con el mismo `externalCode` no crea ubicaciones ni geocercas nuevas. La geocerca creada tiene como código el `externalCode` (o el `id` si no hay código), y la creación usa ese código: si dos peticiones del mismo lugar llegan a la vez, la segunda encuentra la geocerca de la primera.
+
+Dos peticiones simultáneas con un `externalCode` que aún no existe pueden chocar al crear la ubicación. Envíe los sitios nuevos de un mismo lugar en serie.
+
+Cada sitio que llega a resolverse escribe una fila de uso; un `400` o `404` previo no. Si una repetición llega al proveedor, se cobra otra vez. Una dirección que ya resolvió el proveedor sale de la caché y no se cobra.
+
+Una ubicación resuelta que se vuelve a resolver y queda en `needs_review` conserva su `geofenceId` anterior.
+
+## `PUT /{id}/point`
+
+Fija el punto a mano. Se comprueba contra la comuna, con la misma tolerancia de 500 m. No busca geocercas existentes: crea o mueve una geocerca propia del lugar, con el `id` de la ubicación como código. La fuente queda `manual`.
+
+| Campo | Descripción |
+| --- | --- |
+| `plusCode` | Plus Code del punto |
+| `latitude`, `longitude` | Coordenadas del punto |
+| `country`, `districtCode`, `district` | Para cambiar el país o la comuna junto con el punto |
+
+Envíe un Plus Code o coordenadas. Si envía los dos, gana el Plus Code; si es inválido, se usan las coordenadas. Sin punto en la petición, se usa el punto guardado.
+
+| Código | Cuándo |
+| --- | --- |
+| `200` | La ubicación, con `resolutionStatus: "resolved"` y `resolutionSource: "manual"` |
+| `400` | El punto no pasa la comprobación. El `error` es la nota, por ejemplo `the point is in Quilicura (13125), not in Santiago (13101)`, o `no geofence, plus code or coordinates` sin punto |
+| `400` | `the geofence is managed outside this location`: ya existe una geocerca con el `id` de la ubicación como código, y no la creó esta ubicación |
+| `400` | `id must be a UUID`, `body is required` |
+| `404` | `location not found` |
+| `409` | `the GPS database is not configured`. La ubicación queda guardada en `needs_review` con esa nota |
+
+No escribe fila de uso.
+
+## `POST /{id}/reject`
+
+| Campo | Descripción |
+| --- | --- |
+| `note` | Motivo, hasta 255 caracteres. Opcional |
+
+Responde `200` con la ubicación en `resolutionStatus: "rejected"`. El punto y la geocerca no cambian. El feed no vuelve a intentar una ubicación rechazada. No escribe fila de uso.
+
+| `400` / `404` | Cuándo |
+| --- | --- |
+| `note must be at most 255 characters` | |
+| `id must be a UUID` | |
+| `location not found` | |
+
+## `GET /`
+
+| Parámetro | Descripción |
+| --- | --- |
+| `q` | Texto en nombre o código |
+| `type` | Tipo de lugar |
+| `status` | `resolved`, `needs_review` o `rejected` |
+| `page` | Página, desde 0 |
+| `size` | 1 a 200. Por defecto, 50 |
+
+Responde `200` con un arreglo de ubicaciones. `400` con `size must be between 1 and 200`, `page must be an integer`, `size must be an integer` o `status must be one of resolved, needs_review, rejected`.
+
+## `POST /` y `PATCH /{id}`
+
+| Campo | Descripción |
+| --- | --- |
+| `name` | Hasta 255. Obligatorio al crear |
+| `type` | `plant`, `port`, `distribution_center`, `customer`, `zone`. Obligatorio al crear |
+| `externalCode` | Hasta 128. En `PATCH`, vacío lo borra |
+| `geomGeojson` | Forma propia, GeoJSON |
+
+`POST` responde `201`, `PATCH` responde `200`. Ninguno ubica el lugar ni crea geocerca.
+
+Radio de la geocerca que crea una resolución, por tipo: `port` 1000 m, `plant` 500 m, `distribution_center` 300 m, `zone` 200 m, `customer` 150 m.
+
+## `PUT /{id}/geofence`
+
+Enlaza la ubicación con una geocerca existente de la organización, sin ubicarla: `{ "geofenceId": 1205 }`. Con `null` o `{}` la desenlaza. Una geocerca que no existe da `400` con `geofence 1205 not found`; una ubicación que no existe, `404`. No cambia `resolutionStatus`. Registra `location.geofence_linked`.
+
+## `GET /geofences`
+
+| Parámetro | Descripción |
+| --- | --- |
+| `q` | Texto en nombre o código de la geocerca |
+| `size` | 1 a 200. Por defecto, 50 |
+
+Responde `[{ "id": 1205, "code": "SCL", "name": "…" }]`. Sin base GPS configurada, responde `[]`.
+
+## La ubicación
+
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `id` | UUID | |
+| `name`, `type`, `externalCode` | string | |
+| `geomGeojson` | objeto o `null` | Forma propia de la ubicación, si se cargó al crearla |
+| `geofenceId` | entero o `null` | Geocerca GPS que usan los viajes |
+| `address` | string o `null` | Como se declaró |
+| `country` | string o `null` | En mayúsculas |
+| `districtCode`, `district` | string o `null` | Código y nombre oficiales si la comuna se encontró. Si no, lo que se envió |
+| `plusCode` | string o `null` | Plus Code completo del punto encontrado |
+| `latitude`, `longitude` | número o `null` | Punto encontrado, también en revisión |
+| `resolutionSource` | string o `null` | `geofence`, `plus_code`, `coordinates`, `internal`, `provider` o `manual` |
+| `resolutionStatus` | string o `null` | `resolved`, `needs_review`, `rejected`. `null` si nunca se intentó |
+| `resolutionNote` | string o `null` | Motivo de revisión o de rechazo. Ver [Motivos de revisión](/es/products/geocoding/reference/review-notes) |
+| `createdAt`, `updatedAt` | fecha ISO 8601 | |

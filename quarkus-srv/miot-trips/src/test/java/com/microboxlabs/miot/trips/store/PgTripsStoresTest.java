@@ -3,6 +3,7 @@ package com.microboxlabs.miot.trips.store;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -114,7 +115,10 @@ class PgTripsStoresTest {
             "/db/migration/trips/V0.10.21__create_trip_documents.sql",
             "/db/migration/trips/V0.10.22__monitor_scope.sql",
             "/db/migration/trips/V0.10.23__validate_monitor_scopes.sql",
-            "/db/migration/trips/V0.10.24__feed_registers_resources.sql"};
+            "/db/migration/trips/V0.10.24__feed_registers_resources.sql",
+            "/db/migration/trips/V0.10.25__location_resolution.sql",
+            "/db/migration/trips/V0.10.26__geocode_cache.sql",
+            "/db/migration/trips/V0.10.27__feed_country.sql"};
 
     /** Drops and re-creates the miot_fleet and miot_trips schemas and the content table. Every Pg test starts here. */
     static void recreateSchemas(Pool pool) throws IOException {
@@ -310,7 +314,7 @@ class PgTripsStoresTest {
     void aFeedKeepsItsProfileAndTheLastStateOfEachService() {
         String tenant = tenant();
         PgFeedStore feeds = new PgFeedStore(() -> pool);
-        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios",
+        FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios", null,
                 List.of(new FeedProfile.StagePlan("preparation", "ADDED"),
                         new FeedProfile.StagePlan("transit", "SCHEDULED"),
                         new FeedProfile.StagePlan("closing", "FINISHED")),
@@ -320,7 +324,7 @@ class PgTripsStoresTest {
         assertEquals(List.of("preparation", "transit", "closing"),
                 saved.stages().stream().map(FeedProfile.StagePlan::stageType).toList());
         assertEquals(Set.of("truck", "driver"), saved.requiredResources());
-        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2",
+        FeedProfile renamed = feeds.saveProfile(new FeedProfile(tenant, "servicios", "Servicios v2", null,
                 saved.stages(), "closing", saved.requiredResources(), true, true, null, ACTOR, null, ACTOR));
         assertEquals("Servicios v2", renamed.name());
         assertEquals(1, feeds.profiles(tenant).size(), "saving again replaces the profile");
@@ -338,15 +342,44 @@ class PgTripsStoresTest {
     }
 
     @Test
+    void feedCountryCanBeCreatedReadUpdatedAndCleared() {
+        String tenant = tenant();
+        PgFeedStore feeds = new PgFeedStore(() -> pool);
+        FeedProfile profile = new FeedProfile(tenant, "country-feed", "Country feed", "CL",
+                List.of(new FeedProfile.StagePlan("transit", "SCHEDULED")), "transit", Set.of(),
+                true, true, null, ACTOR, null, ACTOR);
+        assertEquals("CL", feeds.createProfile(profile).orElseThrow().country());
+        assertEquals("CL", feeds.profile(tenant, profile.feedKey()).orElseThrow().country());
+        assertEquals("CL", feeds.profiles(tenant).getFirst().country());
+        assertTrue(feeds.profile(tenant(), profile.feedKey()).isEmpty());
+        for (String country : java.util.Arrays.asList("PE", null)) {
+            FeedProfile saved = feeds.saveProfile(new FeedProfile(tenant, profile.feedKey(), profile.name(), country,
+                    profile.stages(), profile.arrivalStage(), profile.requiredResources(), true, true,
+                    null, ACTOR, null, ACTOR));
+            assertEquals(country, saved.country());
+            assertEquals(country, feeds.profile(tenant, profile.feedKey()).orElseThrow().country());
+        }
+        var update = pool.preparedQuery("""
+                UPDATE miot_trips.feed_profile SET country = $1 WHERE tenant_code = $2
+                """);
+        for (String country : List.of("cl", "C1", "C", "CHL")) {
+            // Nothing runs until atMost: the Uni and its await are lazy.
+            var execution = update.execute(io.vertx.mutiny.sqlclient.Tuple.of(country, tenant)).await();
+            assertThrows(RuntimeException.class, () -> execution.atMost(WAIT));
+        }
+    }
+
+    @Test
     void feedAuditActorsAndJsonTypesArePreserved() {
         String tenant = tenant();
         PgFeedStore feeds = new PgFeedStore(() -> pool);
-        FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed",
+        FeedProfile profile = new FeedProfile(tenant, "test-feed", "Test feed", null,
                 List.of(new FeedProfile.StagePlan("preparacion", "ADDED")),
                 "preparacion", Set.of(), true, true, null, "creator", null, null);
         FeedProfile created = feeds.saveProfile(profile);
+        assertNull(created.country());
         assertEquals("creator", created.createdBy());
-        FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed",
+        FeedProfile updated = feeds.saveProfile(new FeedProfile(tenant, "test-feed", "Updated feed", null,
                 profile.stages(), "preparacion", Set.of(), true, true,
                 null, "ignored-creator", null, "updater"));
         assertEquals("creator", updated.createdBy());
@@ -399,6 +432,81 @@ class PgTripsStoresTest {
                 OffsetDateTime.now(ZoneOffset.UTC), null, trip.createdAt(), trip.createdBy(), null, ACTOR));
         projector.refresh(tenant, tripId);
         assertTrue(live.find(tenant, tripId).isEmpty(), "completed kills the hot row");
+    }
+
+    @Test
+    void aPlacementIsStoredAndListedByStatus() {
+        String tenant = tenant();
+        Location cd = locations.insert(new Location(null, tenant, "CD Lima", "distribution_center", "CD-01",
+                null, null, ACTOR, null, ACTOR));
+        Location.Placement review = new Location.Placement("Av. Larco 101", "PE", "150122", "MIRAFLORES", null,
+                null, null, null, Location.NEEDS_REVIEW, "no geofence, plus code or coordinates");
+        locations.setPlacement(tenant, UUID.fromString(cd.id()), review, null, ACTOR).orElseThrow();
+        assertEquals(List.of(cd.id()), locations.list(tenant, null, null, Location.NEEDS_REVIEW, 0, 10).stream()
+                .map(Location::id).toList());
+
+        Location placed = locations.setPlacement(tenant, UUID.fromString(cd.id()), review.withResult(
+                "57V4VXHC+H4", -12.1211, -77.0297, "plus_code", Location.RESOLVED, null), 77, ACTOR).orElseThrow();
+        assertEquals(77, placed.geofenceId());
+        assertEquals(-12.1211, placed.placement().latitude());
+        assertEquals("PE", placed.placement().country());
+        assertTrue(locations.list(tenant, null, null, Location.NEEDS_REVIEW, 0, 10).isEmpty());
+
+        Location rejected = locations.setPlacement(tenant, UUID.fromString(cd.id()),
+                placed.placement().withResult(null, null, null, null, Location.REJECTED, "x"), null, ACTOR)
+                .orElseThrow();
+        assertEquals(77, rejected.geofenceId(), "a null geofence keeps the link");
+        assertTrue(locations.setPlacement("other-tenant", UUID.fromString(cd.id()), review, null, ACTOR).isEmpty());
+    }
+
+    @Test
+    void aGeofencePlacementAppliesOnlyWhileTheLocationIsOpen() {
+        String tenant = tenant();
+        Location yard = locations.insert(new Location(null, tenant, "Yard", "zone", "YD-01", null, null, ACTOR,
+                null, ACTOR));
+        Location.Placement at = Location.Placement.NONE.withResult("57V4VXHC+H4", -12.1211, -77.0297, "geofence",
+                Location.RESOLVED, null);
+        UUID id = UUID.fromString(yard.id());
+
+        Location linked = locations.setPlacementIfOpen(tenant, id, at, 501, ACTOR).orElseThrow();
+        assertEquals(501, linked.geofenceId());
+        assertEquals(Location.RESOLVED, linked.placement().status());
+        assertTrue(locations.setPlacementIfOpen(tenant, id, at, 502, ACTOR).isEmpty(), "already linked");
+
+        Location rejectedYard = locations.insert(new Location(null, tenant, "Rejected", "zone", "YD-02", null, null,
+                ACTOR, null, ACTOR));
+        UUID rejectedId = UUID.fromString(rejectedYard.id());
+        locations.setPlacement(tenant, rejectedId, Location.Placement.NONE.withResult(null, null, null, null,
+                Location.REJECTED, "x"), null, ACTOR).orElseThrow();
+        assertTrue(locations.setPlacementIfOpen(tenant, rejectedId, at, 501, ACTOR).isEmpty(), "rejected stays");
+        assertNull(locations.find(tenant, rejectedId).orElseThrow().geofenceId());
+        assertTrue(locations.setPlacementIfOpen("other-tenant", id, at, 501, ACTOR).isEmpty());
+    }
+
+    @Test
+    void aGeocodedPointIsCachedByAddressAndCountryAndReplaced() {
+        PgGeocodeCache cache = new PgGeocodeCache(() -> pool);
+        assertTrue(cache.find("AV LARCO 101 MIRAFLORES", "PE").isEmpty());
+
+        cache.put("AV LARCO 101 MIRAFLORES", "PE",
+                new GeocodeCache.Entry(-12.1211, -77.0297, "provider", "mapbox", null));
+        cache.put("AV LARCO 101 MIRAFLORES", "PE",
+                new GeocodeCache.Entry(-12.1212, -77.0298, "provider", "mapbox", null));
+
+        GeocodeCache.Entry entry = cache.find("AV LARCO 101 MIRAFLORES", "PE").orElseThrow();
+        assertEquals(-12.1212, entry.lat());
+        assertEquals("mapbox", entry.provider());
+        assertNotNull(entry.resolvedAt());
+        assertTrue(cache.find("AV LARCO 101 MIRAFLORES", "CL").isEmpty());
+
+        String tenant = tenant();
+        Location cd = locations.insert(new Location(null, tenant, "CD", "customer", "CD-02", null, null, ACTOR,
+                null, ACTOR));
+        Location.Placement p = new Location.Placement("Av. Larco 101", "PE", "150122", "MIRAFLORES", null, null,
+                null, null, null, null);
+        assertEquals("provider", locations.setPlacement(tenant, UUID.fromString(cd.id()),
+                p.withResult("57V4VXHC+H4", -12.1211, -77.0297, "provider", Location.RESOLVED, null), 78, ACTOR)
+                .orElseThrow().placement().source());
     }
 
     @Test

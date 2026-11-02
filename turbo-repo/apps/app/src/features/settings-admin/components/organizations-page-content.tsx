@@ -120,11 +120,17 @@ export default function OrganizationsPageContent({
         <PlatformOrgDetailPanel
           organization={selectedOtherOrg}
           dict={orgsDict}
+          lang={lang}
         />
       );
     }
     return (
-      <OrgDetailPanel organization={selectedOrganization} dict={orgsDict} />
+      <OrgDetailPanel
+        organization={selectedOrganization}
+        dict={orgsDict}
+        lang={lang}
+        isPlatformOwner={isPlatformOwner}
+      />
     );
   };
 

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.microboxlabs.miot.core.mail.MailTemplateEngine;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
@@ -13,6 +14,7 @@ import java.util.regex.Pattern;
 public final class TemplateBump {
 
     private static final Pattern VARIABLE = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.]+)\\s*}}");
+    private static final MailTemplateEngine EMAIL_ENGINE = new MailTemplateEngine();
 
     private TemplateBump() {
     }
@@ -35,13 +37,18 @@ public final class TemplateBump {
         return same ? null : RuleBump.PATCH;
     }
 
-    /** The variables the template reads: {@code {{x}}} in its texts and its WhatsApp parameters. */
+    /** The variables in its texts, HTML email expressions and WhatsApp parameters. */
     static Set<String> variables(ConvTemplate t) {
         Set<String> out = new TreeSet<>();
         collect(t.baseText(), out);
         if (t.email() != null) {
-            collect(t.email().subject(), out);
-            collect(t.email().body(), out);
+            if (t.email().hasHtml()) {
+                out.addAll(EMAIL_ENGINE.variables(t.email().subject()));
+                out.addAll(EMAIL_ENGINE.variables(t.email().html()));
+            } else {
+                collect(t.email().subject(), out);
+                collect(t.email().body(), out);
+            }
         }
         if (t.whatsapp() != null) {
             out.addAll(t.whatsapp().params());

@@ -48,6 +48,7 @@ describe("geocoding", () => {
     expect(xs).toHaveLength(1);
     const url = new URL(fetchMock.mock.calls[0]![0] as string);
     expect(url.pathname).toBe("/search/geocode/v6/forward");
+    expect(url.searchParams.get("permanent")).toBe("true");
     expect(url.searchParams.get("country")).toBe("cl");
     expect(url.searchParams.get("proximity")).toBe("-70,-33");
   });
@@ -82,6 +83,7 @@ describe("geocoding", () => {
     );
     const url = new URL(fetchMock.mock.calls[0]![0] as string);
     expect(url.pathname).toBe("/search/geocode/v6/reverse");
+    expect(url.searchParams.get("permanent")).toBe("true");
     expect(url.searchParams.get("longitude")).toBe("-70.65");
     expect(url.searchParams.get("latitude")).toBe("-33.44");
   });

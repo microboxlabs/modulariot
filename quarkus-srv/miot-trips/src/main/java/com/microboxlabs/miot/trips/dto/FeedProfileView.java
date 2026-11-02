@@ -7,6 +7,7 @@ import java.util.List;
 public record FeedProfileView(
         String feedKey,
         String name,
+        String country,
         List<FeedProfile.StagePlan> stages,
         String arrivalStage,
         List<String> requiredResources,
@@ -17,7 +18,7 @@ public record FeedProfileView(
         String updatedBy) {
 
     public static FeedProfileView of(FeedProfile p, int openServices) {
-        return new FeedProfileView(p.feedKey(), p.name(), p.stages(), p.arrivalStage(),
+        return new FeedProfileView(p.feedKey(), p.name(), p.country(), p.stages(), p.arrivalStage(),
                 List.copyOf(p.requiredResources()), p.registersResources(), p.active(), openServices, p.updatedAt(), p.updatedBy());
     }
 }

@@ -60,6 +60,20 @@ const trayecto: Trayecto = {
 };
 
 describe("export places", () => {
+  it("preserves delimiter, quote and newline characters on CSV round-trip", () => {
+    const name = 'Demo; "quoted"\nsite';
+    const address = 'Demo address; suite "A"';
+    expect(filasCsv(exportarCsv([{ ...base, name, address }]))).toMatchObject([
+      { name, address, lat: -33.4, lon: -70.6 },
+    ]);
+  });
+
+  it("exports spreadsheet formulas as text while retaining numeric coordinates", () => {
+    const csv = exportarCsv([{ ...base, name: "=1+2" }]);
+    expect(filasCsv(csv)).toMatchObject([
+      { name: "'=1+2", lat: -33.4, lon: -70.6 },
+    ]);
+  });
   it("offers CSV only for places", () => {
     expect(formatosPara("lugares")).toContain("csv");
     expect(formatosPara("trayectos")).not.toContain("csv");

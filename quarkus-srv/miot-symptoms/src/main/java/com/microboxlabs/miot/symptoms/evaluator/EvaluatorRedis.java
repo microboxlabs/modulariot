@@ -14,15 +14,22 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class EvaluatorRedis {
 
+    private final Redis client;
     private final RedisAPI api;
 
     EvaluatorRedis(@ConfigProperty(name = "miot.symptoms.evaluator.redis-url") Optional<String> url, Vertx vertx) {
-        this.api = url.filter(u -> !u.isBlank())
-                .map(u -> RedisAPI.api(Redis.createClient(vertx, new RedisOptions().setConnectionString(u))))
+        this.client = url.filter(u -> !u.isBlank())
+                .map(u -> Redis.createClient(vertx, new RedisOptions().setConnectionString(u)))
                 .orElse(null);
+        this.api = client == null ? null : RedisAPI.api(client);
     }
 
     public Optional<RedisAPI> api() {
         return Optional.ofNullable(api);
+    }
+
+    /** The client itself, for pipelined batches. */
+    public Optional<Redis> client() {
+        return Optional.ofNullable(client);
     }
 }

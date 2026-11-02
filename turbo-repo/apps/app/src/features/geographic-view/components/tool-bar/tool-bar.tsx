@@ -73,7 +73,7 @@ export default function ToolBar({
   // the geofences panel opens centred over its button; the button row clips
   // its overflow, so the panel lives in the area above and is placed by hand
   const panelAreaRef = useRef<HTMLDivElement>(null);
-  const geofencesButtonRef = useRef<HTMLDivElement>(null);
+  const geofencesButtonRef = useRef<HTMLButtonElement>(null);
   const [geofencesPanelLeft, setGeofencesPanelLeft] = useState(0);
 
   const toggleGeofencesPanel = () => {
@@ -118,14 +118,17 @@ export default function ToolBar({
       ? geofencesInactiveText
       : "bg-blue-500 text-white ";
   const geofencesButton = geofences_mode && (
-    <div
+    <button
+      type="button"
+      aria-label={tr("symptoms.geofences", dictionary)}
+      aria-expanded={geofencesPanelOpen}
       ref={geofencesButtonRef}
       data-geofences-button
       className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${geofencesModeClass} ${geofencesPanelOpen ? "border-blue-500" : ""}`}
       onClick={toggleGeofencesPanel}
     >
       <FaMapPin size={20} />
-    </div>
+    </button>
   );
 
   return (
@@ -282,18 +285,15 @@ export default function ToolBar({
                 </Tooltip>
               )}
 
-              {geofencesButton &&
-                (geofencesPanelOpen ? (
-                  // with its panel open the hover tooltip would cover it
-                  geofencesButton
-                ) : (
-                  <Tooltip
-                    content={tr("symptoms.geofences", dictionary)}
-                    style={style_theme}
-                  >
-                    {geofencesButton}
-                  </Tooltip>
-                ))}
+              {geofencesButton && (
+                <Tooltip
+                  content={tr("symptoms.geofences", dictionary)}
+                  style={style_theme}
+                  className={geofencesPanelOpen ? "hidden" : undefined}
+                >
+                  {geofencesButton}
+                </Tooltip>
+              )}
             </div>
           )}
           {/* Map toggles */}

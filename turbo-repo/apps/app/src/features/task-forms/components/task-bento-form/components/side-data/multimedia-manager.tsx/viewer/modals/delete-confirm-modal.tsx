@@ -27,10 +27,10 @@ export function DeleteConfirmModal({
   description?: ReactNode;
 }>) {
   const recoverable = useMediaSource().recoverableDelete;
-  const descArchivo = recoverable
+  const defaultDescription = recoverable
     ? tr("bento.multimedia.delete_modal_desc", dictionary)
     : tr("bento.multimedia.delete_modal_desc_permanent", dictionary);
-  const desc = description === undefined ? descArchivo : description;
+  const desc = description === undefined ? defaultDescription : description;
   return (
     <Modal
       dismissible

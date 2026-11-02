@@ -24,7 +24,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 /**
  * The fields of the {@code gps_signal} source, read from {@link GpsSignal}
  * and the gps-model classes of its frame, so the rule editor shows what the
- * signal carries. A field's label is its {@code @Schema} title, or else the
+ * signal carries; {@code trip_check}'s the same way from {@link TripCheck}. A field's label is its {@code @Schema} title, or else the
  * entry for its path in {@value #LABELS} ({@code label|unit}).
  */
 public final class SignalFields {
@@ -60,6 +60,17 @@ public final class SignalFields {
         List<SourceField> out = new ArrayList<>();
         walk(JSON.constructType(GpsSignal.class), ROOT, null, labels(), out, 0);
         return List.copyOf(out);
+    }
+
+    /** The fields of another source declared the same way, such as {@link TripCheck}, without a labels file. */
+    public static List<SourceField> fields(Class<?> type, String root) {
+        List<SourceField> out = new ArrayList<>();
+        walk(JSON.constructType(type), root, null, new Properties(), out, 0);
+        return List.copyOf(out);
+    }
+
+    public static String cadence(Class<?> type) {
+        return extension(type.getAnnotation(Schema.class), "x-cadence");
     }
 
     private static void walk(JavaType type, String prefix, FieldOrigin inherited, Properties labels,

@@ -7,6 +7,7 @@ import {
   geometriaDibujo,
   deshacer,
   eliminarVertice,
+  extremoOpuesto,
   insertarVertice,
   lados,
   marcarHistorial,
@@ -16,6 +17,7 @@ import {
   rehacer,
   seguirDibujando,
   terminar,
+  unirExtremos,
 } from "./polygon-draw";
 
 const poly = (vertices: LatLon[], cerrado = false): FormLugar => ({
@@ -33,6 +35,39 @@ const tri: LatLon[] = [
 ];
 
 describe("polygon-draw", () => {
+  it("joins the last vertex dropped on the first and closes the shape", () => {
+    // four points, the last one dragged onto the first: they become one
+    const abierto = poly([...tri, [0, 0.0001]]);
+    const f = unirExtremos(abierto, 3, [1, 0]);
+    expect(f.cerrado).toBe(true);
+    expect(f.vertices).toEqual(tri);
+  });
+
+  it("also joins the first vertex dropped on the last", () => {
+    const abierto = poly([[1, 0.0001], ...tri.slice(1), [1, 0]]);
+    const f = unirExtremos(abierto, 0, [0, 0]);
+    expect(f.cerrado).toBe(true);
+    expect(f.vertices).toEqual([...tri.slice(1), [1, 0]]);
+  });
+
+  it("with only three points, puts the dragged one back and closes", () => {
+    // merging would leave two points: the drop just closes the triangle
+    const abierto = poly([tri[0]!, tri[1]!, [0, 0.0001]]);
+    const f = unirExtremos(abierto, 2, [1, 1]);
+    expect(f.cerrado).toBe(true);
+    expect(f.vertices).toEqual(tri);
+  });
+
+  it("only joins the ends of an open shape", () => {
+    expect(unirExtremos(poly(tri), 1, [0, 1])).toEqual(poly(tri));
+    expect(unirExtremos(poly(tri, true), 2, [1, 1])).toEqual(poly(tri, true));
+    expect(extremoOpuesto(poly(tri), 0)).toBe(2);
+    expect(extremoOpuesto(poly(tri), 2)).toBe(0);
+    expect(extremoOpuesto(poly(tri), 1)).toBeNull();
+    expect(extremoOpuesto(poly(tri, true), 0)).toBeNull();
+    expect(extremoOpuesto(poly(tri.slice(0, 2)), 0)).toBeNull();
+  });
+
   it("adds vertices and keeps the first one as the reference centre", () => {
     const f = agregarVertice(agregarVertice(poly([]), [5, 6]), [7, 8]);
     expect(f.vertices).toEqual([

@@ -22,11 +22,13 @@ export const COMMUNICATIONS_SECTIONS: readonly CommunicationsSection[] = [
 
 /**
  * In the platform scope Comunicaciones edits the message templates, shows the WhatsApp templates on Meta,
- * and sets up the accounts the platform offers.
+ * sets up the accounts the platform offers, and holds the platform's own rules, such as the geocoding quota alerts.
  */
 export const PLATFORM_SECTIONS: readonly CommunicationsSection[] = [
   "templates",
   "meta",
+  "rules",
+  "activity",
   ...CHANNEL_TYPES.filter((c) => c.platformOffered).map((c) =>
     channelSection(c.key)
   ),

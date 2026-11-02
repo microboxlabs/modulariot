@@ -12,6 +12,8 @@ import com.microboxlabs.miot.conversational.domain.ContextKind;
 import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
+import com.microboxlabs.miot.core.mail.MailTemplates;
+import com.microboxlabs.miot.core.mail.NotificationMail;
 import com.microboxlabs.miot.integrations.email.EmailMessage;
 import com.microboxlabs.miot.integrations.email.PlatformMailService;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
@@ -20,6 +22,7 @@ import com.microboxlabs.miot.integrations.email.SendResult;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +58,8 @@ class EmailMessagingServiceTest {
                 keys.add(idempotencyKey);
                 return result;
             }
-        }, store.conversationRepository, store.messageRepository, accounts.service);
+        }, store.conversationRepository, store.messageRepository, accounts.service,
+                new NotificationMail(Optional.empty(), new MailTemplates(Optional.empty())));
     }
 
     private static ContextMessage email(String subject, String body) {
@@ -87,6 +91,20 @@ class EmailMessagingServiceTest {
         assertNull(c.phoneE164());
         assertEquals("Jefe de torre", c.displayName());
         assertEquals("Pánico", c.lastMessagePreview());
+    }
+
+    @Test
+    void anHtmlBodyIsSentInsideTheLayoutAndTheTextIsStored() {
+        ContextMessage html = new ContextMessage(ContextKind.SYMPTOM_CASE, "-7", TOWER, "Jefe de torre", null, null,
+                "panic-tower", null, Map.of(), "Pánico", "Sin respuesta", RUN, 1, "<p>Sin <b>respuesta</b></p>");
+        Message m = service(Set.of(TENANT), SendResult.accepted(200, "re-1")).sendInContext(TENANT, html, false);
+
+        assertEquals("Sin respuesta", sent.get(0).text());
+        assertTrue(sent.get(0).html().startsWith("<!DOCTYPE html>"), sent.get(0).html());
+        assertTrue(sent.get(0).html().contains("<p>Sin <b>respuesta</b></p>"));
+        assertTrue(sent.get(0).html().contains("<title>Pánico</title>"));
+        assertEquals("Sin respuesta", m.body());
+        assertEquals("<p>Sin <b>respuesta</b></p>", m.metadata().get("html"));
     }
 
     @Test

@@ -2,8 +2,8 @@ import { IconLayer, type IconLayerProps } from "deck.gl";
 import type { LayersList } from "@deck.gl/core";
 import type { ItemNombre } from "./place-labels";
 import { trazosDeIcono } from "./place-name-icons";
+import { agruparConInteriores } from "./geofence-lod";
 import {
-  agruparSolapes,
   centroDeAnclas,
   empaquetarChips,
   zoomParaSeparar,
@@ -45,7 +45,11 @@ const PAD_L = 4;
 const ICON = 16;
 const GAP = 4;
 const PAD_R = 8;
-const MAX_TEXT = 148;
+/** Ancho máximo del texto: un nombre más largo sigue en otra línea. */
+const MAX_TEXT = 168;
+/** Alto de cada línea del nombre y margen arriba/abajo con varias. */
+const LINEA_H = 15;
+const PAD_V_NOMBRE = 4;
 /** Densidad 2×: nítido en retina con imágenes chicas. */
 const DPR = 2;
 
@@ -83,18 +87,55 @@ function colorIcono(color: string): string {
     : COLOR_ICONO_DEF;
 }
 
-/** Texto recortado con "…" si pasa del ancho máximo. */
-function recortar(ctx: CanvasRenderingContext2D, nombre: string) {
-  let text = nombre;
-  let tw = ctx.measureText(text).width;
-  if (tw > MAX_TEXT) {
-    while (text.length > 1 && ctx.measureText(`${text}…`).width > MAX_TEXT) {
-      text = text.slice(0, -1);
-    }
-    text = `${text}…`;
-    tw = ctx.measureText(text).width;
+/** Una palabra más ancha que `max`, partida en trozos que caben. */
+function partirPalabra(
+  ancho: (t: string) => number,
+  palabra: string,
+  max: number
+): string[] {
+  const trozos: string[] = [];
+  let actual = "";
+  for (const c of palabra) {
+    if (actual && ancho(actual + c) > max) {
+      trozos.push(actual);
+      actual = c;
+    } else actual += c;
   }
-  return { text, tw };
+  if (actual) trozos.push(actual);
+  return trozos;
+}
+
+/**
+ * El nombre completo en líneas de hasta `max` de ancho (por palabras; una
+ * palabra más ancha que eso se parte). Nunca se recorta.
+ */
+export function lineasDeNombre(
+  ancho: (t: string) => number,
+  nombre: string,
+  max = MAX_TEXT
+): string[] {
+  const palabras = nombre.trim().split(/\s+/).filter(Boolean);
+  const lineas: string[] = [];
+  let actual = "";
+  for (const palabra of palabras) {
+    const junto = actual ? `${actual} ${palabra}` : palabra;
+    if (ancho(junto) <= max) {
+      actual = junto;
+      continue;
+    }
+    if (actual) lineas.push(actual);
+    const trozos =
+      ancho(palabra) > max ? partirPalabra(ancho, palabra, max) : [palabra];
+    actual = trozos.pop() ?? "";
+    lineas.push(...trozos);
+  }
+  if (actual) lineas.push(actual);
+  return lineas.length > 0 ? lineas : [""];
+}
+
+/** Alto del badge de un nombre: el de siempre con una línea; si no, más. */
+export function altoNombre(lineas: number): number {
+  return lineas <= 1 ? CHIP_H : PAD_V_NOMBRE * 2 + lineas * LINEA_H;
 }
 
 /** Icono del lugar (trazos de 24×24) escalado a `tam` en (x, y). */
@@ -166,29 +207,45 @@ export function chipEtiqueta(
   if (!ctx) return chipSinCanvas(key, PAD_L + ICON + GAP + PAD_R, CHIP_H);
 
   ctx.font = font;
-  const { text, tw } = recortar(ctx, item.name);
+  const ancho = (t: string) => ctx.measureText(t).width;
+  // el nombre entero: si no cabe en una línea, sigue en otra (sin "…")
+  const lineas = lineasDeNombre(ancho, item.name);
+  const tw = Math.max(...lineas.map(ancho));
   const w = Math.ceil(PAD_L + ICON + GAP + tw + PAD_R);
-  const h = CHIP_H;
+  const h = altoNombre(lineas.length);
+  // con una línea, centrada; con varias, cada una en la suya
+  const fila = lineas.length > 1 ? LINEA_H : h;
+  const arriba = lineas.length > 1 ? PAD_V_NOMBRE : 0;
   lienzo(w, h, ctx);
   ctx.font = font;
 
   const paleta = resaltado ? RESALTADO : TEMAS[tema];
   // el resaltado lleva un borde blanco más grueso
   const borde = resaltado ? 2 : 1;
-  roundRect(ctx, borde / 2, borde / 2, w - borde, h - borde, h / 2);
+  roundRect(
+    ctx,
+    borde / 2,
+    borde / 2,
+    w - borde,
+    h - borde,
+    Math.min(h, CHIP_H) / 2
+  );
   ctx.fillStyle = paleta.fondo;
   ctx.fill();
   ctx.strokeStyle = paleta.borde;
   ctx.lineWidth = borde;
   ctx.stroke();
 
+  // el icono, siempre centrado en el alto del badge (tenga las líneas que tenga)
   const colorIco = resaltado ? RESALTADO.texto : colorIcono(item.color);
   dibujarIcono(ctx, item.icon, colorIco, PAD_L, (h - ICON) / 2, ICON);
 
   ctx.fillStyle = paleta.texto;
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
-  ctx.fillText(text, PAD_L + ICON + GAP, h / 2 + 0.5);
+  lineas.forEach((linea, i) => {
+    ctx.fillText(linea, PAD_L + ICON + GAP, arriba + i * fila + fila / 2 + 0.5);
+  });
 
   const chip: Chip = {
     key,
@@ -328,7 +385,7 @@ function medidaChip(item: ItemNombre, tema: TemaChip) {
   return {
     w: (chip.width / chip.height) * chip.size,
     h: chip.size,
-    dy: dyBadge(item),
+    dy: dyBadge(item, chip.size),
   };
 }
 
@@ -336,21 +393,25 @@ function medidaChip(item: ItemNombre, tema: TemaChip) {
 const prioridadChip = (item: ItemNombre) =>
   (item.inner ? 0 : 1e9) + (item.radio_m ?? 0);
 
-/** Sobre el ancla, como el badge de un lugar padre. */
-/** Badge de un padre sobre el ancla; interior, en ella; "abajo", debajo. */
-function dyBadge(item: ItemNombre): number {
-  if (item.abajo) return 22;
-  return item.inner ? 0 : -18;
+/**
+ * Badge de un padre sobre el ancla; interior, en ella; "abajo", debajo. Uno
+ * más alto (nombre en varias líneas) crece hacia afuera: el borde cercano al
+ * ancla queda donde el de una línea.
+ */
+function dyBadge(item: ItemNombre, alto = CHIP_H): number {
+  const extra = (alto - CHIP_H) / 2;
+  if (item.abajo) return 22 + extra;
+  return item.inner ? 0 : -18 - extra;
 }
 
-function offsetBadge(b: BadgeMapa): [number, number] {
+function offsetBadge(b: BadgeMapa, tema: TemaChip): [number, number] {
   if (esCluster(b)) {
     // más alto en columna: crece hacia afuera, el borde cercano no se mueve
     const filas = partesCluster(contarCluster(b.miembros)).length;
     const extra = (altoCluster(filas) - CHIP_H) / 2;
     return [0, b.item.abajo ? 22 + extra : -18 - extra];
   }
-  return [0, dyBadge(b.item)];
+  return [0, dyBadge(b.item, chipEtiqueta(b.item, tema).size)];
 }
 
 type EntradaAtlas = {
@@ -485,8 +546,9 @@ export function capasNombresGeocercas(
       centroDeAnclas(miembros),
       zoomParaSeparar(miembros, zoom, (d) => medidaChip(d, tema), prioridadChip)
     );
-  // los que se pisarían, juntos en un cluster que dice cuántos son
-  const badges: BadgeMapa[] = agruparSolapes(
+  // los que se pisarían, juntos en un cluster que dice cuántos son; las
+  // interiores, solo con las de su padre y cuando el padre ya se abrió
+  const badges: BadgeMapa[] = agruparConInteriores(
     items,
     zoom,
     (d) => medidaChip(d, tema),
@@ -504,7 +566,7 @@ export function capasNombresGeocercas(
         getIcon: (b) => chipDe(b, tema).key,
         getPosition: (b) => [b.item.ancla[1], b.item.ancla[0]],
         getSize: (b) => chipDe(b, tema).size,
-        getPixelOffset: (b) => offsetBadge(b),
+        getPixelOffset: (b) => offsetBadge(b, tema),
         // clic en un cluster: se acerca hasta que se abre; en un lugar, va a él
         onClick: ({ object }) => {
           if (!object) return;
@@ -548,7 +610,7 @@ export function capasNombresGeocercas(
           // crece desde el tamaño normal mientras se funde
           getSize: () => chip.size * (1 + (ESCALA_RESALTADO - 1) * t),
           opacity: t,
-          getPixelOffset: (d) => [0, dyBadge(d)],
+          getPixelOffset: (d) => [0, dyBadge(d, chip.size)],
           onClick: ({ object }) => {
             if (object) onNombre?.(object);
           },

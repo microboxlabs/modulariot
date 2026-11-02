@@ -104,6 +104,11 @@ function NewRuleForm({
   const keyValid = KEY_PATTERN.test(effectiveKey);
   // A modal dismissed while creating must not navigate when the request lands.
   const mounted = useRef(true);
+  // The platform's catalog has no symptom events: start on its first event instead.
+  useEffect(() => {
+    if (prefill.event || !catalog?.length) return;
+    if (!catalog.some((e) => e.type === event)) setEvent(catalog[0].type);
+  }, [catalog, event, prefill.event]);
   useEffect(() => {
     mounted.current = true;
     return () => {

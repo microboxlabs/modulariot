@@ -1,23 +1,28 @@
 package com.microboxlabs.miot.trips.service;
 
+import com.google.openlocationcode.OpenLocationCode;
 import com.microboxlabs.miot.trips.domain.Location;
 import com.microboxlabs.miot.trips.domain.Location.Placement;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest;
 import com.microboxlabs.miot.trips.dto.FeedServiceRequest.Site;
 import com.microboxlabs.miot.trips.dto.LocationResolveRequest;
+import com.microboxlabs.miot.trips.geo.Addresses;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Locale;
-import com.microboxlabs.miot.trips.geo.Addresses;
+import java.util.Objects;
+import java.util.UUID;
 import org.jboss.logging.Logger;
 
 /**
  * Locates the origin and destination a feed declares, after the service is applied and outside its transaction. A
- * location is located when it was never tried, or when it waits for review and the feed now sends a different site.
+ * missing site is inferred from an address or Plus Code cell using the feed's country. A location is located when
+ * it was never tried, or when it waits for review and the feed now sends a different site.
+ * A site that names one of the organization's geofences links the location to it and resolves it there; one that
+ * names another geofence falls back to its other parts.
  * A resolved or rejected location, or one already linked to a geofence, is left as it is. A failure is logged and
  * does not fail the service: the location stays where review finds it.
  */
@@ -36,25 +41,39 @@ public class FeedSites {
     }
 
     /** The locations it tried to locate, as "code: status". {@code organization} is whose quota a provider call uses. */
-    public List<String> locate(String organization, String tenantCode, String actor, FeedServiceRequest desired) {
+    public List<String> locate(String organization, String tenantCode, String actor, String country,
+            FeedServiceRequest desired) {
         List<String> done = new ArrayList<>();
         if (desired == null) {
             return done;
         }
-        locate(organization, tenantCode, actor, desired.origin(), desired.originSite(), done);
-        if (desired.originSite() == null || !Objects.equals(desired.origin(), desired.destination())) {
-            locate(organization, tenantCode, actor, desired.destination(), desired.destinationSite(), done);
+        boolean same = Objects.equals(desired.origin(), desired.destination());
+        Site origin = desired.originSite();
+        if (origin == null && same) {
+            origin = desired.destinationSite();
+        }
+        locate(organization, tenantCode, actor, desired.origin(), origin, country, done);
+        if (!same) {
+            locate(organization, tenantCode, actor, desired.destination(), desired.destinationSite(), country, done);
         }
         return done;
     }
 
-    private void locate(String organization, String tenantCode, String actor, String code, Site site,
+    private void locate(String organization, String tenantCode, String actor, String code, Site declared, String country,
             List<String> done) {
-        if (code == null || code.isBlank() || site == null) {
+        if (code == null || code.isBlank()) {
+            return;
+        }
+        if (declared != null && declared.geofenceId() != null
+                && useGeofence(organization, tenantCode, actor, code, declared.geofenceId(), done)) {
+            return;
+        }
+        Site site = declared == null ? cellSite(code.strip(), country) : declared;
+        if (site == null) {
             return;
         }
         try {
-            Location l = locations.byCode(tenantCode, code.trim()).orElse(null);
+            Location l = locations.byCode(tenantCode, code).orElse(null);
             if (l == null || !due(l, site)) {
                 return;
             }
@@ -66,6 +85,53 @@ public class FeedSites {
             LOG.warnf("Feed site %s of %s not located: %s", code, tenantCode, e.getMessage());
             done.add(code.trim() + ": could not resolve site");
         }
+    }
+
+    /**
+     * Links the location to the geofence the feed declared. False when that geofence cannot be used, so the site's
+     * other parts are tried.
+     */
+    private boolean useGeofence(String organization, String tenantCode, String actor, String code, int geofenceId,
+            List<String> done) {
+        try {
+            Location l = locations.byCode(tenantCode, code).orElse(null);
+            if (l == null || !geofenceDue(l)) {
+                return true;
+            }
+            Location linked = resolution.useGeofence(organization, tenantCode, actor, UUID.fromString(l.id()),
+                    geofenceId);
+            done.add(code.trim() + ": " + linked.placement().status());
+            return true;
+        } catch (IllegalArgumentException e) {
+            done.add(code.trim() + ": " + e.getMessage());
+            return false;
+        } catch (RuntimeException e) {
+            LOG.warnf("Feed geofence %s of %s not linked: %s", code, tenantCode, e.getMessage());
+            done.add(code.trim() + ": could not resolve site");
+            return true;
+        }
+    }
+
+    /** A location already linked, resolved or rejected keeps what it has. */
+    static boolean geofenceDue(Location l) {
+        String status = l.placement().status();
+        return l.geofenceId() == null && !Location.RESOLVED.equals(status) && !Location.REJECTED.equals(status);
+    }
+
+    private static Site cellSite(String text, String country) {
+        String plusCode = text.split("\\s+")[0].toUpperCase(Locale.ROOT);
+        if (OpenLocationCode.isValidCode(plusCode)) {
+            boolean shortCode = new OpenLocationCode(plusCode).isShort();
+            if (country == null && shortCode) {
+                return null;
+            }
+            return new Site(null, shortCode ? country : null, null, null, plusCode, null, null);
+        }
+        if (country != null && text.codePoints().anyMatch(Character::isWhitespace)
+                && text.codePoints().anyMatch(Character::isLetter) && text.codePoints().anyMatch(Character::isDigit)) {
+            return new Site(text, country, null, null, null, null, null);
+        }
+        return null;
     }
 
     static boolean due(Location l, Site site) {

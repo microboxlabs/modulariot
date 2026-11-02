@@ -64,6 +64,31 @@ public class AdminBoundaries {
         return all(country).stream().filter(b -> fold(b.name()).equals(n)).toList();
     }
 
+    /**
+     * The district named in the first comma-separated component with a match. Within a component, the longest
+     * whole name wins; empty when it is ambiguous or no component names a district.
+     */
+    public Optional<Boundary> namedIn(String country, String text) {
+        if (text == null || text.isBlank()) {
+            return Optional.empty();
+        }
+        for (String component : text.split(",")) {
+            String t = " " + nameWords(component) + " ";
+            List<Boundary> named = all(country).stream()
+                    .filter(b -> t.contains(" " + nameWords(b.name()) + " ")).toList();
+            if (!named.isEmpty()) {
+                int longest = named.stream().mapToInt(b -> nameWords(b.name()).length()).max().orElseThrow();
+                List<Boundary> best = named.stream().filter(b -> nameWords(b.name()).length() == longest).toList();
+                return best.size() == 1 ? Optional.of(best.get(0)) : Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static String nameWords(String name) {
+        return Addresses.fold(fold(name));
+    }
+
     public Optional<Boundary> containing(String country, double lon, double lat) {
         return all(country).stream()
                 .filter(b -> b.shape() != null && b.mayContain(lon, lat) && b.shape().contains(lon, lat))

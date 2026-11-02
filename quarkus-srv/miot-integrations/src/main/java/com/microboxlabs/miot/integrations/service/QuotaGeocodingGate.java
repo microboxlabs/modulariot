@@ -19,6 +19,6 @@ public class QuotaGeocodingGate implements GeocodingGate {
 
     @Override
     public Refusal checkProviderCall(String organization, String tenantCode) {
-        return service.checkProviderCall(organization);
+        return service.checkProviderCall(organization, tenantCode);
     }
 }

@@ -1,17 +1,18 @@
 package com.microboxlabs.miot.trips.store;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
-/** Chilean street addresses held in memory, keyed as openaddresses stores them. */
+/** Chilean street addresses held in memory, spelled as openaddresses stores them. */
 public class FakeAddresses implements InternalAddresses {
 
-    private final Map<String, Point> byKey = new HashMap<>();
+    private record Entry(String commune, String street, String number, Point point) {
+    }
+
+    private final List<Entry> entries = new ArrayList<>();
 
     public FakeAddresses add(String commune, String street, String number, double lon, double lat) {
-        byKey.put(commune + "|" + street + "|" + number, new Point(lon, lat));
+        entries.add(new Entry(commune, street, number, new Point(lon, lat)));
         return this;
     }
 
@@ -21,15 +22,9 @@ public class FakeAddresses implements InternalAddresses {
     }
 
     @Override
-    public Optional<Point> find(String country, List<String> communes, List<String> streets, String number) {
-        for (String c : communes) {
-            for (String s : streets) {
-                Point p = byKey.get(c + "|" + s + "|" + number);
-                if (p != null) {
-                    return Optional.of(p);
-                }
-            }
-        }
-        return Optional.empty();
+    public List<Candidate> numbered(String country, List<String> communes, String number, int limit) {
+        return entries.stream()
+                .filter(e -> e.number().equals(number) && (communes.isEmpty() || communes.contains(e.commune())))
+                .limit(limit).map(e -> new Candidate(e.commune(), e.street(), e.point())).toList();
     }
 }

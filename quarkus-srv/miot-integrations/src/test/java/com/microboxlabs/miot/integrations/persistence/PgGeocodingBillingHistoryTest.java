@@ -42,6 +42,7 @@ class PgGeocodingBillingHistoryTest {
                     + "VALUES ('synthetic-org', 1, 'overage', '2020-01-01Z', '2020-01-01Z')")
                     .replace("miot_integrations", schema)).execute().await().atMost(TIMEOUT);
             migrate(pool, schema, "V0.6.36__geocoding_billing_history.sql");
+            migrate(pool, schema, "V0.6.37__geocoding_quota_notifications.sql");
             GeocodingPlanRepository repository = new GeocodingPlanRepository(null) {
                 @Override
                 protected RowSet<Row> execute(String sql, Tuple params) {
@@ -65,7 +66,7 @@ class PgGeocodingBillingHistoryTest {
             assertEquals(80, repository.subscription("synthetic-org").monthlyQuota());
             assertEquals(java.util.List.of("synthetic-org"), repository.organizations(completedPeriodEnd.minusMonths(1), completedPeriodEnd));
             long count = historyCount(pool, schema);
-            assertTrue(repository.claimAlert("synthetic-org", LocalDate.now(java.time.ZoneOffset.UTC).withDayOfMonth(1)));
+            assertTrue(repository.claimLevel("synthetic-org", LocalDate.now(java.time.ZoneOffset.UTC).withDayOfMonth(1), "threshold"));
             assertEquals(count, historyCount(pool, schema));
             pool.query("DELETE FROM " + schema + ".geocoding_subscriptions WHERE organization = 'synthetic-org'")
                     .execute().await().atMost(TIMEOUT);

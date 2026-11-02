@@ -33,10 +33,7 @@ import {
 } from "./recorrido";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import VersionBadge from "../versioning/version-badge";
-
-/** Ancho del corredor en metros (mismo control que el radio de geocercas). */
-const ANCHO_MIN = 1;
-const ANCHO_MAX = 10_000;
+import { ANCHO_MAX, ANCHO_MIN } from "./trayecto-validation";
 
 function noopElegirMapa() {}
 

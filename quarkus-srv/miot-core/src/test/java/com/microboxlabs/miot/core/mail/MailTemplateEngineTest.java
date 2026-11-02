@@ -6,11 +6,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.mail.MailTemplateEngine.Rendered;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class MailTemplateEngineTest {
 
     private final MailTemplateEngine engine = new MailTemplateEngine();
+
+    @Test
+    void referencesIncludeHelperArgumentsAndBothBranchesWithoutHelperNamesOrLiterals() {
+        assertEquals(Set.of("company", "link", "quota", "used"), engine.variables(
+                "{{#if company}}{{#unless link}}{{used}}{{else}}{{quota}}{{/unless}}{{/if}}"));
+        assertEquals(Set.of("company", "used"), engine.variables("{{#company}}{{used}}{{/company}}"));
+        assertEquals(Set.of("company"), engine.variables("{{lookup company \"label\"}}"));
+        assertEquals(Set.of("company", "used"), engine.variables("{{{company}}} {{& used}}"));
+    }
 
     @Test
     void valuesAreEscapedInTheBodyButNotInTheSubject() {

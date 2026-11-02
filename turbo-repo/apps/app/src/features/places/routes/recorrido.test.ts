@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TRAY_VACIO, type FormTrayecto } from "../places.types";
 import {
   MAX_PUNTOS,
@@ -380,4 +380,20 @@ describe("recorrido", () => {
       expect(filas[0]).not.toHaveProperty("categoria");
     });
   });
+});
+
+it("adds unique waypoint IDs after restoring IDs from a previous page load", async () => {
+  vi.resetModules();
+  const fresh = await import("./recorrido");
+  const restored: FormTrayecto = {
+    ...TRAY_VACIO,
+    recorrido: [
+      { id: "punto-1", texto: "Demo stop", punto: [1, 1] },
+      { id: "destino", texto: "Demo end", punto: [2, 2] },
+    ],
+  };
+  const next = fresh.agregarPunto(restored);
+  expect(new Set(next.recorrido.map((point) => point.id)).size).toBe(
+    next.recorrido.length
+  );
 });

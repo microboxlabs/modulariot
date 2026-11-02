@@ -79,7 +79,7 @@ public class SymptomEvents {
             Name n = name(tenantCode, t.definitionId());
             SymptomCaseData data = new SymptomCaseData(-r.caseId(), t.definitionId(), t.version(), n.key(),
                     n.name(), t.level(), t.previousLevel(), t.assetId(), place.tripId(), place.driverId(),
-                    t.measure(), place.latitude(), place.longitude(), place.speedKmh(), null, null, null);
+                    t.measure(), place.latitude(), place.longitude(), place.speedKmh(), null, null, null, null, null);
             publish(type(t.kind()), tenantCode, t.at(), data, t.state() != SymptomState.ACTIVE);
         }
     }
@@ -89,7 +89,7 @@ public class SymptomEvents {
         Name n = name(tenantCode, c.definitionId());
         publish(SymptomEventCatalog.CLOSED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
                 c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
-                c.latitude(), c.longitude(), c.speedKmh(), actor, null, null), false);
+                c.latitude(), c.longitude(), c.speedKmh(), actor, null, null, null, null), false);
     }
 
     /** The case stayed unattended past its level's SLA. */
@@ -97,7 +97,23 @@ public class SymptomEvents {
         Name n = name(tenantCode, c.definitionId());
         publish(SymptomEventCatalog.SLA_EXPIRED, tenantCode, at, new SymptomCaseData(c.symptomId(),
                 c.definitionId(), c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(),
-                null, null, c.latitude(), c.longitude(), c.speedKmh(), null, slaMinutes, levelSince), false);
+                null, null, c.latitude(), c.longitude(), c.speedKmh(), null, slaMinutes, levelSince, null, null),
+                false);
+    }
+
+    /**
+     * The signal of the case's vehicle returned, with or without backfill. The detector does not close the case.
+     *
+     * @param caseId the id of the case's OPENED transition
+     */
+    @SuppressWarnings("java:S107") // The case, where the vehicle was, and how the signal came back.
+    public void signalReturned(String tenantCode, long caseId, UUID definitionId, String version,
+            SymptomState state, int level, String assetId, Place place, Instant returnedAt, boolean backfill) {
+        Name n = name(tenantCode, definitionId);
+        publish(SymptomEventCatalog.SIGNAL_RETURNED, tenantCode, returnedAt, new SymptomCaseData(-caseId,
+                definitionId, version, n.key(), n.name(), level, level, assetId, place.tripId(), place.driverId(),
+                null, place.latitude(), place.longitude(), place.speedKmh(), null, null, null, returnedAt, backfill),
+                state != SymptomState.ACTIVE);
     }
 
     /** The symptom's key and name; both null when the catalog cannot be read, and the event still goes out. */

@@ -123,17 +123,17 @@ describe("ChannelPanel", () => {
 });
 
 describe("sections by scope", () => {
-  it("offers the message templates and the platform's accounts in the platform scope", () => {
+  it("offers the templates, the platform's rules and its accounts in the platform scope", () => {
     expect(sectionsFor(true)).toEqual([
       "templates",
       "meta",
+      "rules",
+      "activity",
       "channel:whatsapp",
       "channel:email",
     ]);
     expect(sectionOf(new URLSearchParams(), true)).toBe("templates");
-    expect(sectionOf(new URLSearchParams("section=rules"), true)).toBe(
-      "templates"
-    );
+    expect(sectionOf(new URLSearchParams("section=rules"), true)).toBe("rules");
     // Organizations read the templates; only the platform scope sees them on Meta.
     expect(sectionOf(new URLSearchParams("section=templates"))).toBe(
       "templates"

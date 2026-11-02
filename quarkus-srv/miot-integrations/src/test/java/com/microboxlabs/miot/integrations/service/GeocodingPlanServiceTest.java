@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.core.geocoding.GeocodingGate.Refusal;
 import com.microboxlabs.miot.integrations.dto.GeocodingPlanDtos.OrgPlanResponse;
@@ -33,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
@@ -100,8 +102,8 @@ class GeocodingPlanServiceTest {
         }
 
         @Override
-        public boolean claimAlert(String organization, LocalDate month) {
-            return subscriptions.containsKey(organization) && alerted.add(organization + "@" + month);
+        public boolean claimLevel(String organization, LocalDate month, String level) {
+            return subscriptions.containsKey(organization) && alerted.add(organization + "@" + month + "@" + level);
         }
 
         @Override
@@ -185,16 +187,16 @@ class GeocodingPlanServiceTest {
     void notEnforcedNeverRefuses() {
         plans.used = 5000;
 
-        assertNull(service(false).checkProviderCall(ORG));
-        assertNull(service(false).checkProviderCall(null));
+        assertNull(service(false).checkProviderCall(ORG, TENANT));
+        assertNull(service(false).checkProviderCall(null, TENANT));
     }
 
     @Test
     void enforcedRefusesWithoutASubscription() {
-        Refusal r = service(true).checkProviderCall(ORG);
+        Refusal r = service(true).checkProviderCall(ORG, TENANT);
 
         assertEquals(GeocodingPlanService.NO_SUBSCRIPTION, r.code());
-        assertEquals(GeocodingPlanService.NO_SUBSCRIPTION, service(true).checkProviderCall(null).code());
+        assertEquals(GeocodingPlanService.NO_SUBSCRIPTION, service(true).checkProviderCall(null, TENANT).code());
     }
 
     @Test
@@ -202,7 +204,7 @@ class GeocodingPlanServiceTest {
         subscribe(null, "review");
         plans.used = 999;
 
-        assertNull(service(true).checkProviderCall(ORG));
+        assertNull(service(true).checkProviderCall(ORG, TENANT));
         assertEquals(OffsetDateTime.parse("2026-10-01T00:00Z"), plans.usedFrom);
         assertEquals(OffsetDateTime.parse("2026-11-01T00:00Z"), plans.usedTo);
     }
@@ -212,7 +214,7 @@ class GeocodingPlanServiceTest {
         subscribe(null, "review");
         plans.used = 1000;
 
-        Refusal r = service(true).checkProviderCall(ORG);
+        Refusal r = service(true).checkProviderCall(ORG, TENANT);
 
         assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, r.code());
         assertTrue(r.message().contains("1000"), r.message());
@@ -227,7 +229,7 @@ class GeocodingPlanServiceTest {
         subscribe(10, "review");
         plans.used = 10;
 
-        assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, service(true).checkProviderCall(ORG).code());
+        assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, service(true).checkProviderCall(ORG, TENANT).code());
     }
 
     @Test
@@ -235,7 +237,7 @@ class GeocodingPlanServiceTest {
         subscribe(10, "overage");
         plans.used = 50;
 
-        assertNull(service(true).checkProviderCall(ORG));
+        assertNull(service(true).checkProviderCall(ORG, TENANT));
     }
 
     @Test
@@ -251,13 +253,62 @@ class GeocodingPlanServiceTest {
         plans.used = 81;
         service.afterProviderCall(ORG, TENANT);
 
-        assertEquals(1, events.size());
+        assertEquals(List.of(TENANT, PlatformScope.TENANT), events.stream().map(OperationalEvent::tenantCode).toList());
         OperationalEvent e = events.get(0);
         assertEquals(GeocodingEventCatalog.QUOTA_THRESHOLD, e.type());
-        assertEquals(TENANT, e.tenantCode());
         assertEquals(ORG, e.context().key());
-        assertEquals(new GeocodingQuotaData(ORG, "2026-10", 80, 100, 80, "review"), e.data());
-        assertTrue(plans.alerted.contains(ORG + "@2026-10-01"));
+        assertEquals(new GeocodingQuotaData(ORG, ORG, "2026-10", 80, 100, 80, "review",
+                "La cuota aún no se aplica: ninguna consulta se rechaza.", ""), e.data());
+        assertEquals(e.data(), events.get(1).data());
+        assertTrue(plans.alerted.contains(ORG + "@2026-10-01@threshold"));
+    }
+
+    @Test
+    void usingTheWholeQuotaWarnsOnceMoreThatMonth() {
+        subscribe(100, "review");
+        GeocodingPlanService service = new GeocodingPlanService(plans, new GeocodingEvents(e -> {
+            events.add(e);
+            return CompletableFuture.completedFuture(null);
+        }), new GeocodingMetrics(meters), CLOCK, slug -> "Example Org",
+                GeocodingPlanService.usageLink(Optional.of("https://app.example.test/app/")));
+        service(true);
+        plans.used = 100;
+
+        service.afterProviderCall(ORG, TENANT);
+        service.afterProviderCall(ORG, TENANT);
+        assertEquals(GeocodingPlanService.QUOTA_EXHAUSTED, service.checkProviderCall(ORG, TENANT).code());
+
+        assertEquals(List.of(GeocodingEventCatalog.QUOTA_THRESHOLD, GeocodingEventCatalog.QUOTA_THRESHOLD,
+                GeocodingEventCatalog.QUOTA_EXHAUSTED, GeocodingEventCatalog.QUOTA_EXHAUSTED),
+                events.stream().map(OperationalEvent::type).toList());
+        GeocodingQuotaData exhausted = (GeocodingQuotaData) events.get(2).data();
+        assertEquals("Example Org", exhausted.company());
+        assertEquals("https://app.example.test/app/es/users/settings/trips?section=geocodingUsage", exhausted.link());
+        assertEquals(100, exhausted.pct());
+        assertEquals("Las direcciones nuevas pasan a revisión hasta el próximo mes o hasta que se aumente la cuota.",
+                exhausted.action());
+    }
+
+    @Test
+    void aQuotaAlreadyUsedWarnsWhenTheCallIsRefused() {
+        subscribe(10, "review");
+        plans.used = 12;
+
+        service(true).checkProviderCall(ORG, TENANT);
+        service(true).checkProviderCall(ORG, TENANT);
+
+        assertEquals(2, events.size());
+        assertEquals(GeocodingEventCatalog.QUOTA_EXHAUSTED, events.get(0).type());
+    }
+
+    @Test
+    void theActionSaysWhatHappensNext() {
+        Plan enforced = new Plan(BigDecimal.TEN, 100, new BigDecimal("0.0050"), 80, true, null, null);
+        Subscription overage = new Subscription(null, "overage", null, null);
+        assertEquals("Las consultas siguen y cada una adicional se cobra a US$ 0.005.",
+                GeocodingPlanService.action(true, enforced, overage));
+        assertEquals("Al llegar al 100 %, las direcciones nuevas pasarán a revisión.",
+                GeocodingPlanService.action(false, enforced, new Subscription(null, "review", null, null)));
     }
 
     @Test
@@ -268,7 +319,7 @@ class GeocodingPlanServiceTest {
 
         service(false).afterProviderCall(ORG, TENANT);
 
-        assertEquals(1, events.size());
+        assertEquals(2, events.size());
     }
 
     @Test

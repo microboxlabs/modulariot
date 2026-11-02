@@ -19,7 +19,8 @@ import java.util.Map;
  * n-th item is the mandate's n-th unit. Without cargo the units are left as they are.
  * {@code source} is the original record (a spreadsheet row), kept for audit and not compared.
  * {@code originSite} and {@code destinationSite} say where each place is; a location that is not resolved yet is
- * located from them after the service is applied (see {@link Site}).
+ * located from them after the service is applied (see {@link Site}). Without a site, address and Plus Code cells
+ * use the feed's country; a full Plus Code can be located without one.
  */
 @RegisterForReflection
 public record FeedServiceRequest(
@@ -58,12 +59,19 @@ public record FeedServiceRequest(
     /**
      * Where a place is, as the source declares it: the address with its district and country, a Plus Code, or
      * coordinates. {@code districtCode} is the Peruvian ubigeo or the Chilean commune code; {@code country} is ISO
-     * 3166 alpha-2.
+     * 3166 alpha-2. {@code geofenceId} is the organization's GPS geofence that is this place, when the source knows
+     * it; it wins over the other parts.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @RegisterForReflection
     public record Site(String address, String country, String districtCode, String district, String plusCode,
-            Double latitude, Double longitude) {
+            Double latitude, Double longitude, Integer geofenceId) {
+
+        @SuppressWarnings("java:S107") // The site without a geofence.
+        public Site(String address, String country, String districtCode, String district, String plusCode,
+                Double latitude, Double longitude) {
+            this(address, country, districtCode, district, plusCode, latitude, longitude, null);
+        }
     }
 
     @SuppressWarnings("java:S107") // The feed row without SLA or cargo.

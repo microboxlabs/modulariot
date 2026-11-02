@@ -124,6 +124,35 @@ export function cancelarDibujo(f: FormLugar): FormLugar {
   return { ...editar(f, []), cerrado: false };
 }
 
+/**
+ * Mientras se dibuja, soltar un extremo (primer o último vértice) sobre el
+ * otro los une y cierra el polígono. Si al fundirlos quedarían menos del
+ * mínimo, el extremo vuelve a `previo` (donde estaba antes de arrastrarlo) y
+ * solo se cierra. El historial ya se marcó al empezar el arrastre.
+ */
+export function unirExtremos(
+  f: FormLugar,
+  i: number,
+  previo: LatLon
+): FormLugar {
+  const n = f.vertices.length;
+  if (f.cerrado || n < MIN_VERTICES || (i !== 0 && i !== n - 1)) return f;
+  const vertices =
+    n - 1 >= MIN_VERTICES
+      ? f.vertices.filter((_, j) => j !== i)
+      : f.vertices.map((v, j) => (j === i ? previo : v));
+  return { ...conCentro(f, vertices), cerrado: true };
+}
+
+/** El extremo opuesto al vértice `i`, si `i` es un extremo de un trazo abierto. */
+export function extremoOpuesto(f: FormLugar, i: number): number | null {
+  const n = f.vertices.length;
+  if (f.cerrado || n < MIN_VERTICES) return null;
+  if (i === 0) return n - 1;
+  if (i === n - 1) return 0;
+  return null;
+}
+
 export function seguirDibujando(f: FormLugar): FormLugar {
   return { ...soltarComoPoligono(f), cerrado: false };
 }

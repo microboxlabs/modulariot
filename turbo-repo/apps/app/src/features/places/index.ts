@@ -15,6 +15,7 @@ export {
   type PlacesWorkspace,
 } from "./hooks/use-places-workspace";
 export { usePlacesEnMapa } from "./hooks/use-places-en-mapa";
+export { hayBorrador } from "./data/draft-store";
 export { FORM_VACIO, type GeocercaExterna } from "./places.types";
 export { PANEL_LUGARES } from "./panel";
 export { PlacesCatalogLists, PlacesImportCard } from "./catalog/places-catalog";

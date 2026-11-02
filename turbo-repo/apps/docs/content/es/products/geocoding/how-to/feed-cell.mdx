@@ -1,0 +1,49 @@
+import { Callout } from 'nextra/components'
+
+# Escribir el Origen o Destino como dirección o Plus Code
+
+**Para:** implementadores.
+
+Un feed puede no enviar `originSite` ni `destinationSite`: solo el texto de la celda Origen o Destino (`origin`, `destination`). Si ese texto no es el código de una geocerca, la plataforma lo lee como una dirección o un Plus Code, con el país del feed.
+
+## El país del feed
+
+Cada feed tiene un país opcional, de dos letras (ISO 3166-1 alfa-2). Se fija en **Ajustes › Viajes › Feeds**, al crear o editar el feed, en el campo **País**. Por API, es el campo `country` del feed.
+
+## Cómo se lee la celda
+
+La celda se lee solo si el servicio no trae sitio para ese lugar y la ubicación con ese código no tiene geocerca.
+
+| Texto de la celda | Se lee como | País |
+| --- | --- | --- |
+| Un Plus Code completo: `47RFH86X+VR` | `plusCode` | El del feed, si tiene |
+| Un Plus Code corto: `H86X+VR` | `plusCode` | El del feed. Sin país en el feed, la celda se ignora |
+| Texto con espacios, letras y números: `Av. Jorge Alessandri 10700, San Bernardo` | `address` | El del feed. Sin país en el feed, la celda se ignora |
+| Cualquier otra cosa: `SCL`, `CD-NORTE-1` | Nada: es solo un código | |
+
+Un sitio que el feed envía (`originSite`, `destinationSite`) gana sobre la celda. Las reglas de reintento son las mismas: una ubicación resuelta, rechazada o con geocerca no se vuelve a intentar.
+
+El resultado del trabajo del feed lista la celda como cualquier otro sitio: `"located": ["Av. Jorge Alessandri 10700, San Bernardo: resolved"]`.
+
+## Qué resuelve y qué no
+
+La celda no trae comuna. El resultado depende de eso:
+
+| Celda | Chile | Perú |
+| --- | --- | --- |
+| Dirección con la comuna después del número: `Camino Lo Boza 120, Pudahuel` | Se resuelve: la comuna sale del texto | Se resuelve si el distrito nombrado es único en el país |
+| Dirección sin comuna: `Jorge Alessandri 10700` | Se busca el número en las direcciones internas de todo el país. Si la calle coincide, la comuna es la de esa dirección | Queda en revisión |
+| Plus Code completo o corto | Queda en revisión sin comuna declarada (`district is required`, o `a short plus code needs a district with a boundary`) | Igual |
+
+<Callout type="warning">
+**Cuidado:** hoy un Plus Code en la celda siempre queda en revisión, porque la plataforma exige una comuna declarada. Para ubicar por Plus Code desde una planilla, envíe la comuna en `originSite` / `destinationSite`, o use la columna de Plus Code con su comuna ([Enviar sitios desde un feed](/es/products/geocoding/how-to/feed-sites)).
+</Callout>
+
+## Recomendaciones para la planilla
+
+| Regla | Ejemplo |
+| --- | --- |
+| Si el lugar tiene geocerca, escriba su código | `SCL` |
+| Si no, escriba calle, número y comuna, separados por coma | `Camino Lo Boza 120, Pudahuel` |
+| No mezcle en la celda el nombre del lugar y la dirección | `Bodega Norte - Camino Lo Boza 120` no se lee bien |
+| El mismo lugar siempre con el mismo texto | El texto es el código de la ubicación: otro texto es otra ubicación |

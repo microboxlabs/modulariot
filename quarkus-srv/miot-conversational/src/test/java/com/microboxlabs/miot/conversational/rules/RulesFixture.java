@@ -16,16 +16,18 @@ import com.microboxlabs.miot.core.event.EventTypeCatalog;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.core.event.Participant;
 import com.microboxlabs.miot.core.event.ParticipantResolver;
-import com.microboxlabs.miot.integrations.domain.ProviderType;
+import com.microboxlabs.miot.core.mail.MailTemplates;
+import com.microboxlabs.miot.core.mail.NotificationMail;
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
 import com.microboxlabs.miot.integrations.domain.JobState;
+import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
-import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
-import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
-import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import com.microboxlabs.miot.integrations.email.EmailMessage;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
 import com.microboxlabs.miot.integrations.email.SendResult;
+import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
+import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
+import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import java.net.URI;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
@@ -168,7 +171,8 @@ final class RulesFixture {
             emailsSent.add(message);
             return SendResult.accepted(200, "email-" + emailsSent.size());
         }
-    }, store.conversations.conversationRepository, store.conversations.messageRepository, accounts.service);
+    }, store.conversations.conversationRepository, store.conversations.messageRepository, accounts.service,
+            new NotificationMail(Optional.empty(), new MailTemplates(Optional.empty())));
 
     final InMemoryIntegrations integrations = new InMemoryIntegrations();
 

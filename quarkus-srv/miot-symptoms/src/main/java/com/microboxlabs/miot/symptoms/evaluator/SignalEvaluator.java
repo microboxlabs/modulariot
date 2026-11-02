@@ -94,6 +94,40 @@ public class SignalEvaluator {
         return new Result(transitions, errors);
     }
 
+    /**
+     * A frame older than the watermark, for the event-driven symptoms only: each one whose activation holds and
+     * that has no open case takes the frame as a normal step, so a buffered event opens its case. A step that
+     * does not open the case is undone, so an older frame never seeds hold-time state; neither the watermark nor
+     * any other episode moves, and an open case opens nothing new.
+     */
+    public Result evaluateLate(String tenantCode, String assetId, Instant at, Map<String, Object> root,
+            List<CompiledSymptom> symptoms) {
+        List<Transition> transitions = new ArrayList<>();
+        List<RuleError> errors = new ArrayList<>();
+        for (CompiledSymptom s : symptoms) {
+            if (!s.eventDriven() || store.find(tenantCode, assetId, s.definitionId()).filter(Episode::open)
+                    .isPresent()) {
+                continue;
+            }
+            try {
+                if (condition(s.activation(), root, "activation")) {
+                    Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
+                    Optional<Transition> t = step(tenantCode, assetId, at, root, s)
+                            .filter(x -> x.kind() == Transition.Kind.OPENED);
+                    if (t.isPresent()) {
+                        transitions.add(t.get());
+                    } else {
+                        before.ifPresentOrElse(e -> store.save(tenantCode, e),
+                                () -> store.delete(tenantCode, assetId, s.definitionId()));
+                    }
+                }
+            } catch (RuleFailure f) {
+                errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));
+            }
+        }
+        return new Result(transitions, errors);
+    }
+
     /** What one signal says about one symptom, before the lifecycle runs. */
     private record Reading(boolean active, double measure, int level, Instant candidateSince,
             Map<Integer, Instant> levelSince, Instant conditionSince, Instant normalSince) {

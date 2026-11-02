@@ -18,8 +18,14 @@ vi.mock("../data/geocoding", () => ({
   ),
 }));
 
-function Harness({ onUbicar }: { onUbicar: () => void }) {
-  const [form, setForm] = useState<FormLugar>({ ...FORM_VACIO });
+function Harness({
+  onUbicar,
+  inicial = FORM_VACIO,
+}: {
+  onUbicar: () => void;
+  inicial?: FormLugar;
+}) {
+  const [form, setForm] = useState<FormLugar>({ ...inicial });
   return (
     <PlaceForm
       form={form}
@@ -39,6 +45,28 @@ function Harness({ onUbicar }: { onUbicar: () => void }) {
 }
 
 describe("PlaceForm", () => {
+  it("keeps the position search in the form (it comes back with a draft)", () => {
+    render(
+      <Harness
+        onUbicar={() => undefined}
+        inicial={{
+          ...FORM_VACIO,
+          geom: "polygon",
+          polyBase: "tri",
+          busqueda: "Parque Araucano, Las Condes",
+          ubicadoEn: "Parque Araucano, Las Condes",
+        }}
+      />
+    );
+    expect(screen.getByLabelText("Ubicar en el mapa")).toHaveValue(
+      "Parque Araucano, Las Condes"
+    );
+    fireEvent.change(screen.getByLabelText("Ubicar en el mapa"), {
+      target: { value: "otra" },
+    });
+    expect(screen.getByLabelText("Ubicar en el mapa")).toHaveValue("otra");
+  });
+
   it("searches a place and moves the map to the suggestion", async () => {
     vi.useFakeTimers();
     const onUbicar = vi.fn();

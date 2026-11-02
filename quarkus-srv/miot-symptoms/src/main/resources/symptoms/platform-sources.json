@@ -14,23 +14,5 @@
       {"event": {"type": "AAS", "trip": {"active": true}, "gps": {"speed_kmh": 64.0}}},
       {"event": {"type": "SOS", "trip": {"active": true}, "gps": {"speed_kmh": 0.0}}}
     ]
-  },
-  {
-    "key": "trip_check",
-    "name": "Revisión periódica del viaje",
-    "kind": "CHECK",
-    "root": "check",
-    "cadence": "Cada 5 minutos",
-    "fields": [
-      {"path": "check.driving_minutes", "label": "Minutos conduciendo seguido", "type": "number", "unit": "min", "origin": "CALCULATED", "engineSupported": true},
-      {"path": "check.resting_minutes", "label": "Minutos de descanso", "type": "number", "unit": "min", "origin": "CALCULATED", "engineSupported": true},
-      {"path": "check.signal_lost_minutes", "label": "Minutos sin señal", "type": "number", "unit": "min", "origin": "CALCULATED", "engineSupported": true},
-      {"path": "check.trip.active", "label": "En viaje", "type": "bool", "origin": "TRIP", "engineSupported": true},
-      {"path": "check.trip.double_driver", "label": "Dos conductores", "type": "bool", "origin": "TRIP", "engineSupported": true}
-    ],
-    "samples": [
-      {"check": {"driving_minutes": 312.0, "resting_minutes": 0.0, "signal_lost_minutes": 0.0, "trip": {"active": true, "double_driver": false}}},
-      {"check": {"driving_minutes": 40.0, "resting_minutes": 0.0, "signal_lost_minutes": 135.0, "trip": {"active": true, "double_driver": false}}}
-    ]
   }
 ]

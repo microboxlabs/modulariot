@@ -8,6 +8,7 @@ import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateReque
 import com.microboxlabs.miot.conversational.rules.TemplatesService.TemplateView;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** Message templates are the platform's, versioned on each save. */
@@ -40,6 +41,22 @@ class PlatformTemplatesTest {
     }
 
     @Test
+    void htmlEmailConditionsAreVersionedAsInputVariables() {
+        ConvTemplate base = template(null, null,
+                new ConvTemplate.Email("{{#if company}}Quota{{/if}}", null, "{{#if link}}Review{{/if}}"));
+        ConvTemplate otherBodyInput = template(null, null,
+                new ConvTemplate.Email(base.email().subject(), null, "{{#if quota}}Review{{/if}}"));
+        ConvTemplate otherSubjectInput = template(null, null,
+                new ConvTemplate.Email("{{#if used}}Quota{{/if}}", null, base.email().html()));
+        ConvTemplate otherHelper = template(null, null,
+                new ConvTemplate.Email(base.email().subject(), null, "{{#unless link}}Review{{/unless}}"));
+
+        assertEquals(RuleBump.MAJOR, TemplateBump.between(base, otherBodyInput));
+        assertEquals(RuleBump.MAJOR, TemplateBump.between(base, otherSubjectInput));
+        assertEquals(RuleBump.PATCH, TemplateBump.between(base, otherHelper));
+    }
+
+    @Test
     void savesGoToThePlatformAndRaiseTheVersion() {
         RulesFixture f = new RulesFixture();
         TemplateView first = f.templates.save("welcome", new TemplateRequest("Bienvenida", "Hola {{nombre}}", null,
@@ -59,6 +76,24 @@ class PlatformTemplatesTest {
                 "an organization reads the platform's templates");
         TemplateRequest any = new TemplateRequest("x", null, null, null);
         assertThrows(IllegalArgumentException.class, () -> f.templates.save("Bad Key", any, "owner@example.com"));
+    }
+
+    @Test
+    void anHtmlEmailIsCheckedWhenSavedAndPreviewedWithItsValuesEscaped() {
+        RulesFixture f = new RulesFixture();
+        ConvTemplate.Email html = new ConvTemplate.Email("Cupo de {{company}}", null, "<p>{{company}}: {{used}}</p>");
+        assertEquals("0.1.0", f.templates.save("quota", new TemplateRequest("Cupo", null, null, html),
+                "owner@example.com").version());
+        TemplateRequest unescaped = new TemplateRequest("Cupo", null, null,
+                new ConvTemplate.Email("s", null, "<p>{{{company}}}</p>"));
+        assertThrows(IllegalArgumentException.class, () -> f.templates.save("quota-bad", unescaped, "owner@example.com"),
+                "a value written without escaping");
+
+        TemplatesService.EmailPreview preview = f.templates.previewEmail(new TemplatesService.EmailPreviewRequest(
+                "Cupo de {{company}}", "<p>{{company}}: {{used}}</p>", Map.of("company", "A & <B>", "used", "8")));
+        assertEquals("Cupo de A & <B>", preview.subject());
+        assertEquals("<p>A &amp; &lt;B&gt;: 8</p>", preview.html());
+        assertEquals("A & <B>: 8", preview.text().strip());
     }
 
     @Test

@@ -131,11 +131,26 @@ class ControlTowerPermissionsTest {
         Set<String> operator = grant(registry, ControlTowerAccessCatalog.OPERATOR);
         Set<String> maintainer = grant(registry, ControlTowerAccessCatalog.MAINTAINER);
 
-        assertTrue(viewer.contains(VIEW) && !viewer.contains(TREAT) && !viewer.contains(PLACES));
-        assertTrue(operator.containsAll(Set.of(VIEW, TREAT, CONTACT_WRITE)) && !operator.contains(EDIT)
-                && !operator.contains(PLACES));
+        assertTrue(viewer.contains(VIEW) && !viewer.contains(TREAT));
+        assertTrue(operator.containsAll(Set.of(VIEW, TREAT, CONTACT_WRITE)) && !operator.contains(EDIT));
         assertTrue(maintainer.containsAll(Set.of(VIEW, TREAT, CONTACT_WRITE, CONTACT_DELETE, EDIT, PUBLISH,
-                SETTINGS, PLACES)));
+                SETTINGS)));
+    }
+
+    /** Disabled until the places editor ships, see {@link ControlTowerAccessCatalog#PLACES_EDIT}. */
+    @Test
+    void placesEditIsDisabled() {
+        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new ControlTowerAccessCatalog()));
+        assertTrue(registry.permissions().stream().noneMatch(p -> p.key().equals(PLACES)), "not declared");
+        for (String role : List.of(ControlTowerAccessCatalog.VIEWER, ControlTowerAccessCatalog.OPERATOR,
+                ControlTowerAccessCatalog.MAINTAINER)) {
+            assertTrue(!grant(registry, role).contains(PLACES), role);
+        }
+        for (BaseRole base : BaseRole.values()) {
+            Set<String> granted = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
+                    new AccessRules.Facts(base, false, Set.of()), registry).permissions();
+            assertTrue(!granted.contains(PLACES), base.name());
+        }
     }
 
     @Test
@@ -148,7 +163,6 @@ class ControlTowerPermissionsTest {
         Set<String> member = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
                 new AccessRules.Facts(BaseRole.MEMBER, false, Set.of()), registry).permissions();
         assertTrue(!member.contains(TREAT), "a member without a role gets no default");
-        assertTrue(!member.contains(PLACES));
     }
 
     private static Set<String> grant(AccessRegistry registry, String role) {

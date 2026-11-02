@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
 import com.microboxlabs.miot.symptoms.catalog.store.DataSourceStore;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
+import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.io.IOException;
@@ -22,8 +23,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The data sources rules read. The GPS signal's fields are read from its
- * contract ({@link SignalFields}); the other platform sources come from
+ * The data sources rules read. The GPS signal's and the trip check's fields
+ * are read from their contracts ({@link SignalFields}, {@link TripCheck}); the
+ * other platform sources come from
  * {@value #RESOURCE}. Both are written to the store the first time they are
  * needed. The GPS signal's samples are the organization's recent signals
  * ({@link SignalSamples}), or else fixed ones with the signal's whole shape.
@@ -102,6 +104,9 @@ public class DataSourceService {
                     SignalFields.cadence(), SignalFields.fields(), SignalSamples.fallback()));
             seeds.addAll(JSON.readValue(in, new TypeReference<List<Seed>>() {
             }));
+            seeds.add(new Seed(TripCheck.KEY, TripCheck.name(), SourceKind.CHECK, TripCheck.ROOT,
+                    SignalFields.cadence(TripCheck.class), SignalFields.fields(TripCheck.class, TripCheck.ROOT),
+                    TripCheck.samples()));
             return seeds;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

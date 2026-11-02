@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.geocoding;
 
+import com.microboxlabs.miot.core.auth.PlatformScope;
 import com.microboxlabs.miot.core.event.EventContext;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -11,8 +12,10 @@ import java.util.function.Function;
 import org.jboss.logging.Logger;
 
 /**
- * Publishes the {@code geocoding.*} events as {@link OperationalEvent}s, which conversation rules can turn into a
- * message. The context is {@code {kind: "geocoding_quota", key: <organization>}}. A failure never fails the call.
+ * Publishes the {@code geocoding.*} events as {@link OperationalEvent}s, which communication rules turn into
+ * messages. Each event goes to the organization's tenant, for its own rules, and to the platform's, for the
+ * platform owners' rules. The context is {@code {kind: "geocoding_quota", key: <organization>}}. A failure never
+ * fails the call.
  */
 @ApplicationScoped
 public class GeocodingEvents {
@@ -30,9 +33,17 @@ public class GeocodingEvents {
         this.fire = fire;
     }
 
-    public void quotaThreshold(String tenantCode, GeocodingQuotaData data) {
-        OperationalEvent event = new OperationalEvent(GeocodingEventCatalog.QUOTA_THRESHOLD,
-                GeocodingEventCatalog.EVENT_SOURCE, tenantCode, Instant.now(),
+    /** {@code type} is {@link GeocodingEventCatalog#QUOTA_THRESHOLD} or {@link GeocodingEventCatalog#QUOTA_EXHAUSTED}. */
+    public void quota(String type, String tenantCode, GeocodingQuotaData data) {
+        Instant at = Instant.now();
+        if (tenantCode != null && !PlatformScope.TENANT.equals(tenantCode)) {
+            publish(type, tenantCode, at, data);
+        }
+        publish(type, PlatformScope.TENANT, at, data);
+    }
+
+    private void publish(String type, String tenantCode, Instant at, GeocodingQuotaData data) {
+        OperationalEvent event = new OperationalEvent(type, GeocodingEventCatalog.EVENT_SOURCE, tenantCode, at,
                 new EventContext(GeocodingEventCatalog.CONTEXT_KIND, data.organization()), data, false);
         try {
             fire.apply(event).exceptionally(e -> {

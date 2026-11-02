@@ -30,25 +30,47 @@ export type MedidaBadge = {
   dy: number;
 };
 
-/** Badges a menos de esto en pantalla se juntan en un cluster. */
-const HUELGO = 12;
+/**
+ * Aire alrededor de cada título: dos títulos a menos de esto en pantalla ya
+ * se juntan (que no lleguen a verse apretados antes de agruparse).
+ */
+const MARGEN_CLUSTER = 24;
 
-type Rect = { x0: number; y0: number; x1: number; y1: number };
+/** Rect del título con su aire, y el centro (el ancla) para medir cercanía. */
+type Rect = {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  cx: number;
+  cy: number;
+};
 
 const seCruzan = (a: Rect, b: Rect) =>
   a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 
-const unir = (a: Rect, b: Rect): Rect => ({
-  x0: Math.min(a.x0, b.x0),
-  y0: Math.min(a.y0, b.y0),
-  x1: Math.max(a.x1, b.x1),
-  y1: Math.max(a.y1, b.y1),
-});
+const distancia = (a: Rect, b: Rect) => Math.hypot(a.cx - b.cx, a.cy - b.cy);
+
+/** De los grupos dados, el de ancla más cercana a `r` (el primero si empatan). */
+function masCercano<G extends { rect: Rect }>(
+  grupos: G[],
+  r: Rect
+): G | undefined {
+  let mejor: G | undefined;
+  for (const g of grupos) {
+    if (!mejor || distancia(g.rect, r) < distancia(mejor.rect, r)) mejor = g;
+  }
+  return mejor;
+}
 
 /**
  * Agrupa los badges que se pisarían: cada grupo se muestra como un solo
  * badge con sus nombres en lista. Ninguno se oculta. Dentro de cada grupo el
  * orden es por `prioridad` (mayor primero); el primero da la posición.
+ *
+ * Un badge entra a un grupo solo si pisa el badge de ese grupo (el de su
+ * primero, donde se dibuja): el área del grupo no crece al sumar miembros,
+ * así no arrastra en cadena lugares lejanos que no tocan el cluster.
  */
 export function agruparSolapes<T extends { id: string; ancla: LatLon }>(
   items: T[],
@@ -59,36 +81,28 @@ export function agruparSolapes<T extends { id: string; ancla: LatLon }>(
   const orden = [...items].sort(
     (a, b) => prioridad(b) - prioridad(a) || a.id.localeCompare(b.id)
   );
-  let grupos: { rect: Rect; miembros: T[] }[] = [];
+  const grupos: { rect: Rect; miembros: T[] }[] = [];
   for (const item of orden) {
     const [x, y] = pixelesMundo(item.ancla, zoom);
     const { w, h, dy } = medida(item);
+    // el título entero, tal como se dibuja, con medio margen por lado
+    const m = MARGEN_CLUSTER / 2;
     const r: Rect = {
-      x0: x - w / 2 - HUELGO / 2,
-      x1: x + w / 2 + HUELGO / 2,
-      y0: y + dy - h / 2 - HUELGO / 2,
-      y1: y + dy + h / 2 + HUELGO / 2,
+      x0: x - w / 2 - m,
+      x1: x + w / 2 + m,
+      y0: y + dy - h / 2 - m,
+      y1: y + dy + h / 2 + m,
+      cx: x,
+      cy: y,
     };
-    const g = grupos.find((otro) => seCruzan(otro.rect, r));
-    if (g) {
-      g.miembros.push(item);
-      g.rect = unir(g.rect, r);
-    } else grupos.push({ rect: r, miembros: [item] });
-  }
-  // un grupo que creció puede tocar a otro: se juntan hasta que no queden
-  let junto = true;
-  while (junto) {
-    junto = false;
-    const sig: typeof grupos = [];
-    for (const g of grupos) {
-      const otro = sig.find((x) => seCruzan(x.rect, g.rect));
-      if (otro) {
-        otro.miembros.push(...g.miembros);
-        otro.rect = unir(otro.rect, g.rect);
-        junto = true;
-      } else sig.push(g);
-    }
-    grupos = sig;
+    // el rect del grupo es el de su primero: no crece con los miembros; si
+    // toca a varios, va al más cercano
+    const g = masCercano(
+      grupos.filter((otro) => seCruzan(otro.rect, r)),
+      r
+    );
+    if (g) g.miembros.push(item);
+    else grupos.push({ rect: r, miembros: [item] });
   }
   return grupos.map((g) => g.miembros);
 }

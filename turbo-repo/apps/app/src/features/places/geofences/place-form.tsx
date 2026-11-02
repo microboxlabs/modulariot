@@ -7,8 +7,6 @@ import {
   StepSwap,
   useOutThenIn,
 } from "@/features/geographic-view/components/places-overlay/panel-motion";
-import MetaTable from "../ui/meta-table";
-import CategoryDropdown from "../ui/category-dropdown";
 import CampoCategorias, {
   CAMPO_CATEGORIAS,
 } from "../ui/place-categories-field";
@@ -28,7 +26,6 @@ import {
 } from "../ui/form-ui";
 import GeofenceColorPicker from "./geofence-color-picker";
 import {
-  MAX_METADATA,
   colorDeFormLugar,
   type Categoria,
   type FormLugar,
@@ -85,8 +82,8 @@ export default function PlaceForm({
   cerca?: () => LatLon | null;
   onUbicar?: (punto: LatLon, radioM: number) => void;
 }>) {
-  const [busqueda, setBusqueda] = useState("");
-  const [ubicadoEn, setUbicadoEn] = useState<string | null>(null);
+  // la búsqueda va en el formulario: así vuelve con el borrador al recargar
+  const { busqueda, ubicadoEn } = form;
   const [intento, setIntento] = useState(false);
 
   const set = <K extends keyof FormLugar>(key: K, value: FormLugar[K]) =>
@@ -106,17 +103,21 @@ export default function PlaceForm({
 
   const cambiarRadio = (radius_m: number) => set("radius_m", radius_m);
 
-  const cambiarBusqueda = (texto: string) => {
-    setUbicadoEn(null);
-    setBusqueda(texto);
-  };
+  const cambiarBusqueda = (texto: string) =>
+    setForm((f) => ({ ...f, busqueda: texto, ubicadoEn: null }));
 
   const ubicarDesdeBusqueda = (s: Sugerencia) => {
     const etiqueta = s.contexto ? `${s.nombre}, ${s.contexto}` : s.nombre;
     const [lat, lon] = s.punto;
-    setBusqueda(etiqueta);
-    setUbicadoEn(etiqueta);
-    setForm((f) => aplicarFormaBase({ ...f, lat, lon }));
+    setForm((f) =>
+      aplicarFormaBase({
+        ...f,
+        lat,
+        lon,
+        busqueda: etiqueta,
+        ubicadoEn: etiqueta,
+      })
+    );
     onUbicar?.(s.punto, form.radius_m);
   };
 
@@ -216,7 +217,7 @@ export default function PlaceForm({
         step={shown}
         visible={visible}
         first={
-          // con scroll propio: la metadata no se comprime cuando falta alto
+          // con scroll propio: los campos no se comprimen cuando falta alto
           <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
             <div className="shrink-0 space-y-3">
               {geomKindDe(form) === "circle" && (
@@ -282,46 +283,15 @@ export default function PlaceForm({
                 />
               </Field>
 
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Categoría de alerta">
-                  <CategoryDropdown
-                    value={form.category_id}
-                    cats={cats}
-                    onChange={(id) => set("category_id", id)}
-                  />
-                </Field>
-                <Field label="External ID">
-                  <input
-                    className={inputCls}
-                    placeholder="Opcional"
-                    value={form.external_id}
-                    onChange={(e) => set("external_id", e.target.value)}
-                  />
-                </Field>
-              </div>
-              {!form.category_id && (
-                <p className="-mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                  Sin categoría el lugar no genera alertas.
-                </p>
-              )}
+              <Field label="External ID">
+                <input
+                  className={inputCls}
+                  placeholder="Opcional"
+                  value={form.external_id}
+                  onChange={(e) => set("external_id", e.target.value)}
+                />
+              </Field>
             </div>
-
-            <Field
-              label="Metadata"
-              className="flex min-h-44 flex-1 shrink-0 flex-col"
-              aside={
-                <span className="font-normal text-gray-400">
-                  {form.metadata.length}/{MAX_METADATA}
-                </span>
-              }
-            >
-              <MetaTable
-                className="min-h-0 flex-1"
-                rows={form.metadata}
-                max={MAX_METADATA}
-                onRowsChange={(metadata) => set("metadata", metadata)}
-              />
-            </Field>
 
             <div className="shrink-0 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700">
               <div className="text-[11px] font-medium text-gray-600 dark:text-gray-300">

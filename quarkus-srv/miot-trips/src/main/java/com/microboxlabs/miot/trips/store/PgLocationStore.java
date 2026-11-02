@@ -144,6 +144,23 @@ public class PgLocationStore implements LocationStore {
                         .addString(p.status()).addString(p.note()).addInteger(geofenceId).addString(actor)));
     }
 
+    @Override
+    public Optional<Location> setPlacementIfOpen(String tenantCode, UUID id, Location.Placement p, int geofenceId,
+            String actor) {
+        return first(query(pool.get(), """
+                UPDATE miot_trips.location SET
+                    address = $3, country = $4, district_code = $5, district_name = $6, plus_code = $7,
+                    latitude = $8, longitude = $9, resolution_source = $10, resolution_status = $11,
+                    resolution_note = $12, geofence_id = $13, updated_by = $14, updated_at = now()
+                WHERE tenant_code = $1 AND id = $2 AND geofence_id IS NULL
+                  AND resolution_status IS DISTINCT FROM 'resolved' AND resolution_status IS DISTINCT FROM 'rejected'
+                RETURNING\s""" + COLUMNS,
+                Tuple.tuple().addString(tenantCode).addUUID(id).addString(p.address()).addString(p.country())
+                        .addString(p.districtCode()).addString(p.districtName()).addString(p.plusCode())
+                        .addDouble(p.latitude()).addDouble(p.longitude()).addString(p.source())
+                        .addString(p.status()).addString(p.note()).addInteger(geofenceId).addString(actor)));
+    }
+
     private static Optional<Location> first(RowSet<Row> rows) {
         RowIterator<Row> it = rows.iterator();
         return it.hasNext() ? Optional.of(location(it.next())) : Optional.empty();

@@ -4,6 +4,7 @@ import { DeleteConfirmModal } from "@/features/task-forms/components/task-bento-
 import PlaceForm from "../geofences/place-form";
 import TrayectoForm from "../routes/trayecto-form";
 import VersionDialog from "../versioning/version-dialog";
+import UnsavedChangesDialog from "../ui/unsaved-changes-dialog";
 import MapCreateMenu from "./map-create-menu";
 import PlaceBadgeMenu from "./place-badge-menu";
 import PlaceBadgeTooltip from "./place-badge-tooltip";
@@ -123,7 +124,7 @@ function LugarFormCard({
       onGuardar={() => void ws.guardarLugar()}
       version={ws.versionDe("lugar", ws.form.place_id)}
       onBack={ws.volverAGeocerca}
-      onClose={ws.cerrarForm}
+      onClose={ws.pedirCerrarForm}
     />
   );
 }
@@ -160,7 +161,7 @@ function TrayectoFormCard({
       msg={ws.msg}
       onSave={ws.guardarOContinuarTrayecto}
       version={ws.versionDe("trayecto", ws.tray.id)}
-      onClose={ws.cerrarForm}
+      onClose={ws.pedirCerrarForm}
     />
   );
 }
@@ -248,6 +249,12 @@ export function PlacesEditorOverlays({
         title={ws.confirmacion?.titulo}
         description={null}
         dictionary={dict ?? {}}
+      />
+      {/* ✕ con cambios sin guardar: salir sin guardar o seguir editando */}
+      <UnsavedChangesDialog
+        abierto={ws.cierrePendiente}
+        onSalir={ws.salirSinGuardar}
+        onSeguir={ws.seguirEditando}
       />
       {/* guardar una geocerca o trayecto editado: tipo de actualización */}
       <VersionDialog

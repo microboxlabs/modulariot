@@ -104,6 +104,10 @@ export const FORM_VACIO = {
   inners: [] as InnerGeofence[],
   /** Geocerca interior que se está dibujando o ajustando en el mapa. */
   innerEditId: null as string | null,
+  /** Texto de "Posicionar geocerca" (solo del formulario, no se guarda). */
+  busqueda: "",
+  /** Dirección elegida en esa búsqueda, mientras el centro siga ahí. */
+  ubicadoEn: null as string | null,
 };
 export type FormLugar = typeof FORM_VACIO;
 
@@ -149,7 +153,6 @@ export type Parada = {
   categoria?: string;
 };
 
-export const MAX_METADATA = 10;
 /** Clave reservada de metadata donde se guarda el icono del lugar. */
 export const ICON_KEY = "_icon";
 /** Geocercas interiores serializadas en el lugar padre. */

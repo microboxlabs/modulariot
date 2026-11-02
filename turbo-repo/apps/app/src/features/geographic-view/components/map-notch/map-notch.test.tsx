@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GeographicProfileProvider } from "../../profiles/geographic-profile-context";
 import MapNotch from "./map-notch";
@@ -23,10 +23,10 @@ const dict = {
   },
 } as unknown as I18nRecord;
 
-function renderNotch() {
+function renderNotch(alSalirDeLugares?: (seguir: () => void) => void) {
   return render(
     <GeographicProfileProvider>
-      <MapNotch dict={dict} />
+      <MapNotch dict={dict} alSalirDeLugares={alSalirDeLugares} />
     </GeographicProfileProvider>
   );
 }
@@ -66,6 +66,25 @@ describe("MapNotch", () => {
     fireEvent.click(places);
     expect(places).toHaveAttribute("aria-pressed", "false");
     expect(icono()).toHaveAttribute("data-notch-icon", "shown");
+  });
+
+  it("asks before leaving Lugares and only closes it if the user leaves", () => {
+    let seguir: (() => void) | null = null;
+    const alSalir = vi.fn((s: () => void) => {
+      seguir = s; // e.g. the unsaved-changes modal is open
+    });
+    renderNotch(alSalir);
+    const places = screen.getByRole("button", { name: "Places of interest" });
+    fireEvent.click(places);
+    // opening does not ask
+    expect(alSalir).not.toHaveBeenCalled();
+
+    fireEvent.click(places);
+    expect(alSalir).toHaveBeenCalledTimes(1);
+    expect(places).toHaveAttribute("aria-pressed", "true");
+    // "Salir sin guardar"
+    act(() => seguir?.());
+    expect(places).toHaveAttribute("aria-pressed", "false");
   });
 
   it("shows a floating section name on hover and hides it when idle", () => {

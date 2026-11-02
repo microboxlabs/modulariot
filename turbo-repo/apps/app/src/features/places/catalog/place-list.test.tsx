@@ -63,6 +63,19 @@ describe("PlaceList", () => {
     expect(p.onEliminar).toHaveBeenCalledOnce();
   });
 
+  it("has no edit/delete menu on StreamHub geofences (read-only)", () => {
+    setup({
+      lugares: [
+        lugar({ place_id: "streamhub-7", name: "Demo depot" }),
+        lugar({ place_id: "local-x", name: "Bodega" }),
+      ],
+    });
+    expect(screen.getByText("Demo depot")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Opciones de Demo depot")).toBeNull();
+    // a test place created here keeps its menu
+    expect(screen.getByLabelText("Opciones de Bodega")).toBeInTheDocument();
+  });
+
   it("shows the empty state with the search term", () => {
     setup({ lugares: [], busqueda: "xyz" });
     expect(screen.getByText("Sin lugares para «xyz».")).toBeInTheDocument();

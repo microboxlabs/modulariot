@@ -1,6 +1,34 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { trDynamic } from "@/features/i18n/tr.service";
 
+const EXACT_NOTES: ReadonlyMap<string, string> = new Map([
+  [
+    "the address names no district and is not in the internal addresses",
+    "addressWithoutDistrict",
+  ],
+  ["district code is too long", "districtCodeTooLong"],
+  ["district name is too long", "districtNameTooLong"],
+  ["geocoding: the platform has no geocoding provider", "noPlatformProvider"],
+  [
+    "geocoding: this organization's geocoding connection cannot be read",
+    "connectionUnreadable",
+  ],
+  [
+    "geocoding: this organization's geocoding connection is not managed by the platform",
+    "connectionUnmanaged",
+  ],
+  ["geocoding: no organization to geocode for", "noOrganization"],
+  [
+    "geocoding: the geocoding connection's costPerRequestUsd is not a number",
+    "costInvalid",
+  ],
+  [
+    "geocoding: the geocoding connection's credential has no token",
+    "credentialWithoutToken",
+  ],
+  ["geocoding: interrupted", "geocodingInterrupted"],
+]);
+
 /** A resolver note (English, from the modulith) and the dictionary key that says it in the user's language. */
 const NOTES: ReadonlyArray<{
   pattern: RegExp;
@@ -90,6 +118,16 @@ const NOTES: ReadonlyArray<{
     params: [],
   },
   {
+    pattern: /^geocoding: unknown geocoding provider ([^\r\n]+)$/,
+    key: "unknownProvider",
+    params: ["provider"],
+  },
+  {
+    pattern: /^geocoding: the geocoding connection must use (\S+)$/,
+    key: "connectionBaseUrl",
+    params: ["baseUrl"],
+  },
+  {
     pattern: /^geocoding: this organization has no geocoding connection/,
     key: "noConnection",
     params: [],
@@ -159,6 +197,16 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function translatedNote(
+  note: string,
+  notes: I18nRecord,
+  key: string,
+  values?: Record<string, string>
+): string {
+  const text = trDynamic(key, notes, values);
+  return text === key ? note : text;
+}
+
 /**
  * The note in the user's language when it is one the resolver writes; otherwise the note as it came, so a new or
  * provider-specific note still shows.
@@ -168,10 +216,11 @@ export function reviewNote(
   notes: I18nRecord | undefined
 ): string {
   if (!notes) return note;
+  const exact = EXACT_NOTES.get(note);
+  if (exact) return translatedNote(note, notes, exact);
   const point = pointNote(note);
   if (point) {
-    const text = trDynamic(point.key, notes, point.values);
-    return text === point.key ? note : text;
+    return translatedNote(note, notes, point.key, point.values);
   }
   for (const { pattern, key, params } of NOTES) {
     const match = pattern.exec(note);
@@ -182,8 +231,7 @@ export function reviewNote(
         return [name, name === "provider" ? capitalize(value) : value];
       })
     );
-    const text = trDynamic(key, notes, values);
-    return text === key ? note : text;
+    return translatedNote(note, notes, key, values);
   }
   return note;
 }

@@ -3634,6 +3634,18 @@
             "zone": "Zone"
           },
           "notes": {
+            "addressWithoutDistrict": "The address names no district and was not found in the internal addresses",
+            "districtCodeTooLong": "The district code is too long",
+            "districtNameTooLong": "The district name is too long",
+            "noPlatformProvider": "The platform has no geocoding provider configured",
+            "connectionUnreadable": "The organization's geocoding connection could not be read",
+            "connectionUnmanaged": "The organization's geocoding connection is not managed by the platform",
+            "noOrganization": "No organization was provided for geocoding",
+            "costInvalid": "The geocoding provider's cost per call is not a number",
+            "credentialWithoutToken": "The geocoding provider's credential has no token",
+            "geocodingInterrupted": "The geocoding call was interrupted",
+            "unknownProvider": "Unknown geocoding provider {provider}",
+            "connectionBaseUrl": "The geocoding connection must use {baseUrl}",
             "pointInOtherDistrict": "The point is in {found} ({foundCode}), not in {declared} ({declaredCode})",
             "pointOutsideCountry": "The point is outside {country}, not in {declared} ({declaredCode})",
             "countryRequired": "The country is needed to check the district",

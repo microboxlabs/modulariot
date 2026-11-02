@@ -3634,6 +3634,18 @@
             "zone": "Zona"
           },
           "notes": {
+            "addressWithoutDistrict": "La dirección no indica un distrito y no se encontró en las direcciones internas",
+            "districtCodeTooLong": "El código del distrito es demasiado largo",
+            "districtNameTooLong": "El nombre del distrito es demasiado largo",
+            "noPlatformProvider": "La plataforma no tiene un proveedor de geocodificación configurado",
+            "connectionUnreadable": "No se pudo leer la conexión de geocodificación de la organización",
+            "connectionUnmanaged": "La conexión de geocodificación de la organización no está administrada por la plataforma",
+            "noOrganization": "No se indicó una organización para geocodificar",
+            "costInvalid": "El costo por consulta del proveedor de geocodificación no es un número",
+            "credentialWithoutToken": "La credencial del proveedor de geocodificación no tiene un token",
+            "geocodingInterrupted": "La consulta de geocodificación se interrumpió",
+            "unknownProvider": "Proveedor de geocodificación desconocido: {provider}",
+            "connectionBaseUrl": "La conexión de geocodificación debe usar {baseUrl}",
             "pointInOtherDistrict": "El punto está en {found} ({foundCode}), no en {declared} ({declaredCode})",
             "pointOutsideCountry": "El punto está fuera de {country}, no en {declared} ({declaredCode})",
             "countryRequired": "Falta el país para comprobar la comuna",

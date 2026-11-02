@@ -155,10 +155,7 @@ public class LocationResolver {
         Found found = selected.found();
         Usage usage = selected.usage();
         if (found == null || found.point() == null) {
-            boolean districtSent = blankToNull(site.districtCode()) != null || blankToNull(site.districtName()) != null;
-            String note = SHORT_PLUS_CODE.equals(selected.note()) && districtSent && district.note() != null
-                    ? district.note() : selected.note();
-            return review(declared, null, null, note, usage);
+            return review(declared, null, null, missingPointNote(site, district, selected.note()), usage);
         }
         String source = manual ? MANUAL : found.source();
         Point p = found.point();
@@ -193,6 +190,14 @@ public class LocationResolver {
         if (tenantCode == null) return null;
         return geofences.containing(tenantCode, p.lon(), p.lat(), 1).stream().findFirst().map(Geofence::id)
                 .orElse(null);
+    }
+
+    private static String missingPointNote(Site site, District district, String note) {
+        boolean districtSent = blankToNull(site.districtCode()) != null || blankToNull(site.districtName()) != null;
+        if (SHORT_PLUS_CODE.equals(note) && districtSent && district.note() != null) {
+            return district.note();
+        }
+        return note;
     }
 
     private static String nothingNote(Site site, Boundary b) {

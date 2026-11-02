@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import en from "@/lang/en.json";
 import es from "@/lang/es.json";
 import { reviewNote } from "./review-note";
 
@@ -55,6 +56,80 @@ describe("reviewNote", () => {
         notes
       )
     ).toBe("La organización usó sus 1000 consultas de geocodificación del mes");
+  });
+
+  it.each([
+    [
+      "the address names no district and is not in the internal addresses",
+      "The address names no district and was not found in the internal addresses",
+      "La dirección no indica un distrito y no se encontró en las direcciones internas",
+    ],
+    [
+      "district code is too long",
+      "The district code is too long",
+      "El código del distrito es demasiado largo",
+    ],
+    [
+      "district name is too long",
+      "The district name is too long",
+      "El nombre del distrito es demasiado largo",
+    ],
+    [
+      "geocoding: the platform has no geocoding provider",
+      "The platform has no geocoding provider configured",
+      "La plataforma no tiene un proveedor de geocodificación configurado",
+    ],
+    [
+      "geocoding: this organization's geocoding connection cannot be read",
+      "The organization's geocoding connection could not be read",
+      "No se pudo leer la conexión de geocodificación de la organización",
+    ],
+    [
+      "geocoding: this organization's geocoding connection is not managed by the platform",
+      "The organization's geocoding connection is not managed by the platform",
+      "La conexión de geocodificación de la organización no está administrada por la plataforma",
+    ],
+    [
+      "geocoding: no organization to geocode for",
+      "No organization was provided for geocoding",
+      "No se indicó una organización para geocodificar",
+    ],
+    [
+      "geocoding: the geocoding connection's costPerRequestUsd is not a number",
+      "The geocoding provider's cost per call is not a number",
+      "El costo por consulta del proveedor de geocodificación no es un número",
+    ],
+    [
+      "geocoding: the geocoding connection's credential has no token",
+      "The geocoding provider's credential has no token",
+      "La credencial del proveedor de geocodificación no tiene un token",
+    ],
+    [
+      "geocoding: interrupted",
+      "The geocoding call was interrupted",
+      "La consulta de geocodificación se interrumpió",
+    ],
+  ])("translates the built-in note %s", (note, english, spanish) => {
+    expect(reviewNote(note, en.pages.userSettings.geocoding.review.notes)).toBe(
+      english
+    );
+    expect(reviewNote(note, notes)).toBe(spanish);
+  });
+
+  it("keeps provider and connection details in translated notes", () => {
+    expect(
+      reviewNote("geocoding: unknown geocoding provider synthetic", notes)
+    ).toBe("Proveedor de geocodificación desconocido: Synthetic");
+    expect(
+      reviewNote(
+        "geocoding: the geocoding connection must use synthetic-endpoint",
+        notes
+      )
+    ).toBe("La conexión de geocodificación debe usar synthetic-endpoint");
+  });
+
+  it("leaves a note named like an object property unchanged", () => {
+    expect(reviewNote("toString", notes)).toBe("toString");
   });
 
   it("shows a note it does not know as it came", () => {

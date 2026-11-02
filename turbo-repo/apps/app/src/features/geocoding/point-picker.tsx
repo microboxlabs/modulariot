@@ -16,13 +16,13 @@ interface Point {
   readonly longitude: number;
 }
 
-function hasWebGL(): boolean {
+function hasWebGL2(): boolean {
   const canvas = document.createElement("canvas");
-  return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
+  return Boolean(canvas.getContext("webgl2"));
 }
 
 /**
- * A Mapbox map where a click or a drag of the marker sets the point. Without WebGL the map cannot draw, so it
+ * A Mapbox map where a click or a drag of the marker sets the point. Without WebGL 2 the map cannot draw, so it
  * shows `unavailable` instead.
  */
 export default function PointPicker({
@@ -41,7 +41,7 @@ export default function PointPicker({
   const runtimeConfig = useRuntimeConfig();
   const token = runtimeConfig?.MAPBOX_API_KEY?.trim() ?? "";
   const [webgl, setWebgl] = useState<boolean | null>(null);
-  useEffect(() => setWebgl(hasWebGL()), []);
+  useEffect(() => setWebgl(hasWebGL2()), []);
   if (webgl === false) {
     return (
       <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 p-6 text-center text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-300">

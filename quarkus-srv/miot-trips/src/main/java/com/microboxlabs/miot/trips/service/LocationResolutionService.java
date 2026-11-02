@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.trips.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.openlocationcode.OpenLocationCode;
 import com.microboxlabs.miot.core.db.Transactions;
 import com.microboxlabs.miot.integrations.service.GeocodeUsageService;
 import com.microboxlabs.miot.integrations.service.GeocodeUsageService.Resolution;
@@ -11,6 +12,7 @@ import com.microboxlabs.miot.trips.dto.LocationRequest;
 import com.microboxlabs.miot.trips.dto.LocationResolveRequest;
 import com.microboxlabs.miot.trips.dto.LocationResolveResult;
 import com.microboxlabs.miot.trips.dto.LocationView;
+import com.microboxlabs.miot.trips.geo.GeoShape;
 import com.microboxlabs.miot.trips.service.LocationResolver.Outcome;
 import com.microboxlabs.miot.trips.service.LocationResolver.Site;
 import com.microboxlabs.miot.trips.store.GeofenceDirectory;
@@ -166,6 +168,25 @@ public class LocationResolutionService {
             throw new IllegalStateException(placed.placement().note());
         }
         return placed;
+    }
+
+    /**
+     * Points the location at a geofence of the tenant that a source declared to be this place, resolved at the
+     * geofence's center. No district check: the geofence is the tenant's own.
+     */
+    public Location useGeofence(String tenantCode, String actor, UUID id, int geofenceId) {
+        Location l = store.find(tenantCode, id).orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
+        if (geofences.find(tenantCode, geofenceId).isEmpty()) {
+            throw new IllegalArgumentException("geofence " + geofenceId + " is not the organization's");
+        }
+        String shape = geofences.shapes(List.of(geofenceId)).get(geofenceId);
+        if (shape == null) {
+            throw new IllegalArgumentException("geofence " + geofenceId + " has no area");
+        }
+        double[] c = GeoShape.parse(shape).center();
+        Placement at = l.placement().withResult(OpenLocationCode.encode(c[1], c[0]), c[1], c[0],
+                LocationResolver.GEOFENCE, Location.RESOLVED, null);
+        return finish(tenantCode, actor, l, new Outcome(at, geofenceId));
     }
 
     /** Marks the site as one that cannot be located; its point and geofence stay as they are. */

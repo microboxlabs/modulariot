@@ -265,27 +265,31 @@ class PgTreatmentReadsTest {
     @Test
     void anAssetsPositionsInARangeAreSampledOldestFirst() {
         Instant now = Instant.now();
-        JsonNode window = await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-b", 10));
+        JsonNode window = await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-b", 10, false));
         assertTrue(window.size() <= 10 && window.size() >= 8, "size " + window.size());
         assertEquals(1, window.get(0).path("speed").asInt());
         assertEquals(25, window.get(window.size() - 1).path("speed").asInt());
         assertEquals("T6", window.get(0).path("tripid").asText(), "sent during trip T6");
-        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(1)), now, "org-b", 10)).size());
-        assertEquals(0, await(reads.assetPositions("IJ90", now.minus(Duration.ofDays(4)), now, "org-x", 10)).size(),
+        Instant dayAgo = now.minus(Duration.ofDays(1));
+        assertEquals(0, await(reads.assetPositions("IJ90", dayAgo, now, "org-b", 10, false)).size());
+        Instant fourDaysAgo = now.minus(Duration.ofDays(4));
+        assertEquals(0, await(reads.assetPositions("IJ90", fourDaysAgo, now, "org-x", 10, false)).size(),
                 "the asset is not mapped to org-x");
+        assertEquals(window.size(), await(reads.assetPositions("IJ90", fourDaysAgo, now, "org-x", 10, true)).size(),
+                "a trip of org-x on the asset shows its positions without a mapping");
     }
 
     @Test
     void aNewVehiclesFirstSignalBeforeItsMappingCounts() {
         Instant now = Instant.now();
-        JsonNode first = await(reads.assetPositions("MN34", now.minus(Duration.ofHours(2)), now, "org-b", 10));
+        JsonNode first = await(reads.assetPositions("MN34", now.minus(Duration.ofHours(2)), now, "org-b", 10, false));
         assertEquals(1, first.size(), "sent two seconds before the mapping was written");
     }
 
     @Test
     void aSignalWhileAnotherClientHadTheVehicleDoesNotCount() {
         Instant now = Instant.now();
-        JsonNode points = await(reads.assetPositions("OP56", now.minus(Duration.ofHours(1)), now, "org-b", 10));
+        JsonNode points = await(reads.assetPositions("OP56", now.minus(Duration.ofHours(1)), now, "org-b", 10, false));
         assertEquals(1, points.size());
         assertEquals(2, points.get(0).path("speed").asInt());
         assertTrue(points.get(0).path("tripid").isNull(), "no trip");

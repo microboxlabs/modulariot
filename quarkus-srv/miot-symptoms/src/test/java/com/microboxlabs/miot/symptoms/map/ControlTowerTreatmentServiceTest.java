@@ -69,8 +69,10 @@ class ControlTowerTreatmentServiceTest {
         }
 
         @Override
-        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit) {
-            calls.add("asset " + assetId + " " + from + " " + to + " " + clientId + " " + limit);
+        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit,
+                boolean onTrip) {
+            calls.add("asset " + assetId + " " + from + " " + to + " " + clientId + " " + limit
+                    + (onTrip ? " on trip" : ""));
             if (!"client-child".equals(clientId)) {
                 return Uni.createFrom().item(JSON.createArrayNode());
             }

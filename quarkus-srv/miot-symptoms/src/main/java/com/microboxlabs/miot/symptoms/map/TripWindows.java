@@ -16,7 +16,7 @@ import java.util.UUID;
 
 /**
  * The time range of a trips-module trip on one of its trucks, for its map: from the departure until the trip ended, or
- * now while it runs, at most {@link #AT_MOST} after the departure. The GPS database's trips have numeric ids and are
+ * now while it runs; of a longer trip, its last {@link #AT_MOST}. The GPS database's trips have numeric ids and are
  * read there instead.
  */
 @ApplicationScoped
@@ -91,9 +91,10 @@ public class TripWindows {
             return new Window(null, null);
         }
         Instant end = ended != null ? ended : now;
-        Instant cap = departed.plus(AT_MOST);
-        Instant to = end.isAfter(cap) ? cap : end;
-        return new Window(departed, to.isBefore(departed) ? departed : to);
+        Instant to = end.isBefore(departed) ? departed : end;
+        // A trip longer than the cap shows its latest days: that is where the vehicle is now.
+        Instant floor = to.minus(AT_MOST);
+        return new Window(departed.isBefore(floor) ? floor : departed, to);
     }
 
     private static Optional<Instant[]> read(Pool pool, String tenantCode, UUID tripId, String assetId) {

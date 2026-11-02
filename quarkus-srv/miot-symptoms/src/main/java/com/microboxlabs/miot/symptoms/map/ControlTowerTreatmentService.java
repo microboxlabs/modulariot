@@ -97,6 +97,18 @@ public class ControlTowerTreatmentService {
      * the first client id that had the asset mapped, else none.
      */
     public Uni<JsonNode> assetPositions(List<String> clientIds, String assetId, Instant from, Instant to) {
+        return positions(clientIds, assetId, from, to, false);
+    }
+
+    /**
+     * The truck's positions during one of the organization's trips: the trip shows the truck was the organization's,
+     * with or without a mapping. Until fleet declares which vehicles are the organization's.
+     */
+    public Uni<JsonNode> tripAssetPositions(List<String> clientIds, String assetId, Instant from, Instant to) {
+        return positions(clientIds, assetId, from, to, true);
+    }
+
+    private Uni<JsonNode> positions(List<String> clientIds, String assetId, Instant from, Instant to, boolean onTrip) {
         if (assetId == null || assetId.isBlank() || from == null || to == null) {
             throw new IllegalArgumentException("assetId, from and to are required");
         }
@@ -105,7 +117,7 @@ public class ControlTowerTreatmentService {
             Uni<JsonNode> found = Uni.createFrom().item(JsonNodeFactory.instance.arrayNode());
             for (String client : clientIds) {
                 found = found.flatMap(previous -> previous.isEmpty()
-                        ? reads.assetPositions(asset, from, to, client, MAX_POSITIONS)
+                        ? reads.assetPositions(asset, from, to, client, MAX_POSITIONS, onTrip)
                         : Uni.createFrom().item(previous));
             }
             return found;

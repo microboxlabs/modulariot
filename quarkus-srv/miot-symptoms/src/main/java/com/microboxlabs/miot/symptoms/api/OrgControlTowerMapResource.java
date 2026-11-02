@@ -264,7 +264,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .flatMap(w -> w.from() == null
                         ? Uni.createFrom().item((JsonNode) JsonNodeFactory.instance.arrayNode())
-                        : treatments.assetPositions(clientIds(), assetId.trim(), w.from(), w.to())));
+                        : treatments.tripAssetPositions(clientIds(), assetId.trim(), w.from(), w.to())));
     }
 
     @GET

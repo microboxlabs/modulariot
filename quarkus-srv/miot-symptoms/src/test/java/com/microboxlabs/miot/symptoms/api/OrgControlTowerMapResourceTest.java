@@ -171,8 +171,9 @@ class OrgControlTowerMapResourceTest {
         }
 
         @Override
-        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit) {
-            ranges.add(assetId + " " + from + " " + to);
+        public Uni<JsonNode> assetPositions(String assetId, Instant from, Instant to, String clientId, int limit,
+                boolean onTrip) {
+            ranges.add(assetId + " " + from + " " + to + (onTrip ? " on trip" : ""));
             return Uni.createFrom().item(JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId)));
         }
     };
@@ -454,12 +455,12 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
-    void aTripsModuleTripReadsItsTrucksPositionsFromItsDepartureUntilNow() {
+    void aTripsModuleTripReadsItsTrucksPositionsFromItsDepartureUntilNowWithTheTripAsEvidence() {
         Response positions = call(resource.tripPositions(ORG, DEPARTED.toString(), "AB12"));
 
         assertEquals(200, positions.getStatus());
         assertEquals("AB12", ((JsonNode) positions.getEntity()).get(0).path("assetid").asText());
-        assertEquals(List.of("AB12 2026-10-26T09:00:00Z 2026-10-26T12:00:00Z"), ranges);
+        assertEquals(List.of("AB12 2026-10-26T09:00:00Z 2026-10-26T12:00:00Z on trip"), ranges);
         assertEquals(List.of(), treatmentClients);
     }
 

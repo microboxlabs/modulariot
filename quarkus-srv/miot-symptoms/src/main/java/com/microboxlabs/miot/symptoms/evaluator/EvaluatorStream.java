@@ -236,7 +236,7 @@ public class EvaluatorStream {
             result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
                     : evaluator.evaluate(tenant, assetId, at, root, symptoms);
         }
-        record(tenant, assetId, signal, state, result, late);
+        writeResult(tenant, assetId, signal, state, result, late);
         return new Evaluated(result.transitions().size(), late);
     }
 
@@ -254,7 +254,7 @@ public class EvaluatorStream {
 
     /** Writes the result: transitions first, since a failed episode write replays the signal and the log skips
      * what it already holds; then the episodes and the counters. */
-    private void record(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
+    private void writeResult(String tenant, String assetId, Map<String, Object> signal, AssetEpisodes state,
             SignalEvaluator.Result result, boolean late) {
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);

@@ -47,6 +47,7 @@ public class LocationResolver {
     static final double BORDER_METERS = 500;
     private static final org.jboss.logging.Logger LOG = org.jboss.logging.Logger.getLogger(LocationResolver.class);
     private static final String DISTRICT = "district ";
+    private static final String SHORT_PLUS_CODE = "a short plus code needs a district with a boundary";
     private static final Set<String> COUNTRIES = Set.of(Locale.getISOCountries());
 
     public static final String GEOFENCE = "geofence";
@@ -154,7 +155,7 @@ public class LocationResolver {
         Found found = selected.found();
         Usage usage = selected.usage();
         if (found == null || found.point() == null) {
-            return review(declared, null, null, selected.note(), usage);
+            return review(declared, null, null, missingPointNote(site, district, selected.note()), usage);
         }
         String source = manual ? MANUAL : found.source();
         Point p = found.point();
@@ -189,6 +190,14 @@ public class LocationResolver {
         if (tenantCode == null) return null;
         return geofences.containing(tenantCode, p.lon(), p.lat(), 1).stream().findFirst().map(Geofence::id)
                 .orElse(null);
+    }
+
+    private static String missingPointNote(Site site, District district, String note) {
+        boolean districtSent = blankToNull(site.districtCode()) != null || blankToNull(site.districtName()) != null;
+        if (SHORT_PLUS_CODE.equals(note) && districtSent && district.note() != null) {
+            return district.note();
+        }
+        return note;
     }
 
     private static String nothingNote(Site site, Boundary b) {
@@ -420,7 +429,7 @@ public class LocationResolver {
         OpenLocationCode olc = new OpenLocationCode(code);
         if (olc.isShort()) {
             if (district == null || district.centroid().size() != 2) {
-                return new Found(null, PLUS_CODE, null, "a short plus code needs a district with a boundary");
+                return new Found(null, PLUS_CODE, null, SHORT_PLUS_CODE);
             }
             olc = olc.recover(district.centroid().get(1), district.centroid().get(0));
         }

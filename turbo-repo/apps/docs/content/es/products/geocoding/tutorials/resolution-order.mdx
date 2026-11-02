@@ -70,7 +70,7 @@ Un código corto se completa con el centro de la comuna declarada. La plataforma
 ```
 
 <Callout type="warning">
-**Cuidado:** en Perú hay dos distritos llamados Miraflores (Lima y Arequipa). Con `"district": "Miraflores"` y sin `districtCode`, la comuna no se puede elegir y el lugar queda en revisión con la nota `a short plus code needs a district with a boundary`. Envíe el código: `"districtCode": "150122"`.
+**Cuidado:** en Perú hay dos distritos llamados Miraflores (Lima y Arequipa). Con `"district": "Miraflores"` y sin `districtCode`, la comuna no se puede elegir y el lugar queda en revisión con la nota `district Miraflores is ambiguous in PE; send its code`. Envíe el código: `"districtCode": "150122"`.
 </Callout>
 
 Un Plus Code inválido no detiene la búsqueda: la plataforma pasa a las coordenadas y después a la dirección. Si ninguna fuente posterior responde, la nota es `plus code … is not valid`.
@@ -157,7 +157,7 @@ Si nada de lo anterior respondió, la plataforma consulta al proveedor de la pla
 | Revisión | Si falla |
 | --- | --- |
 | Con **Aplicar las cuotas** activo: la organización tiene suscripción y le queda cuota, o su plan dice **Cobrar excedente** | No consulta. Nota `geocoding: the organization has no geocoding plan` o `geocoding: the organization used its N geocoding resolutions for this month` |
-| La organización tiene la conexión **Geocoding · ModularIoT** en Conexiones | No consulta. Nota `geocoding: this organization has no geocoding connection; a platform owner adds it in Conexiones` |
+| La organización tiene la conexión **Geocoding · ModularIoT** en Conexiones | No consulta. Nota `geocoding: this organization has no geocoding connection; a platform owner adds it in Settings › Connections` |
 
 Con **Aplicar las cuotas** inactivo, la cuota no se revisa. Cómo se configuran las dos cosas en [Configurar el proveedor](/es/products/geocoding/how-to/set-up-provider).
 

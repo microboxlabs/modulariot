@@ -19,7 +19,7 @@ class PlatformOrgGeocodingConnectionResourceTest {
     void mapsServiceFailuresToStatuses() throws Exception {
         Response noProvider = failingWith(newInstance(ManagedGeocodingConnections.NoPlatformProviderException.class));
         assertEquals(409, noProvider.getStatus());
-        assertEquals(Map.of("error", "Set the platform's geocoding provider in Settings › Plataforma first"),
+        assertEquals(Map.of("error", "Set the platform's geocoding provider in Settings › Connections, under the Platform scope, first"),
                 noProvider.getEntity());
         assertEquals(400, failingWith(newInstance(ManagedGeocodingConnections.PlatformTenantException.class))
                 .getStatus());

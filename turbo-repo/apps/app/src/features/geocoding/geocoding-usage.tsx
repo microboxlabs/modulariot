@@ -46,12 +46,14 @@ const BAR_COLORS: Record<QuotaLevel, string> = {
   exhausted: "bg-red-500",
 };
 
+/** "Octubre de 2026": only the first letter in upper case, so "de" stays lower case. */
 function monthLabel(month: string, lang: string) {
-  return new Intl.DateTimeFormat(lang, {
+  const label = new Intl.DateTimeFormat(lang, {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${month}-01T00:00:00Z`));
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 function MonthPicker({
@@ -76,7 +78,7 @@ function MonthPicker({
       >
         <HiChevronLeft className="h-4 w-4" />
       </Button>
-      <span className="min-w-36 text-center text-sm font-medium capitalize text-gray-900 dark:text-white">
+      <span className="min-w-36 text-center text-sm font-medium text-gray-900 dark:text-white">
         {monthLabel(month, lang)}
       </span>
       <Button

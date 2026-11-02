@@ -303,7 +303,7 @@ class LocationGeocodingTest {
 
         assertEquals(Location.NEEDS_REVIEW, out.placement().status());
         assertEquals("geocoding: this organization has no geocoding connection; a platform owner adds it in"
-                + " Conexiones", out.placement().note());
+                + " Settings › Connections", out.placement().note());
         assertFalse(out.usage().called());
         assertTrue(stub.queries.isEmpty());
     }

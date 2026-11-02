@@ -11,7 +11,9 @@ import {
   type GeocodingDraft,
 } from "@/features/settings-admin/platform/platform-geocoding-form";
 import { usePlatformGeocoding } from "@/features/settings-admin/platform/use-platform-geocoding";
+import { PLATFORM_SCOPE_SLUG } from "@/features/common/platform-scope";
 import { GEOCODING_LOGO } from "../connection-catalog";
+import { testConnection } from "../integration-config-data-service";
 import { IntegrationFormModal } from "./integration-form-modal";
 
 interface ManagedGeocodingProviderModalProps {
@@ -72,7 +74,13 @@ export function ManagedGeocodingProviderModal({
     setBusy(true);
     setError(null);
     try {
-      await save(result.value);
+      const saved = await save(result.value);
+      // Mapbox checks the token at no cost, so the card shows the result instead of "never tested".
+      if (saved.provider === "mapbox" && saved.connectionId) {
+        await testConnection(PLATFORM_SCOPE_SLUG, saved.connectionId).catch(
+          () => undefined
+        );
+      }
       await onSaved();
     } catch {
       setError(new Error(tr("saveError", providerDict)));

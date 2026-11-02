@@ -89,7 +89,7 @@ class GeocodingConnectionTesterTest {
         ConnectionTestResponse result = tester().test(null, null, null);
 
         assertFalse(result.success());
-        assertEquals("The platform has no geocoding provider; set it in the Plataforma scope", result.message());
+        assertEquals("The platform has no geocoding provider; set it in Settings › Connections, under the Platform scope", result.message());
         assertEquals(null, path.get());
     }
 

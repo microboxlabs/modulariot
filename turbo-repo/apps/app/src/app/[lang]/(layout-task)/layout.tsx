@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { twMerge } from "tailwind-merge";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import SecuredTaskLayout from "@/features/layout/components/secured-task-layout";
+import { SessionExpiryGuard } from "@/features/auth/session-expiry/session-expiry-guard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,6 +23,7 @@ export default async function Layout({
         "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col"
       )}
     >
+      <SessionExpiryGuard />
       <SessionProvider basePath="/app/api/auth">
         <SecuredTaskLayout params={params}>{children}</SecuredTaskLayout>;
       </SessionProvider>

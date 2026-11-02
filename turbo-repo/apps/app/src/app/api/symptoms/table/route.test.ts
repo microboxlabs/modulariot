@@ -90,6 +90,22 @@ describe("GET /api/symptoms/table", () => {
     );
   });
 
+  it("keeps the trip UUID separate from its display code", async () => {
+    const tripId = "00000000-0000-4000-8000-000000000001";
+    forwardMock.mockResolvedValueOnce(
+      NextResponse.json({
+        ...page,
+        data: [
+          { ...page.data[0], id: -1, trip_id: tripId, trip_code: "SERVICE-001" },
+        ],
+      })
+    );
+
+    const body = await (await GET(new NextRequest("http://x/t"))).json();
+
+    expect(body.data[0]).toMatchObject({ trip: tripId, tripCode: "SERVICE-001" });
+  });
+
   it("forces a carrier organization's tax id over the browser's", async () => {
     scopeMock.mockResolvedValue(scope(["carrier-portal"], ["76.111.111-1"]));
     await GET(new NextRequest("http://x/t?carrier_id=someone-else"));

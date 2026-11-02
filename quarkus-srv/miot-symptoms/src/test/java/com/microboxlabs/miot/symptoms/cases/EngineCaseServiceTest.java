@@ -102,6 +102,39 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void theListAndHeaderExposeTheServiceCodeAndKeepTheTripUuid() throws Exception {
+        String tripId = UUID.randomUUID().toString();
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Demo symptom", "demo", "vehicle-demo", OPENED, 1,
+                tripId, null, null, null, null, 0, null, null, "SERVICE-001"));
+        JsonNode legacy = new ObjectMapper().readTree("""
+                {"data":[{"id":991,"trip_id":"12345"}]}
+                """);
+
+        JsonNode page = service.withCases(TENANT, Map.of(), legacy);
+        JsonNode row = page.path("data").get(0);
+        JsonNode trip = service.header(TENANT, -12).path("trip_info");
+
+        assertEquals(tripId, row.path("trip_id").asText());
+        assertEquals("SERVICE-001", row.path("trip_code").asText());
+        assertEquals(tripId, trip.path("trip_id").asText());
+        assertEquals("SERVICE-001", trip.path("trip_code").asText());
+        assertEquals(legacy.path("data").get(0), page.path("data").get(1));
+    }
+
+    @Test
+    void aMissingServiceCodeKeepsTheTripIdAvailable() {
+        store.add(panic(12, "vehicle-demo"));
+
+        JsonNode row = service.withCases(TENANT, Map.of(), null).path("data").get(0);
+        JsonNode trip = service.header(TENANT, -12).path("trip_info");
+
+        assertEquals("T-1", row.path("trip_id").asText());
+        assertTrue(row.path("trip_code").isNull());
+        assertEquals("T-1", trip.path("trip_id").asText());
+        assertTrue(trip.path("trip_code").isNull());
+    }
+
+    @Test
     void openCasesGoFirstOnTheFirstPage() throws Exception {
         store.add(panic(12, "DEMO01"));
         JsonNode page = new ObjectMapper().readTree("""

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,6 +62,11 @@ class PgSlaStoreTest {
                 .connectingTo(PgConnectOptions.fromUri(System.getProperty(PgTreatmentStoresTest.URL_PROPERTY)))
                 .using(vertx).build();
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA IF NOT EXISTS miot_trips").execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_trips.trip_live (
+                    trip_id uuid PRIMARY KEY, tenant_code text NOT NULL, asset_id text, mandate_codes jsonb)
+                """).execute().await().atMost(WAIT);
         for (String file : MIGRATIONS) {
             try (InputStream in = PgSlaStoreTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
@@ -149,6 +155,43 @@ class PgSlaStoreTest {
         assertEquals(1L, PgIds.query(pool, """
                 SELECT count(*) AS n FROM miot_symptoms.signal_transitions WHERE tenant_code = $1 AND kind = 'CLOSED'
                 """, Tuple.of(tenant)).iterator().next().getLong("n"));
+    }
+
+    @Test
+    void casesReadTheServiceCodeFromTheFirstMandate() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID tripId = UUID.randomUUID();
+        Instant at = Instant.parse("2026-01-01T00:00:00Z");
+        long id = log.append(tenant, List.of(t(Kind.OPENED, speeding, at, 3, 0)),
+                new TransitionLog.Place(tripId.toString(), null, null, null, null)).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        assertNull(cases.find(tenant, id).orElseThrow().tripCode(), "no live trip");
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, mandate_codes)
+                VALUES ($1, $2, 'DEMO01', $3::text::jsonb)
+                """, Tuple.of(tripId, tenant, "[{\"code\":\"SERVICE-001\"},{\"code\":\"SERVICE-002\"}]"));
+
+        assertEquals("SERVICE-001", cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).get(0).tripCode());
+        assertEquals("SERVICE-001", cases.open(tenant).get(0).tripCode());
+        assertEquals(tripId.toString(), cases.find(tenant, id).orElseThrow().tripId());
+        assertEquals("SERVICE-001", cases.find(tenant, id).orElseThrow().tripCode());
+        for (String codes : List.of("[]", "[{\"code\":null}]", "[{\"code\":\"  \"}]", "null", "\"not-json\"")) {
+            PgIds.query(pool, "UPDATE miot_trips.trip_live SET mandate_codes = $2::text::jsonb WHERE trip_id = $1",
+                    Tuple.of(tripId, codes));
+            assertNull(cases.find(tenant, id).orElseThrow().tripCode());
+        }
+        // Some projections encode the JSON array as a JSON string.
+        PgIds.query(pool, "UPDATE miot_trips.trip_live SET mandate_codes = to_jsonb($2::text) WHERE trip_id = $1",
+                Tuple.of(tripId, "[{\"code\":\"SERVICE-001\"}]"));
+        assertEquals("SERVICE-001", cases.find(tenant, id).orElseThrow().tripCode());
+        PgIds.query(pool, "UPDATE miot_trips.trip_live SET tenant_code = 'another-tenant' WHERE trip_id = $1",
+                Tuple.of(tripId));
+        assertNull(cases.find(tenant, id).orElseThrow().tripCode(), "another tenant's trip");
+        PgIds.query(pool, "UPDATE miot_trips.trip_live SET tenant_code = $2, asset_id = 'another-vehicle' WHERE trip_id = $1",
+                Tuple.of(tripId, tenant));
+        assertEquals("SERVICE-001", cases.find(tenant, id).orElseThrow().tripCode(),
+                "the service code still belongs to the trip after its vehicle changes");
     }
 
     @Test

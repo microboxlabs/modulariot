@@ -28,6 +28,7 @@ export type TableItemType = {
   licensePlate: string;
   time: string;
   trip: string;
+  tripCode?: string | null;
   driver: string;
   date: string;
   // When it closed; absent while it is open.

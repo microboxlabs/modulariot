@@ -70,8 +70,6 @@ public class EngineCaseService {
     /** The case's trip while it runs; a finished trip has no row. */
     private static final String TRIP = """
             SELECT trip_id, asset_id,
-                   (CASE jsonb_typeof(mandate_codes) WHEN 'string' THEN (mandate_codes #>> '{}')::jsonb
-                         ELSE mandate_codes END) -> 0 ->> 'code' AS code,
                    carrier_name, origin_geofence_label, destination_geofence_label, driver_name, second_driver_name,
                    type_load, driver_contact_phone
               FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id::text = $2 AND asset_id = $3
@@ -245,6 +243,7 @@ public class EngineCaseService {
         r.put(ICU_CONDITION, c.treatments() > 0 ? UNDER_TREATMENT : condition(c.level()));
         r.put("asset_id", c.assetId());
         r.put("trip_id", c.tripId());
+        r.put("trip_code", c.tripCode());
         r.put("start_time", c.openedAt().toString());
         if (c.closedAt() != null) {
             r.put("end_time", c.closedAt().toString());
@@ -292,9 +291,9 @@ public class EngineCaseService {
         ObjectNode trip = out.putObject("trip_info");
         trip.put("asset_id", c.assetId());
         trip.put("trip_id", c.tripId());
+        trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
-            trip.put("trip_code", t.getString("code"));
             trip.put("carrier", t.getString("carrier_name"));
             trip.put("origin", t.getString("origin_geofence_label"));
             trip.put("destination", t.getString("destination_geofence_label"));

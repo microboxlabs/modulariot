@@ -110,7 +110,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
         }
         cases.replaceAll(c -> c.id() != caseId ? c : new EngineCase(c.id(), c.definitionId(), c.version(), c.name(),
                 c.family(), c.assetId(), c.openedAt(), c.level(), c.tripId(), c.latitude(), c.longitude(),
-                c.speedKmh(), at, c.treatments(), c.slaMinutes(), c.recurrence()));
+                c.speedKmh(), at, c.treatments(), c.slaMinutes(), c.recurrence(), c.tripCode()));
         closedBy.add(actor);
         return true;
     }

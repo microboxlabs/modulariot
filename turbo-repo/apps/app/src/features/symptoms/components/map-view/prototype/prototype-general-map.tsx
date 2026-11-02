@@ -306,7 +306,11 @@ export default function PrototypeGeneralMap({
                     icon: <FaUser className="text-gray-900 dark:text-white" />,
                   },
                   {
-                    text: chipText(loading, tripInfo?.trip_id, "Trip id"),
+                    text: chipText(
+                      loading,
+                      tripInfo?.trip_code?.trim() || tripInfo?.trip_id,
+                      symptomsDict.trip as string
+                    ),
                   },
                   {
                     text: chipText(

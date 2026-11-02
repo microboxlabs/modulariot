@@ -2,8 +2,13 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import cl.streamhub.gps.model.EnvelopedMessage;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microboxlabs.miot.core.event.OperationalEvent;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -17,10 +22,14 @@ import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.ReferenceCache;
+import com.microboxlabs.miot.symptoms.signal.SignalBuilder;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -81,9 +90,13 @@ class EvaluatorStreamTest {
     }
 
     private EvaluatorStream stream() {
+        return stream(new InMemoryEpisodeRepository());
+    }
+
+    private EvaluatorStream stream(EpisodeRepository episodes) {
         return new EvaluatorStream(true, evaluatorCatalog,
                 new EvaluatorStream.Sinks(log, events, new SimpleMeterRegistry()),
-                Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
+                Clock.systemUTC(), episodes, samples);
     }
 
     private static String signal(String at, Boolean panic, String... clients) {
@@ -201,16 +214,21 @@ class EvaluatorStreamTest {
 
         List<String> args = RedisEpisodes.saveArgs(state, java.time.Duration.ofDays(7));
 
-        assertEquals(List.of("1", "symptoms:ep:" + DEMO + ":DEMO01", "604800", "2"), args.subList(1, 5));
+        assertEquals(List.of("2", "symptoms:ep:" + DEMO + ":DEMO01", "symptoms:ep-tenants:DEMO01", "604800",
+                "2", "1", DEMO), args.subList(1, 8));
         assertEquals("ep:" + gone, args.get(args.size() - 1));
-        assertEquals(10, args.size());
-        assertEquals(List.of(), RedisEpisodes.saveArgs(AssetEpisodes.empty(DEMO, "DEMO01"), java.time.Duration.ofDays(7)));
+        assertEquals(13, args.size());
     }
 
     @Test
     void aFailedStoreIsRetriedAndAMalformedSignalIsNot() {
         InMemoryEpisodeRepository memory = new InMemoryEpisodeRepository();
         EpisodeRepository failing = new EpisodeRepository() {
+            @Override
+            public java.util.Set<String> tenantsWithEpisodes(String assetId) {
+                return memory.tenantsWithEpisodes(assetId);
+            }
+
             @Override
             public AssetEpisodes load(String tenantCode, String assetId) {
                 return memory.load(tenantCode, assetId);
@@ -297,6 +315,49 @@ class EvaluatorStreamTest {
         SymptomCaseData closed = (SymptomCaseData) fired.get(2).data();
         assertEquals(2, closed.level());
         assertEquals(null, closed.closedBy());
+    }
+
+    @Test
+    void aTripOnlyClientsCaseClosesAfterItsTripIsRemoved() throws Exception {
+        SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active && signal.frame.gps.speed >= 80",
+                null, Specs.levels("true", "false", "false", "false"),
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 120"), null);
+        var id = catalog.create(DEMO, "owner@example.com", new CreateRequest("trip-speed", "Velocidad", null,
+                null, null, "gps_signal", null, spec)).definition().id();
+        catalog.publish(DEMO, "owner@example.com", id, "First version", null, SymptomState.ACTIVE);
+        ReferenceCache refs = new ReferenceCache();
+        refs.load(List.of(new ReferenceCache.Trip("T-1", DEMO, "DEMO01", "v", "in_transit",
+                Instant.parse("2026-10-22T02:00:00Z"), null, false)), List.of());
+        InMemoryEpisodeRepository episodes = new InMemoryEpisodeRepository();
+        EvaluatorStream s = stream(episodes);
+
+        assertEquals(2, s.evaluate(builtSignal(refs, "2026-10-22T03:00:00Z")), "speed and panic open");
+        s = stream(episodes);
+        refs.applyTrip("T-1", null);
+        assertEquals(List.of("sender"), refs.clientsAt("DEMO01", "sender", Instant.parse("2026-10-22T03:00:30Z")));
+        assertEquals(0, s.evaluate(builtSignal(refs, "2026-10-22T03:00:30Z")), "normal timer starts");
+        assertEquals(0, s.evaluate(builtSignal(refs, "2026-10-22T03:00:20Z")), "an older frame cannot move it back");
+        assertEquals(0, s.evaluate(builtSignal(refs, "2026-10-22T03:02:00Z")), "only 90 seconds normal");
+        assertEquals(1, s.evaluate(builtSignal(refs, "2026-10-22T03:02:30Z")));
+        assertEquals(0, s.evaluate(builtSignal(refs, "2026-10-22T03:02:30Z")), "a replay does not close twice");
+        assertEquals(0, s.evaluate(builtSignal(refs, "2026-10-22T03:03:00Z")), "no new case without access");
+
+        assertEquals(List.of(Kind.OPENED, Kind.OPENED, Kind.CLOSED), recorded.stream().map(Transition::kind).toList());
+        assertEquals(id, recorded.get(2).definitionId(), "the operator-only panic case stays open");
+        SymptomCaseData closed = (SymptomCaseData) fired.get(2).data();
+        assertNull(closed.speedKmh(), "reconciliation carries no GPS data");
+        assertNull(closed.tripId());
+        assertEquals(1, samples.recent(DEMO, 20).size());
+    }
+
+    private static String builtSignal(ReferenceCache refs, String at) throws Exception {
+        EnvelopedMessage frame = EnvelopedMessage.fromJson("""
+                {"clientId":"sender@clients","payload":{"asset_id":"DEMO01","timestamp":"%s",
+                 "gps":{"speed":90,"latitude":-33.4,"longitude":-70.6},"sensors":{"panic_button":true}}}
+                """.formatted(at));
+        return new ObjectMapper().registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .writeValueAsString(new SignalBuilder(refs, ZoneId.of("UTC")).build(frame).orElseThrow());
     }
 
     private static String moving(String at, double speed, String client) {

@@ -64,6 +64,22 @@ class SignalEvaluatorTest {
     }
 
     @Test
+    void reconciliationLeavesAnUnknownActivationUnchanged() {
+        CompiledSymptom symptom = CompiledSymptom.compile(SPEEDING, "1.0.0", SymptomState.TEST,
+                Specs.with(Specs.speeding(), "signal.frame.gps.speed > 0"), Specs.gpsSignal());
+        List<CompiledSymptom> published = List.of(symptom);
+        evaluator.evaluate(TENANT, TRUCK, T0, signal(96), published);
+        Episode before = store.find(TENANT, TRUCK, SPEEDING).orElseThrow();
+
+        Result result = evaluator.reconcile(TENANT, TRUCK, T0.plusSeconds(300),
+                Map.of("signal", Map.of("trip", Map.of("active", false))), published);
+
+        assertTrue(result.transitions().isEmpty());
+        assertTrue(result.errors().isEmpty(), "missing GPS fields mean unknown, not recovery");
+        assertEquals(before, store.find(TENANT, TRUCK, SPEEDING).orElseThrow());
+    }
+
+    @Test
     void aCaseOpensAtTheLevelReachedRisesAndClosesAfterTwoMinutesNormal() {
         assertEquals(List.of(), kinds(at(0, 85)), "under the limit: nothing");
         assertEquals(1, store.size(), "on a trip: the activation's run is kept for time-based levels");

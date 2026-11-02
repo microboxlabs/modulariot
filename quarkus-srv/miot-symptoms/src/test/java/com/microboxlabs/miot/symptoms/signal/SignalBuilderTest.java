@@ -118,20 +118,31 @@ class SignalBuilderTest {
     }
 
     @Test
-    void eachClientGetsItsOwnTripAndNoOther() {
+    void eachClientGetsItsOwnTrip() {
         Instant start = AT.minusSeconds(600);
         ReferenceCache refs = refs(List.of(
                 new Trip("T-SENDER", SENDER, "ABCD12", "v", "in_transit", start, null, false),
                 new Trip("T-SHARED", "client-a", "ABCD12", "v", "in_transit", start, null, true),
-                new Trip("T-STRANGER", "client-z", "ABCD12", "v", "in_transit", start, null, false)),
+                new Trip("T-OWN", "client-z", "ABCD12", "v", "in_transit", start, null, false)),
                 List.of(new Share("ABCD12", "client-a", true, null, null)));
 
         GpsSignal s = build(refs, frame("ABCD12", 0, false));
 
-        assertEquals(List.of(SENDER, "client-a"), List.copyOf(s.trips().keySet()));
+        assertEquals(List.of(SENDER, "client-a", "client-z"), List.copyOf(s.trips().keySet()));
         assertEquals("T-SENDER", s.trips().get(SENDER).id());
         assertEquals("T-SHARED", s.trips().get("client-a").id());
+        assertEquals("T-OWN", s.trips().get("client-z").id(), "a trip in progress makes the vehicle its client's");
         assertTrue(s.trips().get("client-a").doubleDriver());
+    }
+
+    @Test
+    void aTripThatIsNotInProgressDoesNotAddItsClient() {
+        ReferenceCache refs = refs(List.of(
+                new Trip("T-ENDED", "client-z", "ABCD12", "v", "closed", AT.minusSeconds(600), AT.minusSeconds(60),
+                        false),
+                new Trip("T-PLANNED", "client-y", "ABCD12", "v", "planned", null, null, false)), List.of());
+
+        assertEquals(List.of(SENDER), build(refs, frame("ABCD12", 0, false)).clients());
     }
 
     @Test

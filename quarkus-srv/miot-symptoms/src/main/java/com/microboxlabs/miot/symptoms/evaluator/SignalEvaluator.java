@@ -69,6 +69,21 @@ public class SignalEvaluator {
     }
 
     /**
+     * Advances existing episodes whose activation is false without GPS input, such as a rule requiring an active
+     * trip after access ends. An activation that needs unavailable fields is unknown and leaves its episode alone.
+     */
+    public Result reconcile(String tenantCode, String assetId, Instant at, Map<String, Object> root,
+            List<CompiledSymptom> symptoms) {
+        List<CompiledSymptom> inactive = symptoms.stream()
+                .filter(s -> store.find(tenantCode, assetId, s.definitionId()).isPresent())
+                .filter(s -> {
+                    RuleResult activation = s.activation().run(root);
+                    return activation.ok() && Boolean.FALSE.equals(activation.value());
+                }).toList();
+        return evaluate(tenantCode, assetId, at, root, inactive);
+    }
+
+    /**
      * @param root the source object the rules read, keyed by the source's root name (e.g. {@code signal})
      */
     public Result evaluate(String tenantCode, String assetId, Instant at, Map<String, Object> root,

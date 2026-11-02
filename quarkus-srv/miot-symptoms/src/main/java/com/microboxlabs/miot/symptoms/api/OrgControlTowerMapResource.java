@@ -246,7 +246,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Path("/trips/{tripId}/positions")
     @Operation(operationId = "listMapTripPositions", summary = "The asset's positions during a trip, oldest first",
             description = "At most 20000, sampled evenly over the trip. A UUID is a trips-module trip: the truck's "
-                    + "positions from its departure until it ended or now, at most 7 days, none before it departs. "
+                    + "positions from its departure until it ended or now; of a longer trip, its last 7 days; none "
+                    + "before it departs. "
                     + "Any other id is a GPS database trip. 404 when the trip does not exist for the asset or the "
                     + "asset was not the organization's when the trip started.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,

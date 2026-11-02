@@ -21,9 +21,13 @@ class TripWindowsTest {
     }
 
     @Test
-    void theRangeIsAtMostSevenDaysFromTheDeparture() {
+    void aTripLongerThanSevenDaysShowsItsLatestSevenDays() {
         Instant now = Instant.parse("2026-11-20T00:00:00Z");
-        assertEquals(DEPARTED.plus(TripWindows.AT_MOST), TripWindows.window(DEPARTED, null, now).to());
+        assertEquals(new TripWindows.Window(now.minus(TripWindows.AT_MOST), now),
+                TripWindows.window(DEPARTED, null, now));
+        Instant ended = Instant.parse("2026-11-01T00:00:00Z");
+        assertEquals(new TripWindows.Window(ended.minus(TripWindows.AT_MOST), ended),
+                TripWindows.window(DEPARTED, ended, now));
     }
 
     @Test

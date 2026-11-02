@@ -12,6 +12,7 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import PointPicker from "./point-picker";
+import { reviewNote } from "./review-note";
 import {
   formatPoint,
   initialPoint,
@@ -54,6 +55,7 @@ export default function PlaceLocationModal({
   );
   const [plusCode, setPlusCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const notes = d.notes as I18nRecord | undefined;
   const [error, setError] = useState<string | null>(null);
   const chosen = manualPoint(plusCode, point);
 
@@ -98,7 +100,9 @@ export default function PlaceLocationModal({
               {tr("reason", d)}
             </dt>
             <dd className="text-amber-700 dark:text-amber-400">
-              {location.resolutionNote ?? "—"}
+              {location.resolutionNote
+                ? reviewNote(location.resolutionNote, notes)
+                : "—"}
             </dd>
           </dl>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -110,6 +114,7 @@ export default function PlaceLocationModal({
               point={point}
               onPoint={setPoint}
               label={tr("place.map", d)}
+              unavailable={tr("place.mapUnavailable", d)}
             />
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -139,7 +144,7 @@ export default function PlaceLocationModal({
           </div>
           {error && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
+              {reviewNote(error, notes)}
             </p>
           )}
         </div>

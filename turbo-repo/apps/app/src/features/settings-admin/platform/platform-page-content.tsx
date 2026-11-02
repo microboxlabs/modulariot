@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button, Spinner } from "flowbite-react";
 import {
   HiOutlineChartBar,
@@ -41,7 +42,7 @@ import PlatformSectionList, {
   type PlatformSectionEntry,
 } from "./platform-section-list";
 import { useIsPlatformOwner } from "./use-platform-membership";
-import type { PlatformSection } from "./platform.types";
+import { platformSectionOf, type PlatformSection } from "./platform.types";
 
 interface PlatformPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -87,7 +88,17 @@ export default function PlatformPageContent({
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
 
   const { isPlatformOwner, isLoading } = useIsPlatformOwner();
-  const [selected, setSelected] = useState<PlatformSection>("branding");
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const selected = platformSectionOf(params);
+  const setSelected = (next: PlatformSection) => {
+    const query = new URLSearchParams(params.toString());
+    if (next === "branding") query.delete("section");
+    else query.set("section", next);
+    const qs = query.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
   const [tenantFilters, setTenantFilters] =
     useState<TenantFilters>(NO_TENANT_FILTERS);
   const [tenantSort, setTenantSort] = useState<TenantSort>(DEFAULT_TENANT_SORT);

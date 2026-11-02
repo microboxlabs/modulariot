@@ -41,6 +41,7 @@ export function usePlatformGeocoding() {
   const save = async (value: SetPlatformGeocoding) => {
     const saved = await sendJson<PlatformGeocoding>("PUT", URL, value);
     await mutate(saved, { revalidate: false });
+    return saved;
   };
 
   const remove = async () => {

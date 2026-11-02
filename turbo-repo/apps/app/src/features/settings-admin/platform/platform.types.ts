@@ -48,17 +48,26 @@ export const PLATFORM_OWNER_ROLE = "PLATFORM_OWNER";
 export type LogoVariant = "light" | "dark";
 
 /** The panels Settings > Platform offers in its left-hand menu. */
-export type PlatformSection =
-  | "branding"
-  | "superusers"
-  | "models"
-  | "vehicleImages"
-  | "geocodingPlan"
-  | "geocodingTenants"
-  | "sharing"
-  | "templates"
-  | "plan"
-  | "usage";
+export const PLATFORM_SECTIONS = [
+  "branding",
+  "superusers",
+  "models",
+  "vehicleImages",
+  "geocodingPlan",
+  "geocodingTenants",
+  "sharing",
+  "templates",
+  "plan",
+  "usage",
+] as const;
+
+export type PlatformSection = (typeof PLATFORM_SECTIONS)[number];
+
+/** The section in `?section=`; Marca when absent or unknown. */
+export function platformSectionOf(params: URLSearchParams): PlatformSection {
+  const value = params.get("section");
+  return PLATFORM_SECTIONS.find((s) => s === value) ?? "branding";
+}
 
 /** The providers the harness can call. Mirrors `ModelProviderService.KNOWN`. */
 export const MODEL_PROVIDERS = [

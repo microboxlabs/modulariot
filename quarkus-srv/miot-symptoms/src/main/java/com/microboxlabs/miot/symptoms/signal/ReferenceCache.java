@@ -134,7 +134,11 @@ public class ReferenceCache {
         return out;
     }
 
-    /** The client that sent the frame, then the clients the vehicle is shared with at {@code at}. */
+    /**
+     * The client that sent the frame, then the clients the vehicle is shared with at {@code at}, then those with a
+     * trip in progress on it: the trip shows the vehicle is theirs, as the legacy trip map does. Until fleet declares
+     * which vehicles are each organization's.
+     */
     public List<String> clientsAt(String assetId, String sender, Instant at) {
         Set<String> out = new LinkedHashSet<>();
         if (sender != null && !sender.isBlank()) {
@@ -143,6 +147,11 @@ public class ReferenceCache {
         shares.getOrDefault(assetId, Map.of()).values().stream()
                 .filter(s -> s.validAt(at))
                 .map(Share::clientId)
+                .sorted()
+                .forEach(out::add);
+        trips.values().stream()
+                .filter(t -> assetId.equals(t.assetId()) && t.inProgressAt(at))
+                .map(Trip::tenant)
                 .sorted()
                 .forEach(out::add);
         return new ArrayList<>(out);

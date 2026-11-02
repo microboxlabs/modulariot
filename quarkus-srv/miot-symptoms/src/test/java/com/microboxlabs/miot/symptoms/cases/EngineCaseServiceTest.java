@@ -329,6 +329,83 @@ class EngineCaseServiceTest {
         assertThrows(NoSuchElementException.class, () -> service.header(TENANT, -99));
     }
 
+    private static EngineCase lostSignal(long id, Instant lostSince, Instant closed) throws Exception {
+        JsonNode context = new ObjectMapper().readTree("""
+                {"check": {"signal_lost_minutes": 12.5, "loss": {"silence_s": 750.0, "ratio": 2.5,
+                 "low_coverage_zone": true, "cohort_outage": false, "returned": false,
+                 "last": {"at": "%s"}}}}
+                """.formatted(lostSince));
+        return new EngineCase(id, PANIC, "2.1.0", "Pérdida de señal", "signal_continuity", "DEMO01", OPENED, 1,
+                "T-1", -33.4489, -70.6693, 0.0, closed, 0, null, 0L, null, context,
+                "check.loss.silence_s < 1800 || check.loss.low_coverage_zone");
+    }
+
+    @Test
+    void anOpenCaseLastsUntilNow() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode header = service.header(TENANT, -12);
+
+        JsonNode agg = header.path("timeline").get(0).path("conditions_agg").get(0);
+        assertEquals(OPENED.toString(), agg.path("start").asText());
+        assertEquals(OPENED.plusSeconds(90).toString(), agg.path("end").asText(), "not 0 min: now");
+        assertEquals(90, header.path("symptom_info").path("duration_sec").asLong());
+        assertEquals(OPENED.plusSeconds(90).toString(),
+                service.signals(TENANT, -12).path("description").path("last_signal_timestamp").asText());
+    }
+
+    @Test
+    void aLostSignalCaseStartsAtTheLastFrameBeforeTheSilence() throws Exception {
+        Instant lost = OPENED.minusSeconds(660);
+        store.add(lostSignal(12, lost, null));
+
+        JsonNode header = service.header(TENANT, -12);
+
+        JsonNode entry = header.path("timeline").get(0);
+        assertEquals(lost.toString(), entry.path("start").asText());
+        assertEquals(lost.toString(), entry.path("conditions_agg").get(0).path("start").asText());
+        assertEquals(OPENED.toString(), header.path("symptom_info").path("opened_at").asText());
+        assertEquals(750, header.path("symptom_info").path("duration_sec").asLong());
+        JsonNode signals = service.signals(TENANT, -12);
+        assertEquals(lost.toString(), signals.path("description").path("first_signal_timestamp").asText());
+        assertEquals(lost.toString(), signals.path("features").get(0).path("properties").path("timestamp").asText());
+        assertEquals(1, signals.path("features").get(0).path("properties").path("icu_code").asInt());
+        assertEquals(lost.minusSeconds(3600), service.signalWindow(TENANT, -12).from());
+    }
+
+    @Test
+    void theHeaderSaysWhyTheCaseIsAtItsLevel() throws Exception {
+        Instant lost = OPENED.minusSeconds(660);
+        store.add(lostSignal(12, lost, OPENED.plusSeconds(30)));
+
+        JsonNode reason = service.header(TENANT, -12).path("level_reason");
+
+        assertEquals(1, reason.path("icu_code").asInt());
+        assertEquals("UNDER OBSERVATION", reason.path("icu_condition").asText());
+        assertEquals("check.loss.silence_s < 1800 || check.loss.low_coverage_zone", reason.path("rule").asText());
+        assertEquals(lost.toString(), reason.path("lost_since").asText());
+        assertTrue(reason.path("context").path("check").path("loss").path("low_coverage_zone").asBoolean());
+        assertEquals(750.0, reason.path("context").path("check").path("loss").path("silence_s").asDouble());
+    }
+
+    @Test
+    void aCaseWithoutAKeptContextStillAnswersItsLevel() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode reason = service.header(TENANT, -12).path("level_reason");
+
+        assertEquals(4, reason.path("icu_code").asInt());
+        assertTrue(reason.path("context").isNull());
+        assertFalse(reason.has("lost_since"));
+    }
+
+    @Test
+    void aLostSinceAfterTheOpeningIsIgnored() throws Exception {
+        store.add(lostSignal(12, OPENED.plusSeconds(10), null));
+
+        assertEquals(OPENED.toString(), service.header(TENANT, -12).path("timeline").get(0).path("start").asText());
+    }
+
     @Test
     void theHeaderListsTheCaseTreatmentsAndWhenItClosed() {
         Instant closed = OPENED.plusSeconds(600);

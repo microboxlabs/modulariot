@@ -3,10 +3,15 @@ import {
   installSessionExpiryGuard,
   isAppApiUrl,
   type GuardedWindow,
+  NAVIGATION_TIMEOUT_MS,
   resetSessionExpiryGuard,
+  setSessionExpiryGuardActive,
   signInUrl,
 } from "./session-expiry";
-import { tripsRequest, TripsApiError } from "@/features/trips/monitors/monitors-api";
+import {
+  tripsRequest,
+  TripsApiError,
+} from "@/features/trips/monitors/monitors-api";
 
 const ORIGIN = "https://iot.example.com";
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -43,7 +48,12 @@ interface Setup {
   session?: unknown;
 }
 
-function setup({ pathname = `${BASE}/es/trips/42`, search = "", api, session = {} }: Setup) {
+function setup({
+  pathname = `${BASE}/es/trips/42`,
+  search = "",
+  api,
+  session = {},
+}: Setup) {
   const assign = vi.fn();
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -73,7 +83,10 @@ function settled(promise: Promise<unknown>) {
 
 describe("session expiry guard", () => {
   beforeEach(() => resetSessionExpiryGuard());
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
   it("sends a 401 from the trips API to sign-in with the current page as callback", async () => {
     const { assign } = setup({
@@ -112,12 +125,16 @@ describe("session expiry guard", () => {
       session: { user: { email: "a@example.com" } },
     });
 
-    await expect(tripsRequest("/board/planning")).rejects.toThrow("Unauthorized");
+    await expect(tripsRequest("/board/planning")).rejects.toThrow(
+      "Unauthorized"
+    );
     expect(assign).not.toHaveBeenCalled();
   });
 
   it("redirects once when several requests get 401 at the same time", async () => {
-    const { assign } = setup({ api: () => json(401, { error: "Unauthorized" }) });
+    const { assign } = setup({
+      api: () => json(401, { error: "Unauthorized" }),
+    });
 
     await Promise.all([
       settled(tripsRequest("/board/planning")),
@@ -126,6 +143,65 @@ describe("session expiry guard", () => {
     ]);
 
     expect(assign).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks NextAuth once for concurrent 401s", async () => {
+    const { fetchMock } = setup({
+      api: () => json(401, { error: "Unauthorized" }),
+    });
+
+    await Promise.all([
+      settled(tripsRequest("/board/planning")),
+      settled(tripsRequest("/board/counts")),
+    ]);
+
+    const sessionCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("/api/auth/session")
+    );
+    expect(sessionCalls).toHaveLength(1);
+  });
+
+  it("rejects a held request when the caller aborts", async () => {
+    setup({ api: () => json(401, { error: "Unauthorized" }) });
+    const controller = new AbortController();
+
+    const request = fetch(`${BASE}/api/trips/access`, {
+      signal: controller.signal,
+    });
+    await vi.waitFor(async () =>
+      expect(await settled(request)).toBe("pending")
+    );
+    controller.abort();
+
+    expect(await settled(request)).toBe("rejected");
+  });
+
+  it("gives the 401 back and can redirect again when the page is still here", async () => {
+    vi.useFakeTimers();
+    const { assign } = setup({
+      api: () => json(401, { error: "Unauthorized" }),
+    });
+
+    const first = tripsRequest("/access");
+    const outcome = first.catch((error: TripsApiError) => error.status);
+    await vi.advanceTimersByTimeAsync(NAVIGATION_TIMEOUT_MS);
+    expect(await outcome).toBe(401);
+
+    const second = tripsRequest("/access").catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(assign).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(NAVIGATION_TIMEOUT_MS);
+    await second;
+  });
+
+  it("does nothing while the secured layout is not mounted", async () => {
+    const { assign } = setup({
+      api: () => json(401, { error: "Unauthorized" }),
+    });
+    setSessionExpiryGuardActive(false);
+
+    await expect(tripsRequest("/access")).rejects.toThrow("Unauthorized");
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("does nothing on the sign-in page", async () => {
@@ -139,7 +215,9 @@ describe("session expiry guard", () => {
   });
 
   it("ignores a 401 from NextAuth's own routes", async () => {
-    const { assign } = setup({ api: () => json(401, { error: "CredentialsSignin" }) });
+    const { assign } = setup({
+      api: () => json(401, { error: "CredentialsSignin" }),
+    });
 
     const response = await fetch(`${BASE}/api/auth/callback/credentials`);
 
@@ -174,7 +252,9 @@ describe("isAppApiUrl", () => {
     expect(isAppApiUrl(`${BASE}/api/trips/board/planning`, ORIGIN)).toBe(true);
     expect(isAppApiUrl(`${ORIGIN}${BASE}/api/trips`, ORIGIN)).toBe(true);
     expect(isAppApiUrl(`${BASE}/api/auth/session`, ORIGIN)).toBe(false);
-    expect(isAppApiUrl(`https://other.example.com${BASE}/api/trips`, ORIGIN)).toBe(false);
+    expect(
+      isAppApiUrl(`https://other.example.com${BASE}/api/trips`, ORIGIN)
+    ).toBe(false);
     expect(isAppApiUrl(`${BASE}/es/trips`, ORIGIN)).toBe(false);
   });
 });

@@ -12,8 +12,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -47,6 +49,20 @@ public class RedisEpisodes implements EpisodeRepository {
         return PREFIX + tenantCode + ":" + assetId;
     }
 
+    static String tenantsKey(String assetId) {
+        return "symptoms:ep-tenants:" + assetId;
+    }
+
+    @Override
+    public Set<String> tenantsWithEpisodes(String assetId) {
+        Response all = redis.smembers(tenantsKey(assetId)).await().atMost(TIMEOUT);
+        Set<String> tenants = new HashSet<>();
+        if (all != null) {
+            all.forEach(value -> tenants.add(value.toString()));
+        }
+        return tenants;
+    }
+
     @Override
     public AssetEpisodes load(String tenantCode, String assetId) {
         Response all = redis.hgetall(key(tenantCode, assetId)).await().atMost(TIMEOUT);
@@ -67,26 +83,30 @@ public class RedisEpisodes implements EpisodeRepository {
 
     /**
      * HSET, HDEL and EXPIRE in one script, so a failure leaves either all of a signal's changes or none.
-     * ARGV: ttl seconds, number of field/value pairs, the pairs, then the fields to delete.
+     * Also indexes organizations with unfinished episodes for reconciliation after signal access ends.
+     * ARGV: ttl seconds, number of field/value pairs, has episodes, tenant, the pairs, then fields to delete.
      */
     static final String SAVE_SCRIPT = """
             local n = tonumber(ARGV[2])
-            if n > 0 then redis.call('HSET', KEYS[1], unpack(ARGV, 3, 2 + 2 * n)) end
-            if #ARGV > 2 + 2 * n then redis.call('HDEL', KEYS[1], unpack(ARGV, 3 + 2 * n, #ARGV)) end
-            redis.call('EXPIRE', KEYS[1], ARGV[1])
+            if n > 0 then redis.call('HSET', KEYS[1], unpack(ARGV, 5, 4 + 2 * n)) end
+            if #ARGV > 4 + 2 * n then redis.call('HDEL', KEYS[1], unpack(ARGV, 5 + 2 * n, #ARGV)) end
+            if n > 0 or #ARGV > 4 + 2 * n then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+            if ARGV[3] == '1' then
+                redis.call('SADD', KEYS[2], ARGV[4])
+                redis.call('EXPIRE', KEYS[2], ARGV[1])
+            else
+                redis.call('SREM', KEYS[2], ARGV[4])
+            end
             return 1
             """;
 
     /** Writes what changed since {@link #load}, and resets the expiry. */
     @Override
     public void save(AssetEpisodes changes) {
-        List<String> args = saveArgs(changes, ttl);
-        if (!args.isEmpty()) {
-            redis.eval(args).await().atMost(TIMEOUT);
-        }
+        redis.eval(saveArgs(changes, ttl)).await().atMost(TIMEOUT);
     }
 
-    /** The EVAL arguments for {@link #save}, or none when nothing changed. */
+    /** The EVAL arguments for {@link #save}, including removal of an expired organization's index entry. */
     static List<String> saveArgs(AssetEpisodes changes, Duration ttl) {
         List<String> pairs = new ArrayList<>();
         changes.saved().forEach((id, e) -> {
@@ -97,11 +117,9 @@ public class RedisEpisodes implements EpisodeRepository {
             pairs.add(WATERMARK + source);
             pairs.add(Long.toString(at.toEpochMilli()));
         });
-        if (pairs.isEmpty() && changes.deleted().isEmpty()) {
-            return List.of();
-        }
-        List<String> args = new ArrayList<>(List.of(SAVE_SCRIPT, "1", key(changes.tenantCode(), changes.assetId()),
-                Long.toString(ttl.toSeconds()), Integer.toString(pairs.size() / 2)));
+        List<String> args = new ArrayList<>(List.of(SAVE_SCRIPT, "2", key(changes.tenantCode(), changes.assetId()),
+                tenantsKey(changes.assetId()), Long.toString(ttl.toSeconds()), Integer.toString(pairs.size() / 2),
+                changes.hasEpisodes() ? "1" : "0", changes.tenantCode()));
         args.addAll(pairs);
         changes.deleted().forEach(id -> args.add(EPISODE + id));
         return args;

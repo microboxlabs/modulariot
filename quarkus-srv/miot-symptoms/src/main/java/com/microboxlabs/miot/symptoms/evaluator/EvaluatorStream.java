@@ -164,9 +164,15 @@ public class EvaluatorStream {
         boolean late = false;
         for (Object client : clients) {
             if (client instanceof String tenant) {
-                Evaluated e = evaluate(tenant, assetId, instant, forTenant(signal, tenant));
+                Evaluated e = evaluate(tenant, assetId, instant, forTenant(signal, tenant), false);
                 recorded += e.transitions();
                 late |= e.late();
+            }
+        }
+        for (String tenant : episodes.tenantsWithEpisodes(assetId)) {
+            if (!clients.contains(tenant)) {
+                recorded += evaluate(tenant, assetId, instant,
+                        Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP), true).transitions();
             }
         }
         if (late) {
@@ -197,15 +203,25 @@ public class EvaluatorStream {
         return out;
     }
 
-    private Evaluated evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {
-        samples.keep(tenant, signal);
+    private Evaluated evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal,
+            boolean reconcile) {
+        if (!reconcile) {
+            samples.keep(tenant, signal);
+        }
         List<CompiledSymptom> symptoms = symptoms(tenant);
-        if (symptoms.isEmpty()) {
+        if (symptoms.isEmpty() && !reconcile) {
             return new Evaluated(0, false);
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
+        if (symptoms.isEmpty()) {
+            episodes.save(state);
+            return new Evaluated(0, false);
+        }
         Instant newest = state.watermark(tenant, assetId, SOURCE).orElse(null);
         boolean late = newest != null && at.isBefore(newest);
+        if (late && reconcile) {
+            return new Evaluated(0, false);
+        }
         if (late) {
             try {
                 lateFrames.late(tenant, assetId, at, newest, signal);
@@ -221,8 +237,13 @@ public class EvaluatorStream {
         // sabotage event still opens its case); the others keep skipping it.
         SignalEvaluator evaluator = new SignalEvaluator(state);
         Map<String, Object> root = Map.of(SignalFields.ROOT, signal);
-        SignalEvaluator.Result result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
-                : evaluator.evaluate(tenant, assetId, at, root, symptoms);
+        SignalEvaluator.Result result;
+        if (reconcile) {
+            result = evaluator.reconcile(tenant, assetId, at, root, symptoms);
+        } else {
+            result = late ? evaluator.evaluateLate(tenant, assetId, at, root, symptoms)
+                    : evaluator.evaluate(tenant, assetId, at, root, symptoms);
+        }
         // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
         if (!result.transitions().isEmpty()) {
             TransitionLog.Place place = place(signal);

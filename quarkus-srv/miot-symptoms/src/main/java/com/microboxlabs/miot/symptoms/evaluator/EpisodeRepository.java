@@ -3,6 +3,9 @@ package com.microboxlabs.miot.symptoms.evaluator;
 /** Loads one organization's episodes for one vehicle before a signal, and writes back what changed after it. */
 public interface EpisodeRepository {
 
+    /** Organizations with unfinished episodes on the vehicle, even after their signal access ends. */
+    java.util.Set<String> tenantsWithEpisodes(String assetId);
+
     AssetEpisodes load(String tenantCode, String assetId);
 
     void save(AssetEpisodes changes);

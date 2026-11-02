@@ -78,6 +78,10 @@ public class AssetEpisodes implements EpisodeStore {
         return assetId;
     }
 
+    boolean hasEpisodes() {
+        return !episodes.isEmpty();
+    }
+
     /** Episodes saved since loading, by symptom. */
     public Map<UUID, Episode> saved() {
         Map<UUID, Episode> out = new HashMap<>();

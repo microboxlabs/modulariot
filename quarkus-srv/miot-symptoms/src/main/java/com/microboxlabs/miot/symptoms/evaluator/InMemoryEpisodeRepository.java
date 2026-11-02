@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,6 +17,12 @@ public class InMemoryEpisodeRepository implements EpisodeRepository {
     }
 
     private final Map<Key, Snapshot> data = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> tenants = new ConcurrentHashMap<>();
+
+    @Override
+    public Set<String> tenantsWithEpisodes(String assetId) {
+        return Set.copyOf(tenants.getOrDefault(assetId, Set.of()));
+    }
 
     @Override
     public AssetEpisodes load(String tenantCode, String assetId) {
@@ -31,6 +38,7 @@ public class InMemoryEpisodeRepository implements EpisodeRepository {
             episodes.putAll(changes.saved());
             changes.deleted().forEach(episodes::remove);
             watermarks.putAll(changes.marked());
+            index(changes.tenantCode(), changes.assetId(), !episodes.isEmpty());
             return new Snapshot(episodes, watermarks);
         });
     }
@@ -40,7 +48,17 @@ public class InMemoryEpisodeRepository implements EpisodeRepository {
         data.computeIfPresent(new Key(tenantCode, assetId), (k, old) -> {
             Map<UUID, Episode> episodes = new HashMap<>(old.episodes());
             episodes.remove(definitionId);
+            index(tenantCode, assetId, !episodes.isEmpty());
             return new Snapshot(episodes, old.watermarks());
         });
+    }
+
+    private void index(String tenantCode, String assetId, boolean hasEpisodes) {
+        Set<String> onAsset = tenants.computeIfAbsent(assetId, k -> ConcurrentHashMap.newKeySet());
+        if (hasEpisodes) {
+            onAsset.add(tenantCode);
+        } else {
+            onAsset.remove(tenantCode);
+        }
     }
 }

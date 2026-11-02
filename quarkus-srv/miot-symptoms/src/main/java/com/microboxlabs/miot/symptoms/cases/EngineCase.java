@@ -12,10 +12,19 @@ import java.util.UUID;
  * @param treatments  its open treatments
  * @param slaMinutes  the time an operator has to take it at its level, or null when the level has none
  * @param recurrence  the earlier cases of the same symptom on its trip, or null without a trip
+ * @param tripCode    the client's service code from the live trip's first mandate, or null when unavailable
  */
 public record EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
         Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
-        Instant closedAt, long treatments, Integer slaMinutes, Long recurrence) {
+        Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode) {
+
+    @SuppressWarnings("java:S107")
+    public EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
+            Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
+            Instant closedAt, long treatments, Integer slaMinutes, Long recurrence) {
+        this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, null);
+    }
 
     public long symptomId() {
         return -id;

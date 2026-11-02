@@ -2,6 +2,10 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
@@ -19,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import org.jboss.logging.Logger;
 
 /**
  * The evaluator's cases, from {@code miot_symptoms.signal_transitions}: an ACTIVE OPENED row is a case, open
@@ -28,6 +33,9 @@ import java.util.function.Supplier;
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgEngineCases implements EngineCaseStore {
+
+    private static final Logger LOG = Logger.getLogger(PgEngineCases.class);
+    private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.level, o.trip_id,
@@ -89,6 +97,16 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));
+    /** Enrich only the returned page, without changing counts or looking up each trip separately. */
+    private static final String WITH_TRIP_CODE = """
+            SELECT c.*, t.mandate_codes::text AS trip_mandate_codes
+              FROM (%s) c
+              LEFT JOIN miot_trips.trip_live t
+                ON t.tenant_code = c.tenant_code AND t.trip_id = CASE
+                     WHEN c.trip_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                     THEN c.trip_id::uuid END
+             ORDER BY c.at DESC
+            """;
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
     private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n"
             + " FROM (" + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
@@ -149,17 +167,27 @@ public class PgEngineCases implements EngineCaseStore {
         this.pool = pool;
     }
 
+    /** Trip details are optional, including when the trips module is unavailable. */
+    private Iterable<Row> cases(String query, Tuple args) {
+        try {
+            return PgIds.query(pool.get(), WITH_TRIP_CODE.formatted(query), args);
+        } catch (RuntimeException e) {
+            LOG.debug("Engine case trip codes unavailable", e);
+            return PgIds.query(pool.get(), "SELECT c.*, NULL::text AS trip_mandate_codes FROM (" + query + ") c ORDER BY c.at DESC", args);
+        }
+    }
+
     @Override
     public List<EngineCase> open(String tenantCode) {
         List<EngineCase> out = new ArrayList<>();
-        PgIds.query(pool.get(), OPEN, Tuple.of(tenantCode)).forEach(r -> out.add(engineCase(r)));
+        cases(OPEN, Tuple.of(tenantCode)).forEach(r -> out.add(engineCase(r)));
         return out;
     }
 
     @Override
     public List<EngineCase> list(String tenantCode, CaseFilter f) {
         List<EngineCase> out = new ArrayList<>();
-        PgIds.query(pool.get(), MATCHING, Tuple.tuple().addString(tenantCode).addString(f.tripId())
+        cases(MATCHING, Tuple.tuple().addString(tenantCode).addString(f.tripId())
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
                 .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level()))
@@ -177,7 +205,7 @@ public class PgEngineCases implements EngineCaseStore {
 
     @Override
     public Optional<EngineCase> find(String tenantCode, long caseId) {
-        var rows = PgIds.query(pool.get(), ONE, Tuple.of(tenantCode, caseId)).iterator();
+        var rows = cases(ONE, Tuple.of(tenantCode, caseId)).iterator();
         return rows.hasNext() ? Optional.of(engineCase(rows.next())) : Optional.empty();
     }
 
@@ -238,6 +266,24 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
-                r.getLong("recurrence"));
+                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes")));
+    }
+
+    /** Decode each trip independently so a malformed projection never hides another trip's code. */
+    static String tripCode(String mandates) {
+        if (mandates == null || mandates.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode codes = JSON.readTree(mandates);
+            if (codes != null && codes.isTextual()) {
+                codes = JSON.readTree(codes.textValue());
+            }
+            String code = codes == null ? "" : codes.path(0).path("code").asText("").strip();
+            return code.isEmpty() ? null : code;
+        } catch (JsonProcessingException e) {
+            LOG.debug("Engine case trip code is not valid JSON", e);
+            return null;
+        }
     }
 }

@@ -62,6 +62,7 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       licensePlate: item?.asset_id,
       time: formatActiveDuration(item?.duration_sec) ?? "",
       trip: item?.trip_id,
+      tripCode: item?.trip_code,
       driver: item?.driver,
       date: item?.start_time,
       endDate: item?.end_time ?? null,

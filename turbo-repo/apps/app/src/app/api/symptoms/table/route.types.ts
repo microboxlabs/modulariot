@@ -22,6 +22,7 @@ export interface SymptomsTable {
   client: string;
   driver: string;
   trip_id: string;
+  trip_code?: string | null;
   asset_id: string;
   end_time: string;
   start_time: string;

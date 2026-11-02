@@ -23,6 +23,7 @@ export type TreatmentsTripInfoResponse = {
   driver: string;
   driver2?: string;
   trip_id: string;
+  trip_code?: string | null;
   origin: string;
   type_load: string;
   driver_contact: string;

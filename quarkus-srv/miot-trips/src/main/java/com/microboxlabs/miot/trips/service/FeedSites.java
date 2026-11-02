@@ -65,7 +65,7 @@ public class FeedSites {
             return;
         }
         if (declared != null && declared.geofenceId() != null
-                && useGeofence(tenantCode, actor, code, declared.geofenceId(), done)) {
+                && useGeofence(organization, tenantCode, actor, code, declared.geofenceId(), done)) {
             return;
         }
         Site site = declared == null ? cellSite(code.strip(), country) : declared;
@@ -91,13 +91,15 @@ public class FeedSites {
      * Links the location to the geofence the feed declared. False when that geofence cannot be used, so the site's
      * other parts are tried.
      */
-    private boolean useGeofence(String tenantCode, String actor, String code, int geofenceId, List<String> done) {
+    private boolean useGeofence(String organization, String tenantCode, String actor, String code, int geofenceId,
+            List<String> done) {
         try {
             Location l = locations.byCode(tenantCode, code).orElse(null);
             if (l == null || !geofenceDue(l)) {
                 return true;
             }
-            Location linked = resolution.useGeofence(tenantCode, actor, UUID.fromString(l.id()), geofenceId);
+            Location linked = resolution.useGeofence(organization, tenantCode, actor, UUID.fromString(l.id()),
+                    geofenceId);
             done.add(code.trim() + ": " + linked.placement().status());
             return true;
         } catch (IllegalArgumentException e) {

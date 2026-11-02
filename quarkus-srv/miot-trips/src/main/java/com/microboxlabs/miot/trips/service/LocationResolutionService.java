@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import org.jboss.logging.Logger;
@@ -172,9 +173,11 @@ public class LocationResolutionService {
 
     /**
      * Points the location at a geofence of the tenant that a source declared to be this place, resolved at the
-     * geofence's center. No district check: the geofence is the tenant's own.
+     * geofence's center. No district check: the geofence is the tenant's own. The write applies only while the
+     * location is still unlinked and neither resolved nor rejected, so a decision taken meanwhile stays; then the
+     * location is returned as it is. {@code organization} is whose usage records the resolution, at no cost.
      */
-    public Location useGeofence(String tenantCode, String actor, UUID id, int geofenceId) {
+    public Location useGeofence(String organization, String tenantCode, String actor, UUID id, int geofenceId) {
         Location l = store.find(tenantCode, id).orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
         if (geofences.find(tenantCode, geofenceId).isEmpty()) {
             throw new IllegalArgumentException("geofence " + geofenceId + " is not the organization's");
@@ -186,7 +189,13 @@ public class LocationResolutionService {
         double[] c = GeoShape.parse(shape).center();
         Placement at = l.placement().withResult(OpenLocationCode.encode(c[1], c[0]), c[1], c[0],
                 LocationResolver.GEOFENCE, Location.RESOLVED, null);
-        return finish(tenantCode, actor, l, new Outcome(at, geofenceId));
+        Optional<Location> linked = tx.inTransaction(() -> store.setPlacementIfOpen(tenantCode, id, at, geofenceId,
+                actor).map(updated -> recorded(tenantCode, actor, l, at, geofenceId, updated)));
+        if (linked.isEmpty()) {
+            return store.find(tenantCode, id).orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
+        }
+        recordUsage(organization, tenantCode, actor, linked.get().placement(), LocationResolver.Usage.NONE);
+        return linked.get();
     }
 
     /** Marks the site as one that cannot be located; its point and geofence stay as they are. */
@@ -241,19 +250,23 @@ public class LocationResolutionService {
         Placement stored = placement.withResult(placement.plusCode(), placement.latitude(), placement.longitude(),
                 placement.source(), placement.status(), note(placement.note()));
         Integer linked = geofenceId;
-        return tx.inTransaction(() -> {
-            Location updated = store.setPlacement(tenantCode, UUID.fromString(l.id()), stored, linked, actor)
-                    .orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND));
-            if (linked != null) {
-                live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, UUID.fromString(l.id())));
-            }
-            Map<String, Object> details = new HashMap<>();
-            details.put("status", stored.status());
-            details.put("source", stored.source());
-            details.put("geofenceId", updated.geofenceId());
-            audit.log(tenantCode, actor, "location." + stored.status(), LOCATION, updated.id(), null, details);
-            return updated;
-        });
+        return tx.inTransaction(() -> recorded(tenantCode, actor, l, stored, linked,
+                store.setPlacement(tenantCode, UUID.fromString(l.id()), stored, linked, actor)
+                        .orElseThrow(() -> new NoSuchElementException(LOCATION_NOT_FOUND))));
+    }
+
+    /** Refreshes the open trips at a newly linked location and audits the placement. */
+    private Location recorded(String tenantCode, String actor, Location l, Placement stored, Integer linked,
+            Location updated) {
+        if (linked != null) {
+            live.refreshAll(tenantCode, trips.openTripsAt(tenantCode, UUID.fromString(l.id())));
+        }
+        Map<String, Object> details = new HashMap<>();
+        details.put("status", stored.status());
+        details.put("source", stored.source());
+        details.put("geofenceId", updated.geofenceId());
+        audit.log(tenantCode, actor, "location." + stored.status(), LOCATION, updated.id(), null, details);
+        return updated;
     }
 
     private static String districtCode(String incomingCode, String incomingName, Placement current) {

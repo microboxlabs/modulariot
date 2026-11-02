@@ -255,9 +255,10 @@ class FeedSitesTest {
                 live, audit, Transactions.none());
         LocationResolver resolver = new LocationResolver(geofences, new AdminBoundaries(), new FakeAddresses(),
                 new InMemoryGeocodeCache(), StubGeocoding.none());
+        List<GeocodeUsageService.Resolution> recorded = new ArrayList<>();
         GeocodeUsageService usage = new GeocodeUsageService(null, null, GeocodingMetrics.NONE) {
             @Override public void recordResolution(Resolution resolution) {
-                // This test checks the placement and the geofence link.
+                recorded.add(resolution);
             }
         };
         LocationResolutionService resolution = new LocationResolutionService(world.locationStore, locations,
@@ -280,9 +281,20 @@ class FeedSitesTest {
         assertEquals(-23.77, yard.placement().latitude(), 1e-6);
         assertEquals(-70.30, yard.placement().longitude(), 1e-6);
         assertNull(locations.byCode("client-a", "Other yard").orElseThrow().geofenceId());
+        GeocodeUsageService.Resolution use = recorded.stream()
+                .filter(r -> LocationResolver.GEOFENCE.equals(r.source())).findFirst().orElseThrow();
+        assertEquals("org-a", use.organization());
+        assertFalse(use.providerCalled(), "a declared geofence is counted, not charged");
 
         assertFalse(sites.locate("org-a", "client-a", "feed:test", null, desired).stream()
                 .anyMatch(s -> s.startsWith("Synthetic yard")), "a linked location keeps its geofence");
+
+        Location other = locations.byCode("client-a", "Other yard").orElseThrow();
+        resolution.reject("client-a", "reviewer", java.util.UUID.fromString(other.id()), "not a place");
+        Location kept = resolution.useGeofence("org-a", "client-a", "feed:test", java.util.UUID.fromString(other.id()),
+                501);
+        assertEquals(Location.REJECTED, kept.placement().status(), "a review decision taken meanwhile stays");
+        assertNull(kept.geofenceId());
     }
 
     @Test

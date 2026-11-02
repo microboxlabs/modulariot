@@ -2,6 +2,7 @@ import {
   ConditionsAgg,
   TimelineElement,
 } from "@/features/symptoms/types/timeline";
+import type { LevelReason } from "@/features/symptoms/model/level-reason";
 
 export type TreatmentsGeneralResponse = {
   data: TreatmentsGeneralResponseItem;
@@ -14,6 +15,8 @@ export type TreatmentsGeneralResponseItem = {
   timeline?: TimelineElement[];
   trip_info: TreatmentsTripInfoResponse;
   symptom_info: TreatmentsSymptomInfoResponse;
+  /** Engine cases only: why the case is at its level. */
+  level_reason?: LevelReason | null;
 };
 
 export type TreatmentsTripInfoResponse = {
@@ -35,4 +38,8 @@ export type TreatmentsSymptomInfoResponse = {
   type: string;
   icu_code: number;
   icu_condition: string;
+  /** Engine cases only: when the case opened, and when its condition began. */
+  opened_at?: string;
+  started_at?: string;
+  duration_sec?: number;
 };

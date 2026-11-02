@@ -8,16 +8,6 @@ const NOTES: ReadonlyArray<{
   params: readonly string[];
 }> = [
   {
-    pattern: /^the point is in (.+) \((\w+)\), not in (.+) \((\w+)\)$/,
-    key: "pointInOtherDistrict",
-    params: ["found", "foundCode", "declared", "declaredCode"],
-  },
-  {
-    pattern: /^the point is outside (\w{2}), not in (.+) \((\w+)\)$/,
-    key: "pointOutsideCountry",
-    params: ["country", "declared", "declaredCode"],
-  },
-  {
     pattern: /^country is required to check the district$/,
     key: "countryRequired",
     params: [],
@@ -29,22 +19,22 @@ const NOTES: ReadonlyArray<{
   },
   { pattern: /^district is required$/, key: "districtRequired", params: [] },
   {
-    pattern: /^district code (.+) not found in (\w{2})$/,
+    pattern: /^district code ([^\r\n]+) not found in (\w{2})$/,
     key: "districtCodeNotFound",
     params: ["district", "country"],
   },
   {
-    pattern: /^district (.+) is ambiguous in (\w{2}); send its code$/,
+    pattern: /^district ([^\r\n]+) is ambiguous in (\w{2}); send its code$/,
     key: "districtAmbiguous",
     params: ["district", "country"],
   },
   {
-    pattern: /^district (.+) not found in (\w{2})$/,
+    pattern: /^district ([^\r\n]+) not found in (\w{2})$/,
     key: "districtNotFound",
     params: ["district", "country"],
   },
   {
-    pattern: /^district (.+) has no boundary to check against$/,
+    pattern: /^district ([^\r\n]+) has no boundary to check against$/,
     key: "districtWithoutBoundary",
     params: ["district"],
   },
@@ -115,11 +105,55 @@ const NOTES: ReadonlyArray<{
     params: ["provider"],
   },
   {
-    pattern: /^(\w+) found only (.+), not an address$/,
+    pattern: /^(\w+) found only ([^\r\n]+), not an address$/,
     key: "providerFoundCoarser",
     params: ["provider", "type"],
   },
 ];
+
+function namedDistrict(value: string) {
+  const open = value.lastIndexOf(" (");
+  if (open < 1 || !value.endsWith(")")) return null;
+  const name = value.slice(0, open);
+  const code = value.slice(open + 2, -1);
+  if (name.includes("\n") || name.includes("\r") || !/^\w+$/.test(code)) {
+    return null;
+  }
+  return { name, code };
+}
+
+function pointNote(
+  note: string
+): { key: string; values: Record<string, string> } | null {
+  const separator = ", not in ";
+  const split = note.lastIndexOf(separator);
+  if (split === -1) return null;
+  const declared = namedDistrict(note.slice(split + separator.length));
+  if (!declared) return null;
+  const found = note.slice(0, split);
+  const inDistrict = "the point is in ";
+  if (found.startsWith(inDistrict)) {
+    const district = namedDistrict(found.slice(inDistrict.length));
+    if (!district) return null;
+    return {
+      key: "pointInOtherDistrict",
+      values: {
+        found: district.name,
+        foundCode: district.code,
+        declared: declared.name,
+        declaredCode: declared.code,
+      },
+    };
+  }
+  const outsideCountry = "the point is outside ";
+  if (!found.startsWith(outsideCountry)) return null;
+  const country = found.slice(outsideCountry.length);
+  if (!/^\w{2}$/.test(country)) return null;
+  return {
+    key: "pointOutsideCountry",
+    values: { country, declared: declared.name, declaredCode: declared.code },
+  };
+}
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -134,6 +168,11 @@ export function reviewNote(
   notes: I18nRecord | undefined
 ): string {
   if (!notes) return note;
+  const point = pointNote(note);
+  if (point) {
+    const text = trDynamic(point.key, notes, point.values);
+    return text === point.key ? note : text;
+  }
   for (const { pattern, key, params } of NOTES) {
     const match = pattern.exec(note);
     if (!match) continue;

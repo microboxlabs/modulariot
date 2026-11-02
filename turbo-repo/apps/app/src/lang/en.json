@@ -4920,6 +4920,7 @@
         "overview": "Overview",
         "attempts": "Attempts",
         "payload": "Payload",
+        "result": "Result",
         "chain": "Chain",
         "loading": "Loading job…",
         "loadError": "Couldn't load the job.",

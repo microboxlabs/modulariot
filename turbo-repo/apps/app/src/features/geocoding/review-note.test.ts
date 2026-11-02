@@ -20,6 +20,34 @@ describe("reviewNote", () => {
     );
   });
 
+  it("keeps parentheses in district names", () => {
+    expect(
+      reviewNote(
+        "the point is in District Alpha (North) (101), not in District Beta (South) (202)",
+        notes
+      )
+    ).toBe(
+      "El punto está en District Alpha (North) (101), no en District Beta (South) (202)"
+    );
+  });
+
+  it("translates a point outside the country", () => {
+    expect(
+      reviewNote("the point is outside CL, not in District Alpha (101)", notes)
+    ).toBe("El punto está fuera de CL, no en District Alpha (101)");
+  });
+
+  it("leaves a long malformed point note unchanged", () => {
+    const note = `the point is in ${"District (101), not in ".repeat(10000)}District (bad-code)`;
+    expect(reviewNote(note, notes)).toBe(note);
+  });
+
+  it("keeps a point note when its translation is missing", () => {
+    const note =
+      "the point is in District Alpha (101), not in District Beta (202)";
+    expect(reviewNote(note, {})).toBe(note);
+  });
+
   it("keeps the quota number", () => {
     expect(
       reviewNote(

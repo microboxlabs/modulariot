@@ -4920,6 +4920,7 @@
         "overview": "Resumen",
         "attempts": "Intentos",
         "payload": "Payload",
+        "result": "Resultado",
         "chain": "Cadena",
         "loading": "Cargando trabajo…",
         "loadError": "No se pudo cargar el trabajo.",

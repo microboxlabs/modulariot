@@ -474,7 +474,7 @@ export default function JobDetailPanel({
             {job.result && (
               <div>
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  result · jsonb
+                  {tr("detail.result", dict)} · jsonb
                 </div>
                 <pre className="overflow-auto rounded-lg bg-gray-900 p-3 font-mono text-[11px] leading-relaxed text-gray-200">
                   {JSON.stringify(job.result, null, 2)}

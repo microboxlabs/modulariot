@@ -6,6 +6,7 @@ import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -15,6 +16,7 @@ import jakarta.inject.Inject;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -29,10 +31,10 @@ public class PgTransitionLog implements TransitionLog {
     private static final String INSERT = """
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
-                 trip_id, latitude, longitude, speed_kmh)
+                 trip_id, latitude, longitude, speed_kmh, context)
             SELECT $1::varchar, $2::uuid, $3::varchar, $4::varchar, $5::varchar, $6::varchar, $7::timestamptz,
                    $8::integer, $9::integer, $10::double precision,
-                   $11::varchar, $12::double precision, $13::double precision, $14::double precision
+                   $11::varchar, $12::double precision, $13::double precision, $14::double precision, $15::jsonb
             WHERE NOT EXISTS (
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
@@ -60,14 +62,16 @@ public class PgTransitionLog implements TransitionLog {
      * records and publishes them all.
      */
     @Override
-    public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place) {
+    public List<Recorded> append(String tenantCode, List<Transition> transitions, Place place,
+            Map<String, Object> context) {
         if (transitions.isEmpty()) {
             return List.of();
         }
+        JsonObject json = context == null ? null : new JsonObject(context);
         return pool.get().withTransaction(conn -> {
             Uni<List<Recorded>> chain = Uni.createFrom().item(new ArrayList<>());
             for (Transition t : transitions) {
-                chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place))
+                chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, json))
                         .map(rows -> {
                             for (Row r : rows) {
                                 Long caseId = r.getLong("case_id");
@@ -82,11 +86,11 @@ public class PgTransitionLog implements TransitionLog {
         }).await().atMost(QUERY_TIMEOUT);
     }
 
-    private static Tuple params(String tenantCode, Transition t, Place place) {
+    private static Tuple params(String tenantCode, Transition t, Place place, JsonObject context) {
         return Tuple.tuple().addValue(tenantCode).addValue(t.definitionId()).addValue(t.version())
                 .addValue(t.state().name()).addValue(t.kind().name()).addValue(t.assetId())
                 .addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level()).addValue(t.previousLevel())
                 .addValue(t.measure()).addValue(place.tripId()).addValue(place.latitude())
-                .addValue(place.longitude()).addValue(place.speedKmh());
+                .addValue(place.longitude()).addValue(place.speedKmh()).addValue(context);
     }
 }

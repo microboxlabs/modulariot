@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.SlaStore;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -192,6 +194,35 @@ class PgSlaStoreTest {
                 Tuple.of(tripId, tenant));
         assertEquals("SERVICE-001", cases.find(tenant, id).orElseThrow().tripCode(),
                 "the service code still belongs to the trip after its vehicle changes");
+    }
+
+    @Test
+    void malformedTripDataAndNonUuidIdsDoNotHideValidCodesOnThePage() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID validTrip = UUID.randomUUID();
+        UUID malformedTrip = UUID.randomUUID();
+        Instant at = Instant.parse("2026-01-01T00:00:00Z");
+        log.append(tenant, List.of(t(Kind.OPENED, speeding, at, 3, 0)),
+                new TransitionLog.Place(validTrip.toString(), null, null, null, null));
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "vehicle-other", at.plusSeconds(1), 3, 0, 30)),
+                new TransitionLog.Place(malformedTrip.toString(), null, null, null, null));
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "vehicle-third", at.plusSeconds(2), 3, 0, 30)),
+                new TransitionLog.Place("not-a-uuid", null, null, null, null));
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, mandate_codes)
+                VALUES ($1, $2, 'DEMO01', '[{"code":"SERVICE-001"}]'),
+                       ($3, $2, 'vehicle-other', '"not-json"')
+                """, Tuple.of(validTrip, tenant, malformedTrip));
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        for (List<EngineCase> page : List.of(cases.list(tenant, EngineCaseStore.CaseFilter.OPEN), cases.open(tenant))) {
+            assertEquals(List.of("not-a-uuid", malformedTrip.toString(), validTrip.toString()),
+                    page.stream().map(EngineCase::tripId).toList());
+            assertEquals(Arrays.asList(null, null, "SERVICE-001"), page.stream().map(EngineCase::tripCode).toList());
+        }
     }
 
     @Test

@@ -2,6 +2,10 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static com.microboxlabs.miot.symptoms.catalog.store.PgJson.QUERY_TIMEOUT;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
@@ -31,6 +35,7 @@ import org.jboss.logging.Logger;
 public class PgEngineCases implements EngineCaseStore {
 
     private static final Logger LOG = Logger.getLogger(PgEngineCases.class);
+    private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.level, o.trip_id,
@@ -94,12 +99,12 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));
     /** Enrich only the returned page, without changing counts or looking up each trip separately. */
     private static final String WITH_TRIP_CODE = """
-            SELECT c.*, NULLIF(btrim((CASE jsonb_typeof(t.mandate_codes)
-                       WHEN 'string' THEN (t.mandate_codes #>> '{}')::jsonb
-                       ELSE t.mandate_codes END) -> 0 ->> 'code'), '') AS trip_code
+            SELECT c.*, t.mandate_codes::text AS trip_mandate_codes
               FROM (%s) c
               LEFT JOIN miot_trips.trip_live t
-                ON t.tenant_code = c.tenant_code AND t.trip_id::text = c.trip_id
+                ON t.tenant_code = c.tenant_code AND t.trip_id = CASE
+                     WHEN c.trip_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                     THEN c.trip_id::uuid END
              ORDER BY c.at DESC
             """;
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
@@ -168,7 +173,7 @@ public class PgEngineCases implements EngineCaseStore {
             return PgIds.query(pool.get(), WITH_TRIP_CODE.formatted(query), args);
         } catch (RuntimeException e) {
             LOG.debug("Engine case trip codes unavailable", e);
-            return PgIds.query(pool.get(), "SELECT c.*, NULL::text AS trip_code FROM (" + query + ") c ORDER BY c.at DESC", args);
+            return PgIds.query(pool.get(), "SELECT c.*, NULL::text AS trip_mandate_codes FROM (" + query + ") c ORDER BY c.at DESC", args);
         }
     }
 
@@ -261,6 +266,24 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
-                r.getLong("recurrence"), r.getString("trip_code"));
+                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes")));
+    }
+
+    /** Decode each trip independently so a malformed projection never hides another trip's code. */
+    static String tripCode(String mandates) {
+        if (mandates == null || mandates.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode codes = JSON.readTree(mandates);
+            if (codes != null && codes.isTextual()) {
+                codes = JSON.readTree(codes.textValue());
+            }
+            String code = codes == null ? "" : codes.path(0).path("code").asText("").strip();
+            return code.isEmpty() ? null : code;
+        } catch (JsonProcessingException e) {
+            LOG.debug("Engine case trip code is not valid JSON", e);
+            return null;
+        }
     }
 }

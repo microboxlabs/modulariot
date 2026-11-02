@@ -36,6 +36,7 @@ public record GpsSignal(
         @Schema(title = "Vehículo", extensions = @Extension(name = "x-origin", value = "DEVICE"))
         @JsonProperty("asset_id") String assetId,
         @Schema(hidden = true) Instant at,
+        @Schema(hidden = true) @JsonProperty("received_at") Instant receivedAt,
         @Schema(hidden = true) List<String> clients,
         @Schema(hidden = true) String sender,
         @Schema(hidden = true) Map<String, Trip> trips,

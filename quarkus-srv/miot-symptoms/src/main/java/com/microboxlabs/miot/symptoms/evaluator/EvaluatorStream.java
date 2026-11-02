@@ -130,6 +130,21 @@ public class EvaluatorStream {
                 .filter(ms -> ms > 0).map(Instant::ofEpochMilli).orElseGet(clock::instant);
     }
 
+    /**
+     * When the frame reached the platform: the gateway's time the signal carries ({@code received_at}), so a
+     * backlog before the signal builder does not read as the device's delay; else when the builder published it.
+     */
+    static Instant arrival(Map<String, Object> signal, Instant published) {
+        if (signal.get("received_at") instanceof String received) {
+            try {
+                return Instant.parse(received);
+            } catch (DateTimeParseException e) {
+                return published;
+            }
+        }
+        return published;
+    }
+
     int evaluate(String json) {
         return evaluate(json, clock.instant());
     }
@@ -159,7 +174,7 @@ public class EvaluatorStream {
             throw new IllegalArgumentException("not a signal time", e);
         }
         // Before the organizations: a failing catalog or log must not keep the frame out of the profiles.
-        lostSignal.frame(assetId, instant, arrivedAt, signal);
+        lostSignal.frame(assetId, instant, arrival(signal, arrivedAt), signal);
         int recorded = 0;
         boolean late = false;
         for (Object client : clients) {

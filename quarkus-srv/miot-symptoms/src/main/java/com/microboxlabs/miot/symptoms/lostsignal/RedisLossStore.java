@@ -312,7 +312,12 @@ public class RedisLossStore implements LossStore {
 
     @Override
     public boolean lease(String owner, Duration leaseTtl) {
-        Response r = batch(List.of(Request.cmd(Command.EVAL).arg(LEASE_SCRIPT).arg(1).arg(LEASE).arg(owner)
+        return lease(LEASE, owner, leaseTtl);
+    }
+
+    /** Takes or keeps the lease under {@code key}; false while another owner holds it. */
+    public boolean lease(String key, String owner, Duration leaseTtl) {
+        Response r = batch(List.of(Request.cmd(Command.EVAL).arg(LEASE_SCRIPT).arg(1).arg(key).arg(owner)
                 .arg(leaseTtl.toMillis()))).get(0);
         return r != null && r.toInteger() == 1;
     }

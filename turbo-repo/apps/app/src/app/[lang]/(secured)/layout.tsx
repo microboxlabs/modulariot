@@ -10,6 +10,7 @@ import { HarnessChatProvider } from "@/features/harness-chat/context/harness-cha
 import { isHarnessUiEnabled } from "@/features/layout/utils/utils";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import HarnessChatMount from "./harness-chat-mount";
+import { SessionExpiryGuard } from "@/features/auth/session-expiry/session-expiry-guard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,6 +27,7 @@ export default async function Layout({
         "bg-gray-50 dark:bg-gray-900 h-screen flex flex-row"
       )}
     >
+      <SessionExpiryGuard />
       <HarnessChatProvider>
         <SessionProvider basePath="/app/api/auth">
           <SecuredLayout params={params}>{children}</SecuredLayout>

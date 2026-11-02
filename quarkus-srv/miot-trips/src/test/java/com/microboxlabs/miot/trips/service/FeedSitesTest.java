@@ -243,6 +243,69 @@ class FeedSitesTest {
         assertEquals(writes + 1, world.auditTrail().size());
     }
 
+    @Test
+    void aDeclaredGeofenceOfTheOrganizationResolvesTheLocationAtItsCenterWithoutADistrict() {
+        InMemoryTripsWorld world = new InMemoryTripsWorld();
+        FakeGeofences geofences = new FakeGeofences()
+                .add("client-a", 501, "G-501", "Synthetic yard").square(501, -70.30, -23.77, 0.01)
+                .add("client-b", 777, "G-777", "Another client's yard").square(777, -70.40, -23.60, 0.01);
+        TripLiveProjector live = world.projector(new InMemoryFleet());
+        AuditService audit = new AuditService(world.auditStore);
+        LocationService locations = new LocationService(world.locationStore, geofences, world.tripStore,
+                live, audit, Transactions.none());
+        LocationResolver resolver = new LocationResolver(geofences, new AdminBoundaries(), new FakeAddresses(),
+                new InMemoryGeocodeCache(), StubGeocoding.none());
+        List<GeocodeUsageService.Resolution> recorded = new ArrayList<>();
+        GeocodeUsageService usage = new GeocodeUsageService(null, null, GeocodingMetrics.NONE) {
+            @Override public void recordResolution(Resolution resolution) {
+                recorded.add(resolution);
+            }
+        };
+        LocationResolutionService resolution = new LocationResolutionService(world.locationStore, locations,
+                resolver, geofences, world.tripStore, live, audit, Transactions.none(), usage);
+        FeedSites sites = new FeedSites(locations, resolution);
+        locations.resolve("client-a", "feed:test", "Synthetic yard");
+        locations.resolve("client-a", "feed:test", "Other yard");
+        FeedServiceRequest desired = row("Synthetic yard", "Other yard",
+                new Site(null, null, null, null, null, -23.7, -70.3, 501),
+                new Site(null, null, null, null, null, null, null, 777));
+
+        List<String> located = sites.locate("org-a", "client-a", "feed:test", null, desired);
+
+        assertEquals("Synthetic yard: resolved", located.get(0));
+        assertEquals("Other yard: geofence 777 is not the organization's", located.get(1));
+        Location yard = locations.byCode("client-a", "Synthetic yard").orElseThrow();
+        assertEquals(501, yard.geofenceId());
+        assertEquals(Location.RESOLVED, yard.placement().status());
+        assertEquals(LocationResolver.GEOFENCE, yard.placement().source());
+        assertEquals(-23.77, yard.placement().latitude(), 1e-6);
+        assertEquals(-70.30, yard.placement().longitude(), 1e-6);
+        assertNull(locations.byCode("client-a", "Other yard").orElseThrow().geofenceId());
+        GeocodeUsageService.Resolution use = recorded.stream()
+                .filter(r -> LocationResolver.GEOFENCE.equals(r.source())).findFirst().orElseThrow();
+        assertEquals("org-a", use.organization());
+        assertFalse(use.providerCalled(), "a declared geofence is counted, not charged");
+
+        assertFalse(sites.locate("org-a", "client-a", "feed:test", null, desired).stream()
+                .anyMatch(s -> s.startsWith("Synthetic yard")), "a linked location keeps its geofence");
+
+        Location other = locations.byCode("client-a", "Other yard").orElseThrow();
+        resolution.reject("client-a", "reviewer", java.util.UUID.fromString(other.id()), "not a place");
+        Location kept = resolution.useGeofence("org-a", "client-a", "feed:test", java.util.UUID.fromString(other.id()),
+                501);
+        assertEquals(Location.REJECTED, kept.placement().status(), "a review decision taken meanwhile stays");
+        assertNull(kept.geofenceId());
+    }
+
+    @Test
+    void aDeclaredGeofenceLeavesReviewedLocationsAsTheyAre() {
+        assertTrue(FeedSites.geofenceDue(location(null, Placement.NONE)));
+        assertTrue(FeedSites.geofenceDue(location(null, placement("x", Location.NEEDS_REVIEW))));
+        assertFalse(FeedSites.geofenceDue(location(42, Placement.NONE)));
+        assertFalse(FeedSites.geofenceDue(location(null, placement("x", Location.RESOLVED))));
+        assertFalse(FeedSites.geofenceDue(location(null, placement("x", Location.REJECTED))));
+    }
+
     private static FeedServiceRequest row(String origin, String destination, Site originSite, Site destinationSite) {
         return new FeedServiceRequest("service", "ref", origin, destination, null, null, null, null, null,
                 null, null, null, null, null, originSite, destinationSite);

@@ -59,12 +59,19 @@ public record FeedServiceRequest(
     /**
      * Where a place is, as the source declares it: the address with its district and country, a Plus Code, or
      * coordinates. {@code districtCode} is the Peruvian ubigeo or the Chilean commune code; {@code country} is ISO
-     * 3166 alpha-2.
+     * 3166 alpha-2. {@code geofenceId} is the organization's GPS geofence that is this place, when the source knows
+     * it; it wins over the other parts.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @RegisterForReflection
     public record Site(String address, String country, String districtCode, String district, String plusCode,
-            Double latitude, Double longitude) {
+            Double latitude, Double longitude, Integer geofenceId) {
+
+        @SuppressWarnings("java:S107") // The site without a geofence.
+        public Site(String address, String country, String districtCode, String district, String plusCode,
+                Double latitude, Double longitude) {
+            this(address, country, districtCode, district, plusCode, latitude, longitude, null);
+        }
     }
 
     @SuppressWarnings("java:S107") // The feed row without SLA or cargo.

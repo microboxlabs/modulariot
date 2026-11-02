@@ -627,6 +627,19 @@ public class InMemoryTripsWorld {
         }
 
         @Override
+        public Optional<Location> setPlacementIfOpen(String tenantCode, UUID id, Location.Placement placement,
+                int geofenceId, String actor) {
+            return find(tenantCode, id).filter(l -> l.geofenceId() == null
+                    && !Location.RESOLVED.equals(l.placement().status())
+                    && !Location.REJECTED.equals(l.placement().status()))
+                    .map(location -> {
+                        Location updated = location.withPlacement(placement, geofenceId, actor);
+                        locations.put(location.id(), updated);
+                        return updated;
+                    });
+        }
+
+        @Override
         public Optional<Location> setGeofence(String tenantCode, UUID id, Integer geofenceId, String actor) {
             return find(tenantCode, id).map(location -> {
                 Location updated = location.withGeofence(geofenceId, actor);

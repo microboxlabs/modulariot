@@ -460,6 +460,30 @@ class PgTripsStoresTest {
     }
 
     @Test
+    void aGeofencePlacementAppliesOnlyWhileTheLocationIsOpen() {
+        String tenant = tenant();
+        Location yard = locations.insert(new Location(null, tenant, "Yard", "zone", "YD-01", null, null, ACTOR,
+                null, ACTOR));
+        Location.Placement at = Location.Placement.NONE.withResult("57V4VXHC+H4", -12.1211, -77.0297, "geofence",
+                Location.RESOLVED, null);
+        UUID id = UUID.fromString(yard.id());
+
+        Location linked = locations.setPlacementIfOpen(tenant, id, at, 501, ACTOR).orElseThrow();
+        assertEquals(501, linked.geofenceId());
+        assertEquals(Location.RESOLVED, linked.placement().status());
+        assertTrue(locations.setPlacementIfOpen(tenant, id, at, 502, ACTOR).isEmpty(), "already linked");
+
+        Location rejectedYard = locations.insert(new Location(null, tenant, "Rejected", "zone", "YD-02", null, null,
+                ACTOR, null, ACTOR));
+        UUID rejectedId = UUID.fromString(rejectedYard.id());
+        locations.setPlacement(tenant, rejectedId, Location.Placement.NONE.withResult(null, null, null, null,
+                Location.REJECTED, "x"), null, ACTOR).orElseThrow();
+        assertTrue(locations.setPlacementIfOpen(tenant, rejectedId, at, 501, ACTOR).isEmpty(), "rejected stays");
+        assertNull(locations.find(tenant, rejectedId).orElseThrow().geofenceId());
+        assertTrue(locations.setPlacementIfOpen("other-tenant", id, at, 501, ACTOR).isEmpty());
+    }
+
+    @Test
     void aGeocodedPointIsCachedByAddressAndCountryAndReplaced() {
         PgGeocodeCache cache = new PgGeocodeCache(() -> pool);
         assertTrue(cache.find("AV LARCO 101 MIRAFLORES", "PE").isEmpty());

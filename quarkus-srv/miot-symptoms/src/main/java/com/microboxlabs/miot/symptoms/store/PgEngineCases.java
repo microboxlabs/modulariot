@@ -98,7 +98,8 @@ public class PgEngineCases implements EngineCaseStore {
             + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     /**
      * One case with why it is at its level: the context of the row that set the level (its latest level change
-     * before it closed, else its opening) and that level's rule in the version that opened it.
+     * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
+     * of those rows.
      */
     private static final String ONE = """
             SELECT w.*,
@@ -108,6 +109,12 @@ public class PgEngineCases implements EngineCaseStore {
                        AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
                             AND (w.closed_id IS NULL OR l.id < w.closed_id)))
                      ORDER BY l.id DESC LIMIT 1) AS level_context,
+                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level) ORDER BY l.id)::text
+                      FROM miot_symptoms.signal_transitions l
+                     WHERE l.tenant_code = w.tenant_code AND l.definition_id = w.definition_id
+                       AND l.asset_id = w.asset_id AND l.state = 'ACTIVE'
+                       AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
+                            AND (w.closed_id IS NULL OR l.id < w.closed_id)))) AS level_steps,
                    (SELECT jsonb_path_query_first(
                            CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END,
                            'lax $.levels[*] ? (@.icu == $l).when', jsonb_build_object('l', w.current_level)) #>> '{}'
@@ -230,7 +237,8 @@ public class PgEngineCases implements EngineCaseStore {
             return Optional.empty();
         }
         Row r = rows.next();
-        return Optional.of(engineCase(r).withLevel(json(r.getString("level_context")), r.getString("level_rule")));
+        return Optional.of(engineCase(r).withLevel(json(r.getString("level_context")), r.getString("level_rule"),
+                steps(json(r.getString("level_steps")))));
     }
 
     @Override
@@ -291,6 +299,22 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes")));
+    }
+
+    static List<EngineCase.LevelStep> steps(JsonNode steps) {
+        List<EngineCase.LevelStep> out = new ArrayList<>();
+        if (steps == null || !steps.isArray()) {
+            return out;
+        }
+        for (JsonNode step : steps) {
+            try {
+                out.add(new EngineCase.LevelStep(OffsetDateTime.parse(step.path("at").asText()).toInstant(),
+                        step.path("level").asInt()));
+            } catch (java.time.format.DateTimeParseException e) {
+                LOG.debug("Engine case level step without a valid time", e);
+            }
+        }
+        return out;
     }
 
     private static JsonNode json(String text) {

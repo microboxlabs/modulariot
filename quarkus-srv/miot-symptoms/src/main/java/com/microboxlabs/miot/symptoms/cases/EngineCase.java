@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.cases;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
+import java.util.List;
 import java.util.OptionalLong;
 import java.util.UUID;
 
@@ -16,18 +17,27 @@ import java.util.UUID;
  * @param tripCode    the client's service code from the live trip's first mandate, or null when unavailable
  * @param levelContext what the rules read when the case reached its level, or null when it was not kept
  * @param levelRule   the rule of its level in the version that opened it, or null when unknown
+ * @param levels      the case's level from each of its changes, oldest first; empty when not read
  */
 public record EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
         Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
         Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
-        JsonNode levelContext, String levelRule) {
+        JsonNode levelContext, String levelRule, List<LevelStep> levels) {
+
+    /** The case reached {@code level} at {@code at}. */
+    public record LevelStep(Instant at, int level) {
+    }
+
+    public EngineCase {
+        levels = levels == null ? List.of() : List.copyOf(levels);
+    }
 
     @SuppressWarnings("java:S107")
     public EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
             Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
             Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
-                speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, null, null);
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, null, null, List.of());
     }
 
     @SuppressWarnings("java:S107")
@@ -35,12 +45,12 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
             Instant closedAt, long treatments, Integer slaMinutes, Long recurrence) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
-                speedKmh, closedAt, treatments, slaMinutes, recurrence, null, null, null);
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, null, null, null, List.of());
     }
 
-    public EngineCase withLevel(JsonNode context, String rule) {
+    public EngineCase withLevel(JsonNode context, String rule, List<LevelStep> steps) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
-                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, context, rule);
+                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, context, rule, steps);
     }
 
     public long symptomId() {

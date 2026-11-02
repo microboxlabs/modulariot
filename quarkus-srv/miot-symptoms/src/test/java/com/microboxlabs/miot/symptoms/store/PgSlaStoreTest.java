@@ -285,6 +285,8 @@ class PgSlaStoreTest {
         EngineCase rose = cases.find(tenant, caseId).orElseThrow();
         assertEquals(3, rose.level());
         assertEquals(1900.0, rose.levelContext().path("check").path("loss").path("silence_s").asDouble());
+        assertEquals(List.of(new EngineCase.LevelStep(t0, 1), new EngineCase.LevelStep(t0.plusSeconds(60), 3)),
+                rose.levels());
 
         log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, speeding, t0.plusSeconds(120), 3, 3)), place);
         assertNull(cases.find(tenant, caseId).orElseThrow().levelContext(), "a change without a context");

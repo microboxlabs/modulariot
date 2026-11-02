@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -41,5 +43,16 @@ class PgEngineCasesTest {
                 "[{\"code\":\"  \"}]", "[{\"code\":{}}]", "\"\"", "not-json", "\"not-json\"")) {
             assertNull(PgEngineCases.tripCode(value), value);
         }
+    }
+
+    @Test
+    void readsTheLevelStepsAsPostgresWritesThem() throws Exception {
+        var steps = new ObjectMapper().readTree("""
+                [{"at":"2026-01-01T00:00:00+00:00","level":1},{"at":"bad","level":2},
+                 {"at":"2026-01-01T00:30:00-03:00","level":2}]
+                """);
+        assertEquals(List.of(new EngineCase.LevelStep(Instant.parse("2026-01-01T00:00:00Z"), 1),
+                new EngineCase.LevelStep(Instant.parse("2026-01-01T03:30:00Z"), 2)), PgEngineCases.steps(steps));
+        assertEquals(List.of(), PgEngineCases.steps(null));
     }
 }

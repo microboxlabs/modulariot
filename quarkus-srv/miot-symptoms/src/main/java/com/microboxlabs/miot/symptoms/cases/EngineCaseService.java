@@ -341,7 +341,8 @@ public class EngineCaseService {
 
     /**
      * Why the case is at its level: the level, its rule, and what the rules read when the case reached it
-     * ({@code context}, null when it was not kept). For a lost signal, {@code lost_since} and the silence then.
+     * ({@code context}, null when it was not kept). For a lost signal, {@code lost_since}. {@code levels} has the
+     * level of each change, oldest first, so the map can color a frame by the level at its time.
      */
     private static ObjectNode levelReason(EngineCase c) {
         ObjectNode reason = JSON.objectNode();
@@ -353,6 +354,8 @@ public class EngineCaseService {
         if (lost != null) {
             reason.put("lost_since", lost.toString());
         }
+        ArrayNode levels = reason.putArray("levels");
+        c.levels().forEach(step -> levels.addObject().put("at", step.at().toString()).put(ICU_CODE, step.level()));
         return reason;
     }
 

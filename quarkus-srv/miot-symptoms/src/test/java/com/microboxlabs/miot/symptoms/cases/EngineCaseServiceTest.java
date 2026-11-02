@@ -337,7 +337,8 @@ class EngineCaseServiceTest {
                 """.formatted(lostSince));
         return new EngineCase(id, PANIC, "2.1.0", "Pérdida de señal", "signal_continuity", "DEMO01", OPENED, 1,
                 "T-1", -33.4489, -70.6693, 0.0, closed, 0, null, 0L, null, context,
-                "check.loss.silence_s < 1800 || check.loss.low_coverage_zone");
+                "check.loss.silence_s < 1800 || check.loss.low_coverage_zone",
+                List.of(new EngineCase.LevelStep(OPENED, 1)));
     }
 
     @Test
@@ -386,6 +387,8 @@ class EngineCaseServiceTest {
         assertEquals(lost.toString(), reason.path("lost_since").asText());
         assertTrue(reason.path("context").path("check").path("loss").path("low_coverage_zone").asBoolean());
         assertEquals(750.0, reason.path("context").path("check").path("loss").path("silence_s").asDouble());
+        assertEquals(OPENED.toString(), reason.path("levels").get(0).path("at").asText());
+        assertEquals(1, reason.path("levels").get(0).path("icu_code").asInt());
     }
 
     @Test

@@ -11,6 +11,7 @@
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import CallStatsBadges from "./call-stats-badges";
+import { CALL_METHOD_ICONS, type CallMethod } from "./call-method";
 import type { CallStats } from "./call-targets";
 
 export default function ContactRow({
@@ -25,7 +26,16 @@ export default function ContactRow({
   recentlyCalled,
   justCalledLabel,
   bgClassName = "bg-gray-50 dark:bg-gray-800/40",
+  methods,
+  methodLabels,
+  unavailableNote,
 }: Readonly<{
+  /** The contact's channels, shown as icons. */
+  methods?: readonly CallMethod[];
+  /** The label of each channel icon. */
+  methodLabels?: Partial<Record<CallMethod, string>>;
+  /** Set when the contact cannot be reached on the step's channel. */
+  unavailableNote?: string;
   personName: string;
   roleLabel?: string;
   phone?: string;
@@ -85,9 +95,27 @@ export default function ContactRow({
               </span>
             )}
           </div>
-          {phone && (
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-              {phone}
+          {(phone || (methods && methods.length > 0)) && (
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              {phone && <span className="truncate">{phone}</span>}
+              {methods?.map((m) => {
+                const Icon = CALL_METHOD_ICONS[m];
+                const label = methodLabels?.[m] ?? m;
+                return (
+                  <Icon
+                    key={m}
+                    role="img"
+                    aria-label={label}
+                    title={label}
+                    className="h-3 w-3 shrink-0"
+                  />
+                );
+              })}
+            </p>
+          )}
+          {unavailableNote && (
+            <p className="truncate text-xs text-amber-700 dark:text-amber-400">
+              {unavailableNote}
             </p>
           )}
         </div>

@@ -14,7 +14,9 @@ import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   ControlTowerError,
+  controlTowerRequest,
   useContacts,
+  type TowerContact,
   type TowerContactQuery,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import { useContactReach } from "@/features/conversations/conversations-api";
@@ -150,6 +152,24 @@ export default function ContactBookPageContent({
     setEditing(contact);
     setModalOpen(true);
   };
+
+  // `?edit=<contact id>` opens that contact, for links such as the call panel's "Sin canales registrados".
+  const [editId] = useState(() =>
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("edit")
+  );
+  useEffect(() => {
+    if (!editId) return;
+    controlTowerRequest<TowerContact>(`/contacts/${encodeURIComponent(editId)}`)
+      .then((c) => {
+        setEditing(toBookContact(c, badges));
+        setModalOpen(true);
+      })
+      .catch(() => undefined);
+    // Opens once; later badge changes do not reopen it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   const saveContact = async (contact: BookContact) => {
     try {

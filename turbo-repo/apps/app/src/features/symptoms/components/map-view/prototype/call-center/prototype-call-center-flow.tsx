@@ -146,9 +146,7 @@ export default function PrototypeCallCenterFlow({
     setActivePersonName(target.personName);
     setActiveRole(target.role);
     setActivePhone(target.phone);
-    setActiveAllowedMethods(
-      target.methods.length > 0 ? target.methods : undefined
-    );
+    setActiveAllowedMethods(target.methods);
     setDialingStarted(false);
     setStep("dialing");
   };
@@ -211,7 +209,8 @@ export default function PrototypeCallCenterFlow({
           contactName={activePersonName}
           contactRole={activeRole}
           contactPhone={activePhone}
-          allowedMethods={activeAllowedMethods}
+          allowedMethods={activeAllowedMethods ?? []}
+          contactId={activeContact?.contactId}
           reason={messageToCommunicate}
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}

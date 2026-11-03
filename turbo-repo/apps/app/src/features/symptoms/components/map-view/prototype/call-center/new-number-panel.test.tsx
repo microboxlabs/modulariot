@@ -123,7 +123,7 @@ describe("CallCenterMenu — new number", () => {
         personName: "Pedro",
         phone: "+56 9 1234 5678",
         contactId: undefined,
-        methods: [],
+        methods: ["phone", "whatsapp"],
       })
     );
     expect(api.createContact).not.toHaveBeenCalled();

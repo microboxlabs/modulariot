@@ -21,7 +21,7 @@ import {
   DRIVER_ROLE,
   isDriverRole,
 } from "@/features/symptoms/control-tower/contact-roles";
-import type { CallMethod } from "./call-method";
+import { ALL_CALL_METHODS, type CallMethod } from "./call-method";
 
 export interface CallStats {
   lastCallAt: Date | null;
@@ -37,7 +37,7 @@ export interface CallTarget {
   personName: string;
   role: string;
   phone: string;
-  /** Empty means every channel is offered. */
+  /** The channels the target can be reached on. Empty means none. */
   methods: CallMethod[];
   stats: CallStats | null;
 }
@@ -48,6 +48,30 @@ export const toApiMethod = (m: CallMethod) =>
   m.toUpperCase() as TowerCallMethod;
 export const fromApiMethod = (m: TowerCallMethod) =>
   m.toLowerCase() as CallMethod;
+
+/** A saved contact's channels: allowed in the book and with an address. Phone and WhatsApp need a number. */
+export function contactMethods(c: TowerContact): CallMethod[] {
+  return ALL_CALL_METHODS.filter((m) => {
+    if (!c.methods.includes(toApiMethod(m))) return false;
+    const fallback = m === "phone" || m === "whatsapp" ? c.phone : null;
+    return Boolean((c.channels?.[m] ?? fallback)?.trim());
+  });
+}
+
+/** The driver is reached by phone and WhatsApp when the trip has a number. */
+export function driverMethods(phone: string | null | undefined): CallMethod[] {
+  return /\d/.test(phone ?? "") ? ["phone", "whatsapp"] : [];
+}
+
+/** The call channel a step asks for; null when the step's channel is not a call (email). */
+export function stepMethod(
+  channel: string | null | undefined
+): CallMethod | null {
+  if (channel === "call" || !channel) return "phone";
+  if (channel === "whatsapp" || channel === "teams" || channel === "meet")
+    return channel;
+  return null;
+}
 
 /** Which call-list row a recorded CALL action belongs to. */
 export function targetIdOfAction(action: TowerAction): string | null {
@@ -67,7 +91,7 @@ export function useCallTargets(
       personName: treatmentData?.trip_info?.driver ?? DRIVER_ROLE,
       role: DRIVER_ROLE,
       phone: treatmentData?.trip_info?.driver_contact ?? "",
-      methods: [],
+      methods: driverMethods(treatmentData?.trip_info?.driver_contact),
       stats: null,
     };
     const contacts = (data ?? [])
@@ -78,7 +102,7 @@ export function useCallTargets(
         personName: c.name,
         role: c.role ?? "",
         phone: c.phone ?? "",
-        methods: c.methods.map(fromApiMethod),
+        methods: contactMethods(c),
         stats: {
           lastCallAt: c.lastCalledAt ? new Date(c.lastCalledAt) : null,
           accepted: c.answered,

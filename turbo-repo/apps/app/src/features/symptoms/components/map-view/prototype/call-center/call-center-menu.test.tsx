@@ -109,6 +109,13 @@ describe("CallCenterMenu", () => {
 
     expect(screen.getByText("Luis Soto")).toBeTruthy();
     expect(screen.queryByText("Inactivo")).toBeNull();
+    // The driver has a number: phone and WhatsApp.
+    expect(within(due).getByLabelText("Llamada por WhatsApp")).toBeTruthy();
+    // Luis has only a phone, and step 2 asks for WhatsApp.
+    const luis = screen.getByRole("button", { name: /Luis Soto/ });
+    expect(within(luis).getByLabelText("Llamada telefónica")).toBeTruthy();
+    expect(within(luis).queryByLabelText("Llamada por WhatsApp")).toBeNull();
+    expect(within(luis).getByText("No disponible por WhatsApp")).toBeTruthy();
     expect(
       screen.getByText("Nadie en la libreta tiene este rol.")
     ).toBeTruthy();
@@ -127,6 +134,7 @@ describe("CallCenterMenu", () => {
         contactId: "c1",
         role: "Transportista",
         phone: "+56 9 1111 2222",
+        methods: ["phone"],
         stats: expect.objectContaining({ accepted: 2, denied: 1 }),
       })
     );

@@ -7400,6 +7400,8 @@
     "call_center_new_call_only": "Just call",
     "call_center_new_call_and_save": "Call and save to the contact book",
     "call_center_add_query": "Add “{query}”",
+    "call_center_no_channels": "No channels registered",
+    "call_center_edit_contact": "Edit contact",
     "ladder": {
       "title": "Escalation",
       "anyone": "Anyone",
@@ -7413,6 +7415,7 @@
       "channelTeams": "Teams",
       "channelEmail": "Email",
       "dueStep": "Step {n}: {role}",
+      "unavailableOn": "Not reachable by {channel}",
       "driver": "Trip driver",
       "noContacts": "Nobody in the contact book has this role.",
       "otherContacts": "Other contacts ({n})",

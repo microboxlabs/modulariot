@@ -40,7 +40,12 @@ import {
   matchesTarget,
   stepAt,
 } from "./call-plan";
-import { type CallTarget, useCallTargets } from "./call-targets";
+import {
+  ALL_CALL_METHODS,
+  CALL_METHOD_LABEL_KEYS,
+  type CallMethod,
+} from "./call-method";
+import { type CallTarget, stepMethod, useCallTargets } from "./call-targets";
 import ContactRow from "./contact-row";
 import { formatChileanPhone } from "./format-chilean-phone";
 import NewNumberPanel, {
@@ -73,6 +78,15 @@ function roleText(step: Step, d: I18nRecord) {
 
 const NO_STEPS: Step[] = [];
 
+function methodLabels(dict: I18nRecord): Record<CallMethod, string> {
+  return Object.fromEntries(
+    ALL_CALL_METHODS.map((m) => [
+      m,
+      trDynamic(`symptoms.${CALL_METHOD_LABEL_KEYS[m]}`, dict),
+    ])
+  ) as Record<CallMethod, string>;
+}
+
 const SUBHEADER =
   "flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60";
 
@@ -89,14 +103,21 @@ function useElapsed(startedAt: number) {
 function TargetRow({
   target,
   calledAt,
+  step,
   dict,
+  d,
   onCall,
 }: Readonly<{
   target: CallTarget;
   calledAt: Date | undefined;
+  /** The step the row is listed under; absent under "Otros contactos". */
+  step?: Step;
   dict: I18nRecord;
+  d: I18nRecord;
   onCall: (target: CallTarget) => void;
 }>) {
+  const wanted = step ? stepMethod(step.channel) : null;
+  const unavailable = wanted !== null && !target.methods.includes(wanted);
   const phone = formatChileanPhone(target.phone);
   const stats = calledAt
     ? {
@@ -114,6 +135,13 @@ function TargetRow({
       recentlyCalled={!!calledAt}
       justCalledLabel={tr("symptoms.call_center_just_called", dict)}
       ariaLabel={`${tr("symptoms.call_center_call_button", dict)} ${target.personName}`}
+      methods={target.methods}
+      methodLabels={methodLabels(dict)}
+      unavailableNote={
+        unavailable
+          ? tr("unavailableOn", d, { channel: channelLabel(step!.channel, d) })
+          : undefined
+      }
       onClick={() => onCall({ ...target, phone })}
     />
   );
@@ -181,7 +209,9 @@ function StepGroup({
           key={target.id}
           target={target}
           calledAt={called.get(target.id)}
+          step={step}
           dict={dict}
+          d={d}
           onCall={onCall}
         />
       ))}
@@ -291,6 +321,7 @@ function OtherContacts({
               target={target}
               calledAt={called.get(target.id)}
               dict={dict}
+              d={d}
               onCall={onCall}
             />
           ))}
@@ -398,10 +429,7 @@ export default function CallCenterMenu({
         });
       }
     }
-    onCall({
-      ...newTarget(null, personName, number),
-      methods: action === "callAndSave" ? ["phone", "whatsapp"] : [],
-    });
+    onCall(newTarget(null, personName, number));
   };
 
   return (

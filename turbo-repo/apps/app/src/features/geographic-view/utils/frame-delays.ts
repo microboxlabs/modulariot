@@ -3,16 +3,24 @@ export const LATE_FRAME_S = 600;
 
 type Frame = {
   timestamp: string;
-  longitude: number;
-  latitude: number;
+  longitude: number | null;
+  latitude: number | null;
   received_at?: string | null;
   delay_s?: number | null;
 };
 
 export type LngLatPoint = [number, number];
 
+type PositionedFrame = Frame & { longitude: number; latitude: number };
+
+/** Rows without a geographic position cannot be drawn as rings or silence endpoints. */
+export function hasFramePosition(frame: Frame): frame is PositionedFrame {
+  return Number.isFinite(frame.longitude) && Number.isFinite(frame.latitude);
+}
+
 /** Seconds between the frame's GPS time and its arrival, or null if unknown. */
-export function frameDelay(frame: Frame): number | null {
+export function frameDelay(frame: Frame | null | undefined): number | null {
+  if (!frame) return null;
   if (typeof frame.delay_s === "number" && Number.isFinite(frame.delay_s))
     return frame.delay_s;
   if (!frame.received_at) return null;
@@ -39,9 +47,10 @@ export function silenceGap(
   if (!frames?.length || !lostSince) return null;
   const lost = new Date(lostSince).getTime();
   if (Number.isNaN(lost)) return null;
-  let before: Frame | null = null;
-  let after: Frame | null = null;
+  let before: PositionedFrame | null = null;
+  let after: PositionedFrame | null = null;
   for (const f of frames) {
+    if (!hasFramePosition(f)) continue;
     const t = new Date(f.timestamp).getTime();
     if (Number.isNaN(t)) continue;
     if (t <= lost && (!before || t >= new Date(before.timestamp).getTime()))

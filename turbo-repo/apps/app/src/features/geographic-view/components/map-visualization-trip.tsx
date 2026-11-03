@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import {
   FlyToInterpolator,
+  type Layer,
   LineLayer,
   LinearInterpolator,
   ScatterplotLayer,
@@ -74,6 +75,7 @@ import {
 import {
   dashSegments,
   frameDelay,
+  hasFramePosition,
   isLate,
   silenceGap,
 } from "../utils/frame-delays";
@@ -142,6 +144,48 @@ const INITIAL_VIEW_STATE: ViewStateType = {
 };
 
 const NO_SPANS: CaseSpan[] = [];
+
+/** The silence connection and late-frame rings, independent of the other map layers. */
+function frameDelayLayers(
+  positions: MapPosition[],
+  lostSince: string | null
+): Layer[] {
+  const layers: Layer[] = [];
+  const gap = silenceGap(positions, lostSince);
+  if (gap) {
+    layers.push(
+      new LineLayer({
+        id: "silence-gap",
+        data: dashSegments(gap.from, gap.to),
+        getSourcePosition: (d) => d.from,
+        getTargetPosition: (d) => d.to,
+        getColor: [255, 255, 255, 230],
+        getWidth: 3,
+        widthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  const late = positions.filter(hasFramePosition).filter(isLate);
+  if (late.length) {
+    layers.push(
+      new ScatterplotLayer<MapPosition>({
+        id: "late-frames",
+        data: late,
+        getPosition: (d) => [d.longitude, d.latitude],
+        getRadius: 10,
+        radiusUnits: "pixels",
+        filled: false,
+        stroked: true,
+        getLineColor: [245, 158, 11, 255],
+        getLineWidth: 2,
+        lineWidthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  return layers;
+}
 
 // The map is tilted, so below this zoom the scroll wheel can pull the camera
 // to the map's edge or to latitude 0, far from the trip.
@@ -722,6 +766,7 @@ export default function MapVisualizationTrip({
                   longitude: info.object?.longitude,
                   speed: info.object?.speed,
                   timestamp: info.object?.timestamp,
+                  delay_s: frameDelay(info.object),
                 },
               },
             };
@@ -744,39 +789,7 @@ export default function MapVisualizationTrip({
     }
 
     if (showPulse && positions?.length) {
-      const gap = silenceGap(positions, lostSince);
-      if (gap) {
-        baseLayers.push(
-          new LineLayer({
-            id: "silence-gap",
-            data: dashSegments(gap.from, gap.to),
-            getSourcePosition: (d) => d.from,
-            getTargetPosition: (d) => d.to,
-            getColor: [255, 255, 255, 230],
-            getWidth: 3,
-            widthUnits: "pixels",
-            parameters: { depthCompare: "always" },
-          })
-        );
-      }
-      const late = geoJson.features.filter((_, i) => isLate(positions[i]));
-      if (late.length) {
-        baseLayers.push(
-          new ScatterplotLayer({
-            id: "late-frames",
-            data: late,
-            getPosition: (d) => d.geometry.coordinates as [number, number],
-            getRadius: 10,
-            radiusUnits: "pixels",
-            filled: false,
-            stroked: true,
-            getLineColor: [245, 158, 11, 255],
-            getLineWidth: 2,
-            lineWidthUnits: "pixels",
-            parameters: { depthCompare: "always" },
-          })
-        );
-      }
+      baseLayers.push(...frameDelayLayers(positions, lostSince));
     }
 
     if (caseLng != null && caseLat != null) {

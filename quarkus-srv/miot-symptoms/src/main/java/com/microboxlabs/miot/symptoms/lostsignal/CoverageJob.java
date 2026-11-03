@@ -53,6 +53,10 @@ public class CoverageJob {
         boolean hold(Duration ttl);
     }
 
+    /** Whether the job runs and how long it waits for a day's late frames. */
+    public record JobSettings(boolean enabled, Duration settle) {
+    }
+
     static final class LeaseLost extends RuntimeException {
         LeaseLost() {
             super("coverage lease lost", null, false, false);
@@ -73,18 +77,19 @@ public class CoverageJob {
             @ConfigProperty(name = "miot.symptoms.lost-signal.coverage.job-enabled", defaultValue = "true") boolean job,
             @ConfigProperty(name = "miot.symptoms.lost-signal.coverage.settle", defaultValue = "PT2H") Duration settle,
             GpsDatabase gpsDb, Instance<Pool> pool, EvaluatorRedis redis, MeterRegistry meters) {
-        this(detector && job && gpsDb.configured(), gpsDb.configured() ? new PgGpsFrames(gpsDb::readPool) : null,
-                new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()), settle,
+        this(new JobSettings(detector && job && gpsDb.configured(), settle),
+                gpsDb.configured() ? new PgGpsFrames(gpsDb::readPool) : null,
+                new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()),
                 lease(redis), meters, Clock.systemUTC());
     }
 
-    public CoverageJob(boolean enabled, GpsFrames gps, CoverageStore store, CoverageSettings settings,
-            Duration settle, Lease lease, MeterRegistry meters, Clock clock) {
-        this.enabled = enabled;
+    public CoverageJob(JobSettings job, GpsFrames gps, CoverageStore store, CoverageSettings settings,
+            Lease lease, MeterRegistry meters, Clock clock) {
+        this.enabled = job.enabled();
         this.gps = gps;
         this.store = store;
         this.settings = settings;
-        this.settle = settle;
+        this.settle = job.settle();
         this.lease = lease;
         this.meters = meters;
         this.clock = clock;
@@ -127,8 +132,15 @@ public class CoverageJob {
             LocalDate day = today.minusDays(age);
             boolean ready = !now.isBefore(start(day.plusDays(1)).plus(settle));
             if (ready && !done.contains(day)) {
-                fill(day);
-                filled++;
+                try {
+                    fill(day);
+                    filled++;
+                } catch (LeaseLost e) {
+                    throw e;
+                } catch (RuntimeException e) {
+                    meters.counter("miot.symptoms.lost_signal.coverage_failed").increment();
+                    LOG.warnf("Coverage job: day %s failed (%s)", day, e.getClass().getSimpleName());
+                }
             }
         }
         store.purge(first);

@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * {@link GpsFrames} over the GPS database's {@code public.asset_data}, read only. Every query reads one range of
- * {@code "timestamp"}, which the index on {@code ("timestamp", asset_id)} serves. The sender is
- * {@code client_id}.
+ * {@link GpsFrames} over the GPS database's {@code public.asset_data}, read only. Queries read a range of
+ * {@code "timestamp"}, using the index on {@code ("timestamp", asset_id)}. Interval histograms also read the
+ * last valid predecessor for each asset and sender in the range. The sender is {@code client_id}.
  */
 public class PgGpsFrames implements GpsFrames {
 
@@ -36,15 +36,32 @@ public class PgGpsFrames implements GpsFrames {
             """.formatted(CAP_S) + RANGE + "GROUP BY 1, 2";
 
     static final String INTERVALS = """
+            WITH current_frames AS MATERIALIZED (
+                SELECT a.asset_id, a.client_id AS sender, a."timestamp" AS at
+            """ + RANGE + """
+            ), frames AS (
+                SELECT * FROM current_frames
+                UNION ALL
+                SELECT k.asset_id, k.sender, p.at
+                FROM (SELECT DISTINCT asset_id, sender FROM current_frames) k
+                CROSS JOIN LATERAL (
+                    SELECT a."timestamp" AS at
+                    FROM public.asset_data a
+                    WHERE a.asset_id = k.asset_id AND a.client_id = k.sender AND a."timestamp" < $1
+                      AND a.request_timestamp IS NOT NULL AND a.location IS NOT NULL
+                    ORDER BY a."timestamp" DESC
+                    LIMIT 1
+                ) p
+            )
             SELECT x.sender, least(floor(x.dt), %d)::int AS s, count(*) AS n
             FROM (
-                SELECT a.client_id AS sender,
-                       extract(epoch FROM a."timestamp" - lag(a."timestamp")
-                           OVER (PARTITION BY a.asset_id, a.client_id ORDER BY a."timestamp")) AS dt
-            """.formatted(CAP_S) + RANGE + """
+                SELECT sender, at,
+                       extract(epoch FROM at - lag(at)
+                           OVER (PARTITION BY asset_id, sender ORDER BY at)) AS dt
+                FROM frames
             ) x
-            WHERE x.dt > 0
-            GROUP BY 1, 2""";
+            WHERE x.at >= $1 AND x.at < $2 AND x.dt > 0
+            GROUP BY 1, 2""".formatted(CAP_S);
 
     static final String FRAMES = """
             SELECT a.asset_id, a.client_id AS sender,

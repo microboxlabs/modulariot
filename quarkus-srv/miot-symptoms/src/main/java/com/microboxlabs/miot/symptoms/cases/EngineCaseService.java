@@ -263,14 +263,15 @@ public class EngineCaseService {
         ObjectNode out = JSON.objectNode();
         out.set(CONDITIONS_AGG, JSON.arrayNode());
         // One timeline entry with the case, which the map selects to load its point.
-        String end = (c.closedAt() != null ? c.closedAt() : c.openedAt()).toString();
+        String start = start(c).toString();
+        String end = end(c).toString();
         ObjectNode entry = out.putArray("timeline").addObject();
-        entry.put("start", c.openedAt().toString());
+        entry.put("start", start);
         entry.put("end", end);
         entry.put("symptom_id", c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
         ObjectNode agg = entry.putArray(CONDITIONS_AGG).addObject();
-        agg.put("start", c.openedAt().toString());
+        agg.put("start", start);
         agg.put("end", end);
         agg.put("symptom_id", c.symptomId());
         agg.put("is_symptom", 1);
@@ -288,6 +289,10 @@ public class EngineCaseService {
         symptom.put("type", c.family());
         symptom.put(ICU_CODE, c.level());
         symptom.put(ICU_CONDITION, condition(c.level()));
+        symptom.put("opened_at", c.openedAt().toString());
+        symptom.put("started_at", start);
+        symptom.put("duration_sec", Duration.between(start(c), end(c)).toSeconds());
+        out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
         trip.put("asset_id", c.assetId());
         trip.put("trip_id", c.tripId());
@@ -305,7 +310,56 @@ public class EngineCaseService {
         return out;
     }
 
-    /** Where the vehicle was when the case opened, as a FeatureCollection with an EWKB point. */
+    /**
+     * When the case's condition began: for a lost signal, the last frame before the silence, which comes before
+     * the case opens; else when it opened.
+     */
+    static Instant start(EngineCase c) {
+        Instant lost = lostSince(c.openingContext());
+        return lost != null && lost.isBefore(c.openedAt()) ? lost : c.openedAt();
+    }
+
+    /** When the case closed, or now while it is open. */
+    private Instant end(EngineCase c) {
+        Instant now = clock.instant();
+        Instant end = c.closedAt() != null ? c.closedAt() : now;
+        return end.isBefore(start(c)) ? start(c) : end;
+    }
+
+    /** The last frame before a lost signal ({@code check.loss.last.at}), or null. */
+    static Instant lostSince(JsonNode context) {
+        JsonNode at = context == null ? null : context.path("check").path("loss").path("last").path("at");
+        if (at == null || !at.isTextual()) {
+            return null;
+        }
+        try {
+            return Instant.parse(at.asText());
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Why the case is at its level: the level, its rule, and what the rules read when the case reached it
+     * ({@code context}, null when it was not kept). For a lost signal, {@code lost_since}. {@code levels} has the
+     * level of each change, oldest first, so the map can color a frame by the level at its time.
+     */
+    private static ObjectNode levelReason(EngineCase c) {
+        ObjectNode reason = JSON.objectNode();
+        reason.put(ICU_CODE, c.level());
+        reason.put(ICU_CONDITION, condition(c.level()));
+        reason.put("rule", c.levelRule());
+        reason.set("context", c.levelContext() == null ? JSON.nullNode() : c.levelContext().deepCopy());
+        Instant lost = lostSince(c.openingContext());
+        if (lost != null) {
+            reason.put("lost_since", lost.toString());
+        }
+        ArrayNode levels = reason.putArray("levels");
+        c.levels().forEach(step -> levels.addObject().put("at", step.at().toString()).put(ICU_CODE, step.level()));
+        return reason;
+    }
+
+    /** Where the vehicle was when the case's condition began, as a FeatureCollection with an EWKB point. */
     public JsonNode signals(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
@@ -317,12 +371,14 @@ public class EngineCaseService {
             f.put("geometry", ewkbPoint(c.longitude(), c.latitude()));
             ObjectNode props = f.putObject("properties");
             props.put("speed", c.speedKmh() == null ? 0 : c.speedKmh());
-            props.put("timestamp", c.openedAt().toString());
+            props.put("timestamp", start(c).toString());
+            props.put(ICU_CODE, c.level());
         }
         ObjectNode description = out.putObject("description");
         description.put(SYMPTOM_NAME, c.name());
-        description.put("first_signal_timestamp", c.openedAt().toString());
-        description.put("last_signal_timestamp", c.openedAt().toString());
+        description.put(ICU_CODE, c.level());
+        description.put("first_signal_timestamp", start(c).toString());
+        description.put("last_signal_timestamp", end(c).toString());
         if (c.speedKmh() != null) {
             description.put("last_reported_speed", c.speedKmh());
         }
@@ -380,12 +436,12 @@ public class EngineCaseService {
     }
 
     /**
-     * From an hour before the case opened, or from the vehicle's previous case when that opened later, until
-     * the case closed or now; at most {@link #SIGNALS_AT_MOST} after the opening.
+     * From an hour before the case's condition began, or from the vehicle's previous case when that opened later,
+     * until the case closed or now; at most {@link #SIGNALS_AT_MOST} after the start.
      */
     public SignalWindow signalWindow(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
-        Instant opened = c.openedAt();
+        Instant opened = start(c);
         Instant earliest = opened.minus(SIGNALS_BEFORE);
         Instant from = store.previousOpening(tenantCode, c.assetId(), c.id(), earliest, opened).orElse(earliest);
         Instant end = c.closedAt() != null ? c.closedAt() : clock.instant();

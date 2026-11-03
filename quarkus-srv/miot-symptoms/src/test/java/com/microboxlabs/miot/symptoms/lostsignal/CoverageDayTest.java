@@ -135,6 +135,29 @@ class CoverageDayTest {
     }
 
     @Test
+    void aDiagonalIncludesCellsCrossedJustBeforeGridCornersInBothDirections() {
+        List<String> cells = List.of("20:40", "21:40", "21:41", "22:41", "22:42");
+        assertEquals(cells, List.copyOf(CoverageDay.crossed(1.01, 2.01, 1.11, 2.109)));
+        assertEquals(cells.reversed(), List.copyOf(CoverageDay.crossed(1.11, 2.109, 1.01, 2.01)));
+
+        CoverageDay day = new CoverageDay(DAY, settings, Map.of("s", new Medians(5.0, 60.0)));
+        day.frame("V1", "s", at(0), 5, 1.01, 2.01);
+        day.frame("V1", "s", at(20), 5, 1.11, 2.109);
+        assertEquals(5, day.cells().size());
+        for (String cell : cells) {
+            assertEquals(19.0 / 5, only(day.cells(), "s", cell).missing(), 0.001);
+        }
+    }
+
+    @Test
+    void aLineEndingAtAGridCornerKeepsItsEndpointCell() {
+        assertEquals(List.of("2:0", "2:1"), List.copyOf(CoverageDay.crossed(0.12, 0.01, 0.1, 0.05)));
+        assertEquals(List.of("2:1", "2:0"), List.copyOf(CoverageDay.crossed(0.1, 0.05, 0.12, 0.01)));
+        assertEquals(List.of("-3:-1", "-2:-1"),
+                List.copyOf(CoverageDay.crossed(-0.12, -0.01, -0.1, -0.05)));
+    }
+
+    @Test
     void theMedianInterpolatesAsPercentileCont() {
         SecondsHistogram h = new SecondsHistogram();
         h.add(10, 1);

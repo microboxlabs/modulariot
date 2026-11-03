@@ -79,6 +79,22 @@ class TripChecksTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void eachChangeKeepsTheCheckItWasFoundOnWithoutTheTrip() {
+        template(SymptomState.ACTIVE);
+        frame(0, 5);
+        tickUntil(1830);
+
+        assertEquals(2, engine.contexts.size());
+        Map<String, Object> check = (Map<String, Object>) engine.contexts.get(1).get("check");
+        assertFalse(check.containsKey("trip"), "the trip holds the driver; the case has its own trip");
+        Map<String, Object> loss = (Map<String, Object>) check.get("loss");
+        assertTrue((double) loss.get("silence_s") >= 1800);
+        assertEquals(false, loss.get("low_coverage_zone"));
+        assertEquals(T0.toString(), ((Map<String, Object>) loss.get("last")).get("at"), "the last frame before it");
+    }
+
+    @Test
     void aReturnIsReportedToTheOpenCaseWhichStaysOpen() {
         template(SymptomState.ACTIVE);
         frame(0, 5);

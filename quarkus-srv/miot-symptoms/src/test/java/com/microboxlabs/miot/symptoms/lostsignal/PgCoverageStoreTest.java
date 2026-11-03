@@ -102,38 +102,82 @@ class PgCoverageStoreTest {
     }
 
     @Test
-    void aSnapshotReadsBothTablesAndExcludesOlderDays() {
-        CellDay cell = new CellDay("s", "1:2", DAY, 15, 2, 1.5);
-        SenderDay sender = new SenderDay("s", DAY, 15, 2, 1.5, null, 30.0, false);
-        store.replace(DAY, List.of(cell), List.of(sender), 15);
-        store.replace(DAY.minusDays(1), List.of(new CellDay("old", "1:2", DAY.minusDays(1), 10, 0, 0)),
-                List.of(new SenderDay("old", DAY.minusDays(1), 10, 0, 0, 2.0, null, false)), 10);
-        store.flag(List.of(sender.anomalous(true)));
+    void aWindowSumsTheCellRowsAsTheMapDoes() {
+        LocalDate today = DAY.plusDays(1);
+        CoverageSettings settings = CoverageSettings.defaults();
+        List<CellDay> all = new ArrayList<>();
+        List<SenderDay> senders = new ArrayList<>();
+        for (int age = 1; age <= 35; age++) {
+            LocalDate d = today.minusDays(age);
+            List<CellDay> cells = new ArrayList<>();
+            for (String sender : List.of("a", "b", "c")) {
+                // "b" is late everywhere on day 3: an anomalous day, left out.
+                long delayed = sender.equals("b") && age == 3 ? 40 : age % 4;
+                long backgroundDelayed = sender.equals("b") && age == 3 ? 927 : 0;
+                cells.add(new CellDay(sender, "1:2", d, 40, delayed, 0.5 * age));
+                cells.add(new CellDay(sender, "3:4", d, 30, 30, 0));
+                cells.add(new CellDay(sender, "5:6", d, 927, backgroundDelayed, 0));
+                cells.add(new CellDay(sender, "9:" + age, d, 3, 0, 0));
+                senders.add(new SenderDay(sender, d, 1000, delayed + 30 + backgroundDelayed, 0.5 * age,
+                        2.0, 30.0, false));
+            }
+            store.replace(d, cells, senders.subList(senders.size() - 3, senders.size()), 3000);
+            all.addAll(cells);
+        }
+        LocalDate first = today.minusDays(settings.window());
 
-        CoverageStore.Snapshot snapshot = store.snapshot(DAY);
+        CoverageStore.Window window = store.window(first, ss -> ShadowMap.plan(ss, today, settings));
 
-        assertEquals(List.of(cell), snapshot.cells());
-        assertEquals(List.of(sender.anomalous(true)), snapshot.senders());
+        ShadowMap.Plan plan = ShadowMap.plan(store.senders(first), today, settings);
+        assertEquals(1, plan.dropped().size(), "b on day 3");
+        List<ShadowMap.CellSum> expected = ShadowMap.sum(all, plan);
+        assertEquals(9, expected.size(), "the small cells are under min-frames");
+        assertEquals(expected.size(), window.cells().size());
+        for (ShadowMap.CellSum e : expected) {
+            ShadowMap.CellSum got = window.cells().stream()
+                    .filter(c -> c.sender().equals(e.sender()) && c.cell().equals(e.cell())).findFirst().orElseThrow();
+            assertEquals(e.frames(), got.frames(), 1e-9);
+            assertEquals(e.delayed(), got.delayed(), 1e-9);
+            assertEquals(e.missing(), got.missing(), 1e-9);
+        }
+        assertEquals(plan, window.plan());
+        assertTrue(plan.weights().get(today.minusDays(8)) < plan.weights().get(today.minusDays(1)),
+                "older days must decay");
+        ShadowMap expectedMap = ShadowMap.build(all, senders, today, settings);
+        ShadowMap actualMap = ShadowMap.of(window.plan(), window.cells(), settings);
+        assertEquals(expectedMap.cells(), actualMap.cells());
+        for (String sender : List.of("a", "b", "c", "unseen")) {
+            for (String cell : List.of("1:2", "3:4", "5:6", "9:1", "absent")) {
+                assertEquals(expectedMap.level(sender, cell), actualMap.level(sender, cell));
+            }
+        }
+        assertTrue(actualMap.level("unseen", "3:4").shadow());
+        assertEquals(ShadowMap.Source.CONSENSUS, actualMap.level("unseen", "3:4").source());
+        assertEquals(ShadowMap.Source.SENDER, actualMap.level("a", "3:4").source());
+        assertEquals(ShadowMap.Source.NONE, actualMap.level("a", "9:1").source());
     }
 
     @Test
-    void snapshotsStayConsistentWhileADayIsReplaced() throws Exception {
-        replaceCounts(1);
+    void windowsStayConsistentWhileADayIsReplaced() throws Exception {
+        replaceCounts(100);
+        LocalDate today = DAY.plusDays(1);
+        CoverageSettings settings = CoverageSettings.defaults();
         CountDownLatch started = new CountDownLatch(1);
         try (var writer = Executors.newSingleThreadExecutor()) {
             var written = writer.submit(() -> {
                 started.countDown();
-                for (int frames = 2; frames <= 101; frames++) {
+                for (int frames = 101; frames <= 200; frames++) {
                     replaceCounts(frames);
                 }
             });
             assertTrue(started.await(WAIT.toSeconds(), TimeUnit.SECONDS));
             for (int read = 0; read < 100; read++) {
-                CoverageStore.Snapshot snapshot = store.snapshot(DAY);
-                assertEquals(1, snapshot.cells().size());
-                assertEquals(1, snapshot.senders().size());
-                assertEquals(snapshot.cells().get(0).frames(), snapshot.senders().get(0).frames(),
-                        "cell counts and sender totals must come from the same replacement");
+                CoverageStore.Window window = store.window(DAY, ss -> ShadowMap.plan(ss, today, settings));
+                assertEquals(1, window.cells().size());
+                assertEquals(1, window.plan().senders().size());
+                assertEquals(window.cells().get(0).frames(), window.plan().senders().get(0).frames()
+                        * window.plan().weights().get(DAY), 1e-9,
+                        "cell sums and sender totals must come from the same replacement");
             }
             written.get(30, TimeUnit.SECONDS);
         }

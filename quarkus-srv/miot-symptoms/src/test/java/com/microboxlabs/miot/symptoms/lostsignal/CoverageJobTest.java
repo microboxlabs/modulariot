@@ -19,7 +19,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class CoverageJobTest {
@@ -42,14 +45,15 @@ class CoverageJobTest {
         }
 
         @Override
-        public List<GpsRow> frames(Instant from, Instant to) {
+        public long frames(Instant from, Instant to, Consumer<GpsRow> each) {
             reads.add(from);
-            List<GpsRow> out = new ArrayList<>();
+            long n = 0;
             for (Instant t = from; t.isBefore(to); t = t.plusSeconds(60)) {
                 double minutes = (t.getEpochSecond() % 86_400) / 60.0;
-                out.add(new GpsRow("V1", "s", t.toEpochMilli(), 2, 1.01, 2.01 + minutes * 0.0001));
+                each.accept(new GpsRow("V1", "s", t.toEpochMilli(), 2, 1.01, 2.01 + minutes * 0.0001));
+                n++;
             }
-            return out;
+            return n;
         }
     }
 
@@ -75,8 +79,9 @@ class CoverageJobTest {
         }
 
         @Override
-        public Snapshot snapshot(LocalDate from) {
-            return new Snapshot(cells(from), senders(from));
+        public Window window(LocalDate from, Function<List<SenderDay>, ShadowMap.Plan> plan) {
+            ShadowMap.Plan p = plan.apply(senders(from));
+            return new Window(p, ShadowMap.sum(cells(from), p));
         }
 
         @Override
@@ -266,6 +271,72 @@ class CoverageJobTest {
         assertThrows(CoverageJob.LeaseLost.class,
                 () -> job(NOW, ttl -> renewals.incrementAndGet() < 4).run());
         assertTrue(store.done.isEmpty());
+    }
+
+    /** A fixed heap makes frame retention fail regardless of GC scheduling or explicit-GC settings. */
+    @Test
+    void aLargeHourIsCountedWithoutHoldingItsFrames() throws Exception {
+        String javaExecutable = java.nio.file.Path.of(System.getProperty("java.home"), "bin", "java").toString();
+        Process probe = new ProcessBuilder(javaExecutable, "-Xmx64m", "-XX:+DisableExplicitGC", "-cp",
+                System.getProperty("java.class.path"), MemoryProbe.class.getName()).redirectErrorStream(true).start();
+        try {
+            assertTrue(probe.waitFor(60, TimeUnit.SECONDS), "bounded-heap probe timed out");
+            assertEquals(0, probe.exitValue(), () -> {
+                try {
+                    return new String(probe.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                } catch (java.io.IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            });
+        } finally {
+            probe.destroyForcibly();
+        }
+    }
+
+    public static class MemoryProbe {
+        public static void main(String[] args) {
+            new CoverageJobTest().countLargeHour();
+        }
+    }
+
+    private void countLargeHour() {
+        LocalDate day = TODAY.minusDays(1);
+        Instant busy = day.atStartOfDay(ZoneOffset.UTC).toInstant().plus(Duration.ofHours(12));
+        int vehicles = 1000;
+        int perVehicle = 3000;
+        long[] stored = {-1};
+        GpsFrames large = new Frames() {
+            @Override
+            public long frames(Instant from, Instant to, Consumer<GpsRow> each) {
+                if (!from.equals(busy)) {
+                    return super.frames(from, to, each);
+                }
+                long n = 0;
+                for (int v = 0; v < vehicles; v++) {
+                    for (int i = 0; i < perVehicle; i++) {
+                        each.accept(new GpsRow("V" + v, "s" + (v % 20), busy.toEpochMilli() + i * 1000L, 2,
+                                -33 + v * 0.00001, -70 + (i % 300) * 0.0005));
+                        n++;
+                    }
+                }
+                return n;
+            }
+        };
+        Store counting = new Store() {
+            @Override
+            public void replace(LocalDate d, List<CellDay> c, List<SenderDay> s, long frames) {
+                stored[0] = frames;
+                super.replace(d, c, s, frames);
+            }
+        };
+        CoverageJob job = new CoverageJob(new CoverageJob.JobSettings(true, Duration.ofHours(2)),
+                large, counting, CoverageSettings.defaults(), ttl -> true, new SimpleMeterRegistry(),
+                java.time.Clock.fixed(NOW, ZoneOffset.UTC));
+
+        job.fill(day);
+
+        assertEquals(23 * 60 + (long) vehicles * perVehicle, stored[0]);
+        assertTrue(counting.cells.get(day).size() < 25_000, "per sender and cell, not per frame");
     }
 
     @Test

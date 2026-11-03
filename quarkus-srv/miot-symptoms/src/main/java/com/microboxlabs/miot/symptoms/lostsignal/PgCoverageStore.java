@@ -13,11 +13,19 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
-/** {@link CoverageStore} in the symptoms database. Rows are written in chunks with {@code unnest}. */
+/**
+ * {@link CoverageStore} in the symptoms database. Rows are written in chunks with {@code unnest}; the shadow map reads
+ * the cell rows summed in SQL, one row per sender and cell instead of one per day.
+ */
 public class PgCoverageStore implements CoverageStore {
 
+    private static final String SENDER_COLUMN = "sender";
+    private static final String FRAMES_COLUMN = "frames";
+    private static final String DELAYED_COLUMN = "delayed";
+    private static final String MISSING_COLUMN = "missing";
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(60);
     static final int CHUNK = 5000;
 
@@ -40,15 +48,25 @@ public class PgCoverageStore implements CoverageStore {
             ON CONFLICT (day) DO UPDATE SET frames = EXCLUDED.frames, finished_at = EXCLUDED.finished_at
             """;
 
-    // One statement gives both tables the same MVCC snapshot, including during a daily replacement.
-    private static final String READ_SNAPSHOT = """
-            SELECT sender, cell, day, frames, delayed, missing,
-                   NULL::float8 AS median_delay_s, NULL::float8 AS median_interval_s, false AS anomalous
-            FROM miot_symptoms.coverage_day WHERE day >= $1
-            UNION ALL
-            SELECT sender, NULL::varchar AS cell, day, frames, delayed, missing,
-                   median_delay_s, median_interval_s, anomalous
+    private static final String READ_SENDERS = """
+            SELECT sender, day, frames, delayed, missing, median_delay_s, median_interval_s, anomalous
             FROM miot_symptoms.coverage_sender_day WHERE day >= $1
+            """;
+
+    /**
+     * The cell rows summed by sender and cell: each day with its weight ($1, $2), without the dropped sender-days
+     * ($3, $4), keeping sums of at least $5 weighted frames. Same as {@link ShadowMap#sum}.
+     */
+    static final String SUM_CELLS = """
+            SELECT c.sender, c.cell, sum(w.w * c.frames) AS frames, sum(w.w * c.delayed) AS delayed,
+                   sum(w.w * c.missing) AS missing
+            FROM miot_symptoms.coverage_day c
+            JOIN unnest($1::date[], $2::float8[]) AS w(day, w) ON w.day = c.day
+            WHERE NOT EXISTS (
+                SELECT 1 FROM unnest($3::text[], $4::date[]) AS d(sender, day)
+                WHERE d.sender = c.sender AND d.day = c.day)
+            GROUP BY c.sender, c.cell
+            HAVING sum(w.w * c.frames) >= $5
             """;
 
     private final Supplier<Pool> pool;
@@ -127,18 +145,37 @@ public class PgCoverageStore implements CoverageStore {
                 .addArrayOfDouble(mi));
     }
 
+    /** One repeatable-read transaction gives both reads the same state, also during a daily replacement. */
     @Override
-    public Snapshot snapshot(LocalDate from) {
-        List<CellDay> cells = new ArrayList<>();
-        List<SenderDay> senders = new ArrayList<>();
-        for (Row r : pool.get().preparedQuery(READ_SNAPSHOT).execute(Tuple.of(from)).await().atMost(QUERY_TIMEOUT)) {
-            if (r.getString("cell") == null) {
-                senders.add(sender(r));
-            } else {
-                cells.add(cell(r));
-            }
+    public Window window(LocalDate from, Function<List<SenderDay>, ShadowMap.Plan> plan) {
+        return pool.get().withTransaction(conn -> conn
+                .query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY").execute()
+                .flatMap(x -> conn.preparedQuery(READ_SENDERS).execute(Tuple.of(from)))
+                .flatMap(rows -> {
+                    List<SenderDay> senders = new ArrayList<>();
+                    rows.forEach(r -> senders.add(sender(r)));
+                    ShadowMap.Plan p = plan.apply(senders);
+                    return conn.preparedQuery(SUM_CELLS).execute(sumArgs(p)).map(sums -> {
+                        List<ShadowMap.CellSum> cells = new ArrayList<>();
+                        sums.forEach(r -> cells.add(new ShadowMap.CellSum(r.getString(SENDER_COLUMN), r.getString("cell"),
+                                r.getDouble(FRAMES_COLUMN), r.getDouble(DELAYED_COLUMN), r.getDouble(MISSING_COLUMN))));
+                        return new Window(p, cells);
+                    });
+                }))
+                .await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static Tuple sumArgs(ShadowMap.Plan p) {
+        LocalDate[] days = p.weights().keySet().toArray(LocalDate[]::new);
+        Double[] weights = new Double[days.length];
+        for (int i = 0; i < days.length; i++) {
+            weights[i] = p.weights().get(days[i]);
         }
-        return new Snapshot(cells, senders);
+        List<SenderDay> dropped = p.dropped();
+        return Tuple.tuple().addArrayOfLocalDate(days).addArrayOfDouble(weights)
+                .addArrayOfString(dropped.stream().map(SenderDay::sender).toArray(String[]::new))
+                .addArrayOfLocalDate(dropped.stream().map(SenderDay::day).toArray(LocalDate[]::new))
+                .addDouble(p.minFrames());
     }
 
     @Override
@@ -155,23 +192,20 @@ public class PgCoverageStore implements CoverageStore {
     @Override
     public List<SenderDay> senders(LocalDate from) {
         List<SenderDay> out = new ArrayList<>();
-        for (Row r : pool.get().preparedQuery("""
-                SELECT sender, day, frames, delayed, missing, median_delay_s, median_interval_s, anomalous
-                FROM miot_symptoms.coverage_sender_day WHERE day >= $1
-                """).execute(Tuple.of(from)).await().atMost(QUERY_TIMEOUT)) {
+        for (Row r : pool.get().preparedQuery(READ_SENDERS).execute(Tuple.of(from)).await().atMost(QUERY_TIMEOUT)) {
             out.add(sender(r));
         }
         return out;
     }
 
     private static CellDay cell(Row r) {
-        return new CellDay(r.getString("sender"), r.getString("cell"), r.getLocalDate("day"),
-                r.getInteger("frames"), r.getInteger("delayed"), r.getDouble("missing"));
+        return new CellDay(r.getString(SENDER_COLUMN), r.getString("cell"), r.getLocalDate("day"),
+                r.getInteger(FRAMES_COLUMN), r.getInteger(DELAYED_COLUMN), r.getDouble(MISSING_COLUMN));
     }
 
     private static SenderDay sender(Row r) {
-        return new SenderDay(r.getString("sender"), r.getLocalDate("day"), r.getInteger("frames"),
-                r.getInteger("delayed"), r.getDouble("missing"), r.getDouble("median_delay_s"),
+        return new SenderDay(r.getString(SENDER_COLUMN), r.getLocalDate("day"), r.getInteger(FRAMES_COLUMN),
+                r.getInteger(DELAYED_COLUMN), r.getDouble(MISSING_COLUMN), r.getDouble("median_delay_s"),
                 r.getDouble("median_interval_s"), r.getBoolean("anomalous"));
     }
 

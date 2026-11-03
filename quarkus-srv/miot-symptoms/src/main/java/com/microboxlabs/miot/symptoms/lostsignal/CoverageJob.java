@@ -30,8 +30,10 @@ import org.jboss.logging.Logger;
  * Builds the shadow map's day rows from {@code asset_data}, all vehicles of all clients. Each run fills every day of
  * the window that is not done yet, newest first; yesterday is ready {@code settle} after midnight UTC, so late
  * frames arrive first. A day is read one hour at a time, twice: first the senders' delay and interval counts, for
- * their medians, then the frames ({@link CoverageDay}). Its rows are replaced in one transaction. Then the days
- * before the window are deleted and the anomalous sender-days flagged ({@link ShadowMap#anomalous}).
+ * their medians, then the frames ({@link CoverageDay}). Each frame is counted as it is read and then dropped, so
+ * the job's memory grows with the day's assets, senders and cells, not with its frames. The day's rows are replaced
+ * in one transaction. Then the days before the window are deleted and the anomalous sender-days flagged
+ * ({@link ShadowMap#anomalous}).
  *
  * <p>One replica runs it: the one holding the Redis lease {@value #LEASE_KEY}, renewed every hour read. Without
  * Redis every replica runs it; the writes are idempotent. On where the lost-signal detector is
@@ -181,17 +183,13 @@ public class CoverageJob {
         intervals.forEach((s, h) -> medians.merge(s, new Medians(null, h.median()),
                 (a, b) -> new Medians(a.delayS(), b.intervalS())));
         CoverageDay rows = new CoverageDay(day, settings, medians);
-        for (GpsFrames.GpsRow r : gps.frames(start.minus(HOUR), start)) {
-            rows.before(r.assetId(), r.sender(), r.atMs(), r.lat(), r.lon());
-        }
+        gps.frames(start.minus(HOUR), start, r -> rows.before(r.assetId(), r.sender(), r.atMs(), r.lat(), r.lon()));
         long frames = 0;
         for (int h = 0; h < 24; h++) {
             hold();
             Instant from = start.plus(HOUR.multipliedBy(h));
-            for (GpsFrames.GpsRow r : gps.frames(from, from.plus(HOUR))) {
-                rows.frame(r.assetId(), r.sender(), r.atMs(), r.delayS(), r.lat(), r.lon());
-                frames++;
-            }
+            frames += gps.frames(from, from.plus(HOUR),
+                    r -> rows.frame(r.assetId(), r.sender(), r.atMs(), r.delayS(), r.lat(), r.lon()));
         }
         store.replace(day, rows.cells(), rows.senders(), frames);
         meters.counter("miot.symptoms.lost_signal.coverage_days").increment();

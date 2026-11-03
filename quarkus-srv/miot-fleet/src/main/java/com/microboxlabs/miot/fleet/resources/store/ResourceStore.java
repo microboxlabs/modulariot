@@ -5,6 +5,8 @@ import com.microboxlabs.miot.fleet.resources.domain.Carrier;
 import com.microboxlabs.miot.fleet.resources.domain.Driver;
 import com.microboxlabs.miot.fleet.resources.domain.Trailer;
 import com.microboxlabs.miot.fleet.resources.domain.Truck;
+import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -70,4 +72,11 @@ public interface ResourceStore {
      * letters and digits, equals {@code key}; an active one first. Takes no row lock.
      */
     Optional<FleetResources.Match> findByKey(String tenantCode, String table, String key);
+
+    /** The current drivers among {@code ids} with their carrier, active or not; no row lock. */
+    List<FleetResources.DriverDetails> driverDetails(String tenantCode, Collection<UUID> ids);
+
+    /** As {@link FleetResources#driversChangedSince}; no row lock. */
+    List<FleetResources.DriverDetails> driversChangedSince(String tenantCode, OffsetDateTime since, UUID afterId,
+            int limit);
 }

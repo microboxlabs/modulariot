@@ -136,6 +136,13 @@ public class TripChecks {
         return check;
     }
 
+    /** The check kept with each case change, without its trip: the trip is the case's, and holds the driver. */
+    static Map<String, Object> context(Map<String, Object> check) {
+        Map<String, Object> kept = new LinkedHashMap<>(check);
+        kept.remove("trip");
+        return Map.of(TripCheck.ROOT, kept);
+    }
+
     private static Map<String, Object> last(VehicleProfile.Last last) {
         Map<String, Object> out = new LinkedHashMap<>();
         if (last == null) {
@@ -166,7 +173,7 @@ public class TripChecks {
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
-            List<TransitionLog.Recorded> recorded = log.append(tenant, result.transitions(), place);
+            List<TransitionLog.Recorded> recorded = log.append(tenant, result.transitions(), place, context(check));
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));

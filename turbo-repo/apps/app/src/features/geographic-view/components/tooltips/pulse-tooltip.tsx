@@ -32,10 +32,19 @@ export type PulseType = {
     timestamp: string;
     /** The symptom whose interval holds this frame, if any. */
     symptom_name?: string | null;
+    /** That symptom's level at the frame's time. The popup shows it; the dot keeps its own color. */
+    symptom_level?: number | null;
     /** Seconds between the GPS time and the arrival, or null if unknown. */
     delay_s?: number | null;
   };
 };
+
+type PinLevel = keyof typeof pin_conditions;
+
+/** The level the popup shows: the symptom's level at the frame when known, else the dot's own code. */
+export function pulseLevel(p: PulseType["properties"]): PinLevel {
+  return String(p.symptom_level ?? p.icu_code ?? 0) as PinLevel;
+}
 
 export default function PulseTooltip({
   object,
@@ -246,6 +255,7 @@ export default function PulseTooltip({
   }
 
   if ("asset_id" in object.properties) {
+    const level = pulseLevel(object.properties);
     return (
       <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
         <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -253,11 +263,7 @@ export default function PulseTooltip({
           {object?.properties.asset_id}
         </div>
         <hr className="my-2 border-gray-200 dark:border-gray-700" />
-        {object?.properties.icu_code &&
-        object?.properties.icu_code != 0 &&
-        pin_conditions[
-          object?.properties.icu_code as unknown as keyof typeof pin_conditions
-        ] != undefined ? (
+        {level !== "0" && pin_conditions[level] !== undefined ? (
           <div>
             {object.properties.symptom_name && (
               <div className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -268,22 +274,14 @@ export default function PulseTooltip({
             )}
             <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
               <ConditionIcon
-                condition={
-                  pin_conditions[
-                    object?.properties
-                      .icu_code as unknown as keyof typeof pin_conditions
-                  ].icon
-                }
+                condition={pin_conditions[level].icon}
                 dict={dict}
                 size="w-6 h-6"
               />
               <div className="text-sm text-gray-600 dark:text-gray-300">
                 {
                   (dict.symptoms as I18nRecord)[
-                    pin_conditions[
-                      object?.properties
-                        .icu_code as unknown as keyof typeof pin_conditions
-                    ].label as string
+                    pin_conditions[level].label as string
                   ] as string
                 }
               </div>

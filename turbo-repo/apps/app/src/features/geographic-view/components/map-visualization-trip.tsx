@@ -536,7 +536,9 @@ export default function MapVisualizationTrip({
             },
             properties: {
               id: index,
-              icu_code: symptom?.level ?? 0,
+              // Frames stay blue; selecting a symptom rings its frames. The level only shows in the popup.
+              icu_code: 0,
+              symptom_level: symptom?.level ?? null,
               symptom_name: symptom?.name ?? null,
               asset_id: item.assetid,
               rotation: item.heading * (180 / Math.PI),

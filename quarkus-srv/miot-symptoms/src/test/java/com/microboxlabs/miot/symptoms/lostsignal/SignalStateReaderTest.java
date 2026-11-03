@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -109,6 +110,42 @@ class SignalStateReaderTest {
 
         assertEquals(120 + 600, v1);
         assertEquals(120 + DEFAULT_DELAY.toSeconds(), v2);
+    }
+
+    @Test
+    void aNewestFrameWithoutASenderUsesTheDefaultDelay() {
+        for (int i = 0; i < SETTINGS.minSamples(); i++) {
+            profiles.observe(frame("OTHER", "S1", i * 30, i * 30 + 600, 50));
+        }
+        profiles.observe(frame("V1", "S1", 0, 600, 50));
+        profiles.observe(frame("V1", null, 30, 630, 50));
+
+        assertNull(store.seen(List.of("V1")).get("V1").profile().sender());
+        assertEquals(120 + DEFAULT_DELAY.toSeconds(), state("V1", T0.plusSeconds(630)).expectedS());
+    }
+
+    @Test
+    void lateFramesAndReplaysKeepTheNewestFramesSender() {
+        profiles.observe(frame("V1", "S1", 60, 70, 50));
+        profiles.observe(frame("V1", "S2", 30, 80, 50));
+        profiles.observe(frame("V1", "S3", 60, 90, 50));
+
+        assertEquals("S1", store.seen(List.of("V1")).get("V1").profile().sender());
+        profiles.observe(frame("V1", "S2", 90, 100, 50));
+        assertEquals("S2", store.seen(List.of("V1")).get("V1").profile().sender());
+    }
+
+    @Test
+    void redisProfilesWrittenWithoutSenderRemainReadableWithTheDefaultDelay() {
+        VehicleProfile legacy = new VehicleProfile(T0, T0.plusSeconds(10), T0.plusSeconds(10), Motion.MOVING,
+                Map.of(), null);
+        String json = RedisLossStore.write(legacy);
+        assertFalse(json.contains("sender"));
+        LossStore.Seen seen = RedisLossStore.seen(List.of("V1"), List.of(fields(json, null))).get("V1");
+
+        assertEquals(legacy, seen.profile());
+        assertNull(seen.profile().sender());
+        assertEquals(120 + DEFAULT_DELAY.toSeconds(), reader.state(seen, T0.plusSeconds(10)).expectedS());
     }
 
     @Test

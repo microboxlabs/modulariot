@@ -33,15 +33,18 @@ public class ShadowMaps implements Supplier<ShadowMap> {
         return map.get();
     }
 
-    /** Reads the window's rows and replaces the map; returns its cells. */
+    /**
+     * Reads the window's sender-days and its cell rows summed by sender and cell, and replaces the map; returns its
+     * cells.
+     */
     public int reload() {
         if (store == null) {
             return map.get().cells();
         }
         LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
         LocalDate first = today.minusDays(settings.window());
-        CoverageStore.Snapshot snapshot = store.snapshot(first);
-        ShadowMap built = ShadowMap.build(snapshot.cells(), snapshot.senders(), today, settings);
+        CoverageStore.Window window = store.window(first, senders -> ShadowMap.plan(senders, today, settings));
+        ShadowMap built = ShadowMap.of(window.plan(), window.cells(), settings);
         map.set(built);
         return built.cells();
     }

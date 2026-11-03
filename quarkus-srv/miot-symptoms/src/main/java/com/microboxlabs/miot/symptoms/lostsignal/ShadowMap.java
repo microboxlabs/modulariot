@@ -114,44 +114,87 @@ public final class ShadowMap {
     }
 
     /**
-     * Builds the map as of {@code today}: days from {@code today - window} to yesterday count.
+     * What the cell rows are summed with: the weight of each day of the window and the sender-days left out.
      *
-     * @param senders the sender-day rows; the {@code anomalous} flag is recomputed ({@link #anomalous})
+     * @param senders   the window's sender-day rows, {@code anomalous} recomputed ({@link #anomalous})
+     * @param weights   the weight of each day of the window
+     * @param minFrames cell sums with fewer weighted frames decide nothing, so they need not be read
      */
-    public static ShadowMap build(Collection<CellDay> cells, Collection<SenderDay> senders, LocalDate today,
-            CoverageSettings s) {
-        Set<String> dropped = new HashSet<>();
-        Map<String, Weighted> everywhere = new HashMap<>();
-        for (SenderDay d : anomalous(senders, today, s)) {
-            if (d.anomalous()) {
-                dropped.add(dayKey(d.sender(), d.day()));
-                continue;
-            }
-            Double w = weight(d.day(), today, s);
-            if (w != null) {
-                everywhere.merge(d.sender(), new Weighted(w * d.frames(), w * d.delayed(), w * d.missing()),
-                        Weighted::plus);
-            }
+    public record Plan(List<SenderDay> senders, Map<LocalDate, Double> weights, double minFrames) {
+
+        /** The anomalous sender-days. */
+        public List<SenderDay> dropped() {
+            return senders.stream().filter(SenderDay::anomalous).toList();
         }
+    }
+
+    /** A sender's weighted counts in a cell over the window. */
+    public record CellSum(String sender, String cell, double frames, double delayed, double missing) {
+    }
+
+    /** The plan as of {@code today}: days from {@code today - window} to yesterday count. */
+    public static Plan plan(Collection<SenderDay> senders, LocalDate today, CoverageSettings s) {
+        Map<LocalDate, Double> weights = new HashMap<>();
+        for (int age = 1; age <= s.window(); age++) {
+            LocalDate day = today.minusDays(age);
+            weights.put(day, weight(day, today, s));
+        }
+        return new Plan(anomalous(senders, today, s), weights, s.minFrames());
+    }
+
+    /**
+     * Sums the cell rows by sender and cell as {@code plan} says, keeping the sums with at least
+     * {@link Plan#minFrames} weighted frames. A store does the same in its database.
+     */
+    public static List<CellSum> sum(Collection<CellDay> cells, Plan plan) {
+        Set<String> dropped = new HashSet<>();
+        plan.dropped().forEach(d -> dropped.add(dayKey(d.sender(), d.day())));
         Map<String, Map<String, Weighted>> counts = new HashMap<>();
         for (CellDay d : cells) {
-            Double w = weight(d.day(), today, s);
+            Double w = plan.weights().get(d.day());
             if (w == null || dropped.contains(dayKey(d.sender(), d.day()))) {
                 continue;
             }
             counts.computeIfAbsent(d.cell(), k -> new HashMap<>())
                     .merge(d.sender(), new Weighted(0, 0, 0).plus(d, w), Weighted::plus);
         }
-        Map<String, Map<String, Decided>> byCell = new HashMap<>();
+        List<CellSum> out = new ArrayList<>();
         counts.forEach((cell, bySender) -> bySender.forEach((sender, c) -> {
-            if (c.frames() < s.minFrames()) {
-                return;
+            if (c.frames() >= plan.minFrames()) {
+                out.add(new CellSum(sender, cell, c.frames(), c.delayed(), c.missing()));
             }
-            Weighted all = everywhere.get(sender);
-            double senderShare = all == null ? 0 : all.share();
-            boolean shadow = c.share() >= Math.max(s.minShare(), s.overSender() * senderShare);
-            byCell.computeIfAbsent(cell, k -> new HashMap<>()).put(sender, new Decided(c, shadow));
         }));
+        return out;
+    }
+
+    /** Builds the map as of {@code today} from the day rows; see {@link #of}. */
+    public static ShadowMap build(Collection<CellDay> cells, Collection<SenderDay> senders, LocalDate today,
+            CoverageSettings s) {
+        Plan plan = plan(senders, today, s);
+        return of(plan, sum(cells, plan), s);
+    }
+
+    /** Builds the map from the plan's sender-days and the cell sums made with it. */
+    public static ShadowMap of(Plan plan, Collection<CellSum> sums, CoverageSettings s) {
+        Map<String, Weighted> everywhere = new HashMap<>();
+        for (SenderDay d : plan.senders()) {
+            Double w = plan.weights().get(d.day());
+            if (!d.anomalous() && w != null) {
+                everywhere.merge(d.sender(), new Weighted(w * d.frames(), w * d.delayed(), w * d.missing()),
+                        Weighted::plus);
+            }
+        }
+        Map<String, Map<String, Decided>> byCell = new HashMap<>();
+        for (CellSum c : sums) {
+            if (c.frames() < s.minFrames()) {
+                continue;
+            }
+            Weighted counts = new Weighted(c.frames(), c.delayed(), c.missing());
+            Weighted all = everywhere.get(c.sender());
+            double senderShare = all == null ? 0 : all.share();
+            boolean shadow = counts.share() >= Math.max(s.minShare(), s.overSender() * senderShare);
+            byCell.computeIfAbsent(c.cell(), k -> new HashMap<>()).put(c.sender(), new Decided(counts, shadow));
+        }
         return new ShadowMap(byCell, s.consensus());
     }
 

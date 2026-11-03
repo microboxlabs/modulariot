@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class CoverageJobTest {
@@ -78,8 +79,9 @@ class CoverageJobTest {
         }
 
         @Override
-        public Snapshot snapshot(LocalDate from) {
-            return new Snapshot(cells(from), senders(from));
+        public Window window(LocalDate from, Function<List<SenderDay>, ShadowMap.Plan> plan) {
+            ShadowMap.Plan p = plan.apply(senders(from));
+            return new Window(p, ShadowMap.sum(cells(from), p));
         }
 
         @Override

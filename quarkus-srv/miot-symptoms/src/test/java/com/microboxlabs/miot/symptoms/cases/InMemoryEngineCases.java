@@ -21,6 +21,13 @@ public class InMemoryEngineCases implements EngineCaseStore {
     /** When a case reached its current level, by case id; its opening when absent. */
     public final Map<Long, Instant> levelSince = new HashMap<>();
     public boolean down;
+    /** Live trips by trip id, for the trip filters. */
+    public final Map<String, Trip> trips = new HashMap<>();
+
+    /** A live trip as the trip filters read it. */
+    public record Trip(String driverRut, String secondDriverRut, String carrierId, String carrierRut, String origin,
+            String destination) {
+    }
     public int pages;
 
     public void add(EngineCase c) {
@@ -44,8 +51,33 @@ public class InMemoryEngineCases implements EngineCaseStore {
                         || c.assetId().toLowerCase().contains(f.assetId().toLowerCase()))
                 .filter(c -> f.symptomName() == null || f.symptomName().equalsIgnoreCase(c.name()))
                 .filter(c -> f.level() == null || f.level() == c.level())
+                .filter(c -> !f.byTrip() || matchesTrip(trips.get(c.tripId()), f))
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
                 .limit(PAGE).toList();
+    }
+
+    private static boolean matchesTrip(Trip t, CaseFilter f) {
+        if (t == null) {
+            return false;
+        }
+        return (f.driverId() == null || same(plain(f.driverId()), plain(t.driverRut()))
+                        || same(plain(f.driverId()), plain(t.secondDriverRut())))
+                && (f.carrierId() == null || same(plain(f.carrierId()), plain(t.carrierRut()))
+                        || f.carrierId().trim().equals(t.carrierId()))
+                && (f.origin() == null || f.origin().strip().equalsIgnoreCase(strip(t.origin())))
+                && (f.destination() == null || f.destination().strip().equalsIgnoreCase(strip(t.destination())));
+    }
+
+    private static boolean same(String a, String b) {
+        return a != null && !a.isEmpty() && a.equals(b);
+    }
+
+    private static String plain(String v) {
+        return v == null ? null : v.replaceAll("[^0-9A-Za-z]", "").toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private static String strip(String v) {
+        return v == null ? null : v.strip();
     }
 
     @Override

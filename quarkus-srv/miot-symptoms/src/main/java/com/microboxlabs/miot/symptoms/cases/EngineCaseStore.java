@@ -53,10 +53,25 @@ public interface EngineCaseStore {
      * Each value null for any. Without {@code from} and {@code to}, only open cases; with them, the cases active
      * in the range: opened before {@code to} and still open or closed at or after {@code from}. {@code assetId} matches part of the vehicle id,
      * {@code symptomName} the whole name ignoring case, {@code level} the case's current level.
+     *
+     * <p>The trip filters match the case's live trip, so a case without one matches none of them. {@code driverId}
+     * is the RUT of either driver, {@code carrierId} the carrier's RUT or id; both ignore dots, dashes, spaces and
+     * case. {@code origin} and {@code destination} are the whole place name, ignoring case and outer spaces.
      */
-    record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to) {
+    record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
+            String driverId, String carrierId, String origin, String destination) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
+
+        public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
+                Instant to) {
+            this(tripId, assetId, symptomName, level, from, to, null, null, null, null);
+        }
+
+        /** Whether it filters by a field of the case's trip. */
+        public boolean byTrip() {
+            return driverId != null || carrierId != null || origin != null || destination != null;
+        }
 
         public boolean openOnly() {
             return from == null && to == null;

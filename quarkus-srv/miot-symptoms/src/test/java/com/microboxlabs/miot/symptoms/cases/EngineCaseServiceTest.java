@@ -284,6 +284,35 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void readsTheTripFiltersAsACaseFilter() {
+        EngineCaseStore.CaseFilter f = EngineCaseService.filter(Map.of("p_driver_id", " 12.345.678-9 ",
+                "p_carrier_id", "76.111.111-1", "p_origin", "Planta Norte", "p_destination", " "));
+
+        assertEquals(new EngineCaseStore.CaseFilter(null, null, null, null, null, null, "12.345.678-9",
+                "76.111.111-1", "Planta Norte", null), f);
+        assertTrue(f.byTrip());
+        assertFalse(EngineCaseService.filter(Map.of("p_trip_id", "T-1")).byTrip());
+    }
+
+    @Test
+    void theEngineOnlyPageAppliesTheTripFiltersAndNamesTheTrip() {
+        store.trips.put("T-1", new InMemoryEngineCases.Trip("12.345.678-9", null, "c-1", "76.111.111-1", "Norte",
+                "Sur"));
+        store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01", OPENED, 4, "T-1",
+                null, null, null, null, 0, null, 0L, null).withTrip(new EngineCase.TripDetails("Driver", "Carrier",
+                        "Norte", "Sur")));
+        store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO02", OPENED, 4, "T-2",
+                null, null, null, null, 0, null, 0L));
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_carrier_id", "76111111-1"));
+
+        assertEquals(List.of(-12L), ids(page));
+        assertEquals("Driver", page.get("data").get(0).get("driver").asText());
+        assertEquals("Sur", page.get("data").get(0).get("destination").asText());
+        assertEquals(0, service.casesPage(TENANT, Map.of("p_driver_id", "1-9")).get("total_rows").asInt());
+    }
+
+    @Test
     void aTripsCasesOpenAndClosedComeWithADateRange() {
         store.add(engineCase(12, "DEMO01", 4, 0));
         store.add(new EngineCase(13, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",

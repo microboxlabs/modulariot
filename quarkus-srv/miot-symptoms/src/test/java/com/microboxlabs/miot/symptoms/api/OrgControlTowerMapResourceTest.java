@@ -556,21 +556,86 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
-    void engineOnlyTheListFiltersTheCasesAndAGpsOnlyFilterMatchesNone() {
+    void engineOnlyTheListFiltersTheCases() {
         engineCases.add(openCase(1, "AB12", "Pérdida de señal", 3));
         engineCases.add(openCase(2, "CD34", "Pérdida de señal", 1));
         var subject = engineOnly();
 
         JsonNode byLevel = (JsonNode) call(subject.symptoms(ORG, query("p_icu_code=3"))).getEntity();
-        JsonNode byCarrier = (JsonNode) call(subject.symptoms(ORG, query("p_carrier_id=76000000"))).getEntity();
 
         assertEquals(1, byLevel.get("total_rows").asInt());
         assertEquals("AB12", byLevel.get("data").get(0).get("asset_id").asText());
-        assertEquals(0, byCarrier.get("total_rows").asInt());
-        assertEquals(0, byCarrier.get("data").size());
         assertEquals(400, call(subject.symptoms(ORG, query("p_client_id=other"))).getStatus());
         assertEquals(400, call(subject.symptoms(ORG, query("p_page=one"))).getStatus());
         assertEquals(List.of(), gpsCalls);
+    }
+
+    private static EngineCase onTrip(long id, String trip, EngineCase.TripDetails details) {
+        return new EngineCase(id, UUID.randomUUID(), "0.1.0", "Pérdida de señal", "connectivity", "AB" + id,
+                Instant.now().minusSeconds(id), 2, trip, null, null, null, null, 0, null, 0L, null).withTrip(details);
+    }
+
+    /** Case 1 on trip A (two drivers, carrier 76.111.111-1), case 2 on trip B, case 3 without a trip. */
+    private void casesOnTrips() {
+        engineCases.trips.put("A", new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases.Trip("12.345.678-9",
+                "9.876.543-K", "c-1", "76.111.111-1", "Planta Norte", "Puerto Sur"));
+        engineCases.trips.put("B", new com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases.Trip("11.111.111-1",
+                null, "c-2", "77.222.222-2", "Planta Sur", "Puerto Norte"));
+        engineCases.add(onTrip(1, "A", new EngineCase.TripDetails("Driver A", "Carrier A", "Planta Norte",
+                "Puerto Sur")));
+        engineCases.add(onTrip(2, "B", new EngineCase.TripDetails("Driver B", "Carrier B", "Planta Sur",
+                "Puerto Norte")));
+        engineCases.add(onTrip(3, null, null));
+    }
+
+    private List<String> assets(OrgControlTowerMapResource subject, String q) {
+        List<String> out = new ArrayList<>();
+        ((JsonNode) call(subject.symptoms(ORG, query(q))).getEntity()).get("data")
+                .forEach(r -> out.add(r.get("asset_id").asText()));
+        return out;
+    }
+
+    @Test
+    void engineOnlyTheTripFiltersMatchTheCasesLiveTrip() {
+        casesOnTrips();
+        var subject = engineOnly();
+
+        assertEquals(List.of("AB1"), assets(subject, "p_driver_id=12345678-9"), "first driver, other format");
+        assertEquals(List.of("AB1"), assets(subject, "p_driver_id=9876543k"), "second driver");
+        assertEquals(List.of("AB2"), assets(subject, "p_carrier_id=77222222-2"));
+        assertEquals(List.of("AB2"), assets(subject, "p_carrier_id=c-2"), "the carrier's id");
+        assertEquals(List.of("AB1"), assets(subject, "p_origin=planta norte"));
+        assertEquals(List.of("AB2"), assets(subject, "p_destination=Puerto Norte&p_origin=Planta Sur"));
+        assertEquals(List.of(), assets(subject, "p_origin=Planta"), "the whole name");
+        assertEquals(List.of(), assets(subject, "p_driver_id=12345678-9&p_carrier_id=77222222-2"));
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyACarrierSeesTheCasesOfItsOwnTrips() {
+        casesOnTrips();
+
+        JsonNode page = (JsonNode) call(engineOnly().symptoms(ORG, query("p_carrier_id=76.111.111-1"))).getEntity();
+
+        assertEquals(1, page.get("total_rows").asInt());
+        JsonNode row = page.get("data").get(0);
+        assertEquals(-1, row.get("id").asLong());
+        assertEquals("Driver A", row.get("driver").asText());
+        assertEquals("Carrier A", row.get("carrier").asText());
+        assertEquals("Planta Norte", row.get("origin").asText());
+        assertEquals("Puerto Sur", row.get("destination").asText());
+        assertEquals(List.of(), assets(engineOnly(), "p_carrier_id=78.333.333-3"), "a carrier without trips");
+    }
+
+    @Test
+    void engineOnlyACaseWithoutALiveTripHasNoTripNames() {
+        casesOnTrips();
+
+        JsonNode rows = ((JsonNode) call(engineOnly().symptoms(ORG, query("p_page_size=10"))).getEntity()).get("data");
+
+        assertEquals(3, rows.size());
+        assertTrue(rows.get(2).get("driver").isNull());
+        assertTrue(rows.get(2).get("carrier").isNull());
     }
 
     @Test

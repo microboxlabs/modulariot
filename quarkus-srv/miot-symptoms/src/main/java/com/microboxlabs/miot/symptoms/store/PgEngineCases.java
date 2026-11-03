@@ -96,7 +96,36 @@ public class PgEngineCases implements EngineCaseStore {
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5) ORDER BY z.at DESC LIMIT 200";
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
-    private static final String ONE = WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2"));
+    /**
+     * One case with why it is at its level: the context of the row that set the level (its latest level change
+     * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
+     * of those rows.
+     */
+    private static final String ONE = """
+            SELECT w.*,
+                   (SELECT o.context::text FROM miot_symptoms.signal_transitions o
+                     WHERE o.tenant_code = w.tenant_code AND o.id = w.id) AS opening_context,
+                   (SELECT l.context::text FROM miot_symptoms.signal_transitions l
+                     WHERE l.tenant_code = w.tenant_code AND l.definition_id = w.definition_id
+                       AND l.asset_id = w.asset_id AND l.state = 'ACTIVE'
+                       AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
+                            AND (w.closed_id IS NULL OR l.id < w.closed_id)))
+                     ORDER BY l.id DESC LIMIT 1) AS level_context,
+                   (SELECT json_agg(json_build_object('at', l.at, 'level', l.level) ORDER BY l.id)::text
+                      FROM miot_symptoms.signal_transitions l
+                     WHERE l.tenant_code = w.tenant_code AND l.definition_id = w.definition_id
+                       AND l.asset_id = w.asset_id AND l.state = 'ACTIVE'
+                       AND (l.id = w.id OR (l.kind = 'LEVEL_CHANGED' AND l.id > w.id
+                            AND (w.closed_id IS NULL OR l.id < w.closed_id)))) AS level_steps,
+                   (SELECT jsonb_path_query_first(
+                           CASE jsonb_typeof(v.spec) WHEN 'string' THEN (v.spec #>> '{}')::jsonb ELSE v.spec END,
+                           'lax $.levels[*] ? (@.icu == $l).when', jsonb_build_object('l', w.current_level)) #>> '{}'
+                      FROM miot_symptoms.symptom_version v
+                     WHERE v.definition_id = w.definition_id AND v.tenant_code = w.tenant_code
+                       AND v.version = w.version
+                     LIMIT 1) AS level_rule
+              FROM (%s) w
+            """.formatted(WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2")));
     /** Enrich only the returned page, without changing counts or looking up each trip separately. */
     private static final String WITH_TRIP_CODE = """
             SELECT c.*, t.mandate_codes::text AS trip_mandate_codes
@@ -206,7 +235,13 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public Optional<EngineCase> find(String tenantCode, long caseId) {
         var rows = cases(ONE, Tuple.of(tenantCode, caseId)).iterator();
-        return rows.hasNext() ? Optional.of(engineCase(rows.next())) : Optional.empty();
+        if (!rows.hasNext()) {
+            return Optional.empty();
+        }
+        Row r = rows.next();
+        return Optional.of(engineCase(r).withLevel(json(r.getString("opening_context")),
+                json(r.getString("level_context")), r.getString("level_rule"),
+                steps(json(r.getString("level_steps")))));
     }
 
     @Override
@@ -267,6 +302,34 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
                 r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes")));
+    }
+
+    static List<EngineCase.LevelStep> steps(JsonNode steps) {
+        List<EngineCase.LevelStep> out = new ArrayList<>();
+        if (steps == null || !steps.isArray()) {
+            return out;
+        }
+        for (JsonNode step : steps) {
+            try {
+                out.add(new EngineCase.LevelStep(OffsetDateTime.parse(step.path("at").asText()).toInstant(),
+                        step.path("level").asInt()));
+            } catch (java.time.format.DateTimeParseException e) {
+                LOG.debug("Engine case level step without a valid time", e);
+            }
+        }
+        return out;
+    }
+
+    private static JsonNode json(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            return JSON.readTree(text);
+        } catch (JsonProcessingException e) {
+            LOG.debug("Engine case level context is not valid JSON", e);
+            return null;
+        }
     }
 
     /** Decode each trip independently so a malformed projection never hides another trip's code. */

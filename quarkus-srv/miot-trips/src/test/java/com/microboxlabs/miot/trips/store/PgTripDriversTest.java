@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -107,6 +108,10 @@ class PgTripDriversTest {
         List<String> tenants = tripDrivers.tenantsAssigningDrivers(t0);
         assertTrue(tenants.contains(tenant) && tenants.contains(other));
         assertFalse(tripDrivers.tenantsAssigningDrivers(t0.plusHours(6)).contains(tenant));
+        assertEquals(Set.of(UUID.fromString(a.id())), tripDrivers.recentlyAssignedDrivers(tenant,
+                List.of(UUID.fromString(a.id()), UUID.fromString(old.id()), UUID.fromString(elsewhere.id())), t0));
+        assertTrue(tripDrivers.recentlyAssignedDrivers(other, List.of(UUID.fromString(a.id())), t0).isEmpty());
+        assertTrue(tripDrivers.recentlyAssignedDrivers(tenant, List.of(), t0).isEmpty());
 
         List<Assigned> first = tripDrivers.driversAssignedSince(tenant, t0, null, 2);
         assertEquals(2, first.size());

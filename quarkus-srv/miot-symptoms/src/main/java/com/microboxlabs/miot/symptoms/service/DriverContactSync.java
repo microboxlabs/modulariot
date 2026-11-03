@@ -33,13 +33,16 @@ import org.jboss.logging.Logger;
  * Copies the drivers each tenant assigned to a trip in the last {@code window} from fleet into the tenant's contact
  * book. The book wins: an existing contact (same national id) only gets its empty fields filled. A driver switched
  * off in fleet switches off only a contact this sync created. Each run reads the drivers assigned since the tenant's
- * watermark, then the synced drivers whose fleet row changed since it; the first run reads the whole window.
+ * watermark, then the synced drivers whose fleet row changed since it and still have an assignment in the window;
+ * the first run reads the whole window. Concurrent contact edits cause the sync's update to be skipped.
  *
- * <p>One replica runs it at a time, under a Postgres advisory lock. It does nothing without the fleet or trips
+ * <p>One replica runs it at a time, under a transaction-scoped Postgres advisory lock. It does nothing without the fleet or trips
  * module.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
+@IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
+@IfBuildProperty(name = "miot.component.trips.enabled", stringValue = "true")
 public class DriverContactSync {
 
     private static final Logger LOG = Logger.getLogger(DriverContactSync.class);
@@ -174,7 +177,10 @@ public class DriverContactSync {
         List<DriverDetails> changed;
         do {
             changed = fleet.driversChangedSince(tenant, at, afterId, BATCH);
-            changed.stream().filter(d -> seen.add(d.id())).forEach(d -> apply(tenant, d, false, counts));
+            List<DriverDetails> unseen = changed.stream().filter(d -> seen.add(d.id())).toList();
+            Set<UUID> recent = trips.recentlyAssignedDrivers(tenant, unseen.stream().map(DriverDetails::id).toList(),
+                    floor);
+            unseen.stream().filter(d -> recent.contains(d.id())).forEach(d -> apply(tenant, d, false, counts));
             if (!changed.isEmpty()) {
                 DriverDetails last = changed.get(changed.size() - 1);
                 at = last.updatedAt();
@@ -252,8 +258,11 @@ public class DriverContactSync {
         if (!ACTOR.equals(c.createdBy()) || !c.active()) {
             return;
         }
-        contacts.update(copy(c, c.role(), c.phone(), c.methods(), c.channels(), false, c.company(), c.companyRut(),
-                c.companyTaxIdType(), c.tags()));
+        if (contacts.updateIfUnchanged(copy(c, c.role(), c.phone(), c.methods(), c.channels(), false, c.company(),
+                c.companyRut(), c.companyTaxIdType(), c.tags()), c.updatedAt()).isEmpty()) {
+            counts.skip("concurrent-edit");
+            return;
+        }
         audit.log(c.tenantCode(), ACTOR, "contact.updated", ContactService.ENTITY, c.id(), null,
                 Map.of("source", ACTOR, "active", false));
         counts.deactivated++;
@@ -312,7 +321,11 @@ public class DriverContactSync {
         if (filled.isEmpty()) {
             return;
         }
-        contacts.update(copy(c, role, phone, methods, ch, c.active(), company, companyRut, companyType, tags));
+        if (contacts.updateIfUnchanged(copy(c, role, phone, methods, ch, c.active(), company, companyRut, companyType,
+                tags), c.updatedAt()).isEmpty()) {
+            counts.skip("concurrent-edit");
+            return;
+        }
         audit.log(c.tenantCode(), ACTOR, "contact.updated", ContactService.ENTITY, c.id(), null,
                 Map.of("source", ACTOR, "filled", List.copyOf(filled)));
         counts.filled++;

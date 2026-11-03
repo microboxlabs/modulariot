@@ -1,7 +1,9 @@
 package com.microboxlabs.miot.core.trips;
 
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** The drivers the trips module assigns to trips, for modules that follow them. Implemented by the trips module. */
@@ -19,6 +21,11 @@ public interface TripDrivers {
     /** The tenants that assigned a driver to a trip after {@code since}. */
     default List<String> tenantsAssigningDrivers(OffsetDateTime since) {
         return List.of();
+    }
+
+    /** The supplied drivers with a current assignment in this tenant after {@code since}. */
+    default Set<UUID> recentlyAssignedDrivers(String tenantCode, Collection<UUID> ids, OffsetDateTime since) {
+        return Set.of();
     }
 
     /**

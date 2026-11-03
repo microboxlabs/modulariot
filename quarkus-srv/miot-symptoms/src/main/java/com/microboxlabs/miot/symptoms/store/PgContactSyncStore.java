@@ -53,20 +53,21 @@ public class PgContactSyncStore implements ContactSyncStore {
                 + "ORDER BY tenant_code", Tuple.of(source)).stream().map(r -> r.getString("tenant_code")).toList();
     }
 
-    /** A session lock on a connection of its own, so the other queries can use any connection of the pool. */
+    /** An open transaction pins the lock's connection even through a transaction-mode pooler. */
     @Override
     public <T> Optional<T> exclusively(String name, Supplier<T> work) {
         SqlConnection conn = pool.get().getConnection().await().atMost(QUERY_TIMEOUT);
         try {
-            boolean held = query(conn, "SELECT pg_try_advisory_lock(hashtextextended($1, 0))", Tuple.of(name))
-                    .iterator().next().getBoolean(0);
-            if (!held) {
-                return Optional.empty();
-            }
+            var transaction = conn.begin().await().atMost(QUERY_TIMEOUT);
             try {
+                boolean held = query(conn, "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))", Tuple.of(name))
+                        .iterator().next().getBoolean(0);
+                if (!held) {
+                    return Optional.empty();
+                }
                 return Optional.ofNullable(work.get());
             } finally {
-                query(conn, "SELECT pg_advisory_unlock(hashtextextended($1, 0))", Tuple.of(name));
+                transaction.rollback().await().atMost(QUERY_TIMEOUT);
             }
         } finally {
             conn.close().await().atMost(QUERY_TIMEOUT);

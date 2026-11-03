@@ -11,9 +11,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /** {@link TripDrivers} from the current driver assignments, by the time they were made. */
 @ApplicationScoped
@@ -45,6 +48,17 @@ public class PgTripDrivers implements TripDrivers {
         return query(pool.get(), "SELECT DISTINCT tenant_code" + CURRENT_DRIVERS
                 + " AND created_at > $1 ORDER BY tenant_code", Tuple.of(since))
                 .stream().map(r -> r.getString("tenant_code")).toList();
+    }
+
+    @Override
+    public Set<UUID> recentlyAssignedDrivers(String tenantCode, Collection<UUID> ids, OffsetDateTime since) {
+        if (ids.isEmpty()) {
+            return Set.of();
+        }
+        return query(pool.get(), "SELECT DISTINCT resource_id" + CURRENT_DRIVERS
+                + " AND tenant_code = $1 AND resource_id = ANY($2) AND created_at > $3",
+                Tuple.of(tenantCode, ids.toArray(UUID[]::new), since))
+                .stream().map(r -> r.getUUID("resource_id")).collect(Collectors.toSet());
     }
 
     @Override

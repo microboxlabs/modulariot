@@ -95,6 +95,31 @@ class PgTreatmentStoresTest {
     }
 
     @Test
+    void aSyncUpdateCannotOverwriteAnEditCommittedAfterItsRead() {
+        String tenant = tenant();
+        Contact read = contacts.insert(new Contact(null, tenant, "Juan", null, null, List.of(), true, null,
+                "fleet-sync", null, null));
+        Contact staleFill = new Contact(read.id(), tenant, read.name(), "Conductor", "+56912345678",
+                List.of(CallMethod.PHONE), false, read.notes(), read.createdBy(), read.createdAt(), read.updatedAt());
+        pool.preparedQuery("""
+                UPDATE miot_symptoms.contact SET name = 'Alice edit', role = 'Dispatcher', phone = '+56999999999',
+                    notes = 'Keep me', company = 'Other carrier', tags = '["vip"]'::jsonb,
+                    channels = '{"email":"alice@example.com"}'::jsonb, updated_at = updated_at + interval '1 second'
+                WHERE tenant_code = $1 AND id = $2
+                """).execute(Tuple.of(tenant, UUID.fromString(read.id())))
+                .await().atMost(WAIT);
+        Contact edited = contacts.find(tenant, read.id()).orElseThrow();
+
+        assertTrue(contacts.updateIfUnchanged(staleFill, read.updatedAt()).isEmpty());
+        assertEquals(edited, contacts.find(tenant, read.id()).orElseThrow(), "all of the person's fields survive");
+        assertTrue(contacts.updateIfUnchanged(staleFill, null).isEmpty());
+        assertTrue(contacts.updateIfUnchanged(new Contact(read.id(), tenant(), "Other tenant", null, null,
+                List.of(), false, null, "fleet-sync", null, null), edited.updatedAt()).isEmpty());
+        assertTrue(contacts.updateIfUnchanged(edited, edited.updatedAt()).isPresent(),
+                "a fresh version can still be updated");
+    }
+
+    @Test
     void episodeOpensTransitionsAndStaysInItsTenant() {
         String tenant = tenant();
         OffsetDateTime earlier = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1).truncatedTo(ChronoUnit.MILLIS);

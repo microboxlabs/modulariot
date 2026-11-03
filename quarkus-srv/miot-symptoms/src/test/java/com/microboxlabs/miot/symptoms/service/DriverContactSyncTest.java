@@ -28,8 +28,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class DriverContactSyncTest {
@@ -311,6 +313,74 @@ class DriverContactSyncTest {
     }
 
     @Test
+    void concurrentEditsSkipFillingAndDeactivationWithoutAuditingAChange() {
+        for (boolean active : List.of(true, false)) {
+            fleet.byTenant.clear();
+            trips.latest.clear();
+            progress.clear();
+            InMemoryContactStore racing = new InMemoryContactStore() {
+                @Override
+                public synchronized Optional<Contact> updateIfUnchanged(Contact c, OffsetDateTime expected) {
+                    Contact current = find(c.tenantCode(), c.id()).orElseThrow();
+                    super.update(new Contact(current.id(), current.tenantCode(), "Edited by Alice", "Dispatcher",
+                            "+56999999999", List.of(CallMethod.PHONE), true, "Keep this note", current.createdBy(),
+                            current.createdAt(), current.updatedAt(), current.nationalId(), current.nationalIdType(),
+                            "Alice's company", null, ContactChannels.NONE, List.of("vip"), null, false));
+                    return super.updateIfUnchanged(c, expected);
+                }
+            };
+            racing.insert(new Contact(null, TENANT, "Juan", null, null, List.of(), true, null, "fleet-sync", null,
+                    null, "111111111", "RUT", null, null, ContactChannels.NONE, List.of(), null, false));
+            DriverDetails d = driver("11.111.111-1", "Juan", "912345678", active);
+            trips.assign(TENANT, d.id(), T.minusDays(1));
+            var job = new DriverContactSync(new DriverContactSync.Settings(true, Duration.ofDays(30), "56"), racing,
+                    progress, new AuditService(auditStore), fleet, trips, clock);
+
+            var counts = job.run().get(TENANT);
+
+            Contact saved = racing.findByNationalId(TENANT, "111111111").orElseThrow();
+            assertEquals("Edited by Alice", saved.name());
+            assertEquals("Dispatcher", saved.role());
+            assertEquals("+56999999999", saved.phone());
+            assertEquals("Alice's company", saved.company());
+            assertEquals(List.of("vip"), saved.tags());
+            assertTrue(saved.active());
+            assertEquals(0, counts.filled);
+            assertEquals(0, counts.deactivated);
+            assertEquals(1, counts.skipped.get("concurrent-edit"));
+            assertTrue(audit().isEmpty());
+        }
+    }
+
+    @Test
+    void fleetChangesLeaveContactsWithoutATripInTheWindowAlone() {
+        DriverDetails d = driver("11.111.111-1", "Juan", null, true);
+        trips.assign(TENANT, d.id(), T.minusDays(29));
+        sync().run();
+        clock = Clock.fixed(NOW.plus(Duration.ofDays(2)), ZoneOffset.UTC);
+        fleet.change(TENANT, d.id(), false, T.plusDays(1));
+
+        var counts = sync().run().get(TENANT);
+
+        assertTrue(contact("111111111").active(), "an assignment outside the rolling window is no longer eligible");
+        assertEquals(0, counts.deactivated);
+    }
+
+    @Test
+    void aManuallyTaggedContactWithoutATripIsNotSynced() {
+        DriverDetails d = driver("11.111.111-1", "Juan", "912345678", true);
+        contacts.insert(new Contact(null, TENANT, "Juan", null, null, List.of(), true, null, "alice", null, null,
+                "111111111", "RUT", null, null, ContactChannels.NONE, List.of("conductor"), null, false));
+        progress.save(TENANT, DriverContactSync.SOURCE, T.minusMinutes(5));
+        fleet.change(TENANT, d.id(), true, T.minusMinutes(1));
+
+        sync().run();
+
+        assertNull(contact("111111111").phone());
+        assertTrue(audit().isEmpty());
+    }
+
+    @Test
     void withoutFleetOrTripsTheJobDoesNothing() {
         var settings = new DriverContactSync.Settings(true, Duration.ofDays(30), "56");
         assertFalse(new DriverContactSync(settings, contacts, progress, new AuditService(auditStore),
@@ -428,6 +498,13 @@ class DriverContactSyncTest {
             return latest.entrySet().stream()
                     .filter(e -> e.getValue().values().stream().anyMatch(t -> t.isAfter(since)))
                     .map(Map.Entry::getKey).toList();
+        }
+
+        @Override
+        public Set<UUID> recentlyAssignedDrivers(String tenantCode, Collection<UUID> ids, OffsetDateTime since) {
+            var assignments = latest.getOrDefault(tenantCode, Map.of());
+            return ids.stream().filter(id -> assignments.containsKey(id) && assignments.get(id).isAfter(since))
+                    .collect(Collectors.toSet());
         }
 
         @Override

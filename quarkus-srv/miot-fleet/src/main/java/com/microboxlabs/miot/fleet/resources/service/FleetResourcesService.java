@@ -10,6 +10,8 @@ import com.microboxlabs.miot.fleet.resources.store.ResourceStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -79,6 +81,22 @@ public class FleetResourcesService implements FleetResources {
         return store.listActiveCarriers(tenantCode, q, limit).stream()
                 .map(c -> new Carrier(UUID.fromString(c.id()), c.legalName(), c.phone(), c.rut()))
                 .toList();
+    }
+
+    @Override
+    public boolean listsDrivers() {
+        return true;
+    }
+
+    @Override
+    public List<DriverDetails> drivers(String tenantCode, Collection<UUID> ids) {
+        return store.driverDetails(tenantCode, ids);
+    }
+
+    @Override
+    public List<DriverDetails> driversChangedSince(String tenantCode, OffsetDateTime since, UUID afterId,
+            int limit) {
+        return store.driversChangedSince(tenantCode, since, afterId, limit);
     }
 
     @Override

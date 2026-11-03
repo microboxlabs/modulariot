@@ -71,8 +71,7 @@ public class PgContactStore implements ContactStore {
                 national_id = $10, national_id_type = $11, company = $12, position = $13, channels = $14::jsonb,
                 tags = $15::jsonb, member_user_id = $16, provisional = $17, company_rut = $18,
                 company_tax_id_type = $19
-            WHERE tenant_code = $1 AND id = $2
-            RETURNING\s""" + COLUMNS;
+            WHERE tenant_code = $1 AND id = $2""";
 
     // Each facet once ignoring case. A company keeps its oldest spelling and the oldest tax id given for it.
     private static final String FACETS = """
@@ -133,6 +132,15 @@ public class PgContactStore implements ContactStore {
 
     @Override
     public Optional<Contact> update(Contact contact) {
+        return update(contact, null);
+    }
+
+    @Override
+    public Optional<Contact> updateIfUnchanged(Contact contact, OffsetDateTime expectedUpdatedAt) {
+        return expectedUpdatedAt == null ? Optional.empty() : update(contact, expectedUpdatedAt);
+    }
+
+    private Optional<Contact> update(Contact contact, OffsetDateTime expectedUpdatedAt) {
         UUID id = parse(contact.id());
         if (id == null) {
             return Optional.empty();
@@ -143,8 +151,13 @@ public class PgContactStore implements ContactStore {
                 .addString(c.phone()).addString(PgJson.write(c.methods())).addBoolean(c.active())
                 .addString(c.notes()).addOffsetDateTime(OffsetDateTime.now(ZoneOffset.UTC));
         addBookFields(params, c);
+        String sql = UPDATE;
+        if (expectedUpdatedAt != null) {
+            params.addOffsetDateTime(expectedUpdatedAt);
+            sql += " AND updated_at = $20";
+        }
         try {
-            return contacts(query(pool.get(), UPDATE, params)).stream().findFirst();
+            return contacts(query(pool.get(), sql + " RETURNING " + COLUMNS, params)).stream().findFirst();
         } catch (PgException e) {
             throw conflict(e, c);
         }

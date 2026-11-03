@@ -296,7 +296,7 @@ public class ContactService {
                 });
     }
 
-    private static Map<String, Object> createdDetails(Contact c, String source) {
+    static Map<String, Object> createdDetails(Contact c, String source) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("name", c.name());
         details.put("role", c.role() == null ? "" : c.role());

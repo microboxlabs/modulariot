@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import {
-  isNewestFrame,
+  isHistoricalFrame,
   SignalStateSchema,
   type SignalState,
 } from "../utils/signal-state";
@@ -39,7 +39,7 @@ export function useAssetSignal(
       // Historical case tracks stop polling once a newer detector frame is known.
       // A changed track timestamp gets a new key and starts a fresh read.
       refreshInterval: (current) =>
-        isNewestFrame(newestTimestamp, current) ? SIGNAL_REFRESH_MS : 0,
+        isHistoricalFrame(newestTimestamp, current) ? 0 : SIGNAL_REFRESH_MS,
       revalidateOnFocus: true,
     }
   );

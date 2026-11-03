@@ -76,8 +76,25 @@ export function isNewestFrame(
   signal: SignalState | null | undefined
 ): boolean {
   if (!signal?.last_frame_at) return true;
+  return frameLag(timestamp, signal) === 0;
+}
+
+/** Stop polling only once the detector has moved beyond this static track. */
+export function isHistoricalFrame(
+  timestamp: string | null | undefined,
+  signal: SignalState | null | undefined
+): boolean {
+  const lag = frameLag(timestamp, signal);
+  return lag !== null && lag > 0;
+}
+
+function frameLag(
+  timestamp: string | null | undefined,
+  signal: SignalState | null | undefined
+): number | null {
+  if (!signal?.last_frame_at) return null;
   const at = timestamp ? Date.parse(timestamp) : Number.NaN;
   const newest = Date.parse(signal.last_frame_at);
-  if (Number.isNaN(at) || Number.isNaN(newest)) return false;
-  return at === newest;
+  if (Number.isNaN(at) || Number.isNaN(newest)) return null;
+  return newest - at;
 }

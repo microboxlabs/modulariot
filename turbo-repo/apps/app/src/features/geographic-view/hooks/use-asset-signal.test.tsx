@@ -87,6 +87,23 @@ describe("useAssetSignal polling", () => {
     unmount();
   });
 
+  it("keeps polling while the detector is behind the track and catches up", async () => {
+    fetchSignal.mockImplementationOnce(async () =>
+      Response.json({ state: "offline", last_frame_at: FIRST })
+    );
+    const { result, unmount } = renderHook(() => useAssetSignal("V1", NEWEST), {
+      wrapper,
+    });
+    await advance();
+    expect(result.current?.last_frame_at).toBe(FIRST);
+    await advance(SIGNAL_REFRESH_MS);
+    expect(fetchSignal).toHaveBeenCalledTimes(2);
+    expect(result.current?.last_frame_at).toBe(NEWEST);
+    await advance(SIGNAL_REFRESH_MS);
+    expect(fetchSignal).toHaveBeenCalledTimes(3);
+    unmount();
+  });
+
   it("treats an invalid response as unknown", async () => {
     fetchSignal.mockImplementation(async () =>
       Response.json({ state: "offline", silence_s: "invalid" })

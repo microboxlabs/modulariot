@@ -40,6 +40,7 @@ import ImageSelector from "./image-viewer/image-selector";
 import { useTimelapse } from "../hooks/use-timelapse";
 import { useAssetSignal } from "../hooks/use-asset-signal";
 import { isNewestFrame, isOffline, offlineLabel } from "../utils/signal-state";
+import { pulseWithSignal } from "../utils/signal-tooltip";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
 import PulseRange from "./tool-bar/pulse-range";
@@ -525,8 +526,8 @@ export default function MapVisualizationTrip({
 
   // The detector's state of the vehicle: its newest position turns gray and
   // carries "Sin señal · hace N min" while the signal does not arrive.
-  const newestIndex = positions?.length ? positions.length - 1 : -1;
-  const newest = newestIndex >= 0 ? positions?.[newestIndex] : null;
+  const newestIndex = (positions?.length ?? 0) - 1;
+  const newest = positions?.at(-1);
   const signal = useAssetSignal(newest?.assetid, newest?.timestamp);
   const offline =
     !!newest && isOffline(signal) && isNewestFrame(newest.timestamp, signal);
@@ -950,7 +951,12 @@ export default function MapVisualizationTrip({
             onExitAction={cerrarPulsos}
           >
             <PulseTooltip
-              object={hoverInfo.object as PulseListType | PulseType}
+              object={pulseWithSignal(
+                hoverInfo.object as PulseListType | PulseType,
+                newest?.assetid,
+                signal,
+                dict
+              )}
               dict={dict}
             />
           </MapTooltip>

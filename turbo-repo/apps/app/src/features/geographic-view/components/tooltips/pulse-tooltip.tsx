@@ -34,6 +34,8 @@ export type PulseType = {
     symptom_name?: string | null;
     /** Seconds between the GPS time and the arrival, or null if unknown. */
     delay_s?: number | null;
+    /** "Sin señal · hace N min" when this is the newest frame of an offline vehicle. */
+    signal_label?: string | null;
   };
 };
 
@@ -253,6 +255,19 @@ export default function PulseTooltip({
           {object?.properties.asset_id}
         </div>
         <hr className="my-2 border-gray-200 dark:border-gray-700" />
+        {object.properties.signal_label && (
+          <div data-signal-offline>
+            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg text-sm">
+              <span className="text-gray-600 dark:text-gray-300">
+                {(dict.geographic_view as I18nRecord).signal_status as string}:
+              </span>
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {object.properties.signal_label}
+              </span>
+            </div>
+            <hr className="my-2 border-gray-200 dark:border-gray-700" />
+          </div>
+        )}
         {object?.properties.icu_code &&
         object?.properties.icu_code != 0 &&
         pin_conditions[

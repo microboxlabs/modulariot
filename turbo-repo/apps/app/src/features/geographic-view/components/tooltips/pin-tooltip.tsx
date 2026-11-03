@@ -7,6 +7,7 @@ import {
 } from "@/features/geographic-view/types/map";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import VehicleDescription from "./vehicle-description";
+import { offlineLabel } from "@/features/geographic-view/utils/signal-state";
 
 export default function PinTooltip({
   object,
@@ -22,6 +23,8 @@ export default function PinTooltip({
   if (object.properties.cluster) {
     return null;
   }
+
+  const offline = offlineLabel(object.properties.signal, dict);
 
   return (
     <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
@@ -58,14 +61,14 @@ export default function PinTooltip({
         )}
       </div>
       <hr className="my-2 border-gray-200 dark:border-gray-700" />
-      {object?.properties.lost_signal && (
-        <div>
+      {offline && (
+        <div data-signal-offline>
           <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg font-light text-sm">
             <span className="text-gray-600 dark:text-gray-300 font-normal">
               {(dict.geographic_view as I18nRecord).signal_status as string}:
             </span>{" "}
-            <span className="font-light text-red-500 dark:text-red-400">
-              {(dict.geographic_view as I18nRecord).lost_signal as string}
+            <span className="font-medium text-gray-700 dark:text-gray-200">
+              {offline}
             </span>
           </div>
           <hr className="my-2 border-gray-200 dark:border-gray-700" />

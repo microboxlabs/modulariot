@@ -18,6 +18,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
+import LevelReasonCard from "./level-reason-card";
 
 /** Menus the previous full-screen modal still implements. */
 const PAST_FORM_OPTIONS = new Set<SelectedOption>([
@@ -159,6 +160,12 @@ export default function PrototypeSideInfo({
                 </button>
               </Tooltip>
             </div>
+            {!loading && (
+              <LevelReasonCard
+                dict={dict}
+                reason={treatmentData?.level_reason}
+              />
+            )}
             {loading ? (
               <div className="h-20 w-full bg-gray-200 dark:bg-gray-700 animate-pulse rounded-md"></div>
             ) : (

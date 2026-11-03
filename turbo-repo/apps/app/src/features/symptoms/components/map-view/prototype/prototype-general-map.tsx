@@ -13,7 +13,7 @@ import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 import { chipText } from "./header-chip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../../hooks/use-treatments-general";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../../types/symptom-titles";
@@ -25,6 +25,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import { lugaresLayout } from "../lugares-layout";
+import { caseSpans as spansOf } from "@/features/symptoms/model/level-reason";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -195,6 +196,7 @@ export default function PrototypeGeneralMap({
     id
   );
   const casePoint = tripless ? firstPoint(caseLocation) : null;
+  const caseSpans = useMemo(() => spansOf(treatmentData), [treatmentData]);
 
   useEffect(() => {
     if (errorTreatments) {
@@ -368,6 +370,8 @@ export default function PrototypeGeneralMap({
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
               onLugaresChange={setLugaresAbierto}
               casePoint={casePoint}
+              caseSpans={caseSpans}
+              lostSince={treatmentData?.level_reason?.lost_since ?? null}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

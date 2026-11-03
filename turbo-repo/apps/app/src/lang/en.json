@@ -5511,6 +5511,12 @@
         "AVAILABLE": "Available",
         "NO_SIGNAL": "No signal"
       },
+      "signalOffline": {
+        "none": "No signal",
+        "minutes": "No signal · {n} min ago",
+        "hours": "No signal · {n} h ago",
+        "hint": "The GPS stopped reporting for longer than expected for this vehicle"
+      },
       "table": {
         "asset": "Asset",
         "carrier": "Carrier",

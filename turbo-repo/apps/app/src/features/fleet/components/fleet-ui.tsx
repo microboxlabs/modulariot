@@ -6,7 +6,13 @@ import { Badge, Breadcrumb, BreadcrumbItem } from "flowbite-react";
 import { BsStars } from "react-icons/bs";
 import { HiOutlineTruck } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { trDynamic } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
+import {
+  isOffline,
+  isNewestFrame,
+  offlineAge,
+  type SignalState,
+} from "@/features/geographic-view/utils/signal-state";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import type { AssetStatus, DocumentStatus, FieldSource } from "../fleet-api";
 import { formatDay } from "../fleet-api";
@@ -92,6 +98,50 @@ export function StatusBadge({
   return (
     <Badge color={STATUS_COLOR[status]} className="w-fit whitespace-nowrap">
       {trDynamic(`status.${status}`, d)}
+    </Badge>
+  );
+}
+
+/** "Sin señal · hace N min" by the lost-signal detector, or null when not offline. */
+export function offlineText(
+  signal: SignalState | null | undefined,
+  d: I18nRecord,
+  now: number = Date.now()
+): string | null {
+  if (!isOffline(signal)) return null;
+  const age = signal?.offline_since
+    ? offlineAge(signal.offline_since, now)
+    : null;
+  if (!age) return tr("signalOffline.none", d);
+  const n = { n: String(age.n) };
+  return age.unit === "min"
+    ? tr("signalOffline.minutes", d, n)
+    : tr("signalOffline.hours", d, n);
+}
+
+/** The detector's offline state beside the status; nothing while the signal arrives. */
+export function OfflineBadge({
+  signal,
+  d,
+  lastSignalAt,
+}: {
+  readonly signal: SignalState | null | undefined;
+  readonly d: I18nRecord;
+  readonly lastSignalAt?: string | null;
+}) {
+  const text = offlineText(
+    isNewestFrame(lastSignalAt, signal) ? signal : null,
+    d
+  );
+  if (!text) return null;
+  return (
+    <Badge
+      color="gray"
+      className="w-fit whitespace-nowrap"
+      title={tr("signalOffline.hint", d)}
+      data-signal-offline
+    >
+      {text}
     </Badge>
   );
 }

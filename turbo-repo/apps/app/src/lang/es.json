@@ -5511,6 +5511,12 @@
         "AVAILABLE": "Disponible",
         "NO_SIGNAL": "Sin señal"
       },
+      "signalOffline": {
+        "none": "Sin señal",
+        "minutes": "Sin señal · hace {n} min",
+        "hours": "Sin señal · hace {n} h",
+        "hint": "El GPS dejó de reportar más de lo esperado para este vehículo"
+      },
       "table": {
         "asset": "Asset",
         "carrier": "Transportista",

@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { getJson, sendJson } from "@/features/settings-admin/data/json-client";
+import type { SignalState } from "@/features/geographic-view/utils/signal-state";
 
 export type AssetKind = "TRUCK" | "TRAILER" | "DECOY" | "PERSON" | "OTHER";
 export type AssetStatus = "IN_TRIP" | "AVAILABLE" | "NO_SIGNAL";
@@ -56,6 +57,8 @@ export interface AssetRow {
   accreditation: AssetDocument;
   km30d: number;
   lastSignalAt: string | null;
+  /** The lost-signal detector's state; null where it is not deployed. */
+  signal?: SignalState | null;
   gpsProvider: string | null;
   suggestions: number;
 }
@@ -151,6 +154,8 @@ export interface AssetDetail {
   documents: AssetDocument[];
   suggestions: Suggestion[];
   changes: Change[];
+  /** The lost-signal detector's state; null where it is not deployed. */
+  signal?: SignalState | null;
 }
 
 /** Mirrors `ActivityDay`. */

@@ -216,4 +216,65 @@ class FleetDirectoryServiceTest {
         assertTrue(detail.indicators().engineHours30d() > 0);
         assertEquals(23, detail.indicators().trips30d());
     }
+
+    /** DEMO-TR1 offline since 14:40, DEMO-TR2 online, the rest never seen. Records each read. */
+    private final List<List<String>> signalReads = new java.util.ArrayList<>();
+    private final com.microboxlabs.miot.core.gps.SignalStates signals = (ids, now) -> {
+        signalReads.add(List.copyOf(ids));
+        Map<String, com.microboxlabs.miot.core.gps.SignalStates.SignalState> out = new HashMap<>();
+        out.put("DEMO-TR1", new com.microboxlabs.miot.core.gps.SignalStates.SignalState(
+                com.microboxlabs.miot.core.gps.SignalStates.Status.OFFLINE, Instant.parse("2026-10-14T14:40:00Z"),
+                Instant.parse("2026-10-14T14:40:00Z"), 1190L, 300L));
+        out.put("DEMO-TR2", new com.microboxlabs.miot.core.gps.SignalStates.SignalState(
+                com.microboxlabs.miot.core.gps.SignalStates.Status.ONLINE, null, now.minusSeconds(30), 25L, 180L));
+        return out;
+    };
+
+    private FleetDirectoryService withSignals(com.microboxlabs.miot.core.gps.SignalStates source) {
+        return new FleetDirectoryService(new DemoFleetData(CLOCK::instant), profiles, activity, AssetImages.NONE,
+                source, new FleetDirectoryService.Settings(CLOCK, ZONE, Duration.ZERO));
+    }
+
+    @Test
+    void thePagesRowsCarryTheDetectorsSignalStateReadInOneCall() {
+        AssetPage page = withSignals(signals).list(VIEWER, new AssetQuery(null, null, null, null, false, false,
+                null, 0, 5));
+
+        assertEquals(1, signalReads.size());
+        assertEquals(page.items().stream().map(Views.AssetRow::id).toList(), signalReads.get(0),
+                "only the page's rows are read");
+        Map<String, Map<String, Object>> byId = new HashMap<>();
+        page.items().forEach(r -> byId.put(r.id(), r.signal()));
+        assertEquals("offline", byId.get("DEMO-TR1").get("state"));
+        assertEquals("2026-10-14T14:40:00Z", byId.get("DEMO-TR1").get("offline_since"));
+        assertEquals("online", byId.get("DEMO-TR2").get("state"));
+        page.items().stream().filter(r -> !r.id().equals("DEMO-TR1") && !r.id().equals("DEMO-TR2"))
+                .forEach(r -> assertEquals(Map.of("state", "unknown"), r.signal()));
+    }
+
+    @Test
+    void theSignalStateDoesNotChangeTheNoSignalStatusOrItsCount() {
+        AssetPage page = withSignals(signals).list(VIEWER, all());
+
+        assertEquals(1, page.summary().noSignal());
+        Views.AssetRow tr1 = page.items().stream().filter(r -> r.id().equals("DEMO-TR1")).findFirst().orElseThrow();
+        assertEquals(fleet.list(VIEWER, all()).items().stream().filter(r -> r.id().equals("DEMO-TR1"))
+                .findFirst().orElseThrow().status(), tr1.status());
+    }
+
+    @Test
+    void theAssetPageCarriesItsSignalState() {
+        assertEquals("offline", withSignals(signals).asset(VIEWER, "DEMO-TR1").signal().get("state"));
+        assertNull(fleet.asset(VIEWER, "DEMO-TR1").signal(), "no detector, no signal");
+        assertNull(fleet.list(VIEWER, all()).items().get(0).signal());
+    }
+
+    @Test
+    void aFailingSignalReadLeavesEveryAssetUnknown() {
+        AssetPage page = withSignals((ids, now) -> {
+            throw new IllegalStateException("Redis down");
+        }).list(VIEWER, all());
+
+        page.items().forEach(r -> assertEquals(Map.of("state", "unknown"), r.signal()));
+    }
 }

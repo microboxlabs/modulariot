@@ -78,7 +78,8 @@ class PgTreatmentReadsTest {
         run("CREATE TABLE public.asset_client_map (asset_id text, shared_client_id text, active boolean, "
                 + "valid_from timestamptz, valid_to timestamptz, PRIMARY KEY (asset_id, shared_client_id))");
         run("CREATE TABLE public.asset_data (asset_id varchar, \"timestamp\" timestamptz, speed float8, "
-                + "heading float8, location geography, created_datetime timestamptz)");
+                + "heading float8, location geography, request_timestamp timestamptz, "
+                + "created_datetime timestamptz DEFAULT now())");
         run("CREATE INDEX ON public.asset_data (\"timestamp\", asset_id)");
         run("""
                 CREATE FUNCTION public.api_request_symptoms_client_id() RETURNS varchar LANGUAGE sql STABLE AS $$
@@ -224,7 +225,8 @@ class PgTreatmentReadsTest {
         assertTrue(points.get(0).path("timestamp").asText().compareTo(points.get(4).path("timestamp").asText()) < 0);
         assertEquals(5, points.get(0).path("delay_s").asInt(), "arrived 5 s after its GPS time");
         assertEquals(900, points.get(1).path("delay_s").asInt(), "arrived 15 min late");
-        assertTrue(points.get(1).hasNonNull("received_at"));
+        assertEquals(Instant.parse(points.get(1).path("timestamp").asText()).plusSeconds(900),
+                Instant.parse(points.get(1).path("received_at").asText()), "gateway arrival, not row creation");
     }
 
     @Test

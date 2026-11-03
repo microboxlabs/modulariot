@@ -79,4 +79,13 @@ class EventTypesTest {
 
         assertEquals(List.of(), types.recent("tenant-a", 7));
     }
+
+    @Test
+    void suggestionsKeepExactCodesAndOmitOversizedOnes() {
+        String prefix = "x".repeat(EventTypes.MAX_LENGTH);
+        types.count("tenant-a", frame(" code ", prefix, prefix + "a", prefix + "b"));
+
+        assertEquals(List.of(new EventTypes.Count(" code ", 1), new EventTypes.Count(prefix, 1)),
+                types.recent("tenant-a", 7));
+    }
 }

@@ -52,6 +52,7 @@ public class SignalEvaluator {
     /** {@code case.normal_s} while the condition holds. */
     static final double NOT_NORMAL = -1;
     private static final String SIGNAL = "signal";
+    private static final String LIFECYCLE_CLOSE = "lifecycle.close";
 
     private final EpisodeStore store;
     private final Holds holds;
@@ -106,7 +107,7 @@ public class SignalEvaluator {
     /** A close rule that needs the signal cannot hold without one. */
     private static boolean closesWithoutSignal(CompiledSymptom s, Map<String, Object> vars) {
         try {
-            return condition(s.close(), vars, "lifecycle.close");
+            return condition(s.close(), vars, LIFECYCLE_CLOSE);
         } catch (RuleFailure f) {
             return false;
         }
@@ -174,14 +175,8 @@ public class SignalEvaluator {
                     if (s.lifecycleOnEvents() && !at.isBefore(before.get().openedAt())) {
                         lateLifecycle(tenantCode, at, root, s, before.get()).ifPresent(transitions::add);
                     }
-                } else if (s.opensOnEvents() && condition(s.activation(), root, "activation")) {
-                    List<Transition> t = step(tenantCode, assetId, at, root, s).stream()
-                            .filter(x -> x.kind() == Kind.OPENED || x.kind() == Kind.HELD).toList();
-                    transitions.addAll(t);
-                    if (t.stream().noneMatch(x -> x.kind() == Kind.OPENED)) {
-                        before.ifPresentOrElse(e -> store.save(tenantCode, e),
-                                () -> store.delete(tenantCode, assetId, s.definitionId()));
-                    }
+                } else {
+                    transitions.addAll(lateOpening(tenantCode, assetId, at, root, s, before));
                 }
             } catch (RuleFailure f) {
                 errors.add(new RuleError(s.definitionId(), s.version(), f.section, f.getMessage()));
@@ -190,12 +185,27 @@ public class SignalEvaluator {
         return new Result(transitions, errors);
     }
 
+    /** A buffered event may open a case, but must not leave partial hold-time state behind. */
+    private List<Transition> lateOpening(String tenantCode, String assetId, Instant at, Map<String, Object> root,
+            CompiledSymptom s, Optional<Episode> before) {
+        if (!s.opensOnEvents() || !condition(s.activation(), root, "activation")) {
+            return List.of();
+        }
+        List<Transition> transitions = step(tenantCode, assetId, at, root, s).stream()
+                .filter(t -> t.kind() == Kind.OPENED || t.kind() == Kind.HELD).toList();
+        if (transitions.stream().noneMatch(t -> t.kind() == Kind.OPENED)) {
+            before.ifPresentOrElse(e -> store.save(tenantCode, e),
+                    () -> store.delete(tenantCode, assetId, s.definitionId()));
+        }
+        return transitions;
+    }
+
     /** The close rule, else the note rule, on a late frame of an open case; the level and the runs stay. */
     private Optional<Transition> lateLifecycle(String tenantCode, Instant at, Map<String, Object> root,
             CompiledSymptom s, Episode e) {
         Map<String, Object> vars = lifecycleVars(root,
                 caseFields(e.conditionSince(), e.normalSince(), e.openedAt(), e.level(), at));
-        if (condition(s.close(), vars, "lifecycle.close")) {
+        if (condition(s.close(), vars, LIFECYCLE_CLOSE)) {
             Episode closed = new Episode(s.definitionId(), s.version(), e.assetId(), null, null, e.normalSince(),
                     Map.of(), e.lastSignalAt(), null, 0, 0);
             if (closed.worthKeeping()) {
@@ -329,7 +339,7 @@ public class SignalEvaluator {
         double max = r.active() ? Math.max(e.maxMeasure(), r.measure()) : e.maxMeasure();
         Map<String, Object> vars = lifecycleVars(root,
                 caseFields(r.conditionSince(), r.normalSince(), e.openedAt(), level, at));
-        if (condition(s.close(), vars, "lifecycle.close")) {
+        if (condition(s.close(), vars, LIFECYCLE_CLOSE)) {
             // A condition that still holds starts a new run on the next signal.
             Episode closed = new Episode(s.definitionId(), s.version(), e.assetId(), null, null, r.normalSince(),
                     Map.of(), at, null, 0, 0);
@@ -359,11 +369,11 @@ public class SignalEvaluator {
         }
         Map<String, Object> note = new LinkedHashMap<>();
         Map<String, Object> event = matchingEvent(s.note(), vars);
-        if (event != null) {
+        if (!event.isEmpty()) {
             note.put("event_type", event.get("event_type"));
             note.put("description", event.get("description"));
         }
-        Object eventAt = event == null ? null : event.get("timestamp");
+        Object eventAt = event.get("timestamp");
         note.put("at", eventAt instanceof String t && !t.isBlank() ? t : at.toString());
         return new Transition(Kind.NOTED, s.definitionId(), s.version(), s.state(), assetId, at, level, level, 0,
                 Map.of("note", note));
@@ -373,7 +383,7 @@ public class SignalEvaluator {
     private static Map<String, Object> matchingEvent(PreparedRule rule, Map<String, Object> vars) {
         if (!(vars.get(SIGNAL) instanceof Map<?, ?> signal) || !(signal.get("frame") instanceof Map<?, ?> frame)
                 || !(frame.get("events") instanceof List<?> events)) {
-            return null;
+            return Map.of();
         }
         for (Object e : events) {
             Map<String, Object> oneFrame = new LinkedHashMap<>((Map<String, Object>) frame);
@@ -387,7 +397,7 @@ public class SignalEvaluator {
                 return (Map<String, Object>) m;
             }
         }
-        return null;
+        return Map.of();
     }
 
     /** What a lifecycle rule reads: the source's root object and the case. */

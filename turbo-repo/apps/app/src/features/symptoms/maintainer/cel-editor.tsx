@@ -21,6 +21,9 @@ import {
   placeholder as placeholderExt,
 } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { completionContext, resolved } from "./cel-completion-context";
+
+export { macroVariables } from "./cel-completion-context";
 
 /** A field the rule can read: its full path and what to show next to it. */
 export interface CelField {
@@ -63,39 +66,6 @@ const FUNCTIONS = [
   "filter",
   "map",
 ];
-
-const MACRO_CALL =
-  /([A-Za-z_][\w.?]*)\.(?:exists_one|exists|all|filter|map)\(\s*([A-Za-z_]\w*)\s*,/g;
-
-/** The list each macro variable walks, from the text before the cursor: `signal.frame.events.exists(e, …` binds `e`. */
-export function macroVariables(text: string): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const m of text.matchAll(MACRO_CALL)) {
-    out.set(m[2] ?? "", (m[1] ?? "").replaceAll("?", ""));
-  }
-  return out;
-}
-
-/** A path with a macro variable as its first part written as the list's path: `e.event_type` → `signal.frame.events.event_type`. */
-function resolved(path: string, variables: Map<string, string>): string {
-  const plain = path.replaceAll("?", "");
-  const [first = "", ...rest] = plain.split(".");
-  const list = variables.get(first);
-  return list ? [list, ...rest].join(".") : plain;
-}
-
-const COMPARED = /([A-Za-z_][\w.?]*)\s*(?:==|!=)\s*"([^"\\]*)$/;
-const LISTED = /([A-Za-z_][\w.?]*)\s+in\s+\[(?:[^\]"]|"[^"]*")*"([^"\\]*)$/;
-
-/** The field and the text typed so far when the cursor is inside the quotes of `field == "…` or `field in [… "…`. */
-function quotedValue(
-  before: string,
-  variables: Map<string, string>
-): { path: string; typed: string } | null {
-  const m = COMPARED.exec(before) ?? LISTED.exec(before);
-  if (!m) return null;
-  return { path: resolved(m[1] ?? "", variables), typed: m[2] ?? "" };
-}
 
 /** Methods of an optional, offered after a `.?` read: `signal.frame.?gps.?speed.orValue(0.0)`. */
 const OPTIONAL_METHODS = ["orValue", "hasValue"];
@@ -143,26 +113,32 @@ const highlight = HighlightStyle.define([
   { tag: tags.comment, class: "italic text-gray-400" },
 ]);
 
+function valueCompletions(from: number, suggested: CelValues[string]) {
+  if (suggested.length === 0) return null;
+  return {
+    from,
+    options: suggested.map((v) => ({
+      label: v.value,
+      apply: JSON.stringify(v.value).slice(1, -1),
+      detail: v.detail,
+      type: "text",
+    })),
+    validFor: /^[^"\\]*$/,
+  };
+}
+
 export function completions(
   fields: () => CelField[],
   values: () => CelValues = () => ({})
 ) {
   return (ctx: CompletionContext) => {
     const before = ctx.state.sliceDoc(0, ctx.pos);
-    const variables = macroVariables(before);
-    const quoted = quotedValue(before, variables);
+    const { variables, quoted } = completionContext(before);
     if (quoted) {
-      const suggested = values()[quoted.path] ?? [];
-      if (suggested.length === 0) return null;
-      return {
-        from: ctx.pos - quoted.typed.length,
-        options: suggested.map((v) => ({
-          label: v.value,
-          detail: v.detail,
-          type: "text",
-        })),
-        validFor: /^[^"\\]*$/,
-      };
+      return valueCompletions(
+        ctx.pos - quoted.typed.length,
+        values()[quoted.path] ?? []
+      );
     }
     // `?` only right after a dot, so a ternary's `?` ends the word.
     const word = ctx.matchBefore(/[A-Za-z_](?:\w|\.\??)*/);
@@ -190,34 +166,44 @@ export function completions(
         ],
       };
     }
-    // A `.?` read completes like a plain one: `signal.frame.?se` offers `sensors`.
-    // `e.` inside `signal.frame.events.exists(e, …)` completes the list's fields.
-    const prefix = `${resolved(text.slice(0, dot), variables)}.`;
-    const optional = text.charAt(dot + 1) === "?" ? 1 : 0;
-    const seen = new Map<
-      string,
-      { label: string; type: string; detail?: string; apply?: string }
-    >();
-    for (const f of all) {
-      if (!f.path.startsWith(prefix)) continue;
-      const rest = f.path.slice(prefix.length);
-      const segment = rest.split(".")[0];
-      if (seen.has(segment)) continue;
-      seen.set(
-        segment,
-        rest.includes(".")
-          ? { label: segment, type: "namespace" }
-          : { label: segment, type: "property", detail: f.detail }
-      );
-    }
-    if (text.includes(".?") && optional === 0) {
-      for (const m of OPTIONAL_METHODS)
-        seen.set(`${m}()`, { label: m, type: "method", apply: `${m}()` });
-    }
-    return {
-      from: word.from + dot + 1 + optional,
-      options: [...seen.values()],
-    };
+    return fieldCompletions(all, text, dot, word.from, variables);
+  };
+}
+
+function fieldCompletions(
+  all: CelField[],
+  text: string,
+  dot: number,
+  from: number,
+  variables: Map<string, string>
+) {
+  // A `.?` read completes like a plain one: `signal.frame.?se` offers `sensors`.
+  // `e.` inside `signal.frame.events.exists(e, …)` completes the list's fields.
+  const prefix = `${resolved(text.slice(0, dot), variables)}.`;
+  const optional = text.charAt(dot + 1) === "?" ? 1 : 0;
+  const seen = new Map<
+    string,
+    { label: string; type: string; detail?: string; apply?: string }
+  >();
+  for (const f of all) {
+    if (!f.path.startsWith(prefix)) continue;
+    const rest = f.path.slice(prefix.length);
+    const segment = rest.split(".")[0];
+    if (seen.has(segment)) continue;
+    seen.set(
+      segment,
+      rest.includes(".")
+        ? { label: segment, type: "namespace" }
+        : { label: segment, type: "property", detail: f.detail }
+    );
+  }
+  if (text.includes(".?") && optional === 0) {
+    for (const m of OPTIONAL_METHODS)
+      seen.set(`${m}()`, { label: m, type: "method", apply: `${m}()` });
+  }
+  return {
+    from: from + dot + 1 + optional,
+    options: [...seen.values()],
   };
 }
 

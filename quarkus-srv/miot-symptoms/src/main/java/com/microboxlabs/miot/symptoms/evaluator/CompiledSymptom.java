@@ -27,7 +27,7 @@ import java.util.UUID;
  * @param close     reads the case and the signal
  * @param note      null, or the rule that writes a timeline entry on an open case without closing it
  * @param levelDown   an open case's level follows the measure down
- * @param opensOnEvents its activation, measure or levels read a device event ({@link #EVENT_FIELDS}), so a late
+ * @param opensOnEvents its activation, open, measure or levels read a device event ({@link #EVENT_FIELDS}), so a late
  *                  frame may still open its case
  * @param lifecycleOnEvents its close or note rule reads a device event, so a late frame may still close or note
  *                  its open case
@@ -89,6 +89,7 @@ public record CompiledSymptom(
         Map<Integer, PreparedRule> levels = new TreeMap<>();
         List<String> opening = new ArrayList<>();
         opening.add(spec.activation());
+        opening.add(spec.lifecycle().open());
         for (Level l : spec.levels() == null ? List.<Level>of() : spec.levels()) {
             if (l.applies()) {
                 levels.put(l.icu(), RuleLanguage.prepare(levelSchema, l.when()));

@@ -67,6 +67,21 @@ class SourcesAndPreviewTest {
     }
 
     @Test
+    void everyFallbackSampleProvidesAnEmptyEventsListToAllPreviewRules() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).get(TENANT, "gps_signal");
+        String empty = "signal.frame.events.size() == 0";
+        SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active && " + empty,
+                new SymptomSpec.Measure("signal.frame.events.size()", "Eventos", ""),
+                Specs.levels(empty, "false", "false", "false"), new SymptomSpec.Lifecycle("true", "false"), null);
+
+        List<SamplePreview> previews = PreviewService.run(spec, gps);
+
+        assertEquals(gps.samples().size(), previews.size());
+        assertTrue(previews.stream().allMatch(p -> p.error() == null), previews.toString());
+        assertTrue(previews.stream().flatMap(p -> p.clauses().stream()).allMatch(c -> c.error() == null));
+    }
+
+    @Test
     void recentSignalsReplaceTheFixedSamples() {
         SignalSamples samples = SignalSamples.inMemory();
         samples.keep(TENANT, Map.of("asset_id", "AB1234", "clients", List.of(TENANT),

@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseFilter;
-import com.microboxlabs.miot.symptoms.cases.EngineCaseStore.CaseNote;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -428,7 +427,7 @@ public class PgEngineCases implements EngineCaseStore {
                 at = OffsetDateTime.parse(n.get("at").asText()).toInstant();
             }
         } catch (java.time.format.DateTimeParseException e) {
-            at = recordedAt;
+            // Keep the frame time when the provider sent an invalid event time.
         }
         return new CaseNote(recordedAt, textOrNull(n, "event_type"), textOrNull(n, "description"), at);
     }

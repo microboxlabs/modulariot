@@ -9,6 +9,7 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -40,6 +41,7 @@ public class PgTransitionLog implements TransitionLog {
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
                   AND tenant_code = $1::varchar AND (kind = 'NOTED') = ($5::varchar = 'NOTED'))
+            ON CONFLICT DO NOTHING
             RETURNING id, CASE WHEN kind = 'OPENED' THEN id ELSE (
                 SELECT o.id FROM miot_symptoms.signal_transitions o
                 WHERE o.tenant_code = $1::varchar AND o.definition_id = $2::uuid AND o.asset_id = $6::varchar
@@ -74,18 +76,20 @@ public class PgTransitionLog implements TransitionLog {
             for (Transition t : transitions) {
                 JsonObject own = t.detail() == null ? json : new JsonObject(t.detail());
                 chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, own))
-                        .map(rows -> {
-                            for (Row r : rows) {
-                                Long caseId = r.getLong("case_id");
-                                if (caseId != null) {
-                                    recorded.add(new Recorded(t, caseId));
-                                }
-                            }
-                            return recorded;
-                        }));
+                        .map(rows -> addRecorded(recorded, rows, t)));
             }
             return chain;
         }).await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static List<Recorded> addRecorded(List<Recorded> recorded, RowSet<Row> rows, Transition transition) {
+        for (Row row : rows) {
+            Long caseId = row.getLong("case_id");
+            if (caseId != null) {
+                recorded.add(new Recorded(transition, caseId));
+            }
+        }
+        return recorded;
     }
 
     private static Tuple params(String tenantCode, Transition t, Place place, JsonObject context) {

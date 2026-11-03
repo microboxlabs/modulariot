@@ -31,6 +31,20 @@ function offered(doc: string): string[] {
 }
 
 describe("CEL completions", () => {
+  it("escapes event codes when inserting them into a CEL literal", () => {
+    const doc = 'signal.frame.events.exists(e, e.event_type == "';
+    const state = EditorState.create({ doc });
+    const value = 'vendor\\new"code';
+    const result = completions(
+      () => FIELDS,
+      () => ({
+        "signal.frame.events.event_type": [{ value }],
+      })
+    )(new CompletionContext(state, doc.length, true));
+    expect(result?.options[0]?.label).toBe(value);
+    expect(result?.options[0]?.apply).toBe('vendor\\\\new\\"code');
+  });
+
   it("completes fields after a .? read", () => {
     expect(offered("signal.frame.?se")).toContain("sensors");
   });

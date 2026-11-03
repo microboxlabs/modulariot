@@ -423,6 +423,18 @@ public final class SpecValidator {
                 .filter(f -> !f.engineSupported())
                 .map(SourceField::path)
                 .collect(Collectors.toSet());
+        Set<String> reported = new HashSet<>();
+        for (String rule : engineRules(spec)) {
+            for (String path : RuleText.fieldPaths(rule)) {
+                if (unsupported.contains(path) && reported.add(path)) {
+                    out.add(new Finding(ENGINE, Severity.WARNING, RuleMessage.of("engineUnsupported", "path", path),
+                            rule.indexOf(path)));
+                }
+            }
+        }
+    }
+
+    private static List<String> engineRules(SymptomSpec spec) {
         List<String> rules = new ArrayList<>();
         rules.add(spec.activation());
         if (spec.measure() != null) {
@@ -431,15 +443,12 @@ public final class SpecValidator {
         if (spec.levels() != null) {
             spec.levels().stream().filter(Level::applies).forEach(l -> rules.add(l.when()));
         }
-        Set<String> reported = new HashSet<>();
-        for (String rule : rules) {
-            for (String path : RuleText.fieldPaths(rule)) {
-                if (unsupported.contains(path) && reported.add(path)) {
-                    out.add(new Finding(ENGINE, Severity.WARNING, RuleMessage.of("engineUnsupported", "path", path),
-                            rule.indexOf(path)));
-                }
-            }
+        if (spec.lifecycle() != null) {
+            rules.add(spec.lifecycle().open());
+            rules.add(spec.lifecycle().close());
+            rules.add(spec.lifecycle().note());
         }
+        return rules;
     }
 
     static String number(double value) {

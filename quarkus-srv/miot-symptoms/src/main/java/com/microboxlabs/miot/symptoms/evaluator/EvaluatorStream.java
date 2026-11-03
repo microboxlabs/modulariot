@@ -199,7 +199,8 @@ public class EvaluatorStream {
         for (String tenant : episodes.tenantsWithEpisodes(assetId)) {
             if (!clients.contains(tenant)) {
                 recorded += evaluate(tenant, assetId, instant,
-                        Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP), true).transitions();
+                        Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP,
+                                "frame", Map.of("events", List.of())), true).transitions();
             }
         }
         if (late) {

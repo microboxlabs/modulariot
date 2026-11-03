@@ -18,6 +18,7 @@ import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -193,6 +194,96 @@ class FrameEventsTest {
         stream.evaluate(signal("2026-01-01T11:55:00Z", "main_power_reconnect"));
 
         assertEquals(List.of(Transition.Kind.OPENED), kinds());
+    }
+
+    @Test
+    void aBufferedNoteOlderThanTheCaseChangesNothing() {
+        publish("case.closed_by_operator", RECONNECT);
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "main_power_disconnect"));
+
+        stream.evaluate(signal("2026-01-01T11:55:00Z", "main_power_reconnect"));
+
+        assertEquals(List.of(Transition.Kind.OPENED), kinds());
+    }
+
+    @Test
+    void aCloseRuleErrorLeavesTheCaseOpen() {
+        publish("signal.frame.sensors.panic_button", null);
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "main_power_disconnect"));
+        stream.evaluate(signal("2026-01-01T12:05:00Z", null));
+        stream.evaluate(signal("2026-01-01T12:10:00Z", "main_power_disconnect"));
+
+        assertEquals(List.of(Transition.Kind.OPENED), kinds());
+    }
+
+    @Test
+    void leavingTheOrganizationStillAdvancesRecoveryWithAnEventCloseRule() {
+        publish("case.closed_by_operator || " + RECONNECT + " || case.normal_s >= 120", null);
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "main_power_disconnect"));
+        stream.evaluate(withoutOrganization("2026-01-01T12:01:00Z"));
+        stream.evaluate(withoutOrganization("2026-01-01T12:02:00Z"));
+        stream.evaluate(withoutOrganization("2026-01-01T12:03:00Z"));
+
+        assertEquals(List.of(Transition.Kind.OPENED, Transition.Kind.CLOSED), kinds());
+    }
+
+    @Test
+    void anEventNoteDoesNotBlockRecoveryAfterLeavingTheOrganization() {
+        publish("case.normal_s >= 120", RECONNECT);
+        stream.evaluate(signal("2026-01-01T12:00:00Z", "main_power_disconnect"));
+        stream.evaluate(withoutOrganization("2026-01-01T12:01:00Z"));
+        stream.evaluate(withoutOrganization("2026-01-01T12:03:00Z"));
+
+        assertEquals(List.of(Transition.Kind.OPENED, Transition.Kind.CLOSED), kinds());
+    }
+
+    @Test
+    void anEventReadOnlyByTheOpenRuleStillOpensFromABufferedFrame() {
+        SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active", null,
+                SeedTemplates.get("gps-sabotage").spec().levels(),
+                new SymptomSpec.Lifecycle(ACTIVATION, "case.closed_by_operator"), null);
+        UUID id = catalog.create(TENANT, "owner@example.com", new CreateRequest("open-event", "Eventos", null,
+                null, null, "gps_signal", null, spec)).definition().id();
+        catalog.publish(TENANT, "owner@example.com", id, "Primera versión", null, SymptomState.ACTIVE);
+
+        stream.evaluate(signal("2026-01-01T12:10:00Z", null));
+        stream.evaluate(signal("2026-01-01T12:05:00Z", "device_tamper"));
+
+        assertTrue(compiled(id).opensOnEvents());
+        assertEquals(List.of(Transition.Kind.OPENED), kinds());
+    }
+
+    private static String withoutOrganization(String at) {
+        return signal(at, null).replace("\"clients\":[\"" + TENANT + "\"]", "\"clients\":[]");
+    }
+
+    @Test
+    void holdEndStillClosesFromNormalEvidenceWithoutAFrame() {
+        UUID id = publish(RECONNECT + " || case.normal_s >= 120", null);
+        InMemoryEpisodeStore state = new InMemoryEpisodeStore();
+        Instant opened = Instant.parse("2026-01-01T12:00:00Z");
+        state.save(TENANT, new Episode(id, "1.0.0", "V1", opened, null, opened.plusSeconds(60), Map.of(),
+                opened.plusSeconds(60), opened, 1, 0));
+
+        List<Transition> closed = new SignalEvaluator(state).finishHold(TENANT, "V1", opened.plusSeconds(180),
+                List.of(compiled(id)));
+
+        assertEquals(List.of(Transition.Kind.CLOSED), closed.stream().map(Transition::kind).toList());
+        assertTrue(state.find(TENANT, "V1", id).isEmpty());
+    }
+
+    @Test
+    void holdEndDoesNotCloseOnAnUnavailableEvent() {
+        UUID id = publish(RECONNECT, null);
+        InMemoryEpisodeStore state = new InMemoryEpisodeStore();
+        Instant opened = Instant.parse("2026-01-01T12:00:00Z");
+        state.save(TENANT, new Episode(id, "1.0.0", "V1", opened, opened, null, Map.of(), opened, opened, 1, 0));
+
+        List<Transition> closed = new SignalEvaluator(state).finishHold(TENANT, "V1", opened.plusSeconds(180),
+                List.of(compiled(id)));
+
+        assertTrue(closed.isEmpty());
+        assertTrue(state.find(TENANT, "V1", id).orElseThrow().open());
     }
 
     @Test

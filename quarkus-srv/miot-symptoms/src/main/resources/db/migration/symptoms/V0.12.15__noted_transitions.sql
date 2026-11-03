@@ -7,3 +7,8 @@ ALTER TABLE miot_symptoms.signal_transitions DROP CONSTRAINT IF EXISTS chk_signa
 ALTER TABLE miot_symptoms.signal_transitions
     ADD CONSTRAINT chk_signal_transitions_kind CHECK (kind IN ('OPENED', 'LEVEL_CHANGED', 'CLOSED', 'HELD', 'NOTED'))
     NOT VALID;
+
+-- Concurrent redeliveries must also write only one note per symptom, vehicle and frame time.
+CREATE UNIQUE INDEX uq_signal_transitions_note
+    ON miot_symptoms.signal_transitions (tenant_code, definition_id, asset_id, at)
+    WHERE kind = 'NOTED';

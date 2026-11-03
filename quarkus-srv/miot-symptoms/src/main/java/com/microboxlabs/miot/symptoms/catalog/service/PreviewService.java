@@ -133,6 +133,7 @@ public class PreviewService {
             }
         }
         return source.samples().stream()
+                .map(PreviewService::signal)
                 .map(sample -> runOne(sample, activation, measure, levels).withClauses(clauses(sample, clauses)))
                 .toList();
     }
@@ -170,12 +171,16 @@ public class PreviewService {
     }
 
     /** The source's first sample, its frame's events always a list; empty without one. */
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> signal(DataSource source) {
         if (source == null || source.samples() == null || source.samples().isEmpty()) {
             return Map.of();
         }
-        Map<String, Object> first = new LinkedHashMap<>(source.samples().get(0));
+        return signal(source.samples().get(0));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> signal(Map<String, Object> sample) {
+        Map<String, Object> first = new LinkedHashMap<>(sample);
         if (first.get(SignalFields.ROOT) instanceof Map<?, ?> s) {
             first.put(SignalFields.ROOT, GpsSignal.FrameEvent.withEvents((Map<String, Object>) s));
         }

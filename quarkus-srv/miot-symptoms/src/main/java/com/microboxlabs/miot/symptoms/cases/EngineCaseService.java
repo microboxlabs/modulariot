@@ -84,6 +84,7 @@ public class EngineCaseService {
     private static final String DESCRIPTION = "description";
     private static final String TREATMENT_TYPE = "treatment_type";
     private static final String MESSAGE = "message";
+    private static final String TREATMENTS = "treatments";
     private static final String DRIVER_RESPONSE = "driver_response";
     /** The treatment type of a note rule's timeline entry. */
     static final String NOTE_TYPE = "evento del gps";
@@ -514,7 +515,7 @@ public class EngineCaseService {
         }
         for (EngineCaseStore.CaseNote n : notes) {
             int step = stepOf(aggs, n.recordedAt().atOffset(java.time.ZoneOffset.UTC));
-            ((ArrayNode) aggs.get(step).get("treatments")).add(noteRow(n));
+            ((ArrayNode) aggs.get(step).get(TREATMENTS)).add(noteRow(n));
         }
     }
 
@@ -563,7 +564,7 @@ public class EngineCaseService {
         agg.put(ICU_CONDITION, condition(level));
         agg.put("count", 1);
         agg.putNull("assigned_to");
-        agg.set("treatments", JSON.arrayNode());
+        agg.set(TREATMENTS, JSON.arrayNode());
         agg.putNull("evidences");
     }
 
@@ -733,7 +734,7 @@ public class EngineCaseService {
         List<String> assignees = new ArrayList<>();
         // The header's own entries (the note rule's) stay; treatments follow them.
         aggs.forEach(agg -> {
-            rows.add(agg.path("treatments") instanceof ArrayNode kept ? kept.deepCopy() : JSON.arrayNode());
+            rows.add(agg.path(TREATMENTS) instanceof ArrayNode kept ? kept.deepCopy() : JSON.arrayNode());
             assignees.add(null);
         });
         for (TreatmentView t : treatments) {
@@ -755,7 +756,7 @@ public class EngineCaseService {
             }
         }
         for (int i = 0; i < aggs.size(); i++) {
-            aggs.get(i).set("treatments", rows.get(i));
+            aggs.get(i).set(TREATMENTS, rows.get(i));
             aggs.get(i).put("assigned_to", assignees.get(i));
         }
         return out;

@@ -20,8 +20,8 @@ import org.jboss.logging.Logger;
  * How many frames of each event type ({@code signal.frame.events[].event_type}) an organization received, per UTC
  * day, so the rule editor can offer the codes its GPS providers send. In Redis, {@code
  * symptoms:event-types:<tenant>:<day>} is a hash of type to count that expires {@link #TTL} after its last
- * write; without Redis the counts are kept in memory. At most {@link #MAX_TYPES} types a day, each cut to
- * {@link #MAX_LENGTH} characters; only the type is kept.
+ * write; without Redis the counts are kept in memory. At most {@link #MAX_TYPES} types a day, omitting codes
+ * longer than {@link #MAX_LENGTH} characters; only the exact type is kept.
  */
 public class EventTypes {
 
@@ -117,9 +117,9 @@ public class EventTypes {
         Set<String> out = new LinkedHashSet<>();
         if (signal.get("frame") instanceof Map<?, ?> frame && frame.get("events") instanceof List<?> events) {
             for (Object e : events) {
-                if (e instanceof Map<?, ?> m && m.get("event_type") instanceof String t && !t.isBlank()) {
-                    String type = t.strip();
-                    out.add(type.length() > MAX_LENGTH ? type.substring(0, MAX_LENGTH) : type);
+                if (e instanceof Map<?, ?> m && m.get("event_type") instanceof String t
+                        && !t.isBlank() && t.length() <= MAX_LENGTH) {
+                    out.add(t);
                 }
             }
         }

@@ -59,7 +59,7 @@ A part the builder does not know is left out. `frame` is always present. A rule 
 | `lifecycle.close` | When it holds on a signal of an open case, the case closes. Example: `case.closed_by_operator \|\| signal.frame.events.exists(e, e.event_type == "main_power_reconnect")` |
 | `lifecycle.note` | Optional. When it holds on a signal of an open case that does not close it, the case's timeline gets an entry with the matching event's `event_type`, `description` and time, in the level step of that signal. The case does not change and no event is sent. The entry names the first event the rule holds for on its own; when it holds only for the frame as a whole, it has the frame's time and no event |
 
-A note is a `NOTED` row of `signal_transitions`, its `context` `{"note": {"event_type", "description", "at"}}`.
+A note is a `NOTED` row of `signal_transitions`, its `context` `{"note": {"event_type", "description", "at"}}`. A database constraint allows only one note per organization, symptom, vehicle and frame time, including concurrent redeliveries.
 
 ### Late frames
 
@@ -67,7 +67,7 @@ A device stores events while it has no network and sends them late, after newer 
 
 | Rule that reads an event | What the late frame does |
 |---|---|
-| Activation, measure or a level | Opens the case when the symptom has none open; a step that does not open is undone |
+| Activation, open, measure or a level | Opens the case when the symptom has none open; a step that does not open is undone |
 | Close or note | On an open case, and only when the frame is not older than the case: runs the close rule, else the note rule. The level does not change |
 
 ## Signal builder

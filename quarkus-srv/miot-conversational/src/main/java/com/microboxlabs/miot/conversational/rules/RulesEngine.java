@@ -274,6 +274,10 @@ public class RulesEngine {
     }
 
     private void advance(Run run, Instant now) {
+        if (runs.ignoredSince(run)) {
+            runs.updateIfWaiting(run.advanced(Run.Status.CANCELLED, run.step(), null, null, now));
+            return;
+        }
         Optional<RuleSpec> found = spec(run);
         Optional<StoredEvent> event = runs.event(run.eventId());
         if (found.isEmpty() || event.isEmpty()) {

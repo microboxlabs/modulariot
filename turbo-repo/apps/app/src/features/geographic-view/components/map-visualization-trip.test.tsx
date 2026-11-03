@@ -1,22 +1,33 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { Layer, PickingInfo } from "@deck.gl/core";
+import { ScatterplotLayer } from "deck.gl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { MapPosition } from "../types/map";
+import { PulsePinLayer } from "./layers/pulse";
 import MapVisualizationTrip from "./map-visualization-trip";
+
+const mapState = vi.hoisted(() => ({ layers: [] as Layer[] }));
 
 // lo pesado (mapa, barra, panel, datos) queda fuera: se prueba el marco
 vi.mock("@/features/map-visualization/map-visualization", () => ({
   default: ({
     children,
     rounded,
+    layers = [],
   }: {
     children?: ReactNode;
     rounded?: boolean | "left";
-  }) => (
-    <div data-testid="mapa" data-rounded={String(rounded)}>
-      {children}
-    </div>
-  ),
+    layers?: Layer[];
+  }) => {
+    mapState.layers = layers;
+    return (
+      <div data-testid="mapa" data-rounded={String(rounded)}>
+        {children}
+      </div>
+    );
+  },
 }));
 vi.mock("@/features/common/providers/client-api.provider", () => ({
   useGeofences: () => ({ geofence_data: null }),
@@ -220,6 +231,128 @@ describe("MapVisualizationTrip controls", () => {
     expect(screen.getByTestId("externas")).toHaveTextContent(
       "Geocercas del viaje"
     );
+  });
+});
+
+describe("case map frames", () => {
+  const positions = [
+    { timestamp: "2026-01-01T09:55:00Z", delay_s: 900, speed: 40 },
+    { timestamp: "2026-01-01T10:05:00Z", delay_s: 900, speed: 40 },
+    { timestamp: "2026-01-01T10:10:00Z", delay_s: 0, speed: 0 },
+  ].map((frame, index) => ({
+    assetid: "DEMO-1",
+    longitude: 1 + index / 100,
+    latitude: 1,
+    heading: 0,
+    ...frame,
+  })) as MapPosition[];
+  const caseSpans = [
+    {
+      start: "2026-01-01T10:00:00Z",
+      end: "2026-01-01T10:15:00Z",
+      level: 2,
+      name: "Demo symptom",
+    },
+  ];
+  const frameDict: I18nRecord = {
+    ...dict,
+    symptoms: {
+      license_plate: "Vehicle",
+      compromised_condition: "Compromised condition",
+    },
+  };
+  const props = {
+    tripId: "demo-trip",
+    positions,
+    caseSpans,
+    isLoading: false,
+    error: null,
+    filteredLocationData: null,
+    dict: frameDict,
+    selectedTreatmentIndex: null,
+  };
+
+  function pulseLayer() {
+    const layer = mapState.layers.find((item) => item instanceof PulsePinLayer);
+    if (!layer) throw new Error("Missing frame layer");
+    return layer;
+  }
+
+  function markerColor(
+    layer: Layer | undefined,
+    frame: object,
+    accessor: "getFillColor" | "getLineColor" = "getFillColor"
+  ) {
+    if (!(layer instanceof ScatterplotLayer))
+      throw new Error("Missing marker layer");
+    const color = layer.props[accessor];
+    return typeof color === "function"
+      ? color(frame, { index: 0, data: [frame], target: [] })
+      : color;
+  }
+
+  it("keeps a frame blue and shows its symptom and level when clicked", () => {
+    render(<MapVisualizationTrip {...props} />);
+    const layer = pulseLayer();
+    const frame = layer.props.data.features[1];
+    expect(frame.properties).toMatchObject({
+      icu_code: 0,
+      symptom_level: 2,
+      symptom_name: "Demo symptom",
+    });
+    const moving = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-moving-vehicles-layer");
+    expect(markerColor(moving, frame)).toEqual([28, 100, 242, 255]);
+
+    act(() => {
+      layer.props.onClick({ object: frame } as PickingInfo, {});
+    });
+    expect(screen.getByText("Demo symptom")).toBeInTheDocument();
+    expect(screen.getByText("Compromised condition")).toBeInTheDocument();
+  });
+
+  it("rings the selected symptom's frames and keeps late frames amber inside and outside the case", () => {
+    const { rerender } = render(<MapVisualizationTrip {...props} />);
+    rerender(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={{
+          type: "FeatureCollection",
+          description: {},
+          features: positions.slice(1).map((frame) => ({
+            type: "Feature",
+            geometry: "Point",
+            longitude: frame.longitude,
+            latitude: frame.latitude,
+            properties: { speed: frame.speed, timestamp: frame.timestamp },
+            status: "demo",
+          })),
+        }}
+      />
+    );
+    const layer = pulseLayer();
+    expect(layer.props.selectedPulse).toEqual([1, 2]);
+    const selected = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-selected-background-layer");
+    expect(selected?.props.data).toEqual(layer.props.data.features.slice(1));
+    const frame = layer.props.data.features[2];
+    expect(markerColor(selected, frame)).toEqual([255, 255, 255, 255]);
+    const stopped = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-selected-stopped-vehicles-layer");
+    expect(markerColor(stopped, frame)).toEqual([255, 255, 255, 255]);
+    expect(markerColor(stopped, frame, "getLineColor")).toEqual([
+      28, 100, 242, 255,
+    ]);
+    const late = mapState.layers.find((item) => item.id === "late-frames");
+    expect(late?.props).toMatchObject({
+      data: positions.slice(0, 2),
+      filled: false,
+      stroked: true,
+      getLineColor: [245, 158, 11, 255],
+    });
   });
 });
 

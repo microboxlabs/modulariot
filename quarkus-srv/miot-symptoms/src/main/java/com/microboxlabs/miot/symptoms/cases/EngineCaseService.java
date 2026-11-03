@@ -697,28 +697,33 @@ public class EngineCaseService {
         List<ObjectNode> aggs = new ArrayList<>();
         out.path("timeline").forEach(entry -> entry.path(CONDITIONS_AGG).forEach(agg -> aggs.add((ObjectNode) agg)));
         List<ArrayNode> rows = new ArrayList<>();
-        aggs.forEach(agg -> rows.add(JSON.arrayNode()));
-        String assignedTo = null;
+        // A step is assigned to whoever treated the case during it; a step with no treatment has nobody.
+        List<String> assignees = new ArrayList<>();
+        aggs.forEach(agg -> {
+            rows.add(JSON.arrayNode());
+            assignees.add(null);
+        });
         for (TreatmentView t : treatments) {
-            if (t.status() == TreatmentStatus.CANCELLED) {
+            if (t.status() == TreatmentStatus.CANCELLED || aggs.isEmpty()) {
                 continue;
             }
-            assignedTo = t.closedBy() != null ? t.closedBy() : t.openedBy();
-            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE)
-                    .forEach(a -> {
-                        if (!aggs.isEmpty()) {
-                            rows.get(stepOf(aggs, a.performedAt())).add(timelineRow(a));
-                        }
-                    });
-            if (!aggs.isEmpty() && t.status() == TreatmentStatus.CLOSED && t.resolution() != null
+            String operator = t.closedBy() != null ? t.closedBy() : t.openedBy();
+            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> {
+                int step = stepOf(aggs, a.performedAt());
+                rows.get(step).add(timelineRow(a));
+                assignees.set(step, operator);
+            });
+            if (t.status() == TreatmentStatus.CLOSED && t.resolution() != null
                     && HoldService.ENDINGS.contains(t.resolution())
                     && t.actions().stream().anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
-                rows.get(stepOf(aggs, t.closedAt())).add(holdEnd(t));
+                int step = stepOf(aggs, t.closedAt());
+                rows.get(step).add(holdEnd(t));
+                assignees.set(step, operator);
             }
         }
         for (int i = 0; i < aggs.size(); i++) {
             aggs.get(i).set("treatments", rows.get(i));
-            aggs.get(i).put("assigned_to", assignedTo);
+            aggs.get(i).put("assigned_to", assignees.get(i));
         }
         return out;
     }

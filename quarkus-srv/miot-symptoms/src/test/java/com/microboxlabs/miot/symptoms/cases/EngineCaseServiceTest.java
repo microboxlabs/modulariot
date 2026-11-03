@@ -585,6 +585,23 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void onlyTheStepsThatWereTreatedShowTheOperator() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                actionAt(OPENED.plusSeconds(20_000), "En L4")));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg");
+
+        for (int i = 0; i < 3; i++) {
+            assertTrue(aggs.get(i).path("assigned_to").isNull(), "untreated step " + (i + 1) + " has no operator");
+            assertEquals(List.of(), messages(aggs.get(i)));
+        }
+        assertEquals("operator@example.com", aggs.get(3).path("assigned_to").asText());
+        assertEquals(List.of("Llamado a: En L4"), messages(aggs.get(3)));
+    }
+
+    @Test
     void aCaseWithoutStepsKeepsOneBlock() {
         store.add(panic(12, "DEMO01"));
 

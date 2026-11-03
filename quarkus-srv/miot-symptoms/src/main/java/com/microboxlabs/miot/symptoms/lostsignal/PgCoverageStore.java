@@ -40,6 +40,17 @@ public class PgCoverageStore implements CoverageStore {
             ON CONFLICT (day) DO UPDATE SET frames = EXCLUDED.frames, finished_at = EXCLUDED.finished_at
             """;
 
+    // One statement gives both tables the same MVCC snapshot, including during a daily replacement.
+    private static final String READ_SNAPSHOT = """
+            SELECT sender, cell, day, frames, delayed, missing,
+                   NULL::float8 AS median_delay_s, NULL::float8 AS median_interval_s, false AS anomalous
+            FROM miot_symptoms.coverage_day WHERE day >= $1
+            UNION ALL
+            SELECT sender, NULL::varchar AS cell, day, frames, delayed, missing,
+                   median_delay_s, median_interval_s, anomalous
+            FROM miot_symptoms.coverage_sender_day WHERE day >= $1
+            """;
+
     private final Supplier<Pool> pool;
 
     public PgCoverageStore(Supplier<Pool> pool) {
@@ -117,13 +128,26 @@ public class PgCoverageStore implements CoverageStore {
     }
 
     @Override
+    public Snapshot snapshot(LocalDate from) {
+        List<CellDay> cells = new ArrayList<>();
+        List<SenderDay> senders = new ArrayList<>();
+        for (Row r : pool.get().preparedQuery(READ_SNAPSHOT).execute(Tuple.of(from)).await().atMost(QUERY_TIMEOUT)) {
+            if (r.getString("cell") == null) {
+                senders.add(sender(r));
+            } else {
+                cells.add(cell(r));
+            }
+        }
+        return new Snapshot(cells, senders);
+    }
+
+    @Override
     public List<CellDay> cells(LocalDate from) {
         List<CellDay> out = new ArrayList<>();
         for (Row r : pool.get().preparedQuery("""
                 SELECT sender, cell, day, frames, delayed, missing FROM miot_symptoms.coverage_day WHERE day >= $1
                 """).execute(Tuple.of(from)).await().atMost(QUERY_TIMEOUT)) {
-            out.add(new CellDay(r.getString("sender"), r.getString("cell"), r.getLocalDate("day"),
-                    r.getInteger("frames"), r.getInteger("delayed"), r.getDouble("missing")));
+            out.add(cell(r));
         }
         return out;
     }
@@ -135,11 +159,20 @@ public class PgCoverageStore implements CoverageStore {
                 SELECT sender, day, frames, delayed, missing, median_delay_s, median_interval_s, anomalous
                 FROM miot_symptoms.coverage_sender_day WHERE day >= $1
                 """).execute(Tuple.of(from)).await().atMost(QUERY_TIMEOUT)) {
-            out.add(new SenderDay(r.getString("sender"), r.getLocalDate("day"), r.getInteger("frames"),
-                    r.getInteger("delayed"), r.getDouble("missing"), r.getDouble("median_delay_s"),
-                    r.getDouble("median_interval_s"), r.getBoolean("anomalous")));
+            out.add(sender(r));
         }
         return out;
+    }
+
+    private static CellDay cell(Row r) {
+        return new CellDay(r.getString("sender"), r.getString("cell"), r.getLocalDate("day"),
+                r.getInteger("frames"), r.getInteger("delayed"), r.getDouble("missing"));
+    }
+
+    private static SenderDay sender(Row r) {
+        return new SenderDay(r.getString("sender"), r.getLocalDate("day"), r.getInteger("frames"),
+                r.getInteger("delayed"), r.getDouble("missing"), r.getDouble("median_delay_s"),
+                r.getDouble("median_interval_s"), r.getBoolean("anomalous"));
     }
 
     @Override

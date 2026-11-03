@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
+import com.microboxlabs.miot.symptoms.lostsignal.CoverageMap;
+import com.microboxlabs.miot.symptoms.lostsignal.ShadowMap;
 import com.microboxlabs.miot.symptoms.evaluator.evals.LostSignalReplay.Change;
 import com.microboxlabs.miot.symptoms.evaluator.evals.LostSignalReplay.Frame;
 import com.microboxlabs.miot.symptoms.evaluator.evals.LostSignalReplay.Result;
@@ -68,8 +70,8 @@ class LostSignalScenariosEvalTest {
         double shadowLat = LAT + 0.52;
         double shadowLon = LON + 0.52;
         List<Frame> frames = new ArrayList<>();
-        // Other vehicles of two senders cross the cell: GPS keeps fixing, the cellular network does not. They are
-        // off any trip, so none of them is ever lost and the case can only stay low through low coverage.
+        // Other vehicles of two senders crossed the cell yesterday: GPS kept fixing, the cellular network did not.
+        // They are off any trip, so none of them is ever lost and the case can only stay low through low coverage.
         for (int v = 0; v < 6; v++) {
             String sender = v % 2 == 0 ? "ON-TIME" : "OTHER";
             List<Frame> pass = new ArrayList<>(LostSignalReplay.steady("PASS" + v, sender, 0, WARM, 30, 3, 80, true,
@@ -90,7 +92,11 @@ class LostSignalScenariosEvalTest {
         frames.addAll(LostSignalReplay.steady("SHADOW", "ON-TIME", back + 30, back + 600, 30, 3, 80, true, LAT,
                 LON));
 
-        Result r = LostSignalReplay.run(frames, back + 700);
+        ShadowMap map = LostSignalReplay.coverage(frames.stream().filter(f -> f.vehicle().startsWith("PASS"))
+                .toList());
+        assertTrue(map.level("ON-TIME", CoverageMap.cell(shadowLat, shadowLon)).shadow());
+
+        Result r = LostSignalReplay.run(frames, back + 700, map);
 
         assertEquals(1, r.topLevel("SHADOW"), "past L, but the cell is low coverage");
         assertEquals(List.of(Kind.OPENED, Kind.CLOSED), r.of("SHADOW").stream().map(Change::kind).toList(),

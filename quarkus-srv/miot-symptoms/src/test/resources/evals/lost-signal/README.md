@@ -40,7 +40,7 @@ From one day of a carrier fleet's trips. Each signal's arrival time came from th
 | Abrupt cut at 80 km/h, sender delivers in 3 s, frames every 30 s | Opens 60–120 s after the last frame arrived; level 2 at L (30 min) |
 | Slow reporter, a frame every 10 min | No case |
 | Engine off at a stop, a frame every 20–40 min | No case |
-| Cut inside a cell where two senders' frames arrive delayed; returns after 40 min with the buffer | Level 1 past L (low coverage); closes on return with template 2.2.0 |
+| Cut inside a cell where two senders' frames arrived delayed the day before (shadow map built from them); returns after 40 min with the buffer | Level 1 past L (low coverage); closes on return with template 2.2.0 |
 | Sender that forwards every 20 min, 5 vehicles | No case |
 | 5 vehicles of one sender silent at once for 45 min | 5 cases, all at level 1 (group outage) |
 | A frame from before the silence arrives 20 min into it | Silence not reset: level 2 at L from the newest frame; no return |

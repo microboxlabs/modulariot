@@ -336,7 +336,7 @@ class EngineCaseServiceTest {
                  "last": {"at": "%s"}}}}
                 """.formatted(lostSince));
         return new EngineCase(id, PANIC, "2.1.0", "Pérdida de señal", "signal_continuity", "DEMO01", OPENED, 1,
-                "T-1", -33.4489, -70.6693, 0.0, closed, 0, null, 0L, null, context,
+                "T-1", -33.4489, -70.6693, 0.0, closed, 0, null, 0L, null, context, context,
                 "check.loss.silence_s < 1800 || check.loss.low_coverage_zone",
                 List.of(new EngineCase.LevelStep(OPENED, 1)));
     }
@@ -407,6 +407,24 @@ class EngineCaseServiceTest {
         store.add(lostSignal(12, OPENED.plusSeconds(10), null));
 
         assertEquals(OPENED.toString(), service.header(TENANT, -12).path("timeline").get(0).path("start").asText());
+    }
+
+    @Test
+    void aLevelChangeOnReturnKeepsTheOriginalSilenceStart() throws Exception {
+        Instant lost = OPENED.minusSeconds(660);
+        EngineCase opened = lostSignal(12, lost, null);
+        JsonNode returned = new ObjectMapper().readTree("""
+                {"check":{"loss":{"returned":true,"last":{"at":"%s"}}}}
+                """.formatted(OPENED.plusSeconds(60)));
+        store.add(opened.withLevel(opened.openingContext(), returned, "check.loss.returned", opened.levels()));
+
+        JsonNode header = service.header(TENANT, -12);
+
+        assertEquals(lost.toString(), header.path("timeline").get(0).path("start").asText());
+        assertEquals(lost.toString(), header.path("level_reason").path("lost_since").asText());
+        assertTrue(header.path("level_reason").path("context").path("check").path("loss").path("returned").asBoolean());
+        assertEquals(750, header.path("symptom_info").path("duration_sec").asLong());
+        assertEquals(lost.minusSeconds(3600), service.signalWindow(TENANT, -12).from());
     }
 
     @Test

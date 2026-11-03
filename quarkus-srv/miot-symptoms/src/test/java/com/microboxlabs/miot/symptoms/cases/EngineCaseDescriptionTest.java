@@ -68,7 +68,10 @@ class EngineCaseDescriptionTest {
     @Test
     void aClosedLostSignalShowsTheSilenceUntilTheSignalReturned() throws Exception {
         Instant back = LOST.plusSeconds(3725);
-        JsonNode d = EngineCaseService.description(lostSignal(back.plusSeconds(60), lossAt(back, 20, true, null)),
+        JsonNode closing = lossAt(back, 20, true, null);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) closing.path("check").path("loss"))
+                .put("returned_frame_at", back.toString());
+        JsonNode d = EngineCaseService.description(lostSignal(back.plusSeconds(60), closing),
                 back.plusSeconds(60), Optional.empty(), NOW);
 
         assertEquals("01:02:05", d.path("signal_lag").asText(), "from the last frame before to the return");
@@ -86,6 +89,13 @@ class EngineCaseDescriptionTest {
         JsonNode d = EngineCaseService.description(lostSignal(back.plusSeconds(65), closing), NOW,
                 Optional.empty(), NOW);
         assertEquals("00:06:40", d.path("signal_lag").asText());
+    }
+
+    @Test
+    void aLegacyReturnWithoutItsFirstGpsTimeHasNoReliableClosedSignalLag() throws Exception {
+        JsonNode closing = lossAt(LOST.plusSeconds(440), 25, true, true);
+        JsonNode d = EngineCaseService.description(lostSignal(NOW, closing), NOW, Optional.empty(), NOW);
+        assertFalse(d.has("signal_lag"), "the newest frame and current silence do not identify the return");
     }
 
     @Test

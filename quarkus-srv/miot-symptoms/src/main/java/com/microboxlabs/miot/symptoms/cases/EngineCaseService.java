@@ -596,13 +596,11 @@ public class EngineCaseService {
         if (loss == null || !loss.isObject()) {
             return null;
         }
-        Instant lostSince = lostSince(c.openingContext());
-        Instant back = contextInstant(loss.path("returned_frame_at"));
-        if (back == null) {
-            back = lostSince(c.closingContext()); // contexts written before the first return frame was kept
-        }
-        if (loss.path("returned").asBoolean(false) && lostSince != null && back != null && back.isAfter(lostSince)) {
-            return Duration.between(lostSince, back).toSeconds();
+        if (loss.path("returned").asBoolean(false)) {
+            Instant lostSince = lostSince(c.openingContext());
+            Instant back = contextInstant(loss.path("returned_frame_at"));
+            return lostSince != null && back != null && back.isAfter(lostSince)
+                    ? Duration.between(lostSince, back).toSeconds() : null;
         }
         return loss.path("silence_s").isNumber() ? Math.round(loss.path("silence_s").asDouble()) : null;
     }

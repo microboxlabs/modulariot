@@ -103,7 +103,7 @@ An engine case's map popup (`signals`, `description`) carries the GPS database's
 
 | Field | Value |
 |---|---|
-| `signal_lag` | Lost signal only. Open: now − GPS time of the newest frame. Closed: the closing transition's context, from the last frame before the loss to the first frame that returned (`check.loss.returned_frame_at`), or `check.loss.silence_s` when it did not return; absent without a closing context (an operator's close) |
+| `signal_lag` | Lost signal only. Open: now − GPS time of the newest frame. Closed: the closing transition's context, from the last frame before the loss to the first frame that returned (`check.loss.returned_frame_at`), or `check.loss.silence_s` when it did not return; absent without a closing context (an operator's close) or without a recorded first returning GPS time |
 | `median_report_interval` | Median of the vehicle's gaps in its current motion (its most sampled motion until it has a gap there), `HH:MM:SS`; absent without a profile |
 | `last_reported_engine_status` | The profile's newest frame; for a lost signal without it, `check.loss.last.engine` of the closing, level or opening context |
 

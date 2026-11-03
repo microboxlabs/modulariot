@@ -10,6 +10,8 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
+import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.lostsignal.SignalStateReader.Reported;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -102,10 +105,21 @@ public class EngineCaseService {
     private final Function<Tuple, Row> trips;
     private final Clock clock;
     private final SymptomEvents events;
+    private final Vehicles vehicles;
+
+    /** What the lost-signal detector's profiles say about a vehicle now; empty without a profile. */
+    @FunctionalInterface
+    public interface Vehicles {
+        Vehicles NONE = (assetId, now) -> Optional.empty();
+
+        Optional<Reported> reported(String assetId, Instant now);
+    }
 
     @Inject
-    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events) {
-        this(store, evaluator::forget, t -> readTrip(pool.get(), t), Clock.systemUTC(), events);
+    EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, Instance<Pool> pool, SymptomEvents events,
+            LostSignalDetector lostSignal) {
+        this(store, evaluator::forget, t -> readTrip(pool.get(), t), Clock.systemUTC(), events,
+                lostSignal::reported);
     }
 
     private static Row readTrip(Pool pool, Tuple key) {
@@ -123,6 +137,12 @@ public class EngineCaseService {
 
     public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
             SymptomEvents events) {
+        this(store, forget, trips, clock, events, Vehicles.NONE);
+    }
+
+    public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock,
+            SymptomEvents events, Vehicles vehicles) {
+        this.vehicles = vehicles;
         this.store = store;
         this.forget = forget;
         this.trips = trips;
@@ -514,15 +534,85 @@ public class EngineCaseService {
             props.put("timestamp", start(c).toString());
             props.put(ICU_CODE, c.level());
         }
-        ObjectNode description = out.putObject("description");
-        description.put(SYMPTOM_NAME, c.name());
-        description.put(ICU_CODE, c.level());
-        description.put("first_signal_timestamp", start(c).toString());
-        description.put("last_signal_timestamp", end(c).toString());
-        if (c.speedKmh() != null) {
-            description.put("last_reported_speed", c.speedKmh());
-        }
+        out.set("description", description(c, end(c), reported(c), clock.instant()));
         return out;
+    }
+
+    /** A failed read leaves the popup without the profile's lines. */
+    private Optional<Reported> reported(EngineCase c) {
+        try {
+            return vehicles.reported(c.assetId(), clock.instant());
+        } catch (RuntimeException e) {
+            LOG.debugf("Engine case: vehicle profile not read (%s)", e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * The map popup's lines, with the GPS database's names and formats. A lost signal (a {@code trip_check}
+     * case) adds {@code signal_lag}: while open, now minus the GPS time of the vehicle's newest frame; once
+     * closed, the silence the closing check read (from the last frame before the loss to the one that returned,
+     * or {@code check.loss.silence_s} when it did not return), or nothing without a closing context. Any case
+     * adds the vehicle's usual report interval ({@code median_report_interval}) and the newest frame's engine
+     * status when the detector has a profile; a lost signal falls back to the engine its checks read.
+     */
+    static ObjectNode description(EngineCase c, Instant end, Optional<Reported> reported, Instant now) {
+        ObjectNode d = JSON.objectNode();
+        d.put(SYMPTOM_NAME, c.name());
+        d.put(ICU_CODE, c.level());
+        d.put("first_signal_timestamp", start(c).toString());
+        d.put("last_signal_timestamp", end.toString());
+        if (c.speedKmh() != null) {
+            d.put("last_reported_speed", c.speedKmh());
+        }
+        boolean lost = c.openingContext() != null && c.openingContext().path("check").path("loss").isObject();
+        Long lag = lost ? signalLag(c, reported, now) : null;
+        if (lag != null) {
+            d.put("signal_lag", hms(lag));
+        }
+        reported.map(Reported::medianIntervalS).ifPresent(s -> d.put("median_report_interval", hms(s)));
+        Boolean engine = reported.map(Reported::engineOn).orElse(null);
+        if (engine == null && lost) {
+            engine = contextEngine(c.closingContext(), c.levelContext(), c.openingContext());
+        }
+        if (engine != null) {
+            d.put("last_reported_engine_status", engine);
+        }
+        return d;
+    }
+
+    private static Long signalLag(EngineCase c, Optional<Reported> reported, Instant now) {
+        if (c.closedAt() == null) {
+            Instant last = reported.map(r -> r.state().lastFrameAt()).orElse(null);
+            return last == null ? null : Math.max(0, Duration.between(last, now).toSeconds());
+        }
+        JsonNode loss = c.closingContext() == null ? null : c.closingContext().path("check").path("loss");
+        if (loss == null || !loss.isObject()) {
+            return null;
+        }
+        Instant lostSince = lostSince(c.openingContext());
+        Instant back = lostSince(c.closingContext());
+        if (loss.path("returned").asBoolean(false) && lostSince != null && back != null && back.isAfter(lostSince)) {
+            return Duration.between(lostSince, back).toSeconds();
+        }
+        return loss.path("silence_s").isNumber() ? Math.round(loss.path("silence_s").asDouble()) : null;
+    }
+
+    private static Boolean contextEngine(JsonNode... contexts) {
+        for (JsonNode context : contexts) {
+            JsonNode engine = context == null ? null
+                    : context.path("check").path("loss").path("last").path("engine");
+            if (engine != null && engine.isBoolean()) {
+                return engine.asBoolean();
+            }
+        }
+        return null;
+    }
+
+    /** Seconds as the GPS database writes intervals: HH:MM:SS, hours past 24 kept. */
+    static String hms(long seconds) {
+        long s = Math.max(0, seconds);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d:%02d", s / 3600, s % 3600 / 60, s % 60);
     }
 
     /**

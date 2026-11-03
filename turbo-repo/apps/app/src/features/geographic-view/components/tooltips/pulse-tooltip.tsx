@@ -16,6 +16,17 @@ export function formatDelay(seconds: number): string {
     ? `${Math.floor(minutes / 60)} h ${rest} min`
     : `${minutes / 60} h`;
 }
+/**
+ * The symptom's title: the legacy key `dict.symptoms[NAME]` when there is one,
+ * else the name itself, as the evaluator's symptoms ("Pérdida de señal") are
+ * named by their organization.
+ */
+export function symptomTitle(name: string, dict: I18nRecord): string {
+  const symptoms = dict.symptoms as I18nRecord | undefined;
+  const translated = symptoms?.[name.toUpperCase()];
+  return typeof translated === "string" && translated ? translated : name;
+}
+
 export type PulseListType = {
   elements: number[];
   description: DescriptionProps;
@@ -68,11 +79,7 @@ export default function PulseTooltip({
       <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
         {object.description.symptom_name != undefined && (
           <div className="text-m text-gray-600 dark:text-gray-300 font-light">
-            {
-              (dict.symptoms as I18nRecord)[
-                object.description.symptom_name.toUpperCase() as keyof typeof dict.symptoms
-              ] as string
-            }
+            {symptomTitle(object.description.symptom_name, dict)}
           </div>
         )}
         {object.description.zone_names != undefined && (
@@ -282,9 +289,7 @@ export default function PulseTooltip({
           <div>
             {object.properties.symptom_name && (
               <div className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                {((dict.symptoms as I18nRecord)[
-                  object.properties.symptom_name.toUpperCase()
-                ] as string) || object.properties.symptom_name}
+                {symptomTitle(object.properties.symptom_name, dict)}
               </div>
             )}
             <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">

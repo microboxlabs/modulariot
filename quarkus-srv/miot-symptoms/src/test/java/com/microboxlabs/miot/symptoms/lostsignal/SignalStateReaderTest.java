@@ -243,6 +243,25 @@ class SignalStateReaderTest {
         assertEquals(watch, seen.get("V1").watch());
     }
 
+    @Test
+    void theReportedLinesComeFromTheProfile() {
+        for (int i = 0; i <= 10; i++) {
+            profiles.observe(frame("V1", "S1", i * 30, i * 30 + 2, 50));
+        }
+        profiles.observe(new Frame("V1", "S1", T0.plusSeconds(330), T0.plusSeconds(332), -20.0, -69.0, 50.0, false));
+
+        SignalStateReader.Reported r = reader.reported("V1", T0.plusSeconds(340)).orElseThrow();
+
+        assertEquals(30L, r.medianIntervalS(), "no engine-off gap yet: the moving ones");
+        assertEquals(Boolean.FALSE, r.engineOn(), "the newest frame's engine");
+        assertEquals(Status.ONLINE, r.state().status());
+        assertTrue(reader.reported("V2", T0).isEmpty(), "no profile");
+
+        profiles.observe(new Frame("V1", "S1", T0.plusSeconds(930), T0.plusSeconds(932), -20.0, -69.0, 0.0, false));
+        assertEquals(600L, reader.reported("V1", T0.plusSeconds(940)).orElseThrow().medianIntervalS(),
+                "its current motion once it has a gap there");
+    }
+
     private static Response fields(String profile, String watch) {
         MultiType m = MultiType.create(2, false);
         m.add(profile == null ? null : BulkType.create(Buffer.buffer(profile), false));

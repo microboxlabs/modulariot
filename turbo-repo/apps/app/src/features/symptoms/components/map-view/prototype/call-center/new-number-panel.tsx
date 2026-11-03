@@ -11,6 +11,7 @@ import { useState, type SubmitEvent } from "react";
 import { TextInput } from "flowbite-react";
 import { HiArrowLeft, HiOutlineBookmark, HiPhone } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { NewContactPreset } from "./call-targets";
 import { tr } from "@/features/i18n/tr.service";
 import PhoneInput, {
   isValidPhone,
@@ -22,6 +23,8 @@ export type NewNumberAction = "call" | "callAndSave";
 export interface NewNumberDraft {
   phone: string;
   name: string;
+  /** Set from an empty trip step: the role and RUTs the saved contact gets. */
+  preset?: NewContactPreset;
 }
 
 /** Pre-fills the panel from a search: something that looks like a number
@@ -31,6 +34,35 @@ export function draftFromQuery(query: string): NewNumberDraft {
   const looksLikeNumber = /^[+\d\s().-]+$/.test(text) && /\d/.test(text);
   if (!looksLikeNumber) return { phone: "", name: text };
   return { phone: toE164(text) ?? "", name: "" };
+}
+
+/** What "Llamar y guardar" saves besides the number and name. */
+function PresetLine({
+  preset,
+  dict,
+}: Readonly<{ preset: NewContactPreset; dict: I18nRecord }>) {
+  const role = preset.role || "—";
+  if (preset.companyRut) {
+    return (
+      <p className="text-xs text-gray-600 dark:text-gray-300">
+        {tr("symptoms.call_center_new_preset_company", dict, {
+          role,
+          rut: preset.companyRut,
+        })}
+      </p>
+    );
+  }
+  if (!preset.nationalId && !preset.role) return null;
+  return (
+    <p className="text-xs text-gray-600 dark:text-gray-300">
+      {preset.nationalId
+        ? tr("symptoms.call_center_new_preset", dict, {
+            role,
+            rut: preset.nationalId,
+          })
+        : preset.role}
+    </p>
+  );
 }
 
 /** Only calling needs a valid number; saving to the book also needs a name. */
@@ -80,6 +112,8 @@ export default function NewNumberPanel({
         <HiArrowLeft className="h-3.5 w-3.5" />
         {t("call_center_new_back")}
       </button>
+
+      {initial.preset && <PresetLine preset={initial.preset} dict={dict} />}
 
       <PhoneInput
         aria-label={t("call_center_new_phone_label")}

@@ -18,10 +18,15 @@ import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
-import { isDriverRole } from "@/features/symptoms/control-tower/contact-roles";
+import {
+  DRIVER_ROLE,
+  type StepTarget,
+} from "@/features/symptoms/control-tower/contact-roles";
 import {
   type TowerContact,
+  type TowerTripContacts,
   useSymptomTreatments,
+  useTripContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import {
   type Step,
@@ -39,13 +44,19 @@ import {
   fillScript,
   matchesTarget,
   stepAt,
+  tripMatches,
 } from "./call-plan";
 import {
   ALL_CALL_METHODS,
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-method";
-import { type CallTarget, stepMethod, useCallTargets } from "./call-targets";
+import {
+  type CallTarget,
+  type NewContactPreset,
+  stepMethod,
+  useCallTargets,
+} from "./call-targets";
 import ContactRow from "./contact-row";
 import { formatChileanPhone } from "./format-chilean-phone";
 import NewNumberPanel, {
@@ -71,9 +82,47 @@ function clock(seconds: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function roleText(step: Step, d: I18nRecord) {
-  if (isDriverRole(step.role)) return tr("driver", d);
-  return step.role?.trim() || tr("anyone", d);
+/** "Conductor del viaje", "<Rol> · <empresa transportista>" or "<Rol> · organización". */
+function targetText(
+  target: StepTarget | null,
+  carrierName: string | undefined,
+  d: I18nRecord
+) {
+  if (!target) return tr("anyone", d);
+  if (target.scope === "DRIVER") return tr("driver", d);
+  if (target.scope === "TRIP_CARRIER")
+    return tr("groupCarrier", d, {
+      role: target.role ?? tr("anyRole", d),
+      company: carrierName?.trim() || tr("tripCarrier", d),
+    });
+  return tr("groupOrg", d, { role: target.role ?? tr("anyone", d) });
+}
+
+/** What an empty step says. */
+function notInBookText(target: StepTarget | null, d: I18nRecord) {
+  if (target?.scope === "DRIVER") return tr("driverNotInBook", d);
+  if (target?.scope === "TRIP_CARRIER")
+    return target.role
+      ? tr("carrierRoleNotInBook", d, { role: target.role })
+      : tr("carrierNotInBook", d);
+  return tr("noContacts", d);
+}
+
+/** The role and RUTs a contact created from an empty trip step starts with. */
+function presetFor(
+  target: StepTarget | null,
+  trip: TowerTripContacts | undefined,
+  carrierName: string | undefined
+): NewContactPreset | undefined {
+  if (target?.scope === "DRIVER")
+    return { role: DRIVER_ROLE, nationalId: trip?.driverRuts[0] };
+  if (target?.scope === "TRIP_CARRIER")
+    return {
+      role: target.role ?? "",
+      companyRut: trip?.carrierRut ?? undefined,
+      company: carrierName?.trim() || undefined,
+    };
+  return undefined;
 }
 
 const NO_STEPS: Step[] = [];
@@ -155,11 +204,13 @@ function StepGroup({
   loading,
   called,
   treatmentData,
+  trip,
   canSkip,
   dict,
   d,
   onCall,
   onSkip,
+  onNewNumber,
 }: Readonly<{
   group: CallGroup;
   due: number;
@@ -168,12 +219,17 @@ function StepGroup({
   loading: boolean;
   called: ReadonlyMap<string, Date>;
   treatmentData: TreatmentsGeneralResponseItem | null;
+  /** The server's RUT lookup for the case's trip. */
+  trip: TowerTripContacts | undefined;
   canSkip: boolean;
   dict: I18nRecord;
   d: I18nRecord;
   onCall: (target: CallTarget) => void;
   onSkip: () => void;
+  onNewNumber: (draft: NewNumberDraft) => void;
 }>) {
+  const carrierName = treatmentData?.trip_info?.carrier;
+  const preset = presetFor(group.target, trip, carrierName);
   const { step, index } = group;
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
@@ -192,7 +248,9 @@ function StepGroup({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-[10px]">
           {index + 1}
         </span>
-        <span className="min-w-0 flex-1 truncate">{roleText(step, d)}</span>
+        <span className="min-w-0 flex-1 truncate">
+          {targetText(group.target, carrierName, d)}
+        </span>
         <span>{channelLabel(step.channel, d)}</span>
         <span className="w-12 text-right">{step.budgetMinutes ?? "—"} min</span>
       </div>
@@ -216,9 +274,19 @@ function StepGroup({
         />
       ))}
       {group.targets.length === 0 && !loading && (
-        <p className="border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-          {tr("noContacts", d)}
-        </p>
+        <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
+          <p className="min-w-0 flex-1">{notInBookText(group.target, d)}</p>
+          {preset && (
+            <button
+              type="button"
+              onClick={() => onNewNumber({ phone: "", name: "", preset })}
+              className="flex shrink-0 items-center gap-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              <HiPlus className="h-3.5 w-3.5" />
+              {tr("newNumber", d)}
+            </button>
+          )}
+        </div>
       )}
       {isDue && (
         <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -389,19 +457,24 @@ export default function CallCenterMenu({
     symptom?.name ?? null,
     symptom?.icu_code ?? null
   );
-  const { targets, addContact, isLoading } = useCallTargets(treatmentData);
-  // Only engine cases (negative ids) have Control Tower treatments.
+  const { targets, addContact, isLoading } = useCallTargets();
+  // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments } = useSymptomTreatments(caseId);
-  const called = useMemo(() => calledInCase(treatments), [treatments]);
+  const { data: tripView } = useTripContacts(caseId);
+  const trip = useMemo(() => tripMatches(tripView), [tripView]);
+  const called = useMemo(
+    () => calledInCase(treatments, trip.drivers),
+    [treatments, trip]
+  );
   const elapsed = useElapsed(startedAt);
   const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
 
   const response = level?.level.response;
   const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
   const plan = useMemo(
-    () => callPlan(steps, targets, called),
-    [steps, targets, called]
+    () => callPlan(steps, targets, called, trip),
+    [steps, targets, called, trip]
   );
   const due =
     steps.length > 0 ? Math.max(stepAt(steps, elapsed), skippedTo ?? 0) : -1;
@@ -411,7 +484,7 @@ export default function CallCenterMenu({
   const sla = (response?.slaMinutes ?? 0) * 60;
 
   const handleNewNumber = async (
-    { phone, name }: NewNumberDraft,
+    { phone, name, preset }: NewNumberDraft,
     action: NewNumberAction
   ) => {
     const number = phone.trim();
@@ -419,7 +492,11 @@ export default function CallCenterMenu({
     setAddDraft(null);
     if (action === "callAndSave") {
       try {
-        const saved = await addContact({ name: personName, phone: number });
+        const saved = await addContact({
+          name: personName,
+          phone: number,
+          preset,
+        });
         onCall(newTarget(saved, personName, number));
         return;
       } catch {
@@ -461,7 +538,11 @@ export default function CallCenterMenu({
           <p className="sr-only" role="status" aria-live="polite">
             {tr("dueStep", d, {
               n: String(due + 1),
-              role: roleText(steps[due], d),
+              role: targetText(
+                plan.groups[due]?.target ?? null,
+                treatmentData?.trip_info?.carrier,
+                d
+              ),
             })}
           </p>
         )}
@@ -480,6 +561,8 @@ export default function CallCenterMenu({
             <StepGroup
               key={`step-${group.index}`}
               group={group}
+              trip={tripView}
+              onNewNumber={setAddDraft}
               due={due}
               elapsed={elapsed}
               stepEnd={stepEnd}

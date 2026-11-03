@@ -52,6 +52,8 @@ const d = {
   stepWithin: "plazo",
   stepChannel: "Canal",
   stepRole: "Persona",
+  stepScope: "{label} · de",
+  stepScopeRole: "{label} · rol",
   stepBudget: "Minutos",
   stepScript: "Guion",
   stepScriptPlaceholder: "Qué decir {vars}",
@@ -74,7 +76,7 @@ const STEPS: Step[] = [
     budgetMinutes: 2,
     script: "Hola, el camión {{patente}} va por {{ruta}}",
   },
-  { role: "Transportista", channel: "whatsapp", budgetMinutes: 3, script: "" },
+  { role: "Jefe de turno", channel: "whatsapp", budgetMinutes: 3, script: "" },
 ];
 
 describe("LevelSteps", () => {
@@ -157,7 +159,7 @@ describe("LevelSteps", () => {
         onChange={onChange}
       />
     );
-    const second = screen.getByDisplayValue("Transportista");
+    const second = screen.getByDisplayValue("3");
     fireEvent.click(screen.getAllByLabelText("Subir")[1]!);
     view.rerender(
       <LevelSteps
@@ -168,8 +170,8 @@ describe("LevelSteps", () => {
         onChange={onChange}
       />
     );
-    expect(steps.map((s) => s.role)).toEqual(["Transportista", "Conductor"]);
-    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+    expect(steps.map((s) => s.role)).toEqual(["Jefe de turno", "Conductor"]);
+    expect(screen.getByDisplayValue("3")).toBe(second);
   });
 
   it("keeps the next step's own fields when the first is removed", () => {
@@ -184,11 +186,11 @@ describe("LevelSteps", () => {
       onChange,
     };
     const view = render(<LevelSteps steps={steps} {...props} />);
-    const second = screen.getByDisplayValue("Transportista");
+    const second = screen.getByDisplayValue("3");
     fireEvent.click(screen.getAllByLabelText("Quitar")[0]!);
     view.rerender(<LevelSteps steps={steps} {...props} />);
-    expect(steps.map((s) => s.role)).toEqual(["Transportista"]);
-    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+    expect(steps.map((s) => s.role)).toEqual(["Jefe de turno"]);
+    expect(screen.getByDisplayValue("3")).toBe(second);
   });
 
   it("shows a step's error under it and marks the field", () => {
@@ -206,12 +208,12 @@ describe("LevelSteps", () => {
     expect(
       within(items[0]!).getByText("El paso 1 no dice a quién contactar.")
     ).toBeTruthy();
-    expect(within(items[0]!).getByLabelText("Persona").className).toContain(
-      "border-red-500"
-    );
-    expect(within(items[1]!).getByLabelText("Persona").className).not.toContain(
-      "border-red-500"
-    );
+    expect(
+      within(items[0]!).getByLabelText("Persona · de").className
+    ).toContain("border-red-500");
+    expect(
+      within(items[1]!).getByLabelText("Persona · de").className
+    ).not.toContain("border-red-500");
   });
 
   it("lets readers read the script but not change the steps", () => {

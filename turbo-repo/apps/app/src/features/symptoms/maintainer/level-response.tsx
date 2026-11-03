@@ -4,10 +4,14 @@ import { ToggleSwitch } from "flowbite-react";
 import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import { useBookRoles } from "../control-tower/contact-roles";
+import {
+  storedTarget,
+  stepTarget,
+  useScopeRoles,
+} from "../control-tower/contact-roles";
 import LevelSteps, { type StepErrors } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
-import RolePicker, { RoleWarning } from "./role-picker";
+import TargetPicker, { RoleWarning } from "./role-picker";
 import { findingProblem, findingText, Problems } from "./rule-problems";
 import {
   FIELD,
@@ -92,7 +96,8 @@ function OperatorBlock({
   onChange: (patch: Partial<LevelResponse>) => void;
 }>) {
   const slaError = findings.find((f) => f.code === "operatorNeedsSla");
-  const roles = useBookRoles();
+  const roles = useScopeRoles();
+  const escalation = stepTarget(response.escalateTo, response.escalateScope);
   return (
     <ResponseBlock
       title={tr("operatorTitle", d)}
@@ -129,19 +134,24 @@ function OperatorBlock({
               />
               <span>min</span>
               <span className="ml-2">{tr("escalateTo", d)}</span>
-              <RolePicker
+              <TargetPicker
                 label={tr("escalateTo", d)}
                 className={FIELD}
-                wrapperClassName="min-w-40 flex-1"
                 disabled={readOnly}
-                value={response.escalateTo ?? null}
+                target={escalation}
                 roles={roles}
                 d={d}
-                onChange={(role) => onChange({ escalateTo: role || null })}
+                onChange={(next) => {
+                  const stored = storedTarget(next);
+                  onChange({
+                    escalateTo: next ? stored.role : null,
+                    escalateScope: stored.scope,
+                  });
+                }}
               />
             </FieldRow>
             <div className="sm:pl-[10.75rem]">
-              <RoleWarning value={response.escalateTo} roles={roles} d={d} />
+              <RoleWarning target={escalation} roles={roles} d={d} />
             </div>
             {slaError && (
               <div className="sm:pl-[10.75rem]">

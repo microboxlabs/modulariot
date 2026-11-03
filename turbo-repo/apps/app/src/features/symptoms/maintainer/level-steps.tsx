@@ -4,9 +4,13 @@ import { useState } from "react";
 import { HiArrowDown, HiArrowUp, HiPencil, HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import type { BookRole } from "../control-tower/contact-roles";
+import {
+  type ScopeRoles,
+  storedTarget,
+  stepTarget,
+} from "../control-tower/contact-roles";
 import type { Step } from "./maintainer-api";
-import RolePicker, { RoleWarning } from "./role-picker";
+import TargetPicker, { RoleWarning } from "./role-picker";
 import ScriptModal from "./script-modal";
 import { FIELD, FIELD_ERROR, FieldError } from "./ui/response-block";
 import Select from "./ui/select";
@@ -96,7 +100,7 @@ function StepItem({
   index: number;
   count: number;
   errors: StepErrors[number] | undefined;
-  roles: readonly BookRole[] | undefined;
+  roles: ScopeRoles | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onSet: (patch: Partial<Step>) => void;
@@ -106,6 +110,7 @@ function StepItem({
 }>) {
   const last = index === count - 1;
   const shown = scriptShown(step.script);
+  const target = stepTarget(step.role, step.scope);
   return (
     <li className="flex gap-3 px-3 py-2.5">
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gray-300 text-xs font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300">
@@ -130,15 +135,15 @@ function StepItem({
             ))}
           </Select>
           <span>{tr("stepTo", d)}</span>
-          <RolePicker
+          <TargetPicker
             label={tr("stepRole", d)}
-            className={`${FIELD} ${errorClass(errors?.contact)}`}
-            wrapperClassName="min-w-40 flex-1"
+            className={FIELD}
+            error={errors?.contact ? FIELD_ERROR : undefined}
             disabled={readOnly}
-            value={step.role}
+            target={target}
             roles={roles}
             d={d}
-            onChange={(role) => onSet({ role })}
+            onChange={(next) => onSet(storedTarget(next))}
           />
           <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
           <input
@@ -167,7 +172,7 @@ function StepItem({
             />
           )}
         </div>
-        <RoleWarning value={step.role} roles={roles} d={d} />
+        <RoleWarning target={target} roles={roles} d={d} />
         <FieldError text={errors?.contact} />
         <FieldError text={errors?.minutes} />
         <button
@@ -238,8 +243,8 @@ export default function LevelSteps({
   steps: Step[];
   slaMinutes: number | null;
   errors?: StepErrors;
-  /** The contact book's roles; undefined while they load. */
-  roles?: readonly BookRole[];
+  /** The contact book's roles per scope; undefined while they load. */
+  roles?: ScopeRoles;
   /** A source sample the script preview is filled from. */
   sample?: Record<string, unknown>;
   readOnly: boolean;

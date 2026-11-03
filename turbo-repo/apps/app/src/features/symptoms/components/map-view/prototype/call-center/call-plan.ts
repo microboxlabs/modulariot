@@ -1,13 +1,18 @@
 /**
  * The "A quién llamar" list: the level's operator steps in order, each with
- * the contacts that have its role, then everyone else in the book.
+ * the book contacts its target resolves to, then everyone else in the book.
  */
 
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import type { TowerTreatment } from "@/features/symptoms/control-tower/control-tower-api";
+import type {
+  TowerTreatment,
+  TowerTripContacts,
+} from "@/features/symptoms/control-tower/control-tower-api";
 import {
-  isDriverRole,
+  isCarrierContact,
   roleKey,
+  stepTarget,
+  type StepTarget,
 } from "@/features/symptoms/control-tower/contact-roles";
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import {
@@ -19,6 +24,8 @@ import {
 export interface CallGroup {
   index: number;
   step: Step;
+  /** Who the step contacts; null when the step does not say. */
+  target: StepTarget | null;
   /** Not yet called first; called in this case after, oldest call first. */
   targets: CallTarget[];
 }
@@ -29,18 +36,46 @@ export interface CallPlan {
   others: CallTarget[];
 }
 
-/** When each target was last called in the case, by row id. */
+/** The book contacts of the case's trip, as the server matched them by RUT. */
+export interface TripMatches {
+  drivers: ReadonlySet<string>;
+  carrierContacts: ReadonlySet<string>;
+}
+
+export const NO_TRIP_MATCHES: TripMatches = {
+  drivers: new Set(),
+  carrierContacts: new Set(),
+};
+
+export function tripMatches(view: TowerTripContacts | undefined): TripMatches {
+  if (!view) return NO_TRIP_MATCHES;
+  return {
+    drivers: new Set(view.drivers),
+    carrierContacts: new Set(view.carrierContacts),
+  };
+}
+
+/**
+ * When each contact was last called in the case, by contact id. Older CALL
+ * actions to the driver carry only the role: they count for each of the
+ * trip's drivers.
+ */
 export function calledInCase(
-  treatments: readonly TowerTreatment[] | undefined
+  treatments: readonly TowerTreatment[] | undefined,
+  drivers: ReadonlySet<string> = new Set()
 ): Map<string, Date> {
   const out = new Map<string, Date>();
+  const mark = (id: string, at: Date) => {
+    const previous = out.get(id);
+    if (!previous || previous < at) out.set(id, at);
+  };
   for (const t of treatments ?? []) {
     for (const action of t.actions) {
       const id = targetIdOfAction(action);
       if (!id) continue;
       const at = new Date(action.performedAt);
-      const previous = out.get(id);
-      if (!previous || previous < at) out.set(id, at);
+      if (id === DRIVER_TARGET_ID) for (const d of drivers) mark(d, at);
+      else mark(id, at);
     }
   }
   return out;
@@ -57,27 +92,38 @@ function calledLast(
   return [...pending, ...done];
 }
 
-function targetsOfStep(step: Step, targets: readonly CallTarget[]) {
-  if (isDriverRole(step.role)) {
-    return targets.filter((t) => t.id === DRIVER_TARGET_ID);
+/** The book contacts a step's target resolves to. */
+export function targetsOfStep(
+  target: StepTarget | null,
+  targets: readonly CallTarget[],
+  trip: TripMatches
+): CallTarget[] {
+  if (!target) return [];
+  if (target.scope === "DRIVER") {
+    return targets.filter((t) => trip.drivers.has(t.id));
   }
-  const key = roleKey(step.role);
+  const key = roleKey(target.role);
+  if (target.scope === "TRIP_CARRIER") {
+    return targets.filter(
+      (t) => trip.carrierContacts.has(t.id) && (!key || roleKey(t.role) === key)
+    );
+  }
   if (!key) return [];
-  return targets.filter(
-    (t) => t.id !== DRIVER_TARGET_ID && roleKey(t.role) === key
-  );
+  return targets.filter((t) => !isCarrierContact(t) && roleKey(t.role) === key);
 }
 
 export function callPlan(
   steps: readonly Step[],
   targets: readonly CallTarget[],
-  called: ReadonlyMap<string, Date> = new Map()
+  called: ReadonlyMap<string, Date> = new Map(),
+  trip: TripMatches = NO_TRIP_MATCHES
 ): CallPlan {
   const grouped = new Set<string>();
   const groups = steps.map((step, index) => {
-    const members = targetsOfStep(step, targets);
+    const target = stepTarget(step.role, step.scope);
+    const members = targetsOfStep(target, targets, trip);
     for (const t of members) grouped.add(t.id);
-    return { index, step, targets: calledLast(members, called) };
+    return { index, step, target, targets: calledLast(members, called) };
   });
   const others = calledLast(
     targets.filter((t) => !grouped.has(t.id)),

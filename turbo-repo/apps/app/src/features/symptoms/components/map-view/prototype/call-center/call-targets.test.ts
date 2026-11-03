@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TowerContact } from "@/features/symptoms/control-tower/control-tower-api";
-import { contactMethods, driverMethods, stepMethod } from "./call-targets";
+import { contactMethods, stepMethod } from "./call-targets";
 
 const contact = (patch: Partial<TowerContact>): TowerContact =>
   ({
@@ -48,15 +48,6 @@ describe("contactMethods", () => {
         contact({ methods: [], channels: { meet: "ana@example.com" } })
       )
     ).toEqual([]);
-  });
-});
-
-describe("driverMethods", () => {
-  it("offers phone and WhatsApp only with a number", () => {
-    expect(driverMethods("+56 9 3333 4444")).toEqual(["phone", "whatsapp"]);
-    expect(driverMethods("")).toEqual([]);
-    expect(driverMethods(null)).toEqual([]);
-    expect(driverMethods(undefined)).toEqual([]);
   });
 });
 

@@ -78,7 +78,7 @@ class PgTreatmentReadsTest {
         run("CREATE TABLE public.asset_client_map (asset_id text, shared_client_id text, active boolean, "
                 + "valid_from timestamptz, valid_to timestamptz, PRIMARY KEY (asset_id, shared_client_id))");
         run("CREATE TABLE public.asset_data (asset_id varchar, \"timestamp\" timestamptz, speed float8, "
-                + "heading float8, location geography)");
+                + "heading float8, location geography, created_datetime timestamptz)");
         run("CREATE INDEX ON public.asset_data (\"timestamp\", asset_id)");
         run("""
                 CREATE FUNCTION public.api_request_symptoms_client_id() RETURNS varchar LANGUAGE sql STABLE AS $$
@@ -128,7 +128,8 @@ class PgTreatmentReadsTest {
                     ('OP56', 'org-b', true, now() - interval '30 minutes', null)""");
         run("""
                 INSERT INTO public.asset_data
-                SELECT 'AB12', now() - interval '2 days' + i * interval '1 hour', 50, 90, public.miot_test_point(-70, -33)
+                SELECT 'AB12', now() - interval '2 days' + i * interval '1 hour', 50, 90, public.miot_test_point(-70, -33),
+                       now() - interval '2 days' + i * interval '1 hour' + CASE i WHEN 2 THEN interval '15 minutes' ELSE interval '5 seconds' END
                 FROM generate_series(1, 5) i""");
         run("""
                 INSERT INTO public.asset_data
@@ -221,6 +222,9 @@ class PgTreatmentReadsTest {
         assertEquals(-70, points.get(0).path("longitude").asDouble(), 1e-9);
         assertEquals(-33, points.get(0).path("latitude").asDouble(), 1e-9);
         assertTrue(points.get(0).path("timestamp").asText().compareTo(points.get(4).path("timestamp").asText()) < 0);
+        assertEquals(5, points.get(0).path("delay_s").asInt(), "arrived 5 s after its GPS time");
+        assertEquals(900, points.get(1).path("delay_s").asInt(), "arrived 15 min late");
+        assertTrue(points.get(1).hasNonNull("received_at"));
     }
 
     @Test
@@ -270,6 +274,7 @@ class PgTreatmentReadsTest {
         assertEquals(1, window.get(0).path("speed").asInt());
         assertEquals(25, window.get(window.size() - 1).path("speed").asInt());
         assertEquals("T6", window.get(0).path("tripid").asText(), "sent during trip T6");
+        assertTrue(window.get(0).path("delay_s").isNull(), "no arrival time");
         Instant dayAgo = now.minus(Duration.ofDays(1));
         assertEquals(0, await(reads.assetPositions("IJ90", dayAgo, now, "org-b", 10, false)).size());
         Instant fourDaysAgo = now.minus(Duration.ofDays(4));

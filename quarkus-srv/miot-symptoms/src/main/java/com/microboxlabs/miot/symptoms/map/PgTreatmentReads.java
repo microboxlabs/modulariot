@@ -54,10 +54,14 @@ public class PgTreatmentReads implements TreatmentReads {
                 SELECT coalesce(json_agg(json_build_object(
                     'assetid', p.asset_id, 'timestamp', p."timestamp", 'speed', p.speed, 'heading', p.heading,
                     'location', p.location::text,
-                    'longitude', ST_X(p.location::geometry), 'latitude', ST_Y(p.location::geometry)%s)
+                    'longitude', ST_X(p.location::geometry), 'latitude', ST_Y(p.location::geometry),
+                    'received_at', p.created_datetime,
+                    'delay_s', round(extract(epoch FROM p.created_datetime - p."timestamp"))%s)
                     ORDER BY p."timestamp"), '[]'::json) FROM kept p""".formatted(extraFields);
     }
 
+    // Each position carries when it reached the platform (received_at, the row's created_datetime) and how late
+    // that was after its GPS time (delay_s); both null when the row has no arrival time.
     // The asset must be mapped to the client when the trip started, or the client must have a symptom on the trip.
     // A trip still in live_trip runs until now; the window is at most 7 days. The points are sampled evenly, keeping
     // the first and the last. asset_data is indexed on ("timestamp", asset_id).
@@ -82,7 +86,7 @@ public class PgTreatmentReads implements TreatmentReads {
                 LIMIT 1
             ),
             pts AS (
-                SELECT a.asset_id, a."timestamp", a.speed, a.heading, a.location,
+                SELECT a.asset_id, a."timestamp", a.speed, a.heading, a.location, a.created_datetime,
                        row_number() OVER (ORDER BY a."timestamp") AS rn, count(*) OVER () AS n
                 FROM public.asset_data a JOIN trip ON a."timestamp" >= trip.start_time AND a."timestamp" <= trip.end_time
                 WHERE a.asset_id = $2
@@ -98,7 +102,7 @@ public class PgTreatmentReads implements TreatmentReads {
     static final String ASSET_POSITIONS = """
             WITH me AS (SELECT public.api_request_symptoms_client_id()::text AS stored),
             pts AS (
-                SELECT a.asset_id, a."timestamp", a.speed, a.heading, a.location,
+                SELECT a.asset_id, a."timestamp", a.speed, a.heading, a.location, a.created_datetime,
                        row_number() OVER (ORDER BY a."timestamp") AS rn, count(*) OVER () AS n
                 FROM public.asset_data a CROSS JOIN me
                 WHERE a."timestamp" >= $2::timestamptz AND a."timestamp" <= $3::timestamptz AND a.asset_id = $1

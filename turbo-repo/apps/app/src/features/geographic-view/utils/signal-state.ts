@@ -1,19 +1,22 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { z } from "zod";
 
 /**
  * Whether a vehicle's GPS signal is arriving, by the lost-signal detector's
  * threshold: offline once the time since its newest frame arrived passes the
  * silence the detector expects for it. Unknown without a profile.
  */
-export type SignalState = {
-  state: "online" | "offline" | "unknown";
+export const SignalStateSchema = z.object({
+  state: z.enum(["online", "offline", "unknown"]),
   /** The newest frame's GPS time, only when offline. */
-  offline_since?: string | null;
-  last_frame_at?: string | null;
-  silence_s?: number | null;
-  expected_s?: number | null;
-};
+  offline_since: z.string().nullish(),
+  last_frame_at: z.string().nullish(),
+  silence_s: z.number().nullish(),
+  expected_s: z.number().nullish(),
+});
+
+export type SignalState = z.infer<typeof SignalStateSchema>;
 
 /** Flowbite gray-500 (#6B7280), the same gray as the disconnected pin. */
 export const OFFLINE_GRAY: [number, number, number, number] = [
@@ -29,6 +32,14 @@ const MINUTES_UP_TO = 90;
 
 export function isOffline(signal: SignalState | null | undefined): boolean {
   return signal?.state === "offline";
+}
+
+/** An old detector profile cannot mark a newer GPS-database position offline. */
+export function isOfflineFrame(
+  timestamp: string | null | undefined,
+  signal: SignalState | null | undefined
+): boolean {
+  return isOffline(signal) && isNewestFrame(timestamp, signal);
 }
 
 /** How long ago the signal stopped: minutes up to 90, then whole hours. */
@@ -73,8 +84,25 @@ export function isNewestFrame(
   signal: SignalState | null | undefined
 ): boolean {
   if (!signal?.last_frame_at) return true;
+  return frameLag(timestamp, signal) === 0;
+}
+
+/** Stop polling only once the detector has moved beyond this static track. */
+export function isHistoricalFrame(
+  timestamp: string | null | undefined,
+  signal: SignalState | null | undefined
+): boolean {
+  const lag = frameLag(timestamp, signal);
+  return lag !== null && lag > 0;
+}
+
+function frameLag(
+  timestamp: string | null | undefined,
+  signal: SignalState | null | undefined
+): number | null {
+  if (!signal?.last_frame_at) return null;
   const at = timestamp ? Date.parse(timestamp) : Number.NaN;
   const newest = Date.parse(signal.last_frame_at);
-  if (Number.isNaN(at) || Number.isNaN(newest)) return false;
-  return at >= newest - 1000;
+  if (Number.isNaN(at) || Number.isNaN(newest)) return null;
+  return newest - at;
 }

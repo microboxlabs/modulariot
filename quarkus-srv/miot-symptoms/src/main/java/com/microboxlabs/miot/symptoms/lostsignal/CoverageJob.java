@@ -103,7 +103,12 @@ public class CoverageJob {
         }).orElse(ttl -> true);
     }
 
-    @Scheduled(every = "${miot.symptoms.lost-signal.coverage.every:1h}", delayed = "2m",
+    /**
+     * Every 10 minutes by default: a run with nothing to fill is a few small queries, and a replica that started while
+     * the one it replaced still held the lease gets its turn soon instead of an hour later. The counters are what an
+     * installation logging at ERROR can see.
+     */
+    @Scheduled(every = "${miot.symptoms.lost-signal.coverage.every:10m}", delayed = "2m",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void scheduled() {
         if (!enabled) {
@@ -112,6 +117,7 @@ public class CoverageJob {
         try {
             run();
         } catch (LeaseLost e) {
+            meters.counter("miot.symptoms.lost_signal.coverage_lease_held").increment();
             LOG.info("Coverage job: another replica holds the lease");
         } catch (RuntimeException e) {
             // The day stays not done: the next run fills it.
@@ -189,6 +195,7 @@ public class CoverageJob {
         }
         store.replace(day, rows.cells(), rows.senders(), frames);
         meters.counter("miot.symptoms.lost_signal.coverage_days").increment();
+        meters.counter("miot.symptoms.lost_signal.coverage_days_filled").increment();
         LOG.infof("Coverage job: day %s done, %d frames, %d senders, %d s", day, frames, rows.senders().size(),
                 Duration.ofNanos(System.nanoTime() - began).toSeconds());
     }

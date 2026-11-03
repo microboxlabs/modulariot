@@ -536,7 +536,7 @@ class OrgControlTowerMapResourceTest {
     }
 
     /** AB12 is offline since 11:40, CD34 online, EF56 never seen. */
-    private final SignalStates signals = (ids, now) -> {
+    private final SignalStates sampleSignals = (ids, now) -> {
         Map<String, SignalState> out = new java.util.LinkedHashMap<>();
         for (String id : ids) {
             out.put(id, switch (id) {
@@ -561,7 +561,7 @@ class OrgControlTowerMapResourceTest {
     void eachPositionCarriesItsAssetsSignalState() {
         positionsOf("AB12", "CD34", "EF56");
         JsonNode body = (JsonNode) call(resource(Optional.of("http://pgrest.test"),
-                Set.of(ControlTowerAccessCatalog.VIEW), null, signals).positions(ORG)).getEntity();
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals).positions(ORG)).getEntity();
 
         JsonNode offline = body.get(0).path("signal");
         assertEquals("offline", offline.path("state").asText());
@@ -582,10 +582,29 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
+    void aFailedDetectorReadLeavesPositionsVisibleAndSignalUnknown() {
+        positionsOf("V1");
+        SignalStates unavailable = (ids, now) -> {
+            throw new IllegalStateException("Store unavailable");
+        };
+        OrgControlTowerMapResource subject = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, unavailable);
+        Response positions = call(subject.positions(ORG));
+        assertEquals(200, positions.getStatus());
+        JsonNode body = (JsonNode) positions.getEntity();
+        assertEquals("V1", body.get(0).path("assetid").asText());
+        assertEquals("unknown", body.get(0).path("signal").path("state").asText());
+        Response signal = call(subject.assetSignal(ORG, "V1"));
+        assertEquals(200, signal.getStatus());
+        assertEquals("unknown", ((JsonNode) signal.getEntity()).path("state").asText());
+        assertEquals(404, call(subject.assetSignal(ORG, "OTHER")).getStatus());
+    }
+
+    @Test
     void theCachedPositionsAreNotChangedBySignalStates() {
         positionsOf("AB12");
         OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
-                Set.of(ControlTowerAccessCatalog.VIEW), null, signals);
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
         call(withSignals.positions(ORG));
         assertFalse(response.data().get(0).has("signal"));
     }
@@ -594,7 +613,7 @@ class OrgControlTowerMapResourceTest {
     void oneAssetsSignalIsReadOnlyForTheOrganizationsAssets() {
         positionsOf("AB12", "CD34");
         OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
-                Set.of(ControlTowerAccessCatalog.VIEW), null, signals);
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
 
         Response found = call(withSignals.assetSignal(ORG, "AB12"));
         assertEquals(200, found.getStatus());

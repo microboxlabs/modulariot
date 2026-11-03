@@ -50,8 +50,7 @@ public record VehicleProfile(Instant at, Instant arrival, Instant seen, Motion m
         next.putAll(gaps);
         double gap = (f.at().toEpochMilli() - at.toEpochMilli()) / 1000.0;
         next.put(motion, next.getOrDefault(motion, Sketch.empty()).add(gap, 1.0 / settings.vehicleMemory()));
-        return new VehicleProfile(f.at(), f.arrivedAt(), lastSeen, f.motion(), next, last(f),
-                f.sender() != null ? f.sender() : sender);
+        return new VehicleProfile(f.at(), f.arrivedAt(), lastSeen, f.motion(), next, last(f), f.sender());
     }
 
     /** How long a gap after the newest frame is normal for this vehicle in its current motion. */

@@ -1,10 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { isOffline, offlineAge, offlineLabel } from "./signal-state";
+import {
+  isNewestFrame,
+  isOfflineFrame,
+  isOffline,
+  offlineAge,
+  offlineLabel,
+} from "./signal-state";
 import es from "@/lang/es.json";
 import en from "@/lang/en.json";
 
 const NOW = Date.parse("2026-11-03T12:00:00Z");
 const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
+
+describe("isNewestFrame", () => {
+  it("does not gray a fresh live position when the detector's profile is stale", () => {
+    const signal = {
+      state: "offline" as const,
+      last_frame_at: "2026-01-01T00:00:00Z",
+    };
+    expect(isOfflineFrame("2026-01-01T00:00:00Z", signal)).toBe(true);
+    expect(isOfflineFrame("2026-01-01T00:01:00Z", signal)).toBe(false);
+    expect(
+      isOfflineFrame("2026-01-01T00:00:00Z", { ...signal, state: "online" })
+    ).toBe(false);
+  });
+  it("matches the detector frame across timestamp formats, never an older or newer frame", () => {
+    const signal = {
+      state: "offline" as const,
+      last_frame_at: "2026-01-01T00:00:00Z",
+    };
+    expect(isNewestFrame("2025-12-31T21:00:00-03:00", signal)).toBe(true);
+    expect(isNewestFrame("2025-12-31T23:59:59.500Z", signal)).toBe(false);
+    expect(isNewestFrame("2026-01-01T00:00:01Z", signal)).toBe(false);
+    expect(isNewestFrame("invalid", signal)).toBe(false);
+  });
+});
 
 describe("offlineAge", () => {
   it("counts minutes up to 90, then hours", () => {

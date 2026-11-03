@@ -75,7 +75,7 @@ Ingest-health guard: the ticker pauses when no replica read a signal for `ingest
 
 ## Signal state
 
-The maps and the fleet directory show whether a vehicle's signal is arriving, by the detector's threshold. `SignalStates` (miot-core) is the port; the detector implements it (`SignalStateReader`) on every replica with the store. It only reads.
+The maps show whether a vehicle's signal is arriving, by the detector's threshold. `SignalStates` (miot-core) is the port; the detector implements it (`SignalStateReader`) on every replica with the store. It only reads. The fleet directory's existing `NO_SIGNAL` status (after 24 hours without a signal) is independent of this detector state.
 
 | State | When |
 |---|---|
@@ -90,7 +90,9 @@ The maps and the fleet directory show whether a vehicle's signal is arriving, by
 | `silence_s` | Now − arrival of the newest frame |
 | `expected_s` | On a trip, the watch's expected silence, the one the deadline was set with, so the state turns offline when the detector's deadline passes. Off a trip, the vehicle's expected gap plus its sender's delivery delay, from the profiles |
 
-The vehicle profile keeps the newest frame's sender (`sender`) for the off-trip case; a profile written before it falls back to the default delivery delay. Many vehicles are read in two pipelines: one `HMGET p w` per vehicle, then one `GET` per sender of the vehicles without a watch.
+The vehicle profile keeps the newest frame's sender (`sender`) for the off-trip case; a profile written before it falls back to the default delivery delay. Many vehicles are read in two pipelines: one `HMGET p w` per vehicle, then one `GET` per sender of the vehicles without an active trip watch. An empty-trip watch retained to clear a loss is an off-trip vehicle.
+
+Off a trip, sender profiles stay live: a late frame can change the learned delay and therefore reclassify the state, including when the sender first has enough samples. It never changes the newest frame's GPS time or arrival. On a trip, the watch's stored expected silence stays fixed until a newer frame replaces it.
 
 | Endpoint | Content |
 |---|---|
@@ -168,7 +170,7 @@ Each reload reads cell counts and sender totals from one database snapshot. A fa
 
 | Step | What it does |
 |---|---|
-| Schedule | Every hour (`coverage.every`). Fills each day of the last 30 that is not in `coverage_run`, newest first. Yesterday is ready 2 h after midnight UTC (`coverage.settle`). |
+| Schedule | Every 10 minutes (`coverage.every`); a run with nothing to fill is a few small queries. Counters `miot_symptoms_lost_signal_coverage_days_filled_total`, `_coverage_lease_held_total` and `_coverage_failed_total` show it working where logs are at ERROR. Fills each day of the last 30 that is not in `coverage_run`, newest first. Yesterday is ready 2 h after midnight UTC (`coverage.settle`). |
 | Read | One hour of `asset_data` at a time through the `gps-read` datasource, SELECT only. First pass: delay and interval counts per sender and second, for the day's medians. Second pass: the frames ordered by asset, sender and time, plus the hour before the day for gaps across midnight. |
 | Write | Replaces the day in `coverage_day` and `coverage_sender_day` in one transaction, then marks it in `coverage_run`. Deletes days older than the window and recomputes `anomalous`. |
 | Leader | The replica holding the Redis lease `symptoms:coverage:lease` (10 min, renewed every hour read). Without Redis every replica runs it. |

@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.lostsignal.CoverageDay.CellDay;
 import com.microboxlabs.miot.symptoms.lostsignal.CoverageDay.SenderDay;
-import com.microboxlabs.miot.symptoms.lostsignal.GpsFrames.GpsRow;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;

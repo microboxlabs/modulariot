@@ -3,6 +3,7 @@ import {
   TimelineElement,
 } from "@/features/symptoms/types/timeline";
 import type { LevelReason } from "@/features/symptoms/model/level-reason";
+import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
 
 export type TreatmentsGeneralResponse = {
   data: TreatmentsGeneralResponseItem;
@@ -42,4 +43,8 @@ export type TreatmentsSymptomInfoResponse = {
   opened_at?: string;
   started_at?: string;
   duration_sec?: number;
+  /** Engine cases on an "Ignorar condición" hold. */
+  ignored?: IgnoredInfo | null;
+  /** When the case came back to the tower from its latest hold. */
+  returned_after_ignore_at?: string | null;
 };

@@ -273,6 +273,14 @@ export function closeTreatment(
   });
 }
 
+/** "Reanudar": ends an engine case's "Ignorar condición" hold early. */
+export function resumeTreatment(treatmentId: string) {
+  return request<TowerTreatment>(`/treatments/${treatmentId}/resume`, {
+    method: "POST",
+    body: {},
+  });
+}
+
 export function cancelTreatment(treatmentId: string, reason?: string) {
   return request<TowerTreatment>(`/treatments/${treatmentId}/cancel`, {
     method: "POST",

@@ -1,3 +1,5 @@
+import type { IgnoredInfo } from "@/features/symptoms/model/ignore-hold";
+
 export interface SymptomsTableRequest {
   page: number;
   limit: number;
@@ -36,4 +38,8 @@ export interface SymptomsTable {
   last_assigned_to: string;
   sla_minutes: number | null;
   recurrence_events: number | null;
+  /** Engine cases on an "Ignorar condición" hold. */
+  ignored?: IgnoredInfo | null;
+  /** When the case came back to the tower from its latest hold. */
+  returned_after_ignore_at?: string | null;
 }

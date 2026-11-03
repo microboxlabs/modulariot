@@ -26,6 +26,15 @@ export interface ConditionsAgg {
 export interface TreatmentTimelineElement {
   treatment_type: string;
   description: DescriptionTimelineElement;
+  /** Engine cases: when and by whom. */
+  at?: string | null;
+  by?: string | null;
+  /** An "ignorar condicion" row: until when the case is on hold; null until the trip ends. */
+  ignored_until?: string | null;
+  until_trip_end?: boolean;
+  scope?: string | null;
+  /** A "fin de ignorar" row: how the hold ended. */
+  resolution?: string | null;
 }
 
 export interface DescriptionTimelineElement {

@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
     treatment: counts["Under Treatment"] || 0,
     compromised: counts["Compromised condition"] || 0,
     observation: counts["Under Observation"] || 0,
+    ignored: counts["Ignored"] || 0,
   };
   return NextResponse.json(dashboard);
 }

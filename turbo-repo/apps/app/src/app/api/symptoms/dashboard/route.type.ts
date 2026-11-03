@@ -6,4 +6,6 @@ export interface SymptomsDashboard {
   treatment: number;
   compromised: number;
   observation: number;
+  /** Engine cases on an "Ignorar condición" hold, out of the other counts. */
+  ignored: number;
 }

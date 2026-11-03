@@ -7,13 +7,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * The check of a vehicle whose deadline expired: the vehicle is lost from its newest frame on and checked again
  * every {@code recheck}, until a newer frame arrives, its trip ends, or it stays silent past {@code maxSilence}.
  * Each check runs the organizations' {@code trip_check} versions ({@link TripChecks}). A return waits up to
  * {@code returnGrace} for backfill, then is checked once with {@code check.loss.returned}. A lost check also
- * reads the shadow map at the last position, the sender's lost vehicles against its usual count, and the
+ * reads the shadow map ({@link ShadowMap}, built in memory from the coverage job's rows) at the last position, the sender's lost vehicles against its usual count, and the
  * vehicles reporting within {@value #NEARBY_KM} km.
  */
 public class MarkLost implements LossTicker.DueCheck {
@@ -27,13 +28,13 @@ public class MarkLost implements LossTicker.DueCheck {
     static final double NEARBY_KM = 10;
 
     private final TripChecks trips;
-    private final CoverageMap coverage;
+    private final Supplier<ShadowMap> coverage;
     private final Duration recheck;
     private final Duration maxSilence;
     private final Duration returnGrace;
     private final MeterRegistry meters;
 
-    public MarkLost(LossStore store, TripChecks trips, CoverageMap coverage, Duration recheck, Duration maxSilence,
+    public MarkLost(LossStore store, TripChecks trips, Supplier<ShadowMap> coverage, Duration recheck, Duration maxSilence,
             Duration returnGrace, MeterRegistry meters) {
         this.store = store;
         this.trips = trips;
@@ -125,8 +126,8 @@ public class MarkLost implements LossTicker.DueCheck {
         VehicleProfile.Last last = v.profile().last();
         Double lat = last == null ? null : last.latitude();
         Double lon = last == null ? null : last.longitude();
-        LossStore.Around around = store.around(sender, CoverageMap.cell(lat, lon), lat, lon, assetId, now, NEARBY_KM);
-        boolean low = coverage.lowCoverage(around.bySender(), senderShare(sender), around.byAll(), now);
+        ShadowMap.Level level = coverage.get().level(sender, CoverageMap.cell(lat, lon));
+        int nearby = store.nearby(lat, lon, assetId, now, NEARBY_KM);
         boolean outage = false;
         if (sender != null) {
             int lost = store.lost(sender, assetId, true);
@@ -134,16 +135,7 @@ public class MarkLost implements LossTicker.DueCheck {
             outage = Cohort.outage(before, lost);
             store.cohort(sender, Cohort.with(before, lost, now));
         }
-        return new TripChecks.Area(low, outage, around.nearby());
-    }
-
-    /** The sender's delayed share everywhere, from its profile. */
-    private double senderShare(String sender) {
-        if (sender == null) {
-            return 0;
-        }
-        SenderProfile p = store.sender(sender);
-        return p == null ? 0 : p.delayedShare();
+        return new TripChecks.Area(level, outage, nearby);
     }
 
     /** A vehicle no longer lost leaves its sender's lost set, and the sender's usual count sees the drop. */

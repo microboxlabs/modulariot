@@ -187,13 +187,13 @@ class PgHoldsTest {
     }
 
     @Test
-    void aHoldWhoseTimeRanOutNoLongerCoversTheCase() {
+    void anExpiredHoldStaysCoveredUntilItsReturnIsRecorded() {
         UUID speeding = symptom("speeding");
         long a = open(speeding, TRUCK, now.minusSeconds(3600), 3, null);
         hold(a, now.minusSeconds(1800), 300, "CASE", false);
 
-        assertEquals(List.of(a), openIds());
-        assertTrue(ignoredIds().isEmpty());
+        assertTrue(openIds().isEmpty());
+        assertEquals(List.of(a), ignoredIds());
         IgnoreHold h = holds.open(tenant).get(0);
         assertFalse(h.activeAt(now), "still open until the timer ends it");
     }
@@ -216,13 +216,30 @@ class PgHoldsTest {
         assertTrue(due().isEmpty(), "the SLA runs again from the return: 10 of 15 minutes");
         List<SlaStore.Due> later = sla.due(now.minusSeconds(7200), now.plusSeconds(6 * 60), 100).stream()
                 .filter(d -> d.tenantCode().equals(tenant)).toList();
-        assertEquals(1, later.size(), "b has no treatment of its own; a's ended hold attended it until the return");
-        assertEquals(b, later.get(0).engineCase().id());
-        assertEquals(back, later.get(0).levelSince());
+        assertEquals(2, later.size(), "both cases need attention again after returning");
+        assertTrue(later.stream().allMatch(d -> d.levelSince().equals(back)));
     }
 
     private List<SlaStore.Due> due() {
         return sla.due(now.minusSeconds(7200), now, 100).stream().filter(d -> d.tenantCode().equals(tenant)).toList();
+    }
+
+    @Test
+    void aReturnedCaseCanBreachAgainAtTheSameLevelExactlyOnce() {
+        UUID speeding = symptom("repeat-sla");
+        Instant opened = now.minusSeconds(7000);
+        long id = open(speeding, TRUCK, opened, 3, null);
+        assertTrue(sla.markExpired(tenant, id, 3, 15, opened.plusSeconds(901)));
+        String hold = hold(id, opened.plusSeconds(1200), 300, "CASE", false);
+        assertTrue(due().isEmpty(), "no breach while held");
+        Instant returned = now.minusSeconds(1200);
+        end(hold, returned);
+
+        SlaStore.Due next = due().stream().filter(d -> d.engineCase().id() == id).findFirst().orElseThrow();
+        assertEquals(returned, next.levelSince());
+        assertTrue(sla.markExpired(next, now));
+        assertFalse(sla.markExpired(next, now.plusSeconds(60)), "one mark per attention period across pods");
+        assertTrue(due().isEmpty());
     }
 
     @Test

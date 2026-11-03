@@ -6,6 +6,7 @@ import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
+import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.service.IgnoreHolds;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * "Ignorar condición" on an engine case: the {@code IGNORE} action puts the case on hold, and the hold ends when
@@ -66,6 +68,7 @@ public class HoldService implements IgnoreHolds {
     private final AuditService audit;
     private final Policies policies;
     private final Clock clock;
+    private Consumer<IgnoreHold> recheck = h -> { };
 
     /** The "ignore" policy of a case's level in the version that opened it; null for the default. */
     @FunctionalInterface
@@ -74,10 +77,12 @@ public class HoldService implements IgnoreHolds {
     }
 
     @Inject
+    @SuppressWarnings("java:S107") // Hold lifecycle collaborators and the evaluator that rechecks on return.
     HoldService(EngineCaseStore cases, EngineCaseService caseService, HoldStore holds, HoldIndex index,
-            TreatmentStore treatments, AuditService audit, SymptomCatalogStore catalog) {
+            TreatmentStore treatments, AuditService audit, SymptomCatalogStore catalog, EvaluatorStream evaluator) {
         this(cases, caseService, holds, index, treatments, audit, (tenant, c) -> policy(catalog, tenant, c),
                 Clock.systemUTC());
+        this.recheck = evaluator::finishHold;
     }
 
     @SuppressWarnings("java:S107") // The collaborators above, with the policy lookup and the clock for tests.
@@ -121,25 +126,12 @@ public class HoldService implements IgnoreHolds {
             throw new IllegalStateException("the case is already ignored");
         }
         SymptomSpec.Ignore policy = policies.of(tenantCode, c);
-        if (policy != null && Boolean.FALSE.equals(policy.allowed())) {
-            throw new IllegalArgumentException("ignoring is not allowed at level " + c.level());
-        }
         IgnoreHold.Scope scope = IgnoreHold.Scope.parse(sent.get(SCOPE));
-        if (policy != null && policy.scopes() != null && !policy.scopes().contains(scope.name())) {
-            throw new IllegalArgumentException("scope " + scope + " is not allowed at level " + c.level());
-        }
-        Duration max = policy == null ? null : policy.maxDurationValue();
+        checkPolicy(c, policy, scope);
         boolean tripEnd = Boolean.TRUE.equals(sent.get(UNTIL_TRIP_END))
                 || "true".equals(String.valueOf(sent.get(UNTIL_TRIP_END)));
         Integer duration = tripEnd ? null : req.durationSeconds();
-        if (tripEnd) {
-            tripEnd(tenantCode, c, max);
-        } else if (duration == null || duration <= 0) {
-            throw new IllegalArgumentException("an IGNORE needs durationSeconds > 0 or details.until_trip_end");
-        } else if (duration > MAX.toSeconds() || (max != null && duration > max.toSeconds())) {
-            throw new IllegalArgumentException("the longest hold at level " + c.level() + " is "
-                    + (max != null && max.compareTo(MAX) < 0 ? max : MAX).toMinutes() + " minutes");
-        }
+        checkDuration(tenantCode, c, policy, tripEnd, duration);
         boolean noteRequired = (policy != null && Boolean.TRUE.equals(policy.noteRequired())) || other(req);
         if (noteRequired && (req.note() == null || req.note().isBlank())) {
             throw new IllegalArgumentException("a note is required");
@@ -153,6 +145,28 @@ public class HoldService implements IgnoreHolds {
             details.put("until", clock.instant().plusSeconds(duration).toString());
         }
         return new Checked(duration, details);
+    }
+
+    private static void checkPolicy(EngineCase c, SymptomSpec.Ignore policy, IgnoreHold.Scope scope) {
+        if (policy != null && Boolean.FALSE.equals(policy.allowed())) {
+            throw new IllegalArgumentException("ignoring is not allowed at level " + c.level());
+        }
+        if (policy != null && policy.scopes() != null && !policy.scopes().contains(scope.name())) {
+            throw new IllegalArgumentException("scope " + scope + " is not allowed at level " + c.level());
+        }
+    }
+
+    private void checkDuration(String tenantCode, EngineCase c, SymptomSpec.Ignore policy, boolean tripEnd,
+            Integer duration) {
+        Duration max = policy == null ? null : policy.maxDurationValue();
+        if (tripEnd) {
+            tripEnd(tenantCode, c, max);
+        } else if (duration == null || duration <= 0) {
+            throw new IllegalArgumentException("an IGNORE needs durationSeconds > 0 or details.until_trip_end");
+        } else if (duration > MAX.toSeconds() || (max != null && duration > max.toSeconds())) {
+            throw new IllegalArgumentException("the longest hold at level " + c.level() + " is "
+                    + (max != null && max.compareTo(MAX) < 0 ? max : MAX).toMinutes() + " minutes");
+        }
     }
 
     private void tripEnd(String tenantCode, EngineCase c, Duration max) {
@@ -202,6 +216,7 @@ public class HoldService implements IgnoreHolds {
             closeCovered(h, actor);
             resolution = IGNORED;
         } else {
+            recheck.accept(h);
             boolean closed = cases.find(tenant, h.caseId()).map(c -> c.closedAt() != null).orElse(true);
             resolution = closed ? RESOLVED : RETURNED;
         }

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.evaluator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
@@ -284,7 +286,9 @@ public class EvaluatorStream {
             TransitionLog.Place place = place(signal);
             // Only the changes new to the log: a replayed signal publishes nothing twice.
             List<TransitionLog.Recorded> recorded = transitionLog.append(tenant, result.transitions(), place);
-            events.transitions(tenant, recorded, place);
+            events.transitions(tenant, recorded.stream()
+                    .filter(r -> !holds.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
+                    .toList(), place);
             if (late) {
                 // A late opening the log already holds is a replay of a case that may be closed since: it keeps no
                 // episode, or that episode would block the next real event.
@@ -308,6 +312,22 @@ public class EvaluatorStream {
     public void forget(String tenant, String assetId, java.util.UUID definitionId) {
         episodes.forget(tenant, assetId, definitionId);
         lostSignal.forget(tenant, assetId, definitionId);
+    }
+
+    /** Rechecks the latest condition evidence before releasing a hold, then restarts its level timers. */
+    public void finishHold(IgnoreHold h) {
+        AssetEpisodes state = episodes.load(h.tenantCode(), h.assetId());
+        List<CompiledSymptom> covered = Stream.concat(catalog.forSource(h.tenantCode(), SOURCE).symptoms().stream(),
+                catalog.forSource(h.tenantCode(), "trip_check").symptoms().stream())
+                .filter(s -> state.find(h.tenantCode(), h.assetId(), s.definitionId())
+                        .map(e -> h.covers(h.assetId(), s.definitionId(), e.openedAt())).orElse(false))
+                .toList();
+        List<Transition> closed = new SignalEvaluator(state).finishHold(h.tenantCode(), h.assetId(), clock.instant(),
+                covered);
+        if (!closed.isEmpty()) {
+            transitionLog.append(h.tenantCode(), closed, new TransitionLog.Place(h.tripId(), null, null, null, null));
+        }
+        episodes.save(state);
     }
 
     /** The trip, position and driver of the signal, as far as it has them. */

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.cases;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,7 +44,7 @@ class HoldServiceTest {
     private SymptomSpec.Ignore policy;
     private final HoldService service = new HoldService(cases,
             new EngineCaseService(cases, (t, a, d) -> forgotten.add(a), t -> null, clock), holds,
-            new HoldIndex(holds, clock), treatments, new AuditService(audit), (tenant, c) -> policy, clock);
+            new HoldIndex(holds), treatments, new AuditService(audit), (tenant, c) -> policy, clock);
 
     /** Holds kept in memory; a trip runs while its id is in {@link #live}. */
     static final class FakeHolds implements HoldStore {
@@ -117,18 +118,23 @@ class HoldServiceTest {
     @Test
     void theDurationIsRequiredAndAtMostADay() {
         engineCase(1, SPEEDING, TRUCK, 1, null);
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(null, null, "x", null)));
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(0, null, "x", null)));
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(86_401, null, "x", null)));
+        AddActionRequest request1 = ignore(null, null, "x", null);
+        assertThrows(IllegalArgumentException.class, () -> check(1, request1));
+        AddActionRequest request2 = ignore(0, null, "x", null);
+        assertThrows(IllegalArgumentException.class, () -> check(1, request2));
+        AddActionRequest request3 = ignore(86_401, null, "x", null);
+        assertThrows(IllegalArgumentException.class, () -> check(1, request3));
+        AddActionRequest request4 = ignore(300, Map.of("scope", "TRIP"), "x", null);
         assertThrows(IllegalArgumentException.class,
-                () -> check(1, ignore(300, Map.of("scope", "TRIP"), "x", null)));
+                () -> check(1, request4));
     }
 
     @Test
     void otroNeedsANote() {
         engineCase(1, SPEEDING, TRUCK, 1, null);
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(300, null, "Otro (detallar en la nota)",
-                " ")));
+        AddActionRequest request5 = ignore(300, null, "Otro (detallar en la nota)",
+                " ");
+        assertThrows(IllegalArgumentException.class, () -> check(1, request5));
         assertEquals(300, check(1, ignore(300, null, "Otro (detallar en la nota)", "animal en la ruta"))
                 .durationSeconds());
     }
@@ -137,14 +143,19 @@ class HoldServiceTest {
     void theLevelPolicyIsEnforced() {
         engineCase(1, SPEEDING, TRUCK, 4, null);
         policy = new SymptomSpec.Ignore(false, null, null, null);
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(300, null, "x", null)));
+        AddActionRequest request6 = ignore(300, null, "x", null);
+        assertThrows(IllegalArgumentException.class, () -> check(1, request6));
 
         policy = new SymptomSpec.Ignore(true, "PT30M", true, List.of("CASE"));
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(300, null, "x", null)), "note required");
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(3600, null, "x", "n")), "30 min at most");
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(300, Map.of("scope", "ALL"), "x", "n")));
+        AddActionRequest request7 = ignore(300, null, "x", null);
+        assertThrows(IllegalArgumentException.class, () -> check(1, request7), "note required");
+        AddActionRequest request8 = ignore(3600, null, "x", "n");
+        assertThrows(IllegalArgumentException.class, () -> check(1, request8), "30 min at most");
+        AddActionRequest request9 = ignore(300, Map.of("scope", "ALL"), "x", "n");
+        assertThrows(IllegalArgumentException.class, () -> check(1, request9));
+        AddActionRequest request10 = ignore(null, Map.of("until_trip_end", true), "x", "n");
         assertThrows(IllegalArgumentException.class,
-                () -> check(1, ignore(null, Map.of("until_trip_end", true), "x", "n")), "no trip end with a maximum");
+                () -> check(1, request10), "no trip end with a maximum");
         assertEquals(1800, check(1, ignore(1800, Map.of("scope", "CASE"), "x", "n")).durationSeconds());
     }
 
@@ -153,8 +164,10 @@ class HoldServiceTest {
         engineCase(1, SPEEDING, TRUCK, 2, null);
         engineCase(2, STOP, TRUCK, 2, "trip-1");
         Map<String, Object> tripEnd = Map.of("until_trip_end", true);
-        assertThrows(IllegalArgumentException.class, () -> check(1, ignore(null, tripEnd, "x", null)), "no trip");
-        assertThrows(IllegalArgumentException.class, () -> check(2, ignore(null, tripEnd, "x", null)), "unknown");
+        AddActionRequest request11 = ignore(null, tripEnd, "x", null);
+        assertThrows(IllegalArgumentException.class, () -> check(1, request11), "no trip");
+        AddActionRequest request12 = ignore(null, tripEnd, "x", null);
+        assertThrows(IllegalArgumentException.class, () -> check(2, request12), "unknown");
         holds.live.put("trip-1", true);
 
         IgnoreHolds.Checked checked = check(2, ignore(300, tripEnd, "x", null));
@@ -166,11 +179,13 @@ class HoldServiceTest {
     void aClosedOrHeldCaseCannotBeIgnored() {
         EngineCase c = engineCase(1, SPEEDING, TRUCK, 2, null);
         cases.close(TENANT, 1, "ops@example.com", NOW);
-        assertThrows(IllegalStateException.class, () -> check(1, ignore(300, null, "x", null)));
+        AddActionRequest request13 = ignore(300, null, "x", null);
+        assertThrows(IllegalStateException.class, () -> check(1, request13));
         cases.add(new EngineCase(2, SPEEDING, "1.0.0", "Exceso", "speed", TRUCK, NOW, 2, null, null, null, null,
                 null, 0, null, null, null).withHold(new EngineCase.Ignored("h", NOW, NOW.plusSeconds(60), false,
                         "CASE", "ops@example.com"), null));
-        assertThrows(IllegalStateException.class, () -> check(2, ignore(300, null, "x", null)));
+        AddActionRequest request14 = ignore(300, null, "x", null);
+        assertThrows(IllegalStateException.class, () -> check(2, request14));
         assertEquals(1, c.id());
     }
 
@@ -230,8 +245,8 @@ class HoldServiceTest {
         assertEquals(1, service.endDue(100));
 
         assertEquals(HoldService.IGNORED, resolution(h));
-        assertTrue(cases.find(TENANT, 1).orElseThrow().closedAt() != null);
-        assertTrue(cases.find(TENANT, 2).orElseThrow().closedAt() != null, "scope ALL: the vehicle's other case");
+        assertNotNull(cases.find(TENANT, 1).orElseThrow().closedAt());
+        assertNotNull(cases.find(TENANT, 2).orElseThrow().closedAt(), "scope ALL: the vehicle's other case");
         assertNull(cases.find(TENANT, 3).orElseThrow().closedAt(), "another vehicle");
     }
 
@@ -246,7 +261,8 @@ class HoldServiceTest {
         assertEquals("lead@example.com", ended.closedBy());
         holds.open.remove(h.id());
         assertThrows(IllegalStateException.class, () -> service.resume(TENANT, "lead@example.com", h.id()));
+        String missingId = UUID.randomUUID().toString();
         assertThrows(java.util.NoSuchElementException.class,
-                () -> service.resume(TENANT, "lead@example.com", UUID.randomUUID().toString()));
+                () -> service.resume(TENANT, "lead@example.com", missingId));
     }
 }

@@ -56,7 +56,8 @@ Action body:
 
 ### Ignorar condición (engine cases)
 
-An `IGNORE` on an engine case (negative symptom id) puts the case on hold. The
+An `IGNORE` on an engine case (negative symptom id) puts the case on hold and
+sets its treatment type to `IGNORE_CONDITION`, including a mid-call ignore. The
 treatment stays `OPEN` while the hold lasts; it is the hold. No other table.
 
 | Field | Meaning |
@@ -88,6 +89,12 @@ with a `resolution`:
 | `resolved_after_ignore` | The case had closed by its symptom's rule |
 | `returned_after_ignore` | The case is still open: back in the tower at its level, with `returned_after_ignore_at` on its row. The next level and a new SLA count from then |
 | `ignored` | The trip ended: the held cases closed |
+
+Holds are read from the store on each evaluation so another pod sees them immediately.
+At expiry or resume the close rule runs on the latest condition evidence and the
+level timers restart from the return, including when no signal arrived during the hold.
+Expired holds remain held until that return is recorded. Repeated SLA expiries at
+the same level replace the previous period's mark, once per new attention period.
 
 A timer ends the due holds every 30 s (`miot.symptoms.holds.every`, off with
 `miot.symptoms.holds.enabled=false`). The timeline shows the `IGNORE` with

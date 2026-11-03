@@ -219,8 +219,10 @@ public class TripChecks {
     private void returned(String tenant, String assetId, UUID definitionId, OpenCase c, Episode e,
             TransitionLog.Place place, Return back) {
         long caseId = c.id();
-        events.signalReturned(tenant, caseId, definitionId, c.version(), c.state(), e.level(), assetId, place,
-                back.at(), back.backfill());
+        if (!holds.held(tenant, assetId, definitionId, e.openedAt())) {
+            events.signalReturned(tenant, caseId, definitionId, c.version(), c.state(), e.level(), assetId, place,
+                    back.at(), back.backfill());
+        }
         if (c.state() == SymptomState.ACTIVE) {
             Map<String, Object> details = new LinkedHashMap<>();
             details.put("returnedAt", back.at().toString());

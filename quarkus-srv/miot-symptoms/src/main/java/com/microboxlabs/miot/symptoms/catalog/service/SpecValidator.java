@@ -205,7 +205,7 @@ public final class SpecValidator {
             out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreMaxDuration"), -1));
         }
         if (ignore.scopes() != null && (ignore.scopes().isEmpty()
-                || !SymptomSpec.Ignore.SCOPES.containsAll(ignore.scopes()))) {
+                || !SymptomSpec.Ignore.VALID_SCOPES.containsAll(ignore.scopes()))) {
             out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreScopes"), -1));
         }
     }

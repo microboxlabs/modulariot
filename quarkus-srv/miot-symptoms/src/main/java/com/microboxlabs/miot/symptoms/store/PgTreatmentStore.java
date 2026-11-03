@@ -72,7 +72,8 @@ public class PgTreatmentStore implements TreatmentStore {
     // Locks the episode row: concurrent actions get distinct seq numbers, and an
     // action racing a close either lands first or finds the episode closed.
     private static final String TOUCH_TREATMENT = """
-            UPDATE miot_symptoms.treatment SET updated_at = $3
+            UPDATE miot_symptoms.treatment SET updated_at = $3,
+                type = CASE WHEN symptom_id < 0 AND $4 = 'IGNORE' THEN 'IGNORE_CONDITION' ELSE type END
             WHERE tenant_code = $1 AND id = $2 AND status = 'OPEN'
             RETURNING id""";
 
@@ -200,7 +201,7 @@ public class PgTreatmentStore implements TreatmentStore {
         }
         OffsetDateTime performedAt = a.performedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC) : a.performedAt();
         return pool.get().withTransaction(tx -> tx.preparedQuery(TOUCH_TREATMENT)
-                        .execute(Tuple.of(a.tenantCode(), treatmentId, performedAt))
+                        .execute(Tuple.of(a.tenantCode(), treatmentId, performedAt, a.kind().name()))
                         .flatMap(touched -> {
                             if (touched.rowCount() == 0) {
                                 throw new IllegalStateException(

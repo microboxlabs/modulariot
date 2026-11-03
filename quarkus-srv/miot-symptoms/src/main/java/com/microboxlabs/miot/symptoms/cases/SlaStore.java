@@ -20,4 +20,10 @@ public interface SlaStore {
 
     /** Marks the level's SLA expired; false when it already was. */
     boolean markExpired(String tenantCode, long caseId, int level, int slaMinutes, Instant at);
+
+    /** Marks this attention period, which may start again after an ignore hold. */
+    default boolean markExpired(Due due, Instant at) {
+        EngineCase c = due.engineCase();
+        return markExpired(due.tenantCode(), c.id(), c.level(), due.slaMinutes(), at);
+    }
 }

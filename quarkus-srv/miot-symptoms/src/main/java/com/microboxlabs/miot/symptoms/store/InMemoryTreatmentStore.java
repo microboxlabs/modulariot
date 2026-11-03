@@ -5,6 +5,7 @@ import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
+import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -108,8 +109,10 @@ public class InMemoryTreatmentStore implements TreatmentStore {
                 a.performedBy(), a.performedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC) : a.performedAt());
         list.add(saved);
         Treatment t = treatments.get(a.treatmentId());
+        TreatmentType type = t.symptomId() < 0 && a.kind() == ActionKind.IGNORE
+                ? TreatmentType.IGNORE_CONDITION : t.type();
         treatments.put(t.id(), new Treatment(t.id(), t.tenantCode(), t.symptomId(), t.assetId(), t.tripId(),
-                t.type(), t.status(), t.openedBy(), t.openedAt(), t.closedBy(), t.closedAt(), t.resolution(),
+                type, t.status(), t.openedBy(), t.openedAt(), t.closedBy(), t.closedAt(), t.resolution(),
                 t.note(), saved.performedAt()));
         return saved;
     }

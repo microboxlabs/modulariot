@@ -102,7 +102,7 @@ public record SymptomSpec(
     public record Ignore(Boolean allowed, @JsonProperty("max_duration") String maxDuration,
             @JsonProperty("note_required") Boolean noteRequired, List<String> scopes) {
 
-        public static final List<String> SCOPES = List.of("CASE", "SYMPTOM", "ALL");
+        public static final List<String> VALID_SCOPES = List.of("CASE", "SYMPTOM", "ALL");
 
         /** The longest hold, or null for none. */
         public Duration maxDurationValue() {

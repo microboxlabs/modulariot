@@ -65,7 +65,7 @@ public class SlaTimer {
         int published = 0;
         for (SlaStore.Due d : store.due(now.minus(lookback), now, BATCH)) {
             EngineCase c = d.engineCase();
-            if (store.markExpired(d.tenantCode(), c.id(), c.level(), d.slaMinutes(), now)) {
+            if (store.markExpired(d, now)) {
                 events.slaExpired(d.tenantCode(), c, d.slaMinutes(), d.levelSince(), now);
                 published++;
             }

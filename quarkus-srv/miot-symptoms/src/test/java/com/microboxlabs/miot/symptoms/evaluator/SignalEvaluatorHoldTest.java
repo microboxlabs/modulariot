@@ -76,7 +76,7 @@ class SignalEvaluatorHoldTest {
         assertEquals(List.of(), at(5, 97), "recorded once");
         assertEquals(List.of(), at(10, 103));
         held.set(false);
-        assertEquals(List.of("OPENED:3"), at(20, 103), "after the hold the condition still holds: a case opens");
+        assertEquals(List.of("OPENED:1"), at(20, 103), "after the hold the condition still holds: a case opens");
     }
 
     @Test
@@ -85,6 +85,23 @@ class SignalEvaluatorHoldTest {
         assertEquals(List.of("HELD:2"), at(0, 96));
         assertEquals(List.of(), at(10, 80), "normal");
         assertEquals(List.of("HELD:2"), at(20, 96), "a new run");
+    }
+
+    @Test
+    void returningWithoutAnyHeldSignalRestartsEscalationAtTheReturn() {
+        assertEquals(List.of("OPENED:3"), at(0, 115));
+        evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(600), symptoms);
+        assertEquals(List.of(), at(610, 115));
+        assertEquals(List.of("LEVEL_CHANGED:4"), at(660, 115));
+    }
+
+    @Test
+    void expiryAppliesTheCloseRuleToTheLatestNormalEvidence() {
+        at(0, 96);
+        held.set(true);
+        at(10, 80);
+        List<Transition> closed = evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(135), symptoms);
+        assertEquals(List.of("CLOSED"), closed.stream().map(t -> t.kind().name()).toList());
     }
 
     @Test

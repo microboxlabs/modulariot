@@ -80,6 +80,28 @@ public class SignalEvaluator {
         this.holds = holds;
     }
 
+    /** Applies the close rule to the latest condition evidence and restarts escalation at the return time. */
+    public List<Transition> finishHold(String tenant, String asset, Instant at, List<CompiledSymptom> symptoms) {
+        List<Transition> closed = new ArrayList<>();
+        for (CompiledSymptom s : symptoms) {
+            Episode e = store.find(tenant, asset, s.definitionId()).orElse(null);
+            if (e == null) {
+                continue;
+            }
+            if (e.open() && condition(s.close(), caseFields(e.conditionSince(), e.normalSince(), e.openedAt(),
+                    e.level(), at), "lifecycle.close")) {
+                closed.add(transition(Kind.CLOSED, s, asset, at, e.level(), e.level(), e.maxMeasure()));
+                store.delete(tenant, asset, s.definitionId());
+            } else {
+                Map<Integer, Instant> restarted = new HashMap<>();
+                s.levels().keySet().forEach(level -> restarted.put(level, at));
+                store.save(tenant, new Episode(e.definitionId(), e.version(), asset, at, e.conditionSince(),
+                        e.normalSince(), restarted, e.lastSignalAt(), e.openedAt(), e.level(), e.maxMeasure()));
+            }
+        }
+        return closed;
+    }
+
     /**
      * Advances existing episodes whose activation is false without GPS input, such as a rule requiring an active
      * trip after access ends. An activation that needs unavailable fields is unknown and leaves its episode alone.
@@ -241,9 +263,10 @@ public class SignalEvaluator {
                         : null;
                 return new Step(kept, evidence);
             }
+            int initial = e.level() > 0 ? s.levels().keySet().iterator().next() : r.level();
             Episode opened = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
-                    r.conditionSince(), r.normalSince(), r.levelSince(), at, at, r.level(), r.measure());
-            return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, r.level(), 0, r.measure()));
+                    r.conditionSince(), r.normalSince(), r.levelSince(), at, at, initial, r.measure());
+            return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, initial, 0, r.measure()));
         }
         return new Step(new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                 r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0), null);

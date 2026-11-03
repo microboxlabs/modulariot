@@ -22,7 +22,7 @@ final class HoldSql {
                               FROM miot_symptoms.treatment_action ia
                              WHERE ia.treatment_id = t.id AND ia.tenant_code = t.tenant_code AND ia.kind = 'IGNORE'
                              ORDER BY ia.seq DESC LIMIT 1) a ON true
-             WHERE t.symptom_id < 0
+             WHERE t.symptom_id < 0 AND t.type = 'IGNORE_CONDITION'
             """;
 
     private HoldSql() {
@@ -38,14 +38,14 @@ final class HoldSql {
 
     /**
      * The hold on the case row {@code o} now, at most one, its own first: hold_id, hold_at, hold_until (null until
-     * the trip ends), hold_trip_end, hold_scope, hold_by. A hold whose time ran out no longer covers it, even before
-     * the timer ends it.
+     * the trip ends), hold_trip_end, hold_scope, hold_by. A hold covers it until the timer records its end, including the return time for
+     * the new SLA.
      */
     static String active(String o) {
         return "SELECT t.id::text AS hold_id, a.performed_at AS hold_at, CASE WHEN " + TRIP_END
                 + " THEN NULL ELSE " + UNTIL + " END AS hold_until, " + TRIP_END + " AS hold_trip_end, " + SCOPE
-                + " AS hold_scope, a.performed_by AS hold_by" + covering(o) + " AND t.status = 'OPEN' AND ("
-                + TRIP_END + " OR " + UNTIL + " > now()) ORDER BY h.id = " + o + ".id DESC, a.performed_at DESC"
+                + " AS hold_scope, a.performed_by AS hold_by" + covering(o) + " AND t.status = 'OPEN'"
+                + " ORDER BY h.id = " + o + ".id DESC, a.performed_at DESC"
                 + " LIMIT 1";
     }
 

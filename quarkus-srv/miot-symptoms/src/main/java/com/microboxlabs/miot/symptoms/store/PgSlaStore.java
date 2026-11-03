@@ -61,11 +61,13 @@ public class PgSlaStore implements SlaStore {
                AND y.level_since + make_interval(mins => y.sla_minutes) <= $2
                AND NOT EXISTS (
                      SELECT 1 FROM miot_symptoms.sla_expiry e
-                      WHERE e.tenant_code = y.tenant_code AND e.case_id = y.id AND e.level = y.current_level)
+                      WHERE e.tenant_code = y.tenant_code AND e.case_id = y.id AND e.level = y.current_level
+                        AND e.expired_at >= y.level_since)
                AND NOT EXISTS (
                      SELECT 1 FROM miot_symptoms.treatment t
                       WHERE t.tenant_code = y.tenant_code AND t.symptom_id = -y.id
-                        AND (t.status = 'OPEN' OR t.opened_at >= y.level_since))
+                        AND (t.status = 'OPEN' OR t.opened_at >= y.level_since)
+                        AND (t.closed_at IS NULL OR t.closed_at > y.level_since))
              ORDER BY y.level_since
              LIMIT $3
             """.formatted(HoldSql.returned("o"), HoldSql.active("o"));
@@ -74,6 +76,15 @@ public class PgSlaStore implements SlaStore {
             INSERT INTO miot_symptoms.sla_expiry (tenant_code, case_id, level, sla_minutes, expired_at)
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT DO NOTHING
+            RETURNING case_id
+            """;
+
+    private static final String MARK_PERIOD = """
+            INSERT INTO miot_symptoms.sla_expiry AS e (tenant_code, case_id, level, sla_minutes, expired_at)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (tenant_code, case_id, level) DO UPDATE
+               SET sla_minutes = EXCLUDED.sla_minutes, expired_at = EXCLUDED.expired_at
+             WHERE e.expired_at < $6
             RETURNING case_id
             """;
 
@@ -100,6 +111,14 @@ public class PgSlaStore implements SlaStore {
     public boolean markExpired(String tenantCode, long caseId, int level, int slaMinutes, Instant at) {
         return PgIds.query(pool.get(), MARK, Tuple.of(tenantCode, caseId, level, slaMinutes,
                 at.atOffset(ZoneOffset.UTC))).iterator().hasNext();
+    }
+
+    @Override
+    public boolean markExpired(Due due, Instant at) {
+        EngineCase c = due.engineCase();
+        return PgIds.query(pool.get(), MARK_PERIOD, Tuple.of(due.tenantCode(), c.id(), c.level(),
+                due.slaMinutes(), at.atOffset(ZoneOffset.UTC), due.levelSince().atOffset(ZoneOffset.UTC)))
+                .iterator().hasNext();
     }
 
     private static Due due(Row r) {

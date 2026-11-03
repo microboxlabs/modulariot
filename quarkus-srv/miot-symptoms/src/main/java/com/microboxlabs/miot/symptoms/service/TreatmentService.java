@@ -98,7 +98,7 @@ public class TreatmentService {
         }
         IgnoreHolds.Checked checked = req.kind() == ActionKind.IGNORE
                 ? holds.check(tenantCode, t, req)
-                : new IgnoreHolds.Checked(req.durationSeconds(), req.details() == null ? Map.of() : req.details());
+                : unchecked(req);
         TreatmentAction saved = treatments.addAction(new TreatmentAction(
                 null, t.id(), tenantCode, 0, req.kind(), target.id(), target.name(), target.role(), target.phone(),
                 req.method(), blankToNull(req.outcomeKey()), blankToNull(req.outcomeLabel()), req.answered(),
@@ -109,6 +109,11 @@ public class TreatmentService {
             holds.changed(tenantCode);
         }
         return saved;
+    }
+
+    private static IgnoreHolds.Checked unchecked(AddActionRequest req) {
+        Map<String, Object> details = req.details() == null ? Map.of() : req.details();
+        return new IgnoreHolds.Checked(req.durationSeconds(), details);
     }
 
     /** Who an action is about: the request's fields, completed from the saved contact when one is named. */

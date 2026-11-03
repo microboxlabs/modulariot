@@ -3,7 +3,7 @@
 -- an IGNORE action with the duration and, in details, scope and until_trip_end); no table is added.
 -- NOT VALID: the existing rows already meet the new check, so they are not scanned.
 
-ALTER TABLE miot_symptoms.signal_transitions DROP CONSTRAINT chk_signal_transitions_kind;
+ALTER TABLE miot_symptoms.signal_transitions DROP CONSTRAINT IF EXISTS chk_signal_transitions_kind;
 ALTER TABLE miot_symptoms.signal_transitions
     ADD CONSTRAINT chk_signal_transitions_kind CHECK (kind IN ('OPENED', 'LEVEL_CHANGED', 'CLOSED', 'HELD'))
     NOT VALID;

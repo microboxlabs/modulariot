@@ -81,6 +81,10 @@ public class EngineCaseService {
     /** The keys of the GPS database's counts by condition. */
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
+    private static final String DESCRIPTION = "description";
+    private static final String TREATMENT_TYPE = "treatment_type";
+    private static final String MESSAGE = "message";
+    private static final String DRIVER_RESPONSE = "driver_response";
     private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
     /** The count of the open cases a hold covers ("Ignorados"), out of the other counts. */
     static final String COUNTED_IGNORED = "Ignored";
@@ -604,7 +608,7 @@ public class EngineCaseService {
             props.put("timestamp", start(c).toString());
             props.put(ICU_CODE, c.level());
         }
-        out.set("description", description(c, end(c), reported(c), clock.instant()));
+        out.set(DESCRIPTION, description(c, end(c), reported(c), clock.instant()));
         return out;
     }
 
@@ -741,15 +745,15 @@ public class EngineCaseService {
 
     private static ObjectNode timelineRow(TreatmentAction a) {
         ObjectNode row = JSON.objectNode();
-        ObjectNode description = row.putObject("description");
+        ObjectNode description = row.putObject(DESCRIPTION);
         if (a.kind() == ActionKind.CALL) {
-            row.put("treatment_type", "llamar al conductor");
-            description.put("message", a.message() != null ? a.message() : "Llamado a: " + a.contactName());
-            description.put("driver_response", joined(a.outcomeLabel(), a.note()));
+            row.put(TREATMENT_TYPE, "llamar al conductor");
+            description.put(MESSAGE, a.message() != null ? a.message() : "Llamado a: " + a.contactName());
+            description.put(DRIVER_RESPONSE, joined(a.outcomeLabel(), a.note()));
         } else {
-            row.put("treatment_type", a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
-            description.put("message", a.outcomeLabel());
-            description.put("driver_response", a.note());
+            row.put(TREATMENT_TYPE, a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
+            description.put(MESSAGE, a.outcomeLabel());
+            description.put(DRIVER_RESPONSE, a.note());
         }
         row.put("at", a.performedAt() == null ? null : a.performedAt().toInstant().toString());
         row.put("by", a.performedBy());
@@ -774,13 +778,13 @@ public class EngineCaseService {
      */
     private static ObjectNode holdEnd(TreatmentView t) {
         ObjectNode row = JSON.objectNode();
-        row.put("treatment_type", "fin de ignorar");
+        row.put(TREATMENT_TYPE, "fin de ignorar");
         row.put("resolution", t.resolution());
         row.put("at", t.closedAt() == null ? null : t.closedAt().toInstant().toString());
         row.put("by", t.closedBy());
-        ObjectNode description = row.putObject("description");
-        description.put("message", t.resolution());
-        description.putNull("driver_response");
+        ObjectNode description = row.putObject(DESCRIPTION);
+        description.put(MESSAGE, t.resolution());
+        description.putNull(DRIVER_RESPONSE);
         return row;
     }
 

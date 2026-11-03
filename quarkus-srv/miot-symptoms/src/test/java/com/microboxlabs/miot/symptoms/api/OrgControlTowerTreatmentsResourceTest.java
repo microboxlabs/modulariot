@@ -93,7 +93,7 @@ class OrgControlTowerTreatmentsResourceTest {
 
     private final AuditService audit = new AuditService(new InMemoryAuditStore());
     private final EngineCaseService caseService = new EngineCaseService(cases, (t, a, d) -> { }, t -> null, clock);
-    private final HoldService holds = new HoldService(cases, caseService, holdStore, new HoldIndex(holdStore, clock),
+    private final HoldService holds = new HoldService(cases, caseService, holdStore, new HoldIndex(holdStore),
             treatments, audit, (tenant, c) -> null, clock);
     private final OrgControlTowerTreatmentsResource resource = resource();
 

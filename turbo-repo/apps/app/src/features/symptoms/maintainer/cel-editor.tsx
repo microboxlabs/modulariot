@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
 import {
   autocompletion,
   closeBrackets,
@@ -28,6 +28,18 @@ export interface CelField {
   detail: string;
 }
 
+/**
+ * Values to suggest inside the quotes of a text comparison, by field path:
+ * `e.event_type == "` offers the event types the organization received.
+ * Any other text is still allowed.
+ */
+export type CelValues = Record<string, { value: string; detail?: string }[]>;
+
+const ValuesContext = createContext<CelValues>({});
+
+/** Values every rule editor below suggests, unless it is given its own. */
+export const CelValuesProvider = ValuesContext.Provider;
+
 /** A problem the server found, at a character offset of the rule. */
 export interface CelProblem {
   position: number;
@@ -47,7 +59,43 @@ const FUNCTIONS = [
   "contains",
   "exists",
   "all",
+  "exists_one",
+  "filter",
+  "map",
 ];
+
+const MACRO_CALL =
+  /([A-Za-z_][\w.?]*)\.(?:exists_one|exists|all|filter|map)\(\s*([A-Za-z_]\w*)\s*,/g;
+
+/** The list each macro variable walks, from the text before the cursor: `signal.frame.events.exists(e, …` binds `e`. */
+export function macroVariables(text: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of text.matchAll(MACRO_CALL)) {
+    out.set(m[2] ?? "", (m[1] ?? "").replaceAll("?", ""));
+  }
+  return out;
+}
+
+/** A path with a macro variable as its first part written as the list's path: `e.event_type` → `signal.frame.events.event_type`. */
+function resolved(path: string, variables: Map<string, string>): string {
+  const plain = path.replaceAll("?", "");
+  const [first = "", ...rest] = plain.split(".");
+  const list = variables.get(first);
+  return list ? [list, ...rest].join(".") : plain;
+}
+
+const COMPARED = /([A-Za-z_][\w.?]*)\s*(?:==|!=)\s*"([^"\\]*)$/;
+const LISTED = /([A-Za-z_][\w.?]*)\s+in\s+\[(?:[^\]"]|"[^"]*")*"([^"\\]*)$/;
+
+/** The field and the text typed so far when the cursor is inside the quotes of `field == "…` or `field in [… "…`. */
+function quotedValue(
+  before: string,
+  variables: Map<string, string>
+): { path: string; typed: string } | null {
+  const m = COMPARED.exec(before) ?? LISTED.exec(before);
+  if (!m) return null;
+  return { path: resolved(m[1] ?? "", variables), typed: m[2] ?? "" };
+}
 
 /** Methods of an optional, offered after a `.?` read: `signal.frame.?gps.?speed.orValue(0.0)`. */
 const OPTIONAL_METHODS = ["orValue", "hasValue"];
@@ -95,8 +143,27 @@ const highlight = HighlightStyle.define([
   { tag: tags.comment, class: "italic text-gray-400" },
 ]);
 
-export function completions(fields: () => CelField[]) {
+export function completions(
+  fields: () => CelField[],
+  values: () => CelValues = () => ({})
+) {
   return (ctx: CompletionContext) => {
+    const before = ctx.state.sliceDoc(0, ctx.pos);
+    const variables = macroVariables(before);
+    const quoted = quotedValue(before, variables);
+    if (quoted) {
+      const suggested = values()[quoted.path] ?? [];
+      if (suggested.length === 0) return null;
+      return {
+        from: ctx.pos - quoted.typed.length,
+        options: suggested.map((v) => ({
+          label: v.value,
+          detail: v.detail,
+          type: "text",
+        })),
+        validFor: /^[^"\\]*$/,
+      };
+    }
     // `?` only right after a dot, so a ternary's `?` ends the word.
     const word = ctx.matchBefore(/[A-Za-z_](?:\w|\.\??)*/);
     if (!word || (word.from === word.to && !ctx.explicit)) return null;
@@ -104,7 +171,12 @@ export function completions(fields: () => CelField[]) {
     const dot = text.lastIndexOf(".");
     const all = fields();
     if (dot < 0) {
-      const roots = [...new Set(all.map((f) => f.path.split(".")[0]))];
+      const roots = [
+        ...new Set([
+          ...all.map((f) => f.path.split(".")[0]),
+          ...variables.keys(),
+        ]),
+      ];
       return {
         from: word.from,
         options: [
@@ -119,7 +191,8 @@ export function completions(fields: () => CelField[]) {
       };
     }
     // A `.?` read completes like a plain one: `signal.frame.?se` offers `sensors`.
-    const prefix = text.slice(0, dot + 1).replaceAll("?", "");
+    // `e.` inside `signal.frame.events.exists(e, …)` completes the list's fields.
+    const prefix = `${resolved(text.slice(0, dot), variables)}.`;
     const optional = text.charAt(dot + 1) === "?" ? 1 : 0;
     const seen = new Map<
       string,
@@ -157,6 +230,7 @@ export default function CelEditor({
   value,
   onChange,
   fields,
+  values,
   problems = [],
   singleLine = false,
   readOnly = false,
@@ -166,6 +240,8 @@ export default function CelEditor({
   value: string;
   onChange: (value: string) => void;
   fields: CelField[];
+  /** Values to suggest inside the quotes of a text comparison, by field path. */
+  values?: CelValues;
   problems?: CelProblem[];
   singleLine?: boolean;
   readOnly?: boolean;
@@ -176,8 +252,10 @@ export default function CelEditor({
   const editable = useRef(new Compartment());
   const view = useRef<EditorView | null>(null);
   // Extensions read these through refs, so the editor is built once.
-  const latest = useRef({ onChange, fields, problems });
-  latest.current = { onChange, fields, problems };
+  const shared = useContext(ValuesContext);
+  const suggested = values ?? shared;
+  const latest = useRef({ onChange, fields, values: suggested, problems });
+  latest.current = { onChange, fields, values: suggested, problems };
 
   useEffect(() => {
     if (!host.current) return;
@@ -192,7 +270,12 @@ export default function CelEditor({
       bracketMatching(),
       closeBrackets(),
       autocompletion({
-        override: [completions(() => latest.current.fields)],
+        override: [
+          completions(
+            () => latest.current.fields,
+            () => latest.current.values
+          ),
+        ],
         icons: false,
       }),
       lint,

@@ -20,8 +20,8 @@ export function caseOutcome(c: CasePreview, d: I18nRecord): string {
 }
 
 /**
- * "Ciclo del caso" in { } mode: a few case moments as a tree beside the open
- * and close rules, and what the rules do on the moment shown.
+ * "Ciclo del caso" in { } mode: a few case moments as a tree beside the open,
+ * close and note rules, and what the rules do on the moment shown.
  */
 export default function LifecycleExpression({
   lifecycle,
@@ -29,6 +29,7 @@ export default function LifecycleExpression({
   fields,
   openProblems,
   closeProblems,
+  noteProblems = [],
   readOnly,
   d,
   onChange,
@@ -39,6 +40,7 @@ export default function LifecycleExpression({
   fields: CelField[];
   openProblems: CelProblem[];
   closeProblems: CelProblem[];
+  noteProblems?: CelProblem[];
   readOnly: boolean;
   d: I18nRecord;
   onChange: (lifecycle: Lifecycle) => void;
@@ -83,6 +85,18 @@ export default function LifecycleExpression({
           onChange={(close) => onChange({ ...lifecycle, close })}
         />
         <Problems items={closeProblems} />
+        <span className={labelClass}>{tr("notesCelLabel", d)}</span>
+        <CelEditor
+          singleLine
+          readOnly={readOnly}
+          ariaLabel={tr("notesCelLabel", d)}
+          placeholder={tr("notesCelPlaceholder", d)}
+          value={lifecycle.note ?? ""}
+          fields={fields}
+          problems={noteProblems}
+          onChange={(note) => onChange({ ...lifecycle, note: note || null })}
+        />
+        <Problems items={noteProblems} />
         {shown && (
           <p className="rounded bg-gray-50 px-2 py-1 text-xs dark:bg-gray-900/50">
             {caseOutcome(shown, d)}

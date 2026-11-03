@@ -12,6 +12,7 @@ import { HiCheck, HiChevronDown } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { OptionSectionHeader } from "@/features/settings-admin/selectables/field/field-parts";
+import { inList } from "./condition-form";
 import type { SourceField } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
 
@@ -23,7 +24,11 @@ export function folded(text: string): string {
     .toLowerCase();
 }
 
-/** The fields whose label or path contains every word of the query, grouped by origin in source order. */
+/**
+ * The fields whose label or path contains every word of the query, grouped by
+ * origin in source order. The fields of a list (`signal.frame.events.event_type`)
+ * are left out: the list itself is the field.
+ */
 export function fieldSections(
   fields: SourceField[],
   query: string,
@@ -32,6 +37,8 @@ export function fieldSections(
   const words = folded(query).split(/\s+/).filter(Boolean);
   const sections = new Map<string, SourceField[]>();
   for (const f of fields) {
+    // A list's own fields are read inside its condition, not on their own.
+    if (inList(f.path, fields)) continue;
     const text = folded(`${f.label} ${f.path}`);
     if (!words.every((w) => text.includes(w))) continue;
     const label = originLabel(f.origin, d);

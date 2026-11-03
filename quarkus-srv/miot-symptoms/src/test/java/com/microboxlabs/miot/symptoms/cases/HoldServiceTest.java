@@ -261,7 +261,8 @@ class HoldServiceTest {
         assertEquals(HoldService.RETURNED, ended.resolution());
         assertEquals("lead@example.com", ended.closedBy());
         holds.open.remove(h.id());
-        assertThrows(IllegalStateException.class, () -> service.resume(TENANT, "lead@example.com", h.id()));
+        String endedId = h.id();
+        assertThrows(IllegalStateException.class, () -> service.resume(TENANT, "lead@example.com", endedId));
         String missingId = UUID.randomUUID().toString();
         assertThrows(java.util.NoSuchElementException.class,
                 () -> service.resume(TENANT, "lead@example.com", missingId));

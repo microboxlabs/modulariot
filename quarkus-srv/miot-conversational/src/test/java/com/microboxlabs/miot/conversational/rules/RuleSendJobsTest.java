@@ -62,9 +62,28 @@ class RuleSendJobsTest {
     }
 
     @Test
+    void ignoringACaseCancelsItsAlreadyQueuedSend() {
+        f.engine.accept(RulesFixture.event(RulesEngine.CASE_IGNORED, "-7", RulesFixture.panic(4), false));
+        f.runSendJobs();
+        assertTrue(f.whatsappSent.isEmpty());
+        assertEquals(MessageStatus.FAILED, message().status());
+        assertEquals(Run.Status.CANCELLED, run().status());
+    }
+
+    @Test
+    void ignoringAlsoSuppressesThePendingSendOfAnAlreadyFinishedRun() {
+        Run before = run();
+        f.store.runs.put(before.id(), before.advanced(Run.Status.DONE, before.step(), null, null, before.updatedAt()));
+        f.engine.accept(RulesFixture.event(RulesEngine.CASE_IGNORED, "-7", RulesFixture.panic(4), false));
+        f.runSendJobs();
+        assertTrue(f.whatsappSent.isEmpty());
+        assertEquals(MessageStatus.FAILED, message().status());
+    }
+
+    @Test
     void aJobRunTwiceSendsOnce() {
         f.runSendJobs();
-        new WhatsAppSendJob(f.whatsapp).handle(TENANT, f.sendJobs.get(0).payload());
+        new WhatsAppSendJob(f.whatsapp, f.store.runStore).handle(TENANT, f.sendJobs.get(0).payload());
         f.park(f.sendJobs.get(0), "late failure");
         assertEquals(1, f.whatsappSent.size());
         assertEquals(MessageStatus.SENT, message().status());
@@ -105,7 +124,7 @@ class RuleSendJobsTest {
         assertEquals(Run.Status.WAITING, run().status(), "the run goes on with its next steps");
 
         f.metaFailure = null;
-        new WhatsAppSendJob(f.whatsapp).handle(TENANT, f.sendJobs.get(0).payload());
+        new WhatsAppSendJob(f.whatsapp, f.store.runStore).handle(TENANT, f.sendJobs.get(0).payload());
         assertEquals(MessageStatus.SENT, message().status(), "manual job retry sends a formerly failed message");
     }
 
@@ -120,7 +139,7 @@ class RuleSendJobsTest {
 
     @Test
     void anotherOrganizationsJobCannotSendTheMessage() {
-        WhatsAppSendJob job = new WhatsAppSendJob(f.whatsapp);
+        WhatsAppSendJob job = new WhatsAppSendJob(f.whatsapp, f.store.runStore);
         AsyncJobSpec spec = f.sendJobs.get(0);
         assertThrows(NonRetryableJobException.class, () -> job.handle("tenant-2", spec.payload()));
         f.parkAs("tenant-2", spec, "foreign job");

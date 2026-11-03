@@ -231,7 +231,7 @@ public class SymptomCatalogService {
         if (l.response() == null) {
             return l;
         }
-        return new SymptomSpec.Level(l.icu(), l.applies(), l.when(), withoutTenantNotices(l.response()));
+        return new SymptomSpec.Level(l.icu(), l.applies(), l.when(), withoutTenantNotices(l.response()), l.ignore());
     }
 
     private static SymptomSpec.Response withoutTenantNotices(SymptomSpec.Response r) {

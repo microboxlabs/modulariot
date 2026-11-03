@@ -81,7 +81,15 @@ public class EngineCaseService {
     /** The keys of the GPS database's counts by condition. */
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
+    private static final String DESCRIPTION = "description";
+    private static final String TREATMENT_TYPE = "treatment_type";
+    private static final String MESSAGE = "message";
+    private static final String DRIVER_RESPONSE = "driver_response";
     private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
+    /** The count of the open cases a hold covers ("Ignorados"), out of the other counts. */
+    static final String COUNTED_IGNORED = "Ignored";
+    /** {@code p_icu_code} for the open cases a hold covers. */
+    public static final int IGNORED_CODE = 9;
     /** The case's trip while it runs; a finished trip has no row. */
     private static final String TRIP = """
             SELECT trip_id, asset_id,
@@ -166,18 +174,20 @@ public class EngineCaseService {
     }
 
     /**
-     * The list filters as a case filter. Without dates, the open cases; with them, those active in the range.
-     * A date without an offset is UTC.
+     * The list filters as a case filter. Without dates, the open cases no hold covers; with them, those active in
+     * the range. {@code p_icu_code} {@value #IGNORED_CODE} keeps the open cases a hold covers ("Ignorados"). A date
+     * without an offset is UTC.
      *
      * @throws IllegalArgumentException when the level is not a number or a date is not ISO-8601
      */
     public static EngineCaseStore.CaseFilter filter(Map<String, String> filters) {
         String level = text(filters, LEVEL);
         try {
-            return new EngineCaseStore.CaseFilter(text(filters, TRIP_ID), text(filters, ASSET_ID),
-                    text(filters, NAME), level == null ? null : Integer.valueOf(level), instant(text(filters, FROM)),
-                    instant(text(filters, TO)), text(filters, DRIVER), text(filters, CARRIER), text(filters, ORIGIN),
-                    text(filters, DESTINATION));
+            EngineCaseStore.CaseFilter f = new EngineCaseStore.CaseFilter(text(filters, TRIP_ID),
+                    text(filters, ASSET_ID), text(filters, NAME), level == null ? null : Integer.valueOf(level),
+                    instant(text(filters, FROM)), instant(text(filters, TO)), text(filters, DRIVER),
+                    text(filters, CARRIER), text(filters, ORIGIN), text(filters, DESTINATION));
+            return Integer.valueOf(IGNORED_CODE).equals(f.level()) ? f.withIgnored() : f;
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(LEVEL + " must be a whole number");
         }
@@ -241,14 +251,14 @@ public class EngineCaseService {
     }
 
     /**
-     * The counts by condition with the open cases added, each once: under treatment while it has an open
-     * treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
+     * The counts by condition with the open cases added, each once: under {@value #COUNTED_IGNORED} while a hold
+     * covers it, else under treatment while it has an open treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
      * open cases cannot be read, the GPS counts are answered alone.
      */
     public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
-        List<EngineCaseStore.OpenCount> open;
+        EngineCaseStore.TowerCounts engineCounts;
         try {
-            open = store.openCounts(tenantCode);
+            engineCounts = store.towerCounts(tenantCode);
         } catch (RuntimeException e) {
             if (counts == null) {
                 throw e;
@@ -257,9 +267,13 @@ public class EngineCaseService {
             return counts;
         }
         ObjectNode out = counts != null && counts.isObject() ? ((ObjectNode) counts).deepCopy() : JSON.objectNode();
-        for (EngineCaseStore.OpenCount c : open) {
+        for (EngineCaseStore.OpenCount c : engineCounts.active()) {
             String key = c.underTreatment() ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
             out.put(key, out.path(key).asLong(0) + c.count());
+        }
+        long ignored = engineCounts.ignored();
+        if (ignored > 0) {
+            out.put(COUNTED_IGNORED, out.path(COUNTED_IGNORED).asLong(0) + ignored);
         }
         return out;
     }
@@ -416,7 +430,28 @@ public class EngineCaseService {
         r.put("carrier", trip == null ? null : trip.carrier());
         r.put("origin", trip == null ? null : trip.origin());
         r.put("destination", trip == null ? null : trip.destination());
+        putHold(r, c);
         return r;
+    }
+
+    /**
+     * {@code ignored}: the hold that covers the case, with {@code until} null while it lasts until the trip ends;
+     * {@code returned_after_ignore_at}: when the case came back to the tower from its latest hold ("Vuelve tras
+     * ignorar"), while it is open and not held again.
+     */
+    private static void putHold(ObjectNode out, EngineCase c) {
+        EngineCase.Ignored h = c.ignored();
+        if (h != null && c.closedAt() == null) {
+            ObjectNode ignored = out.putObject("ignored");
+            ignored.put("treatment_id", h.treatmentId());
+            ignored.put("since", h.since().toString());
+            ignored.put("until", h.until() == null ? null : h.until().toString());
+            ignored.put("until_trip_end", h.untilTripEnd());
+            ignored.put("scope", h.scope());
+            ignored.put("by", h.by());
+        } else if (c.returnedAt() != null && c.closedAt() == null) {
+            out.put("returned_after_ignore_at", c.returnedAt().toString());
+        }
     }
 
     /** The treatment page's header: the case, and its trip when it had one. */
@@ -444,6 +479,7 @@ public class EngineCaseService {
         symptom.put("opened_at", c.openedAt().toString());
         symptom.put("started_at", start);
         symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
+        putHold(symptom, c);
         out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
         trip.put(POSITION_ASSET_ID, c.assetId());
@@ -568,7 +604,7 @@ public class EngineCaseService {
             props.put("timestamp", start(c).toString());
             props.put(ICU_CODE, c.level());
         }
-        out.set("description", description(c, end(c), reported(c), clock.instant()));
+        out.set(DESCRIPTION, description(c, end(c), reported(c), clock.instant()));
         return out;
     }
 
@@ -671,9 +707,14 @@ public class EngineCaseService {
             t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE)
                     .forEach(a -> {
                         if (!aggs.isEmpty()) {
-                            rows.get(stepOf(aggs, a)).add(timelineRow(a));
+                            rows.get(stepOf(aggs, a.performedAt())).add(timelineRow(a));
                         }
                     });
+            if (!aggs.isEmpty() && t.status() == TreatmentStatus.CLOSED && t.resolution() != null
+                    && HoldService.ENDINGS.contains(t.resolution())
+                    && t.actions().stream().anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
+                rows.get(stepOf(aggs, t.closedAt())).add(holdEnd(t));
+            }
         }
         for (int i = 0; i < aggs.size(); i++) {
             aggs.get(i).set("treatments", rows.get(i));
@@ -682,12 +723,12 @@ public class EngineCaseService {
         return out;
     }
 
-    /** The index of the last agg that starts at or before the action; the first when none does. */
-    private static int stepOf(List<ObjectNode> aggs, TreatmentAction a) {
-        if (a.performedAt() == null) {
+    /** The index of the last agg that starts at or before {@code when}; the first when none does. */
+    private static int stepOf(List<ObjectNode> aggs, OffsetDateTime when) {
+        if (when == null) {
             return aggs.size() - 1;
         }
-        Instant at = a.performedAt().toInstant();
+        Instant at = when.toInstant();
         int found = 0;
         for (int i = 1; i < aggs.size(); i++) {
             Instant start = contextInstant(aggs.get(i).path(START));
@@ -700,16 +741,46 @@ public class EngineCaseService {
 
     private static ObjectNode timelineRow(TreatmentAction a) {
         ObjectNode row = JSON.objectNode();
-        ObjectNode description = row.putObject("description");
+        ObjectNode description = row.putObject(DESCRIPTION);
         if (a.kind() == ActionKind.CALL) {
-            row.put("treatment_type", "llamar al conductor");
-            description.put("message", a.message() != null ? a.message() : "Llamado a: " + a.contactName());
-            description.put("driver_response", joined(a.outcomeLabel(), a.note()));
+            row.put(TREATMENT_TYPE, "llamar al conductor");
+            description.put(MESSAGE, a.message() != null ? a.message() : "Llamado a: " + a.contactName());
+            description.put(DRIVER_RESPONSE, joined(a.outcomeLabel(), a.note()));
         } else {
-            row.put("treatment_type", a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
-            description.put("message", a.outcomeLabel());
-            description.put("driver_response", a.note());
+            row.put(TREATMENT_TYPE, a.kind() == ActionKind.IGNORE ? "ignorar condicion" : "invalidar sintoma");
+            description.put(MESSAGE, a.outcomeLabel());
+            description.put(DRIVER_RESPONSE, a.note());
         }
+        row.put("at", a.performedAt() == null ? null : a.performedAt().toInstant().toString());
+        row.put("by", a.performedBy());
+        if (a.kind() == ActionKind.IGNORE) {
+            boolean tripEnd = Boolean.TRUE.equals(details(a).get(HoldService.UNTIL_TRIP_END));
+            row.put("until_trip_end", tripEnd);
+            row.put("ignored_until", tripEnd || a.performedAt() == null || a.durationSeconds() == null ? null
+                    : a.performedAt().toInstant().plusSeconds(a.durationSeconds()).toString());
+            Object scope = details(a).get(HoldService.SCOPE);
+            row.put("scope", scope == null ? null : scope.toString());
+        }
+        return row;
+    }
+
+    private static Map<String, Object> details(TreatmentAction a) {
+        return a.details() == null ? Map.of() : a.details();
+    }
+
+    /**
+     * The end of a hold: {@code resolution} says how (resolved after ignore, back in the tower, or closed with the
+     * trip), {@code by} who lifted it ({@value HoldService#SYSTEM} when its time ran out).
+     */
+    private static ObjectNode holdEnd(TreatmentView t) {
+        ObjectNode row = JSON.objectNode();
+        row.put(TREATMENT_TYPE, "fin de ignorar");
+        row.put("resolution", t.resolution());
+        row.put("at", t.closedAt() == null ? null : t.closedAt().toInstant().toString());
+        row.put("by", t.closedBy());
+        ObjectNode description = row.putObject(DESCRIPTION);
+        description.put(MESSAGE, t.resolution());
+        description.putNull(DRIVER_RESPONSE);
         return row;
     }
 

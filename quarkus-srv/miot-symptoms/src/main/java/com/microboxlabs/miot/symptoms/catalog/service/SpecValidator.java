@@ -159,6 +159,7 @@ public final class SpecValidator {
             int before = out.size();
             rule(out, section, schema, level.when(), Expect.CONDITION);
             response(out, section + ".response", level.response());
+            ignore(out, section + ".ignore", level.ignore());
             if (out.size() == before) {
                 valid.add(level);
             }
@@ -188,6 +189,25 @@ public final class SpecValidator {
             out.add(new Finding(section, Severity.ERROR, RuleMessage.of("operatorNeedsSla"), -1));
         }
         steps(out, section, response.steps());
+    }
+
+    /** A maximum duration that is a positive ISO-8601 duration, and known scopes. */
+    private static void ignore(List<Finding> out, String section, SymptomSpec.Ignore ignore) {
+        if (ignore == null) {
+            return;
+        }
+        try {
+            java.time.Duration max = ignore.maxDurationValue();
+            if (max != null && max.compareTo(java.time.Duration.ofSeconds(1)) < 0) {
+                out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreMaxDuration"), -1));
+            }
+        } catch (IllegalArgumentException e) {
+            out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreMaxDuration"), -1));
+        }
+        if (ignore.scopes() != null && (ignore.scopes().isEmpty()
+                || !SymptomSpec.Ignore.VALID_SCOPES.containsAll(ignore.scopes()))) {
+            out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreScopes"), -1));
+        }
     }
 
     /** Each step says whom to contact and has minutes; the script is optional. */

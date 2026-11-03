@@ -11,13 +11,31 @@ public interface EngineCaseStore {
     /** The most recent open cases, at most a page of them. */
     List<EngineCase> open(String tenantCode);
 
+    /** Every open case of this exact vehicle, without the tower's page limit. */
+    default List<EngineCase> openForAsset(String tenantCode, String assetId) {
+        return open(tenantCode).stream().filter(c -> c.assetId().equals(assetId)).toList();
+    }
+
     /** The most recent cases that match, at most a page of them. */
     List<EngineCase> list(String tenantCode, CaseFilter filter);
 
-    /** All the open cases, counted by level and by whether they have an open treatment. */
+    /** The open cases no hold covers, counted by level and by whether they have an open treatment. */
     List<OpenCount> openCounts(String tenantCode);
 
-    /** Every open case's vehicle, symptom and current level, not capped to a page. */
+    record TowerCounts(List<OpenCount> active, long ignored) { }
+
+    /** Counts read from one snapshot by persistent stores. */
+    default TowerCounts towerCounts(String tenantCode) {
+        return new TowerCounts(openCounts(tenantCode), ignoredCount(tenantCode));
+    }
+
+
+    /** The open cases a hold covers now. */
+    default long ignoredCount(String tenantCode) {
+        return 0;
+    }
+
+    /** Every open case's vehicle, symptom and current level, not capped to a page; held cases are left out. */
     List<OpenLevel> openLevels(String tenantCode);
 
     Optional<EngineCase> find(String tenantCode, long caseId);
@@ -53,31 +71,39 @@ public interface EngineCaseStore {
      * Each value null for any. Without {@code from} and {@code to}, only open cases; with them, the cases active
      * in the range: opened before {@code to} and still open or closed at or after {@code from}. {@code assetId} matches part of the vehicle id,
      * {@code symptomName} the whole name ignoring case, {@code level} the case's current level.
-     * {@code underTreatmentOnly} requires an open treatment, independently of severity.
+     * {@code underTreatmentOnly} requires an open treatment, independently of severity. {@code ignoredOnly} keeps
+     * the open cases a hold covers; otherwise, without dates, those are left out.
      *
      * <p>The trip filters match the case's live trip, so a case without one matches none of them. {@code driverId}
      * is the RUT of either driver, {@code carrierId} the carrier's RUT or id; both ignore dots, dashes, spaces and
      * case. {@code origin} and {@code destination} are the whole place name, ignoring case and outer spaces.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
-            String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly) {
+            String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly,
+            boolean ignoredOnly) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
 
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to) {
-            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false);
+            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false, false);
         }
 
         @SuppressWarnings("java:S107")
         public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
                 Instant to, String driverId, String carrierId, String origin, String destination) {
-            this(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin, destination, false);
+            this(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin, destination, false,
+                    false);
         }
 
         public CaseFilter withOpenTreatment() {
             return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
-                    destination, true);
+                    destination, true, ignoredOnly);
+        }
+
+        public CaseFilter withIgnored() {
+            return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
+                    destination, underTreatmentOnly, true);
         }
 
         /** Whether it filters by a field of the case's trip. */

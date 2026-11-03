@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.conversational.jobs;
 
 import com.microboxlabs.miot.conversational.rules.SendJobs;
+import com.microboxlabs.miot.conversational.rules.store.RunStore;
 import com.microboxlabs.miot.conversational.service.EmailMessagingService;
 import com.microboxlabs.miot.conversational.service.SendFailure;
 import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
@@ -21,10 +22,12 @@ import java.util.Map;
 public class EmailSendJob implements ModulithJobHandler {
 
     private final EmailMessagingService email;
+    private final RunStore runs;
 
     @Inject
-    public EmailSendJob(EmailMessagingService email) {
+    public EmailSendJob(EmailMessagingService email, RunStore runs) {
         this.email = email;
+        this.runs = runs;
     }
 
     @Override
@@ -40,6 +43,9 @@ public class EmailSendJob implements ModulithJobHandler {
 
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
+        if (SuppressedSend.cancel(runs, tenantCode, payload)) {
+            return JobOutcome.skipped("Notification cancelled for an ignored or closed case");
+        }
         try {
             return SendOutcome.of(email.deliverQueued(tenantCode,
                     WhatsAppSendJob.text(payload, SendJobs.MESSAGE_ID)));

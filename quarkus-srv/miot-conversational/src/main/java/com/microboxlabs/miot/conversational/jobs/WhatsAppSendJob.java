@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.jobs;
 
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.rules.SendJobs;
+import com.microboxlabs.miot.conversational.rules.store.RunStore;
 import com.microboxlabs.miot.conversational.service.SendFailure;
 import com.microboxlabs.miot.conversational.service.WhatsAppMessagingService;
 import com.microboxlabs.miot.integrations.jobs.InternalJobTypes;
@@ -23,10 +24,12 @@ import java.util.Map;
 public class WhatsAppSendJob implements ModulithJobHandler {
 
     private final WhatsAppMessagingService whatsapp;
+    private final RunStore runs;
 
     @Inject
-    public WhatsAppSendJob(WhatsAppMessagingService whatsapp) {
+    public WhatsAppSendJob(WhatsAppMessagingService whatsapp, RunStore runs) {
         this.whatsapp = whatsapp;
+        this.runs = runs;
     }
 
     @Override
@@ -42,6 +45,9 @@ public class WhatsAppSendJob implements ModulithJobHandler {
 
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
+        if (SuppressedSend.cancel(runs, tenantCode, payload)) {
+            return JobOutcome.skipped("Notification cancelled for an ignored or closed case");
+        }
         String messageId = text(payload, SendJobs.MESSAGE_ID);
         try {
             Message sent = whatsapp.deliverQueued(tenantCode, messageId, text(payload, SendJobs.LANGUAGE),

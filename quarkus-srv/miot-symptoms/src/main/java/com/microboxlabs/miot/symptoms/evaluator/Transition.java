@@ -7,7 +7,8 @@ import java.util.UUID;
 /**
  * A change to a case: it opened, its level rose, or it closed. {@code state}
  * is the version's: TEST transitions are recorded in shadow only, ACTIVE ones
- * create cases and send notices.
+ * create cases and send notices. {@code HELD} is an opening a hold kept back
+ * ({@link Holds}): it is recorded as evidence, opens no case and sends nothing.
  *
  * @param previousLevel the level before this change; 0 when the case opens
  */
@@ -25,6 +26,7 @@ public record Transition(
     public enum Kind {
         OPENED,
         LEVEL_CHANGED,
-        CLOSED
+        CLOSED,
+        HELD
     }
 }

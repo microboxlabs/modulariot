@@ -117,6 +117,9 @@ public final class SpecDiff {
             if (applies(a) && applies(b) && !Objects.equals(b.response(), a.response())) {
                 out.add(new Change("response", VersionBump.PATCH, "Cambió la respuesta de " + name));
             }
+            if (applies(a) && applies(b) && !Objects.equals(b.ignore(), a.ignore())) {
+                out.add(new Change("ignore", VersionBump.PATCH, "Cambió la política de ignorar de " + name));
+            }
         }
     }
 

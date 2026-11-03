@@ -6,6 +6,7 @@ import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
+import com.microboxlabs.miot.symptoms.evaluator.Holds;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
@@ -42,6 +43,7 @@ public class TripChecks {
     private final SymptomEvents events;
     private final AuditService audit;
     private final MeterRegistry meters;
+    private final Holds holds;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -69,6 +71,13 @@ public class TripChecks {
 
     public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
             AuditService audit, MeterRegistry meters) {
+        this(catalog, episodes, log, events, audit, meters, Holds.NONE);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with the holds the checks read.
+    public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
+            AuditService audit, MeterRegistry meters, Holds holds) {
+        this.holds = holds;
         this.catalog = catalog;
         this.episodes = episodes;
         this.log = log;
@@ -183,7 +192,7 @@ public class TripChecks {
             return;
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
-        SignalEvaluator.Result result = new SignalEvaluator(state)
+        SignalEvaluator.Result result = new SignalEvaluator(state, holds)
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {
@@ -191,7 +200,9 @@ public class TripChecks {
             recorded.stream().filter(r -> r.transition().kind() == Transition.Kind.OPENED)
                     .forEach(r -> open.put(key(tenant, r.transition().definitionId()),
                             new OpenCase(r.caseId(), r.transition().version(), r.transition().state())));
-            events.transitions(tenant, recorded, place);
+            events.transitions(tenant, recorded.stream()
+                    .filter(r -> !holds.held(tenant, assetId, r.transition().definitionId(), Instant.EPOCH))
+                    .toList(), place);
         }
         episodes.save(state);
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
@@ -210,8 +221,10 @@ public class TripChecks {
     private void returned(String tenant, String assetId, UUID definitionId, OpenCase c, Episode e,
             TransitionLog.Place place, Return back) {
         long caseId = c.id();
-        events.signalReturned(tenant, caseId, definitionId, c.version(), c.state(), e.level(), assetId, place,
-                back.at(), back.backfill());
+        if (!holds.held(tenant, assetId, definitionId, e.openedAt())) {
+            events.signalReturned(tenant, caseId, definitionId, c.version(), c.state(), e.level(), assetId, place,
+                    back.at(), back.backfill());
+        }
         if (c.state() == SymptomState.ACTIVE) {
             Map<String, Object> details = new LinkedHashMap<>();
             details.put("returnedAt", back.at().toString());

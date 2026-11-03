@@ -198,6 +198,15 @@ final class InMemoryRules {
         }
 
         @Override
+        public boolean ignoredSince(Run run) {
+            Instant trigger = event(run.eventId()).map(StoredEvent::at).orElse(run.createdAt());
+            return events.values().stream().anyMatch(e -> e.tenantCode().equals(run.tenantCode())
+                    && java.util.Objects.equals(e.contextKind(), run.contextKind())
+                    && java.util.Objects.equals(e.contextKey(), run.contextKey())
+                    && e.type().equals(RulesEngine.CASE_IGNORED) && !e.test() && !e.at().isBefore(trigger));
+        }
+
+        @Override
         public Optional<Run> find(String id) {
             return Optional.ofNullable(runs.get(id));
         }

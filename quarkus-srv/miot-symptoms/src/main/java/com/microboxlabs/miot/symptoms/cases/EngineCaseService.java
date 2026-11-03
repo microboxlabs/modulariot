@@ -315,7 +315,7 @@ public class EngineCaseService {
      * the case opens; else when it opened.
      */
     static Instant start(EngineCase c) {
-        Instant lost = lostSince(c.levelContext());
+        Instant lost = lostSince(c.openingContext());
         return lost != null && lost.isBefore(c.openedAt()) ? lost : c.openedAt();
     }
 
@@ -350,7 +350,7 @@ public class EngineCaseService {
         reason.put(ICU_CONDITION, condition(c.level()));
         reason.put("rule", c.levelRule());
         reason.set("context", c.levelContext() == null ? JSON.nullNode() : c.levelContext().deepCopy());
-        Instant lost = lostSince(c.levelContext());
+        Instant lost = lostSince(c.openingContext());
         if (lost != null) {
             reason.put("lost_since", lost.toString());
         }

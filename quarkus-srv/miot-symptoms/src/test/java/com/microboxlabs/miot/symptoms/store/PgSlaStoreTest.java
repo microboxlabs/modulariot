@@ -272,7 +272,8 @@ class PgSlaStoreTest {
         Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
         TransitionLog.Place place = new TransitionLog.Place("T-1", -33.4, -70.6, 95.0, null);
         long caseId = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 1, 0)), place,
-                java.util.Map.of("check", java.util.Map.of("loss", java.util.Map.of("silence_s", 200.0))))
+                java.util.Map.of("check", java.util.Map.of("loss", java.util.Map.of("silence_s", 200.0,
+                        "last", java.util.Map.of("at", t0.minusSeconds(200).toString())))))
                 .get(0).caseId();
         PgEngineCases cases = new PgEngineCases(() -> pool);
 
@@ -281,10 +282,17 @@ class PgSlaStoreTest {
         assertEquals("true", opened.levelRule());
 
         log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, speeding, t0.plusSeconds(60), 3, 1)), place,
-                java.util.Map.of("check", java.util.Map.of("loss", java.util.Map.of("silence_s", 1900.0))));
+                java.util.Map.of("check", java.util.Map.of("loss", java.util.Map.of("silence_s", 1900.0,
+                        "last", java.util.Map.of("at", t0.plusSeconds(30).toString())))));
         EngineCase rose = cases.find(tenant, caseId).orElseThrow();
         assertEquals(3, rose.level());
         assertEquals(1900.0, rose.levelContext().path("check").path("loss").path("silence_s").asDouble());
+        assertEquals(200.0, rose.openingContext().path("check").path("loss").path("silence_s").asDouble(),
+                "the opening context stays separate from the latest level context");
+        assertEquals(t0.minusSeconds(200).toString(),
+                rose.openingContext().path("check").path("loss").path("last").path("at").asText());
+        assertEquals(t0.plusSeconds(30).toString(),
+                rose.levelContext().path("check").path("loss").path("last").path("at").asText());
         assertEquals(List.of(new EngineCase.LevelStep(t0, 1), new EngineCase.LevelStep(t0.plusSeconds(60), 3)),
                 rose.levels());
 

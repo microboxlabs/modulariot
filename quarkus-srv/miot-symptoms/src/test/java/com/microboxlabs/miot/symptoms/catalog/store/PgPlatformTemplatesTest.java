@@ -83,8 +83,8 @@ class PgPlatformTemplatesTest {
         assertEquals(List.of("case.closed_by_operator || (case.level <= 1 && case.normal_s >= 0)"),
                 rows(spec("2.2.0", "-> 'lifecycle' ->> 'close'")));
         // Only the close rule changes.
-        assertEquals(List.of("true"), rows("SELECT ((a.spec - 'lifecycle') = (b.spec - 'lifecycle')"
-                + " AND a.spec -> 'lifecycle' ->> 'open' = b.spec -> 'lifecycle' ->> 'open')::text"
+        assertEquals(List.of("true"), rows("SELECT ((a.spec #- '{lifecycle,close}')"
+                + " = (b.spec #- '{lifecycle,close}'))::text"
                 + " FROM miot_symptoms.symptom_version a, miot_symptoms.symptom_version b"
                 + " WHERE a.tenant_code = '_platform' AND b.tenant_code = '_platform'"
                 + " AND a.version = '2.1.0' AND b.version = '2.2.0' AND a.definition_id = b.definition_id"));

@@ -13,6 +13,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -21,6 +22,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.jboss.logging.Logger;
@@ -96,6 +98,29 @@ public class PgEngineCases implements EngineCaseStore {
             + ") z WHERE ($7::int IS NULL OR z.current_level = $7)"
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5)"
             + " AND (NOT $8::boolean OR z.treatments > 0) ORDER BY z.at DESC LIMIT 200";
+    /** The case's live trip: a trips-module trip id is a UUID. */
+    private static final String LIVE_TRIP = """
+            t.tenant_code = %s.tenant_code AND t.trip_id = CASE
+                 WHEN %<s.trip_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                 THEN %<s.trip_id::uuid END""";
+    /** A RUT or id without dots, dashes or spaces, upper case; the parameter comes normalized the same way. */
+    private static final String PLAIN = "upper(regexp_replace(%s, '[^0-9A-Za-z]', '', 'g'))";
+    /**
+     * {@link #MATCHING} that also filters by the case's live trip: $9 either driver's RUT, $10 the carrier's RUT,
+     * $11 the carrier's id, $12 the origin name, $13 the destination name; each normalized as {@link #PLAIN} or
+     * trimmed and lower case. A case without a live trip matches none.
+     */
+    private static final String MATCHING_BY_TRIP = MATCHING.replace("AND ($6::timestamptz IS NULL OR o.at < $6)",
+            "AND ($6::timestamptz IS NULL OR o.at < $6)\n" + """
+               AND EXISTS (SELECT 1 FROM miot_trips.trip_live t
+                    LEFT JOIN miot_fleet.carrier fc ON fc.tenant_code = t.tenant_code AND fc.id::text = t.carrier_id
+                   WHERE %s
+                     AND ($9::text IS NULL OR %s = $9 OR %s = $9)
+                     AND ($10::text IS NULL OR %s = $10 OR t.carrier_id = $11)
+                     AND ($12::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $12)
+                     AND ($13::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $13))
+            """.formatted(LIVE_TRIP.formatted("o"), PLAIN.formatted("t.driver_id"),
+                    PLAIN.formatted("t.second_driver_id"), PLAIN.formatted("fc.rut")));
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
@@ -132,14 +157,16 @@ public class PgEngineCases implements EngineCaseStore {
             """.formatted(WITH_SLA.formatted(SELECT.formatted(CASES + " AND o.id = $2")));
     /** Enrich only the returned page, without changing counts or looking up each trip separately. */
     private static final String WITH_TRIP_CODE = """
-            SELECT c.*, t.mandate_codes::text AS trip_mandate_codes
-              FROM (%s) c
-              LEFT JOIN miot_trips.trip_live t
-                ON t.tenant_code = c.tenant_code AND t.trip_id = CASE
-                     WHEN c.trip_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                     THEN c.trip_id::uuid END
+            SELECT c.*, t.mandate_codes::text AS trip_mandate_codes, t.driver_name AS trip_driver,
+                   t.carrier_name AS trip_carrier, t.origin_geofence_label AS trip_origin,
+                   t.destination_geofence_label AS trip_destination
+              FROM (%%s) c
+              LEFT JOIN miot_trips.trip_live t ON %s
              ORDER BY c.at DESC
-            """;
+            """.formatted(LIVE_TRIP.formatted("c"));
+    private static final String WITHOUT_TRIP = "SELECT c.*, NULL::text AS trip_mandate_codes,"
+            + " NULL::text AS trip_driver, NULL::text AS trip_carrier, NULL::text AS trip_origin,"
+            + " NULL::text AS trip_destination FROM (%s) c ORDER BY c.at DESC";
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
     private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
@@ -206,7 +233,7 @@ public class PgEngineCases implements EngineCaseStore {
             return PgIds.query(pool.get(), WITH_TRIP_CODE.formatted(query), args);
         } catch (RuntimeException e) {
             LOG.debug("Engine case trip codes unavailable", e);
-            return PgIds.query(pool.get(), "SELECT c.*, NULL::text AS trip_mandate_codes FROM (" + query + ") c ORDER BY c.at DESC", args);
+            return PgIds.query(pool.get(), WITHOUT_TRIP.formatted(query), args);
         }
     }
 
@@ -220,13 +247,41 @@ public class PgEngineCases implements EngineCaseStore {
     @Override
     public List<EngineCase> list(String tenantCode, CaseFilter f) {
         List<EngineCase> out = new ArrayList<>();
-        cases(MATCHING, Tuple.tuple().addString(tenantCode).addString(f.tripId())
+        Tuple args = Tuple.tuple().addString(tenantCode).addString(f.tripId())
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
                 .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
-                .addBoolean(f.underTreatmentOnly()))
-                .forEach(r -> out.add(engineCase(r)));
+                .addBoolean(f.underTreatmentOnly());
+        if (!f.byTrip()) {
+            cases(MATCHING, args).forEach(r -> out.add(engineCase(r)));
+            return out;
+        }
+        String driver = plain(f.driverId());
+        String carrier = plain(f.carrierId());
+        if ("".equals(driver) || "".equals(carrier)) {
+            return out;
+        }
+        args.addString(driver).addString(carrier).addString(f.carrierId() == null ? null : f.carrierId().trim())
+                .addString(lower(f.origin())).addString(lower(f.destination()));
+        try {
+            PgIds.query(pool.get(), WITH_TRIP_CODE.formatted(MATCHING_BY_TRIP), args)
+                    .forEach(r -> out.add(engineCase(r)));
+        } catch (PgException e) {
+            // Without the trips or fleet tables no case has a live trip to match.
+            if (!"42P01".equals(e.getSqlState())) {
+                throw e;
+            }
+            LOG.debug("Engine cases not filtered by trip: trips unavailable", e);
+        }
         return out;
+    }
+
+    static String plain(String value) {
+        return value == null ? null : value.replaceAll("[^0-9A-Za-z]", "").toUpperCase(Locale.ROOT);
+    }
+
+    private static String lower(String value) {
+        return value == null ? null : value.strip().toLowerCase(Locale.ROOT);
     }
 
     @Override
@@ -314,7 +369,14 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
-                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes")));
+                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r));
+    }
+
+    /** The live trip's names, or null when the case has no live trip or it has none of them. */
+    private static EngineCase.TripDetails trip(Row r) {
+        EngineCase.TripDetails t = new EngineCase.TripDetails(r.getString("trip_driver"), r.getString("trip_carrier"),
+                r.getString("trip_origin"), r.getString("trip_destination"));
+        return t.driver() == null && t.carrier() == null && t.origin() == null && t.destination() == null ? null : t;
     }
 
     static List<EngineCase.LevelStep> steps(JsonNode steps) {

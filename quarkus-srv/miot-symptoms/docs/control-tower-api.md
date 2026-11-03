@@ -114,7 +114,7 @@ applies to every organization of the deployment. The app reads the same env name
 
 | Endpoint | `true` (default) | `false` |
 |---|---|---|
-| `GET /map/symptoms` | GPS database page, with the evaluator's open cases first on page 1 | The evaluator's cases only, paged with `p_page` and `p_page_size` (default 10). Totals count the matching cases, at most 200. A driver, carrier, origin or destination filter matches no case |
+| `GET /map/symptoms` | GPS database page, with the evaluator's open cases first on page 1 | The evaluator's cases only, paged with `p_page` and `p_page_size` (default 10). Totals count the matching cases, at most 200. Driver, carrier, origin and destination match the case's live trip (`miot_trips.trip_live`); a case without one matches none of them. `p_driver_id`: either driver's RUT. `p_carrier_id`: the carrier's RUT (`miot_fleet.carrier.rut`) or id. RUTs ignore dots, dashes, spaces and case. `p_origin`, `p_destination`: the whole place name, ignoring case. Rows carry the trip's `driver`, `carrier`, `origin` and `destination` names |
 | `GET /map/conditions` | GPS database counts plus the open cases | The open cases only. With `from` and `to`, the cases opened in that range by current level |
 | `GET /map/positions` | GPS database positions with its symptom fields | GPS database positions. `symptoms_condition` is the vehicle's highest open case level (0 with none), `associate_symptoms` lists its open cases, `speed_limit_condition` is null, `speed_limit` and `lost_signal` are left out |
 | `GET /map/summary` | GPS database | Same shape. Symptom items count the open cases by level; the services and fleet items and `stable_condition` have no case equivalent and are 0 |
@@ -122,6 +122,9 @@ applies to every organization of the deployment. The app reads the same env name
 
 In engine-only mode, `p_icu_code=6` selects cases with an open treatment, independently of their severity.
 The store applies this predicate before its 200-case limit.
+
+If the optional trip or fleet tables are absent, trip filters match no cases. Other database failures
+propagate as errors instead of returning a successful empty page.
 
 ## Selectables
 

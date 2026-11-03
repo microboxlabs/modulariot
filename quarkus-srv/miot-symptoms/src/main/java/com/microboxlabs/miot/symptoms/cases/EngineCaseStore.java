@@ -54,18 +54,35 @@ public interface EngineCaseStore {
      * in the range: opened before {@code to} and still open or closed at or after {@code from}. {@code assetId} matches part of the vehicle id,
      * {@code symptomName} the whole name ignoring case, {@code level} the case's current level.
      * {@code underTreatmentOnly} requires an open treatment, independently of severity.
+     *
+     * <p>The trip filters match the case's live trip, so a case without one matches none of them. {@code driverId}
+     * is the RUT of either driver, {@code carrierId} the carrier's RUT or id; both ignore dots, dashes, spaces and
+     * case. {@code origin} and {@code destination} are the whole place name, ignoring case and outer spaces.
      */
     record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
-            boolean underTreatmentOnly) {
+            String driverId, String carrierId, String origin, String destination, boolean underTreatmentOnly) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
 
-        public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to) {
-            this(tripId, assetId, symptomName, level, from, to, false);
+        public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
+                Instant to) {
+            this(tripId, assetId, symptomName, level, from, to, null, null, null, null, false);
+        }
+
+        @SuppressWarnings("java:S107")
+        public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from,
+                Instant to, String driverId, String carrierId, String origin, String destination) {
+            this(tripId, assetId, symptomName, level, from, to, driverId, carrierId, origin, destination, false);
         }
 
         public CaseFilter withOpenTreatment() {
-            return new CaseFilter(tripId, assetId, symptomName, null, from, to, true);
+            return new CaseFilter(tripId, assetId, symptomName, null, from, to, driverId, carrierId, origin,
+                    destination, true);
+        }
+
+        /** Whether it filters by a field of the case's trip. */
+        public boolean byTrip() {
+            return driverId != null || carrierId != null || origin != null || destination != null;
         }
 
         public boolean openOnly() {

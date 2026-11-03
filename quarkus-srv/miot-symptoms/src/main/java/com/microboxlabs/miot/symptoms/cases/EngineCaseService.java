@@ -57,7 +57,14 @@ public class EngineCaseService {
     private static final String LEVEL = "p_icu_code";
     private static final String FROM = "p_start_date_historic";
     private static final String TO = "p_end_date_historic";
-    /** The list filters the cases answer; any other one leaves them out. */
+    private static final String DRIVER = "p_driver_id";
+    private static final String CARRIER = "p_carrier_id";
+    private static final String ORIGIN = "p_origin";
+    private static final String DESTINATION = "p_destination";
+    /**
+     * The list filters under which the GPS database's page shows the cases first; any other one leaves them out.
+     * The engine-only list ({@link #casesPage}) also answers driver, carrier, origin and destination.
+     */
     private static final Set<String> CASE_FILTERS = Set.of(TRIP_ID, ASSET_ID, NAME, LEVEL, FROM, TO);
     private static final String SYMPTOM_NAME = "symptom_name";
     private static final String CONDITIONS_AGG = "conditions_agg";
@@ -124,8 +131,8 @@ public class EngineCaseService {
     }
 
     /**
-     * Whether the list request's first page shows the cases: it is the first page, and it filters by nothing the
-     * cases cannot answer (driver, carrier, origin, destination).
+     * Whether the list request's first page shows the cases: it is the first page, and it filters by nothing outside
+     * {@link #CASE_FILTERS} (driver, carrier, origin, destination).
      */
     public static boolean showsCases(Map<String, String> filters) {
         if (filters.keySet().stream().anyMatch(k -> !PAGING.contains(k) && !CASE_FILTERS.contains(k)
@@ -147,7 +154,8 @@ public class EngineCaseService {
         try {
             return new EngineCaseStore.CaseFilter(text(filters, TRIP_ID), text(filters, ASSET_ID),
                     text(filters, NAME), level == null ? null : Integer.valueOf(level), instant(text(filters, FROM)),
-                    instant(text(filters, TO)));
+                    instant(text(filters, TO)), text(filters, DRIVER), text(filters, CARRIER), text(filters, ORIGIN),
+                    text(filters, DESTINATION));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(LEVEL + " must be a whole number");
         }
@@ -234,26 +242,20 @@ public class EngineCaseService {
         return out;
     }
 
-    /** The list filters the cases cannot answer: a request with any of them matches no case. */
-    private static final Set<String> GPS_ONLY_FILTERS = Set.of("p_driver_id", "p_carrier_id", "p_origin",
-            "p_destination");
     private static final int PAGE_SIZE = 10;
 
     /**
      * One page of the symptom list from the cases alone, in the GPS database function's shape, with totals counted
-     * over the matching cases (at most the store's page of them). A filter the cases cannot answer (driver,
-     * carrier, origin, destination) matches none.
+     * over the matching cases (at most the store's page of them).
      *
      * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
      */
     public JsonNode casesPage(String tenantCode, Map<String, String> filters) {
-        boolean answerable = filters.keySet().stream()
-                .noneMatch(k -> GPS_ONLY_FILTERS.contains(k) && notBlank(filters.get(k)));
         EngineCaseStore.CaseFilter filter = filter(filters);
         if (Integer.valueOf(6).equals(filter.level())) {
             filter = filter.withOpenTreatment();
         }
-        List<EngineCase> found = answerable ? store.list(tenantCode, filter) : List.of();
+        List<EngineCase> found = store.list(tenantCode, filter);
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
         int page = Math.max(1, number(filters.get(PAGE), 1));
         int pages = Math.max(1, Math.ceilDiv(found.size(), size));
@@ -387,7 +389,11 @@ public class EngineCaseService {
         r.put("treatment_count", c.treatments());
         r.put("sla_minutes", c.slaMinutes());
         r.put("recurrence_events", c.recurrence());
-        r.putNull("driver");
+        EngineCase.TripDetails trip = c.trip();
+        r.put("driver", trip == null ? null : trip.driver());
+        r.put("carrier", trip == null ? null : trip.carrier());
+        r.put("origin", trip == null ? null : trip.origin());
+        r.put("destination", trip == null ? null : trip.destination());
         return r;
     }
 

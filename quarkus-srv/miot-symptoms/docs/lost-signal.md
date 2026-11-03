@@ -135,6 +135,54 @@ Template 2.1.0 (V0.12.5): while `cohort_outage` or `low_coverage_zone` holds, th
 
 `scripts/coverage-seed/` builds an initial 30-day map outside the runtime: `export.sql` exports one day of frames read-only, `seed.py` turns them into `HSET` commands in the detector's format. Review the output before piping it to `redis-cli`; it has not been run against any environment.
 
+## Coverage job
+
+`CoverageJob` builds the shadow map's day rows from `asset_data`, all vehicles of all clients. Delay is `request_timestamp - timestamp`; the sender is `client_id`.
+
+| Step | What it does |
+|---|---|
+| Schedule | Every hour (`coverage.every`). Fills each day of the last 30 that is not in `coverage_run`, newest first. Yesterday is ready 2 h after midnight UTC (`coverage.settle`). |
+| Read | One hour of `asset_data` at a time through the `gps-read` datasource, SELECT only. First pass: delay and interval counts per sender and second, for the day's medians. Second pass: the frames ordered by asset, sender and time, plus the hour before the day for gaps across midnight. |
+| Write | Replaces the day in `coverage_day` and `coverage_sender_day` in one transaction, then marks it in `coverage_run`. Deletes days older than the window and recomputes `anomalous`. |
+| Leader | The replica holding the Redis lease `symptoms:coverage:lease` (10 min, renewed every hour read). Without Redis every replica runs it. |
+| On | Where the detector runs (`miot.symptoms.evaluator.enabled`), the GPS database is configured and `coverage.job-enabled` is true (default). |
+
+| Rule | Definition |
+|---|---|
+| Delayed frame | delay > max(floor, median-factor x the sender's median delay that day) |
+| Gap | Consecutive frames of one asset and sender with dt > max(floor, median-factor x the sender's median interval that day), distance >= gap-min-km and distance / dt <= gap-max-kmh. `dt / median interval - 1` frames are missing, spread evenly over the cells the straight line crosses. |
+| Share | (delayed + missing) / (frames + missing) |
+| Sender decides | With >= min-frames weighted frames in the cell: shadow when share >= max(min-share, over-sender x the sender's share everywhere) |
+| Consensus | Otherwise: at least `consensus` other senders that decide the cell alone; shadow when that many of them see shadow |
+| Anomalous day | A sender-day with share >= anomaly-share and > anomaly-factor x the sender's median daily share over the window is left out |
+| Window | The last 30 days, each weighted 0.5^(age / half-life); yesterday is 1 day old |
+
+| Table | Key | Columns |
+|---|---|---|
+| `miot_symptoms.coverage_day` | sender, cell, day | frames, delayed, missing |
+| `miot_symptoms.coverage_sender_day` | sender, day | frames, delayed, missing, median_delay_s, median_interval_s, anomalous |
+| `miot_symptoms.coverage_run` | day | frames, finished_at |
+
+Settings under `miot.symptoms.lost-signal.coverage.`:
+
+| Setting | Default |
+|---|---|
+| `floor` | `PT10M` |
+| `median-factor` | 3 |
+| `min-frames` | 20 |
+| `min-share` | 0.3 |
+| `over-sender` | 2 |
+| `consensus` | 2 |
+| `window` | `P30D` |
+| `half-life` | `P7D` |
+| `gap-min-km` | 2 |
+| `gap-max-kmh` | 150 |
+| `anomaly-share` | 0.3 |
+| `anomaly-factor` | 3 |
+| `job-enabled` | true |
+| `every` | `1h` |
+| `settle` | `PT2H` |
+
 ## GPS sabotage template
 
 "Desactivación o sabotaje de GPS" (`gps-sabotage`, V0.12.6) is a separate platform template on `gps_signal`, driven by device events instead of silence: on a trip, `signal.?derived.?power_disconnected == TRUE || signal.?derived.?jamming == TRUE` opens a level-4 case (operator, 2 min SLA) that only an operator closes, as panic. In the Mintral recon the power events were `ALIMENTACION BATERIA DESCONECTADA` (40 frames) and `EVENTO_SMDP_ALIMENTACION_EXTERNA_DESCONECTADA` (23); no jamming event appeared. A jammer that also blocks GSM delivers the event when the device reconnects, as a late frame.

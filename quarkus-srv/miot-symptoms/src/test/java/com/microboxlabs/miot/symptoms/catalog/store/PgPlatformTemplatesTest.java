@@ -35,7 +35,8 @@ class PgPlatformTemplatesTest {
             "V0.12.0__platform_tenant.sql", "V0.12.1__contact_company_rut.sql",
             "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql",
             "V0.12.4__signal_loss_template_reads_detector.sql", "V0.12.5__signal_loss_template_coverage_cohort.sql",
-            "V0.12.6__gps_sabotage_template.sql", "V0.12.7__platform_templates_tenant.sql");
+            "V0.12.6__gps_sabotage_template.sql", "V0.12.7__platform_templates_tenant.sql",
+            "V0.12.8__coverage_days.sql");
 
     private static Vertx vertx;
     private static Pool pool;

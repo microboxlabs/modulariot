@@ -249,7 +249,11 @@ public class EngineCaseService {
     public JsonNode casesPage(String tenantCode, Map<String, String> filters) {
         boolean answerable = filters.keySet().stream()
                 .noneMatch(k -> GPS_ONLY_FILTERS.contains(k) && notBlank(filters.get(k)));
-        List<EngineCase> found = answerable ? store.list(tenantCode, filter(filters)) : List.of();
+        EngineCaseStore.CaseFilter filter = filter(filters);
+        if (Integer.valueOf(6).equals(filter.level())) {
+            filter = filter.withOpenTreatment();
+        }
+        List<EngineCase> found = answerable ? store.list(tenantCode, filter) : List.of();
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
         int page = Math.max(1, number(filters.get(PAGE), 1));
         int pages = Math.max(1, Math.ceilDiv(found.size(), size));

@@ -44,6 +44,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
                         || c.assetId().toLowerCase().contains(f.assetId().toLowerCase()))
                 .filter(c -> f.symptomName() == null || f.symptomName().equalsIgnoreCase(c.name()))
                 .filter(c -> f.level() == null || f.level() == c.level())
+                .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
                 .limit(PAGE).toList();
     }

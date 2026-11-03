@@ -86,7 +86,7 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)
             + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200") + " ORDER BY y.at DESC";
-    /** {@link CaseFilter}: $2 trip, $3 part of the vehicle id, $4 symptom name, $5 from, $6 to, $7 level. */
+    /** {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only. */
     private static final String MATCHING = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
                AND ($2::text IS NULL OR o.trip_id = $2)
                AND ($3::text IS NULL OR o.asset_id ILIKE '%' || $3 || '%')
@@ -94,7 +94,8 @@ public class PgEngineCases implements EngineCaseStore {
                AND ($6::timestamptz IS NULL OR o.at < $6)
             """) + " WHERE ($5::timestamptz IS NOT NULL OR $6::timestamptz IS NOT NULL OR x.closed_id IS NULL)")
             + ") z WHERE ($7::int IS NULL OR z.current_level = $7)"
-            + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5) ORDER BY z.at DESC LIMIT 200";
+            + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5)"
+            + " AND (NOT $8::boolean OR z.treatments > 0) ORDER BY z.at DESC LIMIT 200";
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
@@ -222,7 +223,8 @@ public class PgEngineCases implements EngineCaseStore {
         cases(MATCHING, Tuple.tuple().addString(tenantCode).addString(f.tripId())
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
-                .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level()))
+                .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
+                .addBoolean(f.underTreatmentOnly()))
                 .forEach(r -> out.add(engineCase(r)));
         return out;
     }

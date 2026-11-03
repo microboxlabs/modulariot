@@ -53,10 +53,20 @@ public interface EngineCaseStore {
      * Each value null for any. Without {@code from} and {@code to}, only open cases; with them, the cases active
      * in the range: opened before {@code to} and still open or closed at or after {@code from}. {@code assetId} matches part of the vehicle id,
      * {@code symptomName} the whole name ignoring case, {@code level} the case's current level.
+     * {@code underTreatmentOnly} requires an open treatment, independently of severity.
      */
-    record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to) {
+    record CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to,
+            boolean underTreatmentOnly) {
 
         public static final CaseFilter OPEN = new CaseFilter(null, null, null, null, null, null);
+
+        public CaseFilter(String tripId, String assetId, String symptomName, Integer level, Instant from, Instant to) {
+            this(tripId, assetId, symptomName, level, from, to, false);
+        }
+
+        public CaseFilter withOpenTreatment() {
+            return new CaseFilter(tripId, assetId, symptomName, null, from, to, true);
+        }
 
         public boolean openOnly() {
             return from == null && to == null;

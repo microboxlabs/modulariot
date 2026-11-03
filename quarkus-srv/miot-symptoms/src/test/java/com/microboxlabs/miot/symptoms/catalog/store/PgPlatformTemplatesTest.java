@@ -79,7 +79,7 @@ class PgPlatformTemplatesTest {
     }
 
     @Test
-    void everyCurrentPublishedPlatformTemplateStillPassesTheRuleChecks() throws IOException {
+    void everyCurrentPublishedPlatformTemplateStillPassesTheRuleChecks() {
         DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
         for (Row row : pool.query("""
                 SELECT d.symptom_key, v.spec FROM miot_symptoms.symptom_definition d

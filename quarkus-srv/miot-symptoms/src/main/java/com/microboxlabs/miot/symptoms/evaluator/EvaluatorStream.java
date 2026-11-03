@@ -50,6 +50,7 @@ public class EvaluatorStream {
     private static final Logger LOG = Logger.getLogger(EvaluatorStream.class);
     private static final ObjectMapper JSON = new ObjectMapper();
     static final String SOURCE = "gps_signal";
+    private static final String FRAME = "frame";
     private static final Duration VERSIONS_TTL = Duration.ofSeconds(30);
     /** Client ids are 8 characters before any suffix; the tag keeps only those. */
     private static final int SENDER_TAG = 8;
@@ -200,7 +201,7 @@ public class EvaluatorStream {
             if (!clients.contains(tenant)) {
                 recorded += evaluate(tenant, assetId, instant,
                         Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP,
-                                "frame", Map.of("events", List.of())), true).transitions();
+                                FRAME, Map.of("events", List.of())), true).transitions();
             }
         }
         if (late) {
@@ -339,8 +340,8 @@ public class EvaluatorStream {
     /** The trip, position and driver of the signal, as far as it has them. */
     static TransitionLog.Place place(Map<String, Object> signal) {
         return new TransitionLog.Place(text(path(signal, "trip", "id")),
-                number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
-                number(path(signal, "frame", "gps", "speed")), text(path(signal, "trip", "driver", "id")));
+                number(path(signal, FRAME, "gps", "latitude")), number(path(signal, FRAME, "gps", "longitude")),
+                number(path(signal, FRAME, "gps", "speed")), text(path(signal, "trip", "driver", "id")));
     }
 
     private static String text(Object value) {

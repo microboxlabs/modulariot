@@ -41,6 +41,7 @@ import {
   DocumentBadge,
   FleetHeader,
   HarnessCard,
+  OfflineBadge,
   StatusBadge,
 } from "./fleet-ui";
 
@@ -458,7 +459,10 @@ function cells(row: AssetRow, d: I18nRecord, lang: string) {
     <span key="carrier" className="text-gray-900 dark:text-white">
       {row.carrier ?? "—"}
     </span>,
-    <StatusBadge key="status" status={row.status} d={d} />,
+    <span key="status" className="flex flex-col gap-1">
+      <StatusBadge status={row.status} d={d} />
+      <OfflineBadge signal={row.signal} d={d} />
+    </span>,
     <span key="driver">{row.driver ?? "—"}</span>,
     route ? (
       <span key="trip" className="flex flex-col">

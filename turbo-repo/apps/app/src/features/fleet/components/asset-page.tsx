@@ -43,6 +43,7 @@ import {
   FleetHeader,
   HarnessCard,
   InfoRow,
+  OfflineBadge,
   StatusBadge,
 } from "./fleet-ui";
 
@@ -193,6 +194,7 @@ function AssetContent({
           <span className="font-mono">{asset.id}</span>
         </h2>
         <StatusBadge status={asset.status} d={d} />
+        <OfflineBadge signal={asset.signal} d={d} />
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {tr("updated", d, { ago: ago(live.lastSignalAt, lang) })}
         </span>

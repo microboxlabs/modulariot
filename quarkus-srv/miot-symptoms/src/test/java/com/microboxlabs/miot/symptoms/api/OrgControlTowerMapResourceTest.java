@@ -830,4 +830,21 @@ class OrgControlTowerMapResourceTest {
         assertEquals(404, call(withSignals.assetSignal(ORG, "ZZ99")).getStatus());
         assertThrows(WebApplicationException.class, () -> withSignals.assetSignal("org-b", "AB12"));
     }
+
+    /** The GPS database's live positions name the asset {@code asset_id}, as production returns them. */
+    @Test
+    void positionsNamingTheAssetAssetIdCarryTheirSignalAndAnswerOneAsset() {
+        response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createArrayNode()
+                .add(JSON.createObjectNode().put("asset_id", "AB12").put("speed", 0))
+                .add(JSON.createObjectNode().put("asset_id", "CD34").put("speed", 0)));
+        OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
+
+        JsonNode body = (JsonNode) call(withSignals.positions(ORG)).getEntity();
+        assertEquals("offline", body.get(0).path("signal").path("state").asText());
+        assertEquals("online", body.get(1).path("signal").path("state").asText());
+        Response one = call(withSignals.assetSignal(ORG, "AB12"));
+        assertEquals(200, one.getStatus());
+        assertEquals("offline", ((JsonNode) one.getEntity()).path("state").asText());
+    }
 }

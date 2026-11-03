@@ -336,7 +336,7 @@ export default function PulseTooltip({
           <div className="text-sm text-gray-600 dark:text-gray-300">
             {(dict.geographic_view as I18nRecord).arrival_delay as string}:{" "}
             <span
-              className={`font-light ${object.properties.delay_s >= LATE_FRAME_S ? "text-amber-600 dark:text-amber-400" : ""}`}
+              className={`font-light ${object.properties.delay_s >= LATE_FRAME_S ? "font-medium text-gray-700 dark:text-gray-200" : ""}`}
             >
               {formatDelay(object.properties.delay_s)}
             </span>

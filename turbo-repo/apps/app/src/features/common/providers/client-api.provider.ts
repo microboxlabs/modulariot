@@ -456,11 +456,16 @@ export function useMapPositions(options?: { enabled?: boolean }) {
       const response = await fetch(url);
       const data = await safeJsonParse<MapPosition[]>(response);
       return data?.map((position: MapPosition) => {
+        const assetId = position.asset_id?.trim()
+          ? position.asset_id
+          : position.assetid;
         const [longitude, latitude] = MapService.parseWKBPoint(
           position.location
         );
         return {
           ...position,
+          asset_id: assetId,
+          assetid: assetId,
           longitude,
           latitude,
           lost_signal: isOfflineFrame(position.timestamp, position.signal),

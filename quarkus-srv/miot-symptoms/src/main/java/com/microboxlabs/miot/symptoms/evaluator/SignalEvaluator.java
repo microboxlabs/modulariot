@@ -163,10 +163,8 @@ public class SignalEvaluator {
                     Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
                     Optional<Transition> t = step(tenantCode, assetId, at, root, s)
                             .filter(x -> x.kind() == Kind.OPENED || x.kind() == Kind.HELD);
-                    if (t.isPresent()) {
-                        transitions.add(t.get());
-                    }
-                    if (t.isEmpty() || t.get().kind() == Kind.HELD) {
+                    t.ifPresent(transitions::add);
+                    if (t.filter(x -> x.kind() == Kind.OPENED).isEmpty()) {
                         before.ifPresentOrElse(e -> store.save(tenantCode, e),
                                 () -> store.delete(tenantCode, assetId, s.definitionId()));
                     }

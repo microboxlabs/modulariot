@@ -23,14 +23,18 @@ const WHITE: [number, number, number, number] = [255, 255, 255, 255];
  * A stopped vehicle is a hollow dot: white inside, ringed in its level color.
  * Red fill is kept for symptoms.
  */
-export function stoppedMarkProps(levelOf: (d: any) => number) {
+export function stoppedMarkProps<T>(levelOf: (d: T) => number) {
   return {
     getFillColor: () => WHITE,
-    getLineColor: (d: any) => getColor(levelOf(d)),
+    getLineColor: (d: T) => getColor(levelOf(d)),
     stroked: true,
     getLineWidth: 2,
     lineWidthUnits: "pixels" as const,
   };
+}
+
+function levelOfFeature(d: { properties?: { icu_code?: number } }): number {
+  return d.properties?.icu_code ?? 0;
 }
 
 export function isValidCoordinate(coords: any): boolean {
@@ -199,7 +203,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         id: "pulse-stopped-vehicles-layer",
         data: stoppedVehicles,
         ...this.getCommonLayerProps(),
-        ...stoppedMarkProps((d) => d.properties?.icu_code ?? 0),
+        ...stoppedMarkProps(levelOfFeature),
         updateTriggers: {
           getLineColor: [
             selectedPulse,
@@ -241,7 +245,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         id: "pulse-selected-stopped-vehicles-layer",
         data: selectedStoppedVehicles,
         ...this.getCommonLayerProps(),
-        ...stoppedMarkProps((d) => d.properties?.icu_code ?? 0),
+        ...stoppedMarkProps(levelOfFeature),
         updateTriggers: {
           getLineColor: [selectedPulse, showStops, this.props.data],
         },

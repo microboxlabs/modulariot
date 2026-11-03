@@ -31,6 +31,9 @@ export interface MapPosition {
   symptoms_condition: number;
   start_time: string;
   timestamp: string;
+  /** When the frame reached the platform, and how many seconds after its GPS time. */
+  received_at?: string | null;
+  delay_s?: number | null;
   trip_id: string;
   symptoms: Symptom[];
   associate_symptoms: Symptom[];

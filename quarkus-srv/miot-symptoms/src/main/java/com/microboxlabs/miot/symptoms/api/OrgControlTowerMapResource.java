@@ -206,7 +206,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             description = "From an hour before the case opened, or from the vehicle's previous case when nearer, until "
                     + "the case closed or now; oldest first, at most 20000. Only for the evaluator's cases (negative "
                     + "ids): a symptom with a trip reads the trip's positions. 404 when the case is not the "
-                    + "organization's.")
+                    + "organization's. Each position has received_at, when it reached the platform, and delay_s, "
+                    + "the seconds after its GPS time (null without an arrival time).")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> symptomPositions(@PathParam("organizationId") String organizationId,
@@ -249,7 +250,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
                     + "positions from its departure until it ended or now; of a longer trip, its last 7 days; none "
                     + "before it departs. "
                     + "Any other id is a GPS database trip. 404 when the trip does not exist for the asset or the "
-                    + "asset was not the organization's when the trip started.")
+                    + "asset was not the organization's when the trip started. Each position has received_at and "
+                    + "delay_s, as the symptom's positions.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> tripPositions(@PathParam("organizationId") String organizationId,
@@ -272,7 +274,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listMapAssetPositions", summary = "The asset's positions in a time range, oldest first",
             description = "from and to are ISO-8601 date-times with an offset, from before to, at most 7 days apart "
                     + "(400 otherwise). At most 20000, sampled evenly. Only the signals sent while the asset was the "
-                    + "organization's; an empty array when there are none or the asset is not the organization's.")
+                    + "organization's; an empty array when there are none or the asset is not the organization's. "
+                    + "Each position has received_at and delay_s, as the symptom's positions.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> assetPositions(@PathParam("organizationId") String organizationId,

@@ -3,6 +3,19 @@ import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import { pin_conditions } from "@/features/geographic-view/types/pin_conditions";
 import { DescriptionProps } from "@/app/api/treatments/location/route.type";
 import { FormattedDate } from "@/features/common/components/formatted-date";
+import { LATE_FRAME_S } from "@/features/geographic-view/utils/frame-delays";
+
+/** A delay in seconds as "45 s", "12 min" or "2 h 5 min". */
+export function formatDelay(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s} s`;
+  const minutes = Math.round(s / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const rest = minutes % 60;
+  return rest
+    ? `${Math.floor(minutes / 60)} h ${rest} min`
+    : `${minutes / 60} h`;
+}
 export type PulseListType = {
   elements: number[];
   description: DescriptionProps;
@@ -19,6 +32,8 @@ export type PulseType = {
     timestamp: string;
     /** The symptom whose interval holds this frame, if any. */
     symptom_name?: string | null;
+    /** Seconds between the GPS time and the arrival, or null if unknown. */
+    delay_s?: number | null;
   };
 };
 
@@ -299,6 +314,16 @@ export default function PulseTooltip({
             />
           )}
         </div>
+        {typeof object.properties.delay_s === "number" && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {(dict.geographic_view as I18nRecord).arrival_delay as string}:{" "}
+            <span
+              className={`font-light ${object.properties.delay_s >= LATE_FRAME_S ? "text-amber-600 dark:text-amber-400" : ""}`}
+            >
+              {formatDelay(object.properties.delay_s)}
+            </span>
+          </div>
+        )}
         <hr className="my-2 border-gray-200 dark:border-gray-700" />
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {(dict.geographic_view as I18nRecord).speed as string}:{" "}

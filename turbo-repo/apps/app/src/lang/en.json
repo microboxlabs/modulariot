@@ -7420,6 +7420,7 @@
     "call_center_new_save_error": "The contact couldn't be saved to the contact book. The call goes ahead with this number only."
   },
   "geographic_view": {
+    "arrival_delay": "Arrival delay",
     "speed": "Speed",
     "speed_limit": "Speed limit",
     "date_and_time": "Date and time",

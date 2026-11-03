@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import {
   FlyToInterpolator,
+  type Layer,
+  LineLayer,
   LinearInterpolator,
   ScatterplotLayer,
 } from "deck.gl";
@@ -70,6 +72,13 @@ import {
   type CaseSpan,
   pointLevel,
 } from "@/features/symptoms/model/level-reason";
+import {
+  dashSegments,
+  frameDelay,
+  hasFramePosition,
+  isLate,
+  silenceGap,
+} from "../utils/frame-delays";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -136,6 +145,48 @@ const INITIAL_VIEW_STATE: ViewStateType = {
 
 const NO_SPANS: CaseSpan[] = [];
 
+/** The silence connection and late-frame rings, independent of the other map layers. */
+function frameDelayLayers(
+  positions: MapPosition[],
+  lostSince: string | null
+): Layer[] {
+  const layers: Layer[] = [];
+  const gap = silenceGap(positions, lostSince);
+  if (gap) {
+    layers.push(
+      new LineLayer({
+        id: "silence-gap",
+        data: dashSegments(gap.from, gap.to),
+        getSourcePosition: (d) => d.from,
+        getTargetPosition: (d) => d.to,
+        getColor: [255, 255, 255, 230],
+        getWidth: 3,
+        widthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  const late = positions.filter(hasFramePosition).filter(isLate);
+  if (late.length) {
+    layers.push(
+      new ScatterplotLayer<MapPosition>({
+        id: "late-frames",
+        data: late,
+        getPosition: (d) => [d.longitude, d.latitude],
+        getRadius: 10,
+        radiusUnits: "pixels",
+        filled: false,
+        stroked: true,
+        getLineColor: [245, 158, 11, 255],
+        getLineWidth: 2,
+        lineWidthUnits: "pixels",
+        parameters: { depthCompare: "always" },
+      })
+    );
+  }
+  return layers;
+}
+
 // The map is tilted, so below this zoom the scroll wheel can pull the camera
 // to the map's edge or to latitude 0, far from the trip.
 const TRIP_MAP_MIN_ZOOM = 2;
@@ -164,6 +215,8 @@ type MapVisualizationProps = {
   casePoint?: CasePoint | null;
   /** The page's symptom intervals: its frames take the symptom's level color. */
   caseSpans?: CaseSpan[];
+  /** A lost signal's last frame before the silence: the silence is drawn dashed. */
+  lostSince?: string | null;
 };
 
 export type CasePoint = { longitude: number; latitude: number };
@@ -325,6 +378,7 @@ export default function MapVisualizationTrip({
   onLugaresChange,
   casePoint = null,
   caseSpans = NO_SPANS,
+  lostSince = null,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -490,6 +544,7 @@ export default function MapVisualizationTrip({
               longitude: item.longitude,
               speed: item.speed,
               timestamp: item.timestamp,
+              delay_s: frameDelay(item),
             },
           };
         }) || [],
@@ -711,6 +766,7 @@ export default function MapVisualizationTrip({
                   longitude: info.object?.longitude,
                   speed: info.object?.speed,
                   timestamp: info.object?.timestamp,
+                  delay_s: frameDelay(info.object),
                 },
               },
             };
@@ -730,6 +786,10 @@ export default function MapVisualizationTrip({
           },
         })
       );
+    }
+
+    if (showPulse && positions?.length) {
+      baseLayers.push(...frameDelayLayers(positions, lostSince));
     }
 
     if (caseLng != null && caseLat != null) {
@@ -754,6 +814,7 @@ export default function MapVisualizationTrip({
   }, [
     caseLng,
     caseLat,
+    lostSince,
     geoJson,
     positions,
     processedGeofence,

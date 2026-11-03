@@ -371,6 +371,7 @@ export default function PrototypeGeneralMap({
               onLugaresChange={setLugaresAbierto}
               casePoint={casePoint}
               caseSpans={caseSpans}
+              lostSince={treatmentData?.level_reason?.lost_since ?? null}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

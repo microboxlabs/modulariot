@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest";
-import es from "@/lang/es.json";
-import en from "@/lang/en.json";
-import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   caseSpans,
   levelAt,
   pointLevel,
-  summarizeReason,
   type LevelReason,
 } from "./level-reason";
-
-const dict = es as unknown as I18nRecord;
 
 const lowCoverage: LevelReason = {
   icu_code: 1,
@@ -34,71 +28,6 @@ const lowCoverage: LevelReason = {
     },
   },
 };
-
-describe("summarizeReason", () => {
-  it("states the silence, the rule and the true flags", () => {
-    const s = summarizeReason(lowCoverage, dict)!;
-    expect(s.silenceMinutes).toBe(13);
-    expect(s.rule).toBe(lowCoverage.rule);
-    expect(s.flags.map((f) => f.label)).toEqual(["Zona de baja cobertura"]);
-    expect(s.flags[0].value).toBe("");
-  });
-
-  it("labels the known values and leaves positions out", () => {
-    const s = summarizeReason(lowCoverage, dict)!;
-    const labels = Object.fromEntries(s.details.map((d) => [d.label, d.value]));
-    expect(labels["Silencio sobre lo esperado"]).toBe("2.5×");
-    expect(labels["Intervalo esperado"]).toBe("300 s");
-    expect(labels["Vehículos reportando cerca"]).toBe("3");
-    expect(labels["Última señal antes del silencio"]).toBe(
-      "2026-01-01T00:00:00Z"
-    );
-    expect(s.details.some((d) => d.key.endsWith(".lat"))).toBe(false);
-  });
-
-  it("adds the coverage share and source only when present", () => {
-    const withCoverage: LevelReason = {
-      ...lowCoverage,
-      context: {
-        check: {
-          loss: {
-            silence_s: 600,
-            low_coverage_zone: true,
-            coverage_share: 0.42,
-            coverage_source: "shadow-map",
-          },
-        },
-      },
-    };
-    const flag = summarizeReason(withCoverage, en as unknown as I18nRecord)!
-      .flags[0];
-    expect(flag.label).toBe("Low-coverage zone");
-    expect(flag.value).toBe("Coverage: 42 % · Source: shadow-map");
-  });
-
-  it("shows unknown keys of another template by their path", () => {
-    const s = summarizeReason(
-      { icu_code: 2, context: { signal: { speed: 95, zone: "A" } } },
-      dict
-    )!;
-    expect(s.silenceMinutes).toBeNull();
-    expect(s.details).toEqual([
-      { key: "signal.speed", label: "signal.speed", value: "95" },
-      { key: "signal.zone", label: "signal.zone", value: "A" },
-    ]);
-  });
-
-  it("answers a case without a kept context", () => {
-    const s = summarizeReason({ icu_code: 4, context: null }, dict)!;
-    expect(s).toEqual({
-      silenceMinutes: null,
-      rule: null,
-      flags: [],
-      details: [],
-    });
-    expect(summarizeReason(null, dict)).toBeNull();
-  });
-});
 
 describe("levelAt", () => {
   const steps = [

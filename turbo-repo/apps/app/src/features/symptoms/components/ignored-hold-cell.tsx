@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useSWRConfig } from "swr";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ShowNotification } from "@/features/notifications/notification";
+import { isPrototypeApiDisabled } from "./map-view/prototype/prototype-api-guard";
 import { resumeTreatment } from "@/features/symptoms/control-tower/control-tower-api";
 import {
   formatLeft,
@@ -35,7 +36,7 @@ export default function IgnoredHoldCell({
   const [busy, setBusy] = useState(false);
 
   const resume = async () => {
-    if (busy) return;
+    if (busy || isPrototypeApiDisabled()) return;
     setBusy(true);
     try {
       await resumeTreatment(info.treatment_id);
@@ -62,7 +63,7 @@ export default function IgnoredHoldCell({
         size="xs"
         color="light"
         className="!text-xs"
-        disabled={busy}
+        disabled={busy || isPrototypeApiDisabled()}
         onClick={resume}
       >
         {t("resume")}

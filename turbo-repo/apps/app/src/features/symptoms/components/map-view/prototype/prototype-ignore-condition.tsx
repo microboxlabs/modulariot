@@ -62,6 +62,7 @@ export default function PrototypeIgnoreCondition({
   setIsMenuOpen: (isMenuOpen: boolean) => void;
 }>) {
   // "Hasta que termine el viaje" needs a trip to wait for.
+  const engineCase = isEngineCase(treatmentRequest);
   const tripEndOffered = Boolean(treatmentData?.trip_info?.trip_id);
   const [durationLocal, setDurationLocal] = useState(
     offeredDuration(duration, tripEndOffered)
@@ -200,6 +201,7 @@ export default function PrototypeIgnoreCondition({
         <Select
           sizing="sm"
           value={scopeLocal}
+          disabled={!engineCase}
           onChange={(e) => {
             setScope(e.target.value);
             setScopeLocal(e.target.value);

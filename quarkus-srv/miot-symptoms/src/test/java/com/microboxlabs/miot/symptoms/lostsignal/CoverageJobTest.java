@@ -157,6 +157,23 @@ class CoverageJobTest {
     }
 
     @Test
+    void theScheduledRunCountsFilledDaysAndAHeldLease() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        AtomicBoolean free = new AtomicBoolean(false);
+        CoverageJob job = new CoverageJob(new CoverageJob.JobSettings(true, Duration.ofHours(2)),
+                gps, store, CoverageSettings.defaults(), ttl -> free.get(), meters,
+                java.time.Clock.fixed(NOW, ZoneOffset.UTC));
+
+        job.scheduled();
+        assertEquals(1.0, meters.counter("miot.symptoms.lost_signal.coverage_lease_held").count());
+        assertTrue(store.done.isEmpty());
+
+        free.set(true);
+        job.scheduled();
+        assertEquals(30.0, meters.counter("miot.symptoms.lost_signal.coverage_days_filled").count());
+    }
+
+    @Test
     void daysBeforeTheWindowAreDeleted() {
         store.replace(TODAY.minusDays(40), List.of(), List.of(), 0);
 

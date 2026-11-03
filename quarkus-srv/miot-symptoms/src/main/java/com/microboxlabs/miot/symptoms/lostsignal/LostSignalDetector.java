@@ -133,9 +133,10 @@ public class LostSignalDetector {
         this.owner = UUID.randomUUID().toString();
         this.meters = meters;
         this.clock = clock;
-        TickerSettings ticker = settings.ticker();
-        this.ticker = new LossTicker(store, new MarkLost(store, trips, coverage, ticker.recheck(),
-                ticker.maxSilence(), ticker.returnGrace(), meters), ticker.ingest(), owner, ticker.leaseTtl(), ticker.batch(), meters, clock);
+        TickerSettings tickerSettings = settings.ticker();
+        this.ticker = new LossTicker(store, new MarkLost(store, trips, coverage, tickerSettings.recheck(),
+                tickerSettings.maxSilence(), tickerSettings.returnGrace(), meters), tickerSettings.ingest(), owner,
+                tickerSettings.leaseTtl(), tickerSettings.batch(), meters, clock);
     }
 
     /** A detector that does nothing. */

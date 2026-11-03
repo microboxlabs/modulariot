@@ -75,6 +75,11 @@ class CoverageJobTest {
         }
 
         @Override
+        public Snapshot snapshot(LocalDate from) {
+            return new Snapshot(cells(from), senders(from));
+        }
+
+        @Override
         public List<CellDay> cells(LocalDate from) {
             return cells.entrySet().stream().filter(e -> !e.getKey().isBefore(from))
                     .flatMap(e -> e.getValue().stream()).toList();

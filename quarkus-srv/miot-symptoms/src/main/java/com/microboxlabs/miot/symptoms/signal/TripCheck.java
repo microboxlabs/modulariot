@@ -98,7 +98,7 @@ public record TripCheck(
         TripCheck lost = new TripCheck(312.0, 0.0, 6.0, trip, new Loss(360.0, 120.0, 3.0,
                 new Last("2026-01-01T12:00:00Z", -23.6, -70.4, 82.0, true), "sender-1", false, false, false, 0.12, "sender", false, 4.0));
         TripCheck back = new TripCheck(40.0, 0.0, 0.5, trip, new Loss(30.0, 120.0, 0.25,
-                new Last("2026-01-01T12:40:00Z", -23.7, -70.3, 60.0, true), "sender-1", true, true, true, 0.45, "consensus", false, 2.0));
+                new Last("2026-01-01T12:40:00Z", -23.7, -70.3, 60.0, true), "sender-1", true, true, false, null, "none", false, 0.0));
         return List.of(sample(lost), sample(back));
     }
 

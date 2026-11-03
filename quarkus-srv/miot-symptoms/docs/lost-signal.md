@@ -134,6 +134,8 @@ Template 2.1.0 (V0.12.5): while `cohort_outage` or `low_coverage_zone` holds, th
 
 The map reloads every `miot.symptoms.lost-signal.coverage.reload-every` (default `1h`), first 20 s after start. Until the job has filled a day, the map is empty and `low_coverage_zone` is false.
 
+Each reload reads cell counts and sender totals from one database snapshot. A failed reload keeps the previous map.
+
 ## Coverage job
 
 `CoverageJob` builds the shadow map's day rows from `asset_data`, all vehicles of all clients. Delay is `request_timestamp - timestamp`; the sender is `client_id`.

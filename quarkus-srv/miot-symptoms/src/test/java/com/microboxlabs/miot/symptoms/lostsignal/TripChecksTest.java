@@ -11,6 +11,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
+import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
@@ -177,6 +178,19 @@ class TripChecksTest {
         assertFalse(loss.containsKey("coverage_share"));
         assertEquals("none", loss.get("coverage_source"));
         assertEquals(false, loss.get("low_coverage_zone"));
+    }
+
+    @Test
+    void theReturnSampleHasTheSameEmptyAreaAsAReturnCheck() {
+        Map<?, ?> check = (Map<?, ?>) TripCheck.samples().get(1).get(TripCheck.ROOT);
+        Map<?, ?> loss = (Map<?, ?>) check.get("loss");
+
+        assertEquals(true, loss.get("returned"));
+        assertEquals(false, loss.get("low_coverage_zone"));
+        assertFalse(loss.containsKey("coverage_share"));
+        assertEquals("none", loss.get("coverage_source"));
+        assertEquals(false, loss.get("cohort_outage"));
+        assertEquals(0.0, loss.get("nearby_reporting"));
     }
 
     @Test

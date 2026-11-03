@@ -5,6 +5,7 @@ import {
   autocompletion,
   closeBrackets,
   type CompletionContext,
+  type CompletionResult,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import {
@@ -131,7 +132,7 @@ export function completions(
   fields: () => CelField[],
   values: () => CelValues = () => ({})
 ) {
-  return (ctx: CompletionContext) => {
+  return (ctx: CompletionContext): CompletionResult | null => {
     const before = ctx.state.sliceDoc(0, ctx.pos);
     const { variables, quoted } = completionContext(before);
     if (quoted) {

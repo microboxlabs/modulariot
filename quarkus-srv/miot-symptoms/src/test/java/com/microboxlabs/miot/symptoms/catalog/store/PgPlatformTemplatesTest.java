@@ -3,7 +3,6 @@ package com.microboxlabs.miot.symptoms.catalog.store;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
@@ -82,13 +81,12 @@ class PgPlatformTemplatesTest {
     @Test
     void everyCurrentPublishedPlatformTemplateStillPassesTheRuleChecks() throws IOException {
         DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
-        ObjectMapper json = new ObjectMapper();
         for (Row row : pool.query("""
-                SELECT d.symptom_key, v.spec::text AS spec FROM miot_symptoms.symptom_definition d
+                SELECT d.symptom_key, v.spec FROM miot_symptoms.symptom_definition d
                 JOIN miot_symptoms.symptom_version v ON v.definition_id = d.id AND v.version = d.current_version
                 WHERE d.tenant_code = '_platform' AND v.status = 'PUBLISHED'
                 """).execute().await().atMost(WAIT)) {
-            SymptomSpec spec = json.readValue(row.getString("spec"), SymptomSpec.class);
+            SymptomSpec spec = PgJson.read(row, "spec", SymptomSpec.class);
             var report = SpecValidator.validate(spec, sources.get("_platform", spec.source()));
             assertTrue(report.publishable(), row.getString("symptom_key") + ": " + report.findings());
         }

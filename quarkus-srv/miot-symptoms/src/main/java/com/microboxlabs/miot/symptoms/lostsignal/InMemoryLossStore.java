@@ -4,7 +4,9 @@ import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +37,20 @@ public class InMemoryLossStore implements LossStore {
 
     public InMemoryLossStore(Clock clock) {
         this.clock = clock;
+    }
+
+    @Override
+    public Map<String, Seen> seen(Collection<String> assetIds) {
+        Map<String, Seen> out = new LinkedHashMap<>();
+        for (String id : assetIds) {
+            VehicleProfile v = vehicles.get(id);
+            if (v != null) {
+                Watch w = watches.get(id);
+                String sender = v.sender() != null ? v.sender() : w == null ? null : w.sender();
+                out.put(id, new Seen(v, w, w != null || sender == null ? null : senders.get(sender)));
+            }
+        }
+        return out;
     }
 
     @Override

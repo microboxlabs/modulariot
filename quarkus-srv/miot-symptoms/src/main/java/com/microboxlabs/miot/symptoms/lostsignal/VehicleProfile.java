@@ -15,11 +15,18 @@ import java.util.Map;
  * @param at      the newest frame's time
  * @param arrival when the newest frame arrived
  * @param seen    when any frame of the vehicle last arrived, late ones included
+ * @param sender  the newest frame's sender, so the vehicle's expected silence can be read off a trip; null in
+ *                profiles written before it was kept
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @RegisterForReflection
 public record VehicleProfile(Instant at, Instant arrival, Instant seen, Motion motion, Map<Motion, Sketch> gaps,
-        Last last) {
+        Last last, String sender) {
+
+    public VehicleProfile(Instant at, Instant arrival, Instant seen, Motion motion, Map<Motion, Sketch> gaps,
+            Last last) {
+        this(at, arrival, seen, motion, gaps, last, null);
+    }
 
     /** The newest frame as the check reads it. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -30,20 +37,21 @@ public record VehicleProfile(Instant at, Instant arrival, Instant seen, Motion m
 
     static VehicleProfile first(Frame f) {
         return new VehicleProfile(f.at(), f.arrivedAt(), f.arrivedAt(), f.motion(), new EnumMap<>(Motion.class),
-                last(f));
+                last(f), f.sender());
     }
 
     /** The profile after the frame. */
     VehicleProfile with(Frame f, LossSettings settings) {
         Instant lastSeen = seen == null || f.arrivedAt().isAfter(seen) ? f.arrivedAt() : seen;
         if (!f.at().isAfter(at)) {
-            return new VehicleProfile(at, arrival, lastSeen, motion, gaps, last);
+            return new VehicleProfile(at, arrival, lastSeen, motion, gaps, last, sender);
         }
         Map<Motion, Sketch> next = new EnumMap<>(Motion.class);
         next.putAll(gaps);
         double gap = (f.at().toEpochMilli() - at.toEpochMilli()) / 1000.0;
         next.put(motion, next.getOrDefault(motion, Sketch.empty()).add(gap, 1.0 / settings.vehicleMemory()));
-        return new VehicleProfile(f.at(), f.arrivedAt(), lastSeen, f.motion(), next, last(f));
+        return new VehicleProfile(f.at(), f.arrivedAt(), lastSeen, f.motion(), next, last(f),
+                f.sender() != null ? f.sender() : sender);
     }
 
     /** How long a gap after the newest frame is normal for this vehicle in its current motion. */

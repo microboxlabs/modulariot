@@ -15,6 +15,11 @@ import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -117,6 +122,56 @@ public class RedisLossStore implements LossStore {
         Response fields = r.get(0);
         return new Profiles(read(fields.get(0), VehicleProfile.class),
                 sender == null ? null : read(r.get(1), SenderProfile.class), read(fields.get(1), CheckState.class));
+    }
+
+    @Override
+    public Map<String, Seen> seen(Collection<String> assetIds) {
+        List<String> ids = new ArrayList<>(new LinkedHashSet<>(assetIds));
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Seen> out = seen(ids, batch(seenRequests(ids)));
+        Set<String> senders = new LinkedHashSet<>();
+        out.values().forEach(s -> {
+            if (s.watch() == null && s.profile().sender() != null) {
+                senders.add(s.profile().sender());
+            }
+        });
+        if (senders.isEmpty()) {
+            return out;
+        }
+        List<String> names = new ArrayList<>(senders);
+        List<Response> r = batch(names.stream()
+                .map(n -> Request.cmd(Command.GET).arg(senderKey(n))).toList());
+        Map<String, SenderProfile> profiles = new HashMap<>();
+        for (int i = 0; i < names.size(); i++) {
+            SenderProfile p = read(r.get(i), SenderProfile.class);
+            if (p != null) {
+                profiles.put(names.get(i), p);
+            }
+        }
+        out.replaceAll((id, s) -> s.watch() == null && s.profile().sender() != null
+                ? new Seen(s.profile(), null, profiles.get(s.profile().sender())) : s);
+        return out;
+    }
+
+    /** One HMGET of the profile and the watch per vehicle, sent in one pipeline. */
+    static List<Request> seenRequests(List<String> assetIds) {
+        return assetIds.stream()
+                .map(id -> Request.cmd(Command.HMGET).arg(vehicleKey(id)).arg(PROFILE).arg(WATCH)).toList();
+    }
+
+    /** The answers of {@link #seenRequests}, without the vehicles that have no profile; senders not read yet. */
+    static Map<String, Seen> seen(List<String> assetIds, List<Response> fields) {
+        Map<String, Seen> out = new LinkedHashMap<>();
+        for (int i = 0; i < assetIds.size(); i++) {
+            Response f = fields.get(i);
+            VehicleProfile profile = f == null ? null : read(f.get(0), VehicleProfile.class);
+            if (profile != null) {
+                out.put(assetIds.get(i), new Seen(profile, read(f.get(1), Watch.class), null));
+            }
+        }
+        return out;
     }
 
     @Override

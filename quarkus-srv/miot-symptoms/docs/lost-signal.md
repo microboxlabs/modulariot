@@ -73,6 +73,30 @@ Ingest-health guard: the ticker pauses when no replica read a signal for `ingest
 | `MIOT_SYMPTOMS_LOST_SIGNAL_INGEST_STALE_AFTER` | No signal read for this long pauses the ticker; `0` turns the guard off | `PT2M` |
 | `MIOT_SYMPTOMS_LOST_SIGNAL_INGEST_MAX_LAG` | A replica reading further behind pauses the ticker | `PT2M` |
 
+## Signal state
+
+The maps and the fleet directory show whether a vehicle's signal is arriving, by the detector's threshold. `SignalStates` (miot-core) is the port; the detector implements it (`SignalStateReader`) on every replica with the store. It only reads.
+
+| State | When |
+|---|---|
+| `offline` | now − arrival of the newest frame > expected silence |
+| `online` | otherwise |
+| `unknown` | no vehicle profile: never seen, or the profile expired |
+
+| Field | Meaning |
+|---|---|
+| `offline_since` | The newest frame's GPS time, only when offline. A late frame does not move it |
+| `last_frame_at` | The newest frame's GPS time |
+| `silence_s` | Now − arrival of the newest frame |
+| `expected_s` | On a trip, the watch's expected silence, the one the deadline was set with, so the state turns offline when the detector's deadline passes. Off a trip, the vehicle's expected gap plus its sender's delivery delay, from the profiles |
+
+The vehicle profile keeps the newest frame's sender (`sender`) for the off-trip case; a profile written before it falls back to the default delivery delay. Many vehicles are read in two pipelines: one `HMGET p w` per vehicle, then one `GET` per sender of the vehicles without a watch.
+
+| Endpoint | Content |
+|---|---|
+| `GET /api/v1/orgs/{org}/control-tower/map/positions` | Each position has `signal` |
+| `GET /api/v1/orgs/{org}/control-tower/map/assets/{assetId}/signal` | One asset's state; 404 when it is not among the organization's positions |
+
 ## The `trip_check` source
 
 Each check runs the organization's TEST and ACTIVE `trip_check` versions with the evaluator's `SignalEvaluator`, episodes (`symptoms:ep:<tenant>:<asset>`, its own watermark `wm:trip_check`), transition log and case events (`TripChecks`). The fields are declared in code, `signal/TripCheck`, read by `SignalFields` the way `GpsSignal` is.

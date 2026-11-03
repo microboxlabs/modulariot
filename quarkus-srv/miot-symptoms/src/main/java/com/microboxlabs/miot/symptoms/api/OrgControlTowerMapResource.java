@@ -22,6 +22,9 @@ import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.enterprise.inject.Instance;
 import com.microboxlabs.miot.core.trips.TripGeofences;
+import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.symptoms.map.SignalStateFields;
+import java.time.Clock;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -59,6 +62,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final TreatmentService caseTreatments;
     private final TripWindows tripWindows;
     private final Instance<TripGeofences> tripGeofences;
+    private final Instance<SignalStates> signals;
+    private final Clock clock;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -71,7 +76,25 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             EngineCaseService cases,
             TreatmentService caseTreatments,
             TripWindows tripWindows,
-            Instance<TripGeofences> tripGeofences) {
+            Instance<TripGeofences> tripGeofences,
+            Instance<SignalStates> signals) {
+        this(tenantContext, organizationContext, roleService, identity, map, treatments, cases, caseTreatments,
+                tripWindows, tripGeofences, signals, Clock.systemUTC());
+    }
+
+    OrgControlTowerMapResource(
+            TenantContext tenantContext,
+            OrganizationContext organizationContext,
+            OrganizationRoleService roleService,
+            SecurityIdentity identity,
+            ControlTowerMapService map,
+            ControlTowerTreatmentService treatments,
+            EngineCaseService cases,
+            TreatmentService caseTreatments,
+            TripWindows tripWindows,
+            Instance<TripGeofences> tripGeofences,
+            Instance<SignalStates> signals,
+            Clock clock) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
@@ -80,16 +103,43 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         this.caseTreatments = caseTreatments;
         this.tripWindows = tripWindows;
         this.tripGeofences = tripGeofences;
+        this.signals = signals;
+        this.clock = clock;
     }
 
     @GET
     @Path("/positions")
-    @Operation(operationId = "listMapPositions", summary = "Last position of each of the organization's assets")
+    @Operation(operationId = "listMapPositions", summary = "Last position of each of the organization's assets",
+            description = "Each position has signal: the lost-signal detector's state of its asset (state online, "
+                    + "offline or unknown; offline_since, last_frame_at, silence_s, expected_s when known).")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> positions(@PathParam("organizationId") String organizationId) {
         tenantCode(organizationId);
-        return answer(() -> map.positions(tenantContext.getClientId()));
+        return answer(() -> map.positions(tenantContext.getClientId())
+                .emitOn(Infrastructure.getDefaultWorkerPool())
+                .map(p -> SignalStateFields.withSignal(p, signalStates(), clock.instant())));
+    }
+
+    @GET
+    @Path("/assets/{assetId}/signal")
+    @Operation(operationId = "getMapAssetSignal", summary = "Whether the asset's GPS signal is arriving",
+            description = "The lost-signal detector's state: offline once the time since the newest frame arrived "
+                    + "passes the silence expected for the vehicle. state online, offline or unknown (no profile); "
+                    + "offline_since (the newest frame's GPS time, when offline), last_frame_at, silence_s and "
+                    + "expected_s when known. 404 when the asset is not among the organization's positions.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> assetSignal(@PathParam("organizationId") String organizationId,
+            @PathParam("assetId") String assetId) {
+        tenantCode(organizationId);
+        return answer(() -> map.positions(tenantContext.getClientId())
+                .emitOn(Infrastructure.getDefaultWorkerPool())
+                .map(p -> SignalStateFields.one(p, assetId, signalStates(), clock.instant())));
+    }
+
+    private SignalStates signalStates() {
+        return signals.isResolvable() ? signals.get() : null;
     }
 
     @GET

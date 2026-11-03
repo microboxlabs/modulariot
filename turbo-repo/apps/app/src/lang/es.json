@@ -7260,7 +7260,7 @@
     "target_other": "Otro",
     "target_phone": "Teléfono del destinatario",
     "escalation_note": "Destinatario distinto del conductor: quedará registrado como escalamiento propuesto por el operador.",
-    "ignore_reason": "Motivo de la ignoración",
+    "ignore_reason": "Motivo para ignorar",
     "ignore_note": "Nota / evidencia",
     "reason_required": "Seleccione un motivo para continuar",
     "note_required_other": "Con motivo «Otro», la nota es obligatoria",

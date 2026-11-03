@@ -79,7 +79,10 @@ class SignalFieldsTest {
         labels.load(new InputStreamReader(SignalFields.class.getResourceAsStream(SignalFields.LABELS),
                 StandardCharsets.UTF_8));
         List<String> missing = SignalFields.fields().stream().map(SourceField::path)
-                .filter(p -> p.startsWith("signal.frame.") && !labels.containsKey(p)).toList();
+                .filter(p -> p.startsWith("signal.frame.") && !labels.containsKey(p))
+                // A list's fields are labelled by its declared type (GpsSignal.FrameEvent).
+                .filter(p -> SignalFields.LISTS.keySet().stream().noneMatch(l -> p.equals(l) || p.startsWith(l + ".")))
+                .toList();
 
         assertEquals(List.of(), missing, "add these paths to " + SignalFields.LABELS);
     }
@@ -89,7 +92,7 @@ class SignalFieldsTest {
         Map<String, SourceField> fields = byPath();
 
         assertTrue(fields.keySet().stream().noneMatch(p -> p.contains("driver_info") || p.contains("metrics")
-                || p.contains("peripherals") || p.contains("events")));
+                || p.contains("peripherals")));
         assertTrue(fields.keySet().stream().noneMatch(p -> p.equals("signal.schema") || p.equals("signal.at")
                 || p.startsWith("signal.clients") || p.equals("signal.frame.asset_id")));
     }
@@ -131,6 +134,36 @@ class SignalFieldsTest {
         }
         assertEquals(Boolean.TRUE, valueAt(root, "signal.frame.sensors.panic_button"));
         assertEquals(GpsSignal.SCHEMA_ID, valueAt(root, "signal.schema"));
+    }
+
+    @Test
+    void theFrameEventsAreAListOfObjects() {
+        Map<String, SourceField> fields = byPath();
+
+        SourceField events = fields.get("signal.frame.events");
+        assertEquals("objects", events.type());
+        assertEquals("Eventos del GPS", events.label());
+        assertEquals(FieldOrigin.DEVICE, events.origin());
+        assertEquals("text", fields.get("signal.frame.events.event_type").type());
+        assertEquals("Tipo de evento", fields.get("signal.frame.events.event_type").label());
+        assertEquals("text", fields.get("signal.frame.events.severity").type());
+        assertEquals("text", fields.get("signal.frame.events.description").type());
+        assertEquals("time", fields.get("signal.frame.events.timestamp").type());
+        assertTrue(fields.keySet().stream().noneMatch(p -> p.contains("additional_info")
+                || p.contains("threshold_exceeded")));
+    }
+
+    @Test
+    void theFrameEventsAreReadWithEveryValueAText() {
+        Map<String, Object> signal = Map.of("frame", Map.of("events", List.of(
+                Map.of("event_type", "device_tamper", "timestamp", "2026-01-01T12:00:00Z"), "not an event")));
+
+        Map<String, Object> read = GpsSignal.FrameEvent.withEvents(signal);
+
+        assertEquals(List.of(Map.of("event_type", "device_tamper", "severity", "", "description", "",
+                "timestamp", "2026-01-01T12:00:00Z")), ((Map<?, ?>) read.get("frame")).get("events"));
+        assertEquals(List.of(), ((Map<?, ?>) GpsSignal.FrameEvent.withEvents(Map.of("frame", Map.of()))
+                .get("frame")).get("events"), "a frame without events reads an empty list");
     }
 
     @SuppressWarnings("unchecked")

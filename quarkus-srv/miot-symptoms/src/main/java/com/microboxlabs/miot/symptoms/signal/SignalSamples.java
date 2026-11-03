@@ -178,6 +178,9 @@ public class SignalSamples {
                 if (!inner.isEmpty()) {
                     out.put(key, inner);
                 }
+            } else if (value instanceof List<?> && SignalFields.LISTS.containsKey(path)) {
+                // Only the fields rules read of each element: an event's additional_info stays out.
+                out.put(key, GpsSignal.FrameEvent.of(value));
             } else if (FIELDS.contains(path)) {
                 out.put(key, value);
             }

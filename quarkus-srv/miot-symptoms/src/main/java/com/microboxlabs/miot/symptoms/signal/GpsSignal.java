@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
@@ -172,6 +173,67 @@ public record GpsSignal(
             @Schema(title = "Zona", extensions = {
                     @Extension(name = "x-type", value = "zone"), @Extension(name = "x-origin", value = "ZONES") })
             String zone) {
+    }
+
+    /**
+     * One of the frame's {@code events} as rules read it, under {@value #FRAME_EVENTS}. The type is open text:
+     * each GPS provider sends its own codes. A missing value reads as an empty text, so a rule needs no
+     * {@code has()}.
+     */
+    @Schema(title = "Eventos del GPS", description = "The device events the frame carries")
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @RegisterForReflection
+    public record FrameEvent(
+            @Schema(title = "Tipo de evento") @JsonProperty("event_type") String eventType,
+            @Schema(title = "Severidad del evento") String severity,
+            @Schema(title = "Descripción del evento") String description,
+            @Schema(title = "Hora del evento", extensions = @Extension(name = "x-type", value = "time"))
+            String timestamp) {
+
+        public static final String FRAME_EVENTS = "signal.frame.events";
+
+        /** The event with each missing value as an empty text. */
+        public FrameEvent {
+            eventType = eventType == null ? "" : eventType;
+            severity = severity == null ? "" : severity;
+            description = description == null ? "" : description;
+            timestamp = timestamp == null ? "" : timestamp;
+        }
+
+        /** The frame's events as rules read them; empty when the frame has none. */
+        public static List<Map<String, Object>> of(Object events) {
+            if (!(events instanceof List<?> list)) {
+                return List.of();
+            }
+            return list.stream().filter(Map.class::isInstance).map(e -> of((Map<?, ?>) e).asMap()).toList();
+        }
+
+        /** The signal with its frame's events as rules read them; a signal without a frame is kept as it is. */
+        @SuppressWarnings("unchecked")
+        public static Map<String, Object> withEvents(Map<String, Object> signal) {
+            if (!(signal.get("frame") instanceof Map<?, ?> frame)) {
+                return signal;
+            }
+            Map<String, Object> f = new LinkedHashMap<>((Map<String, Object>) frame);
+            f.put("events", of(frame.get("events")));
+            Map<String, Object> out = new LinkedHashMap<>(signal);
+            out.put("frame", f);
+            return out;
+        }
+
+        static FrameEvent of(Map<?, ?> event) {
+            return new FrameEvent(text(event.get("event_type")), text(event.get("severity")),
+                    text(event.get("description")), text(event.get("timestamp")));
+        }
+
+        public Map<String, Object> asMap() {
+            return Map.of("event_type", eventType, "severity", severity, "description", description,
+                    "timestamp", timestamp);
+        }
+
+        private static String text(Object value) {
+            return value == null ? null : value.toString();
+        }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

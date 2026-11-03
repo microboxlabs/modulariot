@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.signal.GpsSignal;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -220,9 +221,12 @@ public class EvaluatorStream {
 
     private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
 
-    /** The signal as the organization's rules read it: its own trip as {@code trip}, none of the others. */
+    /**
+     * The signal as the organization's rules read it: its own trip as {@code trip}, none of the others, and the
+     * frame's events always a list ({@link GpsSignal.FrameEvent}).
+     */
     static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
-        Map<String, Object> out = new LinkedHashMap<>(signal);
+        Map<String, Object> out = new LinkedHashMap<>(GpsSignal.FrameEvent.withEvents(signal));
         Object trips = out.remove("trips");
         Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         out.put("trip", trip != null ? trip : NO_TRIP);

@@ -4058,7 +4058,7 @@
         "stepScriptLabel": "Guion:",
         "stepScriptWrite": "escribir guion",
         "stepIfNot": "si no resulta en",
-        "stepThen": "min, paso {n}",
+        "stepThen": "min, sigue el siguiente",
         "stepWithin": "plazo",
         "scriptTitle": "Guion · paso {n}",
         "scriptVariables": "Variables:",

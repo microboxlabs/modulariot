@@ -4058,7 +4058,7 @@
         "stepScriptLabel": "Script:",
         "stepScriptWrite": "write a script",
         "stepIfNot": "if it does not work in",
-        "stepThen": "min, step {n}",
+        "stepThen": "min, then the next one",
         "stepWithin": "within",
         "scriptTitle": "Script · step {n}",
         "scriptVariables": "Variables:",

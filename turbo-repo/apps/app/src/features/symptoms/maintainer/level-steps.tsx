@@ -37,11 +37,6 @@ function scriptShown(script: string | null): string | null {
 }
 
 const errorClass = (error: string | undefined) => (error ? FIELD_ERROR : "");
-
-/** The step's number, drawn like the rule sheet's section badge. */
-const STEP_BADGE =
-  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-gray-200 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400";
-
 function StepItem({
   step,
   index,
@@ -75,12 +70,6 @@ function StepItem({
     <div className="flex min-w-0 flex-col gap-1.5 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300">
       <div className="flex flex-wrap items-center gap-2">
         {handle}
-        <span className={STEP_BADGE}>
-          <span aria-hidden>{index + 1}</span>
-          <span className="sr-only">
-            {tr("stepN", d, { n: String(index + 1) })}
-          </span>
-        </span>
           <Select
             aria-label={tr("stepChannel", d)}
             className={FIELD}
@@ -258,6 +247,7 @@ export default function LevelSteps({
             handleLabel={tr("dragStep", d)}
             rowClassName="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
             rowTestId="step-row"
+            rowLabel={(i) => tr("stepN", d, { n: String(i + 1) })}
             onMove={move}
             renderRow={(s, i, handle) => (
               <StepItem

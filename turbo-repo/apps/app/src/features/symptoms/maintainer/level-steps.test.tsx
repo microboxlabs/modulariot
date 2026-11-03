@@ -48,7 +48,7 @@ const d = {
   stepScriptLabel: "Guion:",
   stepScriptWrite: "escribir guion",
   stepIfNot: "si no resulta en",
-  stepThen: "min, paso {n}",
+  stepThen: "min, sigue el siguiente",
   stepWithin: "plazo",
   stepChannel: "Canal",
   stepRole: "Persona",
@@ -80,7 +80,7 @@ const STEPS: Step[] = [
 ];
 
 describe("LevelSteps", () => {
-  it("reads as a timeline with the wait before the next step", () => {
+  it("reads as an unnumbered timeline with the wait before the next step", () => {
     render(
       <LevelSteps
         steps={STEPS}
@@ -92,9 +92,11 @@ describe("LevelSteps", () => {
       />
     );
     const items = screen.getAllByRole("listitem");
-    expect(items[0]?.textContent).toContain("Paso 1");
+    // Steps carry no visible number; the order is the list's, named for screen readers.
+    expect(items[0]?.getAttribute("aria-label")).toBe("Paso 1");
+    expect(items[0]?.textContent).not.toContain("Paso 1");
     expect(items[0]?.textContent).toContain("si no resulta en");
-    expect(items[0]?.textContent).toContain("min, paso 2");
+    expect(items[0]?.textContent).toContain("min, sigue el siguiente");
     expect(items[1]?.textContent).toContain("plazo");
     expect(within(items[1]!).getByText("escribir guion")).toBeTruthy();
   });

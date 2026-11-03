@@ -17,6 +17,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.gps.SignalStates;
+import com.microboxlabs.miot.core.gps.SignalStates.SignalState;
+import com.microboxlabs.miot.core.gps.SignalStates.Status;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
@@ -103,6 +106,11 @@ class OrgControlTowerMapResourceTest {
 
     private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
             com.microboxlabs.miot.core.trips.TripGeofences tripGeofences) {
+        return resource(url, permissions, tripGeofences, null);
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
+            com.microboxlabs.miot.core.trips.TripGeofences tripGeofences, SignalStates signals) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail("member@example.com");
@@ -120,7 +128,21 @@ class OrgControlTowerMapResourceTest {
                         new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
                         Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
-                geofences(tripGeofences));
+                geofences(tripGeofences), instance(signals), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> jakarta.enterprise.inject.Instance<T> instance(T service) {
+        return (jakarta.enterprise.inject.Instance<T>) java.lang.reflect.Proxy.newProxyInstance(
+                OrgControlTowerMapResourceTest.class.getClassLoader(),
+                new Class<?>[] {jakarta.enterprise.inject.Instance.class}, (proxy, method, args) -> {
+                    return switch (method.getName()) {
+                        case "isUnsatisfied" -> service == null;
+                        case "isResolvable" -> service != null;
+                        case "get" -> service;
+                        default -> throw new UnsupportedOperationException(method.getName());
+                    };
+                });
     }
 
     private static final Instant NOW = Instant.parse("2026-10-26T12:00:00Z");
@@ -511,5 +533,92 @@ class OrgControlTowerMapResourceTest {
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.symptom("org-b", "7"));
         assertEquals(403, e.getResponse().getStatus());
         assertEquals(List.of(), treatmentClients);
+    }
+
+    /** AB12 is offline since 11:40, CD34 online, EF56 never seen. */
+    private final SignalStates sampleSignals = (ids, now) -> {
+        Map<String, SignalState> out = new java.util.LinkedHashMap<>();
+        for (String id : ids) {
+            out.put(id, switch (id) {
+                case "AB12" -> new SignalState(Status.OFFLINE, Instant.parse("2026-10-26T11:40:00Z"),
+                        Instant.parse("2026-10-26T11:40:00Z"), 1190L, 300L);
+                case "CD34" -> new SignalState(Status.ONLINE, null, now.minusSeconds(30), 25L, 180L);
+                default -> SignalState.UNKNOWN;
+            });
+        }
+        return out;
+    };
+
+    private void positionsOf(String... assets) {
+        com.fasterxml.jackson.databind.node.ArrayNode data = JSON.createArrayNode();
+        for (String a : assets) {
+            data.addObject().put("assetid", a).put("speed", 0);
+        }
+        response = new GpsRpcApi.RpcResponse(200, "ok", data);
+    }
+
+    @Test
+    void eachPositionCarriesItsAssetsSignalState() {
+        positionsOf("AB12", "CD34", "EF56");
+        JsonNode body = (JsonNode) call(resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals).positions(ORG)).getEntity();
+
+        JsonNode offline = body.get(0).path("signal");
+        assertEquals("offline", offline.path("state").asText());
+        assertEquals("2026-10-26T11:40:00Z", offline.path("offline_since").asText());
+        assertEquals(1190, offline.path("silence_s").asLong());
+        assertEquals(300, offline.path("expected_s").asLong());
+        assertEquals("online", body.get(1).path("signal").path("state").asText());
+        assertFalse(body.get(1).path("signal").has("offline_since"));
+        assertEquals("unknown", body.get(2).path("signal").path("state").asText());
+        assertEquals(1, body.get(2).path("signal").size(), "unknown has only its state");
+    }
+
+    @Test
+    void withoutTheDetectorEveryPositionIsUnknown() {
+        positionsOf("AB12");
+        JsonNode body = (JsonNode) call(resource.positions(ORG)).getEntity();
+        assertEquals("unknown", body.get(0).path("signal").path("state").asText());
+    }
+
+    @Test
+    void aFailedDetectorReadLeavesPositionsVisibleAndSignalUnknown() {
+        positionsOf("V1");
+        SignalStates unavailable = (ids, now) -> {
+            throw new IllegalStateException("Store unavailable");
+        };
+        OrgControlTowerMapResource subject = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, unavailable);
+        Response positions = call(subject.positions(ORG));
+        assertEquals(200, positions.getStatus());
+        JsonNode body = (JsonNode) positions.getEntity();
+        assertEquals("V1", body.get(0).path("assetid").asText());
+        assertEquals("unknown", body.get(0).path("signal").path("state").asText());
+        Response signal = call(subject.assetSignal(ORG, "V1"));
+        assertEquals(200, signal.getStatus());
+        assertEquals("unknown", ((JsonNode) signal.getEntity()).path("state").asText());
+        assertEquals(404, call(subject.assetSignal(ORG, "OTHER")).getStatus());
+    }
+
+    @Test
+    void theCachedPositionsAreNotChangedBySignalStates() {
+        positionsOf("AB12");
+        OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
+        call(withSignals.positions(ORG));
+        assertFalse(response.data().get(0).has("signal"));
+    }
+
+    @Test
+    void oneAssetsSignalIsReadOnlyForTheOrganizationsAssets() {
+        positionsOf("AB12", "CD34");
+        OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, sampleSignals);
+
+        Response found = call(withSignals.assetSignal(ORG, "AB12"));
+        assertEquals(200, found.getStatus());
+        assertEquals("offline", ((JsonNode) found.getEntity()).path("state").asText());
+        assertEquals(404, call(withSignals.assetSignal(ORG, "ZZ99")).getStatus());
+        assertThrows(WebApplicationException.class, () -> withSignals.assetSignal("org-b", "AB12"));
     }
 }

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import com.microboxlabs.miot.core.gps.SignalStates;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
@@ -22,6 +23,7 @@ import jakarta.inject.Inject;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -35,11 +37,12 @@ import org.jboss.logging.Logger;
  * ({@link ArrivalProfiles}) and, for a vehicle on a trip, moves its deadline to arrival + expected silence. A
  * ticker in one replica checks the vehicles whose deadline expired ({@link LossTicker}) and runs the
  * organizations' {@code trip_check} versions on them ({@link TripChecks}). On wherever the evaluator is; a
- * failure is counted ({@code miot.symptoms.lost_signal.failed}) and never redelivers the signal.
+ * failure is counted ({@code miot.symptoms.lost_signal.failed}) and never redelivers the signal. It also answers
+ * the vehicles' signal state from the same profiles ({@link SignalStateReader}), on any replica with the store.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
-public class LostSignalDetector {
+public class LostSignalDetector implements SignalStates {
 
     private static final Logger LOG = Logger.getLogger(LostSignalDetector.class);
     private static final Duration HEARTBEAT_EVERY = Duration.ofSeconds(1);
@@ -58,6 +61,7 @@ public class LostSignalDetector {
     private final MeterRegistry meters;
     private final Clock clock;
     private final AtomicLong lastBeat = new AtomicLong();
+    private final SignalStateReader signals;
 
     /**
      * How the ticker runs.
@@ -130,6 +134,7 @@ public class LostSignalDetector {
         this.trips = trips;
         this.store = store;
         this.profiles = new ArrivalProfiles(store, settings.profiles());
+        this.signals = new SignalStateReader(store, profiles);
         this.owner = UUID.randomUUID().toString();
         this.meters = meters;
         this.clock = clock;
@@ -278,6 +283,12 @@ public class LostSignalDetector {
         if (enabled) {
             trips.forget(tenant, assetId, definitionId);
         }
+    }
+
+    /** Read whether the detector runs here or not: the profiles are shared through the store. */
+    @Override
+    public Map<String, SignalState> states(Collection<String> assetIds, Instant now) {
+        return signals.states(assetIds, now);
     }
 
     /** One pass of the ticker; returns the vehicles checked. */

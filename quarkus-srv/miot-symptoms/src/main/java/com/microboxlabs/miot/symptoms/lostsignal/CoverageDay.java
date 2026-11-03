@@ -169,8 +169,11 @@ public final class CoverageDay {
     }
 
     private static double boundary(double start, double delta, long cell, int step) {
-        return step == 0 ? Double.POSITIVE_INFINITY
-                : ((cell + (step > 0 ? 1 : 0)) * CoverageMap.CELL_DEGREES - start) / delta;
+        if (step == 0) {
+            return Double.POSITIVE_INFINITY;
+        }
+        long edge = step > 0 ? cell + 1 : cell;
+        return (edge * CoverageMap.CELL_DEGREES - start) / delta;
     }
 
     static double km(double lat1, double lon1, double lat2, double lon2) {

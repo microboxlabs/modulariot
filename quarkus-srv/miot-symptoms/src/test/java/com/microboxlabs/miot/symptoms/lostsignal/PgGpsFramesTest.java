@@ -137,6 +137,48 @@ class PgGpsFramesTest {
         assertTrue(delays.contains(new GpsFrames.Count("s", 0, 1)));
     }
 
+    @Test
+    void framesAreReadAFewRowsAtATimeInAssetSenderAndTimeOrder() {
+        String nativePoint = PgGpsFrames.FRAMES.replace("ST_Y(a.location::geometry)", "a.location[1]")
+                .replace("ST_X(a.location::geometry)", "a.location[0]");
+        PgGpsFrames small = new PgGpsFrames(() -> pool, 2, nativePoint);
+        for (int i = 0; i < 7; i++) {
+            frame("v" + (i % 2), "s", FROM.plusSeconds(60L * (7 - i)), i);
+        }
+        frame("v0", "s", TO, 0);
+        List<GpsFrames.GpsRow> rows = new java.util.ArrayList<>();
+
+        assertEquals(7, small.frames(FROM, TO, rows::add));
+
+        assertEquals(List.of("v0", "v0", "v0", "v0", "v1", "v1", "v1"),
+                rows.stream().map(GpsFrames.GpsRow::assetId).toList());
+        for (int i = 1; i < rows.size(); i++) {
+            GpsFrames.GpsRow a = rows.get(i - 1);
+            GpsFrames.GpsRow b = rows.get(i);
+            assertTrue(!a.assetId().equals(b.assetId()) || a.atMs() < b.atMs());
+        }
+        assertEquals(FROM.plusSeconds(60).toEpochMilli(), rows.get(0).atMs());
+        assertEquals(6.0, rows.get(0).delayS());
+    }
+
+    @Test
+    void aFailingConsumerReleasesTheConnection() {
+        String nativePoint = PgGpsFrames.FRAMES.replace("ST_Y(a.location::geometry)", "a.location[1]")
+                .replace("ST_X(a.location::geometry)", "a.location[0]");
+        PgGpsFrames small = new PgGpsFrames(() -> pool, 2, nativePoint);
+        for (int i = 0; i < 5; i++) {
+            frame("v1", "s", FROM.plusSeconds(i), 0);
+        }
+        for (int attempt = 0; attempt < 6; attempt++) {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                    () -> small.frames(FROM, TO, r -> {
+                        throw new IllegalStateException("stop");
+                    }));
+        }
+
+        assertEquals(5, small.frames(FROM, TO, r -> { }), "the pool still has connections");
+    }
+
     private static void frame(String asset, String sender, Instant at, long delayS) {
         pool.preparedQuery("""
                 INSERT INTO public.asset_data (asset_id, client_id, "timestamp", request_timestamp, location)

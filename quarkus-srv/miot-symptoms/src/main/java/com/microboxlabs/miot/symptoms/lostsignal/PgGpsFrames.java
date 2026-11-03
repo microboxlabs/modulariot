@@ -1,21 +1,27 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
+import io.vertx.mutiny.sqlclient.Cursor;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.PreparedStatement;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
+import io.vertx.mutiny.sqlclient.SqlConnection;
+import io.vertx.mutiny.sqlclient.Transaction;
 import io.vertx.mutiny.sqlclient.Tuple;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
  * {@link GpsFrames} over the GPS database's {@code public.asset_data}, read only. Queries read a range of
  * {@code "timestamp"}, using the index on {@code ("timestamp", asset_id)}. Interval histograms also read the
  * {@value #LOOKBACK_H} hours before the range, for the predecessor of its first frames. The sender is
- * {@code client_id}.
+ * {@code client_id}. Frames are read through a cursor, {@value #FETCH} rows at a time: an hour of all clients has
+ * hundreds of thousands, and a buffered result would hold them all.
  */
 public class PgGpsFrames implements GpsFrames {
 
@@ -69,10 +75,21 @@ public class PgGpsFrames implements GpsFrames {
             ORDER BY a.asset_id, a.client_id, a."timestamp"
             """;
 
+    static final int FETCH = 2000;
+
     private final Supplier<Pool> pool;
+    private final int fetch;
+    private final String framesSql;
 
     public PgGpsFrames(Supplier<Pool> pool) {
+        this(pool, FETCH, FRAMES);
+    }
+
+    /** @param framesSql {@link #FRAMES} or, in a test database without PostGIS, the same columns */
+    PgGpsFrames(Supplier<Pool> pool, int fetch, String framesSql) {
         this.pool = pool;
+        this.fetch = fetch;
+        this.framesSql = framesSql;
     }
 
     @Override
@@ -86,17 +103,45 @@ public class PgGpsFrames implements GpsFrames {
     }
 
     @Override
-    public List<GpsFrames.GpsRow> frames(Instant from, Instant to) {
-        List<GpsFrames.GpsRow> out = new ArrayList<>();
-        for (Row r : query(FRAMES, from, to)) {
+    public long frames(Instant from, Instant to, Consumer<GpsFrames.GpsRow> each) {
+        long[] n = {0};
+        stream(framesSql, from, to, r -> {
             Double lat = r.getDouble("lat");
             Double lon = r.getDouble("lon");
             if (lat != null && lon != null) {
-                out.add(new GpsFrames.GpsRow(r.getString("asset_id"), r.getString("sender"), r.getLong("at_ms"),
+                each.accept(new GpsFrames.GpsRow(r.getString("asset_id"), r.getString("sender"), r.getLong("at_ms"),
                         r.getDouble("delay_s"), lat, lon));
+                n[0]++;
             }
+        });
+        return n[0];
+    }
+
+    /**
+     * Runs {@code sql} over {@code [from, to)} in a read-only transaction and passes its rows to {@code each}, on the
+     * calling thread, {@code fetch} rows at a time. A failure, also of {@code each}, closes the connection, which
+     * rolls the transaction back.
+     */
+    void stream(String sql, Instant from, Instant to, Consumer<Row> each) {
+        Tuple args = Tuple.of(from.atOffset(ZoneOffset.UTC), to.atOffset(ZoneOffset.UTC));
+        SqlConnection conn = pool.get().getConnection().await().atMost(QUERY_TIMEOUT);
+        try {
+            Transaction tx = conn.begin().await().atMost(QUERY_TIMEOUT);
+            conn.query(STATEMENT_TIMEOUT).execute().await().atMost(QUERY_TIMEOUT);
+            PreparedStatement statement = conn.prepare(sql).await().atMost(QUERY_TIMEOUT);
+            Cursor cursor = statement.cursor(args);
+            do {
+                RowSet<Row> rows = cursor.read(fetch).await().atMost(QUERY_TIMEOUT);
+                for (Row r : rows) {
+                    each.accept(r);
+                }
+            } while (cursor.hasMore());
+            cursor.close().await().atMost(QUERY_TIMEOUT);
+            statement.close().await().atMost(QUERY_TIMEOUT);
+            tx.commit().await().atMost(QUERY_TIMEOUT);
+        } finally {
+            conn.close().await().atMost(QUERY_TIMEOUT);
         }
-        return out;
     }
 
     private List<Count> counts(String sql, Instant from, Instant to) {

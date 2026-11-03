@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.lostsignal.CoverageDay.CellDay;
 import com.microboxlabs.miot.symptoms.lostsignal.CoverageDay.SenderDay;
+import com.microboxlabs.miot.symptoms.lostsignal.GpsFrames.GpsRow;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
 class CoverageJobTest {
@@ -42,14 +44,15 @@ class CoverageJobTest {
         }
 
         @Override
-        public List<GpsRow> frames(Instant from, Instant to) {
+        public long frames(Instant from, Instant to, Consumer<GpsRow> each) {
             reads.add(from);
-            List<GpsRow> out = new ArrayList<>();
+            long n = 0;
             for (Instant t = from; t.isBefore(to); t = t.plusSeconds(60)) {
                 double minutes = (t.getEpochSecond() % 86_400) / 60.0;
-                out.add(new GpsRow("V1", "s", t.toEpochMilli(), 2, 1.01, 2.01 + minutes * 0.0001));
+                each.accept(new GpsRow("V1", "s", t.toEpochMilli(), 2, 1.01, 2.01 + minutes * 0.0001));
+                n++;
             }
-            return out;
+            return n;
         }
     }
 
@@ -266,6 +269,75 @@ class CoverageJobTest {
         assertThrows(CoverageJob.LeaseLost.class,
                 () -> job(NOW, ttl -> renewals.incrementAndGet() < 4).run());
         assertTrue(store.done.isEmpty());
+    }
+
+    /**
+     * One hour of the day has 300 thousand frames, 1000 vehicles every 12 s. The frames are made as they are passed
+     * and the test keeps weak references to some of them: when the job only counts them, they are collectable
+     * before the hour ends, while the next ones are still being read.
+     */
+    @Test
+    void aLargeHourIsCountedWithoutHoldingItsFrames() {
+        LocalDate day = TODAY.minusDays(1);
+        Instant busy = day.atStartOfDay(ZoneOffset.UTC).toInstant().plus(Duration.ofHours(12));
+        int vehicles = 1000;
+        int perVehicle = 300;
+        List<java.lang.ref.WeakReference<GpsRow>> sampled = new ArrayList<>();
+        int[] collectedBeforeTheEnd = {-1};
+        long[] stored = {-1};
+        GpsFrames large = new Frames() {
+            @Override
+            public long frames(Instant from, Instant to, Consumer<GpsRow> each) {
+                if (!from.equals(busy)) {
+                    return super.frames(from, to, each);
+                }
+                long n = 0;
+                for (int v = 0; v < vehicles; v++) {
+                    for (int i = 0; i < perVehicle; i++) {
+                        GpsRow r = new GpsRow("V" + v, "s" + (v % 20), busy.toEpochMilli() + i * 12_000L, 2,
+                                -33 + v * 0.01, -70 + i * 0.0005);
+                        if (n % 1000 == 0) {
+                            sampled.add(new java.lang.ref.WeakReference<>(r));
+                        }
+                        each.accept(r);
+                        n++;
+                    }
+                }
+                collectedBeforeTheEnd[0] = collected(sampled);
+                return n;
+            }
+        };
+        Store counting = new Store() {
+            @Override
+            public void replace(LocalDate d, List<CellDay> c, List<SenderDay> s, long frames) {
+                stored[0] = frames;
+                super.replace(d, c, s, frames);
+            }
+        };
+        CoverageJob job = new CoverageJob(new CoverageJob.JobSettings(true, Duration.ofHours(2)),
+                large, counting, CoverageSettings.defaults(), ttl -> true, new SimpleMeterRegistry(),
+                java.time.Clock.fixed(NOW, ZoneOffset.UTC));
+
+        job.fill(day);
+
+        assertEquals(23 * 60 + (long) vehicles * perVehicle, stored[0]);
+        assertEquals(300, sampled.size());
+        assertTrue(collectedBeforeTheEnd[0] >= sampled.size() - 1,
+                collectedBeforeTheEnd[0] + " of " + sampled.size() + " sampled frames were collectable");
+        assertTrue(counting.cells.get(day).size() < 25_000, "per sender and cell, not per frame");
+    }
+
+    /** How many referents are gone after a few collections. */
+    private static int collected(List<java.lang.ref.WeakReference<GpsRow>> refs) {
+        int gone = 0;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            System.gc();
+            gone = (int) refs.stream().filter(r -> r.get() == null).count();
+            if (gone >= refs.size() - 1) {
+                break;
+            }
+        }
+        return gone;
     }
 
     @Test

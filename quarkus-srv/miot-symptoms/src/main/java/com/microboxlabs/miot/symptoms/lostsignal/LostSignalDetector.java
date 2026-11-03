@@ -291,6 +291,11 @@ public class LostSignalDetector implements SignalStates {
         return signals.states(assetIds, now);
     }
 
+    /** The vehicle's state, usual report interval and engine, for a case's popup; empty without a profile. */
+    public java.util.Optional<SignalStateReader.Reported> reported(String assetId, Instant now) {
+        return signals.reported(assetId, now);
+    }
+
     /** One pass of the ticker; returns the vehicles checked. */
     public int tick() {
         return ticker.tick();

@@ -97,6 +97,14 @@ The vehicle profile keeps the newest frame's sender (`sender`) for the off-trip 
 | `GET /api/v1/orgs/{org}/control-tower/map/positions` | Each position has `signal` |
 | `GET /api/v1/orgs/{org}/control-tower/map/assets/{assetId}/signal` | One asset's state; 404 when it is not among the organization's positions |
 
+An engine case's map popup (`signals`, `description`) carries the GPS database's indicators in their names and formats:
+
+| Field | Value |
+|---|---|
+| `signal_lag` | Lost signal only. Open: now − GPS time of the newest frame. Closed: the closing transition's context, from the last frame before the loss to the frame that returned, or `check.loss.silence_s` when it did not return; absent without a closing context (an operator's close) |
+| `median_report_interval` | Median of the vehicle's gaps in its current motion (its most sampled motion until it has a gap there), `HH:MM:SS`; absent without a profile |
+| `last_reported_engine_status` | The profile's newest frame; for a lost signal without it, `check.loss.last.engine` of the closing, level or opening context |
+
 ## The `trip_check` source
 
 Each check runs the organization's TEST and ACTIVE `trip_check` versions with the evaluator's `SignalEvaluator`, episodes (`symptoms:ep:<tenant>:<asset>`, its own watermark `wm:trip_check`), transition log and case events (`TripChecks`). The fields are declared in code, `signal/TripCheck`, read by `SignalFields` the way `GpsSignal` is.

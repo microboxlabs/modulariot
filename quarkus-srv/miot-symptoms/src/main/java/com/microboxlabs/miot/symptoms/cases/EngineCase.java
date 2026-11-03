@@ -19,11 +19,14 @@ import java.util.UUID;
  * @param levelContext what the rules read when the case reached its level, or null when it was not kept
  * @param levelRule   the rule of its level in the version that opened it, or null when unknown
  * @param levels      the case's level from each of its changes, oldest first; empty when not read
+ * @param closingContext what the rules read on the transition that closed it, or null (open, closed by an
+ *                    operator, or not read)
  */
 public record EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
         Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
         Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
-        JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels) {
+        JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels,
+        JsonNode closingContext) {
 
     /** The case reached {@code level} at {@code at}. */
     public record LevelStep(Instant at, int level) {
@@ -31,6 +34,16 @@ public record EngineCase(long id, UUID definitionId, String version, String name
 
     public EngineCase {
         levels = levels == null ? List.of() : List.copyOf(levels);
+    }
+
+    @SuppressWarnings("java:S107")
+    public EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
+            Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
+            Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
+            JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels) {
+        this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext, levelContext,
+                levelRule, levels, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -51,7 +64,14 @@ public record EngineCase(long id, UUID definitionId, String version, String name
 
     public EngineCase withLevel(JsonNode opening, JsonNode context, String rule, List<LevelStep> steps) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
-                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, opening, context, rule, steps);
+                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, opening, context, rule, steps,
+                closingContext);
+    }
+
+    public EngineCase withClosing(JsonNode context) {
+        return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
+                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
+                levelContext, levelRule, levels, context);
     }
 
     public long symptomId() {

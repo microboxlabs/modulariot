@@ -27,7 +27,7 @@ class CoverageJobTest {
     private static final LocalDate TODAY = LocalDate.parse("2026-03-01");
 
     /** A vehicle reporting once a minute, every frame two seconds late, moving east. */
-    static final class Frames implements GpsFrames {
+    static class Frames implements GpsFrames {
         final List<Instant> reads = new ArrayList<>();
 
         @Override
@@ -105,7 +105,8 @@ class CoverageJobTest {
     private final Store store = new Store();
 
     private CoverageJob job(Instant now, CoverageJob.Lease lease) {
-        return new CoverageJob(true, gps, store, CoverageSettings.defaults(), Duration.ofHours(2), lease,
+        return new CoverageJob(new CoverageJob.JobSettings(true, Duration.ofHours(2)),
+                gps, store, CoverageSettings.defaults(), lease,
                 new SimpleMeterRegistry(), java.time.Clock.fixed(now, ZoneOffset.UTC));
     }
 
@@ -156,5 +157,54 @@ class CoverageJobTest {
         job(NOW, ttl -> true).run();
 
         assertFalse(store.done.contains(TODAY.minusDays(40)));
+    }
+
+    @Test
+    void aFailedDayDoesNotBlockOlderDaysOrMaintenanceAndIsRetried() {
+        LocalDate failed = TODAY.minusDays(1);
+        Instant failedStart = failed.atStartOfDay(ZoneOffset.UTC).toInstant();
+        AtomicBoolean failing = new AtomicBoolean(true);
+        GpsFrames unreliable = new Frames() {
+            @Override
+            public List<Count> delays(Instant from, Instant to) {
+                if (failing.get() && from.equals(failedStart)) {
+                    throw new IllegalStateException("day unavailable");
+                }
+                return super.delays(from, to);
+            }
+        };
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        CoverageJob job = new CoverageJob(new CoverageJob.JobSettings(true, Duration.ofHours(2)),
+                unreliable, store, CoverageSettings.defaults(), ttl -> true, meters,
+                java.time.Clock.fixed(NOW, ZoneOffset.UTC));
+        store.replace(TODAY.minusDays(40), List.of(), List.of(), 0);
+        store.replace(TODAY.minusDays(3), List.of(),
+                List.of(new SenderDay("s", TODAY.minusDays(3), 100, 0, 0, 2.0, 60.0, true)), 100);
+
+        assertEquals(28, job.run());
+        assertFalse(store.done.contains(failed));
+        assertTrue(store.done.contains(TODAY.minusDays(2)));
+        assertFalse(store.done.contains(TODAY.minusDays(40)));
+        assertFalse(store.senders.get(TODAY.minusDays(3)).get(0).anomalous());
+        assertEquals(1, meters.get("miot.symptoms.lost_signal.coverage_failed").counter().count());
+
+        failing.set(false);
+        assertEquals(1, job.run());
+        assertTrue(store.done.contains(failed));
+    }
+
+    @Test
+    void losingTheLeaseDuringADayStopsOlderDays() {
+        java.util.concurrent.atomic.AtomicInteger renewals = new java.util.concurrent.atomic.AtomicInteger();
+
+        assertThrows(CoverageJob.LeaseLost.class,
+                () -> job(NOW, ttl -> renewals.incrementAndGet() < 4).run());
+        assertTrue(store.done.isEmpty());
+    }
+
+    @Test
+    void aDisabledJobDoesNotAccessItsDependencies() {
+        new CoverageJob(new CoverageJob.JobSettings(false, Duration.ofHours(2)),
+                null, null, CoverageSettings.defaults(), null, null, null).scheduled();
     }
 }

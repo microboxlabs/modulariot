@@ -93,4 +93,21 @@ class SpecFieldsTest {
         assertFalse(spec.lifecycle().levelDown());
         assertNull(spec.recurrence().entity(), "read as per vehicle");
     }
+
+    @Test
+    void stepsAndEscalationKeepTheirScope() throws Exception {
+        String json = """
+                {"operator":true,"slaMinutes":5,"ignorable":false,"escalateTo":"Gerente de Seguridad",
+                 "escalateScope":"TRIP_CARRIER","steps":[
+                   {"role":"Conductor","channel":"call","budgetMinutes":2},
+                   {"role":"Gerente de Seguridad","channel":"call","budgetMinutes":3,"scope":"TRIP_CARRIER"}]}""";
+        ObjectMapper mapper = new ObjectMapper();
+        SymptomSpec.Response r = mapper.readValue(json, SymptomSpec.Response.class);
+        assertNull(r.steps().get(0).scope());
+        assertEquals("DRIVER", r.steps().get(0).effectiveScope());
+        assertEquals("TRIP_CARRIER", r.steps().get(1).scope());
+        assertEquals("TRIP_CARRIER", r.escalateScope());
+        SymptomSpec.Response again = mapper.readValue(mapper.writeValueAsString(r), SymptomSpec.Response.class);
+        assertEquals(r, again);
+    }
 }

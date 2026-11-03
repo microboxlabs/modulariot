@@ -126,8 +126,9 @@ public record SymptomSpec(
      * @param notices     automatic notices
          * @param evidence    what must be recorded to close it
      * @param ignorable   the operator may ignore the condition
-     * @param escalateTo  who is told when the SLA runs out (for example "Jefe de torre"), or null
-     * @param consequence the case counts in the consequence management of whoever caused it
+     * @param escalateTo    the role told when the SLA runs out (for example "Jefe de torre"), or null
+     * @param consequence   the case counts in the consequence management of whoever caused it
+     * @param escalateScope where {@code escalateTo} is looked up, one of {@link Step#SCOPES}; null in older specs
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Response(
@@ -138,26 +139,66 @@ public record SymptomSpec(
             List<String> evidence,
             boolean ignorable,
             String escalateTo,
-            boolean consequence) {
+            boolean consequence,
+            String escalateScope) {
 
         /** A response without escalation, outside consequence management. */
         public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
                 List<String> evidence, boolean ignorable) {
-            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false);
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, null, false, null);
+        }
+
+        /** A response whose escalation target has no scope. */
+        public Response(boolean operator, Integer slaMinutes, List<Step> steps, List<Notice> notices,
+                List<String> evidence, boolean ignorable, String escalateTo, boolean consequence) {
+            this(operator, slaMinutes, steps, notices, evidence, ignorable, escalateTo, consequence, null);
         }
     }
 
     /**
-     * One step of the operator's ladder.
+     * One step of the operator's ladder. The person to contact is a scope plus a role of the contact book.
      *
-     * @param role          who to contact, as the operator reads it (for example "Conductor"); free text,
-     *                      like a contact's role
+     * @param role          the contact book role (for example "Gerente de Seguridad"); for {@code DRIVER},
+     *                      "Conductor"; for {@code TRIP_CARRIER}, blank means any contact of the carrier
      * @param channel       call, whatsapp, teams, email
      * @param budgetMinutes time for this step within the SLA
      * @param script        what to say; may use case fields as {@code {{ }}} variables
+     * @param scope         {@code DRIVER} (the trip's driver), {@code TRIP_CARRIER} (people of the trip's
+     *                      carrier) or {@code ORG} (the organization's own people); null in older specs, read from
+     *                      the role by {@link #effectiveScope()}
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Step(String role, String channel, Integer budgetMinutes, String script) {
+    public record Step(String role, String channel, Integer budgetMinutes, String script, String scope) {
+
+        public static final String DRIVER = "DRIVER";
+        public static final String TRIP_CARRIER = "TRIP_CARRIER";
+        public static final String ORG = "ORG";
+        public static final java.util.Set<String> SCOPES = java.util.Set.of(DRIVER, TRIP_CARRIER, ORG);
+
+        /** A step saved before steps had a scope. */
+        public Step(String role, String channel, Integer budgetMinutes, String script) {
+            this(role, channel, budgetMinutes, script, null);
+        }
+
+        /** The scope, or for an older step: Conductor is the driver, Transportista any carrier contact, else ORG. */
+        public String effectiveScope() {
+            return effectiveScope(scope, role);
+        }
+
+        /** Same reading for a step or an escalation target. */
+        public static String effectiveScope(String scope, String role) {
+            if (scope != null && !scope.isBlank()) {
+                return scope;
+            }
+            String r = role == null ? "" : role.trim();
+            if (r.equalsIgnoreCase("Conductor")) {
+                return DRIVER;
+            }
+            if (r.equalsIgnoreCase("Transportista")) {
+                return TRIP_CARRIER;
+            }
+            return ORG;
+        }
     }
 
     /**

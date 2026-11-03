@@ -210,6 +210,22 @@ public final class SpecValidator {
         }
     }
 
+    /**
+     * A step says whom to contact when it names a role, or its scope is the driver or the trip's carrier (any of its
+     * contacts). An unknown scope does not.
+     */
+    static boolean saysWhom(SymptomSpec.Step step) {
+        String scope = step.scope();
+        if (scope != null && !scope.isBlank() && !SymptomSpec.Step.SCOPES.contains(scope)) {
+            return false;
+        }
+        boolean hasRole = step.role() != null && !step.role().isBlank();
+        if (scope == null || scope.isBlank()) {
+            return hasRole;
+        }
+        return hasRole || !SymptomSpec.Step.ORG.equals(scope);
+    }
+
     /** Each step says whom to contact and has minutes; the script is optional. */
     private static void steps(List<Finding> out, String section, List<SymptomSpec.Step> steps) {
         if (steps == null) {
@@ -217,7 +233,7 @@ public final class SpecValidator {
         }
         for (int i = 0; i < steps.size(); i++) {
             SymptomSpec.Step step = steps.get(i);
-            if (step.role() == null || step.role().isBlank()) {
+            if (!saysWhom(step)) {
                 out.add(new Finding(section, Severity.ERROR, RuleMessage.of("stepNoContact", "n", i + 1), -1));
             }
             if (step.budgetMinutes() == null || step.budgetMinutes() <= 0) {

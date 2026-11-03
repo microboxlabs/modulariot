@@ -11,6 +11,8 @@ import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
 import com.microboxlabs.miot.symptoms.dto.ContactPage;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
+import com.microboxlabs.miot.symptoms.dto.TripContactsView;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
 import com.microboxlabs.miot.symptoms.store.ContactStore.After;
 import com.microboxlabs.miot.symptoms.store.DuplicateMemberException;
@@ -74,6 +76,42 @@ public class ContactService {
         return contacts.list(tenantCode, active).stream()
                 .map(c -> ContactView.of(c, stats.get(c.id())))
                 .toList();
+    }
+
+    /** The role a trip's driver has in the book. */
+    public static final String DRIVER_ROLE = "Conductor";
+
+    /**
+     * The book's people for a trip, by RUT only: active Conductor contacts whose national id is one of the trip's
+     * driver RUTs, and active contacts of any role whose company tax id is the trip carrier's.
+     */
+    public TripContactsView tripContacts(String tenantCode, TripPeople trip) {
+        List<String> driverRuts = trip.driverRuts().stream()
+                .map(ContactService::normalizeNationalId)
+                .filter(r -> r != null)
+                .distinct()
+                .toList();
+        String carrierRut = normalizeNationalId(trip.carrierRut());
+        List<String> drivers = new ArrayList<>();
+        List<String> carriers = new ArrayList<>();
+        if (!driverRuts.isEmpty() || carrierRut != null) {
+            for (Contact c : contacts.list(tenantCode, true)) {
+                if (!c.active()) {
+                    continue;
+                }
+                if (hasRole(c, DRIVER_ROLE) && driverRuts.contains(normalizeNationalId(c.nationalId()))) {
+                    drivers.add(c.id());
+                }
+                if (carrierRut != null && carrierRut.equals(normalizeNationalId(c.companyRut()))) {
+                    carriers.add(c.id());
+                }
+            }
+        }
+        return new TripContactsView(driverRuts, carrierRut, List.copyOf(drivers), List.copyOf(carriers));
+    }
+
+    private static boolean hasRole(Contact c, String role) {
+        return c.role() != null && c.role().trim().equalsIgnoreCase(role);
     }
 
     /** Up to {@code limit} contacts (100 by default) that pass {@code filter}, from {@code cursor} on. */
@@ -331,7 +369,7 @@ public class ContactService {
     }
 
     /** The id without dots, dashes or spaces, upper case: "12.345.678-k" becomes "12345678K". Blank is null. */
-    static String normalizeNationalId(String nationalId) {
+    public static String normalizeNationalId(String nationalId) {
         if (blank(nationalId)) {
             return null;
         }

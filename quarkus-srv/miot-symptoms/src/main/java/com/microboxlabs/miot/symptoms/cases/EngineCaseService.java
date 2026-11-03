@@ -8,6 +8,7 @@ import com.microboxlabs.miot.symptoms.domain.ActionKind;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
@@ -92,10 +93,12 @@ public class EngineCaseService {
     public static final int IGNORED_CODE = 9;
     /** The case's trip while it runs; a finished trip has no row. */
     private static final String TRIP = """
-            SELECT trip_id, asset_id,
-                   carrier_name, origin_geofence_label, destination_geofence_label, driver_name, second_driver_name,
-                   type_load, driver_contact_phone
-              FROM miot_trips.trip_live WHERE tenant_code = $1 AND trip_id::text = $2 AND asset_id = $3
+            SELECT tl.trip_id, tl.asset_id, tl.carrier_name, c.rut AS carrier_tax_id, tl.origin_geofence_label,
+                   tl.destination_geofence_label, tl.driver_name, tl.second_driver_name, tl.type_load,
+                   tl.driver_contact_phone, tl.driver_id, tl.second_driver_id
+              FROM miot_trips.trip_live tl
+              LEFT JOIN miot_fleet.carrier c ON c.tenant_code = tl.tenant_code AND c.id::text = tl.carrier_id
+             WHERE tl.tenant_code = $1 AND tl.trip_id::text = $2 AND tl.asset_id = $3
             """;
     /** How far before the case the map shows the vehicle's signals, unless an earlier case of it is nearer. */
     static final Duration SIGNALS_BEFORE = Duration.ofHours(1);
@@ -454,6 +457,17 @@ public class EngineCaseService {
         }
     }
 
+    /** The RUTs of the case's live trip: drivers and carrier. Empty without a live trip. */
+    public TripPeople tripPeople(String tenantCode, long symptomId) {
+        EngineCase c = find(tenantCode, symptomId);
+        Row t = c.tripId() == null ? null : trip(tenantCode, c);
+        if (t == null) {
+            return TripPeople.NONE;
+        }
+        return TripPeople.of(t.getString("driver_id"), t.getString("second_driver_id"),
+                t.getString("carrier_tax_id"));
+    }
+
     /** The treatment page's header: the case, and its trip when it had one. */
     public JsonNode header(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);
@@ -488,6 +502,9 @@ public class EngineCaseService {
         Row t = c.tripId() == null ? null : trip(tenantCode, c);
         if (t != null) {
             trip.put("carrier", t.getString("carrier_name"));
+            trip.put("carrier_tax_id", t.getString("carrier_tax_id"));
+            trip.put("driver_rut", t.getString("driver_id"));
+            trip.put("second_driver_rut", t.getString("second_driver_id"));
             trip.put("origin", t.getString("origin_geofence_label"));
             trip.put("destination", t.getString("destination_geofence_label"));
             trip.put("driver", t.getString("driver_name"));

@@ -55,6 +55,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerAuditResource.list", VIEW),
             Map.entry("OrgControlTowerContactsResource.list", VIEW),
             Map.entry("OrgControlTowerContactsResource.page", VIEW),
+            Map.entry("OrgControlTowerContactsResource.trip", VIEW),
             Map.entry("OrgControlTowerContactsResource.facets", VIEW),
             Map.entry("OrgControlTowerContactsResource.get", VIEW),
             Map.entry("OrgControlTowerContactsResource.create", CONTACT_WRITE),

@@ -145,6 +145,29 @@ class SpecRulesTest {
         assertEquals(List.of("El paso 2 no dice a quién contactar.", "El paso 2 necesita minutos."), messages);
     }
 
+
+    @Test
+    void aStepSaysWhomByScopeOrRole() {
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Conductor", "call", 2, null)));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step(null, "call", 2, null, "DRIVER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("", "call", 2, null, "TRIP_CARRIER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Gerente de Seguridad", "call", 2, null,
+                "TRIP_CARRIER")));
+        assertTrue(SpecValidator.saysWhom(new SymptomSpec.Step("Jefe de torre", "call", 2, null, "ORG")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null, "ORG")));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step(" ", "call", 2, null)));
+        assertFalse(SpecValidator.saysWhom(new SymptomSpec.Step("Jefe", "call", 2, null, "MOON")));
+    }
+
+    @Test
+    void anOlderStepReadsItsScopeFromTheRole() {
+        assertEquals("DRIVER", new SymptomSpec.Step("conductor", "call", 2, null).effectiveScope());
+        assertEquals("TRIP_CARRIER", new SymptomSpec.Step(" Transportista ", "call", 2, null).effectiveScope());
+        assertEquals("ORG", new SymptomSpec.Step("Jefe de torre", "call", 2, null).effectiveScope());
+        assertEquals("ORG", new SymptomSpec.Step(null, "call", 2, null).effectiveScope());
+        assertEquals("TRIP_CARRIER",
+                new SymptomSpec.Step("Gerente de Seguridad", "call", 2, null, "TRIP_CARRIER").effectiveScope());
+    }
     @Test
     void findingsCarryACodeAndItsParametersForTheApp() throws Exception {
         SymptomSpec.Response withSteps = new SymptomSpec.Response(true, 5, List.of(

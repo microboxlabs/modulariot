@@ -119,6 +119,7 @@ Each level of a symptom version may set `ignore`:
 |---|---|---|
 | `listContacts` | `GET /contacts?active` | `controltower:view` |
 | `getContact` | `GET /contacts/{contactId}` | `controltower:view` |
+| `getTripContacts` | `GET /contacts/trip?symptomId` | `controltower:view`. The book's people for the case's trip, by RUT only |
 | `createContact` | `POST /contacts` | `controltower:contact.write`. Operators add contacts from the call panel |
 | `importContacts` | `POST /contacts/import` | `controltower:contact.write`. Body `{contacts: [...]}`, up to 1000 |
 | `updateContact` | `PATCH /contacts/{contactId}` | `controltower:contact.write` |
@@ -150,6 +151,19 @@ A national id already used by another contact of the organization is a 409.
 `{created, skipped, errors, rows: [{index, status, reason, contact}]}`, where
 `status` is `created`, `skipped` (national id already in the book, or repeated
 in the request) or `error` (the row is invalid; `reason` says why).
+
+`getTripContacts` answers `{driverRuts, carrierRut, drivers, carrierContacts}`:
+
+| Field | Meaning |
+|---|---|
+| `driverRuts` | The trip's driver and second driver RUTs, normalized |
+| `carrierRut` | The trip carrier's tax id, normalized, or null |
+| `drivers` | Ids of active contacts with role `Conductor` whose `nationalId` is one of `driverRuts` |
+| `carrierContacts` | Ids of active contacts of any role whose `companyRut` is `carrierRut` |
+
+Only engine cases (negative ids) have a trip to read. Other cases answer empty
+lists. A CALL action with a `contactId` must use one of the contact's
+`methods`; any other `method` is a 400.
 
 ## Map
 

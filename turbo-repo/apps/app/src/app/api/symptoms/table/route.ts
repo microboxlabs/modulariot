@@ -72,6 +72,8 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       last_assigned_to: item?.last_assigned_to,
       sla_minutes: item?.sla_minutes ?? null,
       recurrence_events: item?.recurrence_events ?? null,
+      ignored: item?.ignored ?? null,
+      returnedAfterIgnoreAt: item?.returned_after_ignore_at ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

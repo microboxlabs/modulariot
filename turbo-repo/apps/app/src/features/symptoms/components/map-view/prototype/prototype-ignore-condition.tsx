@@ -4,8 +4,15 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import {
   guardedRequestTreatment,
+  isEngineCase,
   type EngineTreatmentProgress,
 } from "./prototype-api-guard";
+import {
+  IGNORE_DURATIONS,
+  offeredDuration,
+  towerScope,
+  UNTIL_TRIP_END,
+} from "@/features/symptoms/model/ignore-hold";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Select, Textarea } from "flowbite-react";
 import { useRef, useState } from "react";
@@ -26,10 +33,18 @@ import {
   fillTextarea,
 } from "./prototype-form-kit";
 
+function durationLabel(seconds: number, t: (key: string) => string): string {
+  if (seconds < 3600) return `${seconds / 60} ${t("minutes")}`;
+  const unit = seconds === 3600 ? "hour" : "hours";
+  return `${seconds / 3600} ${t(unit)}`;
+}
+
 /**
  * PROTOTYPE — variant of
- * `blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx`.
- * Same submit logic; laid out as a bento grid that fits the panel height.
+ * `blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx`,
+ * laid out as a bento grid that fits the panel height. On an engine case the
+ * save puts the case on hold: the treatment stays open with the IGNORE
+ * action (reason, note, duration, scope) until the hold ends.
  */
 export default function PrototypeIgnoreCondition({
   dict,
@@ -52,7 +67,13 @@ export default function PrototypeIgnoreCondition({
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
 }>) {
-  const [durationLocal, setDurationLocal] = useState(duration);
+  // "Hasta que termine el viaje" needs a trip to wait for.
+  const engineCase = isEngineCase(treatmentRequest);
+  const tripEndOffered = Boolean(treatmentData?.trip_info?.trip_id);
+  const [durationLocal, setDurationLocal] = useState(
+    offeredDuration(duration, tripEndOffered)
+  );
+  const [scopeLocal, setScopeLocal] = useState(scope || "synthom");
   const [motivoId, setMotivoId] = useState("");
   const [nota, setNota] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,22 +95,40 @@ export default function PrototypeIgnoreCondition({
     submitting.current = true;
     setIsSubmitting(true);
     try {
+      const untilTripEnd = durationLocal === UNTIL_TRIP_END;
       setTreatmentRequest({
         ...treatmentRequest,
-        v_symptom_treatment_time: duration,
+        v_symptom_treatment_time: durationLocal,
         status: "active",
       });
+      // An engine case stays open on hold: the action is saved, the
+      // treatment is not closed.
+      const engine = isEngineCase(treatmentRequest);
       await guardedRequestTreatment(
         {
           ...treatmentRequest,
           status: "active",
           treatment_type: "ignorar condicion",
-          v_symptom_treatment_time: duration,
+          v_symptom_treatment_time: durationLocal,
           description:
             `Motivo: ${motivoLabel}` +
             (nota.trim() ? ` · Nota: ${nota.trim()}` : ""),
         },
-        { progress: engineProgress.current }
+        engine
+          ? {
+              finish: false,
+              action: {
+                outcomeKey: motivoId,
+                outcomeLabel: motivoLabel,
+                note: nota.trim() || undefined,
+                durationSeconds: untilTripEnd ? undefined : durationLocal,
+                details: {
+                  scope: towerScope(scopeLocal),
+                  until_trip_end: untilTripEnd,
+                },
+              },
+            }
+          : { progress: engineProgress.current }
       );
       setIsMenuOpen(false);
       router.push("/symptoms");
@@ -145,26 +184,32 @@ export default function PrototypeIgnoreCondition({
         <span className={fieldLabel}>{t("duration")}</span>
         <Select
           sizing="sm"
-          defaultValue={durationLocal}
+          value={durationLocal}
           onChange={(e) => {
             setDuration(Number.parseInt(e.target.value));
             setDurationLocal(Number.parseInt(e.target.value));
           }}
         >
-          <option value="300">5 {t("minutes")}</option>
-          <option value="1800">30 {t("minutes")}</option>
-          <option value="3600">1 {t("hour")}</option>
-          <option value="7200">2 {t("hours")}</option>
-          <option value="-1">{t("ignore_indefinitely")}</option>
+          {IGNORE_DURATIONS.map((seconds) => (
+            <option key={seconds} value={seconds}>
+              {durationLabel(seconds, t)}
+            </option>
+          ))}
+          {tripEndOffered && (
+            <option value={UNTIL_TRIP_END}>{t("ignore_until_trip_end")}</option>
+          )}
         </Select>
       </div>
       <div className="flex w-1/2 flex-col">
         <span className={fieldLabel}>{t("scope")}</span>
         <Select
           sizing="sm"
-          defaultValue={scope}
-          disabled
-          onChange={(e) => setScope(e.target.value)}
+          value={scopeLocal}
+          disabled={!engineCase}
+          onChange={(e) => {
+            setScope(e.target.value);
+            setScopeLocal(e.target.value);
+          }}
         >
           <option value="synthom">{t("this_symptom")}</option>
           <option value="same_synthoms">{t("same_symptoms")}</option>

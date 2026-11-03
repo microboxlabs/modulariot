@@ -10,21 +10,10 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import icu_condition from "@/features/symptoms/model/icu_condition.json";
 import { FaChevronRight } from "react-icons/fa6";
+import IgnoredHoldCell from "./ignored-hold-cell";
 
-export default function TableItem({
-  data,
-  dict,
-  compact = false,
-}: {
-  data: TableItemType;
-  dict: I18nRecord;
-  compact?: boolean;
-}) {
-  const searchParams = new URLSearchParams(window.location.search);
-
+function slaBadge(data: TableItemType, dict: I18nRecord) {
   const slaMin = data.sla_minutes;
-  // Occurrence number of this event on the trip: earlier events plus this one.
-  const occurrence = (data.recurrence_events ?? 0) + 1;
   // A badge, not plain colored text: the row itself is already tinted by
   // condition (`Conditions[...].bgColor` below), and a saturated row color —
   // red especially — could wash out same-colored text with no background of
@@ -32,7 +21,9 @@ export default function TableItem({
   let slaCell: { texto: string; color: "warning" | "success" | "failure" } | null =
     null;
   if (slaMin != null) {
-    const transc = (Date.now() - new Date(data.date).getTime()) / 60000;
+    // A case back from an "Ignorar condición" hold has a new SLA from then.
+    const slaStart = data.returnedAfterIgnoreAt ?? data.date;
+    const transc = (Date.now() - new Date(slaStart).getTime()) / 60000;
     const resto = slaMin - transc;
     const fmt = (m: number) =>
       m >= 90 ? `${Math.round(m / 60)} h` : `${Math.max(1, Math.round(m))} min`;
@@ -47,6 +38,24 @@ export default function TableItem({
             color: "failure",
           };
   }
+
+  return slaCell;
+}
+
+export default function TableItem({
+  data,
+  dict,
+  compact = false,
+}: {
+  data: TableItemType;
+  dict: I18nRecord;
+  compact?: boolean;
+}) {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  // Occurrence number of this event on the trip: earlier events plus this one.
+  const occurrence = (data.recurrence_events ?? 0) + 1;
+  const slaCell = slaBadge(data, dict);
 
   if (!compact) {
     return (
@@ -96,12 +105,23 @@ export default function TableItem({
           {data.time} {/* {(dict.symptoms as I18nRecord).sec as string}. */}
         </TableCell>
         <TableCell className="text-xs text-nowrap">
-          {slaCell ? (
-            <Badge color={slaCell.color} className="w-fit">
-              {slaCell.texto}
-            </Badge>
+          {data.ignored ? (
+            <IgnoredHoldCell info={data.ignored} dict={dict} />
           ) : (
-            <span className="text-gray-400">—</span>
+            <div className="flex items-center gap-2">
+              {slaCell ? (
+                <Badge color={slaCell.color} className="w-fit">
+                  {slaCell.texto}
+                </Badge>
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+              {data.returnedAfterIgnoreAt && (
+                <Badge color="warning" className="w-fit">
+                  {(dict.symptoms as I18nRecord).returned_after_ignore as string}
+                </Badge>
+              )}
+            </div>
           )}
         </TableCell>
         <TableCell className="text-xs text-nowrap">

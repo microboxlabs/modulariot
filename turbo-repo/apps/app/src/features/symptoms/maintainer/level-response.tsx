@@ -4,8 +4,10 @@ import { ToggleSwitch } from "flowbite-react";
 import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { useBookRoles } from "../control-tower/contact-roles";
 import LevelSteps, { type StepErrors } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
+import RolePicker, { RoleWarning } from "./role-picker";
 import { findingProblem, findingText, Problems } from "./rule-problems";
 import {
   FIELD,
@@ -90,6 +92,7 @@ function OperatorBlock({
   onChange: (patch: Partial<LevelResponse>) => void;
 }>) {
   const slaError = findings.find((f) => f.code === "operatorNeedsSla");
+  const roles = useBookRoles();
   return (
     <ResponseBlock
       title={tr("operatorTitle", d)}
@@ -126,20 +129,20 @@ function OperatorBlock({
               />
               <span>min</span>
               <span className="ml-2">{tr("escalateTo", d)}</span>
-              <input
-                aria-label={tr("escalateTo", d)}
-                className={`${FIELD} min-w-40 flex-1`}
+              <RolePicker
+                label={tr("escalateTo", d)}
+                className={FIELD}
+                wrapperClassName="min-w-40 flex-1"
                 disabled={readOnly}
-                maxLength={120}
-                placeholder={tr("escalateToPlaceholder", d)}
-                value={response.escalateTo ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    escalateTo: e.target.value.trim() ? e.target.value : null,
-                  })
-                }
+                value={response.escalateTo ?? null}
+                roles={roles}
+                d={d}
+                onChange={(role) => onChange({ escalateTo: role || null })}
               />
             </FieldRow>
+            <div className="sm:pl-[10.75rem]">
+              <RoleWarning value={response.escalateTo} roles={roles} d={d} />
+            </div>
             {slaError && (
               <div className="sm:pl-[10.75rem]">
                 <FieldError text={findingText(slaError, d)} />
@@ -150,6 +153,7 @@ function OperatorBlock({
             steps={response.steps ?? []}
             slaMinutes={response.slaMinutes}
             errors={stepErrors(findings, d)}
+            roles={roles}
             sample={sample}
             readOnly={readOnly}
             d={d}

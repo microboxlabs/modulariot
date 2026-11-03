@@ -33,6 +33,12 @@ import {
   fillTextarea,
 } from "./prototype-form-kit";
 
+function durationLabel(seconds: number, t: (key: string) => string): string {
+  if (seconds < 3600) return `${seconds / 60} ${t("minutes")}`;
+  const unit = seconds === 3600 ? "hour" : "hours";
+  return `${seconds / 3600} ${t(unit)}`;
+}
+
 /**
  * PROTOTYPE — variant of
  * `blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx`,
@@ -186,9 +192,7 @@ export default function PrototypeIgnoreCondition({
         >
           {IGNORE_DURATIONS.map((seconds) => (
             <option key={seconds} value={seconds}>
-              {seconds < 3600
-                ? `${seconds / 60} ${t("minutes")}`
-                : `${seconds / 3600} ${t(seconds === 3600 ? "hour" : "hours")}`}
+              {durationLabel(seconds, t)}
             </option>
           ))}
           {tripEndOffered && (

@@ -17,6 +17,8 @@ export type PulseType = {
     longitude: number;
     speed: number;
     timestamp: string;
+    /** The symptom whose interval holds this frame, if any. */
+    symptom_name?: string | null;
   };
 };
 
@@ -242,6 +244,13 @@ export default function PulseTooltip({
           object?.properties.icu_code as unknown as keyof typeof pin_conditions
         ] != undefined ? (
           <div>
+            {object.properties.symptom_name && (
+              <div className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                {((dict.symptoms as I18nRecord)[
+                  object.properties.symptom_name.toUpperCase()
+                ] as string) || object.properties.symptom_name}
+              </div>
+            )}
             <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
               <ConditionIcon
                 condition={

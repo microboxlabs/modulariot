@@ -6956,6 +6956,32 @@
     "noDevicesFound": "No se encontraron dispositivos"
   },
   "symptoms": {
+    "level_reason": {
+      "title": "Por qué este nivel",
+      "level": "Nivel",
+      "silence": "Sin señal",
+      "minutes": "min",
+      "since": "Desde",
+      "rule": "Regla del nivel",
+      "no_context": "Este caso no guardó lo que evaluó la regla.",
+      "last_frame": "Última señal antes del silencio",
+      "coverage_share": "Cobertura",
+      "coverage_source": "Fuente",
+      "yes": "Sí",
+      "no": "No",
+      "flags": {
+        "low_coverage_zone": "Zona de baja cobertura",
+        "cohort_outage": "Muchos vehículos del mismo emisor sin señal",
+        "returned": "La señal volvió",
+        "backfill": "Llegaron datos atrasados"
+      },
+      "details": {
+        "ratio": "Silencio sobre lo esperado",
+        "expected_s": "Intervalo esperado",
+        "nearby_reporting": "Vehículos reportando cerca",
+        "sender": "Emisor"
+      }
+    },
     "1": "Condición en observación",
     "2": "Condición comprometida",
     "3": "Condición crítica",

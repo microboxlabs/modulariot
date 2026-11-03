@@ -17,6 +17,22 @@ export function getColor(icu_code: number): [number, number, number, number] {
   }
 }
 
+const WHITE: [number, number, number, number] = [255, 255, 255, 255];
+
+/**
+ * A stopped vehicle is a hollow dot: white inside, ringed in its level color.
+ * Red fill is kept for symptoms.
+ */
+export function stoppedMarkProps(levelOf: (d: any) => number) {
+  return {
+    getFillColor: () => WHITE,
+    getLineColor: (d: any) => getColor(levelOf(d)),
+    stroked: true,
+    getLineWidth: 2,
+    lineWidthUnits: "pixels" as const,
+  };
+}
+
 export function isValidCoordinate(coords: any): boolean {
   return (
     coords &&
@@ -182,13 +198,14 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
       new ScatterplotLayer({
         id: "pulse-stopped-vehicles-layer",
         data: stoppedVehicles,
-        getFillColor: () => [240, 50, 50, 255],
         ...this.getCommonLayerProps(),
+        ...stoppedMarkProps((d) => d.properties?.icu_code ?? 0),
         updateTriggers: {
-          getFillColor: [
+          getLineColor: [
             selectedPulse,
             this.props.displayPosition,
             this.props.displayRange,
+            this.props.data,
           ],
           getPosition: [showStops],
         },
@@ -209,22 +226,25 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
 
       new ScatterplotLayer({
         id: "pulse-selected-vehicles-layer",
-        data: selectedVehicles,
-        getFillColor: (d: any) =>
-          d.properties.speed > 0 || !showStops
-            ? getColor(d.properties.icu_code)
-            : [240, 50, 50, 255],
+        data: selectedVehicles.filter(
+          (d: any) => d.properties.speed > 0 || !showStops
+        ),
+        getFillColor: (d: any) => getColor(d.properties.icu_code),
         ...this.getCommonLayerProps(),
-        updateTriggers: { getFillColor: [selectedPulse, showStops] },
+        updateTriggers: {
+          getFillColor: [selectedPulse, showStops, this.props.data],
+        },
         radiusUnits: "pixels",
       }) as Layer,
 
       new ScatterplotLayer({
         id: "pulse-selected-stopped-vehicles-layer",
         data: selectedStoppedVehicles,
-        getFillColor: () => [240, 50, 50, 255],
         ...this.getCommonLayerProps(),
-        updateTriggers: { getFillColor: [selectedPulse, showStops] },
+        ...stoppedMarkProps((d) => d.properties?.icu_code ?? 0),
+        updateTriggers: {
+          getLineColor: [selectedPulse, showStops, this.props.data],
+        },
         radiusUnits: "pixels",
       }) as Layer,
     ];

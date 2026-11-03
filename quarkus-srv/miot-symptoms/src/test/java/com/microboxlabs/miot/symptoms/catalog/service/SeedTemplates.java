@@ -44,7 +44,9 @@ public final class SeedTemplates {
             new Upgrade("signal-loss", "2.0.0",
                     "/db/migration/symptoms/V0.12.4__signal_loss_template_reads_detector.sql"),
             new Upgrade("signal-loss", "2.1.0",
-                    "/db/migration/symptoms/V0.12.5__signal_loss_template_coverage_cohort.sql"));
+                    "/db/migration/symptoms/V0.12.5__signal_loss_template_coverage_cohort.sql"),
+            new Upgrade("signal-loss", "2.2.0",
+                    "/db/migration/symptoms/V0.12.11__signal_loss_close_level_one.sql"));
     private static final Pattern UPGRADE_SPEC = Pattern.compile("'(\\{\"source\".*?)'::jsonb", Pattern.DOTALL);
     private static final Pattern UPGRADE_DESCRIPTION = Pattern.compile("description = " + TEXT);
 

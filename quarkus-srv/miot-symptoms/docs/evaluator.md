@@ -37,7 +37,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 | Level change | A case's level only rises, unless the lifecycle's `levelDown` lets it follow the measure down while the condition holds |
 | Close | The lifecycle's close rule is true. If the condition still holds, the next signal starts a new run |
 
-`case.age_h` is the time since the case opened, in hours; `case.level` its level. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals.
+`case.age_h` is the time since the case opened, in hours; `case.level` its level: the highest it reached, unless `levelDown` is set. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals.
 
 ## Order, versions and failures
 
@@ -70,7 +70,7 @@ Each new transition, and an operator's close, is published in-process as an `Ope
 | `symptom.case.level_changed` | LEVEL_CHANGED transition |
 | `symptom.case.closed` | CLOSED transition, or `POST …/treatments/{id}/close` (`closedBy` set) |
 | `symptom.case.sla_expired` | The SLA timer, see below |
-| `symptom.case.signal_returned` | The lost-signal detector: the vehicle of an open `trip_check` case reports again (`signalReturnedAt`, `backfill`); the case stays open. An ACTIVE case also gets a `case.signal_returned` audit entry ([lost-signal.md](lost-signal.md)) |
+| `symptom.case.signal_returned` | The lost-signal detector: the vehicle of an open `trip_check` case reports again (`signalReturnedAt`, `backfill`). A case that the return check closed gets `symptom.case.closed` instead. An ACTIVE case also gets a `case.signal_returned` audit entry ([lost-signal.md](lost-signal.md)) |
 
 `source` is `miot-symptoms`, `context` is `{kind: "symptom_case", key: "<symptom id>"}` (the negated OPENED id), `data` is `SymptomCaseData`. TEST symptoms publish with `test: true`. `SymptomEventCatalog` lists the types and the payload class.
 

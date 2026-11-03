@@ -28,5 +28,9 @@ BEGIN
            updated_at = now()
      WHERE s.key = 'ignore_duration' AND s.updated_by = 'system:defaults'
        AND jsonb_typeof(s.options) = 'array'
-       AND s.options @> '[{"value": "ignore_duration_5"}]';
+       AND EXISTS (SELECT 1 FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(s.options) = 'array' THEN s.options ELSE '[]'::jsonb END) AS x(o)
+                    WHERE x.o->>'value' = 'ignore_duration_5'
+                      AND x.o->'label' IS DISTINCT FROM
+                          '{"es": "Hasta que termine el viaje", "en": "Until the trip ends"}'::jsonb);
 END $$;

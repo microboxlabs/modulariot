@@ -61,7 +61,9 @@ class PgIgnoreReasonsMigrationTest {
                 "/db/migration/symptoms/V0.12.14__ignore_reasons_move_wrong_map.sql")) {
             String sql = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             pool.query(sql).execute().await().atMost(WAIT);
+            var firstUpdated = updatedAt();
             pool.query(sql).execute().await().atMost(WAIT);
+            assertEquals(firstUpdated, updatedAt(), "reapplying the migration does not rewrite updated_at");
         }
     }
 
@@ -75,6 +77,13 @@ class PgIgnoreReasonsMigrationTest {
     private static void insert(String tenant, String key, String options, String by) {
         PgIds.query(pool, "INSERT INTO miot_core.selectables (tenant_code, key, options, updated_by)"
                 + " VALUES ($1, $2, $3::text::jsonb, $4)", Tuple.of(tenant, key, options, by));
+    }
+
+    private static List<java.time.OffsetDateTime> updatedAt() {
+        List<java.time.OffsetDateTime> out = new ArrayList<>();
+        PgIds.query(pool, "SELECT updated_at FROM miot_core.selectables ORDER BY tenant_code, key", Tuple.tuple())
+                .forEach(r -> out.add(r.getOffsetDateTime("updated_at")));
+        return out;
     }
 
     private static List<String> column(String tenant, String key, String path) {

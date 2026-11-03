@@ -183,10 +183,30 @@ class TripChecksTest {
         Frame first = new Frame("V9", "S9", T0.plusSeconds(60), T0.plusSeconds(150), null, null, 0.0, true);
         ArrivalProfiles.Arrival a = profiles.observe(first);
 
-        assertEquals(new LossStore.Mark(T0, T0.plusSeconds(150), false),
+        assertEquals(new LossStore.Mark(T0, T0.plusSeconds(150), false, T0.plusSeconds(60)),
                 LostSignalDetector.mark(a, lost, first, LossSettings.defaults()));
         assertEquals(null, LostSignalDetector.mark(a, CheckState.NONE, first, LossSettings.defaults()));
         assertFalse(none.backfill());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void severalReportsDuringReturnGraceKeepTheFirstReturningGpsTimeInTheClosingContext() {
+        template(SymptomState.ACTIVE);
+        frame(0, 5);
+        tickUntil(300);
+        frame(400, 405);
+        tickUntil(410);
+        frame(420, 425);
+        frame(440, 445);
+        assertEquals(T0.plusSeconds(400), store.vehicle("V1").returnedFrameAt());
+        tickUntil(470);
+
+        assertEquals(Transition.Kind.CLOSED, engine.recorded.get(1).kind());
+        Map<String, Object> check = (Map<String, Object>) engine.contexts.get(1).get("check");
+        Map<String, Object> loss = (Map<String, Object>) check.get("loss");
+        assertEquals(T0.plusSeconds(400).toString(), loss.get("returned_frame_at"));
+        assertEquals(T0.plusSeconds(440).toString(), ((Map<?, ?>) loss.get("last")).get("at"));
     }
 
     @Test

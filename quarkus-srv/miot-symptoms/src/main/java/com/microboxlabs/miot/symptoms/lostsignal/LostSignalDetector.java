@@ -200,7 +200,8 @@ public class LostSignalDetector implements SignalStates {
         double backfillAfter = (double) Math.max(BACKFILL_DELAY.toSeconds(), usual.toSeconds());
         boolean backfill = a.late() || f.delaySeconds() > backfillAfter;
         Instant returned = a.late() || a.replay() ? null : f.arrivedAt();
-        return backfill || returned != null ? new Mark(check.lostSince(), returned, backfill) : null;
+        Instant returnedFrame = returned == null ? null : f.at();
+        return backfill || returned != null ? new Mark(check.lostSince(), returned, backfill, returnedFrame) : null;
     }
 
     /**
@@ -289,6 +290,11 @@ public class LostSignalDetector implements SignalStates {
     @Override
     public Map<String, SignalState> states(Collection<String> assetIds, Instant now) {
         return signals.states(assetIds, now);
+    }
+
+    /** The vehicle's state, usual report interval and engine, for a case's popup; empty without a profile. */
+    public java.util.Optional<SignalStateReader.Reported> reported(String assetId, Instant now) {
+        return signals.reported(assetId, now);
     }
 
     /** One pass of the ticker; returns the vehicles checked. */

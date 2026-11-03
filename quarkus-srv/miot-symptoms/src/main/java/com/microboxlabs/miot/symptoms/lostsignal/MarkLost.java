@@ -97,7 +97,7 @@ public class MarkLost implements LossTicker.DueCheck {
             return Outcome.RETURNING;
         }
         Map<String, OpenCase> open = trips.check(assetId, v, c.cases(), at(seen, now),
-                new Return(back, v.backfill()), TripChecks.Area.NONE);
+                new Return(back, v.backfill(), v.returnedFrameAt()), TripChecks.Area.NONE);
         commit(assetId, seen, new CheckState(null, now, open), deadline);
         leaves(sender, assetId, c, now);
         return Outcome.RETURNED;

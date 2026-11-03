@@ -453,6 +453,38 @@ class PgSlaStoreTest {
     }
 
     @Test
+    void closingContextIsReadWithTheOpeningLevelAndTripMetadataInsideItsTenant() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID definition = symptom(tenant);
+        UUID trip = liveTrip(tenant, "driver-a", null, null, "Origin", "Destination");
+        Instant at = Instant.parse("2026-01-01T00:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place(trip.toString(), 0.0, 0.0, 0.0, null);
+        long caseId = log.append(tenant, List.of(t(Kind.OPENED, definition, at, 1, 0)), place,
+                java.util.Map.of("phase", "opening")).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        assertNull(cases.find(tenant, caseId).orElseThrow().closingContext());
+        log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, definition, at.plusSeconds(60), 3, 1)), place,
+                java.util.Map.of("phase", "level"));
+        log.append(tenant, List.of(t(Kind.CLOSED, definition, at.plusSeconds(120), 0, 3)), place,
+                java.util.Map.of("phase", "closing"));
+
+        EngineCase closed = cases.find(tenant, caseId).orElseThrow();
+        assertEquals("opening", closed.openingContext().path("phase").asText());
+        assertEquals("level", closed.levelContext().path("phase").asText());
+        assertEquals("closing", closed.closingContext().path("phase").asText());
+        assertEquals(at.plusSeconds(120), closed.closedAt());
+        assertEquals(3, closed.level());
+        assertEquals("Driver driver-a", closed.trip().driver());
+        assertEquals("Origin", closed.trip().origin());
+        assertTrue(cases.find("other-" + tenant, caseId).isEmpty());
+
+        long next = log.append(tenant, List.of(t(Kind.OPENED, definition, at.plusSeconds(180), 1, 0)), place)
+                .get(0).caseId();
+        assertTrue(cases.close(tenant, next, "operator@example.com", at.plusSeconds(240)));
+        assertNull(cases.find(tenant, next).orElseThrow().closingContext(), "operator close has no check context");
+    }
+
+    @Test
     void anUnattendedCaseIsDueOnceAtItsLevelUntilATreatmentAttendsIt() {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);

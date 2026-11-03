@@ -1,4 +1,5 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { DescriptionProps } from "@/app/api/treatments/location/route.type";
 import type {
   PulseListType,
   PulseType,
@@ -11,9 +12,13 @@ export function pulseWithSignal(
   object: PulseType | PulseListType | undefined,
   assetId: string | undefined,
   signal: SignalState | null | undefined,
-  dict: I18nRecord
+  dict: I18nRecord,
+  description?: DescriptionProps
 ): PulseType | PulseListType | undefined {
-  if (!object || !("properties" in object)) return object;
+  if (!object) return object;
+  if (!("properties" in object)) {
+    return description ? { ...object, description } : object;
+  }
   const matches =
     object.properties.asset_id === assetId &&
     isNewestFrame(object.properties.timestamp, signal);

@@ -48,7 +48,10 @@ public class TripChecks {
     }
 
     /** How the signal came back. */
-    public record Return(Instant at, boolean backfill) {
+    public record Return(Instant at, boolean backfill, Instant frameAt) {
+        public Return(Instant at, boolean backfill) {
+            this(at, backfill, null);
+        }
     }
 
     /**
@@ -129,6 +132,9 @@ public class TripChecks {
             loss.put("sender", v.watch().sender());
         }
         loss.put("returned", back != null);
+        if (back != null && back.frameAt() != null) {
+            loss.put("returned_frame_at", back.frameAt().toString());
+        }
         loss.put(BACKFILL, back != null && back.backfill());
         loss.put("low_coverage_zone", area.lowCoverage());
         if (area.coverage().share() != null) {

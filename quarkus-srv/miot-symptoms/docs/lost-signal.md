@@ -99,6 +99,14 @@ Off a trip, sender profiles stay live: a late frame can change the learned delay
 | `GET /api/v1/orgs/{org}/control-tower/map/positions` | Each position has `signal` |
 | `GET /api/v1/orgs/{org}/control-tower/map/assets/{assetId}/signal` | One asset's state; 404 when it is not among the organization's positions |
 
+An engine case's map popup (`signals`, `description`) carries the GPS database's indicators in their names and formats:
+
+| Field | Value |
+|---|---|
+| `signal_lag` | Lost signal only. Open: now − GPS time of the newest frame. Closed: the closing transition's context, from the last frame before the loss to the first frame that returned (`check.loss.returned_frame_at`), or `check.loss.silence_s` when it did not return; absent without a closing context (an operator's close) or without a recorded first returning GPS time |
+| `median_report_interval` | Median of the vehicle's gaps in its current motion (its most sampled motion until it has a gap there), `HH:MM:SS`; absent without a profile |
+| `last_reported_engine_status` | The profile's newest frame; for a lost signal without it, `check.loss.last.engine` of the closing, level or opening context |
+
 ## The `trip_check` source
 
 Each check runs the organization's TEST and ACTIVE `trip_check` versions with the evaluator's `SignalEvaluator`, episodes (`symptoms:ep:<tenant>:<asset>`, its own watermark `wm:trip_check`), transition log and case events (`TripChecks`). The fields are declared in code, `signal/TripCheck`, read by `SignalFields` the way `GpsSignal` is.
@@ -118,6 +126,8 @@ Each check runs the organization's TEST and ACTIVE `trip_check` versions with th
 The case's trip, driver and position are the trip's and the newest frame's.
 
 ### Return
+
+The return marker keeps both the first arrival and its GPS time in the existing `r` value; legacy arrival-only markers still read. The case map refreshes its description every 60 s while open and stops on closure or unmount.
 
 A frame from inside the silence (taken after the newest frame before it) tells about the return: the first one on time is the return (`r` in the vehicle's hash, kept once set), and one that arrives late, or delayed by more than 2 min and the sender's usual delay, is backfill (`b`). A return without backfill waits `return-grace` (1 min) for late frames. Then one check runs with `returned: true`, and every open case the checks opened for the vehicle gets `symptom.case.signal_returned` with the return time and whether backfill came; an ACTIVE case also gets the audit entry `case.signal_returned`. The detector never closes a case; the template's close rule can close one on that check (2.2.0, below), and a case closed there gets `symptom.case.closed` instead of `signal_returned`.
 

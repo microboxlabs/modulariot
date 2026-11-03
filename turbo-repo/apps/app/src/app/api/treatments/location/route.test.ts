@@ -82,6 +82,19 @@ describe("GET /api/treatments/location", () => {
     expect((await res.json()).features[0].latitude).toBe(-33.25);
   });
 
+  it.each([true, false])(
+    "preserves closed=%s for case popup polling",
+    async (closed) => {
+      forwardMock.mockImplementation(async () =>
+        NextResponse.json({ ...collection, closed })
+      );
+      const res = await GET(
+        new Request("http://x/l?symptom_name=Panic&symptom_id=-9")
+      );
+      expect((await res.json()).closed).toBe(closed);
+    }
+  );
+
   it("refuses a GPS database symptom without a trip", async () => {
     vi.stubEnv("STREAMHUB_URL", "");
     const res = await GET(

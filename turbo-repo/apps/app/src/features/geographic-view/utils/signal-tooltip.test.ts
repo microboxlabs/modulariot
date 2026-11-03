@@ -52,6 +52,22 @@ describe("current popup signal", () => {
     expect(selected.properties.signal_label).toBeUndefined();
   });
 
+  it("updates the summary from the current description while retaining its selection", () => {
+    const captured = {
+      elements: [0, 1],
+      description: { signal_lag: "00:05:00" },
+    };
+    const current = {
+      signal_lag: "00:06:00",
+      last_reported_engine_status: false,
+    };
+    expect(pulseWithSignal(captured, "V1", offline, es, current)).toEqual({
+      elements: [0, 1],
+      description: current,
+    });
+    expect(captured.description.signal_lag).toBe("00:05:00");
+  });
+
   it("looks up the selected live asset on each render, clearing removed and unknown states", () => {
     const captured = {
       properties: { asset_id: "V1", signal: offline },

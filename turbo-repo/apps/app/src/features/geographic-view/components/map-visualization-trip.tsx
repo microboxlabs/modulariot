@@ -570,12 +570,9 @@ export default function MapVisualizationTrip({
     [positions, caseSpans, offline, newestIndex, offlineText]
   );
 
-  useEffect(() => {
-    if (!filteredLocationData || !positions) return;
-
-    // Create a set of matching position indices
+  // A refreshed description must not reopen a dismissed popup or reset a selected frame.
+  const matchingPulseKey = useMemo(() => {
     const matchingIndices = new Set<number>();
-
     if (filteredLocationData && positions) {
       filteredLocationData.features.forEach((filteredItem) => {
         // Find matching position index
@@ -590,21 +587,28 @@ export default function MapVisualizationTrip({
       });
     }
 
-    setSelectedPulse(Array.from(matchingIndices));
+    return Array.from(matchingIndices).join(",");
+  }, [filteredLocationData, positions]);
+
+  useEffect(() => {
+    const indices = matchingPulseKey
+      ? matchingPulseKey.split(",").map(Number)
+      : [];
+    setSelectedPulse(indices);
 
     // A case without a trip has one opening point, not a span of signals to
     // summarise, so its popup waits for the user to pick a pulse.
-    if (matchingIndices.size > 0 && caseLng == null) {
+    if (indices.length > 0 && caseLng == null) {
       setHoverInfo({
         x: 10,
         y: 10,
         object: {
-          elements: Array.from(matchingIndices),
-          description: filteredLocationData?.description,
+          elements: indices,
+          description: {},
         },
       } as PickingInfo<PulseListType>);
     }
-  }, [filteredLocationData, positions, caseLng]);
+  }, [matchingPulseKey, caseLng, selectedTreatmentIndex?.symptom_id]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
@@ -955,7 +959,8 @@ export default function MapVisualizationTrip({
                 hoverInfo.object as PulseListType | PulseType,
                 newest?.assetid,
                 signal,
-                dict
+                dict,
+                filteredLocationData?.description
               )}
               dict={dict}
             />

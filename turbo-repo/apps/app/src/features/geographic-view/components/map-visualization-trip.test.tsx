@@ -319,6 +319,58 @@ describe("case map frames", () => {
     expect(screen.getByText("Compromised condition")).toBeInTheDocument();
   });
 
+  it("refreshes an open summary without resetting a selected frame or reopening a dismissed popup", () => {
+    const location = (signal_lag: string) => ({
+      type: "FeatureCollection",
+      description: { symptom_name: "Demo symptom", signal_lag },
+      features: positions.slice(1).map((frame) => ({
+        type: "Feature",
+        geometry: "Point",
+        longitude: frame.longitude,
+        latitude: frame.latitude,
+        properties: { speed: frame.speed, timestamp: frame.timestamp },
+        status: "demo",
+      })),
+    });
+    const { rerender, container } = render(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={location("00:05:00")}
+      />
+    );
+    expect(screen.getByText(/00:05:00/)).toBeInTheDocument();
+    rerender(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={location("00:06:00")}
+      />
+    );
+    expect(screen.getByText(/00:06:00/)).toBeInTheDocument();
+    const layer = pulseLayer();
+    act(() => {
+      layer.props.onClick(
+        { object: layer.props.data.features[1] } as PickingInfo,
+        {}
+      );
+    });
+    rerender(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={location("00:07:00")}
+      />
+    );
+    expect(screen.getByText("Compromised condition")).toBeInTheDocument();
+    expect(screen.queryByText(/00:07:00/)).not.toBeInTheDocument();
+    fireEvent.click(container.querySelector(".tooltip")!);
+    rerender(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={location("00:08:00")}
+      />
+    );
+    expect(container.querySelector(".tooltip")).toBeNull();
+  });
+
   it("rings the selected symptom's frames and keeps late frames amber inside and outside the case", () => {
     const { rerender } = render(<MapVisualizationTrip {...props} />);
     rerender(

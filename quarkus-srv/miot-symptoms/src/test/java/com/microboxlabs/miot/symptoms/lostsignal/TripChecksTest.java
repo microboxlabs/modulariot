@@ -114,6 +114,19 @@ class TripChecksTest {
     }
 
     @Test
+    void aHeldCaseCanCloseByItsRuleWithoutSendingANotification() {
+        template(SymptomState.ACTIVE);
+        frame(0, 5);
+        tickUntil(300);
+        engine.held.set(true);
+        frame(200, 600);
+        frame(590, 601);
+        tickUntil(610);
+        assertEquals(Transition.Kind.CLOSED, engine.recorded.get(1).kind(), "evaluation remains recorded");
+        assertEquals(List.of("symptom.case.opened"), engine.types(), "held transitions send no notifications");
+    }
+
+    @Test
     void aReturnIsReportedToACaseAboveLevelOneWhichStaysOpen() {
         template(SymptomState.ACTIVE);
         frame(0, 5);

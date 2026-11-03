@@ -57,14 +57,32 @@ describe("current popup signal", () => {
       properties: { asset_id: "V1", signal: offline },
     } as MapPositionProperties;
     expect(
-      pinWithSignal(captured, [{ assetid: "V1", signal: { state: "online" } }])
-        ?.properties.signal?.state
+      pinWithSignal(captured, [
+        { assetid: "V1", timestamp: AT, signal: { state: "online" } },
+      ])?.properties.signal?.state
     ).toBe("online");
     expect(
-      pinWithSignal(captured, [{ assetid: "V1", signal: { state: "unknown" } }])
-        ?.properties.signal?.state
+      pinWithSignal(captured, [
+        { assetid: "V1", timestamp: AT, signal: { state: "unknown" } },
+      ])?.properties.signal?.state
     ).toBe("unknown");
     expect(pinWithSignal(captured, [])?.properties.signal).toBeUndefined();
     expect(captured.properties.signal).toBe(offline);
+  });
+
+  it("hides an offline profile when a newer live-map position proves it is stale", () => {
+    const captured = {
+      properties: { asset_id: "V1", signal: offline },
+    } as MapPositionProperties;
+    expect(
+      pinWithSignal(captured, [
+        { assetid: "V1", timestamp: "2026-01-01T00:01:00Z", signal: offline },
+      ])?.properties.signal
+    ).toBeNull();
+    expect(
+      pinWithSignal(captured, [
+        { assetid: "V1", timestamp: AT, signal: offline },
+      ])?.properties.signal
+    ).toBe(offline);
   });
 });

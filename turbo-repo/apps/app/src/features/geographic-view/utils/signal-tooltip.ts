@@ -30,15 +30,19 @@ export function pulseWithSignal(
 export function pinWithSignal(
   object: MapPositionProperties | undefined,
   positions:
-    | readonly Pick<MapPosition, "assetid" | "signal">[]
+    | readonly Pick<MapPosition, "assetid" | "signal" | "timestamp">[]
     | null
     | undefined
 ): MapPositionProperties | undefined {
   if (!object) return object;
   const asset = object.properties.assetid ?? object.properties.asset_id;
   const current = positions?.find((position) => position.assetid === asset);
+  const signal = current?.signal;
   return {
     ...object,
-    properties: { ...object.properties, signal: current?.signal },
+    properties: {
+      ...object.properties,
+      signal: isNewestFrame(current?.timestamp, signal) ? signal : null,
+    },
   };
 }

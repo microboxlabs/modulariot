@@ -115,4 +115,26 @@ describe("useAssetSignal polling", () => {
     expect(result.current).toBeNull();
     unmount();
   });
+
+  it.each(["network", "json"])(
+    "clears cached offline state after a %s failure and recovers",
+    async (failure) => {
+      const { result, unmount } = renderHook(
+        () => useAssetSignal("V1", NEWEST),
+        { wrapper }
+      );
+      await advance();
+      expect(result.current?.state).toBe("offline");
+      if (failure === "network") {
+        fetchSignal.mockRejectedValueOnce(new TypeError("Network unavailable"));
+      } else {
+        fetchSignal.mockResolvedValueOnce(new Response("invalid JSON"));
+      }
+      await advance(SIGNAL_REFRESH_MS);
+      expect(result.current).toBeNull();
+      await advance(SIGNAL_REFRESH_MS);
+      expect(result.current?.state).toBe("offline");
+      unmount();
+    }
+  );
 });

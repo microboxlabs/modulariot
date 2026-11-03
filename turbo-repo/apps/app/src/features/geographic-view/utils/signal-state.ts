@@ -34,6 +34,14 @@ export function isOffline(signal: SignalState | null | undefined): boolean {
   return signal?.state === "offline";
 }
 
+/** An old detector profile cannot mark a newer GPS-database position offline. */
+export function isOfflineFrame(
+  timestamp: string | null | undefined,
+  signal: SignalState | null | undefined
+): boolean {
+  return isOffline(signal) && isNewestFrame(timestamp, signal);
+}
+
 /** How long ago the signal stopped: minutes up to 90, then whole hours. */
 export function offlineAge(
   since: string,

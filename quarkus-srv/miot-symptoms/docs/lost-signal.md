@@ -75,7 +75,7 @@ Ingest-health guard: the ticker pauses when no replica read a signal for `ingest
 
 ## Signal state
 
-The maps and the fleet directory show whether a vehicle's signal is arriving, by the detector's threshold. `SignalStates` (miot-core) is the port; the detector implements it (`SignalStateReader`) on every replica with the store. It only reads.
+The maps show whether a vehicle's signal is arriving, by the detector's threshold. `SignalStates` (miot-core) is the port; the detector implements it (`SignalStateReader`) on every replica with the store. It only reads. The fleet directory's existing `NO_SIGNAL` status (after 24 hours without a signal) is independent of this detector state.
 
 | State | When |
 |---|---|

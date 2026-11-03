@@ -17,10 +17,14 @@ async function readSignal([url]: readonly [
   string,
   string | null | undefined,
 ]): Promise<SignalState | null> {
-  const response = await fetch(url);
-  if (!response.ok) return null;
-  const parsed = SignalStateSchema.safeParse(await response.json());
-  return parsed.success ? parsed.data : null;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const parsed = SignalStateSchema.safeParse(await response.json());
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

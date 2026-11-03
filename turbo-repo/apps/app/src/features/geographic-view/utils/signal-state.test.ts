@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isNewestFrame,
+  isOfflineFrame,
   isOffline,
   offlineAge,
   offlineLabel,
@@ -12,6 +13,17 @@ const NOW = Date.parse("2026-11-03T12:00:00Z");
 const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
 
 describe("isNewestFrame", () => {
+  it("does not gray a fresh live position when the detector's profile is stale", () => {
+    const signal = {
+      state: "offline" as const,
+      last_frame_at: "2026-01-01T00:00:00Z",
+    };
+    expect(isOfflineFrame("2026-01-01T00:00:00Z", signal)).toBe(true);
+    expect(isOfflineFrame("2026-01-01T00:01:00Z", signal)).toBe(false);
+    expect(
+      isOfflineFrame("2026-01-01T00:00:00Z", { ...signal, state: "online" })
+    ).toBe(false);
+  });
   it("matches the detector frame across timestamp formats, never an older or newer frame", () => {
     const signal = {
       state: "offline" as const,

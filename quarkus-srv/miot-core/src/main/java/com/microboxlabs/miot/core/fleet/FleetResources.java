@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.core.fleet;
 
+import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +25,14 @@ public interface FleetResources {
         public Carrier(UUID id, String legalName, String phone) {
             this(id, legalName, phone, null);
         }
+    }
+
+    /**
+     * A driver's current row with its carrier. {@code phone} is the mobile phone when there is one; {@code active} is
+     * false when the driver is deleted or switched off.
+     */
+    record DriverDetails(UUID id, String document, String fullName, String phone, boolean active,
+            String carrierLegalName, String carrierTaxId, OffsetDateTime updatedAt) {
     }
 
     /** A resource found by its natural key; {@code active} is false when it is switched off. */
@@ -76,5 +86,25 @@ public interface FleetResources {
     default UUID registerDriver(String tenantCode, String actor, String document, String fullName,
             String mobilePhone, UUID carrierId) {
         throw new UnsupportedOperationException("fleet is not enabled");
+    }
+
+    /** Whether the fleet module is in the build; without it the driver reads below find nothing. */
+    default boolean listsDrivers() {
+        return false;
+    }
+
+    /** The tenant's current drivers among {@code ids}, active or not. */
+    default List<DriverDetails> drivers(String tenantCode, Collection<UUID> ids) {
+        return List.of();
+    }
+
+    /**
+     * The tenant's current drivers whose row changed after {@code since}, ordered by {@code updatedAt} and id; at most
+     * {@code limit}. {@code afterId} null starts at {@code since}; otherwise the page starts after the driver
+     * ({@code since}, {@code afterId}), the last one of the previous page.
+     */
+    default List<DriverDetails> driversChangedSince(String tenantCode, OffsetDateTime since, UUID afterId,
+            int limit) {
+        return List.of();
     }
 }

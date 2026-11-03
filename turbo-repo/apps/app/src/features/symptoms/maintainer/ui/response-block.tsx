@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Card, CardHeader, Tile } from "./card";
+import NumberedSection from "./section";
 
 /** A text or number input in the level response, with its error state. */
 export const FIELD =
@@ -8,21 +9,39 @@ export const FIELD_ERROR =
   "!border-red-500 focus:!ring-red-500 dark:!border-red-500";
 
 /**
- * One part of a level's response: notices, operator, closing. Drawn with the
- * card surface and header of the Síntomas and Comunicaciones pages.
+ * One part of a level's response: notices, operator, closing. With a number it
+ * is the rule sheet's numbered section, the same one the Regla tab uses;
+ * without one it is a plain card.
  */
 export function ResponseBlock({
   title,
+  number,
+  subtitle,
   icon,
   aside,
   children,
 }: Readonly<{
   title: string;
-  /** The header's tile, like a catalog card's. */
+  /** The block's place in the level's response, shown as the section badge. */
+  number?: number;
+  subtitle?: string;
+  /** The header's tile, like a catalog card's; only without a number. */
   icon?: ReactNode;
   aside?: ReactNode;
   children: ReactNode;
 }>) {
+  if (number !== undefined) {
+    return (
+      <NumberedSection
+        number={number}
+        title={title}
+        subtitle={subtitle}
+        actions={aside}
+      >
+        {children}
+      </NumberedSection>
+    );
+  }
   return (
     <Card>
       <section aria-label={title} className="flex min-w-0 flex-col">

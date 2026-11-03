@@ -155,18 +155,19 @@ describe("LevelSteps", () => {
         steps={steps}
         slaMinutes={5}
         readOnly={false}
-        d={{ ...d, moveUp: "Subir" }}
+        d={{ ...d, dragStep: "Mover" }}
         onChange={onChange}
       />
     );
     const second = screen.getByDisplayValue("3");
-    fireEvent.click(screen.getAllByLabelText("Subir")[1]!);
+    // The drag handle also moves a step with the arrow keys.
+    fireEvent.keyDown(screen.getAllByLabelText("Mover")[1]!, { key: "ArrowUp" });
     view.rerender(
       <LevelSteps
         steps={steps}
         slaMinutes={5}
         readOnly={false}
-        d={{ ...d, moveUp: "Subir" }}
+        d={{ ...d, dragStep: "Mover" }}
         onChange={onChange}
       />
     );

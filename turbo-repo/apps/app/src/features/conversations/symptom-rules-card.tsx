@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { HiOutlineChatAlt2, HiPlus } from "react-icons/hi";
+import { HiPlus } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { MUTED } from "@/features/symptoms/maintainer/ui/card";
@@ -57,8 +57,9 @@ export default function SymptomRulesCard({
 
   return (
     <ResponseBlock
+      number={1}
       title={tr("communicationsTitle", d)}
-      icon={<HiOutlineChatAlt2 aria-hidden className="h-5 w-5" />}
+      subtitle={tr("communicationsSub", d)}
     >
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">

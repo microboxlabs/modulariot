@@ -1,11 +1,6 @@
 "use client";
 
 import { ToggleSwitch } from "flowbite-react";
-import {
-  HiOutlineChatAlt2,
-  HiOutlineCheckCircle,
-  HiOutlinePhone,
-} from "react-icons/hi";
 import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -34,6 +29,10 @@ const EVIDENCE = [
   { value: "note", label: "evidenceNote" },
   { value: "photo", label: "evidencePhoto" },
 ];
+
+/** The rule sheet's label over a CEL editor (see lifecycle-expression). */
+const CEL_LABEL =
+  "text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400";
 
 /** Findings shown beside their control while the operator block is open. */
 const PLACED = new Set(["operatorNeedsSla", "stepNoContact", "stepNoMinutes"]);
@@ -106,8 +105,9 @@ function OperatorBlock({
   const escalation = stepTarget(response.escalateTo, response.escalateScope);
   return (
     <ResponseBlock
+      number={2}
       title={tr("operatorTitle", d)}
-      icon={<HiOutlinePhone aria-hidden className="h-5 w-5" />}
+      subtitle={tr("operatorSub", d)}
       aside={
         <ToggleSwitch
           checked={response.operator}
@@ -203,8 +203,9 @@ function CloseBlock({
   const known = value === "" || EVIDENCE.some((e) => e.value === value);
   return (
     <ResponseBlock
+      number={3}
       title={tr("closeTitle", d)}
-      icon={<HiOutlineCheckCircle aria-hidden className="h-5 w-5" />}
+      subtitle={tr("closeSub", d)}
     >
       {response.operator && (
         <FieldRow label={tr("closeRequires", d)}>
@@ -266,43 +267,38 @@ function LifecycleRuleRows({
   readOnly,
   d,
 }: Readonly<{ rules: LifecycleRules; readOnly: boolean; d: I18nRecord }>) {
+  // Laid out like the rule sheet's "Ciclo del caso" in { } mode: label above, editor full width.
   return (
-    <>
-      <FieldRow label={tr("closesWhen", d)}>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("closesWhen", d)}
-            value={rules.close}
-            fields={rules.fields}
-            problems={rules.closeProblems}
-            onChange={(close) => rules.onChange({ close, note: rules.note })}
-          />
-          <Problems items={rules.closeProblems} />
-        </div>
-      </FieldRow>
-      <FieldRow label={tr("notesWhen", d)}>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("notesWhen", d)}
-            placeholder={tr("notesCelPlaceholder", d)}
-            value={rules.note}
-            fields={rules.fields}
-            problems={rules.noteProblems}
-            onChange={(note) =>
-              rules.onChange({ close: rules.close, note: note || null })
-            }
-          />
-          <Problems items={rules.noteProblems} />
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {tr("notesWhenHint", d)}
-          </span>
-        </div>
-      </FieldRow>
-    </>
+    <div className="flex min-w-0 flex-col gap-2">
+      <span className={CEL_LABEL}>{tr("closesCelLabel", d)}</span>
+      <CelEditor
+        singleLine
+        readOnly={readOnly}
+        ariaLabel={tr("closesCelLabel", d)}
+        value={rules.close}
+        fields={rules.fields}
+        problems={rules.closeProblems}
+        onChange={(close) => rules.onChange({ close, note: rules.note })}
+      />
+      <Problems items={rules.closeProblems} />
+      <span className={CEL_LABEL}>{tr("notesCelLabel", d)}</span>
+      <CelEditor
+        singleLine
+        readOnly={readOnly}
+        ariaLabel={tr("notesCelLabel", d)}
+        placeholder={tr("notesCelPlaceholder", d)}
+        value={rules.note}
+        fields={rules.fields}
+        problems={rules.noteProblems}
+        onChange={(note) =>
+          rules.onChange({ close: rules.close, note: note || null })
+        }
+      />
+      <Problems items={rules.noteProblems} />
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        {tr("notesWhenHint", d)}
+      </span>
+    </div>
   );
 }
 
@@ -357,8 +353,9 @@ export default function LevelResponseDetail({
         />
       ) : (
         <ResponseBlock
+          number={1}
           title={tr("communicationsTitle", d)}
-          icon={<HiOutlineChatAlt2 aria-hidden className="h-5 w-5" />}
+          subtitle={tr("communicationsSub", d)}
         >
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {tr("communicationsSoon", d)}

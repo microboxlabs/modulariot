@@ -61,6 +61,15 @@ public class InMemoryEngineCases implements EngineCaseStore {
     }
 
     @Override
+    public List<OpenLevel> openLevels(String tenantCode) {
+        if (down) {
+            throw new IllegalStateException("database down");
+        }
+        return cases.stream().filter(c -> c.closedAt() == null)
+                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level())).toList();
+    }
+
+    @Override
     public Optional<EngineCase> find(String tenantCode, long caseId) {
         return cases.stream().filter(c -> c.id() == caseId).findFirst();
     }

@@ -96,6 +96,8 @@ public class PgEngineCases implements EngineCaseStore {
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5) ORDER BY z.at DESC LIMIT 200";
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
+    private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
+            + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y ORDER BY y.asset_id, y.at DESC";
     /**
      * One case with why it is at its level: the context of the row that set the level (its latest level change
      * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
@@ -229,6 +231,14 @@ public class PgEngineCases implements EngineCaseStore {
         List<OpenCount> out = new ArrayList<>();
         PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
                 r.getInteger("current_level"), r.getBoolean("under_treatment"), r.getLong("n"))));
+        return out;
+    }
+
+    @Override
+    public List<OpenLevel> openLevels(String tenantCode) {
+        List<OpenLevel> out = new ArrayList<>();
+        PgIds.query(pool.get(), LEVELS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenLevel(
+                r.getString("asset_id"), r.getString("name"), r.getInteger("current_level"))));
         return out;
     }
 

@@ -226,6 +226,23 @@ class PgSlaStoreTest {
     }
 
     @Test
+    void openLevelsAreEveryOpenCaseAtItsCurrentLevel() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place(null, null, null, null, null);
+        long closed = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)), place).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        cases.close(tenant, closed, "ops@example.com", t0.plusSeconds(60));
+        log.append(tenant, List.of(t(Kind.OPENED, speeding, t0.plusSeconds(120), 1, 0)), place);
+        log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, speeding, t0.plusSeconds(180), 4, 1)), place);
+
+        assertEquals(List.of(new EngineCaseStore.OpenLevel("DEMO01", "Exceso de velocidad", 4)),
+                cases.openLevels(tenant));
+        assertTrue(cases.openLevels("other-" + tenant).isEmpty());
+    }
+
+    @Test
     void casesAreFoundByTripVehicleNameLevelAndActiveTime() {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);

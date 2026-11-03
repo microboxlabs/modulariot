@@ -12,6 +12,7 @@ import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,21 +56,25 @@ class OrgControlTowerMapResourceTest {
     private final GpsRpcApi rpc = new GpsRpcApi() {
         @Override
         public Uni<RpcResponse> positions(String authorization, boolean all) {
+            gpsCalls.add("positions");
             return Uni.createFrom().item(response);
         }
 
         @Override
         public Uni<RpcResponse> summary(String authorization) {
+            gpsCalls.add("summary");
             return Uni.createFrom().item(response);
         }
 
         @Override
         public Uni<RpcResponse> conditions(String authorization, String from, String to) {
+            gpsCalls.add("conditions");
             return Uni.createFrom().item(response);
         }
 
         @Override
         public Uni<JsonNode> symptoms(String authorization, Map<String, String> filters) {
+            gpsCalls.add("symptoms");
             sentFilters.add(filters);
             JsonNode page = JSON.createObjectNode().put("total_rows", 1).set("data",
                     JSON.createArrayNode().add(JSON.createObjectNode().put("asset_id", "AB12")));
@@ -78,6 +83,7 @@ class OrgControlTowerMapResourceTest {
     };
 
     private final List<Map<String, String>> sentFilters = new ArrayList<>();
+    private final List<String> gpsCalls = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
         private final Set<String> permissions;
@@ -103,6 +109,11 @@ class OrgControlTowerMapResourceTest {
 
     private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
             com.microboxlabs.miot.core.trips.TripGeofences tripGeofences) {
+        return resource(url, permissions, tripGeofences, true);
+    }
+
+    private OrgControlTowerMapResource resource(Optional<String> url, Set<String> permissions,
+            com.microboxlabs.miot.core.trips.TripGeofences tripGeofences, boolean legacy) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail("member@example.com");
@@ -120,7 +131,7 @@ class OrgControlTowerMapResourceTest {
                         new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
                         Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
-                geofences(tripGeofences));
+                geofences(tripGeofences), legacy);
     }
 
     private static final Instant NOW = Instant.parse("2026-10-26T12:00:00Z");
@@ -511,5 +522,127 @@ class OrgControlTowerMapResourceTest {
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.symptom("org-b", "7"));
         assertEquals(403, e.getResponse().getStatus());
         assertEquals(List.of(), treatmentClients);
+    }
+
+    private OrgControlTowerMapResource engineOnly() {
+        return resource(Optional.of("http://pgrest.test"), Set.of(ControlTowerAccessCatalog.VIEW), null, false);
+    }
+
+    private static EngineCase openCase(long id, String asset, String name, int level) {
+        return new EngineCase(id, UUID.randomUUID(), "0.1.0", name, "emergencies", asset,
+                Instant.now().minusSeconds(id), level, null, null, null, null, null, 0, 2, null);
+    }
+
+    @Test
+    void engineOnlyTheListIsTheCasesPagedWithoutTheGpsDatabase() {
+        for (long id = 1; id <= 12; id++) {
+            engineCases.add(openCase(id, "AB" + id, id % 2 == 0 ? "Botón de pánico" : "Pérdida de señal", 3));
+        }
+        var subject = engineOnly();
+
+        JsonNode first = (JsonNode) call(subject.symptoms(ORG, query("p_page=1&p_page_size=5"))).getEntity();
+        JsonNode third = (JsonNode) call(subject.symptoms(ORG, query("p_page=3&p_page_size=5"))).getEntity();
+
+        assertEquals(5, first.get("data").size());
+        assertEquals(-1, first.get("data").get(0).get("id").asLong());
+        assertEquals(12, first.get("total_rows").asInt());
+        assertEquals(3, first.get("total_pages").asInt());
+        assertEquals(1, first.get("page").asInt());
+        assertEquals(5, first.get("page_size").asInt());
+        assertEquals(2, first.get("symptom_name_list").size());
+        assertEquals(2, third.get("data").size());
+        assertEquals(List.of(), gpsCalls);
+        assertEquals(List.of(), tokensAskedFor);
+    }
+
+    @Test
+    void engineOnlyTheListFiltersTheCasesAndAGpsOnlyFilterMatchesNone() {
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 3));
+        engineCases.add(openCase(2, "CD34", "Pérdida de señal", 1));
+        var subject = engineOnly();
+
+        JsonNode byLevel = (JsonNode) call(subject.symptoms(ORG, query("p_icu_code=3"))).getEntity();
+        JsonNode byCarrier = (JsonNode) call(subject.symptoms(ORG, query("p_carrier_id=76000000"))).getEntity();
+
+        assertEquals(1, byLevel.get("total_rows").asInt());
+        assertEquals("AB12", byLevel.get("data").get(0).get("asset_id").asText());
+        assertEquals(0, byCarrier.get("total_rows").asInt());
+        assertEquals(0, byCarrier.get("data").size());
+        assertEquals(400, call(subject.symptoms(ORG, query("p_client_id=other"))).getStatus());
+        assertEquals(400, call(subject.symptoms(ORG, query("p_page=one"))).getStatus());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyTheCountsAreTheOpenCasesOnly() {
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 4));
+        engineCases.add(openCase(2, "CD34", "Pérdida de señal", 2));
+        var subject = engineOnly();
+
+        JsonNode counts = (JsonNode) call(subject.conditions(ORG, null, null)).getEntity();
+        JsonNode range = (JsonNode) call(subject.conditions(ORG, "2026-01-01", "2099-01-01")).getEntity();
+
+        assertEquals(1, counts.get("Code Black").asInt());
+        assertEquals(1, counts.get("Compromised condition").asInt());
+        assertFalse(counts.has("Stable"));
+        assertEquals(1, range.get("Code Black").asInt());
+        assertEquals(400, call(subject.conditions(ORG, "2026-10-01", null)).getStatus());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyThePositionsCarryTheHighestOpenCaseLevel() {
+        response = new GpsRpcApi.RpcResponse(200, "ok", JSON.createArrayNode()
+                .add(JSON.createObjectNode().put("asset_id", "AB12").put("symptoms_condition", 1)
+                        .put("speed_limit_condition", 4).put("speed_limit", 90).put("lost_signal", true)
+                        .set("associate_symptoms", JSON.createArrayNode().add(JSON.createObjectNode()
+                                .put("symptom_name", "legacy").put("icu_condition", 1))))
+                .add(JSON.createObjectNode().put("asset_id", "CD34").put("symptoms_condition", 3)));
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 2));
+        engineCases.add(openCase(2, "AB12", "Botón de pánico", 4));
+
+        JsonNode positions = (JsonNode) call(engineOnly().positions(ORG)).getEntity();
+
+        JsonNode withCases = positions.get(0);
+        assertEquals(4, withCases.get("symptoms_condition").asInt());
+        assertEquals(2, withCases.get("associate_symptoms").size());
+        assertEquals("Pérdida de señal", withCases.get("associate_symptoms").get(0).get("symptom_name").asText());
+        assertTrue(withCases.get("speed_limit_condition").isNull());
+        assertFalse(withCases.has("speed_limit"));
+        assertFalse(withCases.has("lost_signal"));
+        assertEquals(0, positions.get(1).get("symptoms_condition").asInt(), "no open case");
+        assertEquals(0, positions.get(1).get("associate_symptoms").size());
+        assertEquals(List.of("positions"), gpsCalls, "the positions still come from the GPS database");
+    }
+
+    @Test
+    void engineOnlyTheSummaryCountsTheOpenCasesAndZerosTheRest() {
+        engineCases.add(openCase(1, "AB12", "Pérdida de señal", 3));
+        engineCases.add(openCase(2, "CD34", "Pérdida de señal", 3));
+
+        JsonNode summary = (JsonNode) call(engineOnly().summary(ORG)).getEntity();
+
+        JsonNode sections = summary.get("sections");
+        assertEquals(List.of("services", "fleet", "symptoms"), List.of(sections.get(0).get("title").asText(),
+                sections.get(1).get("title").asText(), sections.get(2).get("title").asText()));
+        sections.get(0).get("items").forEach(item -> assertEquals(0, item.get("value").asInt()));
+        JsonNode symptoms = sections.get(2).get("items");
+        assertEquals("critical_condition", symptoms.get(3).get("key").asText());
+        assertEquals(2, symptoms.get(3).get("value").asInt());
+        assertEquals(List.of(), gpsCalls);
+    }
+
+    @Test
+    void engineOnlyAGpsDatabaseSymptomIs404AndACaseStillAnswers() {
+        engineCases.add(openCase(3, "DEMO03", "Botón de pánico", 4));
+        var subject = engineOnly();
+
+        assertEquals(404, call(subject.symptom(ORG, "7")).getStatus());
+        assertEquals(404, call(subject.symptomSignals(ORG, "7")).getStatus());
+        assertEquals(404, call(subject.symptomPositions(ORG, "7")).getStatus());
+        assertEquals(List.of(), treatmentClients);
+        assertEquals(200, call(subject.symptom(ORG, "-3")).getStatus());
+        assertEquals(200, call(subject.symptomSignals(ORG, "-3")).getStatus());
+        assertEquals(200, call(subject.symptomPositions(ORG, "-3")).getStatus());
     }
 }

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Supplier;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -43,6 +44,10 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * The map, the dashboard counters and the treatment page, read from the GPS database as the organization. Answers
  * 404 for a symptom or trip outside the organization, and 503 when the GPS data cannot be read.
+ *
+ * <p>With {@code miot.symptoms.legacy.enabled=false} the symptoms are the evaluator's cases only: the list, the
+ * counters and the summary read no GPS database symptoms, the positions carry each vehicle's level from its open
+ * cases, and a GPS database symptom (positive id) is 404.
  */
 @Path("/api/v1/orgs/{organizationId}/control-tower/map")
 @Produces(MediaType.APPLICATION_JSON)
@@ -59,6 +64,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final TreatmentService caseTreatments;
     private final TripWindows tripWindows;
     private final Instance<TripGeofences> tripGeofences;
+    private final boolean legacy;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -71,7 +77,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             EngineCaseService cases,
             TreatmentService caseTreatments,
             TripWindows tripWindows,
-            Instance<TripGeofences> tripGeofences) {
+            Instance<TripGeofences> tripGeofences,
+            @ConfigProperty(name = "miot.symptoms.legacy.enabled", defaultValue = "true") boolean legacy) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
@@ -80,6 +87,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         this.caseTreatments = caseTreatments;
         this.tripWindows = tripWindows;
         this.tripGeofences = tripGeofences;
+        this.legacy = legacy;
     }
 
     @GET
@@ -88,7 +96,12 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> positions(@PathParam("organizationId") String organizationId) {
-        tenantCode(organizationId);
+        String tenant = tenantCode(organizationId);
+        if (!legacy) {
+            return answer(() -> map.positions(tenantContext.getClientId())
+                    .emitOn(Infrastructure.getDefaultWorkerPool())
+                    .map(positions -> cases.withCaseLevels(tenant, positions)));
+        }
         return answer(() -> map.positions(tenantContext.getClientId()));
     }
 
@@ -98,7 +111,10 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> summary(@PathParam("organizationId") String organizationId) {
-        tenantCode(organizationId);
+        String tenant = tenantCode(organizationId);
+        if (!legacy) {
+            return answer(() -> blocking(() -> cases.summary(tenant)));
+        }
         return answer(() -> map.summary(tenantContext.getClientId()));
     }
 
@@ -114,6 +130,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             @QueryParam("from") String from,
             @QueryParam("to") String to) {
         String tenant = tenantCode(organizationId);
+        if (!legacy) {
+            return answer(() -> blocking(() -> cases.caseCounts(tenant, from, to)));
+        }
         return answer(() -> {
             Uni<JsonNode> gps = map.conditions(tenantContext.getClientId(), from, to);
             if (notBlank(from) || notBlank(to)) {
@@ -145,10 +164,15 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> symptoms(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
-        tenantCode(organizationId);
+        String tenant = tenantCode(organizationId);
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
-        String tenant = tenantCode(organizationId);
+        if (!legacy) {
+            return answer(() -> {
+                Map<String, String> checked = ControlTowerMapService.symptomFilters(filters);
+                return blocking(() -> cases.casesPage(tenant, checked));
+            });
+        }
         return answer(() -> {
             Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
             if (!EngineCaseService.showsCases(filters)) {
@@ -181,6 +205,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return answer(() -> blocking(() -> EngineCaseService.withTreatments(cases.header(tenant, id),
                     caseTreatments.listForSymptom(tenant, id))));
         }
+        if (!legacy) {
+            return notFound();
+        }
         return answer(() -> treatments.treatment(clientIds(), symptomId));
     }
 
@@ -195,6 +222,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         String tenant = tenantCode(organizationId);
         if (engineCase(symptomId)) {
             return answer(() -> blocking(() -> cases.signals(tenant, Long.parseLong(symptomId.trim()))));
+        }
+        if (!legacy) {
+            return notFound();
         }
         return answer(() -> treatments.signals(clientIds(), symptomId));
     }
@@ -213,6 +243,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     public Uni<Response> symptomPositions(@PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId) {
         String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId) && !legacy) {
+            return notFound();
+        }
         if (!engineCase(symptomId)) {
             return Uni.createFrom().item(error(Response.Status.BAD_REQUEST,
                     "Only the evaluator's cases have positions here; read the trip's"));
@@ -292,6 +325,11 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     /** A negative symptom id is one of the evaluator's cases ({@link EngineCase#symptomId()}). */
     private static boolean engineCase(String symptomId) {
         return symptomId != null && symptomId.trim().matches("-\\d{1,18}");
+    }
+
+    /** A GPS database symptom while this installation shows the evaluator's cases only. */
+    private static Uni<Response> notFound() {
+        return Uni.createFrom().item(error(Response.Status.NOT_FOUND, "Symptom not found"));
     }
 
     private static Uni<JsonNode> blocking(Supplier<JsonNode> read) {

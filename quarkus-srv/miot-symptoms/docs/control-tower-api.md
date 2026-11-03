@@ -107,6 +107,19 @@ data. The token comes from the caching token endpoint and is reused until a
 minute before it expires (see `miot-core/docs/organization-access.md`). Each
 answer is kept for five seconds per organization.
 
+### Legacy symptoms setting
+
+`miot.symptoms.legacy.enabled` (env `MIOT_SYMPTOMS_LEGACY_ENABLED`), default `true`. An installation setting: it
+applies to every organization of the deployment. The app reads the same env name (see below).
+
+| Endpoint | `true` (default) | `false` |
+|---|---|---|
+| `GET /map/symptoms` | GPS database page, with the evaluator's open cases first on page 1 | The evaluator's cases only, paged with `p_page` and `p_page_size` (default 10). Totals count the matching cases, at most 200. A driver, carrier, origin or destination filter matches no case |
+| `GET /map/conditions` | GPS database counts plus the open cases | The open cases only. With `from` and `to`, the cases opened in that range by current level |
+| `GET /map/positions` | GPS database positions with its symptom fields | GPS database positions. `symptoms_condition` is the vehicle's highest open case level (0 with none), `associate_symptoms` lists its open cases, `speed_limit_condition` is null, `speed_limit` and `lost_signal` are left out |
+| `GET /map/summary` | GPS database | Same shape. Symptom items count the open cases by level; the services and fleet items and `stable_condition` have no case equivalent and are 0 |
+| `GET /map/symptoms/{id}`, `/signals`, `/positions` with a positive id | GPS database symptom | 404 |
+
 ## Selectables
 
 The option lists behind the forms are not part of this API. They are a core

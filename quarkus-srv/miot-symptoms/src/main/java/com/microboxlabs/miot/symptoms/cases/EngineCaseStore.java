@@ -17,6 +17,9 @@ public interface EngineCaseStore {
     /** All the open cases, counted by level and by whether they have an open treatment. */
     List<OpenCount> openCounts(String tenantCode);
 
+    /** Every open case's vehicle, symptom and current level, not capped to a page. */
+    List<OpenLevel> openLevels(String tenantCode);
+
     Optional<EngineCase> find(String tenantCode, long caseId);
 
     /** The cases opened from {@code from} until before {@code to}, counted by symptom and level. */
@@ -41,6 +44,9 @@ public interface EngineCaseStore {
     boolean close(String tenantCode, long caseId, String actor, Instant at);
 
     record OpenCount(int level, boolean underTreatment, long count) {
+    }
+
+    record OpenLevel(String assetId, String name, int level) {
     }
 
     /**

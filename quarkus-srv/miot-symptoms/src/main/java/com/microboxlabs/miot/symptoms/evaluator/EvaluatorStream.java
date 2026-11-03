@@ -61,6 +61,7 @@ public class EvaluatorStream {
     private final SymptomEvents events;
     private final LateFrames lateFrames;
     private final LostSignalDetector lostSignal;
+    private final Holds holds;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -70,12 +71,13 @@ public class EvaluatorStream {
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames, LostSignalDetector lostSignal) {
+            MeterRegistry meters, SymptomEvents events, Instance<LateFrames> lateFrames, LostSignalDetector lostSignal,
+            Holds holds) {
         this(enabled, catalog, new Sinks(transitionLog, events, meters), Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
                 redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
                         .orElseGet(InMemoryEpisodeRepository::new),
-                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal);
+                samples, lateFrames.isResolvable() ? lateFrames.get() : LateFrames.NONE, lostSignal, holds);
         if (enabled) {
             LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
@@ -94,6 +96,13 @@ public class EvaluatorStream {
     @SuppressWarnings("java:S107") // The collaborators above, plus the two hooks, for tests.
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
             SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal) {
+        this(enabled, catalog, sinks, clock, episodes, samples, lateFrames, lostSignal, Holds.NONE);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with the holds the evaluator reads.
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, Sinks sinks, Clock clock, EpisodeRepository episodes,
+            SignalSamples samples, LateFrames lateFrames, LostSignalDetector lostSignal, Holds holds) {
+        this.holds = holds;
         this.lateFrames = lateFrames;
         this.lostSignal = lostSignal;
         this.enabled = enabled;
@@ -242,7 +251,7 @@ public class EvaluatorStream {
         }
         // A late frame runs only the event-driven symptoms, without moving the watermark (a buffered panic or
         // sabotage event still opens its case); the others keep skipping it.
-        SignalEvaluator evaluator = new SignalEvaluator(state);
+        SignalEvaluator evaluator = new SignalEvaluator(state, holds);
         Map<String, Object> root = Map.of(SignalFields.ROOT, signal);
         SignalEvaluator.Result result;
         if (reconcile) {

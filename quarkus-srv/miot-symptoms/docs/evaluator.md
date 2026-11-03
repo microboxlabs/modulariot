@@ -20,7 +20,7 @@ Rule previews use the organization's recent signals. At most one signal per orga
 |---|---|
 | Code | `quarkus-srv/miot-symptoms`, package `evaluator` |
 | Input | Tenant, vehicle id, signal time, the source object (for `gps_signal`, the map under `signal`, see [gps-signal.md](gps-signal.md)), the compiled versions |
-| Output | `Transition`s (`OPENED`, `LEVEL_CHANGED`, `CLOSED`) with version, state, level and measure; `RuleError`s for rules that failed |
+| Output | `Transition`s (`OPENED`, `LEVEL_CHANGED`, `CLOSED`, `HELD`) with version, state, level and measure; `RuleError`s for rules that failed |
 | State | `Episode` per tenant, vehicle and symptom, through `EpisodeStore` |
 
 ## How a signal is read
@@ -57,6 +57,8 @@ An ACTIVE OPENED row of `signal_transitions` is a Control Tower case until a CLO
 | `GET …/control-tower/map/symptoms` | Page 1 lists the matching cases first, in the GPS function's row shape, with their count in `engine_cases`; the paging totals stay the GPS function's. Cases answer `p_trip_id`, `p_asset_id` (part of the plate), `p_symptom_name`, `p_icu_code` (current level) and the dates: without dates the open cases, with them the cases opened in the range, closed ones with `end_time`. A driver, carrier, origin or destination filter leaves them out. They still show when the GPS database cannot be read |
 | `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and the trip's `trip_live` row while it runs, and the signal's point as an EWKB feature with the case's `icu_code`. The case runs from its start until it closed or now: the start is `check.loss.last.at` (the last frame before the silence) when the opening context has it, else the opening. The header adds `symptom_info.opened_at`, `started_at`, `duration_sec` and `level_reason`: `icu_code`, `icu_condition`, `rule` (the level's `when` in the version that opened the case), `context` (null when not kept), `lost_since` and `levels` (`at`, `icu_code` of each change, oldest first) |
 | `POST …/treatments/{id}/close` | Closing the treatment of a case closes the case (CLOSED row with `closed_by`) and drops its Redis episode, so the next signal that meets the condition opens a new case |
+
+While an "Ignorar condición" hold covers an ACTIVE symptom on the vehicle (`cases/HoldIndex`, see [control-tower-api.md](control-tower-api.md)), its open case keeps its level and may still close, and a case that would open does not: the first such opening of a run is a `HELD` row (V0.12.13), evidence only, with no event. The level hold times restart with the first signal after the hold.
 
 A case's symptom id is the OPENED row's id negated, so it never meets a GPS database symptom id in `treatment` and `audit_event`. The row keeps the signal's trip, position and speed (V0.8.5). A trip check's OPENED and LEVEL_CHANGED rows also keep, in `context` (V0.12.10), the check the rules read without its trip: `{"check": {"signal_lost_minutes", "loss": {...}}}`. The case's level context is that of the row that set its level.
 

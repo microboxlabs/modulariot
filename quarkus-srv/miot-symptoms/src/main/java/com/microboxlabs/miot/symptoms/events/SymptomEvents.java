@@ -72,10 +72,13 @@ public class SymptomEvents {
         this.clock = clock;
     }
 
-    /** One event per change the evaluator recorded. */
+    /** One event per change the evaluator recorded; an opening a hold kept back ({@code HELD}) sends none. */
     public void transitions(String tenantCode, List<Recorded> recorded, Place place) {
         for (Recorded r : recorded) {
             Transition t = r.transition();
+            if (t.kind() == Transition.Kind.HELD) {
+                continue;
+            }
             Name n = name(tenantCode, t.definitionId());
             SymptomCaseData data = new SymptomCaseData(-r.caseId(), t.definitionId(), t.version(), n.key(),
                     n.name(), t.level(), t.previousLevel(), t.assetId(), place.tripId(), place.driverId(),
@@ -156,6 +159,7 @@ public class SymptomEvents {
             case OPENED -> SymptomEventCatalog.OPENED;
             case LEVEL_CHANGED -> SymptomEventCatalog.LEVEL_CHANGED;
             case CLOSED -> SymptomEventCatalog.CLOSED;
+            case HELD -> throw new IllegalArgumentException("A held opening publishes no event");
         };
     }
 }

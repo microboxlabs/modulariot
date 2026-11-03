@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.lostsignal;
 import com.microboxlabs.miot.core.gps.SignalStates;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
+import com.microboxlabs.miot.symptoms.evaluator.Holds;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorRedis;
 import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.RedisEpisodes;
@@ -97,7 +98,7 @@ public class LostSignalDetector implements SignalStates {
             @ConfigProperty(name = "miot.symptoms.lost-signal.return-grace", defaultValue = "PT1M") Duration returnGrace,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration episodeTtl,
             EvaluatorRedis redis, EvaluatorCatalog catalog, TransitionLog transitionLog, SymptomEvents events,
-            AuditService audit, MeterRegistry meters, Instance<Pool> pool) {
+            AuditService audit, MeterRegistry meters, Instance<Pool> pool, Holds holds) {
         this(new Settings(enabled, settings(profileTtl, minSamples, gapMargin, delayQuantile, maxDelay),
                 new TickerSettings(recheck, maxSilence, Duration.ofSeconds(15), 500,
                         new IngestHealth(staleAfter, maxLag), returnGrace)),
@@ -105,7 +106,7 @@ public class LostSignalDetector implements SignalStates {
                         .orElseGet(InMemoryLossStore::new),
                 // The evaluator's episodes: an operator's close drops them for both.
                 new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
-                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters),
+                        .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters, holds),
                 new ShadowMaps(new PgCoverageStore(pool::get), CoverageSettings.from(ConfigProvider.getConfig()),
                         Clock.systemUTC()),
                 meters, Clock.systemUTC());

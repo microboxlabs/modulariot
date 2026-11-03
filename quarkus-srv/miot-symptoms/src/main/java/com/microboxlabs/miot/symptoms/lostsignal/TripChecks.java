@@ -6,6 +6,7 @@ import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
 import com.microboxlabs.miot.symptoms.evaluator.Episode;
 import com.microboxlabs.miot.symptoms.evaluator.EpisodeRepository;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog;
+import com.microboxlabs.miot.symptoms.evaluator.Holds;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.evaluator.TransitionLog;
@@ -42,6 +43,7 @@ public class TripChecks {
     private final SymptomEvents events;
     private final AuditService audit;
     private final MeterRegistry meters;
+    private final Holds holds;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -69,6 +71,13 @@ public class TripChecks {
 
     public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
             AuditService audit, MeterRegistry meters) {
+        this(catalog, episodes, log, events, audit, meters, Holds.NONE);
+    }
+
+    @SuppressWarnings("java:S107") // As above, with the holds the checks read.
+    public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
+            AuditService audit, MeterRegistry meters, Holds holds) {
+        this.holds = holds;
         this.catalog = catalog;
         this.episodes = episodes;
         this.log = log;
@@ -183,7 +192,7 @@ public class TripChecks {
             return;
         }
         AssetEpisodes state = episodes.load(tenant, assetId);
-        SignalEvaluator.Result result = new SignalEvaluator(state)
+        SignalEvaluator.Result result = new SignalEvaluator(state, holds)
                 .evaluate(tenant, assetId, now, Map.of(TripCheck.ROOT, check), symptoms);
         TransitionLog.Place place = place(trip, last);
         if (!result.transitions().isEmpty()) {

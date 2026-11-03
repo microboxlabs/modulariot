@@ -4,6 +4,7 @@ import static com.microboxlabs.miot.symptoms.evaluator.Episode.seconds;
 
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleResult;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,6 +38,11 @@ import java.util.UUID;
  * measure down while the condition holds. After a case closes, a condition that
  * still holds starts a new run. A new version keeps the open case but restarts
  * the levels' hold times. An episode with nothing running is not kept.</li>
+ * <li>While a hold covers an ACTIVE symptom ({@link Holds}), its open case
+ * keeps its level and may still close; a case that would open does not, and
+ * the first such opening of a run is returned as a {@code HELD} transition.
+ * The hold times are cleared on every held signal, so once the hold ends
+ * the time to the next level counts from the first signal after it.</li>
  * </ul>
  */
 public class SignalEvaluator {
@@ -47,6 +53,7 @@ public class SignalEvaluator {
     static final double NOT_NORMAL = -1;
 
     private final EpisodeStore store;
+    private final Holds holds;
 
     /** One symptom's rules failed on a signal; its episode is left as it was. */
     public record RuleError(UUID definitionId, String version, String section, String message) {
@@ -65,7 +72,12 @@ public class SignalEvaluator {
     }
 
     public SignalEvaluator(EpisodeStore store) {
+        this(store, Holds.NONE);
+    }
+
+    public SignalEvaluator(EpisodeStore store, Holds holds) {
         this.store = store;
+        this.holds = holds;
     }
 
     /**
@@ -153,7 +165,9 @@ public class SignalEvaluator {
         Episode e = store.find(tenantCode, assetId, s.definitionId())
                 .orElseGet(() -> Episode.start(s.definitionId(), s.version(), assetId));
         Reading r = read(s, e, root, at);
-        Step next = e.open() ? whileOpen(s, e, at, r) : whileClosed(s, e, at, r);
+        boolean held = s.state() == SymptomState.ACTIVE
+                && holds.held(tenantCode, assetId, s.definitionId(), e.openedAt());
+        Step next = e.open() ? whileOpen(s, e, at, r, held) : whileClosed(s, e, at, r, held);
         if (next.episode().worthKeeping()) {
             store.save(tenantCode, next.episode());
         } else if (e.lastSignalAt() != null) {
@@ -211,10 +225,22 @@ public class SignalEvaluator {
     private record Step(Episode episode, Transition transition) {
     }
 
-    private Step whileClosed(CompiledSymptom s, Episode e, Instant at, Reading r) {
+    /**
+     * A closed episode's {@code level} is 0, or while a hold keeps its opening back the level it would have opened
+     * at, so the evidence is recorded once per run.
+     */
+    private Step whileClosed(CompiledSymptom s, Episode e, Instant at, Reading r, boolean held) {
         if (r.active()
                 && condition(s.open(), caseFields(r.conditionSince(), r.normalSince(), null, r.level(), at),
                         "lifecycle.open")) {
+            if (held) {
+                Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), null, r.conditionSince(),
+                        r.normalSince(), Map.of(), at, null, r.level(), 0);
+                Transition evidence = e.level() == 0
+                        ? transition(Kind.HELD, s, e.assetId(), at, r.level(), 0, r.measure())
+                        : null;
+                return new Step(kept, evidence);
+            }
             Episode opened = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                     r.conditionSince(), r.normalSince(), r.levelSince(), at, at, r.level(), r.measure());
             return new Step(opened, transition(Kind.OPENED, s, e.assetId(), at, r.level(), 0, r.measure()));
@@ -223,9 +249,15 @@ public class SignalEvaluator {
                 r.conditionSince(), r.normalSince(), r.levelSince(), at, null, 0, 0), null);
     }
 
-    private Step whileOpen(CompiledSymptom s, Episode e, Instant at, Reading r) {
+    private Step whileOpen(CompiledSymptom s, Episode e, Instant at, Reading r, boolean held) {
         // Down only while the condition still holds: a normal signal leaves the case at its level until it closes.
-        int level = s.levelDown() && r.active() ? r.level() : Math.max(e.level(), r.level());
+        // A held case stays where it is.
+        int level;
+        if (held) {
+            level = e.level();
+        } else {
+            level = s.levelDown() && r.active() ? r.level() : Math.max(e.level(), r.level());
+        }
         double max = r.active() ? Math.max(e.maxMeasure(), r.measure()) : e.maxMeasure();
         if (condition(s.close(), caseFields(r.conditionSince(), r.normalSince(), e.openedAt(), level, at),
                 "lifecycle.close")) {
@@ -234,8 +266,8 @@ public class SignalEvaluator {
                     Map.of(), at, null, 0, 0);
             return new Step(closed, transition(Kind.CLOSED, s, e.assetId(), at, level, e.level(), max));
         }
-        Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
-                r.conditionSince(), r.normalSince(), r.levelSince(), at, e.openedAt(), level, max);
+        Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), held ? null : r.candidateSince(),
+                r.conditionSince(), r.normalSince(), held ? Map.of() : r.levelSince(), at, e.openedAt(), level, max);
         Transition changed = level != e.level()
                 ? transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, level, e.level(), r.measure())
                 : null;

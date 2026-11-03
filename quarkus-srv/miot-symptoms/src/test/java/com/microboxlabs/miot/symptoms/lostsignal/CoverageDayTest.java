@@ -137,7 +137,7 @@ class CoverageDayTest {
 
         assertEquals(0, day.cells().stream().mapToDouble(CellDay::missing).sum());
         assertEquals(2, day.cells().size());
-        assertEquals(null, CoverageDay.crossed(LAT, LON, LAT, lon));
+        assertTrue(CoverageDay.crossed(LAT, LON, LAT, lon).isEmpty());
     }
 
     @Test
@@ -153,8 +153,18 @@ class CoverageDayTest {
 
     @Test
     void aNonFinitePositionCrossesNothing() {
-        assertEquals(null, CoverageDay.crossed(Double.NaN, LON, LAT, LON + 1));
-        assertEquals(null, CoverageDay.crossed(LAT, LON, LAT, Double.POSITIVE_INFINITY));
+        assertTrue(CoverageDay.crossed(Double.NaN, LON, LAT, LON + 1).isEmpty());
+        assertTrue(CoverageDay.crossed(LAT, LON, LAT, Double.POSITIVE_INFINITY).isEmpty());
+    }
+
+    @Test
+    void theBoundCountsVisitedCellsIncludingDiagonalSteps() {
+        assertEquals(1501, CoverageDay.crossed(0.025, 0.025, 75.025, 75.025).size());
+        assertEquals(2000, CoverageDay.crossed(0.025, 0.025, 0.025, 99.975).size());
+        assertTrue(CoverageDay.crossed(0.025, 0.025, 0.025, 100.025).isEmpty());
+        // Neither axis alone exceeds the bound, but the line crosses 3000 distinct cells.
+        assertTrue(CoverageDay.crossed(0.025, 0.026, 75.025, 75.026).isEmpty());
+        assertTrue(CoverageDay.crossed(-Double.MAX_VALUE, 1, Double.MAX_VALUE, 1).isEmpty());
     }
 
     @Test

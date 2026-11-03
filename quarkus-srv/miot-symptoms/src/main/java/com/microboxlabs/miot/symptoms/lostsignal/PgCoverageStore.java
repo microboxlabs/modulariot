@@ -22,6 +22,10 @@ import java.util.function.Supplier;
  */
 public class PgCoverageStore implements CoverageStore {
 
+    private static final String SENDER_COLUMN = "sender";
+    private static final String FRAMES_COLUMN = "frames";
+    private static final String DELAYED_COLUMN = "delayed";
+    private static final String MISSING_COLUMN = "missing";
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(60);
     static final int CHUNK = 5000;
 
@@ -153,8 +157,8 @@ public class PgCoverageStore implements CoverageStore {
                     ShadowMap.Plan p = plan.apply(senders);
                     return conn.preparedQuery(SUM_CELLS).execute(sumArgs(p)).map(sums -> {
                         List<ShadowMap.CellSum> cells = new ArrayList<>();
-                        sums.forEach(r -> cells.add(new ShadowMap.CellSum(r.getString("sender"), r.getString("cell"),
-                                r.getDouble("frames"), r.getDouble("delayed"), r.getDouble("missing"))));
+                        sums.forEach(r -> cells.add(new ShadowMap.CellSum(r.getString(SENDER_COLUMN), r.getString("cell"),
+                                r.getDouble(FRAMES_COLUMN), r.getDouble(DELAYED_COLUMN), r.getDouble(MISSING_COLUMN))));
                         return new Window(p, cells);
                     });
                 }))
@@ -195,13 +199,13 @@ public class PgCoverageStore implements CoverageStore {
     }
 
     private static CellDay cell(Row r) {
-        return new CellDay(r.getString("sender"), r.getString("cell"), r.getLocalDate("day"),
-                r.getInteger("frames"), r.getInteger("delayed"), r.getDouble("missing"));
+        return new CellDay(r.getString(SENDER_COLUMN), r.getString("cell"), r.getLocalDate("day"),
+                r.getInteger(FRAMES_COLUMN), r.getInteger(DELAYED_COLUMN), r.getDouble(MISSING_COLUMN));
     }
 
     private static SenderDay sender(Row r) {
-        return new SenderDay(r.getString("sender"), r.getLocalDate("day"), r.getInteger("frames"),
-                r.getInteger("delayed"), r.getDouble("missing"), r.getDouble("median_delay_s"),
+        return new SenderDay(r.getString(SENDER_COLUMN), r.getLocalDate("day"), r.getInteger(FRAMES_COLUMN),
+                r.getInteger(DELAYED_COLUMN), r.getDouble(MISSING_COLUMN), r.getDouble("median_delay_s"),
                 r.getDouble("median_interval_s"), r.getBoolean("anomalous"));
     }
 

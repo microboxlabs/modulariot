@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.vertx.mutiny.core.Vertx;
@@ -8,6 +9,7 @@ import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
+import io.vertx.sqlclient.PoolOptions;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -33,7 +35,7 @@ class PgGpsFramesTest {
     static void createTable() {
         vertx = Vertx.vertx();
         pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty("miot.symptoms.test.pg-url")))
-                .using(vertx).build();
+                .with(new PoolOptions().setMaxSize(1)).using(vertx).build();
         // The histogram queries need no PostGIS operations, so a native point suffices here.
         pool.query("""
                 CREATE TABLE public.asset_data (
@@ -177,6 +179,40 @@ class PgGpsFramesTest {
         }
 
         assertEquals(5, small.frames(FROM, TO, r -> { }), "the pool still has connections");
+    }
+
+    @Test
+    void theCursorIsReadOnlyAndItsSettingsAreResetWhenReturnedToThePool() {
+        gps.stream("""
+                SELECT current_setting('transaction_read_only') AS read_only,
+                       current_setting('statement_timeout') AS timeout
+                WHERE $1::timestamptz < $2::timestamptz
+                """, FROM, TO, r -> {
+                    assertEquals("on", r.getString("read_only"));
+                    assertEquals("80s", r.getString("timeout"));
+                });
+
+        assertEquals("off", pool.query("SHOW transaction_read_only").execute().await().atMost(WAIT)
+                .iterator().next().getString(0));
+        assertEquals("0", pool.query("SHOW statement_timeout").execute().await().atMost(WAIT)
+                .iterator().next().getString(0));
+    }
+
+    @Test
+    void aFetchTimeoutRollsBackAndReleasesTheOnlyConnection() {
+        PgGpsFrames small = new PgGpsFrames(() -> pool, 2, PgGpsFrames.FRAMES);
+        // The first fetch shortens the transaction-local timeout; the next fetch must hit it.
+        String slow = """
+                SELECT i, set_config('statement_timeout', '50ms', true),
+                       pg_sleep(CASE WHEN i > 2 THEN 0.2 ELSE 0 END)
+                FROM generate_series(1, 6) AS i
+                WHERE $1::timestamptz < $2::timestamptz
+                """;
+        io.vertx.pgclient.PgException failure = assertThrows(io.vertx.pgclient.PgException.class,
+                () -> small.stream(slow, FROM, TO, r -> { }));
+        assertEquals("57014", failure.getSqlState());
+        assertEquals("0", pool.query("SHOW statement_timeout").execute().await().atMost(WAIT)
+                .iterator().next().getString(0));
     }
 
     private static void frame(String asset, String sender, Instant at, long delayS) {

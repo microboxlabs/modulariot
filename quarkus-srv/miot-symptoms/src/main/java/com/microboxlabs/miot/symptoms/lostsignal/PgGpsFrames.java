@@ -78,7 +78,7 @@ public class PgGpsFrames implements GpsFrames {
     static final int FETCH = 2000;
 
     private final Supplier<Pool> pool;
-    private final int fetch;
+    private final int fetchSize;
     private final String framesSql;
 
     public PgGpsFrames(Supplier<Pool> pool) {
@@ -88,7 +88,7 @@ public class PgGpsFrames implements GpsFrames {
     /** @param framesSql {@link #FRAMES} or, in a test database without PostGIS, the same columns */
     PgGpsFrames(Supplier<Pool> pool, int fetch, String framesSql) {
         this.pool = pool;
-        this.fetch = fetch;
+        this.fetchSize = fetch;
         this.framesSql = framesSql;
     }
 
@@ -120,18 +120,20 @@ public class PgGpsFrames implements GpsFrames {
     /**
      * Runs {@code sql} over {@code [from, to)} in a read-only transaction and passes its rows to {@code each}, on the
      * calling thread, {@code fetch} rows at a time. A failure, also of {@code each}, closes the connection, which
-     * rolls the transaction back.
+     * rolls the transaction back. The server's 80 s statement timeout applies to each fetch, not the whole
+     * transaction; processing a fetched batch does not consume the next fetch's timeout.
      */
     void stream(String sql, Instant from, Instant to, Consumer<Row> each) {
         Tuple args = Tuple.of(from.atOffset(ZoneOffset.UTC), to.atOffset(ZoneOffset.UTC));
         SqlConnection conn = pool.get().getConnection().await().atMost(QUERY_TIMEOUT);
         try {
             Transaction tx = conn.begin().await().atMost(QUERY_TIMEOUT);
+            conn.query("SET TRANSACTION READ ONLY").execute().await().atMost(QUERY_TIMEOUT);
             conn.query(STATEMENT_TIMEOUT).execute().await().atMost(QUERY_TIMEOUT);
             PreparedStatement statement = conn.prepare(sql).await().atMost(QUERY_TIMEOUT);
             Cursor cursor = statement.cursor(args);
             do {
-                RowSet<Row> rows = cursor.read(fetch).await().atMost(QUERY_TIMEOUT);
+                RowSet<Row> rows = cursor.read(fetchSize).await().atMost(QUERY_TIMEOUT);
                 for (Row r : rows) {
                     each.accept(r);
                 }

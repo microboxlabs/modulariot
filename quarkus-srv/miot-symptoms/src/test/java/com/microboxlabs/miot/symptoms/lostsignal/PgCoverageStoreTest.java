@@ -113,11 +113,15 @@ class PgCoverageStoreTest {
             for (String sender : List.of("a", "b", "c")) {
                 // "b" is late everywhere on day 3: an anomalous day, left out.
                 long delayed = sender.equals("b") && age == 3 ? 40 : age % 4;
+                long backgroundDelayed = sender.equals("b") && age == 3 ? 927 : 0;
                 cells.add(new CellDay(sender, "1:2", d, 40, delayed, 0.5 * age));
+                cells.add(new CellDay(sender, "3:4", d, 30, 30, 0));
+                cells.add(new CellDay(sender, "5:6", d, 927, backgroundDelayed, 0));
                 cells.add(new CellDay(sender, "9:" + age, d, 3, 0, 0));
-                senders.add(new SenderDay(sender, d, 43, delayed, 0.5 * age, 2.0, 30.0, false));
+                senders.add(new SenderDay(sender, d, 1000, delayed + 30 + backgroundDelayed, 0.5 * age,
+                        2.0, 30.0, false));
             }
-            store.replace(d, cells, senders.subList(senders.size() - 3, senders.size()), 129);
+            store.replace(d, cells, senders.subList(senders.size() - 3, senders.size()), 3000);
             all.addAll(cells);
         }
         LocalDate first = today.minusDays(settings.window());
@@ -127,7 +131,7 @@ class PgCoverageStoreTest {
         ShadowMap.Plan plan = ShadowMap.plan(store.senders(first), today, settings);
         assertEquals(1, plan.dropped().size(), "b on day 3");
         List<ShadowMap.CellSum> expected = ShadowMap.sum(all, plan);
-        assertEquals(3, expected.size(), "the small cells are under min-frames");
+        assertEquals(9, expected.size(), "the small cells are under min-frames");
         assertEquals(expected.size(), window.cells().size());
         for (ShadowMap.CellSum e : expected) {
             ShadowMap.CellSum got = window.cells().stream()
@@ -137,6 +141,20 @@ class PgCoverageStoreTest {
             assertEquals(e.missing(), got.missing(), 1e-9);
         }
         assertEquals(plan, window.plan());
+        assertTrue(plan.weights().get(today.minusDays(8)) < plan.weights().get(today.minusDays(1)),
+                "older days must decay");
+        ShadowMap expectedMap = ShadowMap.build(all, senders, today, settings);
+        ShadowMap actualMap = ShadowMap.of(window.plan(), window.cells(), settings);
+        assertEquals(expectedMap.cells(), actualMap.cells());
+        for (String sender : List.of("a", "b", "c", "unseen")) {
+            for (String cell : List.of("1:2", "3:4", "5:6", "9:1", "absent")) {
+                assertEquals(expectedMap.level(sender, cell), actualMap.level(sender, cell));
+            }
+        }
+        assertTrue(actualMap.level("unseen", "3:4").shadow());
+        assertEquals(ShadowMap.Source.CONSENSUS, actualMap.level("unseen", "3:4").source());
+        assertEquals(ShadowMap.Source.SENDER, actualMap.level("a", "3:4").source());
+        assertEquals(ShadowMap.Source.NONE, actualMap.level("a", "9:1").source());
     }
 
     @Test

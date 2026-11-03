@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -273,19 +274,37 @@ class CoverageJobTest {
         assertTrue(store.done.isEmpty());
     }
 
-    /**
-     * One hour of the day has 300 thousand frames, 1000 vehicles every 12 s. The frames are made as they are passed
-     * and the test keeps weak references to some of them: when the job only counts them, they are collectable
-     * before the hour ends, while the next ones are still being read.
-     */
+    /** A fixed heap makes frame retention fail regardless of GC scheduling or explicit-GC settings. */
     @Test
-    void aLargeHourIsCountedWithoutHoldingItsFrames() {
+    void aLargeHourIsCountedWithoutHoldingItsFrames() throws Exception {
+        String javaExecutable = java.nio.file.Path.of(System.getProperty("java.home"), "bin", "java").toString();
+        Process probe = new ProcessBuilder(javaExecutable, "-Xmx64m", "-XX:+DisableExplicitGC", "-cp",
+                System.getProperty("java.class.path"), MemoryProbe.class.getName()).redirectErrorStream(true).start();
+        try {
+            assertTrue(probe.waitFor(60, TimeUnit.SECONDS), "bounded-heap probe timed out");
+            assertEquals(0, probe.exitValue(), () -> {
+                try {
+                    return new String(probe.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                } catch (java.io.IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            });
+        } finally {
+            probe.destroyForcibly();
+        }
+    }
+
+    public static class MemoryProbe {
+        public static void main(String[] args) {
+            new CoverageJobTest().countLargeHour();
+        }
+    }
+
+    private void countLargeHour() {
         LocalDate day = TODAY.minusDays(1);
         Instant busy = day.atStartOfDay(ZoneOffset.UTC).toInstant().plus(Duration.ofHours(12));
         int vehicles = 1000;
-        int perVehicle = 300;
-        List<java.lang.ref.WeakReference<GpsRow>> sampled = new ArrayList<>();
-        int[] collectedBeforeTheEnd = {-1};
+        int perVehicle = 3000;
         long[] stored = {-1};
         GpsFrames large = new Frames() {
             @Override
@@ -296,16 +315,11 @@ class CoverageJobTest {
                 long n = 0;
                 for (int v = 0; v < vehicles; v++) {
                     for (int i = 0; i < perVehicle; i++) {
-                        GpsRow r = new GpsRow("V" + v, "s" + (v % 20), busy.toEpochMilli() + i * 12_000L, 2,
-                                -33 + v * 0.01, -70 + i * 0.0005);
-                        if (n % 1000 == 0) {
-                            sampled.add(new java.lang.ref.WeakReference<>(r));
-                        }
-                        each.accept(r);
+                        each.accept(new GpsRow("V" + v, "s" + (v % 20), busy.toEpochMilli() + i * 1000L, 2,
+                                -33 + v * 0.00001, -70 + (i % 300) * 0.0005));
                         n++;
                     }
                 }
-                collectedBeforeTheEnd[0] = collected(sampled);
                 return n;
             }
         };
@@ -323,23 +337,7 @@ class CoverageJobTest {
         job.fill(day);
 
         assertEquals(23 * 60 + (long) vehicles * perVehicle, stored[0]);
-        assertEquals(300, sampled.size());
-        assertTrue(collectedBeforeTheEnd[0] >= sampled.size() - 1,
-                collectedBeforeTheEnd[0] + " of " + sampled.size() + " sampled frames were collectable");
         assertTrue(counting.cells.get(day).size() < 25_000, "per sender and cell, not per frame");
-    }
-
-    /** How many referents are gone after a few collections. */
-    private static int collected(List<java.lang.ref.WeakReference<GpsRow>> refs) {
-        int gone = 0;
-        for (int attempt = 0; attempt < 10; attempt++) {
-            System.gc();
-            gone = (int) refs.stream().filter(r -> r.get() == null).count();
-            if (gone >= refs.size() - 1) {
-                break;
-            }
-        }
-        return gone;
     }
 
     @Test

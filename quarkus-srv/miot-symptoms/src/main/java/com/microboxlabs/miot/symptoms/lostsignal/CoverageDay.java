@@ -112,11 +112,11 @@ public final class CoverageDay {
             return;
         }
         double km = km(a.lat(), a.lon(), b.lat(), b.lon());
-        if (!(km >= settings.gapMinKm()) || km / (dtS / 3600) > settings.gapMaxKmh()) {
-            return; // parked or off, or a GPS jump; NaN is neither
+        if (!Double.isFinite(km) || km < settings.gapMinKm() || km / (dtS / 3600) > settings.gapMaxKmh()) {
+            return; // parked or off, or a GPS jump
         }
         Set<String> crossed = crossed(a.lat(), a.lon(), b.lat(), b.lon());
-        if (crossed == null) {
+        if (crossed.isEmpty()) {
             return;
         }
         double missing = dtS / intervalS - 1;
@@ -148,20 +148,21 @@ public final class CoverageDay {
     }
 
     /**
-     * The cells a straight line crosses, advancing at each latitude or longitude grid boundary; null when that is
+     * The cells a straight line crosses, advancing at each latitude or longitude grid boundary; empty when that is
      * more than {@value #MAX_GAP_CELLS} or a coordinate is not finite.
      */
     static Set<String> crossed(double lat1, double lon1, double lat2, double lon2) {
         if (!Double.isFinite(lat1) || !Double.isFinite(lon1) || !Double.isFinite(lat2) || !Double.isFinite(lon2)) {
-            return null;
+            return Set.of();
         }
         long row = grid(lat1);
         long col = grid(lon1);
         long endRow = grid(lat2);
         long endCol = grid(lon2);
-        // Each step moves one row or column closer, so this bounds the steps.
-        if (Math.abs(endRow - row) + Math.abs(endCol - col) + 1 > MAX_GAP_CELLS) {
-            return null;
+        // Diagonal steps can cross both boundaries at once. Reject only when even that exceeds the bound.
+        // Subtract as doubles so extreme finite coordinates cannot overflow a long difference.
+        if (Math.max(Math.abs((double) endRow - row), Math.abs((double) endCol - col)) + 1 > MAX_GAP_CELLS) {
+            return Set.of();
         }
         int rowStep = Double.compare(lat2, lat1);
         int colStep = Double.compare(lon2, lon1);
@@ -177,6 +178,9 @@ public final class CoverageDay {
                 col += colStep;
             }
             out.add(row + ":" + col);
+            if (out.size() > MAX_GAP_CELLS) {
+                return Set.of();
+            }
         }
         return out;
     }

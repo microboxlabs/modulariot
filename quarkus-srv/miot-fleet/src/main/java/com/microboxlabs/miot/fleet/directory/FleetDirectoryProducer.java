@@ -89,7 +89,7 @@ public class FleetDirectoryProducer {
             ActivityStore activity = new InMemoryActivityStore();
             wiring = new Wiring(
                     new FleetDirectoryService(data, new InMemoryProfileStore(), activity, new AssetImages(images),
-                            signals(), clock, zone, cacheTtl),
+                            signals(), new FleetDirectoryService.Settings(clock, zone, cacheTtl)),
                     new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours()));
         } else if ("gps".equals(source) && gps.configured()) {
             LOG.info("Fleet directory: GPS database, read only; edits in the modulith database");
@@ -97,7 +97,7 @@ public class FleetDirectoryProducer {
             ActivityStore activity = new PgActivityStore(modulithPool::get);
             wiring = new Wiring(
                     new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity,
-                            new AssetImages(images), signals(), clock, zone, cacheTtl),
+                            new AssetImages(images), signals(), new FleetDirectoryService.Settings(clock, zone, cacheTtl)),
                     new ActivityRollup(data, activity, clock, zone, history, backfillPerRun));
         } else {
             LOG.infof("Fleet directory: none (miot.fleet.source=%s)", source);

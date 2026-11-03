@@ -461,7 +461,7 @@ function cells(row: AssetRow, d: I18nRecord, lang: string) {
     </span>,
     <span key="status" className="flex flex-col gap-1">
       <StatusBadge status={row.status} d={d} />
-      <OfflineBadge signal={row.signal} d={d} />
+      <OfflineBadge signal={row.signal} lastSignalAt={row.lastSignalAt} d={d} />
     </span>,
     <span key="driver">{row.driver ?? "—"}</span>,
     route ? (

@@ -232,7 +232,7 @@ class FleetDirectoryServiceTest {
 
     private FleetDirectoryService withSignals(com.microboxlabs.miot.core.gps.SignalStates source) {
         return new FleetDirectoryService(new DemoFleetData(CLOCK::instant), profiles, activity, AssetImages.NONE,
-                source, CLOCK, ZONE, Duration.ZERO);
+                source, new FleetDirectoryService.Settings(CLOCK, ZONE, Duration.ZERO));
     }
 
     @Test

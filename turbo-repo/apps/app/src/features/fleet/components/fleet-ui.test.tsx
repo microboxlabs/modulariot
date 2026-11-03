@@ -34,6 +34,20 @@ describe("offlineText", () => {
 });
 
 describe("OfflineBadge", () => {
+  it("does not use a stale detector profile to mark a newer fleet position offline", () => {
+    const frame = ago(5);
+    const signal = {
+      state: "offline" as const,
+      offline_since: frame,
+      last_frame_at: frame,
+    };
+    const { rerender } = render(
+      <OfflineBadge signal={signal} lastSignalAt={ago(1)} d={esFleet} />
+    );
+    expect(document.querySelector("[data-signal-offline]")).toBeNull();
+    rerender(<OfflineBadge signal={signal} lastSignalAt={frame} d={esFleet} />);
+    expect(document.querySelector("[data-signal-offline]")).not.toBeNull();
+  });
   it("shows a badge only for an offline vehicle", () => {
     const { rerender } = render(
       <OfflineBadge

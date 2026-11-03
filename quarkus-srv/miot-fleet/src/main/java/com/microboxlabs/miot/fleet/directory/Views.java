@@ -11,8 +11,9 @@ public final class Views {
     private Views() {
     }
 
-    /** One line of the fleet list. */
     /**
+     * One line of the fleet list.
+     *
      * @param signal the lost-signal detector's state ({@code state} online, offline or unknown, {@code offline_since}
      *               ...), null where the detector is not deployed; set on the page's rows only
      */

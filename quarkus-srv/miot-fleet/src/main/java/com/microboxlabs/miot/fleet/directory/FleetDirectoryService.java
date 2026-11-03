@@ -62,6 +62,10 @@ public class FleetDirectoryService {
             Double fleetUtilization) {
     }
 
+    /** Time and freshness settings for directory reads. */
+    record Settings(Clock clock, ZoneId zone, Duration cacheTtl) {
+    }
+
     public FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, Clock clock,
             ZoneId zone, Duration cacheTtl) {
         this(data, profiles, activity, AssetImages.NONE, clock, zone, cacheTtl);
@@ -69,20 +73,20 @@ public class FleetDirectoryService {
 
     FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, AssetImages images,
             Clock clock, ZoneId zone, Duration cacheTtl) {
-        this(data, profiles, activity, images, null, clock, zone, cacheTtl);
+        this(data, profiles, activity, images, null, new Settings(clock, zone, cacheTtl));
     }
 
     /** @param signals the lost-signal detector's states; null where it is not deployed */
     FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, AssetImages images,
-            SignalStates signals, Clock clock, ZoneId zone, Duration cacheTtl) {
+            SignalStates signals, Settings settings) {
         this.data = data;
         this.signals = signals;
         this.images = images;
         this.profiles = profiles;
         this.activity = activity;
-        this.clock = clock;
-        this.zone = zone;
-        this.cacheTtl = cacheTtl;
+        this.clock = settings.clock();
+        this.zone = settings.zone();
+        this.cacheTtl = settings.cacheTtl();
     }
 
     // ---- reads

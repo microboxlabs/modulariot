@@ -9,6 +9,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   isOffline,
+  isNewestFrame,
   offlineAge,
   type SignalState,
 } from "@/features/geographic-view/utils/signal-state";
@@ -122,11 +123,16 @@ export function offlineText(
 export function OfflineBadge({
   signal,
   d,
+  lastSignalAt,
 }: {
   readonly signal: SignalState | null | undefined;
   readonly d: I18nRecord;
+  readonly lastSignalAt?: string | null;
 }) {
-  const text = offlineText(signal, d);
+  const text = offlineText(
+    isNewestFrame(lastSignalAt, signal) ? signal : null,
+    d
+  );
   if (!text) return null;
   return (
     <Badge

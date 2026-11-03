@@ -545,17 +545,23 @@ class EngineCaseServiceTest {
     void actionsLandInTheStepOfTheirTime() throws Exception {
         store.add(escalated(OPENED.plusSeconds(10_000)));
         List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
-                actionAt(OPENED.minusSeconds(300), "Antes"), actionAt(OPENED.plusSeconds(3600), "En L2"),
-                actionAt(OPENED.plusSeconds(8000), "En L3"), actionAt(OPENED.plusSeconds(20_000), "Después")));
+                actionAt(OPENED.minusSeconds(900), "Antes"), actionAt(OPENED.plusSeconds(3600), "En L2"),
+                actionAt(OPENED.plusSeconds(8000), "En L3"), actionAt(OPENED.plusSeconds(20_000), "Después"),
+                actionAt(null, "Sin hora"), action(ActionKind.NOTE, null, null, "nota")),
+                treatment(TreatmentStatus.CANCELLED, actionAt(OPENED.plusSeconds(3600), "Cancelado")));
+        JsonNode header = service.header(TENANT, -12);
+        JsonNode original = header.deepCopy();
 
-        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+        JsonNode aggs = EngineCaseService.withTreatments(header, treatments)
                 .path("timeline").get(0).path("conditions_agg");
 
         assertEquals(List.of("Llamado a: Antes"), messages(aggs.get(0)));
         assertEquals(List.of("Llamado a: En L2"), messages(aggs.get(1)));
         assertEquals(List.of("Llamado a: En L3"), messages(aggs.get(2)));
-        assertEquals(List.of("Llamado a: Después"), messages(aggs.get(3)));
+        assertEquals(List.of("Llamado a: Después", "Llamado a: Sin hora"), messages(aggs.get(3)));
+        assertEquals(5, aggs.findValues("treatment_type").size(), "header counters see each call only once");
         aggs.forEach(agg -> assertEquals("operator@example.com", agg.path("assigned_to").asText()));
+        assertEquals(original, header, "adding treatments leaves the original header untouched");
     }
 
     @Test
@@ -570,7 +576,8 @@ class EngineCaseServiceTest {
 
     private static TreatmentAction actionAt(Instant at, String contact) {
         return new TreatmentAction("a", "t", TENANT, 1, ActionKind.CALL, null, contact, null, null, null, null, null,
-                null, null, null, null, List.of(), Map.of(), "operator@example.com", at.atOffset(ZoneOffset.UTC));
+                null, null, null, null, List.of(), Map.of(), "operator@example.com",
+                at == null ? null : at.atOffset(ZoneOffset.UTC));
     }
 
     private static List<String> messages(JsonNode agg) {

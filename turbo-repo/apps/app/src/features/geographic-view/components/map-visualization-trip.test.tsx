@@ -408,9 +408,10 @@ describe("case map frames", () => {
     const late = mapState.layers.find((item) => item.id === "late-frames");
     expect(late?.props).toMatchObject({
       data: positions.slice(0, 2),
-      filled: false,
+      filled: true,
+      getFillColor: [156, 163, 175, 255],
       stroked: true,
-      getLineColor: [245, 158, 11, 255],
+      getLineColor: [255, 255, 255, 255],
     });
   });
 });

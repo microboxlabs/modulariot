@@ -176,11 +176,14 @@ function frameDelayLayers(
         id: "late-frames",
         data: late,
         getPosition: (d) => [d.longitude, d.latitude],
-        getRadius: 10,
+        // A late frame is drawn as a gray dot with a white border over its blue
+        // dot (Tailwind gray-400): lateness is context, not an alarm.
+        getRadius: 6,
         radiusUnits: "pixels",
-        filled: false,
+        filled: true,
+        getFillColor: [156, 163, 175, 255],
         stroked: true,
-        getLineColor: [245, 158, 11, 255],
+        getLineColor: [255, 255, 255, 255],
         getLineWidth: 2,
         lineWidthUnits: "pixels",
         parameters: { depthCompare: "always" },

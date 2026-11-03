@@ -296,6 +296,17 @@ class RulesEngineTest {
     }
 
     @Test
+    void anOpeningProcessedAfterItsIgnoreCannotStartSending() {
+        f.rule("panic", PANIC_SPEC, Rule.State.ACTIVE);
+        f.engine.accept(event(RulesEngine.CASE_IGNORED, "-7", panic(4), false));
+        Run late = f.engine.accept(event("symptom.case.opened", "-7", panic(4), false)).get(0);
+        f.engine.runDue();
+        assertEquals(Run.Status.CANCELLED, f.store.runs.get(late.id()).status());
+        assertTrue(f.whatsappSent.isEmpty());
+        assertTrue(f.emailsSent.isEmpty());
+    }
+
+    @Test
     void aTestRunRecordsSimulatedMessagesAndSendsNothing() {
         f.rule("panic", PANIC_SPEC, Rule.State.TEST);
         f.engine.accept(event("symptom.case.opened", "-7", panic(4), false));

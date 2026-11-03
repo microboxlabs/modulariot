@@ -12,7 +12,7 @@ export interface IgnoredInfo {
   since: string;
   until: string | null;
   until_trip_end: boolean;
-  scope: IgnoreScope | string;
+  scope: string;
   by: string | null;
 }
 

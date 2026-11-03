@@ -12,20 +12,8 @@ import icu_condition from "@/features/symptoms/model/icu_condition.json";
 import { FaChevronRight } from "react-icons/fa6";
 import IgnoredHoldCell from "./ignored-hold-cell";
 
-export default function TableItem({
-  data,
-  dict,
-  compact = false,
-}: {
-  data: TableItemType;
-  dict: I18nRecord;
-  compact?: boolean;
-}) {
-  const searchParams = new URLSearchParams(window.location.search);
-
+function slaBadge(data: TableItemType, dict: I18nRecord) {
   const slaMin = data.sla_minutes;
-  // Occurrence number of this event on the trip: earlier events plus this one.
-  const occurrence = (data.recurrence_events ?? 0) + 1;
   // A badge, not plain colored text: the row itself is already tinted by
   // condition (`Conditions[...].bgColor` below), and a saturated row color —
   // red especially — could wash out same-colored text with no background of
@@ -50,6 +38,24 @@ export default function TableItem({
             color: "failure",
           };
   }
+
+  return slaCell;
+}
+
+export default function TableItem({
+  data,
+  dict,
+  compact = false,
+}: {
+  data: TableItemType;
+  dict: I18nRecord;
+  compact?: boolean;
+}) {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  // Occurrence number of this event on the trip: earlier events plus this one.
+  const occurrence = (data.recurrence_events ?? 0) + 1;
+  const slaCell = slaBadge(data, dict);
 
   if (!compact) {
     return (

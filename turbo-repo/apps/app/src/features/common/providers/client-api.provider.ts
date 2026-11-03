@@ -278,9 +278,11 @@ export function useSymptoms(date_range?: { from: string; to: string }) {
     }
   );
 
+  // Ignored cases are on hold: out of the total.
   const count = data
-    ? Object.values(data).reduce<number>(
-        (sum, value) => (typeof value === "number" ? sum + value : sum),
+    ? Object.entries(data).reduce<number>(
+        (sum, [key, value]) =>
+          typeof value === "number" && key !== "ignored" ? sum + value : sum,
         0
       )
     : 0;

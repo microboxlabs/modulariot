@@ -123,6 +123,9 @@ applies to every organization of the deployment. The app reads the same env name
 In engine-only mode, `p_icu_code=6` selects cases with an open treatment, independently of their severity.
 The store applies this predicate before its 200-case limit.
 
+If the optional trip or fleet tables are absent, trip filters match no cases. Other database failures
+propagate as errors instead of returning a successful empty page.
+
 ## Selectables
 
 The option lists behind the forms are not part of this API. They are a core

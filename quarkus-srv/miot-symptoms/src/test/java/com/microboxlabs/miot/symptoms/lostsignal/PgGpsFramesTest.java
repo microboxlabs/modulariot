@@ -179,6 +179,7 @@ class PgGpsFramesTest {
         }
 
         assertEquals(5, small.frames(FROM, TO, r -> { }), "the pool still has connections");
+        assertNoPreparedStatement(nativePoint);
     }
 
     @Test
@@ -213,6 +214,13 @@ class PgGpsFramesTest {
         assertEquals("57014", failure.getSqlState());
         assertEquals("0", pool.query("SHOW statement_timeout").execute().await().atMost(WAIT)
                 .iterator().next().getString(0));
+        assertNoPreparedStatement(slow);
+    }
+
+    private static void assertNoPreparedStatement(String sql) {
+        assertEquals(0L, pool.preparedQuery("SELECT count(*) FROM pg_prepared_statements WHERE statement = $1")
+                .execute(Tuple.of(sql)).await().atMost(WAIT).iterator().next().getLong(0),
+                "streams must close their named statement before returning the pooled session");
     }
 
     private static void frame(String asset, String sender, Instant at, long delayS) {

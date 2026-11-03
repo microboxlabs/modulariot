@@ -131,18 +131,27 @@ public class PgGpsFrames implements GpsFrames {
             conn.query("SET TRANSACTION READ ONLY").execute().await().atMost(QUERY_TIMEOUT);
             conn.query(STATEMENT_TIMEOUT).execute().await().atMost(QUERY_TIMEOUT);
             PreparedStatement statement = conn.prepare(sql).await().atMost(QUERY_TIMEOUT);
-            Cursor cursor = statement.cursor(args);
+            try {
+                read(statement.cursor(args), each);
+            } finally {
+                statement.close().await().atMost(QUERY_TIMEOUT);
+            }
+            tx.commit().await().atMost(QUERY_TIMEOUT);
+        } finally {
+            conn.close().await().atMost(QUERY_TIMEOUT);
+        }
+    }
+
+    private void read(Cursor cursor, Consumer<Row> each) {
+        try {
             do {
                 RowSet<Row> rows = cursor.read(fetchSize).await().atMost(QUERY_TIMEOUT);
                 for (Row r : rows) {
                     each.accept(r);
                 }
             } while (cursor.hasMore());
-            cursor.close().await().atMost(QUERY_TIMEOUT);
-            statement.close().await().atMost(QUERY_TIMEOUT);
-            tx.commit().await().atMost(QUERY_TIMEOUT);
         } finally {
-            conn.close().await().atMost(QUERY_TIMEOUT);
+            cursor.close().await().atMost(QUERY_TIMEOUT);
         }
     }
 

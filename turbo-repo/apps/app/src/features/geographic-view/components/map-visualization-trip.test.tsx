@@ -11,6 +11,10 @@ import MapVisualizationTrip from "./map-visualization-trip";
 const mapState = vi.hoisted(() => ({ layers: [] as Layer[] }));
 
 // lo pesado (mapa, barra, panel, datos) queda fuera: se prueba el marco
+const signalNow = vi.hoisted(() => ({ value: null as unknown }));
+beforeEach(() => {
+  signalNow.value = null;
+});
 vi.mock("@/features/map-visualization/map-visualization", () => ({
   default: ({
     children,
@@ -28,6 +32,9 @@ vi.mock("@/features/map-visualization/map-visualization", () => ({
       </div>
     );
   },
+}));
+vi.mock("../hooks/use-asset-signal", () => ({
+  useAssetSignal: () => signalNow.value,
 }));
 vi.mock("@/features/common/providers/client-api.provider", () => ({
   useGeofences: () => ({ geofence_data: null }),
@@ -398,5 +405,103 @@ describe("trip geofence anchor", () => {
       anclaDeGeometria({ type: "LineString", coordinates: [] })
     ).toBeNull();
     expect(anclaDeGeometria({ type: "Point" })).toBeNull();
+  });
+});
+
+describe("MapVisualizationTrip signal state", () => {
+  const frames = [
+    {
+      assetid: "AB12",
+      longitude: -70,
+      latitude: -33,
+      heading: 0,
+      speed: 0,
+      timestamp: "2026-11-03T11:00:00Z",
+    },
+    {
+      assetid: "AB12",
+      longitude: -70.1,
+      latitude: -33.1,
+      heading: 0,
+      speed: 40,
+      timestamp: "2026-11-03T11:48:00Z",
+    },
+  ];
+  const withLabels = {
+    ...dict,
+    geographic_view: {
+      ...(dict.geographic_view as I18nRecord),
+      signal_offline: "Sin señal",
+      signal_offline_minutes: "Sin señal · hace {n} min",
+      signal_offline_hours: "Sin señal · hace {n} h",
+    },
+  } as unknown as I18nRecord;
+
+  type Drawn = {
+    id: string;
+    props: {
+      offline?: boolean;
+      label?: string | null;
+      data?: {
+        features?: {
+          properties: {
+            offline?: boolean;
+            signal_label?: string | null;
+            icu_code?: number;
+          };
+        }[];
+      };
+    };
+  };
+  const layer = (id: string) =>
+    (mapState.layers as Drawn[]).find((l) => l.id === id);
+
+  function show(signal: unknown) {
+    signalNow.value = signal;
+    render(
+      <MapVisualizationTrip
+        tripId="t1"
+        positions={frames as never}
+        isLoading={false}
+        error={null}
+        filteredLocationData={null}
+        dict={withLabels}
+        selectedTreatmentIndex={null}
+      />
+    );
+  }
+
+  it("draws the current position gray, with how long ago, when offline", () => {
+    show({
+      state: "offline",
+      offline_since: new Date(Date.now() - 12 * 60_000).toISOString(),
+      last_frame_at: "2026-11-03T11:48:00Z",
+    });
+    expect(layer("PinLayer")?.props.offline).toBe(true);
+    expect(layer("PinLayer")?.props.label).toBe("Sin señal · hace 12 min");
+    const pulses = layer("PulsePinLayer")?.props.data?.features ?? [];
+    expect(pulses.map((f) => f.properties.offline)).toEqual([false, true]);
+    expect(pulses.map((f) => f.properties.icu_code)).toEqual([0, 0]);
+    expect(pulses.map((f) => f.properties.signal_label)).toEqual([
+      null,
+      "Sin señal · hace 12 min",
+    ]);
+  });
+
+  it("keeps today's look when online or unknown", () => {
+    for (const signal of [{ state: "online" }, { state: "unknown" }, null]) {
+      show(signal);
+      expect(layer("PinLayer")?.props.offline).toBe(false);
+      expect(layer("PinLayer")?.props.label).toBeNull();
+    }
+  });
+
+  it("is not gray when the map's positions end before the newest frame", () => {
+    show({
+      state: "offline",
+      offline_since: "2026-11-03T11:55:00Z",
+      last_frame_at: "2026-11-03T11:55:00Z",
+    });
+    expect(layer("PinLayer")?.props.offline).toBe(false);
   });
 });

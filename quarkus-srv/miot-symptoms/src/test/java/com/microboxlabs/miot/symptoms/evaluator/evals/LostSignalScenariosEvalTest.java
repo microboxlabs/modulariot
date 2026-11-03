@@ -8,7 +8,6 @@ import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.evaluator.evals.LostSignalReplay.Change;
 import com.microboxlabs.miot.symptoms.evaluator.evals.LostSignalReplay.Frame;
 import com.microboxlabs.miot.symptoms.evaluator.evals.LostSignalReplay.Result;
-import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -65,7 +64,7 @@ class LostSignalScenariosEvalTest {
     }
 
     @Test
-    void aBackfillInAShadowCellStaysAtTheLowLevelAndIsReported() {
+    void aBackfillInAShadowCellStaysAtTheLowLevelAndClosesWhenTheSignalReturns() {
         double shadowLat = LAT + 0.52;
         double shadowLon = LON + 0.52;
         List<Frame> frames = new ArrayList<>();
@@ -94,10 +93,9 @@ class LostSignalScenariosEvalTest {
         Result r = LostSignalReplay.run(frames, back + 700);
 
         assertEquals(1, r.topLevel("SHADOW"), "past L, but the cell is low coverage");
-        SymptomCaseData returned = r.returns().get(0);
-        assertEquals("SHADOW", returned.assetId());
-        assertTrue(returned.backfill());
-        assertTrue(r.of("SHADOW").stream().noneMatch(c -> c.kind() == Kind.CLOSED), "the operator closes it");
+        assertEquals(List.of(Kind.OPENED, Kind.CLOSED), r.of("SHADOW").stream().map(Change::kind).toList(),
+                "never left level 1, so the return check closes it");
+        assertTrue(r.returns().stream().noneMatch(d -> d.assetId().equals("SHADOW")), "closed, nothing to report to");
     }
 
     @Test

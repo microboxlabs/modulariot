@@ -26,8 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Runs the organization's {@code trip_check} versions on a lost vehicle's check, with the evaluator's episodes,
  * transition log and case events, and keeps the id of each case they open. When the signal returns, each open
- * case gets a {@code symptom.case.signal_returned} event and, for an ACTIVE case, an audit entry; the case stays
- * open for the operator.
+ * case that the return check left open gets a {@code symptom.case.signal_returned} event and, for an ACTIVE
+ * case, an audit entry.
  */
 public class TripChecks {
 

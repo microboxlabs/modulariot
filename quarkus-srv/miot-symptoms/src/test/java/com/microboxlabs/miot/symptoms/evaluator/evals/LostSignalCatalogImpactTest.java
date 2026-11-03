@@ -38,10 +38,11 @@ class LostSignalCatalogImpactTest {
                 + ", catalog template " + catalog);
 
         assertEquals(new CaseImpact(211, Map.of(1, 191, 2, 3, 3, 3, 4, 14), 207), production);
-        // Only an operator closes the template's cases, so a trip's later losses stay in its first case: one case
-        // per trip, at the highest level any of its losses reached. 8 trips open above level 1: their first lost
-        // check already had 30 min of silence (L).
-        assertEquals(new CaseImpact(59, Map.of(1, 23, 2, 21, 3, 2, 4, 13), 51), catalog);
+        // A case that never left level 1 closes when the signal returns, so each such loss is its own case. A case
+        // that reached level 2 or more is closed only by an operator: a trip's later losses stay in it, at the
+        // highest level any of them reached. 10 cases open above level 1: their first lost check already had
+        // 30 min of silence (L).
+        assertEquals(new CaseImpact(111, Map.of(1, 75, 2, 21, 3, 2, 4, 13), 101), catalog);
     }
 
     @SuppressWarnings("unchecked")

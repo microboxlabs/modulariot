@@ -95,22 +95,42 @@ class TripChecksTest {
     }
 
     @Test
-    void aReturnIsReportedToTheOpenCaseWhichStaysOpen() {
+    void aReturnClosesACaseThatNeverLeftLevelOne() {
         template(SymptomState.ACTIVE);
         frame(0, 5);
         tickUntil(300);
 
-        // The buffered frames arrive in order once the network is back: the first one is backfill.
         frame(200, 600);
         frame(590, 601);
         tickUntil(610);
 
-        assertEquals(List.of("symptom.case.opened", "symptom.case.signal_returned"), engine.types());
-        OperationalEvent back = engine.fired.get(1);
+        assertEquals(List.of("symptom.case.opened", "symptom.case.closed"), engine.types(),
+                "closed on the return check, so no signal_returned");
+        Transition closed = engine.recorded.get(1);
+        assertEquals(Transition.Kind.CLOSED, closed.kind());
+        assertEquals(1, closed.level());
+        assertEquals(T0.plusSeconds(601), closed.at(), "the return check, after the backfill");
+    }
+
+    @Test
+    void aReturnIsReportedToACaseAboveLevelOneWhichStaysOpen() {
+        template(SymptomState.ACTIVE);
+        frame(0, 5);
+        tickUntil(1830);
+
+        // The buffered frames arrive in order once the network is back: the first one is backfill.
+        frame(1700, 2100);
+        frame(2090, 2101);
+        tickUntil(2110);
+
+        assertEquals(List.of("symptom.case.opened", "symptom.case.level_changed", "symptom.case.signal_returned"),
+                engine.types());
+        OperationalEvent back = engine.fired.get(2);
         assertFalse(back.test());
         SymptomCaseData data = (SymptomCaseData) back.data();
-        assertEquals(T0.plusSeconds(600), data.signalReturnedAt());
+        assertEquals(T0.plusSeconds(2100), data.signalReturnedAt());
         assertTrue(data.backfill());
+        assertEquals(2, data.level());
         assertEquals(-1, data.symptomId());
         assertEquals(1, engine.audits.list(TENANT, null, null, -1L, null, null, 10).size(), "on the case's audit");
         assertTrue(engine.recorded.stream().noneMatch(t -> t.kind() == Transition.Kind.CLOSED), "the operator closes it");
@@ -136,20 +156,22 @@ class TripChecksTest {
     void aReturnWithoutBackfillWaitsTheGraceForLateFrames() {
         template(SymptomState.TEST);
         frame(0, 5);
-        tickUntil(300);
+        tickUntil(1830);
 
-        frame(400, 401);
-        tickUntil(420);
-        assertEquals(List.of("symptom.case.opened"), engine.types(), "waiting for backfill");
-        clock.set(T0.plusSeconds(430));
-        detector.frame("V1", T0.plusSeconds(250), T0.plusSeconds(430), signal());
-        tickUntil(465);
+        frame(1900, 1901);
+        tickUntil(1920);
+        assertEquals(List.of("symptom.case.opened", "symptom.case.level_changed"), engine.types(),
+                "waiting for backfill");
+        clock.set(T0.plusSeconds(1930));
+        detector.frame("V1", T0.plusSeconds(250), T0.plusSeconds(1930), signal());
+        tickUntil(1965);
 
-        assertEquals(List.of("symptom.case.opened", "symptom.case.signal_returned"), engine.types());
-        SymptomCaseData data = (SymptomCaseData) engine.fired.get(1).data();
-        assertEquals(T0.plusSeconds(401), data.signalReturnedAt(), "the first frame after the loss");
+        assertEquals(List.of("symptom.case.opened", "symptom.case.level_changed", "symptom.case.signal_returned"),
+                engine.types());
+        SymptomCaseData data = (SymptomCaseData) engine.fired.get(2).data();
+        assertEquals(T0.plusSeconds(1901), data.signalReturnedAt(), "the first frame after the loss");
         assertTrue(data.backfill(), "a late frame from inside the silence");
-        assertTrue(engine.fired.get(1).test());
+        assertTrue(engine.fired.get(2).test());
     }
 
     @Test

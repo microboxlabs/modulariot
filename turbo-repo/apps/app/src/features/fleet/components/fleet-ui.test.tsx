@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import en from "@/lang/en.json";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -14,6 +14,12 @@ const esFleet = (es as unknown as { pages: { fleet: I18nRecord } }).pages.fleet;
 const enFleet = (en as unknown as { pages: { fleet: I18nRecord } }).pages.fleet;
 const NOW = Date.parse("2026-11-03T12:00:00Z");
 const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+afterEach(() => vi.useRealTimers());
 
 describe("offlineText", () => {
   it("tells minutes up to 90, then hours, in both languages", () => {
@@ -56,7 +62,7 @@ describe("OfflineBadge", () => {
       />
     );
     expect(document.querySelector("[data-signal-offline]")).toHaveTextContent(
-      /^Sin señal · hace \d+ min$/
+      "Sin señal · hace 5 min"
     );
     rerender(<OfflineBadge signal={{ state: "online" }} d={esFleet} />);
     expect(document.querySelector("[data-signal-offline]")).toBeNull();

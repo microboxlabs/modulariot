@@ -53,11 +53,15 @@ public class PgEngineCases implements EngineCaseStore {
                      (SELECT count(*) FROM miot_symptoms.signal_transitions r
                        WHERE r.tenant_code = o.tenant_code AND r.definition_id = o.definition_id
                          AND r.trip_id = o.trip_id AND r.state = o.state AND r.kind = 'OPENED' AND r.id < o.id)
-                   END AS recurrence
+                   END AS recurrence,
+                   hold.hold_id, hold.hold_at, hold.hold_until, hold.hold_trip_end, hold.hold_scope, hold.hold_by,
+                   ret.returned_at
               FROM miot_symptoms.signal_transitions o
               JOIN miot_symptoms.symptom_definition d ON d.id = o.definition_id AND d.tenant_code = o.tenant_code
+              LEFT JOIN LATERAL (%s) hold ON true
+              LEFT JOIN LATERAL (%s) ret ON true
              WHERE o.tenant_code = $1 AND o.kind = 'OPENED' AND o.state = 'ACTIVE'
-            """;
+            """.formatted(HoldSql.active("o"), HoldSql.returned("o"));
 
     /** The case's level is its latest level change before it closed, else the opening one. */
     private static final String SELECT = """
@@ -88,7 +92,10 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)
             + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200") + " ORDER BY y.at DESC";
-    /** {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only. */
+    /**
+     * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
+     * ignored only. Without dates and $9, the open cases no hold covers.
+     */
     private static final String MATCHING = "SELECT * FROM (" + WITH_SLA.formatted(SELECT.formatted(CASES + """
                AND ($2::text IS NULL OR o.trip_id = $2)
                AND ($3::text IS NULL OR o.asset_id ILIKE '%' || $3 || '%')
@@ -97,7 +104,10 @@ public class PgEngineCases implements EngineCaseStore {
             """) + " WHERE ($5::timestamptz IS NOT NULL OR $6::timestamptz IS NOT NULL OR x.closed_id IS NULL)")
             + ") z WHERE ($7::int IS NULL OR z.current_level = $7)"
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5)"
-            + " AND (NOT $8::boolean OR z.treatments > 0) ORDER BY z.at DESC LIMIT 200";
+            + " AND (NOT $8::boolean OR z.treatments > 0)"
+            + " AND CASE WHEN $9::boolean THEN z.hold_id IS NOT NULL AND z.closed_id IS NULL"
+            + " WHEN $5::timestamptz IS NULL AND $6::timestamptz IS NULL THEN z.hold_id IS NULL ELSE true END"
+            + " ORDER BY z.at DESC LIMIT 200";
     /** The case's live trip: a trips-module trip id is a UUID. */
     private static final String LIVE_TRIP = """
             t.tenant_code = %s.tenant_code AND t.trip_id = CASE
@@ -106,8 +116,8 @@ public class PgEngineCases implements EngineCaseStore {
     /** A RUT or id without dots, dashes or spaces, upper case; the parameter comes normalized the same way. */
     private static final String PLAIN = "upper(regexp_replace(%s, '[^0-9A-Za-z]', '', 'g'))";
     /**
-     * {@link #MATCHING} that also filters by the case's live trip: $9 either driver's RUT, $10 the carrier's RUT,
-     * $11 the carrier's id, $12 the origin name, $13 the destination name; each normalized as {@link #PLAIN} or
+     * {@link #MATCHING} that also filters by the case's live trip: $10 either driver's RUT, $11 the carrier's RUT,
+     * $12 the carrier's id, $13 the origin name, $14 the destination name; each normalized as {@link #PLAIN} or
      * trimmed and lower case. A case without a live trip matches none.
      */
     private static final String MATCHING_BY_TRIP = MATCHING.replace("AND ($6::timestamptz IS NULL OR o.at < $6)",
@@ -115,16 +125,21 @@ public class PgEngineCases implements EngineCaseStore {
                AND EXISTS (SELECT 1 FROM miot_trips.trip_live t
                     LEFT JOIN miot_fleet.carrier fc ON fc.tenant_code = t.tenant_code AND fc.id::text = t.carrier_id
                    WHERE %s
-                     AND ($9::text IS NULL OR %s = $9 OR %s = $9)
-                     AND ($10::text IS NULL OR %s = $10 OR t.carrier_id = $11)
-                     AND ($12::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $12)
-                     AND ($13::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $13))
+                     AND ($10::text IS NULL OR %s = $10 OR %s = $10)
+                     AND ($11::text IS NULL OR %s = $11 OR t.carrier_id = $12)
+                     AND ($13::text IS NULL OR lower(btrim(t.origin_geofence_label)) = $13)
+                     AND ($14::text IS NULL OR lower(btrim(t.destination_geofence_label)) = $14))
             """.formatted(LIVE_TRIP.formatted("o"), PLAIN.formatted("t.driver_id"),
                     PLAIN.formatted("t.second_driver_id"), PLAIN.formatted("fc.rut")));
+    /** The open cases no hold covers. */
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
-            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
+            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
+            + " GROUP BY 1, 2";
+    private static final String IGNORED = "SELECT count(*) AS n FROM (" + CASES + ") x"
+            + " WHERE x.closed_id IS NULL AND x.hold_id IS NOT NULL";
     private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
-            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y ORDER BY y.asset_id, y.at DESC";
+            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
+            + " ORDER BY y.asset_id, y.at DESC";
     /**
      * One case with why it is at its level: the context of the row that set the level (its latest level change
      * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
@@ -253,7 +268,7 @@ public class PgEngineCases implements EngineCaseStore {
                 .addString(f.assetId()).addString(f.symptomName())
                 .addOffsetDateTime(f.from() == null ? null : utc(f.from()))
                 .addOffsetDateTime(f.to() == null ? null : utc(f.to())).addInteger(f.level())
-                .addBoolean(f.underTreatmentOnly());
+                .addBoolean(f.underTreatmentOnly()).addBoolean(f.ignoredOnly());
         if (!f.byTrip()) {
             cases(MATCHING, args).forEach(r -> out.add(engineCase(r)));
             return out;
@@ -292,6 +307,12 @@ public class PgEngineCases implements EngineCaseStore {
         PgIds.query(pool.get(), COUNTS, Tuple.of(tenantCode)).forEach(r -> out.add(new OpenCount(
                 r.getInteger("current_level"), r.getBoolean("under_treatment"), r.getLong("n"))));
         return out;
+    }
+
+    @Override
+    public long ignoredCount(String tenantCode) {
+        var rows = PgIds.query(pool.get(), IGNORED, Tuple.of(tenantCode)).iterator();
+        return rows.hasNext() ? rows.next().getLong("n") : 0;
     }
 
     @Override
@@ -371,7 +392,22 @@ public class PgEngineCases implements EngineCaseStore {
                 r.getOffsetDateTime("at").toInstant(), r.getInteger("current_level"), r.getString("trip_id"),
                 r.getDouble("latitude"), r.getDouble("longitude"), r.getDouble("speed_kmh"),
                 closed == null ? null : closed.toInstant(), r.getLong("treatments"), r.getInteger("sla_minutes"),
-                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r));
+                r.getLong("recurrence"), tripCode(r.getString("trip_mandate_codes"))).withTrip(trip(r))
+                .withHold(hold(r), instant(r.getOffsetDateTime("returned_at")));
+    }
+
+    private static EngineCase.Ignored hold(Row r) {
+        String id = r.getString("hold_id");
+        if (id == null) {
+            return null;
+        }
+        return new EngineCase.Ignored(id, instant(r.getOffsetDateTime("hold_at")),
+                instant(r.getOffsetDateTime("hold_until")), Boolean.TRUE.equals(r.getBoolean("hold_trip_end")),
+                r.getString("hold_scope"), r.getString("hold_by"));
+    }
+
+    private static Instant instant(OffsetDateTime at) {
+        return at == null ? null : at.toInstant();
     }
 
     /** The live trip's names, or null when the case has no live trip or it has none of them. */

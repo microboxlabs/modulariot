@@ -37,13 +37,20 @@ public class TreatmentService {
     private final ContactStore contacts;
     private final DemoSeeder seeder;
     private final AuditService audit;
+    private final IgnoreHolds holds;
+
+    public TreatmentService(TreatmentStore treatments, ContactStore contacts, DemoSeeder seeder, AuditService audit) {
+        this(treatments, contacts, seeder, audit, IgnoreHolds.NONE);
+    }
 
     @Inject
-    public TreatmentService(TreatmentStore treatments, ContactStore contacts, DemoSeeder seeder, AuditService audit) {
+    public TreatmentService(TreatmentStore treatments, ContactStore contacts, DemoSeeder seeder, AuditService audit,
+            IgnoreHolds holds) {
         this.treatments = treatments;
         this.contacts = contacts;
         this.seeder = seeder;
         this.audit = audit;
+        this.holds = holds;
     }
 
     /**
@@ -89,12 +96,18 @@ public class TreatmentService {
                 && blankToNull(req.outcomeKey()) == null && blankToNull(req.outcomeLabel()) == null) {
             throw new IllegalArgumentException(req.kind() + " needs an outcomeKey or outcomeLabel (the reason)");
         }
+        IgnoreHolds.Checked checked = req.kind() == ActionKind.IGNORE
+                ? holds.check(tenantCode, t, req)
+                : new IgnoreHolds.Checked(req.durationSeconds(), req.details() == null ? Map.of() : req.details());
         TreatmentAction saved = treatments.addAction(new TreatmentAction(
                 null, t.id(), tenantCode, 0, req.kind(), target.id(), target.name(), target.role(), target.phone(),
                 req.method(), blankToNull(req.outcomeKey()), blankToNull(req.outcomeLabel()), req.answered(),
-                req.durationSeconds(), blankToNull(req.message()), blankToNull(req.note()), tags(req.tags()),
-                req.details() == null ? Map.of() : req.details(), actor, null));
+                checked.durationSeconds(), blankToNull(req.message()), blankToNull(req.note()), tags(req.tags()),
+                checked.details(), actor, null));
         audit.log(tenantCode, actor, "treatment.action_added", ENTITY, t.id(), t.symptomId(), auditDetails(saved));
+        if (saved.kind() == ActionKind.IGNORE) {
+            holds.changed(tenantCode);
+        }
         return saved;
     }
 
@@ -133,6 +146,17 @@ public class TreatmentService {
         if (saved.outcomeLabel() != null) {
             details.put("outcome", saved.outcomeLabel());
         }
+        if (saved.kind() == ActionKind.IGNORE) {
+            if (saved.note() != null) {
+                details.put("note", saved.note());
+            }
+            if (saved.durationSeconds() != null) {
+                details.put("durationSeconds", saved.durationSeconds());
+            }
+            if (saved.details() != null) {
+                details.putAll(saved.details());
+            }
+        }
         return details;
     }
 
@@ -149,12 +173,22 @@ public class TreatmentService {
         audit.log(tenantCode, actor, "treatment.closed", ENTITY, closed.id(), closed.symptomId(), Map.of(
                 "resolution", closed.resolution() == null ? "" : closed.resolution(),
                 "actions", actions.size()));
+        if (actions.stream().anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
+            holds.changed(tenantCode);
+        }
         return TreatmentView.of(closed, actions);
     }
 
-    /** Abandons an open episode, e.g. a form that was opened and dismissed. */
+    /**
+     * Abandons an open episode, e.g. a form that was opened and dismissed. An engine case's hold is resumed, not
+     * cancelled.
+     */
     public TreatmentView cancel(String tenantCode, String actor, String treatmentId, String reason) {
         Treatment t = requireOpen(tenantCode, treatmentId);
+        if (t.symptomId() < 0 && treatments.listActions(tenantCode, List.of(t.id())).stream()
+                .anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
+            throw new IllegalStateException("the case is on hold: resume it instead");
+        }
         Treatment cancelled = treatments.transition(
                         tenantCode, t.id(), TreatmentStatus.CANCELLED, actor, "cancelled", blankToNull(reason))
                 .orElseThrow(() -> new IllegalStateException("treatment is no longer open"));

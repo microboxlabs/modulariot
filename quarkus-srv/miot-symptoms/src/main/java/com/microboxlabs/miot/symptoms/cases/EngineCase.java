@@ -22,12 +22,24 @@ import java.util.UUID;
  * @param trip        the live trip's driver, carrier, origin and destination names, or null without a live trip
  * @param closingContext what the rules read on the transition that closed it, or null (open, closed by an
  *                    operator, or not read)
+ * @param ignored     the "Ignorar condición" hold that covers it now, or null
+ * @param returnedAt  when the latest hold that covered it ended, if that was after it opened; it came back to the
+ *                    tower then
  */
 public record EngineCase(long id, UUID definitionId, String version, String name, String family, String assetId,
         Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
         Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode,
         JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels,
-        TripDetails trip, JsonNode closingContext) {
+        TripDetails trip, JsonNode closingContext, Ignored ignored, Instant returnedAt) {
+
+    /**
+     * A hold on the case: since when, until when (null until the trip ends), what it covers and who set it.
+     *
+     * @param treatmentId the hold's treatment
+     */
+    public record Ignored(String treatmentId, Instant since, Instant until, boolean untilTripEnd, String scope,
+            String by) {
+    }
 
     /** Names from the case's live trip; each null when the trip does not have it. */
     public record TripDetails(String driver, String carrier, String origin, String destination) {
@@ -48,7 +60,7 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             JsonNode openingContext, JsonNode levelContext, String levelRule, List<LevelStep> levels) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
                 speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext, levelContext,
-                levelRule, levels, null, null);
+                levelRule, levels, null, null, null, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -59,7 +71,7 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             TripDetails trip) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
                 speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext, levelContext,
-                levelRule, levels, trip, null);
+                levelRule, levels, trip, null, null, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -67,7 +79,8 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
             Instant closedAt, long treatments, Integer slaMinutes, Long recurrence, String tripCode) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
-                speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, null, null, null, List.of(), null, null);
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, null, null, null, List.of(), null, null,
+                null, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -75,25 +88,32 @@ public record EngineCase(long id, UUID definitionId, String version, String name
             Instant openedAt, int level, String tripId, Double latitude, Double longitude, Double speedKmh,
             Instant closedAt, long treatments, Integer slaMinutes, Long recurrence) {
         this(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude, longitude,
-                speedKmh, closedAt, treatments, slaMinutes, recurrence, null, null, null, null, List.of(), null, null);
+                speedKmh, closedAt, treatments, slaMinutes, recurrence, null, null, null, null, List.of(), null,
+                null, null, null);
     }
 
     public EngineCase withLevel(JsonNode opening, JsonNode context, String rule, List<LevelStep> steps) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, opening, context, rule, steps,
-                trip, closingContext);
+                trip, closingContext, ignored, returnedAt);
     }
 
     public EngineCase withTrip(TripDetails details) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, details, closingContext);
+                levelContext, levelRule, levels, details, closingContext, ignored, returnedAt);
     }
 
     public EngineCase withClosing(JsonNode context) {
         return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
                 longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
-                levelContext, levelRule, levels, trip, context);
+                levelContext, levelRule, levels, trip, context, ignored, returnedAt);
+    }
+
+    public EngineCase withHold(Ignored hold, Instant returned) {
+        return new EngineCase(id, definitionId, version, name, family, assetId, openedAt, level, tripId, latitude,
+                longitude, speedKmh, closedAt, treatments, slaMinutes, recurrence, tripCode, openingContext,
+                levelContext, levelRule, levels, trip, closingContext, hold, returned);
     }
 
     public long symptomId() {

@@ -81,6 +81,10 @@ public class EngineCaseService {
     private static final Map<Integer, String> COUNTED = Map.of(1, "Under Observation", 2, "Compromised condition",
             3, "Critical condition", 4, "Code Black");
     private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
+    /** The count of the open cases a hold covers ("Ignorados"), out of the other counts. */
+    static final String COUNTED_IGNORED = "Ignored";
+    /** {@code p_icu_code} for the open cases a hold covers. */
+    public static final int IGNORED_CODE = 9;
     /** The case's trip while it runs; a finished trip has no row. */
     private static final String TRIP = """
             SELECT trip_id, asset_id,
@@ -165,18 +169,20 @@ public class EngineCaseService {
     }
 
     /**
-     * The list filters as a case filter. Without dates, the open cases; with them, those active in the range.
-     * A date without an offset is UTC.
+     * The list filters as a case filter. Without dates, the open cases no hold covers; with them, those active in
+     * the range. {@code p_icu_code} {@value #IGNORED_CODE} keeps the open cases a hold covers ("Ignorados"). A date
+     * without an offset is UTC.
      *
      * @throws IllegalArgumentException when the level is not a number or a date is not ISO-8601
      */
     public static EngineCaseStore.CaseFilter filter(Map<String, String> filters) {
         String level = text(filters, LEVEL);
         try {
-            return new EngineCaseStore.CaseFilter(text(filters, TRIP_ID), text(filters, ASSET_ID),
-                    text(filters, NAME), level == null ? null : Integer.valueOf(level), instant(text(filters, FROM)),
-                    instant(text(filters, TO)), text(filters, DRIVER), text(filters, CARRIER), text(filters, ORIGIN),
-                    text(filters, DESTINATION));
+            EngineCaseStore.CaseFilter f = new EngineCaseStore.CaseFilter(text(filters, TRIP_ID),
+                    text(filters, ASSET_ID), text(filters, NAME), level == null ? null : Integer.valueOf(level),
+                    instant(text(filters, FROM)), instant(text(filters, TO)), text(filters, DRIVER),
+                    text(filters, CARRIER), text(filters, ORIGIN), text(filters, DESTINATION));
+            return Integer.valueOf(IGNORED_CODE).equals(f.level()) ? f.withIgnored() : f;
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(LEVEL + " must be a whole number");
         }
@@ -240,8 +246,8 @@ public class EngineCaseService {
     }
 
     /**
-     * The counts by condition with the open cases added, each once: under treatment while it has an open
-     * treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
+     * The counts by condition with the open cases added, each once: under {@value #COUNTED_IGNORED} while a hold
+     * covers it, else under treatment while it has an open treatment, else at its level. {@code counts} is null when the GPS database could not be read; when the
      * open cases cannot be read, the GPS counts are answered alone.
      */
     public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
@@ -259,6 +265,14 @@ public class EngineCaseService {
         for (EngineCaseStore.OpenCount c : open) {
             String key = c.underTreatment() ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
             out.put(key, out.path(key).asLong(0) + c.count());
+        }
+        try {
+            long ignored = store.ignoredCount(tenantCode);
+            if (ignored > 0) {
+                out.put(COUNTED_IGNORED, out.path(COUNTED_IGNORED).asLong(0) + ignored);
+            }
+        } catch (RuntimeException e) {
+            LOG.warnf(e, "Ignored cases not counted: tenant=%s", tenantCode);
         }
         return out;
     }
@@ -415,7 +429,28 @@ public class EngineCaseService {
         r.put("carrier", trip == null ? null : trip.carrier());
         r.put("origin", trip == null ? null : trip.origin());
         r.put("destination", trip == null ? null : trip.destination());
+        putHold(r, c);
         return r;
+    }
+
+    /**
+     * {@code ignored}: the hold that covers the case, with {@code until} null while it lasts until the trip ends;
+     * {@code returned_after_ignore_at}: when the case came back to the tower from its latest hold ("Vuelve tras
+     * ignorar"), while it is open and not held again.
+     */
+    private static void putHold(ObjectNode out, EngineCase c) {
+        EngineCase.Ignored h = c.ignored();
+        if (h != null && c.closedAt() == null) {
+            ObjectNode ignored = out.putObject("ignored");
+            ignored.put("treatment_id", h.treatmentId());
+            ignored.put("since", h.since().toString());
+            ignored.put("until", h.until() == null ? null : h.until().toString());
+            ignored.put("until_trip_end", h.untilTripEnd());
+            ignored.put("scope", h.scope());
+            ignored.put("by", h.by());
+        } else if (c.returnedAt() != null && c.closedAt() == null) {
+            out.put("returned_after_ignore_at", c.returnedAt().toString());
+        }
     }
 
     /** The treatment page's header: the case, and its trip when it had one. */
@@ -453,6 +488,7 @@ public class EngineCaseService {
         symptom.put("opened_at", c.openedAt().toString());
         symptom.put("started_at", start);
         symptom.put("duration_sec", Duration.between(start(c), end(c)).toSeconds());
+        putHold(symptom, c);
         out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
         trip.put(POSITION_ASSET_ID, c.assetId());
@@ -636,6 +672,10 @@ public class EngineCaseService {
             }
             assignedTo = t.closedBy() != null ? t.closedBy() : t.openedBy();
             t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> rows.add(timelineRow(a)));
+            if (t.status() == TreatmentStatus.CLOSED && t.resolution() != null && HoldService.ENDINGS.contains(t.resolution())
+                    && t.actions().stream().anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
+                rows.add(holdEnd(t));
+            }
         }
         for (JsonNode entry : out.path("timeline")) {
             for (JsonNode agg : entry.path(CONDITIONS_AGG)) {
@@ -658,6 +698,36 @@ public class EngineCaseService {
             description.put("message", a.outcomeLabel());
             description.put("driver_response", a.note());
         }
+        row.put("at", a.performedAt() == null ? null : a.performedAt().toInstant().toString());
+        row.put("by", a.performedBy());
+        if (a.kind() == ActionKind.IGNORE) {
+            boolean tripEnd = Boolean.TRUE.equals(details(a).get(HoldService.UNTIL_TRIP_END));
+            row.put("until_trip_end", tripEnd);
+            row.put("ignored_until", tripEnd || a.performedAt() == null || a.durationSeconds() == null ? null
+                    : a.performedAt().toInstant().plusSeconds(a.durationSeconds()).toString());
+            Object scope = details(a).get(HoldService.SCOPE);
+            row.put("scope", scope == null ? null : scope.toString());
+        }
+        return row;
+    }
+
+    private static Map<String, Object> details(TreatmentAction a) {
+        return a.details() == null ? Map.of() : a.details();
+    }
+
+    /**
+     * The end of a hold: {@code resolution} says how (resolved after ignore, back in the tower, or closed with the
+     * trip), {@code by} who lifted it ({@value HoldService#SYSTEM} when its time ran out).
+     */
+    private static ObjectNode holdEnd(TreatmentView t) {
+        ObjectNode row = JSON.objectNode();
+        row.put("treatment_type", "fin de ignorar");
+        row.put("resolution", t.resolution());
+        row.put("at", t.closedAt() == null ? null : t.closedAt().toInstant().toString());
+        row.put("by", t.closedBy());
+        ObjectNode description = row.putObject("description");
+        description.put("message", t.resolution());
+        description.putNull("driver_response");
         return row;
     }
 

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.api;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.cases.HoldService;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import io.quarkus.security.PermissionsAllowed;
@@ -44,6 +45,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
 
     private final TreatmentService treatments;
     private final EngineCaseService cases;
+    private final HoldService holds;
 
     @Inject
     public OrgControlTowerTreatmentsResource(
@@ -52,10 +54,12 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             TreatmentService treatments,
-            EngineCaseService cases) {
+            EngineCaseService cases,
+            HoldService holds) {
         super(tenantContext, organizationContext, roleService, identity);
         this.treatments = treatments;
         this.cases = cases;
+        this.holds = holds;
     }
 
     @GET
@@ -144,6 +148,24 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
                 cases.close(tenant, closed.symptomId(), actor);
             }
             return Response.ok(closed).build();
+        });
+    }
+
+    @POST
+    @Path("/treatments/{treatmentId}/resume")
+    @Operation(operationId = "resumeTreatment", summary = "Lift an \"Ignorar condición\" hold before it ends",
+            description = "The case is checked as when the hold runs out: closed by its symptom's rule, or back in "
+                    + "the tower at its level. 409 when the treatment is not an open hold.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> resume(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("treatmentId") String treatmentId) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> {
+            holds.resume(tenant, actor, treatmentId);
+            return Response.ok(treatments.get(tenant, treatmentId)).build();
         });
     }
 

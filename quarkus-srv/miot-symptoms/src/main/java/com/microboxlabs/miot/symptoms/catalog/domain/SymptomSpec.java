@@ -2,6 +2,10 @@ package com.microboxlabs.miot.symptoms.catalog.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 /**
@@ -75,7 +79,42 @@ public record SymptomSpec(
      * @param when    CEL over {@code measure} and {@code held_s}
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Level(int icu, boolean applies, String when, Response response) {
+    public record Level(int icu, boolean applies, String when, Response response,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Ignore ignore) {
+
+        /** A level without an ignore policy: everything allowed. */
+        public Level(int icu, boolean applies, String when, Response response) {
+            this(icu, applies, when, response, null);
+        }
+    }
+
+    /**
+     * What "Ignorar condición" allows at a level. Each field null for the default.
+     *
+     * @param allowed      the operator may ignore the case at this level; default true
+     * @param maxDuration  the longest hold, ISO-8601 (for example {@code PT30M}); default none. With it, "until the
+     *                     trip ends" is not offered
+     * @param noteRequired a note is required whatever the reason; default only for "Otro"
+     * @param scopes       the scopes offered ({@code CASE}, {@code SYMPTOM}, {@code ALL}); default all
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Ignore(Boolean allowed, @JsonProperty("max_duration") String maxDuration,
+            @JsonProperty("note_required") Boolean noteRequired, List<String> scopes) {
+
+        public static final List<String> SCOPES = List.of("CASE", "SYMPTOM", "ALL");
+
+        /** The longest hold, or null for none. */
+        public Duration maxDurationValue() {
+            if (maxDuration == null || maxDuration.isBlank()) {
+                return null;
+            }
+            try {
+                return Duration.parse(maxDuration.trim());
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("ignore.max_duration must be an ISO-8601 duration");
+            }
+        }
     }
 
     /**

@@ -19,7 +19,8 @@ import java.util.function.Supplier;
  * The SLA timer's reads over {@code miot_symptoms.signal_transitions} and its marks in
  * {@code miot_symptoms.sla_expiry}. A level has an SLA when its version's response has {@code operator} and
  * {@code slaMinutes}. A case is attended at its level when a treatment on it is open, or was opened at or after
- * the case reached the level.
+ * the case reached the level. A case an "Ignorar condición" hold covers is attended; when the hold ends with the
+ * case open, its SLA runs again from then, as if it had reached its level at that moment.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -29,7 +30,8 @@ public class PgSlaStore implements SlaStore {
             WITH open_case AS (
                 SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.trip_id,
                        o.latitude, o.longitude, o.speed_kmh,
-                       COALESCE(l.level, o.level) AS current_level, COALESCE(l.at, o.at) AS level_since
+                       COALESCE(l.level, o.level) AS current_level,
+                       GREATEST(COALESCE(l.at, o.at), ret.returned_at) AS level_since
                   FROM miot_symptoms.signal_transitions o
                   LEFT JOIN LATERAL (
                       SELECT c.level, c.at FROM miot_symptoms.signal_transitions c
@@ -37,12 +39,14 @@ public class PgSlaStore implements SlaStore {
                          AND c.asset_id = o.asset_id AND c.state = 'ACTIVE' AND c.kind = 'LEVEL_CHANGED'
                          AND c.id > o.id
                        ORDER BY c.id DESC LIMIT 1) l ON true
+                  LEFT JOIN LATERAL (%s) ret ON true
                  WHERE o.kind = 'OPENED' AND o.state = 'ACTIVE' AND o.at > $1
                    AND NOT EXISTS (
                        SELECT 1 FROM miot_symptoms.signal_transitions c
                         WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
                           AND c.asset_id = o.asset_id AND c.state = 'ACTIVE' AND c.kind = 'CLOSED'
-                          AND c.id > o.id)),
+                          AND c.id > o.id)
+                   AND NOT EXISTS (%s)),
             with_sla AS (
                 SELECT x.*, (SELECT (lv->'response'->>'slaMinutes')::integer
                                FROM miot_symptoms.symptom_version v, jsonb_array_elements(v.spec->'levels') lv
@@ -64,7 +68,7 @@ public class PgSlaStore implements SlaStore {
                         AND (t.status = 'OPEN' OR t.opened_at >= y.level_since))
              ORDER BY y.level_since
              LIMIT $3
-            """;
+            """.formatted(HoldSql.returned("o"), HoldSql.active("o"));
 
     private static final String MARK = """
             INSERT INTO miot_symptoms.sla_expiry (tenant_code, case_id, level, sla_minutes, expired_at)

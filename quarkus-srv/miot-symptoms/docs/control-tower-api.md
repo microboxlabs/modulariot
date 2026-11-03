@@ -30,7 +30,8 @@ replaces the `store` package implementations without changing this contract.
 | `getTreatment` | `GET /treatments/{treatmentId}` | |
 | `addTreatmentAction` | `POST /treatments/{treatmentId}/actions` | 201. Only while `OPEN` |
 | `closeTreatment` | `POST /treatments/{treatmentId}/close` | Body `{resolution, note}`, optional. Needs at least one action |
-| `cancelTreatment` | `POST /treatments/{treatmentId}/cancel` | Body `{reason}`, optional |
+| `cancelTreatment` | `POST /treatments/{treatmentId}/cancel` | Body `{reason}`, optional. 409 on an engine case's hold |
+| `resumeTreatment` | `POST /treatments/{treatmentId}/resume` | "Reanudar": ends a hold early, as if its time ran out. 409 when the treatment is not an open hold |
 
 `type` is the form the episode was opened from: `CALL`, `IGNORE_CONDITION`,
 `INVALIDATE_SYMPTOM`. An episode opened as a call can end with an ignore or
@@ -51,7 +52,57 @@ Action body:
 | `message` | string | What the operator told the contact |
 | `note` | string | What came back, or the operator's note |
 | `tags` | string[] | Option ids from `call_tags` |
-| `details` | object | Anything else, e.g. `{"durationSeconds": 1800}` on an ignore |
+| `details` | object | Anything else. On an engine case's `IGNORE`: `scope` and `until_trip_end` (below) |
+
+### Ignorar condición (engine cases)
+
+An `IGNORE` on an engine case (negative symptom id) puts the case on hold. The
+treatment stays `OPEN` while the hold lasts; it is the hold. No other table.
+
+| Field | Meaning |
+|---|---|
+| `durationSeconds` | How long, at most a day. Required unless `details.until_trip_end` |
+| `details.scope` | `CASE` (default): this case. `SYMPTOM`: also any case of the same symptom on the vehicle. `ALL`: any case of any symptom on the vehicle |
+| `details.until_trip_end` | Hold until the case's trip ends. Needs a running trip |
+| `note` | Required for "Otro", or when the level's policy says so |
+
+The server adds `case_level`, `case_condition` and `until` to the stored
+details. 400 when the request breaks the policy, 409 when the case is closed or
+already on hold.
+
+While on hold:
+
+| Aspect | Behaviour |
+|---|---|
+| Symptom list and counts | Out of the active list and counts. `p_icu_code=9` lists the held cases; the counts add `Ignored` |
+| Row and header | `ignored: {treatment_id, since, until, until_trip_end, scope, by}`; `until` is null until the trip ends |
+| Level | Does not rise; the case may still close by its symptom's rule |
+| New cases in scope | Do not open. The evaluator records a `HELD` transition as evidence, once per run |
+| SLA | Counts as attended |
+
+When the hold ends (time, `resumeTreatment`, trip end) the treatment closes
+with a `resolution`:
+
+| `resolution` | When |
+|---|---|
+| `resolved_after_ignore` | The case had closed by its symptom's rule |
+| `returned_after_ignore` | The case is still open: back in the tower at its level, with `returned_after_ignore_at` on its row. The next level and a new SLA count from then |
+| `ignored` | The trip ended: the held cases closed |
+
+A timer ends the due holds every 30 s (`miot.symptoms.holds.every`, off with
+`miot.symptoms.holds.enabled=false`). The timeline shows the `IGNORE` with
+`ignored_until`, `until_trip_end` and `scope`, and the end as a
+`fin de ignorar` row with `resolution`, `at` and `by` (`system` when it ran
+out).
+
+Each level of a symptom version may set `ignore`:
+
+| Field | Default |
+|---|---|
+| `allowed` | `true` |
+| `max_duration` | none; ISO-8601, e.g. `PT30M`. With it, "until the trip ends" is refused |
+| `note_required` | only for "Otro" |
+| `scopes` | all of `CASE`, `SYMPTOM`, `ALL` |
 
 ## Contacts
 
@@ -209,7 +260,8 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | Add contact | `createContact` |
 | "Guardar y hacer otra llamada" | `addTreatmentAction {kind: CALL}` |
 | "Finalizar tratamiento" | `addTreatmentAction {kind: CALL}` then `closeTreatment` |
-| Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, details.durationSeconds}` then `closeTreatment` |
+| Ignore, from the menu or mid-call | `addTreatmentAction {kind: IGNORE, outcomeKey, durationSeconds, details.scope}`; the treatment stays open while the hold lasts |
+| "Reanudar" | `resumeTreatment` |
 | Invalidate | `addTreatmentAction {kind: INVALIDATE, outcomeKey, note}` then `closeTreatment` |
 | Panel closed with nothing recorded | `cancelTreatment` |
 | Timeline and symptom card | `listSymptomTreatments` |

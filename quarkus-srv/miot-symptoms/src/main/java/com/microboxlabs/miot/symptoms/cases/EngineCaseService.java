@@ -48,7 +48,9 @@ import org.jboss.logging.Logger;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class EngineCaseService {
 
-    private static final Set<String> PAGING = Set.of("p_page", "p_page_size");
+    private static final String PAGE = "p_page";
+    private static final Set<String> PAGING = Set.of(PAGE, "p_page_size");
+    private static final String POSITION_ASSET_ID = "asset_id";
     private static final String TRIP_ID = "p_trip_id";
     private static final String ASSET_ID = "p_asset_id";
     private static final String NAME = "p_symptom_name";
@@ -130,7 +132,7 @@ public class EngineCaseService {
                 && notBlank(filters.get(k)))) {
             return false;
         }
-        String page = filters.get("p_page");
+        String page = filters.get(PAGE);
         return page == null || page.isBlank() || page.trim().equals("1") || page.trim().equals("0");
     }
 
@@ -249,8 +251,8 @@ public class EngineCaseService {
                 .noneMatch(k -> GPS_ONLY_FILTERS.contains(k) && notBlank(filters.get(k)));
         List<EngineCase> found = answerable ? store.list(tenantCode, filter(filters)) : List.of();
         int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
-        int page = Math.max(1, number(filters.get("p_page"), 1));
-        int pages = Math.max(1, (found.size() + size - 1) / size);
+        int page = Math.max(1, number(filters.get(PAGE), 1));
+        int pages = Math.max(1, Math.ceilDiv(found.size(), size));
         ArrayNode rows = JSON.arrayNode();
         found.stream().skip((long) (page - 1) * size).limit(size).forEach(c -> rows.add(row(c)));
         ObjectNode out = JSON.objectNode();
@@ -315,7 +317,7 @@ public class EngineCaseService {
                 continue;
             }
             ObjectNode position = ((ObjectNode) p).deepCopy();
-            String asset = position.hasNonNull("asset_id") ? position.get("asset_id").asText()
+            String asset = position.hasNonNull(POSITION_ASSET_ID) ? position.get(POSITION_ASSET_ID).asText()
                     : position.path("assetid").asText(null);
             List<EngineCaseStore.OpenLevel> open = asset == null ? List.of() : byAsset.getOrDefault(asset, List.of());
             position.remove(List.of("speed_limit", "lost_signal", "symptoms", "symptom_condition"));
@@ -335,7 +337,7 @@ public class EngineCaseService {
      */
     public JsonNode summary(String tenantCode) {
         Map<Integer, Long> byLevel = new HashMap<>();
-        store.openCounts(tenantCode).forEach(c -> byLevel.merge(Math.max(1, Math.min(4, c.level())), c.count(),
+        store.openCounts(tenantCode).forEach(c -> byLevel.merge(Math.clamp(c.level(), 1, 4), c.count(),
                 Long::sum));
         ObjectNode out = JSON.objectNode();
         ArrayNode sections = out.putArray("sections");
@@ -369,7 +371,7 @@ public class EngineCaseService {
         r.put("type_of_incidence", c.name());
         r.put(ICU_CODE, String.valueOf(c.level()));
         r.put(ICU_CONDITION, c.treatments() > 0 ? UNDER_TREATMENT : condition(c.level()));
-        r.put("asset_id", c.assetId());
+        r.put(POSITION_ASSET_ID, c.assetId());
         r.put("trip_id", c.tripId());
         r.put("trip_code", c.tripCode());
         r.put("start_time", c.openedAt().toString());
@@ -422,7 +424,7 @@ public class EngineCaseService {
         symptom.put("duration_sec", Duration.between(start(c), end(c)).toSeconds());
         out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
-        trip.put("asset_id", c.assetId());
+        trip.put(POSITION_ASSET_ID, c.assetId());
         trip.put("trip_id", c.tripId());
         trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);

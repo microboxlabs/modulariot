@@ -66,6 +66,18 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void engineOnlyPagingAcceptsLargeSizesAndPagesWithoutWrapping() {
+        store.add(panic(12, "vehicle-demo"));
+        store.add(panic(13, "vehicle-other"));
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_page_size", "2147483647"));
+        assertEquals(2, page.path("data").size());
+        assertEquals(1, page.path("total_pages").asInt());
+        assertEquals(0, service.casesPage(TENANT,
+                Map.of("p_page", "2147483647", "p_page_size", "2147483647")).path("data").size());
+    }
+
+    @Test
     void theSignalWindowRunsFromAnHourBeforeTheCaseUntilNow() {
         store.add(at(12, "DEMO01", OPENED, null));
 

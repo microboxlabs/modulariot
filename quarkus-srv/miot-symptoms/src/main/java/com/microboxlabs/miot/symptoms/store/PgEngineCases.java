@@ -36,6 +36,7 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final Logger LOG = Logger.getLogger(PgEngineCases.class);
     private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+    private static final String FROM_SUBQUERY = " FROM (";
 
     private static final String CASES = """
             SELECT o.id, o.tenant_code, o.definition_id, o.version, o.asset_id, o.at, o.level, o.trip_id,
@@ -95,9 +96,9 @@ public class PgEngineCases implements EngineCaseStore {
             + ") z WHERE ($7::int IS NULL OR z.current_level = $7)"
             + " AND ($5::timestamptz IS NULL OR z.closed_at IS NULL OR z.closed_at >= $5) ORDER BY z.at DESC LIMIT 200";
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
-            + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
+            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y GROUP BY 1, 2";
     private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
-            + " FROM (" + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y ORDER BY y.asset_id, y.at DESC";
+            + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL) y ORDER BY y.asset_id, y.at DESC";
     /**
      * One case with why it is at its level: the context of the row that set the level (its latest level change
      * before it closed, else its opening), that level's rule in the version that opened it, and the level of each
@@ -140,7 +141,7 @@ public class PgEngineCases implements EngineCaseStore {
             """;
     private static final String OPENED = CASES + " AND o.at >= $2 AND o.at < $3";
     private static final String OPENED_COUNTS = "SELECT y.definition_id, y.current_level, count(*) AS n"
-            + " FROM (" + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
+            + FROM_SUBQUERY + SELECT.formatted(OPENED) + ") y GROUP BY 1, 2";
     /** When the case reached its current level: its latest level change before it closed, else its opening. */
     private static final String LEVEL_SINCE = """
             SELECT z.*, COALESCE((SELECT l.at FROM miot_symptoms.signal_transitions l

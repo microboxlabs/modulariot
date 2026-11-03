@@ -33,7 +33,7 @@ import org.jboss.logging.Logger;
  * {@code symptoms:samples:<tenant>} holds the newest {@link #KEEP} and expires
  * {@link #TTL} after the last one; without Redis they are kept in memory. Only
  * the paths of the rule editor's fields ({@link SignalFields#fields()}) are
- * saved.
+ * saved. The event types of every signal are counted ({@link EventTypes}).
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -70,6 +70,7 @@ public class SignalSamples {
     private final Clock clock;
     private final Map<String, Instant> recorded = new ConcurrentHashMap<>();
     private final Map<String, Deque<String>> memory = new ConcurrentHashMap<>();
+    private final EventTypes eventTypes;
 
     @Inject
     SignalSamples(EvaluatorRedis redis) {
@@ -79,6 +80,7 @@ public class SignalSamples {
     SignalSamples(RedisAPI redis, Clock clock) {
         this.redis = redis;
         this.clock = clock;
+        this.eventTypes = new EventTypes(redis, clock);
     }
 
     /** Samples kept in memory. */
@@ -86,8 +88,12 @@ public class SignalSamples {
         return new SignalSamples(null, Clock.systemUTC());
     }
 
-    /** Keeps the signal as a sample of the organization, unless one was kept less than {@link #EVERY} ago. */
+    /**
+     * Counts the event types of the signal's frame ({@link EventTypes}), and keeps the signal as a sample of the
+     * organization unless one was kept less than {@link #EVERY} ago.
+     */
     public void keep(String tenantCode, Map<String, Object> signal) {
+        eventTypes.count(tenantCode, signal);
         if (!admit(tenantCode, clock.instant())) {
             return;
         }
@@ -148,6 +154,11 @@ public class SignalSamples {
             }
         }
         return raw.stream().map(s -> Map.<String, Object>of(SignalFields.ROOT, read(s))).toList();
+    }
+
+    /** The event types the organization's frames carried in the last {@code days} days, most frequent first. */
+    public List<EventTypes.Count> eventTypes(String tenantCode, int days) {
+        return eventTypes.recent(tenantCode, days);
     }
 
     /** Samples with the signal's whole shape, for organizations without recent signals. */

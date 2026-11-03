@@ -32,9 +32,14 @@ export type ReasonSummary = {
 type Value = string | number | boolean;
 
 /** Lost-signal flags shown only when true, with their extra details. */
-const FLAGS = ["low_coverage_zone", "cohort_outage", "returned", "backfill"];
+const FLAGS = new Set([
+  "low_coverage_zone",
+  "cohort_outage",
+  "returned",
+  "backfill",
+]);
 /** Known values with a label; the others are shown by their path. */
-const LABELLED = ["ratio", "expected_s", "nearby_reporting", "sender"];
+const LABELLED = new Set(["ratio", "expected_s", "nearby_reporting", "sender"]);
 /** Shown elsewhere in the card, or positions that the card leaves out. */
 const SKIPPED = new Set([
   "check.signal_lost_minutes",
@@ -114,7 +119,7 @@ function detailLine(path: string, value: Value, dict: I18nRecord): ReasonLine {
       value: String(value),
     };
   }
-  if (path.startsWith("check.loss.") && LABELLED.includes(key)) {
+  if (path.startsWith("check.loss.") && LABELLED.has(key)) {
     let text = shown(value, dict);
     if (key === "ratio" && typeof value === "number")
       text = `${value.toFixed(1)}×`;
@@ -150,7 +155,7 @@ export function summarizeReason(
   for (const [path, value] of values) {
     if (SKIPPED.has(path)) continue;
     const key = path.split(".").pop() ?? path;
-    if (path === `check.loss.${key}` && FLAGS.includes(key)) {
+    if (path === `check.loss.${key}` && FLAGS.has(key)) {
       if (value === true) flags.push(flagLine(key, values, dict));
       continue;
     }

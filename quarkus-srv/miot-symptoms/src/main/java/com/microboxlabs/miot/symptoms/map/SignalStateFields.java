@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import org.jboss.logging.Logger;
 
 /** The lost-signal detector's state on the map's positions, as {@code signal} on each. */
 public final class SignalStateFields {
@@ -18,6 +19,7 @@ public final class SignalStateFields {
     static final String ASSET = "assetid";
     static final String SIGNAL = "signal";
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final Logger LOG = Logger.getLogger(SignalStateFields.class);
 
     private SignalStateFields() {
     }
@@ -37,7 +39,7 @@ public final class SignalStateFields {
                 ids.add(p.path(ASSET).asText());
             }
         });
-        Map<String, SignalState> found = states == null || ids.isEmpty() ? Map.of() : states.states(ids, now);
+        Map<String, SignalState> found = read(states, ids, now);
         out.forEach(p -> {
             if (p instanceof ObjectNode o) {
                 SignalState s = o.path(ASSET).isTextual() ? found.get(o.path(ASSET).asText()) : null;
@@ -62,7 +64,20 @@ public final class SignalStateFields {
         if (!ours) {
             throw new NoSuchElementException("Asset not found");
         }
-        return node(states == null ? SignalState.UNKNOWN : states.state(assetId, now));
+        return node(read(states, List.of(assetId), now).getOrDefault(assetId, SignalState.UNKNOWN));
+    }
+
+    /** A detector-store outage must not hide the organization's map positions. */
+    private static Map<String, SignalState> read(SignalStates states, List<String> ids, Instant now) {
+        if (states == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return states.states(ids, now);
+        } catch (RuntimeException e) {
+            LOG.debugf("Map: signal states not read (%s)", e.getClass().getSimpleName());
+            return Map.of();
+        }
     }
 
     static JsonNode node(SignalState s) {

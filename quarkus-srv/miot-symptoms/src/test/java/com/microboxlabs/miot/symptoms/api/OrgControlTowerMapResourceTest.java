@@ -582,6 +582,25 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
+    void aFailedDetectorReadLeavesPositionsVisibleAndSignalUnknown() {
+        positionsOf("V1");
+        SignalStates unavailable = (ids, now) -> {
+            throw new IllegalStateException("Store unavailable");
+        };
+        OrgControlTowerMapResource subject = resource(Optional.of("http://pgrest.test"),
+                Set.of(ControlTowerAccessCatalog.VIEW), null, unavailable);
+        Response positions = call(subject.positions(ORG));
+        assertEquals(200, positions.getStatus());
+        JsonNode body = (JsonNode) positions.getEntity();
+        assertEquals("V1", body.get(0).path("assetid").asText());
+        assertEquals("unknown", body.get(0).path("signal").path("state").asText());
+        Response signal = call(subject.assetSignal(ORG, "V1"));
+        assertEquals(200, signal.getStatus());
+        assertEquals("unknown", ((JsonNode) signal.getEntity()).path("state").asText());
+        assertEquals(404, call(subject.assetSignal(ORG, "OTHER")).getStatus());
+    }
+
+    @Test
     void theCachedPositionsAreNotChangedBySignalStates() {
         positionsOf("AB12");
         OrgControlTowerMapResource withSignals = resource(Optional.of("http://pgrest.test"),

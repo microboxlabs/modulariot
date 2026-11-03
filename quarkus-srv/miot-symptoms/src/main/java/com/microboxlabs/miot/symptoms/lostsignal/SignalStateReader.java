@@ -41,7 +41,7 @@ public class SignalStateReader implements SignalStates {
         if (v.seen() != null && Duration.between(v.seen(), now).compareTo(profiles.settings().profileTtl()) > 0) {
             return SignalState.UNKNOWN; // the profile expired, as in Redis
         }
-        Duration expected = seen.watch() != null ? Duration.ofSeconds(seen.watch().expectedS())
+        Duration expected = seen.onTrip() ? Duration.ofSeconds(seen.watch().expectedS())
                 : profiles.expected(v, seen.sender() == null ? SenderProfile.empty() : seen.sender());
         Duration silence = Duration.between(v.arrival(), now);
         if (silence.isNegative()) {

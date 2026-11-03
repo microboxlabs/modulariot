@@ -40,14 +40,16 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public Map<String, Seen> seen(Collection<String> assetIds) {
+    public synchronized Map<String, Seen> seen(Collection<String> assetIds) {
         Map<String, Seen> out = new LinkedHashMap<>();
         for (String id : assetIds) {
             VehicleProfile v = vehicles.get(id);
             if (v != null) {
-                Watch w = watches.get(id);
-                String sender = v.sender() != null ? v.sender() : w == null ? null : w.sender();
-                out.put(id, new Seen(v, w, w != null || sender == null ? null : senders.get(sender)));
+                Seen seen = new Seen(v, watches.get(id), null);
+                if (!seen.onTrip() && v.sender() != null) {
+                    seen = new Seen(v, seen.watch(), senders.get(v.sender()));
+                }
+                out.put(id, seen);
             }
         }
         return out;

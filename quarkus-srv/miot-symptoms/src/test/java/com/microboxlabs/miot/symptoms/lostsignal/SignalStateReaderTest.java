@@ -70,7 +70,7 @@ class SignalStateReaderTest {
     }
 
     @Test
-    void aLateFrameNeitherMovesOfflineSinceBackNorBringsTheVehicleBack() {
+    void aLateFrameKeepsTheNewestFrameAndItsArrival() {
         profiles.observe(frame("V1", "S1", 0, 10, 50));
         profiles.observe(frame("V1", "S1", 600, 610, 50));
         Instant now = T0.plusSeconds(2000);
@@ -81,8 +81,47 @@ class SignalStateReaderTest {
 
         assertEquals(Status.OFFLINE, lost.status());
         assertEquals(T0.plusSeconds(600), lost.offlineSince());
-        assertEquals(Status.OFFLINE, afterLate.status(), "a late frame does not count as the signal returning");
+        assertEquals(Status.OFFLINE, afterLate.status(), "the silence still exceeds the learned threshold");
         assertEquals(T0.plusSeconds(600), afterLate.offlineSince());
+    }
+
+    @Test
+    void offTripALateFrameCanChangeTheLiveDelayButNeverTheNewestFrame() {
+        for (int i = 0; i < SETTINGS.minSamples() - 2; i++) {
+            profiles.observe(frame("OTHER", "S1", i * 30, i * 30 + 600, 50));
+        }
+        profiles.observe(frame("V1", "S1", 600, 610, 50));
+        SignalState before = state("V1", T0.plusSeconds(800));
+        assertEquals(Status.OFFLINE, before.status());
+        assertEquals(T0.plusSeconds(600), before.offlineSince());
+
+        profiles.observe(frame("V1", "S1", 100, 700, 50));
+        SignalState after = state("V1", T0.plusSeconds(800));
+        assertEquals(Status.ONLINE, after.status(), "the twentieth sample replaces the default sender delay");
+        assertEquals(720, after.expectedS());
+        assertEquals(before.lastFrameAt(), after.lastFrameAt());
+        assertEquals(before.silenceS(), after.silenceS());
+        assertEquals(before.offlineSince(), state("V1", T0.plusSeconds(1400)).offlineSince());
+    }
+
+    @Test
+    void anEmptyTripWatchUsesTheLiveSenderDelayWhileAnActiveWatchKeepsItsThreshold() {
+        for (int i = 0; i < SETTINGS.minSamples(); i++) {
+            profiles.observe(frame("OTHER", "S1", i * 30, i * 30 + 600, 50));
+        }
+        ArrivalProfiles.Arrival arrival = profiles.observe(frame("V1", "S1", 0, 600, 50));
+        Watch empty = new Watch(Map.of(), 42, "S1");
+        store.save("V1", arrival.vehicle(), "S1", arrival.sender(),
+                LossStore.Schedule.clear(T0.plusSeconds(600), empty), null, null);
+
+        assertEquals(arrival.sender(), store.seen(List.of("V1")).get("V1").sender());
+        assertEquals(720, state("V1", T0.plusSeconds(700)).expectedS());
+
+        Watch active = new Watch(Map.of("org-a", Map.of("trip_id", "T1")), 42, "S1");
+        store.save("V1", arrival.vehicle(), "S1", arrival.sender(),
+                LossStore.Schedule.at(T0.plusSeconds(642), active), null, null);
+        assertNull(store.seen(List.of("V1")).get("V1").sender());
+        assertEquals(42, state("V1", T0.plusSeconds(700)).expectedS());
     }
 
     @Test

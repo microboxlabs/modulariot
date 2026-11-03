@@ -133,7 +133,7 @@ public class RedisLossStore implements LossStore {
         Map<String, Seen> out = seen(ids, batch(seenRequests(ids)));
         Set<String> senders = new LinkedHashSet<>();
         out.values().forEach(s -> {
-            if (s.watch() == null && s.profile().sender() != null) {
+            if (!s.onTrip() && s.profile().sender() != null) {
                 senders.add(s.profile().sender());
             }
         });
@@ -150,8 +150,8 @@ public class RedisLossStore implements LossStore {
                 profiles.put(names.get(i), p);
             }
         }
-        out.replaceAll((id, s) -> s.watch() == null && s.profile().sender() != null
-                ? new Seen(s.profile(), null, profiles.get(s.profile().sender())) : s);
+        out.replaceAll((id, s) -> !s.onTrip() && s.profile().sender() != null
+                ? new Seen(s.profile(), s.watch(), profiles.get(s.profile().sender())) : s);
         return out;
     }
 

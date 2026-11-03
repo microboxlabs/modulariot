@@ -90,7 +90,9 @@ The maps and the fleet directory show whether a vehicle's signal is arriving, by
 | `silence_s` | Now − arrival of the newest frame |
 | `expected_s` | On a trip, the watch's expected silence, the one the deadline was set with, so the state turns offline when the detector's deadline passes. Off a trip, the vehicle's expected gap plus its sender's delivery delay, from the profiles |
 
-The vehicle profile keeps the newest frame's sender (`sender`) for the off-trip case; a profile written before it falls back to the default delivery delay. Many vehicles are read in two pipelines: one `HMGET p w` per vehicle, then one `GET` per sender of the vehicles without a watch.
+The vehicle profile keeps the newest frame's sender (`sender`) for the off-trip case; a profile written before it falls back to the default delivery delay. Many vehicles are read in two pipelines: one `HMGET p w` per vehicle, then one `GET` per sender of the vehicles without an active trip watch. An empty-trip watch retained to clear a loss is an off-trip vehicle.
+
+Off a trip, sender profiles stay live: a late frame can change the learned delay and therefore reclassify the state, including when the sender first has enough samples. It never changes the newest frame's GPS time or arrival. On a trip, the watch's stored expected silence stays fixed until a newer frame replaces it.
 
 | Endpoint | Content |
 |---|---|

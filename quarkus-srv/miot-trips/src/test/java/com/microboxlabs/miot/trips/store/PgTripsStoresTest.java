@@ -94,6 +94,7 @@ class PgTripsStoresTest {
             "/db/migration/fleet/V0.9.0__create_fleet_directory.sql",
             "/db/migration/fleet/V0.9.9__create_fleet_resources.sql",
             "/db/migration/fleet/V0.9.10__updated_at_in_stores.sql",
+            "/db/migration/fleet/V0.9.11__current_driver_changes.sql",
             "/db/migration/trips/V0.10.0__create_trips.sql",
             "/db/migration/trips/V0.10.3__trips_lock_order.sql",
             "/db/migration/trips/V0.10.4__checks_in_services.sql",

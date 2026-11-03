@@ -52,6 +52,7 @@ public class DriverContactSync {
     static final String TAG = "conductor";
     static final String LOCK = "miot_symptoms.contact_sync:" + SOURCE;
     static final int BATCH = 200;
+    private static final String CONCURRENT_EDIT = "concurrent-edit";
     /** Rows written just before a run started may commit after it; the next run reads them again. */
     static final Duration OVERLAP = Duration.ofMinutes(2);
 
@@ -68,6 +69,10 @@ public class DriverContactSync {
 
         void skip(String reason) {
             skipped.merge(reason, 1, Integer::sum);
+        }
+
+        boolean retryNeeded() {
+            return skipped.containsKey("error") || skipped.containsKey(CONCURRENT_EDIT);
         }
 
         int skippedTotal() {
@@ -134,7 +139,9 @@ public class DriverContactSync {
         for (String tenant : tenants) {
             try {
                 Counts counts = syncTenant(tenant, floor);
-                progress.save(tenant, SOURCE, now);
+                if (!counts.retryNeeded()) {
+                    progress.save(tenant, SOURCE, now);
+                }
                 done.put(tenant, counts);
                 LOG.infof("Driver contact sync %s: created=%d filled=%d deactivated=%d skipped=%d %s "
                         + "phones-dropped=%d", tenant, counts.created, counts.filled, counts.deactivated,
@@ -258,9 +265,9 @@ public class DriverContactSync {
         if (!ACTOR.equals(c.createdBy()) || !c.active()) {
             return;
         }
-        if (contacts.updateIfUnchanged(copy(c, c.role(), c.phone(), c.methods(), c.channels(), false, c.company(),
-                c.companyRut(), c.companyTaxIdType(), c.tags()), c.updatedAt()).isEmpty()) {
-            counts.skip("concurrent-edit");
+        if (contacts.updateIfUnchanged(copy(c, c.role(), new PhoneFields(c.phone(), c.methods(), c.channels()), false,
+                new CompanyFields(c.company(), c.companyRut(), c.companyTaxIdType()), c.tags()), c.updatedAt()).isEmpty()) {
+            counts.skip(CONCURRENT_EDIT);
             return;
         }
         audit.log(c.tenantCode(), ACTOR, "contact.updated", ContactService.ENTITY, c.id(), null,
@@ -276,26 +283,53 @@ public class DriverContactSync {
             role = ROLE;
             filled.add("role");
         }
+        PhoneFields phone = fillPhone(c, d, counts, filled);
+        CompanyFields company = fillCompany(c, d, filled);
+        List<String> tags = fillTags(c, filled);
+        if (filled.isEmpty()) {
+            return;
+        }
+        if (contacts.updateIfUnchanged(copy(c, role, phone, c.active(), company, tags), c.updatedAt()).isEmpty()) {
+            counts.skip(CONCURRENT_EDIT);
+            return;
+        }
+        audit.log(c.tenantCode(), ACTOR, "contact.updated", ContactService.ENTITY, c.id(), null,
+                Map.of("source", ACTOR, "filled", List.copyOf(filled)));
+        counts.filled++;
+    }
+
+    private record PhoneFields(String phone, List<CallMethod> methods, ContactChannels channels) {
+    }
+
+    private record CompanyFields(String name, String taxId, String taxIdType) {
+    }
+
+    private PhoneFields fillPhone(Contact c, DriverDetails d, Counts counts, List<String> filled) {
         ContactChannels ch = c.channels() == null ? ContactChannels.NONE : c.channels();
-        String phone = c.phone();
         List<CallMethod> methods = c.methods() == null ? List.of() : c.methods();
-        if (phone == null && ch.phone() == null && ch.whatsapp() == null) {
-            String driverPhone = phone(d.phone(), settings.countryCode());
-            if (driverPhone != null) {
-                phone = driverPhone;
-                ch = new ContactChannels(driverPhone, driverPhone, ch.meet(), ch.teams(), ch.email());
-                List<CallMethod> more = new ArrayList<>(methods);
-                for (CallMethod m : List.of(CallMethod.PHONE, CallMethod.WHATSAPP)) {
-                    if (!more.contains(m)) {
-                        more.add(m);
-                    }
-                }
-                methods = more;
-                filled.add("phone");
-            } else if (trimOrNull(d.phone()) != null) {
+        PhoneFields current = new PhoneFields(c.phone(), methods, ch);
+        if (c.phone() != null || ch.phone() != null || ch.whatsapp() != null) {
+            return current;
+        }
+        String driverPhone = phone(d.phone(), settings.countryCode());
+        if (driverPhone == null) {
+            if (trimOrNull(d.phone()) != null) {
                 counts.phonesDropped++;
             }
+            return current;
         }
+        List<CallMethod> more = new ArrayList<>(methods);
+        for (CallMethod m : List.of(CallMethod.PHONE, CallMethod.WHATSAPP)) {
+            if (!more.contains(m)) {
+                more.add(m);
+            }
+        }
+        filled.add("phone");
+        return new PhoneFields(driverPhone, more,
+                new ContactChannels(driverPhone, driverPhone, ch.meet(), ch.teams(), ch.email()));
+    }
+
+    private static CompanyFields fillCompany(Contact c, DriverDetails d, List<String> filled) {
         String carrier = trimOrNull(d.carrierLegalName());
         String company = c.company();
         if (blank(company) && carrier != null) {
@@ -311,6 +345,10 @@ public class DriverContactSync {
             companyType = carrierType;
             filled.add("companyRut");
         }
+        return new CompanyFields(company, companyRut, companyType);
+    }
+
+    private static List<String> fillTags(Contact c, List<String> filled) {
         List<String> tags = c.tags() == null ? List.of() : c.tags();
         if (tags.stream().noneMatch(t -> t.trim().equalsIgnoreCase(TAG))) {
             List<String> more = new ArrayList<>(tags);
@@ -318,25 +356,14 @@ public class DriverContactSync {
             tags = more;
             filled.add("tags");
         }
-        if (filled.isEmpty()) {
-            return;
-        }
-        if (contacts.updateIfUnchanged(copy(c, role, phone, methods, ch, c.active(), company, companyRut, companyType,
-                tags), c.updatedAt()).isEmpty()) {
-            counts.skip("concurrent-edit");
-            return;
-        }
-        audit.log(c.tenantCode(), ACTOR, "contact.updated", ContactService.ENTITY, c.id(), null,
-                Map.of("source", ACTOR, "filled", List.copyOf(filled)));
-        counts.filled++;
+        return tags;
     }
 
-    private static Contact copy(Contact c, String role, String phone, List<CallMethod> methods,
-            ContactChannels channels, boolean active, String company, String companyRut, String companyType,
+    private static Contact copy(Contact c, String role, PhoneFields phone, boolean active, CompanyFields company,
             List<String> tags) {
-        return new Contact(c.id(), c.tenantCode(), c.name(), role, phone, methods, active, c.notes(), c.createdBy(),
-                c.createdAt(), null, c.nationalId(), c.nationalIdType(), company, c.position(), channels, tags,
-                c.memberUserId(), c.provisional(), companyRut, companyType);
+        return new Contact(c.id(), c.tenantCode(), c.name(), role, phone.phone(), phone.methods(), active, c.notes(),
+                c.createdBy(), c.createdAt(), null, c.nationalId(), c.nationalIdType(), company.name(), c.position(),
+                phone.channels(), tags, c.memberUserId(), c.provisional(), company.taxId(), company.taxIdType());
     }
 
     /** A contact this sync made or tagged as a driver. */
@@ -345,13 +372,13 @@ public class DriverContactSync {
                 || (c.tags() != null && c.tags().stream().anyMatch(t -> t.trim().equalsIgnoreCase(TAG)));
     }
 
-    /** A RUT with a valid check digit; an 8-digit DNI when the carrier's tax id is a Peruvian RUC; otherwise none. */
+    /** An 8-digit DNI for a Peruvian carrier, otherwise a RUT with a valid check digit. */
     static String nationalIdType(String normalized, String carrierTaxId) {
-        if (ContactService.isValidRut(normalized)) {
-            return Contact.DEFAULT_NATIONAL_ID_TYPE;
-        }
         if ("RUC".equals(companyTaxIdType(carrierTaxId)) && ContactService.isValidId("DNI", normalized)) {
             return "DNI";
+        }
+        if (ContactService.isValidRut(normalized)) {
+            return Contact.DEFAULT_NATIONAL_ID_TYPE;
         }
         return null;
     }

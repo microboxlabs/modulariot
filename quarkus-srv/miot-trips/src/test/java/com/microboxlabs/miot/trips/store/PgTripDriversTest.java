@@ -157,7 +157,7 @@ class PgTripDriversTest {
     @Test
     void changedDriversArePagedByUpdateTime() {
         String tenant = tenant();
-        Driver x = driver(tenant, null, "11111111-1", "X", null, null, Carrier.ACTIVE);
+        driver(tenant, null, "11111111-1", "X", null, null, Carrier.ACTIVE);
         Driver y = driver(tenant, null, "22222222-2", "Y", null, null, Carrier.ACTIVE);
         OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
         resources.updateDriver(new Driver(y.id(), tenant, null, null, y.rut(), null, null, "Y Cambiado", null,

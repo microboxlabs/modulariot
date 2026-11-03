@@ -84,6 +84,9 @@ class DriverContactSyncTest {
         assertEquals("RUT", DriverContactSync.nationalIdType("111111111", "76111222-8"));
         assertNull(DriverContactSync.nationalIdType("111111112", "76111222-8"), "wrong check digit");
         assertEquals("DNI", DriverContactSync.nationalIdType("45678912", "20100000009"));
+        assertEquals("DNI", DriverContactSync.nationalIdType("12345674", "20100000009"),
+                "the carrier RUC disambiguates an eight-digit DNI that also passes the RUT checksum");
+        assertEquals("RUT", DriverContactSync.nationalIdType("12345674", null));
         assertNull(DriverContactSync.nationalIdType("45678912", null));
         assertEquals("RUT", DriverContactSync.companyTaxIdType("76.111.222-8"));
         assertEquals("RUC", DriverContactSync.companyTaxIdType("20100000009"));
@@ -295,6 +298,8 @@ class DriverContactSyncTest {
         assertTrue(failing.findByNationalId(TENANT, "333333333").isPresent());
         assertTrue(failing.findByNationalId(TENANT, "444444444").isEmpty(), "another tenant's driver");
         assertTrue(failing.findByNationalId("other", "444444444").isPresent());
+        assertTrue(progress.syncedUntil(TENANT, DriverContactSync.SOURCE).isEmpty(), "retry failed rows next run");
+        assertEquals(T, progress.syncedUntil("other", DriverContactSync.SOURCE).orElseThrow());
     }
 
     @Test
@@ -348,8 +353,55 @@ class DriverContactSyncTest {
             assertEquals(0, counts.filled);
             assertEquals(0, counts.deactivated);
             assertEquals(1, counts.skipped.get("concurrent-edit"));
+            assertTrue(progress.syncedUntil(TENANT, DriverContactSync.SOURCE).isEmpty(),
+                    "a conflict must be retried even when the assignment predates the overlap");
             assertTrue(audit().isEmpty());
         }
+    }
+
+    @Test
+    void aFailedRowOlderThanTheOverlapIsRetriedBeforeAdvancingTheWatermark() {
+        DriverDetails d = driver("11.111.111-1", "Juan", null, true);
+        trips.assign(TENANT, d.id(), T.minusDays(2));
+        OffsetDateTime before = T.minusDays(3);
+        progress.save(TENANT, DriverContactSync.SOURCE, before);
+        InMemoryContactStore recovering = new InMemoryContactStore() {
+            private boolean fail = true;
+
+            @Override
+            public synchronized Contact insert(Contact c) {
+                if (fail) {
+                    fail = false;
+                    throw new IllegalStateException("temporary store outage");
+                }
+                return super.insert(c);
+            }
+        };
+        var settings = new DriverContactSync.Settings(true, Duration.ofDays(30), "56");
+        var first = new DriverContactSync(settings, recovering, progress, new AuditService(auditStore), fleet,
+                trips, clock).run().get(TENANT);
+        assertEquals(1, first.skipped.get("error"));
+        assertEquals(before, progress.syncedUntil(TENANT, DriverContactSync.SOURCE).orElseThrow());
+        clock = Clock.fixed(NOW.plusSeconds(300), ZoneOffset.UTC);
+
+        var second = new DriverContactSync(settings, recovering, progress, new AuditService(auditStore), fleet,
+                trips, clock).run().get(TENANT);
+
+        assertEquals(1, second.created);
+        assertTrue(recovering.findByNationalId(TENANT, "111111111").isPresent());
+        assertEquals(T.plusSeconds(300), progress.syncedUntil(TENANT, DriverContactSync.SOURCE).orElseThrow());
+    }
+
+    @Test
+    void aPeruvianDriverWhoseDniAlsoPassesTheRutChecksumKeepsItsDniType() {
+        DriverDetails d = fleet.add(TENANT, new DriverDetails(UUID.randomUUID(), "12345674", "Juan", null, true,
+                "Transportes Peru", "20100000009", T.minusDays(60)));
+        trips.assign(TENANT, d.id(), T.minusDays(1));
+
+        sync().run();
+
+        assertEquals("DNI", contact("12345674").nationalIdType());
+        assertEquals("RUC", contact("12345674").companyTaxIdType());
     }
 
     @Test

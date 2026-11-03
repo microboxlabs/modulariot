@@ -34,8 +34,7 @@ public class PgContactSyncStore implements ContactSyncStore {
 
     @Override
     public Optional<OffsetDateTime> syncedUntil(String tenantCode, String source) {
-        return query(pool.get(), """
-                SELECT synced_until FROM miot_symptoms.contact_sync WHERE tenant_code = $1 AND source = $2""",
+        return query(pool.get(), "SELECT synced_until FROM miot_symptoms.contact_sync WHERE tenant_code = $1 AND source = $2",
                 Tuple.of(tenantCode, source)).stream().findFirst().map(r -> PgJson.time(r, "synced_until"));
     }
 

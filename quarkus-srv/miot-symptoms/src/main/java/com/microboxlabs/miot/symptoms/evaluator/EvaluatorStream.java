@@ -293,6 +293,7 @@ public class EvaluatorStream {
                 // A late opening the log already holds is a replay of a case that may be closed since: it keeps no
                 // episode, or that episode would block the next real event.
                 result.transitions().stream()
+                        .filter(t -> t.kind() == Transition.Kind.OPENED)
                         .filter(t -> recorded.stream().noneMatch(r -> r.transition().equals(t)))
                         .forEach(t -> state.delete(tenant, assetId, t.definitionId()));
             }

@@ -58,7 +58,8 @@ class HoldServiceTest {
 
         @Override
         public List<IgnoreHold> open(int limit) {
-            return List.copyOf(open.values());
+            return open.values().stream().sorted(java.util.Comparator.comparing(IgnoreHold::at)).limit(limit)
+                    .toList();
         }
 
         @Override
@@ -264,5 +265,27 @@ class HoldServiceTest {
         String missingId = UUID.randomUUID().toString();
         assertThrows(java.util.NoSuchElementException.class,
                 () -> service.resume(TENANT, "lead@example.com", missingId));
+    }
+
+    @Test
+    void aTimerThatLosesToResumeCannotCloseTheCases() {
+        engineCase(1, SPEEDING, TRUCK, 3, "trip-1");
+        IgnoreHold h = hold(1, IgnoreHold.Scope.ALL, NOW.minusSeconds(10), null, true, "trip-1", false);
+        service.resume(TENANT, "lead@example.com", h.id());
+
+        assertTrue(service.end(h, HoldService.SYSTEM, HoldService.End.TRIP_ENDED).isEmpty());
+        assertNull(cases.find(TENANT, 1).orElseThrow().closedAt());
+    }
+
+    @Test
+    void runningHoldsCannotStarveANewerExpiredHold() {
+        for (int i = 1; i <= 501; i++) {
+            engineCase(i, SPEEDING, TRUCK, 3, "trip-1");
+            hold(i, IgnoreHold.Scope.CASE, NOW.minusSeconds(1000), 3600, false, null, false);
+        }
+        engineCase(502, STOP, TRUCK, 3, null);
+        IgnoreHold due = hold(502, IgnoreHold.Scope.CASE, NOW.minusSeconds(400), 300, false, null, false);
+        assertEquals(1, service.endDue(500));
+        assertEquals(HoldService.RETURNED, resolution(due));
     }
 }

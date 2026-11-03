@@ -501,9 +501,10 @@ class SymptomCatalogServiceTest {
     void savingAsTemplateLeavesAnUnpublishedTemplateWithoutTheOrganizationsNotices() {
         UUID id = speeding();
         SymptomSpec.Notice notice = new SymptomSpec.Notice("open", "whatsapp", "conn-1", "tpl-1", "+56900000000");
+        SymptomSpec.Ignore ignore = new SymptomSpec.Ignore(false, "PT30M", true, List.of("CASE"));
         SymptomSpec withNotice = Specs.withLevels(Specs.speeding(), Specs.speeding().levels().stream()
                 .map(l -> l.icu() != 4 ? l : new SymptomSpec.Level(4, true, l.when(), new SymptomSpec.Response(true,
-                        5, List.of(), List.of(notice), List.of(), false)))
+                        5, List.of(), List.of(notice), List.of(), false), ignore))
                 .toList());
         service.saveDraft(TENANT, OWNER, id, withNotice);
         service.publish(TENANT, OWNER, id, "Con aviso", null, SymptomState.ACTIVE);
@@ -517,6 +518,20 @@ class SymptomCatalogServiceTest {
         SymptomSpec.Notice saved = template.draft().spec().levels().get(3).response().notices().get(0);
         assertEquals(new SymptomSpec.Notice("open", "whatsapp", null, null, null), saved);
         assertNull(template.draft().spec().state());
+        assertEquals(ignore, template.draft().spec().levels().get(3).ignore());
+    }
+
+    @Test
+    void anIgnorePolicyOnlyChangeCanBePublished() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Inicial", null, SymptomState.ACTIVE);
+        SymptomSpec original = service.get(TENANT, id).current().spec();
+        SymptomSpec changed = Specs.withLevels(original, original.levels().stream()
+                .map(l -> new SymptomSpec.Level(l.icu(), l.applies(), l.when(), l.response(),
+                        new SymptomSpec.Ignore(false, null, null, null))).toList());
+        service.saveDraft(TENANT, OWNER, id, changed);
+        var published = service.publish(TENANT, OWNER, id, "Restringir ignorar", null, SymptomState.ACTIVE);
+        assertEquals(Boolean.FALSE, published.spec().levels().get(0).ignore().allowed());
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorStream;
+import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.service.IgnoreHolds;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
@@ -25,6 +26,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * "Ignorar condición" on an engine case: the {@code IGNORE} action puts the case on hold, and the hold ends when
@@ -69,6 +71,7 @@ public class HoldService implements IgnoreHolds {
     private final Policies policies;
     private final Clock clock;
     private Consumer<IgnoreHold> recheck = h -> { };
+    private SymptomEvents events = SymptomEvents.NONE;
 
     /** The "ignore" policy of a case's level in the version that opened it; null for the default. */
     @FunctionalInterface
@@ -79,10 +82,12 @@ public class HoldService implements IgnoreHolds {
     @Inject
     @SuppressWarnings("java:S107") // Hold lifecycle collaborators and the evaluator that rechecks on return.
     HoldService(EngineCaseStore cases, EngineCaseService caseService, HoldStore holds, HoldIndex index,
-            TreatmentStore treatments, AuditService audit, SymptomCatalogStore catalog, EvaluatorStream evaluator) {
+            TreatmentStore treatments, AuditService audit, SymptomCatalogStore catalog, EvaluatorStream evaluator,
+            SymptomEvents events) {
         this(cases, caseService, holds, index, treatments, audit, (tenant, c) -> policy(catalog, tenant, c),
                 Clock.systemUTC());
         this.recheck = evaluator::finishHold;
+        this.events = events;
     }
 
     @SuppressWarnings("java:S107") // The collaborators above, with the policy lookup and the clock for tests.
@@ -192,6 +197,27 @@ public class HoldService implements IgnoreHolds {
         index.changed(tenantCode);
     }
 
+    @Override
+    public void started(String tenantCode, Treatment treatment) {
+        changed(tenantCode);
+        holds.find(tenantCode, treatment.id()).ifPresent(h -> {
+            for (EngineCase c : cases.openForAsset(tenantCode, h.assetId())) {
+                if (h.covers(c.assetId(), c.definitionId(), c.openedAt())) {
+                    events.ignored(tenantCode, c, h.by(), h.at());
+                }
+            }
+        });
+    }
+
+    @Override
+    public <T> T locked(String tenant, Treatment treatment, Supplier<T> work) {
+        if (treatment.symptomId() >= 0) {
+            return work.get();
+        }
+        EngineCase c = cases.find(tenant, -treatment.symptomId()).orElseThrow();
+        return holds.locked(tenant, c.assetId(), work);
+    }
+
     /**
      * "Reanudar": an operator lifts the hold before it ends, which then ends as when its time runs out.
      *
@@ -210,7 +236,14 @@ public class HoldService implements IgnoreHolds {
      * Empty when another call ended it first.
      */
     public Optional<Treatment> end(IgnoreHold h, String actor, End why) {
+        return holds.locked(h.tenantCode(), h.assetId(), () -> endLocked(h, actor, why));
+    }
+
+    private Optional<Treatment> endLocked(IgnoreHold h, String actor, End why) {
         String tenant = h.tenantCode();
+        if (treatments.find(tenant, h.id()).filter(t -> t.status() == TreatmentStatus.OPEN).isEmpty()) {
+            return Optional.empty();
+        }
         String resolution;
         if (why == End.TRIP_ENDED) {
             closeCovered(h, actor);
@@ -234,9 +267,7 @@ public class HoldService implements IgnoreHolds {
         if (h.scope() == IgnoreHold.Scope.CASE) {
             return;
         }
-        EngineCaseStore.CaseFilter filter = new EngineCaseStore.CaseFilter(null, h.assetId(), null, null, null,
-                null).withIgnored();
-        for (EngineCase c : cases.list(h.tenantCode(), filter)) {
+        for (EngineCase c : cases.openForAsset(h.tenantCode(), h.assetId())) {
             if (c.assetId().equals(h.assetId()) && c.id() != h.caseId() && c.closedAt() == null
                     && (h.scope() == IgnoreHold.Scope.ALL || c.definitionId().equals(h.definitionId()))) {
                 caseService.close(h.tenantCode(), c.symptomId(), actor);
@@ -251,10 +282,13 @@ public class HoldService implements IgnoreHolds {
     public int endDue(int limit) {
         Instant now = clock.instant();
         int ended = 0;
-        for (IgnoreHold h : holds.open(limit)) {
+        for (IgnoreHold h : holds.open(Integer.MAX_VALUE)) {
             End why = due(h, now);
             if (why != null && end(h, SYSTEM, why).isPresent()) {
                 ended++;
+                if (ended >= limit) {
+                    break;
+                }
             }
         }
         return ended;

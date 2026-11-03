@@ -256,9 +256,9 @@ public class EngineCaseService {
      * open cases cannot be read, the GPS counts are answered alone.
      */
     public JsonNode withOpenCaseCounts(String tenantCode, JsonNode counts) {
-        List<EngineCaseStore.OpenCount> open;
+        EngineCaseStore.TowerCounts engineCounts;
         try {
-            open = store.openCounts(tenantCode);
+            engineCounts = store.towerCounts(tenantCode);
         } catch (RuntimeException e) {
             if (counts == null) {
                 throw e;
@@ -267,17 +267,13 @@ public class EngineCaseService {
             return counts;
         }
         ObjectNode out = counts != null && counts.isObject() ? ((ObjectNode) counts).deepCopy() : JSON.objectNode();
-        for (EngineCaseStore.OpenCount c : open) {
+        for (EngineCaseStore.OpenCount c : engineCounts.active()) {
             String key = c.underTreatment() ? COUNTED_UNDER_TREATMENT : COUNTED.getOrDefault(c.level(), COUNTED.get(1));
             out.put(key, out.path(key).asLong(0) + c.count());
         }
-        try {
-            long ignored = store.ignoredCount(tenantCode);
-            if (ignored > 0) {
-                out.put(COUNTED_IGNORED, out.path(COUNTED_IGNORED).asLong(0) + ignored);
-            }
-        } catch (RuntimeException e) {
-            LOG.warnf(e, "Ignored cases not counted: tenant=%s", tenantCode);
+        long ignored = engineCounts.ignored();
+        if (ignored > 0) {
+            out.put(COUNTED_IGNORED, out.path(COUNTED_IGNORED).asLong(0) + ignored);
         }
         return out;
     }

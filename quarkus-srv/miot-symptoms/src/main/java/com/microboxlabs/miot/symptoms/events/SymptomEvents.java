@@ -95,6 +95,14 @@ public class SymptomEvents {
                 c.latitude(), c.longitude(), c.speedKmh(), actor, null, null, null, null), false);
     }
 
+    /** Cancellation signal for pending notification rules on each case covered by an ignore hold. */
+    public void ignored(String tenantCode, EngineCase c, String actor, Instant at) {
+        Name n = name(tenantCode, c.definitionId());
+        publish(SymptomEventCatalog.IGNORED, tenantCode, at, new SymptomCaseData(c.symptomId(), c.definitionId(),
+                c.version(), n.key(), n.name(), c.level(), c.level(), c.assetId(), c.tripId(), null, null,
+                c.latitude(), c.longitude(), c.speedKmh(), actor, null, null, null, null), false);
+    }
+
     /** The case stayed unattended past its level's SLA. */
     public void slaExpired(String tenantCode, EngineCase c, int slaMinutes, Instant levelSince, Instant at) {
         Name n = name(tenantCode, c.definitionId());

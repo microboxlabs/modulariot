@@ -94,7 +94,7 @@ public class SignalEvaluator {
                 store.delete(tenant, asset, s.definitionId());
             } else {
                 Map<Integer, Instant> restarted = new HashMap<>();
-                s.levels().keySet().forEach(level -> restarted.put(level, at));
+                e.levelSince().keySet().forEach(level -> restarted.put(level, at));
                 store.save(tenant, new Episode(e.definitionId(), e.version(), asset, at, e.conditionSince(),
                         e.normalSince(), restarted, e.lastSignalAt(), e.openedAt(), e.level(), e.maxMeasure()));
             }
@@ -162,10 +162,11 @@ public class SignalEvaluator {
                 if (condition(s.activation(), root, "activation")) {
                     Optional<Episode> before = store.find(tenantCode, assetId, s.definitionId());
                     Optional<Transition> t = step(tenantCode, assetId, at, root, s)
-                            .filter(x -> x.kind() == Transition.Kind.OPENED);
+                            .filter(x -> x.kind() == Kind.OPENED || x.kind() == Kind.HELD);
                     if (t.isPresent()) {
                         transitions.add(t.get());
-                    } else {
+                    }
+                    if (t.isEmpty() || t.get().kind() == Kind.HELD) {
                         before.ifPresentOrElse(e -> store.save(tenantCode, e),
                                 () -> store.delete(tenantCode, assetId, s.definitionId()));
                     }
@@ -289,8 +290,12 @@ public class SignalEvaluator {
                     Map.of(), at, null, 0, 0);
             return new Step(closed, transition(Kind.CLOSED, s, e.assetId(), at, level, e.level(), max));
         }
+        Map<Integer, Instant> since = new HashMap<>(r.levelSince());
+        if (held) {
+            since.replaceAll((key, value) -> at);
+        }
         Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), held ? null : r.candidateSince(),
-                r.conditionSince(), r.normalSince(), held ? Map.of() : r.levelSince(), at, e.openedAt(), level, max);
+                r.conditionSince(), r.normalSince(), since, at, e.openedAt(), level, max);
         Transition changed = level != e.level()
                 ? transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, level, e.level(), r.measure())
                 : null;

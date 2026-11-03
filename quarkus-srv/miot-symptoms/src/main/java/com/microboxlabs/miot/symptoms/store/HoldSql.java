@@ -9,7 +9,7 @@ package com.microboxlabs.miot.symptoms.store;
 final class HoldSql {
 
     static final String TRIP_END = "COALESCE((a.details->>'until_trip_end')::boolean, false)";
-    static final String SCOPE = "COALESCE(a.details->>'scope', 'CASE')";
+    static final String SCOPE = "COALESCE(NULLIF(UPPER(TRIM(a.details->>'scope')), ''), 'CASE')";
     static final String UNTIL = "a.performed_at + make_interval(secs => COALESCE(a.duration_seconds, 0))";
 
     /** The holds with their ignored case and latest IGNORE action. */

@@ -29,12 +29,14 @@ public class SlaTimer {
     private final SlaStore store;
     private final SymptomEvents events;
     private final Clock clock;
+    private HoldStore holds;
 
     @Inject
     SlaTimer(@ConfigProperty(name = "miot.symptoms.sla.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.sla.lookback", defaultValue = "P7D") Duration lookback,
-            SlaStore store, SymptomEvents events) {
+            SlaStore store, SymptomEvents events, HoldStore holds) {
         this(enabled, lookback, store, events, Clock.systemUTC());
+        this.holds = holds;
     }
 
     SlaTimer(boolean enabled, Duration lookback, SlaStore store, SymptomEvents events, Clock clock) {
@@ -64,12 +66,22 @@ public class SlaTimer {
         Instant now = clock.instant();
         int published = 0;
         for (SlaStore.Due d : store.due(now.minus(lookback), now, BATCH)) {
-            EngineCase c = d.engineCase();
-            if (store.markExpired(d, now)) {
-                events.slaExpired(d.tenantCode(), c, d.slaMinutes(), d.levelSince(), now);
-                published++;
-            }
+            published += holds == null ? expire(d, now)
+                    : holds.locked(d.tenantCode(), d.engineCase().assetId(), () -> expire(d, now));
         }
         return published;
+    }
+
+    private int expire(SlaStore.Due d, Instant now) {
+        EngineCase c = d.engineCase();
+        if (holds != null && holds.open(d.tenantCode()).stream()
+                .anyMatch(h -> h.covers(c.assetId(), c.definitionId(), c.openedAt()))) {
+            return 0;
+        }
+        if (store.markExpired(d, now)) {
+            events.slaExpired(d.tenantCode(), c, d.slaMinutes(), d.levelSince(), now);
+            return 1;
+        }
+        return 0;
     }
 }

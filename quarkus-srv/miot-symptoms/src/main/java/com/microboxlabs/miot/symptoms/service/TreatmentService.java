@@ -85,6 +85,13 @@ public class TreatmentService {
             throw new IllegalArgumentException("kind is required (CALL, IGNORE, INVALIDATE, NOTE)");
         }
         Treatment t = requireOpen(tenantCode, treatmentId);
+        if (req.kind() == ActionKind.IGNORE) {
+            return holds.locked(tenantCode, t, () -> addCheckedAction(tenantCode, actor, t, req));
+        }
+        return addCheckedAction(tenantCode, actor, t, req);
+    }
+
+    private TreatmentAction addCheckedAction(String tenantCode, String actor, Treatment t, AddActionRequest req) {
         if (req.durationSeconds() != null && req.durationSeconds() < 0) {
             throw new IllegalArgumentException("durationSeconds must be >= 0");
         }
@@ -106,7 +113,7 @@ public class TreatmentService {
                 checked.details(), actor, null));
         audit.log(tenantCode, actor, "treatment.action_added", ENTITY, t.id(), t.symptomId(), auditDetails(saved));
         if (saved.kind() == ActionKind.IGNORE) {
-            holds.changed(tenantCode);
+            holds.started(tenantCode, t);
         }
         return saved;
     }
@@ -159,7 +166,7 @@ public class TreatmentService {
                 details.put("durationSeconds", saved.durationSeconds());
             }
             if (saved.details() != null) {
-                details.putAll(saved.details());
+                saved.details().forEach(details::putIfAbsent);
             }
         }
         return details;
@@ -168,6 +175,9 @@ public class TreatmentService {
     public TreatmentView close(String tenantCode, String actor, String treatmentId, CloseTreatmentRequest req) {
         Treatment t = requireOpen(tenantCode, treatmentId);
         List<TreatmentAction> actions = treatments.listActions(tenantCode, List.of(t.id()));
+        if (t.symptomId() < 0 && actions.stream().anyMatch(a -> a.kind() == ActionKind.IGNORE)) {
+            throw new IllegalStateException("the case is on hold: resume it instead");
+        }
         if (actions.isEmpty()) {
             throw new IllegalStateException("a treatment needs at least one action before it can be closed");
         }
@@ -200,6 +210,11 @@ public class TreatmentService {
         audit.log(tenantCode, actor, "treatment.cancelled", ENTITY, cancelled.id(), cancelled.symptomId(),
                 Map.of("reason", reason == null ? "" : reason));
         return view(tenantCode, cancelled);
+    }
+
+    /** Actions read before a resume commits, avoiding a failing read after a successful mutation. */
+    public List<TreatmentAction> actionsOf(String tenantCode, String treatmentId) {
+        return treatments.listActions(tenantCode, List.of(treatmentId));
     }
 
     public TreatmentView get(String tenantCode, String treatmentId) {

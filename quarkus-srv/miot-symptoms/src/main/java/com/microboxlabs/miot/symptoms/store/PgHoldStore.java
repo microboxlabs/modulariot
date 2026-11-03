@@ -14,6 +14,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -51,6 +52,30 @@ public class PgHoldStore implements HoldStore {
 
     PgHoldStore(Supplier<Pool> pool) {
         this.pool = pool;
+    }
+
+    @Override
+    public <T> T locked(String tenantCode, String assetId, Supplier<T> work) {
+        var connection = pool.get().getConnection().await().atMost(Duration.ofSeconds(10));
+        Tuple key = Tuple.of(tenantCode + ":" + assetId);
+        boolean acquired = false;
+        try {
+            acquired = connection.preparedQuery("SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked")
+                    .execute(key).await().atMost(Duration.ofSeconds(10)).iterator().next().getBoolean("locked");
+            if (!acquired) {
+                throw new IllegalStateException("the vehicle's hold is being changed; retry");
+            }
+            return work.get();
+        } finally {
+            try {
+                if (acquired) {
+                    connection.preparedQuery("SELECT pg_advisory_unlock(hashtextextended($1, 0))")
+                            .execute(key).await().atMost(Duration.ofSeconds(10));
+                }
+            } finally {
+                connection.close().await().atMost(Duration.ofSeconds(10));
+            }
+        }
     }
 
     @Override

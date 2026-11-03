@@ -92,6 +92,8 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static final String OPEN = WITH_SLA.formatted(SELECT.formatted(CASES)
             + " WHERE x.closed_id IS NULL ORDER BY x.at DESC LIMIT 200") + " ORDER BY y.at DESC";
+    private static final String OPEN_FOR_ASSET = WITH_SLA.formatted(SELECT.formatted(CASES
+            + " AND o.asset_id = $2") + " WHERE x.closed_id IS NULL");
     /**
      * {@link CaseFilter}: $2 trip, $3 vehicle id, $4 symptom name, $5 from, $6 to, $7 level, $8 treated only, $9
      * ignored only. Without dates and $9, the open cases no hold covers.
@@ -135,6 +137,9 @@ public class PgEngineCases implements EngineCaseStore {
     private static final String COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment, count(*) AS n"
             + FROM_SUBQUERY + SELECT.formatted(CASES) + " WHERE x.closed_id IS NULL AND x.hold_id IS NULL) y"
             + " GROUP BY 1, 2";
+    private static final String TOWER_COUNTS = "SELECT y.current_level, y.treatments > 0 AS under_treatment,"
+            + " y.hold_id IS NOT NULL AS ignored, count(*) AS n FROM (" + SELECT.formatted(CASES) + ") y"
+            + " WHERE y.closed_id IS NULL GROUP BY y.current_level, y.treatments > 0, y.hold_id IS NOT NULL";
     private static final String IGNORED = "SELECT count(*) AS n FROM (" + CASES + ") x"
             + " WHERE x.closed_id IS NULL AND x.hold_id IS NOT NULL";
     private static final String LEVELS = "SELECT y.asset_id, y.name, y.current_level"
@@ -310,9 +315,31 @@ public class PgEngineCases implements EngineCaseStore {
     }
 
     @Override
+    public TowerCounts towerCounts(String tenantCode) {
+        List<OpenCount> active = new ArrayList<>();
+        long ignored = 0;
+        for (Row r : PgIds.query(pool.get(), TOWER_COUNTS, Tuple.of(tenantCode))) {
+            if (Boolean.TRUE.equals(r.getBoolean("ignored"))) {
+                ignored += r.getLong("n");
+            } else {
+                active.add(new OpenCount(r.getInteger("current_level"), r.getBoolean("under_treatment"),
+                        r.getLong("n")));
+            }
+        }
+        return new TowerCounts(active, ignored);
+    }
+
+    @Override
     public long ignoredCount(String tenantCode) {
         var rows = PgIds.query(pool.get(), IGNORED, Tuple.of(tenantCode)).iterator();
         return rows.hasNext() ? rows.next().getLong("n") : 0;
+    }
+
+    @Override
+    public List<EngineCase> openForAsset(String tenantCode, String assetId) {
+        List<EngineCase> out = new ArrayList<>();
+        cases(OPEN_FOR_ASSET, Tuple.of(tenantCode, assetId)).forEach(r -> out.add(engineCase(r)));
+        return out;
     }
 
     @Override

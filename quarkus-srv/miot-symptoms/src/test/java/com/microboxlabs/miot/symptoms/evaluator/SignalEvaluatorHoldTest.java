@@ -55,6 +55,7 @@ class SignalEvaluatorHoldTest {
         assertEquals(List.of(), at(30, 115));
         assertEquals(List.of(), at(60, 115), "held 60 s: code black would be due, the hold keeps level 3");
         assertEquals(List.of(), at(120, 130), "no jump either");
+        evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(150), symptoms);
         held.set(false);
         assertEquals(List.of(), at(150, 115), "back in the tower at level 3");
         assertEquals(List.of(), at(180, 115), "the minute counts from the end of the hold");
@@ -102,6 +103,18 @@ class SignalEvaluatorHoldTest {
         at(10, 80);
         List<Transition> closed = evaluator.finishHold(TENANT, TRUCK, T0.plusSeconds(135), symptoms);
         assertEquals(List.of("CLOSED"), closed.stream().map(t -> t.kind().name()).toList());
+    }
+
+    @Test
+    void aLateHeldEventKeepsItsEvidenceWithoutChangingTheOrdinaryEpisode() {
+        at(100, 80);
+        held.set(true);
+        CompiledSymptom s = symptoms.get(0);
+        CompiledSymptom event = new CompiledSymptom(s.definitionId(), s.version(), s.state(), s.sourceKey(),
+                s.activation(), s.measure(), s.levels(), s.open(), s.close(), s.levelDown(), true);
+        Result result = evaluator.evaluateLate(TENANT, TRUCK, T0.plusSeconds(10), signal(96), List.of(event));
+        assertEquals(List.of(Transition.Kind.HELD), result.transitions().stream().map(Transition::kind).toList());
+        assertEquals(T0.plusSeconds(100), store.watermark(TENANT, TRUCK, s.sourceKey()).orElseThrow());
     }
 
     @Test

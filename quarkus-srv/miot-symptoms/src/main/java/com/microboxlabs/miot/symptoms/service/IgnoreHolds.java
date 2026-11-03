@@ -3,9 +3,15 @@ package com.microboxlabs.miot.symptoms.service;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /** What an {@code IGNORE} action does to an engine case: it puts the case on hold. */
 public interface IgnoreHolds {
+
+    /** Runs validation and the action write under the same vehicle lock. */
+    default <T> T locked(String tenant, Treatment treatment, Supplier<T> work) {
+        return work.get();
+    }
 
     /** Records the action as sent, on hold nothing. */
     IgnoreHolds NONE = new IgnoreHolds() {
@@ -34,4 +40,9 @@ public interface IgnoreHolds {
 
     /** A hold started or ended. */
     void changed(String tenantCode);
+
+    /** An action committed a hold; cancels pending notifications in its scope. */
+    default void started(String tenantCode, Treatment treatment) {
+        changed(tenantCode);
+    }
 }

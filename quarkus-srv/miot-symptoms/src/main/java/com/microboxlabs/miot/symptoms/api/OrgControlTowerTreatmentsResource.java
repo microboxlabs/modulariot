@@ -164,8 +164,9 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> {
-            holds.resume(tenant, actor, treatmentId);
-            return Response.ok(treatments.get(tenant, treatmentId)).build();
+            var actions = treatments.actionsOf(tenant, treatmentId);
+            var closed = holds.resume(tenant, actor, treatmentId);
+            return Response.ok(TreatmentView.of(closed, actions)).build();
         });
     }
 

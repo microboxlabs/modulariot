@@ -69,7 +69,8 @@ treatment stays `OPEN` while the hold lasts; it is the hold. No other table.
 
 The server adds `case_level`, `case_condition` and `until` to the stored
 details. 400 when the request breaks the policy, 409 when the case is closed or
-already on hold.
+already on hold. Changes are serialized per tenant and vehicle across pods.
+Ordinary close and cancel return 409 for an engine hold; use Resume.
 
 While on hold:
 
@@ -80,6 +81,7 @@ While on hold:
 | Level | Does not rise; the case may still close by its symptom's rule |
 | New cases in scope | Do not open. The evaluator records a `HELD` transition as evidence, once per run |
 | SLA | Counts as attended |
+| Notifications | `symptom.case.ignored` cancels waiting notification rules and queued sends for every covered case |
 
 When the hold ends (time, `resumeTreatment`, trip end) the treatment closes
 with a `resolution`:
@@ -229,7 +231,7 @@ Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerA
 | Permission | Endpoints |
 |---|---|
 | `controltower:view` | Every read, plus `describe`, `validate` and `preview` |
-| `controltower:case.treat` | Treatments: open, actions, close, cancel |
+| `controltower:case.treat` | Treatments: open, actions, close, cancel, resume |
 | `controltower:contact.write` | Contacts: create, import, update |
 | `controltower:contact.delete` | Contacts: delete |
 | `controltower:symptom.edit` | Symptoms: create, from template, import, identity, draft, fork |

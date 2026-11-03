@@ -198,7 +198,7 @@ public final class SpecValidator {
         }
         try {
             java.time.Duration max = ignore.maxDurationValue();
-            if (max != null && (max.isNegative() || max.isZero())) {
+            if (max != null && max.compareTo(java.time.Duration.ofSeconds(1)) < 0) {
                 out.add(new Finding(section, Severity.ERROR, RuleMessage.of("ignoreMaxDuration"), -1));
             }
         } catch (IllegalArgumentException e) {

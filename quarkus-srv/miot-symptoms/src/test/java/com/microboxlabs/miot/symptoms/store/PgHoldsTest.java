@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.symptoms.cases.EngineCase;
 import com.microboxlabs.miot.symptoms.cases.EngineCaseStore;
@@ -117,7 +118,7 @@ class PgHoldsTest {
     /** An operator's hold on the case from {@code at}. */
     private String hold(long caseId, Instant at, Integer seconds, String scope, boolean tripEnd) {
         Treatment t = treatments.insert(new Treatment(null, tenant, -caseId, TRUCK, null,
-                TreatmentType.IGNORE_CONDITION, TreatmentStatus.OPEN, "ops@example.com", null, null, null, null, null,
+                TreatmentType.IGNORE_CONDITION, TreatmentStatus.OPEN, "ops@example.com", at.atOffset(ZoneOffset.UTC), null, null, null, null,
                 null)).treatment();
         TreatmentAction a = treatments.addAction(new TreatmentAction(null, t.id(), tenant, 0, ActionKind.IGNORE, null,
                 null, null, null, null, "ignore_reason_2", "Zona de sombra GPS conocida", null, seconds, null, null,
@@ -268,6 +269,27 @@ class PgHoldsTest {
         assertTrue(holds.find(tenant, "not-a-uuid").isEmpty());
         end(id, now);
         assertTrue(holds.open(tenant).isEmpty());
+    }
+
+    @Test
+    void scopedReadsIncludeEveryCaseOfTheExactAsset() {
+        UUID speeding = symptom("many-cases");
+        for (int i = 0; i < 205; i++) {
+            open(speeding, TRUCK, now.minusSeconds(600 + i), 3, null);
+        }
+        open(speeding, TRUCK + "-OTHER", now.minusSeconds(100), 3, null);
+        assertEquals(205, cases.openForAsset(tenant, TRUCK).size());
+    }
+
+    @Test
+    void anotherPodCannotChangeTheSameVehiclesHoldAtTheSameTime() {
+        java.util.function.Supplier<Void> nothing = () -> null;
+        holds.locked(tenant, TRUCK, () -> {
+            assertThrows(IllegalStateException.class, () -> holds.locked(tenant, TRUCK, nothing));
+            assertNull(holds.locked(tenant, "OTHER-TRUCK", nothing));
+            return null;
+        });
+        assertNull(holds.locked(tenant, TRUCK, nothing), "released after the first operation");
     }
 
     @Test

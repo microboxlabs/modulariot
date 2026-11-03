@@ -11,11 +11,24 @@ public interface EngineCaseStore {
     /** The most recent open cases, at most a page of them. */
     List<EngineCase> open(String tenantCode);
 
+    /** Every open case of this exact vehicle, without the tower's page limit. */
+    default List<EngineCase> openForAsset(String tenantCode, String assetId) {
+        return open(tenantCode).stream().filter(c -> c.assetId().equals(assetId)).toList();
+    }
+
     /** The most recent cases that match, at most a page of them. */
     List<EngineCase> list(String tenantCode, CaseFilter filter);
 
     /** The open cases no hold covers, counted by level and by whether they have an open treatment. */
     List<OpenCount> openCounts(String tenantCode);
+
+    record TowerCounts(List<OpenCount> active, long ignored) { }
+
+    /** Counts read from one snapshot by persistent stores. */
+    default TowerCounts towerCounts(String tenantCode) {
+        return new TowerCounts(openCounts(tenantCode), ignoredCount(tenantCode));
+    }
+
 
     /** The open cases a hold covers now. */
     default long ignoredCount(String tenantCode) {

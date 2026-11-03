@@ -181,8 +181,8 @@ final class RulesFixture {
     final List<Object> sendOutcomes = new ArrayList<>();
     /** When set, enqueued send jobs wait for {@link #runSendJobs()} instead of running right away. */
     boolean holdSends;
-    private final WhatsAppSendJob whatsappJob = new WhatsAppSendJob(whatsapp);
-    private final EmailSendJob emailJob = new EmailSendJob(email);
+    private final WhatsAppSendJob whatsappJob = new WhatsAppSendJob(whatsapp, store.runStore);
+    private final EmailSendJob emailJob = new EmailSendJob(email, store.runStore);
     private final List<AsyncJobSpec> held = new ArrayList<>();
     final SendQueue sendQueue = (tenant, specs) -> {
         sendJobs.addAll(specs);

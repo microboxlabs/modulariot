@@ -6956,6 +6956,32 @@
     "noDevicesFound": "No devices found"
   },
   "symptoms": {
+    "level_reason": {
+      "title": "Why this level",
+      "level": "Level",
+      "silence": "Without signal",
+      "minutes": "min",
+      "since": "Since",
+      "rule": "Level rule",
+      "no_context": "This case did not keep what the rule evaluated.",
+      "last_frame": "Last signal before the silence",
+      "coverage_share": "Coverage",
+      "coverage_source": "Source",
+      "yes": "Yes",
+      "no": "No",
+      "flags": {
+        "low_coverage_zone": "Low-coverage zone",
+        "cohort_outage": "Many vehicles of the same sender without signal",
+        "returned": "The signal came back",
+        "backfill": "Late data arrived"
+      },
+      "details": {
+        "ratio": "Silence over expected",
+        "expected_s": "Expected interval",
+        "nearby_reporting": "Vehicles reporting nearby",
+        "sender": "Sender"
+      }
+    },
     "1": "Condition in observation",
     "2": "Compromised condition",
     "3": "Critical condition",

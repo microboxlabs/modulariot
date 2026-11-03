@@ -66,6 +66,10 @@ import {
   ringCentroid,
 } from "../utils/vehicle-origin";
 import { BOUNDS_PADDING, showsNoData, tripCamera } from "../utils/trip-camera";
+import {
+  type CaseSpan,
+  pointLevel,
+} from "@/features/symptoms/model/level-reason";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -130,6 +134,8 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   height: 100,
 };
 
+const NO_SPANS: CaseSpan[] = [];
+
 // The map is tilted, so below this zoom the scroll wheel can pull the camera
 // to the map's edge or to latitude 0, far from the trip.
 const TRIP_MAP_MIN_ZOOM = 2;
@@ -156,6 +162,8 @@ type MapVisualizationProps = {
   onLugaresChange?: (abierto: boolean) => void;
   /** Where a case without a trip opened, marked on the map. */
   casePoint?: CasePoint | null;
+  /** The page's symptom intervals: its frames take the symptom's level color. */
+  caseSpans?: CaseSpan[];
 };
 
 export type CasePoint = { longitude: number; latitude: number };
@@ -316,6 +324,7 @@ export default function MapVisualizationTrip({
   licensePlate,
   onLugaresChange,
   casePoint = null,
+  caseSpans = NO_SPANS,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -464,6 +473,7 @@ export default function MapVisualizationTrip({
       type: "FeatureCollection",
       features:
         positions?.map((item: MapPosition, index: number) => {
+          const symptom = pointLevel(item.timestamp, caseSpans);
           return {
             type: "Feature",
             geometry: {
@@ -472,7 +482,8 @@ export default function MapVisualizationTrip({
             },
             properties: {
               id: index,
-              icu_code: 0,
+              icu_code: symptom?.level ?? 0,
+              symptom_name: symptom?.name ?? null,
               asset_id: item.assetid,
               rotation: item.heading * (180 / Math.PI),
               latitude: item.latitude,
@@ -483,7 +494,7 @@ export default function MapVisualizationTrip({
           };
         }) || [],
     }),
-    [positions]
+    [positions, caseSpans]
   );
 
   useEffect(() => {

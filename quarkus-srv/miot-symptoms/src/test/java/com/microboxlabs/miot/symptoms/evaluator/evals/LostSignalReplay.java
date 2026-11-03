@@ -119,11 +119,11 @@ final class LostSignalReplay {
         TestEngine engine = new TestEngine(clock);
         engine.publish(TENANT, "signal-loss", SeedTemplates.get("signal-loss").spec(), SymptomState.ACTIVE);
         // Without the ingest guard: a scenario's fleet is a handful of vehicles, all of them silent at times.
-        LostSignalDetector detector = new LostSignalDetector(true, new InMemoryLossStore(clock),
+        LostSignalDetector detector = new LostSignalDetector(new LostSignalDetector.Settings(true,
                 LossSettings.defaults(), new LostSignalDetector.TickerSettings(Duration.ofMinutes(1),
                         Duration.ofDays(1), Duration.ofSeconds(15), 500, new IngestHealth(Duration.ZERO,
-                                Duration.ZERO), Duration.ofMinutes(1)),
-                engine.trips(meters), ShadowMaps.of(coverage), meters, clock);
+                                Duration.ZERO), Duration.ofMinutes(1))),
+                new InMemoryLossStore(clock), engine.trips(meters), ShadowMaps.of(coverage), meters, clock);
         List<Frame> byArrival = new ArrayList<>(frames);
         byArrival.sort(Comparator.comparingInt(Frame::arrives).thenComparingInt(Frame::at));
         int next = 0;

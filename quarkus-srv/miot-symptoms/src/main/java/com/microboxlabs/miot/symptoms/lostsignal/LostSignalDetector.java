@@ -72,6 +72,11 @@ public class LostSignalDetector {
                     new IngestHealth(Duration.ofMinutes(2), Duration.ofMinutes(2)), Duration.ofMinutes(1));
         }
     }
+
+    /** Whether the detector runs and the settings of its arrival profiles and ticker. */
+    public record Settings(boolean enabled, LossSettings profiles, TickerSettings ticker) {
+    }
+
     private volatile long skipUntil;
 
     @Inject
@@ -89,11 +94,11 @@ public class LostSignalDetector {
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration episodeTtl,
             EvaluatorRedis redis, EvaluatorCatalog catalog, TransitionLog transitionLog, SymptomEvents events,
             AuditService audit, MeterRegistry meters, Instance<Pool> pool) {
-        this(enabled, redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
-                .orElseGet(InMemoryLossStore::new),
-                settings(profileTtl, minSamples, gapMargin, delayQuantile, maxDelay),
+        this(new Settings(enabled, settings(profileTtl, minSamples, gapMargin, delayQuantile, maxDelay),
                 new TickerSettings(recheck, maxSilence, Duration.ofSeconds(15), 500,
-                        new IngestHealth(staleAfter, maxLag), returnGrace),
+                        new IngestHealth(staleAfter, maxLag), returnGrace)),
+                redis.client().<LossStore>map(c -> new RedisLossStore(c, profileTtl))
+                        .orElseGet(InMemoryLossStore::new),
                 // The evaluator's episodes: an operator's close drops them for both.
                 new TripChecks(catalog, redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, episodeTtl))
                         .orElseGet(InMemoryEpisodeRepository::new), transitionLog, events, audit, meters),
@@ -114,20 +119,21 @@ public class LostSignalDetector {
 
     public LostSignalDetector(boolean enabled, LossStore store, LossSettings settings, TickerSettings ticker,
             TripChecks trips, MeterRegistry meters, Clock clock) {
-        this(enabled, store, settings, ticker, trips, ShadowMaps.of(ShadowMap.empty()), meters, clock);
+        this(new Settings(enabled, settings, ticker), store, trips, ShadowMaps.of(ShadowMap.empty()), meters, clock);
     }
 
-    public LostSignalDetector(boolean enabled, LossStore store, LossSettings settings, TickerSettings ticker,
-            TripChecks trips, ShadowMaps coverage, MeterRegistry meters, Clock clock) {
-        this.enabled = enabled;
+    public LostSignalDetector(Settings settings, LossStore store, TripChecks trips, ShadowMaps coverage,
+            MeterRegistry meters, Clock clock) {
+        this.enabled = settings.enabled();
         this.coverage = coverage;
         meters.gauge("miot.symptoms.lost_signal.coverage_cells", coverage, m -> m.get().cells());
         this.trips = trips;
         this.store = store;
-        this.profiles = new ArrivalProfiles(store, settings);
+        this.profiles = new ArrivalProfiles(store, settings.profiles());
         this.owner = UUID.randomUUID().toString();
         this.meters = meters;
         this.clock = clock;
+        TickerSettings ticker = settings.ticker();
         this.ticker = new LossTicker(store, new MarkLost(store, trips, coverage, ticker.recheck(),
                 ticker.maxSilence(), ticker.returnGrace(), meters), ticker.ingest(), owner, ticker.leaseTtl(), ticker.batch(), meters, clock);
     }

@@ -127,6 +127,37 @@ class CoverageDayTest {
     }
 
     @Test
+    void aGapOverMoreCellsThanTheBoundIsAJump() {
+        // 100 h at about 149 km/h along the equator: 134 degrees, about 2,700 cells.
+        CoverageDay day = new CoverageDay(DAY, settings, Map.of("s", new Medians(5.0, 60.0)));
+        double lon = LON + 134;
+        assertTrue(CoverageDay.km(LAT, LON, LAT, lon) / 100 < settings.gapMaxKmh());
+        day.frame("V1", "s", at(0), 5, LAT, LON);
+        day.frame("V1", "s", at(100 * 60), 5, LAT, lon);
+
+        assertEquals(0, day.cells().stream().mapToDouble(CellDay::missing).sum());
+        assertEquals(2, day.cells().size());
+        assertEquals(null, CoverageDay.crossed(LAT, LON, LAT, lon));
+    }
+
+    @Test
+    void aGapUnderTheBoundIsSpreadOverItsCells() {
+        CoverageDay day = new CoverageDay(DAY, settings, Map.of("s", new Medians(5.0, 60.0)));
+        double lon = LON + 50;
+        day.frame("V1", "s", at(0), 5, LAT, LON);
+        day.frame("V1", "s", at(60 * 60), 5, LAT, lon);
+
+        assertEquals(3599, day.senders().get(0).missing(), 0.01, "60 h at one a minute");
+        assertEquals(1001, day.cells().size());
+    }
+
+    @Test
+    void aNonFinitePositionCrossesNothing() {
+        assertEquals(null, CoverageDay.crossed(Double.NaN, LON, LAT, LON + 1));
+        assertEquals(null, CoverageDay.crossed(LAT, LON, LAT, Double.POSITIVE_INFINITY));
+    }
+
+    @Test
     void theLineCrossesEachCellOnce() {
         assertEquals(List.of(CoverageMap.cell(1.01, 2.01), CoverageMap.cell(1.01, 2.06), CoverageMap.cell(1.01, 2.11)),
                 List.copyOf(CoverageDay.crossed(1.01, 2.01, 1.01, 2.11)));

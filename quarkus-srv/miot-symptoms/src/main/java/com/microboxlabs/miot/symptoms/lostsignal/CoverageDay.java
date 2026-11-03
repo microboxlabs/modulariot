@@ -15,10 +15,14 @@ import java.util.Set;
  * <li>a frame is delayed when its delay is above {@link CoverageSettings#threshold} of the median delay;</li>
  * <li>two consecutive frames further apart than the threshold of the median interval are a gap when the vehicle
  * moved at least {@code gapMinKm} and no faster than {@code gapMaxKmh}: {@code dt / median interval - 1} frames
- * are missing, spread evenly over the cells the straight line between them crosses.</li>
+ * are missing, spread evenly over the cells the straight line between them crosses. A line crossing more than
+ * {@value #MAX_GAP_CELLS} cells (thousands of km) is taken as a GPS jump.</li>
  * </ul>
+ * It keeps the last frame of each asset and sender and counters per sender and cell, never the frames.
  */
 public final class CoverageDay {
+
+    static final int MAX_GAP_CELLS = 2000;
 
     /** One row of {@code coverage_day}. */
     public record CellDay(String sender, String cell, LocalDate day, long frames, long delayed, double missing) {
@@ -108,11 +112,14 @@ public final class CoverageDay {
             return;
         }
         double km = km(a.lat(), a.lon(), b.lat(), b.lon());
-        if (km < settings.gapMinKm() || km / (dtS / 3600) > settings.gapMaxKmh()) {
-            return; // parked or off, or a GPS jump
+        if (!(km >= settings.gapMinKm()) || km / (dtS / 3600) > settings.gapMaxKmh()) {
+            return; // parked or off, or a GPS jump; NaN is neither
+        }
+        Set<String> crossed = crossed(a.lat(), a.lon(), b.lat(), b.lon());
+        if (crossed == null) {
+            return;
         }
         double missing = dtS / intervalS - 1;
-        Set<String> crossed = crossed(a.lat(), a.lon(), b.lat(), b.lon());
         for (String cell : crossed) {
             counts(sender, cell).missing += missing / crossed.size();
         }
@@ -140,12 +147,22 @@ public final class CoverageDay {
         return out;
     }
 
-    /** The cells a straight line crosses, advancing at each latitude or longitude grid boundary. */
+    /**
+     * The cells a straight line crosses, advancing at each latitude or longitude grid boundary; null when that is
+     * more than {@value #MAX_GAP_CELLS} or a coordinate is not finite.
+     */
     static Set<String> crossed(double lat1, double lon1, double lat2, double lon2) {
+        if (!Double.isFinite(lat1) || !Double.isFinite(lon1) || !Double.isFinite(lat2) || !Double.isFinite(lon2)) {
+            return null;
+        }
         long row = grid(lat1);
         long col = grid(lon1);
         long endRow = grid(lat2);
         long endCol = grid(lon2);
+        // Each step moves one row or column closer, so this bounds the steps.
+        if (Math.abs(endRow - row) + Math.abs(endCol - col) + 1 > MAX_GAP_CELLS) {
+            return null;
+        }
         int rowStep = Double.compare(lat2, lat1);
         int colStep = Double.compare(lon2, lon1);
         Set<String> out = new LinkedHashSet<>();

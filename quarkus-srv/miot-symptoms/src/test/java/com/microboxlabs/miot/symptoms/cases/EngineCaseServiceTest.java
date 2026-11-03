@@ -585,6 +585,65 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void onlyTheStepsThatWereTreatedShowTheOperator() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                actionAt(OPENED.plusSeconds(9_500), "En L4")));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg");
+
+        for (int i = 0; i < 3; i++) {
+            assertTrue(aggs.get(i).path("assigned_to").isNull(), "untreated step " + (i + 1) + " has no operator");
+            assertEquals(List.of(), messages(aggs.get(i)));
+        }
+        assertEquals("operator@example.com", aggs.get(3).path("assigned_to").asText());
+        assertEquals(List.of("Llamado a: En L4"), messages(aggs.get(3)));
+    }
+
+    @Test
+    void eachStepKeepsItsActionOperatorWhenAnotherOperatorClosesTheTreatment() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        OffsetDateTime at = OPENED.atOffset(ZoneOffset.UTC);
+        TreatmentView treatment = new TreatmentView("t", -12, "DEMO01", "T-1", TreatmentType.CALL,
+                TreatmentStatus.CLOSED, "opener@example.com", at, "closer@example.com", at.plusSeconds(9_500),
+                null, null, at.plusSeconds(9_500), List.of(
+                        actionAt(OPENED.plusSeconds(1_800), "En L1", "alice@example.com"),
+                        actionAt(OPENED.plusSeconds(4_000), "En L2", "bob@example.com"),
+                        actionAt(OPENED.plusSeconds(8_000), "En L3", null)));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), List.of(treatment))
+                .path("timeline").get(0).path("conditions_agg");
+
+        assertEquals("alice@example.com", aggs.get(0).path("assigned_to").asText());
+        assertEquals("bob@example.com", aggs.get(1).path("assigned_to").asText());
+        assertEquals("opener@example.com", aggs.get(2).path("assigned_to").asText(),
+                "an action without its actor falls back to the opener, never the closer");
+        assertTrue(aggs.get(3).path("assigned_to").isNull(), "closing alone does not assign an untreated step");
+    }
+
+    @Test
+    void aHoldEndAssignsItsStepWithoutReplacingAnEarlierActionOperator() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        OffsetDateTime at = OPENED.atOffset(ZoneOffset.UTC);
+        for (String resolution : HoldService.ENDINGS) {
+            TreatmentView treatment = new TreatmentView("t", -12, "DEMO01", "T-1", TreatmentType.IGNORE_CONDITION,
+                    TreatmentStatus.CLOSED, "opener@example.com", at, HoldService.SYSTEM, at.plusSeconds(9_500),
+                    resolution, null, at.plusSeconds(9_500), List.of(action(ActionKind.IGNORE, null, "Motivo", null)));
+
+            JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), List.of(treatment))
+                    .path("timeline").get(0).path("conditions_agg");
+
+            assertEquals("operator@example.com", aggs.get(0).path("assigned_to").asText());
+            assertTrue(aggs.get(1).path("assigned_to").isNull());
+            assertTrue(aggs.get(2).path("assigned_to").isNull());
+            assertEquals(HoldService.SYSTEM, aggs.get(3).path("assigned_to").asText());
+            assertEquals("fin de ignorar", aggs.get(3).path("treatments").get(0).path("treatment_type").asText());
+            assertEquals(resolution, aggs.get(3).path("treatments").get(0).path("resolution").asText());
+        }
+    }
+
+    @Test
     void aCaseWithoutStepsKeepsOneBlock() {
         store.add(panic(12, "DEMO01"));
 
@@ -595,8 +654,12 @@ class EngineCaseServiceTest {
     }
 
     private static TreatmentAction actionAt(Instant at, String contact) {
+        return actionAt(at, contact, "operator@example.com");
+    }
+
+    private static TreatmentAction actionAt(Instant at, String contact, String operator) {
         return new TreatmentAction("a", "t", TENANT, 1, ActionKind.CALL, null, contact, null, null, null, null, null,
-                null, null, null, null, List.of(), Map.of(), "operator@example.com",
+                null, null, null, null, List.of(), Map.of(), operator,
                 at == null ? null : at.atOffset(ZoneOffset.UTC));
     }
 

@@ -71,6 +71,16 @@ class RuleSendJobsTest {
     }
 
     @Test
+    void ignoringAlsoSuppressesThePendingSendOfAnAlreadyFinishedRun() {
+        Run before = run();
+        f.store.runs.put(before.id(), before.advanced(Run.Status.DONE, before.step(), null, null, before.updatedAt()));
+        f.engine.accept(RulesFixture.event(RulesEngine.CASE_IGNORED, "-7", RulesFixture.panic(4), false));
+        f.runSendJobs();
+        assertTrue(f.whatsappSent.isEmpty());
+        assertEquals(MessageStatus.FAILED, message().status());
+    }
+
+    @Test
     void aJobRunTwiceSendsOnce() {
         f.runSendJobs();
         new WhatsAppSendJob(f.whatsapp, f.store.runStore).handle(TENANT, f.sendJobs.get(0).payload());

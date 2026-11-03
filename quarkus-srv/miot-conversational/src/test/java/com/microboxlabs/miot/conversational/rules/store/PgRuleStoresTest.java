@@ -291,6 +291,20 @@ class PgRuleStoresTest {
     }
 
     @Test
+    void aQueuedSendRemainsSuppressedEvenWhenItsRunAlreadyFinished() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        Rule rule = rule(tenant, "ignored");
+        StoredEvent opened = runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant,
+                "symptom.case.opened", "miot-symptoms", "symptom_case", "-7", Map.of(), false, T0, T0));
+        Run run = runs.createRun(new Run(UUID.randomUUID().toString(), tenant, rule.id(), "0.1.0", opened.id(),
+                "symptom_case", "-7", false, Run.Status.DONE, 1, null, null, T0, T0));
+        assertFalse(runs.ignoredSince(run));
+        runs.saveEvent(new StoredEvent(UUID.randomUUID().toString(), tenant, "symptom.case.ignored",
+                "miot-symptoms", "symptom_case", "-7", Map.of(), false, T0.plusSeconds(1), T0.plusSeconds(1)));
+        assertTrue(runs.ignoredSince(run));
+    }
+
+    @Test
     void runsAreClaimedOnceAndOnlyWaitingRunsChange() throws Exception {
         String tenant = "tenant-" + UUID.randomUUID();
         Rule rule = rule(tenant, "panic");

@@ -4265,12 +4265,6 @@
         "communicationsLoadFailed": "Could not load the communication rules.",
         "newRuleForLevel": "New rule for this level",
         "newRuleForLevelName": "{symptom} · {level}",
-        "ruleStateOff": "Off",
-        "ruleStateTest": "Test",
-        "ruleStateActive": "Active",
-        "ruleStepsOne": "1 step",
-        "ruleStepsCount": "{n} steps",
-        "ruleStepsNone": "No steps",
         "channelPreferred": "Preferred"
       },
       "communications": {

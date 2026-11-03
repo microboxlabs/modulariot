@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Card, CardHeader, Tile } from "./card";
 
 /** A text or number input in the level response, with its error state. */
 export const FIELD =
@@ -6,26 +7,31 @@ export const FIELD =
 export const FIELD_ERROR =
   "!border-red-500 focus:!ring-red-500 dark:!border-red-500";
 
-/** One part of a level's response as a card: notices, operator, closing. */
+/**
+ * One part of a level's response: notices, operator, closing. Drawn with the
+ * card surface and header of the Síntomas and Comunicaciones pages.
+ */
 export function ResponseBlock({
   title,
+  icon,
   aside,
   children,
 }: Readonly<{
   title: string;
+  /** The header's tile, like a catalog card's. */
+  icon?: ReactNode;
   aside?: ReactNode;
   children: ReactNode;
 }>) {
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex min-h-8 flex-wrap items-center gap-2">
-        <h4 className="text-base font-semibold text-gray-900 dark:text-white">
-          {title}
-        </h4>
-        {aside && <div className="ml-auto">{aside}</div>}
-      </div>
-      <div className="flex min-w-0 flex-col gap-4">{children}</div>
-    </section>
+    <Card>
+      <section aria-label={title} className="flex min-w-0 flex-col">
+        <CardHeader tile={icon && <Tile>{icon}</Tile>} title={title}>
+          {aside}
+        </CardHeader>
+        <div className="flex min-w-0 flex-col gap-4 px-4 py-4">{children}</div>
+      </section>
+    </Card>
   );
 }
 

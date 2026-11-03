@@ -17,6 +17,10 @@ import { useSymptomNames } from "./use-symptom-names";
 
 export const COMMUNICATIONS_PAGE = "/users/settings/communications";
 
+/** The responsive grid of rule cards, shared with a symptom level's "Comunicaciones". */
+export const RULE_CARD_GRID =
+  "grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3";
+
 export const ruleHref = (lang: string, id: string) =>
   `/${lang}${COMMUNICATIONS_PAGE}/rules/${encodeURIComponent(id)}`;
 
@@ -303,7 +307,7 @@ export default function RulesTab({
         </p>
       )}
       {shown.length > 0 && layout === "cards" && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div className={RULE_CARD_GRID}>
           {shown.map((r) => (
             <RuleCard
               key={r.id}

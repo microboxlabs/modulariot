@@ -1,6 +1,11 @@
 "use client";
 
 import { ToggleSwitch } from "flowbite-react";
+import {
+  HiOutlineChatAlt2,
+  HiOutlineCheckCircle,
+  HiOutlinePhone,
+} from "react-icons/hi";
 import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -101,6 +106,7 @@ function OperatorBlock({
   return (
     <ResponseBlock
       title={tr("operatorTitle", d)}
+      icon={<HiOutlinePhone aria-hidden className="h-5 w-5" />}
       aside={
         <ToggleSwitch
           checked={response.operator}
@@ -193,7 +199,10 @@ function CloseBlock({
   const value = response.evidence?.[0] ?? "";
   const known = value === "" || EVIDENCE.some((e) => e.value === value);
   return (
-    <ResponseBlock title={tr("closeTitle", d)}>
+    <ResponseBlock
+      title={tr("closeTitle", d)}
+      icon={<HiOutlineCheckCircle aria-hidden className="h-5 w-5" />}
+    >
       {response.operator && (
         <FieldRow label={tr("closeRequires", d)}>
           <Select
@@ -239,6 +248,8 @@ export interface ResponseSymptom {
   key: string;
   name: string;
   icu: number;
+  /** The Comunicaciones page's dictionary, which the rule cards read. */
+  rulesDict: I18nRecord;
 }
 
 /**
@@ -276,9 +287,13 @@ export default function LevelResponseDetail({
           icu={symptom.icu}
           canWrite={!readOnly}
           d={d}
+          rulesDict={symptom.rulesDict}
         />
       ) : (
-        <ResponseBlock title={tr("communicationsTitle", d)}>
+        <ResponseBlock
+          title={tr("communicationsTitle", d)}
+          icon={<HiOutlineChatAlt2 aria-hidden className="h-5 w-5" />}
+        >
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {tr("communicationsSoon", d)}
           </p>

@@ -4265,12 +4265,6 @@
         "communicationsLoadFailed": "No se pudieron cargar las reglas de comunicación.",
         "newRuleForLevel": "Nueva regla para este nivel",
         "newRuleForLevelName": "{symptom} · {level}",
-        "ruleStateOff": "Apagada",
-        "ruleStateTest": "En prueba",
-        "ruleStateActive": "Activa",
-        "ruleStepsOne": "1 paso",
-        "ruleStepsCount": "{n} pasos",
-        "ruleStepsNone": "Sin pasos",
         "channelPreferred": "Preferido"
       },
       "communications": {

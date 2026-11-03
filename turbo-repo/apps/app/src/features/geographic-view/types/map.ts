@@ -19,6 +19,8 @@ export interface MapPosition {
    driver?: string;
    trip?: string; */
   assetid: string;
+  /** The GPS database's live-position key; normalized to both aliases by useMapPositions. */
+  asset_id?: string;
   carrier_name: string;
   driver_name: string;
   engine_status: string;

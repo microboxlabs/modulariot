@@ -362,13 +362,13 @@ function diagnostics(v: EditorView, problems: CelProblem[]): Diagnostic[] {
 }
 
 /** Inserts text at the cursor of the editor used last, for the field tree. */
-export function insertIntoFocused(text: string) {
+export function insertIntoFocused(text: string, caret = text.length) {
   const v = lastFocused;
   if (!v) return false;
   const { from, to } = v.state.selection.main;
   v.dispatch({
     changes: { from, to, insert: text },
-    selection: { anchor: from + text.length },
+    selection: { anchor: from + caret },
   });
   v.focus();
   return true;

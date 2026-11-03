@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -412,6 +413,7 @@ public class PgEngineCases implements EngineCaseStore {
         List<CaseNote> out = new ArrayList<>();
         PgIds.query(pool.get(), NOTES, Tuple.of(tenantCode, caseId, MAX_NOTES)).forEach(r -> out.add(
                 note(r.getOffsetDateTime("at").toInstant(), json(r.getString("context")))));
+        out.sort(Comparator.comparing(CaseNote::at));
         return out;
     }
 

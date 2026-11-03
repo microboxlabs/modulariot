@@ -3916,7 +3916,7 @@
         "closeRequires": "To close, require",
         "closesWhen": "Closes when",
         "notesWhen": "Add to the timeline when",
-        "notesWhenHint": "Applies to every level. When it holds on a frame of an open case, the GPS event goes in the case timeline. The case does not close.",
+        "notesWhenHint": "Applies to every level. Adds a note when this rule holds on an open case and the close rule does not. Shows the first matching GPS event, or the frame time if no single event matches.",
         "evidenceNothing": "nothing",
         "evidenceCallResult": "Call result",
         "evidenceNote": "A note",

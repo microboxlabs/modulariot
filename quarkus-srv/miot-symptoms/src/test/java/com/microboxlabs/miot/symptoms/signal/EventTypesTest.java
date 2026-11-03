@@ -88,4 +88,15 @@ class EventTypesTest {
         assertEquals(List.of(new EventTypes.Count(" code ", 1), new EventTypes.Count(prefix, 1)),
                 types.recent("tenant-a", 7));
     }
+
+    @Test
+    void anotherTenantsActivityPrunesInactiveTenantsDays() {
+        Instant first = now.get();
+        types.count("tenant-a", frame("old_event"));
+        now.set(first.plus(Duration.ofDays(EventTypes.MAX_DAYS + 1L)));
+        types.count("tenant-b", frame("new_event"));
+        now.set(first);
+
+        assertEquals(List.of(), types.recent("tenant-a", 1), "the old day was removed from memory");
+    }
 }

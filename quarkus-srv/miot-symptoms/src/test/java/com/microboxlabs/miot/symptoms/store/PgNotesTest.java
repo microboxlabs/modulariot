@@ -90,4 +90,14 @@ class PgNotesTest {
         assertEquals(List.of(at.plusSeconds(60)), cases.notes(tenant, first).stream().map(n -> n.recordedAt()).toList());
         assertEquals(List.of(at.plusSeconds(240)), cases.notes(tenant, second).stream().map(n -> n.recordedAt()).toList());
     }
+
+    @Test
+    void lateNotesAreReadInEventTimeOrder() {
+        long caseId = log.append(tenant, List.of(transition(Kind.OPENED, 0)), NOWHERE).getFirst().caseId();
+        log.append(tenant, List.of(transition(Kind.NOTED, 60)), NOWHERE);
+        log.append(tenant, List.of(transition(Kind.NOTED, 30)), NOWHERE);
+
+        assertEquals(List.of(at.plusSeconds(30), at.plusSeconds(60)),
+                cases.notes(tenant, caseId).stream().map(n -> n.at()).toList());
+    }
 }

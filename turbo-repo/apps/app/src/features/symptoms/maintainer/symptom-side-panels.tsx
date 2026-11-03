@@ -211,7 +211,13 @@ export function FieldsPanel({
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => insertIntoFocused(fieldText(f))}
+                onClick={() => {
+                  const text = fieldText(f);
+                  insertIntoFocused(
+                    text,
+                    f.type === OBJECTS ? text.length - 2 : text.length
+                  );
+                }}
                 className="flex w-full items-baseline gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <span className="min-w-0 flex-1 truncate font-mono text-gray-900 dark:text-gray-100">

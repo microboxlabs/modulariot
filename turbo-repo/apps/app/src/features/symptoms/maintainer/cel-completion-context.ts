@@ -42,18 +42,63 @@ function tokens(text: string): Token[] {
   return out;
 }
 
+interface Scope {
+  name?: string;
+  previous?: string;
+  receiver?: string;
+  list?: string;
+}
+
+function macroScope(
+  parts: Token[],
+  i: number,
+  previousReceiver: string | undefined,
+  variables: Map<string, string>
+): Scope {
+  const call = parts[i - 1];
+  if (!call || call.quoted) return {};
+  const dot = call.text.lastIndexOf(".");
+  const method = call.text.slice(dot + 1);
+  if (!MACROS.has(method) || parts[i + 2]?.text !== ",") return {};
+  const chained = parts[i - 2]?.text === "." && parts[i - 3]?.text === ")";
+  const path = dot >= 0 ? call.text.slice(0, dot) : undefined;
+  const receiver = path ?? (chained ? previousReceiver : undefined);
+  const variable = parts[i + 1];
+  if (!receiver || !variable || variable.quoted) return {};
+  const list = resolved(receiver, variables);
+  const name = variable.text;
+  return {
+    name,
+    list,
+    previous: variables.get(name),
+    receiver: method === "filter" ? list : undefined,
+  };
+}
+
+function restoreBinding(
+  variables: Map<string, string>,
+  scope: Scope | undefined
+) {
+  if (!scope?.name) return;
+  if (scope.previous === undefined) variables.delete(scope.name);
+  else variables.set(scope.name, scope.previous);
+}
+
 function bindings(parts: Token[]): Map<string, string> {
   const out = new Map<string, string>();
-  for (let i = 0; i + 3 < parts.length; i++) {
-    const call = parts[i];
-    if (!call || call.quoted) continue;
-    const dot = call.text.lastIndexOf(".");
-    if (dot < 0 || !MACROS.has(call.text.slice(dot + 1))) continue;
-    if (parts[i + 1]?.text === "(" && parts[i + 3]?.text === ",") {
-      out.set(
-        parts[i + 2]?.text ?? "",
-        call.text.slice(0, dot).replaceAll("?", "")
-      );
+  const scopes: Scope[] = [];
+  let receiver: string | undefined;
+  for (let i = 0; i < parts.length; i++) {
+    const token = parts[i];
+    if (token?.quoted) continue;
+    if (token?.text === "(") {
+      const scope = macroScope(parts, i, receiver, out);
+      scopes.push(scope);
+      if (scope.name && scope.list) out.set(scope.name, scope.list);
+    } else if (token?.text === ")") {
+      const scope = scopes.pop();
+      restoreBinding(out, scope);
+      receiver = scope?.receiver;
     }
   }
   return out;

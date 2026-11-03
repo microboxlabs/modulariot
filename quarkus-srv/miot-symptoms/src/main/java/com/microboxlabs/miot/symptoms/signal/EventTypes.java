@@ -60,6 +60,7 @@ public class EventTypes {
 
     /** Counts the types of the signal's frame events, once per frame each; a frame without events costs nothing. */
     void count(String tenantCode, Map<String, Object> signal) {
+        pruneMemory();
         Set<String> types = types(signal);
         if (types.isEmpty()) {
             return;
@@ -74,8 +75,6 @@ public class EventTypes {
                     }
                 });
             }
-            memory.keySet().removeIf(k -> k.startsWith(PREFIX + tenantCode + ":") && !recentKeys(tenantCode,
-                    MAX_DAYS).contains(k));
             return;
         }
         List<String> args = new ArrayList<>(List.of(COUNT_SCRIPT, "1", key, Long.toString(TTL.toSeconds()),
@@ -90,6 +89,7 @@ public class EventTypes {
 
     /** The types of the last {@code days} days (1 to {@link #MAX_DAYS}), most frequent first; none when Redis fails. */
     public List<Count> recent(String tenantCode, int days) {
+        pruneMemory();
         Map<String, Long> sum = new HashMap<>();
         for (String key : recentKeys(tenantCode, Math.clamp(days, 1, MAX_DAYS))) {
             if (redis == null) {
@@ -137,6 +137,13 @@ public class EventTypes {
 
     private LocalDate today() {
         return LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
+    }
+
+    private void pruneMemory() {
+        if (redis == null) {
+            String firstDay = today().minusDays(MAX_DAYS - 1L).toString();
+            memory.keySet().removeIf(k -> k.substring(k.length() - firstDay.length()).compareTo(firstDay) < 0);
+        }
     }
 
     static String key(String tenantCode, LocalDate day) {

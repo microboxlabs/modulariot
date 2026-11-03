@@ -3916,7 +3916,7 @@
         "closeRequires": "Para cerrar se exige",
         "closesWhen": "Se cierra cuando",
         "notesWhen": "Se anota cuando",
-        "notesWhenHint": "Vale para todos los niveles. Cuando se cumple en una trama de un caso abierto, el evento del GPS queda en la línea de tiempo del caso. El caso no se cierra.",
+        "notesWhenHint": "Vale para todos los niveles. Agrega una nota cuando esta regla se cumple en un caso abierto y la regla de cierre no se cumple. Muestra el primer evento del GPS que la cumple o la hora de la trama si ningún evento la cumple por sí solo.",
         "evidenceNothing": "nada",
         "evidenceCallResult": "Resultado de la llamada",
         "evidenceNote": "Nota obligatoria",

@@ -15,6 +15,12 @@ public interface CoverageStore {
     /** Replaces the day's rows and marks it finished. */
     void replace(LocalDate day, List<CellDay> cells, List<SenderDay> senders, long frames);
 
+    /** Cell counts and sender totals from the same committed state. */
+    record Snapshot(List<CellDay> cells, List<SenderDay> senders) {
+    }
+
+    Snapshot snapshot(LocalDate from);
+
     List<CellDay> cells(LocalDate from);
 
     List<SenderDay> senders(LocalDate from);

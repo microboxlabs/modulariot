@@ -5,19 +5,27 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
+import com.microboxlabs.miot.symptoms.lostsignal.CoverageDay;
+import com.microboxlabs.miot.symptoms.lostsignal.CoverageSettings;
 import com.microboxlabs.miot.symptoms.lostsignal.InMemoryLossStore;
 import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth;
 import com.microboxlabs.miot.symptoms.lostsignal.LossSettings;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.lostsignal.ShadowMap;
+import com.microboxlabs.miot.symptoms.lostsignal.ShadowMaps;
 import com.microboxlabs.miot.symptoms.lostsignal.TestClock;
 import com.microboxlabs.miot.symptoms.lostsignal.TestEngine;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Replays GPS frames through the lost-signal detector in arrival order, with a simulated clock and a tick every
@@ -62,18 +70,60 @@ final class LostSignalReplay {
     private LostSignalReplay() {
     }
 
-    /** Replays the frames, then keeps ticking until {@code until} seconds. */
+    /** Replays the frames, then keeps ticking until {@code until} seconds, with an empty shadow map. */
     static Result run(List<Frame> frames, int until) {
+        return run(frames, until, ShadowMap.empty());
+    }
+
+    /**
+     * The shadow map the coverage job builds from these frames, taken as yesterday's: each sender's medians from
+     * its frames, then {@link CoverageDay} and {@link ShadowMap#build}.
+     */
+    static ShadowMap coverage(List<Frame> history) {
+        Map<String, List<Double>> delays = new HashMap<>();
+        Map<String, List<Double>> intervals = new HashMap<>();
+        Map<String, List<Frame>> byAsset = new TreeMap<>();
+        for (Frame f : history) {
+            delays.computeIfAbsent(f.sender(), k -> new ArrayList<>()).add((double) Math.max(0, f.arrives() - f.at()));
+            byAsset.computeIfAbsent(f.vehicle() + "/" + f.sender(), k -> new ArrayList<>()).add(f);
+        }
+        byAsset.values().forEach(list -> {
+            list.sort(Comparator.comparingInt(Frame::at));
+            for (int i = 1; i < list.size(); i++) {
+                int dt = list.get(i).at() - list.get(i - 1).at();
+                if (dt > 0) {
+                    intervals.computeIfAbsent(list.get(i).sender(), k -> new ArrayList<>()).add((double) dt);
+                }
+            }
+        });
+        Map<String, CoverageDay.Medians> medians = new HashMap<>();
+        delays.forEach((s, d) -> medians.put(s, new CoverageDay.Medians(median(d),
+                intervals.containsKey(s) ? median(intervals.get(s)) : null)));
+        LocalDate day = LocalDate.ofInstant(T0, ZoneOffset.UTC);
+        CoverageDay rows = new CoverageDay(day, CoverageSettings.defaults(), medians);
+        byAsset.values().forEach(list -> list.forEach(f -> rows.frame(f.vehicle(), f.sender(),
+                T0.plusSeconds(f.at()).toEpochMilli(), Math.max(0, f.arrives() - f.at()), f.lat(), f.lon())));
+        return ShadowMap.build(rows.cells(), rows.senders(), day.plusDays(1), CoverageSettings.defaults());
+    }
+
+    private static double median(List<Double> values) {
+        List<Double> sorted = values.stream().sorted().toList();
+        int n = sorted.size();
+        return n % 2 == 1 ? sorted.get(n / 2) : (sorted.get(n / 2 - 1) + sorted.get(n / 2)) / 2;
+    }
+
+    /** Replays the frames with the shadow map, then keeps ticking until {@code until} seconds. */
+    static Result run(List<Frame> frames, int until, ShadowMap coverage) {
         TestClock clock = new TestClock(T0);
         SimpleMeterRegistry meters = new SimpleMeterRegistry();
         TestEngine engine = new TestEngine(clock);
         engine.publish(TENANT, "signal-loss", SeedTemplates.get("signal-loss").spec(), SymptomState.ACTIVE);
         // Without the ingest guard: a scenario's fleet is a handful of vehicles, all of them silent at times.
-        LostSignalDetector detector = new LostSignalDetector(true, new InMemoryLossStore(clock),
+        LostSignalDetector detector = new LostSignalDetector(new LostSignalDetector.Settings(true,
                 LossSettings.defaults(), new LostSignalDetector.TickerSettings(Duration.ofMinutes(1),
                         Duration.ofDays(1), Duration.ofSeconds(15), 500, new IngestHealth(Duration.ZERO,
-                                Duration.ZERO), Duration.ofMinutes(1)),
-                engine.trips(meters), meters, clock);
+                                Duration.ZERO), Duration.ofMinutes(1))),
+                new InMemoryLossStore(clock), engine.trips(meters), ShadowMaps.of(coverage), meters, clock);
         List<Frame> byArrival = new ArrayList<>(frames);
         byArrival.sort(Comparator.comparingInt(Frame::arrives).thenComparingInt(Frame::at));
         int next = 0;

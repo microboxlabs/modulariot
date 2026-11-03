@@ -11,6 +11,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.evaluator.Transition;
 import com.microboxlabs.miot.symptoms.events.SymptomCaseData;
+import com.microboxlabs.miot.symptoms.signal.TripCheck;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
@@ -167,24 +168,53 @@ class TripChecksTest {
     }
 
     @Test
+    void withoutADecisionTheShareIsAbsent() {
+        VehicleProfile p = VehicleProfile.first(new Frame("V1", "S1", T0, T0, null, null, 0.0, true));
+        LossStore.Vehicle v = new LossStore.Vehicle(p, new Watch(Map.of(), 180, "S1"), CheckState.NONE);
+
+        Map<?, ?> loss = (Map<?, ?>) TripChecks.document(v, Map.of(), T0.plusSeconds(360), null, TripChecks.Area.NONE)
+                .get("loss");
+
+        assertFalse(loss.containsKey("coverage_share"));
+        assertEquals("none", loss.get("coverage_source"));
+        assertEquals(false, loss.get("low_coverage_zone"));
+    }
+
+    @Test
+    void theReturnSampleHasTheSameEmptyAreaAsAReturnCheck() {
+        Map<?, ?> check = (Map<?, ?>) TripCheck.samples().get(1).get(TripCheck.ROOT);
+        Map<?, ?> loss = (Map<?, ?>) check.get("loss");
+
+        assertEquals(true, loss.get("returned"));
+        assertEquals(false, loss.get("low_coverage_zone"));
+        assertFalse(loss.containsKey("coverage_share"));
+        assertEquals("none", loss.get("coverage_source"));
+        assertEquals(false, loss.get("cohort_outage"));
+        assertEquals(0.0, loss.get("nearby_reporting"));
+    }
+
+    @Test
     void theCheckDocumentHasTheSourcesShape() {
         VehicleProfile p = VehicleProfile.first(new Frame("V1", "S1", T0, T0.plusSeconds(5), -33.0, -71.0, 80.0,
                 true));
         LossStore.Vehicle v = new LossStore.Vehicle(p, new Watch(Map.of(), 180, "S1"), CheckState.NONE);
 
         Map<String, Object> check = TripChecks.document(v, Map.of("active", true), T0.plusSeconds(360), null,
-                new TripChecks.Area(true, false, 3));
+                new TripChecks.Area(new ShadowMap.Level(true, 0.4, ShadowMap.Source.SENDER), false, 3));
 
         assertEquals(6.0, check.get("signal_lost_minutes"));
-        assertEquals(Map.of("silence_s", 360.0, "expected_s", 180.0, "ratio", 2.0, "sender", "S1",
-                "returned", false, "backfill", false, "low_coverage_zone", true, "cohort_outage", false,
-                "nearby_reporting", 3.0, "last", Map.of("at", "2026-01-01T00:00:00Z", "lat", -33.0, "lon", -71.0, "speed", 80.0,
-                        "engine", true)), check.get("loss"));
+        assertEquals(Map.ofEntries(Map.entry("silence_s", 360.0), Map.entry("expected_s", 180.0),
+                Map.entry("ratio", 2.0), Map.entry("sender", "S1"), Map.entry("returned", false),
+                Map.entry("backfill", false), Map.entry("low_coverage_zone", true), Map.entry("coverage_share", 0.4),
+                Map.entry("coverage_source", "sender"), Map.entry("cohort_outage", false),
+                Map.entry("nearby_reporting", 3.0), Map.entry("last", Map.of("at", "2026-01-01T00:00:00Z",
+                        "lat", -33.0, "lon", -71.0, "speed", 80.0, "engine", true))), check.get("loss"));
         DataSource source = engine.sources.get(TENANT, "trip_check");
         List<String> paths = source.fields().stream().map(SourceField::path).toList();
         for (String path : List.of("check.loss.silence_s", "check.loss.expected_s", "check.loss.ratio",
                 "check.loss.last.speed", "check.loss.last.engine", "check.loss.returned", "check.loss.backfill",
-                "check.loss.low_coverage_zone", "check.loss.cohort_outage", "check.loss.nearby_reporting",
+                "check.loss.low_coverage_zone", "check.loss.coverage_share", "check.loss.coverage_source",
+                "check.loss.cohort_outage", "check.loss.nearby_reporting",
                 "check.trip.active", "check.trip.double_driver", "check.trip.driver.id", "check.signal_lost_minutes",
                 "check.driving_minutes")) {
             assertTrue(paths.contains(path), path);

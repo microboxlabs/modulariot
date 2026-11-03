@@ -52,12 +52,16 @@ public class TripChecks {
     }
 
     /**
-     * Around the last position: the shadow map says coverage is poor there, many of the sender's vehicles are
-     * lost at once, and how many vehicles still report nearby.
+     * Around the last position: what the shadow map says about the sender there ({@link ShadowMap#level}), many of
+     * the sender's vehicles are lost at once, and how many vehicles still report nearby.
      */
-    public record Area(boolean lowCoverage, boolean cohortOutage, int nearby) {
+    public record Area(ShadowMap.Level coverage, boolean cohortOutage, int nearby) {
 
-        public static final Area NONE = new Area(false, false, 0);
+        public static final Area NONE = new Area(ShadowMap.Level.NONE, false, 0);
+
+        public boolean lowCoverage() {
+            return coverage.shadow();
+        }
     }
 
     public TripChecks(EvaluatorCatalog catalog, EpisodeRepository episodes, TransitionLog log, SymptomEvents events,
@@ -127,6 +131,10 @@ public class TripChecks {
         loss.put("returned", back != null);
         loss.put(BACKFILL, back != null && back.backfill());
         loss.put("low_coverage_zone", area.lowCoverage());
+        if (area.coverage().share() != null) {
+            loss.put("coverage_share", area.coverage().share());
+        }
+        loss.put("coverage_source", area.coverage().source().value());
         loss.put("cohort_outage", area.cohortOutage());
         loss.put("nearby_reporting", (double) area.nearby());
         Map<String, Object> check = new LinkedHashMap<>();

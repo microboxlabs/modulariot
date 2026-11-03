@@ -21,8 +21,7 @@ public class InMemoryLossStore implements LossStore {
     private final Map<String, Instant> deadlines = new ConcurrentHashMap<>();
     private final Map<String, Heartbeat> beats = new ConcurrentHashMap<>();
     private final Map<String, Mark> marks = new ConcurrentHashMap<>();
-    private final Map<String, Coverage> coverage = new ConcurrentHashMap<>();
-    private final Map<String, Cells> reporting = new ConcurrentHashMap<>();
+    private final Map<String, Reporting> reporting = new ConcurrentHashMap<>();
     private final Map<String, Instant> reportedAt = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> lost = new ConcurrentHashMap<>();
     private final Map<String, Cohort> cohorts = new ConcurrentHashMap<>();
@@ -39,23 +38,15 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public Profiles load(String assetId, String sender, String cell) {
-        return new Profiles(vehicles.get(assetId), sender == null ? null : senders.get(sender), checks.get(assetId),
-                cell == null || sender == null ? null : coverage.get(sender + "/" + cell),
-                cell == null ? null : coverage.get("*/" + cell));
+    public Profiles load(String assetId, String sender) {
+        return new Profiles(vehicles.get(assetId), sender == null ? null : senders.get(sender), checks.get(assetId));
     }
 
     @Override
     public synchronized void save(String assetId, VehicleProfile vehicle, String sender, SenderProfile senderProfile,
-            Schedule schedule, Mark mark, Cells cells) {
-        if (cells != null && cells.cell() != null) {
-            if (sender != null) {
-                coverage.put(sender + "/" + cells.cell(), cells.bySender());
-            }
-            coverage.put("*/" + cells.cell(), cells.byAll());
-        }
-        if (cells != null && cells.latitude() != null) {
-            reporting.put(assetId, cells);
+            Schedule schedule, Mark mark, Reporting at) {
+        if (at != null) {
+            reporting.put(assetId, at);
             // The frame's arrival, not the save: a backlog does not make a report look fresh.
             reportedAt.put(assetId, vehicle.arrival());
         }
@@ -136,11 +127,10 @@ public class InMemoryLossStore implements LossStore {
     }
 
     @Override
-    public Around around(String sender, String cell, Double latitude, Double longitude, String assetId, Instant now,
-            double radiusKm) {
+    public int nearby(Double latitude, Double longitude, String assetId, Instant now, double radiusKm) {
         int nearby = 0;
         if (latitude != null && longitude != null) {
-            for (Map.Entry<String, Cells> e : reporting.entrySet()) {
+            for (Map.Entry<String, Reporting> e : reporting.entrySet()) {
                 Instant at = reportedAt.get(e.getKey());
                 if (!e.getKey().equals(assetId) && at != null && !at.isBefore(now.minusSeconds(600))
                         && km(latitude, longitude, e.getValue().latitude(), e.getValue().longitude()) <= radiusKm) {
@@ -148,8 +138,7 @@ public class InMemoryLossStore implements LossStore {
                 }
             }
         }
-        return new Around(cell == null || sender == null ? null : coverage.get(sender + "/" + cell),
-                cell == null ? null : coverage.get("*/" + cell), nearby);
+        return nearby;
     }
 
     static double km(double lat1, double lon1, double lat2, double lon2) {

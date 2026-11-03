@@ -53,7 +53,7 @@ class CoverageJobTest {
         }
     }
 
-    static final class Store implements CoverageStore {
+    static class Store implements CoverageStore {
         final Map<LocalDate, List<CellDay>> cells = new HashMap<>();
         final Map<LocalDate, List<SenderDay>> senders = new HashMap<>();
         final Set<LocalDate> done = new HashSet<>();
@@ -72,6 +72,11 @@ class CoverageJobTest {
             senders.put(day, s);
             done.add(day);
             order.add(day);
+        }
+
+        @Override
+        public Snapshot snapshot(LocalDate from) {
+            return new Snapshot(cells(from), senders(from));
         }
 
         @Override

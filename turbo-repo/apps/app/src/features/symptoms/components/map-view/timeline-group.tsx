@@ -12,6 +12,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import TreatmentsTimelineBox from "./treatments-timeline-box";
+import { timelineDurationMinutes } from "../../model/timeline-duration";
 
 /*
 function formatDate(date: Date, lang: string): string {
@@ -76,18 +77,8 @@ export default function TimelineGroup({
     item.conditions_agg?.[0]?.start ?? ""
   ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); */
 
-  const longest_treatment = item.conditions_agg?.reduce((max, subItem) => {
-    return Math.max(
-      max,
-      Math.floor(
-        (new Date(subItem?.end ?? "").getTime() -
-          new Date(subItem?.start ?? "").getTime()) /
-          60000
-      )
-    );
-  }, 0);
   // Get the length in minutes
-  const length = longest_treatment ?? 0;
+  const length = timelineDurationMinutes(item);
   /* const length = Math.floor(
     (new Date(item.conditions_agg?.[0]?.end ?? "").getTime() -
       new Date(item.conditions_agg?.[0]?.start ?? "").getTime()) /

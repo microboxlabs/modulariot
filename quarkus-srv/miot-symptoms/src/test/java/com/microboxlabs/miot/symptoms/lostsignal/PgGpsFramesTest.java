@@ -89,12 +89,40 @@ class PgGpsFramesTest {
     }
 
     @Test
-    void anIntervalLongerThanTheLookbackAcrossTheStartIsNotCounted() {
+    void anIntervalWhosePredecessorIsBeforeTheLookbackIsNotCounted() {
         frame("v1", "s", FROM.minusSeconds(PgGpsFrames.LOOKBACK_H * 3600L + 60), 2);
         frame("v1", "s", FROM.plusSeconds(30), 2);
         frame("v1", "s", FROM.plusSeconds(90), 2);
 
         assertEquals(List.of(new GpsFrames.Count("s", 60, 1)), gps.intervals(FROM, TO));
+    }
+
+    @Test
+    void aCrossingIntervalLongerThanTheLookbackIsNotCounted() {
+        frame("v1", "s", FROM.minusSeconds(PgGpsFrames.LOOKBACK_H * 3600L - 1), 2);
+        frame("v1", "s", FROM.plusSeconds(3500), 2);
+        frame("v1", "s", FROM.plusSeconds(3530), 2);
+
+        assertEquals(List.of(new GpsFrames.Count("s", 30, 1)), gps.intervals(FROM, TO));
+    }
+
+    @Test
+    void anIntervalWithinTheRangeIsNotLimitedByTheLookback() {
+        long seconds = (PgGpsFrames.LOOKBACK_H + 1) * 3600L;
+        frame("v1", "s", FROM, 2);
+        frame("v1", "s", FROM.plusSeconds(seconds), 2);
+
+        assertEquals(List.of(new GpsFrames.Count("s", (int) seconds, 1)),
+                gps.intervals(FROM, FROM.plusSeconds(seconds + 1)));
+    }
+
+    @Test
+    void anIntervalWhosePredecessorIsExactlyAtTheLookbackIsCounted() {
+        long seconds = PgGpsFrames.LOOKBACK_H * 3600L;
+        frame("v1", "s", FROM.minusSeconds(seconds), 2);
+        frame("v1", "s", FROM, 2);
+
+        assertEquals(List.of(new GpsFrames.Count("s", (int) seconds, 1)), gps.intervals(FROM, TO));
     }
 
     @Test

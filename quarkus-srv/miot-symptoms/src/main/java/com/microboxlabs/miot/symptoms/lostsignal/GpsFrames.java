@@ -17,7 +17,10 @@ public interface GpsFrames {
     /** Delays in {@code [from, to)}, by sender and second. */
     List<Count> delays(Instant from, Instant to);
 
-    /** Intervals whose ending frame is in {@code [from, to)}, per asset and sender, grouped by sender and second. */
+    /**
+     * Intervals whose ending frame is in {@code [from, to)}, per asset and sender, grouped by sender and second.
+     * An implementation may omit intervals crossing {@code from} that exceed its predecessor lookback.
+     */
     List<Count> intervals(Instant from, Instant to);
 
     /** The frames in {@code [from, to)}, ordered by asset, sender and time. */

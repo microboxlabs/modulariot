@@ -41,7 +41,7 @@ public class PgGpsFrames implements GpsFrames {
      * same index range scan. A per-asset "latest frame before the range" lookup walks the {@code ("timestamp",
      * asset_id)} index backwards until it finds that asset, which for an asset silent for days reads most of the
      * table and timed out whole days in production. An interval longer than the lookback that crosses the start is
-     * not counted; the median it feeds is not moved by it.
+     * not counted.
      */
     static final int LOOKBACK_H = 2;
 
@@ -56,7 +56,9 @@ public class PgGpsFrames implements GpsFrames {
                   AND a.client_id IS NOT NULL AND a.request_timestamp IS NOT NULL AND a.location IS NOT NULL
             ) x
             WHERE x.at >= $1 AND x.at < $2 AND x.dt > 0
-            GROUP BY 1, 2""".formatted(CAP_S, LOOKBACK_H);
+              -- Keep longer intervals when their predecessor is inside the requested range.
+              AND (x.dt <= %d OR x.dt <= extract(epoch FROM x.at - $1))
+            GROUP BY 1, 2""".formatted(CAP_S, LOOKBACK_H, LOOKBACK_H * 3600);
 
     static final String FRAMES = """
             SELECT a.asset_id, a.client_id AS sender,

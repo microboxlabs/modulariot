@@ -93,7 +93,7 @@ The case's trip, driver and position are the trip's and the newest frame's.
 
 ### Return
 
-A frame from inside the silence (taken after the newest frame before it) tells about the return: the first one on time is the return (`r` in the vehicle's hash, kept once set), and one that arrives late, or delayed by more than 2 min and the sender's usual delay, is backfill (`b`). A return without backfill waits `return-grace` (1 min) for late frames. Then one check runs with `returned: true`, and every open case the checks opened for the vehicle gets `symptom.case.signal_returned` with the return time and whether backfill came; an ACTIVE case also gets the audit entry `case.signal_returned`. The detector never closes a case.
+A frame from inside the silence (taken after the newest frame before it) tells about the return: the first one on time is the return (`r` in the vehicle's hash, kept once set), and one that arrives late, or delayed by more than 2 min and the sender's usual delay, is backfill (`b`). A return without backfill waits `return-grace` (1 min) for late frames. Then one check runs with `returned: true`, and every open case the checks opened for the vehicle gets `symptom.case.signal_returned` with the return time and whether backfill came; an ACTIVE case also gets the audit entry `case.signal_returned`. The detector never closes a case; the template's close rule can close one on that check (2.2.0, below), and a case closed there gets `symptom.case.closed` instead of `signal_returned`.
 
 ### Platform template (V0.12.4)
 
@@ -106,7 +106,7 @@ A frame from inside the silence (taken after the newest frame before it) tells a
 | Level 1 | `check.loss.silence_s < 1800` |
 | Level 2 | `check.loss.silence_s >= 1800 && measure < 120`: L = 1800 s, after which the loss is validated |
 | Level 3, 4 | 120 and 180 min |
-| Close | `case.closed_by_operator`, as panic |
+| Close | `case.closed_by_operator`, as panic; from 2.2.0 also `case.level <= 1 && case.normal_s >= 0` |
 
 An organization changes L by editing the level-2 rule. Symptoms copied from 1.0.0 keep their rules.
 
@@ -130,6 +130,8 @@ Every frame with a position adds to its grid cell (0.05°, about 5 km) of the sh
 The frame reads and writes the cells in the same pipelined round trips as the profiles. The return check carries `false` and `0` for the three.
 
 Template 2.1.0 (V0.12.5): while `cohort_outage` or `low_coverage_zone` holds, the case stays at level 1 until 180 min, when it reaches level 4 anyway.
+
+Template 2.2.0 (V0.12.11) closes a case that never left level 1 when the signal returns: `case.closed_by_operator || (case.level <= 1 && case.normal_s >= 0)`. `case.level` is the highest level the case reached. The return check (`returned: true`) stops the activation, so `case.normal_s` is 0 on it and the case closes. A case that reached level 2 or more stays open for the operator. The rest of the spec is 2.1.0's.
 
 ### First load
 

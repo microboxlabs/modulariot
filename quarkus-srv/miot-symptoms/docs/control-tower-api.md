@@ -120,6 +120,9 @@ applies to every organization of the deployment. The app reads the same env name
 | `GET /map/summary` | GPS database | Same shape. Symptom items count the open cases by level; the services and fleet items and `stable_condition` have no case equivalent and are 0 |
 | `GET /map/symptoms/{id}`, `/signals`, `/positions` with a positive id | GPS database symptom | 404 |
 
+In engine-only mode, `p_icu_code=6` selects cases with an open treatment, independently of their severity.
+The store applies this predicate before its 200-case limit.
+
 ## Selectables
 
 The option lists behind the forms are not part of this API. They are a core

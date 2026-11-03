@@ -71,6 +71,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerMapResource.tripGeofences", VIEW + " | trips:view"),
             Map.entry("OrgControlTowerMapResource.tripPositions", VIEW),
             Map.entry("OrgControlTowerMapResource.assetPositions", VIEW),
+            Map.entry("OrgControlTowerMapResource.assetSignal", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),

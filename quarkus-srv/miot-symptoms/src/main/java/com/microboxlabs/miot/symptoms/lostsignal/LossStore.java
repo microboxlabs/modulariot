@@ -3,7 +3,9 @@ package com.microboxlabs.miot.symptoms.lostsignal;
 import com.microboxlabs.miot.symptoms.lostsignal.IngestHealth.Heartbeat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /** The lost-signal detector's state: in Redis, or in memory for one replica and for tests. */
 public interface LossStore {
@@ -69,6 +71,24 @@ public interface LossStore {
             return new Schedule(Kind.CLEAR, at, watch);
         }
     }
+
+    /**
+     * What the signal state reads for one vehicle; any part may be null.
+     *
+     * @param sender the profile of the vehicle's sender, read only when there is no active trip watch
+     */
+    record Seen(VehicleProfile profile, Watch watch, SenderProfile sender) {
+        public boolean onTrip() {
+            return watch != null && !watch.trips().isEmpty();
+        }
+    }
+
+    /**
+     * The vehicles' profiles and watches, then the senders of those without an active trip watch: two reads
+     * whatever the count.
+     * A vehicle never seen, or whose profile expired, is left out.
+     */
+    Map<String, Seen> seen(Collection<String> assetIds);
 
     /** @param sender null when the frame names none */
     Profiles load(String assetId, String sender);

@@ -1,22 +1,40 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { Layer, PickingInfo } from "@deck.gl/core";
+import { ScatterplotLayer } from "deck.gl";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { MapPosition } from "../types/map";
+import { PulsePinLayer } from "./layers/pulse";
 import MapVisualizationTrip from "./map-visualization-trip";
 
+const mapState = vi.hoisted(() => ({ layers: [] as Layer[] }));
+
 // lo pesado (mapa, barra, panel, datos) queda fuera: se prueba el marco
+const signalNow = vi.hoisted(() => ({ value: null as unknown }));
+beforeEach(() => {
+  signalNow.value = null;
+});
 vi.mock("@/features/map-visualization/map-visualization", () => ({
   default: ({
     children,
     rounded,
+    layers = [],
   }: {
     children?: ReactNode;
     rounded?: boolean | "left";
-  }) => (
-    <div data-testid="mapa" data-rounded={String(rounded)}>
-      {children}
-    </div>
-  ),
+    layers?: Layer[];
+  }) => {
+    mapState.layers = layers;
+    return (
+      <div data-testid="mapa" data-rounded={String(rounded)}>
+        {children}
+      </div>
+    );
+  },
+}));
+vi.mock("../hooks/use-asset-signal", () => ({
+  useAssetSignal: () => signalNow.value,
 }));
 vi.mock("@/features/common/providers/client-api.provider", () => ({
   useGeofences: () => ({ geofence_data: null }),
@@ -223,6 +241,128 @@ describe("MapVisualizationTrip controls", () => {
   });
 });
 
+describe("case map frames", () => {
+  const positions = [
+    { timestamp: "2026-01-01T09:55:00Z", delay_s: 900, speed: 40 },
+    { timestamp: "2026-01-01T10:05:00Z", delay_s: 900, speed: 40 },
+    { timestamp: "2026-01-01T10:10:00Z", delay_s: 0, speed: 0 },
+  ].map((frame, index) => ({
+    assetid: "DEMO-1",
+    longitude: 1 + index / 100,
+    latitude: 1,
+    heading: 0,
+    ...frame,
+  })) as MapPosition[];
+  const caseSpans = [
+    {
+      start: "2026-01-01T10:00:00Z",
+      end: "2026-01-01T10:15:00Z",
+      level: 2,
+      name: "Demo symptom",
+    },
+  ];
+  const frameDict: I18nRecord = {
+    ...dict,
+    symptoms: {
+      license_plate: "Vehicle",
+      compromised_condition: "Compromised condition",
+    },
+  };
+  const props = {
+    tripId: "demo-trip",
+    positions,
+    caseSpans,
+    isLoading: false,
+    error: null,
+    filteredLocationData: null,
+    dict: frameDict,
+    selectedTreatmentIndex: null,
+  };
+
+  function pulseLayer() {
+    const layer = mapState.layers.find((item) => item instanceof PulsePinLayer);
+    if (!layer) throw new Error("Missing frame layer");
+    return layer;
+  }
+
+  function markerColor(
+    layer: Layer | undefined,
+    frame: object,
+    accessor: "getFillColor" | "getLineColor" = "getFillColor"
+  ) {
+    if (!(layer instanceof ScatterplotLayer))
+      throw new Error("Missing marker layer");
+    const color = layer.props[accessor];
+    return typeof color === "function"
+      ? color(frame, { index: 0, data: [frame], target: [] })
+      : color;
+  }
+
+  it("keeps a frame blue and shows its symptom and level when clicked", () => {
+    render(<MapVisualizationTrip {...props} />);
+    const layer = pulseLayer();
+    const frame = layer.props.data.features[1];
+    expect(frame.properties).toMatchObject({
+      icu_code: 0,
+      symptom_level: 2,
+      symptom_name: "Demo symptom",
+    });
+    const moving = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-moving-vehicles-layer");
+    expect(markerColor(moving, frame)).toEqual([28, 100, 242, 255]);
+
+    act(() => {
+      layer.props.onClick({ object: frame } as PickingInfo, {});
+    });
+    expect(screen.getByText("Demo symptom")).toBeInTheDocument();
+    expect(screen.getByText("Compromised condition")).toBeInTheDocument();
+  });
+
+  it("rings the selected symptom's frames and keeps late frames amber inside and outside the case", () => {
+    const { rerender } = render(<MapVisualizationTrip {...props} />);
+    rerender(
+      <MapVisualizationTrip
+        {...props}
+        filteredLocationData={{
+          type: "FeatureCollection",
+          description: {},
+          features: positions.slice(1).map((frame) => ({
+            type: "Feature",
+            geometry: "Point",
+            longitude: frame.longitude,
+            latitude: frame.latitude,
+            properties: { speed: frame.speed, timestamp: frame.timestamp },
+            status: "demo",
+          })),
+        }}
+      />
+    );
+    const layer = pulseLayer();
+    expect(layer.props.selectedPulse).toEqual([1, 2]);
+    const selected = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-selected-background-layer");
+    expect(selected?.props.data).toEqual(layer.props.data.features.slice(1));
+    const frame = layer.props.data.features[2];
+    expect(markerColor(selected, frame)).toEqual([255, 255, 255, 255]);
+    const stopped = layer
+      .renderLayers()
+      .find((item) => item.id === "pulse-selected-stopped-vehicles-layer");
+    expect(markerColor(stopped, frame)).toEqual([255, 255, 255, 255]);
+    expect(markerColor(stopped, frame, "getLineColor")).toEqual([
+      28, 100, 242, 255,
+    ]);
+    const late = mapState.layers.find((item) => item.id === "late-frames");
+    expect(late?.props).toMatchObject({
+      data: positions.slice(0, 2),
+      filled: false,
+      stroked: true,
+      getLineColor: [245, 158, 11, 255],
+    });
+  });
+});
+
 describe("trip map layer order", () => {
   it("draws the geofence names on top only while the editor is open", async () => {
     const { capasDelMapa } = await import("./map-visualization-trip");
@@ -265,5 +405,103 @@ describe("trip geofence anchor", () => {
       anclaDeGeometria({ type: "LineString", coordinates: [] })
     ).toBeNull();
     expect(anclaDeGeometria({ type: "Point" })).toBeNull();
+  });
+});
+
+describe("MapVisualizationTrip signal state", () => {
+  const frames = [
+    {
+      assetid: "AB12",
+      longitude: -70,
+      latitude: -33,
+      heading: 0,
+      speed: 0,
+      timestamp: "2026-11-03T11:00:00Z",
+    },
+    {
+      assetid: "AB12",
+      longitude: -70.1,
+      latitude: -33.1,
+      heading: 0,
+      speed: 40,
+      timestamp: "2026-11-03T11:48:00Z",
+    },
+  ];
+  const withLabels = {
+    ...dict,
+    geographic_view: {
+      ...(dict.geographic_view as I18nRecord),
+      signal_offline: "Sin señal",
+      signal_offline_minutes: "Sin señal · hace {n} min",
+      signal_offline_hours: "Sin señal · hace {n} h",
+    },
+  } as unknown as I18nRecord;
+
+  type Drawn = {
+    id: string;
+    props: {
+      offline?: boolean;
+      label?: string | null;
+      data?: {
+        features?: {
+          properties: {
+            offline?: boolean;
+            signal_label?: string | null;
+            icu_code?: number;
+          };
+        }[];
+      };
+    };
+  };
+  const layer = (id: string) =>
+    (mapState.layers as Drawn[]).find((l) => l.id === id);
+
+  function show(signal: unknown) {
+    signalNow.value = signal;
+    render(
+      <MapVisualizationTrip
+        tripId="t1"
+        positions={frames as never}
+        isLoading={false}
+        error={null}
+        filteredLocationData={null}
+        dict={withLabels}
+        selectedTreatmentIndex={null}
+      />
+    );
+  }
+
+  it("draws the current position gray, with how long ago, when offline", () => {
+    show({
+      state: "offline",
+      offline_since: new Date(Date.now() - 12 * 60_000).toISOString(),
+      last_frame_at: "2026-11-03T11:48:00Z",
+    });
+    expect(layer("PinLayer")?.props.offline).toBe(true);
+    expect(layer("PinLayer")?.props.label).toBe("Sin señal · hace 12 min");
+    const pulses = layer("PulsePinLayer")?.props.data?.features ?? [];
+    expect(pulses.map((f) => f.properties.offline)).toEqual([false, true]);
+    expect(pulses.map((f) => f.properties.icu_code)).toEqual([0, 0]);
+    expect(pulses.map((f) => f.properties.signal_label)).toEqual([
+      null,
+      "Sin señal · hace 12 min",
+    ]);
+  });
+
+  it("keeps today's look when online or unknown", () => {
+    for (const signal of [{ state: "online" }, { state: "unknown" }, null]) {
+      show(signal);
+      expect(layer("PinLayer")?.props.offline).toBe(false);
+      expect(layer("PinLayer")?.props.label).toBeNull();
+    }
+  });
+
+  it("is not gray when the map's positions end before the newest frame", () => {
+    show({
+      state: "offline",
+      offline_since: "2026-11-03T11:55:00Z",
+      last_frame_at: "2026-11-03T11:55:00Z",
+    });
+    expect(layer("PinLayer")?.props.offline).toBe(false);
   });
 });

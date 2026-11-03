@@ -211,4 +211,69 @@ class RuleLanguageTest {
                 RuleText.fieldPaths(rule));
         assertEquals(RuleText.canonical(rule), RuleText.canonical("signal.trip.active&&signal.frame.?sensors.?panic_button==TRUE"));
     }
+
+    private static final RuleSchema EVENTS = new RuleSchema("signal", Map.of(
+            "signal.trip.active", "bool",
+            "signal.frame.events", RuleLanguage.OBJECTS,
+            "signal.frame.events.event_type", "text",
+            "signal.frame.events.severity", "text",
+            "signal.frame.events.description", "text",
+            "signal.frame.events.timestamp", "time"), Map.of());
+
+    private static Map<String, Object> withEvents(String... types) {
+        return Map.of("signal", Map.of("trip", Map.of("active", true), "frame", Map.of("events",
+                java.util.Arrays.stream(types).map(t -> Map.of("event_type", t, "severity", "high",
+                        "description", "Evento", "timestamp", "2026-01-01T12:00:00Z")).toList())));
+    }
+
+    @Test
+    void aListOfObjectsIsReadWithTheListMacros() {
+        String rule = "signal.frame.events.exists(e, e.event_type in [\"main_power_disconnect\", \"gps_jamming\","
+                + " \"device_tamper\"])";
+
+        assertTrue(RuleLanguage.check(EVENTS, rule, Expect.CONDITION).ok());
+        assertEquals(true, RuleLanguage.evaluate(EVENTS, rule, withEvents("ignition_on", "device_tamper")).value());
+        assertEquals(false, RuleLanguage.evaluate(EVENTS, rule, withEvents("main_power_reconnect")).value());
+        assertEquals(false, RuleLanguage.evaluate(EVENTS, rule, withEvents()).value());
+        assertEquals(true, RuleLanguage.evaluate(EVENTS, "signal.frame.events.all(e, e.severity == \"high\")",
+                withEvents("a", "b")).value());
+        assertEquals(2L, RuleLanguage.evaluate(EVENTS,
+                "signal.frame.events.filter(e, e.event_type.startsWith(\"main_power\")).size()",
+                withEvents("main_power_disconnect", "main_power_reconnect", "gps_jamming")).value());
+        assertTrue(RuleLanguage.check(EVENTS, "signal.frame.events.exists_one(e, e.event_type == \"x\")",
+                Expect.CONDITION).ok());
+    }
+
+    @Test
+    void anEventFieldTheSchemaDoesNotDeclareIsRejected() {
+        assertFalse(RuleLanguage.check(EVENTS, "signal.frame.events.exists(e, e.code == \"x\")",
+                Expect.CONDITION).ok());
+        assertFalse(RuleLanguage.check(EVENTS, "signal.frame.events.exists(e, e.severity > 1.0)",
+                Expect.CONDITION).ok(), "severity is text");
+        assertFalse(RuleLanguage.check(EVENTS, "signal.frame.events == \"x\"", Expect.CONDITION).ok());
+    }
+
+    @Test
+    void aLifecycleRuleReadsTheCaseAndTheSignal() {
+        com.microboxlabs.miot.symptoms.catalog.domain.DataSource source =
+                com.microboxlabs.miot.symptoms.catalog.service.DataSourceServiceFixtures.gpsSignal();
+        RuleSchema lifecycle = RuleSchema.lifecycle(source);
+        String close = "case.closed_by_operator || signal.frame.events.exists(e, e.event_type == "
+                + "\"main_power_reconnect\")";
+
+        assertTrue(RuleLanguage.check(lifecycle, close, Expect.CONDITION).ok());
+        assertFalse(RuleLanguage.check(RuleSchema.CASE, close, Expect.CONDITION).ok(), "the case alone has no signal");
+        Map<String, Object> caseFields = Map.of("condition_s", 0.0, "normal_s", 30.0, "age_h", 1.0, "level", 4.0,
+                "closed_by_operator", false);
+        Map<String, Object> vars = new java.util.HashMap<>(withEvents("main_power_reconnect"));
+        vars.put("case", caseFields);
+        assertEquals(true, RuleLanguage.evaluate(lifecycle, close, vars).value(), "closed by the event");
+        Map<String, Object> byOperator = new java.util.HashMap<>(withEvents());
+        byOperator.put("case", Map.of("condition_s", 0.0, "normal_s", 30.0, "age_h", 1.0, "level", 4.0,
+                "closed_by_operator", true));
+        assertEquals(true, RuleLanguage.evaluate(lifecycle, close, byOperator).value(), "closed by the operator");
+        Map<String, Object> neither = new java.util.HashMap<>(withEvents("gps_jamming"));
+        neither.put("case", caseFields);
+        assertEquals(false, RuleLanguage.evaluate(lifecycle, close, neither).value());
+    }
 }

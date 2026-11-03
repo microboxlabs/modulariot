@@ -2,7 +2,8 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import LevelResponseDetail from "./level-response";
+import type { CelField } from "./cel-editor";
+import LevelResponseDetail, { type LifecycleRules } from "./level-response";
 import { EMPTY_RESPONSE, levelOf, withLevel } from "./level-row";
 import type {
   Finding,
@@ -10,7 +11,9 @@ import type {
   Preview,
   SymptomSpec,
 } from "./maintainer-api";
+import { problemsFor } from "./rule-problems";
 import { useSourceSamples } from "./sample-tree";
+import { caseFields } from "./symptom-rule-sections";
 import { ICU_LEVELS } from "./symptom-labels";
 import { CHANGED_DOT } from "./ui/changed";
 import { LevelIcon } from "./ui/level-icon";
@@ -163,6 +166,7 @@ export default function ResponseWorkspace({
   findings,
   readOnly,
   icu,
+  sourceFields = [],
   d,
   onIcu,
   onChange,
@@ -176,6 +180,8 @@ export default function ResponseWorkspace({
   findings: Finding[] | undefined;
   readOnly: boolean;
   icu: number;
+  /** The source's fields, which the close and note rules read besides the case. */
+  sourceFields?: CelField[];
   d: I18nRecord;
   onIcu: (icu: number) => void;
   onChange: (spec: SymptomSpec) => void;
@@ -187,6 +193,16 @@ export default function ResponseWorkspace({
   const name = trDynamic(`levelName${icu}`, d);
   const setResponse = (next: LevelResponse) =>
     onChange(withLevel(spec, { ...level, response: next }));
+  const lifecycle = spec.lifecycle ?? { open: "", close: "" };
+  const rules: LifecycleRules = {
+    close: lifecycle.close ?? "",
+    note: lifecycle.note ?? "",
+    fields: [...caseFields(d), ...sourceFields],
+    closeProblems: problemsFor(findings, "lifecycle.close", d),
+    noteProblems: problemsFor(findings, "lifecycle.note", d),
+    onChange: ({ close, note }) =>
+      onChange({ ...spec, lifecycle: { ...lifecycle, close, note } }),
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -247,6 +263,7 @@ export default function ResponseWorkspace({
             )}
             sample={sample}
             symptom={symptom && { ...symptom, icu }}
+            rules={rules}
             readOnly={readOnly}
             d={d}
             onChange={(patch) => setResponse({ ...response, ...patch })}

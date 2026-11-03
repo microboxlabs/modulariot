@@ -41,7 +41,7 @@ public final class SpecDiff {
         measureChanges(before.measure(), after.measure(), out);
         levelChanges(before.levels(), after.levels(), out);
         if (!Objects.equals(rules(before.lifecycle()), rules(after.lifecycle()))) {
-            out.add(new Change("lifecycle", VersionBump.MINOR, "Cambió cuándo se abre o se cierra el caso"));
+            out.add(new Change("lifecycle", VersionBump.MINOR, "Cambió cuándo se abre, se cierra o se anota el caso"));
         }
         if (levelDown(before.lifecycle()) != levelDown(after.lifecycle())) {
             out.add(new Change("lifecycle", VersionBump.MINOR, levelDown(after.lifecycle())
@@ -148,9 +148,10 @@ public final class SpecDiff {
                         SymptomSpec.Recurrence.VEHICLE);
     }
 
-    /** The open and close rules, without formatting. */
+    /** The open, close and note rules, without formatting. */
     private static SymptomSpec.Lifecycle rules(SymptomSpec.Lifecycle l) {
-        return l == null ? null : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()));
+        return l == null ? null
+                : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()), false, squash(l.note()));
     }
 
     private static boolean levelDown(SymptomSpec.Lifecycle l) {

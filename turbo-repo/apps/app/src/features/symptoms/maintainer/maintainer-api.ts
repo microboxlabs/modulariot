@@ -17,6 +17,7 @@ import {
 import {
   ORG_SYMPTOMS,
   PLATFORM_TEMPLATES,
+  isTemplateScope,
   useSymptomScope,
   type SymptomScope,
 } from "./symptom-scope";
@@ -91,6 +92,8 @@ export interface SymptomSpec {
     close: string | null;
     /** An open case's level follows the measure down. */
     levelDown?: boolean;
+    /** When it holds on a signal of an open case, the case's timeline gets an entry; the case does not close. */
+    note?: string | null;
   } | null;
   recurrence: {
     enabled: boolean;
@@ -415,6 +418,37 @@ export function useLevelResponse(
 export function useDataSources() {
   const { sources } = useSymptomScope();
   return useSWR<DataSource[]>(sources, fetcher);
+}
+
+/** One event type the organization's GPS frames carried, and how many frames carried it. */
+export interface EventTypeCount {
+  eventType: string;
+  count: number;
+}
+
+/** The field whose values the event type suggestions are. */
+export const EVENT_TYPE_PATH = "signal.frame.events.event_type";
+
+/** Days of frames the event type suggestions read. */
+export const EVENT_TYPE_DAYS = 7;
+
+/**
+ * The event types (`signal.frame.events[].event_type`) the organization's
+ * frames carried in the last {@link EVENT_TYPE_DAYS} days, most frequent
+ * first. None for a template, which belongs to no organization.
+ */
+export function useEventTypes(enabled = true) {
+  const scope = useSymptomScope();
+  const url =
+    enabled && !isTemplateScope(scope)
+      ? `${scope.sources}/gps_signal/event-types?days=${EVENT_TYPE_DAYS}`
+      : null;
+  const { data } = useSWR<{ days: number; types: EventTypeCount[] }>(
+    url,
+    fetcher,
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+  return data?.types ?? [];
 }
 
 export function useDataSource(key: string | null) {

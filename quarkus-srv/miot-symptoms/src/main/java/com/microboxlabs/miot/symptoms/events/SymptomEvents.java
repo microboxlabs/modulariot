@@ -72,11 +72,14 @@ public class SymptomEvents {
         this.clock = clock;
     }
 
-    /** One event per change the evaluator recorded; an opening a hold kept back ({@code HELD}) sends none. */
+    /**
+     * One event per change the evaluator recorded; an opening a hold kept back ({@code HELD}) and a timeline note
+     * ({@code NOTED}) send none.
+     */
     public void transitions(String tenantCode, List<Recorded> recorded, Place place) {
         for (Recorded r : recorded) {
             Transition t = r.transition();
-            if (t.kind() == Transition.Kind.HELD) {
+            if (t.kind() == Transition.Kind.HELD || t.kind() == Transition.Kind.NOTED) {
                 continue;
             }
             Name n = name(tenantCode, t.definitionId());
@@ -167,7 +170,7 @@ public class SymptomEvents {
             case OPENED -> SymptomEventCatalog.OPENED;
             case LEVEL_CHANGED -> SymptomEventCatalog.LEVEL_CHANGED;
             case CLOSED -> SymptomEventCatalog.CLOSED;
-            case HELD -> throw new IllegalArgumentException("A held opening publishes no event");
+            case HELD, NOTED -> throw new IllegalArgumentException("A held opening or a note publishes no event");
         };
     }
 }

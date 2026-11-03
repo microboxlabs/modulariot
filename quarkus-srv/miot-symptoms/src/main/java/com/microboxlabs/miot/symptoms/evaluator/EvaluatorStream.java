@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.cases.IgnoreHold;
 import com.microboxlabs.miot.symptoms.events.SymptomEvents;
 import com.microboxlabs.miot.symptoms.lostsignal.LostSignalDetector;
+import com.microboxlabs.miot.symptoms.signal.GpsSignal;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -49,6 +50,7 @@ public class EvaluatorStream {
     private static final Logger LOG = Logger.getLogger(EvaluatorStream.class);
     private static final ObjectMapper JSON = new ObjectMapper();
     static final String SOURCE = "gps_signal";
+    private static final String FRAME = "frame";
     private static final Duration VERSIONS_TTL = Duration.ofSeconds(30);
     /** Client ids are 8 characters before any suffix; the tag keeps only those. */
     private static final int SENDER_TAG = 8;
@@ -198,7 +200,8 @@ public class EvaluatorStream {
         for (String tenant : episodes.tenantsWithEpisodes(assetId)) {
             if (!clients.contains(tenant)) {
                 recorded += evaluate(tenant, assetId, instant,
-                        Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP), true).transitions();
+                        Map.of("asset_id", assetId, "at", time, "trip", NO_TRIP,
+                                FRAME, Map.of("events", List.of())), true).transitions();
             }
         }
         if (late) {
@@ -220,9 +223,12 @@ public class EvaluatorStream {
 
     private static final Map<String, Object> NO_TRIP = Map.of("active", false, "double_driver", false);
 
-    /** The signal as the organization's rules read it: its own trip as {@code trip}, none of the others. */
+    /**
+     * The signal as the organization's rules read it: its own trip as {@code trip}, none of the others, and the
+     * frame's events always a list ({@link GpsSignal.FrameEvent}).
+     */
     static Map<String, Object> forTenant(Map<String, Object> signal, String tenant) {
-        Map<String, Object> out = new LinkedHashMap<>(signal);
+        Map<String, Object> out = new LinkedHashMap<>(GpsSignal.FrameEvent.withEvents(signal));
         Object trips = out.remove("trips");
         Object trip = trips instanceof Map<?, ?> byClient ? byClient.get(tenant) : null;
         out.put("trip", trip != null ? trip : NO_TRIP);
@@ -334,8 +340,8 @@ public class EvaluatorStream {
     /** The trip, position and driver of the signal, as far as it has them. */
     static TransitionLog.Place place(Map<String, Object> signal) {
         return new TransitionLog.Place(text(path(signal, "trip", "id")),
-                number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
-                number(path(signal, "frame", "gps", "speed")), text(path(signal, "trip", "driver", "id")));
+                number(path(signal, FRAME, "gps", "latitude")), number(path(signal, FRAME, "gps", "longitude")),
+                number(path(signal, FRAME, "gps", "speed")), text(path(signal, "trip", "driver", "id")));
     }
 
     private static String text(Object value) {

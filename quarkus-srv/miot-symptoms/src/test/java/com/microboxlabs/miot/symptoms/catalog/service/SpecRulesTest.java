@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
@@ -97,6 +98,22 @@ class SpecRulesTest {
         SymptomSpec inText = Specs.with(Specs.speeding(),
                 Specs.ACTIVATION + " && signal.vehicle.weight_category != \"signal.derived.speed_avg_5m\"");
         assertFalse(SpecValidator.validate(inText, Specs.gpsSignal()).needsTestOnly());
+    }
+
+    @Test
+    void lifecycleRulesCannotActivateUnsupportedFields() {
+        String unsupported = "signal.derived.speed_avg_5m > 90";
+        for (SymptomSpec.Lifecycle lifecycle : List.of(
+                new SymptomSpec.Lifecycle(unsupported, "false"),
+                new SymptomSpec.Lifecycle("true", unsupported),
+                new SymptomSpec.Lifecycle("true", "false", false, unsupported))) {
+            SymptomSpec base = Specs.speeding();
+            SymptomSpec spec = new SymptomSpec(base.source(), base.activation(), base.measure(), base.levels(),
+                    lifecycle, null).withState(SymptomState.ACTIVE);
+            Report report = SpecValidator.validate(spec, Specs.gpsSignal());
+            assertTrue(report.needsTestOnly());
+            assertFalse(report.publishable());
+        }
     }
 
     @Test

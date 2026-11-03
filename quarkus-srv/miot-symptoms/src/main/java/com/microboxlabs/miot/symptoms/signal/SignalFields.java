@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.domain.FieldOrigin;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField.FieldValue;
@@ -16,6 +17,7 @@ import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
@@ -34,10 +36,16 @@ public final class SignalFields {
 
     /**
      * Frame parts rules do not read: the vehicle id is {@code signal.asset_id}, driver data comes from the
-     * trip, and peripherals and metrics are lists, not fields.
+     * trip, and peripherals and metrics are lists rules do not read. Events are read through {@link #LISTS}.
      */
     static final Set<String> SKIPPED = Set.of("signal.frame.asset_id", "signal.frame.driver_info",
             "signal.frame.co_driver_info", "signal.frame.peripherals", "signal.frame.metrics");
+
+    /**
+     * Lists rules read as lists of objects ({@value RuleLanguage#OBJECTS}), with the type whose fields their
+     * elements have: {@code signal.frame.events.exists(e, e.event_type == "gps_jamming")}.
+     */
+    static final Map<String, Class<?>> LISTS = Map.of(GpsSignal.FrameEvent.FRAME_EVENTS, GpsSignal.FrameEvent.class);
 
     /** Optional primitives the editor shows anyway: a frame without speed reads 0, as a stopped vehicle. */
     static final Set<String> ZERO_WHEN_MISSING = Set.of("signal.frame.gps.speed");
@@ -104,6 +112,13 @@ public final class SignalFields {
         FieldOrigin fieldOrigin = origin == null ? inherited : FieldOrigin.valueOf(origin);
         JavaType t = p.getPrimaryType();
         String kind = kindOf(t, extension(schema, "x-type"));
+        if (kind == null && LISTS.containsKey(path)) {
+            Class<?> element = LISTS.get(path);
+            Schema list = element.getAnnotation(Schema.class);
+            out.add(new SourceField(path, list.title(), RuleLanguage.OBJECTS, null, fieldOrigin, true));
+            walk(JSON.constructType(element), path, fieldOrigin, labels, out, depth + 1);
+            return;
+        }
         if (kind == null) {
             if (!t.isContainerType() && !Temporal.class.isAssignableFrom(t.getRawClass())) {
                 walk(t, path, fieldOrigin, labels, out, depth + 1);

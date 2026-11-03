@@ -1,7 +1,13 @@
 package com.microboxlabs.miot.symptoms.catalog.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
+import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
+import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
@@ -37,7 +43,9 @@ class PgPlatformTemplatesTest {
             "V0.12.4__signal_loss_template_reads_detector.sql", "V0.12.5__signal_loss_template_coverage_cohort.sql",
             "V0.12.6__gps_sabotage_template.sql", "V0.12.7__platform_templates_tenant.sql",
             "V0.12.8__coverage_days.sql", "V0.12.10__transition_context.sql",
-            "V0.12.11__signal_loss_close_level_one.sql");
+            "V0.12.11__signal_loss_close_level_one.sql", "V0.12.12__contact_sync.sql",
+            "V0.12.13__held_transitions.sql", "V0.12.14__ignore_reasons_move_wrong_map.sql",
+            "V0.12.15__noted_transitions.sql");
 
     private static Vertx vertx;
     private static Pool pool;
@@ -68,6 +76,20 @@ class PgPlatformTemplatesTest {
                 + " WHERE tenant_code = 'platform'"));
         assertEquals(List.of("1.0.0"), rows("SELECT d.current_version FROM miot_symptoms.symptom_definition d"
                 + " WHERE d.tenant_code = '_platform' AND d.symptom_key = 'gps-sabotage'"));
+    }
+
+    @Test
+    void everyCurrentPublishedPlatformTemplateStillPassesTheRuleChecks() {
+        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
+        for (Row row : pool.query("""
+                SELECT d.symptom_key, v.spec FROM miot_symptoms.symptom_definition d
+                JOIN miot_symptoms.symptom_version v ON v.definition_id = d.id AND v.version = d.current_version
+                WHERE d.tenant_code = '_platform' AND v.status = 'PUBLISHED'
+                """).execute().await().atMost(WAIT)) {
+            SymptomSpec spec = PgJson.read(row, "spec", SymptomSpec.class);
+            var report = SpecValidator.validate(spec, sources.get("_platform", spec.source()));
+            assertTrue(report.publishable(), row.getString("symptom_key") + ": " + report.findings());
+        }
     }
 
     @Test

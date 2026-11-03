@@ -9,6 +9,7 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -21,7 +22,8 @@ import java.util.function.Supplier;
 
 /**
  * The evaluator's case changes, in {@code miot_symptoms.signal_transitions}. A replayed signal
- * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal. A change's
+ * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal, and one note
+ * ({@code NOTED}) besides. A change's
  * case is the latest OPENED row of its symptom, vehicle and state.
  */
 @ApplicationScoped
@@ -38,7 +40,8 @@ public class PgTransitionLog implements TransitionLog {
             WHERE NOT EXISTS (
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
-                  AND tenant_code = $1::varchar)
+                  AND tenant_code = $1::varchar AND (kind = 'NOTED') = ($5::varchar = 'NOTED'))
+            ON CONFLICT DO NOTHING
             RETURNING id, CASE WHEN kind = 'OPENED' THEN id ELSE (
                 SELECT o.id FROM miot_symptoms.signal_transitions o
                 WHERE o.tenant_code = $1::varchar AND o.definition_id = $2::uuid AND o.asset_id = $6::varchar
@@ -71,19 +74,22 @@ public class PgTransitionLog implements TransitionLog {
         return pool.get().withTransaction(conn -> {
             Uni<List<Recorded>> chain = Uni.createFrom().item(new ArrayList<>());
             for (Transition t : transitions) {
-                chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, json))
-                        .map(rows -> {
-                            for (Row r : rows) {
-                                Long caseId = r.getLong("case_id");
-                                if (caseId != null) {
-                                    recorded.add(new Recorded(t, caseId));
-                                }
-                            }
-                            return recorded;
-                        }));
+                JsonObject own = t.detail() == null ? json : new JsonObject(t.detail());
+                chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, own))
+                        .map(rows -> addRecorded(recorded, rows, t)));
             }
             return chain;
         }).await().atMost(QUERY_TIMEOUT);
+    }
+
+    private static List<Recorded> addRecorded(List<Recorded> recorded, RowSet<Row> rows, Transition transition) {
+        for (Row row : rows) {
+            Long caseId = row.getLong("case_id");
+            if (caseId != null) {
+                recorded.add(new Recorded(transition, caseId));
+            }
+        }
+        return recorded;
     }
 
     private static Tuple params(String tenantCode, Transition t, Place place, JsonObject context) {

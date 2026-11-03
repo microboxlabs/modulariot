@@ -17,13 +17,15 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
-import type { CelField } from "./cel-editor";
+import { type CelField, type CelValues, CelValuesProvider } from "./cel-editor";
 import { keyFrom } from "./create-symptom-modal";
 import {
   forkSymptom,
   refreshSymptoms,
   rollbackTo,
+  EVENT_TYPE_PATH,
   useDataSource,
+  useEventTypes,
   usePublishPlan,
   useSymptomFamilies,
   useControlTowerAccess,
@@ -208,6 +210,17 @@ export default function SymptomDetail({
     [source, d]
   );
 
+  const eventTypes = useEventTypes(canWrite);
+  const eventValues: CelValues = useMemo(
+    () => ({
+      [EVENT_TYPE_PATH]: eventTypes.map((t) => ({
+        value: t.eventType,
+        detail: tr("eventTypeCount", d, { n: String(t.count) }),
+      })),
+    }),
+    [eventTypes, d]
+  );
+
   const run = async (work: () => Promise<unknown>) => {
     setActionError(null);
     try {
@@ -253,7 +266,8 @@ export default function SymptomDetail({
 
   const def = detail?.definition;
 
-  return (
+  // The rule editors suggest the event types this organization received.
+  const page = (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
         <Breadcrumb
@@ -410,6 +424,7 @@ export default function SymptomDetail({
                 findings={viewed ? undefined : report?.findings}
                 readOnly={!canWrite || Boolean(viewed)}
                 icu={responseIcu}
+                sourceFields={fields}
                 d={d}
                 onIcu={setResponseIcu}
                 onChange={update}
@@ -546,6 +561,7 @@ export default function SymptomDetail({
       />
     </div>
   );
+  return <CelValuesProvider value={eventValues}>{page}</CelValuesProvider>;
 }
 
 /** Asks for a copy's name, or a rollback's reason, before either runs. */

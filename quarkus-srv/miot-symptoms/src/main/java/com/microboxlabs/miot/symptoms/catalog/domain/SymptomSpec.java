@@ -215,12 +215,27 @@ public record SymptomSpec(
     }
 
     /**
-     * @param open      CEL over {@code case}
-     * @param close     CEL over {@code case}
+     * @param open      CEL over {@code case} and the source
+     * @param close     CEL over {@code case} and the source, such as
+     *                  {@code case.closed_by_operator || signal.frame.events.exists(e, e.event_type == "x")}
      * @param levelDown the level follows the measure down while the case is open; otherwise it never goes down
+     * @param note      optional CEL over {@code case} and the source: when it holds on a signal of an open case
+     *                  that does not close it, the case's timeline gets an entry with the matching device event.
+     *                  Null for none
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Lifecycle(String open, String close, boolean levelDown) {
+    public record Lifecycle(String open, String close, boolean levelDown,
+            @JsonInclude(JsonInclude.Include.NON_NULL) String note) {
+
+        /** A blank note rule is none. */
+        public Lifecycle {
+            note = note == null || note.isBlank() ? null : note;
+        }
+
+        /** A lifecycle without a note rule. */
+        public Lifecycle(String open, String close, boolean levelDown) {
+            this(open, close, levelDown, null);
+        }
 
         /** A lifecycle whose level never goes down. */
         public Lifecycle(String open, String close) {

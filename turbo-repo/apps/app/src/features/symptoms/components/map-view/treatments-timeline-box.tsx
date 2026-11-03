@@ -223,6 +223,7 @@ function GenericTreatmentRow({
     const lines = [label];
     if (time) lines.push(formatDateString(time, "datetime"));
     if (hold) lines.push(hold);
+    if (treatment.event_type) lines.push(treatment.event_type);
     if (treatment.description.message) {
       lines.push(`${t("message")}: ${treatment.description.message}`);
     }
@@ -261,6 +262,12 @@ function GenericTreatmentRow({
                 {treatment.description.message}
               </p>
             )}
+            {treatment.event_type &&
+              treatment.event_type !== treatment.description.message && (
+                <p className="truncate font-mono text-[10px] text-gray-500 dark:text-gray-400">
+                  {treatment.event_type}
+                </p>
+              )}
             {treatment.description.driver_response && (
               <p className="wrap-break-word text-[10px] text-gray-500 dark:text-gray-400">
                 {t("response")}: {treatment.description.driver_response}

@@ -35,6 +35,8 @@ export interface TreatmentTimelineElement {
   scope?: string | null;
   /** A "fin de ignorar" row: how the hold ended. */
   resolution?: string | null;
+  /** An "evento del gps" row: the GPS event the symptom's note rule wrote; `at` is its time. */
+  event_type?: string | null;
 }
 
 export interface DescriptionTimelineElement {

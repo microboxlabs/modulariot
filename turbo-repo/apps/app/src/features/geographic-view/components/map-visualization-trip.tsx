@@ -38,6 +38,8 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import ImageSelector from "./image-viewer/image-selector";
 import { useTimelapse } from "../hooks/use-timelapse";
+import { useAssetSignal } from "../hooks/use-asset-signal";
+import { isNewestFrame, isOffline, offlineLabel } from "../utils/signal-state";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
 import PulseRange from "./tool-bar/pulse-range";
@@ -521,6 +523,16 @@ export default function MapVisualizationTrip({
     }
   }, [filteredLocationData, caseLng]);
 
+  // The detector's state of the vehicle: its newest position turns gray and
+  // carries "Sin señal · hace N min" while the signal does not arrive.
+  const newestIndex = positions?.length ? positions.length - 1 : -1;
+  const newest = newestIndex >= 0 ? positions?.[newestIndex] : null;
+  const signal = useAssetSignal(newest?.assetid, newest?.timestamp);
+  const offline =
+    !!newest && isOffline(signal) && isNewestFrame(newest.timestamp, signal);
+  const offlineText = offline ? offlineLabel(signal, dict) : null;
+  const pinOffline = offline && displayPosition === newestIndex;
+
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
     () => ({
@@ -547,11 +559,14 @@ export default function MapVisualizationTrip({
               speed: item.speed,
               timestamp: item.timestamp,
               delay_s: frameDelay(item),
+              offline: offline && index === newestIndex,
+              signal_label:
+                offline && index === newestIndex ? offlineText : null,
             },
           };
         }) || [],
     }),
-    [positions, caseSpans]
+    [positions, caseSpans, offline, newestIndex, offlineText]
   );
 
   useEffect(() => {
@@ -769,6 +784,7 @@ export default function MapVisualizationTrip({
                   speed: info.object?.speed,
                   timestamp: info.object?.timestamp,
                   delay_s: frameDelay(info.object),
+                  signal_label: pinOffline ? offlineText : null,
                 },
               },
             };
@@ -783,6 +799,8 @@ export default function MapVisualizationTrip({
               zoomToVehicle(mapRef.current, target);
             }
           },
+          offline: pinOffline,
+          label: pinOffline ? offlineText : null,
           updateTriggers: {
             data: positions,
           },
@@ -828,6 +846,8 @@ export default function MapVisualizationTrip({
     showStops,
     showGeofences,
     showPulse,
+    pinOffline,
+    offlineText,
   ]);
 
   /** Al cerrar la tarjeta de pulsos: soltar lo seleccionado. */

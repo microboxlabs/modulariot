@@ -1,4 +1,5 @@
 import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
+import { OFFLINE_GRAY } from "../../utils/signal-state";
 
 export function getColor(icu_code: number): [number, number, number, number] {
   switch (icu_code) {
@@ -21,11 +22,15 @@ const WHITE: [number, number, number, number] = [255, 255, 255, 255];
 
 /**
  * A stopped vehicle is a hollow dot: white inside, ringed in its level color.
- * Red fill is kept for symptoms.
+ * Red fill is kept for symptoms. An offline vehicle is filled gray, stopped
+ * or not.
  */
-export function stoppedMarkProps<T>(levelOf: (d: T) => number) {
+export function stoppedMarkProps<T>(
+  levelOf: (d: T) => number,
+  offlineOf: (d: T) => boolean = () => false
+) {
   return {
-    getFillColor: () => WHITE,
+    getFillColor: (d: T) => (offlineOf(d) ? OFFLINE_GRAY : WHITE),
     getLineColor: (d: T) => getColor(levelOf(d)),
     stroked: true,
     getLineWidth: 2,
@@ -33,8 +38,20 @@ export function stoppedMarkProps<T>(levelOf: (d: T) => number) {
   };
 }
 
-function levelOfFeature(d: { properties?: { icu_code?: number } }): number {
+type PulseFeature = { properties?: { icu_code?: number; offline?: boolean } };
+
+function levelOfFeature(d: PulseFeature): number {
   return d.properties?.icu_code ?? 0;
+}
+
+/** The vehicle's newest frame while its signal is not arriving. */
+export function isOfflineFeature(d: PulseFeature): boolean {
+  return d.properties?.offline === true;
+}
+
+/** The level color, or gray for an offline vehicle. */
+export function pulseColor(d: PulseFeature): [number, number, number, number] {
+  return isOfflineFeature(d) ? OFFLINE_GRAY : getColor(levelOfFeature(d));
 }
 
 export function isValidCoordinate(coords: any): boolean {
@@ -203,8 +220,9 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         id: "pulse-stopped-vehicles-layer",
         data: stoppedVehicles,
         ...this.getCommonLayerProps(),
-        ...stoppedMarkProps(levelOfFeature),
+        ...stoppedMarkProps(levelOfFeature, isOfflineFeature),
         updateTriggers: {
+          getFillColor: [this.props.data],
           getLineColor: [
             selectedPulse,
             this.props.displayPosition,
@@ -233,7 +251,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         data: selectedVehicles.filter(
           (d: any) => d.properties.speed > 0 || !showStops
         ),
-        getFillColor: (d: any) => getColor(d.properties.icu_code),
+        getFillColor: pulseColor,
         ...this.getCommonLayerProps(),
         updateTriggers: {
           getFillColor: [selectedPulse, showStops, this.props.data],
@@ -245,8 +263,9 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         id: "pulse-selected-stopped-vehicles-layer",
         data: selectedStoppedVehicles,
         ...this.getCommonLayerProps(),
-        ...stoppedMarkProps(levelOfFeature),
+        ...stoppedMarkProps(levelOfFeature, isOfflineFeature),
         updateTriggers: {
+          getFillColor: [this.props.data],
           getLineColor: [selectedPulse, showStops, this.props.data],
         },
         radiusUnits: "pixels",

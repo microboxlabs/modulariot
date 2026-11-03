@@ -1,4 +1,5 @@
 import React from "react";
+import type { SignalState } from "../utils/signal-state";
 
 export interface Symptom {
   created_at: string;
@@ -34,6 +35,10 @@ export interface MapPosition {
   /** When the frame reached the platform, and how many seconds after its GPS time. */
   received_at?: string | null;
   delay_s?: number | null;
+  /** The lost-signal detector's state of the asset, on the live map. */
+  signal?: SignalState | null;
+  /** Offline by `signal`: the pin is drawn gray. */
+  lost_signal?: boolean;
   trip_id: string;
   symptoms: Symptom[];
   associate_symptoms: Symptom[];
@@ -104,7 +109,8 @@ export interface PulseProps {
 
 export interface MapPositionProperties {
   properties: {
-    lost_signal: React.JSX.Element;
+    lost_signal?: boolean;
+    signal?: SignalState | null;
     associate_symptoms: any;
     symptoms_condition: boolean;
     longitude: number;

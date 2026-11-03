@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * {@link GpsFrames} over the GPS database's {@code public.asset_data}, read only. Every query reads one range of
- * {@code "timestamp"}, which the index on {@code ("timestamp", asset_id)} serves. The sender is
- * {@code client_id}.
+ * {@link GpsFrames} over the GPS database's {@code public.asset_data}, read only. Queries read a range of
+ * {@code "timestamp"}, using the index on {@code ("timestamp", asset_id)}. Interval histograms also read the
+ * last valid predecessor for each asset and sender in the range. The sender is {@code client_id}.
  */
 public class PgGpsFrames implements GpsFrames {
 

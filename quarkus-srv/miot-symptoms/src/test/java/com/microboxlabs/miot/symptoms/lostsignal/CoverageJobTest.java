@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.lostsignal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -204,7 +205,8 @@ class CoverageJobTest {
 
     @Test
     void aDisabledJobDoesNotAccessItsDependencies() {
-        new CoverageJob(new CoverageJob.JobSettings(false, Duration.ofHours(2)),
-                null, null, CoverageSettings.defaults(), null, null, null).scheduled();
+        CoverageJob disabled = new CoverageJob(new CoverageJob.JobSettings(false, Duration.ofHours(2)),
+                null, null, CoverageSettings.defaults(), null, null, null);
+        assertDoesNotThrow(disabled::scheduled);
     }
 }

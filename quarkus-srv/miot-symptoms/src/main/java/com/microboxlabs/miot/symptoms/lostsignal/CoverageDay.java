@@ -140,19 +140,37 @@ public final class CoverageDay {
         return out;
     }
 
-    /** The cells a straight line crosses, from the first to the last, sampled a quarter of a cell apart. */
+    /** The cells a straight line crosses, advancing at each latitude or longitude grid boundary. */
     static Set<String> crossed(double lat1, double lon1, double lat2, double lon2) {
-        double span = Math.max(Math.abs(lat2 - lat1), Math.abs(lon2 - lon1));
-        int steps = (int) Math.ceil(span / (CoverageMap.CELL_DEGREES / 4));
+        long row = grid(lat1);
+        long col = grid(lon1);
+        long endRow = grid(lat2);
+        long endCol = grid(lon2);
+        int rowStep = Double.compare(lat2, lat1);
+        int colStep = Double.compare(lon2, lon1);
         Set<String> out = new LinkedHashSet<>();
-        for (int i = 0; i <= steps; i++) {
-            double t = steps == 0 ? 0 : (double) i / steps;
-            String cell = CoverageMap.cell(lat1 + t * (lat2 - lat1), lon1 + t * (lon2 - lon1));
-            if (cell != null) {
-                out.add(cell);
+        out.add(row + ":" + col);
+        while (row != endRow || col != endCol) {
+            double rowAt = row == endRow ? Double.POSITIVE_INFINITY : boundary(lat1, lat2 - lat1, row, rowStep);
+            double colAt = col == endCol ? Double.POSITIVE_INFINITY : boundary(lon1, lon2 - lon1, col, colStep);
+            if (rowAt <= colAt) {
+                row += rowStep;
             }
+            if (colAt <= rowAt) {
+                col += colStep;
+            }
+            out.add(row + ":" + col);
         }
         return out;
+    }
+
+    private static long grid(double value) {
+        return (long) Math.floor(value / CoverageMap.CELL_DEGREES);
+    }
+
+    private static double boundary(double start, double delta, long cell, int step) {
+        return step == 0 ? Double.POSITIVE_INFINITY
+                : ((cell + (step > 0 ? 1 : 0)) * CoverageMap.CELL_DEGREES - start) / delta;
     }
 
     static double km(double lat1, double lon1, double lat2, double lon2) {

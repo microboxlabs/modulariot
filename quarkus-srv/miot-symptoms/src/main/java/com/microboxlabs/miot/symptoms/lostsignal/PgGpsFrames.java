@@ -14,7 +14,8 @@ import java.util.function.Supplier;
 /**
  * {@link GpsFrames} over the GPS database's {@code public.asset_data}, read only. Queries read a range of
  * {@code "timestamp"}, using the index on {@code ("timestamp", asset_id)}. Interval histograms also read the
- * last valid predecessor for each asset and sender in the range. The sender is {@code client_id}.
+ * {@value #LOOKBACK_H} hours before the range, for the predecessor of its first frames. The sender is
+ * {@code client_id}.
  */
 public class PgGpsFrames implements GpsFrames {
 
@@ -35,33 +36,29 @@ public class PgGpsFrames implements GpsFrames {
                    count(*) AS n
             """.formatted(CAP_S) + RANGE + "GROUP BY 1, 2";
 
+    /**
+     * The predecessor of a frame early in the range is looked for at most {@value #LOOKBACK_H} hours back, in the
+     * same index range scan. A per-asset "latest frame before the range" lookup walks the {@code ("timestamp",
+     * asset_id)} index backwards until it finds that asset, which for an asset silent for days reads most of the
+     * table and timed out whole days in production. An interval longer than the lookback that crosses the start is
+     * not counted.
+     */
+    static final int LOOKBACK_H = 2;
+
     static final String INTERVALS = """
-            WITH current_frames AS MATERIALIZED (
-                SELECT a.asset_id, a.client_id AS sender, a."timestamp" AS at
-            """ + RANGE + """
-            ), frames AS (
-                SELECT * FROM current_frames
-                UNION ALL
-                SELECT k.asset_id, k.sender, p.at
-                FROM (SELECT DISTINCT asset_id, sender FROM current_frames) k
-                CROSS JOIN LATERAL (
-                    SELECT a."timestamp" AS at
-                    FROM public.asset_data a
-                    WHERE a.asset_id = k.asset_id AND a.client_id = k.sender AND a."timestamp" < $1
-                      AND a.request_timestamp IS NOT NULL AND a.location IS NOT NULL
-                    ORDER BY a."timestamp" DESC
-                    LIMIT 1
-                ) p
-            )
             SELECT x.sender, least(floor(x.dt), %d)::int AS s, count(*) AS n
             FROM (
-                SELECT sender, at,
-                       extract(epoch FROM at - lag(at)
-                           OVER (PARTITION BY asset_id, sender ORDER BY at)) AS dt
-                FROM frames
+                SELECT a.client_id AS sender, a."timestamp" AS at,
+                       extract(epoch FROM a."timestamp" - lag(a."timestamp")
+                           OVER (PARTITION BY a.asset_id, a.client_id ORDER BY a."timestamp")) AS dt
+                FROM public.asset_data a
+                WHERE a."timestamp" >= $1::timestamptz - interval '%d hours' AND a."timestamp" < $2
+                  AND a.client_id IS NOT NULL AND a.request_timestamp IS NOT NULL AND a.location IS NOT NULL
             ) x
             WHERE x.at >= $1 AND x.at < $2 AND x.dt > 0
-            GROUP BY 1, 2""".formatted(CAP_S);
+              -- Keep longer intervals when their predecessor is inside the requested range.
+              AND (x.dt <= %d OR x.dt <= extract(epoch FROM x.at - $1))
+            GROUP BY 1, 2""".formatted(CAP_S, LOOKBACK_H, LOOKBACK_H * 3600);
 
     static final String FRAMES = """
             SELECT a.asset_id, a.client_id AS sender,

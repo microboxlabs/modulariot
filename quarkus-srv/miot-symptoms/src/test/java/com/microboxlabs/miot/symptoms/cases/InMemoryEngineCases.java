@@ -44,6 +44,7 @@ public class InMemoryEngineCases implements EngineCaseStore {
                         || c.assetId().toLowerCase().contains(f.assetId().toLowerCase()))
                 .filter(c -> f.symptomName() == null || f.symptomName().equalsIgnoreCase(c.name()))
                 .filter(c -> f.level() == null || f.level() == c.level())
+                .filter(c -> !f.underTreatmentOnly() || c.treatments() > 0)
                 .sorted(Comparator.comparing(EngineCase::openedAt).reversed())
                 .limit(PAGE).toList();
     }
@@ -58,6 +59,15 @@ public class InMemoryEngineCases implements EngineCaseStore {
                 .entrySet().stream()
                 .map(e -> new OpenCount((Integer) e.getKey().get(0), (Boolean) e.getKey().get(1), e.getValue()))
                 .toList();
+    }
+
+    @Override
+    public List<OpenLevel> openLevels(String tenantCode) {
+        if (down) {
+            throw new IllegalStateException("database down");
+        }
+        return cases.stream().filter(c -> c.closedAt() == null)
+                .map(c -> new OpenLevel(c.assetId(), c.name(), c.level())).toList();
     }
 
     @Override

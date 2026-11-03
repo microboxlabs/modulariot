@@ -27,6 +27,8 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.LinkedHashSet;
@@ -46,7 +48,9 @@ import org.jboss.logging.Logger;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class EngineCaseService {
 
-    private static final Set<String> PAGING = Set.of("p_page", "p_page_size");
+    private static final String PAGE = "p_page";
+    private static final Set<String> PAGING = Set.of(PAGE, "p_page_size");
+    private static final String POSITION_ASSET_ID = "asset_id";
     private static final String TRIP_ID = "p_trip_id";
     private static final String ASSET_ID = "p_asset_id";
     private static final String NAME = "p_symptom_name";
@@ -128,7 +132,7 @@ public class EngineCaseService {
                 && notBlank(filters.get(k)))) {
             return false;
         }
-        String page = filters.get("p_page");
+        String page = filters.get(PAGE);
         return page == null || page.isBlank() || page.trim().equals("1") || page.trim().equals("0");
     }
 
@@ -230,6 +234,136 @@ public class EngineCaseService {
         return out;
     }
 
+    /** The list filters the cases cannot answer: a request with any of them matches no case. */
+    private static final Set<String> GPS_ONLY_FILTERS = Set.of("p_driver_id", "p_carrier_id", "p_origin",
+            "p_destination");
+    private static final int PAGE_SIZE = 10;
+
+    /**
+     * One page of the symptom list from the cases alone, in the GPS database function's shape, with totals counted
+     * over the matching cases (at most the store's page of them). A filter the cases cannot answer (driver,
+     * carrier, origin, destination) matches none.
+     *
+     * @param filters already checked by {@code ControlTowerMapService.symptomFilters}
+     */
+    public JsonNode casesPage(String tenantCode, Map<String, String> filters) {
+        boolean answerable = filters.keySet().stream()
+                .noneMatch(k -> GPS_ONLY_FILTERS.contains(k) && notBlank(filters.get(k)));
+        EngineCaseStore.CaseFilter filter = filter(filters);
+        if (Integer.valueOf(6).equals(filter.level())) {
+            filter = filter.withOpenTreatment();
+        }
+        List<EngineCase> found = answerable ? store.list(tenantCode, filter) : List.of();
+        int size = Math.max(1, number(filters.get("p_page_size"), PAGE_SIZE));
+        int page = Math.max(1, number(filters.get(PAGE), 1));
+        int pages = Math.max(1, Math.ceilDiv(found.size(), size));
+        ArrayNode rows = JSON.arrayNode();
+        found.stream().skip((long) (page - 1) * size).limit(size).forEach(c -> rows.add(row(c)));
+        ObjectNode out = JSON.objectNode();
+        out.set("data", rows);
+        out.put("page", page);
+        out.put("page_size", size);
+        out.put("total_rows", found.size());
+        out.put("total_pages", pages);
+        out.put("engine_cases", found.size());
+        ArrayNode names = out.putArray(SYMPTOM_NAMES);
+        found.stream().map(EngineCase::name).distinct().forEach(names::add);
+        return out;
+    }
+
+    private static int number(String value, int otherwise) {
+        try {
+            return value == null || value.isBlank() ? otherwise : Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Paging must be a whole number");
+        }
+    }
+
+    /**
+     * The counts by condition of the cases alone, in the GPS database's keys: the open cases as
+     * {@link #withOpenCaseCounts}, or with {@code from} and {@code to} the cases opened in that range, by their
+     * current level.
+     *
+     * @throws IllegalArgumentException when only one date is given, or a date is not ISO-8601
+     */
+    public JsonNode caseCounts(String tenantCode, String from, String to) {
+        if (notBlank(from) != notBlank(to)) {
+            throw new IllegalArgumentException("Send both from and to, or neither");
+        }
+        if (!notBlank(from)) {
+            return withOpenCaseCounts(tenantCode, null);
+        }
+        Instant start = instant(from.trim());
+        Instant end = instant(to.trim());
+        ObjectNode out = JSON.objectNode();
+        for (EngineCaseStore.LevelCount c : store.openedCounts(tenantCode, start, end)) {
+            String key = COUNTED.getOrDefault(c.level(), COUNTED.get(1));
+            out.put(key, out.path(key).asLong(0) + c.count());
+        }
+        return out;
+    }
+
+    /**
+     * The positions with each vehicle's level from its open cases: {@code symptoms_condition} is the highest level
+     * among them, 0 without one, and {@code associate_symptoms} lists them. The GPS database's own symptom fields
+     * are dropped; {@code speed_limit_condition} stays, as null, so the map's speed filter keeps the vehicle.
+     */
+    public JsonNode withCaseLevels(String tenantCode, JsonNode positions) {
+        Map<String, List<EngineCaseStore.OpenLevel>> byAsset = new HashMap<>();
+        store.openLevels(tenantCode).forEach(l -> byAsset.computeIfAbsent(l.assetId(), a -> new ArrayList<>())
+                .add(l));
+        ArrayNode out = JSON.arrayNode();
+        if (positions == null || !positions.isArray()) {
+            return out;
+        }
+        for (JsonNode p : positions) {
+            if (!p.isObject()) {
+                continue;
+            }
+            ObjectNode position = ((ObjectNode) p).deepCopy();
+            String asset = position.hasNonNull(POSITION_ASSET_ID) ? position.get(POSITION_ASSET_ID).asText()
+                    : position.path("assetid").asText(null);
+            List<EngineCaseStore.OpenLevel> open = asset == null ? List.of() : byAsset.getOrDefault(asset, List.of());
+            position.remove(List.of("speed_limit", "lost_signal", "symptoms", "symptom_condition"));
+            position.putNull("speed_limit_condition");
+            position.put("symptoms_condition", open.stream().mapToInt(EngineCaseStore.OpenLevel::level).max()
+                    .orElse(0));
+            ArrayNode symptoms = position.putArray("associate_symptoms");
+            open.forEach(l -> symptoms.addObject().put(SYMPTOM_NAME, l.name()).put(ICU_CONDITION, l.level()));
+            out.add(position);
+        }
+        return out;
+    }
+
+    /**
+     * The map's summary in the GPS database's shape. Only the symptom counts come from the cases (open ones, by
+     * level); the service and fleet figures have no case equivalent and are 0, as is {@code stable_condition}.
+     */
+    public JsonNode summary(String tenantCode) {
+        Map<Integer, Long> byLevel = new HashMap<>();
+        store.openCounts(tenantCode).forEach(c -> byLevel.merge(Math.clamp(c.level(), 1, 4), c.count(),
+                Long::sum));
+        ObjectNode out = JSON.objectNode();
+        ArrayNode sections = out.putArray("sections");
+        section(sections, "services", List.of("trips", "emergencies", "in_transit", "at_destination",
+                "monitoring_hours_hrs", "monitoring_distance_km"), Map.of());
+        section(sections, "fleet", List.of("monitored_assets", "trucks", "signal_quality_trucks_spm",
+                "signal_delay_trucks_sec", "container", "drivers"), Map.of());
+        section(sections, "symptoms", List.of("stable_condition", "under_observation", "compromised_condition",
+                "critical_condition", "black code"), Map.of("under_observation", byLevel.getOrDefault(1, 0L),
+                        "compromised_condition", byLevel.getOrDefault(2, 0L), "critical_condition",
+                        byLevel.getOrDefault(3, 0L), "black code", byLevel.getOrDefault(4, 0L)));
+        return out;
+    }
+
+    private static void section(ArrayNode sections, String title, List<String> keys, Map<String, Long> values) {
+        ObjectNode section = sections.addObject();
+        section.put("title", title);
+        section.put("icon", "example.svg");
+        ArrayNode items = section.putArray("items");
+        keys.forEach(k -> items.addObject().put("key", k).put("value", values.getOrDefault(k, 0L)));
+    }
+
     public boolean hasOpenCases(String tenantCode) {
         return !store.open(tenantCode).isEmpty();
     }
@@ -241,7 +375,7 @@ public class EngineCaseService {
         r.put("type_of_incidence", c.name());
         r.put(ICU_CODE, String.valueOf(c.level()));
         r.put(ICU_CONDITION, c.treatments() > 0 ? UNDER_TREATMENT : condition(c.level()));
-        r.put("asset_id", c.assetId());
+        r.put(POSITION_ASSET_ID, c.assetId());
         r.put("trip_id", c.tripId());
         r.put("trip_code", c.tripCode());
         r.put("start_time", c.openedAt().toString());
@@ -294,7 +428,7 @@ public class EngineCaseService {
         symptom.put("duration_sec", Duration.between(start(c), end(c)).toSeconds());
         out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
-        trip.put("asset_id", c.assetId());
+        trip.put(POSITION_ASSET_ID, c.assetId());
         trip.put("trip_id", c.tripId());
         trip.put("trip_code", c.tripCode());
         Row t = c.tripId() == null ? null : trip(tenantCode, c);

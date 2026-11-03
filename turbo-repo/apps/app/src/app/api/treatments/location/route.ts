@@ -13,7 +13,10 @@ import {
   TreatmentsLocationResponseItem,
 } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
-import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  forwardControlTowerMap,
+  legacySymptomsEnabled,
+} from "@/app/api/utils/control-tower-map";
 import { isEngineCaseId } from "@/features/symptoms/model/treatment-link";
 
 const config: AuthTokenConfig = {
@@ -57,8 +60,9 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
-  // Without PostgREST, the modulith reads the signals as the active organization.
-  if (!process.env.STREAMHUB_URL || engineCase) {
+  // Without PostgREST or legacy symptoms, the modulith reads the signals as the
+  // active organization.
+  if (!process.env.STREAMHUB_URL || engineCase || !legacySymptomsEnabled()) {
     const response = await forwardControlTowerMap(
       `symptoms/${encodeURIComponent(symptom_id)}/signals`
     );

@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -226,6 +227,23 @@ class PgSlaStoreTest {
     }
 
     @Test
+    void openLevelsAreEveryOpenCaseAtItsCurrentLevel() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place(null, null, null, null, null);
+        long closed = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)), place).get(0).caseId();
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+        cases.close(tenant, closed, "ops@example.com", t0.plusSeconds(60));
+        log.append(tenant, List.of(t(Kind.OPENED, speeding, t0.plusSeconds(120), 1, 0)), place);
+        log.append(tenant, List.of(t(Kind.LEVEL_CHANGED, speeding, t0.plusSeconds(180), 4, 1)), place);
+
+        assertEquals(List.of(new EngineCaseStore.OpenLevel("DEMO01", "Exceso de velocidad", 4)),
+                cases.openLevels(tenant));
+        assertTrue(cases.openLevels("other-" + tenant).isEmpty());
+    }
+
+    @Test
     void casesAreFoundByTripVehicleNameLevelAndActiveTime() {
         String tenant = "tenant-" + UUID.randomUUID();
         UUID speeding = symptom(tenant);
@@ -259,6 +277,31 @@ class PgSlaStoreTest {
         assertTrue(cases.list("other-" + tenant,
                 new EngineCaseStore.CaseFilter(null, null, null, null, t0, to)).isEmpty(),
                 "history stays within the tenant");
+    }
+
+    @Test
+    void treatedCasesAreFilteredBeforeTheTwoHundredRowLimit() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        TransitionLog.Place place = new TransitionLog.Place(null, null, null, null, null);
+        long treated = log.append(tenant, List.of(t(Kind.OPENED, speeding, at, 3, 0)), place).get(0).caseId();
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.treatment (tenant_code, symptom_id, type, opened_by)
+                VALUES ($1, $2, 'CALL', 'operator@example.com')
+                """, Tuple.of(tenant, -treated));
+        List<Transition> newer = new ArrayList<>();
+        for (int i = 1; i <= 201; i++) {
+            newer.add(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, "demo-" + i,
+                    at.plusSeconds(i), 4, 0, 30));
+        }
+        log.append(tenant, newer, place);
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(200, cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).size());
+        EngineCaseStore.CaseFilter filter = EngineCaseStore.CaseFilter.OPEN.withOpenTreatment();
+        assertEquals(List.of(treated), ids(cases.list(tenant, filter)));
+        assertTrue(cases.list("other-" + tenant, filter).isEmpty());
     }
 
     private static List<Long> ids(List<com.microboxlabs.miot.symptoms.cases.EngineCase> found) {

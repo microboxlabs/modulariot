@@ -66,6 +66,35 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void engineOnlyPagingAcceptsLargeSizesAndPagesWithoutWrapping() {
+        store.add(panic(12, "vehicle-demo"));
+        store.add(panic(13, "vehicle-other"));
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_page_size", "2147483647"));
+        assertEquals(2, page.path("data").size());
+        assertEquals(1, page.path("total_pages").asInt());
+        assertEquals(0, service.casesPage(TENANT,
+                Map.of("p_page", "2147483647", "p_page_size", "2147483647")).path("data").size());
+    }
+
+    @Test
+    void engineOnlyConditionSixListsOpenTreatmentsBeforeThePageLimit() {
+        store.add(engineCase(1, "treated-demo", 3, 1));
+        for (int id = 2; id <= 202; id++) {
+            store.add(at(id, "demo-" + id, OPENED.plusSeconds(id), null));
+        }
+
+        JsonNode page = service.casesPage(TENANT, Map.of("p_icu_code", "6"));
+
+        assertEquals(List.of(-1L), ids(page));
+        assertEquals("UNDER TREATMENT", page.path("data").get(0).path("icu_condition").asText());
+        assertEquals(1, page.path("total_rows").asInt());
+        assertEquals(1, service.caseCounts(TENANT, null, null).path("Under Treatment").asInt());
+        assertEquals(6, EngineCaseService.filter(Map.of("p_icu_code", "6")).level(),
+                "the legacy list's severity filter is unchanged");
+    }
+
+    @Test
     void theSignalWindowRunsFromAnHourBeforeTheCaseUntilNow() {
         store.add(at(12, "DEMO01", OPENED, null));
 

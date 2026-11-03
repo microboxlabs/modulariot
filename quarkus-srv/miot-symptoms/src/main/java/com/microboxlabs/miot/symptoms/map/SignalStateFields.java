@@ -16,7 +16,8 @@ import org.jboss.logging.Logger;
 /** The lost-signal detector's state on the map's positions, as {@code signal} on each. */
 public final class SignalStateFields {
 
-    static final String ASSET = "assetid";
+    /** The GPS database's position functions name the asset {@code asset_id}; older payloads {@code assetid}. */
+    static final List<String> ASSET_KEYS = List.of("asset_id", "assetid");
     static final String SIGNAL = "signal";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Logger LOG = Logger.getLogger(SignalStateFields.class);
@@ -35,14 +36,16 @@ public final class SignalStateFields {
         ArrayNode out = positions.deepCopy();
         List<String> ids = new ArrayList<>();
         out.forEach(p -> {
-            if (p.path(ASSET).isTextual()) {
-                ids.add(p.path(ASSET).asText());
+            String id = assetOf(p);
+            if (id != null) {
+                ids.add(id);
             }
         });
         Map<String, SignalState> found = read(states, ids, now);
         out.forEach(p -> {
             if (p instanceof ObjectNode o) {
-                SignalState s = o.path(ASSET).isTextual() ? found.get(o.path(ASSET).asText()) : null;
+                String id = assetOf(o);
+                SignalState s = id == null ? null : found.get(id);
                 o.set(SIGNAL, node(s == null ? SignalState.UNKNOWN : s));
             }
         });
@@ -58,13 +61,24 @@ public final class SignalStateFields {
         boolean ours = false;
         if (positions != null && positions.isArray()) {
             for (JsonNode p : positions) {
-                ours |= assetId.equals(p.path(ASSET).asText(null));
+                ours |= assetId.equals(assetOf(p));
             }
         }
         if (!ours) {
             throw new NoSuchElementException("Asset not found");
         }
         return node(read(states, List.of(assetId), now).getOrDefault(assetId, SignalState.UNKNOWN));
+    }
+
+    /** The position's asset id, under either name, or null. */
+    static String assetOf(JsonNode position) {
+        for (String key : ASSET_KEYS) {
+            JsonNode v = position.path(key);
+            if (v.isTextual() && !v.asText().isBlank()) {
+                return v.asText();
+            }
+        }
+        return null;
     }
 
     /** A detector-store outage must not hide the organization's map positions. */

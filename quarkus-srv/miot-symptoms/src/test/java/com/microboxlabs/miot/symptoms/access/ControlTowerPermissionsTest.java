@@ -83,6 +83,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerTreatmentsResource.cancel", TREAT),
             Map.entry("OrgDataSourcesResource.list", VIEW),
             Map.entry("OrgDataSourcesResource.get", VIEW),
+            Map.entry("OrgDataSourcesResource.eventTypes", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.stats", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.describe", VIEW),
             Map.entry("OrgSymptomDefinitionsResource.list", VIEW),

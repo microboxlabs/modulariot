@@ -42,6 +42,19 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
         return new RuleSchema(source.root(), fields, Map.of());
     }
 
+    /**
+     * What a lifecycle rule reads: the case, and the source's signal that moved it, so a close rule can read a
+     * device event ({@code case.closed_by_operator || signal.frame.events.exists(...)}).
+     */
+    public static RuleSchema lifecycle(DataSource source) {
+        if (source == null) {
+            return CASE;
+        }
+        Map<String, String> fields = new LinkedHashMap<>(CASE.fields());
+        source.fields().forEach(f -> fields.putIfAbsent(f.path(), f.type()));
+        return new RuleSchema(CASE.root(), fields, Map.of());
+    }
+
     public RuleSchema withExtras(Map<String, String> more) {
         Map<String, String> all = new LinkedHashMap<>(extras);
         all.putAll(more);

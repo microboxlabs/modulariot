@@ -87,13 +87,15 @@ class SignalSamplesTest {
     void keepsOnlyThePathsOfTheEditorFields() {
         Map<String, Object> frame = new LinkedHashMap<>();
         frame.put("timestamp", "2026-10-22T03:00:00Z");
-        frame.put("events", List.of(Map.of("code", 1)));
+        frame.put("events", List.of(Map.of("event_type", "gps_jamming", "code", 1)));
         frame.put("gps", Map.of("latitude", -33.4, "longitude", -70.6));
         frame.put("unknown_part", Map.of("x", 1));
         Map<String, Object> trimmed = SignalSamples.trim(Map.of("asset_id", "A", "local_hour", 3, "frame", frame));
 
         assertEquals(Map.of("asset_id", "A", "local_hour", 3,
-                "frame", Map.of("gps", Map.of("latitude", -33.4, "longitude", -70.6))), trimmed);
+                "frame", Map.of("gps", Map.of("latitude", -33.4, "longitude", -70.6), "events",
+                        List.of(Map.of("event_type", "gps_jamming", "severity", "", "description", "",
+                                "timestamp", "")))), trimmed, "an event keeps only the fields rules read");
         Set<String> fields = SignalFields.fields().stream().map(SourceField::path).collect(Collectors.toSet());
         List<String> leaves = new ArrayList<>();
         leaves(SignalFields.ROOT, trimmed, leaves);

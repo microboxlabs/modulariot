@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -215,6 +216,23 @@ public class PgEngineCases implements EngineCaseStore {
                AND at > $4 AND at < $5
             """;
 
+    /** The case's NOTED rows: after its OPENED row and before the CLOSED row that ends it. */
+    private static final String NOTES = """
+            SELECT n.at, n.context::text AS context
+              FROM miot_symptoms.signal_transitions o
+              JOIN miot_symptoms.signal_transitions n
+                ON n.tenant_code = o.tenant_code AND n.definition_id = o.definition_id AND n.asset_id = o.asset_id
+               AND n.state = o.state AND n.kind = 'NOTED' AND n.id > o.id
+             WHERE o.tenant_code = $1 AND o.id = $2 AND o.kind = 'OPENED'
+               AND NOT EXISTS (
+                   SELECT 1 FROM miot_symptoms.signal_transitions c
+                    WHERE c.tenant_code = o.tenant_code AND c.definition_id = o.definition_id
+                      AND c.asset_id = o.asset_id AND c.state = o.state AND c.kind = 'CLOSED'
+                      AND c.id > o.id AND c.id < n.id)
+             ORDER BY n.id
+             LIMIT $3
+            """;
+
     /** Locks the case's OPENED row, so overlapping closes of one case run one after the other. */
     private static final String LOCK = """
             SELECT id FROM miot_symptoms.signal_transitions
@@ -388,6 +406,37 @@ public class PgEngineCases implements EngineCaseStore {
 
     private static OffsetDateTime utc(Instant at) {
         return at.atOffset(ZoneOffset.UTC);
+    }
+
+    @Override
+    public List<CaseNote> notes(String tenantCode, long caseId) {
+        List<CaseNote> out = new ArrayList<>();
+        PgIds.query(pool.get(), NOTES, Tuple.of(tenantCode, caseId, MAX_NOTES)).forEach(r -> out.add(
+                note(r.getOffsetDateTime("at").toInstant(), json(r.getString("context")))));
+        out.sort(Comparator.comparing(CaseNote::at));
+        return out;
+    }
+
+    /** A note from its row's time and context ({@code {"note": {...}}}); the frame's time when the event has none. */
+    static CaseNote note(Instant recordedAt, JsonNode context) {
+        JsonNode n = context == null ? null : context.path("note");
+        if (n == null || !n.isObject()) {
+            return new CaseNote(recordedAt, null, null, recordedAt);
+        }
+        Instant at = recordedAt;
+        try {
+            if (n.hasNonNull("at")) {
+                at = OffsetDateTime.parse(n.get("at").asText()).toInstant();
+            }
+        } catch (java.time.format.DateTimeParseException e) {
+            // Keep the frame time when the provider sent an invalid event time.
+        }
+        return new CaseNote(recordedAt, textOrNull(n, "event_type"), textOrNull(n, "description"), at);
+    }
+
+    private static String textOrNull(JsonNode n, String field) {
+        String v = n.path(field).asText(null);
+        return v == null || v.isBlank() ? null : v;
     }
 
     @Override

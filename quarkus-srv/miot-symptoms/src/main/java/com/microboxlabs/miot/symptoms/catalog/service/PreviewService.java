@@ -9,6 +9,8 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
+import com.microboxlabs.miot.symptoms.signal.GpsSignal;
+import com.microboxlabs.miot.symptoms.signal.SignalFields;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.LinkedHashMap;
@@ -110,7 +112,7 @@ public class PreviewService {
         SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : pick(detail);
         String key = checked.source() == null ? detail.definition().sourceKey() : checked.source();
         DataSource source = sources.get(tenantCode, key);
-        return new Preview(source.key(), run(checked, source), cases(checked.lifecycle()));
+        return new Preview(source.key(), run(checked, source), cases(checked.lifecycle(), source));
     }
 
     static List<SamplePreview> run(SymptomSpec spec, DataSource source) {
@@ -131,20 +133,33 @@ public class PreviewService {
             }
         }
         return source.samples().stream()
+                .map(PreviewService::signal)
                 .map(sample -> runOne(sample, activation, measure, levels).withClauses(clauses(sample, clauses)))
                 .toList();
     }
 
     /** The lifecycle on each fixed case moment; none without a lifecycle. */
     static List<CasePreview> cases(SymptomSpec.Lifecycle lifecycle) {
+        return cases(lifecycle, null);
+    }
+
+    /**
+     * The lifecycle on each fixed case moment, with the source's first sample as the signal the rule reads; none
+     * without a lifecycle.
+     */
+    static List<CasePreview> cases(SymptomSpec.Lifecycle lifecycle, DataSource source) {
         if (lifecycle == null) {
             return List.of();
         }
-        PreparedRule open = RuleLanguage.prepare(RuleSchema.CASE, lifecycle.open());
-        PreparedRule close = RuleLanguage.prepare(RuleSchema.CASE, lifecycle.close());
+        RuleSchema schema = RuleSchema.lifecycle(source);
+        PreparedRule open = RuleLanguage.prepare(schema, lifecycle.open());
+        PreparedRule close = RuleLanguage.prepare(schema, lifecycle.close());
+        Map<String, Object> signal = signal(source);
         return SCENARIOS.stream().map(s -> {
             Map<String, Object> sample = s.sample();
-            RuleResult r = (s.open() ? close : open).run(sample);
+            Map<String, Object> vars = new LinkedHashMap<>(signal);
+            vars.putAll(sample);
+            RuleResult r = (s.open() ? close : open).run(vars);
             if (!r.ok()) {
                 return new CasePreview(s.key(), s.open(), sample, null, r.error());
             }
@@ -153,6 +168,23 @@ public class PreviewService {
             }
             return new CasePreview(s.key(), s.open(), sample, outcome(s.open(), holds.booleanValue()), null);
         }).toList();
+    }
+
+    /** The source's first sample, its frame's events always a list; empty without one. */
+    private static Map<String, Object> signal(DataSource source) {
+        if (source == null || source.samples() == null || source.samples().isEmpty()) {
+            return Map.of();
+        }
+        return signal(source.samples().get(0));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> signal(Map<String, Object> sample) {
+        Map<String, Object> first = new LinkedHashMap<>(sample);
+        if (first.get(SignalFields.ROOT) instanceof Map<?, ?> s) {
+            first.put(SignalFields.ROOT, GpsSignal.FrameEvent.withEvents((Map<String, Object>) s));
+        }
+        return first;
     }
 
     /** What a rule that held or not does to a case that is open or not yet. */

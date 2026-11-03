@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { HiTrash } from "react-icons/hi";
 import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -18,12 +18,13 @@ import {
   moveRow,
   newCondition,
   newId,
+  OBJECTS,
   opsFor,
   parseConditions,
   ruleKey,
 } from "./condition-form";
 import FieldCombobox from "./field-combobox";
-import type { SourceField } from "./maintainer-api";
+import { type SourceField, useEventTypes } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
 import Select from "./ui/select";
 
@@ -36,6 +37,8 @@ const linkClass =
 export function opLabel(op: ConditionOp, type: string, d: I18nRecord) {
   if (op === "is_true") return tr("opIsTrue", d);
   if (op === "is_false") return tr("opIsFalse", d);
+  if (op === "has_event") return tr("opHasEvent", d);
+  if (op === "no_event") return tr("opNoEvent", d);
   if (isNumeric(type))
     return { "==": "=", "!=": "≠", ">": ">", ">=": "≥", "<": "<", "<=": "≤" }[
       op
@@ -90,6 +93,46 @@ export function NumberValue({
   );
 }
 
+/**
+ * An event type: free text, with the types the organization's frames carried
+ * recently as suggestions, each with how many frames carried it.
+ */
+export function EventTypeInput({
+  value,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  value: string;
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (value: string) => void;
+}>) {
+  const types = useEventTypes(!readOnly);
+  const list = useId();
+  return (
+    <>
+      <input
+        aria-label={tr("eventType", d)}
+        className={`${pillClass} w-56 font-mono`}
+        disabled={readOnly}
+        list={list}
+        maxLength={64}
+        placeholder={tr("eventTypePlaceholder", d)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <datalist id={list}>
+        {types.map((t) => (
+          <option key={t.eventType} value={t.eventType}>
+            {tr("eventTypeCount", d, { n: String(t.count) })}
+          </option>
+        ))}
+      </datalist>
+    </>
+  );
+}
+
 function ValueInput({
   row,
   field,
@@ -117,6 +160,16 @@ function ValueInput({
     );
   }
   const value = typeof row.value === "string" ? row.value : "";
+  if (field.type === OBJECTS) {
+    return (
+      <EventTypeInput
+        value={value}
+        readOnly={readOnly}
+        d={d}
+        onChange={onChange}
+      />
+    );
+  }
   if (field.values?.length) {
     const known = field.values.some((v) => v.value === value);
     return (

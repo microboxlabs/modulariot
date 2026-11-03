@@ -60,4 +60,21 @@ describe("fieldSections", () => {
   it("folds case and accents", () => {
     expect(folded("Vehículo ÁÉÍ")).toBe("vehiculo aei");
   });
+
+  it("leaves out the fields of a list", () => {
+    const list: SourceField[] = [
+      {
+        ...field("signal.frame.events", "Eventos del GPS", "DEVICE"),
+        type: "objects",
+      },
+      {
+        ...field("signal.frame.events.event_type", "Tipo de evento", "DEVICE"),
+        type: "text",
+      },
+    ];
+    const paths = fieldSections(list, "", d).flatMap((s) =>
+      s.fields.map((f) => f.path)
+    );
+    expect(paths).toEqual(["signal.frame.events"]);
+  });
 });

@@ -510,6 +510,75 @@ class EngineCaseServiceTest {
         assertEquals("Motivo: prueba", rows.get(1).path("description").path("message").asText());
     }
 
+    private static EngineCase escalated(Instant closed) throws Exception {
+        EngineCase c = lostSignal(12, OPENED.minusSeconds(600), closed);
+        return c.withLevel(c.openingContext(), c.levelContext(), c.levelRule(), List.of(
+                new EngineCase.LevelStep(OPENED, 1), new EngineCase.LevelStep(OPENED.plusSeconds(3600), 2),
+                new EngineCase.LevelStep(OPENED.plusSeconds(7200), 3),
+                new EngineCase.LevelStep(OPENED.plusSeconds(9000), 4)));
+    }
+
+    @Test
+    void eachLevelStepIsItsOwnTimelineBlock() throws Exception {
+        Instant closed = OPENED.plusSeconds(10_000);
+        store.add(escalated(closed));
+
+        JsonNode entry = service.header(TENANT, -12).path("timeline").get(0);
+
+        assertEquals(OPENED.minusSeconds(600).toString(), entry.path("start").asText());
+        assertEquals(closed.toString(), entry.path("end").asText());
+        JsonNode aggs = entry.path("conditions_agg");
+        assertEquals(4, aggs.size());
+        List<Instant> bounds = List.of(OPENED.minusSeconds(600), OPENED.plusSeconds(3600), OPENED.plusSeconds(7200),
+                OPENED.plusSeconds(9000), closed);
+        for (int i = 0; i < 4; i++) {
+            JsonNode agg = aggs.get(i);
+            assertEquals(bounds.get(i).toString(), agg.path("start").asText(), "start of step " + i);
+            assertEquals(bounds.get(i + 1).toString(), agg.path("end").asText(), "end of step " + i);
+            assertEquals(String.valueOf(i + 1), agg.path("icu_code").asText());
+            assertEquals(-12, agg.path("symptom_id").asLong(), "every step selects the same case");
+        }
+        assertEquals("CODE BLACK", aggs.get(3).path("icu_condition").asText());
+    }
+
+    @Test
+    void actionsLandInTheStepOfTheirTime() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                actionAt(OPENED.minusSeconds(300), "Antes"), actionAt(OPENED.plusSeconds(3600), "En L2"),
+                actionAt(OPENED.plusSeconds(8000), "En L3"), actionAt(OPENED.plusSeconds(20_000), "Después")));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg");
+
+        assertEquals(List.of("Llamado a: Antes"), messages(aggs.get(0)));
+        assertEquals(List.of("Llamado a: En L2"), messages(aggs.get(1)));
+        assertEquals(List.of("Llamado a: En L3"), messages(aggs.get(2)));
+        assertEquals(List.of("Llamado a: Después"), messages(aggs.get(3)));
+        aggs.forEach(agg -> assertEquals("operator@example.com", agg.path("assigned_to").asText()));
+    }
+
+    @Test
+    void aCaseWithoutStepsKeepsOneBlock() {
+        store.add(panic(12, "DEMO01"));
+
+        JsonNode aggs = service.header(TENANT, -12).path("timeline").get(0).path("conditions_agg");
+
+        assertEquals(1, aggs.size());
+        assertEquals("4", aggs.get(0).path("icu_code").asText());
+    }
+
+    private static TreatmentAction actionAt(Instant at, String contact) {
+        return new TreatmentAction("a", "t", TENANT, 1, ActionKind.CALL, null, contact, null, null, null, null, null,
+                null, null, null, null, List.of(), Map.of(), "operator@example.com", at.atOffset(ZoneOffset.UTC));
+    }
+
+    private static List<String> messages(JsonNode agg) {
+        List<String> out = new ArrayList<>();
+        agg.path("treatments").forEach(row -> out.add(row.path("description").path("message").asText()));
+        return out;
+    }
+
     @Test
     void aDateRangeShowsTheCasesActiveInIt() {
         store.add(new EngineCase(12, PANIC, "0.1.0", "Botón de pánico", "emergencies", "DEMO01",

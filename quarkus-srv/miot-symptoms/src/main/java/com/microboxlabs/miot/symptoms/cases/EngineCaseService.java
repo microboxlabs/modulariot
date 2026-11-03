@@ -423,7 +423,7 @@ public class EngineCaseService {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
         out.set(CONDITIONS_AGG, JSON.arrayNode());
-        // One timeline entry with the case, which the map selects to load its point.
+        // One timeline entry with the case, which the map selects to load its point; one block per level step.
         String start = start(c).toString();
         String end = end(c).toString();
         ObjectNode entry = out.putArray("timeline").addObject();
@@ -431,19 +431,16 @@ public class EngineCaseService {
         entry.put("end", end);
         entry.put("symptom_id", c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
-        ObjectNode agg = entry.putArray(CONDITIONS_AGG).addObject();
-        agg.put("start", start);
-        agg.put("end", end);
-        agg.put("symptom_id", c.symptomId());
-        agg.put("is_symptom", 1);
-        agg.put("type", c.name());
-        agg.put("symptom_description", c.name());
-        agg.put(ICU_CODE, String.valueOf(c.level()));
-        agg.put(ICU_CONDITION, condition(c.level()));
-        agg.put("count", 1);
-        agg.putNull("assigned_to");
-        agg.set("treatments", JSON.arrayNode());
-        agg.putNull("evidences");
+        ArrayNode aggs = entry.putArray(CONDITIONS_AGG);
+        List<EngineCase.LevelStep> steps = c.levels();
+        if (steps.isEmpty()) {
+            addAgg(aggs, c, start, end, c.level());
+        }
+        for (int i = 0; i < steps.size(); i++) {
+            String from = i == 0 ? start : steps.get(i).at().toString();
+            String to = i + 1 < steps.size() ? steps.get(i + 1).at().toString() : end;
+            addAgg(aggs, c, from, to, steps.get(i).level());
+        }
         ObjectNode symptom = out.putObject("symptom_info");
         symptom.put("id", c.symptomId());
         symptom.put("name", c.name());
@@ -469,6 +466,22 @@ public class EngineCaseService {
             trip.put("driver_contact", t.getString("driver_contact_phone"));
         }
         return out;
+    }
+
+    private static void addAgg(ArrayNode aggs, EngineCase c, String start, String end, int level) {
+        ObjectNode agg = aggs.addObject();
+        agg.put("start", start);
+        agg.put("end", end);
+        agg.put("symptom_id", c.symptomId());
+        agg.put("is_symptom", 1);
+        agg.put("type", c.name());
+        agg.put("symptom_description", c.name());
+        agg.put(ICU_CODE, String.valueOf(level));
+        agg.put(ICU_CONDITION, condition(level));
+        agg.put("count", 1);
+        agg.putNull("assigned_to");
+        agg.set("treatments", JSON.arrayNode());
+        agg.putNull("evidences");
     }
 
     /**
@@ -624,26 +637,50 @@ public class EngineCaseService {
 
     /**
      * The header with the case's treatments in its timeline, one entry per call, ignore or invalidate action,
-     * in the shape of the GPS database's treatments. Cancelled treatments and notes are left out.
+     * in the shape of the GPS database's treatments. Each action goes in the level step whose time holds it; one
+     * before the first step goes in the first, one after the last in the last. Cancelled treatments and notes are
+     * left out.
      */
     public static JsonNode withTreatments(JsonNode header, List<TreatmentView> treatments) {
         ObjectNode out = header.deepCopy();
-        ArrayNode rows = JSON.arrayNode();
+        List<ObjectNode> aggs = new ArrayList<>();
+        out.path("timeline").forEach(entry -> entry.path(CONDITIONS_AGG).forEach(agg -> aggs.add((ObjectNode) agg)));
+        List<ArrayNode> rows = new ArrayList<>();
+        aggs.forEach(agg -> rows.add(JSON.arrayNode()));
         String assignedTo = null;
         for (TreatmentView t : treatments) {
             if (t.status() == TreatmentStatus.CANCELLED) {
                 continue;
             }
             assignedTo = t.closedBy() != null ? t.closedBy() : t.openedBy();
-            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> rows.add(timelineRow(a)));
+            t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE)
+                    .forEach(a -> {
+                        if (!aggs.isEmpty()) {
+                            rows.get(stepOf(aggs, a)).add(timelineRow(a));
+                        }
+                    });
         }
-        for (JsonNode entry : out.path("timeline")) {
-            for (JsonNode agg : entry.path(CONDITIONS_AGG)) {
-                ((ObjectNode) agg).set("treatments", rows.deepCopy());
-                ((ObjectNode) agg).put("assigned_to", assignedTo);
-            }
+        for (int i = 0; i < aggs.size(); i++) {
+            aggs.get(i).set("treatments", rows.get(i));
+            aggs.get(i).put("assigned_to", assignedTo);
         }
         return out;
+    }
+
+    /** The index of the last agg that starts at or before the action; the first when none does. */
+    private static int stepOf(List<ObjectNode> aggs, TreatmentAction a) {
+        if (a.performedAt() == null) {
+            return aggs.size() - 1;
+        }
+        Instant at = a.performedAt().toInstant();
+        int found = 0;
+        for (int i = 1; i < aggs.size(); i++) {
+            Instant start = contextInstant(aggs.get(i).path("start"));
+            if (start != null && !start.isAfter(at)) {
+                found = i;
+            }
+        }
+        return found;
     }
 
     private static ObjectNode timelineRow(TreatmentAction a) {

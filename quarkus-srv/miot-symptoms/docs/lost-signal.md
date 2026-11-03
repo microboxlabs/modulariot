@@ -170,7 +170,7 @@ Each reload reads cell counts and sender totals from one database snapshot. A fa
 
 | Step | What it does |
 |---|---|
-| Schedule | Every hour (`coverage.every`). Fills each day of the last 30 that is not in `coverage_run`, newest first. Yesterday is ready 2 h after midnight UTC (`coverage.settle`). |
+| Schedule | Every 10 minutes (`coverage.every`); a run with nothing to fill is a few small queries. Counters `miot_symptoms_lost_signal_coverage_days_filled_total`, `_coverage_lease_held_total` and `_coverage_failed_total` show it working where logs are at ERROR. Fills each day of the last 30 that is not in `coverage_run`, newest first. Yesterday is ready 2 h after midnight UTC (`coverage.settle`). |
 | Read | One hour of `asset_data` at a time through the `gps-read` datasource, SELECT only. First pass: delay and interval counts per sender and second, for the day's medians. Second pass: the frames ordered by asset, sender and time, plus the hour before the day for gaps across midnight. |
 | Write | Replaces the day in `coverage_day` and `coverage_sender_day` in one transaction, then marks it in `coverage_run`. Deletes days older than the window and recomputes `anomalous`. |
 | Leader | The replica holding the Redis lease `symptoms:coverage:lease` (10 min, renewed every hour read). Without Redis every replica runs it. |

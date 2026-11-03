@@ -711,7 +711,7 @@ public class EngineCaseService {
             t.actions().stream().filter(a -> a.kind() != ActionKind.NOTE).forEach(a -> {
                 int step = stepOf(aggs, a.performedAt());
                 rows.get(step).add(timelineRow(a));
-                assignees.set(step, operator);
+                assignees.set(step, a.performedBy() != null ? a.performedBy() : t.openedBy());
             });
             if (t.status() == TreatmentStatus.CLOSED && t.resolution() != null
                     && HoldService.ENDINGS.contains(t.resolution())

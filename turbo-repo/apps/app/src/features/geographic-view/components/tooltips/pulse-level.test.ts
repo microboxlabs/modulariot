@@ -22,5 +22,6 @@ describe("pulseLevel", () => {
   it("falls back to the dot's own code when the frame is in no case", () => {
     expect(pulseLevel(frame({ icu_code: 3 }))).toBe("3");
     expect(pulseLevel(frame({ symptom_level: null }))).toBe("0");
+    expect(pulseLevel(frame({ symptom_level: null, icu_code: 3 }))).toBe("3");
   });
 });

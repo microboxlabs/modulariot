@@ -70,6 +70,18 @@ class PgSlaStoreTest {
                 CREATE TABLE IF NOT EXISTS miot_trips.trip_live (
                     trip_id uuid PRIMARY KEY, tenant_code text NOT NULL, asset_id text, mandate_codes jsonb)
                 """).execute().await().atMost(WAIT);
+        pool.query("""
+                ALTER TABLE miot_trips.trip_live
+                    ADD COLUMN IF NOT EXISTS driver_id text, ADD COLUMN IF NOT EXISTS driver_name text,
+                    ADD COLUMN IF NOT EXISTS second_driver_id text, ADD COLUMN IF NOT EXISTS carrier_id text,
+                    ADD COLUMN IF NOT EXISTS carrier_name text, ADD COLUMN IF NOT EXISTS origin_geofence_label text,
+                    ADD COLUMN IF NOT EXISTS destination_geofence_label text
+                """).execute().await().atMost(WAIT);
+        pool.query("CREATE SCHEMA IF NOT EXISTS miot_fleet").execute().await().atMost(WAIT);
+        pool.query("""
+                CREATE TABLE IF NOT EXISTS miot_fleet.carrier (
+                    id uuid PRIMARY KEY, tenant_code text NOT NULL, rut text, legal_name text)
+                """).execute().await().atMost(WAIT);
         for (String file : MIGRATIONS) {
             try (InputStream in = PgSlaStoreTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
@@ -241,6 +253,103 @@ class PgSlaStoreTest {
         assertEquals(List.of(new EngineCaseStore.OpenLevel("DEMO01", "Exceso de velocidad", 4)),
                 cases.openLevels(tenant));
         assertTrue(cases.openLevels("other-" + tenant).isEmpty());
+    }
+
+    private static UUID liveTrip(String tenant, String driver, String secondDriver, UUID carrier, String origin,
+            String destination) {
+        UUID trip = UUID.randomUUID();
+        PgIds.query(pool, """
+                INSERT INTO miot_trips.trip_live (trip_id, tenant_code, asset_id, driver_id, driver_name,
+                    second_driver_id, carrier_id, carrier_name, origin_geofence_label, destination_geofence_label)
+                VALUES ($1, $2, 'DEMO01', $3, 'Driver ' || $3, $4, $5, 'Carrier', $6, $7)
+                """, Tuple.tuple().addUUID(trip).addString(tenant).addString(driver).addString(secondDriver)
+                .addString(carrier == null ? null : carrier.toString()).addString(origin).addString(destination));
+        return trip;
+    }
+
+    @Test
+    void casesAreFilteredByTheirLiveTripsDriverCarrierAndPlaces() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        UUID speeding = symptom(tenant);
+        UUID carrierA = UUID.randomUUID();
+        UUID carrierB = UUID.randomUUID();
+        PgIds.query(pool, "INSERT INTO miot_fleet.carrier (id, tenant_code, rut, legal_name) VALUES ($1, $2, $3, 'A')"
+                + ", ($4, $2, $5, 'B'), ($6, 'other-' || $2, $3, 'C')", Tuple.tuple().addUUID(carrierA)
+                .addString(tenant).addString("76.111.111-1").addUUID(carrierB).addString("77222222-2")
+                .addUUID(UUID.randomUUID()));
+        UUID tripA = liveTrip(tenant, "12.345.678-9", "9876543-k", carrierA, "Planta Norte", "Puerto Sur");
+        UUID tripB = liveTrip(tenant, "11111111-1", null, carrierB, "Planta Sur", "Puerto Norte");
+        Instant t0 = Instant.parse("2026-10-22T03:00:00Z");
+        long a = log.append(tenant, List.of(t(Kind.OPENED, speeding, t0, 3, 0)),
+                new TransitionLog.Place(tripA.toString(), null, null, null, null)).get(0).caseId();
+        long b = log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "DEMO02", t0.plusSeconds(10), 2, 0, 30)), new TransitionLog.Place(tripB.toString(), null, null, null,
+                        null)).get(0).caseId();
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE, "DEMO03",
+                t0.plusSeconds(20), 2, 0, 30)), new TransitionLog.Place("legacy-trip", null, null, null, null));
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertEquals(List.of(a), ids(cases.list(tenant, byTrip("12345678-9", null, null, null))), "first driver");
+        assertEquals(List.of(a), ids(cases.list(tenant, byTrip("9.876.543-K", null, null, null))), "second driver");
+        assertEquals(List.of(a), ids(cases.list(tenant, byTrip(null, "76111111-1", null, null))), "carrier RUT");
+        assertEquals(List.of(b), ids(cases.list(tenant, byTrip(null, "77.222.222-2", null, null))));
+        assertEquals(List.of(b), ids(cases.list(tenant, byTrip(null, carrierB.toString(), null, null))),
+                "carrier id");
+        assertEquals(List.of(a), ids(cases.list(tenant, byTrip(null, null, " planta NORTE ", null))));
+        assertEquals(List.of(b), ids(cases.list(tenant, byTrip(null, null, "Planta Sur", "puerto norte"))));
+        assertTrue(cases.list(tenant, byTrip(null, null, "Planta", null)).isEmpty(), "the whole name");
+        assertTrue(cases.list(tenant, byTrip("12345678-9", "77222222-2", null, null)).isEmpty());
+        assertTrue(cases.list(tenant, byTrip(null, "78333333-3", null, null)).isEmpty());
+        assertTrue(cases.list(tenant, byTrip("--", null, null, null)).isEmpty(), "nothing left to compare");
+        assertTrue(cases.list("other-" + tenant, byTrip(null, "76111111-1", null, null)).isEmpty());
+
+        List<EngineCase> all = cases.list(tenant, EngineCaseStore.CaseFilter.OPEN);
+        assertEquals(3, all.size(), "a case without a live trip still lists");
+        EngineCase.TripDetails details = all.stream().filter(c -> c.id() == a).findFirst().orElseThrow().trip();
+        assertEquals(new EngineCase.TripDetails("Driver 12.345.678-9", "Carrier", "Planta Norte", "Puerto Sur"),
+                details);
+        assertNull(all.get(0).trip(), "no live trip");
+
+        PgIds.query(pool, """
+                INSERT INTO miot_symptoms.treatment (tenant_code, symptom_id, type)
+                VALUES ($1, $2, 'CALL')
+                """, Tuple.of(tenant, -a));
+        assertEquals(List.of(a), ids(cases.list(tenant,
+                byTrip(null, "76111111-1", null, null).withOpenTreatment())));
+        assertTrue(cases.list(tenant, byTrip(null, "77222222-2", null, null).withOpenTreatment()).isEmpty());
+    }
+
+    @Test
+    void tripFiltersNeverReadAnotherTenantsTripOrCarrier() {
+        String tenant = "tenant-" + UUID.randomUUID();
+        String other = "other-" + tenant;
+        UUID speeding = symptom(tenant);
+        UUID carrier = UUID.randomUUID();
+        PgIds.query(pool, """
+                INSERT INTO miot_fleet.carrier (id, tenant_code, rut, legal_name)
+                VALUES ($1, $2, '76.111.111-1', 'Demo carrier')
+                """, Tuple.of(carrier, other));
+        UUID foreign = liveTrip(other, "12.345.678-9", null, carrier, "Foreign origin", "Destination");
+        UUID own = liveTrip(tenant, "11.111.111-1", null, carrier, "Own origin", "Destination");
+        Instant at = Instant.parse("2026-10-22T03:00:00Z");
+        long foreignCase = log.append(tenant, List.of(t(Kind.OPENED, speeding, at, 3, 0)),
+                new TransitionLog.Place(foreign.toString(), null, null, null, null)).get(0).caseId();
+        log.append(tenant, List.of(new Transition(Kind.OPENED, speeding, "1.0.0", SymptomState.ACTIVE,
+                "demo-other", at.plusSeconds(1), 2, 0, 30)),
+                new TransitionLog.Place(own.toString(), null, null, null, null));
+        PgEngineCases cases = new PgEngineCases(() -> pool);
+
+        assertTrue(cases.list(tenant, byTrip("12345678-9", null, null, null)).isEmpty());
+        assertTrue(cases.list(tenant, byTrip(null, null, "Foreign origin", null)).isEmpty());
+        assertTrue(cases.list(tenant, byTrip(null, "76111111-1", null, null)).isEmpty());
+        assertNull(cases.find(tenant, foreignCase).orElseThrow().trip(), "foreign trip names are not exposed");
+        assertEquals(2, cases.list(tenant, EngineCaseStore.CaseFilter.OPEN).size());
+    }
+
+    private static EngineCaseStore.CaseFilter byTrip(String driver, String carrier, String origin,
+            String destination) {
+        return new EngineCaseStore.CaseFilter(null, null, null, null, null, null, driver, carrier, origin,
+                destination);
     }
 
     @Test

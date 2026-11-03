@@ -103,6 +103,8 @@ public class PgEngineCases implements EngineCaseStore {
      */
     private static final String ONE = """
             SELECT w.*,
+                   (SELECT o.context::text FROM miot_symptoms.signal_transitions o
+                     WHERE o.tenant_code = w.tenant_code AND o.id = w.id) AS opening_context,
                    (SELECT l.context::text FROM miot_symptoms.signal_transitions l
                      WHERE l.tenant_code = w.tenant_code AND l.definition_id = w.definition_id
                        AND l.asset_id = w.asset_id AND l.state = 'ACTIVE'
@@ -237,7 +239,8 @@ public class PgEngineCases implements EngineCaseStore {
             return Optional.empty();
         }
         Row r = rows.next();
-        return Optional.of(engineCase(r).withLevel(json(r.getString("level_context")), r.getString("level_rule"),
+        return Optional.of(engineCase(r).withLevel(json(r.getString("opening_context")),
+                json(r.getString("level_context")), r.getString("level_rule"),
                 steps(json(r.getString("level_steps")))));
     }
 

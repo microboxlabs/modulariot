@@ -7338,7 +7338,6 @@
     "call_center_ch_field_whatsapp": "Número de WhatsApp",
     "call_center_ch_field_teams": "Correo de Microsoft Teams",
     "call_center_ch_field_meet": "Correo de Google",
-    "call_center_contact_book_header": "Libreta de contactos",
     "call_center_contact_cancel": "Cancelar",
     "proto_section_who_called": "A quién se llamó",
     "call_center_method_phone": "Llamada telefónica",
@@ -7360,7 +7359,6 @@
     "call_center_last_call_label": "Última llamada hace",
     "call_center_last_call_suffix": "",
     "call_center_just_called": "Recién llamado",
-    "call_center_already_called_header": "Ya llamados",
     "proto_call_title_contacts": "¿A quién vas a contactar?",
     "proto_call_title_dialing": "Llamada",
     "proto_call_title_calling": "Llamada en progreso",
@@ -7414,7 +7412,11 @@
       "channelWhatsapp": "WhatsApp",
       "channelTeams": "Teams",
       "channelEmail": "Correo",
-      "dueStep": "Paso {n}: {role}"
+      "dueStep": "Paso {n}: {role}",
+      "driver": "Conductor del viaje",
+      "noContacts": "Nadie en la libreta tiene este rol.",
+      "otherContacts": "Otros contactos ({n})",
+      "newNumber": "Nuevo número"
     },
     "call_center_new_save_error": "No se pudo guardar el contacto en la libreta. La llamada sigue solo con este número."
   },

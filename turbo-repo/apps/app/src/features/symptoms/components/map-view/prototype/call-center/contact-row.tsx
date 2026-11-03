@@ -11,7 +11,7 @@
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import CallStatsBadges from "./call-stats-badges";
-import type { MockCallStats } from "./mock-contact-data";
+import type { CallStats } from "./call-targets";
 
 export default function ContactRow({
   personName,
@@ -29,7 +29,7 @@ export default function ContactRow({
   personName: string;
   roleLabel?: string;
   phone?: string;
-  stats?: MockCallStats | null;
+  stats?: CallStats | null;
   /** Only the clickable "a quién llamar" list variant passes this. */
   onClick?: () => void;
   title?: string;
@@ -56,7 +56,7 @@ export default function ContactRow({
   const justCalled =
     recentlyCalled &&
     !!justCalledLabel &&
-    !!stats &&
+    !!stats?.lastCallAt &&
     Date.now() - stats.lastCallAt.getTime() < 60_000;
 
   const className = `flex w-full items-center justify-between gap-3 border-b border-gray-200 px-3 py-2.5 text-left dark:border-gray-700 ${bgClassName} ${
@@ -100,15 +100,17 @@ export default function ContactRow({
               {justCalledLabel}
             </span>
           ) : (
-            <FormattedDate
-              date={stats.lastCallAt}
-              format="relative"
-              className={
-                recentlyCalled
-                  ? "font-medium text-green-500 dark:text-green-400"
-                  : undefined
-              }
-            />
+            stats.lastCallAt && (
+              <FormattedDate
+                date={stats.lastCallAt}
+                format="relative"
+                className={
+                  recentlyCalled
+                    ? "font-medium text-green-500 dark:text-green-400"
+                    : undefined
+                }
+              />
+            )
           )}
           <CallStatsBadges accepted={stats.accepted} denied={stats.denied} />
         </div>

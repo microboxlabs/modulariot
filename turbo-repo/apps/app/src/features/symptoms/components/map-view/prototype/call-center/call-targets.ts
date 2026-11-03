@@ -14,8 +14,13 @@ import {
   createContact,
   type TowerAction,
   type TowerCallMethod,
+  type TowerContact,
   useContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
+import {
+  DRIVER_ROLE,
+  isDriverRole,
+} from "@/features/symptoms/control-tower/contact-roles";
 import type { CallMethod } from "./call-method";
 
 export interface CallStats {
@@ -38,19 +43,22 @@ export interface CallTarget {
 }
 
 export const DRIVER_TARGET_ID = "driver";
-export const DRIVER_ROLE = "Conductor";
 
-export const toApiMethod = (m: CallMethod) => m.toUpperCase() as TowerCallMethod;
-export const fromApiMethod = (m: TowerCallMethod) => m.toLowerCase() as CallMethod;
+export const toApiMethod = (m: CallMethod) =>
+  m.toUpperCase() as TowerCallMethod;
+export const fromApiMethod = (m: TowerCallMethod) =>
+  m.toLowerCase() as CallMethod;
 
 /** Which call-list row a recorded CALL action belongs to. */
 export function targetIdOfAction(action: TowerAction): string | null {
   if (action.kind !== "CALL") return null;
   if (action.contactId) return action.contactId;
-  return action.contactRole === DRIVER_ROLE ? DRIVER_TARGET_ID : null;
+  return isDriverRole(action.contactRole) ? DRIVER_TARGET_ID : null;
 }
 
-export function useCallTargets(treatmentData: TreatmentsGeneralResponseItem | null) {
+export function useCallTargets(
+  treatmentData: TreatmentsGeneralResponseItem | null
+) {
   const { data, isLoading, error } = useContacts();
 
   const targets = useMemo<CallTarget[]>(() => {
@@ -80,23 +88,22 @@ export function useCallTargets(treatmentData: TreatmentsGeneralResponseItem | nu
     return [driver, ...contacts];
   }, [data, treatmentData]);
 
-  const knownRoles = useMemo(
-    () => Array.from(new Set(targets.map((t) => t.role).filter(Boolean))),
-    [targets]
-  );
-
+  /** Saves a number typed in the call panel as a provisional contact, reachable by phone and WhatsApp. */
   const addContact = useCallback(
-    async (input: { name: string; phone?: string; role?: string; methods: CallMethod[] }) => {
-      await createContact({
+    async (input: { name: string; phone: string }): Promise<TowerContact> => {
+      const methods: CallMethod[] = ["phone", "whatsapp"];
+      const saved = await createContact({
         name: input.name,
-        phone: input.phone || undefined,
-        role: input.role || undefined,
-        methods: input.methods.map(toApiMethod),
+        phone: input.phone,
+        methods: methods.map(toApiMethod),
+        channels: { phone: input.phone, whatsapp: input.phone },
+        provisional: true,
       });
-      await mutate(contactsKey);
+      void mutate(contactsKey);
+      return saved;
     },
     []
   );
 
-  return { targets, knownRoles, addContact, isLoading, error: error as Error | undefined };
+  return { targets, addContact, isLoading, error: error as Error | undefined };
 }

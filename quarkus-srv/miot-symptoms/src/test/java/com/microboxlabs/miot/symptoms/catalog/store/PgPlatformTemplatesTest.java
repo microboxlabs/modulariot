@@ -36,7 +36,8 @@ class PgPlatformTemplatesTest {
             "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql",
             "V0.12.4__signal_loss_template_reads_detector.sql", "V0.12.5__signal_loss_template_coverage_cohort.sql",
             "V0.12.6__gps_sabotage_template.sql", "V0.12.7__platform_templates_tenant.sql",
-            "V0.12.8__coverage_days.sql");
+            "V0.12.8__coverage_days.sql", "V0.12.10__transition_context.sql",
+            "V0.12.11__signal_loss_close_level_one.sql");
 
     private static Vertx vertx;
     private static Pool pool;
@@ -71,16 +72,30 @@ class PgPlatformTemplatesTest {
 
     @Test
     void theLostSignalTemplateIsAtItsLatestVersion() {
-        assertEquals(List.of("2.1.0"), rows("SELECT current_version FROM miot_symptoms.symptom_definition"
+        assertEquals(List.of("2.2.0"), rows("SELECT current_version FROM miot_symptoms.symptom_definition"
                 + " WHERE tenant_code = '_platform' AND symptom_key = 'signal-loss'"));
-        assertEquals(List.of("1.0.0", "2.0.0", "2.1.0"), rows("SELECT v.version FROM miot_symptoms.symptom_version v"
-                + " JOIN miot_symptoms.symptom_definition d ON d.id = v.definition_id"
+        assertEquals(List.of("1.0.0", "2.0.0", "2.1.0", "2.2.0"), rows("SELECT v.version"
+                + " FROM miot_symptoms.symptom_version v JOIN miot_symptoms.symptom_definition d ON d.id = v.definition_id"
                 + " WHERE d.tenant_code = '_platform' AND d.symptom_key = 'signal-loss' AND v.status = 'PUBLISHED'"
                 + " ORDER BY v.version"));
         assertEquals(List.of("check.trip.active && check.loss.ratio >= 1 && !check.loss.returned"),
-                rows("SELECT v.spec ->> 'activation' FROM miot_symptoms.symptom_version v"
-                        + " JOIN miot_symptoms.symptom_definition d ON d.id = v.definition_id"
-                        + " WHERE d.tenant_code = '_platform' AND d.symptom_key = 'signal-loss' AND v.version = '2.1.0'"));
+                rows(spec("2.1.0", "->> 'activation'")));
+        assertEquals(List.of("case.closed_by_operator || (case.level <= 1 && case.normal_s >= 0)"),
+                rows(spec("2.2.0", "-> 'lifecycle' ->> 'close'")));
+        // Only the close rule changes.
+        assertEquals(List.of("true"), rows("SELECT ((a.spec - 'lifecycle') = (b.spec - 'lifecycle')"
+                + " AND a.spec -> 'lifecycle' ->> 'open' = b.spec -> 'lifecycle' ->> 'open')::text"
+                + " FROM miot_symptoms.symptom_version a, miot_symptoms.symptom_version b"
+                + " WHERE a.tenant_code = '_platform' AND b.tenant_code = '_platform'"
+                + " AND a.version = '2.1.0' AND b.version = '2.2.0' AND a.definition_id = b.definition_id"));
+    }
+
+    /** {@code path} of one signal-loss version's spec, such as {@code ->> 'activation'}. */
+    private static String spec(String version, String path) {
+        return "SELECT v.spec " + path
+                + " FROM miot_symptoms.symptom_version v JOIN miot_symptoms.symptom_definition d"
+                + " ON d.id = v.definition_id WHERE d.tenant_code = '_platform' AND d.symptom_key = 'signal-loss'"
+                + " AND v.version = '" + version + "'";
     }
 
     private static List<String> rows(String sql) {

@@ -262,6 +262,18 @@ class SignalStateReaderTest {
                 "its current motion once it has a gap there");
     }
 
+    @Test
+    void returnMarkersReadLegacyArrivalAndTheFirstReturningGpsTimeWithoutCrossingLosses() {
+        String lost = Long.toString(T0.toEpochMilli());
+        Response legacy = Response.newInstance(BulkType.create(Buffer.buffer(lost + ":" + T0.plusSeconds(405).toEpochMilli()), false));
+        Response current = Response.newInstance(BulkType.create(Buffer.buffer(legacy + ":" + T0.plusSeconds(400).toEpochMilli()), false));
+        assertEquals(T0.plusSeconds(405), RedisLossStore.returnedAt(lost, legacy));
+        assertNull(RedisLossStore.returnTime(lost, legacy, 2));
+        assertEquals(T0.plusSeconds(405), RedisLossStore.returnedAt(lost, current));
+        assertEquals(T0.plusSeconds(400), RedisLossStore.returnTime(lost, current, 2));
+        assertNull(RedisLossStore.returnTime("other-loss", current, 2));
+    }
+
     private static Response fields(String profile, String watch) {
         MultiType m = MultiType.create(2, false);
         m.add(profile == null ? null : BulkType.create(Buffer.buffer(profile), false));

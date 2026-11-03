@@ -106,6 +106,7 @@ public class EngineCaseService {
     private final Clock clock;
     private final SymptomEvents events;
     private final Vehicles vehicles;
+    private static final String CHECK = "check";
 
     /** What the lost-signal detector's profiles say about a vehicle now; empty without a profile. */
     @FunctionalInterface
@@ -488,7 +489,11 @@ public class EngineCaseService {
 
     /** The last frame before a lost signal ({@code check.loss.last.at}), or null. */
     static Instant lostSince(JsonNode context) {
-        JsonNode at = context == null ? null : context.path("check").path("loss").path("last").path("at");
+        JsonNode at = context == null ? null : context.path(CHECK).path("loss").path("last").path("at");
+        return contextInstant(at);
+    }
+
+    private static Instant contextInstant(JsonNode at) {
         if (at == null || !at.isTextual()) {
             return null;
         }
@@ -524,6 +529,7 @@ public class EngineCaseService {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
         out.put("type", "FeatureCollection");
+        out.put("closed", c.closedAt() != null);
         ArrayNode features = out.putArray("features");
         if (c.latitude() != null && c.longitude() != null) {
             ObjectNode f = features.addObject();
@@ -565,7 +571,7 @@ public class EngineCaseService {
         if (c.speedKmh() != null) {
             d.put("last_reported_speed", c.speedKmh());
         }
-        boolean lost = c.openingContext() != null && c.openingContext().path("check").path("loss").isObject();
+        boolean lost = c.openingContext() != null && c.openingContext().path(CHECK).path("loss").isObject();
         Long lag = lost ? signalLag(c, reported, now) : null;
         if (lag != null) {
             d.put("signal_lag", hms(lag));
@@ -573,7 +579,7 @@ public class EngineCaseService {
         reported.map(Reported::medianIntervalS).ifPresent(s -> d.put("median_report_interval", hms(s)));
         Boolean engine = reported.map(Reported::engineOn).orElse(null);
         if (engine == null && lost) {
-            engine = contextEngine(c.closingContext(), c.levelContext(), c.openingContext());
+            engine = contextEngine(c.closingContext(), c.levelContext(), c.openingContext()).orElse(null);
         }
         if (engine != null) {
             d.put("last_reported_engine_status", engine);
@@ -586,27 +592,30 @@ public class EngineCaseService {
             Instant last = reported.map(r -> r.state().lastFrameAt()).orElse(null);
             return last == null ? null : Math.max(0, Duration.between(last, now).toSeconds());
         }
-        JsonNode loss = c.closingContext() == null ? null : c.closingContext().path("check").path("loss");
+        JsonNode loss = c.closingContext() == null ? null : c.closingContext().path(CHECK).path("loss");
         if (loss == null || !loss.isObject()) {
             return null;
         }
         Instant lostSince = lostSince(c.openingContext());
-        Instant back = lostSince(c.closingContext());
+        Instant back = contextInstant(loss.path("returned_frame_at"));
+        if (back == null) {
+            back = lostSince(c.closingContext()); // contexts written before the first return frame was kept
+        }
         if (loss.path("returned").asBoolean(false) && lostSince != null && back != null && back.isAfter(lostSince)) {
             return Duration.between(lostSince, back).toSeconds();
         }
         return loss.path("silence_s").isNumber() ? Math.round(loss.path("silence_s").asDouble()) : null;
     }
 
-    private static Boolean contextEngine(JsonNode... contexts) {
+    private static Optional<Boolean> contextEngine(JsonNode... contexts) {
         for (JsonNode context : contexts) {
             JsonNode engine = context == null ? null
-                    : context.path("check").path("loss").path("last").path("engine");
+                    : context.path(CHECK).path("loss").path("last").path("engine");
             if (engine != null && engine.isBoolean()) {
-                return engine.asBoolean();
+                return Optional.of(engine.asBoolean());
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     /** Seconds as the GPS database writes intervals: HH:MM:SS, hours past 24 kept. */

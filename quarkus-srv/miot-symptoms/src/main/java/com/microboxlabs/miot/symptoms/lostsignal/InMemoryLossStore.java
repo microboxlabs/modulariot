@@ -100,7 +100,8 @@ public class InMemoryLossStore implements LossStore {
             return m;
         }
         Instant returned = old.returnedAt() == null ? m.returnedAt() : old.returnedAt();
-        return new Mark(m.lostSince(), returned, old.backfill() || m.backfill());
+        Instant frame = old.returnedAt() == null ? m.returnedFrameAt() : old.returnedFrameAt();
+        return new Mark(m.lostSince(), returned, old.backfill() || m.backfill(), frame);
     }
 
     @Override
@@ -115,7 +116,7 @@ public class InMemoryLossStore implements LossStore {
         Mark m = marks.get(assetId);
         boolean current = c != null && c.lost() && m != null && m.lostSince().equals(c.lostSince());
         return new Vehicle(vehicles.get(assetId), watches.get(assetId), c, current ? m.returnedAt() : null,
-                current && m.backfill(), deadlines.get(assetId));
+                current && m.backfill(), deadlines.get(assetId), current ? m.returnedFrameAt() : null);
     }
 
     @Override

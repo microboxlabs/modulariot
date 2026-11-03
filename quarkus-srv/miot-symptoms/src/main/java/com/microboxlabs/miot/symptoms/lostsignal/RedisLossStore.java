@@ -209,7 +209,8 @@ public class RedisLossStore implements LossStore {
         if (mark != null && mark.returnedAt() != null) {
             // NX: the first frame after the loss is the return; a later one for the same loss keeps it.
             writes.add(Request.cmd(Command.HSETNX).arg(key).arg(RETURNED)
-                    .arg(mark.lostSince().toEpochMilli() + ":" + mark.returnedAt().toEpochMilli()));
+                    .arg(mark.lostSince().toEpochMilli() + ":" + mark.returnedAt().toEpochMilli()
+                            + (mark.returnedFrameAt() == null ? "" : ":" + mark.returnedFrameAt().toEpochMilli())));
         }
         if (mark != null && mark.backfill()) {
             writes.add(Request.cmd(Command.HSET).arg(key).arg(BACKFILL).arg(mark.lostSince().toEpochMilli()));
@@ -255,16 +256,23 @@ public class RedisLossStore implements LossStore {
         return new Vehicle(read(fields.get(0), VehicleProfile.class), read(fields.get(1), Watch.class), check,
                 returnedAt(lost, fields.get(3)), lost != null && fields.get(4) != null
                         && lost.equals(fields.get(4).toString()),
-                score == null ? null : Instant.ofEpochMilli((long) Double.parseDouble(score.toString())));
+                score == null ? null : Instant.ofEpochMilli((long) Double.parseDouble(score.toString())),
+                returnTime(lost, fields.get(3), 2));
     }
 
     /** The return mark's arrival when it belongs to the current loss. */
     static Instant returnedAt(String lost, Response mark) {
+        return returnTime(lost, mark, 1);
+    }
+
+    /** Two-part legacy marks retain their arrival but have no GPS return time. */
+    static Instant returnTime(String lost, Response mark, int part) {
         if (lost == null || mark == null) {
             return null;
         }
         String[] parts = mark.toString().split(":");
-        return parts.length == 2 && parts[0].equals(lost) ? Instant.ofEpochMilli(Long.parseLong(parts[1])) : null;
+        return parts.length > part && parts[0].equals(lost)
+                ? Instant.ofEpochMilli(Long.parseLong(parts[part])) : null;
     }
 
     @Override

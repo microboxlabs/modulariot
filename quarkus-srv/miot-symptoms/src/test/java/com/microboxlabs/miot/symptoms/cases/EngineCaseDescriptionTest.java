@@ -77,6 +77,18 @@ class EngineCaseDescriptionTest {
     }
 
     @Test
+    void healthyReportsDuringReturnGraceDoNotExtendTheClosedCasesSilence() throws Exception {
+        Instant back = LOST.plusSeconds(400);
+        JsonNode closing = lossAt(back.plusSeconds(40), 25, true, true);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) closing.path("check").path("loss"))
+                .put("returned_frame_at", back.toString());
+
+        JsonNode d = EngineCaseService.description(lostSignal(back.plusSeconds(65), closing), NOW,
+                Optional.empty(), NOW);
+        assertEquals("00:06:40", d.path("signal_lag").asText());
+    }
+
+    @Test
     void aClosedLostSignalThatDidNotReturnShowsTheSilenceItsClosingCheckRead() throws Exception {
         JsonNode d = EngineCaseService.description(lostSignal(NOW, lossAt(LOST, 5400.4, false, null)), NOW,
                 Optional.empty(), NOW);
@@ -140,6 +152,7 @@ class EngineCaseDescriptionTest {
 
         JsonNode d = service.signals("tenant-demo", -12).path("description");
         assertEquals("00:10:00", d.path("signal_lag").asText());
+        assertFalse(service.signals("tenant-demo", -12).path("closed").asBoolean(true));
         JsonNode down = failing.signals("tenant-demo", -12).path("description");
         assertFalse(down.has("signal_lag"));
         assertEquals("Pérdida de señal", down.path("symptom_name").asText());

@@ -126,6 +126,7 @@ function withCoordinates(
 ): TreatmentsLocationResponseItem {
   return {
     type: "FeatureCollection",
+    ...(data.closed === undefined ? {} : { closed: data.closed }),
     features: (data.features ?? []).map((feature) => {
       const [longitude, latitude] = parseWKBPoint(feature.geometry);
       return {

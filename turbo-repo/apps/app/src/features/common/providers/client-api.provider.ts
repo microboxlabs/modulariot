@@ -657,7 +657,8 @@ export function useTreatmentsLocation(
     shouldFetch
       ? `/app/api/treatments/location?${tripParam}symptom_name=${encodeURIComponent(symptom_name)}&symptom_id=${encodeURIComponent(symptom_id)}`
       : null,
-    fetcher
+    fetcher,
+    { refreshInterval: (current) => (current?.closed === false ? 60_000 : 0) }
   );
 
   return {

@@ -23,6 +23,7 @@ export type DescriptionProps = {
 
 export type TreatmentsLocationResponseItem = {
   type: string;
+  closed?: boolean;
   features: TreatmentsLocationResponseItemFeature[];
   description: DescriptionProps;
 };

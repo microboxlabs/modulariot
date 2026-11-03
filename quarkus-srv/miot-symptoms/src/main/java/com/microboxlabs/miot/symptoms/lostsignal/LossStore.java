@@ -34,7 +34,12 @@ public interface LossStore {
      * @param deadline   the vehicle's deadline when read: its check writes only while it is unchanged
      */
     record Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant returnedAt, boolean backfill,
-            Instant deadline) {
+            Instant deadline, Instant returnedFrameAt) {
+
+        public Vehicle(VehicleProfile profile, Watch watch, CheckState check, Instant returnedAt, boolean backfill,
+                Instant deadline) {
+            this(profile, watch, check, returnedAt, backfill, deadline, null);
+        }
 
         public Vehicle(VehicleProfile profile, Watch watch, CheckState check) {
             this(profile, watch, check, null, false, null);
@@ -46,7 +51,10 @@ public interface LossStore {
      * kept once set), or a frame from inside the silence arrived ({@code backfill}). Both belong to the loss that
      * started at {@code lostSince} and are ignored for any other.
      */
-    record Mark(Instant lostSince, Instant returnedAt, boolean backfill) {
+    record Mark(Instant lostSince, Instant returnedAt, boolean backfill, Instant returnedFrameAt) {
+        public Mark(Instant lostSince, Instant returnedAt, boolean backfill) {
+            this(lostSince, returnedAt, backfill, null);
+        }
     }
 
     /**

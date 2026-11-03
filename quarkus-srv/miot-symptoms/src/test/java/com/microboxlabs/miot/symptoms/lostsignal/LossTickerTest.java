@@ -218,7 +218,7 @@ class LossTickerTest {
         assertEquals(List.of("HSET", "HDEL", "ZREM", "EXPIRE"), commands(RedisLossStore.saveRequests("V1", v, null,
                 null, Schedule.DROP, null, Duration.ofDays(7))));
         assertEquals(List.of("HSET", "HSETNX", "HSET", "EXPIRE"), commands(RedisLossStore.saveRequests("V1", v, null,
-                null, Schedule.KEEP, new LossStore.Mark(T0, T0, true), Duration.ofDays(7))));
+                null, Schedule.KEEP, new LossStore.Mark(T0, T0, true, T0), Duration.ofDays(7))));
         assertEquals(List.of("HSET", "EXPIRE", "ZADD", "EXPIRE"), commands(RedisLossStore.saveRequests("V1",
                 v, null, null, Schedule.clear(T0, new Watch(Map.of(), 180, "S1")), null, Duration.ofDays(7))));
         assertEquals(List.of("EVAL"), commands(List.of(RedisLossStore.checkedRequest("V1", T0, CheckState.NONE, T0,

@@ -82,4 +82,21 @@ describe("GET /api/treatments/general", () => {
     expect(forwardMock).not.toHaveBeenCalled();
     expect(await res.json()).toEqual(header);
   });
+
+  it("reads through the modulith when legacy symptoms are off", async () => {
+    vi.stubEnv("STREAMHUB_URL", "http://pgrest");
+    vi.stubEnv("MIOT_SYMPTOMS_LEGACY_ENABLED", "false");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json({ error: "Symptom not found" }, { status: 404 })
+    );
+    const res = await GET(new Request("http://x/g?id=7"));
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms/7",
+      { method: "GET", sessionOnly: true }
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(404);
+  });
 });

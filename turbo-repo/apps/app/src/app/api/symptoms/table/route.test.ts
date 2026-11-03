@@ -96,14 +96,22 @@ describe("GET /api/symptoms/table", () => {
       NextResponse.json({
         ...page,
         data: [
-          { ...page.data[0], id: -1, trip_id: tripId, trip_code: "SERVICE-001" },
+          {
+            ...page.data[0],
+            id: -1,
+            trip_id: tripId,
+            trip_code: "SERVICE-001",
+          },
         ],
       })
     );
 
     const body = await (await GET(new NextRequest("http://x/t"))).json();
 
-    expect(body.data[0]).toMatchObject({ trip: tripId, tripCode: "SERVICE-001" });
+    expect(body.data[0]).toMatchObject({
+      trip: tripId,
+      tripCode: "SERVICE-001",
+    });
   });
 
   it("forces a carrier organization's tax id over the browser's", async () => {
@@ -129,5 +137,54 @@ describe("GET /api/symptoms/table", () => {
       )
     );
     expect((await GET(new NextRequest("http://x/t"))).status).toBe(503);
+  });
+
+  it("maps the modulith's engine-only page", async () => {
+    forwardMock.mockResolvedValueOnce(
+      NextResponse.json({
+        data: [
+          {
+            id: -4,
+            symptom_name: "Pérdida de señal",
+            type_of_incidence: "Pérdida de señal",
+            icu_code: "2",
+            icu_condition: "COMPROMISED CONDITION",
+            asset_id: "AB12",
+            trip_id: null,
+            trip_code: null,
+            start_time: "2026-10-08T10:00:00Z",
+            duration_sec: 120,
+            treatment_count: 0,
+            sla_minutes: 15,
+            recurrence_events: null,
+            driver: null,
+          },
+        ],
+        page: 2,
+        page_size: 1,
+        total_rows: 3,
+        total_pages: 3,
+        engine_cases: 3,
+        symptom_name_list: ["Pérdida de señal"],
+      })
+    );
+
+    const body = await (
+      await GET(new NextRequest("http://x/t?page=2&limit=1"))
+    ).json();
+
+    expect(body.data[0]).toMatchObject({
+      id: "-4",
+      condition: "compromised condition",
+      licensePlate: "AB12",
+      endDate: null,
+      sla_minutes: 15,
+    });
+    expect(body.pagination).toEqual({
+      total_rows: 3,
+      total_pages: 3,
+      currentPage: 2,
+      page_size: 1,
+    });
   });
 });

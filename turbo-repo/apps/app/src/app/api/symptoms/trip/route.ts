@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_symptoms_icu_tripid_view`;
 
+import { legacySymptomsEnabled } from "@/app/api/utils/control-tower-map";
 import {
   AuthToken,
   AuthTokenConfig,
@@ -26,6 +27,10 @@ export async function GET(request: Request) {
   }
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
+  // The GPS database's symptoms of a trip; none where only the evaluator's show.
+  if (!legacySymptomsEnabled()) {
+    return NextResponse.json([]);
+  }
 
   try {
     const token = await authToken.getToken();

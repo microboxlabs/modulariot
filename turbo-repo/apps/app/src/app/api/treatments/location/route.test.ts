@@ -133,4 +133,23 @@ describe("GET /api/treatments/location", () => {
     expect(forwardMock).not.toHaveBeenCalled();
     expect((await res.json()).features[0].latitude).toBe(-33.25);
   });
+
+  it("reads through the modulith when legacy symptoms are off", async () => {
+    vi.stubEnv("STREAMHUB_URL", "http://pgrest");
+    vi.stubEnv("MIOT_SYMPTOMS_LEGACY_ENABLED", "false");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    forwardMock.mockImplementation(async () =>
+      NextResponse.json({ error: "Symptom not found" }, { status: 404 })
+    );
+    const res = await GET(
+      new Request("http://x/l?trip_id=T1&symptom_name=Speed&symptom_id=7")
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms/7/signals",
+      { method: "GET", sessionOnly: true }
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(404);
+  });
 });

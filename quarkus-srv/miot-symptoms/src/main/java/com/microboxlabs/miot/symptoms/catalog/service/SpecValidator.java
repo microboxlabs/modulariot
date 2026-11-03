@@ -121,8 +121,12 @@ public final class SpecValidator {
         if (spec.lifecycle() == null) {
             out.add(new Finding("lifecycle", Severity.ERROR, RuleMessage.of("lifecycleMissing"), -1));
         } else {
-            rule(out, "lifecycle.open", RuleSchema.CASE, spec.lifecycle().open(), Expect.CONDITION);
-            rule(out, "lifecycle.close", RuleSchema.CASE, spec.lifecycle().close(), Expect.CONDITION);
+            RuleSchema lifecycle = RuleSchema.lifecycle(source);
+            rule(out, "lifecycle.open", lifecycle, spec.lifecycle().open(), Expect.CONDITION);
+            rule(out, "lifecycle.close", lifecycle, spec.lifecycle().close(), Expect.CONDITION);
+            if (spec.lifecycle().note() != null) {
+                rule(out, "lifecycle.note", lifecycle, spec.lifecycle().note(), Expect.CONDITION);
+            }
         }
         recurrence(out, spec.recurrence());
         engineSupport(out, source, spec);

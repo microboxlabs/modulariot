@@ -29,6 +29,13 @@ public class InMemoryEngineCases implements EngineCaseStore {
             String destination) {
     }
     public int pages;
+    /** The note rule's entries by case id. */
+    public final Map<Long, List<CaseNote>> notes = new HashMap<>();
+
+    @Override
+    public List<CaseNote> notes(String tenantCode, long caseId) {
+        return notes.getOrDefault(caseId, List.of());
+    }
 
     public void add(EngineCase c) {
         cases.add(c);

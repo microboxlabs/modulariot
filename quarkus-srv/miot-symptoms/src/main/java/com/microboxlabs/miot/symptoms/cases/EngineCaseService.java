@@ -85,6 +85,8 @@ public class EngineCaseService {
     private static final String TREATMENT_TYPE = "treatment_type";
     private static final String MESSAGE = "message";
     private static final String DRIVER_RESPONSE = "driver_response";
+    /** The treatment type of a note rule's timeline entry. */
+    static final String NOTE_TYPE = "evento del gps";
     private static final String COUNTED_UNDER_TREATMENT = "Under Treatment";
     /** The count of the open cases a hold covers ("Ignorados"), out of the other counts. */
     static final String COUNTED_IGNORED = "Ignored";
@@ -469,7 +471,9 @@ public class EngineCaseService {
         entry.put("end", end);
         entry.put("symptom_id", c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
-        addLevelAggs(entry.putArray(CONDITIONS_AGG), c, started, ended);
+        ArrayNode levelAggs = entry.putArray(CONDITIONS_AGG);
+        addLevelAggs(levelAggs, c, started, ended);
+        addNotes(levelAggs, store.notes(tenantCode, c.id()));
         ObjectNode symptom = out.putObject("symptom_info");
         symptom.put("id", c.symptomId());
         symptom.put("name", c.name());
@@ -496,6 +500,34 @@ public class EngineCaseService {
             trip.put("driver_contact", t.getString("driver_contact_phone"));
         }
         return out;
+    }
+
+    /**
+     * The note rule's entries, each in the level step whose time holds the frame that wrote it, as treatments are
+     * placed ({@link #withTreatments}).
+     */
+    static void addNotes(ArrayNode levelAggs, List<EngineCaseStore.CaseNote> notes) {
+        List<ObjectNode> aggs = new ArrayList<>();
+        levelAggs.forEach(agg -> aggs.add((ObjectNode) agg));
+        if (aggs.isEmpty()) {
+            return;
+        }
+        for (EngineCaseStore.CaseNote n : notes) {
+            int step = stepOf(aggs, n.recordedAt().atOffset(java.time.ZoneOffset.UTC));
+            ((ArrayNode) aggs.get(step).get("treatments")).add(noteRow(n));
+        }
+    }
+
+    private static ObjectNode noteRow(EngineCaseStore.CaseNote n) {
+        ObjectNode row = JSON.objectNode();
+        row.put(TREATMENT_TYPE, NOTE_TYPE);
+        row.put("event_type", n.eventType());
+        row.put("at", n.at().toString());
+        row.putNull("by");
+        ObjectNode description = row.putObject(DESCRIPTION);
+        description.put(MESSAGE, n.description() != null ? n.description() : n.eventType());
+        description.putNull(DRIVER_RESPONSE);
+        return row;
     }
 
     /** Keep transition order while bounding times from different clocks to the case interval. */
@@ -699,8 +731,9 @@ public class EngineCaseService {
         List<ArrayNode> rows = new ArrayList<>();
         // A step is assigned to whoever treated the case during it; a step with no treatment has nobody.
         List<String> assignees = new ArrayList<>();
+        // The header's own entries (the note rule's) stay; treatments follow them.
         aggs.forEach(agg -> {
-            rows.add(JSON.arrayNode());
+            rows.add(agg.path("treatments") instanceof ArrayNode kept ? kept.deepCopy() : JSON.arrayNode());
             assignees.add(null);
         });
         for (TreatmentView t : treatments) {

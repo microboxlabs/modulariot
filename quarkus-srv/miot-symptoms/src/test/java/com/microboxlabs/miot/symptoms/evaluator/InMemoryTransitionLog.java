@@ -20,11 +20,12 @@ class InMemoryTransitionLog implements TransitionLog {
             Map<String, Object> context) {
         List<Recorded> out = new ArrayList<>();
         for (Transition t : transitions) {
-            if (!held.add(tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + t.at())) {
+            boolean note = t.kind() == Transition.Kind.NOTED;
+            if (!held.add(tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + t.at() + "/" + note)) {
                 continue;
             }
             recorded.add(t);
-            contexts.add(context);
+            contexts.add(t.detail() != null ? t.detail() : context);
             long id = recorded.size();
             String caseKey = tenantCode + "/" + t.definitionId() + "/" + t.assetId() + "/" + t.state();
             if (t.kind() == Transition.Kind.OPENED) {

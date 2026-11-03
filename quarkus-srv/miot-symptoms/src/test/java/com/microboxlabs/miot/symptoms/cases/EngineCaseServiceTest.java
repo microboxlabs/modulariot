@@ -510,6 +510,33 @@ class EngineCaseServiceTest {
         assertEquals("Motivo: prueba", rows.get(1).path("description").path("message").asText());
     }
 
+    @Test
+    void gpsEventNotesLandInTheStepOfTheirFrameBeforeTheTreatments() throws Exception {
+        store.add(escalated(OPENED.plusSeconds(10_000)));
+        store.notes.put(12L, List.of(
+                new EngineCaseStore.CaseNote(OPENED.plusSeconds(3700), "main_power_reconnect",
+                        "Alimentación reconectada", OPENED.plusSeconds(3650)),
+                new EngineCaseStore.CaseNote(OPENED.plusSeconds(9500), "device_tamper", null,
+                        OPENED.plusSeconds(9500))));
+        List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,
+                actionAt(OPENED.plusSeconds(3800), "En L2")));
+
+        JsonNode aggs = EngineCaseService.withTreatments(service.header(TENANT, -12), treatments)
+                .path("timeline").get(0).path("conditions_agg");
+
+        assertEquals(List.of(), messages(aggs.get(0)));
+        JsonNode l2 = aggs.get(1).path("treatments");
+        assertEquals(2, l2.size());
+        assertEquals("evento del gps", l2.get(0).path("treatment_type").asText());
+        assertEquals("main_power_reconnect", l2.get(0).path("event_type").asText());
+        assertEquals("Alimentación reconectada", l2.get(0).path("description").path("message").asText());
+        assertEquals(OPENED.plusSeconds(3650).toString(), l2.get(0).path("at").asText(), "the event's own time");
+        assertEquals("llamar al conductor", l2.get(1).path("treatment_type").asText());
+        JsonNode l4 = aggs.get(3).path("treatments");
+        assertEquals("device_tamper", l4.get(0).path("description").path("message").asText(),
+                "without a description the entry shows the event type");
+    }
+
     private static EngineCase escalated(Instant closed) throws Exception {
         EngineCase c = lostSignal(12, OPENED.minusSeconds(600), closed);
         return c.withLevel(c.openingContext(), c.levelContext(), c.levelRule(), List.of(

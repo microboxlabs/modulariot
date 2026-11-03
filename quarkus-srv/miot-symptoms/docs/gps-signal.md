@@ -25,6 +25,7 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.local_hour` | Hour in the client's time zone | calculated |
 | `signal.derived` | `moving`; `power_disconnected`, `jamming` from the frame's events; `speed_avg_5m` (not evaluated yet) | calculated, device |
 | `signal.frame` | The frame as the device sent it (`AssetTrackingData`), for example `signal.frame.gps.speed` (km/h), `signal.frame.sensors.engine_status`, `signal.frame.sensors.panic_button` | device |
+| `signal.frame.events` | The frame's device events, a list. Each has `event_type`, `severity`, `description` and `timestamp` (the time of the fact, ISO-8601 UTC), all text; a missing one reads `""`. A frame without events reads an empty list | device |
 
 A part the builder does not know is left out. `frame` is always present. A rule that reads a missing field fails for that signal and is reported as a rule error. A rule reads an optional field with `.?`, which gives an optional value instead of an error, and compares it with `TRUE`, `FALSE` or `NONE` (`optional.of(true)`, `optional.of(false)`, `optional.none()`):
 
@@ -36,6 +37,38 @@ A part the builder does not know is left out. `frame` is always present. A rule 
 | `signal.frame.?gps.?speed.orValue(0.0) > 90.0` | speed above 90; 0 when missing |
 
 `has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button` still works.
+
+### Events
+
+`event_type` is open text: each GPS provider sends its own codes. A rule reads the list with `exists`, `all`, `exists_one`, `filter` or `map`:
+
+| Rule | Holds when |
+|---|---|
+| `signal.frame.events.exists(e, e.event_type in ["main_power_disconnect", "gps_jamming", "device_tamper"])` | the frame carries one of these events |
+| `signal.frame.events.exists(e, e.event_type == "main_power_reconnect")` | the frame carries a reconnect |
+| `signal.frame.events.exists(e, e.severity == "high")` | one event has high severity |
+
+`derived.power_disconnected` and `derived.jamming` are kept for the rules that read them.
+
+### Lifecycle
+
+`lifecycle.open`, `lifecycle.close` and `lifecycle.note` read `case` and `signal` together. `case.closed_by_operator` is false on signals: the operator's close ends the case directly.
+
+| Spec field | Meaning |
+|---|---|
+| `lifecycle.close` | When it holds on a signal of an open case, the case closes. Example: `case.closed_by_operator \|\| signal.frame.events.exists(e, e.event_type == "main_power_reconnect")` |
+| `lifecycle.note` | Optional. When it holds on a signal of an open case that does not close it, the case's timeline gets an entry with the matching event's `event_type`, `description` and time, in the level step of that signal. The case does not change and no event is sent. The entry names the first event the rule holds for on its own; when it holds only for the frame as a whole, it has the frame's time and no event |
+
+A note is a `NOTED` row of `signal_transitions`, its `context` `{"note": {"event_type", "description", "at"}}`.
+
+### Late frames
+
+A device stores events while it has no network and sends them late, after newer frames. A symptom is event-driven when one of its rules reads `signal.frame.events`, `signal.frame.sensors.panic_button`, `signal.derived.power_disconnected` or `signal.derived.jamming`. On a frame older than the newest one applied:
+
+| Rule that reads an event | What the late frame does |
+|---|---|
+| Activation, measure or a level | Opens the case when the symptom has none open; a step that does not open is undone |
+| Close or note | On an open case, and only when the frame is not older than the case: runs the close rule, else the note rule. The level does not change |
 
 ## Signal builder
 
@@ -68,6 +101,8 @@ Trips are loaded from the modulith database and shares (`asset_client_map`) from
 | `x-engine: false` | the engine does not evaluate it yet |
 | `hidden` | not a field |
 
-Not fields: `signal.frame.asset_id` (same as `signal.asset_id`), driver data (read it from the trip), peripherals, metrics, events and other lists, and optional readings that gps-model holds as primitives (`gps.altitude`, `gps.heading`, `gps.satellites`, `gps.accuracy`). A primitive reads 0 when the device did not send it, so a rule could not tell a missing reading from a zero one. `gps.speed` is a field anyway: a frame without speed reads 0, as a stopped vehicle.
+A list rules read is declared in `SignalFields.LISTS` with the type of its elements (`GpsSignal.FrameEvent` for `signal.frame.events`). The list is a field of type `objects`; its element's fields are the paths under it, labelled by their `@Schema` titles.
+
+Not fields: `signal.frame.asset_id` (same as `signal.asset_id`), driver data (read it from the trip), peripherals, metrics and other lists, and optional readings that gps-model holds as primitives (`gps.altitude`, `gps.heading`, `gps.satellites`, `gps.accuracy`). A primitive reads 0 when the device did not send it, so a rule could not tell a missing reading from a zero one. `gps.speed` is a field anyway: a frame without speed reads 0, as a stopped vehicle.
 
 To add a field: add it to `GpsSignal` (or to gps-model for frame fields) with its annotations. A frame field also needs a label in `gps-signal-labels.properties`; `SignalFieldsTest` fails until it has one.

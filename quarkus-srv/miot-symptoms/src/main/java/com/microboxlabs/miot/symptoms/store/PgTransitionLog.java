@@ -21,7 +21,8 @@ import java.util.function.Supplier;
 
 /**
  * The evaluator's case changes, in {@code miot_symptoms.signal_transitions}. A replayed signal
- * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal. A change's
+ * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal, and one note
+ * ({@code NOTED}) besides. A change's
  * case is the latest OPENED row of its symptom, vehicle and state.
  */
 @ApplicationScoped
@@ -38,7 +39,7 @@ public class PgTransitionLog implements TransitionLog {
             WHERE NOT EXISTS (
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
-                  AND tenant_code = $1::varchar)
+                  AND tenant_code = $1::varchar AND (kind = 'NOTED') = ($5::varchar = 'NOTED'))
             RETURNING id, CASE WHEN kind = 'OPENED' THEN id ELSE (
                 SELECT o.id FROM miot_symptoms.signal_transitions o
                 WHERE o.tenant_code = $1::varchar AND o.definition_id = $2::uuid AND o.asset_id = $6::varchar
@@ -71,7 +72,8 @@ public class PgTransitionLog implements TransitionLog {
         return pool.get().withTransaction(conn -> {
             Uni<List<Recorded>> chain = Uni.createFrom().item(new ArrayList<>());
             for (Transition t : transitions) {
-                chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, json))
+                JsonObject own = t.detail() == null ? json : new JsonObject(t.detail());
+                chain = chain.flatMap(recorded -> conn.preparedQuery(INSERT).execute(params(tenantCode, t, place, own))
                         .map(rows -> {
                             for (Row r : rows) {
                                 Long caseId = r.getLong("case_id");

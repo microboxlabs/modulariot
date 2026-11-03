@@ -115,8 +115,7 @@ public class CoverageJob {
             return;
         }
         try {
-            int filled = run();
-            meters.counter("miot.symptoms.lost_signal.coverage_days_filled").increment(filled);
+            run();
         } catch (LeaseLost e) {
             meters.counter("miot.symptoms.lost_signal.coverage_lease_held").increment();
             LOG.info("Coverage job: another replica holds the lease");
@@ -196,6 +195,7 @@ public class CoverageJob {
         }
         store.replace(day, rows.cells(), rows.senders(), frames);
         meters.counter("miot.symptoms.lost_signal.coverage_days").increment();
+        meters.counter("miot.symptoms.lost_signal.coverage_days_filled").increment();
         LOG.infof("Coverage job: day %s done, %d frames, %d senders, %d s", day, frames, rows.senders().size(),
                 Duration.ofNanos(System.nanoTime() - began).toSeconds());
     }

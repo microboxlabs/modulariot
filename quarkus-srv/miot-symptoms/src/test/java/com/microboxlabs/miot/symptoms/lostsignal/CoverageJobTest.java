@@ -171,6 +171,49 @@ class CoverageJobTest {
         free.set(true);
         job.scheduled();
         assertEquals(30.0, meters.counter("miot.symptoms.lost_signal.coverage_days_filled").count());
+
+        gps.reads.clear();
+        job.scheduled();
+        assertEquals(30.0, meters.counter("miot.symptoms.lost_signal.coverage_days_filled").count());
+        assertTrue(gps.reads.isEmpty(), "a completed window needs no GPS frame reads");
+    }
+
+    @Test
+    void committedDaysStayCountedWhenALaterDayLosesTheLease() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        AtomicBoolean loseAfterFirstDay = new AtomicBoolean(true);
+        CoverageJob job = new CoverageJob(new CoverageJob.JobSettings(true, Duration.ofHours(2)),
+                gps, store, CoverageSettings.defaults(),
+                ttl -> !loseAfterFirstDay.get() || store.done.isEmpty(), meters,
+                java.time.Clock.fixed(NOW, ZoneOffset.UTC));
+
+        job.scheduled();
+        assertEquals(Set.of(TODAY.minusDays(1)), store.done);
+        assertEquals(1.0, meters.counter("miot.symptoms.lost_signal.coverage_days_filled").count());
+        assertEquals(1.0, meters.counter("miot.symptoms.lost_signal.coverage_lease_held").count());
+
+        loseAfterFirstDay.set(false);
+        job.scheduled();
+        assertEquals(30.0, meters.counter("miot.symptoms.lost_signal.coverage_days_filled").count());
+    }
+
+    @Test
+    void committedDaysStayCountedWhenMaintenanceFails() {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        Store unavailable = new Store() {
+            @Override
+            public void purge(LocalDate before) {
+                throw new IllegalStateException("maintenance unavailable");
+            }
+        };
+        CoverageJob job = new CoverageJob(new CoverageJob.JobSettings(true, Duration.ofHours(2)),
+                gps, unavailable, CoverageSettings.defaults(), ttl -> true, meters,
+                java.time.Clock.fixed(NOW, ZoneOffset.UTC));
+
+        job.scheduled();
+        assertEquals(30, unavailable.done.size());
+        assertEquals(30.0, meters.counter("miot.symptoms.lost_signal.coverage_days_filled").count());
+        assertEquals(1.0, meters.counter("miot.symptoms.lost_signal.coverage_failed").count());
     }
 
     @Test

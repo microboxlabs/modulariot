@@ -80,12 +80,21 @@ class PgGpsFramesTest {
     }
 
     @Test
-    void sparseIntervalsUseTheLastFrameEvenBeforeThePreviousHour() {
+    void sparseIntervalsUseTheLastFrameWithinTheLookback() {
         frame("v1", "s", FROM.minusSeconds(7200), 2);
         frame("v1", "s", FROM.minusSeconds(3600), 2);
         frame("v1", "s", FROM.plusSeconds(30), 2);
 
         assertEquals(List.of(new GpsFrames.Count("s", 3630, 1)), gps.intervals(FROM, TO));
+    }
+
+    @Test
+    void anIntervalLongerThanTheLookbackAcrossTheStartIsNotCounted() {
+        frame("v1", "s", FROM.minusSeconds(PgGpsFrames.LOOKBACK_H * 3600L + 60), 2);
+        frame("v1", "s", FROM.plusSeconds(30), 2);
+        frame("v1", "s", FROM.plusSeconds(90), 2);
+
+        assertEquals(List.of(new GpsFrames.Count("s", 60, 1)), gps.intervals(FROM, TO));
     }
 
     @Test

@@ -542,6 +542,26 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void levelStepBoundariesStayWithinTheCaseDespiteClockSkew() throws Exception {
+        EngineCase c = lostSignal(12, OPENED.minusSeconds(600), OPENED.plusSeconds(240));
+        store.add(c.withLevel(c.openingContext(), c.levelContext(), c.levelRule(), List.of(
+                new EngineCase.LevelStep(OPENED, 1), new EngineCase.LevelStep(OPENED.minusSeconds(900), 2),
+                new EngineCase.LevelStep(OPENED.plusSeconds(300), 3),
+                new EngineCase.LevelStep(OPENED.plusSeconds(120), 4))));
+
+        JsonNode aggs = service.header(TENANT, -12).path("timeline").get(0).path("conditions_agg");
+
+        List<Instant> bounds = List.of(OPENED.minusSeconds(600), OPENED.minusSeconds(600),
+                OPENED.plusSeconds(240), OPENED.plusSeconds(240), OPENED.plusSeconds(240));
+        assertEquals(4, aggs.size(), "preserve every level step, including zero-duration steps");
+        for (int i = 0; i < aggs.size(); i++) {
+            assertEquals(bounds.get(i).toString(), aggs.get(i).path("start").asText());
+            assertEquals(bounds.get(i + 1).toString(), aggs.get(i).path("end").asText());
+            assertEquals(String.valueOf(i + 1), aggs.get(i).path("icu_code").asText());
+        }
+    }
+
+    @Test
     void actionsLandInTheStepOfTheirTime() throws Exception {
         store.add(escalated(OPENED.plusSeconds(10_000)));
         List<TreatmentView> treatments = List.of(treatment(TreatmentStatus.CLOSED,

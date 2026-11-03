@@ -71,6 +71,7 @@ public class EngineCaseService {
     private static final Set<String> CASE_FILTERS = Set.of(TRIP_ID, ASSET_ID, NAME, LEVEL, FROM, TO);
     private static final String SYMPTOM_NAME = "symptom_name";
     private static final String CONDITIONS_AGG = "conditions_agg";
+    private static final String START = "start";
     private static final String SYMPTOM_NAMES = "symptom_name_list";
     private static final String ICU_CODE = "icu_code";
     private static final String ICU_CONDITION = "icu_condition";
@@ -424,23 +425,16 @@ public class EngineCaseService {
         ObjectNode out = JSON.objectNode();
         out.set(CONDITIONS_AGG, JSON.arrayNode());
         // One timeline entry with the case, which the map selects to load its point; one block per level step.
-        String start = start(c).toString();
-        String end = end(c).toString();
+        Instant started = start(c);
+        Instant ended = end(c);
+        String start = started.toString();
+        String end = ended.toString();
         ObjectNode entry = out.putArray("timeline").addObject();
-        entry.put("start", start);
+        entry.put(START, start);
         entry.put("end", end);
         entry.put("symptom_id", c.symptomId());
         entry.put(SYMPTOM_NAME, c.name());
-        ArrayNode aggs = entry.putArray(CONDITIONS_AGG);
-        List<EngineCase.LevelStep> steps = c.levels();
-        if (steps.isEmpty()) {
-            addAgg(aggs, c, start, end, c.level());
-        }
-        for (int i = 0; i < steps.size(); i++) {
-            String from = i == 0 ? start : steps.get(i).at().toString();
-            String to = i + 1 < steps.size() ? steps.get(i + 1).at().toString() : end;
-            addAgg(aggs, c, from, to, steps.get(i).level());
-        }
+        addLevelAggs(entry.putArray(CONDITIONS_AGG), c, started, ended);
         ObjectNode symptom = out.putObject("symptom_info");
         symptom.put("id", c.symptomId());
         symptom.put("name", c.name());
@@ -449,7 +443,7 @@ public class EngineCaseService {
         symptom.put(ICU_CONDITION, condition(c.level()));
         symptom.put("opened_at", c.openedAt().toString());
         symptom.put("started_at", start);
-        symptom.put("duration_sec", Duration.between(start(c), end(c)).toSeconds());
+        symptom.put("duration_sec", Duration.between(started, ended).toSeconds());
         out.set("level_reason", levelReason(c));
         ObjectNode trip = out.putObject("trip_info");
         trip.put(POSITION_ASSET_ID, c.assetId());
@@ -468,9 +462,30 @@ public class EngineCaseService {
         return out;
     }
 
+    /** Keep transition order while bounding times from different clocks to the case interval. */
+    private static void addLevelAggs(ArrayNode aggs, EngineCase c, Instant start, Instant end) {
+        List<EngineCase.LevelStep> steps = c.levels();
+        if (steps.isEmpty()) {
+            addAgg(aggs, c, start.toString(), end.toString(), c.level());
+            return;
+        }
+        Instant from = start;
+        for (int i = 0; i < steps.size(); i++) {
+            Instant to = i + 1 < steps.size() ? steps.get(i + 1).at() : end;
+            if (to.isBefore(from)) {
+                to = from;
+            }
+            if (to.isAfter(end)) {
+                to = end;
+            }
+            addAgg(aggs, c, from.toString(), to.toString(), steps.get(i).level());
+            from = to;
+        }
+    }
+
     private static void addAgg(ArrayNode aggs, EngineCase c, String start, String end, int level) {
         ObjectNode agg = aggs.addObject();
-        agg.put("start", start);
+        agg.put(START, start);
         agg.put("end", end);
         agg.put("symptom_id", c.symptomId());
         agg.put("is_symptom", 1);
@@ -675,7 +690,7 @@ public class EngineCaseService {
         Instant at = a.performedAt().toInstant();
         int found = 0;
         for (int i = 1; i < aggs.size(); i++) {
-            Instant start = contextInstant(aggs.get(i).path("start"));
+            Instant start = contextInstant(aggs.get(i).path(START));
             if (start != null && !start.isAfter(at)) {
                 found = i;
             }

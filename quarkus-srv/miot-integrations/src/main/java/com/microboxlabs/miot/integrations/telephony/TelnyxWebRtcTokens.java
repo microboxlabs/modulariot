@@ -103,7 +103,7 @@ public class TelnyxWebRtcTokens {
         HttpResponse<String> found = client.telephonyCredentials(apiKey, name);
         require(found, "list the telephony credentials");
         for (JsonNode c : read(found.body()).path("data")) {
-            if (sipConnectionId.equals(c.path("connection_id").asText())
+            if (onConnection(c, sipConnectionId)
                     && !c.path("expired").asBoolean(false) && !c.path("id").asText().isBlank()) {
                 return c.path("id").asText();
             }
@@ -115,6 +115,12 @@ public class TelnyxWebRtcTokens {
             throw new TelephonyUnavailableException("Telnyx created a telephony credential without an id");
         }
         return id;
+    }
+
+    /** Telnyx names the credential's connection in {@code resource_id} as {@code connection:<id>}. */
+    private static boolean onConnection(JsonNode credential, String sipConnectionId) {
+        return ("connection:" + sipConnectionId).equals(credential.path("resource_id").asText())
+                || sipConnectionId.equals(credential.path("connection_id").asText());
     }
 
     /** Not the operator's email: the name is visible in the Telnyx portal. */

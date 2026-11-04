@@ -38,8 +38,10 @@ class TelnyxWebRtcTokensTest {
         String name = TelnyxWebRtcTokens.credentialName("acme", "ana@example.com");
         http.reply("POST /v2/telephony_credentials/cred-1/token", 201, "eyJ.placeholder.jwt")
                 .reply("GET /v2/telephony_credentials", 200,
-                        "{\"data\":[{\"id\":\"old\",\"connection_id\":\"sip-1\",\"expired\":true},"
-                                + "{\"id\":\"cred-1\",\"connection_id\":\"sip-1\",\"expired\":false,\"name\":\""
+                        "{\"data\":[{\"id\":\"old\",\"resource_id\":\"connection:sip-1\",\"expired\":true},"
+                                + "{\"id\":\"other\",\"resource_id\":\"connection:sip-2\",\"expired\":false},"
+                                + "{\"id\":\"cred-1\",\"resource_id\":\"connection:sip-1\",\"expired\":false,"
+                                + "\"name\":\""
                                 + name + "\"}]}");
 
         WebRtcToken token = tokens.issue("acme", "conn-1", "Ana@example.com");

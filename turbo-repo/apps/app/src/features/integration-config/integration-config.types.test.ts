@@ -121,6 +121,9 @@ describe("ConnectionFormSchema", () => {
     name: "Partner API · QA",
     baseUrl: "https://api.partner.example.com",
     credentialProfileId: "",
+    sipConnectionId: "",
+    callerNumber: "",
+    defaultCallerId: "",
   };
 
   it("accepts an instance with no credential — the field is optional by value", () => {

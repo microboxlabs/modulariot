@@ -14,6 +14,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ControlTowerError } from "../control-tower/control-tower-api";
 import { saveTowerTeam, useTowerTeam, type TowerTeam } from "./maintainer-api";
+import TelephonySection from "./telephony-section";
 import { MUTED } from "./ui/card";
 
 /** Bounds the API accepts. */
@@ -169,6 +170,7 @@ function TeamForm({
               {error}
             </p>
           )}
+          <TelephonySection d={d} />
         </div>
       </ModalBody>
       <ModalFooter className="justify-end">

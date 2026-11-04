@@ -29,6 +29,17 @@ import { IntegrationFormModal } from "./integration-form-modal";
 import type { BrandLogoSources } from "@/features/common/components/brand-logo";
 import { BIGQUERY_LOGO, POSTGREST_LOGO } from "../connection-catalog";
 import { BIGQUERY_BASE_URL, isBigQueryConnection } from "../bigquery-query";
+import {
+  EMPTY_TELEPHONY,
+  TELEPHONY_BASE_URLS,
+  TELEPHONY_CREDENTIAL_TYPES,
+  isTelephonyProvider,
+  telephonyMetadata,
+  telephonyProblem,
+  telephonyValues,
+  type TelephonyProvider,
+} from "../telephony-connection";
+import { TelephonyFields } from "./telephony-fields";
 
 interface ConnectionFormModalProps {
   readonly show: boolean;
@@ -61,6 +72,7 @@ const DEFAULTS: ConnectionFormData = {
   name: "",
   baseUrl: "",
   credentialProfileId: "",
+  ...EMPTY_TELEPHONY,
 };
 
 /**
@@ -91,13 +103,26 @@ export function ConnectionFormModal({
     !template &&
     (providerType === "BIGQUERY" ||
       (connection !== undefined && isBigQueryConnection(connection)));
+  const kindOfProvider = providerType ?? connection?.providerType;
+  const telephony: TelephonyProvider | null =
+    !template && isTelephonyProvider(kindOfProvider) ? kindOfProvider : null;
   // BigQuery queries authenticate with a Google service account and nothing else.
   let nativeKind: NativeKind | null = null;
   if (isBigQuery) nativeKind = "BIGQUERY";
   else if (isPostgrest) nativeKind = "POSTGREST";
-  const choices = isBigQuery
-    ? credentials.filter((c) => c.typeId === "GOOGLE_SERVICE_ACCOUNT")
-    : credentials;
+  else if (telephony) nativeKind = telephony;
+  const fixedBaseUrl = isBigQuery
+    ? BIGQUERY_BASE_URL
+    : telephony
+      ? TELEPHONY_BASE_URLS[telephony]
+      : null;
+  let choices: readonly CredentialListItem[] = credentials;
+  if (isBigQuery)
+    choices = credentials.filter((c) => c.typeId === "GOOGLE_SERVICE_ACCOUNT");
+  else if (telephony)
+    choices = credentials.filter(
+      (c) => c.typeId === TELEPHONY_CREDENTIAL_TYPES[telephony]
+    );
   const [error, setError] = useState<Error | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(
     null
@@ -138,22 +163,30 @@ export function ConnectionFormModal({
             name: connection.name,
             baseUrl: connection.baseUrl,
             credentialProfileId: connection.credentialProfileId ?? "",
+            ...telephonyValues(connection.metadata),
           }
-        : { ...DEFAULTS, baseUrl: isBigQuery ? BIGQUERY_BASE_URL : "" }
+        : { ...DEFAULTS, baseUrl: fixedBaseUrl ?? "" }
     );
     return () => {
       session.current += 1;
     };
-  }, [show, connection, template, providerType, reset, isBigQuery]);
+  }, [show, connection, template, providerType, reset, fixedBaseUrl]);
+
+  /** A telephony connection's metadata; undefined for every other kind. */
+  function metadataOf(data: ConnectionFormData) {
+    return telephony ? telephonyMetadata(telephony, data) : undefined;
+  }
 
   /** What creating with these values sends; null when editing. */
   function createRequest(
     data: ConnectionFormData
   ): CreateConnectionRequest | null {
+    const metadata = metadataOf(data);
     const common = {
       name: data.name.trim(),
       baseUrl: data.baseUrl.trim(),
       credentialProfileId: data.credentialProfileId || null,
+      ...(metadata ? { metadata } : {}),
     };
     if (connection) return null;
     if (template) return { ...common, templateId: template.id };
@@ -167,13 +200,28 @@ export function ConnectionFormModal({
     return null;
   }
 
+  /** Says what is missing for a kind that needs a credential or provider values. */
   function missingCredential(data: ConnectionFormData): boolean {
+    const problem = telephony ? telephonyProblem(telephony, data) : null;
+    if (problem) {
+      setError(new Error(trDynamic(problem, dict)));
+      return true;
+    }
     if (
-      !isBigQuery ||
+      !(isBigQuery || telephony) ||
       choices.some((credential) => credential.id === data.credentialProfileId)
     )
       return false;
-    setError(new Error(tr("bigquery.credentialRequired", dict)));
+    setError(
+      new Error(
+        tr(
+          telephony
+            ? "telephony.credentialRequired"
+            : "bigquery.credentialRequired",
+          dict
+        )
+      )
+    );
     return true;
   }
 
@@ -217,10 +265,14 @@ export function ConnectionFormModal({
     request: CreateConnectionRequest | null
   ) {
     if (connection) {
+      const metadata = metadataOf(data);
       await onSave(null, connection.id, {
         name: data.name.trim(),
         baseUrl: data.baseUrl.trim(),
         credentialProfileId: data.credentialProfileId || null,
+        ...(metadata
+          ? { metadata: { ...connection.metadata, ...metadata } }
+          : {}),
       });
       return;
     }
@@ -330,12 +382,14 @@ export function ConnectionFormModal({
             type="url"
             className="font-mono [&_input]:text-sm"
             placeholder="https://api.partner.example.com"
-            readOnly={isBigQuery}
+            readOnly={fixedBaseUrl !== null}
             {...register("baseUrl")}
             color={errors.baseUrl ? "failure" : undefined}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {baseUrlHelp(isPostgrest, isBigQuery, dict)}
+            {telephony
+              ? tr("telephony.baseUrlHelp", dict)
+              : baseUrlHelp(isPostgrest, isBigQuery, dict)}
           </p>
         </SettingsFormField>
 
@@ -356,12 +410,18 @@ export function ConnectionFormModal({
           </Select>
           {choices.length === 0 && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {isBigQuery
-                ? tr("bigquery.noCredentials", dict)
-                : tr("connection.form.noCredentials", dict)}
+              {noCredentialsHelp(isBigQuery, telephony, dict)}
             </p>
           )}
         </SettingsFormField>
+
+        {telephony && (
+          <TelephonyFields
+            provider={telephony}
+            register={register}
+            dict={dict}
+          />
+        )}
 
         {/* Creating tests the form values without storing anything; editing tests the
           saved connection and records the result on it. */}
@@ -428,9 +488,9 @@ function ContractPanel({
   );
 }
 
-type NativeKind = "POSTGREST" | "BIGQUERY";
+type NativeKind = "POSTGREST" | "BIGQUERY" | TelephonyProvider;
 
-const NATIVE_LOGOS: Record<NativeKind, BrandLogoSources> = {
+const NATIVE_LOGOS: Partial<Record<NativeKind, BrandLogoSources>> = {
   POSTGREST: POSTGREST_LOGO,
   BIGQUERY: BIGQUERY_LOGO,
 };
@@ -439,7 +499,21 @@ const NATIVE_LOGOS: Record<NativeKind, BrandLogoSources> = {
 function formSubtitle(kind: NativeKind | null, dict: I18nRecord): string {
   if (kind === "BIGQUERY") return tr("bigquery.help", dict);
   if (kind === "POSTGREST") return tr("connection.form.postgrestHelp", dict);
+  if (kind === "TELNYX") return tr("telephony.telnyxHelp", dict);
+  if (kind === "TEAMS_PHONE") return tr("telephony.teamsHelp", dict);
   return tr("connection.form.subtitle", dict);
+}
+
+function noCredentialsHelp(
+  isBigQuery: boolean,
+  telephony: TelephonyProvider | null,
+  dict: I18nRecord
+): string {
+  if (isBigQuery) return tr("bigquery.noCredentials", dict);
+  if (telephony === "TELNYX") return tr("telephony.noTelnyxCredentials", dict);
+  if (telephony === "TEAMS_PHONE")
+    return tr("telephony.noTeamsCredentials", dict);
+  return tr("connection.form.noCredentials", dict);
 }
 
 function baseUrlHelp(

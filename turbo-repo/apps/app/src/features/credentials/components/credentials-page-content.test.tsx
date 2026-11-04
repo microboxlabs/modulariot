@@ -68,6 +68,7 @@ vi.mock("./bearer-token-credential-modal", () => ({
   WhatsAppCredentialModal: () => null,
   MapboxCredentialModal: () => null,
   GoogleMapsCredentialModal: () => null,
+  TelnyxCredentialModal: () => null,
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 

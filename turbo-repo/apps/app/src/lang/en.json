@@ -2823,6 +2823,10 @@
           "basic": {
             "name": "Basic auth",
             "description": "Username and password sent as HTTP basic authentication."
+          },
+          "telnyx": {
+            "name": "Telnyx",
+            "description": "A Telnyx API key, for the Control Tower's calls."
           }
         },
         "badge": {
@@ -2959,7 +2963,11 @@
           "verifyToken": "Webhook verify token",
           "verifyTokenPlaceholder": "A string you choose",
           "webhookKeyEditPlaceholder": "Leave blank to keep the current one",
-          "webhookKeysHelp": "Used to receive replies and message statuses. Enter the same verify token in Meta when you set up the webhook."
+          "webhookKeysHelp": "Used to receive replies and message statuses. Enter the same verify token in Meta when you set up the webhook.",
+          "telnyxAddTitle": "New Telnyx API key",
+          "telnyxEditTitle": "Edit Telnyx API key",
+          "telnyxSubtitle": "The API key the platform uses to issue Telnyx call tokens.",
+          "telnyxTokenHelp": "In Telnyx: Account Settings › Keys & Credentials › API Keys. It starts with KEY."
         },
         "delete": {
           "title": "Delete this credential?",
@@ -4383,7 +4391,15 @@
         "communicationsLoadFailed": "Could not load the communication rules.",
         "newRuleForLevel": "New rule for this level",
         "newRuleForLevelName": "{symptom} · {level}",
-        "channelPreferred": "Preferred"
+        "channelPreferred": "Preferred",
+        "telephonyTitle": "Telephony for \"Call\"",
+        "telephonyAuto": "Automatic: Telnyx when connected, else Teams Phone",
+        "telephonyActive": "Calls use",
+        "telephonyNone": "the phone's dialer (no telephony connection)",
+        "telephonyNotReady": "{name} did not pass its test; it is not used until it does.",
+        "telephonyConnections": "Set up in Connections",
+        "telephonyLoadFailed": "Could not read the telephony settings.",
+        "telephonySaveFailed": "Could not save the telephony settings."
       },
       "communications": {
         "title": "Communications",
@@ -5321,7 +5337,9 @@
         "managedGeocodingHelp": "Locates addresses with the provider the platform contracts, within the organization's plan. Platform owners only.",
         "platformGeocodingHelp": "Set the provider the platform contracts: provider, credential and cost per call. Organizations use it through their managed connection.",
         "managedBigquery": "BigQuery · platform account",
-        "managedBigqueryHelp": "Platform owners only. The organization queries as its own service account, with no key, and sees only the data you publish to it."
+        "managedBigqueryHelp": "Platform owners only. The organization queries as its own service account, with no key, and sees only the data you publish to it.",
+        "telnyx": "Calls from the browser with Telnyx WebRTC.",
+        "teamsPhone": "Calls from the Microsoft Teams client with Teams Phone."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -5488,6 +5506,22 @@
         "title": "Platform geocoding provider",
         "body": "The platform has no provider yet. Choose its credential and set it here: it is saved once for the platform, then this organization is connected.",
         "platformBody": "The provider every organization uses. Choose the Platform's Mapbox or Google Maps credential and our cost per call."
+      },
+      "telephony": {
+        "telnyxHelp": "\"Call\" places calls from the browser through Telnyx. The API key goes in a Telnyx credential.",
+        "teamsHelp": "\"Call\" opens the call in Teams. The credential is a Microsoft Entra app with the CallRecords.Read.All permission, to read the duration and the result.",
+        "baseUrlHelp": "Fixed: the credential is only sent to this API.",
+        "sipConnectionId": "Credential connection ID (SIP)",
+        "sipConnectionIdHelp": "In Telnyx: Voice › SIP Trunking › the connection of type Credentials.",
+        "sipConnectionIdRequired": "The Telnyx credential connection ID is missing.",
+        "callerNumber": "Caller number",
+        "callerNumberHelp": "A Telnyx number assigned to that connection, in E.164.",
+        "callerNumberInvalid": "The number must be in E.164, for example +56 9 0000 0000.",
+        "defaultCallerId": "Default caller ID (optional)",
+        "defaultCallerIdHelp": "The number Teams shows when calling, in E.164. Empty: each operator's own.",
+        "credentialRequired": "Choose a credential of this provider.",
+        "noTelnyxCredentials": "There are no Telnyx credentials. Create one in Credentials.",
+        "noTeamsCredentials": "There are no Microsoft Entra credentials. Create one in Credentials with the scope https://graph.microsoft.com/.default."
       }
     },
     "calendar": {

@@ -3,6 +3,7 @@ import type {
   BrandLogoSources,
   LogoKeyline,
 } from "@/features/common/components/brand-logo";
+import { Phone } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import { z } from "zod/v3";
 
@@ -27,6 +28,7 @@ export type CredentialTypeId =
   | "WHATSAPP"
   | "MAPBOX"
   | "GOOGLE_MAPS"
+  | "TELNYX"
   | "BASIC_AUTH";
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
@@ -291,6 +293,17 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
       light: "/credential-logos/google-maps-light.svg",
       dark: "/credential-logos/google-maps-dark.svg",
     },
+    keyline: "circle",
+  },
+  {
+    // A bearer token tagged with TELNYX_PROVIDER: a Telnyx API key for the
+    // Control Tower's calls; tested through its TELNYX connection.
+    id: "TELNYX",
+    nameKey: "types.telnyx.name",
+    descriptionKey: "types.telnyx.description",
+    available: true,
+    supportsTest: false,
+    icon: Phone,
     keyline: "circle",
   },
   {
@@ -618,3 +631,14 @@ export interface CredentialTestResult {
   /** Token lifetime reported by the provider, when the test obtained one. */
   readonly expiresInSeconds?: number;
 }
+
+/** Marks a bearer credential as a Telnyx API key, like {@link RESEND_PROVIDER}. */
+export const TELNYX_PROVIDER = "telnyx";
+
+const telnyxProviderField = { provider: z.literal(TELNYX_PROVIDER) };
+
+export const TelnyxCredentialSchema =
+  BearerTokenCredentialSchema.extend(telnyxProviderField);
+
+export const TelnyxCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(telnyxProviderField);

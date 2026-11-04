@@ -8,7 +8,8 @@ import {
   ModalFooter,
   TextInput,
 } from "flowbite-react";
-import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
+import { BiLogoMicrosoftTeams } from "react-icons/bi";
+import { HiOutlinePhone, HiOutlineTemplate, HiSearch } from "react-icons/hi";
 import { BrandLogo } from "@/features/common/components/brand-logo";
 import {
   BIGQUERY_LOGO,
@@ -112,6 +113,18 @@ export function TemplatePickerModal({
               />
             }
             onSelect={() => onSelectNative("BIGQUERY")}
+          />
+          <NativeOption
+            title="Telnyx"
+            description={tr("picker.telnyx", dict)}
+            icon={<HiOutlinePhone className="h-8 w-8 text-gray-500" />}
+            onSelect={() => onSelectNative("TELNYX")}
+          />
+          <NativeOption
+            title="Teams Phone"
+            description={tr("picker.teamsPhone", dict)}
+            icon={<BiLogoMicrosoftTeams className="h-8 w-8 text-gray-500" />}
+            onSelect={() => onSelectNative("TEAMS_PHONE")}
           />
           {onSelectManagedGeocoding && (
             <NativeOption

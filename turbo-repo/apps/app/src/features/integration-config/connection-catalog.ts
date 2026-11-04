@@ -1,6 +1,6 @@
 import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
-import { Image, Link } from "flowbite-react-icons/outline";
+import { Image, Link, Phone } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import type {
   BrandLogoSources,
@@ -23,6 +23,8 @@ const PROVIDER_LABELS: Record<string, string> = {
   GEOCODING: "Geocoding",
   POSTGREST: "PostgREST",
   RESEND: "Resend",
+  TEAMS_PHONE: "Teams Phone",
+  TELNYX: "Telnyx",
   WHATSAPP: "WhatsApp",
 };
 
@@ -57,6 +59,8 @@ const PROVIDER_MARKS: Record<string, ConnectionMark> = {
       dark: "/credential-logos/resend-dark.svg",
     },
   },
+  TEAMS_PHONE: { icon: Phone, keyline: "circle" },
+  TELNYX: { icon: Phone, keyline: "circle" },
   WHATSAPP: { icon: Whatsapp, keyline: "circle" },
 };
 

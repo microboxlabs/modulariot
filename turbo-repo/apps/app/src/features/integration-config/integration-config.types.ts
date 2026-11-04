@@ -54,6 +54,8 @@ export type CreateConnectionRequest = {
   readonly name: string;
   readonly baseUrl: string;
   readonly credentialProfileId: string | null;
+  /** Non-secret provider values, e.g. a telephony connection's caller number. */
+  readonly metadata?: Record<string, unknown>;
 } & (
   | {
       /** An instance of a template; its operation is provisioned from it. */
@@ -69,7 +71,12 @@ export type CreateConnectionRequest = {
  * Providers the app supports directly, without an operator-defined template. BIGQUERY is
  * stored as a CUSTOM_HTTP connection to the BigQuery API (see `bigquery-query.ts`).
  */
-export const NATIVE_PROVIDERS = ["POSTGREST", "BIGQUERY"] as const;
+export const NATIVE_PROVIDERS = [
+  "POSTGREST",
+  "BIGQUERY",
+  "TELNYX",
+  "TEAMS_PHONE",
+] as const;
 export type NativeProvider = (typeof NATIVE_PROVIDERS)[number];
 
 export function isNativeProvider(value: string): value is NativeProvider {
@@ -141,6 +148,8 @@ export interface UpdateConnectionRequest {
   readonly baseUrl?: string;
   /** Swaps the linked credential; omit to leave it unchanged. */
   readonly credentialProfileId?: string | null;
+  /** Replaces the stored metadata wholesale; omit to keep it. */
+  readonly metadata?: Record<string, unknown>;
 }
 
 export interface ConnectionTestResult {
@@ -237,6 +246,10 @@ export const ConnectionFormSchema = z.object({
     .url("validation.baseUrlInvalid"),
   /** Empty string means "no credential" — the field is a select, not a secret. */
   credentialProfileId: z.string(),
+  /** Telephony connections only; checked by `telephonyProblem`. */
+  sipConnectionId: z.string(),
+  callerNumber: z.string(),
+  defaultCallerId: z.string(),
 });
 
 export type ConnectionFormData = z.infer<typeof ConnectionFormSchema>;

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchAllContacts,
+  parseCaseTimeline,
   parseScriptContext,
   parseScriptSamples,
   type TowerContact,
@@ -61,5 +62,29 @@ describe("script response validation", () => {
     expect(() =>
       parseScriptSamples([{ ...sample, opened_at: "not-a-date" }])
     ).toThrow();
+  });
+});
+
+describe("timeline response validation", () => {
+  const entry = {
+    kind: "CLOSED",
+    at: "2026-11-04T12:00:00Z",
+    context: { case: {} },
+  };
+  it("accepts case entries and nullable note metadata", () => {
+    expect(parseCaseTimeline([entry])).toEqual([entry]);
+    const note = {
+      kind: "NOTED",
+      at: entry.at,
+      eventType: null,
+      description: null,
+    };
+    expect(parseCaseTimeline([note])).toEqual([note]);
+  });
+  it("rejects malformed timeline responses before rendering them", () => {
+    expect(() => parseCaseTimeline({ entries: [] })).toThrow();
+    expect(() => parseCaseTimeline([{ ...entry, kind: "UNKNOWN" }])).toThrow();
+    expect(() => parseCaseTimeline([{ ...entry, at: "not-a-date" }])).toThrow();
+    expect(() => parseCaseTimeline([{ ...entry, level: "four" }])).toThrow();
   });
 });

@@ -75,28 +75,17 @@ const DEFAULTS: ConnectionFormData = {
   ...EMPTY_TELEPHONY,
 };
 
-/**
- * Create/edit form for a connection — one instance of a template.
- *
- * Only what varies per instance is editable: the endpoint and the credential. The
- * contract comes from the template and is shown read-only, because changing it would
- * change the payload under the bindings already mapped against it.
- */
-export function ConnectionFormModal({
-  show,
+function nativeConnectionSettings({
   connection,
   template,
   providerType,
   credentials,
-  onClose,
-  onSave,
-  onDelete,
-  onTest,
-  onTestDraft,
-  saving,
-  dict,
-}: Readonly<ConnectionFormModalProps>) {
-  const isEdit = connection !== undefined;
+}: Readonly<
+  Pick<
+    ConnectionFormModalProps,
+    "connection" | "template" | "providerType" | "credentials"
+  >
+>) {
   const isPostgrest =
     !template && (providerType ?? connection?.providerType) === "POSTGREST";
   const isBigQuery =
@@ -121,6 +110,51 @@ export function ConnectionFormModal({
     choices = credentials.filter(
       (c) => c.typeId === TELEPHONY_CREDENTIAL_TYPES[telephony]
     );
+  return {
+    isPostgrest,
+    isBigQuery,
+    telephony,
+    nativeKind,
+    fixedBaseUrl,
+    choices,
+  };
+}
+
+/**
+ * Create/edit form for a connection — one instance of a template.
+ *
+ * Only what varies per instance is editable: the endpoint and the credential. The
+ * contract comes from the template and is shown read-only, because changing it would
+ * change the payload under the bindings already mapped against it.
+ */
+export function ConnectionFormModal({
+  show,
+  connection,
+  template,
+  providerType,
+  credentials,
+  onClose,
+  onSave,
+  onDelete,
+  onTest,
+  onTestDraft,
+  saving,
+  dict,
+}: Readonly<ConnectionFormModalProps>) {
+  const isEdit = connection !== undefined;
+  const {
+    isPostgrest,
+    isBigQuery,
+    telephony,
+    nativeKind,
+    fixedBaseUrl,
+    choices,
+  } = nativeConnectionSettings({
+    connection,
+    template,
+    providerType,
+    credentials,
+  });
   const [error, setError] = useState<Error | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(
     null

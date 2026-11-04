@@ -98,7 +98,9 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 function childFrame() {
-  return screen.getByRole("region", { name: "child" }).parentElement!;
+  return screen
+    .getByRole("region", { name: "child" })
+    .closest<HTMLElement>("#widget-child")!;
 }
 
 describe("app widget renderer adapter", () => {

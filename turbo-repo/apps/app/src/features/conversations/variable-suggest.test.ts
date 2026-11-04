@@ -31,7 +31,7 @@ describe("matchingVariables", () => {
     expect(matchingVariables(VARS, "camión").map((v) => v.name)).toEqual([
       "patente",
     ]);
-    expect(matchingVariables(VARS, "").length).toBe(3);
+    expect(matchingVariables(VARS, "")).toHaveLength(3);
   });
 });
 

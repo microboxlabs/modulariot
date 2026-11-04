@@ -4,7 +4,19 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
 
+const { request } = vi.hoisted(() => ({
+  request: vi.fn().mockResolvedValue({ callingEnabled: false }),
+}));
+
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+// WhatsApp calling off: the permission row stays hidden.
+vi.mock(
+  "@/features/symptoms/control-tower/control-tower-api",
+  async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    controlTowerRequest: request,
+  })
+);
 
 const dict = es as unknown as I18nRecord;
 

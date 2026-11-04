@@ -31,6 +31,7 @@ import type { TowerContactChannels } from "@/features/symptoms/control-tower/con
 import type { CallStats } from "./call-targets";
 import { channelLink } from "./channel-link";
 import ContactRow from "./contact-row";
+import WhatsAppCallPermission from "./whatsapp-call-permission";
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -175,6 +176,15 @@ export default function CallDialingStep({
             )}
           </div>
         </div>
+
+        {!started && methods.includes("whatsapp") && (
+          <WhatsAppCallPermission
+            dict={dict}
+            phone={channels?.whatsapp ?? contactPhone}
+            name={contactName}
+            lang={lang}
+          />
+        )}
 
         {/* Inside the card, pinned to its bottom (last item in the column)
             instead of a separate actions row below the card. Before the call

@@ -384,7 +384,7 @@ export function CloseRules({
   if (mode === "expr")
     return (
       <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        {samples.length > 0 && (
+        {samples.length > 0 ? (
           <SampleTree
             samples={samples.map((s) => s.sample)}
             labels={samples.map((s) => s.label)}
@@ -392,6 +392,12 @@ export function CloseRules({
             readOnly={readOnly}
             d={d}
             onIndex={setIndex}
+          />
+        ) : (
+          // Holds the tree's column until the first preview comes, so the editors keep their width.
+          <div
+            aria-hidden
+            className="min-h-40 animate-pulse rounded-lg border border-gray-200 bg-gray-50 lg:min-h-80 dark:border-gray-700 dark:bg-gray-800/40"
           />
         )}
         <div className="flex min-w-0 flex-col gap-2">

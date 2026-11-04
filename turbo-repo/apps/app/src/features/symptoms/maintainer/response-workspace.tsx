@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { CelField } from "./cel-editor";
@@ -197,13 +198,19 @@ export default function ResponseWorkspace({
   const setResponse = (next: LevelResponse) =>
     onChange(withLevel(spec, { ...level, response: next }));
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
+  // The case moments are the same for every spec, so the { } tree keeps the
+  // last ones while the next preview is made (validating, saving): without
+  // them the tree goes away and the editors jump to the full width.
+  const [shownPreview, setShownPreview] = useState(preview);
+  if (preview?.cases?.length && preview !== shownPreview)
+    setShownPreview(preview);
   const rules: LifecycleRules = {
     close: lifecycle.close ?? "",
     note: lifecycle.note ?? "",
     fields: [...caseFields(d), ...sourceFields],
     closeProblems: problemsFor(findings, "lifecycle.close", d),
     noteProblems: problemsFor(findings, "lifecycle.note", d),
-    samples: (preview?.cases ?? []).map((c) => ({
+    samples: (shownPreview?.cases ?? []).map((c) => ({
       sample: c.sample,
       label: trDynamic(`caseScenario_${c.scenario}`, d),
     })),

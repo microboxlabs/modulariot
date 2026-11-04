@@ -23,6 +23,7 @@ import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashSet;
@@ -232,6 +233,11 @@ public class WhatsAppMessagingService {
      *
      * @throws SendFailure when Meta did not take it
      */
+    /** The queued message of this organization; a missing or foreign one fails for good. */
+    public Message queuedMessage(String tenantCode, String messageId) {
+        return queued(messageRepository, conversationRepository, tenantCode, messageId);
+    }
+
     public Message deliverQueued(String tenantCode, String messageId, String language, Map<String, String> params) {
         Message message = queued(messageRepository, conversationRepository, tenantCode, messageId);
         if (message.status() != MessageStatus.PENDING && message.status() != MessageStatus.FAILED) {
@@ -260,6 +266,30 @@ public class WhatsAppMessagingService {
             LOG.warnf("WhatsApp send of message %s failed (HTTP %s): %s", messageId, e.httpStatus(), e.getMessage());
             throw new SendFailure(e.getMessage(), SendFailure.retryable(e.httpStatus()));
         }
+    }
+
+    /** The WhatsApp number an organization's rule messages go out from, with what calling Meta needs. */
+    public record SendingNumber(String tenantCode, URI baseUrl, String phoneNumberId, String token) {
+    }
+
+    /**
+     * The number this organization's rule messages go out from, checked against the connection's test mode for
+     * {@code to}. Fails with {@link ConnectionResolutionException} when there is no usable connection and
+     * {@link IllegalArgumentException} when test mode does not allow {@code to}.
+     */
+    public SendingNumber sendingNumber(String tenantCode, String to) {
+        String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.WHATSAPP);
+        ResolvedConnection connection = sendingConnection(sendingTenant);
+        String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
+        String token = connection.secretString(TOKEN);
+        if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
+            throw new ConnectionResolutionException(
+                    "WhatsApp connection is missing phone_number_id or the access token");
+        }
+        if (to != null) {
+            enforceTestMode(connection, to);
+        }
+        return new SendingNumber(sendingTenant, connection.baseUrl(), phoneNumberId, token);
     }
 
     /** The message of this organization; a missing or foreign one fails for good. */

@@ -46,17 +46,20 @@ vi.mock("./call-dialing-step", () => ({
     goal,
     onCancel,
     onConfirm,
+    line,
   }: {
     reason: string;
     channels?: { whatsapp?: string } | null;
     goal?: string;
     onCancel: () => void;
     onConfirm: (seconds: number, method: "phone" | "whatsapp") => void;
+    line?: { provider: string } | null;
   }) => (
     <>
       <p>{reason}</p>
       <p>{channels?.whatsapp}</p>
       <p>{goal}</p>
+      <span data-testid="phone-provider">{line?.provider ?? "manual"}</span>
       <button onClick={onCancel}>Cancel call</button>
       <button onClick={() => onConfirm(1, "phone")}>Confirm call</button>
       <button onClick={() => onConfirm(1, "whatsapp")}>Confirm WhatsApp</button>
@@ -73,7 +76,20 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   treatmentsKey: () => "treatments",
 }));
 vi.mock("swr", () => ({ mutate: vi.fn() }));
-const telephony = vi.hoisted(() => ({ data: undefined, error: undefined }));
+const telephony = vi.hoisted(() => ({
+  data: {
+    active: {
+      connectionId: "t1",
+      provider: "TELNYX",
+      name: "Central",
+      callerNumber: "+12025550101",
+      ready: true,
+    },
+    preferred: null,
+    lines: [],
+  },
+  error: undefined,
+}));
 vi.mock("@/features/symptoms/control-tower/telephony-api", () => ({
   useTelephony: () => telephony,
 }));
@@ -91,9 +107,11 @@ const request: TreatmentsRequest = {
 function Flow({
   snapshot,
   onConfirmed = vi.fn(),
+  symptomId = "-1",
 }: Readonly<{
   snapshot?: CallSnapshot;
   onConfirmed?: (snapshot: CallSnapshot) => void;
+  symptomId?: string;
 }>) {
   const [message, setMessage] = useState(
     snapshot?.script?.message ?? "Default message"
@@ -104,7 +122,7 @@ function Flow({
       treatmentData={null}
       messageToCommunicate={message}
       setMessageToCommunicate={setMessage}
-      treatmentRequest={request}
+      treatmentRequest={{ ...request, symptom_id: symptomId }}
       setTreatmentRequest={vi.fn()}
       setIsMenuOpen={vi.fn()}
       startedAt={0}
@@ -117,6 +135,18 @@ function Flow({
 }
 
 describe("call step scripts", () => {
+  it.each([
+    ["-1", "TELNYX"],
+    ["42", "manual"],
+  ])(
+    "uses a provider only when case %s can persist the result",
+    (symptomId, expected) => {
+      render(<Flow symptomId={symptomId} />);
+      fireEvent.click(screen.getByText("Step contact"));
+      expect(screen.getByTestId("phone-provider")).toHaveTextContent(expected);
+    }
+  );
+
   it("restores the default message when the next contact has no step script", () => {
     render(<Flow />);
     fireEvent.click(screen.getByText("Step contact"));

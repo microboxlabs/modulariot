@@ -7604,6 +7604,8 @@
     "call_phase_ringing": "Sonando…",
     "call_phase_ended": "Llamada terminada",
     "call_telnyx_failed": "No se pudo llamar desde el navegador",
+    "call_telephony_loading": "Cargando la configuración de telefonía…",
+    "call_telephony_load_failed": "No se pudo cargar la telefonía. Vuelve a abrir la llamada para reintentar.",
     "call_telephony_answered": "contestada (registrado por la telefonía)",
     "call_telephony_unanswered": "no contestada (registrado por la telefonía)",
     "call_telephony_pending": "registro pendiente: Teams publica la duración y el resultado unos minutos después"

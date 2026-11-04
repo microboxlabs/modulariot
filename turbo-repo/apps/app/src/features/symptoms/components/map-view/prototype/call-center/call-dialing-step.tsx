@@ -73,6 +73,8 @@ export default function CallDialingStep({
   reason,
   goal,
   line = null,
+  telephonyPending = false,
+  telephonyFailed = false,
   onCancel,
   onConfirm,
   onStartedChange,
@@ -99,6 +101,8 @@ export default function CallDialingStep({
   goal?: string;
   /** The organization's telephony line; a Telnyx line places "phone" calls from the browser. */
   line?: TelephonyLine | null;
+  telephonyPending?: boolean;
+  telephonyFailed?: boolean;
   onCancel: (elapsedSeconds: number) => void;
   /** `result` is set when the provider placed the call and reported how it ended. */
   onConfirm: (
@@ -128,7 +132,10 @@ export default function CallDialingStep({
   const [phase, setPhase] = useState<CallPhase | null>(null);
   const [answeredAt, setAnsweredAt] = useState<number | null>(null);
   const [dialError, setDialError] = useState<string | null>(null);
+  const [browserAttempt, setBrowserAttempt] = useState(false);
+  const [dialReady, setDialReady] = useState(false);
   const liveRef = useRef<LiveCall | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const cancelledRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const onConfirmRef = useRef(onConfirm);
@@ -148,6 +155,7 @@ export default function CallDialingStep({
     cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
+      abortRef.current?.abort();
       liveRef.current?.hangup();
     };
   }, []);
@@ -163,6 +171,12 @@ export default function CallDialingStep({
   const [teamsCall, setTeamsCall] = useState<number | null>(null);
 
   async function placeTelnyxCall() {
+    cancelledRef.current = false;
+    abortRef.current = new AbortController();
+    setDialError(null);
+    setAnsweredAt(null);
+    setBrowserAttempt(true);
+    setDialReady(false);
     setPhase("connecting");
     try {
       const login = await token();
@@ -172,30 +186,43 @@ export default function CallDialingStep({
         callerNumber: login.callerNumber,
         destination: `+${destination}`,
         remoteElement: audioRef.current,
+        signal: abortRef.current.signal,
         onPhase: (next, at) => {
           setPhase(next);
           setAnsweredAt(at);
         },
         onEnd: (result) => {
           liveRef.current = null;
-          if (!cancelledRef.current)
+          if (!cancelledRef.current) {
+            if (!result.callId) {
+              setPhase(null);
+              setDialError(t("call_telnyx_failed"));
+              setStarted(false);
+              onStartedChange?.(false);
+              return;
+            }
             onConfirmRef.current(result.durationSeconds, "phone", result);
+          }
         },
       });
+      setDialReady(true);
       if (cancelledRef.current) liveRef.current?.hangup();
     } catch (cause) {
+      if (cancelledRef.current) return;
       setPhase(null);
       setDialError(cause instanceof Error ? cause.message : String(cause));
+      setStarted(false);
+      onStartedChange?.(false);
     }
   }
 
   // A Telnyx call counts from the answer; a call timed by hand from the press.
-  const shownSeconds =
-    phase !== null
-      ? answeredAt === null
+  let shownSeconds = elapsed;
+  if (phase !== null)
+    shownSeconds =
+      answeredAt === null
         ? 0
-        : Math.max(0, Math.floor((Date.now() - answeredAt) / 1000))
-      : elapsed;
+        : Math.max(0, Math.floor((Date.now() - answeredAt) / 1000));
 
   // Both the cancel button and the timer mount at scale-0/opacity-0 first,
   // then flip a frame later so the transition actually plays instead of
@@ -289,6 +316,16 @@ export default function CallDialingStep({
             {t("call_telnyx_failed")}: {dialError}
           </p>
         )}
+        {(telephonyPending || telephonyFailed) && (
+          <p
+            role={telephonyFailed ? "alert" : "status"}
+            className="mx-4 mb-2 text-sm text-gray-500"
+          >
+            {telephonyFailed
+              ? t("call_telephony_load_failed")
+              : t("call_telephony_loading")}
+          </p>
+        )}
 
         {/* Inside the card, pinned to its bottom (last item in the column)
             instead of a separate actions row below the card. Before the call
@@ -319,6 +356,9 @@ export default function CallDialingStep({
                 <button
                   key={id}
                   type="button"
+                  disabled={
+                    id === "phone" && (telephonyPending || telephonyFailed)
+                  }
                   onClick={() => {
                     if (viaTeams(id)) {
                       const links = teamsCallLinks(contactPhone);
@@ -338,6 +378,10 @@ export default function CallDialingStep({
                     }
                     // Opens the channel's app (dialer, WhatsApp chat with the
                     // script typed); the call is timed here either way.
+                    setBrowserAttempt(false);
+                    setPhase(null);
+                    setAnsweredAt(null);
+                    setDialError(null);
                     const link = channelLink(
                       id,
                       channels?.[id] ?? contactPhone,
@@ -372,8 +416,9 @@ export default function CallDialingStep({
                       method,
                       pendingTeamsCall(`+${destination}`, teamsCall, Date.now())
                     );
-                  else onConfirm(elapsed, method);
+                  else if (!browserAttempt) onConfirm(elapsed, method);
                 }}
+                disabled={browserAttempt && !dialReady}
                 title={t("call_modal_confirm")}
                 aria-label={t("call_modal_confirm")}
                 className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500 text-white shadow-sm transition-colors hover:bg-red-600"
@@ -384,6 +429,7 @@ export default function CallDialingStep({
                 type="button"
                 onClick={() => {
                   cancelledRef.current = true;
+                  abortRef.current?.abort();
                   liveRef.current?.hangup();
                   onCancel(elapsed);
                 }}

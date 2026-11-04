@@ -11,7 +11,28 @@ import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
 import type { StartCallOptions, TelephonyCallResult } from "./telnyx-call";
 
+const { request } = vi.hoisted(() => ({
+  request: vi.fn().mockResolvedValue({
+    callingEnabled: false,
+    state: "NO_PERMISSION",
+    permission: "NONE",
+    canRequest: false,
+    expiresAt: null,
+    lastRequestAt: null,
+    refusal: "CALLING_DISABLED",
+    nextRequestAt: null,
+  }),
+}));
+
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+// WhatsApp calling off: the permission row stays hidden.
+vi.mock(
+  "@/features/symptoms/control-tower/control-tower-api",
+  async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    controlTowerRequest: request,
+  })
+);
 
 const dict = es as unknown as I18nRecord;
 

@@ -48,10 +48,12 @@ const d = {
   stepScriptLabel: "Guion:",
   stepScriptWrite: "escribir guion",
   stepIfNot: "si no resulta en",
-  stepThen: "min, paso {n}",
+  stepThen: "min, sigue el siguiente",
   stepWithin: "plazo",
   stepChannel: "Canal",
   stepRole: "Persona",
+  stepScope: "{label} · de",
+  stepScopeRole: "{label} · rol",
   stepBudget: "Minutos",
   stepScript: "Guion",
   stepScriptPlaceholder: "Qué decir {vars}",
@@ -74,11 +76,11 @@ const STEPS: Step[] = [
     budgetMinutes: 2,
     script: "Hola, el camión {{patente}} va por {{ruta}}",
   },
-  { role: "Transportista", channel: "whatsapp", budgetMinutes: 3, script: "" },
+  { role: "Jefe de turno", channel: "whatsapp", budgetMinutes: 3, script: "" },
 ];
 
 describe("LevelSteps", () => {
-  it("reads as a timeline with the wait before the next step", () => {
+  it("reads as an unnumbered timeline with the wait before the next step", () => {
     render(
       <LevelSteps
         steps={STEPS}
@@ -90,9 +92,11 @@ describe("LevelSteps", () => {
       />
     );
     const items = screen.getAllByRole("listitem");
-    expect(items[0]?.textContent).toContain("Paso 1");
+    // Steps carry no visible number; the order is the list's, named for screen readers.
+    expect(items[0]?.getAttribute("aria-label")).toBe("Paso 1");
+    expect(items[0]?.textContent).not.toContain("Paso 1");
     expect(items[0]?.textContent).toContain("si no resulta en");
-    expect(items[0]?.textContent).toContain("min, paso 2");
+    expect(items[0]?.textContent).toContain("min, sigue el siguiente");
     expect(items[1]?.textContent).toContain("plazo");
     expect(within(items[1]!).getByText("escribir guion")).toBeTruthy();
   });
@@ -153,23 +157,24 @@ describe("LevelSteps", () => {
         steps={steps}
         slaMinutes={5}
         readOnly={false}
-        d={{ ...d, moveUp: "Subir" }}
+        d={{ ...d, dragStep: "Mover" }}
         onChange={onChange}
       />
     );
-    const second = screen.getByDisplayValue("Transportista");
-    fireEvent.click(screen.getAllByLabelText("Subir")[1]!);
+    const second = screen.getByDisplayValue("3");
+    // The drag handle also moves a step with the arrow keys.
+    fireEvent.keyDown(screen.getAllByLabelText("Mover")[1]!, { key: "ArrowUp" });
     view.rerender(
       <LevelSteps
         steps={steps}
         slaMinutes={5}
         readOnly={false}
-        d={{ ...d, moveUp: "Subir" }}
+        d={{ ...d, dragStep: "Mover" }}
         onChange={onChange}
       />
     );
-    expect(steps.map((s) => s.role)).toEqual(["Transportista", "Conductor"]);
-    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+    expect(steps.map((s) => s.role)).toEqual(["Jefe de turno", "Conductor"]);
+    expect(screen.getByDisplayValue("3")).toBe(second);
   });
 
   it("keeps the next step's own fields when the first is removed", () => {
@@ -184,11 +189,11 @@ describe("LevelSteps", () => {
       onChange,
     };
     const view = render(<LevelSteps steps={steps} {...props} />);
-    const second = screen.getByDisplayValue("Transportista");
+    const second = screen.getByDisplayValue("3");
     fireEvent.click(screen.getAllByLabelText("Quitar")[0]!);
     view.rerender(<LevelSteps steps={steps} {...props} />);
-    expect(steps.map((s) => s.role)).toEqual(["Transportista"]);
-    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+    expect(steps.map((s) => s.role)).toEqual(["Jefe de turno"]);
+    expect(screen.getByDisplayValue("3")).toBe(second);
   });
 
   it("shows a step's error under it and marks the field", () => {
@@ -206,12 +211,12 @@ describe("LevelSteps", () => {
     expect(
       within(items[0]!).getByText("El paso 1 no dice a quién contactar.")
     ).toBeTruthy();
-    expect(within(items[0]!).getByLabelText("Persona").className).toContain(
-      "border-red-500"
-    );
-    expect(within(items[1]!).getByLabelText("Persona").className).not.toContain(
-      "border-red-500"
-    );
+    expect(
+      within(items[0]!).getByLabelText("Persona · de").className
+    ).toContain("border-red-500");
+    expect(
+      within(items[1]!).getByLabelText("Persona · de").className
+    ).not.toContain("border-red-500");
   });
 
   it("lets readers read the script but not change the steps", () => {

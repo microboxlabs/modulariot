@@ -17,6 +17,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   contactsKey: "contacts",
   useContacts: () => ({ data: [], error: undefined, isLoading: false }),
   useSymptomTreatments: () => ({ data: undefined }),
+  useTripContacts: () => ({ data: undefined, mutate: api.mutate }),
 }));
 
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({

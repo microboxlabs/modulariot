@@ -6,9 +6,11 @@ import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
 import com.microboxlabs.miot.symptoms.domain.ContactFilter;
 import com.microboxlabs.miot.symptoms.dto.ContactImportRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
+import com.microboxlabs.miot.symptoms.dto.TripPeople;
 import com.microboxlabs.miot.symptoms.service.ContactService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -44,6 +46,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgControlTowerContactsResource extends ControlTowerResourceSupport {
 
     private final ContactService contacts;
+    private final EngineCaseService cases;
 
     @Inject
     public OrgControlTowerContactsResource(
@@ -51,9 +54,11 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            ContactService contacts) {
+            ContactService contacts,
+            EngineCaseService cases) {
         super(tenantContext, organizationContext, roleService, identity);
         this.contacts = contacts;
+        this.cases = cases;
     }
 
     @GET
@@ -117,6 +122,26 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             case "external" -> false;
             default -> throw new IllegalArgumentException("kind must be member or external");
         };
+    }
+
+    @GET
+    @Path("/trip")
+    @Operation(operationId = "getTripContacts", summary = "The book's people for a case's trip",
+            description = "Matched by identifier and expected identifier type: active Conductor contacts whose national id is the trip driver's or "
+                    + "second driver's, and active contacts of any role whose company tax id is the trip "
+                    + "carrier's. Only engine cases (negative ids) have a trip to read; other cases answer empty "
+                    + "lists. 404 when the engine case is not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> trip(
+            @PathParam("organizationId") String organizationId,
+            @QueryParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> {
+            long id = parseSymptomId(symptomId);
+            TripPeople people = id < 0 ? cases.tripPeople(tenant, id) : TripPeople.NONE;
+            return Response.ok(contacts.tripContacts(tenant, people)).build();
+        });
     }
 
     @GET

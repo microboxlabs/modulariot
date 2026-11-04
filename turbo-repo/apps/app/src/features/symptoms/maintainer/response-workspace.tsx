@@ -173,7 +173,7 @@ export default function ResponseWorkspace({
 }: Readonly<{
   spec: SymptomSpec;
   /** The symptom whose conversation rules each level lists; absent for a template. */
-  symptom?: { key: string; name: string };
+  symptom?: { key: string; name: string; rulesDict: I18nRecord };
   /** Levels that differ from the published version. */
   changedLevels: ReadonlySet<number>;
   preview?: Preview;

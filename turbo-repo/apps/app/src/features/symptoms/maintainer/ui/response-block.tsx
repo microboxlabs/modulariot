@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Card, CardHeader, Tile } from "./card";
+import NumberedSection from "./section";
 
 /** A text or number input in the level response, with its error state. */
 export const FIELD =
@@ -6,26 +8,49 @@ export const FIELD =
 export const FIELD_ERROR =
   "!border-red-500 focus:!ring-red-500 dark:!border-red-500";
 
-/** One part of a level's response as a card: notices, operator, closing. */
+/**
+ * One part of a level's response: notices, operator, closing. With a number it
+ * is the rule sheet's numbered section, the same one the Regla tab uses;
+ * without one it is a plain card.
+ */
 export function ResponseBlock({
   title,
+  number,
+  subtitle,
+  icon,
   aside,
   children,
 }: Readonly<{
   title: string;
+  /** The block's place in the level's response, shown as the section badge. */
+  number?: number;
+  subtitle?: string;
+  /** The header's tile, like a catalog card's; only without a number. */
+  icon?: ReactNode;
   aside?: ReactNode;
   children: ReactNode;
 }>) {
+  if (number !== undefined) {
+    return (
+      <NumberedSection
+        number={number}
+        title={title}
+        subtitle={subtitle}
+        actions={aside}
+      >
+        {children}
+      </NumberedSection>
+    );
+  }
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex min-h-8 flex-wrap items-center gap-2">
-        <h4 className="text-base font-semibold text-gray-900 dark:text-white">
-          {title}
-        </h4>
-        {aside && <div className="ml-auto">{aside}</div>}
-      </div>
-      <div className="flex min-w-0 flex-col gap-4">{children}</div>
-    </section>
+    <Card>
+      <section aria-label={title} className="flex min-w-0 flex-col">
+        <CardHeader tile={icon && <Tile>{icon}</Tile>} title={title}>
+          {aside}
+        </CardHeader>
+        <div className="flex min-w-0 flex-col gap-4 px-4 py-4">{children}</div>
+      </section>
+    </Card>
   );
 }
 

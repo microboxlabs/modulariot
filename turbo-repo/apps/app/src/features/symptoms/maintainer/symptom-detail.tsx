@@ -409,7 +409,11 @@ export default function SymptomDetail({
                 symptom={
                   template || !def
                     ? undefined
-                    : { key: def.key, name: def.name }
+                    : {
+                        key: def.key,
+                        name: def.name,
+                        rulesDict: (dict?.communications ?? {}) as I18nRecord,
+                      }
                 }
                 changedLevels={
                   viewed

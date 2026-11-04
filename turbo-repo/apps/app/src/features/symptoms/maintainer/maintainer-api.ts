@@ -34,11 +34,17 @@ export type FieldOrigin =
   | "CALCULATED"
   | "CONNECTION";
 
+/** Where a step's role is looked up: the trip's driver, the trip's carrier, or the organization's own people. */
+export type StepScope = "DRIVER" | "TRIP_CARRIER" | "ORG";
+
 export interface Step {
+  /** A contact book role. "Conductor" for DRIVER; empty for any contact of the trip's carrier. */
   role: string | null;
   channel: string | null;
   budgetMinutes: number | null;
   script: string | null;
+  /** Absent in older steps; see `stepTarget`. */
+  scope?: StepScope | null;
 }
 
 export interface Notice {
@@ -56,8 +62,10 @@ export interface LevelResponse {
   notices: Notice[];
   evidence: string[];
   ignorable: boolean;
-  /** Who is told when the SLA runs out, e.g. "Jefe de torre". */
+  /** The role told when the SLA runs out, e.g. "Jefe de torre". */
   escalateTo?: string | null;
+  /** Where `escalateTo` is looked up; absent in older specs. */
+  escalateScope?: StepScope | null;
   /** The case counts in consequence management. */
   consequence?: boolean;
 }

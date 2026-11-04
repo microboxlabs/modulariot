@@ -27,8 +27,9 @@ import {
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-method";
-import type { CallStats } from "./call-targets";
+import { phoneForMethod, type CallStats } from "./call-targets";
 import ContactRow from "./contact-row";
+import type { TowerContact } from "@/features/symptoms/control-tower/control-tower-api";
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -46,6 +47,7 @@ export default function CallDialingStep({
   contactName,
   contactRole,
   contactPhone,
+  contactChannels,
   allowedMethods,
   contactId,
   reason,
@@ -59,6 +61,7 @@ export default function CallDialingStep({
   contactName: string;
   contactRole: string;
   contactPhone?: string;
+  contactChannels?: TowerContact["channels"];
   /** The channels the contact can be reached on. Empty shows "Sin canales registrados". */
   allowedMethods: readonly CallMethod[];
   /** The contact book id, for the link to edit a contact with no channels. */
@@ -117,7 +120,10 @@ export default function CallDialingStep({
           <ContactRow
             personName={contactName}
             roleLabel={contactRole}
-            phone={contactPhone}
+            phone={phoneForMethod(
+              { phone: contactPhone ?? "", channels: contactChannels },
+              method
+            )}
             stats={stats}
             pulsing={started}
             bgClassName="bg-white dark:bg-gray-800/40"

@@ -116,6 +116,16 @@ export interface TowerContactFacets {
   members: { memberUserId: string; contactId: string }[];
 }
 
+/** The book's people for a case's trip, found by RUT on the server. */
+export interface TowerTripContacts {
+  driverRuts: string[];
+  carrierRut: string | null;
+  /** Active Conductor contacts whose national id is a trip driver's RUT. */
+  drivers: string[];
+  /** Active contacts of any role whose company tax id is the trip carrier's. */
+  carrierContacts: string[];
+}
+
 /** Create or update body. On update, a field left out keeps its value and "" clears it. */
 export interface TowerContactBody {
   name?: string;
@@ -215,6 +225,8 @@ export const treatmentsKey = (symptomId: number | string) =>
   `${BASE}/symptoms/${symptomId}/treatments`;
 export const contactsKey = `${BASE}/contacts`;
 export const contactFacetsKey = `${BASE}/contacts/facets`;
+export const tripContactsKey = (symptomId: number | string) =>
+  `${BASE}/contacts/trip?symptomId=${encodeURIComponent(String(symptomId))}`;
 export const CONTACT_PAGE_SIZE = 100;
 
 export function contactPageKey(
@@ -304,6 +316,14 @@ export function useContactPages(query: TowerContactQuery) {
         : contactPageKey(query, previous?.next),
     fetcher,
     { revalidateFirstPage: false, keepPreviousData: true }
+  );
+}
+
+/** Only engine cases (negative ids) have a trip the server can read. */
+export function useTripContacts(symptomId: number | null | undefined) {
+  return useSWR<TowerTripContacts>(
+    symptomId != null && symptomId < 0 ? tripContactsKey(symptomId) : null,
+    fetcher
   );
 }
 

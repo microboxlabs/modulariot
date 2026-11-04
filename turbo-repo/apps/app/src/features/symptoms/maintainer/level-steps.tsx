@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { HiArrowDown, HiArrowUp, HiPencil, HiPlus, HiX } from "react-icons/hi";
+import { type ReactNode, useState } from "react";
+import { HiPencil, HiTrash } from "react-icons/hi";
+import SortableRows from "@/features/common/components/sortable-rows";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import type { BookRole } from "../control-tower/contact-roles";
+import {
+  type ScopeRoles,
+  storedTarget,
+  stepTarget,
+} from "../control-tower/contact-roles";
+import { moveRow } from "./condition-form";
 import type { Step } from "./maintainer-api";
-import RolePicker, { RoleWarning } from "./role-picker";
+import TargetPicker, { RoleWarning } from "./role-picker";
 import ScriptModal from "./script-modal";
 import { FIELD, FIELD_ERROR, FieldError } from "./ui/response-block";
 import Select from "./ui/select";
@@ -23,8 +29,6 @@ export const STEP_CHANNELS = [
 export type StepErrors = Record<number, { contact?: string; minutes?: string }>;
 
 const SCRIPT_SHOWN = 72;
-const iconButton =
-  "rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-30 disabled:hover:bg-transparent dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white";
 
 function scriptShown(script: string | null): string | null {
   const text = script?.trim();
@@ -33,52 +37,6 @@ function scriptShown(script: string | null): string | null {
 }
 
 const errorClass = (error: string | undefined) => (error ? FIELD_ERROR : "");
-
-function StepActions({
-  index,
-  last,
-  d,
-  onMove,
-  onRemove,
-}: Readonly<{
-  index: number;
-  last: boolean;
-  d: I18nRecord;
-  onMove: (by: number) => void;
-  onRemove: () => void;
-}>) {
-  return (
-    <span className="ml-auto flex items-center">
-      <button
-        type="button"
-        aria-label={tr("moveUp", d)}
-        disabled={index === 0}
-        onClick={() => onMove(-1)}
-        className={iconButton}
-      >
-        <HiArrowUp className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        aria-label={tr("moveDown", d)}
-        disabled={last}
-        onClick={() => onMove(1)}
-        className={iconButton}
-      >
-        <HiArrowDown className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        aria-label={tr("removeStep", d)}
-        onClick={onRemove}
-        className={`${iconButton} hover:text-red-600 dark:hover:text-red-400`}
-      >
-        <HiX className="h-4 w-4" />
-      </button>
-    </span>
-  );
-}
-
 function StepItem({
   step,
   index,
@@ -87,8 +45,8 @@ function StepItem({
   roles,
   readOnly,
   d,
+  handle,
   onSet,
-  onMove,
   onRemove,
   onScript,
 }: Readonly<{
@@ -96,26 +54,22 @@ function StepItem({
   index: number;
   count: number;
   errors: StepErrors[number] | undefined;
-  roles: readonly BookRole[] | undefined;
+  roles: ScopeRoles | undefined;
   readOnly: boolean;
   d: I18nRecord;
+  /** The drag handle from SortableRows; none when the list cannot be reordered. */
+  handle: ReactNode;
   onSet: (patch: Partial<Step>) => void;
-  onMove: (by: number) => void;
   onRemove: () => void;
   onScript: () => void;
 }>) {
   const last = index === count - 1;
   const shown = scriptShown(step.script);
+  const target = stepTarget(step.role, step.scope);
   return (
-    <li className="flex gap-3 px-3 py-2.5">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gray-300 text-xs font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300">
-        <span aria-hidden>{index + 1}</span>
-        <span className="sr-only">
-          {tr("stepN", d, { n: String(index + 1) })}
-        </span>
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm text-gray-700 dark:text-gray-300">
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="flex min-w-0 flex-col gap-1.5 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300">
+      <div className="flex flex-wrap items-center gap-2">
+        {handle}
           <Select
             aria-label={tr("stepChannel", d)}
             className={FIELD}
@@ -130,15 +84,15 @@ function StepItem({
             ))}
           </Select>
           <span>{tr("stepTo", d)}</span>
-          <RolePicker
+          <TargetPicker
             label={tr("stepRole", d)}
-            className={`${FIELD} ${errorClass(errors?.contact)}`}
-            wrapperClassName="min-w-40 flex-1"
+            className={FIELD}
+            error={errors?.contact ? FIELD_ERROR : undefined}
             disabled={readOnly}
-            value={step.role}
+            target={target}
             roles={roles}
             d={d}
-            onChange={(role) => onSet({ role })}
+            onChange={(next) => onSet(storedTarget(next))}
           />
           <span>{last ? tr("stepWithin", d) : tr("stepIfNot", d)}</span>
           <input
@@ -158,16 +112,17 @@ function StepItem({
             {last ? "min" : tr("stepThen", d, { n: String(index + 2) })}
           </span>
           {!readOnly && (
-            <StepActions
-              index={index}
-              last={last}
-              d={d}
-              onMove={onMove}
-              onRemove={onRemove}
-            />
+            <button
+              type="button"
+              aria-label={tr("removeStep", d)}
+              className="ml-auto text-gray-400 hover:text-red-500"
+              onClick={onRemove}
+            >
+              <HiTrash className="h-4 w-4" />
+            </button>
           )}
-        </div>
-        <RoleWarning value={step.role} roles={roles} d={d} />
+      </div>
+        <RoleWarning target={target} roles={roles} d={d} />
         <FieldError text={errors?.contact} />
         <FieldError text={errors?.minutes} />
         <button
@@ -187,8 +142,7 @@ function StepItem({
             </span>
           )}
         </button>
-      </div>
-    </li>
+    </div>
   );
 }
 
@@ -238,8 +192,8 @@ export default function LevelSteps({
   steps: Step[];
   slaMinutes: number | null;
   errors?: StepErrors;
-  /** The contact book's roles; undefined while they load. */
-  roles?: readonly BookRole[];
+  /** The contact book's roles per scope; undefined while they load. */
+  roles?: ScopeRoles;
   /** A source sample the script preview is filled from. */
   sample?: Record<string, unknown>;
   readOnly: boolean;
@@ -257,15 +211,9 @@ export default function LevelSteps({
   }
   const set = (i: number, patch: Partial<Step>) =>
     onChange(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const move = (i: number, by: number) => {
-    const next = [...steps];
-    const [s] = next.splice(i, 1);
-    next.splice(i + by, 0, s);
-    const nextIds = [...keys];
-    const [id] = nextIds.splice(i, 1);
-    nextIds.splice(i + by, 0, id ?? crypto.randomUUID());
-    setIds(nextIds);
-    onChange(next);
+  const move = (from: number, to: number) => {
+    setIds(moveRow(keys, from, to));
+    onChange(moveRow(steps, from, to));
   };
   const remove = (i: number) => {
     setIds(keys.filter((_, j) => j !== i));
@@ -290,29 +238,39 @@ export default function LevelSteps({
         </p>
       )}
       {steps.length > 0 && (
-        <ol className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800">
-          {steps.map((s, i) => (
-            <StepItem
-              key={keys[i]}
-              step={s}
-              index={i}
-              count={steps.length}
-              errors={errors[i]}
-              roles={roles}
-              readOnly={readOnly}
-              d={d}
-              onSet={(patch) => set(i, patch)}
-              onMove={(by) => move(i, by)}
-              onRemove={() => remove(i)}
-              onScript={() => setEditing(i)}
-            />
-          ))}
+        <ol className="flex flex-col gap-1.5">
+          <SortableRows
+            as="li"
+            items={steps}
+            keys={keys}
+            readOnly={readOnly}
+            handleLabel={tr("dragStep", d)}
+            rowClassName="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+            rowTestId="step-row"
+            rowLabel={(i) => tr("stepN", d, { n: String(i + 1) })}
+            onMove={move}
+            renderRow={(s, i, handle) => (
+              <StepItem
+                step={s}
+                index={i}
+                count={steps.length}
+                errors={errors[i]}
+                roles={roles}
+                readOnly={readOnly}
+                d={d}
+                handle={handle}
+                onSet={(patch) => set(i, patch)}
+                onRemove={() => remove(i)}
+                onScript={() => setEditing(i)}
+              />
+            )}
+          />
         </ol>
       )}
       {!readOnly && (
         <button
           type="button"
-          className="flex items-center gap-1 self-start text-sm text-blue-600 hover:underline dark:text-blue-400"
+          className="self-start text-xs text-blue-600 hover:underline dark:text-blue-400"
           onClick={() =>
             onChange([
               ...steps,
@@ -320,8 +278,7 @@ export default function LevelSteps({
             ])
           }
         >
-          <HiPlus className="h-4 w-4" />
-          {tr("addStep", d)}
+          {tr("addStepLink", d)}
         </button>
       )}
       {editing !== null && editingStep && (

@@ -239,7 +239,7 @@ public class SymptomCatalogService {
                 .map(n -> new SymptomSpec.Notice(n.when(), n.channel(), null, null, null))
                 .toList();
         return new SymptomSpec.Response(r.operator(), r.slaMinutes(), r.steps(), notices, r.evidence(),
-                r.ignorable(), r.escalateTo(), r.consequence());
+                r.ignorable(), r.escalateTo(), r.consequence(), r.escalateScope());
     }
 
     /** Creates a symptom under {@code key}, or the next free {@code key-N}, retrying when a concurrent copy wins. */

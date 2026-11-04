@@ -1,137 +1,180 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { bookRoles, type BookRole } from "../control-tower/contact-roles";
-import type { TowerContact } from "../control-tower/control-tower-api";
+import type { ScopeRoles } from "../control-tower/contact-roles";
 import LevelSteps from "./level-steps";
-import RolePicker, { roleMissing } from "./role-picker";
+import TargetPicker, { roleMissing } from "./role-picker";
 
 const d = {
   rolePick: "Elegir rol",
-  roleDriver: "Conductor del viaje",
+  roleAny: "Cualquier rol",
   roleWithContacts: "{role} · {n} contactos",
   roleWithOneContact: "{role} · 1 contacto",
   roleNoContacts: "Rol sin contactos en la libreta",
+  roleGroupTrip: "Del viaje",
+  roleGroupOrg: "De la organización",
+  roleWithHint: "{role} · {hint}",
+  scopePick: "Elegir",
+  scopeDriver: "Conductor del viaje",
+  scopeCarrier: "Transportista del viaje",
+  scopeOrg: "Organización",
+  scopeHintTrip: "por RUT del viaje",
+  stepScope: "{label} · de",
+  stepScopeRole: "{label} · rol",
   stepRole: "A quién",
 };
 
-const ROLES: BookRole[] = [
-  { role: "Jefe de turno", activeContacts: 1 },
-  { role: "Transportista", activeContacts: 3 },
-];
+const ROLES: ScopeRoles = {
+  carrier: [
+    { role: "Gerente de Seguridad", activeContacts: 4 },
+    { role: "Oficina Comercial", activeContacts: 1 },
+  ],
+  org: [{ role: "Jefe de Torre", activeContacts: 2 }],
+};
 
-const contact = (patch: Partial<TowerContact>): TowerContact =>
-  ({
-    id: "c",
-    name: "N",
-    role: null,
-    active: true,
-    ...patch,
-  }) as TowerContact;
+const options = (el: HTMLElement) =>
+  within(el)
+    .getAllByRole("option")
+    .map((o) => [(o as HTMLOptionElement).value, o.textContent]);
 
-describe("bookRoles", () => {
-  it("sorts the roles, counts active contacts and leaves out the driver", () => {
-    expect(
-      bookRoles(
-        ["Transportista", "conductor", "Jefe de turno", "transportista"],
-        [
-          contact({ role: "Transportista" }),
-          contact({ role: " transportista " }),
-          contact({ role: "Transportista", active: false }),
-          contact({ role: "Conductor" }),
-        ]
-      )
-    ).toEqual([
-      { role: "Jefe de turno", activeContacts: 0 },
-      { role: "Transportista", activeContacts: 2 },
+function renderPicker(target: Parameters<typeof TargetPicker>[0]["target"]) {
+  const onChange = vi.fn();
+  render(
+    <TargetPicker
+      target={target}
+      roles={ROLES}
+      label="A quién"
+      className=""
+      d={d}
+      onChange={onChange}
+    />
+  );
+  return onChange;
+}
+
+describe("TargetPicker", () => {
+  it("groups the scopes and hides the role for the driver", () => {
+    const onChange = renderPicker({ scope: "DRIVER", role: null });
+    const scope = screen.getByLabelText("A quién · de");
+    const groups = within(scope).getAllByRole("group");
+    expect(groups.map((g) => g.getAttribute("label"))).toEqual([
+      "Del viaje",
+      "De la organización",
     ]);
+    expect(options(groups[0]!)).toEqual([
+      ["DRIVER", "Conductor del viaje · por RUT del viaje"],
+      ["TRIP_CARRIER", "Transportista del viaje · por RUT del viaje"],
+    ]);
+    expect(options(groups[1]!)).toEqual([["ORG", "Organización"]]);
+    expect(screen.queryByLabelText("A quién · rol")).toBeNull();
+
+    fireEvent.change(scope, { target: { value: "TRIP_CARRIER" } });
+    expect(onChange).toHaveBeenCalledWith({
+      scope: "TRIP_CARRIER",
+      role: null,
+    });
+  });
+
+  it("offers any role plus the carrier roles for the trip's carrier", () => {
+    const onChange = renderPicker({ scope: "TRIP_CARRIER", role: null });
+    const role = screen.getByLabelText("A quién · rol");
+    expect(options(role)).toEqual([
+      ["", "Cualquier rol"],
+      ["Gerente de Seguridad", "Gerente de Seguridad · 4 contactos"],
+      ["Oficina Comercial", "Oficina Comercial · 1 contacto"],
+    ]);
+    fireEvent.change(role, { target: { value: "Gerente de Seguridad" } });
+    expect(onChange).toHaveBeenCalledWith({
+      scope: "TRIP_CARRIER",
+      role: "Gerente de Seguridad",
+    });
+  });
+
+  it("offers the organization's own roles for the organization", () => {
+    renderPicker({ scope: "ORG", role: "jefe de torre" });
+    const role = screen.getByLabelText("A quién · rol") as HTMLSelectElement;
+    expect(options(role)).toEqual([
+      ["", "Elegir rol"],
+      ["Jefe de Torre", "Jefe de Torre · 2 contactos"],
+    ]);
+    expect(role.value).toBe("Jefe de Torre");
+  });
+
+  it("keeps a saved role the scope no longer has", () => {
+    renderPicker({ scope: "ORG", role: "Supervisor" });
+    expect(
+      (screen.getByLabelText("A quién · rol") as HTMLSelectElement).value
+    ).toBe("Supervisor");
   });
 });
 
 describe("roleMissing", () => {
-  it("flags a role the book does not have or has no active contact for", () => {
-    expect(roleMissing("Supervisor", ROLES)).toBe(true);
+  it("flags a role its scope does not have, never the driver or any carrier role", () => {
+    expect(roleMissing({ scope: "ORG", role: "Supervisor" }, ROLES)).toBe(true);
     expect(
-      roleMissing("Jefe de turno", [
-        { role: "Jefe de turno", activeContacts: 0 },
-      ])
+      roleMissing({ scope: "ORG", role: "Gerente de Seguridad" }, ROLES)
     ).toBe(true);
-    expect(roleMissing("transportista", ROLES)).toBe(false);
-    expect(roleMissing("Conductor", ROLES)).toBe(false);
-    expect(roleMissing("", ROLES)).toBe(false);
-    expect(roleMissing("Supervisor", undefined)).toBe(false);
-  });
-});
-
-describe("RolePicker", () => {
-  it("offers the driver and the book's roles with their contacts", () => {
-    const onChange = vi.fn();
-    render(
-      <RolePicker
-        value=""
-        roles={ROLES}
-        label="A quién"
-        d={d}
-        onChange={onChange}
-      />
+    expect(
+      roleMissing(
+        { scope: "TRIP_CARRIER", role: "Gerente de Seguridad" },
+        ROLES
+      )
+    ).toBe(false);
+    expect(roleMissing({ scope: "TRIP_CARRIER", role: null }, ROLES)).toBe(
+      false
     );
-    const options = screen.getAllByRole("option").map((o) => o.textContent);
-    expect(options).toEqual([
-      "Elegir rol",
-      "Conductor del viaje",
-      "Jefe de turno · 1 contacto",
-      "Transportista · 3 contactos",
-    ]);
-    fireEvent.change(screen.getByLabelText("A quién"), {
-      target: { value: "Conductor" },
-    });
-    expect(onChange).toHaveBeenCalledWith("Conductor");
-  });
-
-  it("keeps a saved role the book no longer has", () => {
-    render(
-      <RolePicker
-        value="Supervisor"
-        roles={ROLES}
-        label="A quién"
-        d={d}
-        onChange={vi.fn()}
-      />
-    );
-    expect((screen.getByLabelText("A quién") as HTMLSelectElement).value).toBe(
-      "Supervisor"
+    expect(roleMissing({ scope: "DRIVER", role: null }, ROLES)).toBe(false);
+    expect(roleMissing({ scope: "ORG", role: "Supervisor" }, undefined)).toBe(
+      false
     );
   });
 });
 
-describe("LevelSteps role picker", () => {
-  it("keeps an unknown saved role and warns about it", () => {
+describe("LevelSteps target picker", () => {
+  it("reads older steps, keeps an unknown role and warns about it", () => {
     const onChange = vi.fn();
     render(
       <LevelSteps
         steps={[
-          { role: "Supervisor", channel: "call", budgetMinutes: 2, script: "" },
+          { role: "Conductor", channel: "call", budgetMinutes: 2, script: "" },
           {
             role: "Transportista",
             channel: "call",
             budgetMinutes: 2,
             script: "",
           },
+          { role: "Supervisor", channel: "call", budgetMinutes: 2, script: "" },
         ]}
-        slaMinutes={5}
+        slaMinutes={10}
         roles={ROLES}
         readOnly={false}
         d={d}
         onChange={onChange}
       />
     );
-    const [first, second] = screen.getAllByLabelText(
-      "A quién"
+    const scopes = screen.getAllByLabelText(
+      "A quién · de"
     ) as HTMLSelectElement[];
-    expect(first!.value).toBe("Supervisor");
-    expect(second!.value).toBe("Transportista");
+    expect(scopes.map((s) => s.value)).toEqual([
+      "DRIVER",
+      "TRIP_CARRIER",
+      "ORG",
+    ]);
+    const roles = screen.getAllByLabelText(
+      "A quién · rol"
+    ) as HTMLSelectElement[];
+    expect(roles.map((s) => s.value)).toEqual(["", "Supervisor"]);
     expect(screen.getAllByText("Rol sin contactos en la libreta")).toHaveLength(
       1
     );
-    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.change(roles[0]!, { target: { value: "Oficina Comercial" } });
+    expect(onChange.mock.calls[0]?.[0][1]).toEqual({
+      role: "Oficina Comercial",
+      scope: "TRIP_CARRIER",
+      channel: "call",
+      budgetMinutes: 2,
+      script: "",
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });

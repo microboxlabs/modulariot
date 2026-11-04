@@ -4,11 +4,15 @@ import { ToggleSwitch } from "flowbite-react";
 import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import { useBookRoles } from "../control-tower/contact-roles";
+import {
+  storedTarget,
+  stepTarget,
+  useScopeRoles,
+} from "../control-tower/contact-roles";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import LevelSteps, { type StepErrors } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
-import RolePicker, { RoleWarning } from "./role-picker";
+import TargetPicker, { RoleWarning } from "./role-picker";
 import { findingProblem, findingText, Problems } from "./rule-problems";
 import {
   FIELD,
@@ -25,6 +29,10 @@ const EVIDENCE = [
   { value: "note", label: "evidenceNote" },
   { value: "photo", label: "evidencePhoto" },
 ];
+
+/** The rule sheet's label over a CEL editor (see lifecycle-expression). */
+const CEL_LABEL =
+  "text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400";
 
 /** Findings shown beside their control while the operator block is open. */
 const PLACED = new Set(["operatorNeedsSla", "stepNoContact", "stepNoMinutes"]);
@@ -93,10 +101,13 @@ function OperatorBlock({
   onChange: (patch: Partial<LevelResponse>) => void;
 }>) {
   const slaError = findings.find((f) => f.code === "operatorNeedsSla");
-  const roles = useBookRoles();
+  const roles = useScopeRoles();
+  const escalation = stepTarget(response.escalateTo, response.escalateScope);
   return (
     <ResponseBlock
+      number={2}
       title={tr("operatorTitle", d)}
+      subtitle={tr("operatorSub", d)}
       aside={
         <ToggleSwitch
           checked={response.operator}
@@ -130,19 +141,24 @@ function OperatorBlock({
               />
               <span>min</span>
               <span className="ml-2">{tr("escalateTo", d)}</span>
-              <RolePicker
+              <TargetPicker
                 label={tr("escalateTo", d)}
                 className={FIELD}
-                wrapperClassName="min-w-40 flex-1"
                 disabled={readOnly}
-                value={response.escalateTo ?? null}
+                target={escalation}
                 roles={roles}
                 d={d}
-                onChange={(role) => onChange({ escalateTo: role || null })}
+                onChange={(next) => {
+                  const stored = storedTarget(next);
+                  onChange({
+                    escalateTo: next ? stored.role : null,
+                    escalateScope: stored.scope,
+                  });
+                }}
               />
             </FieldRow>
             <div className="sm:pl-[10.75rem]">
-              <RoleWarning value={response.escalateTo} roles={roles} d={d} />
+              <RoleWarning target={escalation} roles={roles} d={d} />
             </div>
             {slaError && (
               <div className="sm:pl-[10.75rem]">
@@ -186,7 +202,11 @@ function CloseBlock({
   const value = response.evidence?.[0] ?? "";
   const known = value === "" || EVIDENCE.some((e) => e.value === value);
   return (
-    <ResponseBlock title={tr("closeTitle", d)}>
+    <ResponseBlock
+      number={3}
+      title={tr("closeTitle", d)}
+      subtitle={tr("closeSub", d)}
+    >
       {response.operator && (
         <FieldRow label={tr("closeRequires", d)}>
           <Select
@@ -247,43 +267,38 @@ function LifecycleRuleRows({
   readOnly,
   d,
 }: Readonly<{ rules: LifecycleRules; readOnly: boolean; d: I18nRecord }>) {
+  // Laid out like the rule sheet's "Ciclo del caso" in { } mode: label above, editor full width.
   return (
-    <>
-      <FieldRow label={tr("closesWhen", d)}>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("closesWhen", d)}
-            value={rules.close}
-            fields={rules.fields}
-            problems={rules.closeProblems}
-            onChange={(close) => rules.onChange({ close, note: rules.note })}
-          />
-          <Problems items={rules.closeProblems} />
-        </div>
-      </FieldRow>
-      <FieldRow label={tr("notesWhen", d)}>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("notesWhen", d)}
-            placeholder={tr("notesCelPlaceholder", d)}
-            value={rules.note}
-            fields={rules.fields}
-            problems={rules.noteProblems}
-            onChange={(note) =>
-              rules.onChange({ close: rules.close, note: note || null })
-            }
-          />
-          <Problems items={rules.noteProblems} />
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {tr("notesWhenHint", d)}
-          </span>
-        </div>
-      </FieldRow>
-    </>
+    <div className="flex min-w-0 flex-col gap-2">
+      <span className={CEL_LABEL}>{tr("closesCelLabel", d)}</span>
+      <CelEditor
+        singleLine
+        readOnly={readOnly}
+        ariaLabel={tr("closesCelLabel", d)}
+        value={rules.close}
+        fields={rules.fields}
+        problems={rules.closeProblems}
+        onChange={(close) => rules.onChange({ close, note: rules.note })}
+      />
+      <Problems items={rules.closeProblems} />
+      <span className={CEL_LABEL}>{tr("notesCelLabel", d)}</span>
+      <CelEditor
+        singleLine
+        readOnly={readOnly}
+        ariaLabel={tr("notesCelLabel", d)}
+        placeholder={tr("notesCelPlaceholder", d)}
+        value={rules.note}
+        fields={rules.fields}
+        problems={rules.noteProblems}
+        onChange={(note) =>
+          rules.onChange({ close: rules.close, note: note || null })
+        }
+      />
+      <Problems items={rules.noteProblems} />
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        {tr("notesWhenHint", d)}
+      </span>
+    </div>
   );
 }
 
@@ -292,6 +307,8 @@ export interface ResponseSymptom {
   key: string;
   name: string;
   icu: number;
+  /** The Comunicaciones page's dictionary, which the rule cards read. */
+  rulesDict: I18nRecord;
 }
 
 /**
@@ -332,9 +349,14 @@ export default function LevelResponseDetail({
           icu={symptom.icu}
           canWrite={!readOnly}
           d={d}
+          rulesDict={symptom.rulesDict}
         />
       ) : (
-        <ResponseBlock title={tr("communicationsTitle", d)}>
+        <ResponseBlock
+          number={1}
+          title={tr("communicationsTitle", d)}
+          subtitle={tr("communicationsSub", d)}
+        >
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {tr("communicationsSoon", d)}
           </p>

@@ -11,51 +11,106 @@ import {
   fillScript,
   matchesTarget,
   stepAt,
+  tripMatches,
 } from "./call-plan";
-import { type CallTarget, DRIVER_TARGET_ID } from "./call-targets";
+import type { CallTarget } from "./call-targets";
 
-const target = (id: string, role: string, name = id): CallTarget => ({
+const target = (
+  id: string,
+  role: string,
+  name = id,
+  companyRut: string | null = null
+): CallTarget => ({
   id,
-  contactId: id === DRIVER_TARGET_ID ? undefined : id,
+  contactId: id,
   personName: name,
   role,
+  companyRut,
   phone: "",
   methods: [],
   stats: null,
 });
 
-const DRIVER = target(DRIVER_TARGET_ID, "Conductor", "Ana Pérez");
+const SUR = "000000030";
 const TARGETS = [
-  DRIVER,
-  target("c1", "Transportista", "Luis"),
-  target("c2", "Jefe de turno", "Marta"),
-  target("c3", " transportista ", "Pedro"),
-  target("c4", "Conductor", "Otro conductor"),
+  target("ana", "Conductor", "Ana", SUR),
+  target("beto", "Conductor", "Beto", SUR),
+  target("gs", "Gerente de Seguridad", "Gema", SUR),
+  target("oc", "Oficina Comercial", "Omar", SUR),
+  target("gs-norte", "Gerente de Seguridad", "Nora", "000000050"),
+  target("torre", "Jefe de Torre", "Tomás"),
+  target("torre2", " jefe de torre ", "Teresa"),
 ];
+// What the server found for the trip by RUT.
+const TRIP = tripMatches({
+  driverRuts: ["000000019", "00000002K"],
+  carrierRut: SUR,
+  drivers: ["ana", "beto"],
+  carrierContacts: ["ana", "beto", "gs", "oc"],
+});
 
-const step = (role: string | null): Step => ({
+const step = (role: string | null, scope?: Step["scope"]): Step => ({
   role,
   channel: "call",
   budgetMinutes: 2,
   script: null,
+  scope,
 });
 
 const ids = (targets: CallTarget[]) => targets.map((t) => t.id);
+const only = (s: Step, trip = TRIP) =>
+  ids(callPlan([s], TARGETS, new Map(), trip).groups[0]!.targets);
 
 describe("callPlan", () => {
-  it("lists each step with the contacts of its role, in order", () => {
-    const plan = callPlan([step("Conductor"), step("Transportista")], TARGETS);
-    expect(plan.groups.map((g) => g.index)).toEqual([0, 1]);
-    expect(ids(plan.groups[0]!.targets)).toEqual([DRIVER_TARGET_ID]);
-    expect(ids(plan.groups[1]!.targets)).toEqual(["c1", "c3"]);
-    expect(ids(plan.others)).toEqual(["c2", "c4"]);
+  it("finds both trip drivers", () => {
+    expect(only(step("Conductor", "DRIVER"))).toEqual(["ana", "beto"]);
   });
 
-  it("leaves a step whose role nobody has empty", () => {
-    const plan = callPlan([step("Supervisor"), step("")], TARGETS);
-    expect(plan.groups[0]!.targets).toEqual([]);
-    expect(plan.groups[1]!.targets).toEqual([]);
-    expect(plan.others).toHaveLength(TARGETS.length);
+  it("finds the trip carrier's people with the step's role", () => {
+    expect(only(step("Gerente de Seguridad", "TRIP_CARRIER"))).toEqual(["gs"]);
+  });
+
+  it("finds nobody when the carrier matches but the role does not", () => {
+    expect(only(step("Jefe de Torre", "TRIP_CARRIER"))).toEqual([]);
+  });
+
+  it("finds any of the carrier's people when the role is empty", () => {
+    expect(only(step("", "TRIP_CARRIER"))).toEqual(["ana", "beto", "gs", "oc"]);
+  });
+
+  it("finds the organization's own people with the role, not carrier people", () => {
+    expect(only(step("Jefe de Torre", "ORG"))).toEqual(["torre", "torre2"]);
+    expect(only(step("Gerente de Seguridad", "ORG"))).toEqual([]);
+  });
+
+  it("reads older steps without a scope", () => {
+    expect(only(step("Conductor"))).toEqual(["ana", "beto"]);
+    expect(only(step("Transportista"))).toEqual(["ana", "beto", "gs", "oc"]);
+    expect(only(step("Jefe de Torre"))).toEqual(["torre", "torre2"]);
+  });
+
+  it("finds no trip people without the server's RUT matches", () => {
+    expect(only(step("Conductor", "DRIVER"), tripMatches(undefined))).toEqual(
+      []
+    );
+    expect(only(step("", "TRIP_CARRIER"), tripMatches(undefined))).toEqual([]);
+  });
+
+  it("keeps the step order and puts everyone else in the other contacts", () => {
+    const plan = callPlan(
+      [
+        step("Conductor", "DRIVER"),
+        step("Gerente de Seguridad", "TRIP_CARRIER"),
+      ],
+      TARGETS,
+      new Map(),
+      TRIP
+    );
+    expect(plan.groups.map((g) => [g.index, g.target?.scope])).toEqual([
+      [0, "DRIVER"],
+      [1, "TRIP_CARRIER"],
+    ]);
+    expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);
   });
 
   it("puts everyone in the other contacts when there are no steps", () => {
@@ -66,15 +121,11 @@ describe("callPlan", () => {
 
   it("moves contacts already called in the case to the end, oldest call first", () => {
     const called = new Map([
-      ["c1", new Date("2026-11-03T10:05:00Z")],
-      ["c3", new Date("2026-11-03T10:01:00Z")],
+      ["ana", new Date("2026-11-03T10:05:00Z")],
+      ["gs", new Date("2026-11-03T10:01:00Z")],
     ]);
-    const plan = callPlan(
-      [step("Transportista")],
-      [...TARGETS, target("c5", "Transportista")],
-      called
-    );
-    expect(ids(plan.groups[0]!.targets)).toEqual(["c5", "c3", "c1"]);
+    const plan = callPlan([step("", "TRIP_CARRIER")], TARGETS, called, TRIP);
+    expect(ids(plan.groups[0]!.targets)).toEqual(["beto", "oc", "gs", "ana"]);
   });
 });
 
@@ -89,25 +140,24 @@ const action = (patch: Partial<TowerAction>): TowerAction =>
   }) as TowerAction;
 
 describe("calledInCase", () => {
-  it("keeps the latest CALL per contact, and the driver by role", () => {
+  it("keeps explicit contact calls and does not attribute a role-only call to current drivers", () => {
     const treatments = [
       {
         actions: [
-          action({ contactId: "c1", performedAt: "2026-11-03T10:00:00Z" }),
-          action({ contactId: "c1", performedAt: "2026-11-03T10:09:00Z" }),
-          action({ contactRole: "Conductor" }),
-          action({ kind: "NOTE", contactId: "c2" }),
-        ],
-      },
-      {
-        actions: [
-          action({ contactId: "c1", performedAt: "2026-11-03T10:03:00Z" }),
+          action({ contactId: "gs", performedAt: "2026-11-03T10:00:00Z" }),
+          action({ contactId: "gs", performedAt: "2026-11-03T10:09:00Z" }),
+          action({
+            contactRole: "Conductor",
+            performedAt: "2026-11-03T10:02:00Z",
+          }),
+          action({ kind: "NOTE", contactId: "oc" }),
         ],
       },
     ] as TowerTreatment[];
     const called = calledInCase(treatments);
-    expect([...called.keys()].sort()).toEqual(["c1", DRIVER_TARGET_ID].sort());
-    expect(called.get("c1")?.toISOString()).toBe("2026-11-03T10:09:00.000Z");
+    expect([...called.keys()].sort()).toEqual(["gs"]);
+    expect(called.get("gs")?.toISOString()).toBe("2026-11-03T10:09:00.000Z");
+    expect(calledInCase(treatments).has("ana")).toBe(false);
     expect(calledInCase(undefined).size).toBe(0);
   });
 });
@@ -116,11 +166,11 @@ describe("matchesTarget", () => {
   it("matches name, role and phone digits", () => {
     const t = {
       ...target("c1", "Transportista", "Luis Soto"),
-      phone: "+56 9 1234 5678",
+      phone: "+12025550101",
     };
     expect(matchesTarget(t, "soto")).toBe(true);
     expect(matchesTarget(t, "transp")).toBe(true);
-    expect(matchesTarget(t, "1234")).toBe(true);
+    expect(matchesTarget(t, "5550")).toBe(true);
     expect(matchesTarget(t, "Marta")).toBe(false);
     expect(matchesTarget(t, " ")).toBe(true);
   });

@@ -9,7 +9,10 @@ vi.mock("next/image", () => ({
     createElement("img", props),
 }));
 
-const conversations = vi.hoisted(() => ({ useConversationRules: vi.fn() }));
+const conversations = vi.hoisted(() => ({
+  useConversationRules: vi.fn(),
+  useEventCatalog: () => ({ data: undefined }),
+}));
 vi.mock("@/features/conversations/conversations-api", () => conversations);
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 
@@ -179,7 +182,11 @@ describe("ResponseWorkspace", () => {
     const { unmount } = render(
       <ResponseWorkspace
         spec={SPEC}
-        symptom={{ key: "panic-button", name: "Botón de pánico" }}
+        symptom={{
+          key: "panic-button",
+          name: "Botón de pánico",
+          rulesDict: {},
+        }}
         changedLevels={new Set()}
         findings={[]}
         readOnly={false}
@@ -191,14 +198,14 @@ describe("ResponseWorkspace", () => {
     );
     expect(
       screen
-        .getByRole("link", { name: "Pánico: conductor" })
+        .getByRole("link", { name: /Pánico: conductor/ })
         .getAttribute("href")
     ).toBe("/es/users/settings/communications/rules/r1");
     unmount();
 
     renderIt(4);
     expect(
-      screen.queryByRole("link", { name: "Pánico: conductor" })
+      screen.queryByRole("link", { name: /Pánico: conductor/ })
     ).toBeNull();
   });
 });

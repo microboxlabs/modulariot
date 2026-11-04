@@ -67,8 +67,8 @@ describe("stepConditions", () => {
         step(null, null, "'vip' in contact.tags"),
       ])
     ).toEqual([
-      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))",
-      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut",
+      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && has(event.data.driverIdType) && contact.nationalIdType == event.data.driverIdType && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && has(event.data.secondDriverIdType) && contact.nationalIdType == event.data.secondDriverIdType && contact.nationalId == event.data.secondDriverRut))",
+      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType",
       "'vip' in contact.tags",
     ]);
   });

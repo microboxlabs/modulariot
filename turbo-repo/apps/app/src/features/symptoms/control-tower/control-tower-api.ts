@@ -7,6 +7,7 @@
  */
 
 import useSWR from "swr";
+import { z } from "zod/v3";
 import useSWRInfinite from "swr/infinite";
 
 export type TowerTreatmentType =
@@ -261,6 +262,34 @@ export interface ScriptSample {
   context: ScriptContext;
 }
 
+const scriptContextSchema = z
+  .object({
+    case: z.record(z.unknown()),
+    condition: z.record(z.unknown()),
+    trip: z.record(z.unknown()),
+    vehicle: z.record(z.unknown()),
+  })
+  .passthrough();
+const scriptSamplesSchema = z.array(
+  z
+    .object({
+      symptom_id: z.number().int(),
+      asset_id: z.string(),
+      icu_code: z.number().int(),
+      opened_at: z.string().datetime({ offset: true }),
+      context: scriptContextSchema,
+    })
+    .passthrough()
+);
+
+export function parseScriptContext(value: unknown): ScriptContext {
+  return scriptContextSchema.parse(value);
+}
+
+export function parseScriptSamples(value: unknown): ScriptSample[] {
+  return scriptSamplesSchema.parse(value);
+}
+
 /** The symptom's newest engine cases, those at `level` first, to write a script with real data. */
 export function useScriptSamples(
   symptomName: string | null | undefined,
@@ -271,7 +300,7 @@ export function useScriptSamples(
   if (level != null) params.set("level", String(level));
   return useSWR<ScriptSample[]>(
     symptomName ? `${BASE}/map/script-samples?${params}` : null,
-    fetcher
+    async (url: string) => parseScriptSamples(await fetcher(url))
   );
 }
 
@@ -309,7 +338,7 @@ export function useCaseContext(symptomId: number | null | undefined) {
     symptomId != null && symptomId < 0
       ? `${BASE}/map/symptoms/${symptomId}/context`
       : null,
-    fetcher
+    async (url: string) => parseScriptContext(await fetcher(url))
   );
 }
 

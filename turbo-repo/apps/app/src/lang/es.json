@@ -4223,6 +4223,8 @@
         "scriptPreview": "Así lo leerá el operador, con la muestra 1",
         "scriptMissing": "La muestra no tiene este dato; el operador lo verá en el caso.",
         "scriptEmpty": "Sin guion.",
+        "scriptSampleError": "No se pudieron cargar los casos para la vista previa del guion. Inténtalo de nuevo.",
+        "scriptRetrySamples": "Reintentar",
         "scriptNoSample": "Sin muestras de la fuente: las variables se muestran sin llenar",
         "scriptNoSampleValue": "Sin muestra para llenarla; el operador la verá con el dato del caso.",
         "scriptUnknown": "El operador verá esta variable sin llenar: no es una de las disponibles.",

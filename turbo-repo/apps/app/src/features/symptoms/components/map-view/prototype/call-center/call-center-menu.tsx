@@ -230,6 +230,7 @@ export interface CallScript {
 }
 
 export type OnCall = (target: CallTarget, script?: CallScript) => void;
+type NewCallDraft = NewNumberDraft & { script?: CallScript };
 
 function StepGroup({
   group,
@@ -266,7 +267,7 @@ function StepGroup({
   d: I18nRecord;
   onCall: OnCall;
   onSkip: () => void;
-  onNewNumber: (draft: NewNumberDraft) => void;
+  onNewNumber: (draft: NewCallDraft) => void;
 }>) {
   const carrierName = treatmentData?.trip_info?.carrier;
   const preset = presetFor(group.summary, trip, carrierName);
@@ -343,7 +344,9 @@ function StepGroup({
           {preset && !lookupFailed && (
             <button
               type="button"
-              onClick={() => onNewNumber({ phone: "", name: "", preset })}
+              onClick={() =>
+                onNewNumber({ phone: "", name: "", preset, script })
+              }
               className="flex shrink-0 items-center gap-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
             >
               <HiPlus className="h-3.5 w-3.5" />
@@ -410,7 +413,7 @@ function OtherContacts({
   dict: I18nRecord;
   d: I18nRecord;
   onCall: OnCall;
-  onNewNumber: (draft: NewNumberDraft) => void;
+  onNewNumber: (draft: NewCallDraft) => void;
 }>) {
   const [open, setOpen] = useState(!collapsible);
   const [search, setSearch] = useState("");
@@ -536,7 +539,7 @@ export default function CallCenterMenu({
     [caseContext, treatmentData]
   );
   const elapsed = useElapsed(startedAt);
-  const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
+  const [addDraft, setAddDraft] = useState<NewCallDraft | null>(null);
   const callVersion = useRef(0);
   useEffect(
     () => () => {
@@ -573,7 +576,7 @@ export default function CallCenterMenu({
   const sla = (response?.slaMinutes ?? 0) * 60;
 
   const handleNewNumber = async (
-    { phone, name, preset }: NewNumberDraft,
+    { phone, name, preset, script }: NewCallDraft,
     action: NewNumberAction
   ) => {
     const version = ++callVersion.current;
@@ -589,7 +592,7 @@ export default function CallCenterMenu({
         });
         void refreshTrip();
         if (callVersion.current === version)
-          selectTarget(newTarget(saved, personName, number));
+          selectTarget(newTarget(saved, personName, number), script);
         return;
       } catch {
         if (callVersion.current !== version) return;
@@ -599,7 +602,7 @@ export default function CallCenterMenu({
         });
       }
     }
-    selectTarget(newTarget(null, personName, number));
+    selectTarget(newTarget(null, personName, number), script);
   };
 
   return (
@@ -644,7 +647,12 @@ export default function CallCenterMenu({
           <NewNumberPanel
             dict={dict}
             initial={addDraft}
-            onSubmit={(draft, action) => void handleNewNumber(draft, action)}
+            onSubmit={(draft, action) =>
+              void handleNewNumber(
+                { ...draft, script: addDraft.script },
+                action
+              )
+            }
             onCancel={() => setAddDraft(null)}
           />
         )}

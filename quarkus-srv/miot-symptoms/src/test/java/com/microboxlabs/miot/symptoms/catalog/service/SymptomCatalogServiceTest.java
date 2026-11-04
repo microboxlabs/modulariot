@@ -55,6 +55,34 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void publicationChecksReplyResultsAgainstTheTenantsCurrentOptions() {
+        UUID id = speeding();
+        var allowed = new java.util.HashSet<>(List.of("result_commits"));
+        SymptomCatalogService checked = new SymptomCatalogService(catalog,
+                new DataSourceService(catalog, SignalSamples.inMemory()), audit, null,
+                (tenant, result) -> TENANT.equals(tenant) && allowed.contains(result));
+        SymptomSpec base = Specs.speeding();
+        var step = new SymptomSpec.Step("Conductor", "call", 2, "Hello", null, null, null,
+                List.of(new SymptomSpec.Step.Reply("result_commits", "Agrees")));
+        var levels = new java.util.ArrayList<>(base.levels());
+        levels.set(3, new SymptomSpec.Level(4, true, levels.get(3).when(),
+                new SymptomSpec.Response(true, 5, List.of(step), List.of(), List.of(), false)));
+        SymptomSpec spec = Specs.withLevels(base, levels);
+        checked.saveDraft(TENANT, OWNER, id, spec);
+        assertTrue(checked.plan(TENANT, id).report().publishable());
+        allowed.clear();
+        assertFalse(checked.plan(TENANT, id).report().publishable());
+        assertTrue(checked.validate(TENANT, id, spec).findings().stream()
+                .anyMatch(f -> "stepReplyInvalidResult".equals(f.code())));
+
+        var blank = new SymptomSpec.Step("Conductor", "call", 2, "Hello", null, null, null,
+                List.of(new SymptomSpec.Step.Reply("", "Agrees")));
+        levels.set(3, new SymptomSpec.Level(4, true, levels.get(3).when(),
+                new SymptomSpec.Response(true, 5, List.of(blank), List.of(), List.of(), false)));
+        assertFalse(checked.validate(TENANT, id, Specs.withLevels(base, levels)).publishable());
+    }
+
+    @Test
     void publishComputesTheVersionFromTheChange() {
         UUID id = speeding();
         assertEquals("1.0.0", service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE)

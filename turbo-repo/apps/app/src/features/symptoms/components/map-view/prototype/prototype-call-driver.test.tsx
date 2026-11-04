@@ -2,7 +2,6 @@ import type { PropsWithChildren } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TelephonyCallResult } from "./call-center/telnyx-call";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";

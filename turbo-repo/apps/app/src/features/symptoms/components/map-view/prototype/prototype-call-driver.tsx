@@ -175,7 +175,7 @@ function callOutcomeLabel(
   noAnswer: boolean,
   t: (key: string) => string
 ) {
-  if (!call || call.provider !== "TELNYX") return operatorResult;
+  if (call?.provider !== "TELNYX") return operatorResult;
   if (operatorResult && call.answered !== noAnswer) return operatorResult;
   return t(
     call.answered ? "call_telephony_answered" : "call_telephony_unanswered"

@@ -85,8 +85,14 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             Instance<TripGeofences> tripGeofences,
             Instance<SignalStates> signals,
             @ConfigProperty(name = "miot.symptoms.legacy.enabled", defaultValue = "true") boolean legacy) {
-        this(tenantContext, organizationContext, roleService, identity, map, treatments, cases, caseTreatments,
-                tripWindows, tripGeofences, signals, Clock.systemUTC(), legacy);
+        this(tenantContext, organizationContext, roleService, identity,
+                new MapServices(map, treatments, cases, caseTreatments, tripWindows, tripGeofences, signals),
+                Clock.systemUTC(), legacy);
+    }
+
+    record MapServices(ControlTowerMapService map, ControlTowerTreatmentService treatments,
+            EngineCaseService cases, TreatmentService caseTreatments, TripWindows tripWindows,
+            Instance<TripGeofences> tripGeofences, Instance<SignalStates> signals) {
     }
 
     OrgControlTowerMapResource(
@@ -94,24 +100,18 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            ControlTowerMapService map,
-            ControlTowerTreatmentService treatments,
-            EngineCaseService cases,
-            TreatmentService caseTreatments,
-            TripWindows tripWindows,
-            Instance<TripGeofences> tripGeofences,
-            Instance<SignalStates> signals,
+            MapServices services,
             Clock clock, boolean legacy) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
-        this.map = map;
-        this.treatments = treatments;
-        this.cases = cases;
-        this.caseTreatments = caseTreatments;
-        this.tripWindows = tripWindows;
-        this.tripGeofences = tripGeofences;
+        this.map = services.map();
+        this.treatments = services.treatments();
+        this.cases = services.cases();
+        this.caseTreatments = services.caseTreatments();
+        this.tripWindows = services.tripWindows();
+        this.tripGeofences = services.tripGeofences();
         this.legacy = legacy;
-        this.signals = signals;
+        this.signals = services.signals();
         this.clock = clock;
     }
 

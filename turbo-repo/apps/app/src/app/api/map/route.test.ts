@@ -68,6 +68,7 @@ describe("map and dashboard routes", () => {
       treatment: 4,
       compromised: 0,
       observation: 0,
+      ignored: 0,
     });
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20org/control-tower/map/conditions",

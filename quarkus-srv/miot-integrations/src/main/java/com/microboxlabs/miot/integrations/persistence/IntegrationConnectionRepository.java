@@ -80,6 +80,12 @@ public class IntegrationConnectionRepository {
             WHERE provider_type = 'WHATSAPP' AND id = $1 AND active
             """;
 
+    private static final String SELECT_ACTIVE_TELNYX_BY_ID = "SELECT " + COLUMNS + """
+
+            FROM miot_integrations.integration_connections
+            WHERE provider_type = 'TELNYX' AND id = $1 AND active
+            """;
+
     // Reverse index for the credentials screen: which connections reference these
     // profiles. Takes the whole id set at once so listing N credentials stays one query
     // instead of N.
@@ -206,6 +212,18 @@ public class IntegrationConnectionRepository {
             return null;
         }
         var rows = client().preparedQuery(SELECT_ACTIVE_WHATSAPP_BY_ID)
+                .execute(Tuple.of(id))
+                .await().indefinitely();
+        return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
+    }
+
+    /** The active TELNYX connection with this id, of any tenant, or null. For its public webhook. */
+    public IntegrationConnection findActiveTelnyxById(String connectionId) {
+        UUID id = parseUuidOrNull(connectionId);
+        if (id == null) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_ACTIVE_TELNYX_BY_ID)
                 .execute(Tuple.of(id))
                 .await().indefinitely();
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;

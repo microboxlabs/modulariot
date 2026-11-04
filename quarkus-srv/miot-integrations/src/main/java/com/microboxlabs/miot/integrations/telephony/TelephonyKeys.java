@@ -9,6 +9,10 @@ public final class TelephonyKeys {
     public static final String CALLER_NUMBER = "callerNumber";
     /** TEAMS_PHONE metadata, optional: the caller id the Teams client should present, in E.164. */
     public static final String DEFAULT_CALLER_ID = "defaultCallerId";
+    /** TELNYX metadata, optional: how many calls may be on the line at once (default 10). */
+    public static final String CHANNEL_LIMIT = "channelLimit";
+    /** TELNYX metadata: Telnyx's webhook public key (ed25519, base64). Public, so not in the credential. */
+    public static final String WEBHOOK_PUBLIC_KEY = "webhookPublicKey";
     /** TELNYX credential secret: the API key (a bearer token credential). */
     public static final String TOKEN = "token";
 

@@ -76,6 +76,13 @@ public class TelnyxClient {
                 .build());
     }
 
+    /** {@code GET /v2/detail_records}: SIP trunking records of the last 3 days, one page of up to 50. */
+    public HttpResponse<String> detailRecords(String apiKey, int page) throws IOException, InterruptedException {
+        return http.send(get(apiKey, "/v2/detail_records?" + segment("filter[record_type]") + "=sip-trunking&"
+                + segment("filter[date_range]") + "=last_3_days&" + segment("page[number]") + "=" + page + "&"
+                + segment("page[size]") + "=50"));
+    }
+
     private static String json(String value) {
         StringBuilder out = new StringBuilder("\"");
         for (char c : value.toCharArray()) {

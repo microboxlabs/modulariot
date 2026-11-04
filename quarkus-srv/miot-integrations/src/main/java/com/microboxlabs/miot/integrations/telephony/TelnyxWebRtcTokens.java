@@ -57,11 +57,25 @@ public class TelnyxWebRtcTokens {
         this.clock = clock;
     }
 
+    /** A token, the operator's credential, and the connection it was issued on. */
+    public record Issued(WebRtcToken token, String credentialId, String sipUsername,
+            IntegrationConnection connection) {
+    }
+
     public WebRtcToken issue(String tenantCode, String connectionId, String operator) {
+        return issueFor(tenantCode, connectionId, tenantCode, operator).token();
+    }
+
+    /**
+     * @param connectionTenant the tenant that owns the connection: the organization, or the platform for the
+     *                         managed line
+     * @param callingTenant    the organization the operator works for; it names the operator's credential
+     */
+    public Issued issueFor(String connectionTenant, String connectionId, String callingTenant, String operator) {
         if (operator == null || operator.isBlank()) {
             throw new IllegalArgumentException("operator is required");
         }
-        IntegrationConnection connection = connections.apply(tenantCode, connectionId);
+        IntegrationConnection connection = connections.apply(connectionTenant, connectionId);
         if (connection == null || connection.providerType() != ProviderType.TELNYX) {
             throw new TelephonyUnavailableException("The organization has no Telnyx connection");
         }
@@ -73,7 +87,7 @@ public class TelnyxWebRtcTokens {
         }
         ResolvedConnection resolved;
         try {
-            resolved = resolver.apply(tenantCode, connection);
+            resolved = resolver.apply(connectionTenant, connection);
         } catch (ConnectionResolutionException e) {
             throw new TelephonyUnavailableException(e.getMessage());
         }
@@ -84,11 +98,14 @@ public class TelnyxWebRtcTokens {
             throw new TelephonyUnavailableException("The Telnyx connection is incomplete; test it in Conexiones");
         }
         try {
-            String credentialId = credentialFor(apiKey.trim(), sipConnectionId, credentialName(tenantCode, operator));
+            JsonNode credential = credentialFor(apiKey.trim(), sipConnectionId,
+                    credentialName(callingTenant, operator));
+            String credentialId = credential.path("id").asText();
             HttpResponse<String> response = client.telephonyToken(apiKey.trim(), credentialId);
             require(response, "issue the token");
             String token = tokenOf(response.body());
-            return new WebRtcToken(token, callerNumber, clock.instant().plus(TOKEN_TTL));
+            return new Issued(new WebRtcToken(token, callerNumber, clock.instant().plus(TOKEN_TTL)), credentialId,
+                    blankToNull(credential.path("sip_username").asText("")), connection);
         } catch (IOException e) {
             throw new TelephonyUnavailableException("Could not reach Telnyx: " + e.getMessage());
         } catch (InterruptedException e) {
@@ -98,23 +115,27 @@ public class TelnyxWebRtcTokens {
     }
 
     /** The operator's credential under this credential connection, created when there is none usable. */
-    private String credentialFor(String apiKey, String sipConnectionId, String name)
+    private JsonNode credentialFor(String apiKey, String sipConnectionId, String name)
             throws IOException, InterruptedException {
         HttpResponse<String> found = client.telephonyCredentials(apiKey, name);
         require(found, "list the telephony credentials");
         for (JsonNode c : read(found.body()).path("data")) {
             if (onConnection(c, sipConnectionId)
                     && !c.path("expired").asBoolean(false) && !c.path("id").asText().isBlank()) {
-                return c.path("id").asText();
+                return c;
             }
         }
         HttpResponse<String> created = client.createTelephonyCredential(apiKey, sipConnectionId, name);
         require(created, "create the operator's telephony credential");
-        String id = read(created.body()).path("data").path("id").asText();
-        if (id.isBlank()) {
+        JsonNode data = read(created.body()).path("data");
+        if (data.path("id").asText().isBlank()) {
             throw new TelephonyUnavailableException("Telnyx created a telephony credential without an id");
         }
-        return id;
+        return data;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     /** Telnyx names the credential's connection in {@code resource_id} as {@code connection:<id>}. */

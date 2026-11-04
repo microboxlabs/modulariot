@@ -21,6 +21,7 @@ import com.microboxlabs.miot.integrations.service.ConnectionNotConfiguredExcepti
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
+import com.microboxlabs.miot.integrations.telephony.ManagedUsageRecorder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
@@ -60,6 +61,13 @@ public class WhatsAppMessagingService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final ChannelAccountsService accounts;
+    private final TemplateMeter meter;
+
+    /** Counts a template sent: {@code sendingTenant} is whose WhatsApp account sent it. */
+    @FunctionalInterface
+    public interface TemplateMeter {
+        void sent(String tenantCode, String sendingTenant, String messageId, java.time.Instant at);
+    }
 
     @Inject
     public WhatsAppMessagingService(
@@ -67,12 +75,46 @@ public class WhatsAppMessagingService {
             MetaWhatsAppClient metaClient,
             ConversationRepository conversationRepository,
             MessageRepository messageRepository,
+            ChannelAccountsService accounts,
+            ManagedUsageRecorder usage) {
+        this(connectionResolver, metaClient, conversationRepository, messageRepository, accounts,
+                usage::whatsAppTemplate);
+    }
+
+    /** Without metering, as tests build it. */
+    public WhatsAppMessagingService(
+            IntegrationConnectionResolver connectionResolver,
+            MetaWhatsAppClient metaClient,
+            ConversationRepository conversationRepository,
+            MessageRepository messageRepository,
             ChannelAccountsService accounts) {
+        this(connectionResolver, metaClient, conversationRepository, messageRepository, accounts,
+                (tenant, sending, id, at) -> { });
+    }
+
+    public WhatsAppMessagingService(
+            IntegrationConnectionResolver connectionResolver,
+            MetaWhatsAppClient metaClient,
+            ConversationRepository conversationRepository,
+            MessageRepository messageRepository,
+            ChannelAccountsService accounts,
+            TemplateMeter meter) {
         this.connectionResolver = connectionResolver;
         this.metaClient = metaClient;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.accounts = accounts;
+        this.meter = meter;
+    }
+
+    /** A template that left through the platform's account is charged to the organization. Never fails a send. */
+    private void meter(String tenantCode, String sendingTenant, String messageId) {
+        try {
+            meter.sent(tenantCode, sendingTenant, messageId, java.time.Instant.now());
+        } catch (RuntimeException e) {
+            LOG.warnf("Could not record the WhatsApp template %s for tenant %s: %s", messageId, tenantCode,
+                    e.getMessage());
+        }
     }
 
     /**
@@ -109,6 +151,9 @@ public class WhatsAppMessagingService {
         try {
             metaMessageId = dispatch(connection, phoneNumberId, token, request);
             status = MessageStatus.SENT;
+            if (request.isTemplate()) {
+                meter(tenantCode, sendingTenant, metaMessageId);
+            }
         } catch (WhatsAppSendException e) {
             LOG.warnf("WhatsApp send failed for tenant %s to %s (%s)", tenantCode, maskPhone(request.to()),
                     e.getClass().getSimpleName());
@@ -192,6 +237,7 @@ public class WhatsAppMessagingService {
                         message.to(), message.templateName(),
                         message.language() == null ? DEFAULT_LANGUAGE : message.language(), message.params());
                 status = MessageStatus.SENT;
+                meter(tenantCode, sendingTenant, providerMessageId);
             } catch (ConnectionResolutionException | IllegalArgumentException | WhatsAppSendException e) {
                 LOG.warnf("WhatsApp run send failed for tenant %s to %s: %s", tenantCode, maskPhone(message.to()),
                         e.getMessage());
@@ -253,6 +299,7 @@ public class WhatsAppMessagingService {
                     message.templateName(), language == null ? DEFAULT_LANGUAGE : language,
                     params == null ? Map.of() : params);
             Message sent = messageRepository.markSent(messageId, wamid, metadata, OffsetDateTime.now(ZoneOffset.UTC));
+            meter(tenantCode, sendingTenant, wamid);
             return sent != null ? sent : messageRepository.findById(messageId);
         } catch (ConnectionResolutionException | IllegalArgumentException e) {
             throw new SendFailure(e.getMessage(), false);

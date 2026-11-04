@@ -7,6 +7,9 @@ import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.service.TeamsCallReconciler;
 import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService;
+import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
+import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService.CallEnded;
+import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService.CallRequest;
 import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService.TelephonyRequest;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -23,6 +26,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Map;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -83,11 +87,33 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
                     + " Telnyx")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
             params = "organizationId")
-    public Uni<Response> webRtcToken(@PathParam(ORG) String organizationId) {
+    public Uni<Response> webRtcToken(@PathParam(ORG) String organizationId, CallRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(telephony.webRtcToken(tenant, actor)).header("Cache-Control", "no-store")
-                .build());
+        return work(() -> {
+            try {
+                return Response.ok(telephony.webRtcToken(tenant, actor, body)).header("Cache-Control", "no-store")
+                        .build();
+            } catch (TelephonyUnavailableException e) {
+                return Response.status(Response.Status.CONFLICT)
+                        .entity(Map.of("error", e.getMessage(), "code", e.code())).build();
+            }
+        });
+    }
+
+    @POST
+    @Path("/calls/{callRef}/ended")
+    @Operation(operationId = "telephonyCallEnded",
+            summary = "The browser's call ended: frees its channel; the billed seconds come from Telnyx")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> callEnded(@PathParam(ORG) String organizationId, @PathParam("callRef") String callRef,
+            CallEnded body) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> {
+            telephony.callEnded(tenant, callRef, body);
+            return Response.noContent().build();
+        });
     }
 
     @POST

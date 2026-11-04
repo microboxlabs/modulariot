@@ -17,7 +17,25 @@ public interface Telephony {
      * @throws TelephonyUnavailableException when the connection is not a usable TELNYX one, or Telnyx refuses
      */
     default WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator) {
+        return webRtcToken(tenantCode, connectionId, operator, null, null);
+    }
+
+    /**
+     * Like {@link #webRtcToken(String, String, String)}, recording the call in the usage ledger.
+     *
+     * @param calleeNumber E.164, for the price and for routing a call back; may be null
+     * @param caseRef      the case the call is about; may be null
+     */
+    default WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator, String calleeNumber,
+            String caseRef) {
         throw new TelephonyUnavailableException("Telephony is not available in this build");
+    }
+
+    /**
+     * The browser says a call ended. Frees its channel and records the provider's call id so the reconcile can
+     * find it; the billed seconds still come from the provider.
+     */
+    default void callEnded(String tenantCode, String callRef, String providerCallId) {
     }
 
     /**

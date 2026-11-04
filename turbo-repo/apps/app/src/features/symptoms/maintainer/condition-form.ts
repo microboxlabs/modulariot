@@ -11,7 +11,9 @@ export type ConditionOp =
   | ">"
   | ">="
   | "<"
-  | "<=";
+  | "<="
+  | "has_event"
+  | "no_event";
 
 export interface Condition {
   id: string;
@@ -40,6 +42,19 @@ const STRING = /^"(?:[^"\\]|\\.)*"$|^'(?:[^'\\]|\\.)*'$/;
 const COMPARISON = /^([A-Za-z_][\w.]*)\s*(==|!=|>=|<=|>|<)/;
 const HAS = /^has\(\s*([A-Za-z_][\w.]*)\s*\)$/;
 const OPTIONAL_BOOL = /^([A-Za-z_][\w.?]*)\s*==\s*(TRUE|FALSE)$/;
+/** `signal.frame.events.exists(e, e.event_type == "x")`, or its negation. */
+const EVENT =
+  /^(!?)\s*([A-Za-z_][\w.]*)\.exists\(\s*e\s*,\s*e\.event_type\s*==\s*("(?:[^"\\]|\\.)*")\s*\)$/;
+
+/** A list of objects, such as the frame's events: its fields are the paths under it. */
+export const OBJECTS = "objects";
+
+/** Whether the field belongs to a list of objects; rules read it inside the list's macros, not on its own. */
+export function inList(path: string, fields: SourceField[]): boolean {
+  return fields.some(
+    (f) => f.type === OBJECTS && path.startsWith(`${f.path}.`)
+  );
+}
 
 /** The frame as the device sent it: the device may leave out any of its parts. */
 const DEVICE_FRAME = "signal.frame";
@@ -50,6 +65,8 @@ const DEVICE_FRAME = "signal.frame";
  * None for fields outside the frame.
  */
 export function guardsFor(path: string): string[] {
+  // The engine gives every frame its events list, so a rule reads it without has().
+  if (path === `${DEVICE_FRAME}.events`) return [];
   if (!path.startsWith(`${DEVICE_FRAME}.`)) return [];
   const parts = path.slice(DEVICE_FRAME.length + 1).split(".");
   return parts.map(
@@ -126,6 +143,7 @@ function withoutTrailingZeros(text: string): string {
 /** The operators a field of this type offers. */
 export function opsFor(type: string): ConditionOp[] {
   if (type === "bool") return ["is_true", "is_false"];
+  if (type === OBJECTS) return ["has_event", "no_event"];
   if (isNumeric(type)) return [...ORDER_OPS, "==", "!="];
   return ["==", "!="];
 }
@@ -272,6 +290,8 @@ export function parseCondition(
 ): Condition | null {
   const term = clause.trim();
   const byPath = new Map(fields.map((f) => [f.path, f]));
+  const event = EVENT.exec(term);
+  if (event) return eventRow(event, byPath);
   const optional = OPTIONAL_BOOL.exec(term);
   if (optional) return optionalRow(optional[1] ?? "", optional[2], byPath);
   const bare = byPath.get(term.replace(/^!\s*/, ""));
@@ -283,6 +303,22 @@ export function parseCondition(
   const raw = term.slice(matched.length).trim();
   if (!field || raw === "") return null;
   return comparisonRow(path, op, raw, field);
+}
+
+/** `list.exists(e, e.event_type == "x")` as a row on the list. */
+function eventRow(
+  m: RegExpExecArray,
+  byPath: Map<string, SourceField>
+): Condition | null {
+  const path = m[2] ?? "";
+  const text = unquote(m[3] ?? "");
+  if (byPath.get(path)?.type !== OBJECTS || text === null) return null;
+  return {
+    id: newId(),
+    path,
+    op: m[1] === "!" ? "no_event" : "has_event",
+    value: text,
+  };
 }
 
 /** `signal.frame.?a.?b == TRUE` as a yes/no row on `signal.frame.a.b`. */
@@ -485,6 +521,10 @@ export function compileCondition(c: Condition): string {
     return `${optionalPath(c.path)} == ${c.op === "is_true" ? "TRUE" : "FALSE"}`;
   if (c.op === "is_true") return c.path;
   if (c.op === "is_false") return `!${c.path}`;
+  if (c.op === "has_event" || c.op === "no_event") {
+    const exists = `${c.path}.exists(e, e.event_type == ${literal(c)})`;
+    return c.op === "no_event" ? `!${exists}` : exists;
+  }
   return `${c.path} ${c.op} ${literal(c)}`;
 }
 

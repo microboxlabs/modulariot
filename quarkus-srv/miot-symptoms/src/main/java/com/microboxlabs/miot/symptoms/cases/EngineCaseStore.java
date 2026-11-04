@@ -55,6 +55,20 @@ public interface EngineCaseStore {
      */
     Optional<Instant> previousOpening(String tenantCode, String assetId, long caseId, Instant after, Instant before);
 
+    /** The note rule's timeline entries on the case, oldest first, at most {@link #MAX_NOTES}. */
+    default List<CaseNote> notes(String tenantCode, long caseId) {
+        return List.of();
+    }
+
+    int MAX_NOTES = 200;
+
+    /**
+     * A timeline entry the note rule wrote: the matching GPS event's type and description (null when the rule did
+     * not hold for one event) and its time; {@code recordedAt} is the frame's.
+     */
+    record CaseNote(Instant recordedAt, String eventType, String description, Instant at) {
+    }
+
     /**
      * Records that an operator closed the case at {@code at}; false when it was already closed, so of two
      * overlapping closes only one returns true.

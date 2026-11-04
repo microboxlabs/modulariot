@@ -5,6 +5,7 @@ import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useBookRoles } from "../control-tower/contact-roles";
+import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import LevelSteps, { type StepErrors } from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
 import RolePicker, { RoleWarning } from "./role-picker";
@@ -171,11 +172,13 @@ function OperatorBlock({
 
 function CloseBlock({
   response,
+  rules,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
+  rules?: LifecycleRules;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<LevelResponse>) => void;
@@ -206,6 +209,7 @@ function CloseBlock({
           </Select>
         </FieldRow>
       )}
+      {rules && <LifecycleRuleRows rules={rules} readOnly={readOnly} d={d} />}
       <Check
         checked={response.ignorable}
         label={tr("ignorable", d)}
@@ -221,6 +225,65 @@ function CloseBlock({
         onChange={(consequence) => onChange({ consequence })}
       />
     </ResponseBlock>
+  );
+}
+
+/**
+ * The symptom's close and note rules, the same at every level: shown under
+ * "Cierre" so whoever sets up the response decides when a case ends and which
+ * GPS events go in its timeline.
+ */
+export interface LifecycleRules {
+  close: string;
+  note: string;
+  fields: CelField[];
+  closeProblems: CelProblem[];
+  noteProblems: CelProblem[];
+  onChange: (rules: { close: string; note: string | null }) => void;
+}
+
+function LifecycleRuleRows({
+  rules,
+  readOnly,
+  d,
+}: Readonly<{ rules: LifecycleRules; readOnly: boolean; d: I18nRecord }>) {
+  return (
+    <>
+      <FieldRow label={tr("closesWhen", d)}>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <CelEditor
+            singleLine
+            readOnly={readOnly}
+            ariaLabel={tr("closesWhen", d)}
+            value={rules.close}
+            fields={rules.fields}
+            problems={rules.closeProblems}
+            onChange={(close) => rules.onChange({ close, note: rules.note })}
+          />
+          <Problems items={rules.closeProblems} />
+        </div>
+      </FieldRow>
+      <FieldRow label={tr("notesWhen", d)}>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <CelEditor
+            singleLine
+            readOnly={readOnly}
+            ariaLabel={tr("notesWhen", d)}
+            placeholder={tr("notesCelPlaceholder", d)}
+            value={rules.note}
+            fields={rules.fields}
+            problems={rules.noteProblems}
+            onChange={(note) =>
+              rules.onChange({ close: rules.close, note: note || null })
+            }
+          />
+          <Problems items={rules.noteProblems} />
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {tr("notesWhenHint", d)}
+          </span>
+        </div>
+      </FieldRow>
+    </>
   );
 }
 
@@ -240,11 +303,14 @@ export default function LevelResponseDetail({
   findings,
   sample,
   symptom,
+  rules,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
+  /** The symptom's close and note rules; absent where they are not edited. */
+  rules?: LifecycleRules;
   /** Absent for a template, which has no rules. */
   symptom?: ResponseSymptom;
   /** The findings of this level's response. */
@@ -284,6 +350,7 @@ export default function LevelResponseDetail({
       />
       <CloseBlock
         response={response}
+        rules={rules}
         readOnly={readOnly}
         d={d}
         onChange={onChange}

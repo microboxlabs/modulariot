@@ -61,6 +61,7 @@ export function contactCelFields(fields: EventField[]): CelField[] {
   return [
     { path: "contact.name", detail: "string" },
     { path: "contact.role", detail: "string" },
+    { path: "contact.roleKey", detail: "string" },
     { path: "contact.tags", detail: "list" },
     { path: "contact.company", detail: "string" },
     { path: "contact.companyRut", detail: "string" },

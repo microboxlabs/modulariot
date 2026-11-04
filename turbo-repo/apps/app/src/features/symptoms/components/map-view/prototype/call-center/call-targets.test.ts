@@ -23,14 +23,14 @@ describe("contactMethods", () => {
     );
     expect(
       contactMethods(
-        contact({ methods: ["PHONE", "WHATSAPP"], phone: "+56911112222" })
+        contact({ methods: ["PHONE", "WHATSAPP"], phone: "+12025550101" })
       )
     ).toEqual(["phone", "whatsapp"]);
     expect(
       contactMethods(
         contact({
           methods: ["WHATSAPP"],
-          channels: { whatsapp: "+56911112222" },
+          channels: { whatsapp: "+12025550101" },
         })
       )
     ).toEqual(["whatsapp"]);

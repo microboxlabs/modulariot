@@ -139,6 +139,30 @@ beforeEach(() => {
 });
 
 describe("CallCenterMenu", () => {
+  it("hands the step's script and goal, filled with the case, to the call", async () => {
+    data.level = levelWith([
+      {
+        role: null,
+        who: "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
+        channel: "call",
+        budgetMinutes: 2,
+        script: "Hola {{conductor}}, ¿dónde va el camión?",
+        goal: "Saber dónde va {{patente}}",
+      },
+    ]);
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+
+    await user.click(screen.getByRole("button", { name: /Ana Pérez/ }));
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "ana" }),
+      {
+        message: "Hola Nombre en el viaje, ¿dónde va el camión?",
+        goal: "Saber dónde va {{patente}}",
+      }
+    );
+  });
+
   it("lists each step with the book contacts its condition matches", async () => {
     data.level = levelWith([
       {

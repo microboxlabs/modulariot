@@ -162,6 +162,7 @@ function TargetRow({
   target,
   calledAt,
   step,
+  script,
   dict,
   d,
   onCall,
@@ -170,9 +171,11 @@ function TargetRow({
   calledAt: Date | undefined;
   /** The step the row is listed under; absent under "Otros contactos". */
   step?: Step;
+  /** The step's script and goal, filled with the case; absent outside a step. */
+  script?: CallScript;
   dict: I18nRecord;
   d: I18nRecord;
-  onCall: (target: CallTarget) => void;
+  onCall: OnCall;
 }>) {
   const wanted = step ? stepMethod(step.channel) : null;
   const unavailable = wanted !== null && !target.methods.includes(wanted);
@@ -200,10 +203,22 @@ function TargetRow({
           ? tr("unavailableOn", d, { channel: channelLabel(step!.channel, d) })
           : undefined
       }
-      onClick={() => onCall({ ...target, phone })}
+      onClick={() =>
+        script
+          ? onCall({ ...target, phone }, script)
+          : onCall({ ...target, phone })
+      }
     />
   );
 }
+
+/** What the operator reads while calling: the step's message and goal, filled with the case. */
+export interface CallScript {
+  message: string;
+  goal: string;
+}
+
+export type OnCall = (target: CallTarget, script?: CallScript) => void;
 
 function StepGroup({
   group,
@@ -236,12 +251,18 @@ function StepGroup({
   canSkip: boolean;
   dict: I18nRecord;
   d: I18nRecord;
-  onCall: (target: CallTarget) => void;
+  onCall: OnCall;
   onSkip: () => void;
   onNewNumber: (draft: NewNumberDraft) => void;
 }>) {
   const carrierName = treatmentData?.trip_info?.carrier;
   const preset = presetFor(group.summary, trip, carrierName);
+  const script: CallScript | undefined = group.step.script?.trim()
+    ? {
+        message: fillScript(group.step.script, scriptContext),
+        goal: fillScript(group.step.goal ?? "", scriptContext),
+      }
+    : undefined;
   const { step, index } = group;
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
@@ -285,6 +306,7 @@ function StepGroup({
           target={target}
           calledAt={called.get(target.id)}
           step={step}
+          script={script}
           dict={dict}
           d={d}
           onCall={onCall}
@@ -362,7 +384,7 @@ function OtherContacts({
   collapsible: boolean;
   dict: I18nRecord;
   d: I18nRecord;
-  onCall: (target: CallTarget) => void;
+  onCall: OnCall;
   onNewNumber: (draft: NewNumberDraft) => void;
 }>) {
   const [open, setOpen] = useState(!collapsible);
@@ -466,7 +488,7 @@ export default function CallCenterMenu({
   /** The step the operator skipped to, if any. */
   skippedTo: number | null;
   onSkip: (step: number) => void;
-  onCall: (target: CallTarget) => void;
+  onCall: OnCall;
 }>) {
   const d = (dict.symptoms as I18nRecord)?.ladder as I18nRecord;
   const symptom = treatmentData?.symptom_info;

@@ -6,6 +6,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import CelEditor, {
   type CelField,
+  type CelValues,
 } from "@/features/symptoms/maintainer/cel-editor";
 import type { EditMode } from "@/features/symptoms/maintainer/level-row";
 import SelectableField from "@/features/settings-admin/selectables/field/selectable-field";
@@ -31,6 +32,29 @@ const ICON =
   "rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400";
 
 /** The contact fields and the event's data fields a condition can read. */
+/**
+ * The book's roles and companies, offered inside the quotes of
+ * `contact.role == '` and `contact.company == '`, with how many active
+ * contacts have each. Any other text is still allowed.
+ */
+export function contactCelValues(
+  book: Record<"role" | "company", Suggestion[]>,
+  d: I18nRecord
+): CelValues {
+  const toValues = (list: Suggestion[]) =>
+    list.map((s) => ({
+      value: s.value,
+      detail:
+        s.count === 1
+          ? tr("contactWithValue", d)
+          : tr("contactsWithValue", d, { count: String(s.count) }),
+    }));
+  return {
+    "contact.role": toValues(book.role),
+    "contact.company": toValues(book.company),
+  };
+}
+
 export function contactCelFields(fields: EventField[]): CelField[] {
   return [
     { path: "contact.name", detail: "string" },
@@ -250,6 +274,7 @@ export default function ContactsAudience({
           placeholder="'transportista' in contact.tags && contact.companyRut == event.data.carrierRut"
           value={condition}
           fields={contactCelFields(fields)}
+          values={contactCelValues(book, d)}
           onChange={onChange}
         />
       )}

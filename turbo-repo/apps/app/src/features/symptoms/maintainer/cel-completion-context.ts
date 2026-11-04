@@ -133,9 +133,15 @@ export function completionContext(text: string) {
   const variables = bindings(parts);
   const last = parts.at(-1);
   const field = last?.quoted && !last.closed ? comparedField(parts) : null;
+  // CEL takes either quote; the value is escaped for the one in use.
+  const quote = last?.text[0];
   const quoted =
-    field && last?.text.startsWith('"')
-      ? { path: resolved(field, variables), typed: last.text.slice(1) }
+    field && last && (quote === '"' || quote === "'")
+      ? {
+          path: resolved(field, variables),
+          typed: last.text.slice(1),
+          quote: quote as '"' | "'",
+        }
       : null;
   return { variables, quoted };
 }

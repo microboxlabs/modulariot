@@ -114,17 +114,27 @@ const highlight = HighlightStyle.define([
   { tag: tags.comment, class: "italic text-gray-400" },
 ]);
 
-function valueCompletions(from: number, suggested: CelValues[string]) {
+/** A value written inside a CEL literal opened with `quote`. */
+function escapeIn(value: string, quote: '"' | "'"): string {
+  if (quote === '"') return JSON.stringify(value).slice(1, -1);
+  return value.replaceAll("\\", "\\\\").replaceAll("'", String.raw`\'`);
+}
+
+function valueCompletions(
+  from: number,
+  suggested: CelValues[string],
+  quote: '"' | "'"
+) {
   if (suggested.length === 0) return null;
   return {
     from,
     options: suggested.map((v) => ({
       label: v.value,
-      apply: JSON.stringify(v.value).slice(1, -1),
+      apply: escapeIn(v.value, quote),
       detail: v.detail,
       type: "text",
     })),
-    validFor: /^[^"\\]*$/,
+    validFor: quote === '"' ? /^[^"\\]*$/ : /^[^'\\]*$/,
   };
 }
 
@@ -138,7 +148,8 @@ export function completions(
     if (quoted) {
       return valueCompletions(
         ctx.pos - quoted.typed.length,
-        values()[quoted.path] ?? []
+        values()[quoted.path] ?? [],
+        quoted.quote
       );
     }
     // `?` only right after a dot, so a ternary's `?` ends the word.

@@ -136,7 +136,9 @@ public class TelnyxUsageReconciler {
     enum Applied { CONFIRMED, CREATED, SKIPPED }
 
     Applied apply(String connectionId, JsonNode cdr, Instant now) {
-        String callControlId = text(cdr, "call_control_id");
+        // A record without a call control id is keyed by its own id, so it is still counted once.
+        String callControlId = text(cdr, "call_control_id") != null ? text(cdr, "call_control_id")
+                : (text(cdr, "id") == null ? null : "cdr:" + text(cdr, "id"));
         String tenant = usage.tenantOfSip(text(cdr, "auth_username")).orElse(null);
         if (callControlId == null || tenant == null) {
             return Applied.SKIPPED;

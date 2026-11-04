@@ -2,7 +2,6 @@ package com.microboxlabs.miot.integrations.telephony;
 
 import com.microboxlabs.miot.integrations.telephony.TelephonyPlanDtos.Plan;
 import com.microboxlabs.miot.integrations.telephony.TelephonyPlanDtos.Subscription;
-import io.quarkus.arc.properties.IfBuildProperty;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -24,7 +23,6 @@ import java.util.function.Supplier;
 
 /** {@link TelephonyUsageStore} on {@code miot_integrations}. */
 @ApplicationScoped
-@IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class PgTelephonyUsageStore implements TelephonyUsageStore {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);

@@ -13,6 +13,7 @@ const data = vi.hoisted(() => ({
   level: undefined as unknown,
   levelError: undefined as { status: number } | undefined,
   tripError: undefined as Error | undefined,
+  bookError: undefined as Error | undefined,
   tripLoading: false,
   refreshLevel: vi.fn(),
   treatmentsId: undefined as unknown,
@@ -23,7 +24,11 @@ const data = vi.hoisted(() => ({
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   createContact: data.createContact,
   contactsKey: "contacts",
-  useContacts: () => ({ data: data.contacts, isLoading: false }),
+  useContacts: () => ({
+    data: data.contacts,
+    isLoading: false,
+    error: data.bookError,
+  }),
   useSymptomTreatments: (id: unknown) => {
     data.treatmentsId = id;
     return { data: data.treatments };
@@ -118,6 +123,7 @@ async function saveNewNumber(
 beforeEach(() => {
   data.levelError = undefined;
   data.tripError = undefined;
+  data.bookError = undefined;
   data.tripLoading = false;
   vi.clearAllMocks();
   data.contacts = [
@@ -324,7 +330,7 @@ describe("CallCenterMenu", () => {
     );
   });
 
-  it("marks who was already called in this case, including older driver calls", () => {
+  it("marks a contact already called in this case by contact id", () => {
     data.level = levelWith([
       { role: "Conductor", channel: "call", budgetMinutes: 2, script: null },
     ]);
@@ -333,7 +339,7 @@ describe("CallCenterMenu", () => {
         actions: [
           {
             kind: "CALL",
-            contactId: null,
+            contactId: "ana",
             contactRole: "Conductor",
             performedAt: new Date().toISOString(),
           },
@@ -386,6 +392,24 @@ it("shows a trip lookup failure without offering to save an unmatched driver", (
   expect(
     screen.queryByText("Conductor del viaje no está en la libreta.")
   ).toBeNull();
+});
+
+it("shows a book request failure instead of claiming the trip driver is absent", () => {
+  data.contacts = [];
+  data.bookError = new Error("book unavailable");
+  data.level = levelWith([
+    { role: "Conductor", scope: "DRIVER", channel: "call", budgetMinutes: 2 },
+  ]);
+  renderMenu();
+  expect(
+    screen.getByText(
+      "No se pudieron cargar los contactos del viaje. Inténtalo de nuevo."
+    )
+  ).toBeTruthy();
+  expect(
+    screen.queryByText("Conductor del viaje no está en la libreta.")
+  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "Nuevo número" })).toBeNull();
 });
 
 it("shows a retry action when the calling order fails to load", async () => {

@@ -140,7 +140,7 @@ const action = (patch: Partial<TowerAction>): TowerAction =>
   }) as TowerAction;
 
 describe("calledInCase", () => {
-  it("keeps the latest CALL per contact, and counts older driver calls for each trip driver", () => {
+  it("keeps explicit contact calls and does not attribute a role-only call to current drivers", () => {
     const treatments = [
       {
         actions: [
@@ -154,8 +154,8 @@ describe("calledInCase", () => {
         ],
       },
     ] as TowerTreatment[];
-    const called = calledInCase(treatments, TRIP.drivers);
-    expect([...called.keys()].sort()).toEqual(["ana", "beto", "gs"]);
+    const called = calledInCase(treatments);
+    expect([...called.keys()].sort()).toEqual(["gs"]);
     expect(called.get("gs")?.toISOString()).toBe("2026-11-03T10:09:00.000Z");
     expect(calledInCase(treatments).has("ana")).toBe(false);
     expect(calledInCase(undefined).size).toBe(0);

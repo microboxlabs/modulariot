@@ -36,6 +36,29 @@ function fakeClient() {
 }
 
 describe("startTelnyxCall", () => {
+  it("ignores another call's notifications on the shared SDK client", async () => {
+    const { client, update } = fakeClient();
+    const onEnd = vi.fn();
+    await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => client,
+    });
+    client.fire("telnyx.ready");
+    client.fire("telnyx.notification", {
+      type: "callUpdate",
+      call: { id: "incoming", state: "hangup" },
+    });
+    expect(onEnd).not.toHaveBeenCalled();
+    update("hangup", "NORMAL_CLEARING", 200);
+    expect(onEnd).toHaveBeenCalledWith(
+      expect.objectContaining({ callId: "v3:control-1" })
+    );
+  });
+
   it("returns a cancellable handle while connection startup is pending", async () => {
     const { client } = fakeClient();
     client.connect = vi.fn(() => new Promise<void>(() => undefined));

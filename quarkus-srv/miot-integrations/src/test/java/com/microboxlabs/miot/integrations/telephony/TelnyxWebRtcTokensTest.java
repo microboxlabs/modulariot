@@ -22,10 +22,10 @@ class TelnyxWebRtcTokensTest {
 
     @Test
     void doesNotReuseAnotherOperatorsCredentialEvenIfTheProviderFilterReturnsIt() {
-        http.reply("GET /v2/telephony_credentials", 200,
+        http.reply("POST /v2/telephony_credentials/new-1/token", 201, "new-token")
+                .reply("GET /v2/telephony_credentials", 200,
                 "{\"data\":[{\"id\":\"other-operator\",\"name\":\"someone-else\",\"resource_id\":\"connection:sip-1\"}]}")
-                .reply("POST /v2/telephony_credentials", 201, "{\"data\":{\"id\":\"new-1\"}}")
-                .reply("POST /v2/telephony_credentials/new-1/token", 201, "new-token");
+                .reply("POST /v2/telephony_credentials", 201, "{\"data\":{\"id\":\"new-1\"}}");
         assertEquals("new-token", tokens.issue("acme", "conn-1", "ana@example.com").token());
         assertTrue(http.seen().stream().noneMatch(r -> r.path().contains("other-operator")));
     }

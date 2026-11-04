@@ -4443,8 +4443,9 @@
         "newRuleForLevelName": "{symptom} · {level}",
         "channelPreferred": "Preferido",
         "telephonyTitle": "Telefonía de \"Llamar a\"",
+        "telephonySavesImmediately": "Los cambios se guardan al elegir, independientemente de los ajustes del equipo.",
         "telephonyAuto": "Automático: Telnyx si está conectado, si no Teams Phone",
-        "telephonyActive": "Las llamadas usan",
+        "telephonyActive": "Conexión seleccionada",
         "telephonyNone": "el marcador del teléfono (sin conexión de telefonía)",
         "telephonyNotReady": "{name} no pasó su prueba; no se usa hasta que la pase.",
         "telephonyConnections": "Configurar en Conexiones",
@@ -5565,8 +5566,8 @@
         "platformBody": "El proveedor que usan todas las organizaciones. Elige la credencial Mapbox o Google Maps de la Plataforma y nuestro costo por consulta."
       },
       "telephony": {
-        "telnyxHelp": "Las llamadas de \"Llamar a\" salen desde el navegador por Telnyx. La API key va en una credencial Telnyx.",
-        "teamsHelp": "Las llamadas de \"Llamar a\" se abren en Teams. La credencial es una app de Microsoft Entra con el permiso CallRecords.Read.All, para leer la duración y el resultado.",
+        "telnyxHelp": "Configura la conexión SIP y el número de origen de Telnyx. Guarda la API key en una credencial Telnyx.",
+        "teamsHelp": "Configura Teams Phone con una credencial de app de Microsoft Entra. CallRecords.Read.All permite leer la duración y el resultado de las llamadas.",
         "baseUrlHelp": "Fija: la credencial solo se envía a esta API.",
         "sipConnectionId": "ID de la credential connection (SIP)",
         "sipConnectionIdHelp": "En Telnyx: Voice › SIP Trunking › la conexión de tipo Credentials.",

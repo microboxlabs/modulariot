@@ -2,7 +2,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveTelephony, useTelephony } from "./telephony-api";
+import {
+  fetchWebRtcToken,
+  reconcileTeamsCalls,
+  saveTelephony,
+  useTelephony,
+} from "./telephony-api";
 import { parseTelephonySetup } from "./telephony-api.types";
 
 const { request, mutate } = vi.hoisted(() => ({
@@ -34,12 +39,12 @@ const line = {
 };
 const setup = { preferred: null, active: line, lines: [line] };
 
-describe("telephony configuration API boundary", () => {
-  beforeEach(() => {
-    request.mockReset();
-    mutate.mockReset();
-  });
+beforeEach(() => {
+  request.mockReset();
+  mutate.mockReset();
+});
 
+describe("telephony configuration API boundary", () => {
   it("loads a valid configuration with provider-controlled nullable fields", async () => {
     request.mockResolvedValue({ lines: [{ ...line, callerNumber: null }] });
     const { result } = renderHook(() => useTelephony(), { wrapper: Wrapper });
@@ -86,5 +91,65 @@ describe("telephony configuration API boundary", () => {
     });
     expect(result.active?.managed).toBe(managed);
     expect(result.lines[0].managed).toBe(managed);
+  });
+
+  it("validates the operator token before giving it to the calling SDK", async () => {
+    const response = {
+      token: "synthetic-token",
+      callerNumber: "+12025550101",
+      expiresAt: "2026-11-05T10:00:00Z",
+      callRef: "managed-admission-1",
+    };
+    request.mockResolvedValue(response);
+    await expect(fetchWebRtcToken()).resolves.toEqual(response);
+    expect(request).toHaveBeenCalledWith("/tower/telephony/webrtc-token", {
+      method: "POST",
+      body: {},
+    });
+  });
+
+  it.each([
+    null,
+    {},
+    {
+      token: "",
+      callerNumber: "+12025550101",
+      expiresAt: "2026-11-05T10:00:00Z",
+    },
+    {
+      token: "synthetic-token",
+      callerNumber: "not-a-number",
+      expiresAt: "2026-11-05T10:00:00Z",
+    },
+    {
+      token: "synthetic-token",
+      callerNumber: "+12025550101",
+      expiresAt: "invalid-date",
+    },
+  ])("rejects a malformed operator token response: %s", async (payload) => {
+    request.mockResolvedValue(payload);
+    await expect(fetchWebRtcToken()).rejects.toThrow();
+  });
+});
+
+describe("Teams reconciliation API boundary", () => {
+  it("parses the complete reconciliation result", async () => {
+    const response = { checked: 3, recorded: 1, pending: 2 };
+    request.mockResolvedValue(response);
+    await expect(reconcileTeamsCalls()).resolves.toEqual(response);
+    expect(request).toHaveBeenCalledWith("/tower/telephony/reconcile", {
+      method: "POST",
+    });
+  });
+
+  it.each([
+    null,
+    {},
+    { checked: -1, recorded: 0, pending: 0 },
+    { checked: 1, recorded: "1", pending: 0 },
+    { checked: 1.5, recorded: 1, pending: 0 },
+  ])("rejects malformed reconciliation counts: %s", async (payload) => {
+    request.mockResolvedValue(payload);
+    await expect(reconcileTeamsCalls()).rejects.toThrow();
   });
 });

@@ -91,4 +91,43 @@ class TelephonyChoiceServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.save("acme", "owner@example.com", request));
     }
+    @Test
+    void aLineLookupFailureDoesNotPersistAChoiceAndASuccessfulSaveDoesNotReadTwice() {
+        var store = new InMemoryTowerSettingsStore();
+        var reads = new java.util.concurrent.atomic.AtomicInteger();
+        var choice = new TelephonyChoiceService(store, tenant -> {
+            if (reads.incrementAndGet() != 2) {
+                throw new IllegalStateException("Synthetic line lookup failure");
+            }
+            return List.of(TEAMS);
+        }, new AuditService(new InMemoryAuditStore()));
+        var request = new TelephonyRequest("TEAMS_PHONE");
+        assertThrows(IllegalStateException.class, () -> choice.save("acme", "owner", request));
+        assertEquals(java.util.Optional.empty(), store.telephonyProvider("acme"));
+        var saved = choice.save("acme", "owner", request);
+        assertEquals(TEAMS, saved.active());
+        assertEquals(TelephonyProvider.TEAMS_PHONE, saved.preferred());
+        assertEquals(2, reads.get());
+    }
+
+    @Test
+    void theInMemoryPreferencePreservesTeamValuesAndRecordsWhoChangedIt() {
+        var store = new InMemoryTowerSettingsStore();
+        store.saveTelephonyProvider("new", "TELNYX", "first-owner");
+        var defaults = store.find("new").orElseThrow();
+        assertEquals("first-owner", defaults.updatedBy());
+        org.junit.jupiter.api.Assertions.assertNotNull(defaults.updatedAt());
+        store.save(new com.microboxlabs.miot.symptoms.domain.TowerSettings("acme", 12, 6, 100, "old-owner", null));
+        store.saveTelephonyProvider("acme", "TEAMS_PHONE", "new-owner");
+        var saved = store.find("acme").orElseThrow();
+        assertEquals(12, saved.operators());
+        assertEquals(6, saved.shiftHours());
+        assertEquals(100, saved.capacityPerShift());
+        assertEquals("new-owner", saved.updatedBy());
+        org.junit.jupiter.api.Assertions.assertNotNull(saved.updatedAt());
+        store.saveTelephonyProvider("acme", null, "auto-owner");
+        assertEquals(java.util.Optional.empty(), store.telephonyProvider("acme"));
+        assertEquals("auto-owner", store.find("acme").orElseThrow().updatedBy());
+    }
+
 }

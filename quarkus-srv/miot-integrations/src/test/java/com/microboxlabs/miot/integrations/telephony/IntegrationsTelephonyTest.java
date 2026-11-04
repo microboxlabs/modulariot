@@ -71,6 +71,12 @@ class IntegrationsTelephonyTest {
     }
 
     @Test
+    void anOrganizationCannotSeeAnotherOrganizationsOwnLine() {
+        store(telnyx("t1", "acme", Map.of("callerNumber", "+56900000000")));
+        assertTrue(telephony.lines("other-tenant").isEmpty());
+    }
+
+    @Test
     void withoutItsOwnTelnyxAnOrganizationUsesThePlatformsManagedLine() {
         store(telnyx("p1", PlatformScope.TENANT, Map.of("callerNumber", "+56 2 0000 0000")));
 

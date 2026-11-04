@@ -14,6 +14,17 @@ const setupSchema = z.object({
   lines: z.array(lineSchema),
 });
 
+const reconcileResultSchema = z.object({
+  checked: z.number().int().nonnegative(),
+  recorded: z.number().int().nonnegative(),
+  pending: z.number().int().nonnegative(),
+});
+export type ReconcileResult = z.infer<typeof reconcileResultSchema>;
+
+export function parseReconcileResult(payload: unknown): ReconcileResult {
+  return reconcileResultSchema.parse(payload);
+}
+
 export type TelephonyProvider = z.infer<typeof providerSchema>;
 export type TelephonyLine = z.infer<typeof lineSchema>;
 export type TelephonySetup = z.infer<typeof setupSchema>;

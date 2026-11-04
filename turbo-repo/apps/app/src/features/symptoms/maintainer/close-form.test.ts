@@ -79,6 +79,12 @@ describe("close rows", () => {
     ).toBe("case.age_h >= 2 && case.level <= 2");
   });
 
+  it("keeps thresholds that the form would round in CEL mode", () => {
+    expect(parseCloseRows("case.normal_s >= 0.0000001", FIELDS)).toBeNull();
+    expect(parseCloseRows("case.age_h >= 1.1234567", FIELDS)).toBeNull();
+    expect(parseCloseRows("case.normal_s >= 0.123456", FIELDS)).not.toBeNull();
+  });
+
   it("keeps unknown conjuncts in CEL instead of dropping them", () => {
     for (const rule of [
       "signal.custom && case.closed_by_operator",

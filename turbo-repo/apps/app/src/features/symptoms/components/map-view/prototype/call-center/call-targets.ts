@@ -13,6 +13,7 @@ import {
   type TowerAction,
   type TowerCallMethod,
   type TowerContact,
+  type TowerContactChannels,
   useContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
 import { isDriverRole } from "@/features/symptoms/control-tower/step-who";
@@ -32,6 +33,7 @@ export interface CallTarget {
   personName: string;
   role: string;
   phone: string;
+  channels?: TowerContactChannels | null;
   /** The contact's company and its tax id; absent for a carrier-less contact. */
   company?: string | null;
   companyRut?: string | null;
@@ -95,6 +97,7 @@ export function useCallTargets() {
         personName: c.name,
         role: c.role ?? "",
         phone: c.phone || c.channels?.phone || c.channels?.whatsapp || "",
+        channels: c.channels,
         company: c.company,
         companyRut: c.companyRut ?? null,
         methods: contactMethods(c),

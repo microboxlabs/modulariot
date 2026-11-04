@@ -174,6 +174,11 @@ export default function PrototypeCallCenterFlow({
   };
 
   const handleConfirmCall = (elapsedSeconds: number, method: CallMethod) => {
+    const calledPhone =
+      method === "phone" || method === "whatsapp"
+        ? (activeContact?.channels?.[method] ?? activePhone)
+        : activePhone;
+    setActivePhone(calledPhone);
     setCallDurationSeconds(elapsedSeconds);
     setCallMethodUsed(method);
     onFormDraftChange?.(null);
@@ -183,7 +188,7 @@ export default function PrototypeCallCenterFlow({
       contact: activeContact,
       personName: activePersonName,
       role: activeRole,
-      phone: activePhone,
+      phone: calledPhone,
       allowedMethods: activeAllowedMethods,
       durationSeconds: elapsedSeconds,
       methodUsed: method,
@@ -228,6 +233,7 @@ export default function PrototypeCallCenterFlow({
           contactName={activePersonName}
           contactRole={activeRole}
           contactPhone={activePhone}
+          channels={activeContact?.channels}
           allowedMethods={activeAllowedMethods ?? []}
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}

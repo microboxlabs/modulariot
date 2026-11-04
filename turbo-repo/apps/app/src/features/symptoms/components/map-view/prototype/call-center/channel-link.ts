@@ -6,7 +6,7 @@
 
 import type { CallMethod } from "./call-method";
 
-/** The number's digits with the country code, as wa.me and tel: take it: `+56 9 1234 5678` → `56912345678`. */
+/** The number's digits with the country code, as wa.me and tel: take it: `+1 202 555 0101` → `12025550101`. */
 export function phoneDigits(phone: string | null | undefined): string | null {
   const digits = (phone ?? "").replace(/\D/g, "");
   return digits.length >= 8 ? digits : null;

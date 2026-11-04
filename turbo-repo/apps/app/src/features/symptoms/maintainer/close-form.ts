@@ -150,8 +150,10 @@ function parseCloseRow(part: string, fields: CloseFields): CloseRow | null {
   for (const term of terms.map(unwrap)) {
     const level = LEVEL.exec(term);
     if (level && maxLevel === null) maxLevel = Number(level[1]);
-    else if (when === null) when = parseWhen(term, fields);
-    else return null;
+    else if (when === null) {
+      when = parseWhen(term, fields);
+      if (when === null) return null;
+    } else return null;
   }
   return when ? { when, maxLevel } : null;
 }

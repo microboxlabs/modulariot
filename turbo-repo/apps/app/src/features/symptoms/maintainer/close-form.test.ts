@@ -79,6 +79,17 @@ describe("close rows", () => {
     ).toBe("case.age_h >= 2 && case.level <= 2");
   });
 
+  it("keeps unknown conjuncts in CEL instead of dropping them", () => {
+    for (const rule of [
+      "signal.custom && case.closed_by_operator",
+      "signal.custom && case.normal_s >= 0",
+      "signal.custom && case.level <= 3",
+      "case.closed_by_operator && signal.custom",
+      "signal.custom && case.closed_by_operator || case.age_h >= 12",
+    ])
+      expect(parseCloseRows(rule, FIELDS)).toBeNull();
+  });
+
   it("is null for what the rows cannot say, and empty for no rule", () => {
     expect(
       parseCloseRows("case.normal_s >= 0 && case.age_h >= 1", FIELDS)

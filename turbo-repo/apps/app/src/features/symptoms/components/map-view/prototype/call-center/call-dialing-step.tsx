@@ -28,6 +28,7 @@ import {
   type CallMethod,
 } from "./call-method";
 import type { CallStats } from "./call-targets";
+import { channelLink } from "./channel-link";
 import ContactRow from "./contact-row";
 
 function formatDuration(totalSeconds: number): string {
@@ -198,6 +199,12 @@ export default function CallDialingStep({
                   key={id}
                   type="button"
                   onClick={() => {
+                    // Opens the channel's app (dialer, WhatsApp chat with the
+                    // script typed); the call is timed here either way.
+                    const link = channelLink(id, contactPhone, reason);
+                    if (link?.startsWith("https://"))
+                      window.open(link, "_blank", "noopener,noreferrer");
+                    else if (link) window.location.href = link;
                     setMethod(id);
                     setStarted(true);
                     onStartedChange?.(true);

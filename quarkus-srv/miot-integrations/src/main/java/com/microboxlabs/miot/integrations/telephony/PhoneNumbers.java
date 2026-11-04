@@ -2,10 +2,10 @@ package com.microboxlabs.miot.integrations.telephony;
 
 import java.util.regex.Pattern;
 
-/** E.164 numbers: a plus sign, a country code and up to 15 digits in all. */
+/** Supported E.164 format: a plus sign and 7 to 15 digits in all. */
 public final class PhoneNumbers {
 
-    private static final Pattern E164 = Pattern.compile("\\+[1-9]\\d{7,14}");
+    private static final Pattern E164 = Pattern.compile("\\+[1-9]\\d{6,14}");
     private static final Pattern SEPARATORS = Pattern.compile("[\\s().-]");
 
     private PhoneNumbers() {

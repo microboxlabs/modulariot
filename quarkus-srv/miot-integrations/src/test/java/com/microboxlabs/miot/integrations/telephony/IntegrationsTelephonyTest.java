@@ -43,6 +43,10 @@ class IntegrationsTelephonyTest {
     @Test
     void e164AcceptsSeparatorsOnly() {
         assertEquals("+56900000000", PhoneNumbers.e164("+56 (9) 0000-0000"));
+        assertEquals("+6834001", PhoneNumbers.e164("+683 4001"));
+        assertNull(PhoneNumbers.e164("+683400"));
+        assertEquals("+123456789012345", PhoneNumbers.e164("+123456789012345"));
+        assertNull(PhoneNumbers.e164("+1234567890123456"));
         assertNull(PhoneNumbers.e164("56900000000"));
         assertNull(PhoneNumbers.e164("+0123456789"));
         assertNull(PhoneNumbers.e164(null));

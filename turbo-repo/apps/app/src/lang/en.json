@@ -5405,6 +5405,7 @@
           "credential": "Credential",
           "noCredential": "No credential",
           "noCredentials": "No credentials. Create them in Settings › Credentials.",
+          "testSavedConfigHint": "Tests the saved connection. Save your changes before testing them.",
           "secretNotice": "Secrets live in the credential, not here — this connection only references it.",
           "postgrestHelp": "After saving, test it and use Functions to choose which functions dashboards may use.",
           "postgrestBaseUrlHelp": "The PostgREST root URL, the one that returns its OpenAPI description."

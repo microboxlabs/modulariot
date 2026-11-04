@@ -286,7 +286,16 @@ export default function TemplateTextField({
             composing.current = false;
           }}
           onKeyUp={(e) => {
-            if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
+            if (
+              [
+                "ArrowLeft",
+                "ArrowRight",
+                "Home",
+                "End",
+                "PageUp",
+                "PageDown",
+              ].includes(e.key)
+            )
               track();
           }}
           onClick={track}

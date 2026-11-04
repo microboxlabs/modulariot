@@ -60,8 +60,9 @@ class OrgControlTowerTelephonyResourceTest {
 
     @Test
     void rejectsTheSharedServiceIdentityBeforeIssuingALogin() {
-        assertThrows(ForbiddenException.class, () -> resource(null).webRtcToken("org-a"));
-        assertThrows(ForbiddenException.class, () -> resource(null).reconcile("org-a"));
+        var anonymous = resource(null);
+        assertThrows(ForbiddenException.class, () -> anonymous.webRtcToken("org-a"));
+        assertThrows(ForbiddenException.class, () -> anonymous.reconcile("org-a"));
         assertNull(issuedTo);
     }
 

@@ -21,6 +21,7 @@ import java.time.format.DateTimeParseException;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import com.microboxlabs.miot.integrations.telephony.TelephonyUsageStore.ReconcileCursor;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -36,7 +37,10 @@ public class TelnyxUsageReconciler {
     private static final Logger LOG = Logger.getLogger(TelnyxUsageReconciler.class);
     static final int MAX_PAGES = 20;
 
-    public record Result(int records, int confirmed, int created, int skipped, int expired) {
+    public record Result(int records, int confirmed, int created, int skipped, int expired, boolean incomplete, int nextPage) {
+        public Result(int records, int confirmed, int created, int skipped, int expired) {
+            this(records, confirmed, created, skipped, expired, false, 1);
+        }
     }
 
     private final Function<String, IntegrationConnection> managedConnection;
@@ -76,7 +80,7 @@ public class TelnyxUsageReconciler {
         }
         try {
             Result r = run();
-            if (r.records() > 0 || r.expired() > 0) {
+            if (r.records() > 0 || r.expired() > 0 || r.incomplete()) {
                 LOG.infof("Telnyx usage reconcile: %s", r);
             }
         } catch (RuntimeException e) {
@@ -98,43 +102,77 @@ public class TelnyxUsageReconciler {
         if (apiKey == null || sipConnectionId == null) {
             return new Result(0, 0, 0, 0, expired);
         }
-        int records = 0;
-        int confirmed = 0;
-        int created = 0;
-        int skipped = 0;
+        return usage.locked("reconcile:" + connection.id(), () -> scan(connection, apiKey, sipConnectionId, now, expired));
+    }
+
+    private Result scan(IntegrationConnection connection, String apiKey, String sipConnectionId, Instant now, int expired) {
+        ReconcileCursor cursor = usage.reconcileCursor(connection.id()).orElse(new ReconcileCursor(1, now));
+        int nextPage = cursor.nextPage();
+        boolean complete = false;
+        Counts counts = new Counts(0, 0, 0, 0);
         try {
-            for (int page = 1; page <= MAX_PAGES; page++) {
-                HttpResponse<String> response = client.detailRecords(apiKey.trim(), page);
-                if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    LOG.warnf("Telnyx detail records returned HTTP %d", response.statusCode());
-                    break;
-                }
-                JsonNode body = json.readTree(response.body());
-                for (JsonNode cdr : body.path("data")) {
-                    if (!sipConnectionId.equals(cdr.path("connection_id").asText())) {
-                        continue;
-                    }
-                    records++;
-                    switch (apply(connection.id(), cdr, now)) {
-                        case CONFIRMED -> confirmed++;
-                        case CREATED -> created++;
-                        default -> skipped++;
-                    }
-                }
-                if (page == MAX_PAGES && page < body.path("meta").path("total_pages").asInt(1)) {
-                    LOG.errorf("Telnyx detail-record scan incomplete: %d pages available, only %d visited; usage may be missing",
-                            body.path("meta").path("total_pages").asInt(), MAX_PAGES);
-                }
+            for (int visited = 0; visited < MAX_PAGES; visited++) {
+                int page = nextPage;
+                JsonNode body = readPage(apiKey, page, cursor.startedAt(), now);
+                if (body == null) break;
+                counts = counts.plus(applyPage(connection.id(), sipConnectionId, body, now));
                 if (page >= body.path("meta").path("total_pages").asInt(1)) {
+                    complete = true;
+                    usage.clearReconcileCursor(connection.id());
+                    nextPage = 1;
                     break;
                 }
+                nextPage = page + 1;
+                usage.saveReconcileCursor(connection.id(), new ReconcileCursor(nextPage, cursor.startedAt()));
             }
         } catch (IOException e) {
             LOG.warnf("Could not read Telnyx detail records: %s", e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        return new Result(records, confirmed, created, skipped, expired);
+        if (!complete) {
+            usage.saveReconcileCursor(connection.id(), new ReconcileCursor(nextPage, cursor.startedAt()));
+            LOG.warnf("Telnyx detail-record scan incomplete; next run resumes at page %d (scan started %s)", nextPage, cursor.startedAt());
+        }
+        return new Result(counts.records(), counts.confirmed(), counts.created(), counts.skipped(), expired, !complete, nextPage);
+    }
+
+    private record Counts(int records, int confirmed, int created, int skipped) {
+        Counts plus(Counts other) {
+            return new Counts(records + other.records, confirmed + other.confirmed, created + other.created, skipped + other.skipped);
+        }
+    }
+
+    private JsonNode readPage(String apiKey, int page, Instant scanStartedAt, Instant now)
+            throws IOException, InterruptedException {
+        HttpResponse<String> response = client.detailRecords(apiKey.trim(), page, scanStartedAt, now);
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            LOG.warnf("Telnyx detail records returned HTTP %d", response.statusCode());
+            return null;
+        }
+        JsonNode body = json.readTree(response.body());
+        if (body == null || !body.path("data").isArray() || !body.path("meta").path("total_pages").canConvertToInt()) {
+            LOG.warn("Telnyx detail records omitted pagination metadata; retaining the scan cursor");
+            return null;
+        }
+        return body;
+    }
+
+    private Counts applyPage(String connectionId, String sipConnectionId, JsonNode body, Instant now) {
+        int records = 0;
+        int confirmed = 0;
+        int created = 0;
+        int skipped = 0;
+        for (JsonNode cdr : body.path("data")) {
+            if (!sipConnectionId.equals(cdr.path("connection_id").asText())) continue;
+            records++;
+            switch (apply(connectionId, cdr, now)) {
+                case CONFIRMED -> confirmed++;
+                case CREATED -> created++;
+                default -> skipped++;
+            }
+        }
+        return new Counts(records, confirmed, created, skipped);
     }
 
     enum Applied { CONFIRMED, CREATED, SKIPPED }

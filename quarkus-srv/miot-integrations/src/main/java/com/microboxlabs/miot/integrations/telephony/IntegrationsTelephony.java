@@ -140,6 +140,7 @@ public class IntegrationsTelephony implements Telephony {
         usage.locked(initial.connectionId(), () -> {
             UsageRow r = usage.find(callRef).orElseThrow();
             if (!UsageRow.STARTED.equals(r.status())) return false;
+            if (usage.admission(callRef).isPresent()) return false;
             // The browser only releases the reservation. Provider identifiers come from verified deliveries.
             usage.update(new UsageRow(r.id(), r.tenantCode(), r.channel(), r.managed(), r.connectionId(), r.externalId(),
                     r.caseRef(), r.calleeNumber(), r.destinationType(), UsageRow.ENDED, r.answeredAt(), r.seconds(),

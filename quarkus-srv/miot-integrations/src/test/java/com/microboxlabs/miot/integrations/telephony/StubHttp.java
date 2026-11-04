@@ -56,7 +56,7 @@ public final class StubHttp implements TelephonyHttp {
     }
 
     @Override
-    public HttpResponse<String> send(HttpRequest request) throws IOException {
+    public synchronized HttpResponse<String> send(HttpRequest request) throws IOException {
         seen.add(new Seen(request, body(request)));
         if (failure != null) {
             throw failure;

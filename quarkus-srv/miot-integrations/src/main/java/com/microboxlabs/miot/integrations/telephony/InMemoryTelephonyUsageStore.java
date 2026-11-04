@@ -24,6 +24,8 @@ public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
     private final Map<String, UsageRow> rows = new LinkedHashMap<>();
     private final Map<String, String[]> credentials = new LinkedHashMap<>();
     private final Map<String, Subscription> subscriptions = new LinkedHashMap<>();
+    private final Map<String, CallAdmission> admissions = new LinkedHashMap<>();
+    private final Map<String, ReconcileCursor> cursors = new LinkedHashMap<>();
     private Plan plan = new Plan(0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             BigDecimal.ZERO, false, null, null);
 
@@ -115,6 +117,43 @@ public class InMemoryTelephonyUsageStore implements TelephonyUsageStore {
     public synchronized Optional<String> tenantOfSip(String sipUsername, String sipConnectionId) {
         String[] c = credentials.get(sipUsername);
         return c == null || !Objects.equals(c[2], sipConnectionId) ? Optional.empty() : Optional.of(c[0]);
+    }
+
+    @Override
+    public synchronized Optional<CallAdmission> admission(String callRef) {
+        return Optional.ofNullable(admissions.get(callRef));
+    }
+
+    @Override
+    public synchronized Optional<CallAdmission> admissionByTargetState(String targetState) {
+        return admissions.values().stream().filter(a -> a.targetState().equals(targetState)).findFirst();
+    }
+
+    @Override
+    public synchronized Optional<CallAdmission> admissionByParkedCall(String parkedCallId) {
+        return admissions.values().stream().filter(a -> a.parkedCallId().equals(parkedCallId)).findFirst();
+    }
+
+    @Override
+    public synchronized void saveAdmission(CallAdmission admission) {
+        if (admissions.putIfAbsent(admission.callRef(), admission) != null) {
+            throw new IllegalStateException("The call reservation is already consumed");
+        }
+    }
+
+    @Override
+    public synchronized Optional<ReconcileCursor> reconcileCursor(String connectionId) {
+        return Optional.ofNullable(cursors.get(connectionId));
+    }
+
+    @Override
+    public synchronized void saveReconcileCursor(String connectionId, ReconcileCursor cursor) {
+        cursors.put(connectionId, cursor);
+    }
+
+    @Override
+    public synchronized void clearReconcileCursor(String connectionId) {
+        cursors.remove(connectionId);
     }
 
     @Override

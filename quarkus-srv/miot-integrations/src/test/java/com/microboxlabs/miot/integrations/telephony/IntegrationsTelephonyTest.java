@@ -44,13 +44,14 @@ class IntegrationsTelephonyTest {
             (tenant, id) -> byKey.values().stream().filter(c -> c.tenantCode().equals(tenant) && c.id().equals(id))
                     .findFirst().orElse(null),
             (tenant, c) -> new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("token", "KEY_test")),
-            new TelnyxClient(http, API), new ObjectMapper(), clock);
+            new TelnyxClient(http, API), new ObjectMapper(), clock, "https://miot.test");
     private final IntegrationsTelephony telephony = new IntegrationsTelephony(
             (tenant, provider) -> byKey.get(tenant + "|" + provider), tokens, null, usage,
             new TelephonyPlanService(usage, clock), clock);
 
     private void store(IntegrationConnection c) {
         byKey.put(c.tenantCode() + "|" + c.providerType(), c);
+        http.reply("GET /v2/credential_connections", 200, TelnyxWebRtcTokensTest.parked(c.id()));
     }
 
     @Test

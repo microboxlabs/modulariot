@@ -22,7 +22,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.Optional;
 import java.util.function.BiFunction;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Issues Telnyx WebRTC tokens. Each operator has one telephony credential (a SIP login) under the
@@ -40,21 +42,36 @@ public class TelnyxWebRtcTokens {
     private final TelnyxClient client;
     private final ObjectMapper json;
     private final Clock clock;
+    private final String webhookBaseUrl;
 
     @Inject
     public TelnyxWebRtcTokens(IntegrationConnectionRepository repository, IntegrationConnectionResolver resolver,
-            TelnyxClient client, ObjectMapper json) {
-        this(repository::findByTenantAndId, resolver::resolve, client, json, Clock.systemUTC());
+            TelnyxClient client, ObjectMapper json,
+            @ConfigProperty(name = "miot.integrations.telephony.webhook-base-url") Optional<String> webhookBaseUrl) {
+        this(repository::findByTenantAndId, resolver::resolve, client, json, Clock.systemUTC(), webhookBaseUrl.orElse(""));
     }
 
     public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
             BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelnyxClient client,
             ObjectMapper json, Clock clock) {
+        this(connections, resolver, client, json, clock, "");
+    }
+
+    public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
+            BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelnyxClient client,
+            ObjectMapper json, Clock clock, String webhookBaseUrl) {
         this.connections = connections;
         this.resolver = resolver;
         this.client = client;
         this.json = json;
         this.clock = clock;
+        this.webhookBaseUrl = trimTrailingSlashes(webhookBaseUrl);
+    }
+
+    private static String trimTrailingSlashes(String value) {
+        int end = value.length();
+        while (end > 0 && value.charAt(end - 1) == '/') end--;
+        return value.substring(0, end);
     }
 
     /** A token, the operator's credential, and the connection it was issued on. */
@@ -98,6 +115,7 @@ public class TelnyxWebRtcTokens {
             throw new TelephonyUnavailableException("The Telnyx connection is incomplete; test it in Conexiones");
         }
         try {
+            requireParkedConnection(apiKey.trim(), sipConnectionId, connection.id());
             JsonNode credential = credentialFor(apiKey.trim(), sipConnectionId,
                     credentialName(callingTenant, operator));
             String credentialId = credential.path("id").asText();
@@ -111,6 +129,25 @@ public class TelnyxWebRtcTokens {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new TelephonyUnavailableException("The Telnyx token request was interrupted");
+        }
+    }
+
+    private void requireParkedConnection(String apiKey, String sipConnectionId, String connectionId)
+            throws IOException, InterruptedException {
+        if (!webhookBaseUrl.startsWith("https://")) {
+            throw new TelephonyUnavailableException("Configure miot.integrations.telephony.webhook-base-url before issuing Telnyx logins");
+        }
+        HttpResponse<String> response = client.credentialConnection(apiKey, sipConnectionId);
+        require(response, "verify parked-call admission");
+        JsonNode c = read(response.body()).path("data");
+        String expectedWebhook = webhookBaseUrl + "/webhooks/telnyx/" + connectionId;
+        String failover = c.path("webhook_event_failover_url").asText("");
+        if (!c.path("active").asBoolean(false) || !c.path("outbound").path("call_parking_enabled").asBoolean(false)
+                || !"2".equals(c.path("webhook_api_version").asText())
+                || !expectedWebhook.equals(c.path("webhook_event_url").asText())
+                || (!failover.isBlank() && !expectedWebhook.equals(failover))
+                || !"disabled".equals(c.path("sip_uri_calling_preference").asText())) {
+            throw new TelephonyUnavailableException("Telnyx must park outbound calls at this server's v2 webhook and disable direct SIP URI calls");
         }
     }
 

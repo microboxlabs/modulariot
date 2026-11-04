@@ -41,7 +41,7 @@ export function scriptFields(
   d: I18nRecord
 ): EventField[] {
   const leaves = contextLeaves(ctx);
-  const paths = leaves.length ? leaves.map((l) => l.path) : [...SCRIPT_PATHS];
+  const paths = [...new Set([...SCRIPT_PATHS, ...leaves.map((l) => l.path)])];
   return paths.map((path) => ({
     name: path,
     type: "string",
@@ -114,6 +114,8 @@ function ScriptPreview({
   replies,
   ctx,
   hasSample,
+  failed,
+  onRetry,
   resultLabel,
   d,
 }: Readonly<{
@@ -121,6 +123,8 @@ function ScriptPreview({
   replies: readonly KeyedReply[];
   ctx: ScriptContext | undefined;
   hasSample: boolean;
+  failed: boolean;
+  onRetry: () => void;
   resultLabel: (value: string) => string;
   d: I18nRecord;
 }>) {
@@ -128,6 +132,8 @@ function ScriptPreview({
   const visibleReplies = replies.filter(
     ({ reply }) => reply.says.trim() || reply.result
   );
+  let sampleMessage = hasSample ? "scriptPreview" : "scriptNoSample";
+  if (failed) sampleMessage = "scriptSampleError";
   const tab = (m: PreviewMode) =>
     `rounded px-2 py-0.5 text-xs ${mode === m ? "bg-white font-medium text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white" : "text-gray-600 dark:text-gray-300"}`;
   return (
@@ -156,8 +162,16 @@ function ScriptPreview({
           ))}
         </div>
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        {hasSample ? tr("scriptPreview", d) : tr("scriptNoSample", d)}
+      <p
+        role={failed ? "alert" : undefined}
+        className="text-xs text-gray-500 dark:text-gray-400"
+      >
+        {trDynamic(sampleMessage, d)}
+        {failed && (
+          <button type="button" className="ml-2 underline" onClick={onRetry}>
+            {tr("scriptRetrySamples", d)}
+          </button>
+        )}
       </p>
       {mode === "operator" ? (
         <div className="flex flex-col gap-2 text-sm text-gray-800 dark:text-gray-100">
@@ -329,7 +343,11 @@ export default function ScriptPanel({
   onChange: (patch: Partial<Step>) => void;
   onClose: () => void;
 }>) {
-  const { data: samples } = useScriptSamples(open ? symptomName : null, icu);
+  const {
+    data: samples,
+    error: sampleError,
+    mutate: refreshSamples,
+  } = useScriptSamples(open ? symptomName : null, icu);
   const [picked, setPicked] = useState(0);
   const sample = samples?.[Math.min(picked, samples.length - 1)];
   const ctx = sample?.context;
@@ -417,9 +435,11 @@ export default function ScriptPanel({
                 ))}
               </Select>
             ) : (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("scriptNoCases", d)}
-              </span>
+              !sampleError && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("scriptNoCases", d)}
+                </span>
+              )
             )}
           </div>
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -516,6 +536,8 @@ export default function ScriptPanel({
                 replies={rows}
                 ctx={ctx}
                 hasSample={ctx !== undefined}
+                failed={Boolean(sampleError)}
+                onRetry={() => void refreshSamples()}
                 resultLabel={resultLabel}
                 d={d}
               />

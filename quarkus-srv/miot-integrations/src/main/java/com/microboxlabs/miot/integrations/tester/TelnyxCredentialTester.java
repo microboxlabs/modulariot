@@ -53,6 +53,9 @@ public class TelnyxCredentialTester implements CredentialTester {
                 return CredentialTestResponse.failure("Telnyx rejected the API key (HTTP " + status + ")");
             }
             return CredentialTestResponse.failure("Telnyx returned HTTP " + status + " for /v2/balance");
+        } catch (IllegalArgumentException e) {
+            // HttpRequest's invalid-header exception contains the secret: never expose or log it.
+            return CredentialTestResponse.failure("The API key is not a valid HTTP bearer token");
         } catch (IOException e) {
             return CredentialTestResponse.failure("Could not reach Telnyx: " + e.getMessage());
         } catch (InterruptedException e) {

@@ -3,7 +3,6 @@ import type {
   BrandLogoSources,
   LogoKeyline,
 } from "@/features/common/components/brand-logo";
-import { Phone } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import { z } from "zod/v3";
 
@@ -303,7 +302,11 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     descriptionKey: "types.telnyx.description",
     available: true,
     supportsTest: false,
-    icon: Phone,
+    // Telnyx's media-kit mark: black on light backgrounds, Telnyx green on dark.
+    logo: {
+      light: "/credential-logos/telnyx-light.png",
+      dark: "/credential-logos/telnyx-dark.png",
+    },
     keyline: "circle",
   },
   {

@@ -55,13 +55,19 @@ public class SymptomCatalogService {
     private final DataSourceService sources;
     private final AuditService audit;
 
-    @Inject
-    Instance<ContactConditions> contactConditions;
+    private final Instance<ContactConditions> contactConditions;
 
     public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit) {
+        this(store, sources, audit, null);
+    }
+
+    @Inject
+    public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit,
+            Instance<ContactConditions> contactConditions) {
         this.store = store;
         this.sources = sources;
         this.audit = audit;
+        this.contactConditions = contactConditions;
     }
 
     private Report checkSpec(SymptomSpec spec, DataSource source) {

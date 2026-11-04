@@ -125,7 +125,7 @@ export function summarizeWho(who: string): WhoSummary | null {
     return null;
   const role = clauses.find((c) => c.kind === "role");
   return {
-    role: role && role.kind === "role" ? role.value || null : null,
+    role: role?.kind === "role" ? role.value || null : null,
     driver: clauses.some((c) => c.kind === "nationalIdIs"),
     carrier: clauses.some((c) => c.kind === "companyRutIs"),
   };

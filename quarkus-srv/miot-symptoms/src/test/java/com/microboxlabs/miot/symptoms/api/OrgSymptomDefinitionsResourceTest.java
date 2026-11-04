@@ -9,6 +9,7 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.core.selectable.SourceUnavailableException;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.DescribeRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.FromTemplateRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.PublishRequest;
@@ -107,6 +108,19 @@ class OrgSymptomDefinitionsResourceTest {
                 }), new TemplateService(store), new SymptomStatsService(catalog, new InMemoryEngineCases(),
                         new InMemoryTreatmentStore(), new TowerSettingsService(new InMemoryTowerSettingsStore(),
                                 new AuditService(new InMemoryAuditStore()))), platform(platformOwner));
+    }
+
+    @Test
+    void anUnavailableResultSourceReturnsBadGatewayFromThePublishPlan() {
+        catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore())) {
+            @Override
+            public PublishPlan plan(String tenantCode, UUID definitionId) {
+                throw new SourceUnavailableException("Call result provider unavailable");
+            }
+        };
+        Response response = resource(true).plan(ORG, id).await().atMost(WAIT);
+        assertEquals(502, response.getStatus());
+        assertEquals(java.util.Map.of("error", "Call result provider unavailable"), response.getEntity());
     }
 
     @Test

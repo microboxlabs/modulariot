@@ -236,7 +236,9 @@ class WhatsAppRuleSendTest {
         assertThrows(IllegalArgumentException.class, () -> service.send(TENANT, request, "operator"));
         var queued = service.queueInContext(TENANT, new ContextMessage(null, null, DRIVER, null, null, null,
                 "miot_call_permission_request", "es", Map.of(), null, "Permission", "run-permission", 0));
-        assertThrows(SendFailure.class, () -> service.deliverQueued(TENANT, queued.id(), "es", Map.of()));
+        String queuedId = queued.id();
+        Map<String, String> emptyParams = Map.of();
+        assertThrows(SendFailure.class, () -> service.deliverQueued(TENANT, queuedId, "es", emptyParams));
         assertTrue(sentFrom.isEmpty());
     }
 
@@ -247,8 +249,10 @@ class WhatsAppRuleSendTest {
         var expected = service.sendingNumber(TENANT, DRIVER);
         Message queued = service.queueInContext(TENANT, message());
         accounts.own(TENANT, "whatsapp");
+        String queuedId = queued.id();
+        Map<String, String> emptyParams = Map.of();
         assertThrows(SendFailure.class,
-                () -> service.deliverQueued(TENANT, queued.id(), "es", Map.of(), expected));
+                () -> service.deliverQueued(TENANT, queuedId, "es", emptyParams, expected));
         assertTrue(sentFrom.isEmpty());
         assertEquals(MessageStatus.PENDING, store.messageRepository.findById(queued.id()).status());
     }

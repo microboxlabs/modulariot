@@ -133,10 +133,7 @@ public class TemplatesService {
             // Fails here, not on the first send, when the HTML or the subject does not parse.
             NotificationMail.body(body.email().subject(), body.email().html(), Map.of());
         }
-        if (CallPermissionService.TEMPLATE_KEY.equals(key)
-                && (body.whatsapp() == null || !body.whatsapp().callPermission())) {
-            throw new IllegalArgumentException("The call permission template must retain whatsapp.callPermission");
-        }
+        requireCallPermissionMarker(key, body);
         Instant now = clock.instant();
         Optional<ConvTemplate> existing = templates.find(PLATFORM_TENANT, key);
         ConvTemplate next = new ConvTemplate(existing.map(ConvTemplate::id).orElse(UUID.randomUUID().toString()),
@@ -154,6 +151,13 @@ public class TemplatesService {
                 .orElseThrow(() -> new IllegalStateException(
                         "La plantilla cambió mientras se guardaba; vuelve a guardarla"));
         return platformGet(key);
+    }
+
+    private static void requireCallPermissionMarker(String key, TemplateRequest body) {
+        if (CallPermissionService.TEMPLATE_KEY.equals(key)
+                && (body.whatsapp() == null || !body.whatsapp().callPermission())) {
+            throw new IllegalArgumentException("The call permission template must retain whatsapp.callPermission");
+        }
     }
 
     private ConvTemplate template(String key) {

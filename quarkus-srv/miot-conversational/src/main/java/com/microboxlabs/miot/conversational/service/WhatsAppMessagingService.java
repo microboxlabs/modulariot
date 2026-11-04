@@ -87,6 +87,19 @@ public class WhatsAppMessagingService {
         this(resolver, client, conversations, messages, accounts, null);
     }
 
+    private static void requireSendingCredentials(String phoneNumberId, String token) {
+        if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
+            throw new ConnectionResolutionException("WhatsApp connection is missing phone_number_id or the access token");
+        }
+    }
+
+    private static void requireExpectedSender(SendingNumber expected, String tenant, String phoneNumberId) {
+        if (expected != null && (!expected.phoneNumberId().equals(phoneNumberId)
+                || !expected.tenantCode().equals(tenant))) {
+            throw new ConnectionResolutionException("The sending number changed; retry");
+        }
+    }
+
     private void requirePermissionAdmission(String name, SendingNumber expected) {
         if (expected != null || name == null) return;
         boolean permission = CallPermissionService.TEMPLATE_KEY.equals(name)
@@ -211,14 +224,8 @@ public class WhatsAppMessagingService {
                 metadata.put(CONNECTION_TENANT, sendingTenant);
                 String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
                 String token = connection.secretString(TOKEN);
-                if (expected != null && (!expected.phoneNumberId().equals(phoneNumberId)
-                        || !expected.tenantCode().equals(sendingTenant))) {
-                    throw new ConnectionResolutionException("The sending number changed; retry");
-                }
-                if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
-                    throw new ConnectionResolutionException(
-                            "WhatsApp connection is missing phone_number_id or the access token");
-                }
+                requireExpectedSender(expected, sendingTenant, phoneNumberId);
+                requireSendingCredentials(phoneNumberId, token);
                 enforceTestMode(connection, message.to());
                 providerMessageId = metaClient.sendTemplate(connection.baseUrl(), phoneNumberId, token,
                         message.to(), message.templateName(),
@@ -291,14 +298,8 @@ public class WhatsAppMessagingService {
             metadata.put(CONNECTION_TENANT, sendingTenant);
             String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
             String token = connection.secretString(TOKEN);
-            if (expected != null && (!expected.phoneNumberId().equals(phoneNumberId)
-                    || !expected.tenantCode().equals(sendingTenant))) {
-                throw new ConnectionResolutionException("The sending number changed; retry");
-            }
-            if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
-                throw new ConnectionResolutionException(
-                        "WhatsApp connection is missing phone_number_id or the access token");
-            }
+            requireExpectedSender(expected, sendingTenant, phoneNumberId);
+            requireSendingCredentials(phoneNumberId, token);
             enforceTestMode(connection, message.address());
             String wamid = metaClient.sendTemplate(connection.baseUrl(), phoneNumberId, token, message.address(),
                     message.templateName(), language == null ? DEFAULT_LANGUAGE : language,
@@ -341,10 +342,7 @@ public class WhatsAppMessagingService {
         ResolvedConnection connection = sendingConnection(sendingTenant);
         String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
         String token = connection.secretString(TOKEN);
-        if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
-            throw new ConnectionResolutionException(
-                    "WhatsApp connection is missing phone_number_id or the access token");
-        }
+        requireSendingCredentials(phoneNumberId, token);
         if (to != null) {
             enforceTestMode(connection, to);
         }

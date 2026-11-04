@@ -13,6 +13,7 @@
  * beside it.
  */
 
+import WhatsAppCallPermission from "./whatsapp-call-permission";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -31,7 +32,6 @@ import type { TowerContactChannels } from "@/features/symptoms/control-tower/con
 import type { CallStats } from "./call-targets";
 import { channelLink } from "./channel-link";
 import ContactRow from "./contact-row";
-import WhatsAppCallPermission from "./whatsapp-call-permission";
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -136,6 +136,15 @@ export default function CallDialingStep({
           />
         </div>
 
+        {!started && methods.includes("whatsapp") && (
+          <WhatsAppCallPermission
+            dict={dict}
+            phone={channels?.whatsapp ?? contactPhone}
+            name={contactName}
+            lang={lang}
+          />
+        )}
+
         <div className="flex min-h-0 flex-3 flex-col items-center p-4">
           <div
             className={`grid shrink-0 transition-[grid-template-rows] duration-300 ease-out ${
@@ -176,15 +185,6 @@ export default function CallDialingStep({
             )}
           </div>
         </div>
-
-        {!started && methods.includes("whatsapp") && (
-          <WhatsAppCallPermission
-            dict={dict}
-            phone={channels?.whatsapp ?? contactPhone}
-            name={contactName}
-            lang={lang}
-          />
-        )}
 
         {/* Inside the card, pinned to its bottom (last item in the column)
             instead of a separate actions row below the card. Before the call

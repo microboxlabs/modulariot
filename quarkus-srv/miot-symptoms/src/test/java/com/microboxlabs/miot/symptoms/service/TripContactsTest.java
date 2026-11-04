@@ -78,8 +78,9 @@ class TripContactsTest {
     @Test
     void tooManyConditionsAreRefused() {
         List<String> many = Collections.nCopies(ContactService.MAX_CONDITIONS + 1, "true");
+        Recording evaluator = new Recording();
         assertThrows(IllegalArgumentException.class,
-                () -> service.tripContacts(TENANT, TripPeople.NONE, many, new Recording()));
+                () -> service.tripContacts(TENANT, TripPeople.NONE, many, evaluator));
     }
 
     @Test

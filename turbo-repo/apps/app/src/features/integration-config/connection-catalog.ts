@@ -1,6 +1,6 @@
 import { isBigQueryConnection } from "./bigquery-query";
 import type { ComponentType, SVGProps } from "react";
-import { Image, Link, Phone } from "flowbite-react-icons/outline";
+import { Image, Link } from "flowbite-react-icons/outline";
 import { Whatsapp } from "flowbite-react-icons/solid";
 import type {
   BrandLogoSources,
@@ -41,6 +41,11 @@ export const GEOCODING_LOGO: BrandLogoSources = {
   light: "/credential-logos/geocoding-light.svg",
   dark: "/credential-logos/geocoding-dark.svg",
 };
+/** Telnyx's media-kit mark: black on light backgrounds, Telnyx green on dark, as its brand guide asks. */
+export const TELNYX_LOGO: BrandLogoSources = {
+  light: "/credential-logos/telnyx-light.png",
+  dark: "/credential-logos/telnyx-dark.png",
+};
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
   CAR_IMAGES: { icon: Image },
@@ -59,8 +64,8 @@ const PROVIDER_MARKS: Record<string, ConnectionMark> = {
       dark: "/credential-logos/resend-dark.svg",
     },
   },
-  TEAMS_PHONE: { icon: Phone, keyline: "circle" },
-  TELNYX: { icon: Phone, keyline: "circle" },
+  TEAMS_PHONE: { icon: channelLogo("teams"), keyline: "circle" },
+  TELNYX: { logo: TELNYX_LOGO, keyline: "circle" },
   WHATSAPP: { icon: Whatsapp, keyline: "circle" },
 };
 

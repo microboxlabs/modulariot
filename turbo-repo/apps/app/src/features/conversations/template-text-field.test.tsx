@@ -33,16 +33,25 @@ function Field({
 }
 
 describe("TemplateTextField", () => {
-  it.each([{ isComposing: true }, { keyCode: 229 }])(
+  it.each(["native flag", "composition events"])(
     "does not complete a variable while an IME commits text (%j)",
     (composition) => {
       const onValue = vi.fn();
       render(<Field onValue={onValue} />);
       const box = screen.getByLabelText("Texto");
       fireEvent.change(box, { target: { value: "Hola {{co" } });
+      if (composition === "composition events") fireEvent.compositionStart(box);
       onValue.mockClear();
-      fireEvent.keyDown(box, { key: "Enter", ...composition });
+      fireEvent.keyDown(box, {
+        key: "Enter",
+        isComposing: composition === "native flag",
+      });
       expect(onValue).not.toHaveBeenCalled();
+      if (composition === "composition events") {
+        fireEvent.compositionEnd(box);
+        fireEvent.keyDown(box, { key: "Enter" });
+        expect(onValue).toHaveBeenCalledWith("Hola {{conductor}}");
+      }
     }
   );
 

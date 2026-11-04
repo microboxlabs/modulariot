@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
@@ -27,6 +27,26 @@ function renderStep(
 }
 
 describe("CallDialingStep", () => {
+  it("displays the selected WhatsApp channel's number", () => {
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Luis"
+        contactRole="Conductor"
+        contactPhone="+12025550101"
+        contactChannels={{ whatsapp: "+12025550103" }}
+        allowedMethods={["whatsapp"]}
+        reason=""
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    expect(screen.getByText(/202.*555.*0103/)).toBeTruthy();
+    expect(screen.queryByText(/202.*555.*0101/)).toBeNull();
+  });
   it("offers only the contact's channels", () => {
     renderStep(["whatsapp"]);
     expect(

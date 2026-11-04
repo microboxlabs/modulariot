@@ -129,11 +129,18 @@ function presetFor(
       ? trip?.data.secondDriverRut
       : undefined);
   if (summary?.driver && driverRut)
-    return { role: DRIVER_ROLE, nationalId: driverRut };
+    return {
+      role: DRIVER_ROLE,
+      nationalId: driverRut,
+      nationalIdType: /^\d{11}$/.test(trip?.data.carrierRut ?? "")
+        ? "DNI"
+        : "RUT",
+    };
   if (summary?.carrier && trip?.data.carrierRut)
     return {
       role: summary.role ?? "",
       companyRut: trip?.data.carrierRut,
+      companyTaxIdType: /^\d{11}$/.test(trip.data.carrierRut) ? "RUC" : "RUT",
       company: carrierName?.trim() || undefined,
     };
   return undefined;
@@ -231,6 +238,7 @@ function StepGroup({
   elapsed,
   stepEnd,
   loading,
+  lookupFailed,
   called,
   treatmentData,
   scriptContext,
@@ -247,6 +255,7 @@ function StepGroup({
   elapsed: number;
   stepEnd: number;
   loading: boolean;
+  lookupFailed: boolean;
   called: ReadonlyMap<string, Date>;
   treatmentData: TreatmentsGeneralResponseItem | null;
   /** What the step's script reads: the case's context, or its trip info for a legacy case. */
@@ -322,10 +331,17 @@ function StepGroup({
           onCall={onCall}
         />
       ))}
+      {group.targets.length === 0 && loading && (
+        <output className="px-3 py-2 text-xs">{tr("lookupPending", d)}</output>
+      )}
       {group.targets.length === 0 && !loading && (
         <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">
-          <p className="min-w-0 flex-1">{notInBookText(group.summary, d)}</p>
-          {preset && (
+          <p className="min-w-0 flex-1">
+            {lookupFailed
+              ? tr("tripLookupError", d)
+              : notInBookText(group.summary, d)}
+          </p>
+          {preset && !lookupFailed && (
             <button
               type="button"
               onClick={() => onNewNumber({ phone: "", name: "", preset })}
@@ -504,11 +520,13 @@ export default function CallCenterMenu({
 }>) {
   const d = (dict.symptoms as I18nRecord)?.ladder as I18nRecord;
   const symptom = treatmentData?.symptom_info;
-  const { data: level } = useLevelResponse(
-    symptom?.name ?? null,
-    symptom?.icu_code ?? null
-  );
+  const {
+    data: level,
+    error: levelError,
+    mutate: refreshLevel,
+  } = useLevelResponse(symptom?.name ?? null, symptom?.icu_code ?? null);
   const { targets, addContact, isLoading } = useCallTargets();
+  const levelFailed = Boolean(levelError && levelError.status !== 404);
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments } = useSymptomTreatments(caseId);
@@ -535,10 +553,12 @@ export default function CallCenterMenu({
   const response = level?.level.response;
   const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
   const conditions = useMemo(() => stepConditions(steps), [steps]);
-  const { data: tripView, mutate: refreshTrip } = useTripContacts(
-    symptom?.id,
-    conditions
-  );
+  const {
+    data: tripView,
+    mutate: refreshTrip,
+    isLoading: tripLoading,
+    error: tripError,
+  } = useTripContacts(symptom?.id, conditions);
   const matches = tripView?.matches;
   const called = useMemo(
     () => calledInCase(treatments, driverIds(steps, matches ?? [])),
@@ -631,8 +651,20 @@ export default function CallCenterMenu({
             onCancel={() => setAddDraft(null)}
           />
         )}
+        {levelFailed && (
+          <div role="alert" className="p-3 text-sm text-red-600">
+            <p>{tr("levelLookupError", d)}</p>
+            <button
+              type="button"
+              onClick={() => void refreshLevel()}
+              className="underline"
+            >
+              {tr("retryLookup", d)}
+            </button>
+          </div>
+        )}
         <div
-          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addDraft ? "hidden" : "flex"}`}
+          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addDraft || levelFailed ? "hidden" : "flex"}`}
         >
           {plan.groups.map((group) => (
             <StepGroup
@@ -643,7 +675,8 @@ export default function CallCenterMenu({
               due={due}
               elapsed={elapsed}
               stepEnd={stepEnd}
-              loading={isLoading}
+              loading={isLoading || Boolean(tripLoading)}
+              lookupFailed={Boolean(tripError)}
               called={called}
               treatmentData={treatmentData}
               scriptContext={scriptContext}

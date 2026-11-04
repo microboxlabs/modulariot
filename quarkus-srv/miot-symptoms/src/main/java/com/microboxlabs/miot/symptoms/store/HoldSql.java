@@ -3,7 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 /**
  * SQL over the "Ignorar condición" holds: an engine case's treatment with an {@code IGNORE} action, whose latest
  * such action ({@code a}) carries the duration and, in {@code details}, {@code scope} and {@code until_trip_end}.
- * The treatment store writes {@code details} as a JSON string holding the object; both shapes are read.
+ * Older treatment rows encode {@code details} as a JSON string holding the object; both shapes are read.
  * {@code h} is the ignored case's OPENED transition.
  */
 final class HoldSql {

@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Where treatment episodes and their actions live. Every call is scoped by
@@ -77,12 +78,18 @@ public interface TreatmentStore {
     }
 
     /**
-     * Fills a CALL action with what the telephony provider recorded. A null {@code answered} or
-     * {@code durationSeconds} keeps the stored value; {@code details} replaces the stored details.
-     * Works on a closed treatment too: the record arrives after the call.
+     * Fills a pending CALL action with what the provider recorded. Null {@code answered} means unknown;
+     * null {@code durationSeconds} keeps the timed duration. Details replace the stored details.
+     * Returns empty when another request already settled the action or assigned that provider record.
+     * Works on closed treatments too, since records arrive after the call.
      */
     default Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId, Boolean answered,
             Integer durationSeconds, Map<String, Object> details) {
         throw new UnsupportedOperationException("updateCallResult");
+    }
+
+    /** Provider records already assigned on this tenant's connection, including closed treatments. */
+    default Set<String> recordedTelephonyRecordIds(String tenantCode, String connectionId) {
+        throw new UnsupportedOperationException("recordedTelephonyRecordIds");
     }
 }

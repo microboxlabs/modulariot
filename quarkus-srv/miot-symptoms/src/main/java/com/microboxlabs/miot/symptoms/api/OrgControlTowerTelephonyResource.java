@@ -16,6 +16,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -85,7 +86,7 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
             params = "organizationId")
     public Uni<Response> webRtcToken(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        String actor = actor();
+        String actor = operator();
         return work(() -> Response.ok(telephony.webRtcToken(tenant, actor)).header("Cache-Control", "no-store")
                 .build());
     }
@@ -99,7 +100,15 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
             params = "organizationId")
     public Uni<Response> reconcile(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        String actor = actor();
+        String actor = operator();
         return work(() -> Response.ok(reconciler.reconcile(tenant, actor)).build());
+    }
+
+    private String operator() {
+        var caller = caller();
+        if (!caller.isUser()) {
+            throw new ForbiddenException("A signed-in operator is required for telephony");
+        }
+        return caller.email();
     }
 }

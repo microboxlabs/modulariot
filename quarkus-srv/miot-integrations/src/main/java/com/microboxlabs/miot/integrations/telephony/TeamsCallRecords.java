@@ -91,12 +91,19 @@ public class TeamsCallRecords {
                     throw new TelephonyUnavailableException("Graph returned HTTP " + status + " for the PSTN calls");
                 }
                 JsonNode body = read(response.body());
+                if (body == null || !body.path("value").isArray()) {
+                    throw new TelephonyUnavailableException("Graph returned an invalid PSTN call list");
+                }
                 for (JsonNode row : body.path("value")) {
                     calls.add(call(row));
                 }
                 String next = body.path("@odata.nextLink").asText("");
                 if (next.isBlank()) {
                     break;
+                }
+                if (page + 1 == MAX_PAGES) {
+                    throw new TelephonyUnavailableException("The Graph PSTN lookup exceeded its page limit;"
+                            + " reconciliation requires a complete call list");
                 }
                 response = graph.next(headers, next);
             }

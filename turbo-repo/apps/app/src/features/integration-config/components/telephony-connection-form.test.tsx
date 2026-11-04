@@ -50,6 +50,31 @@ const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("telephony connections", () => {
+  it("clears the optional Teams caller ID while keeping unrelated metadata", async () => {
+    const onSave = show(undefined, {
+      id: "conn-1",
+      name: "Teams",
+      providerType: "TEAMS_PHONE",
+      baseUrl: "https://graph.microsoft.com",
+      credentialProfileId: entra.id,
+      status: "ACTIVE",
+      lastTestedAt: null,
+      lastTestResult: true,
+      templateId: null,
+      metadata: { note: "kept", defaultCallerId: "+56200000000" },
+    });
+    type(dict.telephony.defaultCallerId, "");
+    fireEvent.click(screen.getByRole("button", { name: dict.common.save }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(null, "conn-1", {
+        name: "Teams",
+        baseUrl: "https://graph.microsoft.com",
+        credentialProfileId: entra.id,
+        metadata: { note: "kept" },
+      })
+    );
+  });
+
   it("creates a Telnyx connection with its SIP id and caller number", async () => {
     const onSave = show("TELNYX");
     expect(screen.getByLabelText(dict.connection.form.baseUrl)).toHaveValue(

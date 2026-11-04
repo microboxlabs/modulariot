@@ -87,44 +87,59 @@ public class TeamsCallReconciler {
             to = now;
         }
         List<PstnCall> records = telephony.pstnCalls(tenantCode, line.connectionId(), from, to);
-        Set<String> taken = new HashSet<>();
+        Set<String> taken = new HashSet<>(treatments.recordedTelephonyRecordIds(tenantCode, line.connectionId()));
         int recorded = 0;
         int stillPending = 0;
         for (TreatmentAction action : pending) {
             List<PstnCall> matches = records.stream()
-                    .filter(r -> !taken.contains(key(r)) && matches(action, r, operator, line.callerNumber()))
+                    .filter(r -> key(r) != null && !taken.contains(key(r))
+                            && matches(action, r, operator, line.callerNumber(), line.connectionId()))
                     .toList();
             Map<String, Object> t = new LinkedHashMap<>(telephony(action));
+            t.putIfAbsent("connectionId", line.connectionId());
             t.put("lastCheckedAt", now.toString());
             t.put("attempts", attempts(t) + 1);
-            if (matches.size() == 1) {
+            boolean ambiguous = matches.size() > 1 || (matches.size() == 1 && pending.stream()
+                    .filter(a -> matches(a, matches.get(0), operator, line.callerNumber(), line.connectionId()))
+                    .limit(2).count() > 1);
+            if (matches.size() == 1 && !ambiguous) {
                 PstnCall r = matches.get(0);
-                taken.add(key(r));
                 t.put("status", RECORDED);
                 t.remove("reason");
-                t.put("recordId", r.id());
+                t.put("recordId", key(r));
                 t.put("callId", r.callId());
                 t.put("durationSeconds", r.durationSeconds());
-                save(tenantCode, action, r.durationSeconds() > 0, r.durationSeconds(), t);
-                audit.log(tenantCode, operator, "treatment.call_recorded", "treatment", action.treatmentId(), null,
-                        Map.of("actionId", action.id(), "durationSeconds", r.durationSeconds()));
-                recorded++;
+                if (save(tenantCode, action, r.durationSeconds() > 0, r.durationSeconds(), t)) {
+                    taken.add(key(r));
+                    audit.log(tenantCode, operator, "treatment.call_recorded", "treatment", action.treatmentId(), null,
+                            Map.of("actionId", action.id(), "durationSeconds", r.durationSeconds()));
+                    recorded++;
+                }
                 continue;
             }
-            if (matches.size() > 1) {
+            if (ambiguous) {
                 t.put("reason", "AMBIGUOUS");
-                stillPending++;
-            } else if (Duration.between(endedAt(action), now).compareTo(GIVE_UP) > 0) {
-                t.put("status", NOT_FOUND);
             } else {
+                t.remove("reason");
+            }
+            if (Duration.between(endedAt(action), now).compareTo(GIVE_UP) > 0) {
+                t.put("status", NOT_FOUND);
+            }
+            if (save(tenantCode, action, null, null, t) && PENDING.equals(t.get("status"))) {
                 stillPending++;
             }
-            save(tenantCode, action, null, null, t);
         }
         return new Result(pending.size(), recorded, stillPending);
     }
 
-    static boolean matches(TreatmentAction action, PstnCall r, String operator, String lineCaller) {
+    static boolean matches(TreatmentAction action, PstnCall r, String operator, String lineCaller, String connectionId) {
+        Object originalConnection = telephony(action).get("connectionId");
+        if (originalConnection != null && !connectionId.equals(originalConnection)) {
+            return false;
+        }
+        if (r.callType() == null || !r.callType().endsWith("_out")) {
+            return false;
+        }
         String callee = digits(telephony(action).get("calleeNumber"));
         if (callee == null || !callee.equals(digits(r.calleeNumber()))) {
             return false;
@@ -134,7 +149,7 @@ public class TeamsCallReconciler {
                         .equals(operator.trim().toLowerCase(Locale.ROOT))) {
             return false;
         }
-        if (lineCaller != null && r.callerNumber() != null && !digits(lineCaller).equals(digits(r.callerNumber()))) {
+        if (lineCaller != null && !digits(lineCaller).equals(digits(r.callerNumber()))) {
             return false;
         }
         Instant start = r.start();
@@ -142,11 +157,11 @@ public class TeamsCallReconciler {
                 && !start.isAfter(endedAt(action).plus(SLACK));
     }
 
-    private void save(String tenantCode, TreatmentAction action, Boolean answered, Integer seconds,
+    private boolean save(String tenantCode, TreatmentAction action, Boolean answered, Integer seconds,
             Map<String, Object> t) {
         Map<String, Object> details = new LinkedHashMap<>(action.details() == null ? Map.of() : action.details());
         details.put("telephony", t);
-        treatments.updateCallResult(tenantCode, action.id(), answered, seconds, details);
+        return treatments.updateCallResult(tenantCode, action.id(), answered, seconds, details).isPresent();
     }
 
     private static String key(PstnCall r) {

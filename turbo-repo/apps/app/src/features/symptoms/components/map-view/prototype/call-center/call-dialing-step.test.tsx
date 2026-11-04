@@ -89,6 +89,65 @@ describe("CallDialingStep", () => {
   });
 
   describe("with a Telnyx line", () => {
+    it.each(["loading", "failed"])(
+      "does not fall back to the dialer while setup is %s",
+      (state) => {
+        render(
+          <CallDialingStep
+            dict={dict}
+            contactName="Luis"
+            contactRole="Driver"
+            contactPhone="+56911111111"
+            allowedMethods={["phone"]}
+            reason=""
+            telephonyPending={state === "loading"}
+            telephonyFailed={state === "failed"}
+            onCancel={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+        expect(
+          screen.getByRole("button", { name: "Llamada telefónica" })
+        ).toBeDisabled();
+        expect(
+          screen.getByRole(state === "failed" ? "alert" : "status")
+        ).toBeTruthy();
+      }
+    );
+
+    it("does not record a manually timed call while the token is pending", () => {
+      const onConfirm = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Driver"
+          contactPhone="+56911111111"
+          allowedMethods={["phone"]}
+          reason=""
+          line={{
+            connectionId: "t1",
+            provider: "TELNYX",
+            name: "Central",
+            callerNumber: "+56900000000",
+            ready: true,
+          }}
+          token={() => new Promise(() => undefined)}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      const confirm = screen.getByRole("button", {
+        name: es.symptoms.call_modal_confirm,
+      });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+
     const line = {
       connectionId: "t1",
       provider: "TELNYX" as const,
@@ -186,6 +245,9 @@ describe("CallDialingStep", () => {
       );
       expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 409");
       expect(onConfirm).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("button", { name: es.symptoms.call_modal_confirm })
+      ).toBeNull();
     });
   });
 
@@ -198,6 +260,7 @@ describe("CallDialingStep", () => {
         contactName="Luis"
         contactRole="Transportista"
         contactPhone="+56 9 1111 1111"
+        channels={{ phone: "+56 9 2222 2222" }}
         allowedMethods={["phone", "teams"]}
         reason=""
         line={{
@@ -216,8 +279,8 @@ describe("CallDialingStep", () => {
       screen.getByRole("button", { name: "Llamada por Microsoft Teams" })
     );
     expect(openTeams).toHaveBeenCalledWith({
-      app: "msteams:/l/call/0/0?users=4:+56911111111",
-      web: "https://teams.microsoft.com/l/call/0/0?users=4:+56911111111",
+      app: "msteams:/l/call/0/0?users=4:+56922222222",
+      web: "https://teams.microsoft.com/l/call/0/0?users=4:+56922222222",
     });
     fireEvent.click(
       screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
@@ -228,7 +291,8 @@ describe("CallDialingStep", () => {
       expect.objectContaining({
         provider: "TEAMS_PHONE",
         status: "PENDING",
-        calleeNumber: "+56911111111",
+        calleeNumber: "+56922222222",
+        connectionId: "m1",
       })
     );
   });

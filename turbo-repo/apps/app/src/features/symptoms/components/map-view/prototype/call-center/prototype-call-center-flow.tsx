@@ -39,6 +39,7 @@ import type { TelephonyCallResult } from "./telnyx-call";
 import { useTelephony } from "@/features/symptoms/control-tower/telephony-api";
 import type { CallMethod } from "./call-method";
 import type { CallTarget } from "./call-targets";
+import { isEngineCase } from "../prototype-api-guard";
 
 export type CallCenterFlowStep = "contacts" | "dialing" | "form";
 /** What's reported upward via `onStepChange` — same as `CallCenterFlowStep`, except the
@@ -144,7 +145,10 @@ export default function PrototypeCallCenterFlow({
   );
   const [callTelephony, setCallTelephony] =
     useState<TelephonyCallResult | null>(resumeSnapshot?.telephony ?? null);
-  const { data: telephony } = useTelephony();
+  // Only the Control Tower save path persists provider call results.
+  const providerCalls = isEngineCase(treatmentRequest);
+  const { data: telephony, error: telephonyError } =
+    useTelephony(providerCalls);
 
   useEffect(() => {
     const reported: CallCenterReportedStep =
@@ -251,7 +255,9 @@ export default function PrototypeCallCenterFlow({
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}
           goal={activeScript?.goal}
-          line={telephony?.active ?? null}
+          line={providerCalls ? (telephony?.active ?? null) : null}
+          telephonyPending={providerCalls && !telephony && !telephonyError}
+          telephonyFailed={providerCalls && Boolean(telephonyError)}
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
           onStartedChange={setDialingStarted}

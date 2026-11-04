@@ -586,7 +586,7 @@ public class EngineCaseService {
         }
         ArrayNode out = JSON.arrayNode();
         entries.stream()
-                .sorted(java.util.Comparator.comparing((ObjectNode e) -> e.path("at").asText()))
+                .sorted(java.util.Comparator.comparing((ObjectNode e) -> Instant.parse(e.path("at").asText())))
                 .forEach(out::add);
         return out;
     }

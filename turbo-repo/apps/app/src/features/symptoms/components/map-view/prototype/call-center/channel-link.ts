@@ -22,7 +22,8 @@ export function channelLink(
   if (method === "phone") return `tel:+${digits}`;
   if (method === "whatsapp") {
     const text = message.trim();
-    return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+    const query = text ? `?text=${encodeURIComponent(text)}` : "";
+    return `https://wa.me/${digits}${query}`;
   }
   return null;
 }

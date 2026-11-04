@@ -202,7 +202,7 @@ export default function ResponseWorkspace({
   // last ones while the next preview is made (validating, saving): without
   // them the tree goes away and the editors jump to the full width.
   const [shownPreview, setShownPreview] = useState(preview);
-  if (preview?.cases?.length && preview !== shownPreview)
+  if (preview?.cases !== undefined && preview !== shownPreview)
     setShownPreview(preview);
   const rules: LifecycleRules = {
     close: lifecycle.close ?? "",

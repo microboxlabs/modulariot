@@ -17,6 +17,7 @@ export interface TelephonyCallResult {
   sipCode: number | null;
   /** Telnyx's call control id when it has one, else the SDK's call id. */
   callId: string | null;
+  connectionId?: string;
   /** E.164, as dialed. */
   calleeNumber: string;
   startedAt: string;
@@ -35,6 +36,7 @@ export function telephonyDetails(
     sipCode: result.sipCode,
     calleeNumber: result.calleeNumber,
     startedAt: result.startedAt,
+    ...(result.connectionId ? { connectionId: result.connectionId } : {}),
     ...(result.endedAt ? { endedAt: result.endedAt } : {}),
   };
 }
@@ -80,6 +82,7 @@ export interface StartCallOptions {
   remoteElement?: HTMLMediaElement | null;
   /** Base64 that Telnyx echoes in its webhooks: the call's usage row. */
   clientState?: string;
+  signal?: AbortSignal;
   onPhase: (phase: CallPhase, answeredAt: number | null) => void;
   onEnd: (result: TelephonyCallResult) => void;
   sdk?: SdkFactory;
@@ -98,7 +101,8 @@ const ENDED = new Set(["hangup", "destroy", "purge"]);
 export function pendingTeamsCall(
   calleeNumber: string,
   startedAtMs: number,
-  endedAtMs: number
+  endedAtMs: number,
+  connectionId?: string
 ): TelephonyCallResult {
   return {
     provider: "TEAMS_PHONE",
@@ -108,6 +112,7 @@ export function pendingTeamsCall(
     hangupCause: null,
     sipCode: null,
     callId: null,
+    connectionId,
     calleeNumber,
     startedAt: new Date(startedAtMs).toISOString(),
     endedAt: new Date(endedAtMs).toISOString(),
@@ -120,6 +125,7 @@ export async function startTelnyxCall({
   destination,
   remoteElement,
   clientState,
+  signal,
   onPhase,
   onEnd,
   sdk = loadTelnyx,
@@ -135,6 +141,7 @@ export async function startTelnyxCall({
   const finish = (cause: string | null, sipCode: number | null) => {
     if (ended) return;
     ended = true;
+    signal?.removeEventListener("abort", hangup);
     onPhase("ended", answeredAt);
     onEnd({
       provider: "TELNYX",
@@ -147,25 +154,53 @@ export async function startTelnyxCall({
       calleeNumber: destination,
       startedAt: new Date(startedAt).toISOString(),
     });
-    void Promise.resolve(client.disconnect()).catch(() => undefined);
+    try {
+      void Promise.resolve(client.disconnect()).catch(() => undefined);
+    } catch {
+      // A synchronous SDK disconnect failure must not retain this call.
+    }
   };
+
+  function hangup() {
+    if (ended || hangupAsked) return;
+    hangupAsked = true;
+    if (call) {
+      try {
+        void Promise.resolve(call.hangup()).catch(() =>
+          finish("SDK_ERROR", null)
+        );
+      } catch {
+        finish("SDK_ERROR", null);
+      }
+    } else finish("CANCELLED", null);
+  }
 
   client.on("telnyx.ready", () => {
     if (ended || call) return;
-    call = client.newCall({
-      destinationNumber: destination,
-      callerNumber,
-      audio: true,
-      video: false,
-      remoteElement: remoteElement ?? undefined,
-      ...(clientState ? { clientState } : {}),
-    });
-    if (hangupAsked) void call.hangup();
+    try {
+      call = client.newCall({
+        destinationNumber: destination,
+        callerNumber,
+        audio: true,
+        video: false,
+        remoteElement: remoteElement ?? undefined,
+        ...(clientState ? { clientState } : {}),
+      });
+    } catch {
+      finish("SDK_ERROR", null);
+    }
   });
   client.on("telnyx.error", () => finish("SDK_ERROR", null));
   client.on("telnyx.notification", (event) => {
     const n = event as { type?: string; call?: SdkCall };
-    if (n.type !== "callUpdate" || !n.call) return;
+    if (
+      ended ||
+      n.type !== "callUpdate" ||
+      !n.call ||
+      !call ||
+      n.call.id !== call.id
+    )
+      return;
     call = n.call;
     const state = n.call.state ?? "";
     if (state === "active") {
@@ -177,14 +212,18 @@ export async function startTelnyxCall({
       finish(n.call.cause ?? null, n.call.sipCode ?? null);
     }
   });
+  signal?.addEventListener("abort", hangup, { once: true });
+  if (signal?.aborted) {
+    hangup();
+    return { hangup };
+  }
   onPhase("connecting", null);
-  await client.connect();
-
-  return {
-    hangup() {
-      hangupAsked = true;
-      if (call) void Promise.resolve(call.hangup()).catch(() => undefined);
-      else finish("CANCELLED", null);
-    },
-  };
+  try {
+    void Promise.resolve(client.connect()).catch(() =>
+      finish("SDK_ERROR", null)
+    );
+  } catch {
+    finish("SDK_ERROR", null);
+  }
+  return { hangup };
 }

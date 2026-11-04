@@ -120,7 +120,7 @@ public class TelnyxWebRtcTokens {
         HttpResponse<String> found = client.telephonyCredentials(apiKey, name);
         require(found, "list the telephony credentials");
         for (JsonNode c : read(found.body()).path("data")) {
-            if (onConnection(c, sipConnectionId)
+            if (name.equals(c.path("name").asText()) && onConnection(c, sipConnectionId)
                     && !c.path("expired").asBoolean(false) && !c.path("id").asText().isBlank()) {
                 return c;
             }
@@ -171,7 +171,11 @@ public class TelnyxWebRtcTokens {
 
     private JsonNode read(String body) {
         try {
-            return json.readTree(body == null ? "{}" : body);
+            JsonNode value = json.readTree(body == null ? "{}" : body);
+            if (value == null || value.isNull()) {
+                throw new TelephonyUnavailableException("Telnyx returned an empty JSON body");
+            }
+            return value;
         } catch (IOException e) {
             throw new TelephonyUnavailableException("Telnyx returned a body that is not JSON");
         }

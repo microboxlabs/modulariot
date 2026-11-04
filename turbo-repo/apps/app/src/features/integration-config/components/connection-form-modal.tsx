@@ -111,11 +111,9 @@ export function ConnectionFormModal({
   if (isBigQuery) nativeKind = "BIGQUERY";
   else if (isPostgrest) nativeKind = "POSTGREST";
   else if (telephony) nativeKind = telephony;
-  const fixedBaseUrl = isBigQuery
-    ? BIGQUERY_BASE_URL
-    : telephony
-      ? TELEPHONY_BASE_URLS[telephony]
-      : null;
+  let fixedBaseUrl: string | null = null;
+  if (isBigQuery) fixedBaseUrl = BIGQUERY_BASE_URL;
+  else if (telephony) fixedBaseUrl = TELEPHONY_BASE_URLS[telephony];
   let choices: readonly CredentialListItem[] = credentials;
   if (isBigQuery)
     choices = credentials.filter((c) => c.typeId === "GOOGLE_SERVICE_ACCOUNT");
@@ -174,7 +172,12 @@ export function ConnectionFormModal({
 
   /** A telephony connection's metadata; undefined for every other kind. */
   function metadataOf(data: ConnectionFormData) {
-    return telephony ? telephonyMetadata(telephony, data) : undefined;
+    if (!telephony) return undefined;
+    const metadata = { ...connection?.metadata };
+    delete metadata.sipConnectionId;
+    delete metadata.callerNumber;
+    delete metadata.defaultCallerId;
+    return { ...metadata, ...telephonyMetadata(telephony, data) };
   }
 
   /** What creating with these values sends; null when editing. */
@@ -212,16 +215,10 @@ export function ConnectionFormModal({
       choices.some((credential) => credential.id === data.credentialProfileId)
     )
       return false;
-    setError(
-      new Error(
-        tr(
-          telephony
-            ? "telephony.credentialRequired"
-            : "bigquery.credentialRequired",
-          dict
-        )
-      )
-    );
+    const message = telephony
+      ? tr("telephony.credentialRequired", dict)
+      : tr("bigquery.credentialRequired", dict);
+    setError(new Error(message));
     return true;
   }
 
@@ -270,9 +267,7 @@ export function ConnectionFormModal({
         name: data.name.trim(),
         baseUrl: data.baseUrl.trim(),
         credentialProfileId: data.credentialProfileId || null,
-        ...(metadata
-          ? { metadata: { ...connection.metadata, ...metadata } }
-          : {}),
+        ...(metadata ? { metadata } : {}),
       });
       return;
     }

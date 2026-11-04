@@ -36,6 +36,112 @@ function fakeClient() {
 }
 
 describe("startTelnyxCall", () => {
+  it("ignores another call's notifications on the shared SDK client", async () => {
+    const { client, update } = fakeClient();
+    const onEnd = vi.fn();
+    await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => client,
+    });
+    client.fire("telnyx.ready");
+    client.fire("telnyx.notification", {
+      type: "callUpdate",
+      call: { id: "incoming", state: "hangup" },
+    });
+    expect(onEnd).not.toHaveBeenCalled();
+    update("hangup", "NORMAL_CLEARING", 200);
+    expect(onEnd).toHaveBeenCalledWith(
+      expect.objectContaining({ callId: "v3:control-1" })
+    );
+  });
+
+  it("returns a cancellable handle while connection startup is pending", async () => {
+    const { client } = fakeClient();
+    client.connect = vi.fn(() => new Promise<void>(() => undefined));
+    const onEnd = vi.fn();
+    const live = await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => client,
+    });
+    live.hangup();
+    client.fire("telnyx.ready");
+    expect(client.newCall).not.toHaveBeenCalled();
+    expect(client.disconnect).toHaveBeenCalled();
+    expect(onEnd).toHaveBeenCalledWith(
+      expect.objectContaining({ hangupCause: "CANCELLED" })
+    );
+  });
+
+  it("disconnects and reports a rejected SDK connection", async () => {
+    const { client } = fakeClient();
+    client.connect = vi.fn().mockRejectedValue(new Error("socket refused"));
+    const onEnd = vi.fn();
+    await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => client,
+    });
+    await Promise.resolve();
+    expect(onEnd).toHaveBeenCalledWith(
+      expect.objectContaining({ callId: null, hangupCause: "SDK_ERROR" })
+    );
+    expect(client.disconnect).toHaveBeenCalled();
+  });
+
+  it("does not connect when the step was cancelled during SDK loading", async () => {
+    const { client } = fakeClient();
+    const abort = new AbortController();
+    const onEnd = vi.fn();
+    const live = await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      signal: abort.signal,
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => {
+        abort.abort();
+        return client;
+      },
+    });
+    live.hangup();
+    expect(client.connect).not.toHaveBeenCalled();
+    expect(client.newCall).not.toHaveBeenCalled();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles a synchronous SDK call-creation error", async () => {
+    const { client } = fakeClient();
+    client.newCall = vi.fn(() => {
+      throw new Error("no microphone");
+    });
+    const onEnd = vi.fn();
+    await startTelnyxCall({
+      token: "jwt",
+      callerNumber: "+56900000000",
+      destination: "+56911111111",
+      onPhase: vi.fn(),
+      onEnd,
+      sdk: async () => client,
+    });
+    expect(() => client.fire("telnyx.ready")).not.toThrow();
+    expect(onEnd).toHaveBeenCalledWith(
+      expect.objectContaining({ callId: null, hangupCause: "SDK_ERROR" })
+    );
+    expect(client.disconnect).toHaveBeenCalled();
+  });
+
   it("records the seconds after the answer and the call id", async () => {
     const { client, update } = fakeClient();
     let clock = 1_000;

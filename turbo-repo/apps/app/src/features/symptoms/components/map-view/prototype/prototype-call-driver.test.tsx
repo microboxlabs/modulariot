@@ -188,6 +188,8 @@ describe("engine call treatment form", () => {
     );
     await waitFor(() => expect(closeMenu).toHaveBeenCalledWith(false));
     const body = api.addTreatmentAction.mock.calls[0][1];
+    expect(body.answered).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(body))).not.toHaveProperty("answered");
     expect(body.details.telephony).toMatchObject({
       provider: "TEAMS_PHONE",
       status: "PENDING",

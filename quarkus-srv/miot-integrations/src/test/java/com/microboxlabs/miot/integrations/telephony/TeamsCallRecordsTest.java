@@ -26,6 +26,22 @@ import org.junit.jupiter.api.Test;
 
 class TeamsCallRecordsTest {
 
+    @Test
+    void refusesAnIncompleteScanWithoutFetchingADiscardedPage() {
+        String page = "{\"value\":[],\"@odata.nextLink\":\"https://graph.test/next\"}";
+        http.reply(PATH, 200, page).reply("/next", 200, page);
+        assertThrows(TelephonyUnavailableException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertEquals(TeamsCallRecords.MAX_PAGES, http.seen().size());
+    }
+
+    @Test
+    void anUnreadableListCannotBeTreatedAsNoCalls() {
+        http.reply(PATH, 200, "null");
+        assertThrows(TelephonyUnavailableException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+    }
+
     private static final URI GRAPH = URI.create("https://graph.test");
     private static final String PATH = "/v1.0/communications/callRecords/getPstnCalls";
     private static final Instant FROM = Instant.parse("2026-11-04T10:00:00Z");

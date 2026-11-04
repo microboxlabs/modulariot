@@ -334,7 +334,7 @@ public class RulesEngine {
                     isWhatsApp ? m.template().whatsapp().metaName() : m.template().key(),
                     isWhatsApp ? m.template().whatsapp().language() : null, m.params(), m.subject(), m.text(),
                     run.id(), run.step(), m.html());
-            queueOrSimulate(run, message, isWhatsApp, jobs);
+            queueOrSimulate(run, message, isWhatsApp, isWhatsApp && m.template().whatsapp().callPermission(), jobs);
         }
         if (!jobs.isEmpty()) {
             queue.enqueue(run.tenantCode(), jobs);
@@ -342,7 +342,8 @@ public class RulesEngine {
         return problems.isEmpty() ? null : String.join("; ", problems);
     }
 
-    private void queueOrSimulate(Run run, ContextMessage message, boolean isWhatsApp, List<AsyncJobSpec> jobs) {
+    private void queueOrSimulate(Run run, ContextMessage message, boolean isWhatsApp, boolean callPermission,
+            List<AsyncJobSpec> jobs) {
         if (run.test()) {
             if (isWhatsApp) {
                 whatsapp.sendInContext(run.tenantCode(), message, true);
@@ -350,7 +351,7 @@ public class RulesEngine {
                 email.sendInContext(run.tenantCode(), message, true);
             }
         } else if (isWhatsApp) {
-            jobs.add(SendJobs.whatsapp(whatsapp.queueInContext(run.tenantCode(), message), message));
+            jobs.add(SendJobs.whatsapp(whatsapp.queueInContext(run.tenantCode(), message), message, callPermission));
         } else {
             jobs.add(SendJobs.email(email.queueInContext(run.tenantCode(), message)));
         }

@@ -166,6 +166,8 @@ export interface WhatsAppVariant {
   metaName: string;
   language: string;
   params: string[];
+  /** The Meta template carries a WhatsApp call permission request. */
+  callPermission?: boolean;
 }
 
 export interface EmailVariant {

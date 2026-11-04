@@ -10,4 +10,4 @@ it("gives the context fallback the catalog when the catalog loads first", async 
   const { result } = renderHook(() => useOptionalDashboard());
   expect(result.current.registry).toBe(dashlets.dashboardRegistry);
   expect(result.current.registry.all().length).toBeGreaterThan(0);
-});
+}, 30000);

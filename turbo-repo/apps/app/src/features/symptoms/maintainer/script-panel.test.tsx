@@ -1,9 +1,18 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { Step } from "./maintainer-api";
-import ScriptPanel from "./script-panel";
+import ScriptPanel, { scriptFields } from "./script-panel";
+
+const samples = vi.hoisted(() => ({
+  error: undefined as Error | undefined,
+  retry: vi.fn(),
+}));
+beforeEach(() => {
+  samples.error = undefined;
+  vi.clearAllMocks();
+});
 
 vi.mock(
   "@/features/common/components/settings-drawer/settings-drawer-shell",
@@ -23,7 +32,11 @@ vi.mock("@/features/settings-admin/selectables/selectables-api", () => ({
   useSelectableOptions: () => ({ data: [] }),
 }));
 vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
-  useScriptSamples: () => ({ data: undefined }),
+  useScriptSamples: () => ({
+    data: undefined,
+    error: samples.error,
+    mutate: samples.retry,
+  }),
 }));
 
 function Editor() {
@@ -52,6 +65,32 @@ function Editor() {
 }
 
 describe("script reply editing", () => {
+  it("keeps standard trip fields alongside sparse sample data", () => {
+    const fields = scriptFields(
+      { case: { id: 1 }, condition: { extra: "value" }, trip: {}, vehicle: {} },
+      es.pages.userSettings.symptomCatalog
+    );
+    expect(fields.map((field) => field.name)).toContain("trip.driver.name");
+    expect(fields.map((field) => field.name)).toContain("condition.extra");
+  });
+
+  it("distinguishes a failed sample lookup from a symptom with no cases", () => {
+    samples.error = new Error("unavailable");
+    render(<Editor />);
+    expect(screen.getByRole("alert").textContent).toContain(
+      es.pages.userSettings.symptomCatalog.scriptSampleError
+    );
+    expect(
+      screen.queryByText(es.pages.userSettings.symptomCatalog.scriptNoCases)
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: es.pages.userSettings.symptomCatalog.scriptRetrySamples,
+      })
+    );
+    expect(samples.retry).toHaveBeenCalledOnce();
+  });
+
   it("keeps the edited row focused when its text changes and an earlier duplicate row is removed", () => {
     render(<Editor />);
     const second = screen.getAllByRole("textbox", {

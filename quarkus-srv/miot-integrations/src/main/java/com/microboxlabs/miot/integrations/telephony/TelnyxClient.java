@@ -131,10 +131,15 @@ public class TelnyxClient {
     }
 
     HttpRequest.Builder request(String apiKey, String path) {
-        return HttpRequest.newBuilder(URI.create(trim(baseUrl.toString()) + path))
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(trim(baseUrl.toString()) + path))
                 .timeout(TelephonyHttp.TIMEOUT)
-                .header("Authorization", "Bearer " + apiKey)
                 .header("Accept", "application/json");
+        try {
+            return request.header("Authorization", "Bearer " + apiKey);
+        } catch (IllegalArgumentException ignored) {
+            // The JDK exception includes the header value. Never retain it as a cause.
+            throw new IllegalArgumentException("The API key is not a valid HTTP bearer token");
+        }
     }
 
     HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {

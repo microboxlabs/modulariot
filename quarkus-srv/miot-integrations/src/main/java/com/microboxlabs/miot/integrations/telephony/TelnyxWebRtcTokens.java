@@ -11,6 +11,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepos
 import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
+import com.microboxlabs.miot.integrations.service.ManagedConnectionLock;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.io.IOException;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -42,13 +44,14 @@ public class TelnyxWebRtcTokens {
     private final TelnyxClient client;
     private final ObjectMapper json;
     private final Clock clock;
+    private final BiFunction<String, Supplier<JsonNode>, JsonNode> credentialLocks;
     private final String webhookBaseUrl;
 
     @Inject
     public TelnyxWebRtcTokens(IntegrationConnectionRepository repository, IntegrationConnectionResolver resolver,
-            TelnyxClient client, ObjectMapper json,
+            TelnyxClient client, ObjectMapper json, ManagedConnectionLock locks,
             @ConfigProperty(name = "miot.integrations.telephony.webhook-base-url") Optional<String> webhookBaseUrl) {
-        this(repository::findByTenantAndId, resolver::resolve, client, json, Clock.systemUTC(), webhookBaseUrl.orElse(""));
+        this(repository::findByTenantAndId, resolver::resolve, client, json, Clock.systemUTC(), webhookBaseUrl.orElse(""), locks::locked);
     }
 
     public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
@@ -60,6 +63,14 @@ public class TelnyxWebRtcTokens {
     public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
             BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelnyxClient client,
             ObjectMapper json, Clock clock, String webhookBaseUrl) {
+        this(connections, resolver, client, json, clock, webhookBaseUrl, (key, work) -> work.get());
+    }
+
+    public TelnyxWebRtcTokens(BiFunction<String, String, IntegrationConnection> connections,
+            BiFunction<String, IntegrationConnection, ResolvedConnection> resolver, TelnyxClient client,
+            ObjectMapper json, Clock clock, String webhookBaseUrl,
+            BiFunction<String, Supplier<JsonNode>, JsonNode> credentialLocks) {
+        this.credentialLocks = credentialLocks;
         this.connections = connections;
         this.resolver = resolver;
         this.client = client;
@@ -109,21 +120,38 @@ public class TelnyxWebRtcTokens {
             throw new TelephonyUnavailableException(e.getMessage());
         }
         String apiKey = resolved.secretString(TelephonyKeys.TOKEN);
-        String sipConnectionId = resolved.metadataString(TelephonyKeys.SIP_CONNECTION_ID);
+        String sipConnectionId = trimmedId(resolved.metadataString(TelephonyKeys.SIP_CONNECTION_ID));
         String callerNumber = PhoneNumbers.e164(resolved.metadataString(TelephonyKeys.CALLER_NUMBER));
         if (apiKey == null || apiKey.isBlank() || sipConnectionId == null || callerNumber == null) {
             throw new TelephonyUnavailableException("The Telnyx connection is incomplete; test it in Conexiones");
         }
         try {
             requireParkedConnection(apiKey.trim(), sipConnectionId, connection.id());
-            JsonNode credential = credentialFor(apiKey.trim(), sipConnectionId,
-                    credentialName(callingTenant, operator));
+            String name = credentialName(callingTenant, operator);
+            JsonNode credential = credentialLocks.apply("telnyx-webrtc:" + name,
+                    () -> credentialOrFail(apiKey.trim(), sipConnectionId, name));
             String credentialId = credential.path("id").asText();
             HttpResponse<String> response = client.telephonyToken(apiKey.trim(), credentialId);
             require(response, "issue the token");
             String token = tokenOf(response.body());
             return new Issued(new WebRtcToken(token, callerNumber, clock.instant().plus(TOKEN_TTL)), credentialId,
                     blankToNull(credential.path("sip_username").asText("")), connection);
+        } catch (IOException e) {
+            throw new TelephonyUnavailableException("Could not reach Telnyx: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new TelephonyUnavailableException("The Telnyx token request was interrupted");
+        }
+    }
+
+    private static String trimmedId(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
+    }
+
+    private JsonNode credentialOrFail(String apiKey, String sipConnectionId, String name) {
+        try {
+            return credentialFor(apiKey, sipConnectionId, name);
         } catch (IOException e) {
             throw new TelephonyUnavailableException("Could not reach Telnyx: " + e.getMessage());
         } catch (InterruptedException e) {

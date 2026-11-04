@@ -5451,6 +5451,7 @@
           "credential": "Credencial",
           "noCredential": "Sin credencial",
           "noCredentials": "No hay credenciales. Créalas en Ajustes › Credenciales.",
+          "testSavedConfigHint": "La prueba usa la conexión guardada. Guarda los cambios antes de probarlos.",
           "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia.",
           "postgrestHelp": "Después de guardar, pruébala y usa Funciones para elegir qué funciones pueden usar los dashboards.",
           "postgrestBaseUrlHelp": "La URL raíz de PostgREST, la que devuelve su descripción OpenAPI."

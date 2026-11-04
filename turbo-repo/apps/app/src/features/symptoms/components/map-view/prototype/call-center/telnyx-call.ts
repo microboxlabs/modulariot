@@ -95,6 +95,7 @@ export interface LiveCall {
 }
 
 const RINGING = new Set(["ringing", "early"]);
+const CONNECT_TIMEOUT_MS = 20_000;
 const ENDED = new Set(["hangup", "destroy", "purge"]);
 
 /** A Teams call timed by hand: Graph's call record fills it later. */
@@ -136,11 +137,18 @@ export async function startTelnyxCall({
   let answeredAt: number | null = null;
   let ended = false;
   let hangupAsked = false;
+  let connectTimeout: ReturnType<typeof setTimeout> | undefined;
   const client = await sdk(token);
+
+  function clearConnectTimeout() {
+    if (connectTimeout !== undefined) clearTimeout(connectTimeout);
+    connectTimeout = undefined;
+  }
 
   const finish = (cause: string | null, sipCode: number | null) => {
     if (ended) return;
     ended = true;
+    clearConnectTimeout();
     signal?.removeEventListener("abort", hangup);
     onPhase("ended", answeredAt);
     onEnd({
@@ -177,6 +185,7 @@ export async function startTelnyxCall({
 
   client.on("telnyx.ready", () => {
     if (ended || call) return;
+    clearConnectTimeout();
     try {
       call = client.newCall({
         destinationNumber: destination,
@@ -217,7 +226,12 @@ export async function startTelnyxCall({
     hangup();
     return { hangup };
   }
+  connectTimeout = setTimeout(
+    () => finish("CONNECT_TIMEOUT", null),
+    CONNECT_TIMEOUT_MS
+  );
   onPhase("connecting", null);
+  if (ended) return { hangup };
   try {
     void Promise.resolve(client.connect()).catch(() =>
       finish("SDK_ERROR", null)

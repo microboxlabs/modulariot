@@ -168,6 +168,20 @@ function callTreatmentTexts({
  * look. "Who to call" is convention-first-option = the driver, and "call
  * result"'s last two options are treated as "no answer".
  */
+/** Preserve an agreed operator result; use a neutral provider result for a conflict. */
+function callOutcomeLabel(
+  call: TelephonyCallResult | null,
+  operatorResult: string,
+  noAnswer: boolean,
+  t: (key: string) => string
+) {
+  if (call?.provider !== "TELNYX") return operatorResult;
+  if (operatorResult && call.answered !== noAnswer) return operatorResult;
+  return t(
+    call.answered ? "call_telephony_answered" : "call_telephony_unanswered"
+  );
+}
+
 function isNoAnswer(options: ReadonlyArray<{ id: string }>, id: string) {
   return options.length >= 2 && options.slice(-2).some((o) => o.id === id);
 }
@@ -301,6 +315,12 @@ export default function PrototypeCallDriver({
   const resultadoLabel =
     resultOptions.find((o) => o.id === resultadoId)?.name ?? "";
   const sinRespuesta = isNoAnswer(resultOptions, resultadoId);
+  const savedOutcomeLabel = callOutcomeLabel(
+    callTelephony,
+    resultadoLabel,
+    sinRespuesta,
+    t
+  );
 
   const telefonoLlamada = esConductor
     ? (treatmentData?.trip_info?.driver_contact ?? "")
@@ -338,7 +358,7 @@ export default function PrototypeCallDriver({
           targetLabel,
           targetPhone,
           esConductor,
-          resultadoLabel,
+          resultadoLabel: savedOutcomeLabel,
           notaLlamada,
           callDurationSeconds,
         }),
@@ -352,7 +372,7 @@ export default function PrototypeCallDriver({
           contactPhone: initialCallTargetPhone || telefonoLlamada || undefined,
           contactRole: initialCallTargetRole || undefined,
           method: callMethodUsed ? toApiMethod(callMethodUsed) : undefined,
-          outcomeLabel: resultadoLabel || undefined,
+          outcomeLabel: savedOutcomeLabel || undefined,
           answered: resultadoId ? !sinRespuesta : undefined,
           durationSeconds: callDurationSeconds ?? undefined,
           ...(callTelephony

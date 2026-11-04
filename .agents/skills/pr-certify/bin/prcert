@@ -744,8 +744,11 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
         warnings.append("base is %s, not the default branch %s - CI and CodeRabbit may be disabled"
                         % (pr.get("baseRefName"), pr.get("_defaultBranch")))
 
+    # A reviewer the org does not require is never waited for: CodeRabbit can take 30+ minutes.
+    require_coderabbit = settings.get("requireCodeRabbit", True)
     settled = ((cop["fresh"] or not require_copilot) and chk["settled"]
-               and (crb["fresh"] or not (crb["available"] or crb.get("pending"))))
+               and (crb["fresh"] or not require_coderabbit
+                    or not (crb["available"] or crb.get("pending"))))
 
     return {
         "repo": pr["url"].split("/pull/")[0].replace("https://github.com/", ""),

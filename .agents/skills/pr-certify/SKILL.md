@@ -15,6 +15,21 @@ description: >
 Drive a pull request until every reviewer is clean on the current head SHA, answering each
 finding on the way.
 
+## Time budget
+
+Certification means: it compiles, the tests pass, and the required reviewers are clean. Keep
+anything else off the critical path.
+
+- One CI run per round. Collect every finding of the round, fix them all, push once. Each extra
+  push costs a full CI run (8–10 min on the modulith).
+- Do not wait for a reviewer the org does not require. In `microboxlabs`, CodeRabbit is not
+  required (`requireCodeRabbit: false`): `--settled` does not wait for it, and its threads are
+  answered only if they arrive before you stamp.
+- Do not run the full test suite locally. CI runs it. Locally, compile and run only the tests of
+  the modules you changed (step 5).
+- Certify every PR of a stack at the same time: request reviews, triage and fix all of them in
+  parallel. Only the merges are in order.
+
 ## Prerequisites
 
 - `gh` authenticated (`gh auth status`).
@@ -97,6 +112,8 @@ n=0; until prcert status --settled; do n=$((n+1)); [ $n -gt 30 ] && exit 1; slee
 Run that with `run_in_background: true`. It exits once every active reviewer has a verdict against
 the current head and no check is still running, and you get a single notification.
 
+It does not wait for a reviewer the org does not require (`requireCodeRabbit: false`).
+
 Keep the cap. If `prcert request` reported `ok: false` for Copilot **without** a `skipped` flag,
 Copilot code review is not available on that repo and no verdict is ever coming — set
 `requireCopilot: false` for the org and treat it as a warning instead of waiting out the cap every
@@ -138,8 +155,14 @@ Then judge each one against the actual code. Never apply a suggestion unread.
 Group fixes by file, apply top-to-bottom so line numbers stay valid, one logical edit per finding.
 Match the surrounding code and change nothing the finding does not require.
 
-Verify before pushing: type-check and run the tests for the modules you touched. A fix that breaks
-a check costs a full review round.
+Verify before pushing: compile and run the tests of the modules you touched, nothing more. For
+the modulith that is `./mvnw -q -pl <module> -am test` (add `-Dtest=<Class>` for a one-class fix),
+not `clean verify` of every module. For TypeScript, type-check and test the touched package with
+`npx turbo run check-types test --filter=<package>` (from `turbo-repo/`). CI runs the complete suite on the push. A fix that
+breaks a check costs a full review round, so test what you changed; do not re-test what you did
+not change.
+
+Push once per round, with every fix of the round in it.
 
 Commit with a message that names what the reviewers found, and push.
 

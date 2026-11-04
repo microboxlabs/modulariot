@@ -162,4 +162,48 @@ describe("CallDialingStep", () => {
       expect(onConfirm).not.toHaveBeenCalled();
     });
   });
+
+  it("with a Teams Phone line, calls the number from Teams and saves it as pending", () => {
+    const openTeams = vi.fn();
+    const onConfirm = vi.fn();
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Luis"
+        contactRole="Transportista"
+        contactPhone="+56 9 1111 1111"
+        allowedMethods={["phone", "teams"]}
+        reason=""
+        line={{
+          connectionId: "m1",
+          provider: "TEAMS_PHONE",
+          name: "Teams",
+          callerNumber: null,
+          ready: true,
+        }}
+        openTeams={openTeams}
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por Microsoft Teams" })
+    );
+    expect(openTeams).toHaveBeenCalledWith({
+      app: "msteams:/l/call/0/0?users=4:+56911111111",
+      web: "https://teams.microsoft.com/l/call/0/0?users=4:+56911111111",
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+    );
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.any(Number),
+      "teams",
+      expect.objectContaining({
+        provider: "TEAMS_PHONE",
+        status: "PENDING",
+        calleeNumber: "+56911111111",
+      })
+    );
+  });
 });

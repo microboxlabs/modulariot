@@ -7602,7 +7602,8 @@
     "call_phase_ended": "Call ended",
     "call_telnyx_failed": "Could not call from the browser",
     "call_telephony_answered": "answered (recorded by the telephony)",
-    "call_telephony_unanswered": "not answered (recorded by the telephony)"
+    "call_telephony_unanswered": "not answered (recorded by the telephony)",
+    "call_telephony_pending": "record pending: Teams publishes the duration and the result a few minutes later"
   },
   "geographic_view": {
     "arrival_delay": "Arrival delay",

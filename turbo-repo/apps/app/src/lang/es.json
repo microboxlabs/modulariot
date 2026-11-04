@@ -7602,7 +7602,8 @@
     "call_phase_ended": "Llamada terminada",
     "call_telnyx_failed": "No se pudo llamar desde el navegador",
     "call_telephony_answered": "contestada (registrado por la telefonía)",
-    "call_telephony_unanswered": "no contestada (registrado por la telefonía)"
+    "call_telephony_unanswered": "no contestada (registrado por la telefonía)",
+    "call_telephony_pending": "registro pendiente: Teams publica la duración y el resultado unos minutos después"
   },
   "geographic_view": {
     "arrival_delay": "Retraso de llegada",

@@ -58,3 +58,40 @@ export function fetchWebRtcToken() {
     { method: "POST" }
   );
 }
+
+export interface ReconcileResult {
+  checked: number;
+  recorded: number;
+  pending: number;
+}
+
+/** Fills the signed-in operator's pending Teams calls from Graph's call records. */
+export function reconcileTeamsCalls() {
+  return request<ReconcileResult>(`${telephonyKey}/reconcile`, {
+    method: "POST",
+  });
+}
+
+/** Graph publishes PSTN records minutes after the call: ask again at these delays. */
+export const RECONCILE_DELAYS_MS = [2 * 60_000, 10 * 60_000];
+
+let scheduled = false;
+
+/**
+ * Retries the reconcile after a Teams call is saved. Runs outside any
+ * component, so it survives the panel closing; one schedule at a time.
+ */
+export function scheduleTeamsReconcile(
+  run: () => Promise<unknown> = reconcileTeamsCalls,
+  delays: readonly number[] = RECONCILE_DELAYS_MS,
+  timer: (cb: () => void, ms: number) => unknown = setTimeout
+) {
+  if (scheduled) return;
+  scheduled = true;
+  delays.forEach((ms, i) =>
+    timer(() => {
+      void run().catch(() => undefined);
+      if (i === delays.length - 1) scheduled = false;
+    }, ms)
+  );
+}

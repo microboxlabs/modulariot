@@ -43,6 +43,7 @@ import {
   telephonyDetails,
   type TelephonyCallResult,
 } from "./call-center/telnyx-call";
+import { scheduleTeamsReconcile } from "@/features/symptoms/control-tower/telephony-api";
 import CallSwitchDropdown from "./call-center/call-switch-dropdown";
 
 /** Fixed content, not a Selectable — "call result" used to be a plain,
@@ -355,14 +356,21 @@ export default function PrototypeCallDriver({
           durationSeconds: callDurationSeconds ?? undefined,
           ...(callTelephony
             ? {
-                answered: callTelephony.answered,
+                // A pending (Teams) call gets its result from Graph later.
+                ...(callTelephony.status === "PENDING"
+                  ? {}
+                  : { answered: callTelephony.answered }),
                 details: { telephony: telephonyDetails(callTelephony) },
               }
             : {}),
           note: notaLlamada.trim() || undefined,
         },
       }
-    );
+    ).then((response) => {
+      // Graph publishes a Teams call's record minutes later.
+      if (callTelephony?.status === "PENDING") scheduleTeamsReconcile();
+      return response;
+    });
 
   const skipSave = saved;
 
@@ -524,12 +532,7 @@ export default function PrototypeCallDriver({
         <p className="rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-light text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
           {t("call_duration_recorded")}:{" "}
           {formatCallDuration(callDurationSeconds)}
-          {callTelephony &&
-            ` · ${t(
-              callTelephony.answered
-                ? "call_telephony_answered"
-                : "call_telephony_unanswered"
-            )}`}
+          {callTelephony && ` · ${t(telephonyLabelKey(callTelephony))}`}
         </p>
       )}
       <div>
@@ -681,4 +684,12 @@ export default function PrototypeCallDriver({
       <StickyActions>{actions}</StickyActions>
     </BentoGrid>
   );
+}
+
+/** How the results form describes what the telephony reported. */
+function telephonyLabelKey(result: TelephonyCallResult): string {
+  if (result.status === "PENDING") return "call_telephony_pending";
+  return result.answered
+    ? "call_telephony_answered"
+    : "call_telephony_unanswered";
 }

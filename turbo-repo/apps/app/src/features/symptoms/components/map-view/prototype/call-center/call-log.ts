@@ -20,6 +20,8 @@ export interface CallLogEntry {
   message: string;
   /** What came back; empty when nobody answered. */
   response: string;
+  /** The provider's record (Teams) has not arrived yet: duration and result are provisional. */
+  pending: boolean;
 }
 
 export function callLogEntryOf(action: TowerAction): CallLogEntry {
@@ -34,7 +36,15 @@ export function callLogEntryOf(action: TowerAction): CallLogEntry {
     at: new Date(action.performedAt),
     message: action.message ?? "",
     response,
+    pending: telephonyStatus(action) === "PENDING",
   };
+}
+
+function telephonyStatus(action: TowerAction): unknown {
+  const telephony = action.details?.telephony;
+  return telephony && typeof telephony === "object"
+    ? (telephony as Record<string, unknown>).status
+    : undefined;
 }
 
 export function formatCallLogDuration(totalSeconds: number): string {

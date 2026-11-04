@@ -15,6 +15,7 @@ import {
 import {
   parseTelephonySetup,
   parseWebRtcToken,
+  parseReconcileResult,
   type TelephonyProvider,
   type TelephonySetup,
 } from "./telephony-api.types";
@@ -52,17 +53,13 @@ export async function fetchWebRtcToken() {
   );
 }
 
-export interface ReconcileResult {
-  checked: number;
-  recorded: number;
-  pending: number;
-}
+export type { ReconcileResult } from "./telephony-api.types";
 
 /** Fills the signed-in operator's pending Teams calls from Graph's call records. */
-export function reconcileTeamsCalls() {
-  return request<ReconcileResult>(`${telephonyKey}/reconcile`, {
-    method: "POST",
-  });
+export async function reconcileTeamsCalls() {
+  return parseReconcileResult(
+    await request<unknown>(`${telephonyKey}/reconcile`, { method: "POST" })
+  );
 }
 
 /** Graph publishes PSTN records minutes after the call: ask again at these delays. */

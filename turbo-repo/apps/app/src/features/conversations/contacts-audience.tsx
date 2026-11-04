@@ -12,6 +12,7 @@ import type { EditMode } from "@/features/symptoms/maintainer/level-row";
 import SelectableField from "@/features/settings-admin/selectables/field/selectable-field";
 import type { Selectable } from "@/features/settings-admin/selectables/types";
 import { useContacts } from "@/features/symptoms/control-tower/control-tower-api";
+import SampleTree from "@/features/symptoms/maintainer/sample-tree";
 import ModeToggle from "@/features/symptoms/maintainer/ui/mode-toggle";
 import { FIELD } from "@/features/symptoms/maintainer/ui/response-block";
 import Select from "@/features/symptoms/maintainer/ui/select";
@@ -26,6 +27,7 @@ import {
   type ContactClauseKind,
   type Suggestion,
 } from "./contact-condition";
+import { contactSamples } from "./contact-samples";
 import type { EventField } from "./conversations-types";
 
 const ICON =
@@ -216,6 +218,11 @@ export default function ContactsAudience({
   const { data: contacts } = useContacts();
   const book = useMemo(() => bookSuggestions(contacts ?? []), [contacts]);
   const [mode, setMode] = useState<EditMode>(clauses ? "form" : "expr");
+  const tree = useMemo(
+    () => contactSamples(contacts ?? [], fields),
+    [contacts, fields]
+  );
+  const [sampleIndex, setSampleIndex] = useState(0);
   const setClauses = (next: ContactClause[]) => onChange(compileClauses(next));
 
   return (
@@ -268,15 +275,33 @@ export default function ContactsAudience({
         </div>
       )}
       {mode === "expr" && (
-        <CelEditor
-          readOnly={readOnly}
-          ariaLabel={tr("contactsCel", d)}
-          placeholder="'transportista' in contact.tags && contact.companyRut == event.data.carrierRut"
-          value={condition}
-          fields={contactCelFields(fields)}
-          values={contactCelValues(book, d)}
-          onChange={onChange}
-        />
+        // Laid out like the rule sheet's { } mode: the book's contacts as a
+        // tree whose fields drag (or click) into the condition beside it.
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          {tree.samples.length > 0 ? (
+            <SampleTree
+              samples={tree.samples}
+              labels={tree.labels}
+              index={Math.min(sampleIndex, tree.samples.length - 1)}
+              readOnly={readOnly}
+              d={d}
+              onIndex={setSampleIndex}
+            />
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {tr("contactsNoSample", d)}
+            </p>
+          )}
+          <CelEditor
+            readOnly={readOnly}
+            ariaLabel={tr("contactsCel", d)}
+            placeholder="'transportista' in contact.tags && contact.companyRut == event.data.carrierRut"
+            value={condition}
+            fields={contactCelFields(fields)}
+            values={contactCelValues(book, d)}
+            onChange={onChange}
+          />
+        </div>
       )}
     </div>
   );

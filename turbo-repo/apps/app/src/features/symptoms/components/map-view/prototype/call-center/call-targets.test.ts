@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TowerContact } from "@/features/symptoms/control-tower/control-tower-api";
-import { contactMethods, stepMethod } from "./call-targets";
+import { contactMethods, phoneForMethod, stepMethod } from "./call-targets";
 
 const contact = (patch: Partial<TowerContact>): TowerContact =>
   ({
@@ -57,5 +57,19 @@ describe("stepMethod", () => {
     expect(stepMethod("whatsapp")).toBe("whatsapp");
     expect(stepMethod("teams")).toBe("teams");
     expect(stepMethod("email")).toBeNull();
+  });
+});
+
+describe("phoneForMethod", () => {
+  it("keeps the selected WhatsApp number in the displayed and recorded target", () => {
+    const target = {
+      phone: "+12025550101",
+      channels: { phone: "+12025550102", whatsapp: "+12025550103" },
+    };
+    expect(phoneForMethod(target, "phone")).toBe("+12025550102");
+    expect(phoneForMethod(target, "whatsapp")).toBe("+12025550103");
+    expect(phoneForMethod({ phone: target.phone }, "whatsapp")).toBe(
+      target.phone
+    );
   });
 });

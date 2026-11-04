@@ -4,20 +4,20 @@ import { legacyWho, summarizeWho, whoOf } from "./step-who";
 describe("legacyWho", () => {
   it("reads Conductor as the trip's driver by RUT", () => {
     expect(legacyWho("Conductor", null)).toBe(
-      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))"
+      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && has(event.data.driverIdType) && contact.nationalIdType == event.data.driverIdType && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && has(event.data.secondDriverIdType) && contact.nationalIdType == event.data.secondDriverIdType && contact.nationalId == event.data.secondDriverRut))"
     );
     expect(legacyWho(null, "DRIVER")).toBe(legacyWho(" conductor ", null));
   });
 
   it("reads Transportista or the carrier scope as the trip carrier's people, with the role when there is one", () => {
     expect(legacyWho("Transportista", null)).toBe(
-      "contact.companyRut == event.data.carrierRut"
+      "contact.companyRut == event.data.carrierRut && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType"
     );
     expect(legacyWho("", "TRIP_CARRIER")).toBe(
-      "contact.companyRut == event.data.carrierRut"
+      "contact.companyRut == event.data.carrierRut && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType"
     );
     expect(legacyWho("Gerente de Seguridad", "TRIP_CARRIER")).toBe(
-      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut"
+      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType"
     );
   });
 
@@ -33,7 +33,7 @@ describe("legacyWho", () => {
 
   it("keeps an explicit carrier role even when it is Transportista", () => {
     expect(legacyWho("Transportista", "TRIP_CARRIER")).toBe(
-      "contact.roleKey == 'transportista' && contact.companyRut == event.data.carrierRut"
+      "contact.roleKey == 'transportista' && contact.companyRut == event.data.carrierRut && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType"
     );
   });
 });

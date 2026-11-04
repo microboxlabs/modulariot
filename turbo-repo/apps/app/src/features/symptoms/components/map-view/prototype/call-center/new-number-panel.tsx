@@ -113,7 +113,24 @@ export default function NewNumberPanel({
         {t("call_center_new_back")}
       </button>
 
-      {initial.preset && <PresetLine preset={initial.preset} dict={dict} />}
+      {draft.preset && <PresetLine preset={draft.preset} dict={dict} />}
+      {draft.preset?.nationalId !== undefined && (
+        <TextInput
+          sizing="sm"
+          aria-label={t("call_center_new_driver_id_label")}
+          value={draft.preset.nationalId}
+          onChange={(e) =>
+            setDraft({
+              ...draft,
+              preset: {
+                ...draft.preset,
+                role: draft.preset?.role ?? "",
+                nationalId: e.target.value,
+              },
+            })
+          }
+        />
+      )}
 
       <PhoneInput
         aria-label={t("call_center_new_phone_label")}

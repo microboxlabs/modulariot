@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.telephony;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -82,7 +83,7 @@ class TelnyxWebRtcTokensTest {
     void theNameDependsOnTheOrganizationAndTheOperator() {
         String a = TelnyxWebRtcTokens.credentialName("acme", "ana@example.com");
         assertEquals(a, TelnyxWebRtcTokens.credentialName("acme", " ANA@example.com "));
-        assertTrue(!a.equals(TelnyxWebRtcTokens.credentialName("other", "ana@example.com")));
+        assertNotEquals(a, TelnyxWebRtcTokens.credentialName("other", "ana@example.com"));
         assertTrue(a.startsWith("miot-op-") && a.length() == 40);
     }
 

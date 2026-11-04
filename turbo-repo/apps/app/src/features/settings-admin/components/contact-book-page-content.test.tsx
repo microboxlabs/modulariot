@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
@@ -42,8 +42,13 @@ vi.mock("../contact-book/contact-form-modal", () => ({
     editing: BookContact | null;
     onSave: (contact: BookContact) => void;
   }) =>
-    show && editing ? (
-      <button onClick={() => onSave(editing)}>Save linked contact</button>
+    show ? (
+      <div data-testid="contact-form">
+        {editing?.name ?? "New contact draft"}
+        {editing && (
+          <button onClick={() => onSave(editing)}>Save linked contact</button>
+        )}
+      </div>
     ) : null,
 }));
 vi.mock("../contact-book/import-contacts-modal", () => ({
@@ -102,6 +107,49 @@ describe("ContactBookPageContent — delete", () => {
     const contact = book.save.mock.calls[0]?.[0] as BookContact;
     expect(toContactBody(contact, readBadges()).tags).toEqual(["Night shift"]);
   });
+
+  it.each(["create", "edit"])(
+    "keeps the operator's %s form when the linked lookup arrives late",
+    async (action) => {
+      window.history.replaceState({}, "", "/?edit=linked-contact");
+      const late = {
+        id: "linked-contact",
+        name: "Late linked contact",
+        methods: [],
+        tags: [],
+      };
+      let finish: (contact: typeof late) => void = vi.fn();
+      book.getContact.mockReturnValue(
+        new Promise<typeof late>((resolve) => {
+          finish = resolve;
+        })
+      );
+      const user = userEvent.setup();
+      render(<ContactBookPageContent dict={dict} lang="es" />);
+      if (action === "create") {
+        await user.click(
+          screen.getByRole("button", {
+            name: es.pages.userSettings.contactBook.newContact,
+          })
+        );
+      } else {
+        await user.click(screen.getByRole("button", { name: "Acciones" }));
+        await user.click(screen.getByText("Editar"));
+      }
+      const expected =
+        action === "create" ? "New contact draft" : "Persona Ejemplo";
+      expect(screen.getByTestId("contact-form").textContent).toContain(
+        expected
+      );
+      await act(async () => {
+        finish(late);
+      });
+      expect(screen.getByTestId("contact-form").textContent).toContain(
+        expected
+      );
+      expect(screen.queryByText("Late linked contact")).toBeNull();
+    }
+  );
 
   it("says only an owner can delete when the API answers 403", async () => {
     book.remove.mockRejectedValue(new ControlTowerError("forbidden", 403));

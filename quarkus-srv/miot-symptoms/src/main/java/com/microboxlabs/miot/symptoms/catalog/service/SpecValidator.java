@@ -19,6 +19,8 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -101,6 +103,11 @@ public final class SpecValidator {
     }
 
     public static Report validate(SymptomSpec spec, DataSource source) {
+        return validate(spec, source, condition -> Optional.empty());
+    }
+
+    public static Report validate(SymptomSpec spec, DataSource source,
+            Function<String, Optional<String>> contactProblem) {
         List<Finding> out = new ArrayList<>();
         if (source == null) {
             out.add(new Finding("source", Severity.ERROR, RuleMessage.of("sourceMissing"), -1));
@@ -128,6 +135,7 @@ public final class SpecValidator {
                 rule(out, "lifecycle.note", lifecycle, spec.lifecycle().note(), Expect.CONDITION);
             }
         }
+        contactConditions(out, spec, contactProblem);
         recurrence(out, spec.recurrence());
         engineSupport(out, source, spec);
         if (spec.family() != null && spec.family().codePointCount(0, spec.family().length()) > MAX_FAMILY) {
@@ -137,6 +145,29 @@ public final class SpecValidator {
             out.add(new Finding("state", Severity.ERROR, RuleMessage.of("engineNotReady"), -1));
         }
         return new Report(out);
+    }
+
+    private static void contactConditions(List<Finding> out, SymptomSpec spec,
+            Function<String, Optional<String>> check) {
+        if (spec.levels() == null) return;
+        for (SymptomSpec.Level level : spec.levels()) {
+            SymptomSpec.Response response = level.response();
+            if (response == null) continue;
+            String section = "levels." + level.icu() + ".response";
+            contactCondition(out, section, response.escalateWho(), check);
+            if (response.steps() != null) {
+                for (SymptomSpec.Step step : response.steps()) {
+                    contactCondition(out, section, step.who(), check);
+                }
+            }
+        }
+    }
+
+    private static void contactCondition(List<Finding> out, String section, String who,
+            Function<String, Optional<String>> check) {
+        if (who == null || who.isBlank()) return;
+        check.apply(who).ifPresent(problem -> out.add(new Finding(section, Severity.ERROR,
+                RuleMessage.of("contactConditionInvalid", "detail", problem), -1)));
     }
 
     private static void rule(List<Finding> out, String section, RuleSchema schema, String rule, Expect expect) {

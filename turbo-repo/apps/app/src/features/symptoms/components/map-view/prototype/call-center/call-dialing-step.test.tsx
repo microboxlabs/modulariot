@@ -34,6 +34,32 @@ function renderStep(
 }
 
 describe("CallDialingStep", () => {
+  it("opens the channel-specific WhatsApp recipient", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    render(
+      <CallDialingStep
+        dict={dict}
+        contactName="Synthetic contact"
+        contactRole="Dispatcher"
+        contactPhone="+12025550101"
+        channels={{ phone: "+12025550101", whatsapp: "+12025550102" }}
+        allowedMethods={["phone", "whatsapp"]}
+        reason="Step message"
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    expect(open).toHaveBeenCalledWith(
+      "https://wa.me/12025550102?text=Step%20message",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    open.mockRestore();
+  });
+
   it("offers only the contact's channels", () => {
     renderStep(["whatsapp"]);
     expect(

@@ -33,13 +33,13 @@ const target = (
   stats: null,
 });
 
-const SUR = "761112228";
+const SUR = "000000030";
 const TARGETS = [
   target("ana", "Conductor", "Ana", SUR),
   target("beto", "Conductor", "Beto", SUR),
   target("gs", "Gerente de Seguridad", "Gema", SUR),
   target("oc", "Oficina Comercial", "Omar", SUR),
-  target("gs-norte", "Gerente de Seguridad", "Nora", "769999999"),
+  target("gs-norte", "Gerente de Seguridad", "Nora", "000000050"),
   target("torre", "Jefe de Torre", "Tomás"),
   target("torre2", " jefe de torre ", "Teresa"),
 ];
@@ -67,8 +67,8 @@ describe("stepConditions", () => {
         step(null, null, "'vip' in contact.tags"),
       ])
     ).toEqual([
-      "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut",
-      "contact.role == 'Gerente de Seguridad' && contact.companyRut == event.data.carrierRut",
+      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))",
+      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut",
       "'vip' in contact.tags",
     ]);
   });
@@ -92,6 +92,7 @@ describe("callPlan", () => {
       role: "Conductor",
       driver: true,
       carrier: false,
+      driverField: "either",
     });
     expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);
   });
@@ -175,11 +176,11 @@ describe("matchesTarget", () => {
   it("matches name, role and phone digits", () => {
     const t = {
       ...target("c1", "Transportista", "Luis Soto"),
-      phone: "+56 9 1234 5678",
+      phone: "+12025550101",
     };
     expect(matchesTarget(t, "soto")).toBe(true);
     expect(matchesTarget(t, "transp")).toBe(true);
-    expect(matchesTarget(t, "1234")).toBe(true);
+    expect(matchesTarget(t, "5550")).toBe(true);
     expect(matchesTarget(t, "Marta")).toBe(false);
     expect(matchesTarget(t, " ")).toBe(true);
   });
@@ -190,7 +191,7 @@ describe("fillScript", () => {
     const treatment = {
       trip_info: {
         driver: "Ana Pérez",
-        asset_id: "ABCD12",
+        asset_id: "TEST-PLATE",
         origin: "Planta",
         destination: "Puerto",
       },
@@ -200,7 +201,9 @@ describe("fillScript", () => {
         "Hola {{conductor}}, camión {{ patente }} en {{ruta}} a {{velocidad}}",
         contextOfTreatment(treatment)
       )
-    ).toBe("Hola Ana Pérez, camión ABCD12 en Planta → Puerto a {{velocidad}}");
+    ).toBe(
+      "Hola Ana Pérez, camión TEST-PLATE en Planta → Puerto a {{velocidad}}"
+    );
   });
 });
 

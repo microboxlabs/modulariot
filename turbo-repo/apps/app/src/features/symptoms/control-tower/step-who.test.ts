@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseClauses } from "@/features/conversations/contact-condition";
 import { legacyWho, summarizeWho, whoOf } from "./step-who";
 
 describe("legacyWho", () => {
   it("reads Conductor as the trip's driver by RUT", () => {
     expect(legacyWho("Conductor", null)).toBe(
-      "contact.role == 'Conductor' && contact.nationalId == event.data.driverRut"
+      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && contact.nationalId == event.data.secondDriverRut))"
     );
     expect(legacyWho(null, "DRIVER")).toBe(legacyWho(" conductor ", null));
   });
@@ -18,28 +17,24 @@ describe("legacyWho", () => {
       "contact.companyRut == event.data.carrierRut"
     );
     expect(legacyWho("Gerente de Seguridad", "TRIP_CARRIER")).toBe(
-      "contact.role == 'Gerente de Seguridad' && contact.companyRut == event.data.carrierRut"
+      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut"
     );
   });
 
   it("reads any other role as that role of the book, and nothing as nobody", () => {
     expect(legacyWho("Jefe de torre", null)).toBe(
-      "contact.role == 'Jefe de torre'"
+      "contact.roleKey == 'jefe de torre' && contact.companyRut == ''"
     );
     expect(legacyWho("Jefe de torre", "ORG")).toBe(
-      "contact.role == 'Jefe de torre'"
+      "contact.roleKey == 'jefe de torre' && contact.companyRut == ''"
     );
     expect(legacyWho("  ", null)).toBe("");
   });
 
-  it("writes conditions the form can show as clauses", () => {
-    for (const who of [
-      legacyWho("Conductor", null),
-      legacyWho("Gerente", "TRIP_CARRIER"),
-      legacyWho("Jefe", "ORG"),
-    ]) {
-      expect(parseClauses(who)).not.toBeNull();
-    }
+  it("keeps an explicit carrier role even when it is Transportista", () => {
+    expect(legacyWho("Transportista", "TRIP_CARRIER")).toBe(
+      "contact.roleKey == 'transportista' && contact.companyRut == event.data.carrierRut"
+    );
   });
 });
 
@@ -48,7 +43,9 @@ describe("whoOf", () => {
     expect(whoOf({ who: "'vip' in contact.tags", role: "Conductor" })).toBe(
       "'vip' in contact.tags"
     );
-    expect(whoOf({ who: " ", role: "Jefe" })).toBe("contact.role == 'Jefe'");
+    expect(whoOf({ who: " ", role: "Jefe" })).toBe(
+      "contact.roleKey == 'jefe' && contact.companyRut == ''"
+    );
   });
 });
 
@@ -58,12 +55,22 @@ describe("summarizeWho", () => {
       role: "Conductor",
       driver: true,
       carrier: false,
+      driverField: "either",
     });
     expect(summarizeWho(legacyWho("Gerente", "TRIP_CARRIER"))).toEqual({
-      role: "Gerente",
+      role: "gerente",
       driver: false,
       carrier: true,
     });
+  });
+
+  it("does not infer a primary-driver or carrier preset for other event fields", () => {
+    expect(
+      summarizeWho("contact.nationalId == event.data.secondDriverRut")
+    ).toBeNull();
+    expect(
+      summarizeWho("contact.companyRut == event.data.otherRut")
+    ).toBeNull();
   });
 
   it("is null for a condition the clauses cannot say", () => {

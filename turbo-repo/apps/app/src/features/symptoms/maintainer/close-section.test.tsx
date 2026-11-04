@@ -1,8 +1,33 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CloseRules, type LifecycleRules } from "./close-section";
+import {
+  CaseTimelinePreview,
+  CloseRules,
+  type LifecycleRules,
+} from "./close-section";
 
 const stable = vi.hoisted(() => ({ types: { data: [] as unknown[] } }));
+vi.mock(
+  "@/features/symptoms/control-tower/control-tower-api",
+  async (original) => ({
+    ...(await original<object>()),
+    useScriptSamples: () => ({
+      data: [
+        {
+          symptom_id: -1,
+          asset_id: "TEST-PLATE",
+          opened_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    }),
+    useCaseTimeline: () => ({
+      data: [
+        { kind: "CLOSED", at: "2026-01-01T00:01:00Z", context: null },
+        { kind: "CLOSED", at: "2026-01-01T00:02:00Z", context: { case: {} } },
+      ],
+    }),
+  })
+);
 vi.mock("./maintainer-api", async (orig) => ({
   ...(await orig<object>()),
   useEventTypes: () => stable.types.data,
@@ -130,5 +155,18 @@ describe("CloseRules", () => {
     );
     expect(screen.getByLabelText("Se cierra cuando · CEL")).toBeTruthy();
     expect(screen.getByLabelText("Se anota cuando · CEL")).toBeTruthy();
+  });
+});
+
+describe("CaseTimelinePreview", () => {
+  it("attributes only closures with recorded rule context to the close rule", () => {
+    render(
+      <CaseTimelinePreview
+        symptomName="Synthetic symptom"
+        icu={4}
+        d={{ timelineTitle: "Timeline", fromCloseRule: "Close rule" }}
+      />
+    );
+    expect(screen.getAllByText("Close rule")).toHaveLength(1);
   });
 });

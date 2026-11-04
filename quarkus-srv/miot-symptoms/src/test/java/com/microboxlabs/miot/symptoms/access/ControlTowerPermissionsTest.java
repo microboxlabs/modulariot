@@ -16,6 +16,7 @@ import com.microboxlabs.miot.symptoms.api.OrgControlTowerAuditResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerContactsResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerMapResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerSettingsResource;
+import com.microboxlabs.miot.symptoms.api.OrgControlTowerTelephonyResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerTreatmentsResource;
 import com.microboxlabs.miot.symptoms.api.OrgDataSourcesResource;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource;
@@ -38,7 +39,7 @@ class ControlTowerPermissionsTest {
 
     private static final List<Class<?>> RESOURCES = List.of(OrgControlTowerAuditResource.class,
             OrgControlTowerContactsResource.class, OrgControlTowerMapResource.class, OrgControlTowerSettingsResource.class,
-            OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
+            OrgControlTowerTelephonyResource.class, OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
             OrgSymptomDefinitionsResource.class, OrgSymptomFamiliesResource.class);
 
     private static final String VIEW = ControlTowerAccessCatalog.VIEW;
@@ -78,6 +79,8 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerMapResource.assetSignal", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
+            Map.entry("OrgControlTowerTelephonyResource.get", VIEW),
+            Map.entry("OrgControlTowerTelephonyResource.save", SETTINGS),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.get", VIEW),
             Map.entry("OrgControlTowerTreatmentsResource.open", TREAT),

@@ -16,6 +16,7 @@ import com.microboxlabs.miot.integrations.dto.CredentialTestResponse;
 import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
+import com.microboxlabs.miot.integrations.telephony.TelephonyKeys;
 import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
 import com.microboxlabs.miot.integrations.orgaccount.GoogleCallException;
 import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
@@ -410,6 +411,8 @@ public class CredentialProfileService {
         String key = switch (connection.providerType()) {
             case WHATSAPP -> "phone_number_id";
             case RESEND -> ResendEmailSender.FROM;
+            case TELNYX -> TelephonyKeys.CALLER_NUMBER;
+            case TEAMS_PHONE -> TelephonyKeys.DEFAULT_CALLER_ID;
             case null, default -> null;
         };
         if (key == null) {

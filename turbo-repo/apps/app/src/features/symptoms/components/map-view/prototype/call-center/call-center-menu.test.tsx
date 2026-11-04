@@ -166,6 +166,19 @@ describe("CallCenterMenu", () => {
     );
   });
 
+  it("shows a goal even when the step has no message", () => {
+    data.level = levelWith([
+      {
+        role: "Conductor",
+        channel: "call",
+        budgetMinutes: 2,
+        goal: "Goal without a message",
+      },
+    ]);
+    renderMenu();
+    expect(screen.getByText(/Goal without a message/)).toBeTruthy();
+  });
+
   it("keeps a newer call selection when an earlier contact save finishes", async () => {
     let finishSave = () => {};
     data.createContact.mockImplementationOnce(

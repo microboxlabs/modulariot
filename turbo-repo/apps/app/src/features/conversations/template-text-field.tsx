@@ -93,6 +93,8 @@ export default function TemplateTextField({
   onFocusField?: (insert: Inserter) => () => void;
 }>) {
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
+  const changeRef = useRef(onChange);
+  changeRef.current = onChange;
   const listId = useId();
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -116,7 +118,7 @@ export default function TemplateTextField({
     const start = el?.selectionStart ?? current.length;
     const end = el?.selectionEnd ?? current.length;
     const next = spliceSelection(current, start, end, insert, close);
-    onChange(next.value);
+    changeRef.current(next.value);
     requestAnimationFrame(() => {
       el?.focus();
       el?.setSelectionRange(next.caret, next.caret);
@@ -148,7 +150,7 @@ export default function TemplateTextField({
       name
     );
     setOpen(null);
-    onChange(next.value);
+    changeRef.current(next.value);
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(next.caret, next.caret);
@@ -165,6 +167,7 @@ export default function TemplateTextField({
       pick(suggestions[active]?.name ?? suggestions[0]!.name);
     } else if (e.key === "Escape") {
       e.preventDefault();
+      e.stopPropagation();
       setOpen(null);
     }
   };

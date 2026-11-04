@@ -262,12 +262,13 @@ function StepGroup({
 }>) {
   const carrierName = treatmentData?.trip_info?.carrier;
   const preset = presetFor(group.summary, trip, carrierName);
-  const script: CallScript | undefined = group.step.script?.trim()
-    ? {
-        message: fillScript(group.step.script, scriptContext),
-        goal: fillScript(group.step.goal ?? "", scriptContext),
-      }
-    : undefined;
+  const script: CallScript | undefined =
+    group.step.script?.trim() || group.step.goal?.trim()
+      ? {
+          message: fillScript(group.step.script ?? "", scriptContext),
+          goal: fillScript(group.step.goal ?? "", scriptContext),
+        }
+      : undefined;
   const { step, index } = group;
   const isDue = index === due;
   const [skipping, setSkipping] = useState(false);
@@ -292,12 +293,16 @@ function StepGroup({
         <span>{channelLabel(step.channel, d)}</span>
         <span className="w-12 text-right">{step.budgetMinutes ?? "—"} min</span>
       </div>
-      {isDue && step.script && (
+      {isDue && script && (
         <blockquote className="border-b border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-          <span className="mb-1 block text-xs text-gray-500">
-            {tr("say", d)}
-          </span>
-          {fillScript(step.script, scriptContext)}
+          {script.message && (
+            <>
+              <span className="mb-1 block text-xs text-gray-500">
+                {tr("say", d)}
+              </span>
+              {script.message}
+            </>
+          )}
           {step.goal?.trim() && (
             <span className="mt-1 block text-xs text-gray-500">
               {tr("goal", d)}: {fillScript(step.goal, scriptContext)}

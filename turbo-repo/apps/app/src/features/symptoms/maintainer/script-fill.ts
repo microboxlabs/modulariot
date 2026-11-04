@@ -51,6 +51,7 @@ export function valueAt(ctx: Json | undefined, path: string): string | null {
   let at: unknown = ctx;
   for (const key of path.split(".")) {
     if (!isObject(at)) return null;
+    if (!Object.hasOwn(at, key)) return null;
     at = at[key];
   }
   const v = text(at);
@@ -67,7 +68,10 @@ export function scriptValue(
     const to = valueAt(ctx, "trip.destination");
     return from && to ? `${from} → ${to}` : null;
   }
-  return valueAt(ctx, SCRIPT_ALIASES[name] ?? name);
+  return valueAt(
+    ctx,
+    Object.hasOwn(SCRIPT_ALIASES, name) ? SCRIPT_ALIASES[name]! : name
+  );
 }
 
 /** Whether a variable is one a case can fill: a known field, an older name, or a field of the sample. */

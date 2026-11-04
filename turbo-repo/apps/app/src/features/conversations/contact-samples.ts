@@ -17,8 +17,10 @@ const text = (v: string | null | undefined) => v ?? "";
 export function contactVars(c: TowerContact): Record<string, unknown> {
   const ch = c.channels ?? {};
   return {
+    id: c.id,
     name: text(c.name),
     role: text(c.role),
+    roleKey: text(c.role).trim().toLowerCase(),
     tags: c.tags ?? [],
     company: text(c.company),
     companyRut: text(c.companyRut),

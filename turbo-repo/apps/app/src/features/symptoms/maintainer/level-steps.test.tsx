@@ -5,11 +5,11 @@ import type { Step } from "./maintainer-api";
 
 /** The condition editor reads its texts from here; the tests do not look at them. */
 const AUDIENCE = { d: {}, fieldDict: {} };
-import { scriptParts } from "./script-fill";
+import { scriptParts, fillScriptText } from "./script-fill";
 
 const CTX = {
   case: { symptom: "Pérdida de señal", level: 4 },
-  vehicle: { plate: "AB1234" },
+  vehicle: { plate: "TEST-PLATE" },
   trip: { origin: "SCL", destination: "ANF", driver: { name: "Juan" } },
 };
 
@@ -43,7 +43,7 @@ vi.mock(
 mocked.samples.data = [
   {
     symptom_id: -680,
-    asset_id: "AB1234",
+    asset_id: "TEST-PLATE",
     icu_code: 4,
     opened_at: "2026-11-03T18:52:00Z",
     context: CTX,
@@ -51,6 +51,17 @@ mocked.samples.data = [
 ];
 
 describe("scriptParts", () => {
+  it("leaves unknown inherited property names unchanged", () => {
+    const text =
+      "{{constructor}} {{toString}} {{__proto__}} {{trip.constructor.name}}";
+    expect(fillScriptText(text, CTX)).toBe(text);
+    expect(
+      scriptParts(text, CTX)
+        .filter((p) => "variable" in p)
+        .every((p) => "known" in p && !p.known)
+    ).toBe(true);
+  });
+
   it("fills fields and older names from the case and marks what it lacks", () => {
     expect(
       scriptParts(
@@ -61,7 +72,7 @@ describe("scriptParts", () => {
       { text: "Hola " },
       { variable: "conductor", value: "Juan", known: true },
       { text: ", el " },
-      { variable: "patente", value: "AB1234", known: true },
+      { variable: "patente", value: "TEST-PLATE", known: true },
       { text: " va por " },
       { variable: "ruta", value: "SCL → ANF", known: true },
       { text: " a " },
@@ -160,7 +171,7 @@ describe("LevelSteps", () => {
     fireEvent.click(screen.getByText(/^Hola, el camión/));
     const panel = screen.getByRole("dialog", { name: "Guion · paso 1" });
     // In the preview and as the variables panel's example.
-    expect(within(panel).getAllByText("AB1234").length).toBeGreaterThan(0);
+    expect(within(panel).getAllByText("TEST-PLATE").length).toBeGreaterThan(0);
     expect(within(panel).getByText("SCL → ANF")).toBeTruthy();
 
     fireEvent.change(within(panel).getByLabelText("Guion"), {

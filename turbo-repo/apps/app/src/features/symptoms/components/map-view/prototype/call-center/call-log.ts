@@ -26,7 +26,9 @@ export interface CallLogEntry {
 
 export function callLogEntryOf(action: TowerAction): CallLogEntry {
   const answered = action.answered ?? (action.durationSeconds ?? 0) > 0;
-  const response = [action.outcomeLabel, action.note].filter(Boolean).join(" · ");
+  const response = [action.outcomeLabel, action.note]
+    .filter(Boolean)
+    .join(" · ");
   return {
     id: action.id,
     calledName: action.contactName ?? "",

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** Process-local treatment store for unit tests. Not a CDI bean: the running service uses {@link PgTreatmentStore}. */
@@ -168,13 +169,20 @@ public class InMemoryTreatmentStore implements TreatmentStore {
     @Override
     public synchronized Optional<TreatmentAction> updateCallResult(String tenantCode, String actionId,
             Boolean answered, Integer durationSeconds, Map<String, Object> details) {
+        Object metadata = details == null ? null : details.get("telephony");
+        if (metadata instanceof Map<?, ?> record && "RECORDED".equals(record.get("status"))
+                && record.get("connectionId") instanceof String connection
+                && recordedTelephonyRecordIds(tenantCode, connection).contains(record.get("recordId"))) {
+            return Optional.empty();
+        }
         for (List<TreatmentAction> list : actions.values()) {
             for (int i = 0; i < list.size(); i++) {
                 TreatmentAction a = list.get(i);
-                if (a.id().equals(actionId) && a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL) {
+                if (a.id().equals(actionId) && a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL
+                        && "PENDING".equals(telephonyStatus(a))) {
                     TreatmentAction updated = new TreatmentAction(a.id(), a.treatmentId(), a.tenantCode(), a.seq(),
                             a.kind(), a.contactId(), a.contactName(), a.contactRole(), a.contactPhone(), a.method(),
-                            a.outcomeKey(), a.outcomeLabel(), answered == null ? a.answered() : answered,
+                            a.outcomeKey(), a.outcomeLabel(), answered,
                             durationSeconds == null ? a.durationSeconds() : durationSeconds, a.message(), a.note(),
                             a.tags(), details == null ? Map.of() : Map.copyOf(details), a.performedBy(),
                             a.performedAt());
@@ -187,7 +195,22 @@ public class InMemoryTreatmentStore implements TreatmentStore {
     }
 
     private static Object telephonyStatus(TreatmentAction a) {
-        Object telephony = a.details() == null ? null : a.details().get("telephony");
-        return telephony instanceof Map<?, ?> m ? m.get("status") : null;
+        return telephonyDetails(a).get("status");
+    }
+
+    @Override
+    public synchronized Set<String> recordedTelephonyRecordIds(String tenantCode, String connectionId) {
+        return actions.values().stream().flatMap(List::stream)
+                .filter(a -> a.tenantCode().equals(tenantCode) && a.kind() == ActionKind.CALL)
+                .map(InMemoryTreatmentStore::telephonyDetails)
+                .filter(t -> "TEAMS_PHONE".equals(t.get("provider")) && "RECORDED".equals(t.get("status"))
+                        && connectionId.equals(t.get("connectionId")))
+                .map(t -> t.get("recordId")).filter(String.class::isInstance).map(String.class::cast)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    private static Map<?, ?> telephonyDetails(TreatmentAction action) {
+        Object value = action.details() == null ? null : action.details().get("telephony");
+        return value instanceof Map<?, ?> m ? m : Map.of();
     }
 }

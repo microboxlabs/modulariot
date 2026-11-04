@@ -17,6 +17,7 @@ export interface TelephonyCallResult {
   sipCode: number | null;
   /** Telnyx's call control id when it has one, else the SDK's call id. */
   callId: string | null;
+  connectionId?: string;
   /** E.164, as dialed. */
   calleeNumber: string;
   startedAt: string;
@@ -35,6 +36,7 @@ export function telephonyDetails(
     sipCode: result.sipCode,
     calleeNumber: result.calleeNumber,
     startedAt: result.startedAt,
+    ...(result.connectionId ? { connectionId: result.connectionId } : {}),
     ...(result.endedAt ? { endedAt: result.endedAt } : {}),
   };
 }
@@ -96,7 +98,8 @@ const ENDED = new Set(["hangup", "destroy", "purge"]);
 export function pendingTeamsCall(
   calleeNumber: string,
   startedAtMs: number,
-  endedAtMs: number
+  endedAtMs: number,
+  connectionId?: string
 ): TelephonyCallResult {
   return {
     provider: "TEAMS_PHONE",
@@ -106,6 +109,7 @@ export function pendingTeamsCall(
     hangupCause: null,
     sipCode: null,
     callId: null,
+    connectionId,
     calleeNumber,
     startedAt: new Date(startedAtMs).toISOString(),
     endedAt: new Date(endedAtMs).toISOString(),

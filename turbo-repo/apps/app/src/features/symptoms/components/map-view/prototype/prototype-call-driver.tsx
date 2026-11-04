@@ -358,9 +358,10 @@ export default function PrototypeCallDriver({
           ...(callTelephony
             ? {
                 // A pending (Teams) call gets its result from Graph later.
-                ...(callTelephony.status === "PENDING"
-                  ? {}
-                  : { answered: callTelephony.answered }),
+                answered:
+                  callTelephony.status === "PENDING"
+                    ? undefined
+                    : callTelephony.answered,
                 details: { telephony: telephonyDetails(callTelephony) },
               }
             : {}),

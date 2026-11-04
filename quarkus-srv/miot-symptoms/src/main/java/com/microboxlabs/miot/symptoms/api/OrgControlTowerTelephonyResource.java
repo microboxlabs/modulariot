@@ -100,7 +100,7 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
             params = "organizationId")
     public Uni<Response> reconcile(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        String actor = actor();
+        String actor = operator();
         return work(() -> Response.ok(reconciler.reconcile(tenant, actor)).build());
     }
 

@@ -260,6 +260,7 @@ describe("CallDialingStep", () => {
         contactName="Luis"
         contactRole="Transportista"
         contactPhone="+56 9 1111 1111"
+        channels={{ phone: "+56 9 2222 2222" }}
         allowedMethods={["phone", "teams"]}
         reason=""
         line={{
@@ -278,8 +279,8 @@ describe("CallDialingStep", () => {
       screen.getByRole("button", { name: "Llamada por Microsoft Teams" })
     );
     expect(openTeams).toHaveBeenCalledWith({
-      app: "msteams:/l/call/0/0?users=4:+56911111111",
-      web: "https://teams.microsoft.com/l/call/0/0?users=4:+56911111111",
+      app: "msteams:/l/call/0/0?users=4:+56922222222",
+      web: "https://teams.microsoft.com/l/call/0/0?users=4:+56922222222",
     });
     fireEvent.click(
       screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
@@ -290,7 +291,8 @@ describe("CallDialingStep", () => {
       expect.objectContaining({
         provider: "TEAMS_PHONE",
         status: "PENDING",
-        calleeNumber: "+56911111111",
+        calleeNumber: "+56922222222",
+        connectionId: "m1",
       })
     );
   });

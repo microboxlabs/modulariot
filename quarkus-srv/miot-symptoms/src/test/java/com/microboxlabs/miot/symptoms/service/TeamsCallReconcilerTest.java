@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,6 +30,66 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class TeamsCallReconcilerTest {
+
+    @Test
+    void aRecordAssignedOnAnEarlierRunCannotBeReused() {
+        TreatmentAction first = pendingCall("+56911111111");
+        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        assertEquals(1, reconciler().reconcile(TENANT, OPERATOR).recorded());
+        TreatmentAction second = pendingCall("+56911111111");
+        assertEquals(new TeamsCallReconciler.Result(1, 0, 1), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals("RECORDED", TeamsCallReconciler.telephony(stored(first.id())).get("status"));
+        assertEquals("PENDING", TeamsCallReconciler.telephony(stored(second.id())).get("status"));
+    }
+
+    @Test
+    void oneRecordMatchingTwoActionsIsAmbiguousAndEventuallyExpires() {
+        TreatmentAction first = pendingCall("+56911111111");
+        TreatmentAction second = pendingCall("+56911111111");
+        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        assertEquals(new TeamsCallReconciler.Result(2, 0, 2), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals("AMBIGUOUS", TeamsCallReconciler.telephony(stored(first.id())).get("reason"));
+        now = CALL_END.plusSeconds(49 * 3600);
+        assertEquals(new TeamsCallReconciler.Result(2, 0, 0), reconciler().reconcile(TENANT, OPERATOR));
+        assertEquals("NOT_FOUND", TeamsCallReconciler.telephony(stored(second.id())).get("status"));
+    }
+
+    @Test
+    void aStalePendingUpdateCannotReplaceARecordedResult() {
+        TreatmentAction call = pendingCall("+56911111111");
+        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        reconciler().reconcile(TENANT, OPERATOR);
+        assertFalse(store.updateCallResult(TENANT, call.id(), null, null, call.details()).isPresent());
+        assertEquals("r1", TeamsCallReconciler.telephony(stored(call.id())).get("recordId"));
+        assertEquals(61, stored(call.id()).durationSeconds());
+    }
+
+    @Test
+    void aConfiguredCallerIdCannotMatchAMissingCallerNumber() {
+        line = new TelephonyLine("m1", TelephonyProvider.TEAMS_PHONE, "Teams", "+56900000000", true);
+        TreatmentAction call = pendingCall("+56911111111");
+        records.add(new PstnCall("r1", "call-r1", OPERATOR, null, "+56911111111", CALL_START, CALL_END, 61, "user_out"));
+        assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
+        assertEquals("PENDING", TeamsCallReconciler.telephony(stored(call.id())).get("status"));
+    }
+
+    @Test
+    void inboundCallsCannotMatchAnOutboundAttempt() {
+        pendingCall("+56911111111");
+        records.add(new PstnCall("r1", "call-r1", OPERATOR, "+56900000000", "+56911111111", CALL_START, CALL_END, 61, "user_in"));
+        assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
+    }
+
+    @Test
+    void aChangedConnectionDoesNotReplaceTheOriginalCallConnection() {
+        TreatmentAction call = pendingCall("+56911111111");
+        Map<String, Object> original = new java.util.LinkedHashMap<>(TeamsCallReconciler.telephony(call));
+        original.put("connectionId", "old-line");
+        store.updateCallResult(TENANT, call.id(), null, null, Map.of("telephony", original));
+        records.add(record("r1", OPERATOR, "+56911111111", CALL_START.plusSeconds(4), 61));
+        assertEquals(0, reconciler().reconcile(TENANT, OPERATOR).recorded());
+        assertEquals("old-line", TeamsCallReconciler.telephony(stored(call.id())).get("connectionId"));
+    }
 
     private static final String TENANT = "acme";
     private static final String OPERATOR = "ana@example.com";

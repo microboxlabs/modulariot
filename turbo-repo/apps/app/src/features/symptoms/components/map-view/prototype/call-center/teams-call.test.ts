@@ -91,16 +91,18 @@ describe("Teams calls", () => {
     ).toBe(false);
   });
 
-  it("schedules the reconcile once at each delay", async () => {
+  it("preserves retries for each save while earlier retries are still scheduled", async () => {
     const run = vi.fn().mockResolvedValue({});
     const timers: [() => void, number][] = [];
     const timer = (cb: () => void, ms: number) => timers.push([cb, ms]);
     scheduleTeamsReconcile(run, [120_000, 600_000], timer);
     scheduleTeamsReconcile(run, [120_000, 600_000], timer);
-    expect(timers.map(([, ms]) => ms)).toEqual([120_000, 600_000]);
+    expect(timers.map(([, ms]) => ms)).toEqual([
+      120_000, 600_000, 120_000, 600_000,
+    ]);
     timers.forEach(([cb]) => cb());
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledTimes(4);
     scheduleTeamsReconcile(run, [1], timer);
-    expect(timers).toHaveLength(3);
+    expect(timers).toHaveLength(5);
   });
 });

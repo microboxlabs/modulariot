@@ -168,7 +168,10 @@ export default function CallDialingStep({
     (id === "phone" || id === "teams") &&
     line?.provider === "TEAMS_PHONE" &&
     destination !== null;
-  const [teamsCall, setTeamsCall] = useState<number | null>(null);
+  const [teamsCall, setTeamsCall] = useState<{
+    startedAt: number;
+    connectionId: string;
+  } | null>(null);
 
   async function placeTelnyxCall() {
     cancelledRef.current = false;
@@ -360,10 +363,16 @@ export default function CallDialingStep({
                     id === "phone" && (telephonyPending || telephonyFailed)
                   }
                   onClick={() => {
-                    if (viaTeams(id)) {
-                      const links = teamsCallLinks(contactPhone);
-                      if (links) openTeams(links);
-                      setTeamsCall(Date.now());
+                    if (viaTeams(id) && line) {
+                      const links = teamsCallLinks(`+${destination}`);
+                      if (!links) return;
+                      openTeams(links);
+                      setBrowserAttempt(false);
+                      setPhase(null);
+                      setTeamsCall({
+                        startedAt: Date.now(),
+                        connectionId: line.connectionId,
+                      });
                       setMethod(id);
                       setStarted(true);
                       onStartedChange?.(true);
@@ -414,7 +423,12 @@ export default function CallDialingStep({
                     onConfirm(
                       elapsed,
                       method,
-                      pendingTeamsCall(`+${destination}`, teamsCall, Date.now())
+                      pendingTeamsCall(
+                        `+${destination}`,
+                        teamsCall.startedAt,
+                        Date.now(),
+                        teamsCall.connectionId
+                      )
                     );
                   else if (!browserAttempt) onConfirm(elapsed, method);
                 }}

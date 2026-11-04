@@ -60,7 +60,9 @@ public final class WhatsAppTemplateRenderer {
             "pod_approved_v1", POD_APPROVED_V1,
             "pod_image_unclear_v1", POD_IMAGE_UNCLEAR_V1,
             "trip_detention_alert_v1", TRIP_DETENTION_ALERT_V1,
-            "trip_arrival_pod_request_v1", TRIP_ARRIVAL_POD_REQUEST_V1);
+            "trip_arrival_pod_request_v1", TRIP_ARRIVAL_POD_REQUEST_V1,
+            "miot_call_permission_request", "Hola {{nombre}}, somos el equipo que monitorea tu viaje. "
+                    + "Si surge algo en ruta, queremos poder llamarte por WhatsApp. ¿Nos das permiso?");
 
     private WhatsAppTemplateRenderer() {}
 

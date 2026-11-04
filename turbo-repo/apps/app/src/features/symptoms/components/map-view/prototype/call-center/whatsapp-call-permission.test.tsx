@@ -1,0 +1,247 @@
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { SWRConfig } from "swr";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import es from "@/lang/es.json";
+import CallDialingStep from "./call-dialing-step";
+import type { CallPermissionView } from "./whatsapp-call-permission";
+
+const { request } = vi.hoisted(() => ({ request: vi.fn() }));
+
+vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+vi.mock(
+  "@/features/symptoms/control-tower/control-tower-api",
+  async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    controlTowerRequest: request,
+  })
+);
+
+const dict = es as unknown as I18nRecord;
+
+const view = (patch: Partial<CallPermissionView>): CallPermissionView => ({
+  callingEnabled: true,
+  state: "NO_PERMISSION",
+  permission: "NONE",
+  expiresAt: null,
+  lastRequestAt: null,
+  canRequest: true,
+  refusal: null,
+  nextRequestAt: null,
+  ...patch,
+});
+
+function renderStep() {
+  render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <CallDialingStep
+        dict={dict}
+        contactName="Synthetic driver"
+        contactRole="Conductor"
+        contactPhone="+12025550101"
+        channels={{ phone: "+12025550101", whatsapp: "+12025550102" }}
+        allowedMethods={["phone", "whatsapp"]}
+        reason="Step message"
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    </SWRConfig>
+  );
+}
+
+describe("WhatsApp call permission on the dialing step", () => {
+  beforeEach(() => {
+    request.mockReset();
+  });
+
+  it("shows nothing and keeps wa.me while calling is off", async () => {
+    request.mockResolvedValue(view({ callingEnabled: false }));
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    renderStep();
+    await waitFor(() => expect(request).toHaveBeenCalled());
+    expect(request.mock.calls[0][0]).toContain(
+      "/whatsapp-call-permissions?phone=%2B12025550102"
+    );
+    expect(screen.queryByTestId("wa-call-permission")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Llamada por WhatsApp" })
+    );
+    expect(open).toHaveBeenCalledWith(
+      "https://wa.me/12025550102?text=Step%20message",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    open.mockRestore();
+  });
+
+  it("refreshes a mounted pending permission after the contact grants it", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    });
+    try {
+      request.mockResolvedValue(
+        view({ state: "PENDING", canRequest: false, refusal: "DAILY_LIMIT" })
+      );
+      renderStep();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(screen.getByText("WhatsApp: permiso pendiente")).toBeTruthy();
+      request.mockResolvedValue(
+        view({ state: "CAN_CALL", permission: "PERMANENT", canRequest: false })
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      expect(screen.getByText("WhatsApp: puede llamar")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows when the contact can be called", async () => {
+    request.mockResolvedValue(
+      view({ state: "CAN_CALL", permission: "PERMANENT", canRequest: false })
+    );
+    renderStep();
+    expect(await screen.findByText("WhatsApp: puede llamar")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Solicitar permiso" })
+    ).toBeNull();
+  });
+
+  it("shows a pending request whose limit blocks another one", async () => {
+    request.mockResolvedValue(
+      view({
+        state: "PENDING",
+        canRequest: false,
+        refusal: "DAILY_LIMIT",
+        nextRequestAt: "2026-11-05T12:00:00Z",
+      })
+    );
+    renderStep();
+    expect(await screen.findByText("WhatsApp: permiso pendiente")).toBeTruthy();
+    const button = screen.getByRole("button", { name: "Solicitar permiso" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/Meta permite 1 solicitud por día/)).toBeVisible();
+    expect(
+      screen.getByText(/Meta permite 1 solicitud por día/)
+    ).toHaveTextContent(button.getAttribute("title") ?? "");
+    expect(button.getAttribute("title")).toContain(
+      "Meta permite 1 solicitud por día"
+    );
+  });
+
+  it("sends the request now and shows the new state", async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith("/requests")
+        ? Promise.resolve({
+            sent: true,
+            refusal: null,
+            detail: "wamid.1",
+            nextRequestAt: null,
+            view: view({
+              state: "PENDING",
+              canRequest: false,
+              refusal: "DAILY_LIMIT",
+            }),
+          })
+        : Promise.resolve(view({}))
+    );
+    renderStep();
+    expect(
+      await screen.findByText("WhatsApp: sin permiso de llamada")
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Solicitar permiso" }));
+
+    expect(await screen.findByText("Solicitud enviada")).toBeTruthy();
+    expect(screen.getByText("WhatsApp: permiso pendiente")).toBeTruthy();
+    const post = request.mock.calls.find(([url]) => url.endsWith("/requests"));
+    expect(post?.[1]).toEqual({
+      method: "POST",
+      body: { phone: "+12025550102", name: "Synthetic driver" },
+    });
+  });
+
+  it("explains a refused request", async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith("/requests")
+        ? Promise.resolve({
+            sent: false,
+            refusal: "WEEKLY_LIMIT",
+            detail: null,
+            nextRequestAt: null,
+            view: view({ canRequest: false, refusal: "WEEKLY_LIMIT" }),
+          })
+        : Promise.resolve(view({}))
+    );
+    renderStep();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Solicitar permiso" })
+    );
+    expect(
+      await screen.findByText(
+        "Meta permite 2 solicitudes por semana a cada contacto."
+      )
+    ).toBeTruthy();
+  });
+  it.each([new Error("Synthetic outage"), { state: "CAN_CALL" }])(
+    "shows a load error and retries instead of accepting an invalid status: %s",
+    async (failure) => {
+      if (failure instanceof Error) request.mockRejectedValueOnce(failure);
+      else request.mockResolvedValueOnce(failure);
+      request.mockResolvedValue(
+        view({ state: "CAN_CALL", permission: "PERMANENT" })
+      );
+      renderStep();
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "No se pudo consultar el permiso de llamada de WhatsApp."
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+      expect(await screen.findByText("WhatsApp: puede llamar")).toBeTruthy();
+    }
+  );
+
+  it("rejects an invalid send response and preserves the last valid permission", async () => {
+    request.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith("/requests")
+          ? { sent: true, view: { state: "CAN_CALL" } }
+          : view({})
+      )
+    );
+    renderStep();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Solicitar permiso" })
+    );
+    expect(
+      await screen.findByText(es.symptoms.wa_call_request_failed)
+    ).toBeTruthy();
+    expect(screen.getByText("WhatsApp: sin permiso de llamada")).toBeTruthy();
+  });
+  it("stops polling while calling is disabled", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    });
+    try {
+      request.mockResolvedValue(view({ callingEnabled: false }));
+      renderStep();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(request).toHaveBeenCalledOnce();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(45_000);
+      });
+      expect(request).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

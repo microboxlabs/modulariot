@@ -8,6 +8,8 @@ import com.microboxlabs.miot.conversational.domain.Conversation;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
+import com.microboxlabs.miot.conversational.service.CallEvent;
+import com.microboxlabs.miot.conversational.service.CallPermissionReply;
 import com.microboxlabs.miot.conversational.service.InboundMessage;
 import com.microboxlabs.miot.conversational.service.MetaWebhookParser;
 import com.microboxlabs.miot.conversational.service.ParsedWebhook;
@@ -35,7 +37,8 @@ import org.jboss.logging.Logger;
 
 /**
  * Turns a Meta webhook delivery into one integration job per event, on the modulith lane: an inbound message
- * ({@value #MESSAGE_JOB}) or a status ({@value #STATUS_JOB}). A message's job belongs to the organization of the
+ * ({@value #MESSAGE_JOB}), a status ({@value #STATUS_JOB}), a call permission reply ({@value #CALL_PERMISSION_JOB})
+ * or a call event ({@value #CALL_JOB}). Replies and calls belong to the organization of the number. A message's job belongs to the organization of the
  * number that received it, a status's to the organization of the message it updates. A status that arrives before
  * its message is stored waits in the signing connection's scope; an unknown number goes to the platform scope.
  */
@@ -44,6 +47,8 @@ public class WhatsAppWebhookJobs {
 
     public static final String MESSAGE_JOB = InternalJobTypes.WHATSAPP_INBOUND_MESSAGE;
     public static final String STATUS_JOB = InternalJobTypes.WHATSAPP_INBOUND_STATUS;
+    public static final String CALL_PERMISSION_JOB = InternalJobTypes.WHATSAPP_INBOUND_CALL_PERMISSION;
+    public static final String CALL_JOB = InternalJobTypes.WHATSAPP_INBOUND_CALL;
     static final String SOURCE = "whatsapp-webhook";
     static final String ENQUEUED_BY = "webhook";
     static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())
@@ -105,6 +110,14 @@ public class WhatsAppWebhookJobs {
             // connection's scope until the job can resolve its actual tenant on retry.
             skipped += add(byTenant, connectionTenant, tenant == null ? connectionTenant : tenant,
                     spec(STATUS_JOB, s.wamid(), "wa:status:" + s.wamid() + ":" + s.status(), s));
+        }
+        for (CallPermissionReply r : parsed.callPermissionReplies()) {
+            skipped += add(byTenant, connectionTenant, tenantOr(numberTenant, r.phoneNumberId()),
+                    spec(CALL_PERMISSION_JOB, r.wamid(), "wa:callperm:" + r.wamid(), r));
+        }
+        for (CallEvent c : parsed.calls()) {
+            skipped += add(byTenant, connectionTenant, tenantOr(numberTenant, c.phoneNumberId()),
+                    spec(CALL_JOB, c.callId(), "wa:call:" + c.callId() + ":" + c.event(), c));
         }
         if (skipped > 0) {
             LOG.warnf("Skipped %d WhatsApp webhook event(s) that do not belong to organization %s",

@@ -455,16 +455,23 @@ export function ConnectionFormModal({
         {/* Creating tests the form values without storing anything; editing tests the
           saved connection and records the result on it. */}
         {canTest && (
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              color="light"
-              disabled={testing || saving}
-              onClick={handleTest}
-            >
-              {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
-            </Button>
-            {testResult && <TestResultLine result={testResult} dict={dict} />}
+          <div className="flex flex-col gap-2">
+            {connection && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {tr("connection.form.testSavedConfigHint", dict)}
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                color="light"
+                disabled={testing || saving}
+                onClick={handleTest}
+              >
+                {testing ? <Spinner size="sm" /> : tr("connections.test", dict)}
+              </Button>
+              {testResult && <TestResultLine result={testResult} dict={dict} />}
+            </div>
           </div>
         )}
 

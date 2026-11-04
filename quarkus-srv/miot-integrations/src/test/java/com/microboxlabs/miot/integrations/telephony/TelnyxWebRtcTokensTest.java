@@ -37,23 +37,17 @@ class TelnyxWebRtcTokensTest {
             "callerNumber", "+56 9 0000 0000");
 
     private final StubHttp http = new StubHttp();
+    private String apiKey = "KEY_test";
     private IntegrationConnection stored = connection(ProviderType.TELNYX, ConnectionStatus.ACTIVE);
 
     private final TelnyxWebRtcTokens tokens = new TelnyxWebRtcTokens(
             (tenant, id) -> stored != null && stored.id().equals(id) ? stored : null,
-            (tenant, c) -> new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("token", "KEY_test")),
+            (tenant, c) -> new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("token", apiKey)),
             new TelnyxClient(http, API), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
 
     @Test
     void reusesTheOperatorsCredentialAndReturnsAToken() {
-        String name = TelnyxWebRtcTokens.credentialName("acme", "ana@example.com");
-        http.reply("POST /v2/telephony_credentials/cred-1/token", 201, "eyJ.placeholder.jwt")
-                .reply("GET /v2/telephony_credentials", 200,
-                        "{\"data\":[{\"id\":\"old\",\"resource_id\":\"connection:sip-1\",\"expired\":true},"
-                                + "{\"id\":\"other\",\"resource_id\":\"connection:sip-2\",\"expired\":false},"
-                                + "{\"id\":\"cred-1\",\"resource_id\":\"connection:sip-1\",\"expired\":false,"
-                                + "\"name\":\""
-                                + name + "\"}]}");
+        String name = replyExistingCredential();
 
         WebRtcToken token = tokens.issue("acme", "conn-1", "Ana@example.com");
 
@@ -104,6 +98,46 @@ class TelnyxWebRtcTokensTest {
         TelephonyUnavailableException e = assertThrows(TelephonyUnavailableException.class,
                 () -> tokens.issue("acme", "conn-1", "ana@example.com"));
         assertTrue(e.getMessage().contains("rejected"));
+    }
+
+    @Test
+    void malformedStoredKeysNeverAppearInTokenIssuanceErrors() {
+        apiKey = "KEY_sensitive\ninvalid";
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> tokens.issue("acme", "conn-1", "ana@example.com"));
+        assertEquals("The API key is not a valid HTTP bearer token", error.getMessage());
+        org.junit.jupiter.api.Assertions.assertNull(error.getCause());
+        assertTrue(http.seen().isEmpty());
+    }
+
+    @Test
+    void trimsTheSipIdBeforeMatchingAnExistingCredential() {
+        stored = new IntegrationConnection("conn-1", "acme", "Telnyx", ProviderType.TELNYX, API, "cred",
+                ConnectionStatus.ACTIVE, null, null, Map.of("sipConnectionId", " sip-1 ", "callerNumber", "+56900000000"));
+        replyExistingCredential();
+        assertEquals("eyJ.placeholder.jwt", tokens.issue("acme", "conn-1", "ana@example.com").token());
+        assertEquals(2, http.seen().size(), "the normalized SIP id reuses the existing credential");
+    }
+
+    @Test
+    void refusesABlankSipIdBeforeAnyProviderRequest() {
+        stored = new IntegrationConnection("conn-1", "acme", "Telnyx", ProviderType.TELNYX, API, "cred",
+                ConnectionStatus.ACTIVE, null, null, Map.of("sipConnectionId", "  ", "callerNumber", "+56900000000"));
+        assertThrows(TelephonyUnavailableException.class,
+                () -> tokens.issue("acme", "conn-1", "ana@example.com"));
+        assertTrue(http.seen().isEmpty());
+    }
+
+    private String replyExistingCredential() {
+        String name = TelnyxWebRtcTokens.credentialName("acme", "ana@example.com");
+        http.reply("POST /v2/telephony_credentials/cred-1/token", 201, "eyJ.placeholder.jwt")
+                .reply("GET /v2/telephony_credentials", 200,
+                        "{\"data\":[{\"id\":\"old\",\"name\":\"" + name + "\",\"resource_id\":\"connection:sip-1\",\"expired\":true},"
+                                + "{\"id\":\"other\",\"name\":\"" + name + "\",\"resource_id\":\"connection:sip-2\",\"expired\":false},"
+                                + "{\"id\":\"cred-1\",\"resource_id\":\"connection:sip-1\",\"expired\":false,"
+                                + "\"name\":\""
+                                + name + "\"}]}");
+        return name;
     }
 
     private static IntegrationConnection connection(ProviderType type, ConnectionStatus status) {

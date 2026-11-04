@@ -12,41 +12,34 @@ import {
   controlTowerRequest as request,
 } from "./control-tower-api";
 
-export type TelephonyProvider = "TELNYX" | "TEAMS_PHONE";
-
-export interface TelephonyLine {
-  connectionId: string;
-  provider: TelephonyProvider;
-  name: string;
-  /** E.164, or null when the provider decides. */
-  callerNumber: string | null;
-  /** Whether the connection's last test passed. */
-  ready: boolean;
-}
-
-export interface TelephonySetup {
-  /** What the organization chose; null lets the server pick (Telnyx first). */
-  preferred: TelephonyProvider | null;
-  /** The line calls use now; null opens the phone's dialer. */
-  active: TelephonyLine | null;
-  lines: TelephonyLine[];
-}
+import {
+  parseTelephonySetup,
+  type TelephonyProvider,
+  type TelephonySetup,
+} from "./telephony-api.types";
+export type {
+  TelephonyProvider,
+  TelephonyLine,
+  TelephonySetup,
+} from "./telephony-api.types";
 
 export const telephonyKey = `${CONTROL_TOWER_BASE}/telephony`;
 
 export function useTelephony(enabled = true) {
   return useSWR<TelephonySetup>(
     enabled ? telephonyKey : null,
-    (path: string) => request<TelephonySetup>(path),
+    async (path: string) => parseTelephonySetup(await request<unknown>(path)),
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
 }
 
 export async function saveTelephony(provider: TelephonyProvider | null) {
-  const saved = await request<TelephonySetup>(telephonyKey, {
-    method: "PUT",
-    body: { provider },
-  });
+  const saved = parseTelephonySetup(
+    await request<unknown>(telephonyKey, {
+      method: "PUT",
+      body: { provider },
+    })
+  );
   await mutate(telephonyKey, saved, { revalidate: false });
   return saved;
 }

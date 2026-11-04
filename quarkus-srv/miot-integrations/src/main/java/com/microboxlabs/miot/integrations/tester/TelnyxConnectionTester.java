@@ -76,6 +76,9 @@ public class TelnyxConnectionTester implements ConnectionTester {
                 return fail(now, "Telnyx returned HTTP " + sip.statusCode() + " for the credential connection");
             }
             return new ConnectionTestResponse(true, now, "Telnyx accepted the API key and the SIP connection");
+        } catch (IllegalArgumentException e) {
+            // Invalid-header messages contain the secret: do not expose or log them.
+            return fail(now, "The API key is not a valid HTTP bearer token");
         } catch (IOException e) {
             return fail(now, "Could not reach Telnyx: " + e.getMessage());
         } catch (InterruptedException e) {

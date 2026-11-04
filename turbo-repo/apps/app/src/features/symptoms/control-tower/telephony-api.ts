@@ -14,6 +14,8 @@ import {
 
 import {
   parseTelephonySetup,
+  parseWebRtcToken,
+  parseReconcileResult,
   type TelephonyProvider,
   type TelephonySetup,
 } from "./telephony-api.types";
@@ -45,24 +47,19 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
 }
 
 /** Asks for a Telnyx WebRTC login for the signed-in operator (24 hours). */
-export function fetchWebRtcToken() {
-  return request<{ token: string; callerNumber: string; expiresAt: string }>(
-    `${telephonyKey}/webrtc-token`,
-    { method: "POST" }
+export async function fetchWebRtcToken() {
+  return parseWebRtcToken(
+    await request<unknown>(`${telephonyKey}/webrtc-token`, { method: "POST" })
   );
 }
 
-export interface ReconcileResult {
-  checked: number;
-  recorded: number;
-  pending: number;
-}
+export type { ReconcileResult } from "./telephony-api.types";
 
 /** Fills the signed-in operator's pending Teams calls from Graph's call records. */
-export function reconcileTeamsCalls() {
-  return request<ReconcileResult>(`${telephonyKey}/reconcile`, {
-    method: "POST",
-  });
+export async function reconcileTeamsCalls() {
+  return parseReconcileResult(
+    await request<unknown>(`${telephonyKey}/reconcile`, { method: "POST" })
+  );
 }
 
 /** Graph publishes PSTN records minutes after the call: ask again at these delays. */

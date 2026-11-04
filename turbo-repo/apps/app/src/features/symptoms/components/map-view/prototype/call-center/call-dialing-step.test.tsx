@@ -1,8 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
+import type { StartCallOptions, TelephonyCallResult } from "./telnyx-call";
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 
@@ -53,5 +60,106 @@ describe("CallDialingStep", () => {
     renderStep([]);
     expect(screen.getByText("Sin canales registrados")).toBeTruthy();
     expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  describe("with a Telnyx line", () => {
+    const line = {
+      connectionId: "t1",
+      provider: "TELNYX" as const,
+      name: "Central",
+      callerNumber: "+56900000000",
+      ready: true,
+    };
+    const result: TelephonyCallResult = {
+      provider: "TELNYX",
+      answered: true,
+      durationSeconds: 42,
+      hangupCause: "NORMAL_CLEARING",
+      sipCode: 200,
+      callId: "v3:control-1",
+      calleeNumber: "+56911111111",
+      startedAt: "2026-11-04T10:00:00.000Z",
+    };
+
+    function renderTelnyx() {
+      let options: StartCallOptions | null = null;
+      const hangup = vi.fn(() => options?.onEnd(result));
+      const dial = vi.fn(async (o: StartCallOptions) => {
+        options = o;
+        return { hangup };
+      });
+      const token = vi.fn().mockResolvedValue({
+        token: "jwt",
+        callerNumber: "+56900000000",
+        expiresAt: "2026-11-05T10:00:00Z",
+      });
+      const onConfirm = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          contactPhone="+56 9 1111 1111"
+          allowedMethods={["phone"]}
+          reason=""
+          line={line}
+          dial={dial}
+          token={token}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      return { dial, token, hangup, onConfirm, opts: () => options };
+    }
+
+    it("dials from the browser and records how the call ended", async () => {
+      const { dial, token, onConfirm, opts } = renderTelnyx();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      await waitFor(() => expect(dial).toHaveBeenCalled());
+      expect(token).toHaveBeenCalledTimes(1);
+      expect(opts()?.destination).toBe("+56911111111");
+      expect(opts()?.callerNumber).toBe("+56900000000");
+      act(() => opts()?.onEnd(result));
+      expect(onConfirm).toHaveBeenCalledWith(42, "phone", result);
+    });
+
+    it("the red button hangs up instead of timing by hand", async () => {
+      const { dial, hangup, onConfirm } = renderTelnyx();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      await waitFor(() => expect(dial).toHaveBeenCalled());
+      fireEvent.click(
+        screen.getByRole("button", { name: es.symptoms.call_modal_confirm })
+      );
+      expect(hangup).toHaveBeenCalled();
+      expect(onConfirm).toHaveBeenCalledWith(42, "phone", result);
+    });
+
+    it("says so when the login fails", async () => {
+      const onConfirm = vi.fn();
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          contactPhone="+56 9 1111 1111"
+          allowedMethods={["phone"]}
+          reason=""
+          line={line}
+          dial={vi.fn()}
+          token={vi.fn().mockRejectedValue(new Error("HTTP 409"))}
+          onCancel={vi.fn()}
+          onConfirm={onConfirm}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 409");
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
   });
 });

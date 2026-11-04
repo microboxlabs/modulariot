@@ -39,6 +39,10 @@ import {
   type CallMethod,
 } from "./call-center/call-method";
 import CallStatsBadges from "./call-center/call-stats-badges";
+import {
+  telephonyDetails,
+  type TelephonyCallResult,
+} from "./call-center/telnyx-call";
 import CallSwitchDropdown from "./call-center/call-switch-dropdown";
 
 /** Fixed content, not a Selectable — "call result" used to be a plain,
@@ -184,6 +188,7 @@ export default function PrototypeCallDriver({
   callMethodUsed,
   aiAssistEnabled = false,
   callDurationSeconds = null,
+  callTelephony = null,
   onMakeAnotherCall,
   onSwitchTreatment,
   initialDraft = null,
@@ -220,6 +225,8 @@ export default function PrototypeCallDriver({
   aiAssistEnabled?: boolean;
   /** Debug call-center flow: elapsed time from the live-call step. */
   callDurationSeconds?: number | null;
+  /** What the telephony provider reported for the call; null when it was timed by hand. */
+  callTelephony?: TelephonyCallResult | null;
   /** Debug call-center flow only: discards this call and sends the operator
    *  back to "who to call" instead of the static "Llamar por Teams" action —
    *  present only when there's a contacts step to go back to. Wired to the
@@ -346,6 +353,12 @@ export default function PrototypeCallDriver({
           method: callMethodUsed ? toApiMethod(callMethodUsed) : undefined,
           outcomeLabel: resultadoLabel || undefined,
           durationSeconds: callDurationSeconds ?? undefined,
+          ...(callTelephony
+            ? {
+                answered: callTelephony.answered,
+                details: { telephony: telephonyDetails(callTelephony) },
+              }
+            : {}),
           note: notaLlamada.trim() || undefined,
         },
       }
@@ -511,6 +524,12 @@ export default function PrototypeCallDriver({
         <p className="rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-light text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
           {t("call_duration_recorded")}:{" "}
           {formatCallDuration(callDurationSeconds)}
+          {callTelephony &&
+            ` · ${t(
+              callTelephony.answered
+                ? "call_telephony_answered"
+                : "call_telephony_unanswered"
+            )}`}
         </p>
       )}
       <div>

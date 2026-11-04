@@ -35,6 +35,8 @@ import PrototypeCallDriver, {
 } from "../prototype-call-driver";
 import CallCenterMenu, { type CallScript } from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
+import type { TelephonyCallResult } from "./telnyx-call";
+import { useTelephony } from "@/features/symptoms/control-tower/telephony-api";
 import type { CallMethod } from "./call-method";
 import type { CallTarget } from "./call-targets";
 
@@ -61,6 +63,8 @@ export type CallSnapshot = {
   allowedMethods?: CallMethod[];
   durationSeconds: number | null;
   methodUsed: CallMethod | null;
+  /** What the telephony provider reported; absent when the call was timed by hand. */
+  telephony?: TelephonyCallResult | null;
 };
 
 export default function PrototypeCallCenterFlow({
@@ -130,6 +134,9 @@ export default function PrototypeCallCenterFlow({
   const [callMethodUsed, setCallMethodUsed] = useState<CallMethod | null>(
     resumeSnapshot?.methodUsed ?? null
   );
+  const [callTelephony, setCallTelephony] =
+    useState<TelephonyCallResult | null>(resumeSnapshot?.telephony ?? null);
+  const { data: telephony } = useTelephony();
   // Kept here so the due step's timing and a skip survive a call.
   const [startedAt] = useState(() => Date.now());
   const [skippedTo, setSkippedTo] = useState<number | null>(null);
@@ -162,9 +169,14 @@ export default function PrototypeCallCenterFlow({
     setStep("contacts");
   };
 
-  const handleConfirmCall = (elapsedSeconds: number, method: CallMethod) => {
+  const handleConfirmCall = (
+    elapsedSeconds: number,
+    method: CallMethod,
+    result: TelephonyCallResult | null = null
+  ) => {
     setCallDurationSeconds(elapsedSeconds);
     setCallMethodUsed(method);
+    setCallTelephony(result);
     onFormDraftChange?.(null);
     onCallConfirmed?.({
       contact: activeContact,
@@ -174,6 +186,7 @@ export default function PrototypeCallCenterFlow({
       allowedMethods: activeAllowedMethods,
       durationSeconds: elapsedSeconds,
       methodUsed: method,
+      telephony: result,
     });
     setStep("form");
   };
@@ -219,6 +232,7 @@ export default function PrototypeCallCenterFlow({
           contactId={activeContact?.contactId}
           reason={messageToCommunicate}
           goal={activeScript?.goal}
+          line={telephony?.active ?? null}
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
           onStartedChange={setDialingStarted}
@@ -244,6 +258,7 @@ export default function PrototypeCallCenterFlow({
           // Disabled for now — see PrototypeCallDriver's `aiAssistEnabled` doc.
           aiAssistEnabled={false}
           callDurationSeconds={callDurationSeconds}
+          callTelephony={callTelephony}
           onMakeAnotherCall={handleMakeAnotherCall}
           onSwitchTreatment={onSwitchTreatment}
           initialDraft={formDraft}

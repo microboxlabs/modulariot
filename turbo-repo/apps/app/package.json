@@ -60,6 +60,7 @@
     "@tailwindcss/postcss": "^4.1.17",
     "@tailwindcss/typography": "^0.5.20",
     "@tanstack/react-virtual": "^3.10.9",
+    "@telnyx/webrtc": "2.28.0",
     "@types/mdx": "^2.0.13",
     "@types/negotiator": "^0.6.3",
     "@types/pino": "^7.0.4",

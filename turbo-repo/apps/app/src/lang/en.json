@@ -7596,7 +7596,13 @@
       "anyRole": "Any role",
       "tripCarrier": "trip's carrier"
     },
-    "call_center_new_save_error": "The contact couldn't be saved to the contact book. The call goes ahead with this number only."
+    "call_center_new_save_error": "The contact couldn't be saved to the contact book. The call goes ahead with this number only.",
+    "call_phase_connecting": "Connecting…",
+    "call_phase_ringing": "Ringing…",
+    "call_phase_ended": "Call ended",
+    "call_telnyx_failed": "Could not call from the browser",
+    "call_telephony_answered": "answered (recorded by the telephony)",
+    "call_telephony_unanswered": "not answered (recorded by the telephony)"
   },
   "geographic_view": {
     "arrival_delay": "Arrival delay",

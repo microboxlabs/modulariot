@@ -50,3 +50,11 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
   await mutate(telephonyKey, saved, { revalidate: false });
   return saved;
 }
+
+/** Asks for a Telnyx WebRTC login for the signed-in operator (24 hours). */
+export function fetchWebRtcToken() {
+  return request<{ token: string; callerNumber: string; expiresAt: string }>(
+    `${telephonyKey}/webrtc-token`,
+    { method: "POST" }
+  );
+}

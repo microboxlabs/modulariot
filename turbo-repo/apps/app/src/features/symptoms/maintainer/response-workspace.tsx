@@ -4,6 +4,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { CelField } from "./cel-editor";
 import LevelResponseDetail, { type LifecycleRules } from "./level-response";
+import type { AudienceDicts } from "./level-steps";
 import { EMPTY_RESPONSE, levelOf, withLevel } from "./level-row";
 import type {
   Finding,
@@ -167,11 +168,14 @@ export default function ResponseWorkspace({
   readOnly,
   icu,
   sourceFields = [],
+  audience,
   d,
   onIcu,
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  /** The texts of the "contacts from the book" condition each step uses. */
+  audience: AudienceDicts;
   /** The symptom whose conversation rules each level lists; absent for a template. */
   symptom?: { key: string; name: string; rulesDict: I18nRecord };
   /** Levels that differ from the published version. */
@@ -264,6 +268,7 @@ export default function ResponseWorkspace({
             sample={sample}
             symptom={symptom && { ...symptom, icu }}
             rules={rules}
+            audience={audience}
             readOnly={readOnly}
             d={d}
             onChange={(patch) => setResponse({ ...response, ...patch })}

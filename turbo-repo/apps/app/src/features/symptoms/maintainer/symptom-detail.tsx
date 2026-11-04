@@ -406,6 +406,11 @@ export default function SymptomDetail({
             {responseIcu !== null && shownSpec && detail && (
               <ResponseWorkspace
                 spec={shownSpec}
+                audience={{
+                  d: (dict?.communications ?? {}) as I18nRecord,
+                  fieldDict: ((dict?.selectables as I18nRecord | undefined)
+                    ?.field ?? {}) as I18nRecord,
+                }}
                 symptom={
                   template || !def
                     ? undefined

@@ -10,8 +10,9 @@ import {
   callPlan,
   fillScript,
   matchesTarget,
+  driverIds,
   stepAt,
-  tripMatches,
+  stepConditions,
 } from "./call-plan";
 import type { CallTarget } from "./call-targets";
 
@@ -41,76 +42,69 @@ const TARGETS = [
   target("torre", "Jefe de Torre", "Tomás"),
   target("torre2", " jefe de torre ", "Teresa"),
 ];
-// What the server found for the trip by RUT.
-const TRIP = tripMatches({
-  driverRuts: ["000000019", "00000002K"],
-  carrierRut: SUR,
-  drivers: ["ana", "beto"],
-  carrierContacts: ["ana", "beto", "gs", "oc"],
-});
-
-const step = (role: string | null, scope?: Step["scope"]): Step => ({
+const step = (
+  role: string | null,
+  scope?: Step["scope"],
+  who?: string
+): Step => ({
   role,
   channel: "call",
   budgetMinutes: 2,
   script: null,
   scope,
+  who,
 });
 
 const ids = (targets: CallTarget[]) => targets.map((t) => t.id);
-const only = (s: Step, trip = TRIP) =>
-  ids(callPlan([s], TARGETS, new Map(), trip).groups[0]!.targets);
+
+describe("stepConditions", () => {
+  it("sends each step's condition, reading older steps from their role and scope", () => {
+    expect(
+      stepConditions([
+        step("Conductor"),
+        step("Gerente de Seguridad", "TRIP_CARRIER"),
+        step(null, null, "'vip' in contact.tags"),
+      ])
+    ).toEqual([
+      "contact.roleKey == 'conductor' && ((has(event.data.driverRut) && has(event.data.driverIdType) && contact.nationalIdType == event.data.driverIdType && contact.nationalId == event.data.driverRut) || (has(event.data.secondDriverRut) && has(event.data.secondDriverIdType) && contact.nationalIdType == event.data.secondDriverIdType && contact.nationalId == event.data.secondDriverRut))",
+      "contact.roleKey == 'gerente de seguridad' && contact.companyRut == event.data.carrierRut && has(event.data.carrierIdType) && contact.companyTaxIdType == event.data.carrierIdType",
+      "'vip' in contact.tags",
+    ]);
+  });
+});
 
 describe("callPlan", () => {
-  it("finds both trip drivers", () => {
-    expect(only(step("Conductor", "DRIVER"))).toEqual(["ana", "beto"]);
-  });
+  const steps = [
+    step("Conductor", "DRIVER"),
+    step("Gerente de Seguridad", "TRIP_CARRIER"),
+  ];
+  // What the server answered for each step's condition.
+  const matches = [["ana", "beto"], ["gs"]];
 
-  it("finds the trip carrier's people with the step's role", () => {
-    expect(only(step("Gerente de Seguridad", "TRIP_CARRIER"))).toEqual(["gs"]);
-  });
-
-  it("finds nobody when the carrier matches but the role does not", () => {
-    expect(only(step("Jefe de Torre", "TRIP_CARRIER"))).toEqual([]);
-  });
-
-  it("finds any of the carrier's people when the role is empty", () => {
-    expect(only(step("", "TRIP_CARRIER"))).toEqual(["ana", "beto", "gs", "oc"]);
-  });
-
-  it("finds the organization's own people with the role, not carrier people", () => {
-    expect(only(step("Jefe de Torre", "ORG"))).toEqual(["torre", "torre2"]);
-    expect(only(step("Gerente de Seguridad", "ORG"))).toEqual([]);
-  });
-
-  it("reads older steps without a scope", () => {
-    expect(only(step("Conductor"))).toEqual(["ana", "beto"]);
-    expect(only(step("Transportista"))).toEqual(["ana", "beto", "gs", "oc"]);
-    expect(only(step("Jefe de Torre"))).toEqual(["torre", "torre2"]);
-  });
-
-  it("finds no trip people without the server's RUT matches", () => {
-    expect(only(step("Conductor", "DRIVER"), tripMatches(undefined))).toEqual(
-      []
-    );
-    expect(only(step("", "TRIP_CARRIER"), tripMatches(undefined))).toEqual([]);
-  });
-
-  it("keeps the step order and puts everyone else in the other contacts", () => {
-    const plan = callPlan(
-      [
-        step("Conductor", "DRIVER"),
-        step("Gerente de Seguridad", "TRIP_CARRIER"),
-      ],
-      TARGETS,
-      new Map(),
-      TRIP
-    );
-    expect(plan.groups.map((g) => [g.index, g.target?.scope])).toEqual([
-      [0, "DRIVER"],
-      [1, "TRIP_CARRIER"],
+  it("lists under each step the contacts the server matched, in step order", () => {
+    const plan = callPlan(steps, TARGETS, new Map(), matches);
+    expect(plan.groups.map((g) => [g.index, ids(g.targets)])).toEqual([
+      [0, ["ana", "beto"]],
+      [1, ["gs"]],
     ]);
+    expect(plan.groups[0]!.summary).toEqual({
+      role: "Conductor",
+      driver: true,
+      carrier: false,
+      driverField: "either",
+    });
     expect(ids(plan.others)).toEqual(["oc", "gs-norte", "torre", "torre2"]);
+  });
+
+  it("lists nobody under a step before the server answers, or for ids it does not know", () => {
+    expect(
+      callPlan(steps, TARGETS).groups.every((g) => g.targets.length === 0)
+    ).toBe(true);
+    expect(
+      ids(
+        callPlan([steps[0]!], TARGETS, new Map(), [["gone"]]).groups[0]!.targets
+      )
+    ).toEqual([]);
   });
 
   it("puts everyone in the other contacts when there are no steps", () => {
@@ -124,10 +118,25 @@ describe("callPlan", () => {
       ["ana", new Date("2026-11-03T10:05:00Z")],
       ["gs", new Date("2026-11-03T10:01:00Z")],
     ]);
-    const plan = callPlan([step("", "TRIP_CARRIER")], TARGETS, called, TRIP);
+    const plan = callPlan([step("", "TRIP_CARRIER")], TARGETS, called, [
+      ["ana", "beto", "gs", "oc"],
+    ]);
     expect(ids(plan.groups[0]!.targets)).toEqual(["beto", "oc", "gs", "ana"]);
   });
 });
+
+describe("driverIds", () => {
+  it("collects the people of the steps whose condition reads the driver's RUT", () => {
+    expect([...driverIds(steps2(), [["ana", "beto"], ["gs"]])]).toEqual([
+      "ana",
+      "beto",
+    ]);
+  });
+});
+
+function steps2(): Step[] {
+  return [step("Conductor"), step("Gerente", "TRIP_CARRIER")];
+}
 
 const action = (patch: Partial<TowerAction>): TowerAction =>
   ({

@@ -78,6 +78,7 @@ export function PillNumber({
   disabled,
   ariaLabel,
   width = "3.4ch",
+  className,
 }: Readonly<{
   value: number | null;
   onChange: (value: number | null) => void;
@@ -86,9 +87,10 @@ export function PillNumber({
   disabled?: boolean;
   ariaLabel?: string;
   width?: string;
+  className?: string;
 }>) {
   return (
-    <Pill changed={changed}>
+    <Pill changed={changed} className={className}>
       <input
         type="number"
         aria-label={ariaLabel}

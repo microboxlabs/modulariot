@@ -15,7 +15,7 @@ import {
   type TowerContact,
   useContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
-import { isDriverRole } from "@/features/symptoms/control-tower/contact-roles";
+import { isDriverRole } from "@/features/symptoms/control-tower/step-who";
 import { ALL_CALL_METHODS, type CallMethod } from "./call-method";
 
 export interface CallStats {

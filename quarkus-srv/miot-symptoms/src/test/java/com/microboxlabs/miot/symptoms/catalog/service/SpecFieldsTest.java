@@ -20,6 +20,13 @@ import org.junit.jupiter.api.Test;
 /** Escalation, consequence management, level down and the recurrence entity. */
 class SpecFieldsTest {
 
+    @Test
+    void savingATemplateKeepsItsContactConditionEscalation() {
+        Response response = new Response(true, 5, List.of(), List.of(), List.of(), false,
+                null, false, null, "contact.role == 'Supervisor'");
+        assertEquals(response.escalateWho(), SymptomCatalogService.withoutTenantNotices(response).escalateWho());
+    }
+
     private static SymptomSpec withLevel4(SymptomSpec s, Response response) {
         List<Level> levels = new ArrayList<>(s.levels());
         Level l4 = levels.get(3);

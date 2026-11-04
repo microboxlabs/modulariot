@@ -1,15 +1,15 @@
 package com.microboxlabs.miot.symptoms.dto;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * The contact book's people for a case's trip, found by RUT only.
+ * The contact book's people for a case, one list per contact condition (an operator step's {@code who}).
  *
- * @param driverRuts the trip's driver RUTs, normalized; empty when the trip has none
- * @param carrierRut the trip carrier's tax id, normalized, or null
- * @param drivers    ids of active contacts with role Conductor whose national id is one of {@code driverRuts}
- * @param carrierContacts ids of active contacts of any role whose company tax id is {@code carrierRut}
+ * @param data     {@code event.data} the conditions were read with: the trip's {@code driverRut},
+ *                 {@code secondDriverRut} and {@code carrierRut}, normalized; empty without a live trip
+ * @param matches  for each condition, in order, the ids of the active contacts that meet it
+ * @param problems for each condition, its compile problem, or null
  */
-public record TripContactsView(List<String> driverRuts, String carrierRut, List<String> drivers,
-        List<String> carrierContacts) {
+public record TripContactsView(Map<String, Object> data, List<List<String>> matches, List<String> problems) {
 }

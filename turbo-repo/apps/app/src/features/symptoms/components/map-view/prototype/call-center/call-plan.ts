@@ -1,27 +1,25 @@
 /**
  * The "A quién llamar" list: the level's operator steps in order, each with
- * the book contacts its target resolves to, then everyone else in the book.
+ * the book contacts that meet its condition, then everyone else in the book.
  */
 
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import type {
-  TowerTreatment,
-  TowerTripContacts,
-} from "@/features/symptoms/control-tower/control-tower-api";
+import type { TowerTreatment } from "@/features/symptoms/control-tower/control-tower-api";
 import {
-  isCarrierContact,
-  roleKey,
-  stepTarget,
-  type StepTarget,
-} from "@/features/symptoms/control-tower/contact-roles";
+  summarizeWho,
+  whoOf,
+  type WhoSummary,
+} from "@/features/symptoms/control-tower/step-who";
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import { type CallTarget, targetIdOfAction } from "./call-targets";
 
 export interface CallGroup {
   index: number;
   step: Step;
-  /** Who the step contacts; null when the step does not say. */
-  target: StepTarget | null;
+  /** The step's condition on the contact (CEL); empty when the step names nobody. */
+  who: string;
+  /** The condition read as clauses; null when it says more than they can. */
+  summary: WhoSummary | null;
   /** Not yet called first; called in this case after, oldest call first. */
   targets: CallTarget[];
 }
@@ -30,25 +28,6 @@ export interface CallPlan {
   groups: CallGroup[];
   /** Contacts no step points to. With no steps, every target. */
   others: CallTarget[];
-}
-
-/** The book contacts of the case's trip, as the server matched them by RUT. */
-export interface TripMatches {
-  drivers: ReadonlySet<string>;
-  carrierContacts: ReadonlySet<string>;
-}
-
-export const NO_TRIP_MATCHES: TripMatches = {
-  drivers: new Set(),
-  carrierContacts: new Set(),
-};
-
-export function tripMatches(view: TowerTripContacts | undefined): TripMatches {
-  if (!view) return NO_TRIP_MATCHES;
-  return {
-    drivers: new Set(view.drivers),
-    carrierContacts: new Set(view.carrierContacts),
-  };
 }
 
 /**
@@ -85,38 +64,50 @@ function calledLast(
   return [...pending, ...done];
 }
 
-/** The book contacts a step's target resolves to. */
-export function targetsOfStep(
-  target: StepTarget | null,
-  targets: readonly CallTarget[],
-  trip: TripMatches
-): CallTarget[] {
-  if (!target) return [];
-  if (target.scope === "DRIVER") {
-    return targets.filter((t) => trip.drivers.has(t.id));
-  }
-  const key = roleKey(target.role);
-  if (target.scope === "TRIP_CARRIER") {
-    return targets.filter(
-      (t) => trip.carrierContacts.has(t.id) && (!key || roleKey(t.role) === key)
-    );
-  }
-  if (!key) return [];
-  return targets.filter((t) => !isCarrierContact(t) && roleKey(t.role) === key);
+/** The steps' conditions, in order, as the server evaluates them. */
+export function stepConditions(steps: readonly Step[]): string[] {
+  return steps.map((s) => whoOf(s));
 }
 
+/** The ids of the trip's drivers: the people of steps whose condition reads the driver's RUT. */
+export function driverIds(
+  steps: readonly Step[],
+  matches: readonly (readonly string[])[]
+): Set<string> {
+  const out = new Set<string>();
+  steps.forEach((s, i) => {
+    if (summarizeWho(whoOf(s))?.driver)
+      for (const id of matches[i] ?? []) out.add(id);
+  });
+  return out;
+}
+
+/**
+ * Groups the targets under the steps. `matches` is the server's answer for
+ * each step's condition, in order; a step without one lists nobody.
+ */
 export function callPlan(
   steps: readonly Step[],
   targets: readonly CallTarget[],
   called: ReadonlyMap<string, Date> = new Map(),
-  trip: TripMatches = NO_TRIP_MATCHES
+  matches: readonly (readonly string[])[] = []
 ): CallPlan {
   const grouped = new Set<string>();
   const groups = steps.map((step, index) => {
-    const target = stepTarget(step.role, step.scope);
-    const members = targetsOfStep(target, targets, trip);
+    const who = whoOf(step);
+    const summary = who ? summarizeWho(who) : null;
+    if (summary?.role && !summary.driver && !step.who?.trim())
+      summary.role = step.role?.trim() || summary.role;
+    const ids = new Set(matches[index] ?? []);
+    const members = targets.filter((t) => ids.has(t.id));
     for (const t of members) grouped.add(t.id);
-    return { index, step, target, targets: calledLast(members, called) };
+    return {
+      index,
+      step,
+      who,
+      summary,
+      targets: calledLast(members, called),
+    };
   });
   const others = calledLast(
     targets.filter((t) => !grouped.has(t.id)),

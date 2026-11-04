@@ -2,6 +2,9 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import LevelSteps from "./level-steps";
 import type { Step } from "./maintainer-api";
+
+/** The condition editor reads its texts from here; the tests do not look at them. */
+const AUDIENCE = { d: {}, fieldDict: {} };
 import { scriptParts } from "./script-fill";
 
 const SAMPLE = {
@@ -83,6 +86,7 @@ describe("LevelSteps", () => {
   it("reads as an unnumbered timeline with the wait before the next step", () => {
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={STEPS}
         slaMinutes={5}
         sample={SAMPLE}
@@ -105,6 +109,7 @@ describe("LevelSteps", () => {
     const onChange = vi.fn();
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={STEPS}
         slaMinutes={5}
         sample={SAMPLE}
@@ -129,6 +134,7 @@ describe("LevelSteps", () => {
     const onChange = vi.fn();
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={[{ ...STEPS[0]!, script: "va por  hoy" }]}
         slaMinutes={5}
         sample={SAMPLE}
@@ -154,6 +160,7 @@ describe("LevelSteps", () => {
     });
     const view = render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={steps}
         slaMinutes={5}
         readOnly={false}
@@ -163,9 +170,12 @@ describe("LevelSteps", () => {
     );
     const second = screen.getByDisplayValue("3");
     // The drag handle also moves a step with the arrow keys.
-    fireEvent.keyDown(screen.getAllByLabelText("Mover")[1]!, { key: "ArrowUp" });
+    fireEvent.keyDown(screen.getAllByLabelText("Mover")[1]!, {
+      key: "ArrowUp",
+    });
     view.rerender(
       <LevelSteps
+        audience={AUDIENCE}
         steps={steps}
         slaMinutes={5}
         readOnly={false}
@@ -188,17 +198,20 @@ describe("LevelSteps", () => {
       d: { ...d, removeStep: "Quitar" },
       onChange,
     };
-    const view = render(<LevelSteps steps={steps} {...props} />);
+    const view = render(
+      <LevelSteps steps={steps} audience={AUDIENCE} {...props} />
+    );
     const second = screen.getByDisplayValue("3");
     fireEvent.click(screen.getAllByLabelText("Quitar")[0]!);
-    view.rerender(<LevelSteps steps={steps} {...props} />);
+    view.rerender(<LevelSteps steps={steps} audience={AUDIENCE} {...props} />);
     expect(steps.map((s) => s.role)).toEqual(["Jefe de turno"]);
     expect(screen.getByDisplayValue("3")).toBe(second);
   });
 
-  it("shows a step's error under it and marks the field", () => {
+  it("shows a step's error under that step only", () => {
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={[{ ...STEPS[0]!, role: "" }, STEPS[1]!]}
         slaMinutes={5}
         errors={{ 0: { contact: "El paso 1 no dice a quién contactar." } }}
@@ -212,16 +225,14 @@ describe("LevelSteps", () => {
       within(items[0]!).getByText("El paso 1 no dice a quién contactar.")
     ).toBeTruthy();
     expect(
-      within(items[0]!).getByLabelText("Persona · de").className
-    ).toContain("border-red-500");
-    expect(
-      within(items[1]!).getByLabelText("Persona · de").className
-    ).not.toContain("border-red-500");
+      within(items[1]!).queryByText("El paso 1 no dice a quién contactar.")
+    ).toBeNull();
   });
 
   it("lets readers read the script but not change the steps", () => {
     render(
       <LevelSteps
+        audience={AUDIENCE}
         steps={STEPS}
         slaMinutes={5}
         readOnly

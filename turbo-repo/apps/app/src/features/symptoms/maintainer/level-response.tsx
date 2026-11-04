@@ -4,24 +4,22 @@ import { ToggleSwitch } from "flowbite-react";
 import SymptomRulesCard from "@/features/conversations/symptom-rules-card";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import {
-  storedTarget,
-  stepTarget,
-  useScopeRoles,
-} from "../control-tower/contact-roles";
+import { whoOf } from "../control-tower/step-who";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
-import LevelSteps, { type StepErrors } from "./level-steps";
+import LevelSteps, {
+  type AudienceDicts,
+  type StepErrors,
+  WhoEditor,
+} from "./level-steps";
 import type { Finding, LevelResponse } from "./maintainer-api";
-import TargetPicker, { RoleWarning } from "./role-picker";
 import { findingProblem, findingText, Problems } from "./rule-problems";
+import { PillNumber, PillSelect } from "./ui/pill";
 import {
-  FIELD,
   FIELD_ERROR,
   FieldError,
   FieldRow,
   ResponseBlock,
 } from "./ui/response-block";
-import Select from "./ui/select";
 
 /** What the operator must record to close a case, as stored in the spec. */
 const EVIDENCE = [
@@ -89,6 +87,7 @@ function OperatorBlock({
   response,
   findings,
   sample,
+  audience,
   readOnly,
   d,
   onChange,
@@ -96,13 +95,17 @@ function OperatorBlock({
   response: LevelResponse;
   findings: Finding[];
   sample: Record<string, unknown> | undefined;
+  audience: AudienceDicts;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<LevelResponse>) => void;
 }>) {
   const slaError = findings.find((f) => f.code === "operatorNeedsSla");
-  const roles = useScopeRoles();
-  const escalation = stepTarget(response.escalateTo, response.escalateScope);
+  const escalation = whoOf({
+    who: response.escalateWho,
+    role: response.escalateTo,
+    scope: response.escalateScope,
+  });
   return (
     <ResponseBlock
       number={2}
@@ -126,51 +129,43 @@ function OperatorBlock({
         <>
           <div className="flex flex-col gap-1">
             <FieldRow label={tr("attendWithin", d)}>
-              <input
-                type="number"
-                min={1}
-                aria-label={tr("attendWithin", d)}
-                className={`${FIELD} w-16 ${slaError ? FIELD_ERROR : ""}`}
+              <PillNumber
+                ariaLabel={tr("attendWithin", d)}
+                className={slaError ? FIELD_ERROR : ""}
                 disabled={readOnly}
-                value={response.slaMinutes ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    slaMinutes: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-              <span>min</span>
-              <span className="ml-2">{tr("escalateTo", d)}</span>
-              <TargetPicker
-                label={tr("escalateTo", d)}
-                className={FIELD}
-                disabled={readOnly}
-                target={escalation}
-                roles={roles}
-                d={d}
-                onChange={(next) => {
-                  const stored = storedTarget(next);
-                  onChange({
-                    escalateTo: next ? stored.role : null,
-                    escalateScope: stored.scope,
-                  });
-                }}
+                value={response.slaMinutes}
+                unit="min"
+                onChange={(slaMinutes) => onChange({ slaMinutes })}
               />
             </FieldRow>
-            <div className="sm:pl-[10.75rem]">
-              <RoleWarning target={escalation} roles={roles} d={d} />
-            </div>
             {slaError && (
               <div className="sm:pl-[10.75rem]">
                 <FieldError text={findingText(slaError, d)} />
               </div>
             )}
           </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {tr("escalateToLabel", d)}
+            </span>
+            <WhoEditor
+              who={escalation}
+              audience={audience}
+              readOnly={readOnly}
+              onChange={(who) =>
+                onChange({
+                  escalateWho: who || null,
+                  escalateTo: null,
+                  escalateScope: null,
+                })
+              }
+            />
+          </div>
           <LevelSteps
             steps={response.steps ?? []}
             slaMinutes={response.slaMinutes}
             errors={stepErrors(findings, d)}
-            roles={roles}
+            audience={audience}
             sample={sample}
             readOnly={readOnly}
             d={d}
@@ -209,24 +204,20 @@ function CloseBlock({
     >
       {response.operator && (
         <FieldRow label={tr("closeRequires", d)}>
-          <Select
-            aria-label={tr("closeRequires", d)}
-            className={FIELD}
-            wrapperClassName="min-w-48"
+          <PillSelect
+            ariaLabel={tr("closeRequires", d)}
             disabled={readOnly}
             value={value}
-            onChange={(e) =>
-              onChange({ evidence: e.target.value ? [e.target.value] : [] })
-            }
-          >
-            <option value="">{tr("evidenceNothing", d)}</option>
-            {!known && <option value={value}>{value}</option>}
-            {EVIDENCE.map((e) => (
-              <option key={e.value} value={e.value}>
-                {trDynamic(e.label, d)}
-              </option>
-            ))}
-          </Select>
+            onChange={(next) => onChange({ evidence: next ? [next] : [] })}
+            options={[
+              { value: "", label: tr("evidenceNothing", d) },
+              ...(known ? [] : [{ value, label: value }]),
+              ...EVIDENCE.map((e) => ({
+                value: e.value,
+                label: trDynamic(e.label, d),
+              })),
+            ]}
+          />
         </FieldRow>
       )}
       {rules && <LifecycleRuleRows rules={rules} readOnly={readOnly} d={d} />}
@@ -321,6 +312,7 @@ export default function LevelResponseDetail({
   sample,
   symptom,
   rules,
+  audience,
   readOnly,
   d,
   onChange,
@@ -328,6 +320,8 @@ export default function LevelResponseDetail({
   response: LevelResponse;
   /** The symptom's close and note rules; absent where they are not edited. */
   rules?: LifecycleRules;
+  /** The texts of the "contacts from the book" condition the steps use. */
+  audience: AudienceDicts;
   /** Absent for a template, which has no rules. */
   symptom?: ResponseSymptom;
   /** The findings of this level's response. */
@@ -366,6 +360,7 @@ export default function LevelResponseDetail({
         response={response}
         findings={findings}
         sample={sample}
+        audience={audience}
         readOnly={readOnly}
         d={d}
         onChange={onChange}

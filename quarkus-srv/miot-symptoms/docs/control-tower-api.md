@@ -119,7 +119,7 @@ Each level of a symptom version may set `ignore`:
 |---|---|---|
 | `listContacts` | `GET /contacts?active` | `controltower:view` |
 | `getContact` | `GET /contacts/{contactId}` | `controltower:view` |
-| `getTripContacts` | `GET /contacts/trip?symptomId` | `controltower:view`. The book's people for the case's trip, by RUT only |
+| `matchTripContacts` | `POST /contacts/trip` | `controltower:view`. The book's people for each step condition, with the case trip's RUTs |
 | `createContact` | `POST /contacts` | `controltower:contact.write`. Operators add contacts from the call panel |
 | `importContacts` | `POST /contacts/import` | `controltower:contact.write`. Body `{contacts: [...]}`, up to 1000 |
 | `updateContact` | `PATCH /contacts/{contactId}` | `controltower:contact.write` |
@@ -152,18 +152,25 @@ A national id already used by another contact of the organization is a 409.
 `status` is `created`, `skipped` (national id already in the book, or repeated
 in the request) or `error` (the row is invalid; `reason` says why).
 
-`getTripContacts` answers `{driverRuts, carrierRut, drivers, carrierContacts}`:
+`matchTripContacts` takes `{symptomId, conditions}`. Each condition is an
+operator step's `who`: CEL over `contact` and `event`, the same as a
+communication rule's "contacts from the book" audience. It answers
+`{data, matches, problems}`:
 
 | Field | Meaning |
 |---|---|
-| `driverRuts` | The trip's driver and second driver RUTs, normalized |
-| `carrierRut` | The trip carrier's tax id, normalized, or null |
-| `drivers` | Ids of active contacts with role `Conductor` whose `nationalId` is one of `driverRuts` |
-| `carrierContacts` | Ids of active contacts of any role whose `companyRut` is `carrierRut` |
+| `data` | `event.data` the conditions read: the case trip's `driverRut`, `secondDriverRut` and `carrierRut`, normalized, when the trip has them |
+| `matches` | For each condition, in order, the ids of the active contacts that meet it |
+| `problems` | For each condition, its compile problem, or null |
 
-Only engine cases (negative ids) have a trip to read. Other cases answer empty
-lists. A CALL action with a `contactId` must use one of the contact's
-`methods`; any other `method` is a 400.
+`contact` has `role`, `tags`, `company`, `companyRut`, `nationalId`,
+`position`, `member`, `email` and `whatsapp`; a missing text is `''`. Only
+engine cases (negative ids) have a trip; for other cases `data` is empty, so a
+condition that reads it meets nobody. At most 20 conditions per request. 503
+when the communication rules component is off.
+
+A CALL action with a `contactId` must use one of the contact's `methods`; any
+other `method` is a 400.
 
 ## Map
 

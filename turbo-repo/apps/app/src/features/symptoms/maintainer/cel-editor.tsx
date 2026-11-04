@@ -15,7 +15,7 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { linter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -114,17 +114,27 @@ const highlight = HighlightStyle.define([
   { tag: tags.comment, class: "italic text-gray-400" },
 ]);
 
-function valueCompletions(from: number, suggested: CelValues[string]) {
+/** A value written inside a CEL literal opened with `quote`. */
+function escapeIn(value: string, quote: '"' | "'"): string {
+  if (quote === '"') return JSON.stringify(value).slice(1, -1);
+  return value.replaceAll("\\", "\\\\").replaceAll("'", String.raw`\'`);
+}
+
+function valueCompletions(
+  from: number,
+  suggested: CelValues[string],
+  quote: '"' | "'"
+) {
   if (suggested.length === 0) return null;
   return {
     from,
     options: suggested.map((v) => ({
       label: v.value,
-      apply: JSON.stringify(v.value).slice(1, -1),
+      apply: escapeIn(v.value, quote),
       detail: v.detail,
       type: "text",
     })),
-    validFor: /^[^"\\]*$/,
+    validFor: quote === '"' ? /^[^"\\]*$/ : /^[^'\\]*$/,
   };
 }
 
@@ -138,7 +148,8 @@ export function completions(
     if (quoted) {
       return valueCompletions(
         ctx.pos - quoted.typed.length,
-        values()[quoted.path] ?? []
+        values()[quoted.path] ?? [],
+        quoted.quote
       );
     }
     // `?` only right after a dot, so a ternary's `?` ends the word.
@@ -213,6 +224,8 @@ function fieldCompletions(
  * server's problems underlined where they are. The server checks the rule;
  * this component only edits it.
  */
+const externalValue = Annotation.define<boolean>();
+
 export default function CelEditor({
   value,
   onChange,
@@ -275,7 +288,11 @@ export default function CelEditor({
         },
       }),
       EditorView.updateListener.of((u) => {
-        if (u.docChanged) latest.current.onChange(u.state.doc.toString());
+        if (
+          u.docChanged &&
+          !u.transactions.some((t) => t.annotation(externalValue))
+        )
+          latest.current.onChange(u.state.doc.toString());
       }),
       EditorView.theme({
         "&": {
@@ -324,6 +341,7 @@ export default function CelEditor({
     if (v && value !== v.state.doc.toString()) {
       v.dispatch({
         changes: { from: 0, to: v.state.doc.length, insert: value },
+        annotations: externalValue.of(true),
       });
     }
   }, [value]);

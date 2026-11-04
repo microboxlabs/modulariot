@@ -14,6 +14,7 @@ import {
 
 import {
   parseTelephonySetup,
+  parseWebRtcToken,
   type TelephonyProvider,
   type TelephonySetup,
 } from "./telephony-api.types";
@@ -45,9 +46,8 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
 }
 
 /** Asks for a Telnyx WebRTC login for the signed-in operator (24 hours). */
-export function fetchWebRtcToken() {
-  return request<{ token: string; callerNumber: string; expiresAt: string }>(
-    `${telephonyKey}/webrtc-token`,
-    { method: "POST" }
+export async function fetchWebRtcToken() {
+  return parseWebRtcToken(
+    await request<unknown>(`${telephonyKey}/webrtc-token`, { method: "POST" })
   );
 }

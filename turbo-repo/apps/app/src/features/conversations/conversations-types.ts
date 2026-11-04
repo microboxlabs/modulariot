@@ -62,6 +62,14 @@ export interface RuleSpec {
   family?: string | null;
 }
 
+/** A ready-made rule: adding it creates an ordinary rule, off, with this spec as its draft. */
+export interface RulePreset {
+  key: string;
+  name: string;
+  description: string;
+  spec: RuleSpec;
+}
+
 export interface ConversationRule {
   id: string;
   key: string;

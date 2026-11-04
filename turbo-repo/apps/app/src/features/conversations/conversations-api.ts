@@ -22,6 +22,7 @@ import type {
   MetaTemplateDraft,
   RuleBump,
   RuleDetail,
+  RulePreset,
   RuleSpec,
   RuleState,
   RuleSummary,
@@ -44,6 +45,7 @@ export const templateKey = (key: string) =>
 export const catalogKey = `${CONVERSATIONS_BASE}/events/catalog`;
 export const ruleFamiliesKey = `${CONVERSATIONS_BASE}/rule-families`;
 export const contactReachKey = `${CONVERSATIONS_BASE}/contact-reach`;
+export const rulePresetsKey = `${CONVERSATIONS_BASE}/rule-presets`;
 export const connectionChannelKey = (channel: string) =>
   `${CONVERSATIONS_BASE}/channels/${encodeURIComponent(channel)}`;
 export const accountsKey = `${CONVERSATIONS_BASE}/accounts`;
@@ -107,6 +109,11 @@ export function useMetaTemplates(enabled = true) {
 
 export function useEventCatalog() {
   return useSWR<EventTypeInfo[]>(catalogKey, fetcher, quiet);
+}
+
+/** The ready-made rules "Nueva regla" can start from. */
+export function useRulePresets() {
+  return useSWR<RulePreset[]>(rulePresetsKey, fetcher, quiet);
 }
 
 /** The organization's rule families; a 404 means it has no such list. */

@@ -4750,6 +4750,8 @@
         "ruleKeyTaken": "Ya existe una regla con esa clave. Cambia la clave.",
         "createRuleFailed": "No se pudo crear la regla.",
         "newRuleHint": "La regla se crea apagada, con un borrador. Después eliges a quién y los pasos, simulas y publicas.",
+        "rulePreset": "Partir de un preset",
+        "rulePresetNone": "Ninguno, regla en blanco",
         "newRuleNoAccess": "Solo quien mantiene la Torre de Control puede crear reglas.",
         "createRule": "Crear regla",
         "creating": "Creando…",

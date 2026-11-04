@@ -2,9 +2,34 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 
+const PRESET_SPEC = {
+  family: "trips",
+  trigger: {
+    event: "trip.milestone.confirmed",
+    when: "event.data.milestone == 'departure'",
+  },
+  groups: [
+    {
+      id: "driver",
+      name: "Conductor del viaje",
+      entries: [{ contacts: "contact.nationalId == event.data.driver" }],
+    },
+  ],
+  steps: [
+    {
+      after: 0,
+      channel: "whatsapp",
+      template: "miot_call_permission_request",
+      to: ["driver"],
+      waitForReply: 0,
+    },
+  ],
+};
+
 const api = vi.hoisted(() => ({
   createRule: vi.fn(),
   refreshRules: vi.fn(),
+  useRulePresets: vi.fn(() => ({ data: undefined as unknown })),
   useEventCatalog: vi.fn(() => ({
     data: [
       {
@@ -71,6 +96,39 @@ describe("newRuleHref", () => {
 
 describe("NewRuleModal", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("creates a preset's rule with the preset's spec", async () => {
+    api.useRulePresets.mockReturnValue({
+      data: [
+        {
+          key: "trip-departure-call-permission",
+          name: "Salida del viaje → solicitar permiso de llamada al conductor",
+          description: "Pide permiso al conductor.",
+          spec: PRESET_SPEC,
+        },
+      ],
+    });
+    api.createRule.mockResolvedValue({ rule: { id: "r7" } });
+    const onCreated = open();
+    fireEvent.change(screen.getByLabelText("Partir de un preset"), {
+      target: { value: "trip-departure-call-permission" },
+    });
+    expect((screen.getByLabelText("Nombre") as HTMLInputElement).value).toBe(
+      "Salida del viaje → solicitar permiso de llamada al conductor"
+    );
+    expect(screen.getByText("Pide permiso al conductor.")).toBeTruthy();
+
+    fireEvent.click(createButton());
+    await waitFor(() =>
+      expect(onCreated).toHaveBeenCalledWith({ rule: { id: "r7" } })
+    );
+    expect(api.createRule).toHaveBeenCalledWith({
+      key: "trip-departure-call-permission",
+      name: "Salida del viaje → solicitar permiso de llamada al conductor",
+      spec: PRESET_SPEC,
+    });
+    api.useRulePresets.mockReturnValue({ data: undefined });
+  });
 
   it("creates the rule with the prefilled trigger and hands it back", async () => {
     api.createRule.mockResolvedValue({ rule: { id: "r9" } });

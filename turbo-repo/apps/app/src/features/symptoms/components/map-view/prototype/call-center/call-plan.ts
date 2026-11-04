@@ -11,6 +11,7 @@ import {
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
+import type { ScriptVariable } from "@/features/symptoms/maintainer/script-fill";
 import {
   type CallTarget,
   DRIVER_TARGET_ID,
@@ -138,14 +139,18 @@ export function fillScript(
   treatment: TreatmentsGeneralResponseItem | null
 ): string {
   const trip = treatment?.trip_info;
-  const values: Record<string, string | undefined> = {
-    conductor: trip?.driver,
+  // One value per SCRIPT_VARIABLES entry, the list the step editor offers.
+  const values: Record<ScriptVariable, string | undefined> = {
     patente: trip?.asset_id,
+    conductor: trip?.driver,
+    transportista: trip?.carrier,
     ruta: trip ? `${trip.origin} → ${trip.destination}` : undefined,
+    origen: trip?.origin,
+    destino: trip?.destination,
   };
   return script.replaceAll(
     /\{\{\s*(\w+)\s*\}\}/g,
-    (all, name: string) => values[name] ?? all
+    (all, name: string) => values[name as ScriptVariable] ?? all
   );
 }
 

@@ -120,8 +120,9 @@ describe("LevelSteps", () => {
     );
     fireEvent.click(screen.getByText(/^Hola, el camión/));
     expect(screen.getByText("Guion · paso 1")).toBeTruthy();
-    expect(screen.getByText("AB1234")).toBeTruthy();
-    expect(screen.getByText("SCL - ANF")).toBeTruthy();
+    // In the preview and as the variables panel's example.
+    expect(screen.getAllByText("AB1234")).toHaveLength(2);
+    expect(screen.getAllByText("SCL - ANF")).toHaveLength(2);
     expect(screen.getByText("Vista")).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Guion"), {

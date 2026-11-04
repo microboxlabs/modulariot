@@ -322,6 +322,7 @@ export default function LevelSteps({
           sample={sample}
           readOnly={readOnly}
           d={d}
+          templateDict={audience.d}
           onChange={(script) => set(editing, { script })}
           onClose={() => setEditing(null)}
         />

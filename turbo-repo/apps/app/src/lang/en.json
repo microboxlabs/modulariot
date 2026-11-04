@@ -4061,6 +4061,23 @@
         "stepIfNot": "if it does not work in",
         "stepThen": "then the next one",
         "stepWithin": "within",
+        "scriptHint": "Type {{ to see the variables. The operator sees them with the case's data.",
+        "scriptVar": {
+          "patente": "Truck plate",
+          "conductor": "Driver's name",
+          "transportista": "Carrier company",
+          "ruta": "Origin → destination",
+          "origen": "Trip origin",
+          "destino": "Trip destination"
+        },
+        "scriptVarHint": {
+          "patente": "The plate of the case's vehicle",
+          "conductor": "The driver assigned to the trip",
+          "transportista": "The trip's carrier company",
+          "ruta": "The trip's origin and destination, joined by an arrow",
+          "origen": "The trip's origin geofence",
+          "destino": "The trip's destination geofence"
+        },
         "scriptTitle": "Script · step {n}",
         "scriptVariables": "Variables:",
         "scriptPreview": "As the operator will read it, with sample 1",

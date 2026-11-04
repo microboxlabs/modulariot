@@ -4061,6 +4061,23 @@
         "stepIfNot": "si no resulta en",
         "stepThen": "sigue el siguiente",
         "stepWithin": "plazo",
+        "scriptHint": "Escribe {{ para ver las variables. El operador las verá con los datos del caso.",
+        "scriptVar": {
+          "patente": "Patente del camión",
+          "conductor": "Nombre del conductor",
+          "transportista": "Empresa transportista",
+          "ruta": "Origen → destino",
+          "origen": "Origen del viaje",
+          "destino": "Destino del viaje"
+        },
+        "scriptVarHint": {
+          "patente": "La patente del vehículo del caso",
+          "conductor": "El conductor asignado al viaje",
+          "transportista": "La empresa transportista del viaje",
+          "ruta": "El origen y el destino del viaje, separados por una flecha",
+          "origen": "La geocerca de origen del viaje",
+          "destino": "La geocerca de destino del viaje"
+        },
         "scriptTitle": "Guion · paso {n}",
         "scriptVariables": "Variables:",
         "scriptPreview": "Así lo leerá el operador, con la muestra 1",

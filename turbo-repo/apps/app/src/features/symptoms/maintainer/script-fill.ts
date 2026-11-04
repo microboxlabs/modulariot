@@ -1,17 +1,32 @@
-/** Script variables the treatment screen fills from the case (`fillScript` in the call center). */
-export const SCRIPT_VARIABLES = ["patente", "conductor", "ruta"] as const;
+/** Script variables the treatment screen fills from the case's trip (`fillScript` in the call center). */
+export const SCRIPT_VARIABLES = [
+  "patente",
+  "conductor",
+  "transportista",
+  "ruta",
+  "origen",
+  "destino",
+] as const;
 
-/** The sample fields each variable is read from, first match wins. */
-const SOURCES: Record<string, string[]> = {
+export type ScriptVariable = (typeof SCRIPT_VARIABLES)[number];
+
+/** The sample fields each variable is read from for the preview, first match wins. */
+const SOURCES: Record<ScriptVariable, string[]> = {
   patente: ["plate"],
   conductor: ["driver_name", "driver"],
+  transportista: ["carrier_name", "carrier"],
   ruta: ["route"],
+  origen: ["origin_geofence_label", "origin"],
+  destino: ["destination_geofence_label", "destination"],
 };
 
 type Json = Record<string, unknown>;
 
 const isObject = (v: unknown): v is Json =>
   typeof v === "object" && v !== null && !Array.isArray(v);
+
+const isKnown = (name: string): name is ScriptVariable =>
+  Object.hasOwn(SOURCES, name);
 
 /** The first value under `key` anywhere in the sample, depth first. */
 function find(sample: Json, key: string): unknown {
@@ -25,9 +40,13 @@ function find(sample: Json, key: string): unknown {
   return undefined;
 }
 
-function valueOf(name: string, sample: Json | undefined): string | null {
-  if (!sample) return null;
-  for (const key of SOURCES[name] ?? []) {
+/** A variable's value in the sample, or null when the sample lacks it. */
+export function scriptValue(
+  name: string,
+  sample: Json | undefined
+): string | null {
+  if (!sample || !isKnown(name)) return null;
+  for (const key of SOURCES[name]) {
     const v = find(sample, key);
     if (typeof v === "string" || typeof v === "number") return String(v);
   }
@@ -55,11 +74,10 @@ export function scriptParts(
     const at = match.index ?? 0;
     if (at > last) parts.push({ text: script.slice(last, at) });
     const name = match[1] ?? "";
-    const known = Object.hasOwn(SOURCES, name);
     parts.push({
       variable: name,
-      value: known ? valueOf(name, sample) : null,
-      known,
+      value: scriptValue(name, sample),
+      known: isKnown(name),
     });
     last = at + match[0].length;
   }

@@ -7550,6 +7550,8 @@
     "wa_call_request": "Request permission",
     "wa_call_request_sent": "Request sent",
     "wa_call_request_failed": "The request could not be sent",
+    "wa_call_status_failed": "Could not load the WhatsApp call permission.",
+    "wa_call_retry_status": "Retry",
     "wa_call_next_request": "Next request possible: {at}.",
     "wa_call_refusal_CALLING_DISABLED": "WhatsApp calling is off.",
     "wa_call_refusal_INVALID_PHONE": "The number is not valid.",

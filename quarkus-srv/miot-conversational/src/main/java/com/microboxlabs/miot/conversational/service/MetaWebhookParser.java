@@ -20,6 +20,7 @@ import java.util.List;
  */
 public final class MetaWebhookParser {
 
+    private static final String TIMESTAMP = "timestamp";
     private static final String ID = "id";
     private static final String MIME_TYPE = "mime_type";
     private static final String CAPTION = "caption";
@@ -133,7 +134,7 @@ public final class MetaWebhookParser {
                 isTrue(reply.getValue("is_permanent")),
                 epochSecondsToOffset(stringOf(reply.getValue("expiration_timestamp"))),
                 reply.getString("response_source"),
-                epochSecondsToOffset(m.getString("timestamp")));
+                epochSecondsToOffset(m.getString(TIMESTAMP)));
     }
 
     private static CallEvent toCallEvent(JsonObject c, String phoneNumberId) {
@@ -142,10 +143,10 @@ public final class MetaWebhookParser {
         }
         String direction = c.getString("direction");
         boolean business = CallEvent.BUSINESS_INITIATED.equalsIgnoreCase(direction);
-        String contact = toE164(business ? c.getString("to") : c.getString("from"));
+        String contact = toE164(c.getString(business ? "to" : "from"));
         boolean connected = c.getValue("start_time") != null || positive(c.getValue("duration"));
         return new CallEvent(phoneNumberId, c.getString(ID), contact, c.getString("event"), direction,
-                c.getString("status"), connected, epochSecondsToOffset(stringOf(c.getValue("timestamp"))));
+                c.getString("status"), connected, epochSecondsToOffset(stringOf(c.getValue(TIMESTAMP))));
     }
 
     private static boolean positive(Object value) {
@@ -198,7 +199,7 @@ public final class MetaWebhookParser {
                 content.mediaRef(),
                 content.mediaMime(),
                 content.mediaFileName(),
-                epochSecondsToOffset(m.getString("timestamp")),
+                epochSecondsToOffset(m.getString(TIMESTAMP)),
                 nestedString(m, "context", ID),
                 button == null ? null : button.payload());
     }
@@ -214,8 +215,8 @@ public final class MetaWebhookParser {
             JsonObject button = m.getJsonObject("button");
             return button == null ? null : new ButtonReply(button.getString("payload"), button.getString("text"));
         }
-        if ("interactive".equals(type)) {
-            JsonObject interactive = m.getJsonObject("interactive");
+        if (INTERACTIVE.equals(type)) {
+            JsonObject interactive = m.getJsonObject(INTERACTIVE);
             if (interactive == null) {
                 return null;
             }
@@ -286,7 +287,7 @@ public final class MetaWebhookParser {
                 status,
                 toE164(s.getString("recipient_id")),
                 firstError(s.getJsonArray("errors")),
-                epochSecondsToOffset(s.getString("timestamp")));
+                epochSecondsToOffset(s.getString(TIMESTAMP)));
     }
 
     private static String firstError(JsonArray errors) {

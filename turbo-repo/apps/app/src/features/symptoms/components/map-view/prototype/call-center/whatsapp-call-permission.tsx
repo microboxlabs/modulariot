@@ -14,26 +14,18 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { CONVERSATIONS_BASE } from "@/features/conversations/conversations-api";
 import { controlTowerRequest } from "@/features/symptoms/control-tower/control-tower-api";
 
-export type CallPermissionState = "CAN_CALL" | "PENDING" | "NO_PERMISSION";
+import {
+  parseCallPermissionRequest,
+  parseCallPermissionView,
+  type CallPermissionState,
+  type CallPermissionView,
+} from "./whatsapp-call-permission.types";
 
-export interface CallPermissionView {
-  callingEnabled: boolean;
-  state: CallPermissionState;
-  permission: string;
-  expiresAt: string | null;
-  lastRequestAt: string | null;
-  canRequest: boolean;
-  refusal: string | null;
-  nextRequestAt: string | null;
-}
-
-export interface CallPermissionRequestResult {
-  sent: boolean;
-  refusal: string | null;
-  detail: string | null;
-  nextRequestAt: string | null;
-  view: CallPermissionView;
-}
+export type {
+  CallPermissionState,
+  CallPermissionView,
+  CallPermissionRequestResult,
+} from "./whatsapp-call-permission.types";
 
 const PERMISSIONS = `${CONVERSATIONS_BASE}/whatsapp-call-permissions`;
 
@@ -43,7 +35,8 @@ export const callPermissionKey = (phone: string) =>
 export function useWhatsAppCallPermission(phone: string | null | undefined) {
   return useSWR<CallPermissionView>(
     phone ? callPermissionKey(phone) : null,
-    (url: string) => controlTowerRequest<CallPermissionView>(url),
+    async (url: string) =>
+      parseCallPermissionView(await controlTowerRequest<unknown>(url)),
     {
       revalidateOnFocus: true,
       refreshInterval: 15_000,
@@ -52,10 +45,15 @@ export function useWhatsAppCallPermission(phone: string | null | undefined) {
   );
 }
 
-export function requestWhatsAppCallPermission(phone: string, name?: string) {
-  return controlTowerRequest<CallPermissionRequestResult>(
-    `${PERMISSIONS}/requests`,
-    { method: "POST", body: { phone, name } }
+export async function requestWhatsAppCallPermission(
+  phone: string,
+  name?: string
+) {
+  return parseCallPermissionRequest(
+    await controlTowerRequest<unknown>(`${PERMISSIONS}/requests`, {
+      method: "POST",
+      body: { phone, name },
+    })
   );
 }
 
@@ -98,10 +96,30 @@ export default function WhatsAppCallPermission({
   name?: string;
   lang?: string;
 }>) {
-  const { data, mutate } = useWhatsAppCallPermission(phone);
+  const { data, error, mutate } = useWhatsAppCallPermission(phone);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  if (!phone || !data?.callingEnabled) return null;
+  if (!phone || data?.callingEnabled === false) return null;
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="px-4 pb-2 text-center text-xs text-amber-700 dark:text-amber-400"
+      >
+        {tr("symptoms.wa_call_status_failed", dict)}{" "}
+        <button
+          type="button"
+          onClick={() => {
+            void mutate();
+          }}
+          className="underline"
+        >
+          {tr("symptoms.wa_call_retry_status", dict)}
+        </button>
+      </div>
+    );
+  }
+  if (!data) return null;
 
   const send = async () => {
     setBusy(true);

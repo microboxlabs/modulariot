@@ -138,7 +138,8 @@ class RuleSendJobsTest {
         var spec = SendJobs.whatsapp(message(), new ContextMessage(ContextKind.SYMPTOM_CASE, "-7", DRIVER,
                 null, null, null, message().templateName(), "es", Map.of(), null, message().body(), run().id(), 0), true);
         var job = new WhatsAppSendJob(f.whatsapp, f.store.runStore, permissions);
-        assertThrows(IllegalStateException.class, () -> job.handle(TENANT, spec.payload()));
+        var payload = spec.payload();
+        assertThrows(IllegalStateException.class, () -> job.handle(TENANT, payload));
         var sentAt = message().sentAt().toInstant();
         Run original = run();
         f.store.runs.put(original.id(), original.advanced(Run.Status.CANCELLED, original.step(), null, null, java.time.Instant.now()));

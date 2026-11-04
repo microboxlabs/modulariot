@@ -235,17 +235,17 @@ public class WhatsAppMessagingService {
         return stored;
     }
 
+    /** The queued message of this organization; a missing or foreign one fails for good. */
+    public Message queuedMessage(String tenantCode, String messageId) {
+        return queued(messageRepository, conversationRepository, tenantCode, messageId);
+    }
+
     /**
      * Sends a PENDING message of this organization through its sending account and marks it SENT. A message
      * no longer PENDING is returned as it is, except FAILED after a manual retry of its parked job.
      *
      * @throws SendFailure when Meta did not take it
      */
-    /** The queued message of this organization; a missing or foreign one fails for good. */
-    public Message queuedMessage(String tenantCode, String messageId) {
-        return queued(messageRepository, conversationRepository, tenantCode, messageId);
-    }
-
     public Message deliverQueued(String tenantCode, String messageId, String language, Map<String, String> params) {
         Message message = queued(messageRepository, conversationRepository, tenantCode, messageId);
         if (message.status() != MessageStatus.PENDING && message.status() != MessageStatus.FAILED) {

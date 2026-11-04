@@ -63,15 +63,21 @@ public class PgCallPermissionStore implements CallPermissionStore {
     @Override
     public <T> T locked(String number, String contact, Supplier<T> work) {
         String key = "wa-call:" + number + ":" + contact;
-        if (HELD.get().contains(key)) return work.get();
-        return lock.locked(key, () -> {
-            HELD.get().add(key);
-            try { return work.get(); }
-            finally {
-                HELD.get().remove(key);
-                if (HELD.get().isEmpty()) HELD.remove();
-            }
-        });
+        try {
+            if (HELD.get().contains(key)) return work.get();
+            return lock.locked(key, () -> {
+                // ManagedConnectionLock executes work on a worker thread, so read its value here.
+                HELD.get().add(key);
+                try { return work.get(); }
+                finally {
+                    HELD.get().remove(key);
+                    if (HELD.get().isEmpty()) HELD.remove();
+                }
+            });
+        } finally {
+            // Also release the caller's empty value if acquiring the database lock fails.
+            if (HELD.get().isEmpty()) HELD.remove();
+        }
     }
 
     @Override

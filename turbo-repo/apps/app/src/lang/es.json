@@ -7550,6 +7550,8 @@
     "wa_call_request": "Solicitar permiso",
     "wa_call_request_sent": "Solicitud enviada",
     "wa_call_request_failed": "No se pudo enviar la solicitud",
+    "wa_call_status_failed": "No se pudo consultar el permiso de llamada de WhatsApp.",
+    "wa_call_retry_status": "Reintentar",
     "wa_call_next_request": "Próxima solicitud posible: {at}.",
     "wa_call_refusal_CALLING_DISABLED": "Las llamadas por WhatsApp están desactivadas.",
     "wa_call_refusal_INVALID_PHONE": "El número no es válido.",

@@ -8,6 +8,8 @@ import java.time.OffsetDateTime;
 
 /** Minimal durable journal entry. Never stores call media, connection secrets or SDP. */
 public record PermissionEvent(String id, Instant occurredAt, CallEvent call, CallPermissionReply reply) {
+    private static final String EXPIRES = "expires";
+
     static PermissionEvent call(CallEvent call, Instant fallback) {
         return new PermissionEvent("call:" + call.callId(), instant(call.timestamp(), fallback), call, null);
     }
@@ -37,7 +39,7 @@ public record PermissionEvent(String id, Instant occurredAt, CallEvent call, Cal
                     .put("status", call.status()).put("connected", call.connected());
         } else {
             out.put("wamid", reply.wamid()).put("context", reply.contextMessageId()).put("accepted", reply.accepted())
-                    .put("permanent", reply.permanent()).put("expires", text(reply.expiresAt()))
+                    .put("permanent", reply.permanent()).put(EXPIRES, text(reply.expiresAt()))
                     .put("source", reply.responseSource());
         }
         return out.encode();
@@ -45,13 +47,14 @@ public record PermissionEvent(String id, Instant occurredAt, CallEvent call, Cal
 
     static PermissionEvent read(String id, Instant at, String data) {
         JsonObject j = new JsonObject(data);
-        String number = j.getString("number"), contact = j.getString("contact");
+        String number = j.getString("number");
+        String contact = j.getString("contact");
         OffsetDateTime timestamp = at.atOffset(java.time.ZoneOffset.UTC);
         if (id.startsWith("call:")) {
             return call(new CallEvent(number, j.getString("callId"), contact, j.getString("event"),
                     j.getString("direction"), j.getString("status"), j.getBoolean("connected"), timestamp), at);
         }
-        OffsetDateTime expires = j.getString("expires") == null ? null : OffsetDateTime.parse(j.getString("expires"));
+        OffsetDateTime expires = j.getString(EXPIRES) == null ? null : OffsetDateTime.parse(j.getString(EXPIRES));
         return reply(new CallPermissionReply(number, contact, j.getString("wamid"), j.getString("context"),
                 j.getBoolean("accepted"), j.getBoolean("permanent"), expires, j.getString("source"), timestamp), at);
     }

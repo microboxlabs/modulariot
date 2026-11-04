@@ -187,4 +187,38 @@ describe("WhatsApp call permission on the dialing step", () => {
       )
     ).toBeTruthy();
   });
+  it.each([new Error("Synthetic outage"), { state: "CAN_CALL" }])(
+    "shows a load error and retries instead of accepting an invalid status: %s",
+    async (failure) => {
+      if (failure instanceof Error) request.mockRejectedValueOnce(failure);
+      else request.mockResolvedValueOnce(failure);
+      request.mockResolvedValue(
+        view({ state: "CAN_CALL", permission: "PERMANENT" })
+      );
+      renderStep();
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "No se pudo consultar el permiso de llamada de WhatsApp."
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+      expect(await screen.findByText("WhatsApp: puede llamar")).toBeTruthy();
+    }
+  );
+
+  it("rejects an invalid send response and preserves the last valid permission", async () => {
+    request.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith("/requests")
+          ? { sent: true, view: { state: "CAN_CALL" } }
+          : view({})
+      )
+    );
+    renderStep();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Solicitar permiso" })
+    );
+    expect(
+      await screen.findByText(es.symptoms.wa_call_request_failed)
+    ).toBeTruthy();
+    expect(screen.getByText("WhatsApp: sin permiso de llamada")).toBeTruthy();
+  });
 });

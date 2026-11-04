@@ -57,4 +57,13 @@ class TelnyxCredentialTesterTest {
         assertFalse(response.success());
         assertTrue(http.seen().isEmpty());
     }
+    @Test
+    void aMalformedKeyFailsWithoutExposingItOrMakingANetworkRequest() {
+        String key = "KEY_sensitive\ninvalid";
+        CredentialTestResponse response = tester.test(CredentialType.BEARER_TOKEN, TELNYX, Map.of("token", key));
+        assertFalse(response.success());
+        assertFalse(response.message().contains("KEY_sensitive"));
+        assertTrue(http.seen().isEmpty());
+    }
+
 }

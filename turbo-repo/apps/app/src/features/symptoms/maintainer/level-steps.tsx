@@ -316,6 +316,7 @@ export default function LevelSteps({
       )}
       {editing !== null && editingStep && (
         <ScriptPanel
+          key={keys[editing]}
           open
           index={editing}
           step={editingStep}

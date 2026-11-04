@@ -137,14 +137,15 @@ class OrgControlTowerMapResourceTest {
             return Uni.createFrom().item(new IssuedToken("t", Instant.now().plusSeconds(3600)));
         }, url, () -> rpc);
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
-        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null, map,
+        return new OrgControlTowerMapResource(tenant, org, new Roles(permissions), null,
+                new OrgControlTowerMapResource.MapServices(map,
                 new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
                         (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()),
                 new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
                         new AuditService(new InMemoryAuditStore())),
                 new TripWindows((tenantCode, trip, asset) -> moduleTrips.getOrDefault(trip + "/" + asset,
                         Optional.empty()), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC)),
-                geofences(tripGeofences), instance(signals), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy);
+                geofences(tripGeofences), instance(signals)), java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC), legacy);
     }
 
     @SuppressWarnings("unchecked")

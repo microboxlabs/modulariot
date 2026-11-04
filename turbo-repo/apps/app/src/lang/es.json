@@ -2823,6 +2823,10 @@
           "basic": {
             "name": "Autenticación básica",
             "description": "Usuario y contraseña enviados como HTTP basic."
+          },
+          "telnyx": {
+            "name": "Telnyx",
+            "description": "Una API key de Telnyx, para las llamadas de la Torre de Control."
           }
         },
         "badge": {
@@ -2959,7 +2963,11 @@
           "verifyToken": "Verify token del webhook",
           "verifyTokenPlaceholder": "Un texto que tú eliges",
           "webhookKeyEditPlaceholder": "Déjalo en blanco para mantener el actual",
-          "webhookKeysHelp": "Sirven para recibir respuestas y estados de mensajes. Pon el mismo verify token en Meta al configurar el webhook."
+          "webhookKeysHelp": "Sirven para recibir respuestas y estados de mensajes. Pon el mismo verify token en Meta al configurar el webhook.",
+          "telnyxAddTitle": "Nueva API key de Telnyx",
+          "telnyxEditTitle": "Editar API key de Telnyx",
+          "telnyxSubtitle": "La API key con la que la plataforma emite los tokens de llamada de Telnyx.",
+          "telnyxTokenHelp": "En Telnyx: Account Settings › Keys & Credentials › API Keys. Empieza con KEY."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -4389,7 +4397,16 @@
         "communicationsLoadFailed": "No se pudieron cargar las reglas de comunicación.",
         "newRuleForLevel": "Nueva regla para este nivel",
         "newRuleForLevelName": "{symptom} · {level}",
-        "channelPreferred": "Preferido"
+        "channelPreferred": "Preferido",
+        "telephonyTitle": "Telefonía de \"Llamar a\"",
+        "telephonySavesImmediately": "Los cambios se guardan al elegir, independientemente de los ajustes del equipo.",
+        "telephonyAuto": "Automático: Telnyx si está conectado, si no Teams Phone",
+        "telephonyActive": "Conexión seleccionada",
+        "telephonyNone": "el marcador del teléfono (sin conexión de telefonía)",
+        "telephonyNotReady": "{name} no pasó su prueba; no se usa hasta que la pase.",
+        "telephonyConnections": "Configurar en Conexiones",
+        "telephonyLoadFailed": "No se pudo leer la telefonía.",
+        "telephonySaveFailed": "No se pudo guardar la telefonía."
       },
       "communications": {
         "title": "Comunicaciones",
@@ -5332,7 +5349,9 @@
         "managedGeocodingHelp": "Ubica direcciones con el proveedor que contrata la plataforma, dentro del plan de la organización. Solo dueños de la plataforma.",
         "platformGeocodingHelp": "Configura el proveedor que contrata la plataforma: proveedor, credencial y costo por consulta. Las organizaciones lo usan con su conexión administrada.",
         "managedBigquery": "BigQuery · cuenta de la plataforma",
-        "managedBigqueryHelp": "Solo dueños de plataforma. La organización consulta como su propia cuenta de servicio, sin llave, y ve solo los datos que le publiques."
+        "managedBigqueryHelp": "Solo dueños de plataforma. La organización consulta como su propia cuenta de servicio, sin llave, y ve solo los datos que le publiques.",
+        "telnyx": "Llamadas desde el navegador con Telnyx WebRTC.",
+        "teamsPhone": "Llamadas desde el cliente de Microsoft Teams con Teams Phone."
       },
       "validation": {
         "nameRequired": "El nombre es obligatorio",
@@ -5499,6 +5518,22 @@
         "title": "Proveedor de geocoding de la plataforma",
         "body": "La plataforma aún no tiene proveedor. Elige su credencial y configúralo aquí: se guarda una sola vez para la plataforma y luego se conecta esta organización.",
         "platformBody": "El proveedor que usan todas las organizaciones. Elige la credencial Mapbox o Google Maps de la Plataforma y nuestro costo por consulta."
+      },
+      "telephony": {
+        "telnyxHelp": "Configura la conexión SIP y el número de origen de Telnyx. Guarda la API key en una credencial Telnyx.",
+        "teamsHelp": "Configura Teams Phone con una credencial de app de Microsoft Entra. CallRecords.Read.All permite leer la duración y el resultado de las llamadas.",
+        "baseUrlHelp": "Fija: la credencial solo se envía a esta API.",
+        "sipConnectionId": "ID de la credential connection (SIP)",
+        "sipConnectionIdHelp": "En Telnyx: Voice › SIP Trunking › la conexión de tipo Credentials.",
+        "sipConnectionIdRequired": "Falta el ID de la credential connection de Telnyx.",
+        "callerNumber": "Número de origen",
+        "callerNumberHelp": "Un número de Telnyx asignado a esa conexión, en formato E.164.",
+        "callerNumberInvalid": "El número debe estar en formato E.164, por ejemplo +56 9 0000 0000.",
+        "defaultCallerId": "Caller ID por defecto (opcional)",
+        "defaultCallerIdHelp": "El número que Teams muestra al llamar, en formato E.164. Vacío: el que tenga asignado cada operador.",
+        "credentialRequired": "Elige una credencial de este proveedor.",
+        "noTelnyxCredentials": "No hay credenciales Telnyx. Crea una en Credenciales.",
+        "noTeamsCredentials": "No hay credenciales de Microsoft Entra. Crea una en Credenciales con el scope https://graph.microsoft.com/.default."
       }
     },
     "calendar": {

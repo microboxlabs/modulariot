@@ -23,6 +23,8 @@ const PROVIDER_LABELS: Record<string, string> = {
   GEOCODING: "Geocoding",
   POSTGREST: "PostgREST",
   RESEND: "Resend",
+  TEAMS_PHONE: "Teams Phone",
+  TELNYX: "Telnyx",
   WHATSAPP: "WhatsApp",
 };
 
@@ -38,6 +40,11 @@ export const BIGQUERY_LOGO: BrandLogoSources = {
 export const GEOCODING_LOGO: BrandLogoSources = {
   light: "/credential-logos/geocoding-light.svg",
   dark: "/credential-logos/geocoding-dark.svg",
+};
+/** Telnyx's media-kit mark: black on light backgrounds, Telnyx green on dark, as its brand guide asks. */
+export const TELNYX_LOGO: BrandLogoSources = {
+  light: "/credential-logos/telnyx-light.png",
+  dark: "/credential-logos/telnyx-dark.png",
 };
 
 const PROVIDER_MARKS: Record<string, ConnectionMark> = {
@@ -57,6 +64,8 @@ const PROVIDER_MARKS: Record<string, ConnectionMark> = {
       dark: "/credential-logos/resend-dark.svg",
     },
   },
+  TEAMS_PHONE: { icon: channelLogo("teams"), keyline: "circle" },
+  TELNYX: { logo: TELNYX_LOGO, keyline: "circle" },
   WHATSAPP: { icon: Whatsapp, keyline: "circle" },
 };
 

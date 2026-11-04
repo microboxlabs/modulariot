@@ -81,7 +81,8 @@ class PgTreatmentStoresTest {
         for (String file : List.of("V0.8.0__create_symptoms_catalog.sql",
                 "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
                 "V0.8.3__create_tower_settings.sql", "V0.12.1__contact_company_rut.sql",
-                "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql")) {
+                "V0.12.2__contact_company_tax_id_type.sql", "V0.12.3__contact_member_unique.sql",
+                "V0.12.16__tower_settings_telephony.sql")) {
             try (InputStream in = PgTreatmentStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -183,6 +184,16 @@ class PgTreatmentStoresTest {
         assertTrue(settings.find("other-tenant-" + tenant).isEmpty());
         TowerSettings badShift = new TowerSettings(tenant, 1, 0, 1, ACTOR, now);
         assertThrows(RuntimeException.class, () -> settings.save(badShift), "the table checks the shift length");
+
+        settings.saveTelephonyProvider(tenant, "TEAMS_PHONE", ACTOR);
+        assertEquals(Optional.of("TEAMS_PHONE"), settings.telephonyProvider(tenant));
+        assertEquals(12, settings.find(tenant).orElseThrow().shiftHours(), "the operator team is kept");
+        settings.saveTelephonyProvider(tenant, null, ACTOR);
+        assertTrue(settings.telephonyProvider(tenant).isEmpty());
+        String fresh = tenant();
+        settings.saveTelephonyProvider(fresh, "TELNYX", ACTOR);
+        assertEquals(8, settings.find(fresh).orElseThrow().shiftHours(), "a new row gets the default shift");
+        assertThrows(RuntimeException.class, () -> settings.saveTelephonyProvider(fresh, "SKYPE", ACTOR));
     }
 
     @Test

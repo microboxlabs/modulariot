@@ -1,0 +1,73 @@
+package com.microboxlabs.miot.symptoms.api;
+
+import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.OrgPermission;
+import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService;
+import com.microboxlabs.miot.symptoms.service.TelephonyChoiceService.TelephonyRequest;
+import io.quarkus.arc.properties.IfBuildProperty;
+import io.quarkus.security.Authenticated;
+import io.quarkus.security.PermissionsAllowed;
+import io.quarkus.security.identity.SecurityIdentity;
+import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
+/** Which telephony connection the treatment's calls use. VIEW reads; SETTINGS_UPDATE chooses. */
+@Path("/api/v1/orgs/{organizationId}/control-tower/telephony")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Control Tower — Telephony", description = "The telephony connection used for calls")
+@SecurityRequirement(name = "oidc")
+@Authenticated
+@IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
+public class OrgControlTowerTelephonyResource extends ControlTowerResourceSupport {
+
+    private static final String ORG = "organizationId";
+
+    private final TelephonyChoiceService telephony;
+
+    @Inject
+    public OrgControlTowerTelephonyResource(
+            TenantContext tenantContext,
+            OrganizationContext organizationContext,
+            OrganizationRoleService roleService,
+            SecurityIdentity identity,
+            TelephonyChoiceService telephony) {
+        super(tenantContext, organizationContext, roleService, identity);
+        this.telephony = telephony;
+    }
+
+    @GET
+    @Operation(operationId = "getTelephony",
+            summary = "The organization's telephony lines, its choice, and the line calls use now (null: none)")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> get(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return work(() -> Response.ok(telephony.get(tenant)).build());
+    }
+
+    @PUT
+    @Operation(operationId = "saveTelephony",
+            summary = "Choose the provider: TEAMS_PHONE or TELNYX; null lets the server pick (Telnyx first)")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.SETTINGS_UPDATE, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> save(@PathParam(ORG) String organizationId, TelephonyRequest body) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> Response.ok(telephony.save(tenant, actor, body)).build());
+    }
+}

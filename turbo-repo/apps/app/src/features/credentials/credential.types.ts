@@ -27,6 +27,7 @@ export type CredentialTypeId =
   | "WHATSAPP"
   | "MAPBOX"
   | "GOOGLE_MAPS"
+  | "TELNYX"
   | "BASIC_AUTH";
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
@@ -290,6 +291,22 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     logo: {
       light: "/credential-logos/google-maps-light.svg",
       dark: "/credential-logos/google-maps-dark.svg",
+    },
+    keyline: "circle",
+  },
+  {
+    // A bearer token tagged with TELNYX_PROVIDER: a Telnyx API key for the
+    // Control Tower's calls. Tested on GET /v2/balance; the SIP connection is
+    // tested through its TELNYX connection.
+    id: "TELNYX",
+    nameKey: "types.telnyx.name",
+    descriptionKey: "types.telnyx.description",
+    available: true,
+    supportsTest: true,
+    // Telnyx's media-kit mark: black on light backgrounds, Telnyx green on dark.
+    logo: {
+      light: "/credential-logos/telnyx-light.png",
+      dark: "/credential-logos/telnyx-dark.png",
     },
     keyline: "circle",
   },
@@ -618,3 +635,14 @@ export interface CredentialTestResult {
   /** Token lifetime reported by the provider, when the test obtained one. */
   readonly expiresInSeconds?: number;
 }
+
+/** Marks a bearer credential as a Telnyx API key, like {@link RESEND_PROVIDER}. */
+export const TELNYX_PROVIDER = "telnyx";
+
+const telnyxProviderField = { provider: z.literal(TELNYX_PROVIDER) };
+
+export const TelnyxCredentialSchema =
+  BearerTokenCredentialSchema.extend(telnyxProviderField);
+
+export const TelnyxCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(telnyxProviderField);

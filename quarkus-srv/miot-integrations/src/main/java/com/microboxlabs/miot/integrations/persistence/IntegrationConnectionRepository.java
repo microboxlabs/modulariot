@@ -115,16 +115,35 @@ public class IntegrationConnectionRepository {
 
     // Partial update: a null parameter leaves the column unchanged (explicit ::casts so the
     // NULL binds keep their type in the prepared statement). metadata is replaced wholesale.
+    // Compare the old row to the partial update, in the same statement as the write.
+    private static final String TELEPHONY_INPUT_CHANGED = """
+            provider_type IN ('TELNYX', 'TEAMS_PHONE') AND (
+                ($4::text IS NOT NULL AND base_url IS DISTINCT FROM $4::text) OR
+                ($5::jsonb IS NOT NULL AND metadata IS DISTINCT FROM $5::jsonb) OR
+                ($6::uuid IS NOT NULL AND credential_profile_id IS DISTINCT FROM $6::uuid))
+            """;
+
     private static final String UPDATE_CONNECTION = """
             UPDATE miot_integrations.integration_connections
             SET name = COALESCE($3::text, name),
                 base_url = COALESCE($4::text, base_url),
                 metadata = COALESCE($5::jsonb, metadata),
                 credential_profile_id = COALESCE($6::uuid, credential_profile_id),
+                status = CASE WHEN (%s) AND status <> 'INACTIVE' THEN 'DRAFT' ELSE status END,
+                last_tested_at = CASE WHEN (%s) THEN NULL ELSE last_tested_at END,
+                last_test_result = CASE WHEN (%s) THEN NULL ELSE last_test_result END,
                 updated_at = now()
             WHERE tenant_code = $1 AND id = $2 AND active
             RETURNING
-            """ + COLUMNS;
+            """.formatted(TELEPHONY_INPUT_CHANGED, TELEPHONY_INPUT_CHANGED, TELEPHONY_INPUT_CHANGED) + COLUMNS;
+
+    private static final String INVALIDATE_TELEPHONY_CREDENTIAL = """
+            UPDATE miot_integrations.integration_connections
+            SET status = CASE WHEN status = 'INACTIVE' THEN status ELSE 'DRAFT' END,
+                last_tested_at = NULL, last_test_result = NULL, updated_at = now()
+            WHERE tenant_code = $1 AND credential_profile_id = $2 AND active
+              AND provider_type IN ('TELNYX', 'TEAMS_PHONE')
+            """;
 
     // Soft delete: the row stays for audit and drops out of every "AND active" query,
     // so a removed instance disappears from listings and dispatch-targets alike.
@@ -308,6 +327,16 @@ public class IntegrationConnectionRepository {
                 .execute(Tuple.of(tenantCode, id))
                 .await().indefinitely()
                 .rowCount() > 0;
+    }
+
+    /** A changed secret/configuration requires every linked phone line to pass a new test. */
+    public int invalidateTelephonyCredential(String tenantCode, String credentialProfileId) {
+        UUID id = parseUuidOrNull(credentialProfileId);
+        if (id == null) {
+            return 0;
+        }
+        return client().preparedQuery(INVALIDATE_TELEPHONY_CREDENTIAL)
+                .execute(Tuple.of(tenantCode, id)).await().indefinitely().rowCount();
     }
 
     public IntegrationConnection updateTestResult(

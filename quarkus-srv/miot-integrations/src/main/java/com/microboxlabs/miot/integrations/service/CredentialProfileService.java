@@ -16,6 +16,7 @@ import com.microboxlabs.miot.integrations.dto.CredentialTestResponse;
 import com.microboxlabs.miot.integrations.dto.CredentialUsageResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.email.ResendEmailSender;
+import com.microboxlabs.miot.integrations.telephony.TelephonyKeys;
 import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
 import com.microboxlabs.miot.integrations.orgaccount.GoogleCallException;
 import com.microboxlabs.miot.integrations.orgaccount.ManagedGoogleIdentity;
@@ -175,6 +176,7 @@ public class CredentialProfileService {
             }
             UpdateCredentialProfileParams params = prepareProfileUpdate(
                     tenantCode, actor, id, req, current, requestedSecret);
+            invalidateChangedTelephonyCredential(tenantCode, id, params, current);
             CredentialProfile updated = rotating
                     ? credentialProfileRepository.updateIfVersion(params, current.secretVersion())
                     : credentialProfileRepository.update(params);
@@ -186,6 +188,16 @@ public class CredentialProfileService {
             }
         }
         throw new IllegalStateException("Credential changed concurrently; retry the update");
+    }
+
+    private void invalidateChangedTelephonyCredential(String tenantCode, String id,
+            UpdateCredentialProfileParams params, CredentialProfile current) {
+        if (params.encryptedSecretJson() != null
+                || (params.publicConfig() != null && !java.util.Objects.equals(params.publicConfig(), current.publicConfig()))) {
+            // Fail conservatively before changing credentials: an invalidation failure must not
+            // leave new inputs paired with an old passing test.
+            connectionRepository.invalidateTelephonyCredential(tenantCode, id);
+        }
     }
 
     private UpdateCredentialProfileParams prepareProfileUpdate(
@@ -337,8 +349,10 @@ public class CredentialProfileService {
         CredentialProfile profile = credentialProfileRepository.findByTenantAndId(tenantCode, id);
         if (profile == null) return null;
         requireMutable(profile);
+        String encrypted = encrypt(secretConfig, id);
+        connectionRepository.invalidateTelephonyCredential(tenantCode, id);
         return credentialProfileRepository.updateSecret(
-                tenantCode, id, encrypt(secretConfig, id), maskSecret(secretConfig));
+                tenantCode, id, encrypted, maskSecret(secretConfig));
     }
 
     /**
@@ -355,8 +369,10 @@ public class CredentialProfileService {
             requireMutable(profile);
             Map<String, Object> secret = new LinkedHashMap<>(secretCipher.decrypt(profile.encryptedSecretJson()));
             secret.putAll(updates);
+            String encrypted = encrypt(secret, id);
+            connectionRepository.invalidateTelephonyCredential(tenantCode, id);
             CredentialProfile updated = credentialProfileRepository.updateSecretIfVersion(
-                    tenantCode, id, profile.secretVersion(), encrypt(secret, id), maskSecret(secret));
+                    tenantCode, id, profile.secretVersion(), encrypted, maskSecret(secret));
             if (updated != null) {
                 return updated;
             }
@@ -410,6 +426,8 @@ public class CredentialProfileService {
         String key = switch (connection.providerType()) {
             case WHATSAPP -> "phone_number_id";
             case RESEND -> ResendEmailSender.FROM;
+            case TELNYX -> TelephonyKeys.CALLER_NUMBER;
+            case TEAMS_PHONE -> TelephonyKeys.DEFAULT_CALLER_ID;
             case null, default -> null;
         };
         if (key == null) {

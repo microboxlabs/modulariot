@@ -170,8 +170,8 @@ function TeamForm({
               {error}
             </p>
           )}
-          <TelephonySection d={d} />
         </div>
+        <TelephonySection d={d} />
       </ModalBody>
       <ModalFooter className="justify-end">
         <Button color="alternative" onClick={onClose}>

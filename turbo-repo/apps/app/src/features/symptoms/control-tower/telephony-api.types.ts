@@ -21,3 +21,14 @@ export type TelephonySetup = z.infer<typeof setupSchema>;
 export function parseTelephonySetup(payload: unknown): TelephonySetup {
   return setupSchema.parse(payload);
 }
+
+const webRtcTokenSchema = z.object({
+  token: z.string().trim().min(1),
+  callerNumber: z.string().regex(/^\+[1-9]\d{6,14}$/),
+  expiresAt: z.string().datetime({ offset: true }),
+});
+export type WebRtcToken = z.infer<typeof webRtcTokenSchema>;
+
+export function parseWebRtcToken(payload: unknown): WebRtcToken {
+  return webRtcTokenSchema.parse(payload);
+}

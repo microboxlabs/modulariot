@@ -65,6 +65,7 @@ export default function TelephonySection({ d }: Readonly<{ d: I18nRecord }>) {
   return (
     <div className="flex flex-col gap-1 border-t border-gray-200 pt-4 dark:border-gray-700">
       <Label htmlFor="tower-telephony">{tr("telephonyTitle", d)}</Label>
+      <p className={`text-xs ${MUTED}`}>{tr("telephonySavesImmediately", d)}</p>
       <Select
         id="tower-telephony"
         value={setup.preferred ?? AUTO}

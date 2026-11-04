@@ -38,6 +38,8 @@ class TeamsPhoneConnectionTesterTest {
     private final IntegrationSecretCipher cipher = new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key");
     private final StubHttp http = new StubHttp();
     private boolean entraRefuses;
+    private CredentialAuthContext received;
+    private URI checkedUrl;
 
     private final CredentialAuthRegistry registry = new CredentialAuthRegistry(List.of(new CredentialAuthProvider() {
         @Override
@@ -47,6 +49,7 @@ class TeamsPhoneConnectionTesterTest {
 
         @Override
         public ResolvedAuth resolve(CredentialAuthContext context) {
+            received = context;
             if (entraRefuses) {
                 throw new AuthResolutionException("OAuth token request failed with HTTP 401 (invalid_client)");
             }
@@ -55,7 +58,7 @@ class TeamsPhoneConnectionTesterTest {
     }));
 
     private final TeamsPhoneConnectionTester tester =
-            new TeamsPhoneConnectionTester(new GraphClient(http, GRAPH), registry, cipher);
+            new TeamsPhoneConnectionTester(new GraphClient(http, GRAPH), registry, cipher, url -> checkedUrl = url);
 
     @Test
     void aTokenAndTheCallRecordsPermissionPass() {
@@ -65,7 +68,20 @@ class TeamsPhoneConnectionTesterTest {
 
         assertTrue(response.success(), response.message());
         assertEquals("Bearer app-token", http.last().header("Authorization"));
-        assertTrue(http.last().request().uri().toString().contains("getPstnCalls(fromDateTime="));
+        String call = http.last().request().uri().getPath();
+        String fromMarker = "fromDateTime=";
+        String toMarker = ",toDateTime=";
+        int fromStart = call.indexOf(fromMarker) + fromMarker.length();
+        int separator = call.indexOf(toMarker, fromStart);
+        Instant from = Instant.parse(call.substring(fromStart, separator));
+        Instant to = Instant.parse(call.substring(separator + toMarker.length(), call.length() - 1));
+        assertEquals(java.time.Duration.ofHours(1), java.time.Duration.between(from, to));
+        assertEquals(AuthType.OAUTH2_CLIENT_CREDENTIALS, received.authType());
+        assertEquals(CredentialType.AZURE_ENTRA_CLIENT_CREDENTIALS, received.credentialType());
+        assertEquals(ENTRA, received.publicConfig());
+        assertEquals(Map.of("clientSecret", "placeholder-secret"), received.secret());
+        assertEquals("https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/v2.0/token",
+                checkedUrl.toString());
     }
 
     @Test
@@ -99,15 +115,38 @@ class TeamsPhoneConnectionTesterTest {
         assertTrue(http.seen().isEmpty());
     }
 
+    @Test
+    void usesTheEntraClientGrantEvenForAnInconsistentStoredAuthType() {
+        http.reply("/v1.0/communications/callRecords/getPstnCalls", 200, "{\"value\":[]}");
+        assertTrue(tester.test(connection(Map.of()), credential(ENTRA, AuthType.BEARER_TOKEN), null).success());
+        assertEquals(AuthType.OAUTH2_CLIENT_CREDENTIALS, received.authType());
+    }
+
+    @Test
+    void rejectsPrivateTokenEndpointsBeforeResolvingAuthOrCallingGraph() {
+        var config = new java.util.LinkedHashMap<>(ENTRA);
+        config.put("tokenUrlOverride", "http://127.0.0.1:6553/token");
+        var guarded = new TeamsPhoneConnectionTester(new GraphClient(http, GRAPH), registry, cipher);
+        ConnectionTestResponse response = guarded.test(connection(Map.of()), credential(config), null);
+        assertFalse(response.success());
+        assertTrue(response.message().contains("tokenUrl"), response.message());
+        org.junit.jupiter.api.Assertions.assertNull(received);
+        assertTrue(http.seen().isEmpty());
+    }
+
     private static IntegrationConnection connection(Map<String, Object> metadata) {
         return new IntegrationConnection("conn-1", "tenant", "Teams", ProviderType.TEAMS_PHONE, GRAPH, "cred-1",
                 ConnectionStatus.DRAFT, null, null, metadata);
     }
 
     private CredentialProfile credential(Map<String, Object> publicConfig) {
+        return credential(publicConfig, AuthType.OAUTH2_CLIENT_CREDENTIALS);
+    }
+
+    private CredentialProfile credential(Map<String, Object> publicConfig, AuthType authType) {
         OffsetDateTime now = OffsetDateTime.now();
         return new CredentialProfile("cred-1", "tenant", "Teams", CredentialType.AZURE_ENTRA_CLIENT_CREDENTIALS,
-                AuthType.OAUTH2_CLIENT_CREDENTIALS, "PRODUCTION", publicConfig,
+                authType, "PRODUCTION", publicConfig,
                 cipher.encrypt(Map.of("clientSecret", "placeholder-secret")), "****", 1, null, null, now, now, null,
                 null);
     }

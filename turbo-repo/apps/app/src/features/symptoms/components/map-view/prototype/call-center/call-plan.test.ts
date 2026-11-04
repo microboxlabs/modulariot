@@ -170,7 +170,7 @@ describe("matchesTarget", () => {
     };
     expect(matchesTarget(t, "soto")).toBe(true);
     expect(matchesTarget(t, "transp")).toBe(true);
-    expect(matchesTarget(t, "1234")).toBe(true);
+    expect(matchesTarget(t, "5550")).toBe(true);
     expect(matchesTarget(t, "Marta")).toBe(false);
     expect(matchesTarget(t, " ")).toBe(true);
   });

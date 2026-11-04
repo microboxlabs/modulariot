@@ -181,7 +181,7 @@ describe("fillScript", () => {
     const treatment = {
       trip_info: {
         driver: "Ana Pérez",
-        asset_id: "ABCD12",
+        asset_id: "TEST-PLATE",
         origin: "Planta",
         destination: "Puerto",
       },
@@ -191,7 +191,9 @@ describe("fillScript", () => {
         "Hola {{conductor}}, camión {{ patente }} en {{ruta}} a {{velocidad}}",
         treatment
       )
-    ).toBe("Hola Ana Pérez, camión ABCD12 en Planta → Puerto a {{velocidad}}");
+    ).toBe(
+      "Hola Ana Pérez, camión TEST-PLATE en Planta → Puerto a {{velocidad}}"
+    );
   });
 });
 

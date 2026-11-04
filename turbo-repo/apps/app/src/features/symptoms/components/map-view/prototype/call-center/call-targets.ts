@@ -94,7 +94,7 @@ export function useCallTargets() {
         contactId: c.id,
         personName: c.name,
         role: c.role ?? "",
-        phone: c.phone ?? "",
+        phone: c.phone || c.channels?.phone || c.channels?.whatsapp || "",
         company: c.company,
         companyRut: c.companyRut ?? null,
         methods: contactMethods(c),

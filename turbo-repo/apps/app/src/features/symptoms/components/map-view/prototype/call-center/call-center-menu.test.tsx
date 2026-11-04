@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -50,7 +50,7 @@ const contact = (
   role,
   company: null,
   companyRut: null,
-  phone: "+56911112222",
+  phone: "+12025550101",
   methods: ["PHONE"],
   active: true,
   lastCalledAt: null,
@@ -64,7 +64,7 @@ const treatment = {
   trip_info: {
     // Shown in the case info; never used as a contact.
     driver: "Nombre en el viaje",
-    driver_contact: "+56933334444",
+    driver_contact: "+12025550102",
     carrier: "Transportes Sur",
   },
 } as unknown as TreatmentsGeneralResponseItem;
@@ -128,6 +128,32 @@ beforeEach(() => {
 });
 
 describe("CallCenterMenu", () => {
+  it("keeps a newer call selection when an earlier contact save finishes", async () => {
+    let finishSave = () => {};
+    data.createContact.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSave = () =>
+            resolve(contact("new-contact", "Saved contact", ""));
+        })
+    );
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+    await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+    await user.click(screen.getByLabelText("Número de teléfono"));
+    await user.paste("+12025550103");
+    await user.type(screen.getByLabelText("Nombre"), "Saved contact");
+    await user.click(
+      screen.getByRole("button", { name: "Llamar y guardar en la libreta" })
+    );
+    await user.click(screen.getByRole("button", { name: /Gema/ }));
+    await act(async () => finishSave());
+    expect(onCall).toHaveBeenCalledTimes(1);
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ contactId: "gs" })
+    );
+  });
+
   it("lists each step with the book contacts its scope and role resolve to", async () => {
     data.level = levelWith([
       {
@@ -181,7 +207,7 @@ describe("CallCenterMenu", () => {
       expect.objectContaining({
         contactId: "gs",
         role: "Gerente de Seguridad",
-        phone: "+56 9 1111 2222",
+        phone: "+12025550101",
         methods: ["phone"],
         stats: expect.objectContaining({ accepted: 2, denied: 1 }),
       })

@@ -7,7 +7,7 @@
  * steps, the driver and the whole book. Clicking a row moves to dialing.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   HiChevronDown,
   HiChevronRight,
@@ -367,15 +367,17 @@ function OtherContacts({
           </h4>
         </button>
       )}
-      {open && (
+      {(!collapsible || open) && (
         <>
           <div className="flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800/60">
             <div className="relative min-w-0 flex-1">
               <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
               <input
                 className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-8 pr-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                placeholder={tr(
-                  "symptoms.call_center_contact_search_placeholder",
+                placeholder={trDynamic(
+                  collapsible
+                    ? "symptoms.call_center_other_search_placeholder"
+                    : "symptoms.call_center_contact_search_placeholder",
                   dict
                 )}
                 value={search}
@@ -469,6 +471,17 @@ export default function CallCenterMenu({
   );
   const elapsed = useElapsed(startedAt);
   const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
+  const callVersion = useRef(0);
+  useEffect(
+    () => () => {
+      callVersion.current += 1;
+    },
+    []
+  );
+  const selectTarget = (target: CallTarget) => {
+    callVersion.current += 1;
+    onCall(target);
+  };
 
   const response = level?.level.response;
   const steps = response?.operator ? (response.steps ?? NO_STEPS) : NO_STEPS;
@@ -487,6 +500,7 @@ export default function CallCenterMenu({
     { phone, name, preset }: NewNumberDraft,
     action: NewNumberAction
   ) => {
+    const version = ++callVersion.current;
     const number = phone.trim();
     const personName = name.trim() || formatChileanPhone(number);
     setAddDraft(null);
@@ -497,16 +511,18 @@ export default function CallCenterMenu({
           phone: number,
           preset,
         });
-        onCall(newTarget(saved, personName, number));
+        if (callVersion.current === version)
+          selectTarget(newTarget(saved, personName, number));
         return;
       } catch {
+        if (callVersion.current !== version) return;
         ShowNotification({
           type: "error",
           message: tr("symptoms.call_center_new_save_error", dict),
         });
       }
     }
-    onCall(newTarget(null, personName, number));
+    selectTarget(newTarget(null, personName, number));
   };
 
   return (
@@ -572,7 +588,7 @@ export default function CallCenterMenu({
               canSkip={due < steps.length - 1}
               dict={dict}
               d={d}
-              onCall={onCall}
+              onCall={selectTarget}
               onSkip={() => onSkip(due + 1)}
             />
           ))}
@@ -582,7 +598,7 @@ export default function CallCenterMenu({
             collapsible={steps.length > 0}
             dict={dict}
             d={d}
-            onCall={onCall}
+            onCall={selectTarget}
             onNewNumber={setAddDraft}
           />
         </div>

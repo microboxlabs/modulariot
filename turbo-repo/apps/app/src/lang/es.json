@@ -3963,6 +3963,7 @@
         "findingOperatorNeedsSla": "Si interviene un operador, el nivel necesita un SLA.",
         "findingIgnoreMaxDuration": "La duración máxima de Ignorar debe ser una duración ISO-8601 mayor que cero, por ejemplo PT30M.",
         "findingIgnoreScopes": "Los alcances de Ignorar deben ser CASE, SYMPTOM o ALL, al menos uno.",
+        "findingContactConditionInvalid": "Condición de contacto no válida: {detail}",
         "findingStepNoContact": "El paso {n} no dice a quién contactar.",
         "findingStepNoMinutes": "El paso {n} necesita minutos.",
         "findingGapAt": "Con {at} exactos ningún nivel aplica.",

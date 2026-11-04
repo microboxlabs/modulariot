@@ -186,6 +186,15 @@ public class SelectableService {
                 .toList();
     }
 
+    /** Exact value membership for validation, without the editor's suggestion limit. */
+    public boolean contains(String tenantCode, String key, String value) {
+        Selectable list = get(tenantCode, key);
+        List<SelectableOption> options = list.source().isStatic() ? list.options()
+                : requireSource(tenantCode, list.source()).options(tenantCode, list.source(),
+                        new SelectableOptionSource.Query(value, List.of(), Integer.MAX_VALUE));
+        return options.stream().anyMatch(option -> value.equals(option.value()));
+    }
+
     /** Every non-static source an editor can pick for this tenant. */
     public List<SelectableOptionSource.Descriptor> sources(String tenantCode) {
         List<SelectableOptionSource.Descriptor> out = new ArrayList<>();

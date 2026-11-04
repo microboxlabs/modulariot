@@ -225,6 +225,8 @@ export default function ContactsAudience({
     [contacts, fields]
   );
   const [sampleIndex, setSampleIndex] = useState(0);
+  const lastSample = Math.max(0, tree.samples.length - 1);
+  if (sampleIndex > lastSample) setSampleIndex(lastSample);
   const setClauses = (next: ContactClause[]) => onChange(compileClauses(next));
 
   return (
@@ -284,7 +286,7 @@ export default function ContactsAudience({
             <SampleTree
               samples={tree.samples}
               labels={tree.labels}
-              index={Math.min(sampleIndex, tree.samples.length - 1)}
+              index={sampleIndex}
               readOnly={readOnly}
               d={d}
               onIndex={setSampleIndex}

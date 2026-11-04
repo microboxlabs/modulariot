@@ -161,6 +161,42 @@ beforeEach(() => {
 });
 
 describe("CallCenterMenu", () => {
+  it.each(["call", "callAndSave"])(
+    "keeps the due step script when a new number is used (%s)",
+    async (action) => {
+      data.contacts = [];
+      data.level = levelWith([
+        {
+          role: "Conductor",
+          channel: "call",
+          budgetMinutes: 2,
+          script: "Step message",
+          goal: "Step goal",
+        },
+      ]);
+      const user = userEvent.setup();
+      const onCall = renderMenu();
+      await user.click(screen.getByRole("button", { name: "Nuevo número" }));
+      await user.click(screen.getByLabelText("Número de teléfono"));
+      await user.paste("+12025550101");
+      await user.type(screen.getByLabelText("Nombre"), "Synthetic contact");
+      await user.click(
+        screen.getByRole("button", {
+          name:
+            action === "call"
+              ? es.symptoms.call_center_new_call_only
+              : es.symptoms.call_center_new_call_and_save,
+        })
+      );
+      await waitFor(() =>
+        expect(onCall).toHaveBeenCalledWith(expect.anything(), {
+          message: "Step message",
+          goal: "Step goal",
+        })
+      );
+    }
+  );
+
   it("hands the step's script and goal, filled with the case, to the call", async () => {
     data.level = levelWith([
       {

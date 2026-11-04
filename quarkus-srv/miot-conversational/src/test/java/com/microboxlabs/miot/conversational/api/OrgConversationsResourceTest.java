@@ -255,7 +255,7 @@ class OrgConversationsResourceTest {
         assertEquals(set("id", "key", "name", "baseText", "whatsapp", "email", "version", "updatedAt", "updatedBy",
                 "usedBy"), keys(t));
         assertEquals("0.1.0", t.path("version").asText());
-        assertEquals(set("metaName", "language", "params"), keys(t.path("whatsapp")));
+        assertEquals(set("metaName", "language", "params", "callPermission"), keys(t.path("whatsapp")));
         assertTrue(t.path("email").isNull());
         assertEquals(set("id", "key", "name", "state", "event"), keys(t.path("usedBy").get(0)),
                 "an organization does not see whose rules they are");

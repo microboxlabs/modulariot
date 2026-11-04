@@ -18,16 +18,31 @@ public final class SendJobs {
     public static final String RUN_ID = "runId";
     public static final String LANGUAGE = "language";
     public static final String PARAMS = "params";
+    /** The template carries a call permission request: the send job checks Meta's limits first. */
+    public static final String CALL_PERMISSION = "callPermission";
 
     private SendJobs() {
     }
 
     /** {@code message} carries the Meta template's language and parameters, which the stored message does not. */
     public static AsyncJobSpec whatsapp(Message queued, ContextMessage message) {
+        return whatsapp(queued, message, false);
+    }
+
+    /** {@code callPermission}: the template carries a call permission request. */
+    public static AsyncJobSpec whatsapp(Message queued, ContextMessage message, boolean callPermission) {
         Map<String, Object> payload = payload(queued);
         payload.put(LANGUAGE, message.language());
         payload.put(PARAMS, message.params());
+        if (callPermission) {
+            payload.put(CALL_PERMISSION, true);
+        }
         return spec(InternalJobTypes.WHATSAPP_SEND, queued, payload);
+    }
+
+    public static boolean callPermission(Map<String, Object> payload) {
+        Object value = payload == null ? null : payload.get(CALL_PERMISSION);
+        return value != null && "true".equalsIgnoreCase(value.toString());
     }
 
     public static AsyncJobSpec email(Message queued) {

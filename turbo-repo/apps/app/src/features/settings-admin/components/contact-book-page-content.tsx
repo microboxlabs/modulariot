@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Spinner } from "flowbite-react";
 import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
 import FilterSearch from "@/features/common/components/filter-search";
@@ -144,11 +144,14 @@ export default function ContactBookPageContent({
   // The CSV preview flags documents already in the book, so the import reads the whole book.
   const { data: wholeBook } = useContacts(importOpen);
 
+  const manualFormOpened = useRef(false);
   const openCreate = () => {
+    manualFormOpened.current = true;
     setEditing(null);
     setModalOpen(true);
   };
   const openEdit = (contact: BookContact) => {
+    manualFormOpened.current = true;
     setEditing(contact);
     setModalOpen(true);
   };
@@ -165,12 +168,12 @@ export default function ContactBookPageContent({
     let cancelled = false;
     controlTowerRequest<TowerContact>(`/contacts/${encodeURIComponent(editId)}`)
       .then((c) => {
-        if (cancelled) return;
+        if (cancelled || manualFormOpened.current) return;
         setEditing(toBookContact(c, (c.tags ?? []).map(ensureBadge)));
         setModalOpen(true);
       })
       .catch(() => {
-        if (!cancelled)
+        if (!cancelled && !manualFormOpened.current)
           ShowNotification({ type: "error", message: editLoadError });
       });
     return () => {

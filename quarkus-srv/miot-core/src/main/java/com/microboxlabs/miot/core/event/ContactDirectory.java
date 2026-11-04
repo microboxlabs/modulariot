@@ -17,7 +17,13 @@ public interface ContactDirectory {
      * @param nationalId the person's own RUT, or null
      */
     record Entry(String id, String name, String role, List<String> tags, String company, String companyRut,
-            String position, boolean member, String email, String whatsapp, String nationalId) {
+            String position, boolean member, String email, String whatsapp, String nationalId,
+            String nationalIdType, String companyTaxIdType) {
+
+        public Entry(String id, String name, String role, List<String> tags, String company, String companyRut,
+                String position, boolean member, String email, String whatsapp, String nationalId) {
+            this(id, name, role, tags, company, companyRut, position, member, email, whatsapp, nationalId, "RUT", "RUT");
+        }
 
         /** A contact whose own RUT the book does not give. */
         public Entry(String id, String name, String role, List<String> tags, String company, String companyRut,

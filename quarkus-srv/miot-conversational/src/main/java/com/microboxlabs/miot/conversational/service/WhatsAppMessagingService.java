@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.conversational.service;
 
 import com.microboxlabs.miot.conversational.accounts.ChannelAccountsService;
+import com.microboxlabs.miot.conversational.calling.CallPermissionService;
+import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
 import com.microboxlabs.miot.conversational.client.MetaWhatsAppClient;
 import com.microboxlabs.miot.conversational.client.WhatsAppSendException;
 import com.microboxlabs.miot.conversational.domain.Channel;
@@ -23,6 +25,8 @@ import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.enterprise.inject.Instance;
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashSet;
@@ -61,18 +65,48 @@ public class WhatsAppMessagingService {
     private final MessageRepository messageRepository;
     private final ChannelAccountsService accounts;
 
+    private final Instance<TemplateStore> templates;
+
     @Inject
     public WhatsAppMessagingService(
             IntegrationConnectionResolver connectionResolver,
             MetaWhatsAppClient metaClient,
             ConversationRepository conversationRepository,
             MessageRepository messageRepository,
-            ChannelAccountsService accounts) {
+            ChannelAccountsService accounts, Instance<TemplateStore> templates) {
+        this.templates = templates;
         this.connectionResolver = connectionResolver;
         this.metaClient = metaClient;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.accounts = accounts;
+    }
+
+    public WhatsAppMessagingService(IntegrationConnectionResolver resolver, MetaWhatsAppClient client,
+            ConversationRepository conversations, MessageRepository messages, ChannelAccountsService accounts) {
+        this(resolver, client, conversations, messages, accounts, null);
+    }
+
+    private static void requireSendingCredentials(String phoneNumberId, String token) {
+        if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
+            throw new ConnectionResolutionException("WhatsApp connection is missing phone_number_id or the access token");
+        }
+    }
+
+    private static void requireExpectedSender(SendingNumber expected, String tenant, String phoneNumberId) {
+        if (expected != null && (!expected.phoneNumberId().equals(phoneNumberId)
+                || !expected.tenantCode().equals(tenant))) {
+            throw new ConnectionResolutionException("The sending number changed; retry");
+        }
+    }
+
+    private void requirePermissionAdmission(String name, SendingNumber expected) {
+        if (expected != null || name == null) return;
+        boolean permission = CallPermissionService.TEMPLATE_KEY.equals(name)
+                || (templates != null && templates.isResolvable() && templates.get().list(PLATFORM_TENANT).stream()
+                .anyMatch(t -> t.whatsapp() != null && (t.whatsapp().callPermission()
+                        || CallPermissionService.TEMPLATE_KEY.equals(t.key())) && name.equals(t.whatsapp().metaName())));
+        if (permission) throw new IllegalArgumentException("Call permission templates require permission admission");
     }
 
     /**
@@ -82,6 +116,7 @@ public class WhatsAppMessagingService {
      */
     public Message send(String tenantCode, SendWhatsAppMessageRequest request, String sentByUserId) {
         validate(request);
+        if (request.isTemplate()) requirePermissionAdmission(request.templateName(), null);
 
         Conversation target = targetConversation(tenantCode, request);
         String sendingTenant = target == null ? tenantCode : replyTenant(tenantCode, target.id());
@@ -166,6 +201,11 @@ public class WhatsAppMessagingService {
      * FAILED with its reason. With {@code simulate} nothing is sent and the message is stored SIMULATED.
      */
     public Message sendInContext(String tenantCode, ContextMessage message, boolean simulate) {
+        return sendInContext(tenantCode, message, simulate, null);
+    }
+
+    private Message sendInContext(String tenantCode, ContextMessage message, boolean simulate, SendingNumber expected) {
+        if (!simulate) requirePermissionAdmission(message.templateName(), expected);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = conversationRepository.findOrCreateForContext(tenantCode,
                 message.participant(message.to()), now);
@@ -173,6 +213,7 @@ public class WhatsAppMessagingService {
         MessageStatus status;
         String errorMessage = null;
         Map<String, Object> metadata = new LinkedHashMap<>();
+        RuntimeException permissionFailure = null;
         if (simulate) {
             status = MessageStatus.SIMULATED;
         } else {
@@ -183,16 +224,17 @@ public class WhatsAppMessagingService {
                 metadata.put(CONNECTION_TENANT, sendingTenant);
                 String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
                 String token = connection.secretString(TOKEN);
-                if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
-                    throw new ConnectionResolutionException(
-                            "WhatsApp connection is missing phone_number_id or the access token");
-                }
+                requireExpectedSender(expected, sendingTenant, phoneNumberId);
+                requireSendingCredentials(phoneNumberId, token);
                 enforceTestMode(connection, message.to());
                 providerMessageId = metaClient.sendTemplate(connection.baseUrl(), phoneNumberId, token,
                         message.to(), message.templateName(),
                         message.language() == null ? DEFAULT_LANGUAGE : message.language(), message.params());
                 status = MessageStatus.SENT;
             } catch (ConnectionResolutionException | IllegalArgumentException | WhatsAppSendException e) {
+                // The admitted sender needs the original provider status to distinguish a
+                // definitive rejection from an unknown outcome before releasing its reservation.
+                if (expected != null) permissionFailure = e;
                 LOG.warnf("WhatsApp run send failed for tenant %s to %s: %s", tenantCode, maskPhone(message.to()),
                         e.getMessage());
                 status = MessageStatus.FAILED;
@@ -207,6 +249,7 @@ public class WhatsAppMessagingService {
         conversationRepository.updateOutbound(conversation.id(), ConversationRepository.OutboundTouch.ofContext(
                 message.contextKind(), message.contextKey(), now,
                 truncate(message.body() != null ? message.body() : message.templateName())));
+        if (permissionFailure != null) throw permissionFailure;
         return stored;
     }
 
@@ -226,6 +269,11 @@ public class WhatsAppMessagingService {
         return stored;
     }
 
+    /** The queued message of this organization; a missing or foreign one fails for good. */
+    public Message queuedMessage(String tenantCode, String messageId) {
+        return queued(messageRepository, conversationRepository, tenantCode, messageId);
+    }
+
     /**
      * Sends a PENDING message of this organization through its sending account and marks it SENT. A message
      * no longer PENDING is returned as it is, except FAILED after a manual retry of its parked job.
@@ -233,21 +281,25 @@ public class WhatsAppMessagingService {
      * @throws SendFailure when Meta did not take it
      */
     public Message deliverQueued(String tenantCode, String messageId, String language, Map<String, String> params) {
+        return deliverQueued(tenantCode, messageId, language, params, null);
+    }
+
+    public Message deliverQueued(String tenantCode, String messageId, String language, Map<String, String> params,
+            SendingNumber expected) {
         Message message = queued(messageRepository, conversationRepository, tenantCode, messageId);
         if (message.status() != MessageStatus.PENDING && message.status() != MessageStatus.FAILED) {
             return message;
         }
         try {
+            requirePermissionAdmission(message.templateName(), expected);
             String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.WHATSAPP);
             ResolvedConnection connection = sendingConnection(sendingTenant);
             Map<String, Object> metadata = metadata(connection);
             metadata.put(CONNECTION_TENANT, sendingTenant);
             String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
             String token = connection.secretString(TOKEN);
-            if (phoneNumberId == null || phoneNumberId.isBlank() || token == null || token.isBlank()) {
-                throw new ConnectionResolutionException(
-                        "WhatsApp connection is missing phone_number_id or the access token");
-            }
+            requireExpectedSender(expected, sendingTenant, phoneNumberId);
+            requireSendingCredentials(phoneNumberId, token);
             enforceTestMode(connection, message.address());
             String wamid = metaClient.sendTemplate(connection.baseUrl(), phoneNumberId, token, message.address(),
                     message.templateName(), language == null ? DEFAULT_LANGUAGE : language,
@@ -260,6 +312,41 @@ public class WhatsAppMessagingService {
             LOG.warnf("WhatsApp send of message %s failed (HTTP %s): %s", messageId, e.httpStatus(), e.getMessage());
             throw new SendFailure(e.getMessage(), SendFailure.retryable(e.httpStatus()));
         }
+    }
+
+    /** The WhatsApp number an organization's rule messages go out from, with what calling Meta needs. */
+    public record SendingNumber(String tenantCode, URI baseUrl, String phoneNumberId, String token) {
+        @Override public String toString() {
+            return "SendingNumber[tenantCode=" + tenantCode + ", phoneNumberId=" + phoneNumberId + ", token=<redacted>]";
+        }
+    }
+
+    /** Uses the normal outbound message pool, including tenant, wamid and connection metadata for reply routing. */
+    public String sendCallPermission(String tenantCode, SendingNumber expected, String to, String name,
+            String language, Map<String, String> params) {
+        Message message = sendInContext(tenantCode, new ContextMessage(null, null, to, null, null, null,
+                name, language, params, null, WhatsAppTemplateRenderer.render(name, params), null, null), false, expected);
+        if (message.status() != MessageStatus.SENT) {
+            throw new WhatsAppSendException(message.errorMessage(), null, null);
+        }
+        return message.providerMessageId();
+    }
+
+    /**
+     * The number this organization's rule messages go out from, checked against the connection's test mode for
+     * {@code to}. Fails with {@link ConnectionResolutionException} when there is no usable connection and
+     * {@link IllegalArgumentException} when test mode does not allow {@code to}.
+     */
+    public SendingNumber sendingNumber(String tenantCode, String to) {
+        String sendingTenant = accounts.sendingTenant(tenantCode, ChannelAccountsService.WHATSAPP);
+        ResolvedConnection connection = sendingConnection(sendingTenant);
+        String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
+        String token = connection.secretString(TOKEN);
+        requireSendingCredentials(phoneNumberId, token);
+        if (to != null) {
+            enforceTestMode(connection, to);
+        }
+        return new SendingNumber(sendingTenant, connection.baseUrl(), phoneNumberId, token);
     }
 
     /** The message of this organization; a missing or foreign one fails for good. */
@@ -465,6 +552,7 @@ public class WhatsAppMessagingService {
     private static Map<String, Object> metadata(ResolvedConnection connection) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("connectionId", connection.connectionId());
+        metadata.put("phoneNumberId", connection.metadataString(PHONE_NUMBER_ID));
         return metadata;
     }
 

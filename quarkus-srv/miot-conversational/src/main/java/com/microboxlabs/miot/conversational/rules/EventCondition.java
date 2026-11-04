@@ -1,6 +1,9 @@
 package com.microboxlabs.miot.conversational.rules;
 
 import dev.cel.bundle.Cel;
+import dev.cel.common.CelFunctionDecl;
+import dev.cel.common.CelOverloadDecl;
+import dev.cel.runtime.CelFunctionBinding;
 import dev.cel.bundle.CelFactory;
 import dev.cel.common.CelIssue;
 import dev.cel.common.CelOptions;
@@ -50,6 +53,10 @@ public final class EventCondition {
             .setStandardMacros(CelStandardMacro.STANDARD_MACROS)
             .addVar(EVENT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
             .addVar(CONTACT_VAR, MapType.create(SimpleType.STRING, SimpleType.DYN))
+            .addFunctionDeclarations(CelFunctionDecl.newFunctionDeclaration("nationalId",
+                    CelOverloadDecl.newGlobalOverload("national_id_string", SimpleType.STRING, SimpleType.STRING)))
+            .addFunctionBindings(CelFunctionBinding.from("national_id_string", String.class,
+                    value -> value.replaceAll("[.\\-\\s]", "").toUpperCase(java.util.Locale.ROOT)))
             .build();
 
     private static final int MAX_PROGRAMS = 512;

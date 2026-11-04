@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.conversational.jobs;
 
+import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy;
+import com.microboxlabs.miot.conversational.calling.CallPermissionService;
 import com.microboxlabs.miot.conversational.domain.Message;
 import com.microboxlabs.miot.conversational.rules.SendJobs;
 import com.microboxlabs.miot.conversational.rules.store.RunStore;
@@ -12,6 +14,7 @@ import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -25,11 +28,18 @@ public class WhatsAppSendJob implements ModulithJobHandler {
 
     private final WhatsAppMessagingService whatsapp;
     private final RunStore runs;
+    private final CallPermissionService callPermissions;
+
+    /** Without call permissions: a call permission request is refused as if calling were off. */
+    public WhatsAppSendJob(WhatsAppMessagingService whatsapp, RunStore runs) {
+        this(whatsapp, runs, null);
+    }
 
     @Inject
-    public WhatsAppSendJob(WhatsAppMessagingService whatsapp, RunStore runs) {
+    public WhatsAppSendJob(WhatsAppMessagingService whatsapp, RunStore runs, CallPermissionService callPermissions) {
         this.whatsapp = whatsapp;
         this.runs = runs;
+        this.callPermissions = callPermissions;
     }
 
     @Override
@@ -45,20 +55,44 @@ public class WhatsAppSendJob implements ModulithJobHandler {
 
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
-        if (SuppressedSend.cancel(runs, tenantCode, payload)) {
-            return JobOutcome.skipped("Notification cancelled for an ignored or closed case");
-        }
         String messageId = text(payload, SendJobs.MESSAGE_ID);
         try {
-            Message sent = whatsapp.deliverQueued(tenantCode, messageId, text(payload, SendJobs.LANGUAGE),
-                    params(payload == null ? null : payload.get(SendJobs.PARAMS)));
-            return SendOutcome.of(sent);
+            boolean permissionRequest = SendJobs.callPermission(payload);
+            Message queued = permissionRequest ? whatsapp.queuedMessage(tenantCode, messageId) : null;
+            if (queued != null && queued.providerMessageId() != null && queued.sentAt() != null) {
+                if (callPermissions == null) throw new IllegalStateException("Call permission accounting unavailable");
+                callPermissions.recordSent(tenantCode, queued);
+                return SendOutcome.of(queued);
+            }
+            if (SuppressedSend.cancel(runs, tenantCode, payload)) {
+                return JobOutcome.skipped("Notification cancelled for an ignored or closed case");
+            }
+            if (!permissionRequest) return SendOutcome.of(deliver(tenantCode, messageId, payload));
+            if (callPermissions == null) return refused(tenantCode, messageId, CallPermissionPolicy.Refusal.CALLING_DISABLED);
+            return callPermissions.withAdmission(tenantCode, queued.address(), admission -> {
+                if (!admission.admitted()) return refused(tenantCode, messageId, admission.refusal());
+                Message sent = whatsapp.deliverQueued(tenantCode, messageId, text(payload, SendJobs.LANGUAGE),
+                        params(payload == null ? null : payload.get(SendJobs.PARAMS)), admission.number());
+                callPermissions.recordSent(tenantCode, sent);
+                return SendOutcome.of(sent);
+            });
         } catch (SendFailure e) {
             if (e.retryable()) {
                 throw e;
             }
             throw new NonRetryableJobException(e.getMessage(), e);
         }
+    }
+
+    private Message deliver(String tenantCode, String messageId, Map<String, Object> payload) {
+        return whatsapp.deliverQueued(tenantCode, messageId, text(payload, SendJobs.LANGUAGE),
+                params(payload == null ? null : payload.get(SendJobs.PARAMS)));
+    }
+
+    private JobOutcome refused(String tenantCode, String messageId, CallPermissionPolicy.Refusal refusal) {
+        String reason = "Call permission request not sent: " + refusal;
+        runs.failQueuedMessage(tenantCode, messageId, reason, Instant.now());
+        return JobOutcome.skipped(reason);
     }
 
     static String text(Map<String, Object> payload, String key) {

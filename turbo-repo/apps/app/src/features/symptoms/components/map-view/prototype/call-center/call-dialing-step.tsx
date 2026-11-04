@@ -13,6 +13,7 @@
  * beside it.
  */
 
+import WhatsAppCallPermission from "./whatsapp-call-permission";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -133,6 +134,15 @@ export default function CallDialingStep({
             bgClassName="bg-white dark:bg-gray-800/40"
           />
         </div>
+
+        {!started && methods.includes("whatsapp") && (
+          <WhatsAppCallPermission
+            dict={dict}
+            phone={channels?.whatsapp ?? contactPhone}
+            name={contactName}
+            lang={lang}
+          />
+        )}
 
         <div className="flex min-h-0 flex-3 flex-col items-center p-4">
           <div

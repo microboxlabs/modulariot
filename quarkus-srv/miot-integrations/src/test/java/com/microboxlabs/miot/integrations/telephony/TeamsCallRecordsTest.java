@@ -48,6 +48,10 @@ class TeamsCallRecordsTest {
 
     private final StubHttp http = new StubHttp();
     private IntegrationConnection stored = connection(ConnectionStatus.ACTIVE);
+    private AuthType storedAuth = AuthType.OAUTH2_CLIENT_CREDENTIALS;
+    private CredentialAuthContext received;
+    private Map<String, Object> publicConfig = Map.of("scope", TeamsAppToken.GRAPH_SCOPE,
+            "tenantId", "00000000-0000-0000-0000-000000000000", "clientId", "client-1");
 
     private final CredentialAuthRegistry registry = new CredentialAuthRegistry(List.of(new CredentialAuthProvider() {
         @Override
@@ -57,16 +61,54 @@ class TeamsCallRecordsTest {
 
         @Override
         public ResolvedAuth resolve(CredentialAuthContext context) {
+            received = context;
             return ResolvedAuth.headers(Map.of("Authorization", "Bearer app-token"), Instant.MAX);
         }
     }));
 
     private final TeamsCallRecords records = new TeamsCallRecords(
             (tenant, id) -> stored,
-            (tenant, c) -> new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("clientSecret", "x"),
-                    AuthType.OAUTH2_CLIENT_CREDENTIALS, CredentialType.AZURE_ENTRA_CLIENT_CREDENTIALS,
-                    Map.of("scope", TeamsAppToken.GRAPH_SCOPE)),
-            registry, new GraphClient(http, GRAPH), new ObjectMapper());
+            (tenant, c) -> resolve(c),
+            registry, new GraphClient(http, GRAPH), new ObjectMapper(), url -> {
+                // Normal tests use a fake auth provider and do not resolve external DNS.
+            });
+
+    private ResolvedConnection resolve(IntegrationConnection c) {
+        return new ResolvedConnection(c.id(), c.baseUrl(), c.metadata(), Map.of("clientSecret", "x"),
+                storedAuth, CredentialType.AZURE_ENTRA_CLIENT_CREDENTIALS, publicConfig);
+    }
+
+    @Test
+    void rejectsPrivateTokenEndpointsBeforeResolvingAuthOrFetchingCallRecords() {
+        publicConfig = new java.util.LinkedHashMap<>(publicConfig);
+        publicConfig.put("tokenUrlOverride", "http://127.0.0.1:6553/token");
+        var guarded = new TeamsCallRecords((tenant, id) -> stored, (tenant, c) -> resolve(c),
+                registry, new GraphClient(http, GRAPH), new ObjectMapper());
+        var failure = assertThrows(TelephonyUnavailableException.class,
+                () -> guarded.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        assertTrue(failure.getMessage().contains("tokenUrl"), failure.getMessage());
+        org.junit.jupiter.api.Assertions.assertNull(received);
+        assertTrue(http.seen().isEmpty());
+    }
+
+    @Test
+    void alwaysUsesTheEntraClientGrantForGraphRecords() {
+        storedAuth = AuthType.BEARER_TOKEN;
+        http.reply(PATH, 200, "{\"value\":[]}");
+        assertTrue(records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)).isEmpty());
+        assertEquals(AuthType.OAUTH2_CLIENT_CREDENTIALS, received.authType());
+        assertEquals(publicConfig, received.publicConfig());
+        assertEquals(Map.of("clientSecret", "x"), received.secret());
+    }
+
+    @Test
+    void refusesAnEntraCredentialWithTheWrongGraphScopeBeforeAuthResolution() {
+        publicConfig = Map.of("scope", "api://other/.default");
+        assertThrows(TelephonyUnavailableException.class,
+                () -> records.pstnCalls("acme", "conn-1", FROM, FROM.plusSeconds(600)));
+        org.junit.jupiter.api.Assertions.assertNull(received);
+        assertTrue(http.seen().isEmpty());
+    }
 
     @Test
     void readsTheRowsOfEveryPage() {

@@ -14,6 +14,9 @@ import {
   type TelephonySetup,
 } from "../control-tower/telephony-api";
 import { MUTED } from "./ui/card";
+import { usd } from "@/features/telephony/telephony-plan";
+import { useOrgTelephonyUsage } from "@/features/telephony/use-org-telephony-usage";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 
 const AUTO = "AUTO";
 
@@ -22,7 +25,8 @@ export function activeLineLabel(setup: TelephonySetup, d: I18nRecord): string {
   if (!setup.active) return tr("telephonyNone", d);
   const provider =
     setup.active.provider === "TELNYX" ? "Telnyx" : "Teams Phone";
-  return `${setup.active.name} · ${provider}`;
+  const managed = setup.active.managed ? ` (${tr("telephonyManaged", d)})` : "";
+  return `${setup.active.name} · ${provider}${managed}`;
 }
 
 /**
@@ -32,6 +36,11 @@ export function activeLineLabel(setup: TelephonySetup, d: I18nRecord): string {
 export default function TelephonySection({ d }: Readonly<{ d: I18nRecord }>) {
   const { lang } = useParams<{ lang: string }>();
   const { data: setup, error } = useTelephony();
+  const { activeOrg } = useOrgScopes();
+  const managed = setup?.active?.managed === true;
+  const { data: month } = useOrgTelephonyUsage(
+    managed ? (activeOrg?.slug ?? null) : null
+  );
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
 
@@ -82,6 +91,16 @@ export default function TelephonySection({ d }: Readonly<{ d: I18nRecord }>) {
       <p className={`text-xs ${MUTED}`}>
         {tr("telephonyActive", d)}: {activeLineLabel(setup, d)}
       </p>
+      {managed && month && (
+        <p className={`text-xs ${MUTED}`}>
+          {tr("telephonyMonth", d, {
+            used: String(month.usage.usedMinutes),
+            quota: String(month.usage.quotaMinutes),
+            pending: String(month.usage.pending),
+            charge: usd(month.usage.chargeUsd),
+          })}
+        </p>
+      )}
       {setup.lines
         .filter((l) => !l.ready)
         .map((l) => (

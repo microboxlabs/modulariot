@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
       name: "Central",
       callerNumber: "+56900000000",
       ready: true,
+      managed: false,
     },
     lines: [
       {
@@ -38,6 +39,20 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
+const scopes = vi.hoisted(() => ({ activeOrg: { slug: "acme" } }));
+vi.mock(
+  "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
+  () => ({ useOrgScopes: () => scopes })
+);
+const month = vi.hoisted(() => ({
+  data: {
+    usage: { usedMinutes: 12, quotaMinutes: 300, pending: 1, chargeUsd: 0.6 },
+  },
+  error: null,
+}));
+vi.mock("@/features/telephony/use-org-telephony-usage", () => ({
+  useOrgTelephonyUsage: () => month,
+}));
 vi.mock("../control-tower/telephony-api", () => ({
   useTelephony: () => mocks.swr,
   saveTelephony: mocks.saveTelephony,
@@ -52,6 +67,14 @@ describe("TelephonySection", () => {
     expect(
       screen.getByText("Teams no pasó su prueba; no se usa hasta que la pase.")
     ).toBeTruthy();
+  });
+
+  it("shows the month on the platform line", () => {
+    mocks.swr.data.active.managed = true;
+    render(<TelephonySection d={d} />);
+    expect(screen.getByText(/línea de la plataforma/)).toBeTruthy();
+    expect(screen.getByText(/12 de 300 minutos/)).toBeTruthy();
+    mocks.swr.data.active.managed = false;
   });
 
   it("saves the choice on change", async () => {

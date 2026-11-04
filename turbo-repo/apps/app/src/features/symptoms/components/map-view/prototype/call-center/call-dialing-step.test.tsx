@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
+import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import type { StartCallOptions, TelephonyCallResult } from "./telnyx-call";
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
@@ -231,5 +232,102 @@ describe("CallDialingStep", () => {
         calleeNumber: "+56911111111",
       })
     );
+  });
+
+  describe("on the managed line", () => {
+    const line = {
+      connectionId: "p1",
+      provider: "TELNYX" as const,
+      name: "Plataforma",
+      callerNumber: "+56200000000",
+      ready: true,
+      managed: true,
+    };
+
+    it("sends the call's ref as client state and reports the end", async () => {
+      let options: StartCallOptions | null = null;
+      const dial = vi.fn(async (o: StartCallOptions) => {
+        options = o;
+        return { hangup: vi.fn() };
+      });
+      const token = vi.fn().mockResolvedValue({
+        token: "jwt",
+        callerNumber: "+56200000000",
+        expiresAt: "2026-11-05T10:00:00Z",
+        callRef: "ref-1",
+      });
+      const endCall = vi.fn().mockResolvedValue(undefined);
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          contactPhone="+56 9 1111 1111"
+          allowedMethods={["phone"]}
+          reason=""
+          line={line}
+          caseRef="42"
+          dial={dial}
+          token={token}
+          endCall={endCall}
+          onCancel={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      await waitFor(() => expect(dial).toHaveBeenCalled());
+      expect(token).toHaveBeenCalledWith({
+        calleeNumber: "+56911111111",
+        caseRef: "42",
+      });
+      const opts = options as StartCallOptions | null;
+      expect(opts?.clientState).toBe(btoa("ref-1"));
+      act(() =>
+        opts?.onEnd({
+          provider: "TELNYX",
+          answered: true,
+          durationSeconds: 5,
+          hangupCause: null,
+          sipCode: null,
+          callId: "v3:control-1",
+          calleeNumber: "+56911111111",
+          startedAt: "2026-11-04T10:00:00.000Z",
+        })
+      );
+      expect(endCall).toHaveBeenCalledWith("ref-1", "v3:control-1");
+    });
+
+    it("says the minutes are used and offers the phone", async () => {
+      render(
+        <CallDialingStep
+          dict={dict}
+          contactName="Luis"
+          contactRole="Transportista"
+          contactPhone="+56 9 1111 1111"
+          allowedMethods={["phone"]}
+          reason=""
+          line={line}
+          dial={vi.fn()}
+          token={vi
+            .fn()
+            .mockRejectedValue(
+              new ControlTowerError("used", 409, "telephony_quota_exhausted")
+            )}
+          onCancel={vi.fn()}
+          onConfirm={vi.fn()}
+        />
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Llamada telefónica" })
+      );
+      expect(
+        await screen.findByText(es.symptoms.call_quota_exhausted)
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("link", { name: es.symptoms.call_use_phone })
+      ).toHaveAttribute("href", "tel:+56911111111");
+    });
   });
 });

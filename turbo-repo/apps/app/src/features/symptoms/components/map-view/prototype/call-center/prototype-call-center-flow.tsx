@@ -252,6 +252,11 @@ export default function PrototypeCallCenterFlow({
           reason={messageToCommunicate}
           goal={activeScript?.goal}
           line={telephony?.active ?? null}
+          caseRef={
+            treatmentData?.symptom_info?.id != null
+              ? String(treatmentData.symptom_info.id)
+              : null
+          }
           onCancel={handleCancelCall}
           onConfirm={handleConfirmCall}
           onStartedChange={setDialingStarted}

@@ -10,6 +10,7 @@ import {
   HiOutlineGlobeAlt,
   HiOutlineKey,
   HiOutlineMap,
+  HiOutlinePhone,
   HiOutlinePhotograph,
   HiOutlineShare,
   HiOutlineTemplate,
@@ -29,6 +30,8 @@ import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import GeocodingPlanSection from "./geocoding-plan-section";
 import GeocodingTenantsSection from "./geocoding-tenants-section";
 import GeocodingTenantsToolbar from "./geocoding-tenants-toolbar";
+import TelephonyPlanSection from "./telephony-plan-section";
+import TelephonyTenantsSection from "./telephony-tenants-section";
 import {
   DEFAULT_TENANT_SORT,
   NO_TENANT_FILTERS,
@@ -81,6 +84,9 @@ export default function PlatformPageContent({
   const geocodingPlanDict = (platformDict?.geocodingPlan as I18nRecord) ?? {};
   const geocodingTenantsDict =
     (platformDict?.geocodingTenants as I18nRecord) ?? {};
+  const telephonyPlanDict = (platformDict?.telephonyPlan as I18nRecord) ?? {};
+  const telephonyTenantsDict =
+    (platformDict?.telephonyTenants as I18nRecord) ?? {};
   const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
@@ -112,6 +118,7 @@ export default function PlatformPageContent({
     access: tr("groups.access", platformDict),
     ai: tr("groups.ai", platformDict),
     geocoding: tr("groups.geocoding", platformDict),
+    telephony: tr("groups.telephony", platformDict),
   };
 
   const sections: readonly PlatformSectionEntry[] = [
@@ -185,6 +192,20 @@ export default function PlatformPageContent({
       icon: HiOutlineMap,
       group: group.geocoding,
     },
+    {
+      id: "telephonyTenants",
+      label: tr("menuTitle", telephonyTenantsDict),
+      description: tr("menuHint", telephonyTenantsDict),
+      icon: HiOutlinePhone,
+      group: group.telephony,
+    },
+    {
+      id: "telephonyPlan",
+      label: tr("menuTitle", telephonyPlanDict),
+      description: tr("menuHint", telephonyPlanDict),
+      icon: HiOutlineCreditCard,
+      group: group.telephony,
+    },
   ];
 
   const panels: Record<PlatformSection, ReactNode> = {
@@ -204,6 +225,8 @@ export default function PlatformPageContent({
         onAssignDone={assignDone}
       />
     ),
+    telephonyPlan: <TelephonyPlanSection dict={telephonyPlanDict} />,
+    telephonyTenants: <TelephonyTenantsSection dict={telephonyTenantsDict} />,
     sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />

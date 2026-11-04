@@ -124,6 +124,8 @@ describe("ConnectionFormSchema", () => {
     sipConnectionId: "",
     callerNumber: "",
     defaultCallerId: "",
+    channelLimit: "",
+    webhookPublicKey: "",
   };
 
   it("accepts an instance with no credential — the field is optional by value", () => {

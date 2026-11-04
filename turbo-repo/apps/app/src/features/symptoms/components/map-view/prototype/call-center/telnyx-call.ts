@@ -60,6 +60,7 @@ export interface SdkClient {
     audio: boolean;
     video: boolean;
     remoteElement?: HTMLMediaElement;
+    clientState?: string;
   }): SdkCall;
 }
 
@@ -77,6 +78,8 @@ export interface StartCallOptions {
   /** E.164. */
   destination: string;
   remoteElement?: HTMLMediaElement | null;
+  /** Base64 that Telnyx echoes in its webhooks: the call's usage row. */
+  clientState?: string;
   onPhase: (phase: CallPhase, answeredAt: number | null) => void;
   onEnd: (result: TelephonyCallResult) => void;
   sdk?: SdkFactory;
@@ -116,6 +119,7 @@ export async function startTelnyxCall({
   callerNumber,
   destination,
   remoteElement,
+  clientState,
   onPhase,
   onEnd,
   sdk = loadTelnyx,
@@ -154,6 +158,7 @@ export async function startTelnyxCall({
       audio: true,
       video: false,
       remoteElement: remoteElement ?? undefined,
+      ...(clientState ? { clientState } : {}),
     });
     if (hangupAsked) void call.hangup();
   });

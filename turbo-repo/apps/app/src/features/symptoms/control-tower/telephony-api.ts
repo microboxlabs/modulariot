@@ -22,6 +22,8 @@ export interface TelephonyLine {
   callerNumber: string | null;
   /** Whether the connection's last test passed. */
   ready: boolean;
+  /** The platform's shared line, charged per minute. */
+  managed?: boolean;
 }
 
 export interface TelephonySetup {
@@ -51,11 +53,33 @@ export async function saveTelephony(provider: TelephonyProvider | null) {
   return saved;
 }
 
-/** Asks for a Telnyx WebRTC login for the signed-in operator (24 hours). */
-export function fetchWebRtcToken() {
-  return request<{ token: string; callerNumber: string; expiresAt: string }>(
-    `${telephonyKey}/webrtc-token`,
-    { method: "POST" }
+/** Refusal codes of the token request (409). */
+export const QUOTA_EXHAUSTED = "telephony_quota_exhausted";
+export const CHANNELS_BUSY = "telephony_channels_busy";
+
+/**
+ * Asks for a Telnyx WebRTC login for the signed-in operator, for one call.
+ * `callRef` is the call's usage row; the call carries it as client state.
+ */
+export function fetchWebRtcToken(
+  call: { calleeNumber?: string; caseRef?: string } = {}
+) {
+  return request<{
+    token: string;
+    callerNumber: string;
+    expiresAt: string;
+    callRef?: string | null;
+  }>(`${telephonyKey}/webrtc-token`, { method: "POST", body: call });
+}
+
+/** The browser's call ended; frees its channel. Telnyx still gives the billed seconds. */
+export function reportCallEnded(
+  callRef: string,
+  providerCallId: string | null
+) {
+  return request<void>(
+    `${telephonyKey}/calls/${encodeURIComponent(callRef)}/ended`,
+    { method: "POST", body: { providerCallId } }
   );
 }
 

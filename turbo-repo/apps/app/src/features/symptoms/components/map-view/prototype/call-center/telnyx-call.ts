@@ -171,7 +171,7 @@ export async function startTelnyxCall({
     call = n.call;
     const state = n.call.state ?? "";
     if (state === "active") {
-      if (answeredAt === null) answeredAt = now();
+      answeredAt ??= now();
       onPhase("active", answeredAt);
     } else if (RINGING.has(state)) {
       onPhase("ringing", null);

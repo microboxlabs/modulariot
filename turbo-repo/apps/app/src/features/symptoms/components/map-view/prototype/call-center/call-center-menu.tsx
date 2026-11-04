@@ -281,9 +281,7 @@ function StepGroup({
         />
       ))}
       {group.targets.length === 0 && loading && (
-        <p role="status" className="px-3 py-2 text-xs">
-          {tr("lookupPending", d)}
-        </p>
+        <output className="px-3 py-2 text-xs">{tr("lookupPending", d)}</output>
       )}
       {group.targets.length === 0 && !loading && (
         <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/40 dark:text-gray-400">

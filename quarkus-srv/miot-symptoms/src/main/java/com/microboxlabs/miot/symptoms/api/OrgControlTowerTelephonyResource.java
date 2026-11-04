@@ -15,6 +15,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -69,5 +70,19 @@ public class OrgControlTowerTelephonyResource extends ControlTowerResourceSuppor
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return work(() -> Response.ok(telephony.save(tenant, actor, body)).build());
+    }
+
+    @POST
+    @Path("/webrtc-token")
+    @Operation(operationId = "issueTelnyxWebRtcToken",
+            summary = "A Telnyx WebRTC login for the signed-in operator, valid 24 hours; 409 when calls do not use"
+                    + " Telnyx")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> webRtcToken(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return work(() -> Response.ok(telephony.webRtcToken(tenant, actor)).header("Cache-Control", "no-store")
+                .build());
     }
 }

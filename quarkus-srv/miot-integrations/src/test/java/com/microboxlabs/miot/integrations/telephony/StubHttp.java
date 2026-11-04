@@ -36,6 +36,7 @@ public final class StubHttp implements TelephonyHttp {
     private final List<Seen> seen = new ArrayList<>();
     private IOException failure;
 
+    /** {@code pathPrefix} is a path prefix, or a method and a path prefix such as {@code "POST /v2/x"}. */
     public StubHttp reply(String pathPrefix, int status, String body) {
         replies.put(pathPrefix, new Reply(status, body));
         return this;
@@ -61,7 +62,9 @@ public final class StubHttp implements TelephonyHttp {
             throw failure;
         }
         String path = request.uri().getRawPath();
-        Reply reply = replies.entrySet().stream().filter(e -> path.startsWith(e.getKey()))
+        String keyed = request.method() + " " + path;
+        Reply reply = replies.entrySet().stream()
+                .filter(e -> path.startsWith(e.getKey()) || keyed.startsWith(e.getKey()))
                 .map(Map.Entry::getValue).findFirst().orElse(new Reply(404, "{}"));
         return new Response(request, reply.status(), reply.body());
     }

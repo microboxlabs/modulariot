@@ -3,6 +3,8 @@ package com.microboxlabs.miot.symptoms.service;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
+import com.microboxlabs.miot.core.telephony.TelephonyUnavailableException;
+import com.microboxlabs.miot.core.telephony.WebRtcToken;
 import com.microboxlabs.miot.symptoms.store.TowerSettingsStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -53,6 +55,18 @@ public class TelephonyChoiceService {
     /** The line calls use now, if any. */
     public Optional<TelephonyLine> active(String tenantCode) {
         return Optional.ofNullable(get(tenantCode).active());
+    }
+
+    /**
+     * A Telnyx WebRTC login for the operator, on the line calls use now.
+     *
+     * @throws TelephonyUnavailableException when that line is not Telnyx, or Telnyx refuses
+     */
+    public WebRtcToken webRtcToken(String tenantCode, String operator) {
+        TelephonyLine line = active(tenantCode)
+                .filter(l -> l.provider() == TelephonyProvider.TELNYX)
+                .orElseThrow(() -> new TelephonyUnavailableException("The organization's calls do not use Telnyx"));
+        return telephony.webRtcToken(tenantCode, line.connectionId(), operator);
     }
 
     public TelephonySetup save(String tenantCode, String actor, TelephonyRequest req) {

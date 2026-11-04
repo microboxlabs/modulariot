@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.telephony;
 import com.microboxlabs.miot.core.telephony.Telephony;
 import com.microboxlabs.miot.core.telephony.TelephonyLine;
 import com.microboxlabs.miot.core.telephony.TelephonyProvider;
+import com.microboxlabs.miot.core.telephony.WebRtcToken;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
@@ -20,15 +21,23 @@ import java.util.function.BiFunction;
 public class IntegrationsTelephony implements Telephony {
 
     private final BiFunction<String, ProviderType, IntegrationConnection> connections;
+    private final TelnyxWebRtcTokens telnyx;
 
     @Inject
-    public IntegrationsTelephony(IntegrationConnectionRepository repository) {
-        this(repository::findActiveByProvider);
+    public IntegrationsTelephony(IntegrationConnectionRepository repository, TelnyxWebRtcTokens telnyx) {
+        this(repository::findActiveByProvider, telnyx);
     }
 
     /** {@code connections}: the tenant's connection of a provider, or null. */
-    public IntegrationsTelephony(BiFunction<String, ProviderType, IntegrationConnection> connections) {
+    public IntegrationsTelephony(BiFunction<String, ProviderType, IntegrationConnection> connections,
+            TelnyxWebRtcTokens telnyx) {
         this.connections = connections;
+        this.telnyx = telnyx;
+    }
+
+    @Override
+    public WebRtcToken webRtcToken(String tenantCode, String connectionId, String operator) {
+        return telnyx.issue(tenantCode, connectionId, operator);
     }
 
     @Override

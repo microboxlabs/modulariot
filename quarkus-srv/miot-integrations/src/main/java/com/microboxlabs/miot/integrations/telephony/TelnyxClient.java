@@ -52,6 +52,44 @@ public class TelnyxClient {
         return http.send(get(apiKey, "/v2/credential_connections/" + segment(connectionId)));
     }
 
+    /** {@code GET /v2/telephony_credentials?filter[name]=..}: the telephony credentials with this name. */
+    public HttpResponse<String> telephonyCredentials(String apiKey, String name)
+            throws IOException, InterruptedException {
+        return http.send(get(apiKey, "/v2/telephony_credentials?" + segment("filter[name]") + "=" + segment(name)));
+    }
+
+    /** {@code POST /v2/telephony_credentials}: a SIP login under a credential connection. Free; places no call. */
+    public HttpResponse<String> createTelephonyCredential(String apiKey, String connectionId, String name)
+            throws IOException, InterruptedException {
+        String body = "{\"connection_id\":" + json(connectionId) + ",\"name\":" + json(name) + "}";
+        return http.send(request(apiKey, "/v2/telephony_credentials")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build());
+    }
+
+    /** {@code POST /v2/telephony_credentials/{id}/token}: a JWT for the browser SDK, valid for 24 hours. */
+    public HttpResponse<String> telephonyToken(String apiKey, String credentialId)
+            throws IOException, InterruptedException {
+        return http.send(request(apiKey, "/v2/telephony_credentials/" + segment(credentialId) + "/token")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build());
+    }
+
+    private static String json(String value) {
+        StringBuilder out = new StringBuilder("\"");
+        for (char c : value.toCharArray()) {
+            if (c == '"' || c == '\\') {
+                out.append('\\').append(c);
+            } else if (c < 0x20) {
+                out.append(String.format("\\u%04x", (int) c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.append('"').toString();
+    }
+
     HttpRequest get(String apiKey, String path) {
         return request(apiKey, path).GET().build();
     }

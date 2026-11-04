@@ -108,13 +108,17 @@ public class ContactService {
                 if (matchesTripDriver(c, driverTypes)) {
                     drivers.add(c.id());
                 }
-                if (carrierRut != null && carrierType != null && carrierType.equals(c.companyTaxIdType())
-                        && carrierRut.equals(normalizeNationalId(c.companyRut()))) {
+                if (matchesTripCarrier(c, carrierRut, carrierType)) {
                     carriers.add(c.id());
                 }
             }
         }
         return new TripContactsView(driverRuts, carrierRut, List.copyOf(drivers), List.copyOf(carriers));
+    }
+
+    private static boolean matchesTripCarrier(Contact c, String carrierRut, String carrierType) {
+        return carrierRut != null && carrierType != null && carrierType.equals(c.companyTaxIdType())
+                && carrierRut.equals(normalizeNationalId(c.companyRut()));
     }
 
     private static boolean matchesTripDriver(Contact c, Map<String, String> types) {

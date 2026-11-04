@@ -128,7 +128,7 @@ public final class CallPermissionPolicy {
             return new CallPermission(current.businessPhoneNumberId(), current.contactE164(), current.status(),
                     current.expiresAt(), current.respondedAt(), current.responseSource(), 0, last);
         }
-        if (!call.businessInitiated()) {
+        if (!call.businessInitiated() || !"COMPLETED".equalsIgnoreCase(call.status())) {
             return current;
         }
         int unanswered = current.consecutiveUnanswered() + 1;

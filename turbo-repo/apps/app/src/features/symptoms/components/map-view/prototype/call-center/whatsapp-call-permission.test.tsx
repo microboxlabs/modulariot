@@ -129,6 +129,10 @@ describe("WhatsApp call permission on the dialing step", () => {
     expect(await screen.findByText("WhatsApp: permiso pendiente")).toBeTruthy();
     const button = screen.getByRole("button", { name: "Solicitar permiso" });
     expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/Meta permite 1 solicitud por día/)).toBeVisible();
+    expect(
+      screen.getByText(/Meta permite 1 solicitud por día/)
+    ).toHaveTextContent(button.getAttribute("title") ?? "");
     expect(button.getAttribute("title")).toContain(
       "Meta permite 1 solicitud por día"
     );
@@ -220,5 +224,24 @@ describe("WhatsApp call permission on the dialing step", () => {
       await screen.findByText(es.symptoms.wa_call_request_failed)
     ).toBeTruthy();
     expect(screen.getByText("WhatsApp: sin permiso de llamada")).toBeTruthy();
+  });
+  it("stops polling while calling is disabled", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    });
+    try {
+      request.mockResolvedValue(view({ callingEnabled: false }));
+      renderStep();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(request).toHaveBeenCalledOnce();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(45_000);
+      });
+      expect(request).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -144,6 +144,25 @@ public class PgCallPermissionStore implements CallPermissionStore {
                 .addString(requestedBy).addOffsetDateTime(time(sentAt)));
     }
 
+    @Override
+    public void reserveRequest(UUID id, String tenantCode, String number, String contact, String actor, Instant at) {
+        query(RECORD, Tuple.tuple().addUUID(id).addString(tenantCode).addString(number).addString(contact)
+                .addString(CallPermissionService.ORIGIN_MANUAL).addString(null).addString(actor)
+                .addOffsetDateTime(time(at)));
+    }
+
+    @Override
+    public void completeRequest(UUID id, String wamid, Instant sentAt) {
+        query("UPDATE miot_conversational.conv_call_permission_request SET wamid = $2, sent_at = $3 WHERE id = $1",
+                Tuple.of(id, wamid, time(sentAt)));
+    }
+
+    @Override
+    public void cancelRequest(UUID id) {
+        query("DELETE FROM miot_conversational.conv_call_permission_request WHERE id = $1 AND wamid IS NULL",
+                Tuple.of(id));
+    }
+
     protected RowSet<Row> query(String sql, Tuple params) {
         return ManagedProvisioningTransaction.client(pool.get()).preparedQuery(sql).execute(params).await().indefinitely();
     }

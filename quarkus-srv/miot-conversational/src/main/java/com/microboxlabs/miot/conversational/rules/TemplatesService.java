@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.conversational.rules;
 
 import static com.microboxlabs.miot.conversational.rules.ConvTemplate.PLATFORM_TENANT;
+import com.microboxlabs.miot.conversational.calling.CallPermissionService;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.microboxlabs.miot.conversational.rules.store.RuleStore;
@@ -131,6 +132,10 @@ public class TemplatesService {
         if (body.email() != null && body.email().hasHtml()) {
             // Fails here, not on the first send, when the HTML or the subject does not parse.
             NotificationMail.body(body.email().subject(), body.email().html(), Map.of());
+        }
+        if (CallPermissionService.TEMPLATE_KEY.equals(key)
+                && (body.whatsapp() == null || !body.whatsapp().callPermission())) {
+            throw new IllegalArgumentException("The call permission template must retain whatsapp.callPermission");
         }
         Instant now = clock.instant();
         Optional<ConvTemplate> existing = templates.find(PLATFORM_TENANT, key);

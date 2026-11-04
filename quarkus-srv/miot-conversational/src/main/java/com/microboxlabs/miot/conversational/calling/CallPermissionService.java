@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.calling;
 
+import java.util.UUID;
 import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.Limit;
 import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.Refusal;
 import com.microboxlabs.miot.conversational.calling.CallPermissionPolicy.State;
@@ -119,8 +120,8 @@ public class CallPermissionService {
         }
         SendingNumber number;
         try {
-            number = numbers.resolve(tenantCode, null);
-        } catch (ConnectionResolutionException e) {
+            number = numbers.resolve(tenantCode, contact);
+        } catch (ConnectionResolutionException | IllegalArgumentException e) {
             return blocked(Refusal.NO_CONNECTION);
         }
         return view(number.phoneNumberId(), contact, clock.instant());
@@ -157,7 +158,34 @@ public class CallPermissionService {
 
     /** Sends the request template to {@code phone} now, when the limits allow it. */
     public RequestResult request(String tenantCode, String phone, String recipientName, String actor) {
-        return withAdmission(tenantCode, phone, admission -> requestAdmitted(tenantCode, recipientName, actor, admission));
+        // Commit admission before the external side effect. An unknown send outcome or a failed
+        // receipt write must still consume the slot, including after a process/replica restart.
+        Prepared prepared = withAdmission(tenantCode, phone, admission -> prepareRequest(tenantCode, actor, admission));
+        if (!prepared.admission().admitted()) return refused(prepared.admission());
+        Admission admission = prepared.admission();
+        String wamid;
+        try {
+            ConvTemplate.WhatsApp template = prepared.template();
+            wamid = sender.send(tenantCode, admission.number(), admission.contactE164(), template.metaName(),
+                    template.language() == null ? DEFAULT_LANGUAGE : template.language(),
+                    params(template.params(), recipientName));
+        } catch (ConnectionResolutionException e) {
+            store.cancelRequest(prepared.id()); // Resolution failed before Meta was called.
+            return refused(Admission.refused(Refusal.NO_CONNECTION, e.getMessage()));
+        } catch (WhatsAppSendException e) {
+            // A definitive client rejection did not send. Timeouts/unknown/server outcomes retain
+            // the committed admission: retrying those could send a duplicate request.
+            Integer status = e.httpStatus();
+            if (status != null && status >= 400 && status < 500 && status != 408) {
+                store.cancelRequest(prepared.id());
+            }
+            LOG.warnf("Call permission request for tenant %s failed: %s", tenantCode, e.getMessage());
+            return refused(Admission.refused(Refusal.SEND_FAILED, e.getMessage()));
+        }
+        Instant now = clock.instant();
+        store.completeRequest(prepared.id(), wamid, now);
+        return new RequestResult(true, null, wamid, null,
+                view(admission.number().phoneNumberId(), admission.contactE164(), now));
     }
 
     /** Admission is rechecked under the same number/contact transaction lock used by sends and events. */
@@ -174,30 +202,19 @@ public class CallPermissionService {
         });
     }
 
-    private RequestResult requestAdmitted(String tenantCode, String recipientName, String actor, Admission admission) {
-        if (!admission.admitted()) {
-            return refused(admission);
-        }
+    private record Prepared(Admission admission, ConvTemplate.WhatsApp template, UUID id) { }
+
+    private Prepared prepareRequest(String tenantCode, String actor, Admission admission) {
+        if (!admission.admitted()) return new Prepared(admission, null, null);
         Optional<ConvTemplate.WhatsApp> template = templates.apply(TEMPLATE_KEY).map(ConvTemplate::whatsapp)
                 .filter(w -> w.metaName() != null && !w.metaName().isBlank());
         if (template.isEmpty()) {
-            return refused(Admission.refused(Refusal.NO_TEMPLATE, "No template " + TEMPLATE_KEY));
+            return new Prepared(Admission.refused(Refusal.NO_TEMPLATE, "No template " + TEMPLATE_KEY), null, null);
         }
-        SendingNumber number = admission.number();
-        String wamid;
-        try {
-            wamid = sender.send(tenantCode, number, admission.contactE164(), template.get().metaName(),
-                    template.get().language() == null ? DEFAULT_LANGUAGE : template.get().language(),
-                    params(template.get().params(), recipientName));
-        } catch (WhatsAppSendException e) {
-            LOG.warnf("Call permission request for tenant %s failed: %s", tenantCode, e.getMessage());
-            return refused(Admission.refused(Refusal.SEND_FAILED, e.getMessage()));
-        }
-        Instant now = clock.instant();
-        store.recordRequest(tenantCode, number.phoneNumberId(), admission.contactE164(), ORIGIN_MANUAL, wamid,
-                actor, now);
-        return new RequestResult(true, null, wamid, null, view(number.phoneNumberId(), admission.contactE164(),
-                now));
+        UUID id = UUID.randomUUID();
+        store.reserveRequest(id, tenantCode, admission.number().phoneNumberId(), admission.contactE164(), actor,
+                clock.instant());
+        return new Prepared(admission, template.get(), id);
     }
 
     /** Records a request a rule sent through an admitted {@link Admission}. */
@@ -220,12 +237,14 @@ public class CallPermissionService {
     }
 
     public void applyReply(CallPermissionReply reply) {
-        if (reply.phoneNumberId() == null || reply.contactE164() == null || reply.wamid() == null) return;
+        if (reply.phoneNumberId() == null || reply.contactE164() == null || reply.wamid() == null
+                || reply.timestamp() == null) return;
         applyEvent(PermissionEvent.reply(reply, clock.instant()));
     }
 
     public void applyCall(CallEvent call) {
-        if (call.phoneNumberId() == null || call.contactE164() == null || call.callId() == null || !call.terminated()) return;
+        if (call.phoneNumberId() == null || call.contactE164() == null || call.callId() == null
+                || call.timestamp() == null || !call.terminated()) return;
         applyEvent(PermissionEvent.call(call, clock.instant()));
     }
 

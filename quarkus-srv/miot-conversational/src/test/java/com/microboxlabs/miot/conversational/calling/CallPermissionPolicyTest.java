@@ -137,4 +137,14 @@ class CallPermissionPolicyTest {
         return new CallEvent(NUMBER, "wacid.1", CONTACT, CallEvent.TERMINATE, direction, "COMPLETED", connected,
                 OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
     }
+    @Test
+    void disconnectedFailedCallsDoNotProveTheContactLeftCallsUnanswered() {
+        var permission = CallPermissionPolicy.onReply(CallPermission.none(NUMBER, CONTACT), reply(true, true, null), NOW);
+        var failed = new CallEvent(NUMBER, "failed", CONTACT, CallEvent.TERMINATE, CallEvent.BUSINESS_INITIATED,
+                "FAILED", false, NOW.atOffset(ZoneOffset.UTC));
+        for (int i = 0; i < 4; i++) permission = CallPermissionPolicy.onCall(permission, failed, NOW);
+        assertEquals(CallPermissionStatus.PERMANENT, permission.status());
+        assertEquals(0, permission.consecutiveUnanswered());
+    }
+
 }

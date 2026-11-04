@@ -1,5 +1,10 @@
 package com.microboxlabs.miot.conversational.service;
 
+import com.microboxlabs.miot.conversational.rules.ConvTemplate;
+import com.microboxlabs.miot.conversational.rules.store.TemplateStore;
+import jakarta.enterprise.inject.Instance;
+import java.lang.reflect.Proxy;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -224,4 +229,73 @@ class WhatsAppRuleSendTest {
             return "wamid.out-" + sentFrom.size();
         }
     }
+    @Test
+    void directPermissionTemplatesRequireAdmissionBeforeAnyNetworkCall() {
+        var request = new SendWhatsAppMessageRequest(DRIVER, "TEMPLATE", null, "miot_call_permission_request",
+                "es", Map.of("nombre", "Ana"), null, null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.send(TENANT, request, "operator"));
+        var queued = service.queueInContext(TENANT, new ContextMessage(null, null, DRIVER, null, null, null,
+                "miot_call_permission_request", "es", Map.of(), null, "Permission", "run-permission", 0));
+        assertThrows(SendFailure.class, () -> service.deliverQueued(TENANT, queued.id(), "es", Map.of()));
+        assertTrue(sentFrom.isEmpty());
+    }
+
+    @Test
+    void queuedPermissionSendRefusesASenderChangedAfterAdmission() {
+        connections.put(PLATFORM, connection("platform", "PLATFORM-PNID"));
+        connections.put(TENANT, connection("own", "ORG-PNID"));
+        var expected = service.sendingNumber(TENANT, DRIVER);
+        Message queued = service.queueInContext(TENANT, message());
+        accounts.own(TENANT, "whatsapp");
+        assertThrows(SendFailure.class,
+                () -> service.deliverQueued(TENANT, queued.id(), "es", Map.of(), expected));
+        assertTrue(sentFrom.isEmpty());
+        assertEquals(MessageStatus.PENDING, store.messageRepository.findById(queued.id()).status());
+    }
+
+    @Test
+    void manualPermissionMessageStoresItsRenderedBody() {
+        connections.put(PLATFORM, connection("platform", "PLATFORM-PNID"));
+        var expected = service.sendingNumber(TENANT, DRIVER);
+        String id = service.sendCallPermission(TENANT, expected, DRIVER, "miot_call_permission_request", "es",
+                Map.of("nombre", "Ana"));
+        Message message = store.messages.stream().filter(m -> id.equals(m.providerMessageId())).findFirst().orElseThrow();
+        assertTrue(message.body().contains("Hola Ana"));
+        assertTrue(message.body().contains("¿Nos das permiso?"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void renamedPermissionTemplatesStillCannotUseTheGenericSendRoute() {
+        var template = new ConvTemplate("t", PLATFORM,
+                "miot_call_permission_request", "Permission", "Hello", new ConvTemplate.WhatsApp(
+                "renamed_permission", "es", List.of("nombre"), true), null, null, null, null, "0.1.0");
+        var templates = new TemplateStore() {
+            @Override public List<ConvTemplate> list(String tenant) {
+                return List.of(template);
+            }
+            @Override public Optional<ConvTemplate> find(String tenant, String key) {
+                return Optional.of(template);
+            }
+            @Override public Optional<ConvTemplate> upsert(
+                    ConvTemplate value, String version) {
+                return Optional.of(value);
+            }
+        };
+        Instance<TemplateStore> instance =
+                (Instance<TemplateStore>)
+                Proxy.newProxyInstance(Instance.class.getClassLoader(),
+                        new Class<?>[]{Instance.class}, (proxy, method, args) -> switch (method.getName()) {
+                            case "get" -> templates;
+                            case "isResolvable" -> true;
+                            default -> throw new UnsupportedOperationException(method.getName());
+                        });
+        var guarded = new WhatsAppMessagingService(new FakeResolver(), new FakeMeta(), store.conversationRepository,
+                store.messageRepository, accounts.service, instance);
+        var request = new SendWhatsAppMessageRequest(DRIVER, "TEMPLATE", null, "renamed_permission", "es",
+                Map.of("nombre", "Ana"), null, null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> guarded.send(TENANT, request, "operator"));
+        assertTrue(sentFrom.isEmpty());
+    }
+
 }

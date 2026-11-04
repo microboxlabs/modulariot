@@ -5,7 +5,16 @@ import es from "@/lang/es.json";
 import CallDialingStep from "./call-dialing-step";
 
 const { request } = vi.hoisted(() => ({
-  request: vi.fn().mockResolvedValue({ callingEnabled: false }),
+  request: vi.fn().mockResolvedValue({
+    callingEnabled: false,
+    state: "NO_PERMISSION",
+    permission: "NONE",
+    canRequest: false,
+    expiresAt: null,
+    lastRequestAt: null,
+    refusal: "CALLING_DISABLED",
+    nextRequestAt: null,
+  }),
 }));
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));

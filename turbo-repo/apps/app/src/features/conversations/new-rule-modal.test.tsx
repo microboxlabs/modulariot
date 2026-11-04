@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
+import en from "@/lang/en.json";
 
 const PRESET_SPEC = {
   family: "trips",
@@ -29,7 +30,9 @@ const PRESET_SPEC = {
 const api = vi.hoisted(() => ({
   createRule: vi.fn(),
   refreshRules: vi.fn(),
-  useRulePresets: vi.fn(() => ({ data: undefined as unknown })),
+  useRulePresets: vi.fn<
+    () => { data?: unknown; error?: unknown; mutate?: () => unknown }
+  >(() => ({ data: undefined })),
   useEventCatalog: vi.fn(() => ({
     data: [
       {
@@ -58,14 +61,14 @@ import NewRuleModal, { newRuleHref, prefillFrom } from "./new-rule-modal";
 const d = es.pages.userSettings.communications;
 const WHEN = "event.data.symptomKey == 'panic-button' && event.data.level >= 4";
 
-function open(prefill = {}, canWrite = true) {
+function open(prefill = {}, canWrite = true, dictionary = d) {
   const onCreated = vi.fn();
   render(
     <NewRuleModal
       open
       prefill={prefill}
       canWrite={canWrite}
-      d={d}
+      d={dictionary}
       onClose={vi.fn()}
       onCreated={onCreated}
     />
@@ -95,7 +98,10 @@ describe("newRuleHref", () => {
 });
 
 describe("NewRuleModal", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.useRulePresets.mockReturnValue({ data: undefined });
+  });
 
   it("creates a preset's rule with the preset's spec", async () => {
     api.useRulePresets.mockReturnValue({
@@ -116,7 +122,9 @@ describe("NewRuleModal", () => {
     expect((screen.getByLabelText("Nombre") as HTMLInputElement).value).toBe(
       "Salida del viaje → solicitar permiso de llamada al conductor"
     );
-    expect(screen.getByText("Pide permiso al conductor.")).toBeTruthy();
+    expect(
+      screen.getByText(d.rulePresetDeparturePermissionDescription)
+    ).toBeTruthy();
 
     fireEvent.click(createButton());
     await waitFor(() =>
@@ -261,5 +269,80 @@ describe("NewRuleModal", () => {
     expect(screen.getByRole("alert").textContent).toBe(
       "Solo quien mantiene la Torre de Control puede crear reglas."
     );
+  });
+  it("clears the preset identity when None is selected", () => {
+    api.useRulePresets.mockReturnValue({
+      data: [
+        {
+          key: "trip-departure-call-permission",
+          name: "Original",
+          description: "Original",
+          spec: PRESET_SPEC,
+        },
+      ],
+    });
+    open({ name: "Mi regla" });
+    fireEvent.change(screen.getByLabelText(d.rulePreset), {
+      target: { value: "trip-departure-call-permission" },
+    });
+    fireEvent.change(screen.getByLabelText(d.rulePreset), {
+      target: { value: "" },
+    });
+    expect(screen.getByLabelText(d.ruleName)).toHaveValue("Mi regla");
+    expect(screen.getByLabelText(d.ruleKey)).not.toHaveValue(
+      "trip-departure-call-permission"
+    );
+  });
+
+  it("localizes the option, description and new rule name in English", async () => {
+    const english = en.pages.userSettings.communications;
+    api.useRulePresets.mockReturnValue({
+      data: [
+        {
+          key: "trip-departure-call-permission",
+          name: "Nombre español",
+          description: "Descripción española",
+          spec: PRESET_SPEC,
+        },
+      ],
+    });
+    api.createRule.mockResolvedValue({ rule: { id: "english" } });
+    open({}, true, english);
+    expect(
+      screen.getByRole("option", {
+        name: english.rulePresetDeparturePermissionName,
+      })
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(english.rulePreset), {
+      target: { value: "trip-departure-call-permission" },
+    });
+    expect(screen.getByLabelText(english.ruleName)).toHaveValue(
+      english.rulePresetDeparturePermissionName
+    );
+    expect(
+      screen.getByText(english.rulePresetDeparturePermissionDescription)
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: english.createRule }));
+    await waitFor(() =>
+      expect(api.createRule).toHaveBeenCalledWith({
+        key: "trip-departure-call-permission",
+        name: english.rulePresetDeparturePermissionName,
+        spec: PRESET_SPEC,
+      })
+    );
+  });
+
+  it("shows a preset load error with a retry", () => {
+    const retry = vi.fn().mockResolvedValue(undefined);
+    api.useRulePresets.mockReturnValue({
+      error: new Error("Synthetic invalid response"),
+      mutate: retry,
+    });
+    open();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      d.rulePresetsLoadFailed
+    );
+    fireEvent.click(screen.getByRole("button", { name: d.retryRulePresets }));
+    expect(retry).toHaveBeenCalledOnce();
   });
 });

@@ -24,7 +24,11 @@ import {
   useEventCatalog,
   useRulePresets,
 } from "./conversations-api";
-import type { EventTypeInfo, RuleDetail } from "./conversations-types";
+import type {
+  EventTypeInfo,
+  RuleDetail,
+  RulePreset,
+} from "./conversations-types";
 import {
   eventGroups,
   eventLabel,
@@ -77,6 +81,16 @@ function createError(e: unknown, d: I18nRecord) {
   return tr("createRuleFailed", d);
 }
 
+function presetText(preset: RulePreset, d: I18nRecord) {
+  if (preset.key === "trip-departure-call-permission") {
+    return {
+      name: tr("rulePresetDeparturePermissionName", d),
+      description: tr("rulePresetDeparturePermissionDescription", d),
+    };
+  }
+  return { name: preset.name, description: preset.description };
+}
+
 /** The form; mounted fresh each time the modal opens, so it starts from the prefill. */
 function NewRuleForm({
   prefill,
@@ -94,7 +108,11 @@ function NewRuleForm({
   onCreated: (detail: RuleDetail) => void;
 }>) {
   const { data: catalog } = useEventCatalog();
-  const { data: presets } = useRulePresets();
+  const {
+    data: presets,
+    error: presetsError,
+    mutate: reloadPresets,
+  } = useRulePresets();
   const [presetKey, setPresetKey] = useState("");
   const preset = presets?.find((p) => p.key === presetKey);
   const symptomName = useSymptomNames();
@@ -146,14 +164,33 @@ function NewRuleForm({
   const pickPreset = (key: string) => {
     setPresetKey(key);
     const picked = presets?.find((p) => p.key === key);
-    if (!picked) return;
-    setName(picked.name);
+    if (!picked) {
+      setName(prefill.name ?? "");
+      setKey("");
+      setKeyTouched(false);
+      return;
+    }
+    setName(presetText(picked, d).name);
     setKey(picked.key);
     setKeyTouched(true);
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {presetsError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {tr("rulePresetsLoadFailed", d)}{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              void reloadPresets();
+            }}
+          >
+            {tr("retryRulePresets", d)}
+          </button>
+        </p>
+      )}
       {presets && presets.length > 0 && (
         <div>
           <Label htmlFor="rule-preset">{tr("rulePreset", d)}</Label>
@@ -166,12 +203,14 @@ function NewRuleForm({
             <option value="">{tr("rulePresetNone", d)}</option>
             {presets.map((p) => (
               <option key={p.key} value={p.key}>
-                {p.name}
+                {presetText(p, d).name}
               </option>
             ))}
           </Select>
           {preset && (
-            <p className={`mt-1 text-xs ${MUTED}`}>{preset.description}</p>
+            <p className={`mt-1 text-xs ${MUTED}`}>
+              {presetText(preset, d).description}
+            </p>
           )}
         </div>
       )}

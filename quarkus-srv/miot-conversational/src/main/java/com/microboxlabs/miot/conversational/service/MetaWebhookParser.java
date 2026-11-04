@@ -109,7 +109,7 @@ public final class MetaWebhookParser {
     }
 
     private static JsonObject callPermissionReply(JsonObject m) {
-        if (m == null || !INTERACTIVE.equals(m.getString("type"))) {
+        if (m == null || m.getString(ID) == null || !INTERACTIVE.equals(m.getString("type"))) {
             return null;
         }
         JsonObject interactive = m.getJsonObject(INTERACTIVE);

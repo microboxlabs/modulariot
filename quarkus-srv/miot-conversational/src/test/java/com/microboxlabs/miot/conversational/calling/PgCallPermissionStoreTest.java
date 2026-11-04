@@ -96,6 +96,28 @@ class PgCallPermissionStoreTest {
             store.recordRequest("acme", NUMBER, CONTACT, "rule", "wamid.once", null, NOW);
             assertTrue(store.locked(NUMBER, CONTACT, () -> store.locked(NUMBER, CONTACT, () -> true)));
             assertEquals(List.of(NOW.minusSeconds(1)), store.requestsSince(NUMBER, CONTACT, NOW.minusSeconds(10)));
+            UUID pending = UUID.randomUUID();
+            String other = "+56900000002";
+            store.locked(NUMBER, other, () -> {
+                store.reserveRequest(pending, "acme", NUMBER, other, "operator", NOW);
+                return true;
+            });
+            assertThrows(IllegalStateException.class, () -> store.locked(NUMBER, other, () -> {
+                store.completeRequest(pending, "wamid.rollback", NOW);
+                throw new IllegalStateException("Synthetic finalization rollback");
+            }));
+            assertEquals(List.of(NOW), store.requestsSince(NUMBER, other, NOW.minusSeconds(1)));
+            // Still cancellable: finalizing in the failed transaction did not replace the reservation.
+            store.cancelRequest(pending);
+            assertTrue(store.requestsSince(NUMBER, other, NOW.minusSeconds(1)).isEmpty());
+            UUID completed = UUID.randomUUID();
+            store.locked(NUMBER, other, () -> {
+                store.reserveRequest(completed, "acme", NUMBER, other, "operator", NOW);
+                return true;
+            });
+            store.completeRequest(completed, "wamid.completed", NOW.plusSeconds(1));
+            store.cancelRequest(completed);
+            assertEquals(List.of(NOW.plusSeconds(1)), store.requestsSince(NUMBER, other, NOW));
         } finally {
             pool.query("DROP SCHEMA " + schema + " CASCADE").execute().await().indefinitely();
             pool.closeAndAwait(); vertx.closeAndAwait();

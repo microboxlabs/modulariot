@@ -7,6 +7,7 @@
  */
 
 import useSWR, { mutate } from "swr";
+import { parseRulePresets } from "./rule-presets.types";
 import { controlTowerRequest as request } from "@/features/symptoms/control-tower/control-tower-api";
 import type { SymptomFamily } from "@/features/symptoms/maintainer/maintainer-api";
 import type {
@@ -113,7 +114,11 @@ export function useEventCatalog() {
 
 /** The ready-made rules "Nueva regla" can start from. */
 export function useRulePresets() {
-  return useSWR<RulePreset[]>(rulePresetsKey, fetcher, quiet);
+  return useSWR<RulePreset[]>(
+    rulePresetsKey,
+    async (url: string) => parseRulePresets(await fetcher(url)),
+    quiet
+  );
 }
 
 /** The organization's rule families; a 404 means it has no such list. */

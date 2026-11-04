@@ -39,7 +39,8 @@ export function useWhatsAppCallPermission(phone: string | null | undefined) {
       parseCallPermissionView(await controlTowerRequest<unknown>(url)),
     {
       revalidateOnFocus: true,
-      refreshInterval: 15_000,
+      refreshInterval: (latest) =>
+        latest?.callingEnabled === false ? 0 : 15_000,
       shouldRetryOnError: false,
     }
   );
@@ -121,6 +122,10 @@ export default function WhatsAppCallPermission({
   }
   if (!data) return null;
 
+  const refusal = refusalText(data.refusal, data.nextRequestAt, dict, lang);
+  const blockedReason =
+    data.state !== "CAN_CALL" && !data.canRequest ? refusal : "";
+  const shownMessage = message || blockedReason;
   const send = async () => {
     setBusy(true);
     setMessage(null);
@@ -159,15 +164,15 @@ export default function WhatsAppCallPermission({
           type="button"
           onClick={send}
           disabled={busy || !data.canRequest}
-          title={refusalText(data.refusal, data.nextRequestAt, dict, lang)}
+          title={refusal}
           className="rounded-md border border-gray-300 px-2 py-0.5 font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
         >
           {tr("symptoms.wa_call_request", dict)}
         </button>
       )}
-      {message && (
+      {shownMessage && (
         <span className="w-full text-center text-gray-600 dark:text-gray-400">
-          {message}
+          {shownMessage}
         </span>
       )}
     </div>

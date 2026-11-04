@@ -39,13 +39,13 @@ These limits apply per business number and contact. The service enforces them be
 | Temporary permission | 7 days |
 | Unanswered calls | After 2 in a row the contact gets a reminder from Meta. After 4 the permission is revoked. |
 
-Requests sent are stored in `conv_call_permission_request` and counted from there. Wamid-based uniqueness makes retry accounting idempotent. A rule job that already sent its message recovers the request record from that message's original business number and send time, without sending again. Manual requests use the same outbound message pool, preserving the wamid and connection metadata needed to route shared-number replies and delivery callbacks.
+Requests sent are stored in `conv_call_permission_request` and counted from there. Wamid-based uniqueness makes retry accounting idempotent. A rule job that already sent its message recovers the request record from that message's original business number and send time, without sending again. Manual admissions commit a request row with a null wamid **before** contacting Meta. A failed receipt write or an unknown send outcome (including a timeout) retains that slot across restarts, preventing an automatic duplicate; it counts against the normal 24-hour/7-day limits. A definitive client rejection (except an HTTP 408 timeout) or a pre-send connection-resolution failure releases it. Successful sends finalize the same row with their wamid. This uses the existing nullable wamid column and requires no new migration. Manual requests use the same outbound message pool, preserving the wamid and connection metadata needed to route shared-number replies and delivery callbacks.
 
-Permission replies and terminal calls are journaled in `conv_call_permission_event`. A per-number/contact PostgreSQL transaction lock makes event insertion and permission replay atomic across workers. Calls are deduplicated by call id, replies by wamid; replay follows provider time, so delayed connected calls cannot erase newer misses and pre-grant misses cannot revoke a newer grant. A checkpoint preserves any permission predating this journal. Request admission and recording use the same lock; check/recheck/send remains bounded by the provider request timeout.
+Permission replies and terminal calls are journaled in `conv_call_permission_event`. A per-number/contact PostgreSQL transaction lock makes event insertion and permission replay atomic across workers. Calls are deduplicated by call id, replies by wamid; replay follows provider time, so delayed connected calls cannot erase newer misses and pre-grant misses cannot revoke a newer grant. A checkpoint preserves any permission predating this journal. Request admission and recording use the same lock. Manual reservations commit before the external send; queued rule sends hold their admission lock through the send and can recover accounting from the stored sent message. The final provider resolution checks the admitted tenant and business number. Permission updates without a valid provider timestamp are ignored rather than ordered by processing time. The journal is retained for deduplication and late-event replay; it is not pruned without a provider ordering/retention watermark.
 
 ## Sending a request
 
-The request is the platform template `miot_call_permission_request` (see migration `V0.11.8`). In Meta, create a template with that name, a body, and a `call_permission_request` component. Its only named parameter is `nombre`.
+The request is the platform template `miot_call_permission_request` (see migration `V0.11.8`). In Meta, create a template with that name, a body, and a `call_permission_request` component. Its only named parameter is `nombre`. Generic message sends reject this template (also after a configured Meta-name change). A platform template save cannot remove its `callPermission` marker, and rule dispatch also recognizes its canonical key.
 
 There are two ways to send it:
 
@@ -63,7 +63,7 @@ The existing webhook `/webhooks/whatsapp/{connectionId}` handles:
 | Event | Job | Effect |
 | --- | --- | --- |
 | `messages[]` with `interactive.type = call_permission_reply` | `whatsapp.inbound.call_permission` | Sets the status and expiry. The reply also appears in the conversation. |
-| `calls[]` with `event = terminate` | `whatsapp.inbound.call` | No `start_time` or `duration` counts as unanswered. A connected call clears the count and resets the request limits. |
+| `calls[]` with `event = terminate` | `whatsapp.inbound.call` | A disconnected `COMPLETED` business call counts as unanswered; a disconnected `FAILED` attempt does not. A connected call clears the count and resets the request limits. |
 
 Subscribe the Meta app to the `messages` and `calls` webhook fields.
 
@@ -73,4 +73,4 @@ Subscribe the Meta app to the `messages` and `calls` webhook fields.
 | --- | --- | --- |
 | `miot.conversational.whatsapp-calling.enabled` (`MIOT_WHATSAPP_CALLING_ENABLED`) | `false` | Allows sending call permission requests. When off, nothing is sent and the app keeps opening `wa.me`. Replies and call events are stored either way. |
 
-The mounted dialing step revalidates permission every 15 seconds and when focus returns, including after grants, revocations, and time-based expiry. Calling remains off by default. The permission service shares the conversational component build guard, so disabling that component does not require its template store.
+When calling is enabled, the mounted dialing step revalidates permission every 15 seconds and when focus returns, including after grants, revocations, and time-based expiry. Calling remains off by default. The permission service shares the conversational component build guard, so disabling that component does not require its template store.

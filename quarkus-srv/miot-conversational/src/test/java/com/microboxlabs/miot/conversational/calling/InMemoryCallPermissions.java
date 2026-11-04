@@ -49,6 +49,34 @@ public class InMemoryCallPermissions implements CallPermissionStore {
                 .toList();
     }
 
+    private final Map<java.util.UUID, Request> reservations = new LinkedHashMap<>();
+
+    @Override
+    public void reserveRequest(java.util.UUID id, String tenant, String number, String contact, String actor, Instant at) {
+        Request request = new Request(tenant, number, contact, CallPermissionService.ORIGIN_MANUAL, null, actor, at);
+        reservations.put(id, request);
+        requests.add(request);
+    }
+
+    @Override
+    public void completeRequest(java.util.UUID id, String wamid, Instant at) {
+        Request before = reservations.get(id);
+        requests.remove(before);
+        Request after = new Request(before.tenantCode(), before.number(), before.contact(), before.origin(), wamid,
+                before.requestedBy(), at);
+        requests.add(after);
+        reservations.put(id, after);
+    }
+
+    @Override
+    public void cancelRequest(java.util.UUID id) {
+        Request request = reservations.get(id);
+        if (request != null && request.wamid() == null) {
+            requests.remove(request);
+            reservations.remove(id);
+        }
+    }
+
     @Override
     public void recordRequest(String tenantCode, String businessPhoneNumberId, String contactE164, String origin,
             String wamid, String requestedBy, Instant sentAt) {

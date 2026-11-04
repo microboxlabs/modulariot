@@ -187,4 +187,14 @@ class MetaWebhookParserTest {
         assertEquals("Retraso", l.body());
         assertEquals(MessageType.TEXT, l.type());
     }
+    @Test
+    void aPermissionReplyWithoutMessageIdentityIsNotAPermissionEvent() {
+        var parsed = parse("""
+                {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"PNID"},
+                "messages":[{"from":"56900000001","timestamp":"1730000000","type":"interactive",
+                "interactive":{"type":"call_permission_reply","call_permission_reply":{"response":"accept"}}}]}}]}]}
+                """);
+        assertTrue(parsed.callPermissionReplies().isEmpty());
+    }
+
 }

@@ -37,6 +37,7 @@ class CallPermissionServiceTest {
     private final List<Sent> sent = new ArrayList<>();
     private Instant now = Instant.parse("2026-11-04T12:00:00Z");
     private boolean failSend;
+    private boolean testModeBlocked;
     private boolean noConnection;
     private Optional<ConvTemplate> template = Optional.of(new ConvTemplate("t1", ConvTemplate.PLATFORM_TENANT,
             CallPermissionService.TEMPLATE_KEY, "Permiso", "Hola {{nombre}}",
@@ -61,7 +62,7 @@ class CallPermissionServiceTest {
             }
         };
         return new CallPermissionService(store, key -> template, (tenant, to) -> {
-            if (noConnection) {
+            if (noConnection || (testModeBlocked && to != null)) {
                 throw new ConnectionResolutionException("No WhatsApp");
             }
             return new SendingNumber("_platform", URI.create("https://graph.example.test/v21.0"), NUMBER, "token");
@@ -194,4 +195,72 @@ class CallPermissionServiceTest {
         assertEquals(Refusal.DAILY_LIMIT, service.admit(TENANT, PHONE).refusal());
         assertEquals("es", CallPermissionService.DEFAULT_LANGUAGE);
     }
+    @Test
+    void testModeRecipientsAreCheckedForBothStatusAndAdmission() {
+        testModeBlocked = true;
+        var service = service(true);
+        assertFalse(service.view(TENANT, PHONE).canRequest());
+        assertEquals(Refusal.NO_CONNECTION, service.view(TENANT, PHONE).refusal());
+        assertEquals(Refusal.NO_CONNECTION, service.admit(TENANT, PHONE).refusal());
+    }
+
+    @Test
+    void aReplyWithoutSourceTimeCannotOverrideANewerGrantOrRejection() {
+        var service = service(true);
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "new-grant", null, true, true, null,
+                "user_action", now.atOffset(ZoneOffset.UTC)));
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "untimed-denial", null, false, false, null,
+                "user_action", null));
+        assertEquals(CallPermissionStatus.PERMANENT, store.find(NUMBER, CONTACT).orElseThrow().status());
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "new-denial", null, false, false, null,
+                "user_action", now.plusSeconds(1).atOffset(ZoneOffset.UTC)));
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "untimed-grant", null, true, true, null,
+                "user_action", null));
+        assertEquals(CallPermissionStatus.REVOKED, store.find(NUMBER, CONTACT).orElseThrow().status());
+    }
+
+    @Test
+    void failedReceiptWritesAndUnknownSendOutcomesDoNotAllowAnotherManualSend() {
+        var durable = new InMemoryCallPermissions() {
+            @Override public void completeRequest(java.util.UUID id, String wamid, Instant at) {
+                throw new IllegalStateException("Synthetic receipt write outage");
+            }
+        };
+        java.util.concurrent.atomic.AtomicInteger attempts = new java.util.concurrent.atomic.AtomicInteger();
+        var number = new SendingNumber("_platform", URI.create("https://graph.example.test"), NUMBER, "token");
+        var service = new CallPermissionService(durable, key -> template, (tenant, to) -> number,
+                (tenant, from, to, name, language, params) -> { attempts.incrementAndGet(); return "wamid.once"; },
+                true, Clock.fixed(now, ZoneOffset.UTC));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> service.request(TENANT, PHONE, null, null));
+        assertEquals(1, attempts.get());
+        assertEquals(Refusal.DAILY_LIMIT, service.request(TENANT, PHONE, null, null).refusal());
+        assertEquals(1, attempts.get());
+        assertEquals(1, durable.requests.size());
+        // A new service instance sees the committed admission too; no in-memory receipt is required.
+        var restarted = new CallPermissionService(durable, key -> template, (tenant, to) -> number,
+                (tenant, from, to, name, language, params) -> { attempts.incrementAndGet(); return "wamid.twice"; },
+                true, Clock.fixed(now, ZoneOffset.UTC));
+        assertEquals(Refusal.DAILY_LIMIT, restarted.request(TENANT, PHONE, null, null).refusal());
+        assertEquals(1, attempts.get());
+        var uncertain = new CallPermissionService(store, key -> template, (tenant, to) -> number,
+                (tenant, from, to, name, language, params) -> { throw new WhatsAppSendException("Timeout", null, null); },
+                true, Clock.fixed(now, ZoneOffset.UTC));
+        assertEquals(Refusal.SEND_FAILED, uncertain.request(TENANT, PHONE, null, null).refusal());
+        assertEquals(Refusal.DAILY_LIMIT, uncertain.request(TENANT, PHONE, null, null).refusal());
+    }
+
+    @Test
+    void aCallWithoutSourceTimeCannotEraseANewerMiss() {
+        var service = service(true);
+        service.applyReply(new CallPermissionReply(NUMBER, CONTACT, "grant", null, true, true, null,
+                "user_action", now.minusSeconds(30).atOffset(ZoneOffset.UTC)));
+        service.applyCall(new com.microboxlabs.miot.conversational.service.CallEvent(NUMBER, "miss", CONTACT,
+                "terminate", "BUSINESS_INITIATED", "COMPLETED", false, now.minusSeconds(10).atOffset(ZoneOffset.UTC)));
+        service.applyCall(new com.microboxlabs.miot.conversational.service.CallEvent(NUMBER, "untimed-connected", CONTACT,
+                "terminate", "BUSINESS_INITIATED", "COMPLETED", true, null));
+        assertEquals(1, store.find(NUMBER, CONTACT).orElseThrow().consecutiveUnanswered());
+        assertNull(store.find(NUMBER, CONTACT).orElseThrow().lastConnectedCallAt());
+    }
+
 }

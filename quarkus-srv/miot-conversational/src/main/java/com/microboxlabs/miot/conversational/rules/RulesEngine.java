@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.rules;
 
+import com.microboxlabs.miot.conversational.calling.CallPermissionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.conversational.domain.Channel;
@@ -334,7 +335,8 @@ public class RulesEngine {
                     isWhatsApp ? m.template().whatsapp().metaName() : m.template().key(),
                     isWhatsApp ? m.template().whatsapp().language() : null, m.params(), m.subject(), m.text(),
                     run.id(), run.step(), m.html());
-            queueOrSimulate(run, message, isWhatsApp, isWhatsApp && m.template().whatsapp().callPermission(), jobs);
+            queueOrSimulate(run, message, isWhatsApp, isWhatsApp && (CallPermissionService.TEMPLATE_KEY.equals(m.template().key())
+                    || m.template().whatsapp().callPermission()), jobs);
         }
         if (!jobs.isEmpty()) {
             queue.enqueue(run.tenantCode(), jobs);

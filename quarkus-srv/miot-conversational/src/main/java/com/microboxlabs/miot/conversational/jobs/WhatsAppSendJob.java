@@ -71,7 +71,8 @@ public class WhatsAppSendJob implements ModulithJobHandler {
             if (callPermissions == null) return refused(tenantCode, messageId, CallPermissionPolicy.Refusal.CALLING_DISABLED);
             return callPermissions.withAdmission(tenantCode, queued.address(), admission -> {
                 if (!admission.admitted()) return refused(tenantCode, messageId, admission.refusal());
-                Message sent = deliver(tenantCode, messageId, payload);
+                Message sent = whatsapp.deliverQueued(tenantCode, messageId, text(payload, SendJobs.LANGUAGE),
+                        params(payload == null ? null : payload.get(SendJobs.PARAMS)), admission.number());
                 callPermissions.recordSent(tenantCode, sent);
                 return SendOutcome.of(sent);
             });

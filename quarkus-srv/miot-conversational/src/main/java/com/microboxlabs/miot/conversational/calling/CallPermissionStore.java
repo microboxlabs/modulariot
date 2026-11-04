@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.calling;
 
+import java.util.UUID;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +24,14 @@ public interface CallPermissionStore {
 
     /** When each request to the contact from the number was sent, at or after {@code since}, oldest first. */
     List<Instant> requestsSince(String businessPhoneNumberId, String contactE164, Instant since);
+
+    /** A committed manual admission counts against limits even if the external outcome becomes unknown. */
+    void reserveRequest(UUID id, String tenantCode, String number, String contact, String actor, Instant at);
+
+    void completeRequest(UUID id, String wamid, Instant sentAt);
+
+    /** Release only when no send was attempted or Meta definitively rejected it. */
+    void cancelRequest(UUID id);
 
     void recordRequest(String tenantCode, String businessPhoneNumberId, String contactE164, String origin,
             String wamid, String requestedBy, Instant sentAt);

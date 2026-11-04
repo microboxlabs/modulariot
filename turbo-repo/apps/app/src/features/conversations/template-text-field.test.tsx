@@ -65,6 +65,24 @@ describe("TemplateTextField", () => {
     );
   });
 
+  it.each(["PageUp", "PageDown"])(
+    "closes suggestions after %s moves the caret",
+    (key) => {
+      render(<Field onValue={vi.fn()} />);
+      const box = screen.getByLabelText<HTMLTextAreaElement>("Texto");
+      fireEvent.change(box, { target: { value: "Hola {{co" } });
+      box.setSelectionRange(0, 0);
+      fireEvent.keyUp(box, { key });
+      const enter = new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      });
+      fireEvent(box, enter);
+      expect(enter.defaultPrevented).toBe(false);
+    }
+  );
+
   it("does not use a stale opening when the caret has moved", () => {
     const onValue = vi.fn();
     render(<Field onValue={onValue} />);

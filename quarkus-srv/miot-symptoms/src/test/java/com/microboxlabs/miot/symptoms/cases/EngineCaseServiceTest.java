@@ -820,14 +820,14 @@ class EngineCaseServiceTest {
 
     @Test
     void aScriptReadsTheCaseTheVehicleAndTheTripWithoutALiveTrip() {
-        store.add(engineCase(12, "KLHH49", 4, 0));
+        store.add(engineCase(12, "TEST-PLATE", 4, 0));
 
         JsonNode ctx = service.context(TENANT, -12);
 
         assertEquals("Botón de pánico", ctx.path("case").path("symptom").asText());
         assertEquals(4, ctx.path("case").path("level").asInt());
         assertEquals(-12, ctx.path("case").path("id").asLong());
-        assertEquals("KLHH49", ctx.path("vehicle").path("plate").asText());
+        assertEquals("TEST-PLATE", ctx.path("vehicle").path("plate").asText());
         assertEquals("T-1", ctx.path("trip").path("id").asText());
         assertFalse(ctx.path("trip").has("driver"), "no live trip, no driver");
         assertTrue(ctx.path("condition").isObject());
@@ -847,6 +847,30 @@ class EngineCaseServiceTest {
         assertEquals("NEW", samples.get(1).path("context").path("vehicle").path("plate").asText());
         assertEquals(0, service.scriptSamples(TENANT, "Otro síntoma", null).size());
         assertThrows(IllegalArgumentException.class, () -> service.scriptSamples(TENANT, " ", null));
+    }
+
+    @Test
+    void scriptSamplesIncludeHistoryAndHydrateTheListProjection() {
+        InMemoryEngineCases projections = new InMemoryEngineCases() {
+            @Override
+            public List<EngineCase> list(String tenant, EngineCaseStore.CaseFilter filter) {
+                assertFalse(filter.openOnly(), "samples include closed and ignored history");
+                assertEquals(OPENED.plusSeconds(90), filter.to());
+                return super.list(tenant, filter).stream()
+                        .map(c -> c.withLevel(null, null, null, List.of())).toList();
+            }
+        };
+        JsonNode opening = new ObjectMapper().createObjectNode().put("speed", 80);
+        JsonNode reached = new ObjectMapper().createObjectNode().put("speed", 100);
+        projections.add(at(1, "HISTORY", OPENED, OPENED.plusSeconds(30))
+                .withLevel(opening, reached, "speed", List.of()));
+        EngineCaseService samples = new EngineCaseService(projections, (tenant, asset, definition) -> { },
+                t -> null, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode found = samples.scriptSamples(TENANT, "Botón de pánico", null);
+
+        assertEquals(1, found.size());
+        assertEquals(100, found.get(0).path("context").path("condition").path("speed").asInt());
     }
 
     @Test

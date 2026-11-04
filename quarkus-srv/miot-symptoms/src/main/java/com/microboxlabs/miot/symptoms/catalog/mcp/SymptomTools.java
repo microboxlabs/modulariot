@@ -59,7 +59,7 @@ public class SymptomTools {
             + " never reaches that level. when is CEL over measure (the measure's value) and held_s"
             + " (seconds the condition has held), e.g. measure >= 11 && measure < 21; the case gets the highest"
             + " level whose when is true. response: {operator, slaMinutes, steps: [{scope, role, channel,"
-            + " budgetMinutes, script, who}] (who is CEL over contact and event.data; older steps use"
+            + " budgetMinutes, script, goal, replies: [{says, result}], who}] (who is CEL over contact and event.data; older steps use"
             + " scope DRIVER, TRIP_CARRIER or ORG; role is a contact book role,"
             + " blank for DRIVER or for any contact of the trip carrier), notices: [{when, channel, connectionId, templateId, recipient}],"
             + " evidence: [] or one of [\"call_result\"], [\"note\"], [\"photo\"] (what the operator must"

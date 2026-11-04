@@ -296,12 +296,13 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
   },
   {
     // A bearer token tagged with TELNYX_PROVIDER: a Telnyx API key for the
-    // Control Tower's calls; tested through its TELNYX connection.
+    // Control Tower's calls. Tested on GET /v2/balance; the SIP connection is
+    // tested through its TELNYX connection.
     id: "TELNYX",
     nameKey: "types.telnyx.name",
     descriptionKey: "types.telnyx.description",
     available: true,
-    supportsTest: false,
+    supportsTest: true,
     // Telnyx's media-kit mark: black on light backgrounds, Telnyx green on dark.
     logo: {
       light: "/credential-logos/telnyx-light.png",

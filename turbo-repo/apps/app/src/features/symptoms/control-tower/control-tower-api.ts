@@ -241,6 +241,47 @@ export function contactPageKey(
   return `${BASE}/contacts/page?${params}`;
 }
 
+/* ---------- script context ---------- */
+
+/**
+ * What an operator step's script reads for a case: `case`, `condition`,
+ * `trip` and `vehicle`, written in a script as `{{trip.driver.name}}`.
+ */
+export type ScriptContext = Record<string, unknown>;
+
+/** A recent case of a symptom, with the context a script reads. */
+export interface ScriptSample {
+  symptom_id: number;
+  asset_id: string;
+  icu_code: number;
+  opened_at: string;
+  context: ScriptContext;
+}
+
+/** The symptom's newest engine cases, those at `level` first, to write a script with real data. */
+export function useScriptSamples(
+  symptomName: string | null | undefined,
+  level: number | null | undefined
+) {
+  const params = new URLSearchParams();
+  if (symptomName) params.set("symptom", symptomName);
+  if (level != null) params.set("level", String(level));
+  return useSWR<ScriptSample[]>(
+    symptomName ? `${BASE}/map/script-samples?${params}` : null,
+    fetcher
+  );
+}
+
+/** The context a script reads for one engine case (negative id); none for other cases. */
+export function useCaseContext(symptomId: number | null | undefined) {
+  return useSWR<ScriptContext>(
+    symptomId != null && symptomId < 0
+      ? `${BASE}/map/symptoms/${symptomId}/context`
+      : null,
+    fetcher
+  );
+}
+
 /* ---------- treatments ---------- */
 
 export function useSymptomTreatments(

@@ -258,6 +258,36 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     }
 
     @GET
+    @Path("/symptoms/{symptomId}/context")
+    @Operation(operationId = "getMapSymptomContext", summary = "What an operator step's script reads for a case",
+            description = "case, condition, trip and vehicle of an engine case (negative id); a script writes them "
+                    + "as {{trip.driver.name}}. 404 for other cases and for cases not the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomContext(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        String tenant = tenantCode(organizationId);
+        if (!engineCase(symptomId)) {
+            return notFound();
+        }
+        long id = Long.parseLong(symptomId.trim());
+        return answer(() -> blocking(() -> cases.context(tenant, id)));
+    }
+
+    @GET
+    @Path("/script-samples")
+    @Operation(operationId = "getScriptSamples", summary = "Recent cases of a symptom, to write a script with",
+            description = "Up to 10 of the symptom's newest engine cases, those at level first, each with the "
+                    + "context a script reads (see getMapSymptomContext). 400 without symptom.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> scriptSamples(@PathParam("organizationId") String organizationId,
+            @QueryParam("symptom") String symptom, @QueryParam("level") Integer level) {
+        String tenant = tenantCode(organizationId);
+        return answer(() -> blocking(() -> cases.scriptSamples(tenant, symptom, level)));
+    }
+
+    @GET
     @Path("/symptoms/{symptomId}/signals")
     @Operation(operationId = "getMapSymptomSignals", summary = "The signals of one symptom, as a FeatureCollection",
             description = "Geometries are hex EWKB. 404 when the symptom is not one of the organization's.")

@@ -471,6 +471,82 @@ public class EngineCaseService {
                 t.getString("carrier_tax_id"));
     }
 
+    /** The most recent cases {@link #scriptSamples} offers. */
+    static final int MAX_SCRIPT_SAMPLES = 10;
+
+    /**
+     * What an operator step's script reads, by case: {@code case} (the symptom, level and where the vehicle was),
+     * {@code condition} (what the rules read when the case reached its level), {@code trip} (route, load, drivers
+     * and carrier, while the trip is live) and {@code vehicle}. A script writes them as {@code {{trip.driver.name}}}.
+     */
+    public JsonNode context(String tenantCode, long symptomId) {
+        return context(tenantCode, find(tenantCode, symptomId));
+    }
+
+    /**
+     * The newest cases of a symptom, each with its {@link #context}, so a script can be read with real data while
+     * it is written. Cases at {@code level} come first when given.
+     */
+    public JsonNode scriptSamples(String tenantCode, String symptomName, Integer level) {
+        if (symptomName == null || symptomName.isBlank()) {
+            throw new IllegalArgumentException("symptom is required");
+        }
+        EngineCaseStore.CaseFilter filter = filter(Map.of(NAME, symptomName));
+        List<EngineCase> found = new ArrayList<>(store.list(tenantCode, filter));
+        found.sort(java.util.Comparator
+                .comparing((EngineCase c) -> level != null && c.level() == level ? 0 : 1)
+                .thenComparing(EngineCase::openedAt, java.util.Comparator.reverseOrder()));
+        ArrayNode out = JSON.arrayNode();
+        found.stream().limit(MAX_SCRIPT_SAMPLES).forEach(c -> {
+            ObjectNode sample = out.addObject();
+            sample.put("symptom_id", c.symptomId());
+            sample.put("asset_id", c.assetId());
+            sample.put(ICU_CODE, c.level());
+            sample.put("opened_at", c.openedAt().toString());
+            sample.set("context", context(tenantCode, c));
+        });
+        return out;
+    }
+
+    private ObjectNode context(String tenantCode, EngineCase c) {
+        ObjectNode out = JSON.objectNode();
+        ObjectNode kase = out.putObject("case");
+        kase.put("id", c.symptomId());
+        kase.put("symptom", c.name());
+        kase.put("family", c.family());
+        kase.put("level", c.level());
+        kase.put("levelName", condition(c.level()));
+        kase.put("openedAt", c.openedAt().toString());
+        kase.put("slaMinutes", c.slaMinutes());
+        kase.put("latitude", c.latitude());
+        kase.put("longitude", c.longitude());
+        kase.put("speedKmh", c.speedKmh());
+        JsonNode reached = c.levelContext() != null ? c.levelContext() : c.openingContext();
+        out.set("condition", reached == null ? JSON.objectNode() : reached.deepCopy());
+        ObjectNode vehicle = out.putObject("vehicle");
+        vehicle.put("plate", c.assetId());
+        ObjectNode trip = out.putObject("trip");
+        trip.put("id", c.tripId());
+        trip.put("code", c.tripCode());
+        Row t = c.tripId() == null ? null : trip(tenantCode, c);
+        if (t != null) {
+            trip.put("origin", t.getString("origin_geofence_label"));
+            trip.put("destination", t.getString("destination_geofence_label"));
+            trip.put("load", t.getString("type_load"));
+            trip.putObject("driver")
+                    .put("name", t.getString("driver_name"))
+                    .put("rut", t.getString("driver_id"))
+                    .put("phone", t.getString("driver_contact_phone"));
+            trip.putObject("secondDriver")
+                    .put("name", t.getString("second_driver_name"))
+                    .put("rut", t.getString("second_driver_id"));
+            trip.putObject("carrier")
+                    .put("name", t.getString("carrier_name"))
+                    .put("rut", t.getString("carrier_tax_id"));
+        }
+        return out;
+    }
+
     /** The treatment page's header: the case, and its trip when it had one. */
     public JsonNode header(String tenantCode, long symptomId) {
         EngineCase c = find(tenantCode, symptomId);

@@ -18,6 +18,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   useContacts: () => ({ data: [], error: undefined, isLoading: false }),
   useSymptomTreatments: () => ({ data: undefined }),
   useTripContacts: () => ({ data: undefined }),
+  useCaseContext: () => ({ data: undefined }),
 }));
 
 vi.mock("@/features/symptoms/maintainer/maintainer-api", () => ({

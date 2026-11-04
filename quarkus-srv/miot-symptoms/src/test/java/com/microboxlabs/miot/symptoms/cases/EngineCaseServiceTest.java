@@ -819,6 +819,37 @@ class EngineCaseServiceTest {
     }
 
     @Test
+    void aScriptReadsTheCaseTheVehicleAndTheTripWithoutALiveTrip() {
+        store.add(engineCase(12, "KLHH49", 4, 0));
+
+        JsonNode ctx = service.context(TENANT, -12);
+
+        assertEquals("Botón de pánico", ctx.path("case").path("symptom").asText());
+        assertEquals(4, ctx.path("case").path("level").asInt());
+        assertEquals(-12, ctx.path("case").path("id").asLong());
+        assertEquals("KLHH49", ctx.path("vehicle").path("plate").asText());
+        assertEquals("T-1", ctx.path("trip").path("id").asText());
+        assertFalse(ctx.path("trip").has("driver"), "no live trip, no driver");
+        assertTrue(ctx.path("condition").isObject());
+    }
+
+    @Test
+    void scriptSamplesPutTheLevelsCasesFirstThenTheNewest() {
+        store.add(at(1, "OLD", OPENED.minusSeconds(600), null));
+        store.add(at(2, "NEW", OPENED, null));
+        store.add(engineCase(3, "LEVEL2", 2, 0));
+
+        JsonNode samples = service.scriptSamples(TENANT, "Botón de pánico", 2);
+
+        List<String> assets = new ArrayList<>();
+        samples.forEach(s -> assets.add(s.path("asset_id").asText()));
+        assertEquals(List.of("LEVEL2", "NEW", "OLD"), assets);
+        assertEquals("NEW", samples.get(1).path("context").path("vehicle").path("plate").asText());
+        assertEquals(0, service.scriptSamples(TENANT, "Otro síntoma", null).size());
+        assertThrows(IllegalArgumentException.class, () -> service.scriptSamples(TENANT, " ", null));
+    }
+
+    @Test
     void writesAnEwkbPointAsPostgis() {
         assertEquals("0101000020E6100000000000000000F03F0000000000000040", EngineCaseService.ewkbPoint(1, 2));
     }

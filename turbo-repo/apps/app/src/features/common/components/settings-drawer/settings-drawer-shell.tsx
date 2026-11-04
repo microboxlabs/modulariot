@@ -13,6 +13,8 @@ export interface SettingsDrawerShellProps {
   readonly closeLabel: string;
   /** Optional badge to the left of the title (e.g. a section icon). */
   readonly icon?: ReactNode;
+  /** The panel's width; 30rem unless a wide editor needs more. */
+  readonly widthClassName?: string;
   /** Body and footer — the shell owns chrome and motion, nothing else. */
   readonly children: ReactNode;
 }
@@ -34,6 +36,7 @@ export function SettingsDrawerShell({
   subtitle,
   closeLabel,
   icon,
+  widthClassName = "w-[30rem]",
   children,
 }: Readonly<SettingsDrawerShellProps>) {
   // Escape closes, as a modal dialog should; bound only while open so a page
@@ -68,7 +71,7 @@ export function SettingsDrawerShell({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`absolute right-0 top-0 flex h-full w-[30rem] max-w-full flex-col border-l border-gray-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800 ${
+        className={`absolute right-0 top-0 flex h-full ${widthClassName} max-w-full flex-col border-l border-gray-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800 ${
           show ? "translate-x-0" : "translate-x-full"
         }`}
       >

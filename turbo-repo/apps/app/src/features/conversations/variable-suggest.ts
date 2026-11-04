@@ -12,7 +12,7 @@ export interface OpenVariable {
   query: string;
 }
 
-const OPEN = /\{\{\s*(\w*)$/;
+const OPEN = /\{\{\s*([\w.]*)$/;
 
 /** The `{{…` the caret is in, or null when it is not inside one. */
 export function openVariable(text: string, caret: number): OpenVariable | null {
@@ -21,18 +21,28 @@ export function openVariable(text: string, caret: number): OpenVariable | null {
   return { from: caret - m[0].length, query: m[1] ?? "" };
 }
 
-/** Names that start with the query first, then labels that contain it. */
+/**
+ * Names that start with the query first, then names that contain it (so
+ * `driver` finds `trip.driver.name`), then labels that contain it.
+ */
 export function matchingVariables(
   variables: readonly EventField[],
   query: string
 ): EventField[] {
   const q = query.toLowerCase();
   if (!q) return [...variables];
-  const byName = variables.filter((v) => v.name.toLowerCase().startsWith(q));
-  const byLabel = variables.filter(
-    (v) => !byName.includes(v) && v.label.toLowerCase().includes(q)
+  const name = (v: EventField) => v.name.toLowerCase();
+  const byStart = variables.filter((v) => name(v).startsWith(q));
+  const byName = variables.filter(
+    (v) => !byStart.includes(v) && name(v).includes(q)
   );
-  return [...byName, ...byLabel];
+  const byLabel = variables.filter(
+    (v) =>
+      !byStart.includes(v) &&
+      !byName.includes(v) &&
+      v.label.toLowerCase().includes(q)
+  );
+  return [...byStart, ...byName, ...byLabel];
 }
 
 /** The text with `{{name}}` in place of the open `{{…`, and the caret after it; an existing `}}` is reused. */
@@ -43,7 +53,7 @@ export function completeVariable(
   name: string
 ): { value: string; caret: number } {
   let rest = text.slice(caret);
-  const closing = /^\w*\s*\}\}/.exec(rest);
+  const closing = /^[\w.]*\s*\}\}/.exec(rest);
   if (closing) rest = rest.slice(closing[0].length);
   const inserted = `{{${name}}}`;
   return {

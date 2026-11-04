@@ -47,6 +47,17 @@ export interface Step {
   scope?: StepScope | null;
   /** Who to contact: CEL over `contact` and `event`, as a communication rule's book audience. */
   who?: string | null;
+  /** What the call must obtain: the operator's aim, and a voice agent's instruction. */
+  goal?: string | null;
+  /** The answers the step expects, each tied to a call result. */
+  replies?: StepReply[] | null;
+}
+
+/** An answer a step expects: the call result it records and what the person says or does. */
+export interface StepReply {
+  /** An option of the `call_result` selectable. */
+  result: string;
+  says: string;
 }
 
 export interface Notice {

@@ -25,6 +25,7 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
     data.treatmentsId = id;
     return { data: data.treatments };
   },
+  useCaseContext: () => ({ data: undefined }),
   useTripContacts: (_id: unknown, conditions: string[]) => ({
     data: {
       data: data.tripData,

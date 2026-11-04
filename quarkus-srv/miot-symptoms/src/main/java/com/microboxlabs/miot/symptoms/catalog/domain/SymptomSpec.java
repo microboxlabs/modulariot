@@ -173,7 +173,9 @@ public record SymptomSpec(
      *                      "Conductor"; for {@code TRIP_CARRIER}, blank means any contact of the carrier
      * @param channel       call, whatsapp, teams, email
      * @param budgetMinutes time for this step within the SLA
-     * @param script        what to say; may use case fields as {@code {{ }}} variables
+     * @param script        the message: what to say, with the case's {@code {{case.…}}}, {@code {{condition.…}}},
+     *                      {@code {{trip.…}}} and {@code {{vehicle.…}}} fields (older names such as
+     *                      {@code {{patente}}} still fill)
      * @param scope         {@code DRIVER} (the trip's driver), {@code TRIP_CARRIER} (people of the trip's
      *                      carrier) or {@code ORG} (the organization's own people); null in older specs, read from
      *                      the role by {@link #effectiveScope()}
@@ -181,10 +183,27 @@ public record SymptomSpec(
      *                      audience of the communication rules; {@code event.data} has the trip's
      *                      {@code driverRut}, {@code secondDriverRut} and {@code carrierRut}. Null in older specs,
      *                      which use {@code role} and {@code scope}
+     * @param goal          what the call must obtain: the operator's aim, and the instruction a voice agent follows
+     * @param replies       the answers the step expects, each tied to a call result; null in older specs
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Step(String role, String channel, Integer budgetMinutes, String script, String scope,
-            String who) {
+            String who, String goal, List<Reply> replies) {
+
+        /**
+         * An answer the step expects.
+         *
+         * @param result the call result it records (an option of the {@code call_result} selectable)
+         * @param says   what the person says or does, so an operator or a voice agent recognises it
+         */
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public record Reply(String result, String says) {
+        }
+
+        /** A step with its people and no goal or replies. */
+        public Step(String role, String channel, Integer budgetMinutes, String script, String scope, String who) {
+            this(role, channel, budgetMinutes, script, scope, who, null, null);
+        }
 
         public static final String DRIVER = "DRIVER";
         public static final String TRIP_CARRIER = "TRIP_CARRIER";

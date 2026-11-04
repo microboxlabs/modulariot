@@ -7,6 +7,7 @@ import type {
 import type { Step } from "@/features/symptoms/maintainer/maintainer-api";
 import {
   calledInCase,
+  contextOfTreatment,
   callPlan,
   fillScript,
   matchesTarget,
@@ -197,7 +198,7 @@ describe("fillScript", () => {
     expect(
       fillScript(
         "Hola {{conductor}}, camión {{ patente }} en {{ruta}} a {{velocidad}}",
-        treatment
+        contextOfTreatment(treatment)
       )
     ).toBe("Hola Ana Pérez, camión ABCD12 en Planta → Puerto a {{velocidad}}");
   });

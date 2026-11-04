@@ -23,8 +23,10 @@ import {
   type WhoSummary,
 } from "@/features/symptoms/control-tower/step-who";
 import {
+  type ScriptContext,
   type TowerContact,
   type TowerTripContacts,
+  useCaseContext,
   useSymptomTreatments,
   useTripContacts,
 } from "@/features/symptoms/control-tower/control-tower-api";
@@ -41,6 +43,7 @@ import {
   calledInCase,
   type CallGroup,
   callPlan,
+  contextOfTreatment,
   driverIds,
   fillScript,
   matchesTarget,
@@ -210,6 +213,7 @@ function StepGroup({
   loading,
   called,
   treatmentData,
+  scriptContext,
   trip,
   canSkip,
   dict,
@@ -225,6 +229,8 @@ function StepGroup({
   loading: boolean;
   called: ReadonlyMap<string, Date>;
   treatmentData: TreatmentsGeneralResponseItem | null;
+  /** What the step's script reads: the case's context, or its trip info for a legacy case. */
+  scriptContext: ScriptContext;
   /** The server's answer for the steps' conditions, with the trip's RUTs. */
   trip: TowerTripContacts | undefined;
   canSkip: boolean;
@@ -265,7 +271,12 @@ function StepGroup({
           <span className="mb-1 block text-xs text-gray-500">
             {tr("say", d)}
           </span>
-          {fillScript(step.script, treatmentData)}
+          {fillScript(step.script, scriptContext)}
+          {step.goal?.trim() && (
+            <span className="mt-1 block text-xs text-gray-500">
+              {tr("goal", d)}: {fillScript(step.goal, scriptContext)}
+            </span>
+          )}
         </blockquote>
       )}
       {group.targets.map((target) => (
@@ -467,6 +478,11 @@ export default function CallCenterMenu({
   // Only engine cases (negative ids) have Control Tower treatments and a trip the server reads.
   const caseId = symptom?.id != null && symptom.id < 0 ? symptom.id : null;
   const { data: treatments } = useSymptomTreatments(caseId);
+  const { data: caseContext } = useCaseContext(caseId);
+  const scriptContext = useMemo(
+    () => caseContext ?? contextOfTreatment(treatmentData),
+    [caseContext, treatmentData]
+  );
   const elapsed = useElapsed(startedAt);
   const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
 
@@ -577,6 +593,7 @@ export default function CallCenterMenu({
               loading={isLoading}
               called={called}
               treatmentData={treatmentData}
+              scriptContext={scriptContext}
               canSkip={due < steps.length - 1}
               dict={dict}
               d={d}
